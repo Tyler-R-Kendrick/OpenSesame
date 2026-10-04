@@ -91,18 +91,6 @@ export function vaultLabel(project: Pick<PagesProject, "id" | "name">): string {
 }
 
 /**
- * The id a vault's glyph is drawn from (ADR 0164): the tomb id, plus the
- * moment it was sealed once there is a header to say so — so two people's
- * `personal` vaults do not share a face. Both are plaintext, which is the
- * point: the glyph can stand for a vault before unlock without saying what
- * its sealed name is.
- */
-export function vaultGlyphId(id: string): string {
-  const sealed = readTombHeader(id)?.createdAt;
-  return sealed ? `${id}|${sealed}` : id;
-}
-
-/**
  * What the open vault is called — the prompt's name for it, so the list's
  * status line and the prompt never disagree (`guest-2` above, `personal:/`
  * below was one vault under two names).

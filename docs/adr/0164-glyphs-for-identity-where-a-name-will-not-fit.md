@@ -30,10 +30,11 @@ organizations needs a mark they can recognise faster than they can read.
    and on a phone. `packages/app-core/src/lib/glyph.ts` is the one
    implementation; `spec/conformance/glyph-vectors.json` pins its output.
 2. **A glyph is an address, not a secret and not a name.** Its seed is an id
-   the device already shows in the clear — a tomb id (plus the moment the tomb
-   was sealed, so two people's `personal` vaults differ), an Identity principal
-   id, an organization id — domain-separated by kind and versioned
-   (`opensesame:glyph:v1:<kind>:<id>`). A sealed vault name never enters it, so
+   the device already shows in the clear — a tomb id, the federated subject
+   (per-origin and stable) or, for a guest, the Identity principal id, an
+   organization id — domain-separated by kind and versioned
+   (`opensesame:glyph:v1:<kind>:<id>`). Never a name or an address (they
+   change, and a face must stay one thing's), and never a sealed vault name, so
    a glyph may stand for a vault before unlock. It is display only: never a
    check that two things are the same, never an input to authorization.
 3. **The phone's top bar draws the glyph where the desktop prompt draws the
