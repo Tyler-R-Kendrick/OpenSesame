@@ -9,7 +9,6 @@
 import { isString } from "@opensesame/os-domain";
 import { env } from "../host.js";
 import { maybePage } from "../ports.js";
-import { deviceIdentityFetch } from "./device-identity-host.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
 import { loadSettings } from "./settings.js";
 
@@ -80,6 +79,9 @@ export async function identityPlaneRequest(
   init: RequestInit & { timeoutMs?: number } = {},
 ): Promise<Response> {
   if (isDeviceIdentityMode()) {
+    // The host, its sessions and its key code load on the first device
+    // request, never with the entry: a device that never asks pays nothing.
+    const { deviceIdentityFetch } = await import("./device-identity-host.js");
     return deviceIdentityFetch(path, init);
   }
   const { timeoutMs = IDENTITY_FETCH_MS, ...rest } = init;
