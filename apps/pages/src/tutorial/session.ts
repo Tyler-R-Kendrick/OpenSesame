@@ -505,7 +505,7 @@ export function createSupportController(
       }
       // A walkthrough the compiler rejected is reported as a walkthrough that
       // did not run — never as the codes it failed with, and never as the text.
-      if (snapshot.guideError) push("note", GUIDE_REFUSED_TEXT, []);
+      if (snapshot.guideError) notifyFailure(GUIDE_REFUSED_TEXT);
       if (last && last.role === "assistant") {
         noteGrounding(text, snapshot.grounding);
       }

@@ -1,9 +1,11 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { listNotices } from "@opensesame/app-core/lib/notices.js";
 import { totpSeams } from "@opensesame/vault-core";
 import { TotpCode, currentTotp } from "./TotpCode.js";
+import { expectInTray, inTray } from "./tray.test-support.js";
 
 /** RFC 6238 Appendix B seed ("12345678901234567890" in base32). */
 const SEED = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
@@ -48,18 +50,46 @@ describe("TotpCode", () => {
 
   it("surfaces parse errors for unreadable secrets", async () => {
     render(<TotpCode secret="not a secret at all!" />);
-    expect(await screen.findByText(/base32|secret|character/i)).toBeTruthy();
+    await expectInTray(/base32|secret|character/i);
+    expect(
+      screen.getByRole("img", { name: /base32|secret|character/i }),
+    ).toBeTruthy();
     expect(mockedTotpCode).not.toHaveBeenCalled();
   });
 
   it("reports generation failures without crashing", async () => {
     mockedTotpCode.mockRejectedValueOnce(new Error("hmac exploded"));
     render(<TotpCode secret={SEED} />);
+    await expectInTray("This authenticator code could not be generated.");
     expect(
-      await screen.findByText(
-        "This authenticator code could not be generated.",
-      ),
+      screen.getByRole("img", {
+        name: "This authenticator code could not be generated.",
+      }),
     ).toBeTruthy();
+  });
+
+  it("clears its notice when the secret is fixed", async () => {
+    const { rerender } = render(
+      <TotpCode id="item-1" secret="not a secret!" />,
+    );
+    await expectInTray(/base32|secret|character/i);
+    rerender(<TotpCode id="item-1" secret={SEED} />);
+    await screen.findByText(/^\d{3} \d{3}$/);
+    await waitFor(() => expect(inTray(/base32|secret|character/i)).toBe(false));
+    expect(
+      screen.queryByRole("img", { name: /base32|secret|character/i }),
+    ).toBeNull();
+  });
+
+  it("keeps one notice per item across remounts", async () => {
+    const first = render(<TotpCode id="item-2" secret="not a secret!" />);
+    await expectInTray(/base32|secret|character/i);
+    first.unmount();
+    render(<TotpCode id="item-2" secret="not a secret!" />);
+    await expectInTray(/base32|secret|character/i);
+    expect(
+      listNotices().filter((notice) => notice.title === "Authenticator code"),
+    ).toHaveLength(1);
   });
 
   it("uses a generic message when parsing fails unexpectedly", async () => {
@@ -67,9 +97,7 @@ describe("TotpCode", () => {
       throw new TypeError("not a parse error");
     });
     render(<TotpCode secret={SEED} />);
-    expect(
-      await screen.findByText("This authenticator secret could not be read."),
-    ).toBeTruthy();
+    await expectInTray("This authenticator secret could not be read.");
   });
 
   it("marks the code as expiring in the last seconds of the period", async () => {

@@ -1,7 +1,15 @@
 import { executeCommand } from "@opensesame/app-core/lib/command-bar/execute.js";
 import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
 import type { SlashSuggestion } from "@opensesame/app-core/lib/command-bar/slash.js";
-import { type FormEvent, useCallback, useMemo, useRef, useState } from "react";
+import type { CommandVoiceProps } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import {
+  type ComponentType,
+  type FormEvent,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router";
 import { useContributions } from "../bindings/contributions.js";
 import { useFieldSearch } from "../lib/command-bar/use-field-search.js";
@@ -13,10 +21,14 @@ import {
   commandOptionId,
   useCommandSuggestions,
 } from "./CommandSuggestions.js";
+import { FailureNotice } from "./FailureNotice.js";
 import { IconArrowRight } from "./Icons.js";
+import { StatusMark } from "./StatusMark.js";
 import { useSupportRoad } from "./command-bar-support.js";
 import { useCoarsePointer } from "./use-coarse-pointer.js";
 import "./command-bar.css";
+
+type CommandFailure = { message: string; tone: "err" };
 
 function useCommandRunner() {
   const navigate = useNavigate();
@@ -26,7 +38,14 @@ function useCommandRunner() {
   const { items, status: vaultStatus } = useVault();
   const [value, setValue] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
+  const [failure, setFailure] = useState<CommandFailure | null>(null);
   const [busy, setBusy] = useState(false);
+  // Stable: the voice bar keys its push-to-talk on this, and a new identity
+  // each render would cancel a live press on the first interim result.
+  const showNotice = useCallback((text: string | null) => {
+    setFailure(null);
+    setNotice(text);
+  }, []);
   const input = useRef<HTMLInputElement>(null);
   const { canAsk, support } = useSupportRoad(assist != null);
 
@@ -51,6 +70,7 @@ function useCommandRunner() {
       const text = utterance.trim();
       if (text === "" || busy) return;
       setBusy(true);
+      setFailure(null);
       setNotice("Working…");
       try {
         const interpreted = assist
@@ -68,8 +88,13 @@ function useCommandRunner() {
           return;
         }
         const outcome = await executeCommand(interpreted.command, ports);
-        setNotice(outcome.message);
-        if (outcome.ok) setValue("");
+        if (outcome.ok) {
+          setNotice(outcome.message);
+          setValue("");
+        } else {
+          setNotice(null);
+          setFailure({ message: outcome.message, tone: "err" });
+        }
       } finally {
         setBusy(false);
       }
@@ -81,7 +106,8 @@ function useCommandRunner() {
     value,
     setValue,
     notice,
-    setNotice,
+    failure,
+    setNotice: showNotice,
     busy,
     run,
     names,
@@ -101,6 +127,48 @@ export function commandPlaceholder(asks: boolean, touch: boolean): string {
   return asks
     ? "Command or ask… copy password for github"
     : "go to vault · search · copy password for …";
+}
+
+/** The failed command's mark, and the voice road when a model offers one. */
+function CommandVoice({
+  Voice,
+  failure,
+  ...props
+}: CommandVoiceProps & {
+  Voice: ComponentType<CommandVoiceProps> | undefined;
+  failure: CommandFailure | null;
+}) {
+  return (
+    <>
+      {failure ? (
+        <StatusMark tone={failure.tone} label={failure.message} />
+      ) : null}
+      {Voice ? <Voice {...props} /> : null}
+    </>
+  );
+}
+
+/** The quiet line under the field, and the tray's notice of a refusal. */
+function CommandStatus({
+  notice,
+  failure,
+}: {
+  notice: string | null;
+  failure: CommandFailure | null;
+}) {
+  return (
+    <>
+      {notice !== null ? (
+        <output className="command-bar__status">{notice}</output>
+      ) : null}
+      <FailureNotice
+        id="command-bar:error"
+        title="Command"
+        message={failure?.message ?? null}
+        tone={failure?.tone}
+      />
+    </>
+  );
 }
 
 /** The submit key; a search with no words yet has nothing to run. */
@@ -124,7 +192,8 @@ function RunKey({ off }: { off: boolean }) {
  */
 export function CommandBar() {
   const runner = useCommandRunner();
-  const { value, setValue, notice, setNotice, busy, run, names } = runner;
+  const { value, setValue, notice, failure, setNotice, busy, run, names } =
+    runner;
   const touch = useCoarsePointer();
   const barRef = useGuideTarget<HTMLElement>("shell.command-bar");
   const suggestions = useCommandSuggestions(value, names);
@@ -179,6 +248,7 @@ export function CommandBar() {
           aria-activedescendant={
             suggestions.open ? commandOptionId(suggestions.active) : undefined
           }
+          aria-invalid={failure !== null ? true : undefined}
           placeholder={commandPlaceholder(runner.asks, touch)}
           value={value}
           disabled={busy}
@@ -194,14 +264,14 @@ export function CommandBar() {
             setValue(event.target.value);
           }}
         />
-        {runner.Voice ? (
-          <runner.Voice
-            setValue={setValue}
-            setNotice={setNotice}
-            run={run}
-            busy={busy}
-          />
-        ) : null}
+        <CommandVoice
+          Voice={runner.Voice}
+          failure={failure}
+          setValue={setValue}
+          setNotice={setNotice}
+          run={run}
+          busy={busy}
+        />
         <RunKey off={busy || value.trim() === "" || search.empty} />
       </form>
       {suggestions.open ? (
@@ -212,9 +282,10 @@ export function CommandBar() {
           onChoose={choose}
         />
       ) : null}
-      {notice !== null && !suggestions.open ? (
-        <output className="command-bar__status">{notice}</output>
-      ) : null}
+      <CommandStatus
+        notice={suggestions.open ? null : notice}
+        failure={failure}
+      />
     </search>
   );
 }

@@ -14,6 +14,7 @@
 import { SUPPORT_LIMITS, fakeAgentAnswering } from "@opensesame/support-agent";
 import { screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { expectInTray } from "../../../components/tray.test-support.js";
 import { GUIDE_REFUSED_TEXT } from "../../ui/messages.js";
 import {
   askSupport,
@@ -46,16 +47,16 @@ describe("a walkthrough the compiler refuses", { timeout: 20_000 }, () => {
     await askSupport(user, "How do I see a password?");
 
     expect(await within(panel).findByText(ANSWER)).toBeTruthy();
-    expect(await within(panel).findByText(GUIDE_REFUSED_TEXT)).toBeTruthy();
+    await expectInTray(GUIDE_REFUSED_TEXT);
 
     const thread = within(panel).getByRole("region", { name: "Conversation" });
     const lines = within(thread).getAllByRole("article");
-    // Question, answer, the refusal, and the grounding note every model
-    // answer now carries — this one cited nothing, so it is labelled.
-    expect(lines).toHaveLength(4);
+    // Question, answer, and the grounding note every model answer now
+    // carries — this one cited nothing, so it is labelled. The refusal is in
+    // the tray, not the thread.
+    expect(lines).toHaveLength(3);
     expect(lines[1]?.textContent).toContain(ANSWER);
-    expect(lines[2]?.textContent).toContain(GUIDE_REFUSED_TEXT);
-    expect(lines[3]?.textContent).toContain("written help");
+    expect(lines[2]?.textContent).toContain("written help");
 
     // Nothing ran: not the `click`, and not the `say` and `focus` above it.
     expect(journey.drawn()).toEqual([]);
