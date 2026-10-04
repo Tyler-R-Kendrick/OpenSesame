@@ -107,6 +107,10 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
   "auth.js": "identity.site-broker",
   "auth.js.sha384": "identity.site-broker",
   "static-auth/**": "identity.site-broker",
+  // The SIOP-shaped metadata relying parties read (ADR 0161): generated into
+  // `dist/` at the base path, never copied from `public/`. It names no
+  // `.well-known` path: a project page cannot serve one.
+  "siop-metadata.json": "identity.siop",
   // Written into `dist/` by the Vercel build only (ADR 0140 D11): the
   // authenticator app associations for `/invoke/<kind>`.
   ".well-known/**": "identity.ceremonies",
@@ -114,13 +118,18 @@ export const PUBLIC_FILE_OWNERSHIP: Readonly<
 
 /**
  * Entries of `PUBLIC_FILE_OWNERSHIP` a deployment's build writes into
- * `dist/` after Vite rather than copying from `public/`, and the script that
- * writes each. A GitHub Pages build writes none of them: under a path it
- * cannot serve host-root files (ADR 0140 D11).
+ * `dist/` rather than copying from `public/`, and the script that writes
+ * each. The `.well-known` entry is the Vercel build's alone: a GitHub Pages
+ * build under a path cannot serve host-root files (ADR 0140 D11).
+ * `siop-metadata.json` is emitted by every build that can name its origin
+ * (ADR 0161).
  */
 export const GENERATED_PUBLIC_FILES: Readonly<Record<string, string>> =
   Object.freeze({
     ".well-known/**": "scripts/write-authenticator-associations.mjs",
+    // Emitted during the Vite build, for every deployment that can say which
+    // origin it is (ADR 0161 §5).
+    "siop-metadata.json": "scripts/siop-metadata-plugin.mjs",
   });
 
 export const WORKER_VARIANTS: readonly WorkerVariant[] = [

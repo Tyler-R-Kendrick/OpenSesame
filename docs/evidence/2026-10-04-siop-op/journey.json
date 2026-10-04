@@ -1,0 +1,84 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "press": "Set up your own"
+        },
+        {
+          "press": "Custom"
+        },
+        {
+          "press": "Customize this installation"
+        },
+        {
+          "press": "Custom"
+        },
+        {
+          "centreOn": "[data-testid='capability-card-identity.siop']"
+        },
+        {
+          "measure": "[data-testid='capability-card-identity.siop']"
+        },
+        {
+          "report": "[data-testid='capability-card-identity.siop'] .capcard__summary"
+        },
+        {
+          "shot": "1280-siop-card"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "press": "Set up your own"
+        },
+        {
+          "press": "Custom"
+        },
+        {
+          "press": "Customize this installation"
+        },
+        {
+          "press": "Custom"
+        },
+        {
+          "centreOn": "[data-testid='capability-card-identity.siop']"
+        },
+        {
+          "measure": "[data-testid='capability-card-identity.siop']"
+        },
+        {
+          "report": "[data-testid='capability-card-identity.siop'] .capcard__summary"
+        },
+        {
+          "shot": "390-siop-card"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-siop-card",
+      "width": 1280,
+      "title": "Setup \u203a Capabilities: the Self-issued OpenID card, unchanged \u2014 1280 \u00d7 800",
+      "caption": "The card is the same on both builds: the same summary, the same size. This branch does not change the screen; the statement of what Pages is not lives in the ADR, the guide and the support panel.",
+      "before": "card 544x102: 'Answer SIOPv2 requests from a registered local application with a self-issued token, gated on a passkey identity.'",
+      "after": "card 544x102: 'Answer SIOPv2 requests from a registered local application with a self-issued token, gated on a passkey identity.' (identical to the base build)"
+    },
+    {
+      "shot": "390-siop-card",
+      "width": 390,
+      "title": "Setup \u203a Capabilities: the Self-issued OpenID card, unchanged \u2014 390 \u00d7 844",
+      "caption": "The same card on a phone, the same on both builds: same summary, same size, nothing wrapped differently.",
+      "before": "card 353x180: 'Answer SIOPv2 requests from a registered local application with a self-issued token, gated on a passkey identity.'",
+      "after": "card 353x180: 'Answer SIOPv2 requests from a registered local application with a self-issued token, gated on a passkey identity.' (identical to the base build)"
+    }
+  ]
+}
