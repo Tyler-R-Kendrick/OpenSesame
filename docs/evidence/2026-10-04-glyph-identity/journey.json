@@ -1,0 +1,129 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "count": [".topbar .prompt__seg", ".topbar .prompt__glyph"]
+        },
+        {
+          "measure": ".topbar .rail__prompt"
+        },
+        {
+          "measure": ".topbar .prompt__seg"
+        },
+        {
+          "report": ".topbar .rail__prompt"
+        },
+        {
+          "shot": "390-prompt"
+        },
+        {
+          "tap": ".topbar .project-switcher .prompt__seg"
+        },
+        {
+          "measure": ".project-switcher__menu"
+        },
+        {
+          "shot": "390-vault-menu"
+        },
+        {
+          "tap": [".project-switcher__backdrop", 5, 700]
+        },
+        {
+          "tap": ".topbar .account-switcher .prompt__seg"
+        },
+        {
+          "measure": ".account-switcher__menu"
+        },
+        {
+          "shot": "390-account-menu"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "height": 640,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "measure": ".topbar .rail__prompt"
+        },
+        {
+          "measure": ".topbar > *"
+        },
+        {
+          "shot": "320-prompt"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "measure": ".rail .rail__prompt"
+        },
+        {
+          "report": ".rail .rail__prompt"
+        },
+        {
+          "shot": "1280-prompt"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-prompt",
+      "width": 390,
+      "title": "The phone's top bar \u2014 390 \u00d7 844",
+      "caption": "A guest in the vault. Each prompt segment is its own dotted glyph where it was a name; the name is the control's accessible name, and the menu below still names every vault.",
+      "before": "prompt text `guest-1 @ guest-1 :/`; two segments 55\u00d744",
+      "after": "two 44\u00d744 glyph segments; text is `@` only (2 glyphs drawn, names kept as aria-label)"
+    },
+    {
+      "shot": "390-vault-menu",
+      "width": 390,
+      "title": "Pressing the vault glyph \u2014 390 \u00d7 844",
+      "caption": "Pressing the vault glyph. The same switcher opens, each vault named beside its own glyph, the open one marked. On the base build this menu could not be seen on a phone at all.",
+      "before": "menu 324\u00d7251 at x=140: wider than the 390px screen and entirely under the prompt's `overflow:hidden`, so nothing is drawn",
+      "after": "menu 374\u00d7269 at x=8: inside the screen, every vault named beside its own glyph"
+    },
+    {
+      "shot": "390-account-menu",
+      "width": 390,
+      "title": "Pressing the account glyph \u2014 390 \u00d7 844",
+      "caption": "Pressing the account glyph. The same menu opens; the profile is named beside its glyph.",
+      "before": "menu 256\u00d7154 at x=78: entirely clipped, nothing is drawn",
+      "after": "menu 374\u00d7154 at x=8: the profile named beside its glyph"
+    },
+    {
+      "shot": "320-prompt",
+      "width": 320,
+      "title": "The narrowest phone \u2014 320 \u00d7 640",
+      "caption": "The top bar at 320: the glyphs leave room for every key beside them.",
+      "before": "prompt 143\u00d754",
+      "after": "prompt 143\u00d754, no text to ellipsise; the keys beside it are unchanged (44\u00d744 at 8, 214, 268)"
+    },
+    {
+      "shot": "1280-prompt",
+      "width": 1280,
+      "title": "Desktop rail \u2014 1280 \u00d7 900",
+      "caption": "The rail still says who@vault:/ in words: nothing changes where there is room.",
+      "before": "rail prompt 247\u00d742, text `guest-1 @ guest-1 :/`",
+      "after": "identical: rail prompt 247\u00d742, same text"
+    }
+  ]
+}
