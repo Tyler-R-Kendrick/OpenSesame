@@ -177,8 +177,13 @@ describe("SB-069 a vault import lands whole or not at all", () => {
 
   it("a failed write restores the previous body rather than leaving memory ahead", () => {
     const store = readFileSync(join(coreSrc, "lib/vault/store.ts"), "utf8");
-    const mutate = store.slice(store.indexOf("async #mutate("));
-    expect(mutate.slice(0, 1600)).toMatch(/previous/u);
-    expect(mutate.slice(0, 1600)).toMatch(/#writeChain/u);
+    // Every write is queued (`#mutate` goes through `#exclusive`, on the write
+    // chain), and the write itself (`#apply`) keeps the body it will put back.
+    const mutate = store.slice(store.indexOf("#mutate(change"));
+    expect(mutate.slice(0, 400)).toMatch(/#exclusive/u);
+    const exclusive = store.slice(store.indexOf("#exclusive<T>("));
+    expect(exclusive.slice(0, 1600)).toMatch(/#writeChain/u);
+    const apply = store.slice(store.indexOf("async #apply("));
+    expect(apply.slice(0, 1600)).toMatch(/previous/u);
   });
 });
