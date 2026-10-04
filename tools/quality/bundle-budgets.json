@@ -190,12 +190,13 @@
         "2026-10-01: javascriptGzip 1650->1654 because a saved capability connector parses its device record and the owning feature sends those fields. CI on 49ca647f measured 1651 KiB. The ceiling keeps 3 KiB of headroom.",
         "2026-10-02: javascriptGzip 1654->1660 because the deepsec fixes (peer DNS policy, sealed-file refusal, history durability, drop caps, recovery grants) land in the Pages graph. CI on 65aa360 measured 1657 KiB. The ceiling keeps 3 KiB of headroom.",
         "2026-10-04: javascript 5460->5482 and javascriptGzip 1660->1684 because the SOPS document sheet is reachable again (#618 removed the only key that opened it): the sheet, its view and hook, and the SopsDocumentPanel contributed by backup.cloud-secrets return to the Pages graph. CI on f7c7a94e measured 5478 KiB javascript and 1681 KiB gzip against 5460/1660 on main. The ceilings keep 3-4 KiB of headroom.",
-        "2026-10-04: javascript 5482->5488 and javascriptGzip 1684->1688 because the phone's prompt draws a dotted glyph in place of a vault or account name (ADR 0164): the glyph generator, GlyphMark, the hold hook and AddOrganization (split out of AccountSwitcher to keep it under the module cap) join the Pages graph as core, not an optional capability. CI on a1d8a096 measured 5483 KiB javascript and 1684 KiB gzip against 5482/1684 on main. The ceilings keep 4-5 KiB of headroom."
+        "2026-10-04: javascript 5482->5488 and javascriptGzip 1684->1688 because the phone's prompt draws a dotted glyph in place of a vault or account name (ADR 0164): the glyph generator, GlyphMark, the hold hook and AddOrganization (split out of AccountSwitcher to keep it under the module cap) join the Pages graph as core, not an optional capability. CI on a1d8a096 measured 5483 KiB javascript and 1684 KiB gzip against 5482/1684 on main. The ceilings keep 4-5 KiB of headroom.",
+        "2026-10-04: javascript 5488->5506 and javascriptGzip 1688->1694 because ADR 0165 gives the keymap a gesture loadout: the pure recognizer and shake detector, the touch runtime, the motion-permission seam, the gesture catalogue and its bindings and file keys, and the lazy Gestures panel (glyphs, rows, motion switch) join the Pages graph as core, not an optional capability. CI on b3ac106f measured 5501 KiB javascript and 1690 KiB gzip against 5488/1688 on main. The ceilings keep 4-5 KiB of headroom."
       ],
       "budgets": {
         "total": 17900,
-        "javascript": 5488,
-        "javascriptGzip": 1688,
+        "javascript": 5506,
+        "javascriptGzip": 1694,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",
           "tab and the Settings panel a person chooses capabilities in add",
