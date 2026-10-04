@@ -117,8 +117,13 @@ are refused, `SUPPORT_MATRIX`). Consequences, stated plainly:
   login (`startLogin({ clientId })`), and binds the audience to the id *that
   login sent*, not to a global.
 - A first-contact registration prompt (an unknown `client_id` and exact
-  `redirect_uri` shown to the person to accept) would lift this. It reaches into
-  ADR 0106's admission rules and is **not decided here**.
+  `redirect_uri` shown to the person to accept) is **rejected**. It would let
+  any site that can open a window put a consent card in front of a person for an
+  application they never created, which is the phishing surface ADR 0106's
+  human-only admission exists to close. The person registers the application
+  inside their own vault, and a relying party for several people is handed each
+  person's application id. A stranger-facing "Sign in with OpenSesame" belongs
+  to the hosted bridge (ADR 0117) or the native host (ADR 0138 §3), not here.
 
 ### 2. The relying-party kit
 
