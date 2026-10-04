@@ -80,13 +80,6 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "model_plane.choose",
   },
   {
-    id: "settings.age-keys",
-    description: "Age recipients and identities for this vault.",
-    role: "action",
-    routes: ["/settings"],
-    capabilityId: null,
-  },
-  {
     id: "settings.vault-key-protection",
     description:
       "Vault key protection under Security: the keys enrolled on this vault. Add opens one sheet for a recovery key, a passkey, an age recipient, an AWS KMS key or a Google Cloud KMS key; each row can be tested, and most removed. Rotate changes the root key.",
