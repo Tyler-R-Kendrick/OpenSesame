@@ -91,7 +91,9 @@ phone at lunch.
    so the list does not also scroll) only once it is sure — travelled past a
    12px slop, both fingers the same way, the gap between them held — **and**
    only when that gesture is bound, so an unbound or struck two-finger drag still
-   scrolls. A third finger, a pinch, a second finger that landed late (over
+   scrolls. The claim is held for the swipe's own 900 ms and no longer: a slower
+   two-finger drag is a scroll, not a flick, and is let go to the browser rather
+   than stranded between a gesture it will never be and a scroll it was denied. A third finger, a pinch, a second finger that landed late (over
    180 ms), a drag over 900 ms, or a tap that wandered over 16px is not a
    gesture. The numbers live in one place (`RECOGNIZER`,
    `lib/keymap/gesture-recognizer.ts`), which is pure: a shell feeds it points

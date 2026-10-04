@@ -1,0 +1,89 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "settings/keybindings" },
+        { "address": null },
+        { "report": ".set__nav a[aria-current]" },
+        { "report": "[role=tab]" },
+        { "measure": "[role=tab]" },
+        { "measure": ".kb-target" },
+        { "shot": "390-gestures-tab" },
+        { "pressOptional": "Keyboard" },
+        { "report": "[role=tab][aria-selected=true]" },
+        { "shot": "390-keyboard-tab" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "press": "More" },
+        { "press": "Gestures" },
+        { "report": ".keymap__table tr" },
+        { "shot": "390-gesture-sheet" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "visit": "settings/keybindings" },
+        { "report": "[role=tab]" },
+        { "shot": "1280-keyboard-tab" },
+        { "pressOptional": "Gestures" },
+        { "report": "[data-gesture] select" },
+        { "shot": "1280-gestures-tab" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-gestures-tab",
+      "width": 390,
+      "title": "Opening Settings › Keybindings on a phone — 390 × 844",
+      "caption": "A phone has no key to bind, so its keymap is the Gestures loadout.",
+      "before": "the address lands on /settings: General, no key editor, no Keybindings tab",
+      "after": "/settings/keybindings opens on the Gestures tab: six rows, each a 44px choice"
+    },
+    {
+      "shot": "390-keyboard-tab",
+      "width": 390,
+      "title": "The Keyboard tab, one tap away — 390 × 844",
+      "caption": "A phone with a keyboard attached keeps the keymap it had.",
+      "before": "no Keyboard tab: the phone never drew the key editor",
+      "after": "Keyboard is selected and draws the Keymap panel at phone width"
+    },
+    {
+      "shot": "390-gesture-sheet",
+      "width": 390,
+      "title": "The sheet a finger reads — 390 × 844",
+      "caption": "Help is the gestures in force, each with what it runs now.",
+      "before": "six fixed rows: tap, hold, swipe a row left, swipe right, the + key, the search key",
+      "after": "the same six, then one row per bound gesture: two-finger swipes, two-finger tap, shake"
+    },
+    {
+      "shot": "1280-keyboard-tab",
+      "width": 1280,
+      "title": "Settings › Keybindings with a mouse — 1280 × 800",
+      "caption": "A mouse lands on the Keyboard loadout; the Gestures tab sits beside it.",
+      "before": "the Keymap panel, no tabs",
+      "after": "tabs Keyboard and Gestures, Keyboard selected, the same Keymap panel"
+    },
+    {
+      "shot": "1280-gestures-tab",
+      "width": 1280,
+      "title": "The Gestures tab on a desktop — 1280 × 800",
+      "caption": "A touch laptop can set its gestures too.",
+      "before": "no such tab",
+      "after": "the Gestures panel: a row per gesture, the motion switch where the browser has a sensor"
+    }
+  ]
+}
