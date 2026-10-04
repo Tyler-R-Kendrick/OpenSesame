@@ -215,7 +215,7 @@ and `browser.grant.renew` is registered beside the other pairing
 capabilities (`lib/browser-pairing.ts:renewBrowserGrant`). The first two
 are mapped to the support goals `identity.claim.accept` and
 `feature.sharing` respectively (the join screen has no Support sheet; ADR
-0161 §4).
+0163 §4).
 
 ## Consequences
 

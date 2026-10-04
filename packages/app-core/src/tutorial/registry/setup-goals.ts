@@ -3,7 +3,7 @@ import type { GuideGoalDescriptor, HelpTopic } from "./goals.js";
 /**
  * Goals for the account menu and the sign-in rows it leads to. The gates
  * themselves have none: the Support sheet is never mounted there (ADR 0090,
- * ADR 0161 §4), so a walkthrough written for one could not be started.
+ * ADR 0163 §4), so a walkthrough written for one could not be started.
  */
 export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
   // Core: the account's rows are always-on `identity.federation` (ADR 0140 D10).
@@ -75,7 +75,7 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
     id: "vault.second-step.code",
     title: "Add a fallback second step by email or text",
     routes: [],
-    requires: ["signin-service.configured"],
+    requires: ["signin-service.configured", "vault.key-enrolled"],
     guide: [
       "guide/1",
       'goal "vault.second-step.code"',

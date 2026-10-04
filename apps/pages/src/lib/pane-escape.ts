@@ -70,6 +70,11 @@ export function handlePaneEscape(event: KeyboardEvent): boolean {
     return true;
   }
   if (target !== pane) return false;
+  return closePane(event, pane);
+}
+
+/** Escape on the pane itself: close it, or leave Escape to a live tour. */
+function closePane(event: KeyboardEvent, pane: HTMLElement): boolean {
   // Modal/menu owners retain their existing close, nesting and focus-return rules.
   if (pane.matches(DELEGATED)) return true;
   // A pane with nothing to close has nothing to take Escape for: while a
