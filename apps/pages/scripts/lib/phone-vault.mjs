@@ -62,6 +62,18 @@ export async function treeActions(page, stop, { harness, audit }) {
   const pane = () => page.locator(".vault").first().getAttribute("data-pane");
   if ((await pane()) !== "tree") return;
   const label = stop("tree-actions");
+  const view = await page.evaluate(() => ({
+    w: window.innerWidth,
+    h: window.innerHeight,
+  }));
+  await treeReach(page, { label, view, harness });
+  await audit(page, label);
+  await addSheet(page, { label, view, stop, harness, audit });
+  await searchField(page, { label, pane, harness });
+}
+
+/** The search field and the Add key: their size, where they rest, what clears. */
+async function treeReach(page, { label, view, harness }) {
   const box = (selector) =>
     page
       .locator(selector)
@@ -77,10 +89,6 @@ export async function treeActions(page, stop, { harness, audit }) {
           bottom: r.bottom,
         };
       });
-  const view = await page.evaluate(() => ({
-    w: window.innerWidth,
-    h: window.innerHeight,
-  }));
   const find = await box(".vault__tree .vadd__find");
   harness.check(
     find.h >= 52 && find.w >= view.w - 2,
@@ -114,8 +122,10 @@ export async function treeActions(page, stop, { harness, audit }) {
     stray === 0,
     `${label}: no desktop key is drawn beside the Add key`,
   );
-  await audit(page, label);
+}
 
+/** The sheet the Add key opens: its rows, Escape, and New item. */
+async function addSheet(page, { label, view, stop, harness, audit }) {
   await page.locator(".vault__tree .vadd__key").tap();
   const menu = page.getByRole("menu", { name: "Add to the vault" });
   await menu
@@ -153,7 +163,10 @@ export async function treeActions(page, stop, { harness, audit }) {
   );
   await page.goBack();
   await page.waitForTimeout(500);
+}
 
+/** The search field lands on the list with its prompt focused. */
+async function searchField(page, { label, pane, harness }) {
   await page.locator(".vault__tree .vadd__find").tap();
   await page.waitForTimeout(600);
   harness.check((await pane()) === "list", `${label}: search opens the list`);
