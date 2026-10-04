@@ -193,6 +193,65 @@ describe("share ceremony on an item", () => {
     expect(JSON.stringify(manifest)).not.toContain("s3cr3t-value");
   });
 
+  it("names the key once: the group head is decoration beside it", () => {
+    render(
+      <MemoryRouter>
+        <ShareSecretDrop item={makeSecret()} />
+      </MemoryRouter>,
+    );
+    expect(screen.getAllByText("Share once")).toHaveLength(1);
+    expect(screen.queryByRole("heading", { name: "Share once" })).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Share once" })).toHaveLength(
+      1,
+    );
+  });
+
+  it("moves focus into the ceremony on open and back to the key on Cancel", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <ShareSecretDrop item={makeSecret()} />
+      </MemoryRouter>,
+    );
+    await user.click(screen.getByRole("button", { name: "Share once" }));
+    expect(document.activeElement).toBe(screen.getByLabelText("Opens for"));
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Share once" }),
+    );
+  });
+
+  it("opens by keyboard with focus on the first control, and Cancel by keyboard returns it", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <ShareSecretDrop item={makeSecret()} />
+      </MemoryRouter>,
+    );
+    screen.getByRole("button", { name: "Share once" }).focus();
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).toBe(screen.getByLabelText("Opens for"));
+    await user.tab();
+    await user.tab();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Cancel" }),
+    );
+    await user.keyboard("{Enter}");
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Share once" }),
+    );
+  });
+
+  it("does not take focus when it mounts already open", () => {
+    render(
+      <MemoryRouter>
+        <ShareSecretDrop item={makeSecret()} initialOpen />
+      </MemoryRouter>,
+    );
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it("seals a login password the same way", async () => {
     const user = userEvent.setup();
     render(
