@@ -95,9 +95,9 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "vault.protectors.manage",
   },
   {
-    id: "settings.formats-interoperability",
+    id: "settings.sops-document",
     description:
-      "Formats under Security: native, age, SOPS, and GPG with separate read, write, and runtime indicators.",
+      "SOPS under Security: the SOPS document key opens a sheet to choose a SOPS YAML or JSON file, unlock it with an age identity, edit it and save ciphertext. It all runs in this browser.",
     role: "action",
     routes: ["/settings"],
     capabilityId: null,
