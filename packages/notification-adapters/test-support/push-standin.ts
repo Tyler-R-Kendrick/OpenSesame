@@ -182,83 +182,106 @@ function verifyVapid(
   return { claims: { aud: claims.aud, exp, sub: subject } };
 }
 
+interface StandInState {
+  vapidPublicKey: string;
+  publicOrigin: string;
+  checkContract: boolean;
+  subscriptions: Map<string, MintedPushSubscription>;
+  forced: Map<string, number>;
+  received: ReceivedPush[];
+}
+
+interface Outcome {
+  status: number;
+  push: ReceivedPush;
+  location?: string;
+}
+
+function handlePush(
+  state: StandInState,
+  req: http.IncomingMessage,
+  body: Buffer,
+): Outcome {
+  const refuse = (status: number, reason: string, id?: string) => ({
+    status,
+    push: { ok: false as const, status, reason, subscriptionId: id },
+  });
+  const id = PUSH_PATH.exec(req.url ?? "")?.[1];
+  if (req.method !== "POST" || !id) return refuse(404, "no_route");
+  const forcedStatus = state.forced.get(id);
+  if (forcedStatus !== undefined) {
+    return refuse(forcedStatus, `forced_${forcedStatus}`, id);
+  }
+  const subscription = state.subscriptions.get(id);
+  if (!subscription) return refuse(404, "unknown_subscription", id);
+
+  const vapid = verifyVapid(
+    req.headers.authorization ?? "",
+    state.vapidPublicKey,
+    state.publicOrigin,
+  );
+  if ("status" in vapid) return refuse(vapid.status, vapid.reason, id);
+  if (req.headers["content-encoding"] !== "aes128gcm") {
+    return refuse(400, "content_encoding", id);
+  }
+  let plaintext: Buffer;
+  try {
+    plaintext = ece.decrypt(body, {
+      version: "aes128gcm",
+      privateKey: subscription.ecdh,
+      authSecret: subscription.authSecret.toString("base64url"),
+    });
+  } catch (error) {
+    const why = error instanceof Error ? error.message : "unknown";
+    return refuse(400, `decrypt_failed:${why}`, id);
+  }
+  const payload = plaintext.toString("utf8");
+  let json: unknown;
+  try {
+    json = JSON.parse(payload);
+  } catch {
+    return refuse(400, "payload_not_json", id);
+  }
+  const violation = state.checkContract
+    ? wakePayloadViolation(json)
+    : undefined;
+  if (violation) return refuse(400, `contract_violation:${violation}`, id);
+  const push: AcceptedPush = {
+    ok: true,
+    subscriptionId: id,
+    vapid: { publicKey: state.vapidPublicKey, claims: vapid.claims },
+    ttl: req.headers.ttl as string | undefined,
+    urgency: req.headers.urgency as string | undefined,
+    payload,
+    json,
+  };
+  return {
+    status: 201,
+    push,
+    location: `${state.publicOrigin}/message/${id}-${state.received.length}`,
+  };
+}
+
 export async function startPushStandIn(
   options: PushStandInOptions,
 ): Promise<PushStandIn> {
   const publicOrigin = options.publicOrigin ?? STAND_IN_PUSH_ORIGIN;
-  const checkContract = options.contract ?? true;
-  const subscriptions = new Map<string, MintedPushSubscription>();
-  const forced = new Map<string, number>();
-  const received: ReceivedPush[] = [];
-  const waiters: Array<(push: AcceptedPush) => void> = [];
-
-  const handle = (
-    req: http.IncomingMessage,
-    body: Buffer,
-  ): { status: number; push: ReceivedPush; location?: string } => {
-    const refuse = (status: number, reason: string, id?: string) => ({
-      status,
-      push: { ok: false as const, status, reason, subscriptionId: id },
-    });
-    const id = PUSH_PATH.exec(req.url ?? "")?.[1];
-    if (req.method !== "POST" || !id) return refuse(404, "no_route");
-    const forcedStatus = forced.get(id);
-    if (forcedStatus !== undefined) {
-      return refuse(forcedStatus, `forced_${forcedStatus}`, id);
-    }
-    const subscription = subscriptions.get(id);
-    if (!subscription) return refuse(404, "unknown_subscription", id);
-
-    const vapid = verifyVapid(
-      req.headers.authorization ?? "",
-      options.vapidPublicKey,
-      publicOrigin,
-    );
-    if ("status" in vapid) return refuse(vapid.status, vapid.reason, id);
-    if (req.headers["content-encoding"] !== "aes128gcm") {
-      return refuse(400, "content_encoding", id);
-    }
-    let plaintext: Buffer;
-    try {
-      plaintext = ece.decrypt(body, {
-        version: "aes128gcm",
-        privateKey: subscription.ecdh,
-        authSecret: subscription.authSecret.toString("base64url"),
-      });
-    } catch (error) {
-      const why = error instanceof Error ? error.message : "unknown";
-      return refuse(400, `decrypt_failed:${why}`, id);
-    }
-    const payload = plaintext.toString("utf8");
-    let json: unknown;
-    try {
-      json = JSON.parse(payload);
-    } catch {
-      return refuse(400, "payload_not_json", id);
-    }
-    const violation = checkContract ? wakePayloadViolation(json) : undefined;
-    if (violation) return refuse(400, `contract_violation:${violation}`, id);
-    const push: AcceptedPush = {
-      ok: true,
-      subscriptionId: id,
-      vapid: { publicKey: options.vapidPublicKey, claims: vapid.claims },
-      ttl: req.headers.ttl as string | undefined,
-      urgency: req.headers.urgency as string | undefined,
-      payload,
-      json,
-    };
-    return {
-      status: 201,
-      push,
-      location: `${publicOrigin}/message/${id}-${received.length}`,
-    };
+  const state: StandInState = {
+    vapidPublicKey: options.vapidPublicKey,
+    publicOrigin,
+    checkContract: options.contract ?? true,
+    subscriptions: new Map(),
+    forced: new Map(),
+    received: [],
   };
+  const { subscriptions, forced, received } = state;
+  const waiters: Array<(push: AcceptedPush) => void> = [];
 
   const server = http.createServer((req, res) => {
     const chunks: Buffer[] = [];
     req.on("data", (chunk: Buffer) => chunks.push(chunk));
     req.on("end", () => {
-      const outcome = handle(req, Buffer.concat(chunks));
+      const outcome = handlePush(state, req, Buffer.concat(chunks));
       received.push(outcome.push);
       res.statusCode = outcome.status;
       if (outcome.location) res.setHeader("location", outcome.location);
