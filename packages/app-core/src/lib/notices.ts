@@ -37,8 +37,13 @@ export type Notice = {
   /** Re-attempt the failed work from the tray. */
   retry?: () => void;
   retryLabel?: string;
+  /** An in-app route the notice points at, opened from the tray. */
+  open?: NoticeOpen;
   createdAt: string;
 };
+
+/** Where a notice leads: a route of this app and the key's accessible name. */
+export type NoticeOpen = { to: string; label: string };
 
 export type StatusNoticeInput = {
   id: string;
@@ -49,6 +54,7 @@ export type StatusNoticeInput = {
   ceremonyLabel?: string;
   retry?: () => void;
   retryLabel?: string;
+  open?: NoticeOpen;
 };
 
 type Listener = () => void;
@@ -84,17 +90,23 @@ function pushNoticeDefault(
   return notice;
 }
 
-function setStatusNoticeDefault(input: StatusNoticeInput): Notice {
-  const existing = notices.find((notice) => notice.id === input.id);
-  if (
-    existing &&
+/** The same words, to the letter: only a retry closure may differ. */
+function sameWords(existing: Notice, input: StatusNoticeInput): boolean {
+  return (
     existing.tone === input.tone &&
     existing.title === input.title &&
     existing.body === input.body &&
     existing.ceremony === input.ceremony &&
     existing.ceremonyLabel === input.ceremonyLabel &&
-    existing.retryLabel === input.retryLabel
-  ) {
+    existing.retryLabel === input.retryLabel &&
+    existing.open?.to === input.open?.to &&
+    existing.open?.label === input.open?.label
+  );
+}
+
+function setStatusNoticeDefault(input: StatusNoticeInput): Notice {
+  const existing = notices.find((notice) => notice.id === input.id);
+  if (existing && sameWords(existing, input)) {
     // Same words — only the retry closure may have changed. Swap it in place
     // so the click calls the fresh one, without an emit that would loop the
     // effect that mirrors a page condition into this store.

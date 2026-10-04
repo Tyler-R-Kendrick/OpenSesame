@@ -31,6 +31,11 @@ const NM = "node_modules/";
 const LOCAL_RECORDS = [
   // Identity › Applications edits OAuth clients through it; federation does too.
   "oauth-client-admin",
+  // The receipts a device writes for its person and the inbox of what waits
+  // for them (ADR 0162): Access, Browser-local IAM, Self-issued OpenID and
+  // local notifications each write or read one.
+  "device-inbox",
+  "device-receipts",
   "local-access-audit",
   "local-access-ledger-lock",
   "local-agent-auth",

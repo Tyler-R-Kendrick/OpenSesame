@@ -122,9 +122,10 @@ export async function walkSetupCeremony(page, check, snap) {
   check(
     // One card per optional capability. sharing.drops is always on, so it
     // is not a card. ADR 0153 put Connections, Access, Identity and the
-    // derived item types on this list; vault.environments is optional too.
-    // The Family purpose draws every optional card: 25.
-    rows === 25,
+    // derived item types on this list; vault.environments and
+    // notifications.local are optional too. The Family purpose draws every
+    // optional card: 26.
+    rows === 26,
     `choosing a purpose draws one card per optional capability, none for always-on ones (${rows})`,
   );
   check(

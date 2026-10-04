@@ -126,6 +126,7 @@ const CLOUD_FILES = ["age-keys", "aws-kms-config", "gcp-kms-config", "sops/"];
 const ACCESS_FILES = [
   "access-book",
   "local-access-requests",
+  "local-request-summary",
   "local-grant-admin",
   "local-grant-store",
   "local-share-reach",
@@ -142,6 +143,7 @@ const LOCAL_IAM_FILES = [
   "local-request",
   "local-request-authorization",
   "local-request-issuance",
+  "device-identity-inbox",
   "device-identity-local",
 ];
 const FEDERATION_FILES = [
@@ -286,6 +288,14 @@ export const LIB_RULES = [
     `${L}notification-routing/`,
     "notifications.routing",
     "notification routing document, channel words, policy narrowing, Identity API routes (ADR 0084)",
+  ),
+  // Where this device tells its person a request is waiting (ADR 0162):
+  // the places, the preference, the notice and the watcher; reached only
+  // through the notifications.local module and its file provider.
+  optional(
+    `${L}local-notifications/`,
+    "notifications.local",
+    "local notification places, preference, notice contract and inbox watcher (ADR 0162)",
   ),
   ...each(L, LOCAL_IAM_FILES, (p) =>
     optional(p, LOCAL_IAM, "browser-local IAM"),

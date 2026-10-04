@@ -24,6 +24,7 @@
       "identity.local-iam",
       "identity.siop",
       "networking.tailnet",
+      "notifications.local",
       "notifications.routing",
       "notifications.web-push",
       "sharing.household",

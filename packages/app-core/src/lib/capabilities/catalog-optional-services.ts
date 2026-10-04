@@ -82,6 +82,19 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     },
   ),
   optional(
+    "notifications.local",
+    "Local notifications",
+    "Tell you that a request is waiting while the app is open or in the background: a mark on the bell and the tab, and a system notification if you allow one. Nothing leaves this device.",
+    {
+      // The requests it tells you about are the ones Browser-local IAM
+      // serves; with it off there is nothing to be told.
+      dependencies: ["identity.local-iam"],
+      operationIds: ["identity.notification.local.manage"],
+      // Asked for on a key in its panel, never on activation.
+      browserPermissions: ["notifications"],
+    },
+  ),
+  optional(
     "notifications.web-push",
     "Push notifications",
     "Enrol this installation for Web Push and let the push worker variant show a review doorbell.",
