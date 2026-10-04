@@ -22,6 +22,9 @@ const CORE_INFRA = [
   "vfs",
   "projects",
   "vaults",
+  // The dotted mark for a vault, person or organization (ADR 0164): drawn in
+  // the shell's prompt, so it is core with the prompt.
+  "glyph",
   "last-vault",
   "theme",
   "focus",
