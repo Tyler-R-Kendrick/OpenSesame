@@ -7,6 +7,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   LOCAL_IAM_CHANNEL,
+  OTHER_TAB_WINDOW_MS,
   notifyLocalIamChange,
   resetLocalIamChannelForTest,
   subscribeLocalIamChanges,
@@ -95,5 +96,34 @@ describe("a host with no broadcast channel", () => {
     expect(() => notifyLocalIamChange()).not.toThrow();
     expect(here).toHaveBeenCalledOnce();
     off();
+  });
+});
+
+describe("a flood from another tab", () => {
+  it("is heard once now and once at the end of the window, however long it is", async () => {
+    const there = vi.fn();
+    subscribeLocalIamChangesFromOtherTabs(there);
+    const tab = otherTab();
+    for (let each = 0; each < 500; each += 1)
+      tab.postMessage({ type: "changed" });
+    await vi.waitFor(() => expect(there).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) =>
+      setTimeout(resolve, OTHER_TAB_WINDOW_MS * 2),
+    );
+    expect(there.mock.calls.length).toBeLessThanOrEqual(3);
+    expect(there.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("is heard again once the window has passed", async () => {
+    const there = vi.fn();
+    subscribeLocalIamChangesFromOtherTabs(there);
+    const tab = otherTab();
+    tab.postMessage({ type: "changed" });
+    await vi.waitFor(() => expect(there).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) =>
+      setTimeout(resolve, OTHER_TAB_WINDOW_MS + 50),
+    );
+    tab.postMessage({ type: "changed" });
+    await vi.waitFor(() => expect(there).toHaveBeenCalledTimes(2));
   });
 });
