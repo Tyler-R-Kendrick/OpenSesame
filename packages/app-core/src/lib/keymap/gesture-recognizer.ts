@@ -150,11 +150,18 @@ function directionOf(
 /**
  * The swipe a pair is already making, once it has travelled far enough to be
  * sure of — so the page can claim the drag (cancel its scroll) while it is
- * still under the fingers. Null until then, and for anything not a swipe.
+ * still under the fingers. Null until then, for anything not a swipe, and
+ * once the drag has outlasted a swipe.
  */
-export function swipeInProgress(session: TouchSession): GestureId | null {
+export function swipeInProgress(
+  session: TouchSession,
+  at: number,
+): GestureId | null {
   const pair = pairOf(session);
   if (pair === null || session.fingers.size !== 2) return null;
+  // A drag slower than a swipe is a scroll: the claim is let go of, so it is
+  // never stranded between a gesture it will not be and a scroll it was denied.
+  if (at - session.startedAt > RECOGNIZER.swipeMaxMs) return null;
   const direction = directionOf(session, pair, RECOGNIZER.claimSlop);
   return direction === null ? null : SWIPES[direction];
 }

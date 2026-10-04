@@ -159,7 +159,7 @@ export function createGestureHandlers(host: GestureHost) {
   const move = (event: TouchEvent) => {
     follow(event);
     if (!tracking?.inListing || !event.cancelable) return;
-    const swipe = swipeInProgress(tracking.session);
+    const swipe = swipeInProgress(tracking.session, now());
     if (swipe && effectiveGestures(loadKeymap()).has(swipe))
       event.preventDefault();
   };

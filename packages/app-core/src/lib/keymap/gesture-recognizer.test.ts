@@ -85,13 +85,21 @@ describe("two fingers swiping", () => {
     ).toBeNull();
   });
 
-  it("is claimed early, once the drag is sure", () => {
-    expect(swipeInProgress(pair(together(4, 0)))).toBeNull();
-    expect(swipeInProgress(pair(together(RECOGNIZER.claimSlop + 4, 0)))).toBe(
-      "two-finger-swipe-right",
+  it("is let go of once the drag has outlasted a swipe", () => {
+    const slow = pair(together(0, -90));
+    expect(swipeInProgress(slow, RECOGNIZER.swipeMaxMs)).toBe(
+      "two-finger-swipe-up",
     );
+    expect(swipeInProgress(slow, RECOGNIZER.swipeMaxMs + 1)).toBeNull();
+  });
+
+  it("is claimed early, once the drag is sure", () => {
+    expect(swipeInProgress(pair(together(4, 0)), 50)).toBeNull();
     expect(
-      swipeInProgress(pair(together(0, -(RECOGNIZER.claimSlop + 4)))),
+      swipeInProgress(pair(together(RECOGNIZER.claimSlop + 4, 0)), 50),
+    ).toBe("two-finger-swipe-right");
+    expect(
+      swipeInProgress(pair(together(0, -(RECOGNIZER.claimSlop + 4))), 50),
     ).toBe("two-finger-swipe-up");
     expect(
       swipeInProgress(
@@ -99,6 +107,7 @@ describe("two fingers swiping", () => {
           [20, 0],
           [-20, 0],
         ]),
+        50,
       ),
     ).toBeNull();
   });
@@ -121,7 +130,7 @@ describe("what is never a gesture", () => {
     fingerDown(session, 1, { x: 100, y: 300 }, 0);
     fingerMove(session, 1, { x: 300, y: 300 });
     expect(finish(session, 200)).toBeNull();
-    expect(swipeInProgress(session)).toBeNull();
+    expect(swipeInProgress(session, 50)).toBeNull();
   });
 
   it("voids a touch with a third finger", () => {
