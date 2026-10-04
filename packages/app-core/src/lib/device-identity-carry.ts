@@ -21,6 +21,13 @@
  * on the next publish), and never wins. A record of a newer version is left
  * exactly as it is on both sides.
  *
+ * The tomb's file is this device's own and is read as written, but what is
+ * ranked and published is its date brought inside the vault's window (never
+ * later than now, never a day before the vault existed): a key dated beyond
+ * what the body's readers accept would be published and read back as poison,
+ * and the next unlock would publish it again. A pass that finds the body
+ * already carrying the tomb's key writes nothing.
+ *
  * Ranking happens here and in an authenticated merge (`mergeSnapshot`), where
  * a body is sealed under this vault's own key. It never happens for a backup:
  * a backup's header and body are whatever its author wrote, so an import takes
@@ -30,6 +37,8 @@
 import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
 import {
   type DeviceIdentityKeyRecord,
+  type DeviceKeyTimeBounds,
+  clampDeviceKeyTime,
   deviceKeyField,
   winningDeviceKey,
 } from "@opensesame/vault-core";
@@ -47,6 +56,12 @@ export type KeyCarryHost = Readonly<{
   /** False for a guest or scratch tomb: nothing there is exported or synced. */
   carries: boolean;
   field(): BoundaryValue;
+  /**
+   * The window a key of this vault's is dated in: from a day before the vault
+   * was made to now. The body's key is read inside it, and a key dated outside
+   * it is brought in before it is ranked or published.
+   */
+  bounds(): DeviceKeyTimeBounds;
   /** Put a key in the body, ranked against what it holds, and persist. */
   publish(field: JsonObject): Promise<void>;
 }>;
@@ -106,7 +121,8 @@ async function reconcileLocked(host: KeyCarryHost): Promise<KeyCarryOutcome> {
   } catch {
     return "kept";
   }
-  const vetted = await vetCarriedKey(host.field());
+  const bounds = host.bounds();
+  const vetted = await vetCarriedKey(host.field(), bounds);
   if (vetted.kind === "future") return "kept";
   // Poison is no key: the body is treated as holding none.
   const carried = vetted.kind === "trusted" ? vetted.record : null;
@@ -115,17 +131,18 @@ async function reconcileLocked(host: KeyCarryHost): Promise<KeyCarryOutcome> {
     await writeStoredDeviceIdentityKey(host.tomb, carried);
     return "adopted";
   }
+  const mine = clampDeviceKeyTime(local, bounds);
   if (carried === null) {
-    await host.publish(deviceKeyField(local));
+    await host.publish(deviceKeyField(mine));
     return "published";
   }
-  if (local.keyId === carried.keyId) return "same";
-  if (winningDeviceKey(local, carried) === carried) {
+  if (mine.keyId === carried.keyId) return "same";
+  if (winningDeviceKey(mine, carried) === carried) {
     await writeStoredDeviceIdentityKey(host.tomb, carried);
     noteDeviceIdentityChanged("ranked");
     return "replaced";
   }
-  await host.publish(deviceKeyField(local));
+  await host.publish(deviceKeyField(mine));
   return "published";
 }
 

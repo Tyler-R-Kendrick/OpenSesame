@@ -212,7 +212,10 @@ export async function readDeviceIdentityKey(
 async function carriedKey(
   tomb: string,
 ): Promise<DeviceIdentityKeyRecord | null> {
-  const carried = await vetCarriedKey(deviceKeyCarrier.carried(tomb));
+  const carried = await vetCarriedKey(
+    deviceKeyCarrier.carried(tomb),
+    deviceKeyCarrier.bounds(tomb),
+  );
   if (carried.kind === "future") {
     unreadable("The vault carries an identity key of a newer version.");
   }

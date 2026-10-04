@@ -14,8 +14,12 @@
 
 import type { JsonObject } from "@opensesame/os-domain";
 import {
+  DEVICE_KEY_CLOCK_MARGIN_MS,
   type VaultBody,
   type VaultHeader,
+  clampDeviceKeyTime,
+  deviceKeyField,
+  deviceKeyTimeBounds,
   mergeDeviceKeyFields,
   syncInstalledTypes,
 } from "@opensesame/vault-core";
@@ -48,10 +52,13 @@ export type VaultBodyPort = Readonly<{
    */
   mutateFresh: (change: (body: VaultBody) => void) => Promise<void>;
   /**
-   * Put `field` in the body, from the disk's copy and under the body lock: the
-   * body's own key is vetted first (a forged or malformed record is dropped,
-   * not outranked), then ranked against `field`, and nothing is written when
-   * that changes nothing, so a read of the principal never costs a sync.
+   * Put `field` in the body, from the disk's copy and under the body lock. It
+   * is vetted first (what is not a genuine key is never carried) and its date
+   * brought inside the vault's window; the body's own key is vetted too (a
+   * forged or malformed record is dropped, not outranked) and ranked against
+   * it. Nothing is written when that changes nothing, so a read of the
+   * principal, or an unlock that finds the key already carried, never costs a
+   * sync.
    */
   publishKey: (field: JsonObject) => Promise<void>;
 }>;
@@ -109,9 +116,29 @@ export function makeBodyPort(host: BodyHost): VaultBodyPort {
     mutateFresh: (change) => withFreshBody(host, () => host.mutate(change)),
     publishKey: (field) =>
       withFreshBody(host, async () => {
-        const { vettedField } = await import("../device-identity-trust.js");
+        const { trustedDeviceKey, vetCarriedKey } = await import(
+          "../device-identity-trust.js"
+        );
+        const bounds = deviceKeyTimeBounds(host.header()?.createdAt);
+        // The date is clamped below, so any date the file holds is read here.
+        const offered = await trustedDeviceKey(field, {
+          now: Number.MAX_SAFE_INTEGER - DEVICE_KEY_CLOCK_MARGIN_MS,
+        });
+        if (!offered) return;
+        const record = clampDeviceKeyTime(offered, bounds);
         const held = host.body().deviceIdentityKey;
-        const next = mergeDeviceKeyFields(await vettedField(held), field);
+        const carried = await vetCarriedKey(held, bounds);
+        if (carried.kind === "future") return;
+        if (
+          carried.kind === "trusted" &&
+          carried.record.keyId === record.keyId
+        ) {
+          return;
+        }
+        const next = mergeDeviceKeyFields(
+          carried.kind === "trusted" ? held : undefined,
+          deviceKeyField(record),
+        );
         if (next === held) return;
         await host.mutate((body) => {
           body.deviceIdentityKey = next;
@@ -145,6 +172,7 @@ export function keyCarryHost(port: VaultBodyPort): KeyCarryHost {
     tomb: port.tomb(),
     carries: port.open() && port.carries(),
     field: () => port.body().deviceIdentityKey,
+    bounds: () => deviceKeyTimeBounds(port.header()?.createdAt),
     publish: (field: JsonObject) => port.publishKey(field),
   };
 }
@@ -176,6 +204,10 @@ export function installDeviceKeyCarrier(port: () => VaultBodyPort): void {
   };
   const carrier: DeviceKeyCarrier = {
     carried: (tomb) => answers(tomb)?.body().deviceIdentityKey,
+    bounds: (tomb) => {
+      const open = answers(tomb);
+      return open ? deviceKeyTimeBounds(open.header()?.createdAt) : {};
+    },
     publish: (tomb, field) => {
       const now = answers(tomb);
       return now ? keyCarryHost(now).publish(field) : Promise.resolve();

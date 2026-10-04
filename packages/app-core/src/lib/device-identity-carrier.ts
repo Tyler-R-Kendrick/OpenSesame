@@ -14,11 +14,16 @@
  */
 
 import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
+import type { DeviceKeyTimeBounds } from "@opensesame/vault-core";
 
 export type DeviceKeyCarrier = {
-  /** The body's key field for `tomb` while that vault is open here, else undefined. */
-  /** What the body holds under the key's name: unvetted JSON, whatever it is. */
+  /**
+   * What the body of `tomb` holds under the key's name while that vault is open
+   * here, else undefined: unvetted JSON, whatever it is.
+   */
   carried(tomb: string): BoundaryValue;
+  /** The window a key of `tomb`'s is dated in, once that vault is open here. */
+  bounds(tomb: string): Partial<DeviceKeyTimeBounds>;
   /**
    * Put `field` in the body of `tomb`, ranked against what it already carries
    * (`mergeDeviceKeyFields`), and persist. A no-op unless `tomb` is open here.
@@ -28,5 +33,6 @@ export type DeviceKeyCarrier = {
 
 export const deviceKeyCarrier: DeviceKeyCarrier = {
   carried: () => undefined,
+  bounds: () => ({}),
   publish: () => Promise.resolve(),
 };

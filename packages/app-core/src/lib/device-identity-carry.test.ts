@@ -9,6 +9,7 @@
 import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
 import {
   DEVICE_KEY_CLOCK_MARGIN_MS,
+  type DeviceKeyTimeBounds,
   deviceKeyField,
   mergeDeviceKeyFields,
   mintVaultKey,
@@ -46,15 +47,20 @@ type HeldBody = { field: BoundaryValue; published: number };
  * A body the test holds, and a publish that behaves as the store's does: the
  * body's own key is vetted first, then ranked against the one offered.
  */
-function bodyHost(tomb: string, field?: BoundaryValue) {
+function bodyHost(
+  tomb: string,
+  field?: BoundaryValue,
+  bounds: DeviceKeyTimeBounds = { now: Date.now(), notBefore: 1 },
+) {
   const held: HeldBody = { field, published: 0 };
   const host: KeyCarryHost = {
     tomb,
     carries: true,
     field: () => held.field,
+    bounds: () => bounds,
     publish: async (next) => {
       held.published += 1;
-      const own = await vettedField(held.field);
+      const own = await vettedField(held.field, bounds);
       held.field = mergeDeviceKeyFields(own, next);
     },
   };
@@ -262,6 +268,58 @@ describe("a body that carries something that is not a key", () => {
     await expect(reconcileDeviceIdentityKey(host)).resolves.toBe("kept");
     expect(held.field).toBe(unknown);
     expect((await readDeviceIdentityKey(tomb))?.keyId).toBe(local.keyId);
+  });
+});
+
+describe("a tomb key dated outside the vault's window", () => {
+  const DAY = DEVICE_KEY_CLOCK_MARGIN_MS;
+  const now = 1_790_000_000_000;
+  const bounds = { now, notBefore: now - 30 * DAY };
+
+  /** What the body would hold, read back the way every reader reads it. */
+  const readBack = (field: BoundaryValue) =>
+    readDeviceIdentityKeyRecord(field, now, bounds.notBefore);
+
+  it("is published dated no later than now, and read back as the same key", async () => {
+    const tomb = await openTomb();
+    const local = await genuineRecord(now + 3 * DAY);
+    await writeStoredDeviceIdentityKey(tomb, local);
+    const { host, held } = bodyHost(tomb, undefined, bounds);
+    await expect(reconcileDeviceIdentityKey(host)).resolves.toBe("published");
+    expect(readBack(held.field)?.keyId).toBe(local.keyId);
+    expect(readBack(held.field)?.createdAt).toBe(now);
+  });
+
+  it("is published dated no earlier than the window opens", async () => {
+    const tomb = await openTomb();
+    const local = await genuineRecord(7);
+    await writeStoredDeviceIdentityKey(tomb, local);
+    const { host, held } = bodyHost(tomb, undefined, bounds);
+    await expect(reconcileDeviceIdentityKey(host)).resolves.toBe("published");
+    expect(readBack(held.field)?.createdAt).toBe(bounds.notBefore);
+  });
+
+  it("is then the same key: a second pass publishes nothing", async () => {
+    const tomb = await openTomb();
+    await writeStoredDeviceIdentityKey(
+      tomb,
+      await genuineRecord(now + 3 * DAY),
+    );
+    const { host, held } = bodyHost(tomb, undefined, bounds);
+    await reconcileDeviceIdentityKey(host);
+    await expect(reconcileDeviceIdentityKey(host)).resolves.toBe("same");
+    expect(held.published).toBe(1);
+  });
+
+  it("ranks by the date it is published under, so a forged future date does not lose to an honest key", async () => {
+    const tomb = await openTomb();
+    const local = await genuineRecord(now + 3 * DAY);
+    await writeStoredDeviceIdentityKey(tomb, local);
+    // An honest key a few hours ahead of this clock, inside the margin.
+    const carried = await genuineRecord(now + 3 * 60 * 60 * 1000);
+    const { host, held } = bodyHost(tomb, deviceKeyField(carried), bounds);
+    await expect(reconcileDeviceIdentityKey(host)).resolves.toBe("published");
+    expect(readBack(held.field)?.keyId).toBe(local.keyId);
   });
 });
 

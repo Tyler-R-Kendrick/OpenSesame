@@ -13,6 +13,7 @@ import {
   type VaultBody,
   VaultCorruptError,
   type VaultHeader,
+  deviceKeyTimeBounds,
   mergeVaultBodies,
   openJson,
   sameVaultContent,
@@ -103,11 +104,12 @@ export async function mergeSnapshotInto(
 ): Promise<SnapshotMerge> {
   const incoming = await openSnapshotBody(vaultKey, header, input);
   const { vettedField } = await import("../device-identity-trust.js");
+  const bounds = deviceKeyTimeBounds(header.createdAt);
   const ownRaw = port.body().deviceIdentityKey;
-  const own = await vettedField(ownRaw);
+  const own = await vettedField(ownRaw, bounds);
   const theirs = withKey(
     incoming,
-    await vettedField(incoming.deviceIdentityKey),
+    await vettedField(incoming.deviceIdentityKey, bounds),
   );
   let merged = mergeVaultBodies(withKey(port.body(), own), theirs);
   const localChanged = !sameVaultContent(merged, port.body());
