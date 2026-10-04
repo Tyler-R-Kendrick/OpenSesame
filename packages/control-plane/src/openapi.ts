@@ -1395,11 +1395,18 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
         post: {
           summary: "Register a Web Push subscription",
           description:
-            "The endpoint is a capability URL: it is stored, and never returned, logged, or written to audit metadata.",
+            "The endpoint is a capability URL: it is stored, and never returned, logged, or written to audit metadata. It must be HTTPS and public, and the keys must be an uncompressed P-256 point and a 16-byte auth secret.",
           security: [{ bearerAuth: [] }, { provisionalCookie: [] }],
           responses: {
             "201": { description: "Subscription id and device label" },
-            "400": { description: "Invalid subscription" },
+            "400": {
+              description:
+                "Invalid subscription: malformed, not HTTPS, a private address, or wrong key lengths",
+            },
+            "409": {
+              description:
+                "The endpoint is already registered to another principal; it is never transferred",
+            },
             ...authenticationUnauthorizedResponse,
           },
         },

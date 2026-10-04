@@ -734,11 +734,11 @@ export interface PushSubscription {
 
 export interface PushSubscriptionRepository {
   /**
-   * Register a subscription. A browser that re-subscribes presents the same
-   * endpoint, and the same endpoint is the same destination: the store
-   * replaces the stored keys in place (keeping the existing row's id and
-   * `createdAt`, and reviving a disabled row) rather than accumulating a
-   * second row that pushes to the same browser.
+   * Register a subscription. A re-subscribing browser (same endpoint) has
+   * its keys replaced in place, never a second row. The endpoint is a
+   * capability URL: a live row stays with its owner and another principal
+   * presenting it gets a `ConflictError`; a row its owner disabled is
+   * revived and may change hands (a browser after sign-out).
    */
   create(sub: PushSubscription, uow?: UnitOfWork): Promise<PushSubscription>;
   /** Live subscriptions only — a disabled one is not a destination. */

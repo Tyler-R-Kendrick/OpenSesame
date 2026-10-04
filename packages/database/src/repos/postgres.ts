@@ -76,7 +76,6 @@ import {
   type ProjectMembershipStore,
   type ProjectStore,
   type ProjectStores,
-  type PushSubscription,
   type PushSubscriptionRepository,
   type Repositories,
   type TransactionFn,
@@ -90,6 +89,7 @@ import {
   outboxHoldActive,
 } from "./interfaces.js";
 import { mapAuditEvent } from "./postgres-map-audit.js";
+import { createPostgresPushSubscriptions } from "./push-subscriptions-postgres.js";
 import { createPostgresWalletInteractionRepos } from "./wallet-interaction-postgres.js";
 import type {
   ExecutionReservationRepository,
@@ -504,23 +504,6 @@ function mapApprovalReceipt(
   };
 }
 
-function mapPushSubscription(
-  row: typeof schema.pushSubscriptions.$inferSelect,
-): PushSubscription {
-  return {
-    id: row.id,
-    principalId: row.principalId,
-    endpoint: row.endpoint,
-    p256dhKey: row.p256dhKey,
-    authSecret: row.authSecret,
-    endpointDigest: row.endpointDigest,
-    ...(row.deviceLabel ? { deviceLabel: row.deviceLabel } : undefined),
-    createdAt: row.createdAt,
-    ...(row.lastUsedAt ? { lastUsedAt: row.lastUsedAt } : undefined),
-    ...(row.disabledAt ? { disabledAt: row.disabledAt } : undefined),
-  };
-}
-
 function isUniqueViolation(err: BoundaryValue): boolean {
   // postgres-js surfaces the PG error code on the error itself; the PGlite
   // driver wraps the original error in `cause`. Check both so the conflict
@@ -581,6 +564,9 @@ export class PostgresRepositories implements Repositories {
     this.interactionProofAttempts = wallet.interactionProofAttempts;
     this.walletRegistrations = wallet.walletRegistrations;
     this.executionReservations = wallet.executionReservations;
+    this.pushSubscriptions = createPostgresPushSubscriptions(this.db, (uow) =>
+      dbOf(uow, this.db),
+    );
   }
 
   readonly principals: PrincipalRepository = {
@@ -2260,93 +2246,7 @@ export class PostgresRepositories implements Repositories {
     },
   };
 
-  readonly pushSubscriptions: PushSubscriptionRepository = {
-    create: async (sub, uow) => {
-      // Upsert onto `endpoint_digest`, not a plain insert. A browser that
-      // re-subscribes presents the same endpoint, and the same endpoint is the
-      // same destination: the stored keys are replaced in place — the row
-      // keeps its id and `created_at`, and a disabled row is revived — so the
-      // table can never hold two rows that push the same person.
-      const [row] = await dbOf(uow, this.db)
-        .insert(schema.pushSubscriptions)
-        .values({
-          id: sub.id,
-          principalId: sub.principalId,
-          endpoint: sub.endpoint,
-          p256dhKey: sub.p256dhKey,
-          authSecret: sub.authSecret,
-          endpointDigest: sub.endpointDigest,
-          deviceLabel: sub.deviceLabel ?? null,
-          createdAt: sub.createdAt,
-          lastUsedAt: sub.lastUsedAt ?? null,
-          disabledAt: sub.disabledAt ?? null,
-        })
-        .onConflictDoUpdate({
-          target: schema.pushSubscriptions.endpointDigest,
-          set: {
-            principalId: sub.principalId,
-            endpoint: sub.endpoint,
-            p256dhKey: sub.p256dhKey,
-            authSecret: sub.authSecret,
-            deviceLabel: sub.deviceLabel ?? null,
-            lastUsedAt: sub.lastUsedAt ?? null,
-            disabledAt: sub.disabledAt ?? null,
-          },
-        })
-        .returning();
-      if (!row) throw new Error("upsert push subscription returned no row");
-      return mapPushSubscription(row);
-    },
-
-    listForPrincipal: async (principalId) => {
-      const rows = await this.db
-        .select()
-        .from(schema.pushSubscriptions)
-        .where(
-          and(
-            eq(schema.pushSubscriptions.principalId, principalId),
-            // A disabled subscription is not a destination.
-            isNull(schema.pushSubscriptions.disabledAt),
-          ),
-        )
-        .orderBy(asc(schema.pushSubscriptions.createdAt));
-      return rows.map(mapPushSubscription);
-    },
-
-    getById: async (id) => {
-      const [row] = await this.db
-        .select()
-        .from(schema.pushSubscriptions)
-        .where(eq(schema.pushSubscriptions.id, id))
-        .limit(1);
-      return row ? mapPushSubscription(row) : null;
-    },
-
-    findByEndpointDigest: async (digest) => {
-      const [row] = await this.db
-        .select()
-        .from(schema.pushSubscriptions)
-        .where(eq(schema.pushSubscriptions.endpointDigest, digest))
-        .limit(1);
-      return row ? mapPushSubscription(row) : null;
-    },
-
-    disable: async (id, at) => {
-      // Compare-and-set on `disabled_at is null`: only the caller that really
-      // retired the subscription is told it did.
-      const rows = await this.db
-        .update(schema.pushSubscriptions)
-        .set({ disabledAt: at })
-        .where(
-          and(
-            eq(schema.pushSubscriptions.id, id),
-            isNull(schema.pushSubscriptions.disabledAt),
-          ),
-        )
-        .returning({ id: schema.pushSubscriptions.id });
-      return rows.length === 1;
-    },
-  };
+  readonly pushSubscriptions: PushSubscriptionRepository;
 
   readonly callbackReplays: CallbackReplayRepository = {
     claim: async (record) => {

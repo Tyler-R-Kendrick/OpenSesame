@@ -73,6 +73,7 @@ import {
   outboxHoldActive,
 } from "./interfaces.js";
 import { mergeInteractionPatch } from "./memory-interaction-merge.js";
+import { createMemoryPushSubscriptions } from "./push-subscriptions-memory.js";
 import { MemoryWalletInteractionRepos } from "./wallet-interaction-memory.js";
 
 function normalizeTenant(tenant?: string): string {
@@ -231,11 +232,6 @@ function cloneReceipt(receipt: ApprovalReceipt): ApprovalReceipt {
 /** Flat row — see cloneBindingChallenge. */
 function cloneReplay(record: CallbackReplayRecord): CallbackReplayRecord {
   return { ...record };
-}
-
-/** Flat row — see cloneBindingChallenge. */
-function clonePushSubscription(sub: PushSubscription): PushSubscription {
-  return { ...sub };
 }
 
 /**
@@ -1449,68 +1445,11 @@ export class MemoryRepositories implements Repositories {
     },
   };
 
-  readonly pushSubscriptions: PushSubscriptionRepository = {
-    create: async (sub, uow) => {
-      // The same endpoint is the same browser. Postgres holds
-      // `endpoint_digest` unique and upserts onto it; here the existing row is
-      // found and rewritten in place, keeping its id and `createdAt` and
-      // reviving it if it had been disabled — a second row would push the same
-      // person twice and leave the operator unable to say which is live.
-      let existingId: string | undefined;
-      let existingCreatedAt: Date | undefined;
-      for (const row of this.#store.pushSubscriptions.values()) {
-        if (row.endpointDigest === sub.endpointDigest) {
-          existingId = row.id;
-          existingCreatedAt = row.createdAt;
-          break;
-        }
-      }
-      const row: PushSubscription = {
-        ...sub,
-        ...(existingId ? { id: existingId } : undefined),
-        ...(existingCreatedAt ? { createdAt: existingCreatedAt } : undefined),
-      };
-      if (!sub.disabledAt) Reflect.deleteProperty(row, "disabledAt");
-      applyNowOrDefer(uow, () => {
-        this.#store.pushSubscriptions.set(row.id, clonePushSubscription(row));
-      });
-      return clonePushSubscription(row);
-    },
-
-    listForPrincipal: async (principalId) => {
-      return [...this.#store.pushSubscriptions.values()]
-        .filter(
-          (row) =>
-            row.principalId === principalId && row.disabledAt === undefined,
-        )
-        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
-        .map(clonePushSubscription);
-    },
-
-    getById: async (id) => {
-      const row = this.#store.pushSubscriptions.get(id);
-      return row ? clonePushSubscription(row) : null;
-    },
-
-    findByEndpointDigest: async (digest) => {
-      for (const row of this.#store.pushSubscriptions.values()) {
-        if (row.endpointDigest === digest) return clonePushSubscription(row);
-      }
-      return null;
-    },
-
-    disable: async (id, at) => {
-      const current = this.#store.pushSubscriptions.get(id);
-      // Compare-and-set on "not already disabled", so only the caller that
-      // actually retired the subscription is told it did.
-      if (!current || current.disabledAt) return false;
-      this.#store.pushSubscriptions.set(id, {
-        ...current,
-        disabledAt: at,
-      });
-      return true;
-    },
-  };
+  readonly pushSubscriptions: PushSubscriptionRepository =
+    createMemoryPushSubscriptions(
+      this.#store.pushSubscriptions,
+      applyNowOrDefer,
+    );
 
   readonly callbackReplays: CallbackReplayRepository = {
     claim: async (record) => {

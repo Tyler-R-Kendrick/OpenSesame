@@ -12,6 +12,7 @@ import {
   derToRawEcdsaSignature,
   encryptWebPushPayload,
   generateVapidKeyPair,
+  pushSubscriptionRefusal,
   vapidAuthorization,
 } from "../adapters/web-push.js";
 import type { WebPushConfig } from "../adapters/web-push.js";
@@ -444,5 +445,49 @@ describe("web push delivery", () => {
     const push = createWebPushAdapter(vapidConfig());
     expect(push.verifyCallback).toBeUndefined();
     expect(push.capabilities().canReceiveAuthenticatedCallback).toBe(false);
+  });
+});
+
+describe("registration-time refusal", () => {
+  it("accepts what a browser produces", () => {
+    expect(pushSubscriptionRefusal(subscribe().subscription)).toBeUndefined();
+  });
+
+  it("applies the delivery fence to the endpoint, with the same names", () => {
+    const { subscription } = subscribe();
+    const at = (endpoint: string) =>
+      pushSubscriptionRefusal({ ...subscription, endpoint });
+    expect(at("http://push.example.test/x")).toBe("insecure_endpoint");
+    expect(at("https://u:p@push.example.test/x")).toBe("insecure_endpoint");
+    expect(at("https://127.0.0.1/x")).toBe("private_endpoint");
+    expect(at("https://localhost/x")).toBe("private_endpoint");
+    expect(at("https://192.168.1.5/x")).toBe("private_endpoint");
+  });
+
+  it("refuses keys RFC 8291 cannot encrypt to", () => {
+    const { subscription } = subscribe();
+    const keys = (p256dh: string, auth = subscription.keys.auth) => ({
+      ...subscription,
+      keys: { p256dh, auth },
+    });
+    const point = base64UrlDecode(subscription.keys.p256dh);
+    expect(pushSubscriptionRefusal(keys("AAAA"))).toBe("invalid_keys");
+    expect(
+      pushSubscriptionRefusal(
+        keys(
+          base64UrlEncode(
+            Buffer.concat([Buffer.from([4]), Buffer.alloc(64, 1)]),
+          ),
+        ),
+      ),
+    ).toBe("invalid_keys");
+    expect(pushSubscriptionRefusal(keys(point.toString("base64")))).toBe(
+      "invalid_keys",
+    );
+    expect(
+      pushSubscriptionRefusal(
+        keys(subscription.keys.p256dh, base64UrlEncode(randomBytes(15))),
+      ),
+    ).toBe("invalid_keys");
   });
 });

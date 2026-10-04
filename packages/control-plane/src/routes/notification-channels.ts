@@ -18,6 +18,8 @@ import {
   RegisterPushSubscriptionSchema,
   UpdateNotificationPreferencesSchema,
 } from "@opensesame/contracts";
+import { ConflictError, type PushSubscription } from "@opensesame/database";
+import { pushSubscriptionRefusal } from "@opensesame/notification-adapters";
 import {
   CHANNEL_CAPABILITIES,
   DEFAULT_NOTIFICATION_PREFERENCE,
@@ -539,28 +541,45 @@ notificationChannelRoutes.post(
         400,
       );
     }
-    try {
-      new URL(parsed.data.endpoint);
-    } catch {
-      return c.json({ error: "invalid_request" }, 400);
+    // The same policy delivery enforces, applied while the person can still be
+    // told: HTTPS, no userinfo, no loopback, private or metadata host, and keys
+    // that are what RFC 8291 encrypts to. A row failing any of it could never
+    // be delivered to.
+    const refusal = pushSubscriptionRefusal({
+      endpoint: parsed.data.endpoint,
+      keys: parsed.data.keys,
+    });
+    if (refusal) {
+      return c.json({ error: "invalid_request", detail: refusal }, 400);
     }
     const now = ctx.clock();
-    const created = await ctx.repos.pushSubscriptions.create({
-      id: `push_${randomBytes(12).toString("base64url")}`,
-      principalId,
-      endpoint: parsed.data.endpoint,
-      p256dhKey: parsed.data.keys.p256dh,
-      authSecret: parsed.data.keys.auth,
-      // How a subscription is named and deduplicated without naming the
-      // capability URL itself.
-      endpointDigest: createHash("sha256")
-        .update(parsed.data.endpoint)
-        .digest("hex"),
-      ...(parsed.data.deviceLabel
-        ? { deviceLabel: parsed.data.deviceLabel }
-        : undefined),
-      createdAt: now,
-    });
+    let created: PushSubscription;
+    try {
+      created = await ctx.repos.pushSubscriptions.create({
+        id: `push_${randomBytes(12).toString("base64url")}`,
+        principalId,
+        endpoint: parsed.data.endpoint,
+        p256dhKey: parsed.data.keys.p256dh,
+        authSecret: parsed.data.keys.auth,
+        // How a subscription is named and deduplicated without naming the
+        // capability URL itself.
+        endpointDigest: createHash("sha256")
+          .update(parsed.data.endpoint)
+          .digest("hex"),
+        ...(parsed.data.deviceLabel
+          ? { deviceLabel: parsed.data.deviceLabel }
+          : undefined),
+        createdAt: now,
+      });
+    } catch (error) {
+      // An endpoint is a capability URL, and a live one stays with whoever
+      // registered it. Said plainly, so the browser can drop that
+      // subscription and enrol a fresh one rather than retry the same URL.
+      if (error instanceof ConflictError) {
+        return c.json({ error: "endpoint_already_registered" }, 409);
+      }
+      throw error;
+    }
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "notification.push.subscribed",
       principalId,

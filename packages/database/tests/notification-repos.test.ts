@@ -611,6 +611,68 @@ describe("MemoryRepositories.pushSubscriptions", () => {
     ).toEqual([sub.id]);
   });
 
+  it("adversarial: another principal presenting a live endpoint cannot take it over", async () => {
+    const { repos, principalId: owner } = await seed();
+    const thief = (await repos.principals.create(makePrincipal())).id;
+    const endpointDigest = `sha256:${randomUUID()}`;
+    const owned = await repos.pushSubscriptions.create(
+      makePushSubscription(owner, {
+        endpointDigest,
+        deviceLabel: "owner's phone",
+      }),
+    );
+
+    await expect(
+      repos.pushSubscriptions.create(
+        makePushSubscription(thief, {
+          endpointDigest,
+          deviceLabel: "thief's phone",
+        }),
+      ),
+    ).rejects.toBeInstanceOf(ConflictError);
+
+    // Nothing moved: same owner, same keys, same label, and still the owner's
+    // destination and nobody else's.
+    const after = await repos.pushSubscriptions.getById(owned.id);
+    expect(after?.principalId).toBe(owner);
+    expect(after?.deviceLabel).toBe("owner's phone");
+    expect(after?.authSecret).toBe(owned.authSecret);
+    expect(
+      (await repos.pushSubscriptions.listForPrincipal(owner)).map(
+        (row) => row.id,
+      ),
+    ).toEqual([owned.id]);
+    expect(await repos.pushSubscriptions.listForPrincipal(thief)).toEqual([]);
+    // The owner can still retire it: it was never reassigned.
+    expect(await repos.pushSubscriptions.disable(owned.id, new Date())).toBe(
+      true,
+    );
+  });
+
+  it("contract: a row its owner disabled may be registered by someone else", async () => {
+    const { repos, principalId: owner } = await seed();
+    const thief = (await repos.principals.create(makePrincipal())).id;
+    const endpointDigest = `sha256:${randomUUID()}`;
+    const first = await repos.pushSubscriptions.create(
+      makePushSubscription(owner, { endpointDigest }),
+    );
+    await repos.pushSubscriptions.disable(first.id, new Date());
+
+    // The same browser, signed in as someone else after the first signed out.
+    const second = await repos.pushSubscriptions.create(
+      makePushSubscription(thief, { endpointDigest }),
+    );
+    expect(second.id).toBe(first.id);
+    expect(second.principalId).toBe(thief);
+    expect(second.disabledAt).toBeUndefined();
+    expect(await repos.pushSubscriptions.listForPrincipal(owner)).toEqual([]);
+    expect(
+      (await repos.pushSubscriptions.listForPrincipal(thief)).map(
+        (row) => row.id,
+      ),
+    ).toEqual([first.id]);
+  });
+
   it("contract: a principal's subscriptions are their own", async () => {
     const { repos, principalId } = await seed();
     const other = await repos.principals.create(makePrincipal());

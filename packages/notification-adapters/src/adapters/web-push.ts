@@ -55,7 +55,12 @@ import type {
   WakeAction,
   WakeSignal,
 } from "../contract.js";
-import { deliverToPublicEndpoint, postPublicOnly } from "../public-endpoint.js";
+import {
+  type EndpointRefusal,
+  deliverToPublicEndpoint,
+  endpointRefusal,
+  postPublicOnly,
+} from "../public-endpoint.js";
 import { renderNotification } from "../templates.js";
 
 export const WEB_PUSH_PROVIDER_ID = "native_push";
@@ -301,6 +306,42 @@ function decodeSubscriptionKeys(
     throw new Error("subscription auth secret must be 16 bytes");
   }
   return { uaPublicKey, authSecret };
+}
+
+/** Why a browser-supplied subscription is refused before it is stored. */
+export type PushSubscriptionRefusal = EndpointRefusal | "invalid_keys";
+
+const BASE64URL = /^[A-Za-z0-9_-]+$/u;
+
+/**
+ * The registration-time check, and the one definition of a usable
+ * subscription: the endpoint passes the same public-only policy delivery
+ * enforces (HTTPS, no userinfo, no loopback, private or metadata host), and
+ * the keys are what RFC 8291 encrypts to. A row that fails any of this can
+ * never be delivered to, so it is better refused where the person can still
+ * be told than retired later as a dead subscription.
+ *
+ * Canonical base64url only: a lenient decoder skips characters it does not
+ * understand, so a value that decodes to 65 bytes is not thereby the value
+ * the browser meant. The point is also run through ECDH once, which OpenSSL
+ * refuses unless it lies on the P-256 curve.
+ */
+export function pushSubscriptionRefusal(
+  subscription: PushSubscriptionRecord,
+): PushSubscriptionRefusal | undefined {
+  const refusal = endpointRefusal(subscription.endpoint);
+  if (refusal) return refusal;
+  const { p256dh, auth } = subscription.keys;
+  if (!BASE64URL.test(p256dh) || !BASE64URL.test(auth)) return "invalid_keys";
+  try {
+    const { uaPublicKey } = decodeSubscriptionKeys(subscription);
+    const probe = createECDH("prime256v1");
+    probe.generateKeys();
+    probe.computeSecret(uaPublicKey);
+  } catch {
+    return "invalid_keys";
+  }
+  return undefined;
 }
 
 /**
