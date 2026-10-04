@@ -16,6 +16,7 @@ import {
   unwrapRawVaultKeyFromPassword,
   vaultSealBinding,
 } from "./crypto.js";
+import { DEVICE_IDENTITY_KEY_PATH } from "./device-key.js";
 import type { VaultBody } from "./model.js";
 import {
   OFFLINE_BACKUP_FORMAT,
@@ -56,6 +57,11 @@ export type OpenedVaultFile = Readonly<{
   bound: boolean;
   rev: number | null;
   items: readonly VaultFileEntry[];
+  /**
+   * Files the body carries whose value is never shown, by path alone. Today
+   * that is the device identity key (ADR 0160 §5), when the vault holds one.
+   */
+  concealed: readonly string[];
 }>;
 
 type ExportEnvelope = {
@@ -133,6 +139,8 @@ export function summarizeVaultBody(
       kind: item.kind,
       path: paths.get(item.id) ?? item.name,
     })),
+    concealed:
+      body.deviceIdentityKey === undefined ? [] : [DEVICE_IDENTITY_KEY_PATH],
   };
 }
 

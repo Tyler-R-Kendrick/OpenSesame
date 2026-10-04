@@ -3,7 +3,8 @@
 //! legacy unbound seal and saying so. Only what may be shown is kept — each
 //! item's id, name, kind and folder, each folder's id and name, and the
 //! revision; field values are skipped by the parser and the decrypted bytes
-//! are zeroized.
+//! are zeroized. The device identity key the body may carry (ADR 0160 §5) is
+//! reduced to the fact that it is there: its value is never read out.
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -54,6 +55,9 @@ struct BodyWire {
     items: Option<Vec<ItemMeta>>,
     folders: Option<Vec<FolderMeta>>,
     rev: Option<Value>,
+    /// Only whether the field is present is kept; the key is never parsed.
+    #[serde(rename = "deviceIdentityKey", default)]
+    device_identity_key: Option<Value>,
 }
 
 /// A body opened with VK, reduced to what may be shown.
@@ -62,6 +66,9 @@ pub struct OpenedBody {
     pub(super) folders: Vec<FolderMeta>,
     /// The sealed `rev`, when the body carries one.
     pub rev: Option<u64>,
+    /// The body carries a device identity key (ADR 0160 §5). Its value is not
+    /// held here, so nothing downstream can print it.
+    pub carries_device_identity_key: bool,
     /// Sealed to its tomb; `false` is a legacy unbound body, which proves only
     /// that it was sealed under this VK, not which tomb it belongs to.
     pub bound: bool,
@@ -94,6 +101,7 @@ pub fn open_body(file: &SealedVaultFile, key: &VaultKey) -> Result<OpenedBody> {
         items: wire.items.unwrap_or_default(),
         folders: wire.folders.unwrap_or_default(),
         rev,
+        carries_device_identity_key: !matches!(wire.device_identity_key, None | Some(Value::Null)),
         bound,
     })
 }

@@ -5,6 +5,7 @@
  */
 import { overlapCast } from "@opensesame/os-domain";
 import {
+  DEVICE_IDENTITY_KEY_PATH,
   type SealedVaultFile,
   type VaultBody,
   VaultCorruptError,
@@ -12,13 +13,29 @@ import {
   WrongPasswordError,
   b64ToBytes,
   openVaultBody,
+  readDeviceIdentityKeyRecord,
   readVaultFile,
   unwrapRawVaultKeyFromPassword,
 } from "@opensesame/vault-core";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import fixture from "../../../../../spec/conformance/vault-vectors.json" with {
   type: "json",
 };
+import { webLocksDouble } from "../__tests__/web-locks-double.js";
+import { deviceKeyCarrier } from "../device-identity-carrier.js";
+import { ensureDeviceIdentityKey } from "../device-identity-key.js";
+import { kvDelete } from "../kv.js";
+import {
+  BODY_PATH,
+  HEADER_PATH,
+  INDEX_PATH,
+  MIGRATION_MARKER_PATH,
+  PERSONAL_TOMB,
+  tombFileKey,
+  vfsFlush,
+} from "../vfs.js";
+import { sealedVaultText } from "./offline-backup-file.js";
+import { installDeviceKeyCarrier } from "./store-device-key.js";
 import { VaultStore } from "./store.js";
 import {
   listPasskeyUnlockRecords,
@@ -31,6 +48,8 @@ type Expectation = {
   bound: boolean;
   rev: number | null;
   items: { id: string; name: string; kind: string }[];
+  /** Files the body carries that are listed by name only (ADR 0160 §5). */
+  concealed?: string[];
 };
 type Opened = SealedVaultFile;
 
@@ -49,6 +68,9 @@ function summarize(body: VaultBody, bound: boolean, tomb: string): Expectation {
       name: item.name,
       kind: item.kind,
     })),
+    ...(body.deviceIdentityKey !== undefined
+      ? { concealed: [DEVICE_IDENTITY_KEY_PATH] }
+      : undefined),
   };
 }
 
@@ -143,5 +165,46 @@ describe("golden vault vectors", () => {
     const names = store.getSnapshot().items.map((item) => item.name);
     expect(names).toEqual(["Personal login", "Personal note"]);
     store.lock();
+  });
+
+  it("restores the identity vector's principal through the real store (ADR 0160 §5)", async () => {
+    const vector = fixture.vectors["backup-device-identity"];
+    const opened = openEnvelope(vector.file);
+    const raw = await unwrapRawVaultKeyFromPassword(
+      opened.header,
+      fixture.password,
+    );
+    const { body } = await openBody(raw, opened);
+    const recorded = readDeviceIdentityKeyRecord(body.deviceIdentityKey ?? {});
+    if (!recorded) throw new Error("the vector carries no readable key");
+
+    // The tests above left a vault in this tomb; this one starts from none.
+    await vfsFlush();
+    for (const path of [
+      BODY_PATH,
+      HEADER_PATH,
+      INDEX_PATH,
+      MIGRATION_MARKER_PATH,
+      DEVICE_IDENTITY_KEY_PATH,
+    ]) {
+      kvDelete(tombFileKey(PERSONAL_TOMB, path));
+    }
+    const locks = webLocksDouble();
+    vi.stubGlobal("navigator", { locks });
+    const carrier = { ...deviceKeyCarrier };
+    try {
+      const store = new VaultStore();
+      await store.create("an unrelated master passphrase 2026");
+      installDeviceKeyCarrier(() => store.bodyPort());
+      // The file is a backup; its sealed export form is what a restore reads.
+      await store.importSealed(sealedVaultText(vector.file), fixture.password);
+      expect((await ensureDeviceIdentityKey(PERSONAL_TOMB)).principalId).toBe(
+        `prn_${recorded.keyId}`,
+      );
+      store.lock();
+    } finally {
+      Object.assign(deviceKeyCarrier, carrier);
+      vi.unstubAllGlobals();
+    }
   });
 });
