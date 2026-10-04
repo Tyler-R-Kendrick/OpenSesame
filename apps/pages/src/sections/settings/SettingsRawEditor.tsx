@@ -31,7 +31,6 @@ import {
   mergePrefs,
   readDoc,
   tabSuggestion,
-  valueClass,
 } from "@opensesame/app-core/sections/settings/settings-raw-editor-model.js";
 import { overlapCast } from "@opensesame/os-domain";
 import {
@@ -43,10 +42,10 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
-import { IconCheck } from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { useSettingsEpoch } from "../../lib/use-settings.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
+import { Status, WriteButton, paint } from "./SettingsRawEditorParts.js";
 
 /** Everything the settings pages show, read live so the file follows them. */
 function useSettingsState(): SettingsState {
@@ -148,6 +147,27 @@ function Completions({
 }
 
 /**
+ * What the last save said. A refusal is an operation that failed: it goes to
+ * the tray, keyed by the file, and the status wears its mark. Live validation
+ * of the draft is only state, so it never reaches the tray (ADR 0163).
+ */
+function useSaveResult(path: string) {
+  const [result, setResult] = useState<{
+    path: string;
+    text: string;
+    refused: boolean;
+  } | null>(null);
+  // A result belongs to the file it was written for: the editor stays mounted
+  // when the category changes, and another file never wears this one's refusal.
+  const mine = result?.path === path ? result : null;
+  return {
+    refusal: mine?.refused ? mine.text : null,
+    message: mine && !mine.refused ? mine.text : "",
+    setResult,
+  };
+}
+
+/**
  * A settings directory's `config.yaml`. The file and the page are one set of
  * values: it opens saying what the page says (keeping the person's comments),
  * and a save writes the page — so a change in either shows in both.
@@ -171,7 +191,7 @@ export function SettingsRawEditor({ category }: { category: string }) {
     null,
   );
   const [caret, setCaret] = useState(0);
-  const [message, setMessage] = useState("");
+  const { refusal, message, setResult } = useSaveResult(path);
   const source = draft?.path === path ? draft.text : derived;
   const dirty = source !== derived;
 
@@ -185,7 +205,7 @@ export function SettingsRawEditor({ category }: { category: string }) {
 
   function edit(text: string) {
     setDraft({ path, text });
-    setMessage("");
+    setResult(null);
   }
   const tab = useTabCompletion(category, source, edit);
 
@@ -195,16 +215,20 @@ export function SettingsRawEditor({ category }: { category: string }) {
     if (category === "general") {
       await store.commitPrefs(mergePrefs(state.prefs, decoded.doc));
     }
-    const refusal = commit(category, decoded.doc);
-    if (refusal !== null) {
-      setMessage(refusal);
+    const refused = commit(category, decoded.doc);
+    if (refused !== null) {
+      setResult({ path, text: refused, refused: true });
       return;
     }
     // Keep the document as written: comments and ordering are the person's.
     saveSettingsSource(path, source);
     setDraft(null);
     const writable = settingsFields(category).some((field) => !field.readonly);
-    setMessage(writable ? "written" : "read-only");
+    setResult({
+      path,
+      text: writable ? "written" : "read-only",
+      refused: false,
+    });
   }
 
   return (
@@ -235,7 +259,13 @@ export function SettingsRawEditor({ category }: { category: string }) {
           source={source}
           dirty={dirty}
           problem={parsed.ok ? null : parsed.message}
+          refusal={refusal}
           message={message}
+        />
+        <FailureNotice
+          id={`settings-file:${path}`}
+          title="Settings file"
+          message={refusal}
         />
       </div>
     </section>
@@ -290,81 +320,5 @@ function FileInput({
         }}
       />
     </div>
-  );
-}
-
-function Status({
-  source,
-  dirty,
-  problem,
-  message,
-}: {
-  source: string;
-  dirty: boolean;
-  problem: string | null;
-  message: string;
-}) {
-  const lines = source.split("\n").length - (source.endsWith("\n") ? 1 : 0);
-  return (
-    <output className="set-raw__status" aria-live="polite">
-      {problem === null ? null : <StatusMark tone="err" label={problem} />}
-      <span className="set-raw__status-text">
-        {problem ?? (message || (dirty ? "modified" : ""))}
-      </span>
-      <span className="set-raw__status-meta">
-        {dirty ? "[+] " : ""}
-        {lines}L
-      </span>
-    </output>
-  );
-}
-
-function WriteButton({
-  path,
-  disabled,
-  onWrite,
-}: {
-  path: string;
-  disabled: boolean;
-  onWrite: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="icon-btn icon-btn--sm"
-      aria-label={`Write ${path}`}
-      title={`Write ${path} (Ctrl-S)`}
-      disabled={disabled}
-      onClick={onWrite}
-    >
-      <IconCheck size={14} />
-    </button>
-  );
-}
-
-function paint(source: string) {
-  return source.split("\n").map((line, index) => (
-    <span key={`${index}-${line}`}>
-      {paintLine(line)}
-      {"\n"}
-    </span>
-  ));
-}
-
-function paintLine(line: string) {
-  if (line.trimStart().startsWith("#"))
-    return <span className="set-raw__comment">{line}</span>;
-  const at = line.indexOf(":");
-  if (at < 0) return <span>{line}</span>;
-  const rest = line.slice(at + 1);
-  const hash = rest.search(/\s#/);
-  const value = hash < 0 ? rest : rest.slice(0, hash);
-  const comment = hash < 0 ? "" : rest.slice(hash);
-  return (
-    <>
-      <span className="set-raw__key">{line.slice(0, at)}</span>:
-      <span className={valueClass(value)}>{value}</span>
-      {comment ? <span className="set-raw__comment">{comment}</span> : null}
-    </>
   );
 }

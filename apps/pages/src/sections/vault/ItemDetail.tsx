@@ -60,7 +60,6 @@ export function ItemDetail() {
   const [confirmPurge, setConfirmPurge] = useState(false);
 
   const item = items.find((candidate) => candidate.id === itemId);
-
   // biome-ignore lint/correctness/useExhaustiveDependencies: itemId is the trigger, not an input — a revealed secret must not survive a move to another item
   useEffect(() => {
     setRevealed(new Set());
@@ -310,6 +309,7 @@ function ItemFields({
   copy,
   onUpdateSecret,
 }: FieldsProps) {
+  const update = { itemId: item.id, onUpdate: onUpdateSecret };
   switch (item.kind) {
     case "login":
       return (
@@ -363,10 +363,10 @@ function ItemFields({
                 {revealed.has("password") ? (
                   <StrengthBar password={item.password} />
                 ) : null}
-                <UpdateSecretPanel label="password" onUpdate={onUpdateSecret} />
+                <UpdateSecretPanel {...update} label="password" />
               </FieldRow>
             ) : (
-              <UpdateSecretPanel label="password" onUpdate={onUpdateSecret} />
+              <UpdateSecretPanel {...update} label="password" />
             )}
 
             {item.totp ? (
@@ -639,8 +639,8 @@ function ItemFields({
                 />
               </div>
               <UpdateSecretPanel
+                {...update}
                 label="secret"
-                onUpdate={onUpdateSecret}
                 leading={
                   <>
                     <RevealButton

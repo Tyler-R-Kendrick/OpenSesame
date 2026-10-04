@@ -238,6 +238,7 @@ function RegistrationEditor({
       />
       <ApplicationSetupCard registration={registration} />
       <RegistrationExtras
+        applicationId={applicationId}
         tomb={tomb}
         registration={registration}
         revision={model.state?.revision}
@@ -325,6 +326,7 @@ function RegistrationForm({
           />
         </div>
         <ScopeRolesField
+          applicationId={applicationId}
           scopes={scopes}
           value={scopeRoles}
           onChange={(scopeRoles) => setDraft({ ...draft, scopeRoles })}

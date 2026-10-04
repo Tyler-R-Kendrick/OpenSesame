@@ -144,6 +144,16 @@ describe("Receipts on the device plane (ADR 0162)", () => {
     );
   });
 
+  it("marks the panel and trays the sentence when the trail cannot be read", async () => {
+    identityJson.mockRejectedValue(new Error("boom"));
+    const { container } = render(<Receipts online={true} sessionKey={tomb} />);
+    const sentence = "Receipts did not load. Reload to read them again.";
+    await expectInTray(sentence);
+    expect(screen.getByRole("img", { name: sentence })).toBeTruthy();
+    expect(container.querySelector(".panel__body")?.textContent).not.toBe("");
+    expect(screen.queryByText("No receipts yet.")).toBeNull();
+  });
+
   it("reads again when a decision lands, in this tab", async () => {
     render(<Receipts online={true} sessionKey={tomb} />);
     await screen.findByText("Request denied · Test application");
@@ -212,6 +222,8 @@ describe("Receipts on a remote Identity plane", () => {
   it("needs the network, and says so when there is none", async () => {
     render(<Receipts online={false} sessionKey="prn_a" />);
     await expectInTray("Offline.");
+    expect(screen.getByRole("img", { name: "Offline." })).toBeTruthy();
+    expect(screen.queryByText("No receipts yet.")).toBeNull();
     expect(identityJson).not.toHaveBeenCalled();
   });
 

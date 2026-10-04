@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -147,10 +148,16 @@ describe("TailnetSyncPanel", () => {
         ),
       ).toBe(true),
     );
-    expect(screen.queryByText(/another vault/)).toBeNull();
-    // The ceremony stays open: nothing was paired.
+    // The ceremony stays open: nothing was paired. Its focus is trapped, so
+    // the bell is out of reach: the sentence is read in the sheet as well.
+    const dialog = screen.getByRole("dialog", { name: "Pair with a drive" });
+    expect(within(dialog).getAllByText(/another vault/).length).toBeGreaterThan(
+      0,
+    );
     expect(
-      screen.getByRole("dialog", { name: "Pair with a drive" }),
+      within(dialog).getByRole("img", {
+        name: "That snapshot belongs to another vault",
+      }),
     ).toBeTruthy();
   });
 

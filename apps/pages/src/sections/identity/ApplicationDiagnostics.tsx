@@ -13,6 +13,8 @@ import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconCheck } from "../../components/Icons.js";
 
 export function ApplicationDiagnostics(props: {
+  /** Keys the tray notice: one application's tests never clear another's. */
+  applicationId: string;
   policy?: LocalScopeRoles[];
   policyRevision?: string;
 }) {
@@ -123,7 +125,7 @@ export function ApplicationDiagnostics(props: {
           ))}
         </ul>
         <FailureNotice
-          id="identity:application-tests"
+          id={`identity:application-tests:${props.applicationId}`}
           title="Application tests"
           message={
             publicationBlocked(runs)

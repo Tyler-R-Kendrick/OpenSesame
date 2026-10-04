@@ -95,10 +95,13 @@ function UpdateEditor({
  * the update key; the editor opens beneath that row.
  */
 export function UpdateSecretPanel({
+  itemId,
   label,
   onUpdate,
   leading,
 }: {
+  /** The item the secret belongs to: its notice is keyed by item, not field. */
+  itemId: string;
   label: string;
   onUpdate: (next: string) => Promise<void>;
   leading?: ReactNode;
@@ -127,7 +130,7 @@ export function UpdateSecretPanel({
 
   const failure = (
     <FailureNotice
-      id={`vault:secret-update:${label}`}
+      id={`vault:secret-update:${itemId}:${label}`}
       title="Password update"
       message={error}
     />

@@ -21,6 +21,7 @@ import { POLICY_FILE } from "@opensesame/app-core/sections/settings/capability-f
 import { useState } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { PurposeCards } from "../../screens/capabilities/PurposeCards.js";
 import { SectionHead } from "./CapabilitySwitch.js";
@@ -29,6 +30,7 @@ import { useDeviceOperator } from "./useDeviceOperator.js";
 
 export const instancePanelSeams = {
   now: () => new Date().toISOString(),
+  save: saveLocalInstancePolicy,
 };
 
 export function InstanceCapabilitiesPanel() {
@@ -42,7 +44,7 @@ export function InstanceCapabilitiesPanel() {
     const ports = defaultCapabilityPorts(() => tomb);
     const instanceId = plan?.identity.instanceId ?? "personal-local";
     try {
-      await saveLocalInstancePolicy(
+      await instancePanelSeams.save(
         ports,
         capabilityPorts.presetToInstancePolicy(
           preset,
@@ -63,6 +65,7 @@ export function InstanceCapabilitiesPanel() {
       data-testid="instance-capabilities-panel"
     >
       <SectionHead id="instance-policy-title" title="Instance policy">
+        {notice === null ? null : <StatusMark tone="err" label={notice} />}
         <OpenFileKey path={POLICY_FILE} name="instance-policy.yaml" />
       </SectionHead>
       <FailureNotice

@@ -10,6 +10,7 @@ import type {
   VirtualFileProvider,
 } from "@opensesame/app-core/sections/settings/virtual-files.js";
 import { useEffect, useState } from "react";
+import { FailureNotice } from "../../../components/FailureNotice.js";
 import {
   IconCheck,
   IconLock,
@@ -220,6 +221,13 @@ export function VirtualFileEditor({
         <output className="visually-hidden" aria-live="polite">
           {outcome?.text ?? ""}
         </output>
+        {/* A refused save or removal is an operation that failed, so it is
+            trayed; the draft's live check above is only state and is not. */}
+        <FailureNotice
+          id={`settings-file:${file.path}`}
+          title="Settings file"
+          message={outcome?.tone === "err" ? outcome.text : null}
+        />
       </div>
     </section>
   );

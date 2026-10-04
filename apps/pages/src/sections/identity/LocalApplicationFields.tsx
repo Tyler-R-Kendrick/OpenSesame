@@ -5,12 +5,18 @@ import {
 } from "@opensesame/app-core/lib/local-application-policy.js";
 import type { LocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
+import { StatusMark } from "../../components/StatusMark.js";
+
+const TOO_MANY_SCOPES = "Use at most 32 scopes.";
 
 export function ScopeRolesField({
+  applicationId,
   scopes,
   value,
   onChange,
 }: {
+  /** Keys the tray notice, so two applications never share one. */
+  applicationId: string;
   scopes: string;
   value: LocalScopeRoles[];
   onChange: (value: LocalScopeRoles[]) => void;
@@ -23,11 +29,15 @@ export function ScopeRolesField({
   return (
     <>
       <FailureNotice
-        id="identity:application-scopes"
+        id={`identity:application-scopes:${applicationId}`}
         title="Scopes"
-        message={tooMany ? "Use at most 32 scopes." : null}
+        message={tooMany ? TOO_MANY_SCOPES : null}
       />
-      {tooMany ? null : <ScopeRolesRows policy={policy} onChange={onChange} />}
+      {tooMany ? (
+        <StatusMark tone="err" label={TOO_MANY_SCOPES} />
+      ) : (
+        <ScopeRolesRows policy={policy} onChange={onChange} />
+      )}
     </>
   );
 }

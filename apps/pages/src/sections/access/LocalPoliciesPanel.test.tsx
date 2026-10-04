@@ -142,4 +142,10 @@ it("does not report unread locked storage as an empty policy set", async () => {
   );
   expect(screen.queryByRole("alert")).toBeNull();
   expect(screen.queryByText(/No local applications\./)).toBeNull();
+  expect(
+    screen.getByRole("img", {
+      name: "Could not read local policy subjects. Unlock this vault and reload.",
+    }),
+  ).toBeTruthy();
+  expect(document.querySelector(".panel__body")?.textContent).not.toBe("");
 });

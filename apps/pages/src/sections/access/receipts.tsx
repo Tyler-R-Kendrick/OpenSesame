@@ -160,6 +160,7 @@ export function Receipts({
     device,
     reachable,
   );
+  const failed = reachable ? error : "Offline.";
 
   return (
     <section className="panel" id="access-receipts">
@@ -172,6 +173,9 @@ export function Receipts({
             tone="warn"
             label={`${pending} ${pending === 1 ? "receipt" : "receipts"} not written yet`}
           />
+        ) : null}
+        {failed ? (
+          <StatusMark tone={reachable ? "err" : "warn"} label={failed} />
         ) : null}
         <button
           type="button"
@@ -189,10 +193,14 @@ export function Receipts({
         <FailureNotice
           id="access:receipts"
           title="Receipts"
-          message={reachable ? error : "Offline."}
+          message={failed}
           tone={reachable ? "err" : "warn"}
         />
-        {!reachable || error ? null : busy && events === null ? (
+        {failed ? (
+          <p className="hint" aria-hidden="true">
+            —
+          </p>
+        ) : busy && events === null ? (
           <output className="note">
             {device ? "Reading receipts…" : "Asking Identity…"}
           </output>
