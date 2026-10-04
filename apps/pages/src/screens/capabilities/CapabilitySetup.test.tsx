@@ -8,18 +8,48 @@ import {
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 /** @vitest-environment jsdom */
 import {
+  act,
   cleanup,
   fireEvent,
   render,
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { loaderSeams } from "@opensesame/app-core/lib/capabilities/loader.js";
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
-import { CapabilitySetup } from "./CapabilitySetup.js";
+import { expectInTray, inTray } from "../../components/tray.test-support.js";
+import {
+  CapabilitySetup,
+  capabilitySetupViewSeams,
+} from "./CapabilitySetup.js";
 import { downloadSeams } from "./download.js";
+import {
+  type CapabilitySetupModel,
+  useCapabilitySetup,
+} from "./useCapabilitySetup.js";
+
+// The real hook, with its latest model kept: the outcome stage draws no
+// control that goes back, so the test drives `cancel` as the UI would.
+let latestModel: CapabilitySetupModel | null = null;
+const originalViewSeams = { ...capabilitySetupViewSeams };
+Object.assign(capabilitySetupViewSeams, {
+  useModel: (join: boolean) => {
+    const model = useCapabilitySetup(join);
+    latestModel = model;
+    return model;
+  },
+});
+afterAll(() => Object.assign(capabilitySetupViewSeams, originalViewSeams));
 
 installDoublePorts();
 
@@ -180,7 +210,50 @@ describe("CONSENT-03 — apply commits exactly the reviewed roots", () => {
         "this session only",
       ),
     );
+    // A result to read, not a failure: nothing goes to the tray.
+    expect(inTray("this session only")).toBe(false);
     expect(double.commits[0]?.draft.selectedOptional).toEqual([]);
+  });
+
+  it("trays a refused commit under an err mark and prints no sentence", async () => {
+    vi.spyOn(double, "commit").mockResolvedValueOnce(
+      // SAFETY: fixture matches the refused commit contract, which the setup hook reads only as `status` and `reason`.
+      { status: "refused", reason: "policy withdrew it" } as never,
+    );
+    render(<CapabilitySetup />);
+    fireEvent.click(road("Customize this installation"));
+    fireEvent.click(screen.getByTestId("purpose-card-homelab"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save on this device" }),
+    );
+    fireEvent.click(screen.getByTestId("capability-apply"));
+    const label = "refused · policy withdrew it";
+    await screen.findByRole("img", { name: label });
+    await expectInTray(label);
+    expect(screen.getByTestId("capability-outcome").textContent).not.toContain(
+      "policy withdrew it",
+    );
+  });
+
+  it("takes a refused commit's notice out of the tray when the outcome clears", async () => {
+    vi.spyOn(double, "commit").mockResolvedValueOnce(
+      // SAFETY: fixture matches the refused commit contract, which the setup hook reads only as `status` and `reason`.
+      { status: "refused", reason: "policy withdrew it" } as never,
+    );
+    render(<CapabilitySetup />);
+    fireEvent.click(road("Customize this installation"));
+    fireEvent.click(screen.getByTestId("purpose-card-homelab"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Save on this device" }),
+    );
+    fireEvent.click(screen.getByTestId("capability-apply"));
+    const label = "refused · policy withdrew it";
+    await expectInTray(label);
+    // The outcome stage has no control that goes back; the hook's own
+    // `cancel` (setOutcome(null)) is what going back calls.
+    act(() => latestModel?.cancel());
+    await waitFor(() => expect(inTray(label)).toBe(false));
+    expect(screen.queryByTestId("capability-outcome")).toBeNull();
   });
 });
 

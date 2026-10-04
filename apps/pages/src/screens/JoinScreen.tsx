@@ -12,6 +12,7 @@
  */
 
 import { currentSession } from "@opensesame/app-core/lib/identity.js";
+import type { JoinErrorCode } from "@opensesame/app-core/lib/join/client.js";
 import type { CapturedInvite } from "@opensesame/app-core/lib/join/invite.js";
 import {
   JOIN_RAIL,
@@ -21,6 +22,7 @@ import {
   joinVerb,
 } from "@opensesame/app-core/screens/join/join-model.js";
 import { type RefObject, useRef } from "react";
+import { FailureNotice } from "../components/FailureNotice.js";
 import {
   IconArrowRight,
   IconCheck,
@@ -37,6 +39,15 @@ import "./setup.css";
 import "./join/join.css";
 
 export const joinScreenDependencies = { currentSession };
+
+/** Codes for an attempted call that failed; the rest are guidance, mark only. */
+const TRAYED_FAILURES: ReadonlySet<JoinErrorCode> = new Set([
+  "unreachable",
+  "claim_refused",
+  "approval_failed",
+  "verify_failed",
+  "invalid_response",
+]);
 
 function blocked(join: JoinCeremony): boolean {
   if (join.busy || join.waiting || !join.available) return true;
@@ -181,6 +192,15 @@ export function JoinScreen({
 
   return (
     <div className="setup join">
+      <FailureNotice
+        id="join:error"
+        title="Join"
+        message={
+          join.error && TRAYED_FAILURES.has(join.error)
+            ? joinErrorText(join.error)
+            : null
+        }
+      />
       <div className="setup__frame" ref={frameRef}>
         <div className="setup__bar">
           <Wordmark className="setup__wordmark" />

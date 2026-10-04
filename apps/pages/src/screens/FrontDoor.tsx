@@ -21,6 +21,7 @@
 import { clearAuthOutcome } from "@opensesame/app-core/lib/auth-outcome.js";
 import { continueAsGuest } from "@opensesame/app-core/lib/guest-auth.js";
 import { useEffect, useRef, useState } from "react";
+import { FailureNotice } from "../components/FailureNotice.js";
 import { GateTools } from "../components/GateTools.js";
 import { IconAuthority } from "../components/Icons.js";
 import { StatusMark } from "../components/StatusMark.js";
@@ -117,6 +118,11 @@ export function FrontDoor({
         </div>
 
         {guestFailed ? <StatusMark tone="err" label={guestFailed} /> : null}
+        <FailureNotice
+          id="front-door:guest"
+          title="Guest"
+          message={guestFailed}
+        />
       </div>
       <ReleaseNotes />
     </div>

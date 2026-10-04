@@ -15,6 +15,7 @@
  */
 
 import {
+  type FeatureProposal,
   featureById,
   switchCapability,
 } from "@opensesame/app-core/lib/capabilities/features.js";
@@ -26,6 +27,7 @@ import {
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useComposition } from "../../bindings/capabilities.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { Wordmark } from "../../components/Wordmark.js";
@@ -41,7 +43,62 @@ import "../setup.css";
 export const LIVE = "sharing.live";
 export const LIVE_PATH = "/live";
 
-export const liveJoinGateSeams = { holdLiveLink };
+const NOT_ALLOWED = "Live sessions are not allowed on this installation";
+
+/**
+ * What the gate reads and calls beside the capability store: the composition
+ * hook, the support route, the switch's proposal and its review, the commit,
+ * and the review sheet itself.
+ */
+export const liveJoinGateSeams = {
+  holdLiveLink,
+  useComposition,
+  useSupportRoute,
+  proposalFor: (snapshot: ReturnType<typeof useComposition>) =>
+    switchCapability(
+      {
+        roots: currentRoots(snapshot.selection),
+        alternatives: snapshot.selection?.chosenAlternatives ?? {},
+      },
+      featureById("sharing"),
+      LIVE,
+      true,
+      snapshot.plan,
+      capabilityPorts.CAPABILITY_CATALOG,
+    ),
+  reviewFor: (
+    snapshot: ReturnType<typeof useComposition>,
+    proposal: FeatureProposal,
+  ) =>
+    capabilityPorts.compositionStore.review(selectionFor(snapshot, proposal)),
+  commitProposal,
+  Review: CapabilityReview,
+};
+
+/** The commit that did not land, and an installation that refuses: each its own notice. */
+function CommitFailure({
+  notice,
+  notAllowed,
+}: {
+  notice: string | null;
+  notAllowed: boolean;
+}) {
+  return (
+    <>
+      {notice ? <StatusMark tone="err" label={notice} /> : null}
+      <FailureNotice
+        id="join:live-not-allowed"
+        title="Live sessions"
+        message={notAllowed ? NOT_ALLOWED : null}
+      />
+      <FailureNotice
+        id="join:live-commit"
+        title="Live sessions"
+        message={notice}
+      />
+    </>
+  );
+}
 
 export function LiveJoinGate({
   link,
@@ -51,14 +108,15 @@ export function LiveJoinGate({
   link: LiveLink | null;
   onClose: () => void;
 }) {
-  useSupportRoute("/unlock");
+  liveJoinGateSeams.useSupportRoute("/unlock");
   const navigate = useNavigate();
-  const snapshot = useComposition();
+  const snapshot = liveJoinGateSeams.useComposition();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const state = snapshot.plan?.capabilities[LIVE];
   const approved = state?.approved === true;
   const allowed = state?.distributed === true && state.permitted;
+  const notAllowed = snapshot.plan !== null && !allowed && !approved;
 
   // Already on: straight to the join screen, with the link.
   useEffect(() => {
@@ -67,28 +125,19 @@ export function LiveJoinGate({
     navigate(LIVE_PATH);
   }, [approved, link, navigate]);
 
-  const proposal = switchCapability(
-    {
-      roots: currentRoots(snapshot.selection),
-      alternatives: snapshot.selection?.chosenAlternatives ?? {},
-    },
-    featureById("sharing"),
-    LIVE,
-    true,
-    snapshot.plan,
-    capabilityPorts.CAPABILITY_CATALOG,
-  );
+  const proposal = liveJoinGateSeams.proposalFor(snapshot);
   const review =
     approved || !allowed
       ? null
-      : capabilityPorts.compositionStore.review(
-          selectionFor(snapshot, proposal),
-        );
+      : liveJoinGateSeams.reviewFor(snapshot, proposal);
 
   async function accept(): Promise<void> {
     setBusy(true);
     try {
-      const outcome = await commitProposal(snapshot, proposal);
+      const outcome = await liveJoinGateSeams.commitProposal(
+        snapshot,
+        proposal,
+      );
       setNotice(outcome);
       // The approved plan brings the route; the effect above then opens it.
     } finally {
@@ -118,7 +167,7 @@ export function LiveJoinGate({
           </div>
           <div className="setup__stack">
             {review ? (
-              <CapabilityReview
+              <liveJoinGateSeams.Review
                 review={review}
                 catalog={capabilityPorts.CAPABILITY_CATALOG}
                 alternativesFor={() => []}
@@ -127,15 +176,12 @@ export function LiveJoinGate({
                 onCancel={onClose}
                 onReplace={() => {}}
               />
-            ) : snapshot.plan !== null && !allowed && !approved ? (
-              <StatusMark
-                tone="err"
-                label="Live sessions are not allowed on this installation"
-              />
+            ) : notAllowed ? (
+              <StatusMark tone="err" label={NOT_ALLOWED} />
             ) : (
               <StatusMark tone="idle" label="Opening…" />
             )}
-            {notice ? <StatusMark tone="err" label={notice} /> : null}
+            <CommitFailure notice={notice} notAllowed={notAllowed} />
           </div>
         </main>
       </div>
