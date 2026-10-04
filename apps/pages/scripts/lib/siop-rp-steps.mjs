@@ -83,6 +83,24 @@ export async function answer(page, personName, rpOrigin, how = "allow") {
   await Promise.all([leaves(), allow.click()]);
 }
 
+/**
+ * `page.goto` after a navigation this journey itself aborted: the aborted one
+ * lands on the browser's error page and can cut the next one short.
+ */
+export async function gotoAfterAbort(page, url) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await page.goto(url);
+      return;
+    } catch (failure) {
+      const interrupted = /interrupted by another navigation/.test(
+        failure.message,
+      );
+      if (!interrupted || attempt === 3) throw failure;
+    }
+  }
+}
+
 /** What the RP's own start route sends the browser to, read without following it. */
 export async function startLogin(rpUrl, clientId) {
   const query = clientId === undefined ? "" : `?client_id=${clientId}`;

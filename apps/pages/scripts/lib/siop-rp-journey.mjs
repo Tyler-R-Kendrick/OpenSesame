@@ -7,10 +7,12 @@
  * a person) is asserted beside it.
  */
 import { expect } from "@playwright/test";
+import { startRelyingParty } from "./siop-rp-server.mjs";
 import {
   answer,
   expectRefused,
   expectVerified,
+  gotoAfterAbort,
   post,
   relyingPartyTraffic,
   startLogin,
@@ -18,7 +20,6 @@ import {
   unlockIfAsked,
   watch,
 } from "./siop-rp-steps.mjs";
-import { startRelyingParty } from "./siop-rp-server.mjs";
 
 const pass = (what) => console.log(`PASS ${what}`);
 
@@ -72,7 +73,7 @@ async function allow(env, watched) {
   });
   await page.goto(`${rpUrl}/`);
   await page.locator("#signin").click();
-  await page.goto(await redirected);
+  await gotoAfterAbort(page, await redirected);
   await answer(page, ids.personName, rpUrl);
   const shown = await expectVerified(page);
   const verified = await siopVerify.verifySiopRedirect(
@@ -193,7 +194,10 @@ async function humanConsent(env) {
     page.getByRole("heading", { name: /Self-issued sign-in to/ }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Allow Self-Issued sign-in", exact: true }),
+    page.getByRole("button", {
+      name: "Allow Self-Issued sign-in",
+      exact: true,
+    }),
   ).toHaveCount(0);
   await page.waitForTimeout(1500);
   expect(new URL(page.url()).origin).toBe(origin);

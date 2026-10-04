@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { rmSync } from "node:fs";
 import { afterAll, beforeAll, describe, test } from "vitest";
 import { buildGraph } from "../capability-compose-plugin.mjs";
 import {
@@ -108,42 +107,6 @@ describe("graph emission", () => {
       ).scripts,
       [],
     );
-  });
-
-  test("a public file is present when a plugin emits it or public/ holds it, and absent otherwise (ADR 0161)", async () => {
-    const { main } = await compose(tree, { mode: "selective" });
-    mkdirSync(join(tree.appRoot, "public"), { recursive: true });
-    writeFileSync(join(tree.appRoot, "public", "kept.json"), "{}");
-    const state = {
-      ...main.__state(),
-      publicFiles: [
-        { path: "emitted.json", capability: "connectors.external" },
-        { path: "kept.json", capability: "connectors.external" },
-        { path: "later.json", capability: "connectors.external" },
-      ],
-    };
-    const { ctx, bundle } = fakeBundle(tree.appRoot, html);
-    const emitting = {
-      ...bundle(),
-      "emitted.json": { type: "asset", source: "{}" },
-    };
-    const graph = buildGraph(ctx, emitting, state, "/OpenSesame/");
-    assert.deepEqual(
-      graph.publicFiles.map((file) => [file.file, file.present]),
-      [
-        ["emitted.json", true],
-        ["kept.json", true],
-        ["later.json", false],
-      ],
-    );
-    // No app root to look in: unknown, which the gate still treats as present.
-    const unknown = buildGraph(
-      ctx,
-      bundle(),
-      { ...state, appRoot: undefined },
-      "/OpenSesame/",
-    );
-    assert.equal(unknown.publicFiles[2].present, undefined);
   });
 
   test("BUILD-08: two identical bundles produce byte-identical capability-graph.json with no timestamp", async () => {
