@@ -80,7 +80,9 @@ describe("the Web Push walk's area", () => {
     }
     expect(dirs).not.toContain("apps/pages");
   });
+});
 
+describe("the Bundle budgets aggregate", () => {
   it("gates the Web Push job on bundle or push, and Bundle budgets still reports it", () => {
     const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
     // The Web Push job runs for the Pages build (bundle) or the server code it
@@ -88,9 +90,30 @@ describe("the Web Push walk's area", () => {
     expect(ci).toMatch(
       /push-e2e:[\s\S]*?if: needs\.changes\.outputs\.bundle == 'true' \|\| needs\.changes\.outputs\.push == 'true'/,
     );
-    expect(ci).toMatch(
-      /bundle-check:\n[\s\S]*?needs: \[changes, bundle, push-e2e, device-identity-e2e, tutorials-e2e\]/,
-    );
+    // `Bundle budgets` reports every job the bundle or push area gates: derive
+    // the list from the workflow so adding a job cannot leave it unreported.
+    const jobs = [
+      ...ci
+        .slice(ci.indexOf("\njobs:"))
+        .matchAll(
+          /^ {2}([a-z0-9-]+):\n([\s\S]*?)(?=^ {2}[a-z0-9-]+:\n|(?![\s\S]))/gm,
+        ),
+    ];
+    const gated = jobs
+      .filter(([, , body]) =>
+        /\n {4}if: needs\.changes\.outputs\.(bundle|push) == 'true'/.test(
+          `\n${body}`,
+        ),
+      )
+      .map(([, name]) => name);
+    const check = jobs.find(([, name]) => name === "bundle-check")?.[2] ?? "";
+    const needs = /needs: \[([^\]]*)\]/.exec(check)?.[1] ?? "";
+    const listed = needs.split(",").map((name) => name.trim());
+    expect(gated).toEqual(expect.arrayContaining(["bundle", "push-e2e"]));
+    for (const name of gated) {
+      expect(listed).toContain(name);
+    }
+    expect(listed).toContain("changes");
   });
 
   it("runs the device identity walk in its own job, gated on the bundle area, and Bundle budgets still reports it", () => {

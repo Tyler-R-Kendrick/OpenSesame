@@ -189,6 +189,7 @@ describe("ItemEditor", () => {
     );
 
     await waitFor(() => expect(saveItem).toHaveBeenCalledOnce());
+    expect(await screen.findByText("navigated away")).toBeTruthy();
     expect(acknowledgeCertificateDelivery).toHaveBeenCalledWith(
       "certificate-request:one",
     );
@@ -210,7 +211,6 @@ describe("ItemEditor", () => {
       privateKeyPem: issuedCertificate.privateKey,
       caPem: issuedCertificate.caCertificate,
     });
-    expect(await screen.findByText("navigated away")).toBeTruthy();
   });
 
   it("characterization: asks for names and lifetime, never PEM material", () => {
@@ -272,11 +272,11 @@ describe("ItemEditor", () => {
     expect((await screen.findByRole("alert")).textContent).toContain(
       "vault temporarily locked",
     );
-
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalledTimes(2));
-    expect(issueCertificateFromHost).toHaveBeenCalledOnce();
+    await screen.findByText("navigated away");
     expect(acknowledgeCertificateDelivery).toHaveBeenCalledOnce();
+    expect(issueCertificateFromHost).toHaveBeenCalledOnce();
     expect(saveItem.mock.calls[1]?.[0]).toEqual(saveItem.mock.calls[0]?.[0]);
   });
 

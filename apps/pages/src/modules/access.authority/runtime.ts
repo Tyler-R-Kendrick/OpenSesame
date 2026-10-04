@@ -17,11 +17,12 @@
  *  Everything under Grants / Requests / Policies is sealed local records:
  *  no network at all.
  *
- * Side effects: none at import. The section, the tree and every panel are
+ * Side effects: none at import; on unlock it writes any receipt still waiting. The section, the tree and every panel are
  * React components that read on mount.
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { flushReceipts } from "@opensesame/app-core/lib/device-receipts.js";
 
 import {
   ACCESS_ROUTES,
@@ -119,6 +120,12 @@ export const capabilityRuntime: CapabilityRuntime = {
       });
     }
     activation.register("keymap-jump", { key: "a", path: "/access" });
+    // A receipt decided but not yet written — the trail was busy, or the tab
+    // closed first — is written when the vault is next opened (ADR 0162).
+    activation.register("unlock-effect", {
+      id: "receipts-flush",
+      run: ({ tomb }) => flushReceipts(tomb).then(() => undefined),
+    });
     registerTutorial(activation, TUTORIAL);
 
     return activation.handle();

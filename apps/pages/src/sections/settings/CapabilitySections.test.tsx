@@ -15,6 +15,10 @@ import {
   guestsAllowed,
   setGuestsAllowed,
 } from "@opensesame/app-core/lib/guest-access.js";
+import {
+  loadSettings,
+  saveSettings,
+} from "@opensesame/app-core/lib/settings.js";
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
@@ -44,6 +48,9 @@ const NOTHING_TO_DO_HERE = new Set([
   "local-storage",
   "telemetry",
   "certificates",
+  // Web Push and Notification routing are an Identity API's; with none named
+  // there is nothing to switch and the section is absent (ADR 0162).
+  "notifications",
 ]);
 
 describe("sections — one list, one style, a switch only where something is optional", () => {
@@ -89,6 +96,37 @@ describe("sections — one list, one style, a switch only where something is opt
         .getByRole("switch", { name: "Passkey records" })
         .getAttribute("aria-checked"),
     ).toBe("true");
+  });
+
+  it("draws Local notifications as its own section, and names no service or push", () => {
+    const { container } = renderPanel();
+    const section = container.querySelector("#feature-local-notifications");
+    expect(section).not.toBeNull();
+    const head = section?.querySelector(".capsection__head");
+    expect(
+      (head?.querySelectorAll("[role=switch]").length ?? 0) +
+        (head?.querySelectorAll(".status-mark").length ?? 0),
+      "one switch, or the mark that says why it has none",
+    ).toBe(1);
+    expect(section?.textContent).not.toMatch(/push|server|identity api/i);
+  });
+
+  it("withdraws Push and Notification routing while no Identity API is named, and draws them when one is", () => {
+    saveSettings({ ...loadSettings(), identityApi: "" });
+    const none = renderPanel();
+    expect(none.container.querySelector("#feature-notifications")).toBeNull();
+    expect(screen.queryByText("Push notifications")).toBeNull();
+    cleanup();
+    saveSettings({
+      ...loadSettings(),
+      identityApi: "https://identity.example.test",
+    });
+    const named = renderPanel();
+    expect(
+      named.container.querySelector("#feature-notifications"),
+    ).not.toBeNull();
+    expect(screen.getByText("Push notifications")).toBeTruthy();
+    saveSettings({ ...loadSettings(), identityApi: "" });
   });
 
   it("draws no view toggle: the documents are files, not a second view of the page", () => {

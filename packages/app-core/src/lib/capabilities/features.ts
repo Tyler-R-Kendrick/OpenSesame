@@ -23,10 +23,12 @@ import type {
   EffectivePlan,
 } from "@opensesame/capability-composition";
 import type { ProviderCategory } from "../connections.js";
-import { shown } from "./feature-surface.js";
+import { type SurfaceContext, shown } from "./feature-surface.js";
 
 export {
+  NEEDS_IDENTITY_API,
   NO_SURFACE,
+  type SurfaceContext,
   dependentsOf,
   heldOutside,
   shown,
@@ -52,6 +54,7 @@ export type FeatureId =
   | "password-reset"
   | "surrogates"
   | "networking"
+  | "local-notifications"
   | "notifications"
   | "telemetry";
 
@@ -166,6 +169,14 @@ export const FEATURES: readonly Feature[] = [
     [],
   ),
   section("networking", "Networking", ["networking.tailnet"], ["networking"]),
+  // Told on this device, with no service: its own section, because it needs
+  // none of the Identity API the section below is for (ADR 0162).
+  section(
+    "local-notifications",
+    "Local notifications",
+    ["notifications.local"],
+    [],
+  ),
   section(
     "notifications",
     "Notifications",
@@ -179,8 +190,9 @@ export const FEATURES: readonly Feature[] = [
 export function isSwitchable(
   feature: Feature,
   plan: EffectivePlan | null = null,
+  context?: SurfaceContext,
 ): boolean {
-  return shown(feature, plan).capabilities.length > 0;
+  return shown(feature, plan, context).capabilities.length > 0;
 }
 
 export function featureById(id: FeatureId): Feature {

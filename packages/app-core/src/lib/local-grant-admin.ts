@@ -1,4 +1,5 @@
 import { isString } from "@opensesame/os-domain";
+import { grantRef, recordReceipt } from "./device-receipts.js";
 import {
   LocalDirectoryError,
   withLocalDirectoryLock,
@@ -62,9 +63,10 @@ export async function revokeRecordedLocalGrant(
     );
   // Revoking someone's grant is grant administration, whoever holds the tab.
   await assertAccessCapability(tomb, "manage_grants");
-  return withLocalDirectoryLock(tomb, async () => {
+  const ended = await withLocalDirectoryLock(tomb, async () => {
     const records = await readLocalGrantRecords(tomb);
-    if (!records.some((row) => row.id === id))
+    const record = records.find((row) => row.id === id);
+    if (!record)
       throw new LocalDirectoryError(
         "This local grant is unavailable. Reload the list.",
       );
@@ -72,5 +74,9 @@ export async function revokeRecordedLocalGrant(
       tomb,
       records.filter((row) => row.id !== id),
     );
+    return record;
   });
+  // The person ended it, as the application can end its own: a receipt either
+  // way, written after the lock is released and the revocation has committed.
+  await recordReceipt(tomb, "sign_in.revoked", grantRef(ended));
 }

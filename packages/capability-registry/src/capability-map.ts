@@ -91,6 +91,8 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "shared_sessions.join_request": "access.authority",
     "agent_identities.read": "access.authority",
     "identity.local.requests.manage": "access.authority",
+    // Access › Sessions' receipts: the device's own trail (ADR 0162).
+    "identity.local.receipts.read": "access.authority",
     // Access › Requests' hosted rows; each opens `/approve/:ref`.
     "identity.approval.requests": "access.authority",
     "identity.local.policy.manage": "access.authority",
@@ -118,6 +120,11 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- optional: git remote backup ------------------------------------
     "backup.status": "backup.git-remote",
     "backup.target.set": "backup.git-remote",
+
+    // --- optional: local notifications (ADR 0162) ------------------------
+    // Where this device tells its person a request is waiting, with no
+    // service in the picture.
+    "identity.notification.local.manage": "notifications.local",
 
     // --- optional: notification routing (ADR 0084, ADR 0140 D9) ---------
     // Settings › Notifications: where the Identity API tells a person about

@@ -9,6 +9,7 @@ import { crossOriginOpenerPolicy } from "../../packages/app-core/src/lib/opener-
 import { capabilityCompose } from "./scripts/capability-compose-plugin.mjs";
 import { githubAppRelayPlugin } from "./scripts/github-app-relay-plugin.mjs";
 import { impeccableDevHtml } from "./scripts/impeccable-dev.mjs";
+import { siopMetadata } from "./scripts/siop-metadata-plugin.mjs";
 
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 /**
@@ -183,6 +184,8 @@ export default defineConfig({
   worker: { format: "es" },
   plugins: [
     githubAppRelayPlugin(),
+    // `siop-metadata.json` for relying parties (ADR 0161), emitted at the base.
+    siopMetadata(),
     {
       // The Identity API's auto-admitted origin client returns brokered legs
       // to `<origin>/opensesame/callback` (ADR 0050's canonical path), which

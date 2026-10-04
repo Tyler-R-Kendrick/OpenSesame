@@ -6,6 +6,7 @@ import {
 } from "@opensesame/os-domain";
 import { bytesToB64url, sha256Base64Url } from "@opensesame/sdk-browser";
 import { pageOrigin } from "../ports.js";
+import { recordReceipt, sessionRef } from "./device-receipts.js";
 import { kvRefresh } from "./kv.js";
 import {
   authenticateLocalAgent,
@@ -354,7 +355,7 @@ export async function revokeLocalIdentitySession(
     ([key, session]) => key.startsWith(`${tomb}:`) && session.id === id,
   );
   if (!own) await assertAccessCapability(tomb, "manage_grants");
-  return withLocalDirectoryLock(tomb, async () => {
+  const ended = await withLocalDirectoryLock(tomb, async () => {
     const sessions = await readSessions(tomb);
     await writeSessions(
       tomb,
@@ -364,7 +365,10 @@ export async function revokeLocalIdentitySession(
       if (session.id === id) activeSessions.delete(key);
     }
     notifyLocalIamChange();
+    return sessions.find((row) => row.id === id);
   });
+  // Ending a session is a decision, whoever took it: a receipt after the lock.
+  if (ended) await recordReceipt(tomb, "session.ended", sessionRef(ended));
 }
 
 /** Reopening a panel recovers the same tab-owned presentation, never a copied DTO. */

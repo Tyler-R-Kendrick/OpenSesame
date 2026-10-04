@@ -156,7 +156,7 @@ export const IDENTITY_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "identity.local.siop.authorize"',
-      'say "When a relying party asks this device to sign in as itself, review the exact client and claims on Identity. Verify an enrolled passkey, then allow or deny. The Self-Issued ID Token never leaves the vault as a reusable secret."',
+      'say "This is SIOPv2, an OpenID Implementer’s Draft, not a conventional OpenID Connect provider: a site that asked this device to sign in verifies a token signed by a key in your vault, and has no token endpoint to call. Review the requesting site and its exact callback, verify an enrolled passkey, then allow or deny. The private key never leaves the vault."',
       "end",
     ].join("\n"),
   },
