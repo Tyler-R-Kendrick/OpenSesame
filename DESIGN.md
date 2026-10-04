@@ -205,7 +205,12 @@ mounted in exactly one place at a time — the rail above the breakpoint, the
 vault's first pane below it — so two `role="tree"` never share a page. Because
 the tree carries the vault's filters, nothing in the rail may become
 unreachable, and the list keeps its funnel key for switching without going
-back.
+back. The list's command row is not a pane away either: the same keys — new
+item, whatever a capability adds beside it (Import), Export, and search — are
+pinned above the tree (`VaultActions`, in the list's own `VaultPathbar`), each
+at the 44px floor. The funnel and the back key stay on the list, where there
+is something to filter and somewhere to go back from; the tree's search key
+opens the list of everything with its prompt focused.
 
 Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
 
