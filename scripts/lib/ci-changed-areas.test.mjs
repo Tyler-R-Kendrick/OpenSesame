@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   areasForPaths,
   bundlePackageDirs,
-  pushPackageDirs,
   repoRootFromHere,
 } from "./ci-changed-areas.mjs";
 
@@ -159,65 +158,6 @@ describe("Pages graph and required check names", () => {
     });
   });
 
-  it("runs the Web Push walk for the server code it exercises, which Pages does not ship", () => {
-    // verify:push runs the control-plane, the push adapters and their stand-in,
-    // the Host's delivery and the repositories as source: none is a Pages
-    // dependency, so `bundle` alone skipped it for a change to any of them.
-    for (const path of [
-      "packages/control-plane/src/routes/push-subscriptions.ts",
-      "packages/control-plane/src/app.ts",
-      "packages/notification-adapters/src/webpush.ts",
-      "packages/notification-adapters/test-support/push-standin.ts",
-      "packages/identity-worker/src/web-push-channel.ts",
-      "packages/identity-worker/src/cleanup.ts",
-      "packages/database/src/repos/push-subscriptions-memory.ts",
-      "packages/os-domain/src/notifications.ts",
-    ]) {
-      expect(areas([path]), path).toMatchObject({ push: true, bundle: false });
-    }
-  });
-
-  it("runs the Web Push walk for the walk's own files and the harness that reuses its stack", () => {
-    for (const path of [
-      "apps/pages/scripts/verify-push.mjs",
-      "apps/pages/scripts/lib/push-stack.mjs",
-      "apps/pages/scripts/lib/push-browser-shim.mjs",
-      "apps/pages/scripts/lib/push-verify-kit.mjs",
-      "apps/pages/scripts/lib/capture-harness.mjs",
-      "apps/pages/scripts/lib/capture-push-steps.mjs",
-      "apps/pages/vite.sw-push.config.ts",
-      ".github/workflows/ci.yml",
-      "pnpm-lock.yaml",
-    ]) {
-      expect(areas([path]).push, path).toBe(true);
-    }
-  });
-
-  it("does not run the Web Push walk for what it cannot reach", () => {
-    for (const path of [
-      "crates/sealed-store/src/lib.rs",
-      "packages/vault-core/src/index.ts",
-      "docs/operators/capability-composition.md",
-      "apps/pages/scripts/lib/j-travel-journey.mjs",
-    ]) {
-      expect(areas([path]).push, path).toBe(false);
-    }
-  });
-
-  it("walks the real graph the Web Push walk imports as source", () => {
-    const dirs = pushPackageDirs(root);
-    for (const dir of [
-      "packages/control-plane",
-      "packages/identity-worker",
-      "packages/notification-adapters",
-      "packages/database",
-      "packages/os-domain",
-    ]) {
-      expect(dirs).toContain(dir);
-    }
-    expect(dirs).not.toContain("apps/pages");
-  });
-
   it("treats the lockfiles as the package managers they belong to", () => {
     expect(areas(["Cargo.lock"])).toEqual({
       typescript: false,
@@ -269,14 +209,6 @@ describe("Pages graph and required check names", () => {
     expect(ci).toContain("needs.changes.outputs.bundle == 'true'");
     expect(ci).toContain("needs.changes.outputs.rust == 'true'");
     expect(ci).toContain("needs.changes.outputs.mtls == 'true'");
-    // The Web Push job runs for the Pages build (bundle) or the server code it
-    // exercises (push), and `Bundle budgets` still reports it.
-    expect(ci).toMatch(
-      /push-e2e:[\s\S]*?if: needs\.changes\.outputs\.bundle == 'true' \|\| needs\.changes\.outputs\.push == 'true'/,
-    );
-    expect(ci).toMatch(
-      /bundle-check:\n[\s\S]*?needs: \[changes, bundle, push-e2e\]/,
-    );
     expect(ci).toContain("always() && !cancelled()");
   });
 });

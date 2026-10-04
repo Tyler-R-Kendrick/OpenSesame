@@ -1507,14 +1507,26 @@
           "run": "run-pages-capabilities"
         },
         {
-          "file": "packages/app-core/src/lib/capabilities/worker-controller-transition.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/worker-controller-wedge.test.ts",
           "name": "a replacement the browser leaves waiting (another tab restarted the old worker) is asked for again under a fresh URL, and then holds the scope",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         },
         {
-          "file": "packages/app-core/src/lib/capabilities/worker-controller-transition.test.ts",
+          "file": "packages/app-core/src/lib/capabilities/worker-controller-wedge.test.ts",
           "name": "a replacement the browser leaves waiting (another tab restarted the old worker) counts a script asked for again as the same variant, and registers nothing at the next boot",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "packages/app-core/src/lib/capabilities/worker-controller-wedge.test.ts",
+          "name": "a replacement the browser leaves waiting (another tab restarted the old worker) comes back to a replacement it gave up on, fresh, and then holds the scope",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "packages/app-core/src/lib/capabilities/worker-controller-wedge.test.ts",
+          "name": "a replacement the browser leaves waiting (another tab restarted the old worker) is not held past the bound by a script fetch that never answers",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         },
