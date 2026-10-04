@@ -1,0 +1,84 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "press": "Set up your own"
+        },
+        {
+          "press": "Custom"
+        },
+        {
+          "press": "Customize this installation"
+        },
+        {
+          "press": "Custom"
+        },
+        {
+          "centreOn": "[data-testid='capability-card-identity.siop']"
+        },
+        {
+          "measure": "[data-testid='capability-card-identity.siop']"
+        },
+        {
+          "report": "[data-testid='capability-card-identity.siop'] .capcard__summary"
+        },
+        {
+          "shot": "1280-siop-card"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "press": "Set up your own"
+        },
+        {
+          "press": "Custom"
+        },
+        {
+          "press": "Customize this installation"
+        },
+        {
+          "press": "Custom"
+        },
+        {
+          "centreOn": "[data-testid='capability-card-identity.siop']"
+        },
+        {
+          "measure": "[data-testid='capability-card-identity.siop']"
+        },
+        {
+          "report": "[data-testid='capability-card-identity.siop'] .capcard__summary"
+        },
+        {
+          "shot": "390-siop-card"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-siop-card",
+      "width": 1280,
+      "title": "Setup \u203a Capabilities: the Self-issued OpenID card \u2014 1280 \u00d7 800",
+      "caption": "The card for the capability behind /identity/siop said it would 'answer SIOPv2 requests \u2026 with a self-issued token'. It now says which draft that is and what it is not. The summary wraps inside the same card width; the card grows by the extra lines of copy (+39px).",
+      "before": "card 544x102: 'Answer SIOPv2 requests from a registered local application with a self-issued token, gated on a passkey identity.' (no draft status, nothing about what is missing)",
+      "after": "card 544x141: 'Answer SIOPv2 (OpenID Implementer's Draft) requests from a registered local application with a token your vault signs, gated on a passkey. Not a conventional OpenID Connect provider: no token endpoint.'"
+    },
+    {
+      "shot": "390-siop-card",
+      "width": 390,
+      "title": "Setup \u203a Capabilities: the Self-issued OpenID card \u2014 390 \u00d7 844",
+      "caption": "The same card on a phone: the longer summary wraps inside the card (+78px) with the same width, no clipping, and no horizontal scroll.",
+      "before": "card 353x180: 'Answer SIOPv2 requests from a registered local application with a self-issued token, gated on a passkey identity.' (no draft status, nothing about what is missing)",
+      "after": "card 353x258: 'Answer SIOPv2 (OpenID Implementer's Draft) requests from a registered local application with a token your vault signs, gated on a passkey. Not a conventional OpenID Connect provider: no token endpoint.'"
+    }
+  ]
+}

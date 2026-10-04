@@ -56,7 +56,7 @@ document only confirms what it offers. A document naming another issuer, an
 endpoint on another origin, or a SPA fallback served where the file should be
 is refused. The document says `conventional_oidc: false` and lists no
 `token_endpoint` or `jwks_uri` on purpose. The deployment builds it from
-`PAGES_CANONICAL_ORIGIN` (see *Forks*). `pnpm dev:web` serves the same path.
+`PAGES_CANONICAL_ORIGIN` (see *Forks*). `pnpm dev:pwa` serves the same path.
 
 ## A server relying party (Node, Express)
 
