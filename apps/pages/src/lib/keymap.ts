@@ -252,9 +252,24 @@ export function createKeymapHandler(
  * Something else owns this press: a key-capture field (Settings ›
  * Keybindings), the Escape ladder, or the command bar's own chord.
  */
+/**
+ * A live tutorial owns Escape (ADR 0161): the coach leaves the tour from the
+ * card or the lit control, or lets the topmost sheet close first. The keymap
+ * must not move focus out from under it, whichever listener the browser runs
+ * first, so it stands down for an Escape that is not a field's own.
+ */
+function coachHoldsEscape(event: KeyboardEvent): boolean {
+  return (
+    event.key === "Escape" &&
+    !typing(event.target) &&
+    document.querySelector(".coach") !== null
+  );
+}
+
 function heldElsewhere(event: KeyboardEvent): boolean {
   if (capturingKeys(event.target)) return true;
   if (handlePaneEscape(event)) return true;
+  if (coachHoldsEscape(event)) return true;
   // An open context menu owns every key until it closes.
   return (
     !contextMenuOpen() &&

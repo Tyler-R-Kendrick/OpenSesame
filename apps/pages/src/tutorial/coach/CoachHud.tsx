@@ -89,6 +89,8 @@ function Coach({
       className="coach"
       data-coach-step={tour.step}
       data-coach-kind={tour.kind}
+      data-coach-target={tour.target ?? ""}
+      data-coach-degraded={missing ? "true" : "false"}
     >
       <Dim hole={hole} viewport={viewport} gliding={gliding} />
       {hole !== null ? (

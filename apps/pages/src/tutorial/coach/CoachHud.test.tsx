@@ -144,4 +144,33 @@ describe("the tutorial card", () => {
     expect(text?.querySelectorAll("*").length).toBe(1); // only the hidden counter
     expect(text?.textContent).toContain("Locking drops the keys");
   });
+
+  it("marks its root with the step's target and whether it degraded", async () => {
+    const { user, card } = await startLock();
+    const root = () => card.closest(".coach");
+    await user.click(within(card).getByRole("button", { name: /^Next/ }));
+    await waitFor(() => expect(counter(card)).toBe("Step 2 of 2"));
+    await waitFor(() =>
+      expect(root()?.getAttribute("data-coach-target")).toBe("shell.lock"),
+    );
+    expect(root()?.getAttribute("data-coach-degraded")).toBe("false");
+  });
+
+  it("says degraded on a step whose control is not on screen", async () => {
+    const { user, card } = await startLock([]);
+    await user.click(within(card).getByRole("button", { name: /^Next/ }));
+    await waitFor(() =>
+      expect(card.closest(".coach")?.getAttribute("data-coach-degraded")).toBe(
+        "true",
+      ),
+    );
+    expect(card.closest(".coach")?.getAttribute("data-coach-target")).toBe(
+      "shell.lock",
+    );
+  });
+
+  it("has an empty target on a step that points at nothing", async () => {
+    const { card } = await startLock();
+    expect(card.closest(".coach")?.getAttribute("data-coach-target")).toBe("");
+  });
 });

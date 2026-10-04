@@ -50,6 +50,11 @@ export type PlacementInput = {
   readonly phone: boolean;
 };
 
+/** The device's safe-area insets at the two edges a card docks to, in px. */
+export type SafeInsets = { readonly top: number; readonly bottom: number };
+
+export const NO_INSETS: SafeInsets = { top: 0, bottom: 0 };
+
 /** Breathing room between the card and the screen edge. */
 export const COACH_MARGIN = 12;
 /** Space between the target and the card, where the notch lives. */
@@ -153,8 +158,11 @@ export function clearOfDock(
   viewport: Size,
   card: Size,
   edge: "top" | "bottom",
+  insets: SafeInsets = NO_INSETS,
 ): Box {
-  const dock = card.height + COACH_MARGIN * 2;
+  // The card sits `0.5rem + inset` off its edge (coach.css), so the screen's
+  // own inset at that edge is part of what it covers.
+  const dock = card.height + COACH_MARGIN * 2 + insets[edge];
   const top = edge === "top" ? Math.max(hole.top, dock) : hole.top;
   const bottom =
     edge === "top"
