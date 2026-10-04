@@ -33,6 +33,19 @@ import {
   readString,
 } from "@opensesame/os-domain";
 import {
+  DEFAULT_CLAIM_LIMIT,
+  DELIVERY_CONCURRENCY,
+  DELIVERY_DEADLINE_MS,
+  DELIVERY_PER_PRINCIPAL,
+  mapBounded,
+  withDeadline,
+} from "./bounded.js";
+import {
+  type RoutePlanRecord,
+  type RoutePlanStore,
+  createRoutePlanStore,
+} from "./route-plan-store.js";
+import {
   MAX_DELIVERY_ATTEMPTS,
   fanOutWebhooks,
   nextAttemptDelayMs,
@@ -372,63 +385,9 @@ export function policyFromOutboxPayload(payload: JsonObject): ApprovalPolicy {
   });
 }
 
-/* ------------------------------------------------------------------ *
- * Route plans
- * ------------------------------------------------------------------ */
+/* The route plan memory lives in route-plan-store.ts. */
 
-/**
- * What stage 2 needs to advance a ladder it did not compute.
- *
- * Fallback may only ever choose a step that was *already in the plan*, so
- * the plan has to survive from fan-out to delivery. There is nowhere durable
- * to put it — a `NotificationDelivery` has no routing column, and the
- * rendered payload is the provider's, not ours — so it is remembered in
- * process memory, bounded, and never written down. The consequence is
- * deliberate: a worker that has forgotten the plan does not fall back at
- * all. The row dead-letters and the request stays in the durable inbox,
- * which is the failure we can live with. Guessing the next destination from
- * a policy re-derived after the fact is the one we cannot: a preference edit
- * or a default-policy stand-in could name a channel the original policy had
- * excluded.
- */
-export interface RoutePlanRecord {
-  plan: RoutePlan;
-  notificationClass: NotificationClass;
-  eventType: string;
-  principalId: string;
-  authReqId?: string;
-  /** The outbox payload minus the routing key, re-rendered per step. */
-  body: JsonObject;
-}
-
-export interface RoutePlanStore {
-  get(outboxEventId: string): RoutePlanRecord | undefined;
-  remember(outboxEventId: string, record: RoutePlanRecord): void;
-}
-
-const DEFAULT_PLAN_CAPACITY = 512;
-
-/**
- * Bounded, insertion-ordered plan memory. Unbounded would be a leak in a
- * process that is expected to run for months.
- */
-export function createRoutePlanStore(
-  capacity: number = DEFAULT_PLAN_CAPACITY,
-): RoutePlanStore {
-  const entries = new Map<string, RoutePlanRecord>();
-  return {
-    get: (outboxEventId) => entries.get(outboxEventId),
-    remember: (outboxEventId, record) => {
-      entries.delete(outboxEventId);
-      entries.set(outboxEventId, record);
-      while (entries.size > Math.max(1, capacity)) {
-        const oldest = entries.keys().next();
-        if (oldest.done) break;
-        entries.delete(oldest.value);
-      }
-    },
-  };
-}
+export { type RoutePlanRecord, type RoutePlanStore, createRoutePlanStore };
 
 const sharedPlanStore = createRoutePlanStore();
 
@@ -730,7 +689,7 @@ const TERMINAL_STATES: ReadonlySet<string> = new Set([
 /** Stage 2: claim due deliveries and hand them to their adapters. */
 export async function deliverNotifications(
   deps: NotificationDispatchDeps,
-  limit = 50,
+  limit = DEFAULT_CLAIM_LIMIT,
 ): Promise<NotificationDeliveryResult> {
   const now = deps.clock();
   const registry = deps.adapters ?? EMPTY_ADAPTER_REGISTRY;
@@ -743,7 +702,12 @@ export async function deliverNotifications(
     fellBack: 0,
   };
 
-  for (const delivery of due) {
+  const pass = {
+    concurrency: DELIVERY_CONCURRENCY,
+    perKey: DELIVERY_PER_PRINCIPAL,
+    keyOf: (row: NotificationDelivery) => row.principalId,
+  };
+  await mapBounded(due, pass, async (delivery) => {
     if (TERMINAL_STATES.has(delivery.state)) {
       // A settled row handed back by `claimDue` is a repository bug. Say so
       // and leave it alone: rewriting a terminal row would erase the record
@@ -753,7 +717,7 @@ export async function deliverNotifications(
         "claimDue returned a settled delivery; skipped",
       );
       result.skipped += 1;
-      continue;
+      return;
     }
 
     const adapter = registry.get(delivery.kind);
@@ -767,7 +731,7 @@ export async function deliverNotifications(
         now,
         result,
       );
-      continue;
+      return;
     }
 
     const binding = delivery.bindingId
@@ -781,34 +745,31 @@ export async function deliverNotifications(
         now,
         result,
       );
-      continue;
+      return;
     }
 
     try {
-      const outcome = await adapter.deliver({
-        delivery,
-        ...(binding ? { binding } : undefined),
-        now,
-      });
+      // One slow receiver may hold this row for the deadline and no longer.
+      const outcome = await withDeadline(
+        adapter.deliver({
+          delivery,
+          ...(binding ? { binding } : undefined),
+          now,
+        }),
+        DELIVERY_DEADLINE_MS,
+      );
       if (outcome.ok) {
-        if (outcome.providerMessageRef) {
-          await deps.repos.notificationDeliveries.markDelivered(
-            delivery.id,
-            now,
-            outcome.providerMessageRef,
-          );
-        } else {
-          await deps.repos.notificationDeliveries.markDelivered(
-            delivery.id,
-            now,
-          );
-        }
+        await deps.repos.notificationDeliveries.markDelivered(
+          delivery.id,
+          now,
+          outcome.providerMessageRef,
+        );
         result.delivered += 1;
-        continue;
+        return;
       }
       if (!outcome.retryable) {
         await settlePermanently(deps, delivery, outcome.error, now, result);
-        continue;
+        return;
       }
       await scheduleRetry(deps, delivery, outcome.error, now, result);
     } catch (err) {
@@ -823,7 +784,7 @@ export async function deliverNotifications(
         result,
       );
     }
-  }
+  });
   return result;
 }
 

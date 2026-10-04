@@ -1,5 +1,6 @@
 import type { PushSubscriptionRepository } from "@opensesame/database";
 import {
+  DELIVERY_TIMEOUT_MS,
   type ChannelAdapter as PackageChannelAdapter,
   type RenderedMessage,
   type WakeAction,
@@ -15,6 +16,7 @@ import {
   readJsonObject,
   readString,
 } from "@opensesame/os-domain";
+import { DELIVERY_DEADLINE_MS, mapBounded } from "./bounded.js";
 import {
   type ChannelAdapter,
   type ChannelAdapterRegistry,
@@ -58,6 +60,9 @@ const RETIRING_ERRORS: readonly RegExp[] = [
 function retiresSubscription(error: string): boolean {
   return RETIRING_ERRORS.some((pattern) => pattern.test(error));
 }
+
+/** Sends to one person's browsers in flight at once (the cap is 10 each). */
+export const PUSH_CONCURRENCY = 5;
 
 const WAKE_ACTIONS: readonly WakeAction[] = ["review", "decided", "none"];
 
@@ -127,40 +132,57 @@ export function createWebPushChannel(deps: WebPushChannelDeps): ChannelAdapter {
     let delivered = 0;
     let retryable: string | undefined;
     let permanent: string | undefined;
-    for (const subscription of subscriptions) {
-      const outcome = await deps.adapter.deliver(message, {
-        channel: "native_push",
-        subscription: {
-          endpoint: subscription.endpoint,
-          keys: {
-            p256dh: subscription.p256dhKey,
-            auth: subscription.authSecret,
+    // A person's browsers are pushed to side by side, and no new send starts
+    // once there is no longer time for it to finish inside the row's deadline
+    // (each send carries its own transport timeout). A subscription that never
+    // answers costs this row one timeout, not one timeout per subscription.
+    const startBy = Date.now() + DELIVERY_DEADLINE_MS - DELIVERY_TIMEOUT_MS;
+    await mapBounded(
+      subscriptions,
+      {
+        concurrency: PUSH_CONCURRENCY,
+        perKey: PUSH_CONCURRENCY,
+        keyOf: () => "push",
+      },
+      async (subscription) => {
+        if (Date.now() > startBy) {
+          retryable ??= "deadline_exceeded";
+          return;
+        }
+        const outcome = await deps.adapter.deliver(message, {
+          channel: "native_push",
+          subscription: {
+            endpoint: subscription.endpoint,
+            keys: {
+              p256dh: subscription.p256dhKey,
+              auth: subscription.authSecret,
+            },
           },
-        },
-      });
-      if (outcome.status === "delivered") {
-        delivered += 1;
-        continue;
-      }
-      const error = outcome.error ?? outcome.status;
-      if (outcome.status === "retryable") {
-        retryable = error;
-        continue;
-      }
-      permanent = error;
-      if (outcome.status === "permanent" && retiresSubscription(error)) {
-        await deps.subscriptions.disable(subscription.id, input.now);
-        // An id and a digest, never the endpoint: it is a capability URL.
-        deps.log?.info(
-          {
-            subscriptionId: subscription.id,
-            endpointDigest: subscription.endpointDigest,
-            error,
-          },
-          "web push subscription retired",
-        );
-      }
-    }
+        });
+        if (outcome.status === "delivered") {
+          delivered += 1;
+          return;
+        }
+        const error = outcome.error ?? outcome.status;
+        if (outcome.status === "retryable") {
+          retryable = error;
+          return;
+        }
+        permanent = error;
+        if (outcome.status === "permanent" && retiresSubscription(error)) {
+          await deps.subscriptions.disable(subscription.id, input.now);
+          // An id and a digest, never the endpoint: it is a capability URL.
+          deps.log?.info(
+            {
+              subscriptionId: subscription.id,
+              endpointDigest: subscription.endpointDigest,
+              error,
+            },
+            "web push subscription retired",
+          );
+        }
+      },
+    );
     // One device that got it is delivered. Retrying the row for another that
     // did not would ring the first again; the inbox still holds the request.
     if (delivered > 0) return { ok: true };
