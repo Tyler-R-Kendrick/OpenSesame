@@ -1347,9 +1347,18 @@ importers:
         specifier: workspace:*
         version: link:../webhooks
     devDependencies:
+      '@types/jws':
+        specifier: 3.2.10
+        version: 3.2.10
       '@types/node':
         specifier: 22.15.29
         version: 22.15.29
+      http_ece:
+        specifier: 1.2.1
+        version: 1.2.1
+      jws:
+        specifier: 4.0.1
+        version: 4.0.1
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -5185,6 +5194,9 @@ packages:
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
 
+  '@types/jws@3.2.10':
+    resolution: {integrity: sha512-cOevhttJmssERB88/+XvZXvsq5m9JLKZNUiGfgjUb5lcPRdV2ZQciU6dU76D/qXXFYpSqkP3PrSg4hMTiafTZw==}
+
   '@types/minimatch@3.0.5':
     resolution: {integrity: sha512-Klz949h02Gz2uZCMGwDUSDS1YBlTdDDgbWHi+81l29tQALUtvz4rAYi5uoVhE5Lagoq6DeqAUlbrHvW/mXDgdQ==}
 
@@ -7135,6 +7147,10 @@ packages:
   http-z@8.1.1:
     resolution: {integrity: sha512-4rEIu4SljSAs+lgCzzskyNdYllteGIHdnMBsu9MqafivyPAofSmCsrRjHQgxLs0BoPkUJBa7Ld6rXP32SPI8Fg==}
     engines: {node: '>=18'}
+
+  http_ece@1.2.1:
+    resolution: {integrity: sha512-+tzLoMYgXvicu60sVFoswTiu6BiQ6EX3DORRJQ3W2dNpNWCyZ3tcmRFZZ3jgVyw8ziWUCeUARKCkYDY6JgFx+w==}
+    engines: {node: '>=16'}
 
   https-proxy-agent@5.0.1:
     resolution: {integrity: sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA==}
@@ -13503,6 +13519,10 @@ snapshots:
 
   '@types/json-schema@7.0.15': {}
 
+  '@types/jws@3.2.10':
+    dependencies:
+      '@types/node': 22.15.29
+
   '@types/minimatch@3.0.5': {}
 
   '@types/ms@2.1.0': {}
@@ -14162,8 +14182,7 @@ snapshots:
   bson@7.3.3:
     optional: true
 
-  buffer-equal-constant-time@1.0.1:
-    optional: true
+  buffer-equal-constant-time@1.0.1: {}
 
   buffer-from@1.1.2: {}
 
@@ -14693,7 +14712,6 @@ snapshots:
   ecdsa-sig-formatter@1.0.11:
     dependencies:
       safe-buffer: 5.2.1
-    optional: true
 
   editions@6.22.0:
     dependencies:
@@ -15550,6 +15568,8 @@ snapshots:
 
   http-z@8.1.1: {}
 
+  http_ece@1.2.1: {}
+
   https-proxy-agent@5.0.1:
     dependencies:
       agent-base: 6.0.2
@@ -16021,13 +16041,11 @@ snapshots:
       buffer-equal-constant-time: 1.0.1
       ecdsa-sig-formatter: 1.0.11
       safe-buffer: 5.2.1
-    optional: true
 
   jws@4.0.1:
     dependencies:
       jwa: 2.0.1
       safe-buffer: 5.2.1
-    optional: true
 
   kareem@3.4.0:
     optional: true
