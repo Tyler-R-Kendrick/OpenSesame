@@ -1,0 +1,118 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "press": "Lock vault"
+        },
+        {
+          "fill": {
+            "label": "Password",
+            "text": "not the password"
+          }
+        },
+        {
+          "press": "Unlock"
+        },
+        {
+          "report": ".note--err, [role=alert]:not(.visually-hidden)"
+        },
+        {
+          "measure": ".note--err, [role=alert]:not(.visually-hidden)"
+        },
+        {
+          "measure": ".notice-corner"
+        },
+        {
+          "shot": "1280-unlock-error"
+        },
+        {
+          "pressOptional": "Notifications"
+        },
+        {
+          "shot": "1280-unlock-tray"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "press": "Lock vault"
+        },
+        {
+          "fill": {
+            "label": "Password",
+            "text": "not the password"
+          }
+        },
+        {
+          "press": "Unlock"
+        },
+        {
+          "report": ".note--err, [role=alert]:not(.visually-hidden)"
+        },
+        {
+          "measure": ".note--err, [role=alert]:not(.visually-hidden)"
+        },
+        {
+          "measure": ".notice-corner"
+        },
+        {
+          "shot": "390-unlock-error"
+        },
+        {
+          "pressOptional": "Notifications"
+        },
+        {
+          "shot": "390-unlock-tray"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-unlock-error",
+      "width": 1280,
+      "title": "A wrong password on the unlock screen \u2014 1280 \u00d7 800",
+      "caption": "The unlock screen has no shell, so it had no bell, and the failure was a red box in the card (432\u00d744). Now the box is gone, the card keeps its height, and a corner bell (35\u00d739, top right) carries a dot for the notice.",
+      "before": "red box in the unlock card",
+      "after": "no box \u00b7 corner bell with a dot"
+    },
+    {
+      "shot": "1280-unlock-tray",
+      "width": 1280,
+      "title": "The corner bell opened \u2014 1280 \u00d7 800",
+      "caption": "Before, there was nowhere to open: the screen drew no bell. After, the bell opens the tray, which holds the sentence with a dismiss key.",
+      "before": "no bell on this screen",
+      "after": "tray holds the failure"
+    },
+    {
+      "shot": "390-unlock-error",
+      "width": 390,
+      "title": "A wrong password, phone \u2014 390 \u00d7 844",
+      "caption": "The same screen on a phone: the red box (324\u00d744) is gone and the corner bell keeps a 44\u00d744 target under a coarse pointer.",
+      "before": "red box in the unlock card",
+      "after": "no box \u00b7 corner bell with a dot"
+    },
+    {
+      "shot": "390-unlock-tray",
+      "width": 390,
+      "title": "The corner bell opened \u2014 390 \u00d7 844",
+      "caption": "Notifications opened from the corner bell on a phone, where there is no More menu before unlock.",
+      "before": "no bell on this screen",
+      "after": "tray holds the failure"
+    }
+  ]
+}
