@@ -18,18 +18,22 @@ import {
   itemTypeRegistry,
   sortItems,
 } from "@opensesame/vault-core";
-import { useContributions } from "../bindings/contributions.js";
 import { EmptyTip } from "../components/EmptyTip.js";
-import { IconChevronLeft, IconPlus } from "../components/Icons.js";
+import { IconChevronLeft } from "../components/Icons.js";
 import { NavTree } from "../components/NavTree.js";
 import { swipeBack } from "../lib/gestures.js";
 import { useNarrow } from "../lib/use-narrow.js";
-import { vaultListPath, vaultPane } from "../lib/vault-list-path.js";
+import {
+  PHONE_ALL_ITEMS,
+  vaultListPath,
+  vaultPane,
+} from "../lib/vault-list-path.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
-import { ExportKey } from "./vault/ExportKey.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
+import { VaultActions } from "./vault/VaultActions.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
+import { VaultPathbar } from "./vault/VaultPathbar.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import { WelcomeKeys } from "./vault/WelcomeKeys.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
@@ -113,8 +117,6 @@ export function VaultSection() {
   const previewable =
     location.pathname === "/vault" ||
     (itemId !== undefined && !location.pathname.endsWith("/edit"));
-  // Keys a capability adds after New item — Import, from the formats it reads.
-  const commands = useContributions("vault-command");
   const actions = useMemo(
     () => ({
       open: (item: VaultItem) => {
@@ -208,7 +210,20 @@ export function VaultSection() {
           It is mounted only below the breakpoint, so the rail and this pane
           never hold two trees at once. */}
       <div className="vault__tree" ref={treePaneRef}>
-        {narrow ? <NavTree /> : null}
+        {narrow ? (
+          <>
+            {/* The list's own command row, so adding, importing and backing
+                up are on the screen a phone opens on. Search jumps to the
+                list of everything with its prompt open. */}
+            <VaultPathbar
+              verbs={<VaultActions createPath={createPath} />}
+              search={() =>
+                navigate(PHONE_ALL_ITEMS, { state: { search: true } })
+              }
+            />
+            <NavTree />
+          </>
+        ) : null}
       </div>
       <div
         className="vault__list"
@@ -252,24 +267,13 @@ export function VaultSection() {
                   onPurge={(item) => actions.purge(item)}
                 />
               ) : (
-                <>
-                  <Link
-                    ref={(element) => {
-                      newItemRef.current = element;
-                      createRef(element);
-                    }}
-                    className="icon-btn icon-btn--sm"
-                    aria-label="New item"
-                    title="New item (n)"
-                    to={createPath}
-                  >
-                    <IconPlus size={15} />
-                  </Link>
-                  {commands.map(({ id, Command }) => (
-                    <Command key={id} />
-                  ))}
-                  <ExportKey />
-                </>
+                <VaultActions
+                  createPath={createPath}
+                  createRef={(element) => {
+                    newItemRef.current = element;
+                    createRef(element);
+                  }}
+                />
               )}
             </>
           }
