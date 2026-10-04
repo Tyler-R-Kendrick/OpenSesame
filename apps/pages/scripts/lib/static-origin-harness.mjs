@@ -286,10 +286,11 @@ export function createHarness({ dist, origin, base, out }) {
       if (!condition) failures.push(`[${step}] ${what}`);
       record(condition ? "PASS" : "FAIL", what);
     },
-    launch: () =>
+    launch: (options = {}) =>
       chromium.launch({
         executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
         headless: true,
+        args: options.args ?? [],
       }),
     newPage: (browser, options = {}) =>
       newPage(browser, { dist, origin, base, record, ...options }),

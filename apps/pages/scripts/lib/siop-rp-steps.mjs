@@ -141,7 +141,10 @@ export async function startLogin(context, rpUrl, { clientId, callback } = {}) {
 
 /** A login started by somebody else's client: its cookie is theirs, not the browser's. */
 export async function startLoginElsewhere(rpUrl) {
-  const response = await fetch(`${rpUrl}/auth/start`, { redirect: "manual" });
+  const response = await fetch(`${rpUrl}/auth/start`, {
+    redirect: "manual",
+    signal: AbortSignal.timeout(15_000),
+  });
   expect(response.status).toBe(302);
   const url = new URL(response.headers.get("location") ?? "");
   const header = response.headers.get("set-cookie") ?? "";
@@ -159,6 +162,7 @@ export async function post(rpUrl, path, response, cookie = "") {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ response }),
+    signal: AbortSignal.timeout(15_000),
   });
   return { status: answered.status, body: await answered.json() };
 }

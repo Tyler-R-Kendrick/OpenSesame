@@ -108,7 +108,9 @@ export function startRelyingParty(env) {
     output: () => output,
     stop: () => {
       child.kill("SIGTERM");
-      return exited;
+      // A child that ignores SIGTERM is killed, so a run never waits on it.
+      const killer = setTimeout(() => child.kill("SIGKILL"), 5_000);
+      return exited.finally(() => clearTimeout(killer));
     },
   };
 }

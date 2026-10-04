@@ -13,6 +13,7 @@
  * by Chromium, sent back by the page's own POST.
  */
 import { expect } from "@playwright/test";
+import { discoveryRefusals, floods } from "./siop-rp-limits.mjs";
 import {
   expiredToken,
   humanConsent,
@@ -20,7 +21,7 @@ import {
   refusals,
   unregisteredRedirect,
 } from "./siop-rp-refusals.mjs";
-import { freePort, startRelyingParty } from "./siop-rp-server.mjs";
+import { startRelyingParty } from "./siop-rp-server.mjs";
 import {
   answer,
   bindingCookieOf,
@@ -32,6 +33,7 @@ import {
   startLoginElsewhere,
   watch,
 } from "./siop-rp-steps.mjs";
+import { timed } from "./siop-timing.mjs";
 
 const pass = (what) => console.log(`PASS ${what}`);
 
@@ -55,37 +57,6 @@ function rpEnvironment(env) {
 }
 
 /**
- * Discovery is read at startup, pinned to the issuer the operator configured,
- * and a document that does not check out stops the process. So does a setting
- * that would let a plaintext address through.
- */
-async function discoveryRefusals(env, rpEnv) {
-  const stops = async (what, extra) => {
-    const rp = startRelyingParty(rpEnv(extra));
-    expect(await rp.exited, what).not.toBe(0);
-    return rp.output();
-  };
-  await stops("not json", {
-    SIOP_RP_METADATA_URL: `${env.metadataServer}/index.html`,
-  });
-  await stops("another issuer", {
-    OPENSESAME_PAGES_BASE: "https://evil.example/OpenSesame",
-  });
-  // Not the issuer's own origin, and the operator did not say it is a mirror.
-  await stops("document from another origin", {
-    SIOP_RP_METADATA_MIRROR: "",
-  });
-  // A loopback redirect over http is local development, and says so.
-  await stops("plaintext loopback without the opt-in", {
-    SIOP_RP_ALLOW_LOOPBACK_HTTP: "",
-    SIOP_RP_DISCOVER: "",
-  });
-  pass(
-    "rp startup: a page that is not the metadata, metadata for another issuer, a document from an origin the operator did not name, and loopback http without the opt-in each stop the relying party",
-  );
-}
-
-/**
  * Sign in the way a person does: press the RP's own button. Chromium submits
  * the form, receives the RP's real 302 and its Set-Cookie, and checks that
  * redirect against the page's `form-action` before it leaves for Pages.
@@ -104,9 +75,18 @@ async function submitForm(env, watched, { clientId } = {}) {
   // harness that stands in for Pages, so the browser's own request to Pages
   // fails there. That is the proof the policy let it go: a blocked redirect
   // never reaches the network, and says so.
-  const left = new Promise((resolve) => {
+  const left = new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      page.off("requestfailed", seen);
+      reject(
+        new Error(
+          `the RP's redirect to Pages never failed at the network within 15s (violations: ${JSON.stringify(violations)})`,
+        ),
+      );
+    }, 15_000);
     const seen = (request) => {
       if (!request.url().startsWith(`${issuer}?`)) return;
+      clearTimeout(timer);
       page.off("requestfailed", seen);
       resolve(request);
     };
@@ -306,79 +286,28 @@ async function plantedResponses(env) {
   );
 }
 
-/**
- * A second, real process with small limits: one client may not start more
- * logins than its allowance, and a store with no room refuses (503) rather
- * than push out a login somebody is in the middle of.
- */
-async function floods(env, rpEnv) {
-  const port = await freePort();
-  const url = `http://127.0.0.1:${port}`;
-  const listen = {
-    SIOP_RP_LISTEN: `127.0.0.1:${port}`,
-    SIOP_RP_REDIRECT_URI: `${url}/callback`,
-    SIOP_RP_DISCOVER: "",
-  };
-  const limited = startRelyingParty(
-    rpEnv({ ...listen, SIOP_RP_STARTS_PER_MINUTE: "2" }),
-  );
-  await limited.ready;
-  try {
-    const statuses = [];
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      statuses.push(
-        (await fetch(`${url}/auth/start`, { redirect: "manual" })).status,
-      );
-    }
-    expect(statuses).toEqual([302, 302, 429]);
-  } finally {
-    await limited.stop();
-  }
-  const full = startRelyingParty(
-    rpEnv({ ...listen, SIOP_RP_MAX_PENDING_LOGINS: "2" }),
-  );
-  await full.ready;
-  try {
-    const first = await startLoginElsewhere(url);
-    const second = await startLoginElsewhere(url);
-    const refused = await fetch(`${url}/auth/start`, { redirect: "manual" });
-    expect(refused.status).toBe(503);
-    expect(refused.headers.get("retry-after")).toBe("30");
-    // Neither login in progress was pushed out to make room.
-    for (const login of [first, second]) {
-      const denied = `#${new URLSearchParams({ error: "access_denied", state: login.state })}`;
-      expect((await post(url, "/callback", denied, login.cookie)).body).toEqual(
-        { error: "provider_error" },
-      );
-    }
-  } finally {
-    await full.stop();
-  }
-  pass(
-    "rp flood: a client over its allowance gets 429, and a full login store answers 503 without evicting a login in progress",
-  );
-}
-
 /** Last: the expired token moves the browser's clock back two hours. */
 export async function nodeRpJourney(env) {
   const rpEnv = rpEnvironment(env);
-  await discoveryRefusals(env, rpEnv);
-  await floods(env, rpEnv);
+  await timed("rp startup refusals", () => discoveryRefusals(env, rpEnv));
+  await timed("rp flood limits", () => floods(env, rpEnv));
   const watched = watch(env.page, env.issuer, env.rpUrl);
   const rp = startRelyingParty(rpEnv());
-  await rp.ready;
+  await timed("rp start", () => rp.ready);
   try {
-    await formPolicyControl(env);
-    const first = await allow(env, watched);
-    await replays(env, watched);
-    await otherApplication(env, watched, first);
-    await secondaryCallback(env);
-    await plantedResponses(env);
-    await refusals(env);
-    await unregisteredRedirect(env);
-    await humanConsent(env);
-    await lockedVault(env);
-    await expiredToken(env);
+    await timed("rp form policy control", () => formPolicyControl(env));
+    const first = await timed("rp allow (form)", () => allow(env, watched));
+    await timed("rp replays", () => replays(env, watched));
+    await timed("rp second application", () =>
+      otherApplication(env, watched, first),
+    );
+    await timed("rp secondary callback", () => secondaryCallback(env));
+    await timed("rp planted responses", () => plantedResponses(env));
+    await timed("rp refusals", () => refusals(env));
+    await timed("pages unregistered redirect", () => unregisteredRedirect(env));
+    await timed("pages human consent", () => humanConsent(env));
+    await timed("pages locked vault", () => lockedVault(env));
+    await timed("rp expired token", () => expiredToken(env));
   } finally {
     await rp.stop();
   }
