@@ -8,8 +8,12 @@
  * carrier port the device host mints through (`device-identity-carrier.ts`).
  *
  * The port is not a method of the store, so the store's public surface does
- * not hand out its body: the store registers it here, and the few callers that
- * need it (the carrier, a restore, a test) ask for it by store.
+ * not hand out its body: the store registers it here (`registerBodyPort`) and
+ * installs the carrier (`installDeviceKeyCarrier`), and a test asks for it by
+ * store (`bodyPortOf`). Those three are for `store.ts`, this module and tests
+ * only; `pnpm quality:app-core` fails on any other importer, in any package or
+ * app (`scripts/lib/app-core-seams.mjs`). Everything else asks the device
+ * identity key for the key and the store for its own methods.
  */
 
 import type { JsonObject } from "@opensesame/os-domain";
