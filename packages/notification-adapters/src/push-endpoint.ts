@@ -20,9 +20,9 @@ const ESCAPE = /%[0-9A-Fa-f]{2}/gu;
 const UNRESERVED = /^[A-Za-z0-9\-._~]$/u;
 
 function canonicalEscapes(part: string): string {
-  return part.replace(ESCAPE, (escape) => {
-    const char = String.fromCharCode(Number.parseInt(escape.slice(1), 16));
-    return UNRESERVED.test(char) ? char : escape.toUpperCase();
+  return part.replace(ESCAPE, (match) => {
+    const char = String.fromCharCode(Number.parseInt(match.slice(1), 16));
+    return UNRESERVED.test(char) ? char : match.toUpperCase();
   });
 }
 
