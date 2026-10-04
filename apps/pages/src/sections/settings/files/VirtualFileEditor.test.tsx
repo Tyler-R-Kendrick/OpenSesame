@@ -5,7 +5,7 @@ import type {
   VirtualFileProvider,
 } from "@opensesame/app-core/sections/settings/virtual-files.js";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { inTray } from "../../../components/tray.test-support.js";
 import { VirtualFileEditor } from "./VirtualFileEditor.js";
 
@@ -72,7 +72,9 @@ describe("VirtualFileEditor", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: `Save ${file.path}` }));
     await screen.findByRole("img", { name: "The disk is full." });
-    expect(inTray("The disk is full.")).toBe(true);
+    // The mark and the notice come from one render, but the notice is raised
+    // in an effect: wait for it rather than read it the instant the mark shows.
+    await vi.waitFor(() => expect(inTray("The disk is full.")).toBe(true));
     expect(listNotices().map((notice) => notice.id)).toEqual([
       `settings-file:${file.path}`,
     ]);
