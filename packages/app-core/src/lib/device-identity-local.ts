@@ -7,8 +7,10 @@
  */
 
 import { isString } from "@opensesame/os-domain";
+import type { DeviceRouteContribution } from "./device-identity-routes.js";
 import { readLocalApplications } from "./local-applications.js";
 import { readLocalDirectory } from "./local-directory.js";
+import { localPasskeyAssurance } from "./local-iam-assurance.js";
 import {
   PERSONAL_PROJECT_ID,
   type PagesProject,
@@ -328,3 +330,16 @@ export async function dispatchExtendedDeviceRoute(
     (await handleMfa(bare))
   );
 }
+
+/**
+ * What `identity.local-iam` contributes to the device plane (ADR 0160): the
+ * directory (people, agents, organizations, projects, applications), the
+ * audit trail and the request inbox, all read from this vault. It registers
+ * this from `activate` and unregisters on dispose.
+ */
+export const LOCAL_IAM_DEVICE_ROUTES: DeviceRouteContribution = {
+  id: "identity.local-iam",
+  serves: ["directory", "audit", "requests"],
+  dispatch: ({ path, method }) => dispatchExtendedDeviceRoute(path, method),
+  assurance: localPasskeyAssurance,
+};

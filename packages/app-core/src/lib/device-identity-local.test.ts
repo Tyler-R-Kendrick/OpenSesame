@@ -8,10 +8,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { defaultCapabilityConnectors } from "./capabilities.js";
 import {
   deviceIdentityFetch,
-  deviceIdentitySeams,
   resetDeviceIdentitySessionsForTests,
 } from "./device-identity-host.js";
-import { dispatchExtendedDeviceRoute } from "./device-identity-local.js";
+import { LOCAL_IAM_DEVICE_ROUTES } from "./device-identity-local.js";
+import {
+  registerDeviceRoutes,
+  resetDeviceRoutesForTests,
+} from "./device-identity-routes.js";
 import { saveSettings } from "./settings.js";
 
 function emptyRemoteSettings(): void {
@@ -27,17 +30,15 @@ function emptyRemoteSettings(): void {
   });
 }
 
-const originalDispatch = deviceIdentitySeams.dispatchExtended;
-
 beforeEach(() => {
   emptyRemoteSettings();
   resetDeviceIdentitySessionsForTests();
-  deviceIdentitySeams.dispatchExtended = dispatchExtendedDeviceRoute;
+  registerDeviceRoutes(LOCAL_IAM_DEVICE_ROUTES);
 });
 
 afterEach(() => {
   resetDeviceIdentitySessionsForTests();
-  deviceIdentitySeams.dispatchExtended = originalDispatch;
+  resetDeviceRoutesForTests();
 });
 
 describe("device identity local routes", () => {
