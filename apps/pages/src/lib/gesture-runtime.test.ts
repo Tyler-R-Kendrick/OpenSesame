@@ -212,6 +212,24 @@ describe("where a gesture stands down", () => {
     release();
   });
 
+  it("while a text field has the keyboard up, wherever the fingers land", () => {
+    const { items, release } = listings();
+    const field = document.createElement("input");
+    document.body.append(field);
+    field.focus();
+    twoFingers(handlers(), rowIn("vtree__rows"), [90, 0]);
+    expect(items.parent).not.toHaveBeenCalled();
+    field.blur();
+    // A focused choice or switch is not the keyboard: the gesture a person has
+    // just bound can be tried at once.
+    const choice = document.createElement("select");
+    document.body.append(choice);
+    choice.focus();
+    twoFingers(handlers(), rowIn("vtree__rows"), [90, 0]);
+    expect(items.parent).toHaveBeenCalledOnce();
+    release();
+  });
+
   it("while a dialog or a context menu holds the screen", () => {
     const { items, release } = listings();
     const row = rowIn("vtree__rows");

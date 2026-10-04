@@ -200,8 +200,11 @@ async function motionRuns(page, harness, label) {
   await closeSheet(page);
   // A field holds the screen: the same tap is not a gesture then.
   const field = page.locator("select.kb-target").first();
-  await field.focus();
-  await twoFingers(page, [60, 400], [0, 0], { hold: 80 });
+  await field.scrollIntoViewIfNeeded();
+  const box = await field.boundingBox();
+  await twoFingers(page, [box.x + 12, box.y + box.height / 2], [0, 0], {
+    hold: 80,
+  });
   check(
     (await sheetOpen(page)) === 0,
     `${label}: a two-finger tap does nothing while a field holds the keyboard`,

@@ -42,11 +42,23 @@ export type GestureHost = Readonly<{
   now?: () => number;
 }>;
 
+/** A text field has the keyboard up, wherever on the page a finger lands. */
+function textEntryFocused(): boolean {
+  const held = document.activeElement;
+  if (held instanceof HTMLTextAreaElement) return true;
+  if (held instanceof HTMLInputElement)
+    return !["button", "checkbox", "radio", "range", "submit"].includes(
+      held.type,
+    );
+  return held instanceof HTMLElement && held.isContentEditable;
+}
+
 /** A gesture is the page's, not the keymap's, wherever something else holds the screen. */
 export function gestureStandsDown(target: EventTarget | null): boolean {
   return (
     contextMenuOpen() ||
     typing(target) ||
+    textEntryFocused() ||
     document.querySelector('[role="dialog"][aria-modal="true"]') !== null
   );
 }
