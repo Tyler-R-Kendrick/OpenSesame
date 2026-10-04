@@ -51,3 +51,55 @@ export async function backOutStops(page, stop, { harness, audit }) {
   await back("Back to sections", "tree", "the list lands on the section tree");
   await audit(page, stop("tree"));
 }
+
+/**
+ * The command row above the tree: adding, importing, exporting and searching
+ * are on the screen a phone opens on, each key at the 44px floor, and the
+ * search key lands on the list with its prompt focused. Skipped where the walk
+ * is not on the tree, so it can be called wherever the vault is entered.
+ */
+export async function treeActions(page, stop, { harness, audit }) {
+  const pane = () => page.locator(".vault").first().getAttribute("data-pane");
+  if ((await pane()) !== "tree") return;
+  const row = page.locator(".vault__tree .vtree__keys");
+  const keys = await row.locator("a, button").evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const box = node.getBoundingClientRect();
+      return {
+        name: node.getAttribute("aria-label") ?? node.getAttribute("title"),
+        width: Math.round(box.width),
+        height: Math.round(box.height),
+      };
+    }),
+  );
+  // The `?` key stands down on a phone: drawn nowhere, so it has no size.
+  const shown = keys.filter((key) => key.width > 0);
+  for (const name of ["New item", "Export items", "Search (/)"]) {
+    harness.check(
+      keys.some((key) => key.name === name),
+      `${stop("tree-actions")}: the tree carries the ${name} key`,
+    );
+  }
+  harness.check(
+    shown.length > 0 && shown.every((k) => k.width >= 44 && k.height >= 44),
+    `${stop("tree-actions")}: every key is 44px (${shown
+      .map((k) => `${k.name} ${k.width}x${k.height}`)
+      .join(", ")})`,
+  );
+  await audit(page, stop("tree-actions"));
+  await row.locator('[title="Search (/)"]').tap();
+  await page.waitForTimeout(600);
+  harness.check(
+    (await pane()) === "list",
+    `${stop("tree-actions")}: search opens the list`,
+  );
+  const focused = await page.evaluate(() =>
+    document.activeElement?.getAttribute("aria-label"),
+  );
+  harness.check(
+    focused === "Search items",
+    `${stop("tree-actions")}: the search prompt is focused (${focused})`,
+  );
+  await page.getByRole("link", { name: "Back to sections" }).first().tap();
+  await page.waitForTimeout(500);
+}

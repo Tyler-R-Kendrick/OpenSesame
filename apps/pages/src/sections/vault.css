@@ -748,8 +748,10 @@
     touch-action: pan-y;
   }
 
+  /* A field under 16px makes iOS zoom the page on focus and never zoom back. */
   .vtree__cmd input {
     min-height: 2.75rem;
+    font-size: 16px;
   }
 }
 
