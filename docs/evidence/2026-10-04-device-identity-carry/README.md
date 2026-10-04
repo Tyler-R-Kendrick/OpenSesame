@@ -2,14 +2,17 @@
 
 The change shows on screen in two places, both bell notices raised when a
 backup is restored. Before is `origin/main` (618b48e0), after is this branch
-(built at f734b67a), each served from its own build of `apps/pages` under the
+(built at the head named in the pull request, after the review fixes), each served from its own build of `apps/pages` under the
 production origin and walked the same way at phone (390 × 844, touch) and
 desktop (1280 × 900) width.
 
 The walk is two devices, each its own browser context with its own storage and
 vault, passing one file, and it uses the app's own keys: the Export key makes
 an encrypted backup on a source device (desktop-sized, both builds); on the
-device that is captured the Import key restores it and the bell is opened. A
+device that is captured the Import key restores it, choosing "Also take its
+device identity" on the restore card where the build offers that choice (it is
+offered only to a vault that has done nothing yet, and is off until chosen; the
+base build has no such choice), and the bell is opened. A
 phone draws no statusline, so there the bell is the Notifications row of the
 More sheet. `apps/pages/scripts/capture-device-identity-notices.mjs` drives it
 and writes the measurements below from the page (`measurements.json`, in the
@@ -24,10 +27,28 @@ node apps/pages/scripts/capture-evidence.mjs compose \
   docs/evidence/2026-10-04-device-identity-carry/journey.json
 ```
 
+## The restore card — "Also take its device identity"
+
+A backup restored into a vault that has done nothing yet. The card offers the
+backup's device identity as one labelled check, off until the person chooses it.
+It is offered only to such a vault; a vault with items or folders is shown no
+choice and the backup's identity is ignored.
+
+![390](390-card.png)
+![1280](1280-card.png)
+
+| | choices on the card | checked | choice size | sheet |
+|---|---|---|---|---|
+| before, 390 | 0 | n/a | n/a | 390 × 384 |
+| after, 390 | 1 | no | 322 × 44 (the touch floor) | 390 × 439 |
+| before, 1280 | 0 | n/a | n/a | 424 × 900 |
+| after, 1280 | 1 | no | 355 × 22 | 424 × 900 |
+
 ## Restoring over a vault's own key — "Device identity changed"
 
 The captured device sealed a vault and connected, so its vault minted a key of
-its own, then restored a backup made on the first device.
+its own, then restored a backup made on the first device, taking its identity on
+the card. The notice says the person took the backup's key.
 
 ![390](390-changed.png)
 ![1280](1280-changed.png)
@@ -42,7 +63,7 @@ its own, then restored a backup made on the first device.
 ## Restoring a backup made before keys travelled — "Restored without an identity key"
 
 The backup was exported before any key existed, so its body carries none. A
-fresh device restored it.
+fresh device restored it, choosing to take its identity.
 
 ![390](390-keyless.png)
 ![1280](1280-keyless.png)
@@ -63,6 +84,7 @@ notice card, with a title and a sentence and no new control.
 ## Gate
 
 `pnpm --filter @opensesame/pages verify:device-identity` walks the same restore
-flows with assertions (principal kept, loser's bearer ended, one key minted,
-the notices in the bell). It fails 10 checks on the `origin/main` build and
-passes on this branch.
+flows with assertions (principal kept, replaced key's bearer ended, one key
+minted, the notices in the bell, and a declined choice leaving the principal
+alone and saying nothing). Its restore and keyless walks fail on the
+`origin/main` build and pass on this branch.

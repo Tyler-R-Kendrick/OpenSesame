@@ -116,10 +116,14 @@ The plaintext is `VaultBody` JSON:
 { "v": 1, "items": [], "folders": [], "itemTypes": {}, "rev": 12 }
 ```
 
-Optional members a reader that does not know them ignores (`itemTypesAt`,
-`tombstones`, and `deviceIdentityKey`, below).
+Optional members (`itemTypesAt`, `tombstones`, and `deviceIdentityKey`, below).
+A reader that does not know one ignores it on read. A build from before one was
+added also drops it on its first re-save of the body, because it rebuilds the
+body from the members it knows; the next merge or reconcile on a build that
+knows the member puts it back from another device or from the tomb. A file
+written between those two moments does not carry it.
 
-**`deviceIdentityKey`** (ADR 0160 §5) carries the vault's device identity
+**`deviceIdentityKey`** (ADR 0160 §5a) carries the vault's device identity
 key, so its principal travels with the vault: a P-256 key whose RFC 7638
 thumbprint is the principal (`prn_` + thumbprint).
 
@@ -131,11 +135,17 @@ thumbprint is the principal (`prn_` + thumbprint).
 
 It is a secret and sits only inside the sealed body. A lister names its path,
 `config/device-identity-key`, and never a member of it (`opensesame vault
-ls` prints `config/device-identity-key<TAB>concealed`). When two bodies of one
-vault carry different keys the older `createdAt` wins, then the smaller
-`keyId` in plain code-unit order; a record whose `version` a reader does not
-know is kept as it is and never replaced by one it does. The vector
-`backup-device-identity` in `spec/conformance/vault-vectors.json` carries one.
+ls` prints `config/device-identity-key<TAB>concealed`). `null` is absent; any
+other value is listed by name. A writer's record is trusted only when its
+`keyId` is the thumbprint of its `publicJwk`, its `privateJwkJson` is that
+public key's private half, and its `createdAt` is a positive time no more than a
+day past the reader's clock; anything else is no key. Two trusted keys of one
+vault, met in an authenticated merge, rank by the older `createdAt`, then the
+smaller `keyId` in plain code-unit order. A record whose `version` a reader does
+not know is kept as it is and never replaced. A backup's key is never ranked
+against a vault's: it is taken only by a person who chooses to. The vector
+`backup-device-identity`, and `concealedBodies` for which body shapes are
+listed, are in `spec/conformance/vault-vectors.json`.
 
 **Sealing**
 - The body is sealed under VK with **additional data**. The additional data

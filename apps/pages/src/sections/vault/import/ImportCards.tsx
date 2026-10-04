@@ -223,7 +223,7 @@ function IdentityChoice({
   onChange: (next: boolean) => void;
 }) {
   return (
-    <label className="check">
+    <label className="check imp__identity">
       <input
         type="checkbox"
         checked={checked}

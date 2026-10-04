@@ -111,18 +111,53 @@ async function backupFrom(browser, name, { connectFirst }) {
   return { file, principal };
 }
 
-/** The Import key, then the restore card with the backup's password. */
-async function restore(page, file) {
+/**
+ * The Import key, then the restore card with the backup's password. With
+ * `shot`, the card as drawn (before the choice is made) is captured and its
+ * choice measured: how many there are, whether it is checked, its size.
+ */
+async function restore(page, file, shot) {
   await page.getByLabel("Choose a file to import").first().setInputFiles(file);
   const sheet = page.getByRole("dialog", { name: "Import items" });
   await sheet.waitFor({ timeout: 15000 });
   await sheet.getByLabel("Master password", { exact: true }).fill(PASSWORD);
+  // The card offers the backup's device identity to a vault that has done
+  // nothing yet; the person takes it. The base build has no such choice.
+  const choice = sheet.getByRole("checkbox", {
+    name: "Also take its device identity",
+  });
+  let card = null;
+  if (shot) {
+    await page.waitForTimeout(500);
+    card = await page.evaluate(() => {
+      const dialog = document.querySelector(
+        '[role="dialog"][aria-label="Import items"]',
+      );
+      const box = (el) => {
+        const r = el.getBoundingClientRect();
+        return { width: Math.round(r.width), height: Math.round(r.height) };
+      };
+      const label = [...dialog.querySelectorAll("label.check")].find((el) =>
+        /device identity/.test(el.textContent ?? ""),
+      );
+      return {
+        sheet: box(dialog),
+        choices: label ? 1 : 0,
+        choice: label ? box(label) : null,
+        checked: label?.querySelector("input")?.checked ?? null,
+      };
+    });
+    await page.screenshot({ path: path.join(OUT, `${shot}.png`) });
+    console.log(`  ${side}/${shot}: ${JSON.stringify(card)}`);
+  }
+  if ((await choice.count()) > 0) await choice.check();
   await sheet.getByRole("button", { name: "Restore items" }).click();
   await sheet
     .getByText("Restored", { exact: true })
     .waitFor({ timeout: 30000 });
   await sheet.getByRole("button", { name: "Close" }).first().click();
   await sheet.waitFor({ state: "detached", timeout: 10000 });
+  return card;
 }
 
 /**
@@ -186,7 +221,7 @@ for (const width of WIDTHS) {
   setStep(`${width.name}-changed`);
   const target = await device(browser, width);
   const own = await connect(target.page);
-  await restore(target.page, withKey.file);
+  const card = await restore(target.page, withKey.file, `${width.name}-card`);
   const after = await connect(target.page);
   const stale = await hostCall(
     target.page,
@@ -194,6 +229,7 @@ for (const width of WIDTHS) {
     asBearer(own.token),
   );
   const changed = await bell(target.page, `${width.name}-changed`, width.phone);
+  measurements[`${width.name}-card`] = card;
   measurements[`${width.name}-changed`] = {
     ...changed,
     principalMatchesBackup: after.principalId === withKey.principal.principalId,

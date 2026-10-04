@@ -76,12 +76,19 @@ async function exportBackup(page, file) {
   await sheet.waitFor({ state: "detached", timeout: 10000 });
 }
 
-/** The Import key, then the restore card with the backup's own password. */
-async function restoreBackup(page, file) {
-  await page.getByLabel("Choose a file to import").setInputFiles(file);
+const TAKE = "Also take its device identity";
+
+/**
+ * The Import key, then the restore card with the backup's own password. The
+ * backup's device identity is taken only when `take` is set: the card offers
+ * the choice to a vault that has done nothing yet and leaves it off.
+ */
+async function restoreBackup(page, file, { take = false } = {}) {
+  await page.getByLabel("Choose a file to import").first().setInputFiles(file);
   const sheet = page.getByRole("dialog", { name: "Import items" });
   await sheet.waitFor({ timeout: 15000 });
   await sheet.getByLabel("Master password", { exact: true }).fill(PASSWORD);
+  if (take) await sheet.getByRole("checkbox", { name: TAKE }).check();
   await sheet.getByRole("button", { name: "Restore items" }).click();
   await sheet
     .getByText("Restored", { exact: true })
@@ -139,11 +146,11 @@ export async function restoredElsewhere(browser) {
 
   // Another device: a fresh vault that has never held a key, then the file.
   const elsewhere = await newDevice(browser);
-  await restoreBackup(elsewhere.page, backup);
+  await restoreBackup(elsewhere.page, backup, { take: true });
   const restored = await connect(elsewhere.page);
   env.check(
     restored.principalId === original.principalId,
-    `${label}: restored on another device, the principal is the same`,
+    `${label}: restored on another device with its identity taken, the principal is the same`,
   );
   env.check(
     !(await bellSays(elsewhere.page, "Device identity changed")),
@@ -157,7 +164,7 @@ export async function restoredElsewhere(browser) {
     before.principalId !== original.principalId,
     `${label}: a fresh vault's own key is another principal`,
   );
-  await restoreBackup(minted.page, backup);
+  await restoreBackup(minted.page, backup, { take: true });
   env.check(
     await ended(minted.page, before),
     `${label}: the key that lost ends its sessions`,
@@ -186,7 +193,7 @@ export async function restoredWithoutKey(browser) {
   const backup = tmp("keyless");
   await exportBackup(source.page, backup);
   const target = await newDevice(browser);
-  await restoreBackup(target.page, backup);
+  await restoreBackup(target.page, backup, { take: true });
   const first = await connect(target.page);
   const second = await connect(target.page);
   env.check(
@@ -202,7 +209,7 @@ export async function restoredWithoutKey(browser) {
   const next = tmp("keyless-next");
   await exportBackup(target.page, next);
   const again = await newDevice(browser);
-  await restoreBackup(again.page, next);
+  await restoreBackup(again.page, next, { take: true });
   env.check(
     (await connect(again.page)).principalId === first.principalId,
     `${label}: the minted key travels with the next backup`,
@@ -215,58 +222,46 @@ export async function restoredWithoutKey(browser) {
 }
 
 /**
- * A vault that meets a second key for itself keeps the older, whichever is
- * restored last, and the loser's sessions end. The second key is another
- * vault's, taken in by a vault that had done nothing yet (the restore case),
- * then the vault's own backup is restored into it.
+ * A restore never takes the backup's identity unless the person chose it: a
+ * fresh vault that restores a backup carrying another key keeps its own
+ * principal, says nothing, and the choice is there, off, on the card.
  */
-export async function olderKeyWins(browser) {
-  const label = "conflict";
+export async function restoreDeclined(browser) {
+  const label = "declined";
   env.setStep(label);
-  const one = await newDevice(browser);
-  const oldKey = await connect(one.page);
-  const backupOne = tmp("one");
-  await exportBackup(one.page, backupOne);
+  const source = await newDevice(browser);
+  await connect(source.page);
+  const backup = tmp("declined");
+  await exportBackup(source.page, backup);
 
-  // A later vault elsewhere, with a later key.
-  const two = await newDevice(browser);
-  const newKey = await connect(two.page);
-  const backupTwo = tmp("two");
-  await exportBackup(two.page, backupTwo);
+  const target = await newDevice(browser);
+  const own = await connect(target.page);
+  await target.page
+    .getByLabel("Choose a file to import")
+    .first()
+    .setInputFiles(backup);
+  const sheet = target.page.getByRole("dialog", { name: "Import items" });
+  await sheet.waitFor({ timeout: 15000 });
+  const box = sheet.getByRole("checkbox", { name: TAKE });
   env.check(
-    oldKey.principalId !== newKey.principalId,
-    `${label}: two vaults, two keys`,
+    (await box.count()) === 1 && !(await box.isChecked()),
+    `${label}: a fresh vault is offered the backup's identity, off`,
   );
-
-  // The first vault, unused beyond its key, restores the later vault's backup:
-  // it takes that principal (a restore of someone's identity, not a ranking).
-  await restoreBackup(one.page, backupTwo);
+  await sheet.getByLabel("Master password", { exact: true }).fill(PASSWORD);
+  await sheet.getByRole("button", { name: "Restore items" }).click();
+  await sheet
+    .getByText("Restored", { exact: true })
+    .waitFor({ timeout: 30000 });
+  await sheet.getByRole("button", { name: "Close" }).first().click();
+  await sheet.waitFor({ state: "detached", timeout: 10000 });
   env.check(
-    await ended(one.page, oldKey),
-    `${label}: the vault's own key gave way to the restored one`,
-  );
-  const adopted = await connect(one.page);
-  env.check(
-    adopted.principalId === newKey.principalId,
-    `${label}: it now speaks as the restored principal`,
-  );
-
-  // Now its own backup comes back: the same vault, two keys. The older wins.
-  await restoreBackup(one.page, backupOne);
-  env.check(
-    await ended(one.page, adopted),
-    `${label}: the newer key's session ends`,
-  );
-  const settled = await connect(one.page);
-  env.check(
-    settled.principalId === oldKey.principalId,
-    `${label}: the older key is the vault's again`,
+    await stands(target.page, own),
+    `${label}: declined, the vault keeps its principal and its session stands`,
   );
   env.check(
-    await bellSays(one.page, "Device identity changed"),
-    `${label}: the bell says the principal changed`,
+    !(await bellSays(target.page, "Device identity changed")),
+    `${label}: nothing is announced`,
   );
-  await Promise.all([one, two].map(({ context }) => context.close()));
-  fs.rmSync(backupOne, { force: true });
-  fs.rmSync(backupTwo, { force: true });
+  await Promise.all([source, target].map(({ context }) => context.close()));
+  fs.rmSync(backup, { force: true });
 }
