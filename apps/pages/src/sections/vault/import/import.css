@@ -136,6 +136,14 @@
   color: var(--ink-2);
 }
 
+/* A finger is not a pointer: the restore card's one choice keeps the 44px
+   floor on the width as well as the pointer (DESIGN.md § Touch). */
+@media (pointer: coarse), (max-width: 900px) {
+  .imp__identity {
+    min-height: 2.75rem;
+  }
+}
+
 @media (max-width: 640px) {
   /* Three columns cannot fit a phone; the folder is stated by the choice
      just above the table, so it is the one to drop. */

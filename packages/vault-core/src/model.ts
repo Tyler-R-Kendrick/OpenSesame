@@ -1,5 +1,6 @@
 /** Vault item model. Everything here lives inside the sealed body — never in plaintext storage. */
 
+import type { JsonObject } from "@opensesame/os-domain";
 import type {
   FieldValues,
   ItemTypeDefinition,
@@ -227,34 +228,16 @@ export type VaultBody = {
   rev?: number | undefined;
   /** Purged items, deleted folders and uninstalled types, so a merge cannot bring them back (ADR 0144). */
   tombstones?: VaultTombstones | undefined;
+  /**
+   * The vault's device identity key (ADR 0160 §5), so its principal travels
+   * with the vault. Sealed with the body; never listed, never in an export of
+   * items. `device-key.ts` reads, merges and ranks it.
+   */
+  deviceIdentityKey?: JsonObject | undefined;
 };
 
-/**
- * Labels for the legacy kinds only. Every type's label — these included —
- * comes from its definition through `typeLabel()`; these tables remain as the
- * fallback for a screen holding a legacy kind and nothing else.
- */
-export const KIND_LABEL = {
-  login: "Login",
-  passkey: "Passkey",
-  card: "Card",
-  secret: "Secret",
-  note: "Secure note",
-  certificate: "Certificate",
-  drop: "Drop",
-  typed: "Item",
-};
-
-export const KIND_PLURAL = {
-  login: "Logins",
-  passkey: "Passkeys",
-  card: "Cards",
-  secret: "Secrets",
-  note: "Secure notes",
-  certificate: "Certificates",
-  drop: "Drops",
-  typed: "Items",
-};
+import { KIND_LABEL } from "./kind-labels.js";
+export { KIND_LABEL, KIND_PLURAL } from "./kind-labels.js";
 
 export function newId(): string {
   return crypto.randomUUID();

@@ -173,7 +173,7 @@ function degraded(): boolean {
 
 function jittered(ms: number): number {
   const spread = ms * JITTER;
-  const random = crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+  const random = (crypto.getRandomValues(new Uint32Array(1))[0] ?? 0) / 2 ** 32;
   return Math.round(ms - spread + random * spread * 2);
 }
 

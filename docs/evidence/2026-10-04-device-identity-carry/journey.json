@@ -1,0 +1,54 @@
+{
+  "out": ".",
+  "screens": [],
+  "sheets": [
+    {
+      "shot": "390-card",
+      "width": 390,
+      "title": "The restore card for a vault that has done nothing yet — 390 × 844",
+      "caption": "A backup restored into a fresh vault. After, the card offers one choice, off until the person chooses it: the backup's device identity. Before, the card has none, and a restore could never take the backup's identity.",
+      "before": "no choice on the card; sheet 390 × 384",
+      "after": "one choice, unchecked, 322 × 44 (the touch floor); sheet 390 × 439"
+    },
+    {
+      "shot": "1280-card",
+      "width": 1280,
+      "title": "The restore card for a vault that has done nothing yet — 1280 × 900",
+      "caption": "The same card at desktop width.",
+      "before": "no choice on the card; sheet 424 × 900",
+      "after": "one choice, unchecked, 355 × 22; sheet 424 × 900"
+    },
+    {
+      "shot": "390-changed",
+      "width": 390,
+      "title": "Notifications after restoring over a vault's own key — 390 × 844",
+      "caption": "A second device seals a vault, connects (so the vault mints a key of its own), then restores an encrypted backup made on the first device. The backup carries its key sealed in the body, and the restore card offers it: \"Also take its device identity\", off until chosen, which the person chooses here. Before, there is no such choice and the restore kept the device's own key: another principal, and nothing said so. After, the vault takes the backup's key, its old session ends, and the bell says the person took the backup's key.",
+      "before": "Notifications none; sheet 390 × 131, \"Nothing waiting.\"; principal differs from the backup's; the old bearer still answers 200",
+      "after": "Notifications 1; sheet 390 × 287, card 353 × 174 \"Device identity changed\"; principal equals the backup's; the old bearer answers 401"
+    },
+    {
+      "shot": "390-keyless",
+      "width": 390,
+      "title": "Notifications after restoring a backup made before keys travelled — 390 × 844",
+      "caption": "The backup was exported before any key existed, so its body carries none. A fresh device restores it, choosing to take its identity. Before, nothing said the principal differs from the backup's. After, one key is minted once and the bell says the backup carried none.",
+      "before": "Notifications none; sheet 390 × 131, \"Nothing waiting.\"",
+      "after": "Notifications 1; sheet 390 × 287, card 353 × 174 \"Restored without an identity key\"; two sessions, one principal"
+    },
+    {
+      "shot": "1280-changed",
+      "width": 1280,
+      "title": "Notifications after restoring over a vault's own key — 1280 × 900",
+      "caption": "The same walk at desktop width, where the bell is the statusline key.",
+      "before": "Notifications — none; sheet 424 × 900, \"Nothing waiting.\"; principal differs from the backup's; the old bearer answers 200",
+      "after": "Notifications — 1 pending; sheet 424 × 900, card 386 × 158 \"Device identity changed\"; principal equals the backup's; the old bearer answers 401"
+    },
+    {
+      "shot": "1280-keyless",
+      "width": 1280,
+      "title": "Notifications after restoring a backup made before keys travelled — 1280 × 900",
+      "caption": "The same walk at desktop width.",
+      "before": "Notifications — none; sheet 424 × 900, \"Nothing waiting.\"",
+      "after": "Notifications — 1 pending; sheet 424 × 900, card 386 × 158 \"Restored without an identity key\"; two sessions, one principal"
+    }
+  ]
+}

@@ -110,6 +110,7 @@ fn summary(opened: &OpenedVaultFile) -> Value {
         "rev": opened.rev,
         "header_rev": opened.header_rev,
         "rolled_back": opened.rolled_back,
+        "concealed": opened.concealed,
     })
 }
 
@@ -123,7 +124,8 @@ pub fn render_verify(opened: &OpenedVaultFile, output: &str) -> String {
     format!("OK — {}", describe(opened))
 }
 
-/// `vault ls`: the verdict, then `path<TAB>kind` per item, or its JSON.
+/// `vault ls`: the verdict, then `path<TAB>kind` per item and `path<TAB>concealed`
+/// per concealed file (a name, never a value), or its JSON.
 pub fn render_ls(opened: &OpenedVaultFile, output: &str) -> String {
     if output == "json" {
         let mut data = summary(opened);
@@ -141,7 +143,13 @@ pub fn render_ls(opened: &OpenedVaultFile, output: &str) -> String {
             opened
                 .items
                 .iter()
-                .map(|item| format!("{}\t{}", item.path, item.kind)),
+                .map(|item| format!("{}\t{}", item.path, item.kind))
+                .chain(
+                    opened
+                        .concealed
+                        .iter()
+                        .map(|path| format!("{path}\tconcealed")),
+                ),
         )
         .collect::<Vec<_>>()
         .join("\n")

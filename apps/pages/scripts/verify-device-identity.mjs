@@ -25,6 +25,16 @@
 //      member's bearer does not speak for it.
 //   H. A capability that activates after Access Sessions drew (its chunk is
 //      held back) shows Receipts without a navigation.
+//   I. The principal across backup and restore (ADR 0160 §5a), each device its
+//      own browser context: export an offline backup and restore it on a fresh
+//      device, taking its identity on the card, and the principal is the same;
+//      a device whose fresh vault had already minted a key takes the backup's,
+//      its old sessions end and the bell says so; a backup with no key mints
+//      one key, once, and says so, and that key travels with the next backup.
+//   J. A restore that does not take the backup's identity (the card's choice
+//      is offered, and off) keeps the vault's principal and says nothing.
+//   K. A guest session's restore card draws no choice about the identity at
+//      all (a guest carries no key), and the backup restores and says nothing.
 //   F. Access, once chosen: every tab reads clean, and Receipts is drawn only
 //      once Browser-local IAM is on, because only it keeps an audit trail for
 //      the device plane to serve.
@@ -35,6 +45,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  configureRestore,
+  restoreAsGuest,
+  restoreDeclined,
+  restoredElsewhere,
+  restoredWithoutKey,
+} from "./lib/device-identity-restore.mjs";
 import {
   WIDTHS,
   chooseCapability,
@@ -75,6 +92,7 @@ const { log, failures, check, setStep, launch, newPage, snap } = createHarness({
 });
 
 configureScenarios({ ORIGIN, BASE, DIST, check, setStep, newPage, snap });
+configureRestore({ ORIGIN, BASE, check, setStep, newPage });
 
 const browser = await launch();
 for (const width of WIDTHS) {
@@ -137,6 +155,10 @@ for (const width of WIDTHS) {
   await context.close();
 }
 await memberVault(browser);
+await restoredElsewhere(browser);
+await restoredWithoutKey(browser);
+await restoreDeclined(browser);
+await restoreAsGuest(browser);
 await lateActivation(browser);
 await browser.close();
 
