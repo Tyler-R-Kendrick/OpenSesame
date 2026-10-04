@@ -194,43 +194,6 @@ describe("support panel", () => {
     ).toBeTruthy();
   });
 
-  it("launches a named walkthrough with no model at all", async () => {
-    const user = userEvent.setup();
-    const { engine: built } = mount(
-      fakeAgentAlwaysUnavailable("no_local_model"),
-      "none",
-    );
-    await openPanel(user);
-    const walkthroughs = await screen.findByRole("region", {
-      name: "Questions",
-    });
-    expect(walkthroughs.textContent).toContain("Where do I lock the vault?");
-    const [start] = screen.getAllByRole("button", { name: "Show me" });
-    if (!start) throw new Error("no walkthrough to start");
-    await user.click(start);
-
-    await waitFor(() => {
-      expect(
-        built.renderer.calls.some(
-          (call) => call.kind === "focus" && call.target === "shell.lock",
-        ),
-      ).toBe(true);
-    });
-    // The sheet steps aside for the walkthrough, and the overlay says one
-    // is live — reopening it is how the person pauses or stops.
-    await waitFor(() =>
-      expect(screen.queryByRole("dialog", { name: "Support" })).toBeNull(),
-    );
-    const live = await screen.findByRole("button", {
-      name: "Support — walkthrough in progress",
-    });
-    await user.click(live);
-    expect(
-      await screen.findByRole("region", { name: "Walkthrough in progress" }),
-    ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Stop" })).toBeTruthy();
-  });
-
   it("offers the download only as a gesture, and reports its progress", async () => {
     const user = userEvent.setup();
     mount(fakeAgentDownloadable());
@@ -353,6 +316,7 @@ describe("support panel", () => {
     await openPanel(user);
     await ask(user, "where is the lock");
 
+    await user.click(await screen.findByRole("button", { name: /^Next/ }));
     await waitFor(() =>
       expect(
         built.renderer.calls.some(
@@ -360,10 +324,9 @@ describe("support panel", () => {
         ),
       ).toBe(true),
     );
-    // The panel stepped aside for the walkthrough; the answer it came with is
-    // still in the transcript when the panel comes back.
+    // The answer it came with is still in the transcript when the panel returns.
     await user.click(
-      screen.getByRole("button", { name: "Support — walkthrough in progress" }),
+      screen.getByRole("button", { name: "Support — tutorial in progress" }),
     );
     expect(await screen.findByText("Here is where that lives.")).toBeTruthy();
   });
@@ -497,14 +460,16 @@ describe("support panel", () => {
     await ask(user, "a question");
     await screen.findByText("Ephemeral.");
 
-    const [start] = screen.getAllByRole("button", { name: "Show me" });
-    if (!start) throw new Error("no walkthrough to start");
-    await user.click(start);
+    await user.click(
+      screen.getAllByRole("button", { name: "Show me" }).at(0) ?? document.body,
+    );
     await waitFor(() => expect(built.renderer.calls.length).toBeGreaterThan(0));
 
-    // Back into the panel, with a walkthrough live behind it, and lock there.
+    // Back into the panel with a tutorial live behind it, and lock there.
     await user.click(
-      screen.getByRole("button", { name: "Support — walkthrough in progress" }),
+      await screen.findByRole("button", {
+        name: "Support — tutorial in progress",
+      }),
     );
     await screen.findByRole("dialog", { name: "Support" });
 

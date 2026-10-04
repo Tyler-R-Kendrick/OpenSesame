@@ -182,6 +182,10 @@ export function VaultSection() {
   const newItemRef = useRef<HTMLAnchorElement>(null);
   const createRef = useGuideTarget<HTMLAnchorElement>("vault.create");
   const listRef = useGuideTarget<HTMLDivElement>("vault.list");
+  // A phone opens on the section tree, where the list pane is not drawn: the
+  // tree answers to the list's target, and PhoneAdd's Add key to the create
+  // one, and the registry points at whichever copy is on screen.
+  const treeListRef = useGuideTarget<HTMLDivElement>("vault.list");
   const listPath = vaultListPath(location.search, narrow);
 
   useVaultFocus({
@@ -210,7 +214,14 @@ export function VaultSection() {
       {/* The section tree: the rail's own tree, drawn where a phone looks.
           It is mounted only below the breakpoint, so the rail and this pane
           never hold two trees at once. */}
-      <div className="vault__tree" ref={treePaneRef}>
+      <div
+        className="vault__tree"
+        ref={(element) => {
+          treePaneRef.current = element;
+          if (narrow) treeListRef(element);
+          else treeListRef(null);
+        }}
+      >
         {narrow ? (
           <>
             {/* A phone's first pane is for finding and adding: the search

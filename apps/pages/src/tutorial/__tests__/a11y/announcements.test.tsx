@@ -28,6 +28,7 @@ import {
   launcher,
   mountSupport,
   openPanel,
+  tutorialCard,
   walkthrough,
 } from "./harness.js";
 
@@ -147,7 +148,7 @@ describe("states an assistive technology has to hear", () => {
     ).toBeTruthy();
   });
 
-  it("says a walkthrough's progress and its paused state in words", async () => {
+  it("says a tutorial's progress in words, and announces each step politely", async () => {
     const user = userEvent.setup();
     mountSupport({
       agent: fakeAgentAlwaysUnavailable("no_local_model"),
@@ -157,25 +158,26 @@ describe("states an assistive technology has to hear", () => {
     await openPanel(user);
     await user.click(walkthrough("Lock the vault"));
 
-    await user.click(
-      await screen.findByRole("button", {
-        name: "Support — walkthrough in progress",
-      }),
-    );
-    const sheet = await screen.findByRole("dialog", { name: "Support" });
-    const status = within(sheet).getByRole("region", {
-      name: "Walkthrough in progress",
-    });
-    expect(status.textContent).toContain("Lock the vault");
-    // The tinted card is the decoration; the step count is the fact.
-    expect(status.textContent).toMatch(/step \d+ of \d+/);
-    expect(status.textContent).not.toContain("paused");
+    const card = await tutorialCard();
+    expect(card.textContent).toContain("Lock the vault");
+    // The meter is the decoration; the step count is the fact, as words.
+    expect(card.textContent).toMatch(/Step \d+ of \d+/);
+    const text = card.querySelector(".coach__text");
+    expect(text?.getAttribute("aria-live")).toBe("polite");
+    // The sentence is announced with its position, for a listener who never
+    // sees the meter.
+    expect(text?.textContent).toMatch(/^Step 1 of 2\. /);
 
-    await user.click(within(status).getByRole("button", { name: "Pause" }));
-    await waitFor(() => expect(status.textContent).toContain("paused"));
-    // Paused loses its own control, and gains the word.
-    expect(within(status).queryByRole("button", { name: "Pause" })).toBeNull();
-    expect(within(status).getByRole("button", { name: "Stop" })).toBeTruthy();
+    await user.click(within(card).getByRole("button", { name: /^Next/ }));
+    await waitFor(() =>
+      expect(card.querySelector(".coach__count")?.textContent).toBe(
+        "Step 2 of 2",
+      ),
+    );
+    // The key that leaves says what it does as its name.
+    expect(
+      within(card).getByRole("button", { name: "Exit tutorial" }),
+    ).toBeTruthy();
   });
 
   it("names the transport warning as text when an answer will leave the device", async () => {

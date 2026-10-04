@@ -131,7 +131,9 @@ export const TUTORIAL_RULES = [
   ...each(
     T,
     [
-      "rendering/",
+      "coach/",
+      "engine",
+      "tour-runner",
       "ui/",
       "__tests__/",
       "session",
@@ -145,7 +147,7 @@ export const TUTORIAL_RULES = [
       optional(
         p,
         HELP,
-        "support panel, Driver.js renderer, session; session MIXED",
+        "support panel, tutorial HUD, tour engine, session; session MIXED",
       ),
   ),
   optional(

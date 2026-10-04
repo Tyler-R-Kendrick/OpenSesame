@@ -21,9 +21,7 @@ const ISSUE_TONE = {
 export function HealthPanel() {
   const { items } = useVault();
   const report = useMemo(() => buildHealthReport(items), [items]);
-  const summaryRef = useGuideTarget<HTMLParagraphElement>(
-    "vault.health.summary",
-  );
+  const summaryRef = useGuideTarget<HTMLElement>("vault.health.summary");
   const findingsRef = useGuideTarget<HTMLElement>("vault.health.findings");
 
   return (
@@ -43,8 +41,10 @@ export function HealthPanel() {
       </div>
 
       {report.scored === 0 ? (
-        <div className="empty">
-          <h2>No passwords to review</h2>
+        // The empty report is the verdict and the whole list at once, so it
+        // answers for both targets a health tutorial points at.
+        <div className="empty" ref={findingsRef}>
+          <h2 ref={summaryRef}>No passwords to review</h2>
           <EmptyTip tip="vaultEmpty" />
           <Link className="btn btn--primary btn--sm" to="/vault/new/login">
             New login

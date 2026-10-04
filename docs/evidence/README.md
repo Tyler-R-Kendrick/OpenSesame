@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-04-tutorial-mode/`](2026-10-04-tutorial-mode/README.md) | Tutorial mode — before / after |
 | [`2026-10-04-sops-document-panel/`](2026-10-04-sops-document-panel/README.md) | SOPS document key under Settings › Security — before and after |
 | [`2026-10-04-siop-op/`](2026-10-04-siop-op/README.md) | The Self-issued OpenID card is unchanged (ADR 0161) |
 | [`2026-10-04-push-enrolment-copy/`](2026-10-04-push-enrolment-copy/README.md) | Push enrolment: the Push row and its notices, before and after |
