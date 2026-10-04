@@ -116,6 +116,13 @@ jobs:
           DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
           OPENSESAME_CLAIM_PEPPER: ci-pepper-ci-pepper-ci-pepper-ci-pepper
         run: pnpm --filter @opensesame/database test:postgres
+      - name: Worker delivery on a real Postgres
+        # Web Push through the real worker tick and a stand-in push service,
+        # over the production driver. Builds and drops its own database.
+        if: contains(steps.affected.outputs.packages, '@opensesame/identity-worker')
+        env:
+          DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
+        run: pnpm --filter @opensesame/identity-worker test:postgres
       - name: Product-experience contracts
         # One block across the experience packages. It runs when the
         # affected set includes any of them.

@@ -39,6 +39,8 @@
  * `fetchImpl` maps that origin onto the local listener and refuses any other.
  */
 
+/// <reference path="./http_ece.d.ts" />
+
 import { createPublicKey } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";

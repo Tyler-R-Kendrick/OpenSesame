@@ -1188,6 +1188,9 @@ importers:
       '@opensesame/log-scrub':
         specifier: workspace:*
         version: link:../log-scrub
+      '@opensesame/notification-adapters':
+        specifier: workspace:*
+        version: link:../notification-adapters
       '@opensesame/observability':
         specifier: workspace:*
         version: link:../observability
