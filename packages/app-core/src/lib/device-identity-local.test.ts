@@ -8,10 +8,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { defaultCapabilityConnectors } from "./capabilities.js";
 import {
   deviceIdentityFetch,
-  deviceIdentitySeams,
   resetDeviceIdentitySessionsForTests,
 } from "./device-identity-host.js";
-import { dispatchExtendedDeviceRoute } from "./device-identity-local.js";
+import { LOCAL_IAM_DEVICE_ROUTES } from "./device-identity-local.js";
+import {
+  registerDeviceRoutes,
+  resetDeviceRoutesForTests,
+} from "./device-identity-routes.js";
 import { saveSettings } from "./settings.js";
 
 function emptyRemoteSettings(): void {
@@ -27,17 +30,15 @@ function emptyRemoteSettings(): void {
   });
 }
 
-const originalDispatch = deviceIdentitySeams.dispatchExtended;
-
 beforeEach(() => {
   emptyRemoteSettings();
   resetDeviceIdentitySessionsForTests();
-  deviceIdentitySeams.dispatchExtended = dispatchExtendedDeviceRoute;
+  registerDeviceRoutes(LOCAL_IAM_DEVICE_ROUTES);
 });
 
 afterEach(() => {
   resetDeviceIdentitySessionsForTests();
-  deviceIdentitySeams.dispatchExtended = originalDispatch;
+  resetDeviceRoutesForTests();
 });
 
 describe("device identity local routes", () => {
@@ -62,5 +63,30 @@ describe("device identity local routes", () => {
           isJsonObject(row) && isString(row.slug) && row.slug === "personal",
       ),
     ).toBe(true);
+  });
+});
+
+describe("what the directory family answers", () => {
+  it("answers nothing outside the directory, audit and requests families", async () => {
+    expect(
+      (await deviceIdentityFetch("/v1/notification-preferences/effective"))
+        .status,
+    ).toBe(501);
+    expect((await deviceIdentityFetch("/v1/wallet/registrations")).status).toBe(
+      501,
+    );
+    expect(
+      (await deviceIdentityFetch("/v1/mfa/code/send", { method: "POST" }))
+        .status,
+    ).toBe(503);
+  });
+
+  it("keeps the audit trail and request inbox as they were", async () => {
+    const audit = await deviceIdentityFetch("/v1/audit/events");
+    expect(audit.status).toBe(200);
+    expect(overlapCast(await audit.json()).events).toEqual([]);
+    const requests = await deviceIdentityFetch("/v1/authorization-requests");
+    expect(requests.status).toBe(200);
+    expect(overlapCast(await requests.json()).requests).toEqual([]);
   });
 });

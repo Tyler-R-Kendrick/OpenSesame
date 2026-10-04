@@ -1,9 +1,11 @@
 /**
- * In-tab Identity API for device-native mode (ADR 0118).
+ * In-tab Identity API for device-native mode (ADR 0118, ADR 0160).
  *
  * Serves the `/v1/*` surface Pages already speaks — provisional principals,
  * claims (drops), health — against vault-local stores. A configured remote
- * Identity API overrides this whole module.
+ * Identity API overrides this whole module. Sessions and the key-backed
+ * principal live in `device-identity-sessions.ts`; every other family is a
+ * capability's contribution to `device-identity-routes.ts`.
  */
 
 import {
@@ -14,7 +16,18 @@ import {
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
-import { bytesToB64url } from "@opensesame/sdk-browser";
+import { dispatchDeviceRoute, familyOfPath } from "./device-identity-routes.js";
+import {
+  authenticateDevice,
+  bearerFrom,
+  json,
+  lockedResponse,
+  mintProvisional,
+  principalsMe,
+  resetDeviceIdentitySessionsForTests,
+  revokeProvisional,
+} from "./device-identity-sessions.js";
+import { deviceVaultView } from "./device-identity-vault.js";
 import {
   LocalDropClaimError,
   createLocalDropClaim,
@@ -22,26 +35,9 @@ import {
   presentLocalDropClaim,
 } from "./vault/local-drop-claims.js";
 
-const PROVISIONAL_TTL_MS = 24 * 60 * 60 * 1000;
+export { resetDeviceIdentitySessionsForTests };
+
 const DROP_CLAIM_TYPE = "resource_bundle";
-
-type DeviceSession = {
-  principalId: string;
-  accessToken: string;
-  expiresAtMs: number;
-};
-
-const sessionsByToken = new Map<string, DeviceSession>();
-
-function json(body: JsonObject, status = 200, headers?: HeadersInit): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "content-type": "application/json",
-      ...(headers ?? {}),
-    },
-  });
-}
 
 function obj(value: BoundaryValue): Record<string, BoundaryValue> {
   if (isTypeofObject(value) && !Array.isArray(value)) {
@@ -50,9 +46,15 @@ function obj(value: BoundaryValue): Record<string, BoundaryValue> {
   return {};
 }
 
-async function readJson(init: RequestInit): Promise<JsonObject> {
+/** The request body when it is a string, else null. */
+function stringBody(init: RequestInit): string | null {
   const raw: BoundaryValue = overlapCast(init.body);
-  if (!isString(raw) || raw.length === 0) return {};
+  return isString(raw) ? raw : null;
+}
+
+async function readJson(init: RequestInit): Promise<JsonObject> {
+  const raw = stringBody(init);
+  if (raw === null || raw.length === 0) return {};
   try {
     const parsed: BoundaryValue = overlapCast(JSON.parse(raw));
     return overlapCast(obj(parsed));
@@ -61,82 +63,16 @@ async function readJson(init: RequestInit): Promise<JsonObject> {
   }
 }
 
-function sessionBearerFrom(init: RequestInit): string | null {
-  const headers = new Headers(init.headers);
-  const auth = headers.get("authorization");
-  if (auth?.toLowerCase().startsWith("bearer ")) {
-    const token = auth.slice(7).trim();
-    return token.length > 0 ? token : null;
-  }
-  return null;
-}
-
 function claimTokenFrom(init: RequestInit): string | null {
   const headers = new Headers(init.headers);
   const claim = headers.get("x-claim-token");
   if (claim?.trim()) return claim.trim();
-  return sessionBearerFrom(init);
-}
-
-function bearerFrom(init: RequestInit): string | null {
-  return sessionBearerFrom(init);
-}
-
-function liveSession(token: string | null): DeviceSession | null {
-  if (!token) return null;
-  const row = sessionsByToken.get(token);
-  if (!row) return null;
-  if (row.expiresAtMs <= Date.now()) {
-    sessionsByToken.delete(token);
-    return null;
-  }
-  return row;
-}
-
-function mintProvisional(): Response {
-  const now = Date.now();
-  for (const [token, row] of sessionsByToken) {
-    if (row.expiresAtMs <= now) sessionsByToken.delete(token);
-  }
-  const principalId = `prn_${bytesToB64url(crypto.getRandomValues(new Uint8Array(12)))}`;
-  const accessToken = `dev_${bytesToB64url(crypto.getRandomValues(new Uint8Array(24)))}`;
-  const expiresAtMs = now + PROVISIONAL_TTL_MS;
-  sessionsByToken.set(accessToken, { principalId, accessToken, expiresAtMs });
-  return json(
-    {
-      principalId,
-      accessToken,
-      expiresAt: new Date(expiresAtMs).toISOString(),
-    },
-    201,
-  );
-}
-
-function revokeProvisional(init: RequestInit): Response {
-  const token = bearerFrom(init);
-  if (token) sessionsByToken.delete(token);
-  return json({ revoked: true });
-}
-
-function principalsMe(init: RequestInit): Response {
-  const session = liveSession(bearerFrom(init));
-  if (!session) return json({ error: "unauthorized" }, 401);
-  const now = new Date().toISOString();
-  return json({
-    id: session.principalId,
-    state: "provisional",
-    assurance: "provisional",
-    createdAt: now,
-    updatedAt: now,
-    version: 1,
-    identities: [],
-  });
+  return bearerFrom(init);
 }
 
 async function createClaim(init: RequestInit): Promise<Response> {
-  if (!liveSession(bearerFrom(init))) {
-    return json({ error: "unauthorized" }, 401);
-  }
+  const auth = await authenticateDevice(init);
+  if (!auth.ok) return auth.response;
   const body = await readJson(init);
   const manifest = body.targetManifest;
   if (!isTypeofObject(manifest) || Array.isArray(manifest)) {
@@ -221,6 +157,17 @@ function healthLive(): Response {
   return json({ status: "ok" });
 }
 
+/** Email and text codes need a sender no browser tab is. */
+function mfaUnavailable(): Response {
+  return json(
+    {
+      error: "not_configured",
+      hint: "Email and text codes need a connected sign-in service.",
+    },
+    503,
+  );
+}
+
 function notImplemented(path: string): Response {
   return json(
     {
@@ -269,48 +216,62 @@ async function handleCoreRoute(
   route: string,
   method: string,
   init: RequestInit,
-  path: string,
 ): Promise<Response> {
-  if (route === "health") {
-    return method === "GET"
-      ? healthLive()
-      : json({ error: "method_not_allowed" }, 405);
-  }
+  const notAllowed = () => json({ error: "method_not_allowed" }, 405);
+  if (route === "health") return method === "GET" ? healthLive() : notAllowed();
   if (route === "provisional") {
-    return method === "POST"
-      ? mintProvisional()
-      : json({ error: "method_not_allowed" }, 405);
+    return method === "POST" ? mintProvisional() : notAllowed();
   }
   if (route === "revoke") {
-    return method === "POST"
-      ? revokeProvisional(init)
-      : json({ error: "method_not_allowed" }, 405);
+    return method === "POST" ? revokeProvisional(init) : notAllowed();
   }
   if (route === "me") {
-    return method === "GET"
-      ? principalsMe(init)
-      : json({ error: "method_not_allowed" }, 405);
+    return method === "GET" ? principalsMe(init) : notAllowed();
   }
   if (route === "claims") {
-    return method === "POST"
-      ? createClaim(init)
-      : json({ error: "method_not_allowed" }, 405);
+    return method === "POST" ? createClaim(init) : notAllowed();
   }
-  if (route === "present") {
-    return method === "POST"
-      ? presentClaim(init)
-      : json({ error: "method_not_allowed" }, 405);
-  }
-  return notImplemented(path);
+  return method === "POST" ? presentClaim(init) : notAllowed();
 }
 
-/** Extended routes `identity.local-iam` serves. Absent, those routes refuse. */
-export const deviceIdentitySeams = {
-  dispatchExtended: async (
-    _path: string,
-    _method: string,
-  ): Promise<Response | null> => null,
-};
+type Matched = ReturnType<typeof matchCorePath>;
+
+/**
+ * Claims hold what a vault sealed, whichever session asks: while a vault is
+ * on this device and shut, no claim is created, polled or presented. A
+ * session minted before any vault existed gets no exemption.
+ */
+function claimsWhileLocked(matched: Matched): boolean {
+  const claim =
+    matched.kind === "poll" ||
+    (matched.kind === "exact" &&
+      (matched.route === "claims" || matched.route === "present"));
+  return claim && deviceVaultView().kind === "locked";
+}
+
+/** A capability's route, or what the host answers for it itself. */
+async function capabilityRoute(
+  path: string,
+  method: string,
+  init: RequestInit,
+): Promise<Response> {
+  const bare = path.split("?")[0] ?? path;
+  // A capability's routes read the vault and its directory. While a vault
+  // on this device is shut they answer `locked`; they never fall back.
+  if (deviceVaultView().kind === "locked") return lockedResponse();
+  // What needs a server is answered here, whoever is registered.
+  if (familyOfPath(bare) === "mfa-codes") return mfaUnavailable();
+  const auth = await authenticateDevice(init);
+  // A handler is given the resolved caller and the body, never a header.
+  const answered = await dispatchDeviceRoute({
+    path,
+    bare,
+    method,
+    body: stringBody(init),
+    caller: auth.ok ? auth.caller : null,
+  });
+  return answered ?? notImplemented(bare);
+}
 
 export async function deviceIdentityFetch(
   path: string,
@@ -318,21 +279,11 @@ export async function deviceIdentityFetch(
 ): Promise<Response> {
   const method = (init.method ?? "GET").toUpperCase();
   const matched = matchCorePath(path);
-
+  if (claimsWhileLocked(matched)) return lockedResponse();
   if (matched.kind === "poll") {
     if (method !== "GET") return json({ error: "method_not_allowed" }, 405);
     return pollClaim(matched.claimId, init);
   }
-  if (matched.kind === "other") {
-    // Local IAM routes read the vault and the directory. That module installs
-    // the dispatcher while it is on; otherwise the route is not implemented.
-    const extended = await deviceIdentitySeams.dispatchExtended(path, method);
-    return extended ?? notImplemented(path.split("?")[0] ?? path);
-  }
-  return handleCoreRoute(matched.route, method, init, path);
-}
-
-/** Test seam — wipe provisional sessions. */
-export function resetDeviceIdentitySessionsForTests(): void {
-  sessionsByToken.clear();
+  if (matched.kind === "other") return capabilityRoute(path, method, init);
+  return handleCoreRoute(matched.route, method, init);
 }

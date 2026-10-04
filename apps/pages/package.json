@@ -16,6 +16,7 @@
     "generate:connect": "node scripts/emit-connect-verify-targets.mjs && biome format --write server/connect-verify-targets.generated.mjs",
     "verify:static": "node scripts/verify-static-origin.mjs",
     "verify:auth": "node scripts/verify-auth-flow.mjs",
+    "verify:device-identity": "node scripts/verify-device-identity.mjs",
     "verify:live-join": "node scripts/verify-live-join.mjs",
     "verify:live-netns": "node scripts/verify-live-netns.mjs",
     "verify:browser-sessions": "node scripts/verify-browser-sessions.mjs",
