@@ -8,6 +8,7 @@
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { webLocksDouble } from "./__tests__/web-locks-double.js";
+import type { StoredReceipt } from "./device-receipts-store.js";
 import {
   flushReceipts,
   listReceipts,
@@ -44,13 +45,13 @@ const stored = (
   id,
   occurredAt: new Date(Date.UTC(2026, 9, 4, 10, 0, at)).toISOString(),
   eventType,
-  outcome: "succeeded",
+  outcome: "succeeded" as const,
   targetType: "application",
   targetId: APP,
   metadata: {},
 });
 
-const fileOf = (...receipts: object[]) =>
+const fileOf = (...receipts: StoredReceipt[]) =>
   bytes(JSON.stringify({ version: 1, receipts }));
 
 /** Writes to the files named refuse, as a full disk would, until `mend`. */

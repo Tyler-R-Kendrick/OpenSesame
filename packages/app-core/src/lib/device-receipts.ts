@@ -92,15 +92,15 @@ const held = new Map<string, StoredReceipt[]>();
 const newestWaiting = (receipts: readonly StoredReceipt[]) =>
   uniqueById(receipts).slice(-MAX_RECEIPTS);
 
+type TrailRead = { trail: StoredReceipt[]; replaced: boolean };
+
 /**
  * The trail as it stands, or a fresh one if this build cannot read it. A trail
  * that cannot be read can never take another receipt, so the receipts after it
  * would wait for ever; it is replaced by a trail that begins with a marker
  * saying so, and the unreadable bytes, which nothing could read, are gone.
  */
-async function trailOrFresh(
-  tomb: string,
-): Promise<{ trail: StoredReceipt[]; replaced: boolean }> {
+async function trailOrFresh(tomb: string): Promise<TrailRead> {
   try {
     return { trail: await readStore(tomb, TRAIL_PATH), replaced: false };
   } catch (error) {
