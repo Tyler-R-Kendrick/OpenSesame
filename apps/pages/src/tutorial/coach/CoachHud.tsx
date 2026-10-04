@@ -56,6 +56,27 @@ function cardStyle(placement: ReturnType<typeof placeCoach> | null): CardStyle {
   return { style: { left: placement.left, top: placement.top }, dock: "" };
 }
 
+function titleOf(guide: GuideRuntimeSnapshot): string {
+  return (guide.goal ? guideGoal(guide.goal)?.title : undefined) ?? "Tutorial";
+}
+
+/** The sentence, announced with its position for a listener who never sees the meter. */
+function Narration({
+  id,
+  tour,
+  counter,
+}: { id: string; tour: GuideTourView; counter: string }): ReactElement {
+  const closing = tour.kind === "close";
+  return (
+    <p className="coach__text" id={id} aria-live="polite">
+      {counter && !closing ? (
+        <span className="visually-hidden">{counter}. </span>
+      ) : null}
+      {tour.message ?? (closing ? CLOSING_TEXT : "")}
+    </p>
+  );
+}
+
 function Coach({
   guide,
   tour,
@@ -70,9 +91,7 @@ function Coach({
   const cardRef = useRef<HTMLElement>(null);
   const primaryRef = useRef<HTMLButtonElement>(null);
   const closing = tour.kind === "close";
-  const title = guide.goal
-    ? (guideGoal(guide.goal)?.title ?? "Tutorial")
-    : "Tutorial";
+  const title = titleOf(guide);
 
   const layout = useCoachLayout(guide.runId, tour, cardRef);
   const { stepKey, viewport, hole, placement, gliding, missing } = layout;
@@ -123,12 +142,7 @@ function Coach({
           closing={closing}
           support={support}
         />
-        <p className="coach__text" id={bodyId} aria-live="polite">
-          {counter && !closing ? (
-            <span className="visually-hidden">{counter}. </span>
-          ) : null}
-          {tour.message ?? (closing ? CLOSING_TEXT : "")}
-        </p>
+        <Narration id={bodyId} tour={tour} counter={counter} />
         <Foot
           tour={tour}
           missing={missing}
