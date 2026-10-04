@@ -1,13 +1,14 @@
 /**
- * Keeping the tomb's identity key and the body's as one (ADR 0160 §5): every
+ * Keeping the tomb's identity key and the body's as one (ADR 0160 §5a): every
  * row of the reconcile table, the deterministic winner when two devices each
- * minted a key, and what the person is told when this device's key loses.
+ * minted a key, a body that carries something that is not a key, and what the
+ * person is told in each case.
  */
 
 /** @vitest-environment jsdom */
-import type { JsonObject } from "@opensesame/os-domain";
+import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
 import {
-  type DeviceIdentityKeyRecord,
+  DEVICE_KEY_CLOCK_MARGIN_MS,
   deviceKeyField,
   mergeDeviceKeyFields,
   mintVaultKey,
@@ -20,14 +21,16 @@ import {
 } from "./__tests__/device-identity-records.js";
 import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import {
+  type IdentityChange,
   type KeyCarryHost,
-  keyForRestore,
+  noteDeviceIdentityChanged,
   reconcileDeviceIdentityKey,
 } from "./device-identity-carry.js";
 import {
   readDeviceIdentityKey,
   writeStoredDeviceIdentityKey,
 } from "./device-identity-key.js";
+import { vettedField } from "./device-identity-trust.js";
 import { clearNotices, listNotices } from "./notices.js";
 import { unlockTomb } from "./vfs.js";
 
@@ -37,10 +40,13 @@ async function openTomb(): Promise<string> {
   return tomb;
 }
 
-type HeldBody = { field: JsonObject | undefined; published: number };
+type HeldBody = { field: BoundaryValue; published: number };
 
-/** A body the test holds: a field, and a publish that ranks as the store does. */
-function bodyHost(tomb: string, field?: JsonObject) {
+/**
+ * A body the test holds, and a publish that behaves as the store's does: the
+ * body's own key is vetted first, then ranked against the one offered.
+ */
+function bodyHost(tomb: string, field?: BoundaryValue) {
   const held: HeldBody = { field, published: 0 };
   const host: KeyCarryHost = {
     tomb,
@@ -48,11 +54,15 @@ function bodyHost(tomb: string, field?: JsonObject) {
     field: () => held.field,
     publish: async (next) => {
       held.published += 1;
-      held.field = mergeDeviceKeyFields(held.field, next);
+      const own = await vettedField(held.field);
+      held.field = mergeDeviceKeyFields(own, next);
     },
   };
   return { host, held };
 }
+
+const keyIdOf = (field: BoundaryValue) =>
+  readDeviceIdentityKeyRecord(field)?.keyId;
 
 beforeEach(() => {
   vi.stubGlobal("navigator", { locks: webLocksDouble() });
@@ -73,32 +83,29 @@ describe("reconciling the tomb's key with the body's", () => {
     expect(await readDeviceIdentityKey(tomb)).toBeNull();
   });
 
-  it("gives the tomb the body's key: a restore or a second device keeps the principal", async () => {
+  it("gives the tomb the body's key: a second device keeps the principal", async () => {
     const tomb = await openTomb();
-    const carried = await genuineRecord(1_000);
+    const carried = await genuineRecord(Date.now() - 1000);
     const { host } = bodyHost(tomb, deviceKeyField(carried));
     await expect(reconcileDeviceIdentityKey(host)).resolves.toBe("adopted");
     expect((await readDeviceIdentityKey(tomb))?.principalId).toBe(
       `prn_${carried.keyId}`,
     );
-    // Nothing changed hands the other way, and no one is told: nothing was lost.
     expect(listNotices()).toEqual([]);
   });
 
   it("gives the body the tomb's key: a vault from before keys travelled", async () => {
     const tomb = await openTomb();
-    const local = await genuineRecord(1_000);
+    const local = await genuineRecord(Date.now() - 1000);
     await writeStoredDeviceIdentityKey(tomb, local);
     const { host, held } = bodyHost(tomb);
     await expect(reconcileDeviceIdentityKey(host)).resolves.toBe("published");
-    expect(readDeviceIdentityKeyRecord(held.field ?? {})?.keyId).toBe(
-      local.keyId,
-    );
+    expect(keyIdOf(held.field)).toBe(local.keyId);
   });
 
   it("does nothing when both hold the same key, and writes no body", async () => {
     const tomb = await openTomb();
-    const key = await genuineRecord(1_000);
+    const key = await genuineRecord(Date.now() - 1000);
     await writeStoredDeviceIdentityKey(tomb, key);
     const { host, held } = bodyHost(tomb, deviceKeyField(key));
     await expect(reconcileDeviceIdentityKey(host)).resolves.toBe("same");
@@ -108,26 +115,35 @@ describe("reconciling the tomb's key with the body's", () => {
 
   it("is idempotent: a second pass finds nothing to do", async () => {
     const tomb = await openTomb();
-    const { host } = bodyHost(tomb, await genuineField(1_000));
+    const { host } = bodyHost(tomb, await genuineField(Date.now() - 1000));
     await reconcileDeviceIdentityKey(host);
     await expect(reconcileDeviceIdentityKey(host)).resolves.toBe("same");
   });
 
   it("carries nothing for a guest or scratch tomb", async () => {
     const tomb = await openTomb();
-    const { host } = bodyHost(tomb, await genuineField(1_000));
+    const { host } = bodyHost(tomb, await genuineField(Date.now() - 1000));
     await expect(
       reconcileDeviceIdentityKey({ ...host, carries: false }),
     ).resolves.toBe("skipped");
     expect(await readDeviceIdentityKey(tomb)).toBeNull();
+  });
+
+  it("does not take the lock again when the caller holds it", async () => {
+    const locks = webLocksDouble();
+    vi.stubGlobal("navigator", { locks });
+    const tomb = await openTomb();
+    const { host } = bodyHost(tomb, await genuineField(Date.now() - 1000));
+    await reconcileDeviceIdentityKey(host, { held: true });
+    expect(locks.requested).toEqual([]);
   });
 });
 
 describe("two devices that each minted a key before they met", () => {
   it("the older key wins on the device that holds the newer one, and it says so", async () => {
     const tomb = await openTomb();
-    const olderKey = await genuineRecord(1_000);
-    const newerKey = await genuineRecord(2_000);
+    const olderKey = await genuineRecord(Date.now() - 2000);
+    const newerKey = await genuineRecord(Date.now() - 1000);
     await writeStoredDeviceIdentityKey(tomb, newerKey);
     const { host } = bodyHost(tomb, deviceKeyField(olderKey));
     await expect(reconcileDeviceIdentityKey(host)).resolves.toBe("replaced");
@@ -136,28 +152,26 @@ describe("two devices that each minted a key before they met", () => {
     expect(listNotices()[0]).toMatchObject({
       kind: "status",
       title: "Device identity changed",
+      body: expect.stringContaining("already carried an older identity key"),
     });
   });
 
   it("the older key stays on the device that holds it, and the body is set to it", async () => {
     const tomb = await openTomb();
-    const olderKey = await genuineRecord(1_000);
-    const newerKey = await genuineRecord(2_000);
+    const olderKey = await genuineRecord(Date.now() - 2000);
+    const newerKey = await genuineRecord(Date.now() - 1000);
     await writeStoredDeviceIdentityKey(tomb, olderKey);
     const { host, held } = bodyHost(tomb, deviceKeyField(newerKey));
     await expect(reconcileDeviceIdentityKey(host)).resolves.toBe("published");
     expect((await readDeviceIdentityKey(tomb))?.keyId).toBe(olderKey.keyId);
-    expect(readDeviceIdentityKeyRecord(held.field ?? {})?.keyId).toBe(
-      olderKey.keyId,
-    );
-    // The key did not change here, so nothing is announced.
+    expect(keyIdOf(held.field)).toBe(olderKey.keyId);
     expect(listNotices()).toEqual([]);
   });
 
   it("agrees whichever device reconciles first, down to the tie on time", async () => {
-    // Same time on both: the smaller key id is the vault's, on every device.
-    const a = await genuineRecord(5_000);
-    const b = await genuineRecord(5_000);
+    const at = Date.now() - 5000;
+    const a = await genuineRecord(at);
+    const b = await genuineRecord(at);
     const smaller = a.keyId < b.keyId ? a : b;
     const larger = smaller === a ? b : a;
     const first = await openTomb();
@@ -175,10 +189,68 @@ describe("two devices that each minted a key before they met", () => {
   });
 });
 
-describe("a record it cannot trust", () => {
-  it("leaves a carried record of a newer version exactly as it is, on both sides", async () => {
+describe("a body that carries something that is not a key", () => {
+  /** Records that look like keys, or like nothing, and are neither. */
+  async function poisons(): Promise<(readonly [string, BoundaryValue])[]> {
+    const genuine = await genuineRecord(Date.now() - 1000);
+    const other = await genuineRecord(Date.now() - 1000);
+    return [
+      [
+        "a forged id with the oldest possible time",
+        deviceKeyField({ ...genuine, keyId: "F".repeat(43), createdAt: 1 }),
+      ],
+      [
+        "another key's private half",
+        deviceKeyField({
+          ...genuine,
+          createdAt: 1,
+          privateJwkJson: other.privateJwkJson,
+        }),
+      ],
+      [
+        "a time past the clock margin",
+        deviceKeyField({
+          ...genuine,
+          createdAt: Date.now() + DEVICE_KEY_CLOCK_MARGIN_MS * 3,
+        }),
+      ],
+      ["null", null],
+      ["a string", "a key"],
+      ["a number", 7],
+    ];
+  }
+
+  it("never beats the tomb's genuine key, however old it claims to be, and is replaced by it", async () => {
+    for (const [name, poison] of await poisons()) {
+      const tomb = await openTomb();
+      const local = await genuineRecord(Date.now() - 1000);
+      await writeStoredDeviceIdentityKey(tomb, local);
+      const { host, held } = bodyHost(tomb, poison);
+      await expect(reconcileDeviceIdentityKey(host), name).resolves.toBe(
+        "published",
+      );
+      expect((await readDeviceIdentityKey(tomb))?.keyId, name).toBe(
+        local.keyId,
+      );
+      expect(keyIdOf(held.field), name).toBe(local.keyId);
+      expect(listNotices(), name).toEqual([]);
+    }
+  });
+
+  it("is never adopted into a tomb that has no key, and does not leave it unreadable", async () => {
+    for (const [name, poison] of await poisons()) {
+      const tomb = await openTomb();
+      const { host } = bodyHost(tomb, poison);
+      await expect(reconcileDeviceIdentityKey(host), name).resolves.toBe(
+        "none",
+      );
+      expect(await readDeviceIdentityKey(tomb), name).toBeNull();
+    }
+  });
+
+  it("leaves a record of a newer version alone on both sides", async () => {
     const tomb = await openTomb();
-    const local = await genuineRecord(1_000);
+    const local = await genuineRecord(Date.now() - 1000);
     await writeStoredDeviceIdentityKey(tomb, local);
     const unknown: JsonObject = { version: 2, from: "a newer build" };
     const { host, held } = bodyHost(tomb, unknown);
@@ -186,75 +258,40 @@ describe("a record it cannot trust", () => {
     expect(held.field).toBe(unknown);
     expect((await readDeviceIdentityKey(tomb))?.keyId).toBe(local.keyId);
   });
-
-  it("leaves a carried key whose id is not its public key's thumbprint alone", async () => {
-    const tomb = await openTomb();
-    const liar: JsonObject = {
-      ...(await genuineField(1_000)),
-      keyId: "A".repeat(43),
-    };
-    const { host, held } = bodyHost(tomb, liar);
-    await expect(reconcileDeviceIdentityKey(host)).resolves.toBe("kept");
-    expect(held.field).toBe(liar);
-    expect(await readDeviceIdentityKey(tomb)).toBeNull();
-  });
 });
 
-describe("what a restore does with the key", () => {
-  const mine = deviceKeyField({
-    version: 1,
-    keyId: "M".repeat(43),
-    publicJwk: { kty: "EC", crv: "P-256", x: "x", y: "y" },
-    privateJwkJson: "{}",
-    createdAt: 9_000,
-  } satisfies DeviceIdentityKeyRecord);
-  const theirs = deviceKeyField({
-    version: 1,
-    keyId: "T".repeat(43),
-    publicJwk: { kty: "EC", crv: "P-256", x: "x2", y: "y2" },
-    privateJwkJson: "{}",
-    createdAt: 8_000,
-  } satisfies DeviceIdentityKeyRecord);
+describe("what the person is told", () => {
+  const cases = [
+    ["ranked", "Device identity changed", "already carried an older"],
+    [
+      "restored",
+      "Device identity changed",
+      "You took the backup's identity key",
+    ],
+    [
+      "restored-without-key",
+      "Restored without an identity key",
+      "carries no identity key",
+    ],
+    ["restored-unusable", "Identity key not taken", "cannot use"],
+  ] as const satisfies readonly (readonly [IdentityChange, string, string])[];
 
-  it("ranks the two keys when the backup is of this very vault", () => {
-    const plan = keyForRestore({
-      local: mine,
-      incoming: theirs,
-      sameVault: true,
-      fresh: false,
+  it.each(cases)("says %s in its own words", (cause, title, body) => {
+    noteDeviceIdentityChanged(cause);
+    expect(listNotices()).toHaveLength(1);
+    expect(listNotices()[0]).toMatchObject({
+      title,
+      body: expect.stringContaining(body),
     });
-    expect(plan).toMatchObject({ field: theirs, withoutKey: false });
   });
 
-  it("adopts the backup's key into a vault that has done nothing yet, whichever is older", () => {
-    const plan = keyForRestore({
-      local: mine,
-      incoming: { ...theirs, createdAt: 99_999 },
-      sameVault: false,
-      fresh: true,
-    });
-    expect(plan.prefer).toBe("carried");
-    expect(plan.withoutKey).toBe(false);
-    expect(plan.field).toMatchObject({ keyId: "T".repeat(43) });
+  it("never says the backup's key is older when the person took it", () => {
+    noteDeviceIdentityChanged("restored");
+    expect(listNotices()[0]?.body).not.toMatch(/older/);
   });
 
-  it("reports a backup with no key as restored without one", () => {
-    const plan = keyForRestore({
-      local: mine,
-      incoming: undefined,
-      sameVault: false,
-      fresh: true,
-    });
-    expect(plan).toMatchObject({ field: mine, withoutKey: true });
-  });
-
-  it("keeps a vault's own key when it merges items from someone else's export", () => {
-    const plan = keyForRestore({
-      local: mine,
-      incoming: theirs,
-      sameVault: false,
-      fresh: false,
-    });
-    expect(plan).toMatchObject({ field: mine, withoutKey: false });
+  it("never says a backup carries no key when its key was one this build cannot use", () => {
+    noteDeviceIdentityChanged("restored-unusable");
+    expect(listNotices()[0]?.body).not.toMatch(/carries no identity key/);
   });
 });

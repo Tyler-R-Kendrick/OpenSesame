@@ -229,13 +229,26 @@ describe("import model", () => {
     };
     const port = store({ importSealed: vi.fn(async () => 4) });
     const outcome = await restoreStage(sealed, "pw", port);
-    expect(port.importSealed).toHaveBeenCalledWith("{}", "pw");
+    expect(port.importSealed).toHaveBeenCalledWith("{}", "pw", {});
     expect(outcome.stage).toMatchObject({
       step: "done",
       added: 4,
       restored: true,
     });
     expect((await restoreStage(sealed, "", port)).stage).toBe(sealed);
+  });
+
+  it("hands the person's choice about the backup's device identity to the store, and no other", async () => {
+    const sealed: ImportStage = {
+      step: "sealed",
+      fileName: "backup.json",
+      sealed: "{}",
+    };
+    const port = store({ importSealed: vi.fn(async () => 1) });
+    await restoreStage(sealed, "pw", port, { adoptIdentity: true });
+    expect(port.importSealed).toHaveBeenLastCalledWith("{}", "pw", {
+      adoptIdentity: true,
+    });
   });
 
   it("restores a passkey backup with the key the ceremony unwraps", async () => {

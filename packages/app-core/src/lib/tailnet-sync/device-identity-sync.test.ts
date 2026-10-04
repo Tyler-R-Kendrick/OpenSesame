@@ -6,19 +6,27 @@
  */
 
 /** @vitest-environment jsdom */
-import { overlapCast } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  type JsonObject,
+  overlapCast,
+} from "@opensesame/os-domain";
 import {
   createItem,
   readDeviceIdentityKeyRecord,
 } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { genuineField } from "../__tests__/device-identity-records.js";
 import { webLocksDouble } from "../__tests__/web-locks-double.js";
 import { deviceKeyCarrier } from "../device-identity-carrier.js";
 import { deviceIdentityFetch } from "../device-identity-host.js";
 import { readDeviceIdentityKey } from "../device-identity-key.js";
 import { deviceVaultSeams } from "../device-identity-vault.js";
 import { clearNotices, listNotices } from "../notices.js";
-import { installDeviceKeyCarrier } from "../vault/store-device-key.js";
+import {
+  bodyPortOf,
+  installDeviceKeyCarrier,
+} from "../vault/store-device-key.js";
 import { adoptSnapshot } from "./adopt.js";
 import { type Device, as, device } from "./devices.fixture.js";
 import { type MemoryDrive, PAIRING, memoryDrive } from "./drive.fixture.js";
@@ -38,7 +46,7 @@ function tick(): void {
 /** Act as `on`, with the device host reading that device's vault and body. */
 function acting<T>(on: Device, act: () => Promise<T>): Promise<T> {
   return as(on, async () => {
-    installDeviceKeyCarrier(() => on.store.bodyPort());
+    installDeviceKeyCarrier(() => bodyPortOf(on.store));
     deviceVaultSeams.view = () => ({
       kind: "unlocked",
       tomb: TOMB,
@@ -190,8 +198,75 @@ describe("two devices that each minted a key before they met", () => {
     await sync(laptop, drive);
     const keyId = onLaptop.principalId.slice("prn_".length);
     for (const on of [laptop, phone]) {
-      const field = on.store.bodyPort().body().deviceIdentityKey;
+      const field = bodyPortOf(on.store).body().deviceIdentityKey;
       expect(readDeviceIdentityKeyRecord(field ?? {})?.keyId).toBe(keyId);
     }
+  });
+});
+
+describe("a body that carries something that is not a key", () => {
+  /** Looks like a key, claims the oldest possible time, and is not genuine. */
+  async function forgery(): Promise<JsonObject> {
+    return { ...(await genuineField(1)), keyId: "F".repeat(43) };
+  }
+
+  const poisons: (readonly [string, () => Promise<BoundaryValue>])[] = [
+    ["a forged record with the oldest possible time", forgery],
+    ["null", async () => null],
+    ["a string", async () => "a key"],
+  ];
+
+  it.each(poisons)(
+    "never wins a merge and does not outlive it: %s",
+    async (_name, make) => {
+      const { drive, laptop, phone } = await pair(true);
+      const genuine = await principalOf(laptop);
+      const poison = await make();
+      await acting(laptop, () =>
+        bodyPortOf(laptop.store).mutate((body) => {
+          // The body is JSON from anywhere: put in it whatever the test names.
+          Object.assign(body, { deviceIdentityKey: poison });
+        }),
+      );
+      await sync(laptop, drive);
+      await sync(phone, drive);
+      await sync(laptop, drive);
+      // Neither device lost its principal, and neither was left unreadable.
+      expect(await principalOf(laptop)).toBe(genuine);
+      expect(await principalOf(phone)).toBe(genuine);
+      for (const on of [laptop, phone]) {
+        const field = bodyPortOf(on.store).body().deviceIdentityKey;
+        expect(readDeviceIdentityKeyRecord(field ?? {})?.keyId).toBe(
+          genuine?.slice("prn_".length),
+        );
+      }
+      expect(listNotices()).toEqual([]);
+    },
+  );
+
+  it("does not leave a device with no tomb key unreadable for ever", async () => {
+    const { drive, laptop } = await pair(false);
+    const late = device("late-phone");
+    await acting(laptop, () =>
+      bodyPortOf(laptop.store).mutate((body) => {
+        body.deviceIdentityKey = {
+          version: 1,
+          keyId: "F".repeat(43),
+          createdAt: 1,
+        };
+      }),
+    );
+    await sync(laptop, drive);
+    const snapshot = drive.snapshot;
+    if (!snapshot) throw new Error("the drive is empty");
+    await as(late, async () => {
+      await adoptSnapshot(snapshot);
+      late.store.rehydrate();
+      await late.store.unlock(PASSWORD);
+    });
+    // Nothing carried is a key, so the phone mints its own instead of failing.
+    expect(await connect(late)).toMatchObject({
+      principalId: expect.stringMatching(/^prn_[A-Za-z0-9_-]{43}$/),
+    });
   });
 });

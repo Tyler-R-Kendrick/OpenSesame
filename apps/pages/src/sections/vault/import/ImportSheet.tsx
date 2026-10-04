@@ -24,7 +24,7 @@ function StageBody({
   flow: ImportFlow;
   onClose: () => void;
 }): ReactNode {
-  const { folders } = useVault();
+  const { folders, items } = useVault();
   const { stage, error, busy } = flow;
   switch (stage.step) {
     case "reading":
@@ -58,6 +58,7 @@ function StageBody({
           opener={sealedExportUnlock(stage.sealed)}
           busy={busy}
           error={error}
+          canTakeIdentity={items.length === 0 && folders.length === 0}
           onRestore={flow.restore}
           onPasskey={flow.restorePasskey}
         />

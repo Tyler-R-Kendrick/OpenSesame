@@ -24,6 +24,7 @@ import {
   vfsSeams,
 } from "../vfs.js";
 import { bodyBeforeWrite } from "./body-edits.js";
+import { bodyPortOf } from "./store-device-key.js";
 import { VaultStore } from "./store.js";
 
 const PASSWORD = "correct horse battery staple";
@@ -57,7 +58,7 @@ afterEach(() => {
 });
 
 function openBody(store: VaultStore): VaultBody {
-  return store.bodyPort().body();
+  return bodyPortOf(store).body();
 }
 
 describe("itemTypesAt across an unlock", () => {

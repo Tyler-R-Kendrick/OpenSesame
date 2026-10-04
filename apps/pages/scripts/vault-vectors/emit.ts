@@ -5,7 +5,10 @@ import {
   buildOfflineBackup,
   serializeOfflineBackup,
 } from "@opensesame/app-core/lib/vault/offline-backup.js";
-import { installDeviceKeyCarrier } from "@opensesame/app-core/lib/vault/store-device-key.js";
+import {
+  bodyPortOf,
+  installDeviceKeyCarrier,
+} from "@opensesame/app-core/lib/vault/store-device-key.js";
 import { VaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   wrapVaultKeyWithPin,
@@ -221,7 +224,7 @@ export async function emitDeviceIdentityVector(): Promise<
   });
   const store = new VaultStore();
   await store.create(VECTOR_PASSWORD, "vector hint");
-  installDeviceKeyCarrier(() => store.bodyPort());
+  installDeviceKeyCarrier(() => bodyPortOf(store));
   await store.addItems(syntheticItems("Identity"));
   await ensureDeviceIdentityKey("personal");
   await store.flushPendingWrites();

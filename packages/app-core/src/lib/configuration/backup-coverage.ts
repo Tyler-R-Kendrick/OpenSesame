@@ -28,7 +28,7 @@ export const BACKUP_COVERAGE: readonly CoverageEntry[] = [
   {
     path: DEVICE_IDENTITY_KEY_PATH,
     kind: "included",
-    note: "The device identity key rides inside the sealed body, so a restore keeps the principal (ADR 0160). Never listed by value.",
+    note: "The device identity key rides inside the sealed body, so a restore can keep the principal when the person takes it (ADR 0160 §5a). Never listed by value.",
   },
   {
     path: PREFS_SEMANTIC_PATH,

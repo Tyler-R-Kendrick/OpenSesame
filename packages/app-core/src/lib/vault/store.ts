@@ -13,10 +13,8 @@ import {
   importVaultKey,
   installItemType,
   installedDefinitions,
-  mergeVaultBodies,
   mintVaultKey,
   rewrapVaultKey,
-  sameVaultContent,
   sealJson,
   syncInstalledTypes,
   uninstallItemType,
@@ -59,7 +57,6 @@ import {
   writeSealedFile,
 } from "../vfs.js";
 import {
-  adoptMerged,
   applyManifestPlan,
   bodyBeforeWrite,
   recordItemTypes,
@@ -117,20 +114,23 @@ import {
 import { loadVaultBody } from "./store-body.js";
 import {
   type VaultBodyPort,
+  bodyPortOf,
   installDeviceKeyCarrier,
   levelDeviceKey,
+  makeBodyPort,
+  registerBodyPort,
 } from "./store-device-key.js";
 import {
   deviceHoldsSealedVault,
   readTombHeader,
   sharesWrapRecord,
 } from "./store-header.js";
-import { importSealedInto } from "./store-import.js";
+import { type ImportOptions, importSealedInto } from "./store-import.js";
 import {
   type DriveSnapshotInput,
   type SealedSnapshot,
   type SnapshotMerge,
-  openSnapshotBody,
+  mergeSnapshotInto,
 } from "./store-merge.js";
 import {
   discardTombCaches,
@@ -239,6 +239,7 @@ export class VaultStore {
 
   constructor() {
     this.#header = this.#readHeader();
+    registerBodyPort(this, () => this.#bodyPort());
     this.#protection = new VaultProtectionBrowserService({
       isGuestOrEphemeral: () =>
         this.#ephemeral || this.#scope.tomb === GUEST_TOMB,
@@ -1242,23 +1243,7 @@ export class VaultStore {
   async mergeSnapshot(input: DriveSnapshotInput): Promise<SnapshotMerge> {
     const { vaultKey, header } = this.#requireUnlocked();
     await this.flushPendingWrites();
-    const incoming = await openSnapshotBody(vaultKey, header, input);
-    let merged = mergeVaultBodies(this.#body, incoming);
-    const localChanged = !sameVaultContent(merged, this.#body);
-    if (localChanged) {
-      // Merged again inside the write chain, so an edit that landed meanwhile
-      // is part of what gets sealed rather than overwritten by it.
-      await this.#mutate((body) => {
-        merged = mergeVaultBodies(body, incoming);
-        adoptMerged(body, merged);
-      });
-      // A type installed on another device arrives with this merge; rebuilding
-      // the registry here is what makes it live without a re-unlock (ADR 0087 §7).
-      syncInstalledTypes(this.#body.itemTypes);
-      // Another device's identity key may have come with it (ADR 0160 §5).
-      await levelDeviceKey(this.#bodyPort());
-    }
-    return { localChanged, remoteBehind: !sameVaultContent(merged, incoming) };
+    return mergeSnapshotInto(this.#bodyPort(), vaultKey, header, input);
   }
 
   /** This vault's header and sealed body as stored, once pending writes land. */
@@ -1502,28 +1487,34 @@ export class VaultStore {
   }
 
   /** Import a sealed export with its password, its PIN, or an unwrapped key. */
-  importSealed(fileText: string, secret: string | Uint8Array): Promise<number> {
-    return importSealedInto(this.#bodyPort(), fileText, secret);
-  }
-
-  /**
-   * What the device identity key and a restore need of the open vault: its
-   * tomb, its body and the write chain (ADR 0160 §5).
-   */
-  bodyPort(): VaultBodyPort {
-    return this.#bodyPort();
+  importSealed(
+    fileText: string,
+    secret: string | Uint8Array,
+    options: ImportOptions = {},
+  ): Promise<number> {
+    return importSealedInto(this.#bodyPort(), fileText, secret, options);
   }
 
   #bodyPort(): VaultBodyPort {
-    return {
+    return makeBodyPort({
       tomb: () => this.#scope.tomb,
       open: () => this.#vaultKey !== null,
       // A guest and a scratch session are never exported or synced.
       carries: () => !this.#ephemeral && !isGuestSessionTomb(this.#scope.tomb),
+      vaultKey: () => this.#requireUnlocked().vaultKey,
       header: () => this.#header,
+      setHeader: (next) => {
+        this.#header = next;
+      },
+      readHeader: () => this.#readHeader(),
       body: () => this.#body,
+      setBody: (next) => {
+        this.#body = next;
+      },
+      emit: () => this.#emit(),
+      flush: () => this.flushPendingWrites(),
       mutate: (change) => this.#mutate(change),
-    };
+    });
   }
 
   /** Irreversibly remove the vault from this device. */
@@ -1622,7 +1613,7 @@ export class VaultStore {
 export const vaultStore = new VaultStore();
 
 // The device identity host mints through this store's body (ADR 0160 §5).
-installDeviceKeyCarrier(() => vaultStore.bodyPort());
+installDeviceKeyCarrier(() => bodyPortOf(vaultStore));
 
 // A guest's tomb is sealed and isolated like any other, so a guest's
 // actions are logged in it (PRODUCT.md: guests are first-class).

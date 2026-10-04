@@ -35,7 +35,7 @@ import {
   vfsFlush,
 } from "../vfs.js";
 import { sealedVaultText } from "./offline-backup-file.js";
-import { installDeviceKeyCarrier } from "./store-device-key.js";
+import { bodyPortOf, installDeviceKeyCarrier } from "./store-device-key.js";
 import { VaultStore } from "./store.js";
 import {
   listPasskeyUnlockRecords,
@@ -195,9 +195,11 @@ describe("golden vault vectors", () => {
     try {
       const store = new VaultStore();
       await store.create("an unrelated master passphrase 2026");
-      installDeviceKeyCarrier(() => store.bodyPort());
+      installDeviceKeyCarrier(() => bodyPortOf(store));
       // The file is a backup; its sealed export form is what a restore reads.
-      await store.importSealed(sealedVaultText(vector.file), fixture.password);
+      await store.importSealed(sealedVaultText(vector.file), fixture.password, {
+        adoptIdentity: true,
+      });
       expect((await ensureDeviceIdentityKey(PERSONAL_TOMB)).principalId).toBe(
         `prn_${recorded.keyId}`,
       );

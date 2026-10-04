@@ -13,11 +13,12 @@
  * a key never lands in another vault's body.
  */
 
-import type { JsonObject } from "@opensesame/os-domain";
+import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
 
 export type DeviceKeyCarrier = {
   /** The body's key field for `tomb` while that vault is open here, else undefined. */
-  carried(tomb: string): JsonObject | undefined;
+  /** What the body holds under the key's name: unvetted JSON, whatever it is. */
+  carried(tomb: string): BoundaryValue;
   /**
    * Put `field` in the body of `tomb`, ranked against what it already carries
    * (`mergeDeviceKeyFields`), and persist. A no-op unless `tomb` is open here.

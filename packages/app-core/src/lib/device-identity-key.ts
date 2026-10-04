@@ -24,17 +24,29 @@
  */
 
 import { isString } from "@opensesame/os-domain";
-import { sha256Base64Url } from "@opensesame/sdk-browser";
 import {
   DEVICE_IDENTITY_KEY_PATH,
+  DEVICE_KEY_CLOCK_MARGIN_MS,
   type DeviceIdentityKeyRecord,
   deviceKeyField,
-  readDeviceIdentityKeyRecord,
 } from "@opensesame/vault-core";
 import { lockManager } from "../ports.js";
 import { deviceKeyCarrier } from "./device-identity-carrier.js";
+import {
+  p256JwkThumbprint,
+  trustedDeviceKey,
+  vetCarriedKey,
+} from "./device-identity-trust.js";
 import { kvRefresh } from "./kv.js";
-import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
+import {
+  VfsError,
+  deleteFile,
+  readFile,
+  tombFileKey,
+  writeFile,
+} from "./vfs.js";
+
+export { p256JwkThumbprint };
 
 const PATH = DEVICE_IDENTITY_KEY_PATH;
 const MAX_BYTES = 8192;
@@ -77,30 +89,17 @@ function unreadable(message = "The device identity key is unreadable."): never {
   throw new DeviceIdentityKeyError("unreadable", message);
 }
 
-/** RFC 7638: SHA-256 over the required members, in lexicographic order. */
-export function p256JwkThumbprint(
-  jwk: Pick<DevicePublicJwk, "x" | "y">,
-): Promise<string> {
-  return sha256Base64Url(
-    JSON.stringify({ crv: "P-256", kty: "EC", x: jwk.x, y: jwk.y }),
-  );
-}
-
-function parseBytes(bytes: Uint8Array): DeviceIdentityKeyRecord | null {
+function parseBytes(
+  bytes: Uint8Array,
+): Promise<DeviceIdentityKeyRecord | null> {
   try {
-    return readDeviceIdentityKeyRecord(
+    return trustedDeviceKey(
       JSON.parse(new TextDecoder().decode(bytes)),
+      Number.MAX_SAFE_INTEGER - DEVICE_KEY_CLOCK_MARGIN_MS,
     );
   } catch {
-    return null;
+    return Promise.resolve(null);
   }
-}
-
-/** Whether a record's key id is its public key's thumbprint. */
-export async function deviceKeyIsGenuine(
-  record: DeviceIdentityKeyRecord,
-): Promise<boolean> {
-  return record.keyId === (await p256JwkThumbprint(record.publicJwk));
 }
 
 /**
@@ -119,10 +118,11 @@ export async function readStoredDeviceIdentityKey(
     if (error instanceof VfsError && error.code === "not-found") return null;
     throw error;
   }
-  const stored = bytes.length > MAX_BYTES ? null : parseBytes(bytes);
-  // A record whose key id is not its public key's thumbprint is corrupt, and
-  // a principal must never be derived from a record that lies.
-  if (!stored || !(await deviceKeyIsGenuine(stored))) {
+  // A record that is not genuine (a key id that is not its public key's
+  // thumbprint, a private half that is not its public key's) is corrupt, and a
+  // principal must never be derived from a record that lies.
+  const stored = bytes.length > MAX_BYTES ? null : await parseBytes(bytes);
+  if (!stored) {
     unreadable("The device identity key record is not one this build trusts.");
   }
   return stored;
@@ -134,6 +134,19 @@ export async function writeStoredDeviceIdentityKey(
   record: DeviceIdentityKeyRecord,
 ): Promise<void> {
   await writeFile(tomb, PATH, new TextEncoder().encode(JSON.stringify(record)));
+}
+
+/**
+ * Put the tomb's key back as it was (`null`: there was none), after a step that
+ * replaced it could not finish. A failure here is not swallowed: a tomb left
+ * holding a key its body does not carry is worse than a loud error.
+ */
+export async function restoreStoredDeviceIdentityKey(
+  tomb: string,
+  previous: DeviceIdentityKeyRecord | null,
+): Promise<void> {
+  if (previous) await writeStoredDeviceIdentityKey(tomb, previous);
+  else await deleteFile(tomb, PATH);
 }
 
 /**
@@ -192,20 +205,19 @@ export async function readDeviceIdentityKey(
 }
 
 /**
- * The key the vault body carries for `tomb`, verified; null when it carries
- * none. A carried record this build cannot trust is `unreadable`: the vault
- * has a key that something else owns, so none is minted beside it.
+ * The key the vault body carries for `tomb`, if it is one this build trusts.
+ * A record of a newer version is `unreadable`: something else owns it, so none
+ * is minted beside it. Poison (a forged or malformed record) is no key at all:
+ * it is treated as absent, and a mint replaces it in the body.
  */
 async function carriedKey(
   tomb: string,
 ): Promise<DeviceIdentityKeyRecord | null> {
-  const field = deviceKeyCarrier.carried(tomb);
-  if (field === undefined) return null;
-  const record = readDeviceIdentityKeyRecord(field);
-  if (!record || !(await deviceKeyIsGenuine(record))) {
-    unreadable("The vault carries an identity key this build does not trust.");
+  const carried = await vetCarriedKey(deviceKeyCarrier.carried(tomb));
+  if (carried.kind === "future") {
+    unreadable("The vault carries an identity key of a newer version.");
   }
-  return record;
+  return carried.kind === "trusted" ? carried.record : null;
 }
 
 /** Put a key in the body, and carry on if that cannot be done: the key works. */
@@ -252,16 +264,11 @@ async function adoptOrMint(
 }
 
 async function ensure(tomb: string): Promise<DeviceIdentityKey> {
-  // An existing key is read-only business and needs no fence.
+  // An existing key is read-only business and needs no fence, and a read never
+  // writes the vault body: a tab answering Connect may be stale, and the body
+  // is put right at unlock, after a merge and at a mint, from the disk's copy.
   const existing = await readStoredDeviceIdentityKey(tomb);
-  if (existing) {
-    // A key the body does not carry yet (a failed publish, a vault from before
-    // keys travelled) goes in now, so the next backup holds it.
-    if (deviceKeyCarrier.carried(tomb) === undefined) {
-      await publishQuietly(tomb, existing);
-    }
-    return view(existing);
-  }
+  if (existing) return view(existing);
   const mayMint = lockManager() !== undefined;
   return withDeviceIdentityFence(tomb, () => adoptOrMint(tomb, mayMint));
 }

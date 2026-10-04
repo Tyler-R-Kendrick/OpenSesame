@@ -24,6 +24,7 @@ import {
   sealedVaultText,
   vaultFileFormat,
 } from "../../../lib/vault/offline-backup-file.js";
+import type { ImportOptions } from "../../../lib/vault/store-import.js";
 import type {
   ManifestMergePlan,
   StorePlainEntry,
@@ -80,6 +81,7 @@ export type ImportStorePort = Readonly<{
   importSealed: (
     fileText: string,
     secret: string | Uint8Array,
+    options?: ImportOptions,
   ) => Promise<number>;
   applyManifestMerge: (plan: ManifestMergePlan) => Promise<void>;
 }>;
@@ -256,10 +258,14 @@ export async function restoreStage(
   stage: ImportStage,
   password: string,
   store: ImportStorePort,
+  options: ImportOptions = {},
 ): Promise<StageOutcome> {
   if (stage.step !== "sealed" || password === "") return { stage, error: null };
   try {
-    return restored(stage, await store.importSealed(stage.sealed, password));
+    return restored(
+      stage,
+      await store.importSealed(stage.sealed, password, options),
+    );
   } catch (caught) {
     return { stage, error: messageFrom(caught) };
   }
@@ -269,6 +275,7 @@ export async function restoreStage(
 export async function restoreWithPasskey(
   stage: ImportStage,
   store: ImportStorePort,
+  options: ImportOptions = {},
 ): Promise<StageOutcome> {
   if (stage.step !== "sealed") return { stage, error: null };
   try {
@@ -276,7 +283,10 @@ export async function restoreWithPasskey(
     const prf = await importModelSeams.getPasskeyUnlockCeremony(record);
     const raw = await importModelSeams.unwrapVaultKeyWithPrf(record, prf);
     try {
-      return restored(stage, await store.importSealed(stage.sealed, raw));
+      return restored(
+        stage,
+        await store.importSealed(stage.sealed, raw, options),
+      );
     } finally {
       raw.fill(0);
     }

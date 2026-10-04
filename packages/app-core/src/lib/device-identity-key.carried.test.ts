@@ -1,11 +1,11 @@
 /**
- * A key the vault body carries (ADR 0160 §5): adopted instead of minted,
+ * A key the vault body carries (ADR 0160 §5a): adopted instead of minted,
  * published when minted, healed when the body lacks it, and never minted
  * beside a carried record this build cannot trust.
  */
 
 /** @vitest-environment jsdom */
-import type { JsonObject } from "@opensesame/os-domain";
+import type { BoundaryValue, JsonObject } from "@opensesame/os-domain";
 import {
   deviceKeyField,
   mergeDeviceKeyFields,
@@ -24,6 +24,7 @@ import {
   forgetDeviceIdentityKeyInFlightForTests,
   readDeviceIdentityKey,
 } from "./device-identity-key.js";
+import { vettedField } from "./device-identity-trust.js";
 import { readFile, unlockTomb } from "./vfs.js";
 
 const PATH = "config/device-identity-key";
@@ -35,15 +36,17 @@ async function openTomb(): Promise<string> {
 }
 
 const original = { ...deviceKeyCarrier };
-let body: Map<string, JsonObject>;
+let body: Map<string, BoundaryValue>;
 
 beforeEach(() => {
   vi.stubGlobal("navigator", { locks: webLocksDouble() });
   body = new Map();
   Object.assign(deviceKeyCarrier, {
     carried: (tomb: string) => body.get(tomb),
+    // As the store's: the body's own key is vetted before it is ranked.
     publish: async (tomb: string, field: JsonObject) => {
-      body.set(tomb, mergeDeviceKeyFields(body.get(tomb), field) ?? field);
+      const own = await vettedField(body.get(tomb));
+      body.set(tomb, mergeDeviceKeyFields(own, field) ?? field);
     },
   });
 });
@@ -74,15 +77,18 @@ describe("a key the vault body carries", () => {
     );
   });
 
-  it("puts a key the body lacks into it on a later read", async () => {
+  it("never writes the body when it only reads a key that exists", async () => {
     const tomb = await openTomb();
-    const key = await ensureDeviceIdentityKey(tomb);
+    await ensureDeviceIdentityKey(tomb);
     body.delete(tomb);
+    const publish = vi.fn(async () => undefined);
+    deviceKeyCarrier.publish = publish;
     forgetDeviceIdentityKeyInFlightForTests();
-    expect((await ensureDeviceIdentityKey(tomb)).keyId).toBe(key.keyId);
-    expect(readDeviceIdentityKeyRecord(body.get(tomb) ?? {})?.keyId).toBe(
-      key.keyId,
-    );
+    // A tab answering Connect may be stale: the body is put right at unlock,
+    // after a merge and at a mint, from the disk's copy, never from a read.
+    await ensureDeviceIdentityKey(tomb);
+    expect(publish).not.toHaveBeenCalled();
+    expect(body.has(tomb)).toBe(false);
   });
 
   it("still gives a working key when the body cannot be written", async () => {
@@ -92,21 +98,32 @@ describe("a key the vault body carries", () => {
     expect((await readDeviceIdentityKey(tomb))?.keyId).toBe(key.keyId);
   });
 
-  it("refuses a carried record it cannot trust, and mints nothing beside it", async () => {
-    const records: JsonObject[] = [
-      { version: 2, from: "a newer build" },
-      { ...(await genuineField(1_000)), keyId: "A".repeat(43) },
-    ];
-    for (const carried of records) {
+  it("refuses a carried record of a newer version, and mints nothing beside it", async () => {
+    const tomb = await openTomb();
+    const carried: JsonObject = { version: 2, from: "a newer build" };
+    body.set(tomb, carried);
+    await expect(ensureDeviceIdentityKey(tomb)).rejects.toMatchObject({
+      code: "unreadable",
+    });
+    await expect(readFile(tomb, PATH)).rejects.toMatchObject({
+      code: "not-found",
+    });
+    expect(body.get(tomb)).toBe(carried);
+  });
+
+  it("treats a forged carried record as no key: it mints, and the mint replaces the forgery", async () => {
+    const forged: JsonObject = {
+      ...(await genuineField(1)),
+      keyId: "A".repeat(43),
+    };
+    for (const carried of [forged, null, "text", 7]) {
       const tomb = await openTomb();
       body.set(tomb, carried);
-      await expect(ensureDeviceIdentityKey(tomb)).rejects.toMatchObject({
-        code: "unreadable",
-      });
-      await expect(readFile(tomb, PATH)).rejects.toMatchObject({
-        code: "not-found",
-      });
-      expect(body.get(tomb)).toBe(carried);
+      const key = await ensureDeviceIdentityKey(tomb);
+      expect(key.keyId).not.toBe("A".repeat(43));
+      expect(readDeviceIdentityKeyRecord(body.get(tomb) ?? {})?.keyId).toBe(
+        key.keyId,
+      );
       forgetDeviceIdentityKeyInFlightForTests();
     }
   });

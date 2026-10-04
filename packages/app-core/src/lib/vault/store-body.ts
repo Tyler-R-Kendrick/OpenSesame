@@ -5,6 +5,7 @@
  * decides whether what it found may be trusted.
  */
 
+import { isJsonObject } from "@opensesame/os-domain";
 import {
   type VaultBody,
   VaultCorruptError,
@@ -62,7 +63,8 @@ export async function loadVaultBody(
       ...(body.tombstones !== undefined
         ? { tombstones: body.tombstones }
         : undefined),
-      ...(body.deviceIdentityKey !== undefined
+      // `null` or anything but an object is no key: it is not carried on.
+      ...(isJsonObject(body.deviceIdentityKey)
         ? { deviceIdentityKey: body.deviceIdentityKey }
         : undefined),
       rev,
