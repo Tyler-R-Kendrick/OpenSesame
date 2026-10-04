@@ -33,6 +33,7 @@ import {
 
 import {
   type ChannelCapabilities,
+  type NotificationClass,
   channelCapabilities,
 } from "@opensesame/os-domain";
 
@@ -51,6 +52,8 @@ import type {
   PushSubscriptionRecord,
   RenderInput,
   RenderedMessage,
+  WakeAction,
+  WakeSignal,
 } from "../contract.js";
 import { deliverToPublicEndpoint, postPublicOnly } from "../public-endpoint.js";
 import { renderNotification } from "../templates.js";
@@ -114,14 +117,16 @@ export function createWebPushAdapter(config: WebPushConfig): ChannelAdapter {
   const capabilities = (): ChannelCapabilities =>
     channelCapabilities("native_push");
 
-  const render = (input: RenderInput): RenderedMessage =>
-    renderNotification(input, {
+  const render = (input: RenderInput): RenderedMessage => ({
+    ...renderNotification(input, {
       dialect: "plain",
       // A decrypted push notification is drawn on a locked screen by the
       // operating system. `minimal` is the only honest ceiling, and it is
       // passed literally so this stays true if the catalogue ever loosens.
       channelCeiling: "minimal",
-    });
+    }),
+    wake: wakeSignal(input.notificationClass, input.rendezvousRef),
+  });
 
   const deliver = async (
     msg: RenderedMessage,
@@ -134,10 +139,12 @@ export function createWebPushAdapter(config: WebPushConfig): ChannelAdapter {
       return { status: "unconfigured", error: "no_vapid_keys" };
     }
     const subscription = dest.subscription;
+    const payload = webPushPayload(msg);
+    if (!payload) return { status: "permanent", error: "not_a_wake_message" };
     let body: Buffer;
     let authorization: string;
     try {
-      body = encryptWebPushPayload(subscription, pushPayload(msg));
+      body = encryptWebPushPayload(subscription, payload);
       authorization = vapidAuthorization(subscription.endpoint, config, now());
     } catch (err) {
       // A malformed subscription is not worth retrying: the keys will not
@@ -168,17 +175,44 @@ export function createWebPushAdapter(config: WebPushConfig): ChannelAdapter {
 }
 
 /**
- * The JSON the service worker receives. Deliberately tiny and free of
- * identifiers: it is decrypted onto a device we do not control.
+ * The service worker's closed vocabulary, which is a contract with
+ * `apps/pages/src/lib/push.ts`: it reads `kind`, `action` and `ref` and
+ * nothing else, selects its own title and body from fixed tables, and builds
+ * the click target from `ref` alone. The server therefore sends no text of its
+ * own. A title and body in the payload were never shown (the worker ignored
+ * them) and would only have been one more place for request details to leak.
  */
-function pushPayload(msg: RenderedMessage): Buffer {
-  return utf8(
-    JSON.stringify(
-      msg.rendezvousUrl
-        ? { title: msg.title, body: msg.body, url: msg.rendezvousUrl }
-        : { title: msg.title, body: msg.body },
-    ),
-  );
+const WAKE_ACTION_BY_CLASS = {
+  authorization_request: "review",
+  authorization_decision: "decided",
+  security_event: "none",
+} as const satisfies { readonly [cls in NotificationClass]: WakeAction };
+
+/** The service worker's own rule for a reference it will put in a URL. */
+const OPAQUE_REF = /^[A-Za-z0-9_-]{1,128}$/u;
+
+function wakeSignal(
+  notificationClass: NotificationClass,
+  rendezvousRef: string | undefined,
+): WakeSignal {
+  const action = WAKE_ACTION_BY_CLASS[notificationClass];
+  return rendezvousRef && OPAQUE_REF.test(rendezvousRef)
+    ? { kind: notificationClass, action, ref: rendezvousRef }
+    : { kind: notificationClass, action };
+}
+
+/**
+ * The JSON the service worker receives: exactly `{kind, action, ref}`,
+ * rebuilt from the validated fields so nothing else on the message can ride
+ * along. Free of identifiers and request details, because it is decrypted
+ * onto a device we do not control.
+ */
+export function webPushPayload(msg: RenderedMessage): Buffer | undefined {
+  const wake = msg.wake;
+  if (!wake) return undefined;
+  const checked = wakeSignal(wake.kind, wake.ref);
+  if (checked.action !== wake.action) return undefined;
+  return utf8(JSON.stringify(checked));
 }
 
 /* ------------------------------------------------------------------ *

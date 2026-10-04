@@ -266,7 +266,12 @@ describe("web push delivery", () => {
       uaPrivateKey,
       authSecret,
     );
-    expect(decrypted.toString("utf8")).toContain("Authorization requested");
+    // The service worker's closed vocabulary, and nothing else.
+    expect(JSON.parse(decrypted.toString("utf8"))).toEqual({
+      kind: "authorization_request",
+      action: "review",
+      ref: "rz-QHXT-KPLM",
+    });
   });
 
   it("keeps the payload at minimal even when full was requested", async () => {
@@ -291,7 +296,87 @@ describe("web push delivery", () => {
     ).toString("utf8");
     expect(decrypted).not.toContain("Transfer funds");
     expect(decrypted).not.toContain("agent-7");
-    expect(decrypted).toContain("rz-QHXT-KPLM");
+    expect(decrypted).not.toContain("payment.initiate");
+    expect(decrypted).not.toContain("https://");
+    expect(JSON.parse(decrypted)).toEqual({
+      kind: "authorization_request",
+      action: "review",
+      ref: "rz-QHXT-KPLM",
+    });
+  });
+
+  it("sends exactly the keys the service worker reads, for every class", async () => {
+    const expected = {
+      authorization_request: "review",
+      authorization_decision: "decided",
+      security_event: "none",
+    } as const;
+    for (const [notificationClass, action] of Object.entries(expected)) {
+      const recorder = jsonFetch("", 201);
+      const { subscription, uaPrivateKey, authSecret } = subscribe();
+      const push = createWebPushAdapter(
+        vapidConfig({ fetchImpl: recorder.impl }),
+      );
+      const message = push.render(
+        renderInput({
+          kind: "native_push",
+          notificationClass: notificationClass as keyof typeof expected,
+        }),
+      );
+      await push.deliver(message, { channel: "native_push", subscription });
+      const payload = JSON.parse(
+        decryptWebPushPayload(
+          recorder.calls[0]?.bodyBytes ?? new Uint8Array(),
+          uaPrivateKey,
+          authSecret,
+        ).toString("utf8"),
+      );
+      expect(Object.keys(payload).sort()).toEqual(["action", "kind", "ref"]);
+      expect(payload).toEqual({
+        kind: notificationClass,
+        action,
+        ref: "rz-QHXT-KPLM",
+      });
+    }
+  });
+
+  it("omits a reference the service worker would refuse to put in a URL", () => {
+    const push = createWebPushAdapter(vapidConfig());
+    for (const rendezvousRef of [
+      "",
+      "a/b",
+      "https://x.test/y",
+      "has space",
+      "a".repeat(129),
+    ]) {
+      const message = push.render(
+        renderInput({ kind: "native_push", rendezvousRef }),
+      );
+      expect(message.wake).toEqual({
+        kind: "authorization_request",
+        action: "review",
+      });
+    }
+  });
+
+  it("refuses a message it did not render, and a tampered one, without calling out", async () => {
+    const recorder = jsonFetch("", 201);
+    const { subscription } = subscribe();
+    const push = createWebPushAdapter(
+      vapidConfig({ fetchImpl: recorder.impl }),
+    );
+    const rendered = push.render(renderInput({ kind: "native_push" }));
+    const { wake: _dropped, ...unrendered } = rendered;
+    await expect(
+      push.deliver(unrendered, { channel: "native_push", subscription }),
+    ).resolves.toEqual({ status: "permanent", error: "not_a_wake_message" });
+    await expect(
+      push.deliver(
+        { ...rendered, wake: { kind: "security_event", action: "review" } },
+        { channel: "native_push", subscription },
+      ),
+    ).resolves.toEqual({ status: "permanent", error: "not_a_wake_message" });
+    expect(recorder.calls).toHaveLength(0);
   });
 
   it("retires a gone subscription as permanent and a 503 as retryable", async () => {
