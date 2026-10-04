@@ -124,3 +124,16 @@ export function describeAccount(
     ? accountSeams.describeAccount()
     : accountSeams.describeAccount(session);
 }
+
+/**
+ * The id a person's glyph is drawn from (ADR 0164): the Identity principal
+ * when there is one, else the name the assertion carried. A principal id is
+ * already shown in the clear (its last four characters, above), and a glyph
+ * is a face for it, not a way to read it back.
+ */
+export function personGlyphId(
+  session: IdentitySession | null,
+  account: Pick<Account, "name"> | null,
+): string {
+  return session?.principalId ?? account?.name ?? "guest";
+}
