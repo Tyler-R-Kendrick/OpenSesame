@@ -25,7 +25,7 @@ export const CAPABILITY_TUTORIALS = {
   "connections.credential.set": "connection.repair",
   "connections.remove": "connection.repair",
   "integrations.read": "connection.create",
-  "certs.issue": "vault.item.create",
+  "certs.issue": "feature.certificates",
   "model_plane.read": "settings.model-provider",
   "model_plane.choose": "settings.model-provider",
   "backup.status": "settings.backup",
