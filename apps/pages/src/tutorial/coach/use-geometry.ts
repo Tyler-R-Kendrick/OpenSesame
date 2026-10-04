@@ -1,5 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Box, Size } from "./placement.js";
+import {
+  type Box,
+  NO_INSETS,
+  type SafeInsets,
+  type Size,
+} from "./placement.js";
 
 function sameBox(a: Box | null, b: Box | null): boolean {
   if (a === null || b === null) return a === b;
@@ -118,4 +123,53 @@ export function useMeasured(
     return () => observer.disconnect();
   }, [ref, watch]);
   return size;
+}
+
+/**
+ * The safe-area insets the docked card's CSS adds to its offset. `env()` is
+ * only readable through a style, so a probe element resolves it and the
+ * computed padding is the number.
+ */
+export function readSafeInsets(): SafeInsets {
+  const probe = document.createElement("div");
+  probe.setAttribute("aria-hidden", "true");
+  probe.style.cssText =
+    "position:fixed;visibility:hidden;pointer-events:none;left:0;top:0;" +
+    "padding-top:env(safe-area-inset-top,0px);" +
+    "padding-bottom:env(safe-area-inset-bottom,0px)";
+  document.body.appendChild(probe);
+  const style = getComputedStyle(probe);
+  const read = (value: string): number => {
+    const px = Number.parseFloat(value);
+    return Number.isFinite(px) && px > 0 ? px : 0;
+  };
+  const insets = {
+    top: read(style.paddingTop),
+    bottom: read(style.paddingBottom),
+  };
+  probe.remove();
+  return insets;
+}
+
+/** The safe-area insets, re-read when the window turns or resizes. */
+export function useSafeInsets(): SafeInsets {
+  const [insets, setInsets] = useState<SafeInsets>(NO_INSETS);
+  useEffect(() => {
+    const update = (): void => {
+      setInsets((held) => {
+        const next = readSafeInsets();
+        return held.top === next.top && held.bottom === next.bottom
+          ? held
+          : next;
+      });
+    };
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("orientationchange", update);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("orientationchange", update);
+    };
+  }, []);
+  return insets;
 }
