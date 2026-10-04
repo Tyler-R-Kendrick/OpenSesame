@@ -8,22 +8,18 @@ import { expect } from "@playwright/test";
  */
 export async function expectInTray(page, text) {
   const bell = page.getByRole("button", { name: /^Notifications — / });
-  if (
-    !(await bell
-      .first()
-      .isVisible()
-      .catch(() => false))
-  ) {
-    const more = page.getByRole("button", { name: /^More — / });
-    if (await more.isVisible().catch(() => false)) {
-      await more.click();
-      await page
-        .getByRole("button", { name: /^Notifications/ })
-        .last()
-        .click();
-    }
+  const more = page.getByRole("button", { name: /^More — / });
+  // The corner bell of a screen with no shell appears only once the notice is
+  // raised, so wait for whichever road this screen draws before taking it.
+  await expect(bell.or(more).filter({ visible: true }).first()).toBeVisible();
+  if (await bell.filter({ visible: true }).count()) {
+    await bell.filter({ visible: true }).first().click();
   } else {
-    await bell.first().click();
+    await more.click();
+    await page
+      .getByRole("button", { name: /^Notifications/ })
+      .last()
+      .click();
   }
   const sheet = page.getByRole("dialog", { name: "Notifications" });
   await expect(sheet).toContainText(text);
