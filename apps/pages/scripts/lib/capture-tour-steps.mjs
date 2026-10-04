@@ -64,7 +64,10 @@ export function tourSteps() {
       if (await next.count()) {
         await press(next);
       } else {
-        const driven = page.locator(".driver-popover-next-btn").first();
+        const driven = page
+          .locator(".driver-popover-next-btn")
+          .locator("visible=true")
+          .first();
         if (await driven.count()) await press(driven);
       }
       await page.waitForTimeout(1100);

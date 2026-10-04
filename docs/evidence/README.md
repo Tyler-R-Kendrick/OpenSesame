@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-04-tutorial-mode/`](2026-10-04-tutorial-mode/README.md) | Tutorial mode — before / after |
 | [`2026-10-03-unlock-from-protector/`](2026-10-03-unlock-from-protector/README.md) | Unlock from an enrolled protector — before and after |
 | [`2026-10-03-share-once-phone/`](2026-10-03-share-once-phone/README.md) | Share once on an item's page, seated for the phone |
 | [`2026-10-03-settings-walk/`](2026-10-03-settings-walk/README.md) | Settings walk: every row acts, or is not drawn (ADR 0158, second pass) |
