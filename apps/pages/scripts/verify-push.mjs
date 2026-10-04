@@ -41,52 +41,17 @@ import {
 } from "./lib/pages-journey.mjs";
 import { installPushShim } from "./lib/push-browser-shim.mjs";
 import { PAGES_ORIGIN, startPushStack } from "./lib/push-stack.mjs";
+import { OPERATOR_POLICY, createRun } from "./lib/push-verify-kit.mjs";
 import { notificationsOf, until } from "./lib/push-worker-harness.mjs";
 
 const dist = path.resolve(import.meta.dirname, "../dist-push-verify");
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const scope = `${PAGES_ORIGIN}${base}`;
-const started = Date.now();
 const LIMIT = 10;
-/** An operator policy whose service origins do not include the Identity API. */
-const POLICY = {
-  schemaVersion: 1,
-  kind: "InstanceCapabilityPolicy",
-  instanceId: "verify-push",
-  revision: "r1",
-  presetProvenance: null,
-  capabilities: {
-    default: "deny",
-    required: [],
-    optional: ["notifications.web-push", "notifications.routing"],
-    prohibited: [],
-  },
-  network: {
-    externalServices: "allow",
-    allowedServiceOrigins: ["https://elsewhere.example.test"],
-  },
-  updates: {
-    unknownCapabilities: "deny",
-    expandedExposure: "require-approval",
-  },
-};
 const TURN_ON = { name: "Turn on push on this device" };
 const TURN_OFF = { name: "Turn off push on this device" };
 
-const failures = [];
-const check = (condition, what) => {
-  console.log(condition ? "PASS" : "FAIL", what);
-  if (!condition) failures.push(what);
-};
-const timings = [];
-let lap = Date.now();
-const step = (what) => {
-  const now = Date.now();
-  if (timings.length > 0) timings[timings.length - 1].ms = now - lap;
-  lap = now;
-  timings.push({ what, ms: 0 });
-  console.log(`-- ${what} (${((now - started) / 1000).toFixed(1)}s)`);
-};
+const { check, step, finish } = createRun();
 
 /** What the deployment's `os-runtime-config.json` adds; the last scenario sets it. */
 let served = {};
@@ -217,10 +182,7 @@ try {
     `the Host sent the closed vocabulary (${JSON.stringify(rung.push.json)})`,
   );
   const ref = rung.push.json?.ref;
-  check(
-    typeof ref === "string" && ref.length > 0,
-    "the push carries an opaque reference",
-  );
+  check(Boolean(ref), "the push carries an opaque reference");
   check(
     rung.push.subscriptionId === shim.subscribed[0].id,
     "it went to this browser's subscription",
@@ -370,7 +332,10 @@ try {
 
   step("failure: an operator policy does not name the Identity API's origin");
   served = {
-    capabilityComposition: { schemaVersion: 1, instancePolicy: POLICY },
+    capabilityComposition: {
+      schemaVersion: 1,
+      instancePolicy: OPERATOR_POLICY,
+    },
   };
   const governed = await browser.newContext({
     viewport: { width: 1280, height: 900 },
@@ -431,14 +396,4 @@ try {
   await browser.close();
   await stack.close();
 }
-step("done");
-for (const { what, ms } of timings.slice(0, -1))
-  console.log(`   ${(ms / 1000).toFixed(1).padStart(5)}s  ${what}`);
-console.log(`total ${((Date.now() - started) / 1000).toFixed(1)}s`);
-if (failures.length > 0) {
-  console.error(
-    `${failures.length} check(s) failed:\n- ${failures.join("\n- ")}`,
-  );
-  exit = 1;
-}
-process.exit(exit);
+process.exit(finish(exit === 1));

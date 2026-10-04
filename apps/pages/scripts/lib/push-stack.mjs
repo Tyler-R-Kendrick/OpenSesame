@@ -91,16 +91,63 @@ function serveDist({ dist, base, runtimeConfig }) {
 }
 
 async function json(api, route, bearer, init = {}) {
+  const headers = { "content-type": "application/json" };
+  if (bearer) headers.authorization = `Bearer ${bearer}`;
   const response = await fetch(`${api}${route}`, {
     ...init,
-    headers: {
-      "content-type": "application/json",
-      ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
-      ...(init.headers ?? {}),
-    },
+    headers: { ...headers, ...init.headers },
   });
   const text = await response.text();
   return { status: response.status, body: text ? JSON.parse(text) : null };
+}
+
+/**
+ * Ask `approver` to approve something, native push first, and run the Host's
+ * delivery once: what the worker does on its interval.
+ */
+async function ring(
+  { api, standIn, repos, adapters, runCleanupTick, requester },
+  approver,
+) {
+  await json(api, "/v1/notification-preferences", approver.bearer, {
+    method: "PUT",
+    body: JSON.stringify({
+      byClass: {
+        authorization_request: {
+          channels: ["native_push", "in_app"],
+          fanOut: false,
+        },
+      },
+    }),
+  });
+  const inbox = await json(
+    api,
+    "/v1/authorization-requests/inbox-ref",
+    approver.bearer,
+  );
+  const created = await json(
+    api,
+    "/v1/authorization-requests",
+    requester.bearer,
+    {
+      method: "POST",
+      headers: { "idempotency-key": `verify-push-${Date.now()}` },
+      body: JSON.stringify({
+        approverRef: inbox.body.approverRef,
+        authorizationDetails: [{ type: "secret_use", actions: ["read"] }],
+        bindingMessage: "verify:push",
+      }),
+    },
+  );
+  if (created.status !== 201)
+    throw new Error(`authorization request: ${created.status}`);
+  const waiting = standIn.next(10_000);
+  const tick = await runCleanupTick({
+    repos,
+    clock: () => new Date(),
+    notificationAdapters: adapters,
+  });
+  return { requestId: created.body.authReqId, tick, push: await waiting };
 }
 
 /**
@@ -181,56 +228,18 @@ export async function startPushStack({
         method: "POST",
         body: JSON.stringify({ endpoint: sub.endpoint, keys: sub.keys }),
       }),
-    /**
-     * Ask `approver` to approve something, native push first, and run the
-     * Host's delivery once: what the worker does on its interval.
-     */
-    async ring(approver) {
-      const requester = await stack.principal();
-      await json(api, "/v1/notification-preferences", approver.bearer, {
-        method: "PUT",
-        body: JSON.stringify({
-          byClass: {
-            authorization_request: {
-              channels: ["native_push", "in_app"],
-              fanOut: false,
-            },
-          },
-        }),
-      });
-      const inbox = await json(
-        api,
-        "/v1/authorization-requests/inbox-ref",
-        approver.bearer,
-      );
-      const created = await json(
-        api,
-        "/v1/authorization-requests",
-        requester.bearer,
+    ring: async (approver) =>
+      ring(
         {
-          method: "POST",
-          headers: { "idempotency-key": `verify-push-${Date.now()}` },
-          body: JSON.stringify({
-            approverRef: inbox.body.approverRef,
-            authorizationDetails: [{ type: "secret_use", actions: ["read"] }],
-            bindingMessage: "verify:push",
-          }),
+          api,
+          standIn,
+          repos: started.ctx.repos,
+          adapters,
+          runCleanupTick,
+          requester: await stack.principal(),
         },
-      );
-      if (created.status !== 201)
-        throw new Error(`authorization request: ${created.status}`);
-      const waiting = standIn.next(10_000);
-      const tick = await runCleanupTick({
-        repos: started.ctx.repos,
-        clock: () => new Date(),
-        notificationAdapters: adapters,
-      });
-      return {
-        requestId: created.body.authReqId,
-        tick,
-        push: await waiting,
-      };
-    },
+        approver,
+      ),
     async close() {
       await new Promise((resolve) => pages.close(resolve));
       await standIn.close();

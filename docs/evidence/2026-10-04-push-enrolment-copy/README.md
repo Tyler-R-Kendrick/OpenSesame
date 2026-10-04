@@ -1,53 +1,109 @@
-# Push enrolment — the notices a person can now read, and why there is no screenshot
+# Push enrolment: the Push row and its notices, before and after
 
-AGENTS.md §5 asks for before/after images of any change a person could notice.
-The notices below are on-screen copy: they appear in the notice tray when the
-**Push on this device** key (Settings › General › Push) is pressed and
-something refuses. They are **not captured**, and this page says exactly why
-and what was verified instead, so the absence is not silent.
+The Push row (Settings › General › Push) is drawn only for a person with an
+Identity session (ADR 0158), so it never appears in the static, backend-less
+captures. These sheets are taken against a **real Identity API** instead: the
+control-plane (`startServer()`, in memory), the Host's Web Push delivery and a
+stand-in push service, with Pages in a real browser at a real localhost origin,
+service workers on. The only thing stood in for is the browser's own push
+subscription (headless Chromium has no push service): `lib/push-browser-shim.mjs`
+answers `subscribe`/`getSubscription`/`unsubscribe` with real P-256 subscriptions
+the stand-in can decrypt for. Nothing on screen is drawn by hand.
 
-## Why no images
+- **Before** is the `origin/main` build (618b48e0), exported with `git archive`
+  and built in its own directory. **After** is this branch. Both are built with
+  `PAGES_DEPLOYMENT_PROFILE=loopback_development` for `http://localhost:41877`,
+  the one origin that profile honours, and both are walked by the same
+  `journey.json` against the same stack, at phone (390 × 844, touch) and
+  desktop (1280 × 900).
+- Every measurement below is printed by the capture (`pushFacts`, `report`),
+  read from the browser and the stack, not from the diff.
+- Reproduce: `pnpm --filter @opensesame/pages build:push-verify` (after) and the
+  same steps into another directory for the base, then
+  `pnpm --filter @opensesame/control-plane exec tsx apps/pages/scripts/capture-evidence.mjs capture <before|after> <abs path to journey.json>`
+  with `EVIDENCE_DIST` naming the build, then `compose`.
 
-The Push row is drawn only where it can act (ADR 0158): a browser that can
-receive push, an Identity API configured, **and a signed-in Identity session**
-(`PushPanel` — `configured && session !== null && supported`). Every capture
-harness this repository has (`capture-evidence.mjs`, `verify:static`, the
-`verify:*` walks) runs the static Pages build with no backend, as a guest, so
-the row is never drawn there. Reaching it means signing in to a live Identity
-API (the control-plane with its database and an OIDC leg), which no harness
-here starts; building a page that draws the panel by hand would be a staged
-screenshot, which §5 forbids. A static capture of the unchanged-looking row
-would show nothing the change touched.
+## What the before build does
 
-## What changed on screen
+Every press of the key is refused by this installation's own egress port
+before a request leaves the page (the purpose the enrolment asked under was
+misspelt), and the person is told the service "is not reachable". Identity API
+rows stay at 0, the push service sees nothing. After, the enrolment goes
+through, and each refusal says who refused.
 
-Only the text of the tray notice (and one more case that now produces a notice
-instead of a key that hangs). Layout, controls, marks and the row are
-unchanged. Before is the code at `origin/main` before this branch; after is
-this branch. Strings are read from the source, not paraphrased.
+## Settings › General › Push, before the key is pressed
+
+Same in both builds: the row, Off, one key. Measurement, both: key
+"Turn on push on this device"; browser subscribed 0; Identity API holds 0.
+
+| phone | desktop |
+| --- | --- |
+| ![](390-push-off.png) | ![](1280-push-off.png) |
+
+## The key is pressed
+
+Before: row still Off, browser subscribed 0, Identity API holds 0.
+After: row On (key "Turn off push on this device"), browser subscribed 1,
+Identity API holds 1.
+
+| phone | desktop |
+| --- | --- |
+| ![](390-push-pressed.png) | ![](1280-push-pressed.png) |
+
+## The tray after that press
+
+Before: one notice, "The sign-in service is not reachable from here, so
+notifications were not changed." After: no notice about push.
+
+| phone | desktop |
+| --- | --- |
+| ![](390-tray-pressed.png) | ![](1280-tray-pressed.png) |
+
+## An account at its subscription limit (409)
+
+The principal already holds ten subscriptions. Before: the "not reachable"
+notice, browser subscribed 0. After: "The server refused that (409).", the
+browser made one subscription and took it back (subscribed 1, unsubscribed 1,
+holds none), the Identity API still holds 10. (Found by this walk: a full
+account used to be retried as an endpoint conflict, churning two
+subscriptions; only `endpoint_already_registered` is retried now.)
+
+| phone | desktop |
+| --- | --- |
+| ![](390-tray-limit.png) | ![](1280-tray-limit.png) |
+
+## An operator policy that does not name the Identity API
+
+Before: "not reachable". After: "This installation may not reach the sign-in
+service for push (origin-not-allowed), so notifications were not changed."
+No request left the page, browser subscribed 0, Identity API holds 0.
+
+| phone | desktop |
+| --- | --- |
+| ![](390-tray-policy.png) | ![](1280-tray-policy.png) |
+
+## Other copy this branch changed (verified by tests and `verify:push`, not pictured)
 
 | Situation | Before | After |
 | --- | --- | --- |
-| This installation's egress policy refuses the call | "The sign-in service is not reachable from here, so notifications were not changed." (every enrolment, because the purpose was misspelt) | "This installation may not reach the sign-in service for push (`<denial code>`), so notifications were not changed." Only for a policy refusal; a real network failure keeps the old sentence. |
 | The permission prompt is dismissed | "Notifications are blocked for this site, so nothing can be delivered here. Requests still wait for you in the app." | "Notifications were not allowed for this site, so nothing can be delivered here. Requests still wait for you in the app." (a blocked site keeps the old sentence) |
 | The browser refuses to subscribe | the browser's own exception text | NotAllowedError: the "blocked" sentence. AbortError / NetworkError: "This browser's push service could not be reached, so push was not turned on. Try again later; requests still wait for you in the app." NotSupportedError / SecurityError: "This browser cannot subscribe to push from here. Requests still wait for you in the app." Anything else: "This browser could not subscribe to push. Requests still wait for you in the app." |
 | No service worker is registered | the key hung with no notice | "No service worker is running for this app yet, so push cannot be turned on. Reload the page and try again." |
 | The push worker has not taken the scope yet | a subscription was taken against a worker with no `push` handler | waits, then "The push worker is still being installed on this device. Try again in a moment." |
-| The Identity API accepts the connection and says nothing, or the browser never answers `subscribe` | the key hung | after 15 s / 30 s: "The sign-in service is not reachable from here, so notifications were not changed." / the "push service could not be reached" sentence above |
-| Another principal holds this browser's endpoint (409) | "The server refused that (409)." and push could never be turned on | a fresh subscription is registered; if that is refused too, "The server refused that (409)." |
+| The Identity API says nothing, or the browser never answers `subscribe` | the key hung | after 15 s / 30 s: the "not reachable" sentence / the "push service could not be reached" sentence |
+| Another principal holds this browser's endpoint (409) | "The server refused that (409)." and push could never be turned on | a fresh subscription is registered (verified end to end: their record untouched, no notice) |
 
-## What was verified instead
+## What else was verified
 
-- `apps/pages/src/lib/push-enrolment.test.ts`, `push-withdrawal.test.ts` and
-  `push-pending.test.ts` assert each message above against the real
-  `enablePush` / `disablePush`, each in a case that fails on the old code.
-- `apps/pages/src/modules/notifications.web-push/PushPanel.test.tsx` renders
-  the real panel in jsdom with an Identity session and asserts the notice
-  reaches the tray with the tone `err` or `warn`, the mark stays `Off`, no
-  in-page error box is drawn (`.note` absent), and the key is released after a
-  hang.
-- `pnpm lint:design` (no in-page error box, no caption prose) passes on the
-  panel, which is unchanged apart from its logic.
-- `pnpm --filter @opensesame/pages verify:push-worker` walks, in a real
-  browser, everything on this path that is not behind the session: approval,
-  the worker swap, a second tab, the doorbell, removal.
+- `pnpm --filter @opensesame/pages verify:push` walks all of the above against
+  the same stack, plus the doorbell: a real authorization request makes the
+  Host send `{kind: "authorization_request", action: "review", ref}` to this
+  browser's subscription, the stand-in verifies the RFC 8292 VAPID token and
+  decrypts the RFC 8291 body, the payload is handed to the worker over CDP
+  `ServiceWorker.deliverPushMessage`, and "Authorization requested" rings.
+  Turning off removes the server row and the browser's subscription. About 18 s
+  end to end (front door and approval 7.0 s, enrolment 0.6 s, doorbell 0.4 s,
+  turn off 0.4 s, the four failures 0.4 / 0.7 / 0.4 / 4.3 s); 10 of 10
+  consecutive runs passed.
+- `push-enrolment.test.ts`, `PushPanel.test.tsx` and `verify:push-worker`
+  assert each message and the worker swap, including a second tab.
