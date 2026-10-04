@@ -181,227 +181,29 @@ its findings, the two authority planes on the statusline, the core connections
 panel in Settings — that they drop on unmount, and that no semantic id is ever
 mounted twice across all of them.
 
-**Rendering.** `tutorial/rendering/driver-xss.test.ts` is the load-bearing
-suite. It runs in jsdom **against the real Driver.js 1.8.0**, not a stand-in,
-because the hazard is that the shipped library fills the popover description
-with `innerHTML` — a fake that recorded the string would prove nothing. Four
-classic payloads (`<img src=x onerror=…>`, `<script>`, a `javascript:` href,
-`<svg onload=…>`) go through a focus popover, a hint popover and an annotation
-and each appears as literal text. It also asserts the popover title comes from
-authored text and never from the message, that `clear()` leaves no overlay,
-popover, beacon or annotation behind, that the page stays keyboard-operable and
-Escape-dismissible, and that the library and its stylesheets load on demand.
+**Rendering.** Since ADR 0163 a walkthrough is a tutorial drawn by a React card
+(`tutorial/coach/`), not a Driver.js popover, so there is no HTML sink to
+defend: `__tests__/adversarial/renderer-inertness.test.ts` drives six classic
+payloads (`<img src=x onerror=…>`, `<script>`, a `javascript:` href,
+`<svg onload=…>`, an iframe, a style escape) from a raw model completion,
+through `parseSupportTurn`, the compiler, the runtime and the controller, to
+the real card — as a focus, an annotate and a hint step — and each appears as
+literal text with no element made from it. It also asserts the card is named
+by the goal's authored title and never by the message, and carries no text
+from the control it points at. `coach/placement.test.ts` proves the card never
+covers the control, always sits inside the viewport and docks to the far edge
+on a phone; `coach/CoachHud.test.tsx` proves what is on it at each step (Next
+on every step, Back, Replay and Done, the meter, "your move", "not on screen").
+`apps/pages/scripts/verify-tutorials.mjs` is the browser half: every tutorial,
+walked in Chromium (see AGENTS.md).
 
-`driver-renderer.test.ts` covers the adapter: text written even though the slot
-is an HTML sink, reduced motion honoured, an unmounted target rendering nothing
-and recording the miss, no node left after `clear()`, annotation without a
-modal and without taking the caret, the caret preserved for a hint and handed
-over for a focus, and scrolling that tolerates a host that cannot scroll.
-`rendering-contract.test.ts` asserts Driver.js is absent from the static import
-graph, that the module exports OpenSesame values only, and that every
-stylesheet rule is scoped to the guide.
-
-**The on-device provider.** `tutorial/agents/prompt-api/*.test.ts` drives the
-Prompt API through an **injected fake platform object**: availability
-normalized across every platform state, download progress clamped to a
-fraction, a created session that cannot be prompted rejected, abort discarding
-a late answer, one bounded session recreation when context runs out, session
-reuse across turns, and — the two that matter for privacy — that what leaves
-carries the policy instructions and the authored page context, and that it
-never carries page text or stored values the context did not authorize.
-
-**The remote provider.** `tutorial/agents/ag-ui/endpoint.test.ts` and
-`endpoint-same-origin.test.ts` hold the egress fence: https anywhere, http only
-on loopback or this page's own origin, cleartext to a third party refused,
-non-transport schemes refused, a scheme-relative reference refused rather than
-inheriting our origin, embedded credentials, a query and a fragment refused,
-non-URLs refused, headers carrying content negotiation and no credential, and
-the transport left off when config is absent or refused.
-
-`ag-ui-agent.test.ts` covers both directions. Outbound: a planted element, a
-planted function and a planted password are each refused **before the transport
-is called**, and the body is exactly the allow-listed structure. Inbound, under
-hostile server events: a tool call is ignored and only assistant prose kept; a
-state patch carrying a `javascript:` route is ignored; a messages snapshot is
-ignored; deltas for a non-assistant role are dropped; an oversized payload is
-capped; a stream that ends without an assistant message, and an empty stream,
-are refused; malformed non-object events are survived; a server-authored error
-message is never surfaced; and a connection failure is reported without
-repeating what the transport said. A guide containing a forbidden directive is
-handed to the compiler to reject rather than special-cased. Abort ends as
-`AGENT_ABORTED` and stops pulling stale events, an already-aborted signal is
-refused, and `destroy()` aborts the run in flight.
-
-`transport.test.ts` proves the POST carries no ambient credentials and follows
-no redirect, that a non-200 is refused before any event is decoded, that a
-connection failure surfaces as a stream error, and that an already-cancelled
-run makes no request at all. `bundle-hygiene.test.ts` asserts the library is
-named as a module specifier only inside a dynamic import, that the one dynamic
-import still exists so the rule is not vacuous, that nothing in the directory
-logs, and that the exported surface carries no AG-UI or rxjs type names.
-
-**The panel.** `tutorial/ui/support-hygiene.test.ts` is a source-oracle sweep
-over the whole support surface: model text reaches the document only as text,
-a support conversation is never persisted, and it is never logged. It first
-asserts that it covers the whole surface, so a new file in the directory cannot
-quietly escape the sweep.
-
-`tutorial/ui/support.test.tsx` covers the surface a person
-touches: it opens from the statusline and returns focus on close, closes on
-Escape without the vault keymap acting on the key, renders an answer as text
-and markup in an answer as *literal* text, still opens and helps when nothing
-can answer, answers an authored topic and launches a named walkthrough **with
-no model at all**, offers the model download only as a gesture and reports its
-progress, cancels an in-flight question, shows the remote-transport warning
-exactly when answers leave the device and not otherwise, clears the
-conversation on request, and drops the transcript, the guide and the panel when
-the vault locks. An accessibility block asserts the affordance and the dialog
-are named and that Tab stays inside the dialog.
-
-**The assembled chain, attacked.**
-`tutorial/__tests__/adversarial/` is the set of suites that assemble the real
-page context, the real compiler, the real registries and the real runtime
-together and then attack the seams between them. Every other suite drives one
-component against fakes for its neighbours, which is right for those suites and
-is exactly why the wiring is the least-observed part of the feature: a
-component can satisfy its own contract while the wiring around it quietly
-widens what reaches the DOM. The shared harness offers two observation points
-— what the renderer was asked to draw and where the router was asked to go — so
-an attack that leaves both empty left no trace on the page.
-
-`injection-chain.test.ts` drives a hostile model end to end and, crucially,
-*runs* whatever comes back, because a test that only asserted "did not compile"
-would not notice a caller that ran the program anyway. Nine hostile programs —
-`click "#reveal-secret"`, `navigate "javascript:alert(1)"`, an off-origin
-navigate, an id selector and a descendant selector in `focus`, `eval`,
-`execute-tool`, an unbounded wait on an invented target, and a four-hundred
-instruction program — each draw nothing and go nowhere. It also proves the
-prose answer survives, that exactly one repair is asked, that the rejected
-program is never repeated back to the model, that an application-authored guide
-*does* draw and navigate (so the negative assertions are not vacuous), that no
-directive in `GUIDE_INSTRUCTION_NAMES` could click, type, fetch or evaluate,
-and — over fast-check input — that no arbitrary string becomes a target the
-compiler accepts and the registry resolves, or a route, or a predicate.
-
-`context-leak.test.ts` populates a vault with attacker-shaped text — item
-names, folder names, connection labels, KDBX-imported entries — and asserts
-none of it reaches the assembled page context on any route the tutorial can
-name, the system instruction, the body an AG-UI endpoint would receive, the
-request a provider is handed, or the popover a person reads. It also proves the
-vault really is populated so the assertion bites, that each target carries only
-registry-authored fields and no element, that connections report a count rather
-than a label, and that attaching a vault record to a request is refused
-outright. The registry suite makes the same claim about the catalog's *source*;
-this one makes it about a running vault.
-
-`lock-teardown.test.ts` locks at the four awkward moments, against a provider
-that deliberately ignores its abort signal: with a model request in flight (the
-transcript empties and the late answer renders nothing), with an armed wait and
-its deadline and overlays up, with a highlight left standing by a pause, with a
-persistent annotation that outlives its own step, and afterwards — a guide
-compiled before the lock cannot drive the page again. Four owners of state have
-to be reached by one lock — the controller, the support session, the target
-registry and Driver's own overlays — and only a suite that drives the
-composition can see whether it reaches all four.
-
-`stale-chains.test.ts` covers work that arrives after the world it was planned
-for has gone. Both halves of this feature are asynchronous against a page that
-moves: a model answers on its own schedule, and a trajectory is compiled
-against the vocabulary of the route the person was on when they asked. The
-session suite proves a superseded *answer* is dropped; this one proves the
-guide attached to that answer is dropped with it, that a program compiled for
-one route does not compile once the page has moved, that one compiled before
-the move fails closed rather than drawing, and that starting a second
-walkthrough cancels the run in flight rather than drawing over it.
-
-`renderer-inertness.test.ts` drives markup from a raw model completion all the
-way to the glass. `driver-xss.test.ts` hands payloads straight to the renderer,
-which proves the adapter; it does not prove the chain, because a completion has
-to survive `parseSupportTurn`'s fence handling, the compiler's string literals,
-the runtime's message checks and the port hop first, and each of those touches
-the string. This one runs the whole path with the real library and then asserts
-on the document: markup stays literal text in a focus popover, an annotation
-and a hint, the popover is named by us and never by the message, and it carries
-no text from the control it points at.
-
-`registry-integrity.test.ts` attacks the registries through the app's own
-compile and run edges rather than a hand-written vocabulary: an identifier this
-build does not declare is rejected with the code naming what was missing; a
-well-formed but unregistered route is refused by the registry, the compiler and
-the runtime alike, and never appears as the route the page reports for any
-path; a second element cannot take the binding from the one already on screen;
-the same element mounted twice is recorded or refused rather than silently
-duplicated; and a target that leaves the page mid-walkthrough stops the
-trajectory instead of pointing at nothing. It also exercises the
-runtime with a program handed in as an AST — the path a parser bug, or any
-future caller that builds a program itself, would take.
-
-`webmcp-boundary.test.ts` attacks the wall ADR 0088 §8 puts between guidance
-and actuation, which the WebMCP suites and the AG-UI suite each test only on
-their own terms — what neither covers is the pair, live in one document, with a
-hostile stream naming a real tool. It proves no export of the WebMCP package
-runs a tool, that a tool listing is metadata holding no callable, that
-`opensesame_guide_start` accepts nothing but an id somebody in this repository
-authored and refuses GuideLang however it is dressed up, that starting an
-authored goal returns only its id, and that a hostile AG-UI stream can neither
-reach a WebMCP tool nor obtain a catalog to name one from — while the guide it
-carries still faces the compiler like any other.
-
-**Accessibility.** `tutorial/__tests__/a11y/` drives the panel with a real
-Driver.js adapter over a stand-in that reproduces the two library behaviours
-that matter — both popover slots written as `innerHTML` before the render hook
-runs — because questions about who holds the caret and what a callout *is* are
-questions about what the adapter puts in the document, which a recording
-renderer cannot answer.
-
-`dialog-semantics.test.tsx` asks for every control by its accessible name
-rather than by class or selector, on the reasoning that the panel is a
-`<section>` wearing `role="dialog"` and its name lives in an attribute a
-refactor can silently drop. It asserts the launcher is named and says what it
-opens, that one modal dialog opens named, headed and closable, that the scrim
-sits outside the dialog's reading order, that every field is labelled
-programmatically rather than by placeholder, that each region of the sheet is
-named so it can be reached by landmark, that no positive `tabindex` appears,
-and that a live walkthrough is announced in the launcher's name rather than
-only in its colour.
-
-`focus-and-escape.test.tsx` covers the parts the app wrote itself, because the
-panel is not a native `<dialog>`: the caret lands on the dialog's own close
-control rather than merely inside it, the launcher is restored after both
-Escape and the scrim, Tab wraps in both directions and stray focus is pulled
-back in. It also covers the collision that makes Escape interesting here — the
-vault keymap owns every unmodified key on the page underneath, and Escape there
-is `closeSearch` — proving the sheet closes without the keymap acting and
-without locking, and that no other vault key fires while the sheet is up.
-
-`announcements.test.tsx` asks what somebody who cannot see the panel is told,
-on the reasoning that four of this feature's states are the kind that get built
-as pure visual texture — a caret for "thinking", a bar for a download, a red
-rule for a failure, a tinted card for a live walkthrough — and a state a screen
-reader cannot reach is a state that does not exist for the person who most
-needs the panel to work. It asserts thinking is said in words in a live status
-beside a way out, download progress is text and not only a bar, the download is
-a named gesture rather than an ambient fetch, the unavailable state is labelled
-in prose with the unusable field disabled, a failure is raised as an alert in a
-sentence with no error code in it, an answer lands in a named polite live
-region, a walkthrough's progress and paused state are said in words, and the
-remote-transport warning is named as text.
-
-`keyboard-operability.test.tsx` tabs to each control the way a person would and
-activates it with Enter, rather than calling `.focus()`, which proves nothing
-about tab order: opening and closing, asking and receiving an answer,
-cancelling a question in flight, clearing the conversation, opening a written
-help topic on a browser with no model, searching the written help and starting
-a walkthrough — and a sweep asserting the sheet offers nothing that only a
-pointer can use.
-
-`stylesheet-contract.test.ts` reads the two stylesheets as data and asserts
-they cannot reach past this feature: every `support.css` rule is anchored on
-the panel's own scope and every `driver.css` rule on the adapter's marker or a
-Driver class, neither anchors on a shared control or a bare element, a shared
-control is reached only from inside the panel, and the reduced-motion block
-neutralises every animation each stylesheet starts and moves nothing on a
-transition.
+`stylesheet-contract.test.ts` and `coach-stylesheet.test.ts` read the two
+stylesheets as data and assert they cannot reach past this feature: every
+`support.css` rule is anchored on the panel's own scope and every `coach.css`
+rule on `.coach`, neither anchors on a shared control or a bare element, a
+shared control is reached only from inside the panel, and the reduced-motion
+block neutralises every animation each stylesheet starts — and every glide the
+card makes — and moves nothing on a support transition.
 
 `reflow.test.tsx` covers the structural half of a narrow viewport and is candid
 in its own header about the other half: jsdom performs no layout, so no media
@@ -411,13 +213,12 @@ actually breaks — no control is dropped or hidden when the window narrows to a
 phone, the way out and the way in stay outside the region that scrolls, and a
 2,000-character unbroken answer leaves every control reachable.
 
-`guide-motion-and-focus.test.tsx` covers the composition rather than the
-adapter, which `driver-renderer.test.ts` already holds: a walkthrough starts on
-the live page with the sheet closing itself behind it, reduced motion carries
-through the panel into both the spotlight and a hint beacon, the caret goes to
-the highlighted control rather than to the overlay and can leave it again — the
-guide points, it does not trap — and a whole walkthrough of annotations and
-hints never takes the caret at all.
+`guide-motion-and-focus.test.tsx` covers the composition rather than the card:
+a tutorial starts on the live page with the sheet closing itself behind it,
+reduced motion stops the aperture gliding, the caret lands on Next and can leave
+the card again — the tutorial guides, it does not trap — arrows step only while
+the caret is in the card, and Escape leaves the tutorial and hands the caret
+back (except from a text field, where it is the field's own way out).
 
 **The journeys the feature exists for.**
 `tutorial/__tests__/journeys/connections.test.tsx` drives adding a provider
@@ -510,6 +311,9 @@ the string `driver-popover` appears in neither the entry chunk nor anything it
 statically imports. The AG-UI adapter is a small separate chunk reached through
 a `__vite__mapDeps` dynamic import, and the library closure that carries the
 AG-UI event vocabulary is a further chunk the entry does not name at all.
+(ADR 0163 later removed Driver.js: the tutorial card is a lazy React chunk
+loaded the first time a tutorial has a step to draw, behind the same `lazy`
+boundary as the panel.)
 
 **Residual gap.** That inspection is manual and one-off. Nothing in CI asserts
 it, so a bundler configuration change could pull either library into the boot
