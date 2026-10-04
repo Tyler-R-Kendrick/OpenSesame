@@ -1,7 +1,6 @@
 import { vaultFilterLabel } from "@opensesame/app-core/lib/crumbs.js";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Link,
   Outlet,
   useLocation,
   useNavigate,
@@ -21,7 +20,9 @@ import {
 import { EmptyTip } from "../components/EmptyTip.js";
 import { IconChevronLeft } from "../components/Icons.js";
 import { NavTree } from "../components/NavTree.js";
+import { UpLink } from "../components/UpLink.js";
 import { swipeBack } from "../lib/gestures.js";
+import { AscendProvider, usePaneTrail } from "../lib/pane-trail.js";
 import { useNarrow } from "../lib/use-narrow.js";
 import {
   PHONE_ALL_ITEMS,
@@ -184,6 +185,7 @@ export function VaultSection() {
   const listRef = useGuideTarget<HTMLDivElement>("vault.list");
   const listPath = vaultListPath(location.search, narrow);
 
+  const ascend = usePaneTrail(showing);
   useVaultFocus({
     tree: treePaneRef,
     list: listPaneRef,
@@ -196,98 +198,103 @@ export function VaultSection() {
     // is the section tree; from an item it is the list.
     const target =
       showing === "detail"
-        ? { pane: detailRef.current, to: listPath }
+        ? { pane: detailRef.current, to: listPath, up: "list" as const }
         : showing === "list"
-          ? { pane: listPaneRef.current, to: "/vault" }
+          ? { pane: listPaneRef.current, to: "/vault", up: "tree" as const }
           : null;
     if (!target?.pane) return;
-    const back = target.to;
-    return swipeBack(target.pane, () => navigate(back));
-  }, [showing, listPath, navigate]);
+    const { to, up } = target;
+    return swipeBack(target.pane, () => ascend(up, to));
+  }, [showing, listPath, ascend]);
 
   return (
-    <div className="vault" data-pane={showing}>
-      {/* The section tree: the rail's own tree, drawn where a phone looks.
+    <AscendProvider value={narrow ? ascend : null}>
+      <div className="vault" data-pane={showing}>
+        {/* The section tree: the rail's own tree, drawn where a phone looks.
           It is mounted only below the breakpoint, so the rail and this pane
           never hold two trees at once. */}
-      <div className="vault__tree" ref={treePaneRef}>
-        {narrow ? (
-          <>
-            {/* The list's own command row, so adding, importing and backing
+        <div className="vault__tree" ref={treePaneRef}>
+          {narrow ? (
+            <>
+              {/* The list's own command row, so adding, importing and backing
                 up are on the screen a phone opens on. Search jumps to the
                 list of everything with its prompt open. */}
-            <VaultPathbar
-              verbs={<VaultActions createPath={createPath} />}
-              search={() => {
-                askForSearch();
-                navigate(PHONE_ALL_ITEMS);
-              }}
-            />
-            <NavTree />
-          </>
-        ) : null}
-      </div>
-      <div
-        className="vault__list"
-        ref={(element) => {
-          listPaneRef.current = element;
-          listRef(element);
-        }}
-      >
-        <VaultTree
-          items={visible}
-          folders={treeFolders}
-          activeItemId={itemId}
-          actions={actions}
-          title={title}
-          total={total}
-          emptyMessage={filter === "trash" ? "Trash is empty" : "Nothing here"}
-          verbs={
-            <>
-              <Link
-                className="icon-btn icon-btn--sm vault__back"
-                aria-label="Back to sections"
-                title="Back to sections"
-                to="/vault"
-              >
-                <IconChevronLeft size={15} />
-              </Link>
-              <VaultFilterMenu
-                items={items}
-                folders={folders}
-                typeIds={chipTypeIds(
-                  items.filter((item) => item.deletedAt === null),
-                )}
-                filter={filter}
-                folderId={folderId}
+              <VaultPathbar
+                verbs={<VaultActions createPath={createPath} />}
+                search={() => {
+                  askForSearch();
+                  navigate(PHONE_ALL_ITEMS);
+                }}
               />
-              {inTrash ? (
-                <TrashCommands
-                  items={visible}
-                  armedId={armedPurgeId}
-                  onRestore={(item) => actions.restore(item)}
-                  onPurge={(item) => actions.purge(item)}
-                />
-              ) : (
-                <VaultActions
-                  createPath={createPath}
-                  createRef={(element) => {
-                    newItemRef.current = element;
-                    createRef(element);
-                  }}
-                />
-              )}
+              <NavTree />
             </>
-          }
-        />
-      </div>
+          ) : null}
+        </div>
+        <div
+          className="vault__list"
+          ref={(element) => {
+            listPaneRef.current = element;
+            listRef(element);
+          }}
+        >
+          <VaultTree
+            items={visible}
+            folders={treeFolders}
+            activeItemId={itemId}
+            actions={actions}
+            title={title}
+            total={total}
+            emptyMessage={
+              filter === "trash" ? "Trash is empty" : "Nothing here"
+            }
+            verbs={
+              <>
+                <UpLink
+                  pane="tree"
+                  className="icon-btn icon-btn--sm vault__back"
+                  aria-label="Back to sections"
+                  title="Back to sections"
+                  to="/vault"
+                >
+                  <IconChevronLeft size={15} />
+                </UpLink>
+                <VaultFilterMenu
+                  items={items}
+                  folders={folders}
+                  typeIds={chipTypeIds(
+                    items.filter((item) => item.deletedAt === null),
+                  )}
+                  filter={filter}
+                  folderId={folderId}
+                />
+                {inTrash ? (
+                  <TrashCommands
+                    items={visible}
+                    armedId={armedPurgeId}
+                    onRestore={(item) => actions.restore(item)}
+                    onPurge={(item) => actions.purge(item)}
+                  />
+                ) : (
+                  <VaultActions
+                    createPath={createPath}
+                    createRef={(element) => {
+                      newItemRef.current = element;
+                      createRef(element);
+                    }}
+                  />
+                )}
+              </>
+            }
+          />
+        </div>
 
-      {/* Dragging the buffer rightwards goes back to the list — the
+        {/* Dragging the buffer rightwards goes back to the list — the
           platform's own back gesture, and the touch twin of the ← key. */}
-      <div className="vault__detail" ref={detailRef} tabIndex={-1}>
-        <Outlet />
+        <div className="vault__detail" ref={detailRef} tabIndex={-1}>
+          <Outlet />
+        </div>
       </div>
-    </div>
+    </AscendProvider>
   );
 }
 

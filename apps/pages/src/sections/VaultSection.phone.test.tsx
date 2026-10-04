@@ -6,7 +6,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { Route, Routes } from "react-router";
+import { Route, Routes, useNavigationType } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   registerContributedShell,
@@ -33,12 +33,25 @@ function renderVault(path: string) {
   return renderShell(
     path,
     <Routes>
-      <Route path="/vault" element={<VaultSection />}>
+      <Route
+        path="/vault"
+        element={
+          <>
+            <VaultSection />
+            <Arrival />
+          </>
+        }
+      >
         <Route index element={<div>welcome pane</div>} />
         <Route path=":itemId" element={<ItemDetail />} />
       </Route>
     </Routes>,
   );
+}
+
+/** Says how the current entry was arrived at, for the tests to read. */
+function Arrival() {
+  return <output data-testid="arrival">{useNavigationType()}</output>;
 }
 
 const pane = () =>
@@ -121,6 +134,34 @@ describe("the vault on a phone", () => {
         screen.getByRole("textbox", { name: /search/i }),
       ),
     );
+  });
+
+  it("the Back keys pop the history, so the system Back button is not sent back in", async () => {
+    renderVault("/vault");
+    await act(async () => undefined);
+    fireEvent.click(screen.getByRole("treeitem", { name: "all" }));
+    await waitFor(() => expect(pane()).toBe("list"));
+    expect(screen.getByTestId("arrival").textContent).toBe("PUSH");
+    fireEvent.click(screen.getByRole("link", { name: "Back to sections" }));
+    await waitFor(() => expect(pane()).toBe("tree"));
+    expect(screen.getByTestId("arrival").textContent).toBe("POP");
+    fireEvent.click(screen.getByRole("treeitem", { name: "all" }));
+    await waitFor(() => expect(pane()).toBe("list"));
+    fireEvent.click(
+      document.querySelector('.vault__list [role="treeitem"]') as HTMLElement,
+    );
+    await waitFor(() => expect(pane()).toBe("detail"));
+    fireEvent.click(screen.getByRole("link", { name: "Back to all items" }));
+    await waitFor(() => expect(pane()).toBe("list"));
+    expect(screen.getByTestId("arrival").textContent).toBe("POP");
+  });
+
+  it("a link into the middle replaces on the way up, since nothing is below it", async () => {
+    renderVault("/vault?f=all");
+    await act(async () => undefined);
+    fireEvent.click(screen.getByRole("link", { name: "Back to sections" }));
+    await waitFor(() => expect(pane()).toBe("tree"));
+    expect(screen.getByTestId("arrival").textContent).toBe("REPLACE");
   });
 
   it("the tree's all entry names the list, so tapping it leaves the tree", () => {

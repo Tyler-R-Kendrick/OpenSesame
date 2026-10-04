@@ -9,7 +9,6 @@ import {
 } from "@opensesame/vault-core";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
-import { EmptyTip } from "../../components/EmptyTip.js";
 import {
   ConcealedValue,
   CopyButton,
@@ -34,8 +33,10 @@ import {
 import { QrCode } from "../../components/QrCode.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { TotpCode, currentTotp } from "../../components/TotpCode.js";
+import { UpLink } from "../../components/UpLink.js";
 import { useVaultList } from "../../lib/vault-list-path.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
+import { ItemGone } from "./ItemGone.js";
 import { UpdateSecretPanel } from "./SecretUpdate.js";
 import { StrengthBar } from "./StrengthBar.js";
 import { TypedFieldRows, UnknownTypeRows } from "./TypedFields.js";
@@ -67,19 +68,7 @@ export function ItemDetail() {
     setConfirmPurge(false);
   }, [itemId]);
 
-  if (!item) {
-    return (
-      <div className="detail">
-        <div className="empty">
-          <h2>That item is not in this vault</h2>
-          <EmptyTip tip="escBack" />
-          <Link className="btn btn--sm" to={listPath}>
-            Back to the vault
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  if (!item) return <ItemGone listPath={listPath} />;
 
   const toggle = (key: string) =>
     setRevealed((current) => {
@@ -95,7 +84,8 @@ export function ItemDetail() {
   return (
     <div className="detail">
       <div className="detail__head">
-        <Link
+        <UpLink
+          pane="list"
           data-pane-close=""
           className="icon-btn detail__backbtn"
           aria-label={backLabel}
@@ -103,7 +93,7 @@ export function ItemDetail() {
           to={listPath}
         >
           <IconChevronLeft size={17} />
-        </Link>
+        </UpLink>
         <div className="detail__heading">
           <h1>{item.name || "Untitled"}</h1>
           <div className="detail__meta">
