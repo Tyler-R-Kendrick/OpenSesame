@@ -7,12 +7,19 @@
 //
 // Fails on page errors, console errors, loopback requests, or a token that
 // does not verify through @opensesame/siop-v2 verifySelfIssuedIdToken.
+//
+// Then the cross-origin relying parties of ADR 0161: the example Node RP as a
+// real server on a loopback port and the example single-page RP on its own
+// origin each sign in against this build, and every refusal the RP kit makes
+// (wrong nonce, audience, redirect_uri; replay; tampered signature; expired)
+// is provoked through the real ceremony (`lib/siop-rp-journey.mjs`, `lib/siop-spa-journey.mjs`).
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { expect } from "@playwright/test";
 import { build } from "vite";
 import { chooseCapabilities } from "./lib/choose-capabilities.mjs";
 import {
+  SIOP_CALLBACK,
   SIOP_RP,
   approveSiopConsent,
   buildSiopUrl,
@@ -20,6 +27,14 @@ import {
   installWebAuthn,
   siopIssuer,
 } from "./lib/siop-journey.mjs";
+import { nodeRpJourney } from "./lib/siop-rp-journey.mjs";
+import { freePort, serveDist } from "./lib/siop-rp-server.mjs";
+import {
+  SPA_ORIGIN,
+  checkPublishedMetadata,
+  routeSpa,
+  spaRpJourney,
+} from "./lib/siop-spa-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
@@ -104,7 +119,19 @@ async function bundleFixture() {
     .join("\n");
 }
 
-async function seedSiopFixture(context, fixtureScript) {
+async function bundleSpa(clientId, pagesBase) {
+  // The single-page RP bakes its two settings in at build time.
+  process.env.OPENSESAME_PAGES_BASE = pagesBase;
+  process.env.SIOP_RP_CLIENT_ID = clientId;
+  const result = await build({
+    configFile: `${root}/examples/siop-rp/vite.spa.config.ts`,
+    logLevel: "error",
+    build: { write: false },
+  });
+  return Array.isArray(result) ? result[0].output : result.output;
+}
+
+async function seedSiopFixture(context, fixtureScript, redirectUris) {
   await context.route(`${origin}/fixture`, (route) =>
     route.fulfill({
       contentType: "text/html",
@@ -117,7 +144,10 @@ async function seedSiopFixture(context, fixtureScript) {
   await seedPage.addScriptTag({ content: fixtureScript });
   if (!(await seedPage.evaluate(() => Boolean(globalThis.SiopIamFixture))))
     throw new Error("SIOP IAM fixture did not load");
-  const identities = await seedPage.evaluate(() => SiopIamFixture.seed());
+  const identities = await seedPage.evaluate(
+    (uris) => SiopIamFixture.seed(uris),
+    redirectUris,
+  );
   const { credentials } = await seedDevice.cdp.send("WebAuthn.getCredentials", {
     authenticatorId: seedDevice.authenticatorId,
   });
@@ -163,6 +193,17 @@ const siopVerify = await bundleVerify();
 const siopFixture = await bundleFixture();
 const harness = createHarness({ dist, origin, base, out });
 const browser = await harness.launch();
+// The example Node relying party is a real server on a port chosen now, so
+// the vault can register its exact callback addresses when it is seeded.
+const rpPort = await freePort();
+const rpUrl = `http://127.0.0.1:${rpPort}`;
+const redirectUris = [
+  SIOP_CALLBACK,
+  `${rpUrl}/callback`,
+  `${rpUrl}/callback/mobile`,
+  `${SPA_ORIGIN}/`,
+];
+const metadataServer = await serveDist(dist);
 
 function routeRp(context) {
   return context.route(`${SIOP_RP}/**`, (route) =>
@@ -193,11 +234,14 @@ async function runAllow(page, clientId, personName, label) {
 }
 
 try {
-  const { page, context } = await harness.newPage(browser);
+  const { page, context } = await harness.newPage(browser, {
+    passthrough: [rpUrl],
+  });
   await routeRp(context);
   const { identities, credentials } = await seedSiopFixture(
     context,
     siopFixture,
+    redirectUris,
   );
   await installPasskeyCredentials(page, credentials);
   // `/siop` and the local applications this seeds belong to Self-issued
@@ -258,6 +302,29 @@ try {
     "PASS lock fail-closed: locked vault refuses the SIOP ceremony without a callback",
   );
 
+  // Relying parties on other origins (ADR 0161).
+  checkPublishedMetadata(dist, siopVerify, origin, base);
+  const rpEnv = {
+    page,
+    context,
+    harness,
+    origin,
+    base,
+    issuer: siopIssuer(origin, base),
+    ids: identities,
+    siopVerify,
+    rpUrl,
+    rpPort,
+    metadataServer: metadataServer.url,
+  };
+  await routeSpa(
+    context,
+    await bundleSpa(identities.appOneId, `${origin}${base}`.replace(/\/$/, "")),
+  );
+  await spaRpJourney(rpEnv);
+  // Last: it moves the browser's clock back two hours.
+  await nodeRpJourney(rpEnv);
+
   await context.close();
 } catch (error) {
   for (const ctx of browser.contexts()) {
@@ -270,6 +337,7 @@ try {
   throw error;
 } finally {
   await browser.close();
+  await metadataServer.close();
 }
 
 if (

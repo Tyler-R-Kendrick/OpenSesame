@@ -79,6 +79,13 @@ const FORBIDDEN_COPY =
   /127\.0\.0\.1|localhost|No Identity API|Sign-in didn.t finish|could not be|couldn.t be|failed to|went wrong|is unavailable|unreachable/i;
 
 /**
+ * GitHub Pages sends `access-control-allow-origin: *` on every answer, a
+ * 404 included (read off the live site, ADR 0161). A relying party on another
+ * origin reads `siop-metadata.json` because of it, so the harness sends it too.
+ */
+const PAGES_CORS = { "access-control-allow-origin": "*" };
+
+/**
  * The deployment itself, served exactly as GitHub Pages serves it: a real file
  * where one exists, and index.html with a 404 status where the path is a route
  * rather than an asset. A missing asset is recorded, because a 404 for
@@ -94,6 +101,7 @@ function serveFromDist(route, url, { dist, base, record }) {
       status: 200,
       headers: {
         "content-type": MIME[path.extname(file)] ?? "application/octet-stream",
+        ...PAGES_CORS,
       },
       body: fs.readFileSync(file),
     });
@@ -107,7 +115,7 @@ function serveFromDist(route, url, { dist, base, record }) {
   }
   return route.fulfill({
     status: rel ? 404 : 200,
-    headers: { "content-type": "text/html" },
+    headers: { "content-type": "text/html", ...PAGES_CORS },
     body: fs.readFileSync(path.join(dist, "index.html")),
   });
 }
