@@ -187,6 +187,17 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:keyboard
+      - name: Every tutorial, walked end to end
+        # ADR 0163: the Support sheet's Tutorials tab lists them, each is
+        # started from its row and walked with Next alone at desktop and phone
+        # width, on the shell with every capability on and on the gates. A
+        # step whose control is missing or covered, a card outside the screen,
+        # a Next that is not there, or focus dropped on the way out is a
+        # failure.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:tutorials
       - name: Push worker installs on approval and reverts on removal
         # A real localhost origin with service workers allowed (context.route
         # never sees a worker's fetches). A device holding the core worker
