@@ -1,0 +1,40 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "open": "New item" },
+        { "press": "Save item" },
+        { "open": "Back to all items" },
+        { "open": "Back to sections" },
+        { "pressOptional": "Search \\(/\\)" },
+        { "fill": { "label": "Search items", "text": "zzz" } },
+        { "shot": "390-search-typed" },
+        { "open": "Back to sections" },
+        { "railOptional": "all" },
+        { "shot": "390-all-after" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-search-typed",
+      "width": 390,
+      "title": "A search that matches nothing — 390 × 844",
+      "caption": "Search from the tree and type something no item matches; the list shows nothing, as it should.",
+      "before": "same: the list shows no rows for the query",
+      "after": "same: the list shows no rows for the query"
+    },
+    {
+      "shot": "390-all-after",
+      "width": 390,
+      "title": "Back to the tree, then all — 390 × 844",
+      "caption": "Leaving the list for the tree ends its search, so all shows every item.",
+      "before": "the old query is still applied: the prompt is open on zzz and the list draws no rows although all holds 1 item",
+      "after": "the prompt is closed and the list shows the 1 item"
+    }
+  ]
+}
