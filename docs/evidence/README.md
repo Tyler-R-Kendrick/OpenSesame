@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-04-device-identity/`](2026-10-04-device-identity/README.md) | The device is the Identity plane (ADR 0160) — before and after |
 | [`2026-10-03-unlock-from-protector/`](2026-10-03-unlock-from-protector/README.md) | Unlock from an enrolled protector — before and after |
 | [`2026-10-03-settings-walk/`](2026-10-03-settings-walk/README.md) | Settings walk: every row acts, or is not drawn (ADR 0158, second pass) |
 | [`2026-10-03-plugin-switch-absent/`](2026-10-03-plugin-switch-absent/README.md) | Plugin tiles draw no switch they cannot act on (ADR 0150, settings rows act or are absent) |

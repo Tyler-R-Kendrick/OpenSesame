@@ -1,0 +1,83 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "connectIdentity": null },
+        { "identitySheet": null },
+        { "report": ".sheet" },
+        { "shot": "390-identity-session" },
+        { "press": "Refresh session" },
+        { "report": ".sheet" },
+        { "shot": "390-identity-refreshed" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "connectIdentity": null },
+        { "enable": "Access authority" },
+        { "visit": "access?view=sessions" },
+        { "report": ".section__inner" },
+        { "scrollTo": "Vault share sessions" },
+        { "shot": "390-access-sessions" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "connectIdentity": null },
+        { "enable": "Access authority" },
+        { "visit": "access?view=sessions" },
+        { "report": ".section__inner" },
+        { "scrollTo": "Vault share sessions" },
+        { "shot": "1280-access-sessions" },
+        { "visit": "settings" },
+        { "report": "#settings-locking" },
+        { "shot": "1280-general-connected" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-identity-refreshed",
+      "width": 390,
+      "title": "Identity sheet, after Refresh session — 390 × 844",
+      "caption": "A guest connects from the Identity sheet on a device with no Identity API. The session's principal was a random id that changed on every Refresh; it is now the thumbprint of the key sealed in this vault, so Refresh keeps it.",
+      "before": "prn_ + 16 characters; prn_HUhrzzVc8JbTLC9Q → prn_3RAVQJRe_E4NfJ9n on Refresh",
+      "after": "prn_ + 43-character thumbprint; prn_FMokIb_Y…LdqU before and after Refresh"
+    },
+    {
+      "shot": "390-access-sessions",
+      "width": 390,
+      "title": "Access › Sessions with a device session, Browser-local IAM off — 390 × 844",
+      "caption": "Access is on, the device holds a session, and nothing on this device keeps an audit trail. The device plane does not serve one, so the Receipts panel is not drawn instead of asking for it and failing.",
+      "before": "Receipts drawn, reading \"Identity answered 501 for the receipt trail.\"",
+      "after": "Receipts not drawn; no failure text on the page"
+    },
+    {
+      "shot": "1280-access-sessions",
+      "width": 1280,
+      "title": "Access › Sessions with a device session, Browser-local IAM off — 1280 × 900",
+      "caption": "The same walk at desktop width.",
+      "before": "Receipts drawn, reading \"Identity answered 501 for the receipt trail.\"",
+      "after": "Receipts not drawn; no failure text on the page"
+    },
+    {
+      "shot": "1280-general-connected",
+      "width": 1280,
+      "title": "Settings › General once the device is connected — 1280 × 900",
+      "caption": "Unchanged on purpose: the Sign out of Identity too row is drawn once the device has a session and not before (verify:device-identity checks both).",
+      "before": "Locking panel with the sign-out row",
+      "after": "Locking panel with the sign-out row (identical)"
+    }
+  ]
+}
