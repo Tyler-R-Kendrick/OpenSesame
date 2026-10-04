@@ -70,7 +70,7 @@ features in §3's last row, which need a server and must not pretend otherwise.
 | --- | --- | --- |
 | `session` (principal, bearer, health, claims) | always, from the host core | yes |
 | `audit`, `requests`, `directory` | while `identity.local-iam` is on | yes |
-| `notifications` | while a capability that delivers them is on (none yet) | yes |
+| `notifications` | while a capability that delivers them is on (`notifications.local`, whose one channel is the in-app inbox; [ADR 0162](0162-device-receipts-inbox-and-local-notifications.md)) | yes |
 | `mfa-codes` (email and text codes) | never | yes |
 | `org-signin` (organization SSO, SAML, LDAP, magic link) | never | yes |
 | `federation-callback` (a provider's redirect to a URL of ours) | never | yes |
@@ -257,9 +257,11 @@ this ADR does not repeat it.
 - Adding a family to the device is one contribution from the owning capability,
   with its own tests; later receipts, local notifications and the push panel
   register `audit` and `notifications` the same way.
-- Access › Receipts is drawn only where the answering plane serves `audit` and a
-  session is held: a device with Access on and local IAM off no longer draws a
-  receipts panel that could only fail.
+- Access › Receipts is drawn only where the answering plane serves `audit`: a
+  device with Access on and local IAM off no longer draws a receipts panel that
+  could only fail. Against a remote plane it also needs a held session; on the
+  device it reads the vault's own sealed trail and needs none, because the
+  unlocked vault is the authority ([ADR 0162](0162-device-receipts-inbox-and-local-notifications.md)).
 - A device has a stable principal per vault, and a locked one has none to give.
   A guest's is as short-lived as the guest.
 - The principal is not portable yet (§5, last bullet). That is the next
