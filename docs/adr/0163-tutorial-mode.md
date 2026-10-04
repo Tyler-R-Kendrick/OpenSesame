@@ -3,7 +3,8 @@
 - Status: Accepted
 - Date: 2026-10-04
 - Amends: [ADR 0088](0088-ai-native-contextual-support.md) §1 and §4 (the
-  authored budget, and what draws a step). It does not widen the language.
+  authored budget, and what draws a step) and §5 (Driver.js is no longer the
+  rendering primitive). It does not widen the language.
 - Builds on: [ADR 0065](0065-agent-surface-parity.md) (ceremonies stay human),
   [ADR 0130](0130-operator-controlled-capability-composition.md) (every
   feature is a capability), [ADR 0149](0149-nothing-stored-in-the-clear.md)
@@ -31,9 +32,11 @@ observation boundary and stop — and the panel closed while it ran, so:
 
 ### 1. A run has a mode, and a tour is paced by the person
 
-`GuideRuntime.start(program, { mode, limits })` takes a mode. `auto` is
-unchanged: a model's trajectory, every wait with a deadline. `tour` is a
-person walking a tutorial:
+`GuideRuntime.start(program, { mode, limits })` takes a mode. `auto` is the
+runtime's original trajectory, every wait with a deadline, and it is unchanged
+and still tested, but the browser no longer starts it: every guide the app
+runs, authored or model-written, runs as a `tour` (`tourRunner`), and only its
+origin chooses the budget (§2). `tour` is a person walking a tutorial:
 
 - a program is read as **steps** (`planGuideSteps`): a `say`, a pointing
   directive with the `wait` on its own target, or the closing `success`. The
@@ -119,7 +122,8 @@ sits in the required Bundle budgets job.
   skipped the click; authored tours are written so that every step is
   reachable by navigation alone, and the browser suite enforces it.
 - `GuideRuntimeSnapshot` gains `tour`, and the runtime gains `next`, `back`
-  and `restart`. `auto` mode and every existing test of it are untouched.
+  and `restart`. `auto` mode and every existing test of it are untouched,
+  although the app now runs model guides as tours too.
 - Widening GuideLang is still an ADR, and this is not one: no directive was
   added, and none of the ten can act.
 - The transcript stays memory only. Which tutorials a person has finished is
