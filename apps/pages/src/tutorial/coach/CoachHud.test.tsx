@@ -153,7 +153,10 @@ describe("the tutorial card", () => {
     await waitFor(() =>
       expect(root()?.getAttribute("data-coach-target")).toBe("shell.lock"),
     );
-    expect(root()?.getAttribute("data-coach-degraded")).toBe("false");
+    // The control's box arrives on the next frame, so the mark settles then.
+    await waitFor(() =>
+      expect(root()?.getAttribute("data-coach-degraded")).toBe("false"),
+    );
   });
 
   it("says degraded on a step whose control is not on screen", async () => {
