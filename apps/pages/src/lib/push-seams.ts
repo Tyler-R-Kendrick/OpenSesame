@@ -14,6 +14,7 @@ export type PushErrorCode =
   | "blocked"
   | "unavailable"
   | "conflict"
+  | "limit"
   | "failed";
 
 export class PushError extends Error {

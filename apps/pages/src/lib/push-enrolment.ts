@@ -96,6 +96,7 @@ function refusalCode(status: number, reason: string | null): PushErrorCode {
   if (status === 404) return "unsupported";
   if (status === 409 && reason === "endpoint_already_registered")
     return "conflict";
+  if (status === 409 && reason === "subscription_limit_reached") return "limit";
   return "failed";
 }
 
@@ -196,8 +197,15 @@ export async function enablePush(
     if (caught instanceof PushError && caught.code === "conflict")
       return takeOver(input, worker, key, subscription);
     // A subscription this call made and the Identity API never recorded would
-    // read as "On" and deliver nothing; take it back.
-    if (created) await subscription.unsubscribe().catch(() => false);
+    // read as "On" and deliver nothing; take it back. So would one the browser
+    // already held, when the service has said it will record no more for this
+    // person: it lists nothing for it (an endpoint it knew would be replaced,
+    // not counted against the limit), so the row would read On over a
+    // subscription nothing can ever ring. Any other refusal (a session that
+    // lapsed, a service that failed) may have left a working enrolment, and a
+    // held subscription is left alone for it.
+    if (created || (caught instanceof PushError && caught.code === "limit"))
+      await subscription.unsubscribe().catch(() => false);
     throw caught;
   }
 }

@@ -218,11 +218,35 @@ describe("enrolment", () => {
       json({ error: "subscription_limit_reached" }, 409),
     );
     const refusal = await enablePush(ENROL).catch((caught) => caught);
-    expect(refusal).toMatchObject({ code: "failed" });
+    expect(refusal).toMatchObject({ code: "limit" });
     expect(refusal.message).toMatch(/refused that \(409\)/);
     expect(subscribe).toHaveBeenCalledTimes(1);
     expect(mine.unsubscribe).toHaveBeenCalledTimes(1);
     expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it("lets go of a subscription the browser already held when the principal is at its limit (409)", async () => {
+    // The service lists nothing for it and will record no more: left held, the
+    // row would read On over a subscription nothing can ring, and every retry
+    // would meet the same 409.
+    const held = subscription();
+    const { subscribe } = worker(held);
+    fetchFn.mockResolvedValueOnce(keyReply());
+    fetchFn.mockResolvedValueOnce(
+      json({ error: "subscription_limit_reached" }, 409),
+    );
+    await expect(enablePush(ENROL)).rejects.toMatchObject({ code: "limit" });
+    expect(subscribe).not.toHaveBeenCalled();
+    expect(held.unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a held subscription alone for a refusal that may have left an enrolment working (401)", async () => {
+    const held = subscription();
+    worker(held);
+    fetchFn.mockResolvedValueOnce(keyReply());
+    fetchFn.mockResolvedValueOnce(json({ error: "unauthorized" }, 401));
+    await expect(enablePush(ENROL)).rejects.toMatchObject({ code: "failed" });
+    expect(held.unsubscribe).not.toHaveBeenCalled();
   });
 
   it("does not call a policy refusal the service being unreachable", async () => {
