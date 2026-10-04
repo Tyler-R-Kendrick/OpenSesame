@@ -87,7 +87,7 @@ const TARGET_SOURCES = [
 
 const GOALS_SOURCES = [
   "goals.ts",
-  // The shell's help topics close the core list (`SHELL_HELP`).
+  "setup-goals.ts", // `SETUP_HELP`, then `SHELL_HELP` closes the core list
   "shell-goals.ts",
   "duress-goals.ts",
   "connections-goals.ts",
@@ -239,7 +239,7 @@ describe("the authored guides", () => {
   it("are the only goals help topics point at", () => {
     const goals = new Set(guideGoalIds());
     for (const topic of mergedHelpTopics()) {
-      expect(topic.goal.length).toBeGreaterThan(0);
+      if (topic.goal === null) continue; // a gate: written help only
       expect(goals.has(topic.goal)).toBe(true);
     }
   });
