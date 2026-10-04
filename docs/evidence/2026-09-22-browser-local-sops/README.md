@@ -5,6 +5,12 @@ identities, running entirely in the static browser application: no Host, no
 daemon, no extension, no installed `sops`, no environment variable, no Node
 service, no serverless function, no separately installed runtime.
 
+> **2026-10-04.** The Formats panel this evidence names was removed from
+> Settings (#618), and with it the only way to open a SOPS document. The sheet
+> is now the SOPS row under Settings › Security; see
+> [`2026-10-04-sops-document-panel`](../2026-10-04-sops-document-panel/README.md).
+> References to "Settings → Formats" below are the state of 2026-09-22.
+
 Decision: [ADR 0130](../../adr/0130-browser-local-sops.md), which supersedes
 [ADR 0129](../../adr/0129-vault-key-protection-manifest.md) §7.
 Reference: [`docs/security/sops-wire-compatibility.md`](../../security/sops-wire-compatibility.md).
