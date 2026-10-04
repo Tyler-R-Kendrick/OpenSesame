@@ -340,6 +340,11 @@ describe("FederationReturn", () => {
     await waitFor(() =>
       expect(fed.adoptFederatedIdentity).toHaveBeenCalledWith("id-token"),
     );
+    // The return has finished when it navigates; a banner's absence checked
+    // before that is only a banner not yet written.
+    await waitFor(() =>
+      expect(screen.getByTestId("location").textContent).toBe("/"),
+    );
     expect(readAuthOutcome()).toBeNull();
   });
 
@@ -351,6 +356,11 @@ describe("FederationReturn", () => {
     renderReturn();
     await waitFor(() =>
       expect(fed.adoptFederatedIdentity).toHaveBeenCalledWith("id-token"),
+    );
+    // The return has finished when it navigates; a banner's absence checked
+    // before that is only a banner not yet written.
+    await waitFor(() =>
+      expect(screen.getByTestId("location").textContent).toBe("/"),
     );
     expect(readAuthOutcome()).toBeNull();
   });

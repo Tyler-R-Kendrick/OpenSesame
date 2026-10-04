@@ -775,7 +775,7 @@ describe("IdentitySection", () => {
     await userEvent.click(firstButton("Register an IdP"));
     await screen.findByText("Connect your identity provider");
     await userEvent.click(
-      screen.getByRole("button", { name: "Continue with GitHub" }),
+      await screen.findByRole("button", { name: "Continue with GitHub" }),
     );
     await waitFor(() => expect(beginSignIn).toHaveBeenCalledTimes(2));
     expect(await screen.findByText(/Sign-in started with GitHub/)).toBeTruthy();
