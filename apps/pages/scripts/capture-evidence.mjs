@@ -280,6 +280,18 @@ const STEPS = {
   async address(page) {
     console.log(`  address: ${page.url()}`);
   },
+  /**
+   * Type into the shell's command field and run it, the way a person would.
+   * Refuses a silent miss: the field is on every unlocked screen.
+   */
+  async command(page, text) {
+    const field = page.locator("#command-bar-input");
+    if (!(await field.count()))
+      throw new Error("capture-evidence command: no command field is drawn");
+    await field.fill(text);
+    await field.press("Enter");
+    await page.waitForTimeout(900);
+  },
   async escape(page) {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(500);
@@ -350,7 +362,10 @@ async function capture(browser, into) {
     // The wordmark reels settle in 2.31-4.62s (DESIGN.md). Both captures wait
     // them out, or the pair differs in ciphertext that means nothing.
     await page.waitForTimeout(5200);
-    for (const step of screen.steps) {
+    for (const { only, ...step } of screen.steps) {
+      // A step for one side of the pair: a key the base has and the branch
+      // removed, or a verb only the branch understands.
+      if (only !== undefined && only !== label) continue;
       if (step.shot) {
         await page.waitForTimeout(400);
         await viewOf(page).screenshot({

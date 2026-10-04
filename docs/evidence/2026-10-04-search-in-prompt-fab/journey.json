@@ -1,0 +1,91 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "shot": "390-landing" },
+        { "measure": ".fab" },
+        { "measure": ".vault__tree .vtree__keys a, .vault__tree .vtree__keys button" },
+        { "visit": "vault?f=all" },
+        { "shot": "390-list" },
+        { "measure": ".fab" },
+        { "measure": ".vtree__keys a, .vtree__keys button" },
+        { "only": "before", "pressOptional": "Search \\(/\\)" },
+        { "only": "before", "shot": "390-search" },
+        { "only": "before", "count": ".vtree__cmd" },
+        { "only": "before", "measure": ".vtree__cmd, #command-bar-input" },
+        { "only": "after", "command": "/? bank" },
+        { "only": "after", "shot": "390-search" },
+        { "only": "after", "count": ".vtree__cmd" },
+        { "only": "after", "measure": "#command-bar-input" },
+        { "only": "after", "report": ".vault__status-meta" }
+      ]
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault?f=all" },
+        { "shot": "320-list" },
+        { "measure": ".fab" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "shot": "1280-vault" },
+        { "count": ".fab" },
+        { "measure": ".vtree__keys a, .vtree__keys button" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-landing",
+      "width": 390,
+      "title": "Landing — 390 × 844",
+      "caption": "New is the one primary action: a corner button under the thumb. The row above the tree keeps Import and Export.",
+      "before": "New is the first key in the row at the top",
+      "after": "New is a 56px circle in the bottom right; the row no longer carries New or search"
+    },
+    {
+      "shot": "390-list",
+      "width": 390,
+      "title": "List — 390 × 844",
+      "caption": "The corner button rides above the pane's status line and the statusline's prompt; the search key is gone from the row.",
+      "before": "back, filter, +, import, export and search in a row at the top",
+      "after": "back, filter, import, export in the row; + is the corner button"
+    },
+    {
+      "shot": "390-search",
+      "width": 390,
+      "title": "Search — 390 × 844",
+      "caption": "Search is a verb of the prompt that already lists it. Before, the search key opened a second prompt above the first; after, `/? bank` is typed into the one prompt and the list narrows.",
+      "before": "a second `/` prompt drawn above the status line, with the statusline's own prompt below it",
+      "after": "one prompt; the status line reads the narrowed count and `/bank`"
+    },
+    {
+      "shot": "320-list",
+      "width": 320,
+      "title": "List — 320 × 568",
+      "caption": "The narrowest phone: the corner button clears the status line and the prompt.",
+      "before": "+ and search among six keys in the row",
+      "after": "corner + button"
+    },
+    {
+      "shot": "1280-vault",
+      "width": 1280,
+      "title": "Desktop — 1280 × 800",
+      "caption": "Unchanged apart from the search key: the list's row keeps New, Import and Export, and there is no corner button.",
+      "before": "rail + list + buffer; a `/` search key in the list's row",
+      "after": "identical without the `/` key; `/` on the keyboard writes `/? ` into the prompt"
+    }
+  ]
+}
