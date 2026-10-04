@@ -499,3 +499,96 @@
     min-height: 2.75rem;
   }
 }
+
+/* —— Loadouts (ADR 0164) ——————————————————————————————————————————
+   Keyboard and Gestures are two halves of one keymap, so they are tabs over a
+   hairline, as Installed and Marketplace are: text, with a 2px ink rule under
+   the chosen one. */
+
+.kb-tabs {
+  display: flex;
+  gap: 1.1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.kb-tab {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0 0.55rem;
+  margin-bottom: -1px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.kb-tab:hover {
+  color: var(--ink);
+}
+
+.kb-tab.is-active {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.kb-loadout {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+/* A gesture's row: glyph and name · what it runs · its keys. */
+.kb-gesture {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.kb-gesture__glyph {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--ink-2);
+}
+
+.kb-target {
+  width: 100%;
+  max-width: 20rem;
+  min-width: 0;
+}
+
+.kb-single__end {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  .kb-tab {
+    min-height: 2.75rem;
+  }
+
+  /* A phone's row is the name over its choice, the reset key at the end of the
+     name's line, never a third column squeezing the choice. */
+  .kb-row--gesture {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .kb-row--gesture .kb-target {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    max-width: none;
+  }
+
+  .kb-row--gesture .kb-row__end {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}

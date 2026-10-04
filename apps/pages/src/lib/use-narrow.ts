@@ -7,9 +7,6 @@ import { useSyncExternalStore } from "react";
  */
 export const NARROW_QUERY = "(max-width: 900px)";
 
-/** True while any attached pointer is precise: a mouse, a trackpad, a pen. */
-export const FINE_POINTER_QUERY = "(any-pointer: fine)";
-
 function list(media: string): MediaQueryList | null {
   if (globalThis.window === undefined) return null;
   try {
@@ -43,15 +40,4 @@ export function useMediaQuery(media: string, absent: boolean): boolean {
  */
 export function useNarrow(): boolean {
   return useMediaQuery(NARROW_QUERY, false);
-}
-
-/**
- * False where no pointing device is attached, which is how a touch-only
- * phone reads. `(any-pointer: fine)` detects pointers, not keyboards, so a
- * phone whose only extra is a hardware keyboard also reads false and loses
- * the Keybindings tab (DESIGN.md § Touch). A laptop, a tablet with a mouse or
- * trackpad, and a renderer with no `matchMedia` all count as having a key.
- */
-export function useFinePointer(): boolean {
-  return useMediaQuery(FINE_POINTER_QUERY, true);
 }

@@ -142,12 +142,13 @@ describe("settingsPageTree", () => {
     expect(general(true)).toEqual(["Install", ...always]);
   });
 
-  it("gives Keybindings its own tab: the keymap and the macros", () => {
+  it("gives Keybindings its own tab: the keymap, the gestures and the macros", () => {
     const keybindings = settingsPageTree().find(
       (node) => node.id === "keybindings",
     );
     expect(keybindings?.children.map((node) => node.label)).toEqual([
       "Keymap",
+      "Gestures",
       "Macros",
     ]);
   });
