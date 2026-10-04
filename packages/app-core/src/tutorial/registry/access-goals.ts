@@ -53,7 +53,7 @@ export const ACCESS_GOALS: readonly GuideGoalDescriptor[] = [
   {
     id: "access.connectors",
     title: "Bind a connector to a person or agent",
-    routes: ["/access", "/setup"],
+    routes: ["/access"],
     guide: [
       "guide/1",
       'goal "access.connectors"',

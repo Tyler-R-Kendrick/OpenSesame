@@ -85,9 +85,15 @@ because the sheet is closed while a tutorial runs.
 The HUD is **not a modal**: the aperture passes clicks to the lit control, Tab
 leaves the card for the page, and the card owns only the keys that belong to
 a tour — Escape exits (except from a text field, where it is the field's own
-way out), and the arrow keys step it while the caret is in the card. Focus
-moves to the card when a tour starts and goes back to where it was when the
-tour ends; in between it moves only if it was already the card's.
+way out, and except while an open sheet, drawer, menu or status bubble should
+take it first; from the card itself it always exits), and the arrow keys step
+it while the caret is in the card. A pane with nothing to close does not
+consume Escape while a tour is live. Focus moves to the card when a tour
+starts — unless the person is typing in a page text field and did not start
+the tour from the Support sheet (an agent-started tour never takes a caret) —
+and goes back to where it was when the tour ends; in between it moves only if
+it was already the card's, or if the page took it on arrival after a step that
+navigated and the person's last input was in the card.
 
 On a phone (`max-width: 900px` or a coarse pointer) the card is a sheet docked
 to the screen edge the lit control is *not* on, and its keys are 44px.
@@ -96,10 +102,15 @@ to the screen edge the lit control is *not* on, and its keys are 44px.
 
 The Support sheet gains a **Tutorials** tab beside Ask: every live tutorial,
 grouped by what a person wants to do (`areas.ts`), each row a title, a step
-count and a start key. Starting one is replaying it. A tutorial written for a
-gate — unlock, setup, the broker popup — is offered only while the person is on
-that gate, because a guide may wait on an overlay route and never navigate to
-it. Every section of Settings › Capabilities is a `feature.*` target, every one
+count and a start key. Starting one is replaying it. There is no tutorial for
+a gate — unlock, setup, the broker popup, join: the Support sheet is not
+mounted there (ADR 0090), so nothing could start one. Written help for those
+screens stays, as help topics with no walkthrough. The Ask tab and the library
+share one gate (`goalOffered`, read through `useTutorialGate`): a goal that
+points at a section of Settings › Capabilities is offered only where that
+section is drawn, and one that `requires` a state predicate (`account.signed-in`,
+`signin-service.configured`, `vault.key-enrolled`, `install.offered`, `identity.connected`) only where
+it holds. Every section of Settings › Capabilities is a `feature.*` target, every one
 has a tutorial (`FEATURE_TUTORIALS`), and `areas.test.ts` fails a goal with no
 home or a feature with no tour.
 

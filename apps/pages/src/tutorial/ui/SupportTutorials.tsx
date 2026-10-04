@@ -9,21 +9,13 @@
  */
 
 import {
-  FEATURES,
-  shown,
-} from "@opensesame/app-core/lib/capabilities/features.js";
-import {
   type TutorialGroup,
   tutorialLibrary,
 } from "@opensesame/app-core/tutorial/registry/areas.js";
-import { registerGuidePredicates } from "@opensesame/app-core/tutorial/registry/predicates.js";
-import { readGuidePredicate } from "@opensesame/app-core/tutorial/registry/state.js";
 import { type ReactElement, useMemo } from "react";
-import { useComposition } from "../../bindings/capabilities.js";
-import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import { IconPlay } from "../../components/Icons.js";
-import { featureDraws } from "../../sections/settings/provider-tile-items.js";
 import type { SupportController } from "../session.js";
+import { useTutorialGate } from "./use-tutorial-gate.js";
 
 /** The library, narrowed to titles that contain `query` (blank keeps all). */
 export function filterLibrary(
@@ -51,26 +43,12 @@ export function SupportTutorials({
   route: string;
   support: SupportController;
 }): ReactElement {
-  // A tutorial that points at a section of Settings › Capabilities is offered
-  // only where that section is drawn: in this build, under this plan.
-  const { plan } = useComposition();
-  const roads = useConnectorRoads();
-  const groups = useMemo(() => {
-    // Idempotent: the engine declares the same set when it loads.
-    registerGuidePredicates();
-    const drawn = new Set(
-      FEATURES.filter((feature) =>
-        featureDraws(shown(feature, plan), roads.tile, plan),
-      ).map((feature) => String(feature.id)),
-    );
-    return filterLibrary(
-      tutorialLibrary(route, {
-        sectionDrawn: (id) => drawn.has(id),
-        holds: readGuidePredicate,
-      }),
-      query,
-    );
-  }, [query, route, plan, roads]);
+  // The one gate the Ask tab reads too: sections drawn, requirements held.
+  const gate = useTutorialGate();
+  const groups = useMemo(
+    () => filterLibrary(tutorialLibrary(route, gate), query),
+    [query, route, gate],
+  );
   return (
     <section className="support__library" aria-label="Tutorials">
       {groups.length === 0 ? (

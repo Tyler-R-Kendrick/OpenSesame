@@ -1,9 +1,13 @@
+import {
+  type LibraryOptions,
+  goalOffered,
+} from "@opensesame/app-core/tutorial/registry/areas.js";
 import { searchHelpTopics } from "@opensesame/app-core/tutorial/registry/goals-search.js";
 import {
-  GUIDE_GOALS,
   type GuideGoalDescriptor,
   guideGoal,
   helpTopicsForRoute,
+  mergedGuideGoals,
 } from "@opensesame/app-core/tutorial/registry/goals.js";
 import { guideRouteWithin } from "@opensesame/app-core/tutorial/registry/routes.js";
 import {
@@ -28,6 +32,7 @@ import {
   questionsFromTopics,
 } from "./SupportQuestions.js";
 import { SupportTutorials } from "./SupportTutorials.js";
+import { useTutorialGate } from "./use-tutorial-gate.js";
 
 const SPEAKER = {
   question: "you",
@@ -48,11 +53,22 @@ const SPOKEN_SPEAKER = {
   note: "note",
 } satisfies Record<SupportEntry["kind"], string>;
 
-function goalsForRoute(route: string): readonly GuideGoalDescriptor[] {
-  return GUIDE_GOALS.filter(
+/**
+ * The scenarios this route offers: the goals that fit the screen, minus the
+ * ones only the library lists, and only those the Tutorials tab would offer
+ * too (`useTutorialGate`) — a tour of a section that is not drawn, or of a
+ * row this device has no use for, is not a question to ask.
+ */
+function goalsForRoute(
+  route: string,
+  gate: LibraryOptions,
+): readonly GuideGoalDescriptor[] {
+  return mergedGuideGoals().filter(
     (goal) =>
-      goal.routes.length === 0 ||
-      goal.routes.some((candidate) => guideRouteWithin(route, candidate)),
+      goal.libraryOnly !== true &&
+      goalOffered(goal, gate) &&
+      (goal.routes.length === 0 ||
+        goal.routes.some((candidate) => guideRouteWithin(route, candidate))),
   );
 }
 
@@ -80,12 +96,22 @@ export function SupportPanel(): ReactElement {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"ask" | "tutorials">("ask");
 
+  const gate = useTutorialGate();
   const topics = useMemo(
     () =>
-      query.trim() ? searchHelpTopics(query) : helpTopicsForRoute(view.route),
-    [query, view.route],
+      (query.trim()
+        ? searchHelpTopics(query)
+        : helpTopicsForRoute(view.route)
+      ).filter((topic) => {
+        const named = topic.goal ? guideGoal(topic.goal) : null;
+        return named === null || goalOffered(named, gate);
+      }),
+    [query, view.route, gate],
   );
-  const goals = useMemo(() => goalsForRoute(view.route), [view.route]);
+  const goals = useMemo(
+    () => goalsForRoute(view.route, gate),
+    [view.route, gate],
+  );
 
   const availability = view.availability;
   // Asking must work with no local model: refuseUntrustedProposal and authored
@@ -94,7 +120,7 @@ export function SupportPanel(): ReactElement {
 
   const questions = useMemo(() => {
     const fromTopics = questionsFromTopics(topics, support, canAsk);
-    const covered = new Set(topics.map((topic) => topic.goal));
+    const covered = new Set(topics.flatMap((topic) => topic.goal ?? []));
     const fromGoals = query.trim()
       ? []
       : questionsFromGoals(goals, covered, support, canAsk);

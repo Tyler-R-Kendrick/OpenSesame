@@ -28,16 +28,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
   {
     id: "start",
     title: "Getting started",
-    goals: [
-      "unlock.open",
-      "setup.first-run",
-      "setup.operator",
-      "setup.join-session",
-      "client.support",
-      "client.command-bar",
-      "app.install",
-      "broker.authorize",
-    ],
+    goals: ["client.support", "client.command-bar", "app.install"],
   },
   {
     id: "vault",
@@ -185,29 +176,23 @@ export type TutorialGroup = {
   readonly tutorials: readonly Tutorial[];
 };
 
-/** Whether `route` is a screen with no shell: a gate a guide may wait on, never navigate to. */
-function onGate(route: GuideRouteId): boolean {
-  return [...GUIDE_OVERLAY_ROUTES].some((gate) =>
-    guideRouteWithin(route, gate),
-  );
-}
-
 /**
  * Whether a walkthrough can be started from `route`.
  *
- * Most tours navigate where they are going, so from the shell they start from
- * anywhere. A gate — the unlock screen, setup, the broker popup — has no
- * shell to navigate in, so there only the tutorials written for that gate are
- * offered; and a tutorial written for a gate is offered nowhere else.
+ * Tours navigate where they are going, so from the shell they start from
+ * anywhere. A goal that names only screens with no shell (the gates, which a
+ * guide may wait on but never navigate to) is not offered: the Support sheet
+ * is never mounted there, so nothing could start it (ADR 0090, ADR 0163 §4).
  */
 export function tutorialStartsFrom(
   goal: GuideGoalDescriptor,
   route: GuideRouteId,
 ): boolean {
-  const here = goal.routes.some((scope) => guideRouteWithin(route, scope));
-  if (onGate(route)) return here;
   if (goal.routes.length === 0) return true;
-  return here || goal.routes.some((scope) => !GUIDE_OVERLAY_ROUTES.has(scope));
+  return goal.routes.some(
+    (scope) =>
+      guideRouteWithin(route, scope) || !GUIDE_OVERLAY_ROUTES.has(scope),
+  );
 }
 
 /** The Settings › Capabilities sections a walkthrough points at, by feature id. */
@@ -229,6 +214,21 @@ export type LibraryOptions = {
 };
 
 /**
+ * The one gate every list of walkthroughs shares — the library and the Ask
+ * tab: the sections it points at are drawn, and what it requires holds.
+ */
+export function goalOffered(
+  goal: GuideGoalDescriptor,
+  options: LibraryOptions = {},
+): boolean {
+  const drawn = options.sectionDrawn ?? (() => true);
+  const holds = options.holds ?? (() => true);
+  return (
+    goalSections(goal.guide).every(drawn) && (goal.requires ?? []).every(holds)
+  );
+}
+
+/**
  * Every live walkthrough that can start from `route`, grouped. A goal no area
  * names still appears, under "More", so it is never unreachable while the
  * test that forbids it is red.
@@ -237,13 +237,10 @@ export function tutorialLibrary(
   route: GuideRouteId = "/vault",
   options: LibraryOptions = {},
 ): readonly TutorialGroup[] {
-  const drawn = options.sectionDrawn ?? (() => true);
-  const holds = options.holds ?? (() => true);
   const live = new Map(
     mergedGuideGoals()
       .filter((goal) => tutorialStartsFrom(goal, route))
-      .filter((goal) => goalSections(goal.guide).every(drawn))
-      .filter((goal) => (goal.requires ?? []).every(holds))
+      .filter((goal) => goalOffered(goal, options))
       .map((goal) => [goal.id, goal]),
   );
   const placed = new Set<string>();
