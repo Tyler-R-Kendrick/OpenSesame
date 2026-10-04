@@ -32,6 +32,7 @@ jobs:
       "bundle": ${{ steps.areas.outputs.bundle }}
       "rust": ${{ steps.areas.outputs.rust }}
       mtls: ${{ steps.areas.outputs.mtls }}
+      "push": ${{ steps.areas.outputs.push }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -260,7 +261,8 @@ jobs:
     # "Bundle budgets" check, so it gates merges without another required name.
     name: Web Push end to end
     needs: changes
-    if: needs.changes.outputs.bundle == 'true'
+    # The Pages build (bundle) and the server code verify:push runs (push).
+    if: needs.changes.outputs.bundle == 'true' || needs.changes.outputs.push == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
