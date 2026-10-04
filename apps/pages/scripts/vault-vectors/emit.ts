@@ -1,8 +1,14 @@
 import "./install-test-host.js";
+import { webLocksDouble } from "@opensesame/app-core/lib/__tests__/web-locks-double.js";
+import { ensureDeviceIdentityKey } from "@opensesame/app-core/lib/device-identity-key.js";
 import {
   buildOfflineBackup,
   serializeOfflineBackup,
 } from "@opensesame/app-core/lib/vault/offline-backup.js";
+import {
+  bodyPortOf,
+  installDeviceKeyCarrier,
+} from "@opensesame/app-core/lib/vault/store-device-key.js";
 import { VaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   wrapVaultKeyWithPin,
@@ -198,4 +204,45 @@ export async function emitVaultVectors(): Promise<string> {
     },
   };
   return `${JSON.stringify(fixture, null, 2)}\n`;
+}
+
+/**
+ * A personal backup whose body carries the device identity key (ADR 0160 §5).
+ * Added after the first four, which stay byte for byte as emitted: it runs the
+ * real path — the store, the key minted under a lock, the backup file — and
+ * its expectation names the key by path alone, never by value.
+ */
+export async function emitDeviceIdentityVector(): Promise<
+  Vector & { expect: Expectation & { concealed: string[] } }
+> {
+  // The emitter runs under Node, which has no Web Locks. One tab needs only a
+  // lock that runs its callback, which is what a single holder gets.
+  Object.defineProperty(globalThis, "navigator", {
+    configurable: true,
+    writable: true,
+    value: { locks: webLocksDouble() },
+  });
+  const store = new VaultStore();
+  await store.create(VECTOR_PASSWORD, "vector hint");
+  installDeviceKeyCarrier(() => bodyPortOf(store));
+  await store.addItems(syntheticItems("Identity"));
+  await ensureDeviceIdentityKey("personal");
+  await store.flushPendingWrites();
+  await vfsFlush();
+  const text = store.exportSealed();
+  const items = store.getSnapshot().items;
+  const rev = store.getSnapshot().header?.bodyRev ?? null;
+  store.lock();
+  const expectation = {
+    tomb: "personal",
+    bound: true,
+    rev,
+    items: items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      kind: item.kind,
+    })),
+    concealed: ["config/device-identity-key"],
+  };
+  return { ...personalBackup(text, expectation), expect: expectation };
 }

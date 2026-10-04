@@ -116,6 +116,54 @@ The plaintext is `VaultBody` JSON:
 { "v": 1, "items": [], "folders": [], "itemTypes": {}, "rev": 12 }
 ```
 
+Optional members (`itemTypesAt`, `tombstones`, and `deviceIdentityKey`, below).
+A reader that does not know one ignores it on read. A build from before one was
+added also drops it on its first re-save of the body, because it rebuilds the
+body from the members it knows; the next merge or reconcile on a build that
+knows the member puts it back from another device or from the tomb. A file
+written between those two moments does not carry it.
+
+**`deviceIdentityKey`** (ADR 0160 §5a) carries the vault's device identity
+key, so its principal travels with the vault: a P-256 key whose RFC 7638
+thumbprint is the principal (`prn_` + thumbprint).
+
+```json
+{ "version": 1, "keyId": "<43 base64url>", "createdAt": 1790000000000,
+  "publicJwk": { "kty": "EC", "crv": "P-256", "x": "…", "y": "…" },
+  "privateJwkJson": "<serialized private JWK>" }
+```
+
+It is a secret and sits only inside the sealed body. A lister names its path,
+`config/device-identity-key`, and never a member of it (`opensesame vault
+ls` prints `config/device-identity-key<TAB>concealed`). `null` is absent; any
+other value is listed by name. A writer's record is trusted only when:
+- `keyId`, `publicJwk.x` and `publicJwk.y` are each the canonical base64url of 32
+  bytes: exactly 43 characters of `A-Za-z0-9_-` whose last character has its two
+  padding bits zero (a respelling of the same bytes is another string for the
+  same key, and is not read);
+- `privateJwkJson` is at most 4096 characters;
+- `keyId` is the RFC 7638 thumbprint of `publicJwk` and `privateJwkJson` is that
+  public key's private half;
+- `createdAt` is a whole time, in milliseconds, no more than a day past the
+  reader's clock and, for a reader that knows the vault's header, no more than a
+  day before the header's `createdAt`.
+
+Anything else is no key. Two trusted keys of one vault, met in an authenticated
+merge, rank by the older `createdAt`, then the smaller `keyId` in plain
+code-unit order. The date a key ranks by is the date it was *published* under: a
+writer clamps the date of a key it carries into the window above (never later
+than now), and a restore that takes a backup's key dates it just before the key
+it replaces, so that choice outranks the old key on every device that holds it.
+A record whose `version` a reader does not know is kept as it is and never
+replaced, but only when it is shaped as a key record is (a whole `version` above
+1, a text `keyId` of at most 128 characters, an object `publicJwk`, at most 8192
+characters of JSON); a high `version` on anything else is no key. A backup's key
+is never ranked against a vault's: it is taken only by a person who chooses to.
+The vector `backup-device-identity`, and `concealedBodies` for which body shapes
+are listed, are in `spec/conformance/vault-vectors.json`. The native reader does
+not validate the key; it reports only that the member is present, so none of the
+rules above is one it needs to agree on.
+
 **Sealing**
 - The body is sealed under VK with **additional data**. The additional data
   is the UTF-8 bytes of `"vault-seal" U+0000 <tomb> U+0000 "body"`
@@ -191,7 +239,9 @@ Per ADR 0063, each tomb lives under the flat key prefix `tomb/<name>/`:
 - `migrated.v1` and `seal-bound.v1`: plaintext markers
 
 `tombs.v1` lists the tomb names. Lockout counters sit outside the tomb, in
-plaintext. The portable envelopes carry only `header` and `body`.
+plaintext. The portable envelopes carry only `header` and `body`. Of the
+`config/*` files, one rides inside the body: the device identity key
+(`config/device-identity-key`, §6), whose working copy is the tomb file.
 
 ## 9. What a conforming reader must do
 
@@ -204,3 +254,5 @@ plaintext. The portable envelopes carry only `header` and `body`.
 5. Compare the sealed `body.rev` with `header.bodyRev` and report a
    rollback. Never "repair" it.
 6. Never write VK, MK or any plaintext anywhere.
+7. List a body's `deviceIdentityKey` by its path alone (§6) and print no member
+   of it.

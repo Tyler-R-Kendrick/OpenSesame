@@ -40,6 +40,7 @@ pub use header::{PasskeyRecord, VaultHeader, MAX_PBKDF2_ITERATIONS, MIN_PBKDF2_I
 pub use keys::{unwrap_with_password, unwrap_with_pin, unwrap_with_prf, VaultKey};
 pub use listing::{
     legacy_extension, path_segment, summarize, ExtensionOf, OpenedVaultFile, VaultFileEntry,
+    DEVICE_IDENTITY_KEY_PATH,
 };
 
 /// Open a vault file with its master password and list it, resolving item

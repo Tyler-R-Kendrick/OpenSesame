@@ -1,4 +1,5 @@
 import { overlapCast } from "@opensesame/os-domain";
+import { createItem } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MergePlan } from "../../../lib/vault/import/merge.js";
 import type {
@@ -8,6 +9,8 @@ import type {
 import {
   type ImportStage,
   type ImportStorePort,
+  type RestoreTarget,
+  canTakeBackupIdentity,
   confirmManifestStage,
   confirmStage,
   importModelSeams,
@@ -229,13 +232,26 @@ describe("import model", () => {
     };
     const port = store({ importSealed: vi.fn(async () => 4) });
     const outcome = await restoreStage(sealed, "pw", port);
-    expect(port.importSealed).toHaveBeenCalledWith("{}", "pw");
+    expect(port.importSealed).toHaveBeenCalledWith("{}", "pw", {});
     expect(outcome.stage).toMatchObject({
       step: "done",
       added: 4,
       restored: true,
     });
     expect((await restoreStage(sealed, "", port)).stage).toBe(sealed);
+  });
+
+  it("hands the person's choice about the backup's device identity to the store, and no other", async () => {
+    const sealed: ImportStage = {
+      step: "sealed",
+      fileName: "backup.json",
+      sealed: "{}",
+    };
+    const port = store({ importSealed: vi.fn(async () => 1) });
+    await restoreStage(sealed, "pw", port, { adoptIdentity: true });
+    expect(port.importSealed).toHaveBeenLastCalledWith("{}", "pw", {
+      adoptIdentity: true,
+    });
   });
 
   it("restores a passkey backup with the key the ceremony unwraps", async () => {
@@ -265,5 +281,51 @@ describe("import model", () => {
     expect(messageFrom(new Error(""))).toBe("That file could not be read.");
     expect(messageFrom("nope")).toBe("That file could not be read.");
     expect(messageFrom(new Error("Too big"))).toBe("Too big");
+  });
+});
+
+describe("whether the restore card offers the backup's identity", () => {
+  const empty: RestoreTarget = {
+    guest: false,
+    tomb: "personal",
+    items: [],
+    folders: [],
+  };
+
+  function withWebLocks(present: boolean): void {
+    Object.defineProperty(navigator, "locks", {
+      value: present ? { request: vi.fn() } : undefined,
+      configurable: true,
+    });
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, "locks");
+  });
+
+  it("offers it to a vault that carries a key, has Web Locks and has done nothing", () => {
+    withWebLocks(true);
+    expect(canTakeBackupIdentity(empty)).toBe(true);
+  });
+
+  it.each([
+    ["a guest", { ...empty, guest: true }],
+    ["the guest tomb", { ...empty, tomb: "guest" }],
+    ["a vault with an item", { ...empty, items: [createItem("note", "n")] }],
+    [
+      "a vault with a folder",
+      {
+        ...empty,
+        folders: [{ id: "f", name: "Work", createdAt: "2026-09-01" }],
+      },
+    ],
+  ])("does not offer it to %s", (_name, target) => {
+    withWebLocks(true);
+    expect(canTakeBackupIdentity(target)).toBe(false);
+  });
+
+  it("does not offer it where there are no Web Locks", () => {
+    withWebLocks(false);
+    expect(canTakeBackupIdentity(empty)).toBe(false);
   });
 });

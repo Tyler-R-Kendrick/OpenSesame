@@ -1,3 +1,4 @@
+import { DEVICE_IDENTITY_KEY_PATH } from "@opensesame/vault-core";
 import { PREFS_SEMANTIC_PATH, PREFS_SOURCE_PATH } from "./prefs-keys.js";
 
 export type CoverageKind =
@@ -23,6 +24,11 @@ export const BACKUP_COVERAGE: readonly CoverageEntry[] = [
     path: "tomb/<id>/body",
     kind: "included",
     note: "Sealed items, folders, and installed item-type JSON.",
+  },
+  {
+    path: DEVICE_IDENTITY_KEY_PATH,
+    kind: "included",
+    note: "The device identity key rides inside the sealed body, so a restore can keep the principal when the person takes it (ADR 0160 §5a). Never listed by value.",
   },
   {
     path: PREFS_SEMANTIC_PATH,
@@ -86,13 +92,13 @@ export function inventoryBackup(input: BackupInventoryInput): BackupInventory {
 export function sealedExportCoverage(): BackupInventory {
   return inventoryBackup({
     format: "opensesame-vault-export",
-    paths: ["tomb/<id>/header", "tomb/<id>/body"],
+    paths: ["tomb/<id>/header", "tomb/<id>/body", DEVICE_IDENTITY_KEY_PATH],
   });
 }
 
 export function offlineBackupCoverage(): BackupInventory {
   return inventoryBackup({
     format: "opensesame-offline-backup",
-    paths: ["tomb/<id>/header", "tomb/<id>/body"],
+    paths: ["tomb/<id>/header", "tomb/<id>/body", DEVICE_IDENTITY_KEY_PATH],
   });
 }

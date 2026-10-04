@@ -13,7 +13,7 @@ use aes_gcm::{
 use base64::{engine::general_purpose::STANDARD, Engine};
 use opensesame_human_vault::pages_vault::{
     open_body, open_vault_file, read_vault_file, summarize, unwrap_with_password, unwrap_with_pin,
-    unwrap_with_prf, vault_seal_binding, OpenedVaultFile, VaultFileError,
+    unwrap_with_prf, vault_seal_binding, OpenedVaultFile, VaultFileError, DEVICE_IDENTITY_KEY_PATH,
 };
 use serde_json::Value;
 use sha2::Sha256;
@@ -47,14 +47,19 @@ fn password() -> String {
 }
 
 fn as_listed(opened: &OpenedVaultFile) -> Value {
-    serde_json::json!({
+    let mut listed = serde_json::json!({
         "tomb": opened.tomb,
         "bound": opened.bound,
         "rev": opened.rev,
         "items": opened.items.iter().map(|item| serde_json::json!({
             "id": item.id, "name": item.name, "kind": item.kind,
         })).collect::<Vec<_>>(),
-    })
+    });
+    // Recorded only for a vector whose body carries a concealed file.
+    if !opened.concealed.is_empty() {
+        listed["concealed"] = serde_json::json!(opened.concealed);
+    }
+    listed
 }
 
 fn b64(value: &Value) -> Vec<u8> {
@@ -112,7 +117,7 @@ fn string_leaves(value: &Value, out: &mut Vec<String>) {
 #[test]
 fn every_vector_opens_to_its_recorded_summary_and_lists_no_value() {
     let vectors = vectors();
-    assert_eq!(vectors.len(), 4, "the four golden vectors");
+    assert_eq!(vectors.len(), 5, "the five golden vectors");
     for (name, file, expect) in vectors {
         let opened = open_vault_file(&file, &password()).unwrap_or_else(|e| panic!("{name}: {e}"));
         assert_eq!(as_listed(&opened), expect, "{name}");
@@ -134,6 +139,10 @@ fn every_vector_opens_to_its_recorded_summary_and_lists_no_value() {
                 rest.remove(listed);
             }
             string_leaves(&Value::Object(rest), &mut values);
+        }
+        // Nor any part of the device identity key a body carries (ADR 0160 §5).
+        if let Some(key) = body.get("deviceIdentityKey") {
+            string_leaves(key, &mut values);
         }
         values.retain(|value| value.chars().count() >= 6);
         assert!(!values.is_empty(), "{name}: the vector holds values");
@@ -265,4 +274,40 @@ fn opens_the_project_body_through_its_passkey_prf_wrap() {
         unwrap_with_prf(&records[0], &wrong).unwrap_err(),
         VaultFileError::WrongPassword
     );
+}
+
+#[test]
+fn lists_the_device_identity_key_by_name_and_never_by_value() {
+    let file = vector("backup-device-identity");
+    let opened = open_vault_file(&file, &password()).unwrap();
+    // Written by the TypeScript store (the key minted under a lock, the backup
+    // file built from the sealed body); read here by the Rust reader.
+    assert_eq!(opened.concealed, vec![DEVICE_IDENTITY_KEY_PATH.to_owned()]);
+    assert_eq!(DEVICE_IDENTITY_KEY_PATH, "config/device-identity-key");
+    assert_eq!(opened.items.len(), 2, "the key is not an item");
+    assert!(opened
+        .items
+        .iter()
+        .all(|item| !item.path.contains("device-identity")));
+
+    let body = independent_body(&file, &opened.tomb);
+    let mut secrets = Vec::new();
+    string_leaves(&body["deviceIdentityKey"], &mut secrets);
+    secrets.retain(|value| value.chars().count() >= 6);
+    assert!(secrets.len() >= 3, "the key holds ids and coordinates");
+    let printed = format!("{opened:?}");
+    for secret in secrets {
+        assert!(!printed.contains(&secret), "listed part of the key");
+    }
+    // The private half is in the sealed body and nowhere in the file's clear text.
+    assert!(!file.contains("privateJwkJson"));
+    assert!(!file.contains("device-identity"));
+}
+
+#[test]
+fn a_vault_without_the_key_lists_nothing_concealed() {
+    for name in ["export-personal", "backup-personal", "backup-project"] {
+        let opened = open_vault_file(&vector(name), &password()).unwrap();
+        assert!(opened.concealed.is_empty(), "{name}");
+    }
 }

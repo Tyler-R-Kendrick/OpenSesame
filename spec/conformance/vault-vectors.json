@@ -84,6 +84,94 @@
           }
         ]
       }
+    },
+    "backup-device-identity": {
+      "file": "{\n  \"format\": \"opensesame-offline-backup\",\n  \"v\": 1,\n  \"projectId\": null,\n  \"exportedAt\": \"2026-09-22T00:00:00.000Z\",\n  \"vault\": {\n    \"header\": {\n      \"v\": 1,\n      \"kdf\": {\n        \"alg\": \"PBKDF2-SHA256\",\n        \"saltB64\": \"SyT8jVznKlY85exOyJrd5g==\",\n        \"iterations\": 600000\n      },\n      \"wrap\": {\n        \"ivB64\": \"BSKsn3igbSNRkQ7r\",\n        \"ctB64\": \"88BVSkbSwvsgD0ZgC5s/iQu3Yb7mYIP+qwuUnBi5VbkK1yH2KbnWtFnV+pV9C0G6\"\n      },\n      \"createdAt\": \"2026-10-04T08:23:12.284Z\",\n      \"hint\": \"vector hint\",\n      \"bodyRev\": 3\n    },\n    \"body\": {\n      \"ivB64\": \"71SnUWqSCcwDmaAB\",\n      \"ctB64\": \"v87e52oBYWU4FnZHjnVcVoAm8BRCJD3v98znfCSj2IZQDL3jFKQrmEUw4xHeOkRGshw1+VnfS8GoWgJ+8rsiyt6QXv+dUtmB4Xjvi6TWISQBZ9SYNZVjR+c9RXMzFzelqX7GbOYiS5gzpPIWFZ3wbDAjvJRpEYTX/7q4Kz6CinqECpuU/ae1t/zk5fHmvNKjpnsIwvA+sb+3KYRrnNUz13wywuphmYXwcH1rYIJt0EBTvzHxbaXkTdUtQie87ei0gMxuJGgkgQnqZd2uf27dcaZFkcglnXmGXUFnluqvCHfmrdwElRcw/As18/Khif80mMmD6xiFehf2pKj0Oq0aFi+RB+s3VA0n9Bcy2iHKVbjeyp4YFvKKC2l6YH876JoajotyHWzzy3BTlxl2p2/sx3ipiaWPqsJOgYmPrPeT4h63dEyIce25AEul4B6eQbJ7S0rPLsLwmyrXMA8PqnHtvt6Py0Rg6xodeNS239O8Lt+Bpqg5VPui7cSMMPSd3CClo+GCh4tdSru9e3Z6PBkr9AyGBmRd2oRfLPZuuFyiGTbb1+clrXC3fkiVzVVDmlkMDL1IOBK6kgHG23FDO+ENheb9sqm14GTfWxXEkh0Y7ag+mHzOgg36IOLV1yDyyuhji2RcYVTd8/ovUg1Iw1f4cXsoMpvVXYv9x5nka7xVgEg+3rkqHM4yYoD0pNZacw3y0+D6YXM9R53ujHLXgnpKuED8f1UYlDA0tz/00YDsjJdi3lCL8Me97WO12s5ma2n6fc/18tP0DJvZSs1n/0uWER0KbpzwuKVeP+oY02TclHp1/QCTdCyvcxwK3vtKedK8oxrSC2HBk2hxdtBStar9jWb2VM3hTArt26d7BTJXu2R3YiMD6yveaAQY5ZyonJS9uiyfa0SUMknnbyXxUQrFqYFRdSv2k4bgZytal8ptUvuJKmJQkFtZe5VDjuAnFiGsvfPXoDwWKwyKwLv8r87umqHsQNGfJZl/A8xFXC9jC9FAX4Gyg+cCBre0Fdmq211JUjDK8cM8syRgyaOTA+U7Rk+VfikjcdQf/vgZvdPSgix4w2RWyyr3iyH89HNLGyeNZ1UnKP+VQoUVSyf+Hj5P/BljJqU6e1B8lpt7qcAdhDPZK1VOhkwaxfW+YbBSaHF5nacnpWc8DagsRKINTCH/RxzpPVsB8eH83fTQBENGiwWnyFuWket0gxUYbnmpS8QfpQsI8qU0R+c4Ukzm9iCqZ9hKh6cXaBuu7sxFc1WkKwfkkmW00S4jndTg+ZingGd4ISPaO2TLoXkCpO0iW+mDXeaMmPHUKDZsQzzw6mOjRZl0XdXhwg1H9NK5LI6Sb6ovmVvmNDxzwY75rzj2XQ9wbRzoJPv4/dzZy9LsabqnAlux9vTWINuGBoOIEJ9hZagQLunnI3cW7dLvRbcyz78bTc/K2qsCjNGBEzXQe5jSCOXxmRkQsfB8xjURGSlOz+0ezII8TZpRWkcGKKXkqMDPoHF+o5awvVixI55i6dgGr8ds5+ltXKCSzXcQ7IYSD9n1g0sauxk1kubCu+vZcM+n6vCfknBS33aU7PvFRdeXgVKINMIzO9g6nF+xzG/V6h2w5Ra3v4n0X0Fsx+obVgA=\"\n    }\n  },\n  \"syncBlobs\": [],\n  \"deploymentSealUsed\": false\n}\n",
+      "expect": {
+        "tomb": "personal",
+        "bound": true,
+        "rev": 3,
+        "items": [
+          {
+            "id": "dde710bf-edfb-47b1-9726-3da5b1052eac",
+            "name": "Identity login",
+            "kind": "login"
+          },
+          {
+            "id": "b2addb79-8de5-45a2-a543-7416bfcfecc4",
+            "name": "Identity note",
+            "kind": "note"
+          }
+        ],
+        "concealed": ["config/device-identity-key"]
+      }
     }
-  }
+  },
+  "concealedBodies": [
+    {
+      "name": "no key",
+      "body": {
+        "v": 1,
+        "items": [],
+        "folders": []
+      },
+      "concealed": []
+    },
+    {
+      "name": "a null key is absent",
+      "body": {
+        "v": 1,
+        "items": [],
+        "folders": [],
+        "deviceIdentityKey": null
+      },
+      "concealed": []
+    },
+    {
+      "name": "a key",
+      "body": {
+        "v": 1,
+        "items": [],
+        "folders": [],
+        "deviceIdentityKey": {
+          "version": 1,
+          "keyId": "k"
+        }
+      },
+      "concealed": ["config/device-identity-key"]
+    },
+    {
+      "name": "a record of a newer version",
+      "body": {
+        "v": 1,
+        "items": [],
+        "folders": [],
+        "deviceIdentityKey": {
+          "version": 2
+        }
+      },
+      "concealed": ["config/device-identity-key"]
+    },
+    {
+      "name": "a value that is not an object is still listed by name",
+      "body": {
+        "v": 1,
+        "items": [],
+        "folders": [],
+        "deviceIdentityKey": "text"
+      },
+      "concealed": ["config/device-identity-key"]
+    },
+    {
+      "name": "an empty object",
+      "body": {
+        "v": 1,
+        "items": [],
+        "folders": [],
+        "deviceIdentityKey": {}
+      },
+      "concealed": ["config/device-identity-key"]
+    }
+  ],
+  "concealedBodiesAbout": "Which plaintext body shapes list config/device-identity-key (ADR 0160 §5a); null is absent. Read by vault-core and crates/human-vault."
 }

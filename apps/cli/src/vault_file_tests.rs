@@ -126,3 +126,46 @@ fn item_commands_forward_to_opensesame_id() {
         ]
     );
 }
+
+#[test]
+fn ls_names_the_device_identity_key_and_never_its_value() {
+    let opened = opened(&vector("backup-device-identity"));
+    let text = render_ls(&opened, "text");
+    assert!(
+        text.ends_with("config/device-identity-key\tconcealed"),
+        "{text}"
+    );
+    // Not an item: the verdict's count does not include it.
+    assert!(text.lines().next().unwrap().contains("2 items"), "{text}");
+    assert!(!render_verify(&opened, "text").contains("device-identity"));
+
+    let listed: Value = serde_json::from_str(&render_ls(&opened, "json")).unwrap();
+    assert_eq!(
+        listed["concealed"],
+        serde_json::json!(["config/device-identity-key"])
+    );
+    let verified: Value = serde_json::from_str(&render_verify(&opened, "json")).unwrap();
+    assert_eq!(verified["concealed"], listed["concealed"]);
+
+    // Only names, kinds, paths and ids are printed: the key's path is the one
+    // extra leaf, and nothing of the key itself.
+    let mut allowed = vec![
+        "opensesame-offline-backup".to_owned(),
+        "personal".to_owned(),
+        "config/device-identity-key".to_owned(),
+    ];
+    for item in &opened.items {
+        allowed.extend([
+            item.id.clone(),
+            item.name.clone(),
+            item.kind.clone(),
+            item.path.clone(),
+        ]);
+    }
+    let mut printed = Vec::new();
+    string_leaves(&listed, &mut printed);
+    assert_eq!(printed.len(), 3 + 4 * opened.items.len());
+    for leaf in printed {
+        assert!(allowed.contains(&leaf), "printed {leaf:?}");
+    }
+}

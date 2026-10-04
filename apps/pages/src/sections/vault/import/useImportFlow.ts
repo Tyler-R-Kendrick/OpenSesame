@@ -40,8 +40,9 @@ export type ImportFlow = Readonly<{
   setChoice: (next: LandingChoice) => void;
   reparse: (source: SourceId) => void;
   unlock: (password: string) => void;
-  restore: (password: string) => void;
-  restorePasskey: () => void;
+  /** `adoptIdentity`: the person chose to take the backup's device identity. */
+  restore: (password: string, adoptIdentity: boolean) => void;
+  restorePasskey: (adoptIdentity: boolean) => void;
   confirm: () => void;
 }>;
 
@@ -134,9 +135,12 @@ export function useImportFlow(file: File): ImportFlow {
     setChoice,
     reparse: (source) => run(() => reparseStage(current.current, source)),
     unlock: (password) => run(() => unlockStage(current.current, password)),
-    restore: (password) =>
-      run(() => restoreStage(current.current, password, store)),
-    restorePasskey: () => run(() => restoreWithPasskey(current.current, store)),
+    restore: (password, adoptIdentity) =>
+      run(() =>
+        restoreStage(current.current, password, store, { adoptIdentity }),
+      ),
+    restorePasskey: (adoptIdentity) =>
+      run(() => restoreWithPasskey(current.current, store, { adoptIdentity })),
     confirm: () => {
       if (plan) run(() => confirmStage(current.current, plan, store));
       if (manifestPlan) {
