@@ -17,6 +17,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { VaultCorruptError } from "@opensesame/vault-core";
 import { kvRefresh } from "./kv.js";
 import { LocalDirectoryError } from "./local-directory.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
@@ -54,16 +55,44 @@ function isStored(value: BoundaryValue): value is StoredReceipt {
   );
 }
 
+/**
+ * A file this build cannot read as receipts: damaged, sealed under a key it no
+ * longer has, too large, or written by a build whose format it does not know.
+ * Distinct from a failure to reach the file (a locked vault, a full disk),
+ * which a retry may mend; this one it cannot, and `settle` replaces the trail.
+ */
+export class UnreadableReceipts extends LocalDirectoryError {}
+
 function parse(raw: string, what: string): StoredReceipt[] {
-  const parsed: BoundaryValue = JSON.parse(raw);
+  let parsed: BoundaryValue;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new UnreadableReceipts(`The ${what} is corrupt.`);
+  }
   if (
     !isJsonObject(parsed) ||
     parsed.version !== 1 ||
     !Array.isArray(parsed.receipts) ||
     !parsed.receipts.every(isStored)
   )
-    throw new LocalDirectoryError(`The ${what} is corrupt.`);
+    throw new UnreadableReceipts(`The ${what} is corrupt.`);
   return parsed.receipts;
+}
+
+/** The one receipt a replaced trail starts with: that it was, and nothing more. */
+export const RESET_EVENT_TYPE = "access.receipts.reset";
+
+export function resetMarker(): StoredReceipt {
+  return {
+    id: crypto.randomUUID(),
+    occurredAt: new Date().toISOString(),
+    eventType: RESET_EVENT_TYPE,
+    outcome: "failed",
+    targetType: "device",
+    targetId: "receipts",
+    metadata: {},
+  };
 }
 
 /** Read one of the files; a file never written holds nothing. */
@@ -75,13 +104,19 @@ export async function readStore(
   try {
     const bytes = await readFile(tomb, path);
     if (bytes.length > MAX_BYTES)
-      throw new LocalDirectoryError("The receipts exceed their storage.");
+      throw new UnreadableReceipts("The receipts exceed their storage.");
     return parse(
       new TextDecoder().decode(bytes),
       path === TRAIL_PATH ? "receipt trail" : "pending receipt list",
     );
   } catch (err) {
     if (err instanceof VfsError && err.code === "not-found") return [];
+    // Ciphertext this vault's key cannot open is a file it cannot read.
+    if (
+      (err instanceof VfsError && err.code === "corrupt") ||
+      err instanceof VaultCorruptError
+    )
+      throw new UnreadableReceipts("The receipts do not open.");
     throw err;
   }
 }
@@ -111,19 +146,21 @@ export function uniqueById(
   });
 }
 
-/** Newest first, none edited; the oldest fall away past the cap. */
+/**
+ * Newest first by when each was decided, whichever file it came from: a
+ * receipt held back through a failed write belongs where its time puts it, not
+ * ahead of what was written after it. None is edited; the oldest fall away
+ * past the cap. A receipt on both sides is one, the held copy kept.
+ */
 export function newestFirst(
   held: readonly StoredReceipt[],
   trail: readonly StoredReceipt[],
 ): StoredReceipt[] {
-  const fresh = uniqueById(held).sort((a, b) =>
-    a.occurredAt < b.occurredAt ? 1 : a.occurredAt > b.occurredAt ? -1 : 0,
-  );
-  const known = new Set(fresh.map((receipt) => receipt.id));
-  return [...fresh, ...trail.filter((r) => !known.has(r.id))].slice(
-    0,
-    MAX_RECEIPTS,
-  );
+  return uniqueById([...held, ...trail])
+    .sort((a, b) =>
+      a.occurredAt < b.occurredAt ? 1 : a.occurredAt > b.occurredAt ? -1 : 0,
+    )
+    .slice(0, MAX_RECEIPTS);
 }
 
 /** Build the receipt for a decision, its metadata through the audit allowlist. */

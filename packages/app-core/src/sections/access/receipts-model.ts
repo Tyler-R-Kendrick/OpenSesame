@@ -27,6 +27,7 @@ const RECEIPT_LABELS: ReadonlyMap<string, string> = new Map([
   ["access.sign_in.denied", "Application sign-in refused"],
   ["access.sign_in.revoked", "Application sign-in ended"],
   ["access.session.revoked", "Session ended"],
+  ["access.receipts.reset", "Receipts were replaced"],
   ["access.siop.approved", "Self-issued sign-in approved"],
   ["access.siop.denied", "Self-issued sign-in refused"],
 ]);

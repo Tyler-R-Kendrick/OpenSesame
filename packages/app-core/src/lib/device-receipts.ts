@@ -26,12 +26,16 @@
 import type { AuditOutcome, JsonObject } from "@opensesame/os-domain";
 import {
   MAX_BYTES,
+  MAX_RECEIPTS,
   PENDING_PATH,
+  RESET_EVENT_TYPE,
   type StoredReceipt,
   TRAIL_PATH,
+  UnreadableReceipts,
   buildReceipt,
   newestFirst,
   readStore,
+  resetMarker,
   uniqueById,
   writeStore,
 } from "./device-receipts-store.js";
@@ -55,10 +59,11 @@ export const RECEIPT_KINDS = {
 
 export type ReceiptKind = keyof typeof RECEIPT_KINDS;
 
-/** Every event name a receipt carries. */
-export const RECEIPT_EVENT_TYPES: readonly string[] = Object.values(
-  RECEIPT_KINDS,
-).map(([name]) => name);
+/** Every event name a receipt carries, and the one that says a trail was replaced. */
+export const RECEIPT_EVENT_TYPES: readonly string[] = [
+  ...Object.values(RECEIPT_KINDS).map(([name]) => name),
+  RESET_EVENT_TYPE,
+];
 
 /**
  * What a receipt is about: an application, which the trail names by its name
@@ -82,6 +87,28 @@ export type ReceiptRef = ReceiptSubject &
 
 /** Receipts decided, not yet in the trail, held for this tab's vault. */
 const held = new Map<string, StoredReceipt[]>();
+
+/** The newest receipts that wait, no more than the trail itself could hold. */
+const newestWaiting = (receipts: readonly StoredReceipt[]) =>
+  uniqueById(receipts).slice(-MAX_RECEIPTS);
+
+/**
+ * The trail as it stands, or a fresh one if this build cannot read it. A trail
+ * that cannot be read can never take another receipt, so the receipts after it
+ * would wait for ever; it is replaced by a trail that begins with a marker
+ * saying so, and the unreadable bytes, which nothing could read, are gone.
+ */
+async function trailOrFresh(
+  tomb: string,
+): Promise<{ trail: StoredReceipt[]; replaced: boolean }> {
+  try {
+    return { trail: await readStore(tomb, TRAIL_PATH), replaced: false };
+  } catch (error) {
+    if (error instanceof UnreadableReceipts)
+      return { trail: [resetMarker()], replaced: true };
+    throw error;
+  }
+}
 
 function metadataOf(ref: ReceiptRef): JsonObject {
   const metadata: JsonObject = {};
@@ -116,8 +143,8 @@ async function settle(
         ...(held.get(tomb) ?? []),
         ...sealed,
       ]);
-      if (waiting.length === 0) return false;
-      const trail = await readStore(tomb, TRAIL_PATH);
+      const { trail, replaced } = await trailOrFresh(tomb);
+      if (waiting.length === 0 && !replaced) return false;
       await writeStore(tomb, TRAIL_PATH, newestFirst(waiting, trail));
       held.delete(tomb);
       if (sealed.length > 0)
@@ -133,7 +160,7 @@ async function keep(tomb: string, receipt: StoredReceipt): Promise<void> {
   // A locked vault cannot be written to, and plaintext ids do not wait in
   // memory for a vault that is shut.
   if (!tombUnlocked(tomb)) return;
-  const waiting = uniqueById([...(held.get(tomb) ?? []), receipt]);
+  const waiting = newestWaiting([...(held.get(tomb) ?? []), receipt]);
   held.set(tomb, waiting);
   try {
     await withLocalAccessLedgerLock(
@@ -146,7 +173,7 @@ async function keep(tomb: string, receipt: StoredReceipt): Promise<void> {
         await writeStore(
           tomb,
           PENDING_PATH,
-          uniqueById([...waiting, ...sealed]),
+          newestWaiting([...sealed, ...waiting]),
         );
       },
     );
@@ -183,10 +210,14 @@ export async function recordReceipt(
 
 /** How many receipts have been decided and are not yet in the trail. */
 export async function pendingReceipts(tomb: string): Promise<number> {
-  const sealed = tombUnlocked(tomb)
-    ? await readStore(tomb, PENDING_PATH).catch(() => [])
-    : [];
-  return uniqueById([...(held.get(tomb) ?? []), ...sealed]).length;
+  if (!tombUnlocked(tomb)) return 0;
+  const sealed = await readStore(tomb, PENDING_PATH).catch(() => []);
+  const waiting = uniqueById([...(held.get(tomb) ?? []), ...sealed]);
+  // One written to the trail and not yet cleared from the list is not waiting.
+  const written = new Set(
+    (await readStore(tomb, TRAIL_PATH).catch(() => [])).map((row) => row.id),
+  );
+  return waiting.filter((row) => !written.has(row.id)).length;
 }
 
 /**

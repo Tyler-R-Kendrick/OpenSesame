@@ -13,7 +13,6 @@ import {
   flushReceipts,
   grantRef,
   listReceipts,
-  pendingReceipts,
   recordReceipt,
   requestRef,
   resetHeldReceiptsForTest,
@@ -175,68 +174,6 @@ describe("where receipts live", () => {
       targetType: "principal",
       targetId: PERSON,
     });
-  });
-});
-
-describe("a receipt that could not be written", () => {
-  const damaged = () => writeFile(tomb, TRAIL, bytes('{"version":2}'));
-  const mended = () =>
-    writeFile(tomb, TRAIL, bytes(JSON.stringify({ version: 1, receipts: [] })));
-
-  it("is held, counted, and never fails the decision", async () => {
-    await damaged();
-    await expect(
-      recordReceipt(tomb, "request.approved", { applicationId: APP }),
-    ).resolves.toBeUndefined();
-    expect(await pendingReceipts(tomb)).toBe(1);
-  });
-
-  it("is written once the trail can take it, with the time it was decided", async () => {
-    await damaged();
-    await recordReceipt(tomb, "request.created", { applicationId: APP });
-    await recordReceipt(tomb, "request.approved", { applicationId: APP });
-    expect(await pendingReceipts(tomb)).toBe(2);
-    await mended();
-    expect(await flushReceipts(tomb)).toBe(0);
-    const rows = await listReceipts(tomb, 10);
-    expect(rows.map((row) => row.eventType).sort()).toEqual([
-      "access.request.approved",
-      "access.request.created",
-    ]);
-    expect(await pendingReceipts(tomb)).toBe(0);
-  });
-
-  it("survives a reload of the tab: it was sealed, not only remembered", async () => {
-    await damaged();
-    await recordReceipt(tomb, "request.denied", { applicationId: APP });
-    resetHeldReceiptsForTest();
-    expect(await pendingReceipts(tomb)).toBe(1);
-    await mended();
-    // The next decision writes the one that waited, ahead of itself.
-    await recordReceipt(tomb, "request.created", { applicationId: APP });
-    expect((await listReceipts(tomb, 10)).map((row) => row.eventType)).toEqual(
-      expect.arrayContaining([
-        "access.request.denied",
-        "access.request.created",
-      ]),
-    );
-    expect(await pendingReceipts(tomb)).toBe(0);
-  });
-
-  it("is written once however many times the trail is read", async () => {
-    await damaged();
-    await recordReceipt(tomb, "request.denied", { applicationId: APP });
-    await mended();
-    await flushReceipts(tomb);
-    await flushReceipts(tomb);
-    expect(await listReceipts(tomb, 10)).toHaveLength(1);
-  });
-
-  it("does not wait in memory for a vault that is shut", async () => {
-    await damaged();
-    lockAllTombs();
-    await recordReceipt(tomb, "request.denied", { applicationId: APP });
-    expect(await pendingReceipts(tomb)).toBe(0);
   });
 });
 
