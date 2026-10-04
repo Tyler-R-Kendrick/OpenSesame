@@ -90,7 +90,13 @@ describe("the Web Push walk's area", () => {
     );
     // `Bundle budgets` reports every job the bundle or push area gates: derive
     // the list from the workflow so adding a job cannot leave it unreported.
-    const jobs = [...ci.slice(ci.indexOf("\njobs:")).matchAll(/^ {2}([a-z0-9-]+):\n([\s\S]*?)(?=^ {2}[a-z0-9-]+:\n|(?![\s\S]))/gm)];
+    const jobs = [
+      ...ci
+        .slice(ci.indexOf("\njobs:"))
+        .matchAll(
+          /^ {2}([a-z0-9-]+):\n([\s\S]*?)(?=^ {2}[a-z0-9-]+:\n|(?![\s\S]))/gm,
+        ),
+    ];
     const gated = jobs
       .filter(([, , body]) =>
         /\n {4}if: needs\.changes\.outputs\.(bundle|push) == 'true'/.test(
