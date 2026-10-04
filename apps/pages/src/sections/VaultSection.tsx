@@ -242,6 +242,7 @@ export function VaultSection() {
           title={title}
           total={total}
           emptyMessage={filter === "trash" ? "Trash is empty" : "Nothing here"}
+          active={!narrow || showing !== "tree"}
           verbs={
             <>
               <Link

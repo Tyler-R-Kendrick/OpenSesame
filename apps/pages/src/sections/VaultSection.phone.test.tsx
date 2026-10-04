@@ -123,6 +123,53 @@ describe("the vault on a phone", () => {
     );
   });
 
+  it("a search typed on the list ends when the tree comes back, so all shows every item", async () => {
+    renderVault("/vault");
+    await act(async () => undefined);
+    const search = document.querySelector<HTMLElement>(
+      '.vault__tree [title="Search (/)"]',
+    );
+    if (!search) throw new Error("the tree has no search key");
+    fireEvent.click(search);
+    const prompt = await screen.findByRole("textbox", { name: "Search items" });
+    fireEvent.change(prompt, { target: { value: "zzz" } });
+    expect(screen.queryAllByText("GitHub")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("link", { name: "Back to sections" }));
+    await waitFor(() => expect(pane()).toBe("tree"));
+    fireEvent.click(screen.getByRole("treeitem", { name: "all" }));
+    await waitFor(() => expect(pane()).toBe("list"));
+    expect(screen.queryByRole("textbox", { name: "Search items" })).toBeNull();
+    expect(screen.getAllByText("GitHub").length).toBeGreaterThan(0);
+  });
+
+  it("an item opened from a search comes back to that same search", async () => {
+    renderVault("/vault?f=all");
+    await act(async () => undefined);
+    const search = document.querySelector<HTMLElement>(
+      '.vault__list [title="Search (/)"]',
+    );
+    if (!search) throw new Error("the list has no search key");
+    fireEvent.click(search);
+    const prompt = await screen.findByRole("textbox", { name: "Search items" });
+    fireEvent.change(prompt, { target: { value: "git" } });
+    // The match is highlighted, which splits the name across elements.
+    const row = document.querySelector<HTMLElement>(
+      '.vault__list [role="treeitem"]',
+    );
+    if (!row) throw new Error("the search matched no row");
+    fireEvent.click(row);
+    await waitFor(() => expect(pane()).toBe("detail"));
+    fireEvent.click(screen.getByRole("link", { name: "Back to all items" }));
+    await waitFor(() => expect(pane()).toBe("list"));
+    expect(
+      (
+        screen.getByRole("textbox", {
+          name: "Search items",
+        }) as HTMLInputElement
+      ).value,
+    ).toBe("git");
+  });
+
   it("the tree's all entry names the list, so tapping it leaves the tree", () => {
     renderVault("/vault");
     expect(

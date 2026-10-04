@@ -38,6 +38,8 @@ type VaultTreeProps = {
   actions: VaultTreeActions;
   verbs?: ReactNode;
   emptyMessage: string;
+  /** False while a phone shows the tree instead; the search closes with it. */
+  active?: boolean;
 };
 
 export const vaultTreeSeams = {
@@ -67,6 +69,7 @@ export function VaultTree({
   actions,
   verbs,
   emptyMessage,
+  active,
 }: VaultTreeProps) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [query, setQuery] = useState<string | null>(null);
@@ -157,7 +160,7 @@ export function VaultTree({
   useEffect(() => {
     if (query !== null) searchRef.current?.focus();
   }, [query]);
-  useSearchHandoff(setQuery);
+  useSearchHandoff(setQuery, active);
 
   useEffect(() => {
     const rowAt = (key: string | null) =>
