@@ -18,6 +18,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --maxWorkers=4",
     "test:integration": "vitest run tests/pact.test.ts",
+    "test:postgres": "sh -c 'test -n \"$DATABASE_URL\" || { echo \"test:postgres needs DATABASE_URL (a role with CREATEDB)\" >&2; exit 1; }' && vitest run --maxWorkers=4",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/migrate.ts",
     "db:reset": "tsx src/reset.ts"

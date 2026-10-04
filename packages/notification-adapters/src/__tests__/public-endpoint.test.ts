@@ -13,7 +13,13 @@ import {
 } from "../adapters/web-push.js";
 import { base64UrlEncode } from "../bytes.js";
 import type { FetchLike, PushSubscriptionRecord } from "../contract.js";
-import { endpointRefusal, postPublicOnly } from "../public-endpoint.js";
+import {
+  PrivateEndpointError,
+  type PublicPostInit,
+  deliverToPublicEndpoint,
+  endpointRefusal,
+  postPublicOnly,
+} from "../public-endpoint.js";
 import { FIXED_NOW, renderInput } from "./helpers.js";
 
 const transport = { request: vi.spyOn(https, "request") };
@@ -174,8 +180,46 @@ describe("postPublicOnly", () => {
     ]);
     await expect(
       postPublicOnly("https://push.example.test/push", init, lookup),
-    ).rejects.toThrow("Blocked resolved address");
+    ).rejects.toBeInstanceOf(PrivateEndpointError);
     expect(transport.request).not.toHaveBeenCalled();
+  });
+
+  it("reports a name that resolves private as a permanent refusal, not a retry", async () => {
+    const lookup = vi.fn(async () => [
+      { address: "93.184.216.34", family: 4 },
+      { address: "169.254.169.254", family: 4 },
+    ]);
+    const post = (url: string, request: PublicPostInit<Buffer>) =>
+      postPublicOnly(url, request, lookup);
+    await expect(
+      deliverToPublicEndpoint(
+        post,
+        "https://push.example.test/push",
+        init.headers,
+        body,
+      ),
+    ).resolves.toEqual({ status: "permanent", error: "private_endpoint" });
+    expect(transport.request).not.toHaveBeenCalled();
+  });
+
+  it("keeps a lookup that failed or found nothing retryable", async () => {
+    for (const lookup of [
+      vi.fn(async () => {
+        throw new Error("getaddrinfo EAI_AGAIN");
+      }),
+      vi.fn(async () => []),
+    ]) {
+      const post = (url: string, request: PublicPostInit<Buffer>) =>
+        postPublicOnly(url, request, lookup);
+      await expect(
+        deliverToPublicEndpoint(
+          post,
+          "https://push.example.test/push",
+          init.headers,
+          body,
+        ),
+      ).resolves.toMatchObject({ status: "retryable" });
+    }
   });
 
   it("pins DNS, sends the binary body intact and does not follow a 302", async () => {

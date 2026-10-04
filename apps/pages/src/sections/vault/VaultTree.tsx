@@ -22,6 +22,7 @@ import { pageSteps, viewportIndex } from "../../lib/tree-motion.js";
 import { VaultPathbar } from "./VaultPathbar.js";
 import { Decorations } from "./VaultRowDecorations.js";
 import { useMenuFlip } from "./use-menu-flip.js";
+import { useSearchHandoff } from "./use-search-handoff.js";
 import { type VaultTreeActions, vaultRowMenu } from "./vault-menu.js";
 import { VaultRowMenu } from "./vault-row-menu.js";
 
@@ -154,6 +155,7 @@ export function VaultTree({
   useEffect(() => {
     if (query !== null) searchRef.current?.focus();
   }, [query]);
+  useSearchHandoff(setQuery);
 
   useEffect(() => {
     const rowAt = (key: string | null) =>
