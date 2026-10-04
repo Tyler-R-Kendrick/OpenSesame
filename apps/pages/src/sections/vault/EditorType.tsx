@@ -1,7 +1,7 @@
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
 import { itemTypeRegistry, typeExtension } from "@opensesame/vault-core";
 import { Link } from "react-router";
-import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
+import { EmptyTip } from "../../components/EmptyTip.js";
 
 export function UnknownItemType() {
   return (
@@ -9,7 +9,7 @@ export function UnknownItemType() {
       <div className="empty">
         <h2>Unknown item type</h2>
         <p>This type is not installed on this device.</p>
-        <EmptyTip>{emptyTips.keymap}</EmptyTip>
+        <EmptyTip tip="keymap" />
         <Link className="btn btn--sm" to="/vault/new">
           Choose an item type
         </Link>

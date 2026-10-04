@@ -6,7 +6,7 @@ import {
 import { useRef, useSyncExternalStore } from "react";
 
 import { GESTURE_HELP } from "../lib/gesture-help.js";
-import { isTouchPointer } from "../lib/gestures.js";
+import { isTouchPointer, keymapLabel } from "../lib/gestures.js";
 import { keymapHelp } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { IconX } from "./Icons.js";
@@ -29,7 +29,7 @@ export function KeymapSheet({
   const keymap = useSyncExternalStore(subscribeKeymap, loadKeymap, loadKeymap);
   // Under a finger the keys are not what is there to learn: the gestures are.
   const touch = isTouchPointer();
-  const title = touch ? "Gestures" : "Keyboard shortcuts";
+  const title = keymapLabel(touch);
   // Drawn from the keys in force (ADR 0156): a key moved onto another command
   // is on that command, and one taken away is gone, so the sheet never
   // promises a key the handler would not run.
