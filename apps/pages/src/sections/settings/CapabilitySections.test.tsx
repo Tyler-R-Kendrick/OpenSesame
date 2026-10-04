@@ -1,5 +1,7 @@
 import {
   FEATURES,
+  NO_SURFACE,
+  featureOf,
   isSwitchable,
 } from "@opensesame/app-core/lib/capabilities/features.js";
 /** @vitest-environment jsdom */
@@ -31,13 +33,17 @@ installPanelFixture();
  * Sections that draw nothing while Connections is off, the default (ADR 0153).
  * Their tiles open connector pages, and those pages are routed only while
  * Connections is on, so a tile would lead nowhere (ADR 0158). Backups keeps
- * its tiles: each is the history switch, which acts without a page.
+ * its tiles: each is the history switch, which acts without a page. External
+ * telemetry and Certificate authority have no Pages code behind them, so
+ * their sections have no switch to draw and are absent too.
  */
 const NOTHING_TO_DO_HERE = new Set([
   "encryption",
   "password-managers",
   "cloud-secret-storage",
   "local-storage",
+  "telemetry",
+  "certificates",
 ]);
 
 describe("sections — one list, one style, a switch only where something is optional", () => {
@@ -167,10 +173,21 @@ describe("sections — one list, one style, a switch only where something is opt
 
   it("a one-capability section's subheader switch answers to that capability's title", () => {
     renderPanel();
-    const telemetry = screen.getByRole("switch", { name: "Telemetry" });
-    expect(telemetry.getAttribute("data-capability-title")).toBe(
-      "External telemetry",
+    const connections = screen.getByRole("switch", { name: "Connections" });
+    expect(connections.getAttribute("data-capability-title")).toBe(
+      "External connectors",
     );
+  });
+
+  it("draws no switch for a capability with no Pages code behind it, though it stays in the catalog for a policy to name", () => {
+    renderPanel();
+    expect(screen.queryByRole("switch", { name: "Telemetry" })).toBeNull();
+    expect(
+      screen.queryByRole("switch", { name: "Certificate authority" }),
+    ).toBeNull();
+    expect(document.getElementById("feature-telemetry")).toBeNull();
+    expect(document.getElementById("feature-certificates")).toBeNull();
+    for (const id of NO_SURFACE) expect(featureOf(id), id).not.toBeNull();
   });
 
   it("draws a section's backup tiles whether or not anything is switched on", () => {

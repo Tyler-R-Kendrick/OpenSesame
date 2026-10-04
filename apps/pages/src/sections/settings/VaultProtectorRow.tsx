@@ -66,7 +66,8 @@ export function ProtectorRow({
             <IconRefresh size={16} />
           </button>
         ) : null}
-        {unlocks ? (
+        {/* The preferred one is marked; its key would do nothing (ADR 0158). */}
+        {unlocks && !preferred ? (
           <button
             type="button"
             className="icon-btn icon-btn--sm"

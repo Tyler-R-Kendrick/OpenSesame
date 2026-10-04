@@ -168,7 +168,11 @@ describe("ItemTypesPanel", () => {
       itemTypeRegistry().list().length,
     );
     expect(screen.queryByRole("button", { name: /^Remove / })).toBeNull();
-    expect(screen.getByText(/No installed types yet/)).toBeTruthy();
+    // Nothing installed says nothing: one key to write a type, no sentence.
+    expect(screen.queryByText(/No installed types yet/)).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Write a new item type" }),
+    ).toBeTruthy();
   });
 
   it("opens the file a row is drawn from, and a new file from the empty state", () => {
@@ -179,7 +183,9 @@ describe("ItemTypesPanel", () => {
     cleanup();
     syncInstalledTypes({});
     renderPanel();
-    fireEvent.click(screen.getByRole("button", { name: "a new file" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Write a new item type" }),
+    );
     expect(opened).toHaveBeenLastCalledWith(
       "settings/item-types/installed/new.json",
     );

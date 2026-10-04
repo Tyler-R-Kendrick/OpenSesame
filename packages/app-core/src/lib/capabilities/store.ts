@@ -42,6 +42,7 @@ import {
   initialState,
   instanceIdOf,
   readPolicy,
+  reloadLocalPolicy,
   resolveInputFor,
   scopedVaultSelection,
   vaultSelectionWith,
@@ -221,6 +222,8 @@ export class CompositionStore {
   }
 
   invalidate(reason: string): void {
+    // The owner's own policy is re-read: they may just have written it.
+    reloadLocalPolicy(this.#state, this.#note);
     this.#bump(`invalidate:${reason}`);
     this.#resolve();
   }
