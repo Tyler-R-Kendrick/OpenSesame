@@ -76,6 +76,21 @@ export async function withExclusiveOpenLease<T>(
   return action();
 }
 
+/**
+ * `withBodyWriteLock`, except where the browser has stored files that outlive
+ * the page and no Web Locks to serialize them: there it runs bare, as a write
+ * always did, rather than refusing every edit. A write that must not run
+ * unlocked (a restore, the identity key) uses `withBodyWriteLock` and fails
+ * there.
+ */
+export function withBodyWriteLockOrBare<T>(
+  tomb: string,
+  action: () => Promise<T>,
+): Promise<T> {
+  if (!lockManager() && kvDurability() === "persistent") return action();
+  return withBodyWriteLock(tomb, action);
+}
+
 export function withBodyWriteLock<T>(
   tomb: string,
   action: () => Promise<T>,

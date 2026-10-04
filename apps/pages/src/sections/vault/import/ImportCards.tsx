@@ -119,6 +119,7 @@ export function PasswordCard({
   busy,
   error,
   onSubmit,
+  children,
 }: {
   formLabel: string;
   fileName: string;
@@ -128,6 +129,8 @@ export function PasswordCard({
   busy: boolean;
   error: string | null;
   onSubmit: (password: string) => void;
+  /** A choice the person makes beside the password, kept in the card. */
+  children?: ReactNode;
 }) {
   const [password, setPassword] = useState("");
   return (
@@ -162,6 +165,7 @@ export function PasswordCard({
           disabled={busy}
           status={<ErrorMark error={error} />}
         />
+        {children}
       </CeremonyShell>
     </form>
   );
@@ -204,15 +208,48 @@ function sealedFacts(opener: "password" | "passkey" | "pin" | null): Fact[] {
   ];
 }
 
+/**
+ * Whether to take the backup's device identity: offered only for a vault that
+ * has done nothing yet, and off until the person chooses it. A restore that
+ * takes it can replace the principal this vault already speaks as.
+ */
+function IdentityChoice({
+  checked,
+  disabled,
+  onChange,
+}: {
+  checked: boolean;
+  disabled: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <label className="check imp__identity">
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.checked)}
+      />
+      <span>Also take its device identity</span>
+    </label>
+  );
+}
+
 export function SealedCard(props: {
   fileName: string;
   opener: "password" | "passkey" | "pin" | null;
   busy: boolean;
   error: string | null;
-  onRestore: (secret: string) => void;
-  onPasskey: () => void;
+  /** The vault has done nothing yet, so the backup's identity can be taken. */
+  canTakeIdentity: boolean;
+  onRestore: (secret: string, adoptIdentity: boolean) => void;
+  onPasskey: (adoptIdentity: boolean) => void;
 }) {
   const facts = sealedFacts(props.opener);
+  const [take, setTake] = useState(false);
+  const choice = props.canTakeIdentity ? (
+    <IdentityChoice checked={take} disabled={props.busy} onChange={setTake} />
+  ) : null;
   if (props.opener === "passkey") {
     return (
       <CeremonyShell
@@ -222,9 +259,10 @@ export function SealedCard(props: {
         primary={{
           label: "Restore with passkey",
           busy: props.busy,
-          onClick: props.onPasskey,
+          onClick: () => props.onPasskey(props.canTakeIdentity && take),
         }}
       >
+        {choice}
         {props.error ? (
           <p className="imp__marks">
             <ErrorMark error={props.error} />
@@ -242,8 +280,12 @@ export function SealedCard(props: {
       fieldLabel={props.opener === "pin" ? "PIN" : "Master password"}
       busy={props.busy}
       error={props.error}
-      onSubmit={props.onRestore}
-    />
+      onSubmit={(secret) =>
+        props.onRestore(secret, props.canTakeIdentity && take)
+      }
+    >
+      {choice}
+    </PasswordCard>
   );
 }
 

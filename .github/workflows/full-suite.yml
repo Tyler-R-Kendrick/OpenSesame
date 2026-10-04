@@ -1,0 +1,59 @@
+name: Full TypeScript suite
+
+# The pull-request check tests what a diff touches and what depends on it. That
+# is right for a pull request and blind to a suite that goes red by itself (a
+# test that depended on the wall clock did exactly that on main while every open
+# pull request was green). This runs the whole TypeScript workspace on main on a
+# schedule, and on demand, so a hidden red surfaces within a day instead of at
+# the next pull request that happens to change the lockfile.
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  typescript-full:
+    name: Full TypeScript suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: opensesame
+          POSTGRES_PASSWORD: opensesame
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U opensesame"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          ref: main
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck and test every package
+        run: pnpm exec turbo run typecheck test
+      - name: Repository contract on a real Postgres
+        env:
+          DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
+          OPENSESAME_CLAIM_PEPPER: ci-pepper-ci-pepper-ci-pepper-ci-pepper
+        run: pnpm --filter @opensesame/database test:postgres
+      - name: Worker delivery on a real Postgres
+        env:
+          DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
+        run: pnpm --filter @opensesame/identity-worker test:postgres

@@ -78,7 +78,9 @@ pnpm quality:log-hygiene # console.* / hand-built pino / unscrubbed tracing subs
                           #   tools/quality/log-hygiene-baseline.json (ADR 0157)
 pnpm quality:app-core    # shared-core gate (ADR 0133) over app-core + vault-core: no reach into an app, no React value,
                           #   no import.meta.env, no virtual module, node:* only in src/node, no browser global outside
-                          #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks
+                          #   src/browser (vault-core: none), no static import cycle, lazy-cycle ledger only shrinks;
+                          #   and repo-wide, a seam its module exports for its owner and tests (the vault store's
+                          #   body port, ADR 0160 §5a) is imported by no one else
 pnpm quality:bundle      # build apps/pages|pwa, check tools/quality/bundle-budgets.json
 pnpm quality:report      # all three as reports, no gating
 pnpm test:anti-slop      # plugin RuleTester suite + installer-asset parity

@@ -114,7 +114,10 @@ describe("a configuration save that fails", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Save configuration/ }),
     );
-    await waitFor(() => expect(create).toHaveBeenCalled());
+    // Wait for the refusal to land: what the form kept is only worth reading
+    // after the save has failed, not while it is still being asked.
+    await screen.findByRole("img", { name: "Nothing could be sealed." });
+    expect(create).toHaveBeenCalled();
     expect(screen.getByLabelText(/Base URL/)).toHaveProperty(
       "value",
       "https://auth.example.com/api/auth",

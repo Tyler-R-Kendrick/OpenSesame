@@ -10,6 +10,8 @@ const FORBIDDEN_SUFFIXES = [
   "index",
   "header",
   "body",
+  // The vault's device identity key (ADR 0160 §5): a concealed secret.
+  "device-identity",
 ] as const;
 
 /**
