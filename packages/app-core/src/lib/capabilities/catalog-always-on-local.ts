@@ -41,7 +41,7 @@ export const BROWSER_LOCAL_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "identity.siop",
     "Self-issued OpenID",
-    "Answer SIOPv2 (OpenID Implementer's Draft) requests from a registered local application with a token your vault signs, gated on a passkey. Not a conventional OpenID Connect provider: no token endpoint.",
+    "Answer SIOPv2 requests from a registered local application with a self-issued token, gated on a passkey identity.",
     {
       dependencies: ["identity.local-iam"],
       operationIds: ["identity.local.siop.authorize"],

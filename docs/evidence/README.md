@@ -47,7 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
-| [`2026-10-04-siop-op/`](2026-10-04-siop-op/README.md) | The Self-issued OpenID card says what Pages is not (ADR 0161) |
+| [`2026-10-04-siop-op/`](2026-10-04-siop-op/README.md) | The Self-issued OpenID card is unchanged (ADR 0161) |
 | [`2026-10-03-unlock-from-protector/`](2026-10-03-unlock-from-protector/README.md) | Unlock from an enrolled protector — before and after |
 | [`2026-10-03-touch-copy/`](2026-10-03-touch-copy/README.md) | Keyboard-only copy stands down under a finger |
 | [`2026-10-03-share-once-phone/`](2026-10-03-share-once-phone/README.md) | Share once on an item's page, seated for the phone |
