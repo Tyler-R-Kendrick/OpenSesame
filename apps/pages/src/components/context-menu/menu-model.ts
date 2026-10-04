@@ -7,9 +7,13 @@
  * key, the entry shows it, so the menu teaches the keymap it stands in for.
  */
 
+import type { ReactNode } from "react";
+
 export type MenuItem = {
   id: string;
   label: string;
+  /** A glyph in the slot a checkbox entry draws its tick in. */
+  icon?: ReactNode;
   /** The key that does the same thing, shown beside the label. */
   hint?: string;
   /** A checkbox entry (`menuitemcheckbox`), with its current state. */
