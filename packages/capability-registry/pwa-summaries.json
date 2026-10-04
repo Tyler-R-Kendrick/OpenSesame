@@ -377,7 +377,7 @@
   },
   {
     "id": "identity.local.siop.authorize",
-    "title": "Approve or deny browser-native Self-Issued OpenID Provider v2 sign-in",
+    "title": "Approve or deny a SIOPv2 (Implementer's Draft) sign-in; not a conventional OpenID Connect provider",
     "plane": "client_local",
     "surfaces": {
       "pwa": "route:/identity/siop"

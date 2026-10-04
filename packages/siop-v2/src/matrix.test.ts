@@ -55,6 +55,30 @@ describe("SUPPORT_MATRIX", () => {
   });
 });
 
+describe("SUPPORT_MATRIX — the boundary of a static origin (ADR 0161)", () => {
+  it("lists the relying-party kit and published metadata as implemented", () => {
+    const implemented = SUPPORT_MATRIX.implemented.join("\n");
+    expect(implemented).toContain("buildPagesSiopMetadata");
+    expect(implemented).toContain("parseSiopMetadata / fetchSiopMetadata");
+    expect(implemented).toContain("SiopRelyingParty");
+  });
+
+  it("refuses to claim conventional OIDC or relying-party self-registration", () => {
+    const refused = SUPPORT_MATRIX.notSupported.map((entry) => entry.feature);
+    expect(
+      refused.some(
+        (feature) =>
+          feature.includes("/.well-known/openid-configuration") &&
+          feature.includes("token_endpoint") &&
+          feature.includes("jwks_uri"),
+      ),
+    ).toBe(true);
+    expect(
+      refused.some((feature) => feature.includes("Dynamic relying-party")),
+    ).toBe(true);
+  });
+});
+
 describe("RFC 7638 EC P-256 thumbprint", () => {
   it("hashes canonical crv,kty,x,y JSON in lexicographic order", async () => {
     const { publicJwk } = await p256Pair();

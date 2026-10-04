@@ -96,6 +96,12 @@ describe("MODULE_OWNERSHIP", () => {
       "identity.site-broker",
     );
     expect(PUBLIC_FILE_OWNERSHIP[".well-known/**"]).toBe("identity.ceremonies");
+    // The SIOP metadata is the siop capability's, generated, and names no
+    // `.well-known` path (ADR 0161).
+    expect(PUBLIC_FILE_OWNERSHIP["siop-metadata.json"]).toBe("identity.siop");
+    expect(GENERATED_PUBLIC_FILES["siop-metadata.json"]).toBe(
+      "scripts/siop-metadata-plugin.mjs",
+    );
     for (const [file, owner] of Object.entries(PUBLIC_FILE_OWNERSHIP)) {
       if (owner !== null) expect(isKnownCapability(owner), file).toBe(true);
       const writer = GENERATED_PUBLIC_FILES[file];

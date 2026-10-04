@@ -9,6 +9,11 @@ import { SealedKv } from "./store";
 import { MemoryStore } from "./test-support/memory";
 import { RunnerVault } from "./vault";
 
+// Key generation and sealed storage are real here; a loaded CI runner needs more than
+// vi.waitFor's 1s default before the page has settled.
+const eventually = (assertion: () => void) =>
+  vi.waitFor(assertion, { timeout: 10_000 });
+
 const html = readFileSync(
   join(__dirname, "../entrypoints/options/index.html"),
   "utf8",
@@ -132,7 +137,7 @@ describe("the options page", () => {
       if (input) input.value = value;
     }
     form?.dispatchEvent(new Event("submit", { cancelable: true }));
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(document.querySelector("#credentials")?.textContent).toContain(RP);
     });
     expect(field("password")?.value).toBe("");
@@ -161,7 +166,7 @@ describe("the options page", () => {
     const token = document.querySelector<HTMLInputElement>("#token");
     if (token) token.value = "session-token-value";
     document.querySelector<HTMLButtonElement>("#token-save")?.click();
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(document.querySelector("#ready li")?.getAttribute("data-ok")).toBe(
         "true",
       );
@@ -185,11 +190,11 @@ describe("the options page", () => {
     document
       .querySelector("#credential")
       ?.dispatchEvent(new Event("submit", { cancelable: true }));
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(document.querySelector("#drive-origin option")).not.toBeNull();
     });
     document.querySelector<HTMLButtonElement>("#drive-arm")?.click();
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(document.querySelector("#armed")?.textContent).toContain(RP);
     });
     expect(wired.requested).toEqual([
@@ -206,7 +211,7 @@ describe("the options page", () => {
   it("pins a created recovery key and shows its private half once", async () => {
     await openPage();
     document.querySelector<HTMLButtonElement>("#recovery-create")?.click();
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(
         document.querySelector<HTMLElement>("#recovery-private-field")?.hidden,
       ).toBe(false);
@@ -216,7 +221,7 @@ describe("the options page", () => {
         "{}",
     );
     expect(privateKey.d).toBeDefined();
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(
         document.querySelectorAll("#ready li")[2]?.getAttribute("data-ok"),
       ).toBe("true");
@@ -229,7 +234,7 @@ describe("the options page", () => {
       document.querySelector<HTMLTextAreaElement>("#recovery-public");
     if (area) area.value = '{"kty":"oct","k":"AAAA"}';
     document.querySelector<HTMLButtonElement>("#recovery-pin")?.click();
-    await vi.waitFor(() => {
+    await eventually(() => {
       expect(document.querySelector("#hint")?.textContent).toContain(
         "public RSA-OAEP key",
       );
