@@ -150,7 +150,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/settings/vaults"',
       'wait route "/settings/vaults" timeout=15000',
-      'focus "settings.item-types" "A type is a JSON manifest, never code. Installed lists the types this vault has; Marketplace reads the git repositories it names and takes another one by address. Each is shown field by field before it installs." side=top',
+      'focus "settings.item-types" "A type is a JSON manifest, never code. Each built-in type is a switch: turning one on downloads and installs it, and it is not in the app until then. The branch key reads the git repositories you list for more types, each shown field by field before it installs." side=top',
       "end",
     ].join("\n"),
   },

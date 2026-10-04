@@ -1,8 +1,3 @@
-/**
- * Vitest setup: the same host main.tsx installs, with Vitest's own
- * `import.meta.env` (BASE_URL "/", DEV true), so modules see what they did
- * before the env moved behind the host (ADR 0133).
- */
 import { browserPorts } from "@opensesame/app-core/browser/host.js";
 import { composeHost, configureHost } from "@opensesame/app-core/host.js";
 import {
@@ -13,6 +8,12 @@ import {
   repairInertWebStorage,
   testAtRestKeys,
 } from "@opensesame/app-core/test-host.js";
+/**
+ * Vitest setup: the same host main.tsx installs, with Vitest's own
+ * `import.meta.env` (BASE_URL "/", DEV true), so modules see what they did
+ * before the env moved behind the host (ADR 0133).
+ */
+import { loadPack, packEntries } from "@opensesame/vault-item-types";
 import { afterEach } from "vitest";
 import { closeJsdomGaps } from "./jsdom-gaps.js";
 import { shellBuild } from "./shell-build.js";
@@ -33,3 +34,7 @@ closeJsdomGaps();
 // A test that wrote a Web Storage key the app does not own fails here, even
 // when the code under test swallowed the write's outcome.
 afterEach(assertOwnedStorageWrites);
+
+// Built-in packs arrive on demand in the app (ADR 0164); these suites are
+// written against the whole corpus, so they switch every pack on first.
+await Promise.all(packEntries().map((entry) => loadPack(entry.id)));

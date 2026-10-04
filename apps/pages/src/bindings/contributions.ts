@@ -25,6 +25,7 @@ import {
 import type { ContributionKind } from "@opensesame/capability-composition";
 import { type VaultItem, itemTypeId } from "@opensesame/vault-core";
 import { useMemo, useRef, useSyncExternalStore } from "react";
+import { usePackSnapshot } from "./type-packs.js";
 
 /** The registry's entries of `kind` alone, re-read on every registration. */
 export function useRegistryContributions<K extends ContributionKind>(
@@ -79,7 +80,11 @@ function useSameEntries<T>(entries: readonly T[]): readonly T[] {
 export function useItemKinds(): readonly ItemKindRow[] {
   const entries: readonly ItemKindContribution[] =
     useContributions("item-kind");
-  return useMemo(() => itemKindsFrom(entries), [entries]);
+  // A pack switched on or off in Settings changes the kinds without any
+  // contribution moving (ADR 0164).
+  const { revision } = usePackSnapshot();
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `revision` is the pack state's version, read through `packItemKinds()`
+  return useMemo(() => itemKindsFrom(entries), [entries, revision]);
 }
 
 /**

@@ -175,6 +175,11 @@ export const LIB_RULES = [
     "item-type marketplaces read from a git repository (ADR 0134)",
   ),
   core(
+    `${L}type-packs/`,
+    "vault.passwords",
+    "built-in item types downloaded and installed when switched on (ADR 0164)",
+  ),
+  core(
     `${L}file-parts-store`,
     "vault.passwords",
     "sealed parts of a file item",

@@ -3,10 +3,15 @@
  * Pages shell's would be (ADR 0133). Suites that test the uninstalled state
  * clear it themselves.
  */
+import { loadPack, packEntries } from "@opensesame/vault-item-types";
 import { afterEach } from "vitest";
 import { configureHost } from "./host.js";
 import { assertOwnedStorageWrites } from "./test-host-storage-writes.js";
 import { createTestHost, repairInertWebStorage } from "./test-host.js";
+
+// Built-in packs arrive on demand in the app (ADR 0164); these suites are
+// written against the whole corpus, so they switch every pack on first.
+await Promise.all(packEntries().map((entry) => loadPack(entry.id)));
 
 repairInertWebStorage();
 configureHost(createTestHost());

@@ -30,7 +30,7 @@ export const GUIDE_TARGETS_MORE: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.item-types",
     description:
-      "Installs or removes a vault item type definition, from a git-repository marketplace, in the Installed and Marketplace tabs; the Marketplace tab also adds a repository by address. Types are JSON manifests, not code paths.",
+      "Switches built-in vault item types on or off, one switch per type: switching one on downloads and installs it, and nothing of it is in the app until then. A search field narrows the list; a type the vault already holds items of stays on and shows its count. Types a person wrote sit beneath, and a key opens the marketplaces, git repositories read for more types. Types are JSON manifests, not code paths.",
     role: "ceremony",
     routes: ["/settings"],
     capabilityId: "vault.item_types.install",
