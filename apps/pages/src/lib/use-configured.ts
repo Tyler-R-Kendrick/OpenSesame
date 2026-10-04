@@ -11,6 +11,7 @@
  * Identity API adds is the networked control-plane.
  */
 
+import { subscribeDeviceRoutes } from "@opensesame/app-core/lib/device-identity-routes.js";
 import {
   type IdentityPlaneKind,
   type IdentityRouteFamily,
@@ -18,6 +19,7 @@ import {
   identityServes,
 } from "@opensesame/app-core/lib/identity-plane.js";
 import { isRemoteIdentityConfigured } from "@opensesame/app-core/lib/identity.js";
+import { useSyncExternalStore } from "react";
 import { useSettingsEpoch } from "./use-settings.js";
 
 /** Always false — Pages no longer speaks Host (ADR 0128). */
@@ -62,10 +64,13 @@ export function useIdentityPlane(): IdentityPlaneKind {
  * wallet, a federated callback) keep `useIdentityConfigured`, because they
  * need a server and a device answering would be a lie.
  *
- * It re-reads on a Settings change. A capability registering its family is
- * settled by the plan before the page draws, so it needs no subscription.
+ * It re-reads on a Settings change and when a capability registers or
+ * removes a device route family: a capability activates asynchronously, and a
+ * panel that drew first must not stay without what arrived a moment later.
  */
 export function useIdentityServes(family: IdentityRouteFamily): boolean {
   useSettingsEpoch();
-  return identityServes(family);
+  return useSyncExternalStore(subscribeDeviceRoutes, () =>
+    identityServes(family),
+  );
 }

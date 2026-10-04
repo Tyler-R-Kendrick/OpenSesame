@@ -165,46 +165,23 @@ describe("with a guest vault", () => {
       assurance: "provisional",
     });
   });
+});
 
-  it("is never raised by a proof that is about a member's vault", async () => {
-    await open(true);
-    registerDeviceRoutes({
-      id: "vouch",
-      serves: [],
-      dispatch: async () => null,
-      assurance: async () => ({ level: "phishing_resistant", verifiedAt: 5 }),
-    });
+describe("assurance", () => {
+  it("is provisional however the vault was opened, with no time of proof", async () => {
+    await open();
     const minted = await session();
     const principal = overlapCast(await (await me(minted.accessToken)).json());
     expect(principal.assurance).toBe("provisional");
     expect(principal.verifiedAt).toBeUndefined();
   });
-});
 
-describe("assurance", () => {
-  it("rises only on a proof a capability gives, with the time it was given", async () => {
-    const tomb = await open();
-    const seen: string[] = [];
-    registerDeviceRoutes({
-      id: "vouch",
-      serves: [],
-      dispatch: async () => null,
-      assurance: async (asked) => {
-        seen.push(asked);
-        return { level: "phishing_resistant", verifiedAt: 1_700_000_000_000 };
-      },
-    });
-    const minted = await session();
-    const principal = overlapCast(await (await me(minted.accessToken)).json());
-    expect(principal).toMatchObject({
-      assurance: "phishing_resistant",
-      verifiedAt: new Date(1_700_000_000_000).toISOString(),
-    });
-    expect(seen).toEqual([tomb]);
-  });
-
-  it("is provisional with no proof, however the vault was opened", async () => {
+  it("is not raised by any registered capability: a passkey session proves a local person, not this principal", async () => {
     await open();
+    registerDeviceRoutes({
+      id: "identity.local-iam",
+      routes: { directory: async () => null },
+    });
     const minted = await session();
     const principal = overlapCast(await (await me(minted.accessToken)).json());
     expect(principal.assurance).toBe("provisional");
@@ -257,10 +234,11 @@ describe("with a locked vault", () => {
     let asked = 0;
     registerDeviceRoutes({
       id: "dir",
-      serves: ["directory"],
-      dispatch: async () => {
-        asked += 1;
-        return new Response("{}");
+      routes: {
+        directory: async () => {
+          asked += 1;
+          return new Response("{}");
+        },
       },
     });
     view = { kind: "locked" };
@@ -306,29 +284,67 @@ describe("with a locked vault", () => {
 });
 
 describe("what a contribution is handed", () => {
-  it("carries the caller the bearer stands for, and never the token", async () => {
+  it("carries the caller the bearer stands for, and nothing that holds the token", async () => {
     const tomb = await open();
     const minted = await session();
     const seen: DeviceRouteRequest[] = [];
     registerDeviceRoutes({
       id: "probe",
-      serves: ["notifications"],
-      dispatch: async (request) => {
-        seen.push(request);
-        return new Response("{}");
+      routes: {
+        notifications: async (received) => {
+          seen.push(received);
+          return new Response("{}");
+        },
       },
     });
-    await deviceIdentityFetch("/v1/notifications?x=1", {
-      headers: { authorization: `Bearer ${minted.accessToken}` },
+    await deviceIdentityFetch("/v1/notification-preferences/effective?x=1", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${minted.accessToken}`,
+        "x-claim-token": "claim-secret",
+      },
+      body: '{"a":1}',
     });
-    await deviceIdentityFetch("/v1/notifications");
-    expect(seen[0]?.bare).toBe("/v1/notifications");
+    await deviceIdentityFetch("/v1/notification-preferences/effective");
+    expect(seen[0]?.bare).toBe("/v1/notification-preferences/effective");
+    expect(seen[0]?.body).toBe('{"a":1}');
     expect(seen[0]?.caller).toEqual({
       principalId: minted.principalId,
       tomb,
       guest: false,
     });
-    expect(JSON.stringify(seen[0]?.caller)).not.toContain(minted.accessToken);
+    // Nothing a handler can reach holds a bearer or any other header.
+    const everything = JSON.stringify(seen);
+    expect(everything).not.toContain(minted.accessToken);
+    expect(everything).not.toContain("claim-secret");
+    expect(everything).not.toMatch(/authorization/i);
+    expect(seen[0]).not.toHaveProperty("init");
+    expect(seen[0]).not.toHaveProperty("headers");
     expect(seen[1]?.caller).toBeNull();
+  });
+
+  it("answers the email and text code routes itself, whoever is registered", async () => {
+    registerDeviceRoutes({
+      id: "identity.local-iam",
+      routes: { directory: async () => new Response("{}") },
+    });
+    const res = await deviceIdentityFetch("/v1/mfa/code/send", {
+      method: "POST",
+      body: "{}",
+    });
+    expect(res.status).toBe(503);
+    expect(overlapCast(await res.json()).error).toBe("not_configured");
+  });
+
+  it("does not let a directory handler answer a path of another family", async () => {
+    registerDeviceRoutes({
+      id: "greedy",
+      routes: { directory: async () => new Response("{}", { status: 200 }) },
+    });
+    expect((await deviceIdentityFetch("/v1/audit/events")).status).toBe(501);
+    expect((await deviceIdentityFetch("/v1/wallet/registrations")).status).toBe(
+      501,
+    );
+    expect((await deviceIdentityFetch("/v1/projects")).status).toBe(200);
   });
 });

@@ -137,7 +137,6 @@ const LOCAL_IAM_FILES = [
   "local-application-approval",
   "local-authenticator",
   "local-authorization",
-  "local-iam-assurance",
   "local-iam-lock-resets",
   "local-issuer-channel",
   "local-request",

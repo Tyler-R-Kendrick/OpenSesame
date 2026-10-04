@@ -8,7 +8,7 @@ import {
   loadSettings,
   saveSettings,
 } from "@opensesame/app-core/lib/settings.js";
-import { cleanup, renderHook } from "@testing-library/react";
+import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { identityHookSeams } from "../../bindings/identity.js";
 import { useReceiptsSession } from "./use-receipts-session.js";
@@ -45,17 +45,27 @@ describe("useReceiptsSession", () => {
   it("is the session on a device whose capability serves the trail", () => {
     registerDeviceRoutes({
       id: "identity.local-iam",
-      serves: ["audit"],
-      dispatch: async () => null,
+      routes: { audit: async () => null },
     });
     expect(renderHook(() => useReceiptsSession()).result.current).toBe(held);
+  });
+
+  it("shows the session when the trail's capability activates after the first render", () => {
+    const { result } = renderHook(() => useReceiptsSession());
+    expect(result.current).toBeNull();
+    act(() => {
+      registerDeviceRoutes({
+        id: "identity.local-iam",
+        routes: { audit: async () => null },
+      });
+    });
+    expect(result.current).toBe(held);
   });
 
   it("is null with no session even where the trail is served", () => {
     registerDeviceRoutes({
       id: "identity.local-iam",
-      serves: ["audit"],
-      dispatch: async () => null,
+      routes: { audit: async () => null },
     });
     identityHookSeams.useIdentitySession = () => null;
     expect(renderHook(() => useReceiptsSession()).result.current).toBeNull();

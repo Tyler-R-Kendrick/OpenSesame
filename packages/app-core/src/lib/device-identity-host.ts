@@ -16,7 +16,7 @@ import {
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
-import { dispatchDeviceRoute } from "./device-identity-routes.js";
+import { dispatchDeviceRoute, familyOfPath } from "./device-identity-routes.js";
 import {
   authenticateDevice,
   bearerFrom,
@@ -46,9 +46,15 @@ function obj(value: BoundaryValue): Record<string, BoundaryValue> {
   return {};
 }
 
-async function readJson(init: RequestInit): Promise<JsonObject> {
+/** The request body when it is a string, else null. */
+function stringBody(init: RequestInit): string | null {
   const raw: BoundaryValue = overlapCast(init.body);
-  if (!isString(raw) || raw.length === 0) return {};
+  return isString(raw) ? raw : null;
+}
+
+async function readJson(init: RequestInit): Promise<JsonObject> {
+  const raw = stringBody(init);
+  if (raw === null || raw.length === 0) return {};
   try {
     const parsed: BoundaryValue = overlapCast(JSON.parse(raw));
     return overlapCast(obj(parsed));
@@ -151,6 +157,17 @@ function healthLive(): Response {
   return json({ status: "ok" });
 }
 
+/** Email and text codes need a sender no browser tab is. */
+function mfaUnavailable(): Response {
+  return json(
+    {
+      error: "not_configured",
+      hint: "Email and text codes need a connected sign-in service.",
+    },
+    503,
+  );
+}
+
 function notImplemented(path: string): Response {
   return json(
     {
@@ -233,12 +250,15 @@ export async function deviceIdentityFetch(
     // A capability's routes read the vault and its directory. While a vault
     // on this device is shut they answer `locked`; they never fall back.
     if (deviceVaultView().kind === "locked") return lockedResponse();
+    // What needs a server is answered here, whoever is registered.
+    if (familyOfPath(bare) === "mfa-codes") return mfaUnavailable();
     const auth = authenticateDevice(init);
+    // A handler is given the resolved caller and the body, never a header.
     const answered = await dispatchDeviceRoute({
       path,
       bare,
       method,
-      init,
+      body: stringBody(init),
       caller: auth.ok ? auth.caller : null,
     });
     return answered ?? notImplemented(bare);

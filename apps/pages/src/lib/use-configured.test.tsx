@@ -49,8 +49,7 @@ describe("useIdentityServes", () => {
     expect(directory.result.current).toBe(false);
     registerDeviceRoutes({
       id: "identity.local-iam",
-      serves: ["directory"],
-      dispatch: async () => null,
+      routes: { directory: async () => null },
     });
     expect(
       renderHook(() => useIdentityServes("directory")).result.current,
@@ -62,6 +61,23 @@ describe("useIdentityServes", () => {
     expect(codes.result.current).toBe(false);
     act(() => identityAt("https://id.example.test"));
     expect(codes.result.current).toBe(true);
+  });
+});
+
+describe("useIdentityServes, late", () => {
+  it("re-reads when a capability registers after the panel drew, and when it leaves", () => {
+    const { result } = renderHook(() => useIdentityServes("audit"));
+    expect(result.current).toBe(false);
+    let off = () => {};
+    act(() => {
+      off = registerDeviceRoutes({
+        id: "identity.local-iam",
+        routes: { audit: async () => null },
+      });
+    });
+    expect(result.current).toBe(true);
+    act(() => off());
+    expect(result.current).toBe(false);
   });
 });
 

@@ -14,18 +14,16 @@
  *   answers `locked` (423) until that same vault opens again. A different
  *   vault opening ends it: a bearer never follows a person across vaults.
  *
- * Assurance is read, never granted here: `provisional` unless a capability
- * that really verified a passkey in this tab vouches for the unlocked vault
- * (`deviceAssurance`). The vault being open is not an assurance claim.
+ * Assurance is always `provisional`. A local passkey session proves that a
+ * local *person* signed in to this vault; nothing binds that person to this
+ * device principal, so raising the principal on it would claim a proof that
+ * was never about it. The vault being open is not an assurance claim either.
  */
 
 import type { JsonObject } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
 import { ensureDeviceIdentityKey } from "./device-identity-key.js";
-import {
-  type DeviceCaller,
-  deviceAssurance,
-} from "./device-identity-routes.js";
+import type { DeviceCaller } from "./device-identity-routes.js";
 import { deviceVaultView } from "./device-identity-vault.js";
 import { VfsError } from "./vfs.js";
 
@@ -193,20 +191,12 @@ export async function principalsMe(init: RequestInit): Promise<Response> {
     session.expiresAtMs - PROVISIONAL_TTL_MS,
   ).toISOString();
   const keyed = session.binding !== null && !session.binding.guest;
-  const proof = keyed
-    ? await deviceAssurance(session.binding?.tomb ?? "")
-    : ({ level: "provisional" } as const);
-  const verified =
-    proof.level !== "provisional" && proof.verifiedAt !== undefined
-      ? { verifiedAt: new Date(proof.verifiedAt).toISOString() }
-      : {};
   return json({
     id: session.principalId,
     state: keyed ? "active" : "provisional",
-    assurance: proof.level,
+    assurance: "provisional",
     createdAt: issued,
     updatedAt: new Date().toISOString(),
-    ...verified,
     version: 1,
     identities: [],
   });

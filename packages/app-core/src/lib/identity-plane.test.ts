@@ -42,8 +42,9 @@ const CONTRIBUTABLE = IDENTITY_ROUTE_FAMILIES.filter(
 function contribute(id: string, serves: IdentityRouteFamily[]) {
   return registerDeviceRoutes({
     id,
-    serves,
-    dispatch: async () => null,
+    routes: Object.fromEntries(
+      serves.map((family) => [family, async () => null]),
+    ),
   });
 }
 

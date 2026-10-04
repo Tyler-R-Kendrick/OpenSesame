@@ -86,23 +86,44 @@ Push through a relay) are the same: they need a server, so the device plane
 offers the in-app destinations only (ADR 0084).
 
 The registry rejects a contribution that names `session` (the core owns it) or
-any of the four server families. The table does not bend to a capability that
-would like it to.
+any of the four server families, and the host answers the paths of the server
+families itself (the code routes with 503 `not_configured`, the rest 501),
+whoever is registered. The table does not bend to a capability that would like
+it to (§4).
 
 ### 4. A route registry, not a slot
 
 `device-identity-routes.ts` holds *contributions*. A capability registers one
 from `activate` and the returned function removes it on dispose; nothing runs
-at import. A contribution has an `id` (its capability), the families it
-`serves`, a `dispatch(request)` that answers a path or returns `null`, and an
-optional `assurance(tomb)` (§6). The first contribution that recognises a path
-answers it; two capabilities coexist; registering the same `id` again replaces
-the earlier one, and the earlier one's late unregister cannot remove its
-successor. A contribution may answer a refusal for a family it does not serve
-(`identity.local-iam` still answers the code routes with 503). `identity.local-iam`
-contributes `directory`, `audit` and `requests`, with the routes it served
-before, unchanged. The request a contribution receives carries the resolved
-caller (`principalId`, `tomb`, `guest`) and never the bearer.
+at import. The table it enforces is real:
+
+- **A path has one family.** `familyOfPath` maps path prefixes to the closed set
+  (longest prefix wins, so `/v1/organizations/tenants` is `org-signin` and
+  `/v1/organizations` is `directory`). A path in no family is served by nobody.
+- **A family has at most one owner.** A contribution is `{ id, routes }`, where
+  `routes` maps a family to its handler. Registering a family another
+  contribution already serves is refused, so a later registrant cannot shadow
+  `identity.local-iam`. Registering the same `id` again replaces it, and the
+  earlier registration's late unregister cannot remove its successor.
+- **A handler answers only its family.** The registry routes a request to the
+  owner of the path's family and no other; a handler is never asked about a
+  path outside it, and `null` leaves the path unserved (501).
+- **A family is served only while a handler is registered.** `identityServes`
+  reads the handlers, not a declaration, so a family cannot be reported served
+  with nothing behind it.
+- **One handler's failure is its own.** A handler that throws answers 500, is
+  recorded by contribution id and family only (no message, nothing it saw), and
+  does not touch another contribution.
+- **A handler is not handed a bearer.** Its request is `{ path, bare, method,
+  family, body, caller }`: the resolved caller (`principalId`, `tomb`, `guest`)
+  and a string body, never `RequestInit` or any header.
+- **Changes are announced.** `subscribeDeviceRoutes` tells a panel when a
+  family appears or goes (`useIdentityServes` subscribes), because a capability
+  activates asynchronously and a panel that drew first must not stay without
+  what arrived a moment later.
+
+`identity.local-iam` contributes `directory`, `audit` and `requests`, with the
+routes it served before, unchanged.
 
 ### 5. The principal is a key
 
@@ -126,8 +147,8 @@ How this relates to the other keys:
 
 - **Local IAM** (ADRs 0102–0112) owns people, passkeys, applications and
   grants, and its principals are `local_…` directory ids. The device principal
-  is not a person in that directory and is not derived from one. They meet only
-  at assurance (§6).
+  is not a person in that directory and is not derived from one, and nothing
+  binds one to the other yet (§6).
 - **SIOP keys** (`siop-keys.ts`, ADR 0116) are pairwise: one per (person,
   application), minted for a relying party. The device key is the root a
   relying-party subject would be derived beside (ADR 0138 §1), not one of
@@ -139,16 +160,19 @@ How this relates to the other keys:
   offline backup, so a second device derives a different principal, and nothing
   signs with it. The ADR does not claim either.
 
-### 6. Assurance is read, never granted
+### 6. Assurance is provisional, and says so
 
-`/v1/principals/me` reports `assurance: "provisional"` unless a contribution
-vouches for the open vault *and* names when it was proved. `identity.local-iam`
-vouches `phishing_resistant`, with `verifiedAt`, only while a local identity
-session from a real passkey authentication (ADR 0104: the verifier ran, the
-evidence was spent once, bound to this origin and vault) is live in this tab.
-How the vault was opened is not evidence: a password unlock proves a password.
-A claim above `provisional` with no time of proof is ignored. The state is
-`active` for a member vault with a key and `provisional` otherwise.
+`/v1/principals/me` reports `assurance: "provisional"` for every session, and
+no `verifiedAt`. A live local identity session from a real passkey
+authentication (ADR 0104) proves that a local *person* in this vault's
+directory signed in; the vault holds several such people (an invited member's
+sign-in to an application is one), and nothing binds a person to this device
+principal. Raising the principal on it would claim a proof that was never
+about it, so the device does not. How the vault was opened is not evidence
+either: a password unlock proves a password. The state is `active` for a member
+vault with a key and `provisional` otherwise. A higher assurance returns only
+with a binding the ADR can name: a signature by the device key, or an explicit
+owner link in the directory, each its own decision.
 
 ### 7. A locked vault answers `locked`, and never falls back
 
@@ -217,8 +241,8 @@ this ADR does not repeat it.
 ## Verification
 
 - `identity-plane.test.ts`, `device-identity-routes.test.ts`,
-  `device-identity-key.test.ts`, `device-identity-principal.test.ts`,
-  `device-identity-vault.test.ts` and `local-iam-assurance.test.ts` pin the
+  `device-identity-key.test.ts`, `device-identity-principal.test.ts` and
+  `device-identity-vault.test.ts` pin the
   truth table, the registry, the key, the principal, the locked, guest and
   assurance behaviour above.
 - `verify:device-identity` drives a guest on a static build with no Identity API

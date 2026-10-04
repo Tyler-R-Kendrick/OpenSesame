@@ -10,7 +10,6 @@ import { isString } from "@opensesame/os-domain";
 import type { DeviceRouteContribution } from "./device-identity-routes.js";
 import { readLocalApplications } from "./local-applications.js";
 import { readLocalDirectory } from "./local-directory.js";
-import { localPasskeyAssurance } from "./local-iam-assurance.js";
 import {
   PERSONAL_PROJECT_ID,
   type PagesProject,
@@ -79,16 +78,6 @@ function notImplemented(path: string): Response {
 
 function auditEvents(): Response {
   return jsonResponse(JSON.stringify({ events: [] }));
-}
-
-function mfaUnavailable(channelHint: string): Response {
-  return jsonResponse(
-    JSON.stringify({
-      error: "not_configured",
-      hint: `${channelHint} need a connected sign-in service.`,
-    }),
-    503,
-  );
 }
 
 function activeTomb(): string {
@@ -304,30 +293,16 @@ async function handleAuthz(
   return notImplemented(`${method} ${bare}`);
 }
 
-async function handleMfa(bare: string): Promise<Response | null> {
-  if (bare !== "/v1/mfa/code/send" && bare !== "/v1/mfa/code/verify") {
-    return null;
-  }
-  return mfaUnavailable("Email and text codes");
-}
-
-/**
- * Extended `/v1/*` routes backed by browser-local IAM (projects, directory,
- * applications). Returns null when the path is not one of these.
- */
-export async function dispatchExtendedDeviceRoute(
-  path: string,
+/** The directory family: oauth clients, organizations, agents, projects. */
+async function directoryRoute(
+  bare: string,
   method: string,
 ): Promise<Response | null> {
-  const bare = path.split("?")[0] ?? path;
   return (
     (await handleOauth(bare, method)) ??
-    (await handleAudit(bare, method)) ??
     (await handleOrgs(bare, method)) ??
     (await handleAgents(bare, method)) ??
-    (await handleProjects(bare, method)) ??
-    (await handleAuthz(bare, method)) ??
-    (await handleMfa(bare))
+    (await handleProjects(bare, method))
   );
 }
 
@@ -335,11 +310,15 @@ export async function dispatchExtendedDeviceRoute(
  * What `identity.local-iam` contributes to the device plane (ADR 0160): the
  * directory (people, agents, organizations, projects, applications), the
  * audit trail and the request inbox, all read from this vault. It registers
- * this from `activate` and unregisters on dispose.
+ * this from `activate` and unregisters on dispose. The email and text code
+ * routes are not here: no capability serves them on a device, and the host
+ * answers them itself.
  */
 export const LOCAL_IAM_DEVICE_ROUTES: DeviceRouteContribution = {
   id: "identity.local-iam",
-  serves: ["directory", "audit", "requests"],
-  dispatch: ({ path, method }) => dispatchExtendedDeviceRoute(path, method),
-  assurance: localPasskeyAssurance,
+  routes: {
+    directory: ({ bare, method }) => directoryRoute(bare, method),
+    audit: ({ bare, method }) => handleAudit(bare, method),
+    requests: ({ bare, method }) => handleAuthz(bare, method),
+  },
 };

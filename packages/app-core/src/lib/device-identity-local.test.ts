@@ -65,3 +65,28 @@ describe("device identity local routes", () => {
     ).toBe(true);
   });
 });
+
+describe("what the directory family answers", () => {
+  it("answers nothing outside the directory, audit and requests families", async () => {
+    expect(
+      (await deviceIdentityFetch("/v1/notification-preferences/effective"))
+        .status,
+    ).toBe(501);
+    expect((await deviceIdentityFetch("/v1/wallet/registrations")).status).toBe(
+      501,
+    );
+    expect(
+      (await deviceIdentityFetch("/v1/mfa/code/send", { method: "POST" }))
+        .status,
+    ).toBe(503);
+  });
+
+  it("keeps the audit trail and request inbox as they were", async () => {
+    const audit = await deviceIdentityFetch("/v1/audit/events");
+    expect(audit.status).toBe(200);
+    expect(overlapCast(await audit.json()).events).toEqual([]);
+    const requests = await deviceIdentityFetch("/v1/authorization-requests");
+    expect(requests.status).toBe(200);
+    expect(overlapCast(await requests.json()).requests).toEqual([]);
+  });
+});
