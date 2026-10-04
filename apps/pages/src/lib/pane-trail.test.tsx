@@ -94,4 +94,31 @@ describe("usePaneTrail", () => {
     expect(vault.at()).toBe("/vault");
     expect(vault.type()).toBe("POP");
   });
+
+  it("does nothing from a pane that is not below the target", async () => {
+    const vault = mount(["/vault"]);
+    await run(() => vault.go("/vault?f=all"));
+    await run(() => vault.go("/vault/a?f=all"));
+    await run(() => vault.go("/vault"));
+    await run(() => vault.ascend("list", "/vault?f=all"));
+    expect(vault.at()).toBe("/vault");
+    await run(() => vault.ascend("tree", "/vault"));
+    expect(vault.at()).toBe("/vault");
+    expect(vault.type()).toBe("PUSH");
+  });
+
+  it("takes no pop from a screen the router has already left", async () => {
+    const vault = mount(["/vault"]);
+    await run(() => vault.go("/vault?f=all"));
+    await run(() => vault.go("/vault/a?f=all"));
+    window.history.replaceState({ key: "ahead", idx: 9 }, "");
+    try {
+      await run(() => vault.ascend("list", "/vault?f=all"));
+      expect(vault.at()).toBe("/vault/a?f=all");
+    } finally {
+      window.history.replaceState(null, "");
+    }
+    await run(() => vault.ascend("list", "/vault?f=all"));
+    expect(vault.at()).toBe("/vault?f=all");
+  });
 });

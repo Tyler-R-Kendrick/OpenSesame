@@ -11,6 +11,8 @@ import type { VaultPane } from "./vault-list-path.js";
 
 type Entry = { key: string; pane: VaultPane };
 
+const DEPTH: Record<VaultPane, number> = { tree: 0, list: 1, detail: 2 };
+
 /** Goes up to a pane: back to its entry in the history, or onto `fallback`. */
 export type Ascend = (pane: VaultPane, fallback: string) => void;
 
@@ -43,6 +45,15 @@ export function AscendProvider({
  * none (a link into the middle, a reload) it replaces the entry instead, so the
  * system Back button still leaves.
  *
+ * A pop counts entries from the one the router is on, so it is only taken from
+ * a screen that is that entry: the router moves before React finishes drawing
+ * (a lazy pane, a transition), and a Back control still on screen for the
+ * entry just left would otherwise pop one entry too far.
+ *
+ * Only a pane below the target climbs to it. A hidden pane's Back control can
+ * still be clicked (Escape clicks the one in the pane focus was left in), and
+ * from the tree that must not pop the history to whatever list was seen last.
+ *
  * The mirror lives in memory and is keyed by the router's own entry keys, so it
  * needs no storage and no `window.history` internals, and it only ever learns
  * entries this session arrived at.
@@ -53,6 +64,10 @@ export function usePaneTrail(pane: VaultPane): Ascend {
   const navigate = useNavigate();
   const trail = useRef<Entry[]>([]);
   const at = useRef(-1);
+  const showing = useRef(pane);
+  showing.current = pane;
+  const drawn = useRef(key);
+  drawn.current = key;
 
   useEffect(() => {
     const entries = trail.current;
@@ -73,6 +88,11 @@ export function usePaneTrail(pane: VaultPane): Ascend {
 
   return useCallback(
     (to, fallback) => {
+      if (DEPTH[showing.current] <= DEPTH[to]) return;
+      // `history.state.key` is the router's own current entry (a browser
+      // router writes it; a memory router has no such state to compare).
+      const current: unknown = window.history.state?.key;
+      if (typeof current === "string" && current !== drawn.current) return;
       for (let i = at.current - 1; i >= 0; i--) {
         if (trail.current[i]?.pane === to) {
           navigate(i - at.current);
