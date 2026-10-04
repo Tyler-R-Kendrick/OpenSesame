@@ -351,8 +351,8 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
 
   return (
     <AppSlotsContext.Provider value={resolved}>
-      {body}
       {shellless ? <NoticeCorner /> : null}
+      {body}
       <ContextMenuLayer />
     </AppSlotsContext.Provider>
   );

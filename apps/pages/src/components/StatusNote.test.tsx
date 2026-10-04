@@ -1,9 +1,14 @@
 /** @vitest-environment jsdom */
-import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  clearNotices,
+  dismissNotice,
+  listNotices,
+} from "@opensesame/app-core/lib/notices.js";
+import { act, cleanup, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { StatusNote } from "./StatusNote.js";
+import { type StatusMessage, StatusNote } from "./StatusNote.js";
 
 describe("StatusNote", () => {
   afterEach(() => {
@@ -64,5 +69,55 @@ describe("StatusNote", () => {
     );
     rerender(<StatusNote message={{ tone: "err", text: "Second." }} />);
     expect(listNotices().map((notice) => notice.body)).toEqual(["Second."]);
+  });
+
+  it("clears its notice when it unmounts", () => {
+    const { unmount } = render(
+      <StatusNote message={{ tone: "err", text: "It broke." }} />,
+    );
+    expect(listNotices()).toHaveLength(1);
+    unmount();
+    expect(listNotices()).toHaveLength(0);
+  });
+
+  it("keeps a dismissed notice dismissed when an unrelated render rebuilds the message", () => {
+    const { rerender } = render(
+      <StatusNote message={{ tone: "err", text: "It broke." }} />,
+    );
+    act(() => dismissNotice(listNotices()[0]?.id ?? ""));
+    expect(listNotices()).toHaveLength(0);
+    rerender(<StatusNote message={{ tone: "err", text: "It broke." }} />);
+    expect(listNotices()).toHaveLength(0);
+  });
+
+  it("raises the same sentence again once the failure has cleared in between", () => {
+    const { rerender } = render(
+      <StatusNote message={{ tone: "err", text: "It broke." }} />,
+    );
+    act(() => dismissNotice(listNotices()[0]?.id ?? ""));
+    rerender(<StatusNote message={null} />);
+    rerender(<StatusNote message={{ tone: "err", text: "It broke." }} />);
+    expect(listNotices().map((notice) => notice.body)).toEqual(["It broke."]);
+  });
+
+  describe("mounted only while a message exists", () => {
+    let setMessage: (message: StatusMessage | null) => void = () => undefined;
+
+    function Panel() {
+      const [message, set] = useState<StatusMessage | null>(null);
+      setMessage = set;
+      return message ? <StatusNote message={message} /> : null;
+    }
+
+    it("leaves none, then one, never two, as the failure comes and goes", () => {
+      render(<Panel />);
+      expect(listNotices()).toHaveLength(0);
+      act(() => setMessage({ tone: "err", text: "It broke." }));
+      expect(listNotices()).toHaveLength(1);
+      act(() => setMessage(null));
+      expect(listNotices()).toHaveLength(0);
+      act(() => setMessage({ tone: "err", text: "It broke." }));
+      expect(listNotices()).toHaveLength(1);
+    });
   });
 });

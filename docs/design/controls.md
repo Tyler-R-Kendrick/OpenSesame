@@ -48,8 +48,11 @@ nobody, as a notice in the tray: `<FailureNotice id title message />`
 (`apps/pages/src/components/FailureNotice.tsx`), `useFailureNotice`
 (`apps/pages/src/components/use-failure-notice.ts`) or `StatusNote`, all of which end
 in `setStatusNotice`. The tray already carries every other page condition,
-announces an error with `role="alert"`, offers the retry, and survives the
-screen that produced it being navigated away from. An error box in the middle
+announces an error with `role="alert"`, and survives the screen that produced
+it being navigated away from. The tray can offer a retry, but only when the
+caller supplies one through `setStatusNotice` (`retry` / `retryLabel`); the
+three seam components (`FailureNotice`, `useFailureNotice`, `StatusNote`) do
+not pass one. An error box in the middle
 of a screen is explainer prose wearing an alert role: it interrupts the whole
 screen to narrate one failed thing, and it is gone the moment the person moves.
 
@@ -62,6 +65,17 @@ A notice is keyed by `id` — one per place, so a second try replaces the first
 and a success clears it; give a per-item editor the item's id. A visually-hidden
 live region (`className="visually-hidden" role="alert"`) is the one spelling of
 `role="alert"` the lint allows: it draws nothing.
+
+**Modal ceremonies.** A failure that arises inside an `aria-modal` ceremony
+sheet cannot rely on the bell: the bell is unreachable while the sheet is open.
+The sheet therefore shows the sentence as its own status line — `CeremonyShell`'s
+mark and its top line — and the tray receives it too, so it is still there when
+the sheet closes. The page-level rule is unchanged: no box is drawn in the page.
+
+**Live validation is not a failure.** An unsaved draft that does not yet
+validate (a malformed address, a name already taken) is not a failed operation.
+It is a `StatusMark` on the field and nothing is sent to the tray; a notice is
+for something that was attempted and did not work.
 
 `pnpm lint:design` holds both. Explainer sentences are matched by content in
 the connector panels. In-page failures are a plain failure

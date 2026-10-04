@@ -85,6 +85,65 @@ describe("the lint refuses every spelling of an in-page failure", () => {
     expect(result.output).toContain("no-in-page-error");
   });
 
+  it.each([
+    [
+      "an inline arrow before role",
+      '<button onClick={() => go()} role="alert">{e}</button>',
+    ],
+    [
+      "a comparison before role",
+      '<p title={a > b ? "x" : "y"} role="alert">{e}</p>',
+    ],
+    ["role in braces", '<p role={"alert"}>{e}</p>'],
+    ["role in single quotes in braces", "<p role={'alert'}>{e}</p>"],
+    ["role in single quotes", "<p role='alert'>{e}</p>"],
+    [
+      "a visually-hidden class on a different element",
+      '<span className="visually-hidden">x</span><p role="alert">{e}</p>',
+    ],
+  ])("rejects a visible alert with %s", (_name, markup) => {
+    const result = runLint(
+      "Broken.tsx",
+      `export const A = () => (<>${markup}</>);\n`,
+    );
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("no-in-page-error");
+  });
+
+  it("rejects a failing class after a // inside a string on the same line", () => {
+    const result = runLint(
+      "Broken.tsx",
+      'export const A = () => <a href="//cdn.example/x" className="form-error">{e}</a>;\n',
+    );
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("no-in-page-error");
+  });
+
+  it("rejects a failing rule after a // inside a CSS string", () => {
+    const result = runLint(
+      "../broken.css",
+      '.a { content: "//"; } .thing__error { color: var(--err); }\n',
+    );
+    expect(result.code).toBe(1);
+    expect(result.output).toContain("no-error-box-css");
+  });
+
+  it("allows a visually-hidden alert after an arrow", () => {
+    const result = runLint(
+      "Quiet.tsx",
+      'export const A = () => <span onClick={() => go()} role="alert" className="visually-hidden">{e}</span>;\n',
+    );
+    expect(result.code).toBe(0);
+  });
+
+  it("allows a visually-hidden alert whose class comes first", () => {
+    const result = runLint(
+      "Quiet.tsx",
+      'export const A = () => <span className="visually-hidden" role={"alert"}>{e}</span>;\n',
+    );
+    expect(result.code).toBe(0);
+  });
+
   it("allows a visually-hidden live region, which draws nothing", () => {
     const result = runLint(
       "Quiet.tsx",

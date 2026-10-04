@@ -480,8 +480,12 @@ An in-page error box is the same violation. A failure is never drawn in the
 page: not a `note--err`, a `conn-flash`, a `broker__card--err`, a `*__error`
 paragraph, a visible `role="alert"`, or any block filled with the error wash.
 The failure is a `StatusMark` on the thing that failed and a notice in the
-notifications tray (the bell), which announces it, offers the retry, and keeps
-it when the person leaves the screen. Pages mount `<FailureNotice>` (or call
+notifications tray (the bell), which announces it and keeps it when the person
+leaves the screen. The tray can offer a retry when the caller supplies one
+through `setStatusNotice` (`retry` / `retryLabel`); the three seam components
+do not. A failure inside an `aria-modal` ceremony sheet is also the sheet's own
+status line (see docs/design/controls.md § Modal ceremonies), and live
+validation of an unsaved draft is a `StatusMark` on the field, not a notice. Pages mount `<FailureNotice>` (or call
 `useFailureNotice`, or use `StatusNote`) and draw nothing. `pnpm lint:design`
 fails on every spelling of the box.
 Do not add caption or explainer prose under a title, a button, or a field:

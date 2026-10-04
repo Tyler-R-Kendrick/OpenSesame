@@ -719,10 +719,6 @@ input[type="radio"] {
   margin-top: 0.1rem;
 }
 
-.note__dismiss {
-  margin: -0.2rem -0.3rem -0.2rem auto;
-}
-
 .qr {
   display: grid;
   gap: 0.5rem;
@@ -746,18 +742,6 @@ input[type="radio"] {
   font-size: 1.0625rem;
   font-weight: 600;
   letter-spacing: 0.08em;
-}
-
-.passkey-note {
-  display: flex;
-  gap: 0.65rem;
-  align-items: flex-start;
-}
-
-.passkey-note__body {
-  display: grid;
-  gap: 0.55rem;
-  min-width: 0;
 }
 
 .detail__totp-qr {
@@ -3641,15 +3625,18 @@ details[open] > summary::before {
 
 /* ——— Notice corner ———————————————————————————————————————
    The bell for a screen with no shell (unlock, front door, federated return,
-   an unframed popup). Present only while the tray holds a notice. The rail's
-   tokens are re-pointed at the page's own so the key reads on the canvas. */
+   an unframed popup). Present only while the tray holds a notice. It is a
+   block in the document flow, right-aligned above the screen — never an
+   overlay, so it cannot rest on a control. The rail's tokens are re-pointed at
+   the page's own so the key reads on the canvas. */
 .notice-corner {
   --rail-fg: var(--ink);
   --rail-2: var(--surface-2);
-  position: fixed;
-  z-index: 40;
-  top: max(0.5rem, env(safe-area-inset-top));
-  right: max(0.5rem, env(safe-area-inset-right));
+  display: flex;
+  justify-content: flex-end;
+  padding: max(0.5rem, env(safe-area-inset-top))
+    max(0.5rem, env(safe-area-inset-right)) 0
+    max(0.5rem, env(safe-area-inset-left));
 }
 
 @media (pointer: coarse) {

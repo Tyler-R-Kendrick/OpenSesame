@@ -10,12 +10,15 @@ export function FailureNotice({
   title,
   message,
   tone = "err",
+  occurrence,
 }: {
   id: string;
   title: string;
   message: string | null | undefined;
   tone?: "warn" | "err";
+  /** A value whose identity changes with each new failure (see the hook). */
+  occurrence?: unknown;
 }) {
-  useFailureNotice(id, title, message, tone);
+  useFailureNotice(id, title, message, tone, { occurrence });
   return null;
 }

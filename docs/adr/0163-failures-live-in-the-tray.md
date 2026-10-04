@@ -33,10 +33,18 @@ open.
    `<FailureNotice>`, mirror a sentence into the tray under a stable `id` —
    a new sentence replaces the old, a cleared one clears it, and a notice
    outlives its screen. `StatusNote` rides the same hook: errors and warnings
-   go to the tray, a success stays quiet and inline.
+   go to the tray, a success stays quiet and inline. The hook also takes
+   `{ occurrence, clearOnUnmount }`: a new `occurrence` re-raises an equal
+   sentence the person already dismissed, and `clearOnUnmount` takes the notice
+   with the component (`StatusNote`, whose callers mount it only while a message
+   exists). A changed `id` dismisses the previous id's notice. The tray can offer
+   a retry only when the caller supplies one through `setStatusNotice`
+   (`retry` / `retryLabel`); the three seam components do not.
 3. **A screen with no shell gets the bell.** `NoticeCorner` is mounted by
    `AppRoot` when the unlocked shell is absent and draws only while the tray
-   holds something; the shell keeps its own bell and does not mount it.
+   holds something; the shell keeps its own bell and does not mount it. It is a
+   right-aligned block in the document flow before the screen body, never a
+   fixed overlay, so it cannot rest on a control such as the front door's Skip.
 4. **The lint has no ledger.** The count is zero everywhere, so
    `no-in-page-error` (markup) and `no-error-box-css` (CSS) are plain
    failures (`scripts/quality/design-lint-failures.mjs`), pinned by
@@ -44,6 +52,18 @@ open.
    against each spelling that once got through. A visually-hidden live region is
    the one allowed `role="alert"`; the tray's own card, danger controls, the
    `StatusMark` glyph and `aria-invalid` field borders may carry the error colour.
+
+## Modal ceremonies
+
+A failure that arises inside an `aria-modal` ceremony sheet cannot rely on the
+bell: it is unreachable while the sheet is open. The sheet shows the sentence as
+its own status line (`CeremonyShell`'s mark and its top line) and the tray
+receives it too. The page-level rule — no box in the page — is unchanged.
+
+## Live validation
+
+Live validation of an unsaved draft is not a failed operation. It is a
+`StatusMark` on the field, not a tray notice.
 
 ## Consequences
 

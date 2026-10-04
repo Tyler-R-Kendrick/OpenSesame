@@ -1,6 +1,10 @@
 import type { ConfigDiagnostic } from "@opensesame/app-core/lib/configuration/types.js";
-import { FailureNotice } from "../FailureNotice.js";
+import { StatusMark } from "../StatusMark.js";
 
+/**
+ * The draft's own validity is state, not a failure: the field wears a mark and
+ * `aria-invalid`, and nothing is raised in the tray (ADR 0163).
+ */
 export function SourceEditor(props: {
   id: string;
   value: string;
@@ -31,11 +35,7 @@ export function SourceEditor(props: {
           }
         }}
       />
-      <FailureNotice
-        id={`config-source:${props.id}`}
-        title="Configuration"
-        message={error?.message}
-      />
+      {error ? <StatusMark tone="err" label={error.message} /> : null}
     </div>
   );
 }

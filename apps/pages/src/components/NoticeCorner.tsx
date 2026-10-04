@@ -12,6 +12,10 @@ import { NotificationsBar } from "./NotificationsBar.js";
  * screen drawn before unlock still needs somewhere to read it. It appears
  * when the tray holds something and is absent otherwise; the unlocked shell
  * carries its own bell and does not mount this.
+ *
+ * It is a block in the document flow, right-aligned above the screen body —
+ * never an overlay — so it cannot rest on a control such as the front door's
+ * Skip.
  */
 export function NoticeCorner() {
   const notices = useSyncExternalStore(subscribeNotices, listNotices);
