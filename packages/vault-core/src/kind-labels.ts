@@ -1,12 +1,10 @@
-/** Item kind labels: the legacy kinds only, split from the item model. */
-import type { ItemKind } from "./model.js";
-
 /**
  * Labels for the legacy kinds only. Every type's label — these included —
  * comes from its definition through `typeLabel()`; these tables remain as the
- * fallback for a screen holding a legacy kind and nothing else.
+ * fallback for a screen holding a legacy kind and nothing else. Split from the
+ * item model (`model.ts`), which re-exports them.
  */
-export const KIND_LABEL: Readonly<Record<ItemKind, string>> = {
+export const KIND_LABEL = {
   login: "Login",
   passkey: "Passkey",
   card: "Card",
@@ -17,7 +15,7 @@ export const KIND_LABEL: Readonly<Record<ItemKind, string>> = {
   typed: "Item",
 };
 
-export const KIND_PLURAL: Readonly<Record<ItemKind, string>> = {
+export const KIND_PLURAL = {
   login: "Logins",
   passkey: "Passkeys",
   card: "Cards",
