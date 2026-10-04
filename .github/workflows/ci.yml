@@ -219,6 +219,17 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:static
+      - name: Device is the Identity plane with no Identity API
+        # ADR 0160: a guest on the static build, at desktop and phone widths.
+        # The sign-out row appears only once the device has a session, the
+        # status reads "This device", the principal is the vault key's
+        # thumbprint and survives Refresh, no copy names a service that is not
+        # there, and Receipts is drawn only where the device serves an audit
+        # trail.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:device-identity
       - name: Unlock methods and second steps
         # ADR 0091: key first, then scan, then a code; lock → PIN → code.
         env:

@@ -1,3 +1,7 @@
+import {
+  loadSettings,
+  saveSettings,
+} from "@opensesame/app-core/lib/settings.js";
 import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
 import { settingsFields } from "@opensesame/app-core/sections/settings/settings-files.js";
 /** @vitest-environment jsdom */
@@ -136,6 +140,34 @@ describe("GeneralPrefsPanel", () => {
     expect(settingsFields("general").map((field) => field.key)).toContain(
       "signOutOnLock",
     );
+  });
+
+  it("draws it where an Identity service is named, before any session", () => {
+    saveSettings({ ...loadSettings(), identityApi: "https://id.example.test" });
+    try {
+      render(
+        <MemoryRouter>
+          <GeneralPrefsPanel />
+        </MemoryRouter>,
+      );
+      expect(
+        screen.getByRole("switch", {
+          name: "Also sign out of Identity when the vault locks",
+        }),
+      ).toBeTruthy();
+    } finally {
+      saveSettings({ ...loadSettings(), identityApi: "" });
+    }
+  });
+
+  it("draws only the vault's own switch on a device that has not connected", () => {
+    saveSettings({ ...loadSettings(), identityApi: "" });
+    render(
+      <MemoryRouter>
+        <GeneralPrefsPanel />
+      </MemoryRouter>,
+    );
+    expect(screen.queryAllByRole("switch")).toHaveLength(1);
   });
 
   it("draws it, with no caption, once an Identity session is held", async () => {
