@@ -224,3 +224,44 @@ acted on, which is worse than a missing feature.
   dedupe, per-requester and per-approver rate limits, an unrecognized-request
   report that does not itself amplify) bound the first; the explicit per-channel
   opt-in bounds the second.
+
+## Amendment 2026-10-04 — Web Push, wired end to end
+
+Web Push was specified and implemented in the adapter package but never reached
+a person: the worker ran with an empty adapter registry, the adapter's payload
+was not what the service worker reads, a registration could take over another
+principal's endpoint, and on a real Postgres the delivery tick threw. The
+decisions that make it real:
+
+- **The payload is the service worker's closed vocabulary and nothing else.**
+  `{kind, action, ref}`: the notification class, a closed action label and the
+  request's opaque reference. The adapter rebuilds it from validated fields at
+  send time; the title and body live in the page (`apps/pages/src/lib/push.ts`),
+  so nothing a requester wrote can reach a lock screen through this channel. A
+  test reads the worker's tables so a change to either side fails at the commit
+  that makes it.
+- **A live endpoint stays with its owner.** The push endpoint is a capability
+  URL. The upsert applies only to the owner's row (or one the owner already
+  disabled); anyone else gets a conflict (`409 endpoint_already_registered`) and
+  nothing moves. Registration refuses what delivery could never reach (the
+  delivery fence: HTTPS, public host; and keys RFC 8291 can encrypt to), using
+  one definition shared with the adapter.
+- **One configuration, read the same way by the API and the worker.**
+  `OPENSESAME_WEBPUSH_PUBLIC_KEY`, `_PRIVATE_KEY`, `_SUBJECT`. No private key is
+  "no Web Push here" and not an error; a private key that is present must be
+  usable (matching the public key, with a contact) or the process refuses to
+  start. When the API holds all three, `native_push` is offered without being
+  listed in `OPENSESAME_NOTIFICATION_CHANNELS`; otherwise it stays
+  `adapter_unavailable`, which is the truth.
+- **The worker bridges its dispatcher contract to the adapter and retires what
+  is gone.** A 404/410 (or a subscription that can never be delivered to)
+  disables the row; a 401/403 is the operator's identity being refused and
+  retires nothing; any one browser that took the push settles the row, so
+  nothing rings twice.
+- **Raw SQL never binds a `Date`.** postgres-js cannot serialize one inside a
+  drizzle `sql` fragment (PGlite can, which hid it from every in-process suite),
+  so the claim queries threw on every tick. Comparisons go through `lte`/`gt`/
+  `gte` or `sql.param(value, column)`, the repository suites run against a real
+  server as well as PGlite, and CI runs them against one.
+
+Operator guide: [`docs/operators/notification-channels.md`](../operators/notification-channels.md#web-push).

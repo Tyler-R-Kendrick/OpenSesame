@@ -12,6 +12,8 @@ The Host plane's workload connector host is a different thing, served by
 - **Builds on:** [`@opensesame/database`](../../packages/database)
   (repositories, Drizzle, the OIDC store), [`@opensesame/webhooks`](../../packages/webhooks),
   [`@opensesame/claims`](../../packages/claims),
+  [`@opensesame/notification-adapters`](../../packages/notification-adapters)
+  (Web Push delivery),
   [`@opensesame/observability`](../../packages/observability), and the `nats`
   client for JetStream.
 - It refuses to start without `DATABASE_URL`. Claim,
@@ -27,7 +29,10 @@ The Host plane's workload connector host is a different thing, served by
 `consumeRotationEvents` and the `credential.rotation.*` event names;
 `MemoryTaskBus`, `NatsCoreTaskBus`, `createTaskBusFromEnv`. Environment:
 `DATABASE_URL` (required), `OPENSESAME_WORKER_INTERVAL_MS` (default `5000`),
-`OPENSESAME_TASKBUS`, `NATS_URL`.
+`OPENSESAME_TASKBUS`, `NATS_URL`; Web Push (`OPENSESAME_WEBPUSH_PUBLIC_KEY`,
+`_PRIVATE_KEY`, `_SUBJECT`: none without a private key, refuse to start with an
+unusable one; see
+[operators: notification channels](../../docs/operators/notification-channels.md#web-push)).
 
 ## Develop
 
@@ -36,6 +41,7 @@ pnpm --filter @opensesame/identity-worker dev          # tsx watch src/main.ts
 pnpm --filter @opensesame/identity-worker start
 pnpm --filter @opensesame/identity-worker typecheck
 pnpm --filter @opensesame/identity-worker test         # vitest, src/**/*.test.ts
+DATABASE_URL=postgres://… pnpm --filter @opensesame/identity-worker test:postgres  # Web Push tick on a real Postgres
 pnpm test:nats-dogfood                        # real nats-server
 ```
 
