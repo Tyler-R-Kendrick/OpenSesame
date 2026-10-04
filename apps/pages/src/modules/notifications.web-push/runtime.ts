@@ -26,7 +26,10 @@
 import { capabilityArtifacts } from "@opensesame/app-core/host.js";
 import { WEB_PUSH_ENROLMENT_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-services.js";
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
-import { scriptUrlFor } from "@opensesame/app-core/lib/capabilities/worker/seams.js";
+import {
+  sameScript,
+  scriptUrlFor,
+} from "@opensesame/app-core/lib/capabilities/worker/seams.js";
 import { identityBase } from "@opensesame/app-core/lib/identity.js";
 import {
   PUSH_PENDING_FORGET_KEY,
@@ -76,7 +79,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       });
     if (script !== null)
       pushSeams.workerIsPush = (registration) =>
-        registration.active?.scriptURL === script;
+        sameScript(registration.active?.scriptURL ?? null, script);
     activation.onDispose(() => {
       // Not the raw fetch: a request still in flight when the capability goes
       // has no road out, and is refused like any unapproved capability's.

@@ -48,7 +48,12 @@ import {
   onWorkerMessage,
   syncPlan,
 } from "./worker/plan-sync.js";
-import { scriptUrlFor, workerControllerSeams } from "./worker/seams.js";
+import {
+  sameScript,
+  scriptUrlAttempt,
+  scriptUrlFor,
+  workerControllerSeams,
+} from "./worker/seams.js";
 import {
   diagnose,
   publish,
@@ -84,8 +89,8 @@ export type {
 /** Which variant a registered script is, by the distribution's table. */
 function variantOfScript(scriptUrl: string | null): string | null {
   if (scriptUrl === null) return null;
-  const variant = state.distribution?.workerVariants.find(
-    (v) => scriptUrlFor(v.scriptPath) === scriptUrl,
+  const variant = state.distribution?.workerVariants.find((v) =>
+    sameScript(scriptUrlFor(v.scriptPath), scriptUrl),
   );
   return variant?.id ?? null;
 }
@@ -199,6 +204,12 @@ async function enterTransition(
   await transitionWorker();
 }
 
+/** Ask for the same script again under a fresh URL (`worker/activation.ts`). */
+function askAgain(container: ServiceWorkerContainer, scriptUrl: string) {
+  return (attempt: number) =>
+    register(container, scriptUrlAttempt(scriptUrl, attempt));
+}
+
 /** The first registration of this page, and the worker it becomes. */
 async function ensureRegistered(
   container: ServiceWorkerContainer,
@@ -212,7 +223,11 @@ async function ensureRegistered(
   const registration = await register(container, requiredUrl);
   if (!registration) return;
   publish({ pendingVariant: requiredId });
-  const active = await becomesActive(registration, requiredUrl);
+  const active = await becomesActive(
+    registration,
+    requiredUrl,
+    askAgain(container, requiredUrl),
+  );
   publish({ pendingVariant: null, variant: active ? requiredId : null });
   if (!active) diagnose("WORKER_INSTALL_FAILED");
 }
@@ -245,7 +260,7 @@ async function reconcile(
   const requiredUrl = scriptUrlFor(variant.scriptPath);
   const registration = await currentRegistration(container);
   const current = newestScript(registration);
-  if (registration && current && current !== requiredUrl) {
+  if (registration && current && !sameScript(current, requiredUrl)) {
     await enterTransition(registration, current, requiredId, requiredUrl);
     return;
   }
@@ -331,7 +346,11 @@ export async function transitionWorker(): Promise<boolean> {
   const registration = await register(container, pending.scriptUrl);
   const active =
     registration !== null &&
-    (await becomesActive(registration, pending.scriptUrl));
+    (await becomesActive(
+      registration,
+      pending.scriptUrl,
+      askAgain(container, pending.scriptUrl),
+    ));
   if (!registration || !active) {
     // The worker the person has stays in charge; the next plan change tries
     // again. Nothing that depended on the new one happens.

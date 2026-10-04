@@ -1485,7 +1485,7 @@
     },
     {
       "id": "PWA-06",
-      "statement": "A variant change is reported as transition-required and then made in place: the required script is registered over the scope that holds the other one (never unregistered, never a second scope) once the variant is eligible. The status reports the active variant and the installing one only as pending; a replacement that turns redundant or never activates leaves the worker in charge and nothing that depended on it happens. A page reloads on a change of controller only for a different release, never for another variant of the one it runs, in the tab that made the change or any other.",
+      "statement": "A variant change is reported as transition-required and then made in place: the required script is registered over the scope that holds the other one (never unregistered, never a second scope) once the variant is eligible. The status reports the active variant and the installing one only as pending; a replacement that turns redundant or never activates leaves the worker in charge and nothing that depended on it happens. A replacement the browser leaves waiting (another tab restarted the old worker, so it never activates) is asked for again under a new query on the same script, until one activates or the bound is reached; the query never changes which variant a script is. A page reloads on a change of controller only for a different release, never for another variant of the one it runs, in the tab that made the change or any other.",
       "status": "covered",
       "tests": [
         {
@@ -1503,6 +1503,18 @@
         {
           "file": "packages/app-core/src/lib/capabilities/worker-controller-transition.test.ts",
           "name": "a replacement that does not take the scope leaves the worker in charge, and says so, when the install turns redundant",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "packages/app-core/src/lib/capabilities/worker-controller-transition.test.ts",
+          "name": "a replacement the browser leaves waiting (another tab restarted the old worker) is asked for again under a fresh URL, and then holds the scope",
+          "observed": "run-passed",
+          "run": "run-pages-capabilities"
+        },
+        {
+          "file": "packages/app-core/src/lib/capabilities/worker-controller-transition.test.ts",
+          "name": "a replacement the browser leaves waiting (another tab restarted the old worker) counts a script asked for again as the same variant, and registers nothing at the next boot",
           "observed": "run-passed",
           "run": "run-pages-capabilities"
         },

@@ -88,6 +88,12 @@ export type PendingTransition = Readonly<{
 
 /** How long a replacement worker may take to activate before it is given up on. */
 export const ACTIVATION_WAIT_MS = 60_000;
+/**
+ * How long an installed replacement may sit waiting before it is asked for
+ * again. Activation normally follows install within a second or two; a worker
+ * still waiting after this is wedged (see `worker/activation.ts`).
+ */
+export const WAITING_NUDGE_MS = 5_000;
 /** How long a page waits for the worker that took it to say which release it is. */
 export const TAKEOVER_WAIT_MS = 2_000;
 

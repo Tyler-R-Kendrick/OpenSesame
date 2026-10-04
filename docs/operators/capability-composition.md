@@ -441,11 +441,17 @@ Consequences an operator should expect:
     turns redundant or does not activate within a minute leaves the worker in
     charge, sets the diagnostic `WORKER_INSTALL_FAILED`, and nothing that
     depended on it happens; the next plan change tries again. Chrome activates
-    an installed worker once the old one is idle. With a second tab open it has
-    been seen to leave the new worker waiting (about one run in six of
-    `verify:push-worker`, which nudges it through CDP and prints that it did):
-    the status then reads `pendingVariant` until the browser activates it, which
-    a navigation or a closed tab brings about.
+    an installed worker once the old one is idle, and with a second tab open it
+    can fail to: the old worker, being stopped, is started again by a request
+    from the other tab's page, and the new one stays `installed` for good
+    (about one run in eight, measured; no `skipWaiting` ordering, `update()` or
+    re-registering the same script URL cures it). The controller therefore
+    waits five seconds, and if the replacement is still waiting it registers the
+    same script again under a new query (`sw-push.js?r=1`, then `r=2`): a new
+    version, which Chrome activates through the ordinary path (0 stuck in 60
+    lab runs). Every comparison of "is this the required worker" ignores the
+    query. Redundant, or still not active after a minute, is `WORKER_INSTALL_FAILED`
+    as before; `verify:push-worker` runs with two tabs and no nudge.
   - **Reloads.** A page reloads on a change of controller only for a different
     *release*. It learns the release it runs from its first controller, and asks
     the worker that takes over which release it is; the same release means the

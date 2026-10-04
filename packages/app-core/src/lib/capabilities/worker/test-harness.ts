@@ -203,6 +203,14 @@ export class FakeContainer {
   claimOnRegister = false;
   /** What a script registered over the scope does. */
   installOutcome: InstallOutcome = "activate";
+  /**
+   * How many registrations install and then sit `installed` for ever, as
+   * Chrome leaves a replacement when another tab restarts the old worker as
+   * it is being stopped. The next registration, under a new URL, activates.
+   */
+  wedges = 0;
+  /** The wedged worker, if one sits waiting. */
+  waitingWorker: FakeWorker | null = null;
   /** The worker of the last `register`, for a test that makes it move on. */
   lastInstalling: FakeWorker | null = null;
   activeScript: string | null;
@@ -241,7 +249,7 @@ export class FakeContainer {
       installing: this.installingScript
         ? (this.lastInstalling ?? new FakeWorker(this.installingScript))
         : null,
-      waiting: null,
+      waiting: this.waitingWorker,
       pushManager: {
         getSubscription: async () =>
           this.holdsPushSubscription
@@ -267,6 +275,18 @@ export class FakeContainer {
     if (this.registerFails) throw new TypeError("script fetch failed");
     const worker = new FakeWorker(url);
     this.lastInstalling = worker;
+    if (this.wedges > 0) {
+      this.wedges -= 1;
+      this.waitingWorker?.set("redundant");
+      worker.state = "installed";
+      this.waitingWorker = worker;
+      return { ...this.view(), installing: null };
+    }
+    if (this.waitingWorker) {
+      // A new version replaces the one waiting.
+      this.waitingWorker.set("redundant");
+      this.waitingWorker = null;
+    }
     if (this.installOutcome === "activate") {
       this.activeScript = url;
       worker.state = "activated";
@@ -334,17 +354,17 @@ type HarnessEnv = {
   reloads: number;
   isolated: boolean;
   timers: { run: () => void; ms: number; live: boolean }[];
-  /** Run every timer still waiting, as if its time had come. */
-  elapse: () => void;
+  /** Run every timer of at most `upToMs` still waiting, as if its time had come. */
+  elapse: (upToMs?: number) => void;
 };
 
 export const env: HarnessEnv = {
   reloads: 0,
   isolated: false,
   timers: [],
-  elapse() {
+  elapse(upToMs = Number.POSITIVE_INFINITY) {
     for (const timer of [...env.timers]) {
-      if (!timer.live) continue;
+      if (!timer.live || timer.ms > upToMs) continue;
       timer.live = false;
       timer.run();
     }

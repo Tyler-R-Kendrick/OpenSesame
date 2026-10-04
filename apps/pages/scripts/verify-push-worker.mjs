@@ -51,6 +51,16 @@ const TITLE = "Push notifications";
 const REF = "rv_Ab12-Cd34";
 const REF_AFTER = "rv_After-0001";
 
+/**
+ * The same worker script: origin and path. A replacement the controller had to
+ * ask for again carries `?r=<n>` in its URL and is still the variant's script.
+ */
+const same = (a, b) =>
+  a !== null &&
+  b !== null &&
+  new URL(a).origin === new URL(b).origin &&
+  new URL(a).pathname === new URL(b).pathname;
+
 const failures = [];
 const check = (condition, what) => {
   console.log(condition ? "PASS" : "FAIL", what);
@@ -121,35 +131,13 @@ try {
     });
   };
 
-  /**
-   * Wait for `script` to hold this scope for the page. A worker that has
-   * installed and asked to skip waiting is activated by the browser once the
-   * old worker is idle, and with a second tab fetching at that moment Chrome
-   * sometimes does not try again. That is the browser's to finish, not the
-   * page's, so after a few seconds waiting it is nudged through CDP — the
-   * same `skipWaiting` the worker already called — and the nudge is printed,
-   * never hidden.
-   */
-  const untilHeld = async (script, what) => {
-    const stop = Date.now() + 60_000;
-    let waitingSince = null;
-    let last;
-    while (Date.now() < stop) {
-      last = await scriptsFrom(page, base);
-      if (last.active === script && last.controller === script) return last;
-      waitingSince =
-        last.waiting === script ? (waitingSince ?? Date.now()) : null;
-      if (waitingSince !== null && Date.now() - waitingSince > 8_000) {
-        console.log(
-          `WARN ${script.split("/").pop()} sat waiting: nudged via CDP`,
-        );
-        await cdp.send("ServiceWorker.skipWaiting", { scopeURL: scope });
-        waitingSince = Date.now();
-      }
-      await new Promise((resolve) => setTimeout(resolve, 150));
-    }
-    throw new Error(`${what}: ${JSON.stringify(last)}`);
-  };
+  /** Wait for `script` to hold this scope for the page, with no help. */
+  const untilHeld = (script, what) =>
+    until(
+      () => scriptsFrom(page, base),
+      (s) => same(s.active, script) && same(s.controller, script),
+      what,
+    );
 
   /**
    * Deliver until `ok` holds of what the registration shows, as a push service
@@ -181,7 +169,7 @@ try {
   const core = `${scope}sw.js`;
   await until(
     () => scriptsFrom(page, base),
-    (s) => s.active === core && s.controller === core,
+    (s) => same(s.active, core) && same(s.controller, core),
     "the core worker should be active and controlling after first load",
   );
   await doorGuest(page).waitFor({ timeout: 20_000 });
@@ -192,7 +180,7 @@ try {
   const documentBefore = await documentOrigin();
   let state = await scriptsFrom(page, base);
   check(
-    state.active === core,
+    same(state.active, core),
     "before approval the scope runs the core worker",
   );
 
@@ -203,7 +191,7 @@ try {
   await other.goto(scope);
   await until(
     () => scriptsFrom(other, base),
-    (s) => s.controller === core,
+    (s) => same(s.controller, core),
     "the second tab should be controlled by the core worker",
   );
   await other.getByRole("button", { name: "Continue as guest" }).click();
@@ -250,11 +238,11 @@ try {
   );
   const otherState = await until(
     () => scriptsFrom(other, base),
-    (s) => s.controller === `${scope}sw-push.js`,
+    (s) => same(s.controller, `${scope}sw-push.js`),
     "the second tab should be handed to the push worker too",
   );
   check(
-    otherState.controller === `${scope}sw-push.js`,
+    same(otherState.controller, `${scope}sw-push.js`),
     "the second tab is controlled by the push worker",
   );
   // Give a wrongly scheduled reload time to happen before asserting it did not.
@@ -313,8 +301,8 @@ try {
   state = await until(
     () => scriptsFrom(page, base),
     (s) =>
-      s.active === `${scope}sw-push.js` &&
-      s.controller === `${scope}sw-push.js`,
+      same(s.active, `${scope}sw-push.js`) &&
+      same(s.controller, `${scope}sw-push.js`),
     "after a reload the push worker should still hold the scope",
   );
   check(
@@ -363,7 +351,7 @@ try {
   );
   await other.waitForTimeout(3000);
   check(
-    (await scriptsFrom(other, base)).controller === core &&
+    same((await scriptsFrom(other, base)).controller, core) &&
       (await other.evaluate(() => performance.timeOrigin)) === otherAtRevert &&
       (await other
         .getByRole("button", { name: "Lock vault" })

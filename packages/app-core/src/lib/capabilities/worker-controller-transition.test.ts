@@ -213,6 +213,88 @@ describe("a replacement that does not take the scope", () => {
   });
 });
 
+/** Let the controller reach its next wait, then let the nudge interval pass. */
+async function pump(rounds: number): Promise<void> {
+  for (let i = 0; i < rounds; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    env.elapse(5_000);
+  }
+}
+
+describe("a replacement the browser leaves waiting (another tab restarted the old worker)", () => {
+  it("is asked for again under a fresh URL, and then holds the scope", async () => {
+    const container = new FakeContainer(CORE_URL);
+    container.wedges = 1;
+    const store = new FakeStore(approved());
+    const { settled } = arm(container, store);
+    const done = settled();
+    await pump(3);
+    await done;
+    expect(container.registered.map((r) => r.url)).toEqual([
+      PUSH_URL,
+      `${PUSH_URL}?r=1`,
+    ]);
+    expect(container.unregistered).toEqual([]);
+    expect(workerStatus().variant).toBe("push");
+    expect(workerStatus().pendingVariant).toBe(null);
+    expect(workerStatus().diagnostics).not.toContain("WORKER_INSTALL_FAILED");
+  });
+
+  it("keeps asking, a new URL each time, until one activates", async () => {
+    const container = new FakeContainer(CORE_URL);
+    container.wedges = 3;
+    const store = new FakeStore(approved());
+    const { settled } = arm(container, store);
+    const done = settled();
+    await pump(8);
+    await done;
+    expect(container.registered.map((r) => r.url)).toEqual([
+      PUSH_URL,
+      `${PUSH_URL}?r=1`,
+      `${PUSH_URL}?r=2`,
+      `${PUSH_URL}?r=3`,
+    ]);
+    expect(workerStatus().variant).toBe("push");
+  });
+
+  it("does not ask again while the worker is merely slow to install", async () => {
+    const container = new FakeContainer(CORE_URL);
+    container.installOutcome = "hang";
+    const store = new FakeStore(approved());
+    const { settled } = arm(container, store);
+    const done = settled();
+    await pump(3);
+    expect(container.registered).toHaveLength(1);
+    container.finishInstall("activate");
+    await done;
+    expect(workerStatus().variant).toBe("push");
+  });
+
+  it("gives up at the bound, leaving the worker in charge, if it never activates", async () => {
+    const container = new FakeContainer(CORE_URL);
+    container.wedges = 1000;
+    const store = new FakeStore(approved());
+    const { settled } = arm(container, store);
+    const done = settled();
+    await pump(4);
+    env.elapse();
+    await pump(2);
+    await done;
+    expect(container.activeScript).toBe(CORE_URL);
+    expect(workerStatus().variant).toBe("core-only");
+    expect(workerStatus().diagnostics).toContain("WORKER_INSTALL_FAILED");
+  });
+
+  it("counts a script asked for again as the same variant, and registers nothing at the next boot", async () => {
+    const container = new FakeContainer(`${PUSH_URL}?r=2`);
+    const store = new FakeStore(approved());
+    const { settled } = arm(container, store);
+    await settled();
+    expect(container.registered).toEqual([]);
+    expect(workerStatus().variant).toBe("push");
+  });
+});
+
 describe("taking Push notifications away", () => {
   it("reverts to the core worker, never unregistering, drops the subscription the push worker held and retires its id", async () => {
     kvSet(PUSH_SUBSCRIPTION_KEY, "push_1");

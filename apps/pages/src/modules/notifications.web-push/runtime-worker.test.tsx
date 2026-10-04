@@ -44,6 +44,8 @@ describe("notifications.web-push knows which worker can ring the doorbell", () =
     const handle = await capabilityRuntime.activate(createTestContext().ctx);
     expect(pushSeams.workerIsPush(running(PUSH_URL))).toBe(true);
     expect(pushSeams.workerIsPush(running(CORE_URL))).toBe(false);
+    // The script asked for again under a fresh URL is still the push worker.
+    expect(pushSeams.workerIsPush(running(`${PUSH_URL}?r=2`))).toBe(true);
     await handle.dispose();
     expect(pushSeams.workerIsPush).toBe(original.workerIsPush);
   });

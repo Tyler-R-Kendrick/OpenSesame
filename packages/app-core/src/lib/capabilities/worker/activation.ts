@@ -7,10 +7,24 @@
  * worker `redundant` and the old one in charge. The controller reports a
  * variant as running, and does what depends on it (dropping the subscription
  * the old worker held), only once this says the new one is.
+ *
+ * Activation can also wedge. A replacement that has installed and called
+ * `skipWaiting()` is activated by the browser after it stops the old worker;
+ * if a fetch from another tab this worker controls restarts the old worker in
+ * that instant, Chrome never completes the activation and the replacement
+ * stays `installed` for as long as that tab lives — not for want of
+ * `skipWaiting` (it is called at the top of the script and again in install
+ * with no difference), and not cured by waiting, by a repeated `skipWaiting`,
+ * by `update()`, or by registering the same URL again. It reproduces in a
+ * bare page with two workers about one run in ten. What does cure it is a
+ * *new version*: asking for the script again under a fresh URL (`?r=1`)
+ * replaces the waiting one and runs the activation again, which succeeds
+ * almost every time and, repeated, always. So a worker still waiting after
+ * `WAITING_NUDGE_MS` is asked for again, and again, until the bound.
  */
 
-import { workerControllerSeams } from "./seams.js";
-import { ACTIVATION_WAIT_MS } from "./types.js";
+import { sameScript, workerControllerSeams } from "./seams.js";
+import { ACTIVATION_WAIT_MS, WAITING_NUDGE_MS } from "./types.js";
 
 function workerAt(
   registration: ServiceWorkerRegistration,
@@ -21,40 +35,72 @@ function workerAt(
     registration.waiting,
     registration.active,
   ]) {
-    if (worker?.scriptURL === scriptUrl) return worker;
+    if (worker && sameScript(worker.scriptURL, scriptUrl)) return worker;
   }
   return null;
 }
 
+type Outcome = "activated" | "redundant" | "elapsed";
+
+/** One worker, watched until it settles or `ms` pass. */
+function watch(worker: ServiceWorker, ms: number): Promise<Outcome> {
+  return new Promise((resolve) => {
+    let cancel = () => {};
+    const finish = (outcome: Outcome) => {
+      cancel();
+      worker.removeEventListener("statechange", check);
+      resolve(outcome);
+    };
+    const check = () => {
+      if (worker.state === "activated") finish("activated");
+      else if (worker.state === "redundant") finish("redundant");
+    };
+    worker.addEventListener("statechange", check);
+    cancel = workerControllerSeams.later(() => finish("elapsed"), ms);
+    check();
+  });
+}
+
+/** Asks for the script again, as attempt number `attempt`. */
+export type Reregister = (
+  attempt: number,
+) => Promise<ServiceWorkerRegistration | null>;
+
 /**
  * Whether the worker at `scriptUrl` activates: `true` once it is activated,
  * `false` when it turns redundant, was never there, or does not settle within
- * the bound.
+ * the bound. A worker that sits installed is asked for again through
+ * `reregister`.
  */
-export function becomesActive(
+export async function becomesActive(
   registration: ServiceWorkerRegistration,
   scriptUrl: string,
+  reregister: Reregister,
 ): Promise<boolean> {
-  return new Promise((resolve) => {
-    const worker = workerAt(registration, scriptUrl);
-    if (!worker) return resolve(false);
-    let cancel = () => {};
-    const finish = (activated: boolean) => {
-      cancel();
-      worker.removeEventListener("statechange", check);
-      resolve(activated);
-    };
-    const check = () => {
-      if (worker.state === "activated") finish(true);
-      else if (worker.state === "redundant") finish(false);
-    };
-    worker.addEventListener("statechange", check);
-    cancel = workerControllerSeams.later(
-      () => finish(false),
-      ACTIVATION_WAIT_MS,
-    );
-    check();
-  });
+  let overdue = false;
+  const cancel = workerControllerSeams.later(() => {
+    overdue = true;
+  }, ACTIVATION_WAIT_MS);
+  try {
+    let current = registration;
+    let attempt = 0;
+    for (;;) {
+      const worker = workerAt(current, scriptUrl);
+      if (!worker) return false;
+      const outcome = await watch(worker, WAITING_NUDGE_MS);
+      if (outcome === "activated") return true;
+      if (outcome === "redundant" || overdue) return false;
+      // Only a worker that has installed and is waiting is wedged; one still
+      // downloading or installing is slow, and is left alone.
+      if (worker.state !== "installed") continue;
+      attempt += 1;
+      const again = await reregister(attempt);
+      if (!again) return false;
+      current = again;
+    }
+  } finally {
+    cancel();
+  }
 }
 
 /** The variant-bearing script URL of the worker that is active, or null. */
