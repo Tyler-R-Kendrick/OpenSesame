@@ -22,12 +22,20 @@ function sources(): ReadonlyArray<{ name: string; text: string }> {
       name: `ui/${name}`,
       text: readFileSync(join(here, name), "utf8"),
     }));
+  const coach = readdirSync(join(here, "..", "coach"))
+    .filter((name) => name.endsWith(".ts") || name.endsWith(".tsx"))
+    .filter((name) => !name.endsWith(".test.ts") && !name.endsWith(".test.tsx"))
+    .map((name) => ({
+      name: `coach/${name}`,
+      text: readFileSync(join(here, "..", "coach", name), "utf8"),
+    }));
   return [
     ...files,
-    {
-      name: "session.ts",
-      text: readFileSync(join(here, "..", "session.ts"), "utf8"),
-    },
+    ...coach,
+    ...["session.ts", "engine.ts", "tour-runner.ts"].map((name) => ({
+      name,
+      text: readFileSync(join(here, "..", name), "utf8"),
+    })),
   ];
 }
 
@@ -37,6 +45,8 @@ describe("support surface hygiene", () => {
     expect(names).toContain("session.ts");
     expect(names).toContain("ui/SupportPanel.tsx");
     expect(names).toContain("ui/SupportLauncher.tsx");
+    expect(names).toContain("coach/CoachHud.tsx");
+    expect(names).toContain("engine.ts");
   });
 
   it("writes model text to the document only as text", () => {

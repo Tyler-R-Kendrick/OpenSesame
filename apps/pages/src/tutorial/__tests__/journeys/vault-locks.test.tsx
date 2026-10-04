@@ -15,12 +15,14 @@ import { createFakeSupportAgent } from "@opensesame/support-agent";
 import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  TOURING,
   askSupport,
   lockTheVault,
   openSupport,
   renderJourney,
   reopenSupport,
   resetJourney,
+  tutorialCard,
 } from "./harness.jsx";
 
 const ANSWER = "Connections is where a provider connection is added.";
@@ -62,14 +64,13 @@ describe("locking while support is busy", { timeout: 30_000 }, () => {
 
     await openSupport(user);
     await askSupport(user, "How do I add a connection?");
+    await tutorialCard();
     await waitFor(() => expect(journey.focused()).toEqual(["nav.connections"]));
 
-    // A walkthrough waiting on the person, and a second question still in
+    // A tutorial waiting on the person, and a second question still in
     // flight behind it.
     const panel = await reopenSupport(user);
-    expect(
-      within(panel).getByRole("region", { name: "Walkthrough in progress" }),
-    ).toBeTruthy();
+    expect(await tutorialCard()).toBeTruthy();
     await askSupport(user, "And how do I revoke one afterwards?");
     expect(
       await within(panel).findByRole(
@@ -88,7 +89,7 @@ describe("locking while support is busy", { timeout: 30_000 }, () => {
     // The provider session that saw the transcript went with it.
     expect(journey.agentDestroyed()).toBe(true);
     // One highlight was ever drawn, and the overlays came down with the keys.
-    expect(journey.drawn().filter((call) => call.kind !== "clear")).toEqual([
+    expect(journey.drawn().filter((call) => call.kind === "focus")).toEqual([
       {
         kind: "focus",
         target: "nav.connections",
@@ -104,11 +105,9 @@ describe("locking while support is busy", { timeout: 30_000 }, () => {
     });
     expect(journey.targetsCleared()).toBeGreaterThan(0);
     // The statusline stops advertising a walkthrough, because there is none.
-    expect(
-      screen.queryByRole("button", {
-        name: "Support — walkthrough in progress",
-      }),
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: TOURING })).toBeNull();
+    // And the tutorial's card went with it.
+    expect(screen.queryByRole("dialog", { name: /^Tutorial:/ })).toBeNull();
 
     const drawnAtLock = journey.drawn().length;
     await letTheLateAnswerLand();

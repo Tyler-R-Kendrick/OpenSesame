@@ -1,16 +1,16 @@
 /**
  * `support.guided-help` — the support panel, the authored help topics and
- * the Driver.js guides that *point* at authored targets and never act
- * (ADR 0088): the shell wrapper that mounts the panel, and the two guidance
+ * the tutorials that *point* at authored targets and never act (ADR 0088,
+ * ADR 0163): the shell wrapper that mounts the panel, and the two guidance
  * tools (`opensesame_help`, `opensesame_guide_start`) that let an in-browser
  * agent open help or start an authored walkthrough by id.
  *
- * `driver.js`, `@opensesame/guide-lang`, `@opensesame/guide-runtime` and
+ * `@opensesame/guide-lang`, `@opensesame/guide-runtime` and
  * `@opensesame/support-agent` are exclusive to this capability, and inside
- * it they are reached only through `import()` — the panel is `lazy`
- * (`tutorial/ui/SupportLauncher.tsx`) and the engine is assembled in
- * `loadBrowserEngine` (`tutorial/session.ts`) on first open. Activating the
- * capability therefore costs one button; the renderer and the parser arrive
+ * it they are reached only through `import()` — the panel and the tutorial
+ * card are `lazy` (`tutorial/ui/SupportLauncher.tsx`) and the engine is
+ * assembled in `loadBrowserEngine` (`tutorial/engine.ts`) on first open. Activating the
+ * capability therefore costs one button; the card and the parser arrive
  * when somebody asks a question.
  *
  * The model's reach is unchanged by this wrapping: it may emit GuideLang and

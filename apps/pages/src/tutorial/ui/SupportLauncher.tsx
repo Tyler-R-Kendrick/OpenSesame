@@ -22,6 +22,30 @@ const SupportPanel = lazy(() =>
   })),
 );
 
+/** Tutorial mode: only fetched once a tour has a step to draw. */
+const CoachHud = lazy(() =>
+  import("../coach/CoachHud.js").then((module) => ({
+    default: module.CoachHud,
+  })),
+);
+
+const LIVE_STATUSES: ReadonlySet<string> = new Set([
+  "running",
+  "waiting",
+  "paused",
+]);
+
+function markClass(chrome: boolean, guiding: boolean, open: boolean): string {
+  return [
+    "support-launch",
+    chrome ? "support-launch--chrome icon-btn" : "",
+    guiding ? "support-launch--live" : "",
+    open ? "support-launch--open" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 /**
  * The question mark. On an unlocked shell it sits in the statusline beside
  * CommandBar. Unlock/setup have no statusline, so it falls back to a corner.
@@ -31,17 +55,15 @@ export function SupportLauncher(): ReactElement {
   const slot = useSupportMarkSlot();
   const ref = useGuideTarget<HTMLButtonElement>("shell.support");
   const chrome = slot !== null;
-  const guiding =
-    view.guide?.status === "running" ||
-    view.guide?.status === "waiting" ||
-    view.guide?.status === "paused";
-  const label = guiding ? "Support — walkthrough in progress" : "Support";
+  const guiding = LIVE_STATUSES.has(view.guide?.status ?? "");
+  const touring = view.guide?.tour != null;
+  const label = guiding ? "Support — tutorial in progress" : "Support";
 
   const mark = (
     <button
       ref={ref}
       type="button"
-      className={`support-launch${chrome ? " support-launch--chrome icon-btn" : ""}${guiding ? " support-launch--live" : ""}${view.open ? " support-launch--open" : ""}`}
+      className={markClass(chrome, guiding, view.open)}
       aria-label={label}
       title={label}
       aria-haspopup="dialog"
@@ -56,6 +78,11 @@ export function SupportLauncher(): ReactElement {
   return (
     <>
       {slot ? createPortal(mark, slot) : mark}
+      {touring ? (
+        <Suspense fallback={null}>
+          <CoachHud />
+        </Suspense>
+      ) : null}
       {view.open ? (
         <Suspense
           fallback={

@@ -266,27 +266,105 @@
 
 /* ——— A walkthrough in flight ——————————————————————————————— */
 
-.support__guide {
-  display: grid;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  border: 1px solid var(--accent-line);
-  background: var(--accent-wash);
+/* ——— Ask / Tutorials ————————————————————————————————————————
+   The flat underline strip every tabbed screen draws (DESIGN.md § One tab
+   strip), at the sheet's own width. */
+
+.support__tabs {
+  display: flex;
+  gap: 1.1rem;
+  border-bottom: 1px solid var(--line);
 }
 
-.support__guide-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.6rem;
+.support__tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.3rem 0 0.55rem;
+  margin-bottom: -1px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.support__tab:hover {
+  color: var(--ink);
+}
+
+.support__tab.is-active {
+  border-bottom-color: var(--ink);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.support__ask {
+  display: grid;
+  gap: 1.15rem;
+}
+
+/* ——— The tutorial library ————————————————————————————————————— */
+
+.support__library {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.support__group {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.support__tutorials {
+  display: grid;
+  gap: 0.35rem;
   margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.support__tutorial {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8438rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+.support__tutorial:hover {
+  background: var(--surface-2);
+  border-color: var(--line-strong);
+}
+
+.support__tutorial-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.support__tutorial-steps {
+  flex: none;
   font-family: var(--mono);
   font-size: 0.75rem;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
 }
 
-.support__guide-step {
-  color: var(--ink-2);
-  font-variant-numeric: tabular-nums;
+.support__tutorial > svg {
+  flex: none;
+  color: var(--accent);
 }
 
 /* ——— The written help, which needs no model ————————————————— */
@@ -391,8 +469,12 @@
 
   /* On a device with no on-device model the written topics are the entire
      support offering — every one of them has to be a key. */
-  .support__topic-open {
+  .support__topic-open,
+  .support__tutorial,
+  .support__tab {
     min-height: 2.75rem;
+    min-width: 2.75rem;
+    justify-content: center;
   }
 
   /* The composer is docked at the foot of a bottom sheet, so it owes the

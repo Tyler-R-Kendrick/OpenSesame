@@ -1,17 +1,11 @@
 /**
  * The substrate the accessibility suites in this directory drive.
  *
- * It differs from `ui/support.test.tsx` in one deliberate way: the guide
- * renderer here is the *real* Driver.js adapter over a stand-in for Driver
- * itself, rather than the recording renderer. Accessibility questions about a
- * walkthrough — who holds the caret, whether a callout is a dialog, whether
- * anything animates — are questions about what the adapter puts in the
- * document, and a renderer that only records calls cannot answer them.
- *
- * The stand-in reproduces the two Driver behaviours that matter: both popover
- * slots are written as `innerHTML` before the render hook runs, and Driver
- * moves focus into its own popover. A fake that did neither would let the
- * panel pass on a page the real library would break.
+ * It differs from `ui/support.test.tsx` in one deliberate way: the tutorial
+ * card is drawn for real, over real target elements bound in the registry.
+ * Accessibility questions about a tutorial — who holds the caret, what the
+ * card is called, whether anything animates — are questions about what is in
+ * the document, and a renderer that only records calls cannot answer them.
  */
 import {
   GUIDE_GOALS,
@@ -28,7 +22,7 @@ import {
   mountGuideTarget,
   resolveGuideTargetElement,
 } from "@opensesame/app-core/tutorial/registry/targets.js";
-import { compileGuide } from "@opensesame/guide-lang";
+import { AUTHORED_GUIDE_LIMITS, compileGuide } from "@opensesame/guide-lang";
 import type { GuideTargetId } from "@opensesame/guide-lang";
 import {
   createFakeRoutes,
@@ -45,131 +39,13 @@ import {
 import { cleanup, render, screen, within } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import type {
-  GuideDriverConfig,
-  GuideDriverFactory,
-  GuideDriverStep,
-  GuideHintSpec,
-  GuideHintsConfig,
-  GuideHintsFactory,
-} from "../../rendering/driver-renderer.js";
-import { createDriverRenderer } from "../../rendering/driver-renderer.js";
+import { createScrollRenderer } from "../../coach/scroll-renderer.js";
 import type { SupportEngine, SupportTransport } from "../../session.js";
 import { SupportProvider, supportSessionSeams } from "../../session.js";
+import { tourRunner } from "../../tour-runner.js";
 import { SupportLauncher } from "../../ui/SupportLauncher.js";
 
 export type TestUser = ReturnType<typeof userEvent.setup>;
-
-/* ---------- the Driver.js stand-in ---------- */
-
-export type DriverRecord = {
-  readonly config: GuideDriverConfig;
-  readonly steps: readonly GuideDriverStep[];
-  readonly popovers: readonly HTMLElement[];
-};
-
-export type DriverProbe = {
-  readonly factory: GuideDriverFactory;
-  records(): readonly DriverRecord[];
-  /** Every popover still attached to the document. */
-  popovers(): readonly HTMLElement[];
-};
-
-function createDriverProbe(): DriverProbe {
-  const records: DriverRecord[] = [];
-  const factory: GuideDriverFactory = (config) => {
-    const steps: GuideDriverStep[] = [];
-    const popovers: HTMLElement[] = [];
-    records.push({ config, steps, popovers });
-    return {
-      highlight: (step) => {
-        steps.push(step);
-        const wrapper = document.createElement("div");
-        wrapper.className = `driver-popover ${step.popover.popoverClass}`;
-        wrapper.setAttribute("role", "dialog");
-        wrapper.setAttribute("aria-labelledby", "driver-popover-title");
-        const title = document.createElement("header");
-        title.className = "driver-popover-title";
-        const description = document.createElement("div");
-        description.className = "driver-popover-description";
-        const dismiss = document.createElement("button");
-        dismiss.type = "button";
-        dismiss.className = "driver-popover-close-btn";
-        dismiss.textContent = "×";
-        wrapper.append(title, description, dismiss);
-        document.body.appendChild(wrapper);
-        title.innerHTML = step.popover.description;
-        description.innerHTML = step.popover.description;
-        step.popover.onPopoverRender({ wrapper, title, description });
-        popovers.push(wrapper);
-        // Driver.js focuses the first focusable node in its own popover. The
-        // adapter is supposed to take the caret straight back off it.
-        dismiss.focus();
-        config.onHighlighted();
-      },
-      destroy: () => {
-        for (const popover of popovers) popover.remove();
-      },
-    };
-  };
-  return {
-    factory,
-    records: () => [...records],
-    popovers: () =>
-      records.flatMap((record) =>
-        record.popovers.filter((node) => node.isConnected),
-      ),
-  };
-}
-
-export type HintRecord = { readonly config: GuideHintsConfig };
-
-export type HintsProbe = {
-  readonly factory: GuideHintsFactory;
-  records(): readonly HintRecord[];
-};
-
-function createHintsProbe(): HintsProbe {
-  const records: HintRecord[] = [];
-  const factory: GuideHintsFactory = (config) => {
-    const nodes: HTMLElement[] = [];
-    records.push({ config });
-    const beaconFor = (spec: GuideHintSpec): HTMLElement => {
-      const beacon = document.createElement("button");
-      beacon.type = "button";
-      beacon.className = `driver-hint ${spec.beacon.className}`;
-      document.body.appendChild(beacon);
-      nodes.push(beacon);
-      return beacon;
-    };
-    return {
-      show: () => {
-        for (const spec of config.hints) beaconFor(spec);
-      },
-      open: (id) => {
-        const spec = config.hints.find((candidate) => candidate.id === id);
-        if (!spec) return;
-        const wrapper = document.createElement("div");
-        wrapper.className = `driver-popover ${spec.popover.popoverClass}`;
-        const title = document.createElement("header");
-        const description = document.createElement("div");
-        description.className = "driver-popover-description";
-        wrapper.append(title, description);
-        document.body.appendChild(wrapper);
-        description.innerHTML = spec.popover.description;
-        spec.popover.onPopoverRender({ wrapper, title, description });
-        nodes.push(wrapper);
-        // Driver's hint beacon takes the caret; the adapter puts it back.
-        nodes[0]?.focus();
-      },
-      hide: () => {
-        for (const node of nodes) node.remove();
-        nodes.length = 0;
-      },
-    };
-  };
-  return { factory, records: () => [...records] };
-}
 
 /* ---------- real target fixtures ---------- */
 
@@ -215,8 +91,6 @@ export type A11yEngine = SupportEngine & {
 
 export type SupportHarness = {
   readonly engine: A11yEngine;
-  readonly driver: DriverProbe;
-  readonly hints: HintsProbe;
   readonly fixtures: TargetFixtures;
   /** The routes a walkthrough asked the app to navigate to, in order. */
   navigations(): readonly string[];
@@ -258,17 +132,13 @@ export function mountSupport(options: SupportHarnessOptions): SupportHarness {
     vocabulary,
     readContext: () => context,
   });
-  const driver = createDriverProbe();
-  const hints = createHintsProbe();
   const fixtures = mountFixtures(options.targets ?? []);
   liveFixtures = fixtures;
-  const renderer = createDriverRenderer({
+  const renderer = createScrollRenderer({
     resolveElement: resolveGuideTargetElement,
     reducedMotion: () => options.reducedMotion ?? false,
-    driverFactory: driver.factory,
-    hintsFactory: hints.factory,
   });
-  const targets = createFakeTargets(vocabulary.targets, vocabulary.targets);
+  const targets = createFakeTargets(guideTargetIds(), vocabulary.targets);
   const routes = createFakeRoutes(vocabulary.routes, route);
   const clock = createTestClock();
   const runtime = createGuideRuntime({
@@ -293,15 +163,19 @@ export function mountSupport(options: SupportHarnessOptions): SupportHarness {
     // the app: a cross-route guide names a control on the screen it is about to
     // navigate to, which the route-scoped vocabulary cannot contain.
     compileAuthored(source) {
-      const result = compileGuide(source, {
-        goals: guideGoalIds(),
-        targets: guideTargetIds(),
-        routes: GUIDE_ROUTES.map((route) => route.id),
-        predicates: guidePredicateIds(),
-      });
+      const result = compileGuide(
+        source,
+        {
+          goals: guideGoalIds(),
+          targets: guideTargetIds(),
+          routes: GUIDE_ROUTES.map((route) => route.id),
+          predicates: guidePredicateIds(),
+        },
+        AUTHORED_GUIDE_LIMITS,
+      );
       return result.ok ? result.program : null;
     },
-    runGuide: (program) => runtime.start(program),
+    ...tourRunner(runtime, AUTHORED_GUIDE_LIMITS),
     pauseGuide: () => runtime.pause(),
     cancelGuide: (reason) => runtime.cancel(reason),
     subscribeGuide: (listener) => runtime.subscribe({ onSnapshot: listener }),
@@ -341,8 +215,6 @@ export function mountSupport(options: SupportHarnessOptions): SupportHarness {
 
   return {
     engine,
-    driver,
-    hints,
     fixtures,
     navigations: () => routes.navigations(),
     clearedTargets: () => cleared,
@@ -401,6 +273,18 @@ export async function tabTo(
       `no keyboard path to "${name.trim()}" within ${limit} tabs`,
     );
   }
+}
+
+/** What the statusline mark says while a tutorial is running. */
+export const TOURING = "Support — tutorial in progress";
+
+/** The tutorial card, once the first step is drawn. */
+export function tutorialCard(): Promise<HTMLElement> {
+  return screen.findByRole(
+    "dialog",
+    { name: /^Tutorial:/ },
+    { timeout: 10_000 },
+  );
 }
 
 /** The "Show me" button beside a named walkthrough or help question. */
