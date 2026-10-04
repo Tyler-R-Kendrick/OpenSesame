@@ -80,7 +80,9 @@ describe("the Web Push walk's area", () => {
     }
     expect(dirs).not.toContain("apps/pages");
   });
+});
 
+describe("the Bundle budgets aggregate", () => {
   it("gates the Web Push job on bundle or push, and Bundle budgets still reports it", () => {
     const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
     // The Web Push job runs for the Pages build (bundle) or the server code it
