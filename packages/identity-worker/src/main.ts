@@ -1,16 +1,18 @@
 import {
+  type Repositories,
   createDrizzle,
   createPostgresOidcStore,
   createRepositories,
 } from "@opensesame/database";
 import { describeError } from "@opensesame/log-scrub";
-import { createLogger } from "@opensesame/observability";
+import { type Logger, createLogger } from "@opensesame/observability";
 import { startCleanupLoop } from "./cleanup.js";
 import {
   type ChannelAdapterRegistry,
   EMPTY_ADAPTER_REGISTRY,
 } from "./notifications.js";
 import { createTaskBusFromEnv } from "./taskBus.js";
+import { createWorkerNotificationAdapters } from "./web-push-channel.js";
 
 export type WorkerRuntime = {
   createLogger: typeof createLogger;
@@ -20,13 +22,16 @@ export type WorkerRuntime = {
   startCleanupLoop: typeof startCleanupLoop;
   createTaskBusFromEnv: typeof createTaskBusFromEnv;
   /**
-   * Channel adapters for this deployment (ADR 0084). Optional, and empty by
-   * default: a worker with no configured adapters routes everything to the
-   * durable inbox, which is honest. When
-   * `@opensesame/notification-adapters` lands, this becomes
-   * `createAdapterRegistry(configFromEnv())` and nothing else here changes.
+   * Channel adapters for this deployment (ADR 0084), built from its
+   * environment once the repositories exist. Empty when nothing is configured,
+   * which is honest: a worker with no adapters routes everything to the
+   * durable inbox. A configured channel whose configuration is unusable throws
+   * here, and the worker does not start.
    */
-  createNotificationAdapters?: () => ChannelAdapterRegistry;
+  createNotificationAdapters?: (deps: {
+    repos: Repositories;
+    log: Logger;
+  }) => ChannelAdapterRegistry;
   exit: (code: number) => void;
 };
 
@@ -37,6 +42,7 @@ const defaultRuntime: WorkerRuntime = {
   createPostgresOidcStore,
   startCleanupLoop,
   createTaskBusFromEnv,
+  createNotificationAdapters: createWorkerNotificationAdapters,
   exit: (code) => {
     process.exit(code);
   },
@@ -68,7 +74,8 @@ export async function runWorker(
   const oidcStore = runtime.createPostgresOidcStore(db);
   const taskBus = await runtime.createTaskBusFromEnv();
   const notificationAdapters =
-    runtime.createNotificationAdapters?.() ?? EMPTY_ADAPTER_REGISTRY;
+    runtime.createNotificationAdapters?.({ repos, log }) ??
+    EMPTY_ADAPTER_REGISTRY;
   const intervalMs = Number(
     process.env.OPENSESAME_WORKER_INTERVAL_MS ?? "5000",
   );

@@ -1,8 +1,7 @@
 import type { NotificationChannelKind } from "@opensesame/os-domain";
 import { overlapCast } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
-import type { ControlPlaneConfig } from "../config.js";
-import { createControlPlane } from "../create-app.js";
+import { type App, authed, plane, principal } from "./notification-kit.js";
 
 /**
  * Channels, bindings and preferences (ADR 0084).
@@ -12,55 +11,6 @@ import { createControlPlane } from "../create-app.js";
  * recent authentication, a preference that widens what policy allows, and a
  * screen that claims a channel works when no adapter is configured.
  */
-
-type Notifications = ControlPlaneConfig["notifications"];
-
-function notifications(overrides: Partial<Notifications> = {}): Notifications {
-  return {
-    availableChannels: ["in_app", "slack"],
-    directApprovalChannels: [],
-    directDenialChannels: [],
-    pushPublicKey: "",
-    slackSigningSecret: "",
-    telegramSecretToken: "",
-    allowSelfAssertedBindings: true,
-    ...overrides,
-  };
-}
-
-interface PlaneOptions {
-  clock?: () => Date;
-  notifications?: Partial<Notifications>;
-}
-
-function plane(options?: PlaneOptions) {
-  return createControlPlane({
-    config: {
-      port: 0,
-      publicUrl: "http://127.0.0.1:8788",
-      issuer: "http://127.0.0.1:8788",
-      notifications: notifications(options?.notifications),
-    },
-    ...(options?.clock ? { clock: options.clock } : undefined),
-  });
-}
-
-type App = ReturnType<typeof createControlPlane>["app"];
-
-async function principal(app: App) {
-  const res = await app.request("/v1/principals/provisional", {
-    method: "POST",
-  });
-  expect(res.status).toBe(201);
-  return overlapCast(await res.json());
-}
-
-function authed(token: string) {
-  return {
-    authorization: `Bearer ${token}`,
-    "content-type": "application/json",
-  };
-}
 
 /** Add a Slack destination the way the settings screen does. */
 async function bind(
@@ -340,63 +290,5 @@ describe("preferences and the effective route", () => {
     // direct settlement, so Slack may point at the ceremony and no more.
     expect(slack?.mode).toBe("rendezvous");
     expect(slack?.confidentiality).toBe("descriptive");
-  });
-});
-
-describe("web push", () => {
-  it("contract: the VAPID key is public, and absent when nothing is configured", async () => {
-    const { app } = plane();
-    const me = await principal(app);
-    expect(
-      (
-        await app.request("/v1/notification-channels/push/key", {
-          headers: authed(me.accessToken),
-        })
-      ).status,
-    ).toBe(404);
-
-    const configured = plane({ notifications: { pushPublicKey: "BPubKey" } });
-    const them = await principal(configured.app);
-    const res = await configured.app.request(
-      "/v1/notification-channels/push/key",
-      { headers: authed(them.accessToken) },
-    );
-    expect(overlapCast(await res.json()).publicKey).toBe("BPubKey");
-  });
-
-  it("adversarial: the endpoint goes in and never comes back out", async () => {
-    const { app, ctx } = plane({ notifications: { pushPublicKey: "BPubKey" } });
-    const me = await principal(app);
-    const endpoint =
-      "https://push.example/send/a-capability-token-nobody-else-may-hold";
-    const res = await app.request(
-      "/v1/notification-channels/push/subscriptions",
-      {
-        method: "POST",
-        headers: authed(me.accessToken),
-        body: JSON.stringify({
-          endpoint,
-          keys: { p256dh: "p256dh-key", auth: "auth-secret" },
-          deviceLabel: "Alice's phone",
-        }),
-      },
-    );
-    expect(res.status).toBe(201);
-    const raw = await res.text();
-    // The endpoint is a capability URL: anyone holding it can push to that
-    // browser. It is stored, and it is never echoed or logged.
-    expect(raw).not.toContain(endpoint);
-    expect(raw).not.toContain("auth-secret");
-    expect(raw).toContain("Alice's phone");
-
-    const events = await ctx.repos.auditEvents.list({ limit: 50 });
-    expect(JSON.stringify(events)).not.toContain(endpoint);
-
-    const id = overlapCast(JSON.parse(raw)).id;
-    const gone = await app.request(
-      `/v1/notification-channels/push/subscriptions/${id}`,
-      { method: "DELETE", headers: authed(me.accessToken) },
-    );
-    expect(gone.status).toBe(204);
   });
 });

@@ -1,9 +1,4 @@
-import {
-  createHash,
-  createHmac,
-  randomBytes,
-  timingSafeEqual,
-} from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { appendAuditEvent } from "@opensesame/audit";
 import {
   BeginChannelBindingResponseSchema,
@@ -13,9 +8,6 @@ import {
   CompleteChannelBindingSchema,
   EffectiveRouteResponseSchema,
   NotificationPreferencesResponseSchema,
-  PushPublicKeyResponseSchema,
-  PushSubscriptionResponseSchema,
-  RegisterPushSubscriptionSchema,
   UpdateNotificationPreferencesSchema,
 } from "@opensesame/contracts";
 import {
@@ -35,6 +27,7 @@ import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { resolveApprovalPolicy } from "./approval-policy.js";
 import { authenticatedPrincipalId } from "./organizations.js";
+import { pushSubscriptionRoutes } from "./push-subscriptions.js";
 
 /**
  * Where a person is interrupted (ADR 0084).
@@ -498,118 +491,8 @@ notificationChannelRoutes.delete(
   },
 );
 
-/* ------------------------------------------------------------------ *
- * Web Push
- * ------------------------------------------------------------------ */
-
-notificationChannelRoutes.get("/push/key", requirePrincipal(), (c) => {
-  const ctx = c.get("ctx");
-  const publicKey = ctx.config.notifications.pushPublicKey;
-  if (!publicKey) return c.json({ error: "adapter_unavailable" }, 404);
-  return c.json(PushPublicKeyResponseSchema.parse({ publicKey }));
-});
-
-/**
- * Register a browser push subscription.
- *
- * The endpoint is a capability URL: anyone holding it can push to that
- * browser, which is why it lives in `pushSubscriptions` rather than in a
- * binding's `metadata` — that field is documented as digest-shaped and never
- * secret, and this is neither. Nothing here comes back out: the response
- * names a subscription by an opaque id and the label the person gave their
- * device, and the audit line records that a subscription exists rather than
- * how to push to it.
- *
- * The same endpoint is the same browser, so a re-subscription replaces rather
- * than accumulates — otherwise one person's phone rings twice and an operator
- * cannot say which row is live.
- */
-notificationChannelRoutes.post(
-  "/push/subscriptions",
-  requirePrincipal(),
-  async (c) => {
-    const ctx = c.get("ctx");
-    const principalId = authenticatedPrincipalId(c.get("principalId"));
-    const parsed = RegisterPushSubscriptionSchema.safeParse(
-      await c.req.json().catch(() => ({})),
-    );
-    if (!parsed.success) {
-      return c.json(
-        { error: "invalid_request", detail: parsed.error.message },
-        400,
-      );
-    }
-    try {
-      new URL(parsed.data.endpoint);
-    } catch {
-      return c.json({ error: "invalid_request" }, 400);
-    }
-    const now = ctx.clock();
-    const created = await ctx.repos.pushSubscriptions.create({
-      id: `push_${randomBytes(12).toString("base64url")}`,
-      principalId,
-      endpoint: parsed.data.endpoint,
-      p256dhKey: parsed.data.keys.p256dh,
-      authSecret: parsed.data.keys.auth,
-      // How a subscription is named and deduplicated without naming the
-      // capability URL itself.
-      endpointDigest: createHash("sha256")
-        .update(parsed.data.endpoint)
-        .digest("hex"),
-      ...(parsed.data.deviceLabel
-        ? { deviceLabel: parsed.data.deviceLabel }
-        : undefined),
-      createdAt: now,
-    });
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "notification.push.subscribed",
-      principalId,
-      actorType: "human",
-      outcome: "succeeded",
-      correlationId: c.get("correlationId"),
-      targetType: "push_subscription",
-      targetId: created.id,
-      metadata: { subscriptionId: created.id },
-    });
-    return c.json(
-      PushSubscriptionResponseSchema.parse({
-        id: created.id,
-        ...(created.deviceLabel
-          ? { deviceLabel: created.deviceLabel }
-          : undefined),
-        createdAt: created.createdAt.toISOString(),
-      }),
-      201,
-    );
-  },
-);
-
-notificationChannelRoutes.delete(
-  "/push/subscriptions/:id",
-  requirePrincipal(),
-  async (c) => {
-    const ctx = c.get("ctx");
-    const principalId = authenticatedPrincipalId(c.get("principalId"));
-    const id = c.req.param("id") ?? "";
-    const subscription = await ctx.repos.pushSubscriptions.getById(id);
-    // Someone else's subscription answers 404, never 403.
-    if (!subscription || subscription.principalId !== principalId) {
-      return c.json({ error: "not_found" }, 404);
-    }
-    await ctx.repos.pushSubscriptions.disable(subscription.id, ctx.clock());
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "notification.push.unsubscribed",
-      principalId,
-      actorType: "human",
-      outcome: "succeeded",
-      correlationId: c.get("correlationId"),
-      targetType: "push_subscription",
-      targetId: subscription.id,
-      metadata: { subscriptionId: subscription.id },
-    });
-    return c.body(null, 204);
-  },
-);
+/* Web Push registration lives in push-subscriptions.ts. */
+notificationChannelRoutes.route("/push", pushSubscriptionRoutes);
 
 /* ------------------------------------------------------------------ *
  * Preferences

@@ -54,6 +54,41 @@ describe("worker entrypoint", () => {
     }
   });
 
+  it("builds the notification adapters from the repositories and the logger", async () => {
+    process.env.DATABASE_URL = "postgres://localhost/test";
+    const registry = {
+      availableChannels: () => ["native_push" as const],
+      get: () => undefined,
+    };
+    const createNotificationAdapters = vi.fn(() => registry);
+
+    await runWorker({ ...runtime(), createNotificationAdapters });
+
+    expect(createNotificationAdapters).toHaveBeenCalledWith({
+      repos: { outbox: {} },
+      log: logger,
+    });
+    expect(startCleanupLoop.mock.calls[0]?.[0].notificationAdapters).toBe(
+      registry,
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ notificationChannels: ["native_push"] }),
+      expect.stringContaining("standalone cleanup worker"),
+    );
+  });
+
+  it("does not start when an adapter's configuration is unusable", async () => {
+    process.env.DATABASE_URL = "postgres://localhost/test";
+    const createNotificationAdapters = vi.fn(() => {
+      throw new Error("OPENSESAME_WEBPUSH_PRIVATE_KEY does not match");
+    });
+
+    await expect(
+      runWorker({ ...runtime(), createNotificationAdapters }),
+    ).rejects.toThrow(/does not match/u);
+    expect(startCleanupLoop).not.toHaveBeenCalled();
+  });
+
   it("refuses to start without DATABASE_URL", async () => {
     await runWorker(runtime());
     expect(logger.error).toHaveBeenCalledWith(
