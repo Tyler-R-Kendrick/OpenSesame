@@ -26,7 +26,9 @@ import { fileURLToPath } from "node:url";
 import { build, loadConfigFromFile } from "vite";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const dist = join(root, "dist");
+// `PAGES_OUT_DIR` names another build's output (`build:push-verify`), relative
+// to apps/pages; the default is `dist`.
+const dist = join(root, process.env.PAGES_OUT_DIR ?? "dist");
 
 /** Variants beyond the core-only `sw.js`, and the config that builds each. */
 const EXTRA_VARIANTS = new Map([
@@ -120,7 +122,7 @@ async function buildVariant(id, manifest) {
     throw new Error(`build-workers: ${variant.output} carries no push handler`);
   }
   console.log(
-    `build-workers: wrote dist/${variant.output} (${source.length} bytes)`,
+    `build-workers: wrote ${process.env.PAGES_OUT_DIR ?? "dist"}/${variant.output} (${source.length} bytes)`,
   );
 }
 

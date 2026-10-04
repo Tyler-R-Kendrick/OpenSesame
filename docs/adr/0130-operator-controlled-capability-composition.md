@@ -144,7 +144,12 @@ A service worker cannot `import()`. Worker code is therefore a set of static
 variants (`sw.js` core-only, `sw-push.js` with Web Push) built from one
 source tree; the plan names the variant the installation must run and the
 controller never registers competing workers for different vaults at one
-scope — it exposes a transition instead. Caches are namespaced by
+scope — it moves the one registration in place instead (2026-10-04: it first
+only exposed `transition-required` and waited for a call nothing made, so
+approving Push notifications never installed `sw-push.js`; approval is the
+consent, so the controller now makes the move itself, never unregisters,
+reports the active variant rather than the installing one, and reloads a page
+on a change of controller only for a different release, in every tab). Caches are namespaced by
 application, scope, release and variant; cleanup touches only owned caches;
 offline assets are staged from a module-id plan the worker resolves through
 `capability-graph.json`, never from URLs a page sends.

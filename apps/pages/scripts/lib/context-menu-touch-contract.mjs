@@ -51,7 +51,16 @@ async function swipeLeft(page, locator) {
     touchPoints: [],
   });
   await cdp.detach();
-  await page.waitForTimeout(500);
+  // Wait for the menu the lift opens, not for a fixed time: the walk's next
+  // tap is meant to land the moment the menu is up. A flick leaves a fling
+  // running in Chromium, and a tap during one is spent stopping it (no click
+  // follows) unless the page took the drag whole (`claimHorizontalDrags`).
+  // The old half-second sleep sat on that cliff and failed one run in thirty.
+  await page
+    .getByRole("menu")
+    .first()
+    .waitFor({ state: "visible", timeout: 3000 })
+    .catch(() => undefined);
 }
 
 async function entryHeights(menu) {

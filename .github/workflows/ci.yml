@@ -32,6 +32,7 @@ jobs:
       "bundle": ${{ steps.areas.outputs.bundle }}
       "rust": ${{ steps.areas.outputs.rust }}
       mtls: ${{ steps.areas.outputs.mtls }}
+      "push": ${{ steps.areas.outputs.push }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -186,6 +187,17 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:keyboard
+      - name: Push worker installs on approval and reverts on removal
+        # A real localhost origin with service workers allowed (context.route
+        # never sees a worker's fetches). A device holding the core worker
+        # approves Push notifications and must end on sw-push.js at the same
+        # scope — one registration, no reload, the vault still open — then a
+        # push delivered over CDP must ring the contract's doorbell; removing
+        # the capability returns the core worker.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:push-worker
       - name: Phone and tablet layout and touch contract
         # Real coarse-pointer contexts at 320/390/430 and landscape: 44px
         # targets, no field under 16px (iOS zooms a smaller one on focus and
@@ -241,6 +253,45 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: node apps/pages/scripts/verify-experience-journeys.mjs
+
+  push-e2e:
+    # Its own job: the Bundle budget job's twenty minutes are spent, and this
+    # needs a second Pages build (stamped for its own origin), the control-plane
+    # and a browser. `bundle-check` below folds its result into the required
+    # "Bundle budgets" check, so it gates merges without another required name.
+    name: Web Push end to end
+    needs: changes
+    # The Pages build (bundle) and the server code verify:push runs (push).
+    if: needs.changes.outputs.bundle == 'true' || needs.changes.outputs.push == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build Pages for the loopback origin the walk serves
+        env:
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages build:push-verify
+      - name: Push, end to end
+        # The real Identity API (control-plane startServer(), in memory), the
+        # Host's Web Push delivery, and a stand-in push service that verifies
+        # RFC 8292 VAPID and decrypts RFC 8291 aes128gcm, against Pages in a
+        # real browser: approve Push, turn it on (the subscription is recorded
+        # server-side), a real push rings the closed doorbell, turn it off (the
+        # server's row is gone), and the failures a person can meet. Only the
+        # browser's own push subscription is stood in for.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:push
 
   rust:
     name: Rust tests
@@ -348,7 +399,7 @@ jobs:
 
   bundle-check:
     name: Bundle budgets
-    needs: [changes, bundle]
+    needs: [changes, bundle, push-e2e]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -357,13 +408,18 @@ jobs:
         run: |
           changes="${{ needs.changes.result }}"
           heavy="${{ needs.bundle.result }}"
+          push="${{ needs.push-e2e.result }}"
           if [ "$changes" != "success" ]; then
             echo "change detection result: $changes"
             exit 1
           fi
           case "$heavy" in
-            success|skipped) exit 0 ;;
+            success|skipped) ;;
             *) echo "bundle tests result: $heavy"; exit 1 ;;
+          esac
+          case "$push" in
+            success|skipped) exit 0 ;;
+            *) echo "push end to end result: $push"; exit 1 ;;
           esac
 
   rust-check:

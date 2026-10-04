@@ -429,10 +429,58 @@ Consequences an operator should expect:
 - **A capability needing a variant this build lacks is not approved.** It
   resolves `WORKER_GRAPH_UNAVAILABLE`, and so does any pair of capabilities no
   single variant can serve together.
-- **Two vaults at one scope cannot run competing workers.** When the
-  controlling script differs from the required one the controller exposes a
-  `transition-required` state and moves only on an explicit transition.
-  Unregistering a worker does not terminate its clients synchronously.
+- **One scope runs one worker, and approval moves it.** When the registered
+  script differs from the one the plan requires, the controller reports
+  `transition-required` and then replaces the script in place — the persisted
+  selection and consent receipt `variantEligible` demands are the consent, so
+  approving Push notifications installs `sw-push.js`, and a page that boots with
+  it already approved does the same. It never unregisters (that would leave no
+  worker and drop the push subscription) and never registers a second scope.
+  - **What the status says.** `variant` is the worker that is *active*;
+    a replacement still installing is `pendingVariant` only. A replacement that
+    turns redundant or does not activate within a minute leaves the worker in
+    charge, sets the diagnostic `WORKER_INSTALL_FAILED`, and nothing that
+    depended on it happens; the next plan change tries again. Chrome activates
+    an installed worker once the old one is idle, and with a second tab open it
+    can fail to: the old worker, being stopped, is started again by a request
+    from the other tab's page, and the new one stays `installed` for good
+    (about one run in eight, measured; no `skipWaiting` ordering, `update()` or
+    re-registering the same script URL cures it). The controller therefore
+    waits five seconds, and if the replacement is still waiting it registers the
+    same script again under a new query (`sw-push.js?r=1`, then `r=2`): a new
+    version, which Chrome activates through the ordinary path (0 stuck in 60
+    lab runs). Every comparison of "is this the required worker" ignores the
+    query. Redundant, or still not active after a minute, is `WORKER_INSTALL_FAILED`
+    as before, and a request to register that never answers is bound by the same
+    minute. A replacement still waiting when the controller gave up is not left
+    for the life of the page: the controller looks again after 30 s, 2 min and
+    10 min (three times at most), each time through the ordinary transition under
+    a URL no worker holds. `verify:push-worker` runs with two tabs and no nudge.
+  - **Reloads.** A page reloads on a change of controller only for a different
+    *release*. It learns the release it runs from its first controller, and asks
+    the worker that takes over which release it is; the same release means the
+    page keeps running — in the tab that approved and in every other tab of the
+    origin, whose unlocked vaults are not touched. No answer within two seconds,
+    or a page that never knew its release (its first load), reloads as it
+    always did.
+  - **Removal.** Removing the capability returns the core worker (the core
+    worker has no `push` handler). Once the core worker is active the browser's
+    push subscription is dropped locally, and the Identity API's id for it moves
+    from `push.subscription.id` to the pending list `push.forget.pending`. The
+    Identity API is told to forget pending ids the next time the Push row is
+    shown with a session, or push is turned on again — not at removal, because
+    the capability is then withdrawn and its egress refuses. Until then the
+    Identity API still lists the record; it also drops it when the push service
+    answers 404 or 410. Turning push off with the row, or turning it on again,
+    keeps an id the service could not be told about in the same list rather than
+    losing it.
+  - **After removal.** An enrolment request still in flight has no road out: the
+    seam is closed (refused as `capability-not-approved`), never the raw
+    `fetch`. Every call to the Identity API and the browser's `subscribe` is
+    bounded (15 s and 30 s).
+
+  `pnpm --filter @opensesame/pages verify:push-worker` walks approval, a second
+  tab, a push delivered through CDP and removal in a real browser.
 - **Caches are namespaced** `opensesame-pages:<scopePath>:<releaseId>:<variant>`,
   and cleanup touches only names matching that application and scope path.
   (The pre-composition worker deleted every cache on the origin. That is fixed;

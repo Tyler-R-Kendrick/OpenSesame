@@ -7,6 +7,14 @@
 import { DERIVED_ITEM_KINDS } from "../derived-item-kinds.js";
 import { type AuthoredDescriptor, optional } from "./descriptor.js";
 
+/**
+ * What `sharing.live` declares for its external-service egress. Egress
+ * classifies a request by the purpose it names, exactly, so the carrier code
+ * imports this rather than retype it.
+ */
+export const LIVE_CARRIER_PURPOSE =
+  "only STUN/TURN servers and code carriers (Nostr, MQTT, NATS, ntfy) the owner names in Routes; joiners see them first";
+
 export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "vault.derived-records",
@@ -29,8 +37,7 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         },
         {
           class: "external-service",
-          purpose:
-            "only STUN/TURN servers and code carriers (Nostr, MQTT, NATS, ntfy) the owner names in Routes; joiners see them first",
+          purpose: LIVE_CARRIER_PURPOSE,
           automatic: false,
         },
         {
