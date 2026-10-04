@@ -25,21 +25,6 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
   },
 
   {
-    id: "vault.store-manifest",
-    title: "Move items to and from the sealed store",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "vault.store-manifest"',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings/vaults"',
-      'wait route "/settings/vaults" timeout=15000',
-      'focus "vault.store-manifest" "This saves a plain-text manifest for opensesame pass seal to seal and shred. The vault\'s Import key merges one back by path." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-
-  {
     id: "client.command-bar",
     title: "Run a command from the bar",
     routes: [],

@@ -73,8 +73,9 @@ export const SECURITY_FRAGMENT_REDIRECT = new Map<string, string>([
   ["key-vault", "vault-key-protection"],
   ["key-sop", "vault-key-protection"],
   ["encryption-keys", "vault-key-protection"],
-  ["formats", "formats-interoperability"],
-  ["formats-interop", "formats-interoperability"],
-  ["interoperability", "formats-interoperability"],
+  ["formats", "sops-document"],
+  ["formats-interop", "sops-document"],
+  ["interoperability", "sops-document"],
+  ["sops", "sops-document"],
   ["duress", "duress-profiles"],
 ]);
