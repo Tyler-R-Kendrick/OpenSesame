@@ -11,6 +11,7 @@
  * cannot draw on another.
  */
 
+import { TOUR_APPEAR_GRACE_MS } from "@opensesame/guide-runtime";
 import {
   type SupportSession,
   createSupportSession,
@@ -24,6 +25,7 @@ import {
   guideSource,
   settle,
   waitUntil,
+  walkToEnd,
 } from "./harness.js";
 
 let chain: SupportChain | null = null;
@@ -100,16 +102,24 @@ describe("a support answer that lost its race", () => {
 
     const program = snapshot.program;
     expect(program).not.toBeNull();
-    if (program !== null) await active.runtime.start(program);
+    if (program === null) throw new Error("fixture did not compile");
+    const running = active.runGuide(program, "model");
+    await settle();
 
-    expect(active.renderer.renderCalls()).toEqual([
-      {
-        kind: "focus",
-        target: "shell.lock",
-        message: "The current walkthrough.",
-        side: "top",
-      },
+    expect(active.renderer.renderCalls().map((call) => call.kind)).toEqual([
+      "scroll",
+      "focus",
     ]);
+    expect(active.renderer.renderCalls()).toContainEqual({
+      kind: "focus",
+      target: "shell.lock",
+      message: "The current walkthrough.",
+      side: "top",
+    });
+    expect(await walkToEnd(active, running)).toEqual({
+      kind: "completed",
+      goal: "vault.lock",
+    });
   });
 });
 
@@ -124,7 +134,7 @@ describe("a walkthrough compiled for another route", () => {
     expect(onConnections.compile(STALE_GUIDE)).toBeNull();
   });
 
-  it("fails closed rather than drawing, when it was compiled before the move", async () => {
+  it("degrades to the model's text after the grace, when it was compiled before the move", async () => {
     const active = open("/vault");
     const program = active.compile(STALE_GUIDE);
     expect(program).not.toBeNull();
@@ -134,6 +144,72 @@ describe("a walkthrough compiled for another route", () => {
     active.routes.go("/connections");
 
     if (program === null) throw new Error("fixture did not compile");
+    const running = active.runGuide(program, "model");
+    await active.clock.advance(0);
+    await active.clock.advance(TOUR_APPEAR_GRACE_MS - 1);
+    // Still giving the control a moment to appear: nothing is on the card yet.
+    expect(active.runtime.snapshot().tour?.degraded).toBe(false);
+
+    await active.clock.advance(1);
+    expect(active.runtime.snapshot()).toMatchObject({
+      status: "waiting",
+      tour: {
+        kind: "point",
+        target: "vault.create",
+        message: "The stale walkthrough.",
+        degraded: true,
+      },
+    });
+    // Nothing is pointed at, scrolled to, or navigated to.
+    expect(active.renderer.renderCalls()).toEqual([]);
+    expect(active.routes.navigations()).toEqual([]);
+    expect(active.routes.current()).toBe("/connections");
+
+    expect(await walkToEnd(active, running)).toEqual({
+      kind: "completed",
+      goal: "vault.lock",
+    });
+    expect(active.renderer.renderCalls()).toEqual([]);
+    expect(active.routes.navigations()).toEqual([]);
+  });
+
+  it("navigates only when the person advances past the step that precedes it", async () => {
+    const active = open("/vault");
+    const program = active.compile(
+      guideSource(
+        'focus "shell.lock" "Here first." side=top',
+        'navigate "/vault/health"',
+        'say "Then over there."',
+        "end",
+      ),
+    );
+    if (program === null) throw new Error("fixture did not compile");
+
+    const running = active.runGuide(program, "model");
+    await settle();
+    await active.clock.advance(TOUR_APPEAR_GRACE_MS);
+    expect(active.runtime.snapshot().tour?.message).toBe("Here first.");
+    expect(active.routes.navigations()).toEqual([]);
+
+    active.nextStep();
+    await active.clock.advance(0);
+    expect(active.routes.navigations()).toEqual(["/vault/health"]);
+    expect(active.runtime.snapshot().tour?.message).toBe("Then over there.");
+    await walkToEnd(active, running);
+  });
+});
+
+describe("the runtime API, started in auto mode", () => {
+  // `runtime.start(program)` with no options is `auto`. The app never starts a
+  // guide this way (every guide is a tour), so this pins the runtime's own
+  // contract for any caller that does, and is not evidence about the app.
+  it("fails closed rather than drawing a program compiled before the move", async () => {
+    const active = open("/vault");
+    const program = active.compile(STALE_GUIDE);
+    if (program === null) throw new Error("fixture did not compile");
+
+    active.targets.unmount("vault.create");
+    active.routes.go("/connections");
     const outcome = await active.runtime.start(program);
 
     expect(outcome).toEqual({
@@ -149,38 +225,48 @@ describe("a walkthrough compiled for another route", () => {
 describe("only one walkthrough is ever live", () => {
   it("cancels the run in flight rather than drawing over it", async () => {
     const active = open();
-    const waiting = active.runtime.start({
-      version: 1,
-      goal: "vault.lock",
-      instructions: [
-        {
-          kind: "focus",
-          target: "shell.lock",
-          message: "First.",
-          side: null,
-        },
-        {
-          kind: "wait",
-          subject: "target",
-          target: "shell.lock",
-          event: "activate",
-          timeoutMs: 30_000,
-        },
-      ],
-    });
+    const waiting = active.runGuide(
+      {
+        version: 1,
+        goal: "vault.lock",
+        instructions: [
+          {
+            kind: "focus",
+            target: "shell.lock",
+            message: "First.",
+            side: null,
+          },
+          {
+            kind: "wait",
+            subject: "target",
+            target: "shell.lock",
+            event: "activate",
+            timeoutMs: 30_000,
+          },
+        ],
+      },
+      "model",
+    );
     await settle();
-    expect(active.clock.pending()).toBe(1);
+    expect(active.runtime.snapshot().tour?.message).toBe("First.");
 
     const replacement = active.compile(CURRENT_GUIDE);
     if (replacement === null) throw new Error("fixture did not compile");
-    const second = active.runtime.start(replacement);
+    const second = active.runGuide(replacement, "model");
 
     expect(await waiting).toEqual({
       kind: "cancelled",
       goal: "vault.lock",
       reason: "superseded",
     });
-    expect(await second).toEqual({ kind: "completed", goal: "vault.lock" });
+    await settle();
+    expect(active.runtime.snapshot().tour?.message).toBe(
+      "The current walkthrough.",
+    );
+    expect(await walkToEnd(active, second)).toEqual({
+      kind: "completed",
+      goal: "vault.lock",
+    });
     expect(active.clock.pending()).toBe(0);
     expect(active.runtime.snapshot().status).toBe("done");
   });
