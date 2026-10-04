@@ -5,7 +5,9 @@ import type { RepoSuggestion } from "@opensesame/app-core/sections/connections/G
  * Combobox chrome for the GitHub backup repository field.
  */
 import { type KeyboardEvent, useEffect } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconChevronRight } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import type { useGithubBackupRepo } from "./useGithubBackupRepo.js";
 
 type RepoState = ReturnType<typeof useGithubBackupRepo>;
@@ -37,6 +39,11 @@ export function RepoComboboxFrame({
 }) {
   return (
     <div className="conn-repo-combobox">
+      <FailureNotice
+        id={`github-backup:repo-list:${state.connectionId}`}
+        title="Repositories"
+        message={state.listError}
+      />
       <RepoComboboxInput
         state={state}
         inputId={inputId}
@@ -176,7 +183,7 @@ function RepoComboboxInput({
       spellCheck={false}
       autoCapitalize="off"
       autoCorrect="off"
-      aria-invalid={state.issue ? true : undefined}
+      aria-invalid={state.issue || state.listError ? true : undefined}
       onChange={(event) => {
         const next = sanitizeRepoSlug(event.target.value);
         state.setIssue(null);
@@ -233,11 +240,9 @@ function SuggestionList({
   setActive: (value: number) => void;
   choose: (value: string) => Promise<void>;
 }) {
-  const emptyLabel = loading
-    ? "Loading…"
-    : listError
-      ? "Repositories unavailable"
-      : "No matching repositories";
+  // A list that failed is marked, never worded like an empty success.
+  const failed = !loading && listError !== null;
+  const emptyLabel = loading ? "Loading…" : "No matching repositories";
   return (
     // biome-ignore lint/a11y/useSemanticElements: ARIA combobox listbox not a native select
     // biome-ignore lint/a11y/useFocusableInteractive: focus stays on the combobox input via aria-activedescendant
@@ -249,7 +254,7 @@ function SuggestionList({
     >
       {suggestions.length === 0 ? (
         <div className="conn-repo-combobox__empty" role="presentation">
-          {emptyLabel}
+          {failed ? <StatusMark tone="err" label={listError} /> : emptyLabel}
         </div>
       ) : (
         suggestions.map((row, index) =>

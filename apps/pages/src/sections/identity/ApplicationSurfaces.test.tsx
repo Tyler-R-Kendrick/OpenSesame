@@ -5,6 +5,7 @@ import { recipePanelSeams } from "@opensesame/app-core/sections/identity/applica
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { expectInTray, inTray } from "../../components/tray.test-support.js";
 import { ApplicationDiagnostics } from "./ApplicationDiagnostics.js";
 import { ApplicationRecipePanel } from "./ApplicationRecipePanel.js";
 import { ApplicationSetupCard } from "./ApplicationSetupCard.js";
@@ -82,6 +83,46 @@ describe("application surfaces", () => {
     expect(onApplied).toHaveBeenCalledTimes(2);
   });
 
+  it("trays an import that is not JSON instead of drawing it", async () => {
+    render(
+      <ApplicationRecipePanel
+        registration={registration}
+        tomb="tomb-1"
+        revision={4}
+      />,
+    );
+    await userEvent.click(screen.getByLabelText("Import recipe JSON"));
+    await userEvent.paste("not json");
+    await userEvent.click(screen.getByRole("button", { name: "Apply import" }));
+    await expectInTray("Imported recipe is not JSON.");
+    expect(
+      screen.getByLabelText("Import recipe JSON").getAttribute("aria-invalid"),
+    ).toBe("true");
+    expect(
+      screen.getByRole("img", { name: "Imported recipe is not JSON." }),
+    ).toBeTruthy();
+  });
+
+  it("keeps the ask to unlock in the page, not the tray", async () => {
+    render(<ApplicationRecipePanel registration={registration} />);
+    const exported = screen.getByRole("textbox", { name: "Exported recipe" });
+    await userEvent.type(
+      screen.getByLabelText("Organization binding"),
+      "org-2",
+    );
+    await userEvent.click(screen.getByLabelText("Import recipe JSON"));
+    await userEvent.paste(exported.textContent ?? "");
+    await userEvent.click(screen.getByRole("button", { name: "Apply import" }));
+    expect(
+      await screen.findByText("Unlock the vault before applying a recipe."),
+    ).toBeTruthy();
+    expect(inTray("Unlock the vault")).toBe(false);
+    expect(screen.queryByRole("img", { name: /Unlock the vault/ })).toBeNull();
+    expect(
+      screen.getByLabelText("Import recipe JSON").getAttribute("aria-invalid"),
+    ).toBeNull();
+  });
+
   it("saves a simulation as a policy test without issuing a token", async () => {
     render(
       <ApplicationDiagnostics
@@ -94,7 +135,7 @@ describe("application surfaces", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Save as policy test" }),
     );
-    expect(screen.getAllByText(/pass|fail/).length).toBeGreaterThan(0);
+    expect(screen.getByRole("img", { name: "Passed" })).toBeTruthy();
     expect(screen.queryByText(/access_token/)).toBeNull();
   });
 
@@ -138,5 +179,25 @@ describe("application surfaces", () => {
       "identity:application-tests:app-a",
       "identity:application-tests:app-b",
     ]);
+  });
+
+  it("marks a saved test that disagrees and trays the blocked publication", async () => {
+    render(
+      <ApplicationDiagnostics
+        applicationId="app-a"
+        policy={[{ scope: "openid", roles: ["owner", "admin", "member"] }]}
+        policyRevision="1"
+      />,
+    );
+    await userEvent.selectOptions(
+      screen.getByLabelText("Expected decision"),
+      "deny",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Save as policy test" }),
+    );
+    expect(screen.getByRole("img", { name: "Failed" })).toBeTruthy();
+    expect(screen.queryByRole("img", { name: "Passed" })).toBeNull();
+    await expectInTray("A saved test failed.");
   });
 });
