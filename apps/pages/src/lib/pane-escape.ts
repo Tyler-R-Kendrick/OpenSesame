@@ -72,12 +72,17 @@ export function handlePaneEscape(event: KeyboardEvent): boolean {
   if (target !== pane) return false;
   // Modal/menu owners retain their existing close, nesting and focus-return rules.
   if (pane.matches(DELEGATED)) return true;
+  // A pane with nothing to close has nothing to take Escape for: while a
+  // tutorial is live the key is the tour's to leave by, not ours to swallow.
+  const close = closeControl(pane);
+  if (!close && document.querySelector(".coach") !== null) return false;
   consume(event);
-  closePane(pane);
+  close?.click();
   return true;
 }
 
-function closePane(pane: HTMLElement): void {
+/** The pane's own close control, when it is there and can be pressed. */
+function closeControl(pane: HTMLElement): HTMLElement | null {
   const close = [
     ...pane.querySelectorAll<HTMLElement>("[data-pane-close]"),
   ].find(
@@ -88,7 +93,8 @@ function closePane(pane: HTMLElement): void {
     !close.matches(':disabled, [aria-disabled="true"]') &&
     !close.closest('[hidden], [aria-hidden="true"]')
   )
-    close.click();
+    return close;
+  return null;
 }
 
 /** Also covers front-door forms, which are outside the unlocked shell keymap. */
