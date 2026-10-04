@@ -193,12 +193,15 @@ function RelayOnly({
   const hasTurn = transport.ice.some((server) =>
     server.urls.some((url) => url.startsWith("turn")),
   );
+  // Relay only means nothing until there is a TURN server, so with none the
+  // choice is not drawn (ADR 0158) — unless it is already on, when it has to
+  // stay reachable to be turned off.
+  if (!hasTurn && !transport.relay) return null;
   return (
     <label className="join__choice">
       <input
         type="checkbox"
         checked={transport.relay}
-        disabled={!hasTurn}
         onChange={(event) =>
           void change((now) => ({ ...now, relay: event.target.checked }))
         }

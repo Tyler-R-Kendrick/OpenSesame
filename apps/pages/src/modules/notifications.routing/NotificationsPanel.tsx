@@ -7,20 +7,17 @@
  * write through the routing session, the same road the file viewer's save
  * takes, and every panel head opens the file it is drawn from.
  *
- * Gated per panel on what it needs (ADR 0090): with no Identity API
- * configured there is nothing to read, and the page shows the one channel
- * that needs nothing — the inbox — without naming a service that is not
- * there. With one configured and no Identity session, it asks to connect.
+ * Gated on what it needs (ADR 0090, ADR 0158 §4): with no Identity API
+ * configured there is nothing to read, bind or order, so the category is not
+ * drawn at all (`runtime.ts`) — an inbox row nobody can change is not a
+ * setting. With one configured and no Identity session, it asks to connect.
  *
  * ADR 0084's standing sentence stays on the page: "the settings screen says
  * so in as many words" is the ADR's, and it outranks DESIGN.md's rule against
  * explainer prose here.
  */
 
-import {
-  ASSURANCE_NOTE,
-  channelName,
-} from "@opensesame/app-core/lib/notification-routing/channels.js";
+import { ASSURANCE_NOTE } from "@opensesame/app-core/lib/notification-routing/channels.js";
 import { connectableChannels } from "@opensesame/app-core/lib/notification-routing/routing.js";
 import { RoutingError } from "@opensesame/app-core/lib/notification-routing/transport.js";
 import {
@@ -64,25 +61,6 @@ function bindingTone(state: string): StatusTone {
   if (state === "active") return "ok";
   if (state === "pending") return "warn";
   return "err";
-}
-
-/** The one channel that needs no service: shown when none is configured. */
-function InboxOnly() {
-  return (
-    <section className="panel notif" id="notif-channels">
-      <div className="panel__head">
-        <h2>Channels</h2>
-      </div>
-      <div className="panel__body">
-        <ul className="notif-rows">
-          <li className="notif-row">
-            <span className="notif-row__name">{channelName("in_app")}</span>
-            <StatusMark tone="ok" label="Always in the route" />
-          </li>
-        </ul>
-      </div>
-    </section>
-  );
 }
 
 function ChannelsPanel({
@@ -282,7 +260,9 @@ export function NotificationsPanel({ session }: { session: RoutingSession }) {
     }),
     [session],
   );
-  if (!configured) return <InboxOnly />;
+  // The category is not drawn without an Identity API (runtime.ts); nothing
+  // here is a row with no key.
+  if (!configured) return null;
   const mark = outcome(view);
   const at = (panel: string) => (where === panel ? mark : null);
   const { state } = view;

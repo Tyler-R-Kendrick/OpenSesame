@@ -1,9 +1,6 @@
-import type {
-  CapabilityState,
-  EffectivePlan,
-} from "@opensesame/capability-composition";
 import { describe, expect, it } from "vitest";
 import { FEATURE_BINDING_CATEGORIES } from "../../sections/connections/shared.js";
+import { planWith } from "./__tests__/plan-with.js";
 import {
   CAPABILITY_CATALOG,
   coreCapabilityIds,
@@ -11,73 +8,17 @@ import {
 } from "./catalog.js";
 import {
   FEATURES,
+  dependentsOf,
   featureById,
   featureOf,
   featureState,
+  heldOutside,
   isSwitchable,
   neededBy,
   switchCapability,
   switchFeature,
   withdrawnAlwaysOn,
 } from "./features.js";
-
-/**
- * A plan in which the named capabilities run and every optional one may;
- * `overrides` changes single capabilities' states on top of that.
- */
-function planWith(
-  approved: readonly string[],
-  overrides: ReadonlyMap<string, Partial<CapabilityState>> = new Map(),
-): EffectivePlan {
-  const capabilities: Record<string, CapabilityState> = {};
-  for (const entry of CAPABILITY_CATALOG.capabilities) {
-    capabilities[entry.id] = {
-      id: entry.id,
-      tier: entry.tier,
-      distributed: true,
-      permitted: true,
-      required: false,
-      selected: approved.includes(entry.id),
-      dependencyOf: [],
-      runtimeSupported: true,
-      missingEnvironments: [],
-      approved: entry.tier === "core" || approved.includes(entry.id),
-      restartRequired: false,
-      reasons: [],
-      ...overrides.get(entry.id),
-    };
-  }
-  return {
-    identity: {
-      instanceId: "personal-local",
-      installationId: "features-test",
-      vaultId: null,
-      distributionId: "features-test",
-      policyRevision: "personal-local",
-      selectionRevision: "1",
-      planDigest: "sha256:features-test",
-    },
-    provenance: "personal-local",
-    policyValid: true,
-    capabilities,
-    approvedCapabilities: Object.values(capabilities)
-      .filter((state) => state.approved)
-      .map((state) => state.id),
-    approvedModules: [],
-    approvedOperations: [],
-    approvedItemKinds: [],
-    requiredWorkerVariant: null,
-    conflicts: [],
-    consent: {
-      addedRoots: [],
-      removedRoots: [],
-      changedExposure: [],
-      addedDependencies: [],
-      requiredNotAccepted: [],
-    },
-    network: { externalServices: "allow", allowedServiceOrigins: [] },
-  };
-}
 
 describe("FEATURES", () => {
   it("rolls every optional capability into exactly one feature, and nothing always-on", () => {
@@ -355,5 +296,37 @@ describe("withdrawnAlwaysOn", () => {
       "identity.site-broker",
     ]);
     expect(withdrawnAlwaysOn(null)).toEqual([]);
+  });
+});
+
+describe("dependentsOf and heldOutside", () => {
+  const plan = planWith(
+    ["identity.local-iam", "identity.siop", "enterprise.ca-administration"],
+    new Map([
+      ["identity.local-iam", { dependencyOf: ["identity.siop"] }],
+      [
+        "access.authority",
+        { approved: true, dependencyOf: ["enterprise.ca-administration"] },
+      ],
+      [
+        "identity.federation",
+        { dependencyOf: ["enterprise.directory-provisioning"] },
+      ],
+    ]),
+  );
+
+  it("names the approved capabilities that run on one, and not the ones that do not run", () => {
+    expect(dependentsOf(plan, "identity.local-iam")).toEqual(["identity.siop"]);
+    expect(dependentsOf(plan, "identity.federation")).toEqual([]);
+    expect(dependentsOf(plan, "support.local-ai")).toEqual([]);
+    expect(dependentsOf(null, "identity.local-iam")).toEqual([]);
+  });
+
+  it("names what a section would leave behind, never its own capabilities", () => {
+    expect(heldOutside(plan, featureById("access"))).toEqual([
+      "enterprise.ca-administration",
+    ]);
+    expect(heldOutside(plan, featureById("identity"))).toEqual([]);
+    expect(heldOutside(null, featureById("access"))).toEqual([]);
   });
 });

@@ -22,6 +22,7 @@ import {
   connectorPath,
   isFeatureBindingCategory,
 } from "@opensesame/app-core/sections/connections/shared.js";
+import type { EffectivePlan } from "@opensesame/capability-composition";
 
 const HISTORY_ROADS = new Set(
   HISTORY_BACKUP_GROUPS.flatMap((group) => group.providerIds),
@@ -93,9 +94,10 @@ export function providerTileItems(
 export function featureDraws(
   feature: Feature,
   tile: (provider: Provider) => TileRoad | null,
+  plan: EffectivePlan | null = null,
 ): boolean {
   return (
-    isSwitchable(feature) ||
+    isSwitchable(feature, plan) ||
     feature.providerCategories.some(
       (category) => providerTileItems(category, tile).length > 0,
     )

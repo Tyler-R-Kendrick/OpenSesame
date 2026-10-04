@@ -116,10 +116,20 @@ The operator guide for the routes is
 Settings › Capabilities is one list of **sections**
 (`packages/app-core/src/lib/capabilities/features.ts`), each drawn the same
 way: a subheader and the tiles configured under it. In order: Guests,
-Identity, Access, Connections, Directory, Encryption, Certificate authority,
-Backups, Password managers, Cloud secret storage, Local storage, Item types,
-Browser autofill, Sharing, Payments, AI, Password reset, Surrogate credentials, Networking,
-Notifications, Telemetry, and — for the operator — Instance policy. A section with optional
+Identity, Access, Connections, Directory, Encryption, Backups, Password
+managers, Cloud secret storage, Local storage, Item types, Environments, Browser
+autofill, Sharing, Payments, AI, Password reset, Surrogate credentials,
+Networking, Notifications, and — for the operator — Instance policy. A section
+is drawn only where it has a switch or a tile that acts (ADR 0158): External
+telemetry and Certificate authority are optional so an operator can prohibit
+them, but have no Pages code behind them, so they have no section and no switch
+(`NO_SURFACE` in `features.ts`), except while the plan already approves one: its
+switch then stays, so it can be turned off. Connector tiles (Backups, Password managers,
+Cloud secret storage, Local storage, and the providers under Identity,
+Payments, AI and Networking) are the Connections capability's pages
+(`/settings/connections/<id>`, ADR 0153), so they are drawn while Connections
+runs and not before. A capability another running one is built on shows
+*needed by …* in place of its switch. A section with optional
 capabilities carries one switch on its
 subheader over all of them; a section with more than one (Sharing, AI) also
 lists each as a tile with its own switch. A section of an always-on function
