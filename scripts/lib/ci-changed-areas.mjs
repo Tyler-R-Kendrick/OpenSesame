@@ -11,7 +11,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isString } from "./json-boundary.mjs";
 
-export const AREAS = ["typescript", "bundle", "rust", "mtls"];
+export const AREAS = ["typescript", "bundle", "rust", "mtls", "push"];
 
 const DOC_ROOTS = ["docs", "skills", ".agents", ".claude"];
 const RUST_ROOTS = [
@@ -86,11 +86,17 @@ const NODE_INSTALL = new Set([
 ]);
 
 export function everyArea() {
-  return { typescript: true, bundle: true, rust: true, mtls: true };
+  return { typescript: true, bundle: true, rust: true, mtls: true, push: true };
 }
 
 function blank() {
-  return { typescript: false, bundle: false, rust: false, mtls: false };
+  return {
+    typescript: false,
+    bundle: false,
+    rust: false,
+    mtls: false,
+    push: false,
+  };
 }
 
 export function normalizePath(path) {
@@ -169,7 +175,31 @@ function isBundle(path, bundleDirs) {
   return under(path, "marketplace/item-types");
 }
 
-function mark(path, bundleDirs, out) {
+// What `verify:push` runs besides the Pages build: the walk, its stack and
+// the capture harness that reuses the stack. The server code it exercises
+// (control-plane, the push adapters and stand-in, the Host's delivery, the
+// repositories) is found through the package graph, `pushPackageDirs`.
+const PUSH_FILES = new Set([
+  ".github/workflows/ci.yml",
+  "apps/pages/scripts/verify-push.mjs",
+  "apps/pages/scripts/build-workers.mjs",
+  "apps/pages/scripts/lib/capture-harness.mjs",
+  "apps/pages/scripts/lib/capture-push-steps.mjs",
+  "apps/pages/vite.sw-push.config.ts",
+  "tools/quality/bundle-budgets.json",
+]);
+
+function isPush(path, pushDirs) {
+  if (pushDirs.some((dir) => under(path, dir))) return true;
+  if (PUSH_FILES.has(path)) return true;
+  if (path === "turbo.json" || NODE_INSTALL.has(path)) return true;
+  return (
+    path.startsWith("apps/pages/scripts/lib/push-") ||
+    path.startsWith("packages/notification-adapters/")
+  );
+}
+
+function mark(path, bundleDirs, pushDirs, out) {
   let known = false;
   if (isRust(path)) {
     out.rust = true;
@@ -187,16 +217,24 @@ function mark(path, bundleDirs, out) {
     out.bundle = true;
     known = true;
   }
+  if (isPush(path, pushDirs)) {
+    out.push = true;
+    known = true;
+  }
   return known;
 }
 
-/** @param {string[]} paths @param {string[]} bundleDirs */
-export function areasForPaths(paths, bundleDirs = []) {
+/**
+ * @param {string[]} paths
+ * @param {string[]} bundleDirs
+ * @param {string[]} pushDirs
+ */
+export function areasForPaths(paths, bundleDirs = [], pushDirs = []) {
   const out = blank();
   for (const raw of paths) {
     const path = normalizePath(raw);
     if (path === "" || isDoc(path)) continue;
-    if (!mark(path, bundleDirs, out)) return everyArea();
+    if (!mark(path, bundleDirs, pushDirs, out)) return everyArea();
   }
   return out;
 }
@@ -225,18 +263,18 @@ function packageDirs(root) {
   return dirs;
 }
 
-/** Workspace packages reachable from @opensesame/pages production deps. */
-export function bundlePackageDirs(root) {
+/** Workspace packages reachable from `seeds` through production deps. */
+export function packageDirsFrom(root, seeds) {
   const byName = new Map();
   for (const dir of packageDirs(root)) {
     const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
     if (isString(pkg.name)) byName.set(pkg.name, { dir, pkg });
   }
-  if (!byName.has("@opensesame/pages")) {
-    throw new Error("workspace has no @opensesame/pages package");
+  for (const seed of seeds) {
+    if (!byName.has(seed)) throw new Error(`workspace has no ${seed} package`);
   }
   const seen = new Set();
-  const queue = ["@opensesame/pages"];
+  const queue = [...seeds];
   while (queue.length > 0) {
     const name = queue.pop();
     if (name === undefined || seen.has(name)) continue;
@@ -254,6 +292,23 @@ export function bundlePackageDirs(root) {
     .map((name) => relative(root, byName.get(name).dir).replaceAll("\\", "/"))
     .sort();
 }
+
+/** Workspace packages reachable from @opensesame/pages production deps. */
+export const bundlePackageDirs = (root) =>
+  packageDirsFrom(root, ["@opensesame/pages"]);
+
+/**
+ * What `verify:push` imports as source: the Identity API, the Host's Web Push
+ * delivery, the adapters and their stand-in, and the repositories, with what
+ * each depends on.
+ */
+export const pushPackageDirs = (root) =>
+  packageDirsFrom(root, [
+    "@opensesame/control-plane",
+    "@opensesame/identity-worker",
+    "@opensesame/notification-adapters",
+    "@opensesame/database",
+  ]);
 
 export function repoRootFromHere() {
   return join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -306,7 +361,16 @@ function main() {
     emit(everyArea());
     return;
   }
-  const areas = areasForPaths(paths, dirs);
+  let pushDirs;
+  try {
+    pushDirs = pushPackageDirs(root);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`package graph failed, running every area: ${message}`);
+    emit(everyArea());
+    return;
+  }
+  const areas = areasForPaths(paths, dirs, pushDirs);
   const ran = AREAS.filter((name) => areas[name]);
   const which = ran.length > 0 ? ran.join(" ") : "no heavy suite";
   console.error(`changed ${paths.length} path(s); ${which}`);

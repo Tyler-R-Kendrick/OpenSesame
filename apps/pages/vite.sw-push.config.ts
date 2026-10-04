@@ -27,7 +27,9 @@ export default defineConfig({
   esbuild: { target: "es2022" },
   build: {
     target: ["es2022", "chrome100", "firefox100", "safari15"],
-    outDir: fileURLToPath(new URL("./dist", import.meta.url)),
+    outDir: fileURLToPath(
+      new URL(`./${process.env.PAGES_OUT_DIR ?? "dist"}`, import.meta.url),
+    ),
     emptyOutDir: false,
     copyPublicDir: false,
     modulePreload: false,

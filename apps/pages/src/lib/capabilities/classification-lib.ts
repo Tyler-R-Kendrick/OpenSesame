@@ -17,6 +17,7 @@ const WALLET = "wallet.spending";
 
 const CORE_INFRA = [
   "kv",
+  "web-push-ledger", // ids the core worker controller retires when push goes
   "at-rest/", // every stored value's seal and the device key (ADR 0149)
   "vfs",
   "projects",

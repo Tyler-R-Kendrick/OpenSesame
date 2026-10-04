@@ -110,13 +110,10 @@ void (async () => {
       </ResetGate>
     </StrictMode>,
   );
-  if (!crossOriginIsolated && "serviceWorker" in navigator) {
-    navigator.serviceWorker.addEventListener(
-      "controllerchange",
-      () => window.location.reload(),
-      { once: true },
-    );
-  }
+  // The worker controller owns what a change of controller means: a new
+  // release reloads the page, the page's own move between worker variants
+  // (approving or removing Push notifications) does not. A second listener
+  // here would reload on both.
   void registerWorker();
   // A launch of the already-installed app fires no `appinstalled` and may never
   // mount the install card at all — the reader has no cause to open Settings —

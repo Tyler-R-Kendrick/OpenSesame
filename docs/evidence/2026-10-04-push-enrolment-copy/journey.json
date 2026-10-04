@@ -1,0 +1,413 @@
+{
+  "out": ".",
+  "stack": "push",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "enable": "Push notifications"
+        },
+        {
+          "enable": "Notification routing"
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "General"
+        },
+        {
+          "scrollTo": "Push"
+        },
+        {
+          "shot": "390-push-off"
+        },
+        {
+          "press": "Turn on push on this device"
+        },
+        {
+          "settle": 2500
+        },
+        {
+          "pushFacts": null
+        },
+        {
+          "shot": "390-push-pressed"
+        },
+        {
+          "tray": null
+        },
+        {
+          "report": ".notice-card"
+        },
+        {
+          "shot": "390-tray-pressed"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "enable": "Push notifications"
+        },
+        {
+          "enable": "Notification routing"
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "General"
+        },
+        {
+          "scrollTo": "Push"
+        },
+        {
+          "pushLimit": null
+        },
+        {
+          "press": "Turn on push on this device"
+        },
+        {
+          "settle": 2500
+        },
+        {
+          "pushFacts": null
+        },
+        {
+          "tray": null
+        },
+        {
+          "report": ".notice-card"
+        },
+        {
+          "shot": "390-tray-limit"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "runtimeConfig": {
+        "capabilityComposition": {
+          "schemaVersion": 1,
+          "instancePolicy": {
+            "schemaVersion": 1,
+            "kind": "InstanceCapabilityPolicy",
+            "instanceId": "evidence",
+            "revision": "r1",
+            "presetProvenance": null,
+            "capabilities": {
+              "default": "deny",
+              "required": [],
+              "optional": ["notifications.web-push", "notifications.routing"],
+              "prohibited": []
+            },
+            "network": {
+              "externalServices": "allow",
+              "allowedServiceOrigins": ["https://elsewhere.example.test"]
+            },
+            "updates": {
+              "unknownCapabilities": "deny",
+              "expandedExposure": "require-approval"
+            }
+          }
+        }
+      },
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "enable": "Push notifications"
+        },
+        {
+          "enable": "Notification routing"
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "General"
+        },
+        {
+          "scrollTo": "Push"
+        },
+        {
+          "press": "Turn on push on this device"
+        },
+        {
+          "settle": 2500
+        },
+        {
+          "pushFacts": null
+        },
+        {
+          "tray": null
+        },
+        {
+          "report": ".notice-card"
+        },
+        {
+          "shot": "390-tray-policy"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "enable": "Push notifications"
+        },
+        {
+          "enable": "Notification routing"
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "General"
+        },
+        {
+          "scrollTo": "Push"
+        },
+        {
+          "shot": "1280-push-off"
+        },
+        {
+          "press": "Turn on push on this device"
+        },
+        {
+          "settle": 2500
+        },
+        {
+          "pushFacts": null
+        },
+        {
+          "shot": "1280-push-pressed"
+        },
+        {
+          "tray": null
+        },
+        {
+          "report": ".notice-card"
+        },
+        {
+          "shot": "1280-tray-pressed"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "enable": "Push notifications"
+        },
+        {
+          "enable": "Notification routing"
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "General"
+        },
+        {
+          "scrollTo": "Push"
+        },
+        {
+          "pushLimit": null
+        },
+        {
+          "press": "Turn on push on this device"
+        },
+        {
+          "settle": 2500
+        },
+        {
+          "pushFacts": null
+        },
+        {
+          "tray": null
+        },
+        {
+          "report": ".notice-card"
+        },
+        {
+          "shot": "1280-tray-limit"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "runtimeConfig": {
+        "capabilityComposition": {
+          "schemaVersion": 1,
+          "instancePolicy": {
+            "schemaVersion": 1,
+            "kind": "InstanceCapabilityPolicy",
+            "instanceId": "evidence",
+            "revision": "r1",
+            "presetProvenance": null,
+            "capabilities": {
+              "default": "deny",
+              "required": [],
+              "optional": ["notifications.web-push", "notifications.routing"],
+              "prohibited": []
+            },
+            "network": {
+              "externalServices": "allow",
+              "allowedServiceOrigins": ["https://elsewhere.example.test"]
+            },
+            "updates": {
+              "unknownCapabilities": "deny",
+              "expandedExposure": "require-approval"
+            }
+          }
+        }
+      },
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "enable": "Push notifications"
+        },
+        {
+          "enable": "Notification routing"
+        },
+        {
+          "tab": "Settings"
+        },
+        {
+          "open": "General"
+        },
+        {
+          "scrollTo": "Push"
+        },
+        {
+          "press": "Turn on push on this device"
+        },
+        {
+          "settle": 2500
+        },
+        {
+          "pushFacts": null
+        },
+        {
+          "tray": null
+        },
+        {
+          "report": ".notice-card"
+        },
+        {
+          "shot": "1280-tray-policy"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-push-off",
+      "width": 390,
+      "title": "Settings \u203a General \u203a Push, before the key is pressed \u2014 phone",
+      "caption": "A guest with a live Identity session in a browser that can receive push: the Push row, Off, with its one key. Both builds walk to the same screen; the row itself did not change.",
+      "before": "row key \"Turn on push on this device\"; browser subscribed 0; Identity API holds 0",
+      "after": "row key \"Turn on push on this device\"; browser subscribed 0; Identity API holds 0"
+    },
+    {
+      "shot": "390-push-pressed",
+      "width": 390,
+      "title": "The Push row after the key is pressed \u2014 phone",
+      "caption": "The same press against the same live Identity API. Before, the enrolment was refused by this installation's own egress port (the purpose it asked under was misspelt), so nothing ever left the page.",
+      "before": "row still Off (key \"Turn on push on this device\"); browser subscribed 0; Identity API holds 0",
+      "after": "row On (key \"Turn off push on this device\"); browser subscribed 1; Identity API holds 1"
+    },
+    {
+      "shot": "390-tray-pressed",
+      "width": 390,
+      "title": "The notification tray after that press \u2014 phone",
+      "caption": "What the tray says about the press.",
+      "before": "1 notice: \"The sign-in service is not reachable from here, so notifications were not changed.\" (it was never asked)",
+      "after": "0 notices about push"
+    },
+    {
+      "shot": "390-tray-limit",
+      "width": 390,
+      "title": "An account at its subscription limit \u2014 phone",
+      "caption": "The principal already holds ten subscriptions (the service's limit); this press is the eleventh.",
+      "before": "1 notice: \"The sign-in service is not reachable from here, so notifications were not changed.\"; browser subscribed 0",
+      "after": "1 notice: \"The server refused that (409).\"; browser subscribed 1 and taken back 1; Identity API still holds 10"
+    },
+    {
+      "shot": "390-tray-policy",
+      "width": 390,
+      "title": "An operator policy that does not name the Identity API \u2014 phone",
+      "caption": "The deployment's policy allows one service origin, and it is not the Identity API's. The refusal is this installation's, and now says so.",
+      "before": "1 notice: \"The sign-in service is not reachable from here, so notifications were not changed.\"",
+      "after": "1 notice: \"This installation may not reach the sign-in service for push (origin-not-allowed), so notifications were not changed.\"; no request left, browser subscribed 0"
+    },
+    {
+      "shot": "1280-push-off",
+      "width": 1280,
+      "title": "Settings \u203a General \u203a Push, before the key is pressed \u2014 desktop",
+      "caption": "A guest with a live Identity session in a browser that can receive push: the Push row, Off, with its one key. Both builds walk to the same screen; the row itself did not change.",
+      "before": "row key \"Turn on push on this device\"; browser subscribed 0; Identity API holds 0",
+      "after": "row key \"Turn on push on this device\"; browser subscribed 0; Identity API holds 0"
+    },
+    {
+      "shot": "1280-push-pressed",
+      "width": 1280,
+      "title": "The Push row after the key is pressed \u2014 desktop",
+      "caption": "The same press against the same live Identity API. Before, the enrolment was refused by this installation's own egress port (the purpose it asked under was misspelt), so nothing ever left the page.",
+      "before": "row still Off (key \"Turn on push on this device\"); browser subscribed 0; Identity API holds 0",
+      "after": "row On (key \"Turn off push on this device\"); browser subscribed 1; Identity API holds 1"
+    },
+    {
+      "shot": "1280-tray-pressed",
+      "width": 1280,
+      "title": "The notification tray after that press \u2014 desktop",
+      "caption": "What the tray says about the press.",
+      "before": "1 notice: \"The sign-in service is not reachable from here, so notifications were not changed.\" (it was never asked)",
+      "after": "0 notices about push"
+    },
+    {
+      "shot": "1280-tray-limit",
+      "width": 1280,
+      "title": "An account at its subscription limit \u2014 desktop",
+      "caption": "The principal already holds ten subscriptions (the service's limit); this press is the eleventh.",
+      "before": "1 notice: \"The sign-in service is not reachable from here, so notifications were not changed.\"; browser subscribed 0",
+      "after": "1 notice: \"The server refused that (409).\"; browser subscribed 1 and taken back 1; Identity API still holds 10"
+    },
+    {
+      "shot": "1280-tray-policy",
+      "width": 1280,
+      "title": "An operator policy that does not name the Identity API \u2014 desktop",
+      "caption": "The deployment's policy allows one service origin, and it is not the Identity API's. The refusal is this installation's, and now says so.",
+      "before": "1 notice: \"The sign-in service is not reachable from here, so notifications were not changed.\"",
+      "after": "1 notice: \"This installation may not reach the sign-in service for push (origin-not-allowed), so notifications were not changed.\"; no request left, browser subscribed 0"
+    }
+  ]
+}

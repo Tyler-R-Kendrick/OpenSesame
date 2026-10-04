@@ -22,7 +22,7 @@ describe("plan assets and offline status", () => {
     ],
   });
 
-  it("posts nothing beyond the shell when the selection is shell-only", async () => {
+  it("posts only the hello that names the release when the selection is shell-only: no plan, no module ids", async () => {
     const container = new FakeContainer(CORE_URL);
     const store = new FakeStore({
       plan: richPlan,
@@ -31,7 +31,9 @@ describe("plan assets and offline status", () => {
     });
     const { settled } = arm(container, store);
     await settled();
-    expect(container.posted).toEqual([]);
+    expect(container.posted).toEqual([{ type: "WORKER_HELLO" }]);
+    container.emit("message", { type: "WORKER_INFO", releaseId: "r1abc" });
+    expect(container.posted.map((m) => m.type)).toEqual(["WORKER_HELLO"]);
     expect(workerStatus().offlineStatus).toBe("online-only");
   });
 
