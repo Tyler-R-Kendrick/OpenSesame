@@ -73,10 +73,19 @@ answered as if there were no history. Ten event names, written by one table
 | `access.session.revoked` | a session is ended, by its holder signing out or by a custodian | succeeded |
 | `access.siop.approved` / `.denied` | a Self-Issued sign-in is approved or refused | succeeded / denied |
 
-- **Newest first, never edited, sealed, bounded.** A newer receipt is written
-  ahead of the older ones and none is edited. The file is sealed under the
-  vault (ADR 0149) and keeps the newest 256. A receipt that ages out is gone;
-  this is a trail the person reads, not an archive.
+- **Newest first, never edited, sealed, bounded.** Receipts are ordered by when
+  each was decided, wherever it was held in the meantime, and none is edited:
+  one that waited through a failed write takes the place its time gives it, not
+  the front. The file is sealed under the vault (ADR 0149) and keeps the newest
+  256. A receipt that ages out is gone; this is a trail the person reads, not
+  an archive.
+- **Gone with the vault.** The trail, its pending list, the audit of connector
+  grants and the notification preference are all in the list of files wiped
+  when a vault is destroyed (`tombSessionKeys`), because the key that sealed
+  them is gone with it. A guest that ends, or a vault deleted and made again in
+  the same tomb, therefore starts with a trail it can read and record to; left
+  behind, the old ciphertext would make the new vault's trail unreadable and
+  every standing connector grant withheld as if revoked.
 - **Value-blind.** An event names ids and a closed enum: the application (its
   id is the event's target), the local principal, the approver, the
   organization and the request id (`authReqId`). Never a scope, a reason, a
@@ -92,8 +101,11 @@ answered as if there were no history. Ten event names, written by one table
   told they did not because a ledger was full. A receipt that could not be
   written is held, in memory and in a small sealed pending list
   (`config/device-receipts-pending`), and is written ahead of the next
-  receipt, when the trail is next read, and when the vault is next opened. The
-  audit route says how many still wait and Receipts draws a warning mark
+  receipt, when the trail is next read, and when the vault is next opened (an
+  unlock effect of Access and of Browser-local IAM, so it runs whichever of the
+  two is in the plan). What waits in memory is bounded to what the trail itself
+  could hold, newest kept. The audit route says how many still wait, not
+  counting any already written to the trail, and Receipts draws a warning mark
   ("N receipts not written yet") until none do. A decision that was *refused*
   (a stale request, a locked vault, a failed redemption) is not a receipt. The
   guarantee is worded to what is true: a receipt is never false, it is
@@ -101,6 +113,14 @@ answered as if there were no history. Ten event names, written by one table
   known. What no outbox short of sharing the decision's own file could close
   is a tab that dies between the decision's commit and the first attempt to
   write it, milliseconds later; there the receipt is simply absent.
+- **A trail this build cannot read is replaced.** A trail that is damaged,
+  sealed under a key the vault no longer has, too large, or in a format this
+  build does not know could never take another receipt, and every one after it
+  would wait for ever. It is replaced by a trail that begins with one marker,
+  "Receipts were replaced" (`access.receipts.reset`), and what was waiting is
+  written behind it; the bytes nothing could read are gone. A file that is out
+  of reach, a locked vault or a full disk, is not this: that is retried, and
+  nothing is replaced.
 - **No network, no server fact.** The panel reads the vault's trail while
   offline, says "Reading receipts…" rather than "Asking Identity…", and its
   failure sentence names no service. A remote plane keeps every word it had
@@ -135,7 +155,12 @@ the whole of what an inbox row, a count, a notification or the plane's
   hint on a same-origin `BroadcastChannel`; a receiving tab re-reads its own
   sealed records. The message is never read (any script on the origin can post
   one), so the worst it can do is one extra read. A change made in this tab is
-  not announced to this tab's other-tab listeners.
+  not announced to this tab's other-tab listeners. The hint is coalesced where
+  it arrives (`local-iam-events.ts`): heard once at once, and once more at the
+  end of a 200 ms window if more came inside it, however many. Every panel that
+  re-reads on it (the inbox count, Receipts and the names it shows, the
+  requests list, the watcher) inherits that one bound, so a script on this
+  origin posting in a loop cannot make them read as fast as it can post.
 - **A sign-in's consent window is not queued here.** An application sign-in
   holds a message port to the relying party's window, which no other tab can
   answer, and the person is already in front of it. It is decided in its own
@@ -145,9 +170,13 @@ the whole of what an inbox row, a count, a notification or the plane's
   (`isSignInInFlight`): the inbox does not list it, the count does not include
   it, the watcher does not ring for it, and Access › Requests does not offer it
   for a decision that would only make the window's own fail. If the window
-  ends first (a malformed message, a closed popup, a refused passkey, the
-  vault locking) it withdraws what it raised, and that withdrawal is a
-  receipt. This is a limit of that ceremony, not an oversight, and a design
+  ends first (a malformed message, a closed popup, a refused passkey) it
+  withdraws what it raised, and that withdrawal is a receipt. When the vault
+  locks the window cannot withdraw anything, since a locked vault cannot be
+  written: the request is left to lapse, at most five minutes, and is listed
+  nowhere in the meantime. A Deny pressed after the window has begun refusing,
+  or an approval attempted while a refusal is being written, is turned away,
+  so one window gives one answer. This is a limit of that ceremony, not an oversight, and a design
   that queued it would make the approval depend on a second tab the relying
   party cannot see.
 - **A caller bound to no vault reads none.** A session minted with no vault
@@ -221,7 +250,11 @@ to anything wider when the next read fails. The watcher also keeps what it has
 announced when an inbox read fails, so the next good read does not ring the
 same request again; it survives a delivery that throws; and it reads one at a
 time, folding any number of triggers that arrive meanwhile into one more read,
-so a script on this origin posting to the channel cannot queue a backlog.
+so a script on this origin posting to the channel cannot queue a backlog. A
+read that fails is tried again after 1, 2, 4 and 8 seconds and then not until
+something changes, each good read starting the count over; the inbox count on
+the Requests tab does the same, and only its newest read counts, so a read that
+was overtaken sets neither a count nor a timer.
 
 **Where the capability is offered.** Personal and Family offer only the local
 functions of ADR 0153 and none of Identity, Connections, Access or Browser-local
@@ -304,6 +337,14 @@ with no Identity API, and only while the browser holds one.
   (an application's revoke and the person's, and a session ended),
   `local-grant-admin.test.ts`, `siop-authority.test.ts` and
   `local-issuer-channel.test.ts` pin what each decision writes.
+- `device-receipts.failure.test.ts` pins the order a held receipt is written in,
+  that one already in the trail is not counted as waiting, that what waits is
+  bounded, and that a trail this build cannot read (damaged, newer format,
+  sealed under another key) is replaced by a marker and the next receipt is
+  written, while one that is only out of reach is not. `vault/tomb-wipe.test.ts`
+  and the delete-and-recreate case in `local-access-bootstrap.test.ts` pin that
+  a destroyed vault's files go with it and the next vault in its tomb reads,
+  records and is granted its connectors.
 - `local-access-audit.test.ts` pins that an event name this build does not know
   is kept in place and never returned; `local-access-bootstrap.test.ts` and
   `github-installation-access.test.ts` pin that an unreadable trail issues no
@@ -312,13 +353,18 @@ with no Identity API, and only while the browser holds one.
   `local-issuer-channel.signin.test.ts` pin the inbox rows, that the plane
   answers a caller bound to no vault 403, that a sign-in in its own window is
   neither listed nor counted and is withdrawn when the window ends, and that
-  Deny pressed twice is one receipt. `use-once.test.ts` pins the same for the
+  Deny pressed twice is one receipt and an approval is refused while a refusal
+  is being written. `use-once.test.ts` pins the same for the
   Self-Issued page.
-- `local-iam-events.test.ts` pins the cross-tab hint.
+- `local-iam-events.test.ts` pins the cross-tab hint and that a flood of it is
+  heard at most once now and once at the end of the window.
 - `lib/local-notifications/*.test.ts` pin the places, the narrowing, the
   default preference (no system doorbell), the preference's refusals, the
   notice's contract and the watcher's rules (who is rung, when, what takes the
-  marks down, what a failure does not do, and that a flood is one read).
+  marks down, what a failure does not do, that a flood is one read, and that a
+  failed read is retried a bounded number of times, later each time, in
+  `watch.retry.test.ts`; `use-inbox.test.tsx` pins the same for the count and
+  that an overtaken read leaves no timer).
   `modules/notifications.local/runtime.test.tsx` pins the capability's absence
   from the `minimal-local` and `family-local` plans and that it asks the plane
   for nothing; `presets.test.ts` pins where the presets offer it.
