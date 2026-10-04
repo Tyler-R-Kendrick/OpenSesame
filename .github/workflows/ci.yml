@@ -231,17 +231,6 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:static
-      - name: Device is the Identity plane with no Identity API
-        # ADR 0160: a guest on the static build, at desktop and phone widths.
-        # The sign-out row appears only once the device has a session, the
-        # status reads "This device", the principal is the vault key's
-        # thumbprint and survives Refresh, no copy names a service that is not
-        # there, and Receipts is drawn only where the device serves an audit
-        # trail.
-        env:
-          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-          VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:device-identity
       - name: Unlock methods and second steps
         # ADR 0091: key first, then scan, then a code; lock → PIN → code.
         env:
@@ -326,6 +315,48 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:push
+
+  device-identity-e2e:
+    # Its own job: the Bundle budget job's twenty minutes were spent when this
+    # walk (about two and a half minutes, its backup-and-restore flows run in
+    # real browser contexts) was one of its steps. It builds Pages itself and
+    # `bundle-check` below folds its result into the required "Bundle budgets"
+    # check, so it gates merges without another required name.
+    name: Device identity end to end
+    needs: changes
+    # What it drives is the Pages build and the packages that build ships
+    # (app-core, vault-core and what they depend on), which is the bundle area.
+    if: needs.changes.outputs.bundle == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build Pages
+        env:
+          VITE_BASE: /OpenSesame/
+        run: pnpm exec turbo run build --filter=@opensesame/pages
+      - name: Device is the Identity plane with no Identity API
+        # ADR 0160: a guest on the static build, at desktop and phone widths.
+        # The sign-out row appears only once the device has a session, the
+        # status reads "This device", the principal is the vault key's
+        # thumbprint and survives Refresh, no copy names a service that is not
+        # there, and Receipts is drawn only where the device serves an audit
+        # trail. Then the principal across backup and restore, one browser
+        # context per device: the key rides sealed in the vault body, a restore
+        # takes it only when the person chooses, a guest's card draws no choice.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:device-identity
 
   rust:
     name: Rust tests
@@ -433,7 +464,7 @@ jobs:
 
   bundle-check:
     name: Bundle budgets
-    needs: [changes, bundle, device-inbox, push-e2e]
+    needs: [changes, bundle, push-e2e, device-identity-e2e, device-inbox]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -444,6 +475,7 @@ jobs:
           heavy="${{ needs.bundle.result }}"
           inbox="${{ needs.device-inbox.result }}"
           push="${{ needs.push-e2e.result }}"
+          identity="${{ needs.device-identity-e2e.result }}"
           if [ "$changes" != "success" ]; then
             echo "change detection result: $changes"
             exit 1
@@ -457,8 +489,12 @@ jobs:
             *) echo "device inbox result: $inbox"; exit 1 ;;
           esac
           case "$push" in
-            success|skipped) exit 0 ;;
+            success|skipped) ;;
             *) echo "push end to end result: $push"; exit 1 ;;
+          esac
+          case "$identity" in
+            success|skipped) exit 0 ;;
+            *) echo "device identity end to end result: $identity"; exit 1 ;;
           esac
 
   rust-check:

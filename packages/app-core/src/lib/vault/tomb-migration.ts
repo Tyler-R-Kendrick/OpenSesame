@@ -3,6 +3,7 @@ import {
   isBoolean,
   isJsonObject,
 } from "@opensesame/os-domain";
+import { DEVICE_IDENTITY_KEY_PATH } from "@opensesame/vault-core";
 /**
  * Legacy → tomb migration (ADR 0063). Every vault is a tomb; the encrypted
  * VFS (`lib/vfs.ts`) holds what flat KV keys and web storage used to hold.
@@ -145,6 +146,7 @@ function tombSessionKeys(tomb: string): string[] {
     "config/device-receipts-pending",
     "config/local-notifications",
     "config/siop-keys",
+    DEVICE_IDENTITY_KEY_PATH,
     "config/tailnet-drive",
   ].map((path) => tombFileKey(tomb, path));
 }

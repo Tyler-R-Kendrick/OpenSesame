@@ -171,7 +171,7 @@ const hostChunk = () =>
     .readdirSync(path.join(env.DIST, "assets"))
     .find((file) => /^device-identity-host-.*\.js$/.test(file));
 
-async function hostCall(page, route, init = {}) {
+export async function hostCall(page, route, init = {}) {
   return page.evaluate(
     async ([url, to, options]) => {
       const host = await import(url);
@@ -182,8 +182,8 @@ async function hostCall(page, route, init = {}) {
   );
 }
 
-const mintInit = { method: "POST", body: "{}" };
-const asBearer = (token) => ({
+export const mintInit = { method: "POST", body: "{}" };
+export const asBearer = (token) => ({
   headers: { authorization: `Bearer ${token}` },
 });
 

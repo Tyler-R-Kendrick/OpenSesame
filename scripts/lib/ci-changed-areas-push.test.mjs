@@ -113,4 +113,31 @@ describe("the Web Push walk's area", () => {
     }
     expect(listed).toContain("changes");
   });
+
+  it("runs the device identity walk in its own job, gated on the bundle area, and Bundle budgets still reports it", () => {
+    const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+    const bundle = ci.split("  bundle:")[1]?.split("  push-e2e:")[0] ?? "";
+    // Out of the twenty-minute bundle job, which it had filled.
+    expect(bundle).not.toContain("verify:device-identity");
+    const job =
+      ci.split("  device-identity-e2e:")[1]?.split("\n  rust:")[0] ?? "";
+    expect(job).toContain(
+      "pnpm --filter @opensesame/pages verify:device-identity",
+    );
+    expect(job).toContain("needs: changes");
+    expect(job).toContain("if: needs.changes.outputs.bundle == 'true'");
+    expect(job).toContain(
+      "pnpm exec turbo run build --filter=@opensesame/pages",
+    );
+    expect(job).toMatch(/timeout-minutes: 15\b/);
+    // The aggregate accepts only success or skipped from it.
+    const check =
+      ci.split("  bundle-check:")[1]?.split("  rust-check:")[0] ?? "";
+    expect(check).toContain(
+      'identity="${{ needs.device-identity-e2e.result }}"',
+    );
+    expect(check).toMatch(
+      /case "\$identity" in\n\s+success\|skipped\) exit 0 ;;\n\s+\*\) echo[^\n]*; exit 1 ;;/,
+    );
+  });
 });

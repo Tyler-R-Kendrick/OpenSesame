@@ -21,15 +21,23 @@ const osDomain = join(here, "../../../os-domain/src");
 type Listed = { id: string; name: string; kind: string };
 type Vector = {
   file: string;
-  expect: { tomb: string; bound: boolean; rev: number | null; items: Listed[] };
+  expect: {
+    tomb: string;
+    bound: boolean;
+    rev: number | null;
+    items: Listed[];
+    /** Listed by path alone (ADR 0160 §5), for the vector that carries a key. */
+    concealed?: string[];
+  };
 };
 type Fixture = {
   password: string;
   passwordNfkc: string;
   vectors: Record<string, Vector>;
 };
-type Opened = Omit<Vector["expect"], "items"> & {
+type Opened = Omit<Vector["expect"], "items" | "concealed"> & {
   items: (Listed & { path: string })[];
+  concealed: string[];
 };
 
 const fixture: Fixture = overlapCast(
@@ -175,6 +183,9 @@ describe("the portable core in a bare V8 context", () => {
           name,
           kind,
         })),
+        ...("concealed" in vector.expect
+          ? { concealed: opened.concealed }
+          : undefined),
       }).toEqual(vector.expect);
     },
     120_000,

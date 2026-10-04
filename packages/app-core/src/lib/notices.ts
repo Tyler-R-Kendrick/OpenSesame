@@ -35,7 +35,7 @@ export type Notice = {
   ceremony?: ConnectorId;
   ceremonyLabel?: string;
   /** Re-attempt the failed work from the tray. */
-  retry?: () => void;
+  retry?: (() => void) | undefined;
   retryLabel?: string;
   /** An in-app route the notice points at, opened from the tray. */
   open?: NoticeOpen;
@@ -52,7 +52,7 @@ export type StatusNoticeInput = {
   body: string;
   ceremony?: ConnectorId;
   ceremonyLabel?: string;
-  retry?: () => void;
+  retry?: (() => void) | undefined;
   retryLabel?: string;
   open?: NoticeOpen;
 };

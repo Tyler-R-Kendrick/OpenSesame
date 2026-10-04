@@ -16,7 +16,12 @@
  * no browser host, so none at all). No static import cycle may exist, and
  * app-core's lazy cycle edges only shrink (`layering-baseline.json`). See
  * scripts/lib/app-core-{boundary,portability,layering}.mjs.
+ *
+ * A third check runs over the whole repository, not one package: a seam a
+ * module exports for its owner and tests alone (`app-core-seams.mjs`, ADR 0160
+ * §5a) may be imported by no one else, in any package or app.
  */
+import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,6 +31,10 @@ import {
   findBrowserGlobals,
   mustBePortable,
 } from "../lib/app-core-portability.mjs";
+import {
+  RESTRICTED_SEAMS,
+  findRestrictedImports,
+} from "../lib/app-core-seams.mjs";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const argv = new Set(process.argv.slice(2));
@@ -128,7 +137,41 @@ function print({ name, files, report }) {
   }
 }
 
+/** Repo-wide: every source file that mentions a restricted seam's module, read once. */
+function restrictedSeamReport() {
+  const modules = RESTRICTED_SEAMS.map((seam) => seam.module.split("/").pop());
+  let listed = "";
+  try {
+    listed = execFileSync(
+      "git",
+      [
+        "grep",
+        "-l",
+        "-I",
+        "--untracked",
+        ...modules.flatMap((name) => ["-e", name]),
+        "--",
+        "*.ts",
+        "*.tsx",
+        "*.mts",
+        "*.mjs",
+        "*.js",
+      ],
+      { cwd: repo, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+    );
+  } catch (error) {
+    // `git grep` exits 1 when nothing matches, which is a clean report.
+    if (error.status !== 1) throw error;
+  }
+  const files = new Map();
+  for (const path of listed.split("\n").filter(Boolean)) {
+    files.set(path, readFileSync(join(repo, path), "utf8"));
+  }
+  return findRestrictedImports(files);
+}
+
 const results = PACKAGES.map(checkPackage);
+const restricted = restrictedSeamReport();
 if (argv.has("--update")) {
   for (const { root, report } of results) {
     if (report.newLazyCycleEdges.length > 0) continue;
@@ -139,9 +182,17 @@ if (argv.has("--update")) {
   }
 }
 if (argv.has("--json")) {
-  console.log(JSON.stringify(results, null, 2));
+  console.log(JSON.stringify({ results, restricted }, null, 2));
 } else {
   for (const result of results) print(result);
+  console.log(
+    `restricted seams: ${restricted.length} violation(s) ` +
+      `(${RESTRICTED_SEAMS.length} seam(s) held to their owners and tests)`,
+  );
+  for (const { file, module, names } of restricted) {
+    console.log(`  ${file} imports ${names.join(", ")} from ${module}`);
+  }
 }
-const blocking = results.reduce((sum, r) => sum + blockingOf(r.report), 0);
+const blocking =
+  results.reduce((sum, r) => sum + blockingOf(r.report), 0) + restricted.length;
 if (argv.has("--check") && blocking > 0) process.exit(1);
