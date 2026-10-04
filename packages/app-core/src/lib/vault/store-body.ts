@@ -59,6 +59,9 @@ export async function loadVaultBody(
       ...(body.tombstones !== undefined
         ? { tombstones: body.tombstones }
         : undefined),
+      ...(body.deviceIdentityKey !== undefined
+        ? { deviceIdentityKey: body.deviceIdentityKey }
+        : undefined),
       rev,
     };
     // What the retired sample-data feature wrote is not shown, exported or

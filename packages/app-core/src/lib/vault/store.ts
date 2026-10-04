@@ -1,8 +1,7 @@
-import { isString, overlapCast } from "@opensesame/os-domain";
+import { overlapCast } from "@opensesame/os-domain";
 import {
   type Folder,
   type InstallResult,
-  type SealedBlob,
   type VaultBody,
   VaultCorruptError,
   type VaultHeader,
@@ -62,6 +61,7 @@ import {
 import {
   adoptMerged,
   applyManifestPlan,
+  bodyBeforeWrite,
   recordItemTypes,
   renameFolder,
   restoreItem,
@@ -70,7 +70,6 @@ import {
 import { headerCarriesGate } from "./header-gate.js";
 import { type ItemWriteHost, writeSavedItems } from "./item-writes.js";
 import { emitVaultLock } from "./lock-events.js";
-import { unwrapExportedVaultKey } from "./offline-backup-file.js";
 import {
   probePasskeyCeremony,
   unlockVaultWithHeldPrf,
@@ -106,7 +105,7 @@ import {
 import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
 import { carryForkUnlockedIntoActiveScope } from "./scope-carry-fork.js";
 import { carryOpenActiveScopeWithCurrentKey } from "./scope-carry-open.js";
-import { openJsonForRebind, rebindTombSeals } from "./seal-rebind.js";
+import { rebindTombSeals } from "./seal-rebind.js";
 import { CodeSendGuard, PendingChallenge } from "./second-step-guard.js";
 import {
   UnguardedTotpEnrollment,
@@ -117,10 +116,16 @@ import {
 } from "./self-authenticator.js";
 import { loadVaultBody } from "./store-body.js";
 import {
+  type VaultBodyPort,
+  installDeviceKeyCarrier,
+  levelDeviceKey,
+} from "./store-device-key.js";
+import {
   deviceHoldsSealedVault,
   readTombHeader,
   sharesWrapRecord,
 } from "./store-header.js";
+import { importSealedInto } from "./store-import.js";
 import {
   type DriveSnapshotInput,
   type SealedSnapshot,
@@ -660,6 +665,7 @@ export class VaultStore {
       this.#body = emptyBody();
       throw error;
     }
+    await levelDeviceKey(this.#bodyPort());
     await this.#protection.ensureProtectionProjected();
     kvDelete(this.#scope.attempts);
     writeLastVaultId(this.#scope.tomb);
@@ -1249,6 +1255,8 @@ export class VaultStore {
       // A type installed on another device arrives with this merge; rebuilding
       // the registry here is what makes it live without a re-unlock (ADR 0087 §7).
       syncInstalledTypes(this.#body.itemTypes);
+      // Another device's identity key may have come with it (ADR 0160 §5).
+      await levelDeviceKey(this.#bodyPort());
     }
     return { localChanged, remoteBehind: !sameVaultContent(merged, incoming) };
   }
@@ -1294,16 +1302,7 @@ export class VaultStore {
       if (!this.#vaultKey) throw new Error("The vault is locked.");
       // Keep the pre-change body so a failed seal or write cannot leave memory
       // ahead of what is on disk.
-      const previous: VaultBody = {
-        v: this.#body.v,
-        items: this.#body.items,
-        folders: this.#body.folders,
-        ...(this.#body.itemTypes !== undefined
-          ? { itemTypes: this.#body.itemTypes }
-          : undefined),
-        ...(this.#body.rev !== undefined ? { rev: this.#body.rev } : undefined),
-        tombstones: this.#body.tombstones,
-      };
+      const previous = bodyBeforeWrite(this.#body);
       change(this.#body);
       try {
         await this.#persist();
@@ -1503,61 +1502,28 @@ export class VaultStore {
   }
 
   /** Import a sealed export with its password, its PIN, or an unwrapped key. */
-  async importSealed(
-    fileText: string,
-    secret: string | Uint8Array,
-  ): Promise<number> {
-    let parsed: {
-      format?: string;
-      tomb?: string;
-      header?: VaultHeader;
-      body?: SealedBlob;
-    };
-    try {
-      parsed = overlapCast(JSON.parse(fileText));
-    } catch {
-      throw new Error("That file is not valid JSON.");
-    }
-    if (
-      parsed.format !== "opensesame-vault-export" ||
-      !parsed.header ||
-      !parsed.body
-    ) {
-      throw new Error("That file is not an OpenSesame vault export.");
-    }
-    const raw = await unwrapExportedVaultKey(parsed.header, secret);
-    const key = await importVaultKey(raw);
-    raw.fill(0);
-    const named = parsed.tomb ?? "";
-    const tomb = isString(named) && named.length > 0 ? named : this.#scope.tomb;
-    const opened = await openJsonForRebind<VaultBody>(
-      key,
-      parsed.body,
-      vaultSealBinding(tomb, BODY_PATH),
-    );
-    const incoming = opened.value;
+  importSealed(fileText: string, secret: string | Uint8Array): Promise<number> {
+    return importSealedInto(this.#bodyPort(), fileText, secret);
+  }
 
-    if (!this.#vaultKey) throw new Error("Unlock this vault before importing.");
-    const existing = new Set(this.#body.items.map((item) => item.id));
-    const merged = (incoming.items ?? []).filter(
-      (item) => !existing.has(item.id),
-    );
-    const folderIds = new Set(this.#body.folders.map((folder) => folder.id));
-    const mergedFolders = (incoming.folders ?? []).filter(
-      (folder) => !folderIds.has(folder.id),
-    );
-    // Carry the export's definitions too, or the import lands items nothing here can read.
-    const incomingTypes = incoming.itemTypes ?? {};
-    await this.#mutate((body) => {
-      body.items = [...body.items, ...merged];
-      body.folders = [...body.folders, ...mergedFolders];
-      const added = Object.keys(incomingTypes).filter(
-        (id) => body.itemTypes?.[id] === undefined,
-      );
-      recordItemTypes(body, { ...incomingTypes, ...body.itemTypes }, { added });
-    });
-    syncInstalledTypes(this.#body.itemTypes);
-    return merged.length;
+  /**
+   * What the device identity key and a restore need of the open vault: its
+   * tomb, its body and the write chain (ADR 0160 §5).
+   */
+  bodyPort(): VaultBodyPort {
+    return this.#bodyPort();
+  }
+
+  #bodyPort(): VaultBodyPort {
+    return {
+      tomb: () => this.#scope.tomb,
+      open: () => this.#vaultKey !== null,
+      // A guest and a scratch session are never exported or synced.
+      carries: () => !this.#ephemeral && !isGuestSessionTomb(this.#scope.tomb),
+      header: () => this.#header,
+      body: () => this.#body,
+      mutate: (change) => this.#mutate(change),
+    };
   }
 
   /** Irreversibly remove the vault from this device. */
@@ -1654,6 +1620,9 @@ export class VaultStore {
 }
 
 export const vaultStore = new VaultStore();
+
+// The device identity host mints through this store's body (ADR 0160 §5).
+installDeviceKeyCarrier(() => vaultStore.bodyPort());
 
 // A guest's tomb is sealed and isolated like any other, so a guest's
 // actions are logged in it (PRODUCT.md: guests are first-class).

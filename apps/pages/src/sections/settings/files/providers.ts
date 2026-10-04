@@ -14,6 +14,7 @@ import { securityFiles } from "@opensesame/app-core/sections/settings/security-f
 import {
   type VirtualFileProvider,
   mergeFileProviders,
+  withoutConcealedFiles,
 } from "@opensesame/app-core/sections/settings/virtual-files.js";
 import { useMemo, useRef } from "react";
 import { useContributions } from "../../../bindings/contributions.js";
@@ -100,14 +101,16 @@ function useMerged(
     last.current.members.length === members.length &&
     members.every((member, at) => last.current.members[at] === member);
   if (!same) {
+    const [only] = members;
     last.current = {
       members,
+      // Whatever the members offer, a concealed file is never among it.
       merged:
         members.length === 0
           ? null
-          : members.length === 1
-            ? (members[0] ?? null)
-            : mergeFileProviders(members),
+          : withoutConcealedFiles(
+              members.length === 1 && only ? only : mergeFileProviders(members),
+            ),
     };
   }
   return last.current.merged;
