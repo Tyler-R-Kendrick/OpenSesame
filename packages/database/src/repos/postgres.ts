@@ -33,8 +33,10 @@ import {
   desc,
   eq,
   getTableColumns,
+  gt,
   inArray,
   isNull,
+  lte,
   notExists,
   or,
   sql,
@@ -1499,7 +1501,7 @@ export class PostgresRepositories implements Repositories {
             and(
               isNull(schema.webhookDeliveries.deliveredAt),
               isNull(schema.webhookDeliveries.deadAt),
-              sql`${schema.webhookDeliveries.nextAttemptAt} <= ${now}`,
+              lte(schema.webhookDeliveries.nextAttemptAt, now),
             ),
           )
           .orderBy(schema.webhookDeliveries.nextAttemptAt)
@@ -1572,7 +1574,7 @@ export class PostgresRepositories implements Repositories {
           .where(
             and(
               isNull(schema.outboxEvents.publishedAt),
-              sql`${schema.outboxEvents.availableAt} <= ${now}`,
+              lte(schema.outboxEvents.availableAt, now),
             ),
           )
           .orderBy(schema.outboxEvents.availableAt)
@@ -1814,7 +1816,7 @@ export class PostgresRepositories implements Repositories {
           and(
             eq(schema.channelBindingChallenges.id, id),
             isNull(schema.channelBindingChallenges.completedAt),
-            sql`${schema.channelBindingChallenges.expiresAt} > ${now}`,
+            gt(schema.channelBindingChallenges.expiresAt, now),
             sql`${schema.channelBindingChallenges.attempts} < ${schema.channelBindingChallenges.maxAttempts}`,
           ),
         )
@@ -1934,7 +1936,7 @@ export class PostgresRepositories implements Repositories {
                 eq(schema.notificationDeliveries.state, "pending"),
                 eq(schema.notificationDeliveries.state, "failed"),
               ),
-              sql`${schema.notificationDeliveries.nextAttemptAt} <= ${now}`,
+              lte(schema.notificationDeliveries.nextAttemptAt, now),
             ),
           )
           .orderBy(asc(schema.notificationDeliveries.nextAttemptAt))
@@ -2180,7 +2182,7 @@ export class PostgresRepositories implements Repositories {
           and(
             eq(schema.comparisonChallenges.authReqId, authReqId),
             isNull(schema.comparisonChallenges.satisfiedAt),
-            sql`${schema.comparisonChallenges.expiresAt} > ${now}`,
+            gt(schema.comparisonChallenges.expiresAt, now),
             sql`${schema.comparisonChallenges.attempts} < ${schema.comparisonChallenges.maxAttempts}`,
           ),
         )
@@ -2370,7 +2372,7 @@ export class PostgresRepositories implements Repositories {
     purgeExpired: async (now) => {
       const rows = await this.db
         .delete(schema.callbackReplays)
-        .where(sql`${schema.callbackReplays.expiresAt} <= ${now}`)
+        .where(lte(schema.callbackReplays.expiresAt, now))
         .returning({ id: schema.callbackReplays.id });
       return rows.length;
     },
