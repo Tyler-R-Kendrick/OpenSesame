@@ -103,3 +103,34 @@ export async function treeActions(page, stop, { harness, audit }) {
   await page.getByRole("link", { name: "Back to sections" }).first().tap();
   await page.waitForTimeout(500);
 }
+
+/**
+ * A search typed on the list must end when the tree comes back: the list stays
+ * mounted behind it, and a filter that survived made "all" draw no rows. Needs
+ * an item in the vault (an empty list shows nothing either way) and leaves the
+ * walk on the tree it found.
+ */
+export async function searchEndsWithTheList(page, stop, { harness }) {
+  const pane = () => page.locator(".vault").first().getAttribute("data-pane");
+  if ((await pane()) !== "tree") return;
+  const label = stop("search-round-trip");
+  const prompt = page.getByRole("textbox", { name: "Search items" });
+  await page.locator('.vault__tree [title="Search (/)"]').tap();
+  await page.waitForTimeout(600);
+  await prompt.fill("no-such-item-zzz");
+  await page.getByRole("link", { name: "Back to sections" }).first().tap();
+  await page.waitForTimeout(500);
+  await page
+    .getByRole("treeitem", { name: /^all\b/i })
+    .first()
+    .tap();
+  await page.waitForTimeout(600);
+  const rows = await page.locator('.vault__list [role="treeitem"]').count();
+  harness.check(
+    (await prompt.count()) === 0,
+    `${label}: the search prompt closed with the list`,
+  );
+  harness.check(rows > 0, `${label}: all shows its items again (${rows} rows)`);
+  await page.getByRole("link", { name: "Back to sections" }).first().tap();
+  await page.waitForTimeout(500);
+}
