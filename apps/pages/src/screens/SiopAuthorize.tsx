@@ -21,6 +21,7 @@ import { FormCommit } from "../components/FormCommit.js";
 import { IconKey } from "../components/IconKey.js";
 import { IconPasskey, IconX } from "../components/Icons.js";
 import { firstControl, keyboardIsIdle, landFocus } from "../lib/focus.js";
+import { useOnce } from "../lib/use-once.js";
 import { useVault } from "../lib/vault/hooks.js";
 
 export function SiopAuthorize() {
@@ -169,11 +170,17 @@ function SiopConsent({
     }
   }
 
-  async function deny() {
-    if (busy || finished) return;
+  // A refusal is recorded once, however fast it is pressed twice: `finished`
+  // is this render's, and a second press can land before the next one.
+  const refuse = useOnce(async () => {
     setFinished(true);
     await recordSiopDenial(tomb, request);
     globalThis.location.replace(denySiopAuthorization(request));
+  });
+
+  function deny() {
+    if (busy || finished) return;
+    void refuse();
   }
 
   return (
@@ -244,7 +251,7 @@ function SiopConsent({
                 canVerify={Boolean(person)}
                 onAllow={() => void allow()}
                 onVerify={() => void verifyPasskey()}
-                onDeny={() => void deny()}
+                onDeny={deny}
               />
             </>
           ) : null}

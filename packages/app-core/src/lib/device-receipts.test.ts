@@ -10,12 +10,18 @@ import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import {
   RECEIPT_KINDS,
   type ReceiptKind,
+  flushReceipts,
   grantRef,
   listReceipts,
+  pendingReceipts,
   recordReceipt,
   requestRef,
+  resetHeldReceiptsForTest,
+  sessionRef,
 } from "./device-receipts.js";
-import { lockAllTombs, unlockTomb } from "./vfs.js";
+import { listAccessAuditEvents } from "./local-access-audit.js";
+import { subscribeLocalIamChanges } from "./local-iam-events.js";
+import { lockAllTombs, readFile, unlockTomb, writeFile } from "./vfs.js";
 
 let tomb: string;
 
@@ -26,6 +32,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  resetHeldReceiptsForTest();
   lockAllTombs();
   vi.unstubAllGlobals();
 });
@@ -39,6 +46,7 @@ const KINDS = [
   "sign_in.granted",
   "sign_in.denied",
   "sign_in.revoked",
+  "session.ended",
   "siop.approved",
   "siop.denied",
 ] as const satisfies readonly ReceiptKind[];
@@ -136,14 +144,116 @@ describe("the trail", () => {
       recordReceipt(tomb, "request.approved", { applicationId: APP }),
     ).resolves.toBeUndefined();
   });
+});
 
-  it("does not write a second Activity line for a decision the feed has", async () => {
-    const { listActivityEvents } = await import("./activity-log.js");
+const TRAIL = "config/device-receipts";
+const AUDIT = "config/access-audit";
+const bytes = (text: string) => new TextEncoder().encode(text);
+
+describe("where receipts live", () => {
+  it("is a file of their own: the Access audit is never touched", async () => {
+    const before = JSON.stringify({ version: 1, events: [] });
+    await writeFile(tomb, AUDIT, bytes(before));
+    await recordReceipt(tomb, "request.created", { applicationId: APP });
+    await recordReceipt(tomb, "sign_in.revoked", { applicationId: APP });
+    // Byte for byte what an older build wrote, and readable by one.
+    expect(new TextDecoder().decode(await readFile(tomb, AUDIT))).toBe(before);
+    expect(await listAccessAuditEvents(tomb)).toEqual([]);
+    expect(await listReceipts(tomb, 10)).toHaveLength(2);
+  });
+
+  it("records the end of a session against the person it was for", async () => {
+    await recordReceipt(
+      tomb,
+      "session.ended",
+      sessionRef({ principalId: PERSON }),
+    );
+    const [receipt] = await listReceipts(tomb, 1);
+    expect(receipt?.eventType).toBe("access.session.revoked");
+    expect(receipt?.metadata).toEqual({
+      subject: PERSON,
+      targetType: "principal",
+      targetId: PERSON,
+    });
+  });
+});
+
+describe("a receipt that could not be written", () => {
+  const damaged = () => writeFile(tomb, TRAIL, bytes('{"version":2}'));
+  const mended = () =>
+    writeFile(tomb, TRAIL, bytes(JSON.stringify({ version: 1, receipts: [] })));
+
+  it("is held, counted, and never fails the decision", async () => {
+    await damaged();
+    await expect(
+      recordReceipt(tomb, "request.approved", { applicationId: APP }),
+    ).resolves.toBeUndefined();
+    expect(await pendingReceipts(tomb)).toBe(1);
+  });
+
+  it("is written once the trail can take it, with the time it was decided", async () => {
+    await damaged();
+    await recordReceipt(tomb, "request.created", { applicationId: APP });
+    await recordReceipt(tomb, "request.approved", { applicationId: APP });
+    expect(await pendingReceipts(tomb)).toBe(2);
+    await mended();
+    expect(await flushReceipts(tomb)).toBe(0);
+    const rows = await listReceipts(tomb, 10);
+    expect(rows.map((row) => row.eventType).sort()).toEqual([
+      "access.request.approved",
+      "access.request.created",
+    ]);
+    expect(await pendingReceipts(tomb)).toBe(0);
+  });
+
+  it("survives a reload of the tab: it was sealed, not only remembered", async () => {
+    await damaged();
     await recordReceipt(tomb, "request.denied", { applicationId: APP });
-    expect(
-      (await listActivityEvents(tomb).catch(() => [])).filter(
-        (event) => event.category === "access",
-      ),
-    ).toEqual([]);
+    resetHeldReceiptsForTest();
+    expect(await pendingReceipts(tomb)).toBe(1);
+    await mended();
+    // The next decision writes the one that waited, ahead of itself.
+    await recordReceipt(tomb, "request.created", { applicationId: APP });
+    expect((await listReceipts(tomb, 10)).map((row) => row.eventType)).toEqual(
+      expect.arrayContaining([
+        "access.request.denied",
+        "access.request.created",
+      ]),
+    );
+    expect(await pendingReceipts(tomb)).toBe(0);
+  });
+
+  it("is written once however many times the trail is read", async () => {
+    await damaged();
+    await recordReceipt(tomb, "request.denied", { applicationId: APP });
+    await mended();
+    await flushReceipts(tomb);
+    await flushReceipts(tomb);
+    expect(await listReceipts(tomb, 10)).toHaveLength(1);
+  });
+
+  it("does not wait in memory for a vault that is shut", async () => {
+    await damaged();
+    lockAllTombs();
+    await recordReceipt(tomb, "request.denied", { applicationId: APP });
+    expect(await pendingReceipts(tomb)).toBe(0);
+  });
+});
+
+describe("telling the other readers", () => {
+  it("announces a receipt that was written, once, and nothing for a read that found none", async () => {
+    const heard = vi.fn();
+    const off = subscribeLocalIamChanges(heard);
+    await listReceipts(tomb, 10);
+    await flushReceipts(tomb);
+    expect(heard).not.toHaveBeenCalled();
+    await recordReceipt(tomb, "request.created", { applicationId: APP });
+    expect(heard).toHaveBeenCalledOnce();
+    // Reading the trail again, however often, is not a change: two tabs that
+    // each read when the other changes would otherwise read each other forever.
+    await listReceipts(tomb, 10);
+    await flushReceipts(tomb);
+    expect(heard).toHaveBeenCalledOnce();
+    off();
   });
 });

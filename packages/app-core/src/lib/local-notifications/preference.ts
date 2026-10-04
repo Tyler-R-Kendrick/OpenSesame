@@ -32,10 +32,25 @@ export type LocalPreference = Readonly<{
   destinations: readonly LocalDestination[];
 }>;
 
-/** Every place, in the order the doorbells are most to least intrusive. */
+/**
+ * What a vault that has never chosen gets: the bell and the tab's mark, which
+ * ring only inside the page the person already has open. A notification outside
+ * the page is the person's to turn on, by the key that also asks the browser;
+ * it is never on by default, whatever permission the browser already holds.
+ */
 export const DEFAULT_PREFERENCE: LocalPreference = {
   version: 1,
-  destinations: ["in_app", "tab_title", "system"],
+  destinations: ["in_app", "tab_title"],
+};
+
+/**
+ * What an unreadable preference means: the bell alone. A file this build cannot
+ * read says nothing about what the person turned off, and no place is turned on
+ * on the strength of that.
+ */
+export const QUIET_PREFERENCE: LocalPreference = {
+  version: 1,
+  destinations: ["in_app"],
 };
 
 export type PreferenceRead =
@@ -99,16 +114,17 @@ export function subscribePreference(listener: () => void): () => void {
 }
 
 /**
- * The vault's preference, or the default where it has none or holds one this
- * build cannot read: a notice must still reach the person, so an unreadable
- * file falls back to every place policy allows rather than to silence.
+ * The vault's preference: the default where it has none, and the bell alone
+ * where it holds one this build cannot read. The bell is the inbox and cannot
+ * be turned off, so a notice still reaches the person; what an unreadable file
+ * does not do is turn on a place the person may have turned off.
  */
 export async function readPreference(tomb: string): Promise<LocalPreference> {
   await kvRefresh(tombFileKey(tomb, PATH), MAX_BYTES * 2);
   try {
     const bytes = await readFile(tomb, PATH);
     const read = parsePreference(new TextDecoder().decode(bytes));
-    return read.ok ? read.preference : DEFAULT_PREFERENCE;
+    return read.ok ? read.preference : QUIET_PREFERENCE;
   } catch (error) {
     if (error instanceof VfsError && error.code === "not-found")
       return DEFAULT_PREFERENCE;

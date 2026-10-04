@@ -1,6 +1,12 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { gestureLimits, longPress, swipe, swipeBack } from "./gestures.js";
+import {
+  claimHorizontalDrags,
+  gestureLimits,
+  longPress,
+  swipe,
+  swipeBack,
+} from "./gestures.js";
 
 /** What a synthetic pointer needs to carry for the gestures to read it. */
 type PointerInit = {
@@ -204,5 +210,91 @@ describe("swipe", () => {
       pointer("pointerup", { x: 100, y: 100, pointerType: "mouse" }),
     );
     expect(on).not.toHaveBeenCalled();
+  });
+});
+
+type Point = { x: number; y: number };
+
+/** A touch event jsdom will dispatch, carrying the fields the claim reads. */
+function touchEvent(type: string, cancelable: boolean, points: Point[]): Event {
+  const event = new Event(type, { bubbles: true, cancelable });
+  Object.defineProperty(event, "touches", {
+    value: points.map((point) => ({ clientX: point.x, clientY: point.y })),
+  });
+  return event;
+}
+
+function touch(type: string, ...points: Point[]): Event {
+  return touchEvent(type, true, points);
+}
+
+describe("claimHorizontalDrags", () => {
+  it("cancels a drag that has gone sideways, so the browser starts no fling", () => {
+    const el = mount();
+    claimHorizontalDrags(el);
+    el.dispatchEvent(touch("touchstart", { x: 300, y: 100 }));
+    const first = touch("touchmove", { x: 260, y: 102 });
+    el.dispatchEvent(first);
+    expect(first.defaultPrevented).toBe(true);
+    // Claimed for the rest of the touch, even where it wobbles upward.
+    const wobble = touch("touchmove", { x: 255, y: 150 });
+    el.dispatchEvent(wobble);
+    expect(wobble.defaultPrevented).toBe(true);
+  });
+
+  it("leaves a vertical scroll alone, and a drag too small to tell", () => {
+    const el = mount();
+    claimHorizontalDrags(el);
+    el.dispatchEvent(touch("touchstart", { x: 300, y: 100 }));
+    const tiny = touch("touchmove", {
+      x: 300 - gestureLimits.dragClaimSlop,
+      y: 100,
+    });
+    el.dispatchEvent(tiny);
+    expect(tiny.defaultPrevented).toBe(false);
+    const scroll = touch("touchmove", { x: 290, y: 180 });
+    el.dispatchEvent(scroll);
+    expect(scroll.defaultPrevented).toBe(false);
+    // A scroll that began vertically is not taken over when it drifts.
+    const drift = touch("touchmove", { x: 200, y: 185 });
+    el.dispatchEvent(drift);
+    expect(drift.defaultPrevented).toBe(false);
+  });
+
+  it("forgets the claim when the touch ends, and leaves a pinch alone", () => {
+    const el = mount();
+    claimHorizontalDrags(el);
+    el.dispatchEvent(touch("touchstart", { x: 300, y: 100 }));
+    el.dispatchEvent(touch("touchmove", { x: 240, y: 100 }));
+    el.dispatchEvent(touch("touchend"));
+    el.dispatchEvent(touch("touchstart", { x: 300, y: 100 }));
+    const next = touch("touchmove", { x: 300, y: 160 });
+    el.dispatchEvent(next);
+    expect(next.defaultPrevented).toBe(false);
+    el.dispatchEvent(
+      touch("touchstart", { x: 300, y: 100 }, { x: 100, y: 100 }),
+    );
+    const pinch = touch("touchmove", { x: 200, y: 100 }, { x: 100, y: 100 });
+    el.dispatchEvent(pinch);
+    expect(pinch.defaultPrevented).toBe(false);
+  });
+
+  it("does not try to cancel what the browser already took", () => {
+    const el = mount();
+    claimHorizontalDrags(el);
+    el.dispatchEvent(touch("touchstart", { x: 300, y: 100 }));
+    const late = touchEvent("touchmove", false, [{ x: 200, y: 100 }]);
+    el.dispatchEvent(late);
+    expect(late.defaultPrevented).toBe(false);
+  });
+
+  it("stands down when disposed", () => {
+    const el = mount();
+    const stop = claimHorizontalDrags(el);
+    stop();
+    el.dispatchEvent(touch("touchstart", { x: 300, y: 100 }));
+    const move = touch("touchmove", { x: 200, y: 100 });
+    el.dispatchEvent(move);
+    expect(move.defaultPrevented).toBe(false);
   });
 });

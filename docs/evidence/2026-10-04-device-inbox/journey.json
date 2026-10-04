@@ -13,6 +13,9 @@
           }
         },
         {
+          "inboxAllowSystem": null
+        },
+        {
           "inboxRaise": "Sign in to the payroll application"
         },
         {
@@ -63,6 +66,9 @@
             "capabilities": ["Access authority", "Browser-local IAM"],
             "optional": ["Local notifications"]
           }
+        },
+        {
+          "inboxAllowSystem": null
         },
         {
           "inboxRaise": "Sign in to the payroll application"
@@ -122,7 +128,7 @@
       "shot": "1280-background-tab",
       "width": 1280,
       "title": "A second tab, in the background \u2014 1280 \u00d7 900",
-      "caption": "The same vault in a second tab that is not being looked at. Before, it stays as it was. After, its title says (1), its bell is lit with a card that says only that a request is waiting and keys to it, and one system notification rang whose body is the same for every request and whose data is { kind, action, ref } and nothing a request holds. No server was asked.",
+      "caption": "The same vault in a second tab that is not being looked at. Before, it stays as it was. After, its title says (1), its bell is lit with a card that says only that a request is waiting and keys to it, and, the person having turned the system doorbell on with its own key (it is never on by default), one system notification rang whose body is the same for every request and whose data is { kind, action, ref } and nothing a request holds. No server was asked.",
       "before": "title \"OpenSesame\"; bell 0; system notifications 0",
       "after": "title \"(1) OpenSesame\"; bell 1; system notifications 1: \"Request waiting\" / \"A request is waiting for you.\""
     },
@@ -154,7 +160,7 @@
       "shot": "390-background-tab",
       "width": 390,
       "title": "A second tab, in the background \u2014 390 \u00d7 844",
-      "caption": "The same vault in a second tab that is not being looked at. Before, it stays as it was. After, its title says (1), its bell is lit with a card that says only that a request is waiting and keys to it, and one system notification rang whose body is the same for every request and whose data is { kind, action, ref } and nothing a request holds. No server was asked.",
+      "caption": "The same vault in a second tab that is not being looked at. Before, it stays as it was. After, its title says (1), its bell is lit with a card that says only that a request is waiting and keys to it, and, the person having turned the system doorbell on with its own key (it is never on by default), one system notification rang whose body is the same for every request and whose data is { kind, action, ref } and nothing a request holds. No server was asked.",
       "before": "title \"OpenSesame\"; bell 0; system notifications 0",
       "after": "title \"(1) OpenSesame\"; bell 1; system notifications 1: \"Request waiting\" / \"A request is waiting for you.\""
     },

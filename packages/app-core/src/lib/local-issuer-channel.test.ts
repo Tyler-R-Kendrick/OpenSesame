@@ -168,3 +168,15 @@ it("says in the receipts that the person refused, then ends the window, once", a
   });
   lockAllTombs();
 });
+it("records one refusal when Deny is pressed twice before the first is written", async () => {
+  const tomb = `deny-twice-${crypto.randomUUID()}`;
+  unlockTomb(tomb, (await mintVaultKey()).vaultKey);
+  vi.stubGlobal("navigator", { locks: webLocksDouble() });
+  issuer.close();
+  issuer = new LocalIssuerChannel(tomb, request, status);
+  await Promise.all([issuer.deny(), issuer.deny()]);
+  expect((await listReceipts(tomb, 5)).map((row) => row.eventType)).toEqual([
+    "access.sign_in.denied",
+  ]);
+  lockAllTombs();
+});

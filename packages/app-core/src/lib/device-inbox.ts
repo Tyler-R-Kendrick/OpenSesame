@@ -11,9 +11,11 @@
  * a notification may carry (ADR 0084), so a row can be handed to any
  * destination without a content decision.
  *
- * A sign-in whose consent window is open is not queued here. That ceremony
+ * A sign-in whose consent window is open is not queued here, whether the
+ * window has been approved yet or not (`isSignInInFlight`). That ceremony
  * holds a port to the relying party's window that no other tab can answer, so
- * it is decided in its own window and recorded as a receipt, not as a row.
+ * it is decided in its own window and recorded as a receipt, not as a row; and
+ * the window withdraws what it raised if it ends before it is decided.
  */
 
 import {
@@ -24,6 +26,7 @@ import {
   currentRequest,
   readLocalRequestRecords,
 } from "./local-request-store.js";
+import { isSignInInFlight } from "./local-request-summary.js";
 import { tombUnlocked } from "./vfs.js";
 
 /** What kind of thing is waiting. A closed set. */
@@ -61,7 +64,12 @@ export async function listInbox(
     return stored.map(currentRequest);
   });
   return requests
-    .filter((row) => row.status === "pending" && row.expiresAt > now)
+    .filter(
+      (row) =>
+        row.status === "pending" &&
+        row.expiresAt > now &&
+        !isSignInInFlight(row),
+    )
     .sort((a, b) => b.createdAt - a.createdAt)
     .map((row) => ({
       kind: "local-access",

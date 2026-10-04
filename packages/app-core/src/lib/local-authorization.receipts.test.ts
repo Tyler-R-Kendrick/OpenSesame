@@ -24,7 +24,11 @@ import {
 import { bindLocalIamLockResets } from "./local-iam-lock-resets.js";
 import { enrollLocalPasskey } from "./local-passkeys.js";
 import { consumedApplicationRequest } from "./local-request.fixture.js";
-import { type LocalSession, signInLocalIdentity } from "./local-sessions.js";
+import {
+  type LocalSession,
+  revokeLocalIdentitySession,
+  signInLocalIdentity,
+} from "./local-sessions.js";
 import { vaultStore } from "./vault/store.js";
 import { lockAllTombs, unlockTomb } from "./vfs.js";
 
@@ -158,4 +162,17 @@ it("writes a receipt when an application signs in and when that ends, and not wh
     });
   // The grant's id is a handle to the application's session, not the trail's.
   expect(JSON.stringify(receipts)).not.toContain(grant.id);
+});
+
+it("writes a receipt when a session is ended, for the person it was for", async () => {
+  await revokeLocalIdentitySession(tomb, session.id);
+  const [receipt] = await listReceipts(tomb, 5);
+  expect(receipt?.eventType).toBe("access.session.revoked");
+  expect(receipt?.metadata).toMatchObject({
+    subject: person,
+    targetType: "principal",
+    targetId: person,
+  });
+  // The session's id is a handle to this tab's session, not the trail's.
+  expect(JSON.stringify(receipt)).not.toContain(session.id);
 });

@@ -78,21 +78,36 @@ describe("the system notification row", () => {
     expect(await key("Turn off system notifications")).toBeTruthy();
   });
 
-  it("turns off and on again once it is permitted, and the preference follows", async () => {
+  it("is off until the person turns it on, even where the browser already permits it", async () => {
     permission("granted");
     render(<LocalNotificationsPanel />);
+    // Permission is not a choice: the doorbell is the person's to turn on.
+    expect(await key("Turn on system notifications")).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: /Turn off system/ }),
+    ).toBeNull();
+    expect((await readPreference(vault.tomb)).destinations).not.toContain(
+      "system",
+    );
+  });
+
+  it("turns on and off again once it is permitted, and the preference follows", async () => {
+    permission("granted");
+    render(<LocalNotificationsPanel />);
+    fireEvent.click(await key("Turn on system notifications"));
+    await waitFor(async () =>
+      expect((await readPreference(vault.tomb)).destinations).toEqual([
+        "in_app",
+        "tab_title",
+        "system",
+      ]),
+    );
     fireEvent.click(await key("Turn off system notifications"));
     await waitFor(async () =>
       expect((await readPreference(vault.tomb)).destinations).toEqual([
         "in_app",
         "tab_title",
       ]),
-    );
-    fireEvent.click(await key("Turn on system notifications"));
-    await waitFor(async () =>
-      expect((await readPreference(vault.tomb)).destinations).toContain(
-        "system",
-      ),
     );
     expect(requestPermission).not.toHaveBeenCalled();
   });
@@ -115,6 +130,12 @@ describe("the tab title row", () => {
   it("toggles the place, keeping the rest of the order", async () => {
     permission("granted");
     render(<LocalNotificationsPanel />);
+    fireEvent.click(await key("Turn on system notifications"));
+    await waitFor(async () =>
+      expect((await readPreference(vault.tomb)).destinations).toContain(
+        "system",
+      ),
+    );
     fireEvent.click(await key("Turn off tab title and badge"));
     await waitFor(async () =>
       expect((await readPreference(vault.tomb)).destinations).toEqual([
@@ -140,6 +161,7 @@ describe("what the panel is", () => {
     await key("Turn off tab title and badge");
     expect(screen.queryByText(/bell|in.app|inbox/i)).toBeNull();
     // The preference never loses it however the keys are pressed.
+    fireEvent.click(await key("Turn on system notifications"));
     fireEvent.click(await key("Turn off system notifications"));
     fireEvent.click(await key("Turn off tab title and badge"));
     await waitFor(async () =>

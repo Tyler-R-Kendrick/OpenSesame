@@ -2,6 +2,11 @@
 import { identityServes } from "@opensesame/app-core/lib/identity-plane.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  approved,
+  profilePlan,
+  profileSelection,
+} from "../../lib/capabilities/__tests__/vault-profiles.js";
+import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
   importUnderSpies,
@@ -11,6 +16,7 @@ import { createTestContext } from "../test-context.js";
 import type * as Runtime from "./runtime.js";
 
 let runtime: typeof Runtime;
+const CAPABILITY = "notifications.local";
 
 describe("notifications.local runtime", () => {
   afterEach(() => {
@@ -56,13 +62,39 @@ describe("notifications.local runtime", () => {
     await handle.dispose();
   });
 
-  it("serves the device's notifications family while it is on, and not after", async () => {
+  it("asks the plane for nothing and registers nothing in it: the device serves no notifications family", async () => {
     expect(identityServes("notifications")).toBe(false);
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
-    expect(identityServes("notifications")).toBe(true);
+    expect(identityServes("notifications")).toBe(false);
     await handle.dispose();
     expect(identityServes("notifications")).toBe(false);
+  });
+
+  it("is absent from the minimal and family plans, and present only once a person chooses it", () => {
+    for (const profile of ["minimal-local", "family-local"]) {
+      expect(
+        approved(profilePlan(profile), CAPABILITY),
+        `${profile} resolves ${CAPABILITY}`,
+      ).toBe(false);
+    }
+    // Chosen, with the dependency it needs, under a plan that offers both.
+    const chosen = profilePlan("minimal-local", {
+      installation: {
+        ...profileSelection("minimal-local"),
+        selectedOptional: ["identity.local-iam", CAPABILITY],
+      },
+    });
+    expect(approved(chosen, CAPABILITY)).toBe(true);
+    // Never without the capability it depends on: nothing would raise a
+    // request to be told about.
+    const alone = profilePlan("minimal-local", {
+      installation: {
+        ...profileSelection("minimal-local"),
+        selectedOptional: [CAPABILITY],
+      },
+    });
+    expect(approved(alone, "identity.local-iam")).toBe(true);
   });
 
   it("reaches no network and asks for no permission on activation", async () => {

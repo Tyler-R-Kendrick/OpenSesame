@@ -54,8 +54,9 @@ does instead:
   importer), because pretending otherwise would be the lie.
 
 The same applies to service workers: unregistering a worker does not terminate
-its clients synchronously, so the controller exposes a `transition-required`
-state instead of racing a second registration
+its clients synchronously, so the controller never unregisters one. It replaces
+the registered script in place (`transition-required`, then `transitioning`)
+and the old worker serves until the new one claims the page
 (`lib/capabilities/worker-controller.ts`).
 
 ## 3. There is no cryptographic rollback prevention

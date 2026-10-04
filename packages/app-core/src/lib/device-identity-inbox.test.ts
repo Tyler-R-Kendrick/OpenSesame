@@ -13,15 +13,18 @@ import {
 import { deviceIdentityFetch } from "./device-identity-host.js";
 import { LOCAL_IAM_DEVICE_ROUTES } from "./device-identity-local.js";
 import { registerDeviceRoutes } from "./device-identity-routes.js";
+import { recordReceipt, resetHeldReceiptsForTest } from "./device-receipts.js";
 import {
   createLocalAccessRequest,
   decideLocalAccessRequest,
 } from "./local-access-requests.js";
 import { localRequestFixture } from "./local-request.fixture.js";
+import { tombFileKey, vfsSeams } from "./vfs.js";
 
 useDeviceIdentityHarness();
 
 afterEach(() => {
+  resetHeldReceiptsForTest();
   vi.restoreAllMocks();
 });
 
@@ -165,6 +168,55 @@ describe("the receipts, as the plane answers them", () => {
       405,
     );
     expect((await ask("/v1/audit/events/anything")).status).toBe(404);
+  });
+});
+
+describe("a session bound to no vault", () => {
+  it("reads nothing of whichever vault is open afterwards", async () => {
+    // Minted before any vault existed: it has a principal and no tomb.
+    const early = overlapCast(
+      await (
+        await deviceIdentityFetch("/v1/principals/provisional", {
+          method: "POST",
+          body: "{}",
+        })
+      ).json(),
+    );
+    const fixture = await localRequestFixture();
+    harness.view = { kind: "unlocked", tomb: fixture.tomb, guest: false };
+    registerDeviceRoutes(LOCAL_IAM_DEVICE_ROUTES);
+    await createLocalAccessRequest(fixture.tomb, fixture.session, {
+      applicationId: fixture.applicationId,
+      redirectUri: "https://rp.example.test/callback",
+      scopes: ["openid"],
+      reason: "Sign in to the test application",
+    });
+    for (const path of ["/v1/audit/events", "/v1/authorization-requests"]) {
+      const res = await deviceIdentityFetch(path, {
+        headers: { authorization: `Bearer ${String(early.accessToken)}` },
+      });
+      expect(res.status, path).toBe(403);
+      expect(overlapCast(await res.json()).error).toBe("forbidden");
+    }
+  });
+});
+
+describe("the receipts that are behind", () => {
+  it("says how many decisions are made and not yet written", async () => {
+    const { ask, tomb } = await opened();
+    expect(
+      overlapCast(await (await ask("/v1/audit/events")).json()).pending,
+    ).toBe(0);
+    // The trail's own file refuses a write, as a full disk would.
+    const real = vfsSeams.writeRaw;
+    vi.spyOn(vfsSeams, "writeRaw").mockImplementation((key, value) =>
+      key === tombFileKey(tomb, "config/device-receipts")
+        ? Promise.reject(new Error("disk full"))
+        : real(key, value),
+    );
+    await recordReceipt(tomb, "request.denied", { applicationId: "app-1" });
+    const behind = await ask("/v1/audit/events");
+    expect(overlapCast(await behind.json()).pending).toBe(1);
   });
 });
 

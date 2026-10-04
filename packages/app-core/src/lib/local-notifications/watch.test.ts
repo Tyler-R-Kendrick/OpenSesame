@@ -6,7 +6,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { InboxRow } from "../device-inbox.js";
 import type { LocalEnvironment } from "./destinations.js";
-import { DEFAULT_PREFERENCE, type LocalPreference } from "./preference.js";
+import type { LocalPreference } from "./preference.js";
 import {
   type Deliveries,
   type WatchPorts,
@@ -14,6 +14,11 @@ import {
   watchInbox,
 } from "./watch.js";
 
+/** Every place on, as a person who turned the system doorbell on has it. */
+const ALL_PLACES: LocalPreference = {
+  version: 1,
+  destinations: ["in_app", "tab_title", "system"],
+};
 const REF_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const REF_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 
@@ -36,6 +41,10 @@ type RigState = {
   rows: InboxRow[];
   hidden: boolean;
   unreadable: boolean;
+  /** The preference cannot be read. */
+  preferenceUnreadable: boolean;
+  /** How many times the inbox was read. */
+  reads: number;
   environment: LocalEnvironment;
   preference: LocalPreference;
 };
@@ -54,20 +63,26 @@ function rig(options: RigOptions = {}) {
     rows: [],
     hidden: options.hidden ?? false,
     unreadable: false,
+    preferenceUnreadable: false,
+    reads: 0,
     environment: options.environment ?? {
       tabTitle: true,
       system: "granted",
     },
-    preference: options.preference ?? DEFAULT_PREFERENCE,
+    preference: options.preference ?? ALL_PLACES,
   };
   let trigger: ((why: WatchTrigger) => void) | undefined;
   const timers: { action: () => void; ms: number; live: boolean }[] = [];
   const ports: WatchPorts = {
     list: async () => {
+      state.reads += 1;
       if (state.unreadable) throw new Error("locked");
       return state.rows;
     },
-    preference: async () => state.preference,
+    preference: async () => {
+      if (state.preferenceUnreadable) throw new Error("unreadable");
+      return state.preference;
+    },
     environment: () => state.environment,
     hidden: () => state.hidden,
     deliver,
@@ -274,7 +289,7 @@ describe("what takes the marks down", () => {
     await watchInbox(
       {
         list: async () => [row(REF_A)],
-        preference: async () => DEFAULT_PREFERENCE,
+        preference: async () => ALL_PLACES,
         environment: () => ({ tabTitle: true, system: "granted" }),
         hidden: () => true,
         deliver,
@@ -286,6 +301,84 @@ describe("what takes the marks down", () => {
     );
     expect(deliver.system).not.toHaveBeenCalled();
     expect(deliver.inApp).toHaveBeenCalledWith(null);
+  });
+});
+
+describe("what a failure does not do", () => {
+  it("does not ring a request again because one read failed in between", async () => {
+    const r = rig({ hidden: true });
+    await r.settle();
+    r.state.rows = [row(REF_A)];
+    await r.fire("other-tab");
+    expect(r.deliver.system).toHaveBeenCalledOnce();
+    r.state.unreadable = true;
+    await r.fire("change");
+    r.state.unreadable = false;
+    await r.fire("change");
+    // Announced once; the marks came down and went up again, the doorbell did not.
+    expect(r.deliver.system).toHaveBeenCalledOnce();
+    expect(r.calls.at(-2)).toBe("inApp:1");
+    await r.stop();
+  });
+
+  it("keeps the last preference it read when the next cannot be read", async () => {
+    const r = rig({
+      hidden: true,
+      preference: { version: 1, destinations: ["in_app"] },
+    });
+    await r.settle();
+    r.state.preferenceUnreadable = true;
+    r.state.rows = [row(REF_A)];
+    await r.fire("other-tab");
+    // The person turned the doorbell and the tab's mark off; not being able to
+    // read that now is not leave to turn them on.
+    expect(r.deliver.system).not.toHaveBeenCalled();
+    expect(r.calls).toContain("tab:0");
+    expect(r.calls).not.toContain("tab:1");
+    await r.stop();
+  });
+
+  it("is quiet, bell only, when it has never been able to read the preference", async () => {
+    const r = rig({ hidden: true });
+    r.state.preferenceUnreadable = true;
+    r.state.rows = [row(REF_A)];
+    await r.settle();
+    await r.fire("other-tab");
+    r.state.rows = [row(REF_B), row(REF_A)];
+    await r.fire("other-tab");
+    expect(r.deliver.system).not.toHaveBeenCalled();
+    expect(r.calls).toContain("inApp:2");
+    expect(r.calls).not.toContain("tab:2");
+    await r.stop();
+  });
+
+  it("goes on watching, and stops cleanly, after a delivery that threw", async () => {
+    const r = rig({ hidden: true });
+    await r.settle();
+    vi.mocked(r.deliver.inApp).mockImplementationOnce(() => {
+      throw new Error("the tray is gone");
+    });
+    r.state.rows = [row(REF_A)];
+    await r.fire("other-tab");
+    r.state.rows = [row(REF_B), row(REF_A)];
+    await r.fire("other-tab");
+    expect(r.calls).toContain("inApp:2");
+    await r.stop();
+  });
+});
+
+describe("a flood of triggers", () => {
+  it("is read as one more read, not as a queue of them", async () => {
+    const r = rig();
+    await r.settle();
+    const before = r.state.reads;
+    r.state.rows = [row(REF_A)];
+    for (let each = 0; each < 500; each += 1) r.fire("other-tab");
+    await r.settle();
+    await r.settle();
+    expect(r.state.reads - before).toBeLessThanOrEqual(2);
+    expect(r.calls).toContain("inApp:1");
+    await r.stop();
   });
 });
 

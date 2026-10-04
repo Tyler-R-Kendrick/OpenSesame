@@ -185,6 +185,23 @@ describe("PRESETS", () => {
     expect(presetById("personal").network.externalServices).toBe("allow");
   });
 
+  it("offers notifications.local exactly where it offers the identity.local-iam it depends on", () => {
+    // Personal and Family are device-only presets with no Identity, Access or
+    // Browser-local IAM, so a notification of a request has nothing to be
+    // about there; the three presets that offer every optional capability offer
+    // both. Intended (ADR 0162), and pinned so it stays a decision.
+    for (const preset of PRESETS) {
+      const offered = new Set([...preset.optional, ...preset.required]);
+      expect(offered.has("notifications.local"), preset.id).toBe(
+        offered.has("identity.local-iam"),
+      );
+    }
+    for (const id of ["personal", "family"] as const)
+      expect(presetById(id).optional).not.toContain("notifications.local");
+    for (const id of ["homelab", "organization", "custom"] as const)
+      expect(presetById(id).optional).toContain("notifications.local");
+  });
+
   it("homelab and organization offer but never pre-select the external families", () => {
     for (const id of ["homelab", "organization"] as const) {
       const preset = presetById(id);

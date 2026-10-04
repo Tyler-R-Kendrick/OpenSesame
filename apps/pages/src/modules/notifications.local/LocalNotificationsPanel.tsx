@@ -20,8 +20,8 @@ import type {
   SystemPermission,
 } from "@opensesame/app-core/lib/local-notifications/destinations.js";
 import {
-  DEFAULT_PREFERENCE,
   type LocalPreference,
+  QUIET_PREFERENCE,
   readPreference,
   subscribePreference,
   writePreference,
@@ -79,7 +79,7 @@ function usePreference(tomb: string) {
   const [preference, setPreference] = useState<LocalPreference | null>(null);
   const load = useCallback(() => {
     readPreference(tomb).then(setPreference, () =>
-      setPreference(DEFAULT_PREFERENCE),
+      setPreference(QUIET_PREFERENCE),
     );
   }, [tomb]);
   useEffect(() => {

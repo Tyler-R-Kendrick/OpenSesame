@@ -10,12 +10,12 @@
  */
 
 import { fileURLToPath } from "node:url";
-import { expect } from "@playwright/test";
 import { build } from "vite";
 import {
   LOCAL_IAM_CAPABILITIES,
   chooseCapabilities,
 } from "./local-access-journey.mjs";
+import { expect } from "./patient-expect.mjs";
 
 export const root = fileURLToPath(new URL("../../../..", import.meta.url));
 

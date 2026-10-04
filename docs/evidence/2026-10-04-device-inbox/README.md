@@ -12,7 +12,9 @@ application, and has **no Identity API and no Host**. Two tabs of one origin
 do the work: the person's, in front, and a second one in the background. A
 headless tab is never hidden, so the second is told it is (`document.hidden`
 reads true there) and its `Notification` is recorded rather than shown; that
-is the one thing the harness stands in for. The wall clock is frozen so both
+is the one thing the harness stands in for. In the after walk the person turns the
+system doorbell on with the panel's own key before the request is raised, and the
+browser's permission is granted at that press; the doorbell is never on by default. The wall clock is frozen so both
 builds' timestamps read the same.
 
 ## A request is raised

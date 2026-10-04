@@ -43,6 +43,9 @@ const LOCAL_RECORDS = [
   "local-application-shape",
   "local-applications",
   "local-credentials",
+  // The request as a list shows it, and the sign-in being decided in its own
+  // window: Access and the device inbox both read it.
+  "local-request-summary",
   "local-devices",
   "local-directory",
   "local-directory-bootstrap",

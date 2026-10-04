@@ -26,3 +26,18 @@ export function summarize(row: LocalAccessRequestRecord) {
   };
 }
 export type LocalAccessRequest = ReturnType<typeof summarize>;
+
+/**
+ * A sign-in consent that is still being decided in the relying party's own
+ * window. That window raised the request and holds the port its answer goes
+ * to, so it is decided there, in the same breath; no list can offer it, no
+ * tab can answer it, and nobody is waiting on it that the window is not
+ * already asking. A list that showed it would invite a decision that makes the
+ * window's own fail, and one that rang for it would announce a request to the
+ * person who is looking at it.
+ */
+export function isSignInInFlight(
+  row: Pick<LocalAccessRequestRecord, "authorizationDigest" | "status">,
+): boolean {
+  return Boolean(row.authorizationDigest) && row.status === "pending";
+}

@@ -280,6 +280,40 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # a wss Nostr relay; and, veth down, relay-only TURN.
 # Fails, never skips, without namespace support. Run before touching
 # lib/live/candidates.ts or the address hint.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:push-worker
+# A real localhost origin with service workers allowed (`context.route` never
+# sees a worker's fetches, and the shared harness blocks workers). A device
+# holding the core `sw.js` approves Push notifications and must end on
+# `sw-push.js` at the same scope: one registration, no reload, the vault still
+# open; a push delivered over CDP rings the `{kind, action, ref}` doorbell and
+# a hostile payload only the generic one; removing the capability returns the
+# core worker. A second tab stays open throughout, and a replacement Chrome
+# leaves waiting is asked for again under a fresh `?r=` URL, with no nudge. Run
+# before touching the worker controller, `src/sw*`, or anything on the push
+# enrolment path (`lib/push*.ts`).
+pnpm --filter @opensesame/pages build:push-verify    # second Pages build into
+                          #   dist-push-verify, stamped loopback_development for
+                          #   http://localhost:41877 (the one origin that profile
+                          #   honours); the tracked security-profile.json is put
+                          #   back whether the build passes or fails
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:push
+# Web Push end to end against a real Identity API (control-plane
+# `startServer()` in memory on :41878, the Host's Web Push delivery, and a
+# stand-in push service that verifies RFC 8292 VAPID and decrypts RFC 8291
+# aes128gcm); runs under tsx. Only the browser's own subscription is stood in
+# for. Walks approve Push, turn on (the server records the browser's
+# subscription), a real push through the stand-in rings the closed doorbell,
+# turn off (the row is gone), and the failures: service unreachable, an
+# endpoint another principal holds (409, recovered), an account at its limit
+# (409, nothing left half-enrolled, a held subscription the server cannot record
+# is let go) and an operator policy that refuses the Identity API's origin. About
+# 20 s. Run before touching `lib/push*.ts`, `modules/notifications.web-push`,
+# or the control-plane, notification-adapters, identity-worker and database code
+# the walk imports; CI runs it as its own job, "Web Push end to end", whenever
+# the Pages build or any of that server code changes (`push` area in
+# `scripts/lib/ci-changed-areas.mjs`).
 ```
 
 Sealed-store Settings bridge: export a path manifest in Pages, then
@@ -363,7 +397,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `apps/browser-extension` | WXT browser extension; `runner/` is the local runner of the hosted step protocol (ADR 0159): claims steps with the person's Host session for an armed origin, executes them in an isolated-world injection, answers only canonical outcomes, submits at most once, and answers `failed(transport)` for the two capture steps no host envelope scheme exists for |
 | `examples/*` | Example relying parties (`rp-alpha`, `rp-beta`, `static-rp`, `siop-rp`), agents (`agent`, `static-agent`) and a headless device-login client (`headless`) |
 | `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |
-| `packages/app-core/src/lib/{device-receipts,device-inbox,device-identity-inbox}.ts`, `src/lib/local-notifications/`, `apps/pages/src/modules/notifications.local/` | The device's receipts, inbox and local notifications (ADR 0162): receipts are events the decisions append to the sealed Access audit; the inbox is the pending local requests; the `audit` and `requests` device routes answer them to a session and decide nothing; `notifications.local` rings through the bell, the tab title and badge, and the Notification API (permission asked only on its key), routing narrowed to policy, no server and no push |
+| `packages/app-core/src/lib/{device-receipts,device-inbox,device-identity-inbox}.ts`, `src/lib/local-notifications/`, `apps/pages/src/modules/notifications.local/` | The device's receipts, inbox and local notifications (ADR 0162): receipts are the vault's own sealed file (`device-receipts-store.ts`), apart from the Access audit, written after each decision and retried from a sealed pending list; the inbox is the pending local requests; the `audit` and `requests` device routes answer them to a session and decide nothing; `notifications.local` rings through the bell, the tab title and badge, and the Notification API (permission asked only on its key), routing narrowed to policy, no server and no push |
 | `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`spec/conformance/vault-vectors.json`, also read by the Rust reader `crates/human-vault` `pages_vault`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
 | `packages/app-core/src/lib/item-type-marketplace/`, `packages/app-core/src/sections/settings/{virtual-files,item-type-files}.ts`, `apps/pages/src/sections/settings/files/` | Item-type marketplaces read from any git repository's `.opensesame/marketplace.json` (ours by default: `.opensesame/`, `marketplace/item-types/`, re-pin with `node scripts/release/pin-marketplace.mjs`), and Settings as files — the source view is a file viewer over `VirtualFileProvider`s and the Form is drawn from the same files (ADR 0134) |
 | `packages/vault-item-types` | Vault item types: embeds the built-in corpus (`marketplace/item-types/builtin/*.json`), the closed field-type catalogue, the parser, and the runtime registry — one corpus for both planes (ADR 0087) |
@@ -466,6 +500,15 @@ Do not add new top-level directories or loose root files — find the group.
   is not authentication evidence. Keep exact-origin/source binding, PKCE,
   human-only consent and scoped opener headers; never widen model authority
   to make the flow pass. Browser-local identity is not a hosted OIDC service.
+- **Web Push is proved against a real Identity API.** Changes to push
+  enrolment, the push worker or its controller, the Identity API's push routes,
+  the Web Push adapters or the Host's delivery require
+  `pnpm --filter @opensesame/pages verify:push-worker` and `verify:push`
+  against fresh builds (`build:push-verify` for the second). `verify:push` is
+  its own CI job, folded into the required Bundle budgets check, and runs
+  for the server code it exercises as well as for Pages. A push worker that is
+  only ever shown to a mocked enrolment, or a walk that nudges the browser, is
+  not evidence.
 - `@opensesame/os-domain` **must not** import Better Auth, oidc-provider,
   Hono, Drizzle, or React (see CONTRIBUTING.md).
 - Prefer mature libraries over NIH protocol code —
@@ -475,8 +518,8 @@ Do not add new top-level directories or loose root files — find the group.
   Marketplace *hosting* for previews is fine; auth is not).
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
-- Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0160 and 0162).
+- Record consequential decisions as ADRs under `docs/adr/`, numbered in order;
+  `docs/adr/README.md` is the generated index of what exists.
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker, and nothing — no operator ceremony, no Identity
@@ -1076,7 +1119,9 @@ CI lives in `.github/workflows/`:
   and the ones that depend on them: TypeScript runs `turbo run typecheck test`
   for that set, and Rust runs `cargo test --all-targets -p` for that set on
   Rust 1.88.0. A root lockfile or manifest tests the whole suite. Bundle
-  budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`.
+  budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`;
+  "Web Push end to end" (`verify:push`) is its own job that the same check
+  waits for, and runs when the Pages build or the server code it imports changes.
   The TypeScript job also runs the signature preflight, changed-file lint,
   and `pnpm quality`. A docs-only diff passes the three checks without those
   suites. An unrecognized path runs every suite.

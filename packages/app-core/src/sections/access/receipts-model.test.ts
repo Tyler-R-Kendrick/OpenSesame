@@ -1,4 +1,5 @@
 import { expect, it } from "vitest";
+import { RECEIPT_EVENT_TYPES } from "../../lib/device-receipts.js";
 import {
   type AuditEvent,
   isReceiptEvent,
@@ -18,12 +19,18 @@ it("counts what the device decided as a receipt, with what an agent did", () => 
     "access.request.approved",
     "access.sign_in.revoked",
     "access.siop.denied",
-    "access.connection.granted",
+    "access.session.revoked",
     "agent.run.finished",
     "connection.binding.bound",
   ])
     expect(isReceiptEvent({ ...base, eventType }), eventType).toBe(true);
   expect(isReceiptEvent({ ...base, eventType: "auth.login" })).toBe(false);
+  // An `access.*` event the device does not word is not this panel's to show.
+  for (const eventType of [
+    "access.connection.granted",
+    "access.something.remote",
+  ])
+    expect(isReceiptEvent({ ...base, eventType }), eventType).toBe(false);
   expect(
     isReceiptEvent({ ...base, eventType: "auth.login", actorType: "agent" }),
   ).toBe(true);
@@ -54,4 +61,10 @@ it("marks a refusal as a warning and a failure as an error", () => {
   expect(outcomeChip("denied")).toBe("chip--warn");
   expect(outcomeChip("failed")).toBe("chip--err");
   expect(outcomeChip("succeeded")).toBe("chip--ok");
+});
+
+it("has words for every decision the device can record, and no other", () => {
+  for (const eventType of RECEIPT_EVENT_TYPES)
+    expect(receiptLabel(eventType), eventType).not.toBe(eventType);
+  expect(receiptLabel("access.session.revoked")).toBe("Session ended");
 });

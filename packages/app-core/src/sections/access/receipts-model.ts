@@ -14,14 +14,31 @@ export type AuditEvent = {
   metadata?: JsonObject;
 };
 
+/**
+ * The words for the decisions this device records (ADR 0162). Any other event
+ * type, one an Identity API sent, is shown as it was named.
+ */
+const RECEIPT_LABELS: ReadonlyMap<string, string> = new Map([
+  ["access.request.created", "Request raised"],
+  ["access.request.approved", "Request approved"],
+  ["access.request.denied", "Request denied"],
+  ["access.request.withdrawn", "Request withdrawn"],
+  ["access.sign_in.granted", "Application signed in"],
+  ["access.sign_in.denied", "Application sign-in refused"],
+  ["access.sign_in.revoked", "Application sign-in ended"],
+  ["access.session.revoked", "Session ended"],
+  ["access.siop.approved", "Self-issued sign-in approved"],
+  ["access.siop.denied", "Self-issued sign-in refused"],
+]);
+
 export function isReceiptEvent(event: AuditEvent): boolean {
   if (
     event.eventType.startsWith("agent.") ||
     event.eventType.startsWith("connection.") ||
-    // What the device decided for its person (ADR 0162): requests, sign-ins
-    // and connector grants are each a decision somebody made, so each is a
-    // receipt.
-    event.eventType.startsWith("access.")
+    // What the device decided for its person (ADR 0162): exactly the decisions
+    // it words below, and no other `access.*` event, which a remote plane may
+    // name for something this panel has no words for.
+    RECEIPT_LABELS.has(event.eventType)
   ) {
     return true;
   }
@@ -39,24 +56,6 @@ export const OUTCOME_CHIP = new Map([
 export function outcomeChip(outcome: string): string {
   return OUTCOME_CHIP.get(outcome) ?? "";
 }
-
-/**
- * The words for the decisions this device records (ADR 0162). Any other event
- * type, one an Identity API sent, is shown as it was named.
- */
-const RECEIPT_LABELS: ReadonlyMap<string, string> = new Map([
-  ["access.request.created", "Request raised"],
-  ["access.request.approved", "Request approved"],
-  ["access.request.denied", "Request denied"],
-  ["access.request.withdrawn", "Request withdrawn"],
-  ["access.sign_in.granted", "Application signed in"],
-  ["access.sign_in.denied", "Application sign-in refused"],
-  ["access.sign_in.revoked", "Application sign-in ended"],
-  ["access.siop.approved", "Self-issued sign-in approved"],
-  ["access.siop.denied", "Self-issued sign-in refused"],
-  ["access.connection.granted", "Connection shared"],
-  ["access.connection.revoked", "Connection share ended"],
-]);
 
 export function receiptLabel(eventType: string): string {
   return RECEIPT_LABELS.get(eventType) ?? eventType;

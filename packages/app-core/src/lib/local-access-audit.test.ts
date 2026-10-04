@@ -6,7 +6,7 @@ import {
   recordAccessAuditEvent,
 } from "./local-access-audit.js";
 import { localRequestFixture } from "./local-request.fixture.js";
-import { lockAllTombs } from "./vfs.js";
+import { lockAllTombs, readFile, writeFile } from "./vfs.js";
 
 beforeEach(() => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
@@ -92,4 +92,55 @@ it("never trims the newest revocation for a grant, while the trail stays capped"
   ).toBe(true);
   // Still newest first: the last decision recorded leads the trail.
   expect(events[0]?.metadata.subject).toBe("person-299");
+});
+
+it("keeps an event name a newer build wrote, in place, and never hands it to logic", async () => {
+  const fixture = await localRequestFixture();
+  const future = {
+    id: "future-1",
+    occurredAt: "2026-10-04T00:00:00.000Z",
+    eventType: "access.future.thing",
+    outcome: "succeeded",
+    correlationId: "corr-1",
+    targetType: "thing",
+    targetId: "thing-1",
+    metadata: {},
+  };
+  const path = "config/access-audit";
+  await writeFile(
+    fixture.tomb,
+    path,
+    new TextEncoder().encode(JSON.stringify({ version: 1, events: [future] })),
+  );
+  // Read by this build: not corrupt, and not offered to anything that reads it.
+  expect(await listAccessAuditEvents(fixture.tomb)).toEqual([]);
+  const after = await recordAccessAuditEvent(fixture.tomb, {
+    eventType: "access.connection.revoked",
+    outcome: "succeeded",
+    targetType: "connection",
+    targetId: "slack",
+    metadata: { subject: "agent", policy: "use" },
+  });
+  expect(after.map((event) => event.eventType)).toEqual([
+    "access.connection.revoked",
+  ]);
+  // Rewritten by this build: the stranger is still in the file, behind it.
+  const raw = JSON.parse(
+    new TextDecoder().decode(await readFile(fixture.tomb, path)),
+  );
+  expect(
+    raw.events.map((event: { eventType: string }) => event.eventType),
+  ).toEqual(["access.connection.revoked", "access.future.thing"]);
+});
+
+it("still refuses a file that is not an audit trail at all", async () => {
+  const fixture = await localRequestFixture();
+  await writeFile(
+    fixture.tomb,
+    "config/access-audit",
+    new TextEncoder().encode(
+      JSON.stringify({ version: 1, events: [{ eventType: "access.x" }] }),
+    ),
+  );
+  await expect(listAccessAuditEvents(fixture.tomb)).rejects.toThrow(/corrupt/);
 });

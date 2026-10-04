@@ -9,6 +9,15 @@ import {
   workerModule,
 } from "./descriptor.js";
 
+/**
+ * What `notifications.web-push` declares for its external-service egress.
+ * Egress classifies a request by the purpose it names, exactly, so the
+ * enrolment code imports this rather than retype it: a retyped copy that
+ * drifted refused every enrolment as `purpose-not-declared`.
+ */
+export const WEB_PUSH_ENROLMENT_PURPOSE =
+  "the configured Identity API's push enrolment";
+
 export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "agents.webmcp",
@@ -104,7 +113,7 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       egress: [
         {
           class: "external-service",
-          purpose: "the configured Identity API's push enrolment",
+          purpose: WEB_PUSH_ENROLMENT_PURPOSE,
           automatic: false,
         },
       ],

@@ -18,7 +18,7 @@ import {
   listLocalShares,
   revokeLocalShare,
 } from "./local-share-grants.js";
-import { GUEST_TOMB, lockAllTombs, unlockTomb } from "./vfs.js";
+import { GUEST_TOMB, lockAllTombs, unlockTomb, writeFile } from "./vfs.js";
 
 let tomb: string;
 
@@ -180,6 +180,34 @@ describe("ensureDefaultAccess", () => {
     expect(after.map((share) => share.principalId)).toEqual([
       ownerGrant?.principalId,
     ]);
+  });
+
+  it("never re-issues a revoked grant when the trail that says so cannot be read", async () => {
+    await ensureDefaultAccess(tomb);
+    const [agentGrant] = (await listLocalShares(tomb)).filter(
+      (share) =>
+        share.resourceKind === "connection" &&
+        share.principalId === SUPPORT_AGENT_ID,
+    );
+    const provider = agentGrant?.resourceId ?? "";
+    const grantOf = async () =>
+      (await listLocalShares(tomb)).filter(
+        (share) =>
+          share.resourceKind === "connection" &&
+          share.resourceId === provider &&
+          share.principalId === SUPPORT_AGENT_ID,
+      );
+    await revokeLocalShare(tomb, agentGrant?.id ?? "");
+    expect(await grantOf()).toEqual([]);
+    // A build that writes the trail another way, a rollback, a damaged file:
+    // this one cannot tell what was revoked, so it issues nothing.
+    await writeFile(
+      tomb,
+      "config/access-audit",
+      new TextEncoder().encode(JSON.stringify({ version: 2, events: "?" })),
+    );
+    await ensureDefaultAccess(tomb);
+    expect(await grantOf()).toEqual([]);
   });
 
   it("renews a revoked standing grant again once a person re-grants it", async () => {

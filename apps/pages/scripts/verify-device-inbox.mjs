@@ -12,24 +12,36 @@
 //
 //   A. A locked device shows nothing of what was decided and answers 423 at
 //      the plane (`/v1/audit/events`, `/v1/authorization-requests`).
-//   B. A request is raised in the front tab. The Requests tab says one waits;
+//   B. Nothing has asked the browser for the notification permission by the
+//      time two tabs have loaded, and the permission is still "default". The
+//      person turns the system doorbell on with the panel's own key; the
+//      permission is granted at that press, and that press asks once.
+//   C. A request is raised in the front tab. The Requests tab says one waits;
 //      a second tab, in the background, shows the bell (the phone's More key),
 //      puts `(1)` in its title and rings one system notification whose words
 //      are the same for every request and whose data is `{ kind, action, ref }`
-//      and nothing a request holds. The front tab rings none. The bell's key
-//      opens Access › Requests.
-//   C. The request is approved with the keyboard and the passkey. Every mark
+//      and nothing a request holds. The front tab rings none (every tab's
+//      `Notification` is recorded, so that can fail). A click on the
+//      notification and the bell's key each open Access › Requests and leave
+//      focus on a visible control.
+//   D. The request is approved with the keyboard and the passkey. Every mark
 //      goes, and Sessions › Receipts says the request was raised and approved,
 //      by the application's name.
-//   D. It is withdrawn; a second is refused with the keyboard and the passkey,
+//   E. It is withdrawn; a second is refused with the keyboard and the passkey,
 //      and told to the second tab again. Receipts say so, the refusal marked
 //      denied.
-//   E. An application signs in through its own window, and Receipts say so,
+//   F. An application signs in through its own window, and Receipts say so,
 //      with no reload; it ends the session, and they say that; a second sign-in
-//      is refused in its window, and they say that too.
-//   F. The plane answers the same trail to a session, holds nothing waiting,
-//      refuses to decide, and carries none of what the requests held.
-//   G. Locked again, the session answers 423 and the screen holds nothing.
+//      is refused in its window, and they say that too; a third is ended by the
+//      person in Access › Grants, and Receipts show two sign-ins ended. None of
+//      those windows rang a doorbell or marked the tab.
+//   G. The plane answers the same trail to a session, holds nothing waiting
+//      and no receipt unwritten, refuses to decide, and carries none of what
+//      the requests held.
+//   H. Locked again, the session answers 423 and the screen holds nothing.
+//
+// Every wait is for a condition with a stated bound, not for a length of time,
+// so the run does not depend on the speed of the machine it is on.
 import { fileURLToPath } from "node:url";
 import {
   INBOX_CAPABILITIES,

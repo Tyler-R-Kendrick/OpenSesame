@@ -154,6 +154,47 @@ describe("Receipts on the device plane (ADR 0162)", () => {
     ).toBeTruthy();
   });
 
+  it("says when decisions are made and not yet written, and not when none wait", async () => {
+    identityJson.mockResolvedValue({
+      events: [event("e8", "access.request.denied", "denied")],
+      pending: 2,
+    });
+    const { container, rerender } = render(
+      <Receipts online={true} sessionKey={tomb} />,
+    );
+    await screen.findByText("Request denied · Test application");
+    expect(
+      container.querySelector('[aria-label="2 receipts not written yet"]'),
+    ).not.toBeNull();
+    identityJson.mockResolvedValue({
+      events: [event("e8", "access.request.denied", "denied")],
+      pending: 0,
+    });
+    await act(async () => {
+      notifyLocalIamChange();
+    });
+    rerender(<Receipts online={true} sessionKey={tomb} />);
+    await screen.findByText("Request denied · Test application");
+    expect(
+      container.querySelector('[aria-label$="not written yet"]'),
+    ).toBeNull();
+  });
+
+  it("words the end of a session by the person it was for", async () => {
+    identityJson.mockResolvedValue({
+      events: [
+        {
+          ...event("e7", "access.session.revoked"),
+          metadata: { targetType: "principal", targetId: appId },
+        },
+      ],
+    });
+    render(<Receipts online={true} sessionKey={tomb} />);
+    expect(
+      await screen.findByText("Session ended · Test application"),
+    ).toBeTruthy();
+  });
+
   it("says there are none when there are none", async () => {
     identityJson.mockResolvedValue({ events: [] });
     render(<Receipts online={true} sessionKey={tomb} />);

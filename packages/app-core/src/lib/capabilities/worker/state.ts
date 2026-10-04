@@ -30,13 +30,35 @@ export type ControllerState = {
     moduleIds: readonly string[];
   }> | null;
   pendingTransition: PendingTransition | null;
+  /** A worker already controlled this page when the controller started. */
+  bootControlled: boolean;
+  /** The release the page's shell belongs to: its first controller's answer. */
+  bootReleaseId: string | null;
+  /** A hello is out and unanswered; another is not sent on top of it. */
+  helloPending: boolean;
+  /**
+   * The controller changed and the new one has been asked which release it
+   * is; the answer decides whether this page reloads. Cancels its own timeout.
+   */
+  takeover: { cancel: () => void } | null;
+  /** Set by the controller: re-read which variant holds the scope. */
+  afterTakeover: (() => void) | null;
+  /** The page has already been told to reload for a new release. */
+  reloadStarted: boolean;
   reconciling: Promise<void>;
+  /** The highest `?r=` this page has asked a script for. */
+  asked: number;
+  /** Times the controller came back to a replacement it had given up on. */
+  recoveries: number;
+  /** Cancels the pending look-again timer, if one is set. */
+  recheckCancel: (() => void) | null;
 };
 
 const INITIAL_STATUS: WorkerStatus = {
   supported: true,
   variant: null,
   requiredVariant: null,
+  pendingVariant: null,
   releaseId: null,
   offlineStatus: "online-only",
   savedModuleIds: [],
@@ -56,7 +78,16 @@ function initialFields(): ControllerState {
     lastPlanKey: null,
     postedPlan: null,
     pendingTransition: null,
+    bootControlled: false,
+    bootReleaseId: null,
+    helloPending: false,
+    takeover: null,
+    afterTakeover: null,
+    reloadStarted: false,
     reconciling: Promise.resolve(),
+    asked: 0,
+    recoveries: 0,
+    recheckCancel: null,
   };
 }
 
@@ -81,6 +112,7 @@ export function diagnose(code: string): void {
 
 /** Test seam: forget every page-level decision. */
 export function resetWorkerController(): void {
+  state.recheckCancel?.();
   Object.assign(state, initialFields());
   notify();
 }

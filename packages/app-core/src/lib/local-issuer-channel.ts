@@ -7,7 +7,11 @@ import {
 } from "@opensesame/static-auth";
 import { page, pageOrigin } from "../ports.js";
 import { recordReceipt } from "./device-receipts.js";
-import { decideLocalAccessRequest } from "./local-access-requests.js";
+import {
+  type LocalAccessRequest,
+  decideLocalAccessRequest,
+  revokeLocalAccessRequest,
+} from "./local-access-requests.js";
 import {
   beginLocalAgentAuthentication,
   cancelLocalAgentAuthentication,
@@ -42,7 +46,15 @@ export class LocalIssuerChannel {
   private port: MessagePort | null = null;
   private closed = false;
   private approved = false;
+  private denying = false;
   private busy = false;
+  /**
+   * The sign-in request this window raised and has not yet had decided. It
+   * exists for the length of one passkey ceremony, and it is withdrawn if the
+   * window ends before the ceremony does, so a closed window leaves no request
+   * behind for the five minutes it would otherwise live.
+   */
+  private raised: LocalAccessRequest | null = null;
   private session: LocalSession | null = null;
   private agentSession: LocalSession | null = null;
   private challenge: LocalAgentChallenge | null = null;
@@ -90,11 +102,24 @@ export class LocalIssuerChannel {
     if (this.challenge)
       cancelLocalAgentAuthentication(this.tomb, this.challenge.nonce);
     this.challenge = null;
+    this.withdrawRaised();
     this.status("closed");
   };
 
+  /** Withdraw a request no one is any longer deciding. It narrows, never grants. */
+  private withdrawRaised() {
+    const raised = this.raised;
+    this.raised = null;
+    if (raised)
+      void revokeLocalAccessRequest(this.tomb, raised).catch(() => undefined);
+  }
+
   /** The person pressed Deny: the receipts say so, then the window ends. */
   async deny() {
+    // Set before anything is awaited: a second press while the first waits on
+    // the ledger is the same refusal, not another one.
+    if (this.denying) return;
+    this.denying = true;
     if (!this.closed && !this.approved)
       await recordReceipt(this.tomb, "sign_in.denied", {
         applicationId: this.request.applicationId,
@@ -319,12 +344,14 @@ export class LocalIssuerChannel {
         approval.session,
         this.request,
       );
+      this.raised = pending;
       if (this.closed) throw new Error("closed");
       const decided = await decideLocalAccessRequest(this.tomb, {
         ...pending,
         principalId: identity.principalId,
         decision: "approve",
       });
+      this.raised = null;
       if (this.closed) throw new Error("closed");
       const response = await redeemLocalApplicationRequest(
         this.tomb,
@@ -340,6 +367,9 @@ export class LocalIssuerChannel {
         code: response.code,
       });
     } catch (error) {
+      // The window may have closed while the request was being raised, in
+      // which case `close` found nothing to withdraw yet.
+      this.withdrawRaised();
       this.close();
       throw error;
     }

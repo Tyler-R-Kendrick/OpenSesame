@@ -15,7 +15,6 @@
  */
 
 import { fileURLToPath } from "node:url";
-import { expect } from "@playwright/test";
 import { awaitCapabilitySections, capabilitySwitch } from "./always-on.mjs";
 import { views } from "./capture-live-join-steps.mjs";
 import { chooseCapabilities, unlockVault } from "./choose-capabilities.mjs";
@@ -26,8 +25,9 @@ import {
   press,
   raiseRequest,
   tabAndEnter,
-} from "./device-inbox-journey.mjs";
+} from "./device-inbox-tabs.mjs";
 import { authenticator, bundle } from "./local-iam-rig.mjs";
+import { expect } from "./patient-expect.mjs";
 
 const FIXTURE = fileURLToPath(
   new URL("../fixtures/local-iam.ts", import.meta.url),
@@ -101,7 +101,6 @@ async function seed(page, { origin, site }, { capabilities, optional = [] }) {
   const context = page.context();
   const { width } = page.viewportSize();
   const credentials = await seedVault(page, origin);
-  await context.grantPermissions(["notifications"], { origin });
   await chooseCapabilities(context, width, capabilities, site);
   const chosen = [];
   for (const title of optional)
@@ -121,6 +120,30 @@ async function seed(page, { origin, site }, { capabilities, optional = [] }) {
   console.log(
     `  inboxSeed: optional capabilities offered: ${chosen.join(",") || "none"}`,
   );
+}
+
+/**
+ * Turn the system doorbell on, the way a person does: the panel's own key,
+ * with the browser's permission granted at that press and not before. A build
+ * without the panel has no such key, which is the honest "before".
+ */
+async function allowSystem({ main }, { site, origin }) {
+  await main.goto(`${site}/settings/capabilities`);
+  await unlockVault(main);
+  await awaitCapabilitySections(main);
+  const allow = main.getByRole("button", {
+    name: "Allow system notifications",
+  });
+  if (await allow.count()) {
+    await main.context().grantPermissions(["notifications"], { origin });
+    await press(main, allow);
+    await expect(
+      main.getByRole("button", { name: "Turn off system notifications" }),
+    ).toBeVisible();
+  }
+  await main.goto(`${site}/access?view=requests`);
+  await unlockVault(main);
+  await expect(main.getByLabel("Password", { exact: true })).toHaveCount(0);
 }
 
 /** Raise a request in the tab in front, with the keyboard. */
@@ -214,6 +237,7 @@ export function inboxSteps({ origin, base }) {
   const site = `${origin}${base.replace(/\/$/, "")}`;
   return {
     inboxSeed: (page, spec) => seed(page, { origin, site }, spec),
+    inboxAllowSystem: (page) => allowSystem(at(page), { site, origin }),
     inboxRaise: (page, reason) => raise(at(page), reason),
     inboxBell: (page) => openBell(at(page)),
     inboxApprove: (page) => approve(at(page)),

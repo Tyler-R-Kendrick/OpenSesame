@@ -29,10 +29,8 @@
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
-import { registerDeviceRoutes } from "@opensesame/app-core/lib/device-identity-routes.js";
 import { listInbox } from "@opensesame/app-core/lib/device-inbox.js";
 import { readPreference } from "@opensesame/app-core/lib/local-notifications/preference.js";
-import { LOCAL_NOTIFICATIONS_DEVICE_ROUTES } from "@opensesame/app-core/lib/local-notifications/routes.js";
 import { watchInbox } from "@opensesame/app-core/lib/local-notifications/watch.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { localNotificationFiles } from "@opensesame/app-core/sections/settings/local-notifications-files.js";
@@ -62,12 +60,6 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
-
-    // The device's `notifications` family (ADR 0160 §3): present exactly
-    // while this capability is, answering that the inbox is its one channel.
-    activation.onDispose(
-      registerDeviceRoutes(LOCAL_NOTIFICATIONS_DEVICE_ROUTES),
-    );
 
     activation.register("settings-panel", {
       id: "local-notifications",

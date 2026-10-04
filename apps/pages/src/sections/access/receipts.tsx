@@ -79,6 +79,8 @@ function failure(refused: IdentityError | null, device: boolean): string {
  */
 function useTrail(sessionKey: string, device: boolean, reachable: boolean) {
   const [events, setEvents] = useState<AuditEvent[] | null>(null);
+  // Decisions the device made that are not in the trail yet (ADR 0162).
+  const [pending, setPending] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const run = useRef(0);
@@ -93,14 +95,17 @@ function useTrail(sessionKey: string, device: boolean, reachable: boolean) {
       // The device's trail is the vault's: it asks for no session first, so
       // its own is minted here when the page has none yet.
       if (device) await ensureIdentitySession();
-      const body = await identityJson<{ events: AuditEvent[] }>(
-        "/v1/audit/events?limit=50",
-      );
+      const body = await identityJson<{
+        events: AuditEvent[];
+        pending?: number;
+      }>("/v1/audit/events?limit=50");
       if (superseded()) return;
       setEvents(body.events.filter(isReceiptEvent));
+      setPending(body.pending ?? 0);
     } catch (err) {
       if (superseded()) return;
       setEvents(null);
+      setPending(0);
       setError(failure(err instanceof IdentityError ? err : null, device));
     } finally {
       if (!superseded()) setBusy(false);
@@ -114,6 +119,7 @@ function useTrail(sessionKey: string, device: boolean, reachable: boolean) {
       shownFor.current = sessionKey;
       run.current += 1;
       setEvents(null);
+      setPending(0);
       setError(null);
     }
     if (!reachable) return;
@@ -132,7 +138,7 @@ function useTrail(sessionKey: string, device: boolean, reachable: boolean) {
     };
   }, [device, load]);
 
-  return { events, error, busy, load };
+  return { events, pending, error, busy, load };
 }
 
 export function Receipts({
@@ -148,7 +154,11 @@ export function Receipts({
   // This device's trail is in its own vault: reading it asks nothing of a
   // network. Only a remote plane needs one.
   const reachable = device || online;
-  const { events, error, busy, load } = useTrail(sessionKey, device, reachable);
+  const { events, pending, error, busy, load } = useTrail(
+    sessionKey,
+    device,
+    reachable,
+  );
 
   return (
     <section className="panel" id="access-receipts">
@@ -156,6 +166,12 @@ export function Receipts({
         <div>
           <h2>Receipts</h2>
         </div>
+        {pending > 0 ? (
+          <StatusMark
+            tone="warn"
+            label={`${pending} ${pending === 1 ? "receipt" : "receipts"} not written yet`}
+          />
+        ) : null}
         <button
           type="button"
           className="icon-btn icon-btn--sm"

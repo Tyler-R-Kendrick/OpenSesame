@@ -1,8 +1,10 @@
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { lockAllTombs, unlockTomb, writeFile } from "../vfs.js";
+import { allowedDestinations, effectiveDestinations } from "./destinations.js";
 import {
   DEFAULT_PREFERENCE,
+  QUIET_PREFERENCE,
   parsePreference,
   readPreference,
   serializePreference,
@@ -76,8 +78,17 @@ describe("the sealed preference", () => {
     vi.restoreAllMocks();
   });
 
-  it("is every place until the person says otherwise", async () => {
+  it("is the bell and the tab's mark until the person says otherwise, and never the system doorbell", async () => {
     expect(await readPreference(tomb)).toEqual(DEFAULT_PREFERENCE);
+    expect(DEFAULT_PREFERENCE.destinations).toEqual(["in_app", "tab_title"]);
+    // Not even where the browser already holds the permission: the doorbell is
+    // added by the person's own press, and by nothing else.
+    expect(
+      effectiveDestinations(
+        DEFAULT_PREFERENCE.destinations,
+        allowedDestinations({ tabTitle: true, system: "granted" }),
+      ),
+    ).toEqual(["in_app", "tab_title"]);
   });
 
   it("keeps what is written and tells this tab's listeners", async () => {
@@ -98,13 +109,16 @@ describe("the sealed preference", () => {
     expect(await readPreference(tomb)).toEqual(DEFAULT_PREFERENCE);
   });
 
-  it("falls back to every place when the file is one this build cannot read", async () => {
+  it("falls back to the bell alone when the file is one this build cannot read", async () => {
     await writeFile(
       tomb,
       "config/local-notifications",
       new TextEncoder().encode('{"version":9}'),
     );
-    expect(await readPreference(tomb)).toEqual(DEFAULT_PREFERENCE);
+    // What a file this build cannot read turned off is unknown: nothing is
+    // turned on on its account.
+    expect(await readPreference(tomb)).toEqual(QUIET_PREFERENCE);
+    expect(QUIET_PREFERENCE.destinations).toEqual(["in_app"]);
   });
 
   it("is per vault", async () => {

@@ -17,6 +17,7 @@ const WALLET = "wallet.spending";
 
 const CORE_INFRA = [
   "kv",
+  "web-push-ledger", // ids the core worker controller retires when push goes
   "at-rest/", // every stored value's seal and the device key (ADR 0149)
   "vfs",
   "projects",
@@ -26,6 +27,7 @@ const CORE_INFRA = [
   "focus",
   "use-focus-after",
   "gestures",
+  "use-claimed-drags",
   "gesture-help",
   "use-narrow",
   "vault-list-path",
@@ -40,6 +42,8 @@ const CORE_INFRA = [
   "notices",
   "use-online",
   "use-configured",
+  // A press that must count once, however fast it is pressed twice.
+  "use-once",
   "use-settings",
   "use-install",
   "identifier",
@@ -126,7 +130,6 @@ const CLOUD_FILES = ["age-keys", "aws-kms-config", "gcp-kms-config", "sops/"];
 const ACCESS_FILES = [
   "access-book",
   "local-access-requests",
-  "local-request-summary",
   "local-grant-admin",
   "local-grant-store",
   "local-share-reach",

@@ -19,6 +19,7 @@ import {
   registerWorkerForPlan,
   workerControllerSettled,
 } from "../worker-controller.js";
+import { FakeWorker, type InstallOutcome } from "./fake-worker.js";
 import { workerControllerSeams } from "./seams.js";
 import { resetWorkerController } from "./state.js";
 import type {
@@ -170,6 +171,32 @@ export class FakeContainer {
   }[] = [];
   readonly posted: PageToWorkerMessage[] = [];
   readonly unregistered: string[] = [];
+  /** Push subscriptions the registration holds; `unsubscribe` records here. */
+  readonly pushUnsubscribed: string[] = [];
+  holdsPushSubscription = false;
+  /** A script that is still installing (a replacement the page asked for). */
+  installingScript: string | null = null;
+  /** Make the next `register` reject, as a refused or offline script does. */
+  registerFails = false;
+  /** Whether a replacement takes the page (`controllerchange`) on register. */
+  claimOnRegister = false;
+  /** What a script registered over the scope does. */
+  installOutcome: InstallOutcome = "activate";
+  /**
+   * How many registrations install and then sit `installed` for ever, as
+   * Chrome leaves a replacement when another tab restarts the old worker as
+   * it is being stopped. The next registration, under a new URL, activates.
+   */
+  wedges = 0;
+  /**
+   * From this registration on (1 is the first) `register` never answers, as a
+   * script fetch that hangs does. `null`: every one answers.
+   */
+  hangRegisterFrom: number | null = null;
+  /** The wedged worker, if one sits waiting. */
+  waitingWorker: FakeWorker | null = null;
+  /** The worker of the last `register`, for a test that makes it move on. */
+  lastInstalling: FakeWorker | null = null;
   activeScript: string | null;
   hasController: boolean;
   private readonly handlers = new Map<string, Handler[]>();
@@ -187,28 +214,95 @@ export class FakeContainer {
     return { postMessage: (m) => this.posted.push(m) };
   }
 
-  async register(url: string, options?: RegistrationOptions): Promise<void> {
-    this.registered.push({ url, options });
-    this.activeScript = url;
+  /** The browser finishing the install the last `register` started. */
+  finishInstall(outcome: "activate" | "redundant"): void {
+    const worker = this.lastInstalling;
+    if (!worker) return;
+    this.installingScript = null;
+    if (outcome === "activate") {
+      this.activeScript = worker.scriptURL;
+      worker.set("activated");
+      if (this.claimOnRegister) this.emit("controllerchange");
+    } else worker.set("redundant");
   }
 
-  async getRegistration(): Promise<
-    | {
-        active: { scriptURL: string } | null;
-        unregister: () => Promise<boolean>;
-      }
-    | undefined
-  > {
-    if (!this.activeScript) return undefined;
+  private view() {
     const script = this.activeScript;
     return {
-      active: { scriptURL: script },
+      active: script ? new FakeWorker(script, "activated") : null,
+      installing: this.installingScript
+        ? (this.lastInstalling ?? new FakeWorker(this.installingScript))
+        : null,
+      waiting: this.waitingWorker,
+      pushManager: {
+        getSubscription: async () =>
+          this.holdsPushSubscription
+            ? {
+                unsubscribe: async () => {
+                  this.pushUnsubscribed.push(script ?? "");
+                  this.holdsPushSubscription = false;
+                  return true;
+                },
+              }
+            : null,
+      },
       unregister: async () => {
-        this.unregistered.push(script);
+        this.unregistered.push(script ?? "");
         this.activeScript = null;
         return true;
       },
     };
+  }
+
+  async register(url: string, options?: RegistrationOptions) {
+    this.registered.push({ url, options });
+    if (this.registerFails) throw new TypeError("script fetch failed");
+    if (
+      this.hangRegisterFrom !== null &&
+      this.registered.length >= this.hangRegisterFrom
+    )
+      return new Promise<never>(() => undefined);
+    const worker = new FakeWorker(url);
+    this.lastInstalling = worker;
+    if (this.wedges > 0) {
+      this.wedges -= 1;
+      this.waitingWorker?.set("redundant");
+      worker.state = "installed";
+      this.waitingWorker = worker;
+      return { ...this.view(), installing: null };
+    }
+    if (this.waitingWorker) {
+      // A new version replaces the one waiting.
+      this.waitingWorker.set("redundant");
+      this.waitingWorker = null;
+    }
+    if (this.installOutcome === "activate") {
+      this.activeScript = url;
+      worker.state = "activated";
+      this.installingScript = null;
+      if (this.claimOnRegister) this.emit("controllerchange");
+    } else if (this.installOutcome === "redundant") {
+      worker.state = "redundant";
+      this.installingScript = null;
+    } else this.installingScript = url;
+    const registration = this.view();
+    // A redundant worker is not held by the registration for long; it is
+    // returned as installing only so the caller can watch it fail.
+    const watched = this.installOutcome !== "activate";
+    return {
+      ...registration,
+      active: this.activeScript
+        ? this.activeScript === url
+          ? worker
+          : new FakeWorker(this.activeScript, "activated")
+        : null,
+      installing: watched ? worker : null,
+    };
+  }
+
+  async getRegistration() {
+    if (!this.activeScript && !this.installingScript) return undefined;
+    return this.view();
   }
 
   addEventListener(
@@ -245,13 +339,40 @@ export class FakeContainer {
 const original = { ...workerControllerSeams };
 
 /** What the seams did, for a test to assert on. */
-export const env = { reloads: 0, isolated: false };
+type HarnessEnv = {
+  reloads: number;
+  isolated: boolean;
+  timers: { run: () => void; ms: number; live: boolean }[];
+  /** Run every timer of at most `upToMs` still waiting, as if its time had come. */
+  elapse: (upToMs?: number) => void;
+};
+
+export const env: HarnessEnv = {
+  reloads: 0,
+  isolated: false,
+  timers: [],
+  elapse(upToMs = Number.POSITIVE_INFINITY) {
+    for (const timer of [...env.timers]) {
+      if (!timer.live || timer.ms > upToMs) continue;
+      timer.live = false;
+      timer.run();
+    }
+  },
+};
 
 /** Fresh controller state and fresh seams; call from `beforeEach`. */
 export function installSeams(): void {
   resetWorkerController();
   env.reloads = 0;
   env.isolated = false;
+  env.timers = [];
+  workerControllerSeams.later = (run, ms) => {
+    const timer = { run, ms, live: true };
+    env.timers.push(timer);
+    return () => {
+      timer.live = false;
+    };
+  };
   workerControllerSeams.baseUrl = () => BASE;
   workerControllerSeams.crossOriginIsolated = () => env.isolated;
   workerControllerSeams.reload = () => {

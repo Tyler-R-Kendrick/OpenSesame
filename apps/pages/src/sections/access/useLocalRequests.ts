@@ -11,6 +11,7 @@ import {
   subscribeLocalIamChanges,
   subscribeLocalIamChangesFromOtherTabs,
 } from "@opensesame/app-core/lib/local-iam-events.js";
+import { isSignInInFlight } from "@opensesame/app-core/lib/local-request-summary.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 async function read(tomb: string) {
@@ -19,7 +20,12 @@ async function read(tomb: string) {
     readLocalApplications(tomb),
     listLocalAccessRequests(tomb),
   ]);
-  return { directory, applications: applications.applications, requests };
+  return {
+    directory,
+    applications: applications.applications,
+    // A sign-in being consented to in its own window is decided there.
+    requests: requests.filter((row) => !isSignInInFlight(row)),
+  };
 }
 
 export function useLocalRequests(tomb: string) {

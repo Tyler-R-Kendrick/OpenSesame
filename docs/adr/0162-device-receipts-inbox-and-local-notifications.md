@@ -3,20 +3,21 @@
 - Status: Accepted
 - Date: 2026-10-04
 - Builds on: [ADR 0160](0160-the-device-identity-plane-is-declared.md) (the
-  device is the Identity plane; this ADR is the `audit`, `requests` and
-  `notifications` families it left for later),
+  device is the Identity plane; this ADR is the `audit` and `requests`
+  families it left for later),
   [ADR 0084](0084-external-authorization-notifications.md) (where a person is
   told is not what it takes to approve),
   [ADR 0111](0111-browser-local-access-requests.md) (the sealed local request
   and its passkey-bound decision),
   [ADR 0015](0015-audit-vs-diagnostic-logging.md) (the audit trail and its
-  allowlist, which the sealed Access audit follows),
+  allowlist, which receipts follow),
   [ADR 0130](0130-operator-controlled-capability-composition.md),
   [ADR 0134](0134-item-type-marketplaces-and-settings-files.md),
   [ADR 0149](0149-nothing-stored-in-the-clear.md),
   [ADR 0157](0157-logs-and-events-carry-no-secrets.md),
   [ADR 0158](0158-settings-rows-act-or-are-absent.md)
-- Updates: ADR 0160 §3 (the `notifications` row no longer reads "none yet")
+- Updates: ADR 0160 §1 and §3 (the `notifications` row: the device serves no
+  such family), and its Receipts consequence (no held session on the device)
 
 ## Context
 
@@ -45,26 +46,37 @@ as it always did. On the device that route (the `audit` family, owned by
 the receipts this device wrote (`lib/device-receipts.ts`,
 `lib/device-identity-inbox.ts`).
 
-A receipt is not a second ledger. It is an event appended to the sealed Access
-audit (`lib/local-access-audit.ts`, ADR 0015), the same file connector grants
-already use. Nine event names are added to that file's frozen set, written by
-one table (`RECEIPT_KINDS`) and nowhere else:
+A receipt is an event in a sealed file of its own (`config/device-receipts`,
+`lib/device-receipts-store.ts`), apart from the Access audit
+(`config/access-audit`, ADR 0015). That is deliberate. The Access audit also
+holds the standing connector revocations a person made, which `ensureConnectorShares`
+and the GitHub card read so that a grant they took away stays away. It keeps
+the shape and the event names every build has written, so an older build (a
+stale tab through a service-worker update, a rollback, a second tab) still
+reads it, and a receipt can neither crowd one of those revocations out of its
+cap nor make an older reader call the file corrupt. A build that reads the
+Access audit tolerates an event name it does not know, keeps it in place when
+it rewrites the file, and never hands it to logic that does not know what it
+means; and where the audit cannot be read at all, those two readers answer as
+if the grant had been revoked and issue nothing (fail closed), where they once
+answered as if there were no history. Ten event names, written by one table
+(`RECEIPT_KINDS`) and nowhere else:
 
 | Event | When | Outcome |
 | --- | --- | --- |
 | `access.request.created` | a local access request is raised | succeeded |
 | `access.request.approved` / `.denied` | its passkey-bound decision settles | succeeded / denied |
-| `access.request.withdrawn` | a custodian withdraws it | succeeded |
+| `access.request.withdrawn` | a custodian withdraws it, or the window that raised it ends first | succeeded |
 | `access.sign_in.granted` | an application redeems its code and holds a grant | succeeded |
 | `access.sign_in.denied` | the person presses Deny in the consent window | denied |
-| `access.sign_in.revoked` | the grant ends (the application or the person revoked it) | succeeded |
+| `access.sign_in.revoked` | the grant ends: the application ended it, or the person did in Access › Sessions | succeeded |
+| `access.session.revoked` | a session is ended, by its holder signing out or by a custodian | succeeded |
 | `access.siop.approved` / `.denied` | a Self-Issued sign-in is approved or refused | succeeded / denied |
 
-- **Append-only, sealed, bounded.** A newer event is written ahead of the
-  older ones and none is edited. The file is sealed under the vault (ADR 0149)
-  and keeps the newest 256 events, as it did, with the standing connector
-  revocations it already protects. A receipt that ages out is gone; this is a
-  trail the person reads, not an archive.
+- **Newest first, never edited, sealed, bounded.** A newer receipt is written
+  ahead of the older ones and none is edited. The file is sealed under the
+  vault (ADR 0149) and keeps the newest 256. A receipt that ages out is gone;
+  this is a trail the person reads, not an archive.
 - **Value-blind.** An event names ids and a closed enum: the application (its
   id is the event's target), the local principal, the approver, the
   organization and the request id (`authReqId`). Never a scope, a reason, a
@@ -73,12 +85,22 @@ one table (`RECEIPT_KINDS`) and nowhere else:
   the metadata may and may not hold. Names are looked up from the same sealed
   directory when a receipt is *shown*, so a renamed application reads under
   its new name and the ledger holds no free text.
-- **After the decision, never in its way.** A receipt is written once the
-  decision it records has committed, and a failure to write it never undoes
-  or blocks that decision: a person who approved something must not be told
-  they did not because a ledger was full. That one failure is the only thing
-  `recordReceipt` swallows. A decision that was *refused* (a stale request, a
-  locked vault, a failed redemption) is not a receipt.
+- **After the decision, never in its way, and not silently late.** A receipt
+  is written once the decision it records has committed (one written before
+  would be false if the tab died in between), and a failure to write it never
+  undoes or blocks that decision: a person who approved something must not be
+  told they did not because a ledger was full. A receipt that could not be
+  written is held, in memory and in a small sealed pending list
+  (`config/device-receipts-pending`), and is written ahead of the next
+  receipt, when the trail is next read, and when the vault is next opened. The
+  audit route says how many still wait and Receipts draws a warning mark
+  ("N receipts not written yet") until none do. A decision that was *refused*
+  (a stale request, a locked vault, a failed redemption) is not a receipt. The
+  guarantee is worded to what is true: a receipt is never false, it is
+  appended and never edited, and one that is late is never silent once it is
+  known. What no outbox short of sharing the decision's own file could close
+  is a tab that dies between the decision's commit and the first attempt to
+  write it, milliseconds later; there the receipt is simply absent.
 - **No network, no server fact.** The panel reads the vault's trail while
   offline, says "Reading receipts…" rather than "Asking Identity…", and its
   failure sentence names no service. A remote plane keeps every word it had
@@ -118,9 +140,20 @@ the whole of what an inbox row, a count, a notification or the plane's
   holds a message port to the relying party's window, which no other tab can
   answer, and the person is already in front of it. It is decided in its own
   window and recorded as receipts (`sign_in.granted`, `sign_in.denied`,
-  `sign_in.revoked`); it is not a row. This is a limit of that ceremony, not an
-  oversight, and a design that queued it would make the approval depend on a
-  second tab the relying party cannot see.
+  `sign_in.revoked`); it is not a row. From the moment that window raises its
+  request to the moment it is decided, the request is *in flight*
+  (`isSignInInFlight`): the inbox does not list it, the count does not include
+  it, the watcher does not ring for it, and Access › Requests does not offer it
+  for a decision that would only make the window's own fail. If the window
+  ends first (a malformed message, a closed popup, a refused passkey, the
+  vault locking) it withdraws what it raised, and that withdrawal is a
+  receipt. This is a limit of that ceremony, not an oversight, and a design
+  that queued it would make the approval depend on a second tab the relying
+  party cannot see.
+- **A caller bound to no vault reads none.** A session minted with no vault
+  behind it, or whose key could not be read, is bound to no tomb (ADR 0160
+  §5) and is answered 403 on both routes, never handed whichever vault happens
+  to be open; no bearer at all is 401.
 
 ### 3. `notifications.local` tells the person, on this device, with no service
 
@@ -169,11 +202,35 @@ every request.** It never carries an application's name, a scope, a reason or
 an address. What a click reads back it reads through the same closed parser,
 and navigation always goes to the constant route, never to a field of the data.
 
-**The `notifications` family.** ADR 0160 expected local notifications to
-register it. They do, for one route: `GET /v1/notification-channels` answers
-every channel kind with only `in_app` configured, so a panel written against
-the Identity API's listing reads the device's truth. The routing document,
-bindings and effective route are the Identity API's and are left unserved.
+**No `notifications` family on the device.** ADR 0160 expected local
+notifications to register it. They do not: nothing in Pages asks the plane for
+a notification channel listing, so a route that answered one would be a row in
+a table for its own sake. The device's channels are this capability's own, set
+in its own panel and file, and `identityServes("notifications")` stays false.
+The registry still lets a capability register the family the day a panel reads
+it.
+
+**Defaults, and what a failure may not turn on.** A vault that has never
+chosen gets the bell and the tab's mark, which ring only inside a page the
+person already has open. The system doorbell is never a default, even where
+the browser already holds the permission: it is added by the person's press of
+the panel's key, which is also the one place permission is asked. Reading
+fails toward quiet: a preference file this build cannot read is the bell
+alone, and the watcher keeps the last preference it read rather than fall back
+to anything wider when the next read fails. The watcher also keeps what it has
+announced when an inbox read fails, so the next good read does not ring the
+same request again; it survives a delivery that throws; and it reads one at a
+time, folding any number of triggers that arrive meanwhile into one more read,
+so a script on this origin posting to the channel cannot queue a backlog.
+
+**Where the capability is offered.** Personal and Family offer only the local
+functions of ADR 0153 and none of Identity, Connections, Access or Browser-local
+IAM, so they offer neither `identity.local-iam` nor, which depends on it,
+`notifications.local`; Homelab, Organization and Custom offer every optional
+capability and so offer both. That is intended: a device with nothing that
+raises a request has nothing to be told about, and a preset that wants it adds
+IAM first. `presets.test.ts` pins that `notifications.local` is offered exactly
+where `identity.local-iam` is.
 
 ### 4. Device-mode copy says nothing it cannot do
 
@@ -213,17 +270,24 @@ with no Identity API, and only while the browser holds one.
 - A device with no backend shows, in Access › Sessions, the sign-ins and
   decisions it actually made, named by application, and shows a request waiting
   on the Requests tab and the bell, in this tab or another.
-- The Access audit file now holds decisions as well as connector grants, in one
-  newest-first list capped at 256. A busy device ages receipts out sooner.
-- `local-access-requests.ts` and `local-authorization.ts` each record a
-  receipt after their decision; both were at the module budget and the
-  request summary moved to `local-request-summary.ts` to stay under it.
+- Receipts are their own file, capped at 256 apart from the Access audit, so a
+  busy device ages receipts out without touching a connector revocation, and an
+  older build reads the audit exactly as before.
+- `local-access-requests.ts`, `local-authorization.ts`, `local-grant-admin.ts`
+  and `local-sessions.ts` each record a receipt after their decision, after the
+  lock is released; the first two were at the module budget and the request
+  summary moved to `local-request-summary.ts` to stay under it.
 - A Pages build with `notifications.local` approved adds the module, the panel
   and the watcher as lazy chunks; the bootstrap does not import it, and a build
   that leaves it out contains none of it.
-- ADR 0160's `notifications` row is no longer "none yet", and its consequence
-  that Receipts needs a held session now holds only against a remote plane: on
-  the device Receipts reads the vault's own trail and needs no session.
+- ADR 0160's `notifications` row reads "never" on the device, and its
+  consequence that Receipts needs a held session now holds only against a
+  remote plane: on the device Receipts reads the vault's own trail and needs no
+  session.
+- The two readers of the Access audit that decide whether to issue a standing
+  connector grant now fail closed. A device whose audit cannot be read is
+  issued no standing connector grant until it can be, where it used to be
+  issued all of them, including the ones its person had revoked.
 - A person who has turned on lock-on-hide locks a backgrounded vault, and a
   locked vault has no watcher, no mark and no notification: nothing rings for
   a vault nobody has open. That is the lock doing its job, not a gap.
@@ -232,22 +296,41 @@ with no Identity API, and only while the browser holds one.
 
 ## Verification
 
-- `device-receipts.test.ts`, `device-inbox.test.ts`,
-  `device-identity-inbox.test.ts`, the receipt cases added to
-  `local-access-requests.test.ts`, `local-authorization.test.ts`,
-  `siop-authority.test.ts` and `local-issuer-channel.test.ts`, and
-  `local-iam-events.test.ts` pin what each decision writes, what a receipt may
-  name, what the plane answers and refuses, and the cross-tab hint.
+- `device-receipts.test.ts` pins the ten kinds, what a receipt may name, that
+  the Access audit is never touched (byte for byte), that a receipt which could
+  not be written is held, counted, sealed, survives a reload and is written
+  once, and that nothing waits in memory for a shut vault. The receipt cases in
+  `local-access-requests.receipts.test.ts`, `local-authorization.receipts.test.ts`
+  (an application's revoke and the person's, and a session ended),
+  `local-grant-admin.test.ts`, `siop-authority.test.ts` and
+  `local-issuer-channel.test.ts` pin what each decision writes.
+- `local-access-audit.test.ts` pins that an event name this build does not know
+  is kept in place and never returned; `local-access-bootstrap.test.ts` and
+  `github-installation-access.test.ts` pin that an unreadable trail issues no
+  standing grant.
+- `device-inbox.test.ts`, `device-identity-inbox.test.ts` and
+  `local-issuer-channel.signin.test.ts` pin the inbox rows, that the plane
+  answers a caller bound to no vault 403, that a sign-in in its own window is
+  neither listed nor counted and is withdrawn when the window ends, and that
+  Deny pressed twice is one receipt. `use-once.test.ts` pins the same for the
+  Self-Issued page.
+- `local-iam-events.test.ts` pins the cross-tab hint.
 - `lib/local-notifications/*.test.ts` pin the places, the narrowing, the
-  preference's refusals, the notice's contract and the watcher's rules (who is
-  rung, when, and what takes the marks down), and the module's tests pin its
-  absence from `minimal-local`.
+  default preference (no system doorbell), the preference's refusals, the
+  notice's contract and the watcher's rules (who is rung, when, what takes the
+  marks down, what a failure does not do, and that a flood is one read).
+  `modules/notifications.local/runtime.test.tsx` pins the capability's absence
+  from the `minimal-local` and `family-local` plans and that it asks the plane
+  for nothing; `presets.test.ts` pins where the presets offer it.
 - `verify:device-inbox` drives a backend-less vault at desktop and phone
   width, keyboard only: a request raised, shown in the inbox and on the tab,
   approved with the passkey, its receipt in Sessions, an application signed in
-  and revoked, a refusal, a notification firing in a second tab, and a locked
-  vault answering 423 and showing nothing.
+  and revoked, then ended by the person in Access › Sessions, a refusal, a
+  notification firing in a second tab and none in the tab in front, nothing
+  asking for the notification permission at load, focus landing where the bell
+  and a notification click send the person, and a locked vault answering 423
+  and showing nothing.
 - `verify:static`, `verify:mobile`, `verify:local-iam`, `verify:siop`,
-  `verify:device-identity` and `verify:keyboard` run unchanged beside it; `verify:device-inbox`
-  is its own CI job, so the bundle job's timeout is untouched, and it is
-  required through the Bundle budgets check.
+  `verify:device-identity` and `verify:keyboard` run unchanged beside it;
+  `verify:device-inbox` is its own CI job, so the bundle job's timeout is
+  untouched, and it is required through the Bundle budgets check.

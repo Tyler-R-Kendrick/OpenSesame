@@ -20,8 +20,7 @@
 import type { JsonObject } from "@opensesame/os-domain";
 import type { DeviceRouteRequest } from "./device-identity-routes.js";
 import { listInbox } from "./device-inbox.js";
-import { listReceipts } from "./device-receipts.js";
-import { vaultStore } from "./vault/store.js";
+import { listReceipts, pendingReceipts } from "./device-receipts.js";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -33,10 +32,16 @@ function answer(body: JsonObject, status = 200): Response {
   });
 }
 
-/** The tomb the caller's records are in, or null when it has no live bearer. */
-function tombOf({ caller }: DeviceRouteRequest): string | null {
-  if (caller === null) return null;
-  return caller.tomb.length > 0 ? caller.tomb : vaultStore.activeTomb();
+/**
+ * What a caller may read: the tomb its own key lives in. A caller with no live
+ * bearer is 401. One whose session was minted with no vault behind it, or whose
+ * key could not be read, is bound to no tomb and is 403, never handed whichever
+ * vault happens to be open (ADR 0160 §5: an unbound session has no tomb).
+ */
+function tombOf({ caller }: DeviceRouteRequest): string | Response {
+  if (caller === null) return answer({ error: "unauthorized" }, 401);
+  if (caller.tomb.length === 0) return answer({ error: "forbidden" }, 403);
+  return caller.tomb;
 }
 
 function limitOf(path: string): number {
@@ -55,9 +60,11 @@ export async function auditRoute(
   if (request.method !== "GET")
     return answer({ error: "method_not_allowed" }, 405);
   const tomb = tombOf(request);
-  if (tomb === null) return answer({ error: "unauthorized" }, 401);
+  if (tomb instanceof Response) return tomb;
   const events = await listReceipts(tomb, limitOf(request.path));
-  return answer({ events });
+  // How many decisions are made and not yet in the trail, so a reader can say
+  // the trail is behind rather than let it read as complete.
+  return answer({ events, pending: await pendingReceipts(tomb) });
 }
 
 /** `requests`: what waits for this person. Read-only; deciding is a ceremony. */
@@ -70,6 +77,6 @@ export async function requestsRoute(
   if (request.method !== "GET")
     return answer({ error: "method_not_allowed" }, 405);
   const tomb = tombOf(request);
-  if (tomb === null) return answer({ error: "unauthorized" }, 401);
+  if (tomb instanceof Response) return tomb;
   return answer({ requests: await listInbox(tomb) });
 }

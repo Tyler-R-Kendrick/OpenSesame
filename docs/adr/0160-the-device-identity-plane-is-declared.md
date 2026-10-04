@@ -43,8 +43,10 @@ states what it will not do.
 ### 1. With no external Identity API, the device is the Identity plane
 
 "The device" is the vault open in this browser. For Pages' own features
-(sessions, receipts, requests, notifications, the directory) it is the
-authority: nothing outside it is asked and nothing outside it needs to exist.
+(sessions, receipts, requests, the directory) it is the authority: nothing
+outside it is asked and nothing outside it needs to exist. It also tells its
+person about what waits, itself, with no plane route in between
+([ADR 0162](0162-device-receipts-inbox-and-local-notifications.md)).
 A configured Identity API remains an override (ADR 0118 §3); it does not merge
 with the device plane, and the device host is off while it is set.
 
@@ -70,7 +72,7 @@ features in §3's last row, which need a server and must not pretend otherwise.
 | --- | --- | --- |
 | `session` (principal, bearer, health, claims) | always, from the host core | yes |
 | `audit`, `requests`, `directory` | while `identity.local-iam` is on | yes |
-| `notifications` | while a capability that delivers them is on (`notifications.local`, whose one channel is the in-app inbox; [ADR 0162](0162-device-receipts-inbox-and-local-notifications.md)) | yes |
+| `notifications` | never: the device's own channels belong to `notifications.local` and no panel asks the plane for them ([ADR 0162](0162-device-receipts-inbox-and-local-notifications.md)); the registry still lets a capability register it the day one does | yes |
 | `mfa-codes` (email and text codes) | never | yes |
 | `org-signin` (organization SSO, SAML, LDAP, magic link) | never | yes |
 | `federation-callback` (a provider's redirect to a URL of ours) | never | yes |
@@ -255,8 +257,9 @@ this ADR does not repeat it.
   wants a session; a panel that needs an inbox, a mail relay or an upstream
   directory is not fooled by one.
 - Adding a family to the device is one contribution from the owning capability,
-  with its own tests; later receipts, local notifications and the push panel
-  register `audit` and `notifications` the same way.
+  with its own tests; later receipts register `audit` the same way, and a
+  family nobody reads through the plane (`notifications`) is not served for the
+  sake of having a row.
 - Access › Receipts is drawn only where the answering plane serves `audit`: a
   device with Access on and local IAM off no longer draws a receipts panel that
   could only fail. Against a remote plane it also needs a held session; on the

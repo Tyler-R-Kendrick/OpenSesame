@@ -34,18 +34,19 @@ import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
 import { stubJourneyIdentity } from "./lib/capture-ceremony-steps.mjs";
 import { extraSteps } from "./lib/capture-extra-steps.mjs";
 import { fieldSteps } from "./lib/capture-field-steps.mjs";
+import { openHarness } from "./lib/capture-harness.mjs";
 import { inboxSteps } from "./lib/capture-inbox-steps.mjs";
 import { liveJoinSteps, viewOf } from "./lib/capture-live-join-steps.mjs";
 import { livePolicySteps } from "./lib/capture-live-policy-steps.mjs";
 import { liveSteps } from "./lib/capture-live-steps.mjs";
 import { stubJourneyDaemon } from "./lib/capture-plugin-steps.mjs";
+import { pushSteps } from "./lib/capture-push-steps.mjs";
 import { readSteps } from "./lib/capture-read-steps.mjs";
 import { scopedSteps } from "./lib/capture-scoped-steps.mjs";
 import { prepareScreen, tabStep } from "./lib/capture-tab-step.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
-import { createHarness } from "./lib/static-origin-harness.mjs";
 import { composeSheet } from "./lib/visual-evidence.mjs";
 
 const [mode, ...rest] = process.argv.slice(2);
@@ -69,10 +70,6 @@ const shots = path.join(
   "opensesame-evidence",
   path.basename(journeyPath, ".json"),
 );
-// The production origin, unless a journey is evidence of what a dedicated
-// deployment shows (a build stamped `dedicated_origin` for that origin).
-const origin =
-  process.env.EVIDENCE_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
 // `EVIDENCE_DIST` captures another build — the base, built in its own worktree.
 const dist =
@@ -92,12 +89,9 @@ const remote = Object.fromEntries(
   ]),
 );
 
-const harness = createHarness({
-  dist,
-  origin,
-  base,
-  out: path.join(shots, ".log"),
-});
+// `EVIDENCE_ORIGIN` or a `"stack": "push"` journey: see `lib/capture-harness`.
+const stack = await openHarness({ journey, mode, dist, base, shots });
+const { harness, origin } = stack;
 
 /** `tap()` needs a touch context; a desktop capture has a mouse instead. */
 async function press(locator) {
@@ -201,6 +195,7 @@ const STEPS = {
   ...liveSteps({ harness }),
   ...livePolicySteps({ press, openSettings }),
   ...liveJoinSteps({ harness }),
+  ...pushSteps({ harness, press }),
   /**
    * Flip a named switch (`role="switch"`) when this build has it. A base
    * build that has no such switch is a legitimate difference, not a miss.
@@ -343,6 +338,7 @@ async function capture(browser, into) {
         ? { viewport: { width: screen.width, height: screen.height } }
         : phoneContext({ width: screen.width, height: screen.height }),
       remote,
+      screen,
     });
     await prepareScreen(context, { origin, base, screen });
     await stubJourneyIdentity(page, journey, journeyPath, origin);
@@ -395,4 +391,5 @@ try {
   }
 } finally {
   await browser.close();
+  await stack.close();
 }
