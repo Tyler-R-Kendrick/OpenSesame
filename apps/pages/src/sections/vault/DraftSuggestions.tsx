@@ -5,8 +5,10 @@ import {
   draftWebsite,
 } from "@opensesame/app-core/lib/vault/new-draft.js";
 import { useEffect, useRef, useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconCheck, IconRefresh } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 
 type Props = {
   typeId: string;
@@ -85,8 +87,14 @@ export function DraftSuggestions({ typeId, website, onApply }: Props) {
         >
           <IconRefresh size={15} />
         </IconKey>
+        {message ? <StatusMark tone="warn" label={message} /> : null}
       </div>
-      {message ? <output className="hint">{message}</output> : null}
+      <FailureNotice
+        id="vault:draft-suggestions"
+        title="Suggestions"
+        message={message || null}
+        tone="warn"
+      />
       {labels ? (
         <div className="editor__inline">
           <span>

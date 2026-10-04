@@ -185,14 +185,25 @@ export function VirtualFileEditor({
     else setOutcome({ tone: "err", text: removed.message });
   };
 
+  const refusal = check.ok ? null : check.message;
+  // A refusal or a failed write goes to the tray; the mark in the head keeps
+  // the sentence as its label. A cautioned write ("kept for this session
+  // only") is a disclosure and stays where it was.
+  const failure = refusal ?? (outcome?.tone === "err" ? outcome.text : null);
+
   return (
     <section className="panel set-raw vfile" aria-label={file.path}>
+      <FailureNotice
+        id={`settings-file:${file.path}`}
+        title="Settings file"
+        message={failure}
+      />
       <div className="panel__head">
         <p className="set-raw__path">{file.path}</p>
         <HeadKeys
           file={file}
           outcome={outcome}
-          refusal={check.ok ? null : check.message}
+          refusal={refusal}
           onSave={() => void save()}
           onRemove={() => void remove()}
         />
@@ -216,7 +227,7 @@ export function VirtualFileEditor({
           }}
         />
         <output className="visually-hidden" aria-live="polite">
-          {outcome?.text ?? ""}
+          {outcome?.tone === "err" ? "" : (outcome?.text ?? "")}
         </output>
         {/* A refused save or removal is an operation that failed, so it is
             trayed; the draft's live check above is only state and is not. */}

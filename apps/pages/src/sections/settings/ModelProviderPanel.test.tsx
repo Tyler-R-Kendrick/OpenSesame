@@ -7,12 +7,14 @@ import { kvSetDurable } from "@opensesame/app-core/lib/kv.js";
 import {
   MODEL_PROVIDER_KEY,
   loadModelProvider,
+  modelProviderSeams,
 } from "@opensesame/app-core/lib/model-provider.js";
 import { modelSlugSeams } from "@opensesame/app-core/lib/model-slugs.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectInTray } from "../../components/tray.test-support.js";
 import { ModelProviderPanel } from "./ModelProviderPanel.js";
 
 const originalSeams = { ...browserInferenceSeams };
@@ -159,6 +161,24 @@ describe("ModelProviderPanel", () => {
         model: "gpt-4o",
       });
     });
+  });
+
+  it("sends a failed save to the tray", async () => {
+    barrenBrowser();
+    const save = modelProviderSeams.saveModelProvider;
+    modelProviderSeams.saveModelProvider = async () => {
+      throw new Error("disk full");
+    };
+    try {
+      render(<ModelProviderPanel />);
+      await userEvent.selectOptions(
+        await screen.findByLabelText("Inference model"),
+        "ollama/llama3.2",
+      );
+      await expectInTray("Could not save this choice on this device.");
+    } finally {
+      modelProviderSeams.saveModelProvider = save;
+    }
   });
 
   it("withholds browser inference when the device cannot carry one", async () => {

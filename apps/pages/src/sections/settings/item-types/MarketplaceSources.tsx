@@ -12,8 +12,10 @@ import {
   sourceLabel,
   sourceWebUrl,
 } from "@opensesame/app-core/lib/item-type-marketplace/source.js";
+import { dismissNotice } from "@opensesame/app-core/lib/notices.js";
 import { MARKETPLACES_PATH } from "@opensesame/app-core/sections/settings/item-type-files.js";
 import { useState } from "react";
+import { FailureNotice } from "../../../components/FailureNotice.js";
 import { FieldShell } from "../../../components/FieldShell.js";
 import {
   IconExternal,
@@ -54,7 +56,7 @@ function sourceMeta(reference: string, state: ListingState): string {
     const count = state.listing.offers.length;
     return `${ours}${state.listing.name} · ${count} ${count === 1 ? "type" : "types"}`;
   }
-  if (state.status === "err") return `${ours}${state.message}`;
+  if (state.status === "err") return `${ours}not read`;
   if (state.status === "loading") return `${ours}reading…`;
   return `${ours}not read yet`;
 }
@@ -71,9 +73,16 @@ function SourceRow({
   report: Report;
 }) {
   const source = parseMarketplaceSource(reference);
-  if (source === null) return null;
-  const label = sourceLabel(source);
   const state = market.stateOf(reference);
+  const failure = (
+    <FailureNotice
+      id={`item-types:marketplace:${reference}`}
+      title="Marketplace"
+      message={state.status === "err" ? state.message : null}
+    />
+  );
+  if (source === null) return failure;
+  const label = sourceLabel(source);
   return (
     <li className="itype-source" aria-busy={state.status === "loading"}>
       <span className="itype-source__mark" aria-hidden="true">
@@ -83,6 +92,7 @@ function SourceRow({
         <span className="itype__name itype__name--mono">{label}</span>
         <span className="itype__meta">{sourceMeta(reference, state)}</span>
       </span>
+      {failure}
       <span className="itype__end">
         {stateMark(state)}
         <button
@@ -110,7 +120,14 @@ function SourceRow({
           className="icon-btn icon-btn--sm"
           aria-label={`Stop reading ${label}`}
           title="Remove this marketplace"
-          onClick={() => void market.remove(reference).then(report)}
+          onClick={() =>
+            void market.remove(reference).then((outcome) => {
+              // The row goes with its failure; the tray must not keep it.
+              if (outcome.ok)
+                dismissNotice(`item-types:marketplace:${reference}`);
+              report(outcome);
+            })
+          }
         >
           <IconTrash size={16} />
         </button>
@@ -138,6 +155,11 @@ function AddSource({ market }: { market: Marketplaces }) {
         submit();
       }}
     >
+      <FailureNotice
+        id="item-types:marketplace-add"
+        title="Marketplace"
+        message={refusal}
+      />
       <FieldShell
         id="item-type-marketplace"
         label="Add a marketplace"
@@ -176,6 +198,11 @@ export function MarketplaceSources({ market }: { market: Marketplaces }) {
     <div className="itype-sources">
       <div className="itype-sources__file">
         <code>marketplaces.json</code>
+        <FailureNotice
+          id="item-types:marketplaces-file"
+          title="marketplaces.json"
+          message={problem}
+        />
         {problem ? <StatusMark tone="err" label={problem} /> : null}
         <OpenFileKey path={MARKETPLACES_PATH} name="marketplaces.json" />
       </div>

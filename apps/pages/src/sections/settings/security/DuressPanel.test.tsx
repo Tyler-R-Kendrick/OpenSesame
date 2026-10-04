@@ -10,6 +10,7 @@ import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectInTray, inTray } from "../../../components/tray.test-support.js";
 import { DuressPanel } from "./DuressPanel.js";
 import {
   CODE,
@@ -75,7 +76,7 @@ describe("DuressPanel", () => {
     expect(go.hasAttribute("disabled")).toBe(true);
   });
 
-  it("says why a code was refused, in the card, and keeps what was typed", async () => {
+  it("trays why a code was refused, marks the field, and keeps what was typed", async () => {
     render(<DuressPanel arm={arm} />);
     await userEvent.click(screen.getByRole("button", { name: "Add" }));
     await typeCode(CODE);
@@ -85,13 +86,12 @@ describe("DuressPanel", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Turn on duress code" }),
     );
-    expect(
-      await screen.findByText(
-        "A duress response holds this device.",
-        {},
-        SEALING,
-      ),
-    ).toBeTruthy();
+    // Sealing derives a key; give it the room before the tray check.
+    await waitFor(
+      () => expect(inTray("A duress response holds this device.")).toBe(true),
+      SEALING,
+    );
+    await expectInTray("A duress response holds this device.");
     // The sheet stays open with what was typed, so it can be fixed.
     expect(fields()[0]?.value).toBe(CODE);
   });

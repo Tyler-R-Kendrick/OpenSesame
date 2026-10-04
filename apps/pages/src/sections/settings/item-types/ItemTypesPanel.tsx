@@ -19,6 +19,7 @@ import { useContributions } from "../../../bindings/contributions.js";
 import { usePackSnapshot } from "../../../bindings/type-packs.js";
 import { IconKey } from "../../../components/IconKey.js";
 import { IconChevronLeft, IconGitBranch } from "../../../components/Icons.js";
+import { FailureNotice } from "../../../components/FailureNotice.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { useGuideTarget } from "../../../tutorial/registry/react.jsx";
 import { useItemTypeFiles } from "../files/providers.js";
@@ -91,8 +92,13 @@ export function ItemTypesPanel() {
           )}
         </span>
       </div>
+      <FailureNotice
+        id="settings:item-types:outcome"
+        title="Item types"
+        message={outcome?.tone === "err" ? outcome.text : null}
+      />
       <output className="visually-hidden" aria-live="polite">
-        {outcome?.text ?? packs.said}
+        {outcome?.tone === "ok" ? outcome.text : packs.said}
       </output>
       <div className="panel__body">
         {view === "types" ? (

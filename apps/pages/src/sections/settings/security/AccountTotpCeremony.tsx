@@ -13,6 +13,7 @@ import {
   CeremonyAlts,
   CeremonyShell,
 } from "../../../components/CeremonyShell.js";
+import { FailureNotice } from "../../../components/FailureNotice.js";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { IconCopy, IconPhone, IconSecret } from "../../../components/Icons.js";
 import { QrCode } from "../../../components/QrCode.js";
@@ -187,10 +188,17 @@ function TotpScanCard({
             label="Scan to add your account's authenticator"
             size={168}
           />
+        ) : refusal ? (
+          <StatusMark tone="err" label={refusal} />
         ) : (
-          <p className="hint">{refusal ?? "Making the seed…"}</p>
+          <p className="hint">Making the seed…</p>
         )}
       </CeremonyShell>
+      <FailureNotice
+        id="security:account-totp:begin"
+        title="Authenticator setup"
+        message={refusal}
+      />
       <CeremonyAlts alts={alts} />
     </>
   );

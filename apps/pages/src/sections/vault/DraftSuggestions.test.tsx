@@ -3,6 +3,7 @@ import { draftSuggestionSeams } from "@opensesame/app-core/lib/vault/draft-sugge
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { expectInTray } from "../../components/tray.test-support.js";
 import { DraftSuggestions } from "./DraftSuggestions.js";
 
 const original = draftSuggestionSeams.model;
@@ -70,9 +71,12 @@ describe("draft suggestion consent and lifetime", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Suggest names on device" }),
     );
-    expect((await screen.findByRole("status")).textContent).toContain(
-      "unavailable",
-    );
+    await expectInTray("On-device suggestions are unavailable");
+    expect(
+      screen.getByRole("img", {
+        name: /On-device suggestions are unavailable/,
+      }),
+    ).toBeTruthy();
     expect(apply).not.toHaveBeenCalled();
   });
   it("aborts and destroys a model request when the ceremony closes", async () => {

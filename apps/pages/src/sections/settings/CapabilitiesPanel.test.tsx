@@ -1,3 +1,4 @@
+import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 /** @vitest-environment jsdom */
 import { FIXTURE_MANAGED_POLICY } from "@opensesame/app-core/lib/configuration/doubles/composition-fixture.js";
 import {
@@ -18,6 +19,7 @@ import {
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
+import { expectInTray } from "../../components/tray.test-support.js";
 import {
   CapabilitiesPanel,
   capabilitiesPanelSeams,
@@ -75,6 +77,25 @@ describe("switches — the reviewed change, from a section or a tile", () => {
     );
     // Adding is not disabling: nothing was force-stopped on the way.
     expect(double.disabled).toHaveLength(0);
+  });
+
+  it("trays a refused commit and marks the panel, then clears it on a good one", async () => {
+    // SAFETY: fixture constructed in this test matches the declared contract the panel reads.
+    const refused = { status: "refused", reason: "policy" } as never;
+    const commit = vi
+      .spyOn(capabilityPorts.compositionStore, "commit")
+      .mockResolvedValueOnce(refused);
+    renderPanel();
+    fireEvent.click(screen.getByRole("switch", { name: "Household sharing" }));
+    await expectInTray("refused · policy");
+    expect(screen.getByRole("img", { name: "refused · policy" })).toBeTruthy();
+    commit.mockRestore();
+    fireEvent.click(screen.getByRole("switch", { name: "Household sharing" }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("img", { name: "refused · policy" }),
+      ).toBeNull(),
+    );
   });
 
   it("gives every commit its own revision, even when the clock does not move", async () => {

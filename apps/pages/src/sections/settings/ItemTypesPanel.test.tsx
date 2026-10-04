@@ -9,6 +9,8 @@ import {
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { expectInTray, inTray } from "../../components/tray.test-support.js";
+
 import type { MarketplaceListing } from "@opensesame/app-core/lib/item-type-marketplace/load.js";
 import { parseMarketplacesFile } from "@opensesame/app-core/lib/item-type-marketplace/marketplaces-file.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
@@ -206,6 +208,17 @@ describe("ItemTypesPanel", () => {
     );
   });
 
+  it("trays a failed install with a mark on the head, never a sentence in the page", async () => {
+    install.mockRejectedValueOnce(new Error("Storage is full."));
+    renderPanel();
+    fireEvent.click(tab("Marketplace"));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Install Vehicle" }),
+    );
+    await expectInTray("Storage is full.");
+    expect(screen.getByRole("img", { name: "Storage is full." })).toBeTruthy();
+  });
+
   it("removes by deleting the file, armed in place", async () => {
     installItemType(manifest("vehicle", "Vehicle"));
     renderPanel();
@@ -225,6 +238,7 @@ describe("ItemTypesPanel", () => {
     fireEvent.change(field, { target: { value: "nope" } });
     fireEvent.click(screen.getByRole("button", { name: "Add marketplace" }));
     await screen.findByRole("img", { name: /Not a repository this page/ });
+    await expectInTray(/Not a repository this page/);
     fireEvent.change(field, {
       target: { value: "https://gitlab.com/team/types" },
     });
@@ -238,6 +252,25 @@ describe("ItemTypesPanel", () => {
       screen.getByRole("button", { name: "Open marketplaces.json" }),
     );
     expect(opened).toHaveBeenCalledWith(MARKETPLACES_PATH);
+  });
+
+  it("trays a marketplace that cannot be read, marks its row, and drops the notice with the row", async () => {
+    marketplaceDependencies.loadMarketplace = vi.fn(async () => {
+      throw new Error("The repository is rate limited.");
+    });
+    renderPanel();
+    fireEvent.click(tab("Marketplace"));
+    await expectInTray("The repository is rate limited.");
+    expect(
+      screen.getByRole("img", { name: "The repository is rate limited." }),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Stop reading github.com/tyler-r-kendrick/OpenSesame@main",
+      }),
+    );
+    await screen.findByText("No marketplaces listed.");
+    expect(inTray("The repository is rate limited.")).toBe(false);
   });
 
   it("offers ours back once it has been removed from the file", async () => {

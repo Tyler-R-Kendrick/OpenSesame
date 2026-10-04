@@ -6,8 +6,10 @@ import {
 } from "@opensesame/app-core/lib/account-factors.js";
 import { describeAccount } from "@opensesame/app-core/lib/account.js";
 import { type RefObject, useEffect, useRef, useState } from "react";
+import { FailureNotice } from "../../../components/FailureNotice.js";
 import { IconKey } from "../../../components/IconKey.js";
 import { IconPlus, IconTrash } from "../../../components/Icons.js";
+import { StatusMark } from "../../../components/StatusMark.js";
 import { firstControl, landFocus } from "../../../lib/focus.js";
 import { useGuideTarget } from "../../../tutorial/registry/react.jsx";
 import { ACCOUNT_TITLE } from "./AccountFactorCeremony.js";
@@ -49,29 +51,40 @@ export function AccountFactorsPanel({
   const { list, refusal } = useFactorList(offered, closed);
   const body = useRef<HTMLDivElement>(null);
   useRefocusAfterRemoval(body, list, closed);
-  if (!offered) return null;
-  const account = describeAccount();
+  const account = offered ? describeAccount() : null;
   return (
-    <section
-      className="panel set__security"
-      id="account-factors"
-      aria-label="Your account"
-      ref={guideRef}
-    >
-      <div className="panel__head">
-        <div>
-          <h2>Your account</h2>
-          <p className="hint">
-            {account ? `Signed in as ${account.name}. ` : ""}What your sign-in
-            service asks for after sign-in. None of these open this vault.
-          </p>
-        </div>
-      </div>
-      <div className="panel__body" ref={body}>
-        {refusal ? <p className="hint">{refusal}</p> : null}
-        {list ? <AccountRows list={list} busy={busy} onOpen={onOpen} /> : null}
-      </div>
-    </section>
+    <>
+      <FailureNotice
+        id="settings:account-factors"
+        title="Account factors"
+        message={offered ? refusal : null}
+      />
+      {offered ? (
+        <section
+          className="panel set__security"
+          id="account-factors"
+          aria-label="Your account"
+          ref={guideRef}
+        >
+          <div className="panel__head">
+            <div>
+              <h2>Your account</h2>
+              <p className="hint">
+                {account ? `Signed in as ${account.name}. ` : ""}What your
+                sign-in service asks for after sign-in. None of these open this
+                vault.
+              </p>
+            </div>
+            {refusal ? <StatusMark tone="err" label={refusal} /> : null}
+          </div>
+          <div className="panel__body" ref={body}>
+            {list ? (
+              <AccountRows list={list} busy={busy} onOpen={onOpen} />
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+    </>
   );
 }
 
