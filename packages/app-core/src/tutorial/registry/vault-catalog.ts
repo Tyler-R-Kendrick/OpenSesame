@@ -37,14 +37,6 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "vault.import",
   },
   {
-    id: "vault.store-manifest",
-    description:
-      "The Sealed store key under Settings, Vaults: saves the vault as a plain-text store path manifest for the command-line sealed store to seal and shred. The vault's Import key reads one back and merges it by path.",
-    role: "ceremony",
-    routes: ["/settings"],
-    capabilityId: "vault.store_manifest.export",
-  },
-  {
     id: "vault.filter",
     description:
       "Opens the list of filters — favorites, each item type this vault holds, your folders, and the trash — with the count each would show. Narrowing the list never changes an item. On a wide screen the same roads are in the rail and this key is not drawn.",

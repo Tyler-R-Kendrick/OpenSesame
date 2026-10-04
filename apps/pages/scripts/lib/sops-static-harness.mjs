@@ -12,6 +12,11 @@ import http from "node:http";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 import { doorGuest } from "./front-door.mjs";
+import {
+  trackControlledBirth,
+  untilBornControlled,
+} from "./push-worker-harness.mjs";
+import { openSessionSection } from "./session-section.mjs";
 
 const MIME = {
   ".html": "text/html",
@@ -65,7 +70,11 @@ export async function newContext(browser, { origin, record }) {
   const context = await browser.newContext({
     viewport: { width: 1280, height: 900 },
     acceptDownloads: true,
+    // The compiled app installs its core worker and reloads once under it.
+    serviceWorkers: "allow",
   });
+  // Before the first page loads: the walk waits on the reload this records.
+  await trackControlledBirth(context);
   await context.route("**/*", async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -86,26 +95,33 @@ export async function newContext(browser, { origin, record }) {
   return { context, page };
 }
 
+/**
+ * The front door's guest road, once the core worker has taken the first load
+ * and the page has reloaded under it (a click before that lands in a document
+ * about to be replaced). Resolves when the guest's vault is open: its lock key.
+ */
 export async function enterAsGuest(page) {
+  await untilBornControlled(page);
   await doorGuest(page).click();
-  await page.waitForTimeout(2000);
+  await page.getByRole("button", { name: "Lock vault" }).first().waitFor();
 }
 
-/** In-app navigation: a reload would drop the guest session. */
+/**
+ * In-app navigation: a reload would drop the guest session. Settings is a
+ * session root, opened from the prompt's menu; Security is its tab, and the
+ * SOPS document key is drawn there once its capability has activated.
+ */
 export async function gotoSecurity(page) {
-  const rail = page.getByRole("link", { name: /^settings\// }).first();
-  if (await rail.count()) await rail.click();
-  else await page.getByText("settings/", { exact: true }).first().click();
-  await page.waitForTimeout(1200);
-  const security = page.getByRole("link", { name: /security/i }).first();
-  if (await security.count()) await security.click();
-  await page.waitForTimeout(1200);
+  await openSessionSection(page, "Settings");
+  await page.getByRole("link", { name: "Security", exact: true }).click();
+  await page.getByRole("button", { name: "SOPS document" }).waitFor();
 }
 
 export async function openSheet(page) {
   await page.getByRole("button", { name: "SOPS document" }).click();
-  await page.waitForTimeout(500);
-  return page.getByRole("dialog", { name: "SOPS document" });
+  const sheet = page.getByRole("dialog", { name: "SOPS document" });
+  await sheet.waitFor();
+  return sheet;
 }
 
 export async function chooseFile(page, name, body) {
@@ -114,7 +130,12 @@ export async function chooseFile(page, name, body) {
     mimeType: "text/yaml",
     buffer: Buffer.from(body, "utf8"),
   });
-  await page.waitForTimeout(700);
+  // The sheet names the file once the engine has read it.
+  await page
+    .getByRole("dialog", { name: "SOPS document" })
+    .getByText(name, { exact: true })
+    .first()
+    .waitFor();
 }
 
 /** Open an upstream-encrypted file, edit it, and save ciphertext. */
@@ -122,6 +143,13 @@ export async function documentJourney(page, label, context) {
   const { cipher, expected, identity, recipient, check, record, out } = context;
   const sheet = await openSheet(page);
   await chooseFile(page, "basic-yaml.enc.yaml", cipher);
+  // Inspection is parse-only; its recipient list is the sign it finished. A
+  // missing one is the check below's failure to report, not a timeout here.
+  await sheet
+    .getByText(recipient, { exact: true })
+    .first()
+    .waitFor()
+    .catch(() => undefined);
   const beforeOpen = await page.evaluate(() => document.body.innerText);
   check(
     !beforeOpen.includes("world"),

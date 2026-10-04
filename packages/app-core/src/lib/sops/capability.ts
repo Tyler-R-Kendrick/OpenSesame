@@ -1,5 +1,5 @@
 /**
- * Runtime capability facts for the Formats panel (B13, UX-01).
+ * Runtime capability facts for the SOPS document panel (B13, UX-01).
  *
  * These are derived by exercising the real executable path, not declared:
  * `sopsCapability()` asks the engine to parse and inspect a tiny document
