@@ -36,6 +36,7 @@ import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
 import { VaultPathbar } from "./vault/VaultPathbar.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import { WelcomeKeys } from "./vault/WelcomeKeys.js";
+import { askForSearch } from "./vault/use-search-handoff.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
 import "./vault.css";
 import {
@@ -217,9 +218,10 @@ export function VaultSection() {
                 list of everything with its prompt open. */}
             <VaultPathbar
               verbs={<VaultActions createPath={createPath} />}
-              search={() =>
-                navigate(PHONE_ALL_ITEMS, { state: { search: true } })
-              }
+              search={() => {
+                askForSearch();
+                navigate(PHONE_ALL_ITEMS);
+              }}
             />
             <NavTree />
           </>

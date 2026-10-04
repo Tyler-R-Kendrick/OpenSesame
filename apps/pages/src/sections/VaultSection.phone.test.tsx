@@ -1,5 +1,11 @@
 /** @vitest-environment jsdom */
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -95,12 +101,16 @@ describe("the vault on a phone", () => {
       ).not.toBeNull();
     }
     expect(
-      screen.getAllByRole("link", { name: "New item" })[0]?.getAttribute("href"),
+      screen
+        .getAllByRole("link", { name: "New item" })[0]
+        ?.getAttribute("href"),
     ).toMatch(/^\/vault\/new/);
   });
 
   it("the tree's search key opens the list of everything with its prompt ready", async () => {
     renderVault("/vault");
+    // The list focuses its rows once the saved collapse state has loaded.
+    await act(async () => undefined);
     const row = document.querySelector<HTMLElement>(".vault__tree");
     const key = row?.querySelector<HTMLElement>('[title="Search (/)"]');
     if (!key) throw new Error("the tree has no search key");
