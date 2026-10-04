@@ -36,17 +36,29 @@ describe("notifications.web-push runtime", () => {
   });
 
   it("reaches no network on activation, reads only its own key, and routes enrolment through the egress port until it is disposed", async () => {
-    const direct = pushSeams.fetchFn;
+    const raw = vi.spyOn(globalThis, "fetch");
+    const before = pushSeams.fetchFn;
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     expect(t.egressCalls).toEqual([]);
-    expect(t.hydrated).toEqual([["push.subscription.id"]]);
-    expect(pushSeams.fetchFn).not.toBe(direct);
+    expect(t.hydrated).toEqual([
+      ["push.subscription.id", "push.forget.pending"],
+    ]);
+    expect(pushSeams.fetchFn).not.toBe(before);
     const [panel] = t.entries("settings-panel");
     expect(panel?.category).toBe("general");
     await handle.dispose();
     await handle.dispose();
-    expect(pushSeams.fetchFn).toBe(direct);
+    // A request still in flight when the capability goes has no road out: it
+    // is refused as an unapproved capability's is, never sent raw.
+    await expect(
+      pushSeams.fetchFn("https://identity.example.test/v1/x", {}),
+    ).rejects.toMatchObject({
+      name: "EgressDenied",
+      code: "capability-not-approved",
+    });
+    expect(raw).not.toHaveBeenCalled();
+    expect(t.egressCalls).toEqual([]);
   });
 
   it("is admitted by the real egress port under the purpose its descriptor declares", async () => {
@@ -64,7 +76,7 @@ describe("notifications.web-push runtime", () => {
         return new Response("{}", { status: 200 });
       },
     });
-    const direct = pushSeams.fetchFn;
+    const raw = vi.spyOn(globalThis, "fetch");
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate({
       ...t.ctx,
@@ -76,6 +88,10 @@ describe("notifications.web-push runtime", () => {
     expect(response.status).toBe(200);
     expect(sent).toEqual([url]);
     await handle.dispose();
-    expect(pushSeams.fetchFn).toBe(direct);
+    await expect(
+      pushSeams.fetchFn(url, { method: "GET" }),
+    ).rejects.toMatchObject({ code: "capability-not-approved" });
+    expect(sent).toEqual([url]);
+    expect(raw).not.toHaveBeenCalled();
   });
 });

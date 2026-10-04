@@ -1,3 +1,4 @@
+import { EgressDenied } from "@opensesame/app-core/lib/capabilities/egress.js";
 import { overlapCast } from "@opensesame/os-domain";
 
 /**
@@ -25,11 +26,28 @@ export class PushError extends Error {
   }
 }
 
+/**
+ * Enrolment has one road out, the egress port, and the capability's module
+ * installs it while the capability is approved. Anywhere else — before it is
+ * installed, and after the capability is removed with a request still in
+ * flight — there is no road: the call is refused the way egress refuses a
+ * capability that is not approved, and nothing reaches the network.
+ */
+export function noRoadOut(url: string): Promise<Response> {
+  return Promise.reject(
+    new EgressDenied(
+      "capability-not-approved",
+      "notifications.web-push",
+      new URL(url, "https://invalid.example").origin,
+    ),
+  );
+}
+
 async function fetchFnDefault(
   url: string,
-  init: RequestInit,
+  _init: RequestInit,
 ): Promise<Response> {
-  return fetch(url, init);
+  return noRoadOut(url);
 }
 
 function serviceWorkerContainerDefault(): ServiceWorkerContainer | null {
@@ -65,6 +83,9 @@ export const pushSeams = {
   /** How long to wait for any worker to be ready, and then for the push one. */
   readyWaitMs: 8000,
   pushWorkerWaitMs: 10000,
+  /** A call to the Identity API, and the browser's own subscribe, are bounded. */
+  requestTimeoutMs: 15000,
+  subscribeWaitMs: 30000,
   pause: pauseDefault,
 };
 

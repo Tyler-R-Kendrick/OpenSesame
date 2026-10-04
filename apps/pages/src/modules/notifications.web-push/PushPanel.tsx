@@ -19,6 +19,7 @@ import {
   dismissNotice,
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
+import { PUSH_SUBSCRIPTION_KEY } from "@opensesame/app-core/lib/push-ledger.js";
 import { useEffect, useRef, useState } from "react";
 import { useIdentitySession } from "../../bindings/identity.js";
 import { IconKey } from "../../components/IconKey.js";
@@ -26,7 +27,8 @@ import { IconBell, IconPlus, IconX } from "../../components/Icons.js";
 import {
   disablePush,
   enablePush,
-  forgetPushSubscription,
+  flushPendingForgets,
+  keepToForget,
   pushSubscribed,
   pushSupported,
 } from "../../lib/push-enrolment.js";
@@ -34,8 +36,7 @@ import { useIdentityConfigured } from "../../lib/use-configured.js";
 import { CeremonyRow } from "../../sections/settings/CeremonyRow.js";
 
 const NOTICE_ID = "push-on-this-device";
-/** The id the Identity API gave this browser's subscription, so it can be withdrawn. */
-export const PUSH_SUBSCRIPTION_KEY = "push.subscription.id";
+export { PUSH_SUBSCRIPTION_KEY };
 
 type Credentials = { baseUrl: string; accessToken: string } | null;
 
@@ -48,12 +49,20 @@ async function turnPush(
   credentials: Credentials,
 ): Promise<boolean> {
   if (on) {
-    const withdrawn = await disablePush({
-      ...credentials,
-      subscriptionId: kvGet(PUSH_SUBSCRIPTION_KEY) ?? undefined,
-    });
-    kvDelete(PUSH_SUBSCRIPTION_KEY);
-    if (!withdrawn.server) {
+    const held = kvGet(PUSH_SUBSCRIPTION_KEY);
+    let told = false;
+    try {
+      told = (
+        await disablePush({ ...credentials, subscriptionId: held ?? undefined })
+      ).server;
+    } finally {
+      // Whether or not the service was told (a refusal throws), the browser's
+      // subscription is gone and the live slot is empty; an id the service may
+      // still list is kept to forget when it can be, never lost.
+      kvDelete(PUSH_SUBSCRIPTION_KEY);
+      if (!told) keepToForget(held);
+    }
+    if (!told) {
       setStatusNotice({
         id: NOTICE_ID,
         tone: "warn",
@@ -66,12 +75,12 @@ async function turnPush(
   if (credentials === null) return false;
   const stale = kvGet(PUSH_SUBSCRIPTION_KEY);
   const record = await enablePush(credentials);
+  // The browser lost the subscription the stored id named (a cleared site, an
+  // expired one): the service still lists it. The id is kept to forget before
+  // it is overwritten, so a forget that fails is retried, not lost.
+  if (stale && record.id && stale !== record.id) keepToForget(stale);
   if (record.id) kvSet(PUSH_SUBSCRIPTION_KEY, record.id);
-  // The browser lost the subscription that id named (a cleared site, an
-  // expired one): the service still lists it, and nothing else will ever ask
-  // it to forget it. Best effort, and never a reason to fail the enrolment.
-  if (stale && record.id && stale !== record.id)
-    await forgetPushSubscription(credentials, stale).catch(() => undefined);
+  await flushPendingForgets(credentials, record.id || null);
   return true;
 }
 
@@ -100,6 +109,17 @@ export function PushPanel({ baseUrl }: { baseUrl: () => string }) {
       current = false;
     };
   }, [supported]);
+
+  // Whenever the row can reach the service, tell it about ids this browser
+  // stopped using (a removed capability's subscription, a failed withdrawal).
+  const accessToken = session?.accessToken ?? null;
+  useEffect(() => {
+    if (!live || accessToken === null) return;
+    void flushPendingForgets(
+      { baseUrl: baseUrl(), accessToken },
+      kvGet(PUSH_SUBSCRIPTION_KEY),
+    );
+  }, [live, accessToken, baseUrl]);
 
   // Off is drawn only where it can be turned on; On is drawn wherever the
   // browser holds a subscription, so it can always be ended.

@@ -2,6 +2,10 @@
 import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
 import { kvDelete, kvGet, kvSet } from "@opensesame/app-core/lib/kv.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
+import {
+  PUSH_PENDING_FORGET_KEY,
+  pendingPushForgets,
+} from "@opensesame/app-core/lib/push-ledger.js";
 import { overlapCast } from "@opensesame/os-domain";
 import {
   cleanup,
@@ -34,7 +38,7 @@ const SUBSCRIPTION = {
 };
 
 let held: typeof SUBSCRIPTION | null = null;
-const subscribed = { count: 0 };
+const subscribed = { count: 0, hang: false };
 const fetchFn = vi.fn();
 
 function install({ supported = true } = {}) {
@@ -49,6 +53,7 @@ function install({ supported = true } = {}) {
                 getSubscription: async () => held,
                 subscribe: async () => {
                   subscribed.count += 1;
+                  if (subscribed.hang) return new Promise<never>(() => {});
                   held = SUBSCRIPTION;
                   return SUBSCRIPTION;
                 },
@@ -67,9 +72,11 @@ function show() {
 beforeEach(() => {
   held = null;
   subscribed.count = 0;
+  subscribed.hang = false;
   fetchFn.mockReset();
   SUBSCRIPTION.unsubscribe.mockClear();
   kvDelete(PUSH_SUBSCRIPTION_KEY);
+  kvDelete(PUSH_PENDING_FORGET_KEY);
   clearNotices();
   deviceIdentitySeams.remoteIdentityApi = () => "https://id.example";
   identityHookSeams.useIdentitySession = () =>
@@ -259,5 +266,68 @@ describe("Push on this device", () => {
       "https://id.example/v1/notification-channels/push/subscriptions/push_old",
     );
     expect(init?.method).toBe("DELETE");
+  });
+
+  it("keeps the id of a subscription it could not withdraw, and withdraws it the next time the row can reach the service", async () => {
+    held = SUBSCRIPTION;
+    kvSet(PUSH_SUBSCRIPTION_KEY, "push_1");
+    fetchFn.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const view = show();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Turn off push on this device",
+      }),
+    );
+    expect(await screen.findByRole("img", { name: "Off" })).toBeTruthy();
+    expect(kvGet(PUSH_SUBSCRIPTION_KEY)).toBeNull();
+    expect(pendingPushForgets()).toEqual(["push_1"]);
+
+    // The row is shown again (a new visit to Settings): it tells the service.
+    view.unmount();
+    fetchFn.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    show();
+    await waitFor(() => expect(pendingPushForgets()).toEqual([]));
+    expect(String(fetchFn.mock.calls.at(-1)?.[0])).toMatch(
+      /subscriptions\/push_1$/,
+    );
+  });
+
+  it("keeps a stale id to forget when the first attempt fails, instead of losing it", async () => {
+    kvSet(PUSH_SUBSCRIPTION_KEY, "push_old");
+    fetchFn.mockResolvedValueOnce(reply('{"publicKey":"cHVibGlja2V5"}'));
+    fetchFn.mockResolvedValueOnce(reply('{"id":"push_new","createdAt":"x"}'));
+    fetchFn.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    show();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Turn on push on this device",
+      }),
+    );
+    expect(await screen.findByRole("img", { name: "On" })).toBeTruthy();
+    expect(kvGet(PUSH_SUBSCRIPTION_KEY)).toBe("push_new");
+    expect(pendingPushForgets()).toEqual(["push_old"]);
+  });
+
+  it("releases the key when the browser never answers, so it can be pressed again", async () => {
+    Object.assign(pushSeams, { subscribeWaitMs: 20 });
+    subscribed.hang = true;
+    fetchFn.mockResolvedValue(reply('{"publicKey":"cHVibGlja2V5"}'));
+    show();
+    const key = await screen.findByRole("button", {
+      name: "Turn on push on this device",
+    });
+    fireEvent.click(key);
+    expect(key.getAttribute("aria-busy")).toBe("true");
+    await waitFor(() =>
+      expect(
+        listNotices().find((notice) => notice.id === "push-on-this-device"),
+      ).toMatchObject({ tone: "err" }),
+    );
+    await waitFor(() => expect(key.getAttribute("aria-busy")).toBeNull());
+    subscribed.hang = false;
+    fetchFn.mockResolvedValueOnce(reply('{"publicKey":"cHVibGlja2V5"}'));
+    fetchFn.mockResolvedValueOnce(reply('{"id":"push_1","createdAt":"x"}'));
+    fireEvent.click(key);
+    expect(await screen.findByRole("img", { name: "On" })).toBeTruthy();
   });
 });

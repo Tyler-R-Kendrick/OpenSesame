@@ -111,12 +111,25 @@ export async function subscribeNew(
   worker: ServiceWorkerRegistration,
   key: Uint8Array,
 ): Promise<PushSubscription> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(subscribeFailure("AbortError")),
+      pushSeams.subscribeWaitMs,
+    );
+  });
   try {
-    return await worker.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: overlapCast(key),
-    });
+    return await Promise.race([
+      worker.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: overlapCast(key),
+      }),
+      timeout,
+    ]);
   } catch (caught) {
+    if (caught instanceof PushError) throw caught;
     throw subscribeFailure(caught instanceof Error ? caught.name : "");
+  } finally {
+    clearTimeout(timer);
   }
 }

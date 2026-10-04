@@ -28,10 +28,15 @@ import { WEB_PUSH_ENROLMENT_PURPOSE } from "@opensesame/app-core/lib/capabilitie
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { scriptUrlFor } from "@opensesame/app-core/lib/capabilities/worker/seams.js";
 import { identityBase } from "@opensesame/app-core/lib/identity.js";
+import {
+  PUSH_PENDING_FORGET_KEY,
+  PUSH_SUBSCRIPTION_KEY,
+} from "@opensesame/app-core/lib/push-ledger.js";
 import { createElement } from "react";
 import { pushSeams } from "../../lib/push-enrolment.js";
+import { noRoadOut } from "../../lib/push-seams.js";
 import { createActivation } from "../activation.js";
-import { PUSH_SUBSCRIPTION_KEY, PushPanel } from "./PushPanel.js";
+import { PushPanel } from "./PushPanel.js";
 
 export const CAPABILITY = "notifications.web-push";
 
@@ -57,13 +62,12 @@ export const capabilityRuntime: CapabilityRuntime = {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
 
-    await ctx.hydrate([PUSH_SUBSCRIPTION_KEY]);
+    await ctx.hydrate([PUSH_SUBSCRIPTION_KEY, PUSH_PENDING_FORGET_KEY]);
     if (activation.disposed()) return activation.handle();
     const script = await pushScriptUrl();
     if (activation.disposed()) return activation.handle();
 
     // The enrolment's one road out is the egress port, under this capability.
-    const direct = pushSeams.fetchFn;
     const anyWorker = pushSeams.workerIsPush;
     pushSeams.fetchFn = (url, init) =>
       ctx.egress.fetch(url, init, {
@@ -74,7 +78,9 @@ export const capabilityRuntime: CapabilityRuntime = {
       pushSeams.workerIsPush = (registration) =>
         registration.active?.scriptURL === script;
     activation.onDispose(() => {
-      pushSeams.fetchFn = direct;
+      // Not the raw fetch: a request still in flight when the capability goes
+      // has no road out, and is refused like any unapproved capability's.
+      pushSeams.fetchFn = noRoadOut;
       pushSeams.workerIsPush = anyWorker;
     });
 

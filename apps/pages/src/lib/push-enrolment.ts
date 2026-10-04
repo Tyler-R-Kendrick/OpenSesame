@@ -3,6 +3,11 @@ import {
   EgressDenied,
 } from "@opensesame/app-core/lib/capabilities/egress.js";
 import {
+  addPendingPushForget,
+  clearPendingPushForget,
+  pendingPushForgets,
+} from "@opensesame/app-core/lib/push-ledger.js";
+import {
   type BoundaryValue,
   isJsonObject,
   isString,
@@ -93,27 +98,39 @@ async function authorized(
   init: RequestInit,
   tolerate: readonly number[] = [],
 ): Promise<BoundaryValue> {
-  let res: Response;
+  // One bound over the request and the reading of its body: a service that
+  // accepts the connection and then says nothing must not hold the key.
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(),
+    pushSeams.requestTimeoutMs,
+  );
   try {
-    res = await pushSeams.fetchFn(`${trimBase(input.baseUrl)}${path}`, {
-      ...init,
-      headers: {
-        ...(init.headers ?? {}),
-        "content-type": "application/json",
-        accept: "application/json",
-        authorization: `Bearer ${input.accessToken}`,
-      },
-    });
-  } catch (caught) {
-    throw unreachable(caught instanceof EgressDenied ? caught.code : null);
+    let res: Response;
+    try {
+      res = await pushSeams.fetchFn(`${trimBase(input.baseUrl)}${path}`, {
+        ...init,
+        signal: controller.signal,
+        headers: {
+          ...(init.headers ?? {}),
+          "content-type": "application/json",
+          accept: "application/json",
+          authorization: `Bearer ${input.accessToken}`,
+        },
+      });
+    } catch (caught) {
+      throw unreachable(caught instanceof EgressDenied ? caught.code : null);
+    }
+    if (!res.ok && !tolerate.includes(res.status)) {
+      throw new PushError(
+        refusalCode(res.status),
+        `The server refused that (${res.status}).`,
+      );
+    }
+    return await res.json().catch(() => null);
+  } finally {
+    clearTimeout(timer);
   }
-  if (!res.ok && !tolerate.includes(res.status)) {
-    throw new PushError(
-      refusalCode(res.status),
-      `The server refused that (${res.status}).`,
-    );
-  }
-  return res.json().catch(() => null);
 }
 
 /** The VAPID application server key. Public by design; still fetched, never baked. */
@@ -322,4 +339,36 @@ export async function disablePush(
     await subscription?.unsubscribe();
   }
   return { browser: subscription !== null, server };
+}
+
+/**
+ * Tell the Identity API to forget every id this browser stopped using — a
+ * subscription dropped when the capability was removed, one the browser lost,
+ * one a withdrawal could not report — and clear each as it is forgotten. Stops
+ * at the first failure (the service is not reachable, or refused) and leaves
+ * the rest for next time; never throws, because it is never the point of what
+ * the person asked for.
+ */
+export async function flushPendingForgets(
+  input: PushEnrolment,
+  liveId: string | null,
+): Promise<void> {
+  for (const id of pendingPushForgets()) {
+    // An id this browser is using again is not one to forget.
+    if (id === liveId) {
+      clearPendingPushForget(id);
+      continue;
+    }
+    try {
+      await forgetPushSubscription(input, id);
+    } catch {
+      return;
+    }
+    clearPendingPushForget(id);
+  }
+}
+
+/** Keep an id the Identity API may still list, to be forgotten when it can be. */
+export function keepToForget(id: string | null): void {
+  if (id) addPendingPushForget(id);
 }
