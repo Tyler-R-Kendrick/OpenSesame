@@ -158,15 +158,28 @@ export async function raiseRequest(main, panel, reason) {
   });
   const status = panel.getByLabel("Local session status");
   const signedIn = /Signed in locally with a passkey/;
+  // A ceremony that is under way leaves the key enabled, and pressing it again
+  // starts another that cancels the first: on a slow machine that is a loop
+  // that never settles. Press, then give the ceremony its time before pressing
+  // again.
+  let pressedAt = Number.NEGATIVE_INFINITY;
+  const CEREMONY_MS = 15_000;
   await expect
     .poll(
       async () => {
         if (signedIn.test(await status.innerText())) return "signed-in";
-        if ((await signIn.count()) > 0 && (await signIn.isEnabled())) {
+        const keys = await signIn.count();
+        if (
+          keys > 0 &&
+          Date.now() - pressedAt > CEREMONY_MS &&
+          (await signIn.isEnabled())
+        ) {
+          pressedAt = Date.now();
           await signIn.focus();
           await main.keyboard.press("Enter");
         }
-        return "waiting";
+        // Say what was seen, so a run that never signs in reports where it stood.
+        return `waiting (status: ${JSON.stringify(await status.innerText())}, sign-in keys: ${keys})`;
       },
       { timeout: PATIENCE, intervals: [250, 500, 1000, 2000] },
     )
