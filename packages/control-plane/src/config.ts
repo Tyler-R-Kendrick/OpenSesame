@@ -10,7 +10,10 @@ import {
   loadAgentAuthFromEnv,
   truthy,
 } from "./config-agent-providers.js";
-import { parseChannelKinds } from "./config-channels.js";
+import {
+  notificationChannelsFromEnv,
+  parseChannelKinds,
+} from "./config-channels.js";
 import {
   type ProtocolFeatures,
   loadProtocolFeatures,
@@ -308,10 +311,7 @@ export function loadConfig(
     notifications: {
       // `in_app` is the durable inbox and is always configured: it is the
       // surface every other channel merely points at.
-      availableChannels: parseChannelKinds(
-        env.OPENSESAME_NOTIFICATION_CHANNELS,
-        ["in_app"],
-      ),
+      ...notificationChannelsFromEnv(env),
       // Default deny, in both directions. Nothing external settles anything
       // until an operator names it.
       directApprovalChannels: parseChannelKinds(
@@ -322,7 +322,6 @@ export function loadConfig(
         env.OPENSESAME_DIRECT_DENIAL_CHANNELS,
         [],
       ),
-      pushPublicKey: env.OPENSESAME_WEBPUSH_PUBLIC_KEY ?? "",
       slackSigningSecret: env.OPENSESAME_SLACK_SIGNING_SECRET ?? "",
       telegramSecretToken: env.OPENSESAME_TELEGRAM_WEBHOOK_SECRET ?? "",
       allowSelfAssertedBindings: allowDevDefaults,

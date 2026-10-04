@@ -22,6 +22,7 @@ import https from "node:https";
 import { isIP } from "node:net";
 import {
   type MetadataDnsLookup,
+  UnsafeMetadataUrlError,
   assertSafeMetadataUrl,
   resolveSafeMetadataAddresses,
 } from "@opensesame/oauth-provider/metadata/safe-fetcher";
@@ -35,6 +36,15 @@ import {
 } from "./http.js";
 
 export type EndpointRefusal = "insecure_endpoint" | "private_endpoint";
+
+/**
+ * A public-looking name that resolved to a private or special address. Not a
+ * transport failure: the name will keep resolving there, so retrying it is
+ * retrying a request this process must never make.
+ */
+export class PrivateEndpointError extends Error {
+  override readonly name = "PrivateEndpointError";
+}
 
 /**
  * The synchronous half of the policy, run before any request is built: HTTPS
@@ -92,6 +102,9 @@ export async function deliverToPublicEndpoint<B extends string | Buffer>(
     });
     return httpOutcome(response.status);
   } catch (err) {
+    if (err instanceof PrivateEndpointError) {
+      return { status: "permanent", error: "private_endpoint" };
+    }
     return classifyThrown(err instanceof Error ? err : undefined);
   }
 }
@@ -118,7 +131,17 @@ export async function postPublicOnly(
       once: true,
     });
   });
-  const addresses = resolveSafeMetadataAddresses(url, lookupFn);
+  // A resolved address the policy blocks is a refusal. A lookup that merely
+  // failed, or found nothing, stays an ordinary (retryable) transport error:
+  // a resolver outage must not read as "this subscription is hostile".
+  const addresses = resolveSafeMetadataAddresses(url, lookupFn).catch(
+    (err: Error) => {
+      throw err instanceof UnsafeMetadataUrlError &&
+        err.message.startsWith("Blocked ")
+        ? new PrivateEndpointError("endpoint resolves to a private address")
+        : err;
+    },
+  );
   // Whichever loses the race still settles; neither may surface unhandled.
   for (const pending of [aborted, addresses]) pending.catch(() => undefined);
   const [address] = await Promise.race([addresses, aborted]);

@@ -32,8 +32,13 @@ import {
 } from "./lib/mobile-contract.mjs";
 import { auditKeybindingsAbsent } from "./lib/mobile-keybindings-absent.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
-import { backOutStops, openVaultList } from "./lib/phone-vault.mjs";
+import {
+  backOutStops,
+  openVaultList,
+  treeActions,
+} from "./lib/phone-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import { touchCopyStop } from "./lib/touch-copy-contract.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
@@ -80,6 +85,7 @@ async function audit(page, label) {
     result.coarse,
     `${label}: measured in a coarse-pointer context`,
   );
+  await touchCopyStop(page, label, harness);
   await harness.snap(page, label, { fullPage: false });
   const chrome = result.chrome.statusline
     ? ` footer=${result.chrome.statusline.h}px`
@@ -205,6 +211,7 @@ async function sections(page, stop) {
  * into, so the walk saves an item and comes back through it.
  */
 async function vaultItem(page, stop) {
+  await treeActions(page, stop, { harness, audit });
   await openVaultList(page);
   const create = page
     .getByRole("link", { name: "New item", exact: true })

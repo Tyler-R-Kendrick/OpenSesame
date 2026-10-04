@@ -11,51 +11,17 @@ import {
   decryptWebPushPayload,
   derToRawEcdsaSignature,
   encryptWebPushPayload,
-  generateVapidKeyPair,
   vapidAuthorization,
 } from "../adapters/web-push.js";
-import type { WebPushConfig } from "../adapters/web-push.js";
 import { base64UrlDecode, base64UrlEncode, parseJsonValue } from "../bytes.js";
-import type { PushSubscriptionRecord } from "../contract.js";
-import { FIXED_NOW, jsonFetch, renderInput } from "./helpers.js";
-
-const ENDPOINT = "https://push.example.test/wpush/v2/AbCdEf-01234";
-
-interface TestSubscription {
-  subscription: PushSubscriptionRecord;
-  /** The half a browser keeps and a server never has. */
-  uaPrivateKey: Buffer;
-  authSecret: Buffer;
-}
-
-/** A browser-shaped subscription, plus the private half a browser keeps. */
-function subscribe(): TestSubscription {
-  const ua = createECDH("prime256v1");
-  ua.generateKeys();
-  const authSecret = randomBytes(16);
-  return {
-    subscription: {
-      endpoint: ENDPOINT,
-      keys: {
-        p256dh: base64UrlEncode(ua.getPublicKey()),
-        auth: base64UrlEncode(authSecret),
-      },
-    },
-    uaPrivateKey: ua.getPrivateKey(),
-    authSecret,
-  };
-}
-
-function vapidConfig(extra: Partial<WebPushConfig> = {}): WebPushConfig {
-  const keys = generateVapidKeyPair();
-  return {
-    vapidPublicKey: keys.publicKey,
-    vapidPrivateKey: keys.privateKey,
-    vapidSubject: "mailto:ops@example.test",
-    now: () => FIXED_NOW,
-    ...extra,
-  };
-}
+import {
+  ENDPOINT,
+  FIXED_NOW,
+  jsonFetch,
+  renderInput,
+  subscribe,
+  vapidConfig,
+} from "./helpers.js";
 
 describe("RFC 8291 message encryption", () => {
   it("round-trips a payload back to the subscriber", () => {
@@ -266,7 +232,12 @@ describe("web push delivery", () => {
       uaPrivateKey,
       authSecret,
     );
-    expect(decrypted.toString("utf8")).toContain("Authorization requested");
+    // The service worker's closed vocabulary, and nothing else.
+    expect(JSON.parse(decrypted.toString("utf8"))).toEqual({
+      kind: "authorization_request",
+      action: "review",
+      ref: "rz-QHXT-KPLM",
+    });
   });
 
   it("keeps the payload at minimal even when full was requested", async () => {
@@ -291,7 +262,13 @@ describe("web push delivery", () => {
     ).toString("utf8");
     expect(decrypted).not.toContain("Transfer funds");
     expect(decrypted).not.toContain("agent-7");
-    expect(decrypted).toContain("rz-QHXT-KPLM");
+    expect(decrypted).not.toContain("payment.initiate");
+    expect(decrypted).not.toContain("https://");
+    expect(JSON.parse(decrypted)).toEqual({
+      kind: "authorization_request",
+      action: "review",
+      ref: "rz-QHXT-KPLM",
+    });
   });
 
   it("retires a gone subscription as permanent and a 503 as retryable", async () => {

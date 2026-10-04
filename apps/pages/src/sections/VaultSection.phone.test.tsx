@@ -1,5 +1,11 @@
 /** @vitest-environment jsdom */
-import { cleanup, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -84,6 +90,37 @@ describe("the vault on a phone", () => {
         .getByRole("link", { name: "Back to all items" })
         .getAttribute("href"),
     ).toBe("/vault?f=all");
+  });
+
+  it("the tree carries the command row, so adding and backing up are one tap from the landing", () => {
+    renderVault("/vault");
+    const row = document.querySelector<HTMLElement>(".vault__tree");
+    for (const name of ["New item", "Export items", "Search (/)"]) {
+      expect(
+        row?.querySelector(`[aria-label="${name}"], [title="${name}"]`),
+      ).not.toBeNull();
+    }
+    expect(
+      screen
+        .getAllByRole("link", { name: "New item" })[0]
+        ?.getAttribute("href"),
+    ).toMatch(/^\/vault\/new/);
+  });
+
+  it("the tree's search key opens the list of everything with its prompt ready", async () => {
+    renderVault("/vault");
+    // The list focuses its rows once the saved collapse state has loaded.
+    await act(async () => undefined);
+    const row = document.querySelector<HTMLElement>(".vault__tree");
+    const key = row?.querySelector<HTMLElement>('[title="Search (/)"]');
+    if (!key) throw new Error("the tree has no search key");
+    fireEvent.click(key);
+    await waitFor(() => expect(pane()).toBe("list"));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("textbox", { name: /search/i }),
+      ),
+    );
   });
 
   it("the tree's all entry names the list, so tapping it leaves the tree", () => {

@@ -234,6 +234,8 @@ try {
   await shot(b.page, "390-device-b-unlock");
   await unlockWithPassword(b.page);
   await visit(b.page, "vault");
+  // A phone opens the vault on the section tree; the item is two panes in.
+  await toTheList(b.page);
   await expect(b.page.getByText("Bank of Example").first()).toBeVisible({
     timeout: 20_000,
   });

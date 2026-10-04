@@ -3,6 +3,8 @@
  * build still draws. A sheet's measurement is then a fact the browser printed,
  * not something written from the diff.
  */
+import { TOUCH_COPY } from "./touch-copy-contract.mjs";
+
 export function readSteps() {
   return {
     /**
@@ -42,6 +44,45 @@ export function readSteps() {
           nodes.map((node) => node.getAttribute("aria-label") ?? ""),
         );
       console.log(`  labels ${selector}: ${names.join(" | ") || "none"}`);
+    },
+    /**
+     * Print what keyboard-only copy is drawn right now: the gv chip, every
+     * keys-voice line, the visible tip and key lines as the person reads them,
+     * and whether the command bar's placeholder fits its field.
+     */
+    async touchCopy(page) {
+      const seen = await page.evaluate(TOUCH_COPY);
+      const lines = await page
+        .locator(".empty__tip, .buffer__keys")
+        .evaluateAll((nodes) =>
+          nodes
+            .filter((node) => node.getClientRects().length > 0)
+            .map(
+              (node) =>
+                [...node.querySelectorAll("span")]
+                  .filter((span) => getComputedStyle(span).display !== "none")
+                  .map((span) => span.textContent)
+                  .join("")
+                  .trim() || node.textContent.trim(),
+            ),
+        );
+      console.log(`  gv chips drawn: ${seen.jump}`);
+      console.log(`  keys-voice lines drawn: ${seen.keysVoice}`);
+      console.log(`  key and tip lines read: ${lines.join(" | ") || "none"}`);
+      if (seen.bar) {
+        const { placeholder, text, room, scrollWidth, clientWidth } = seen.bar;
+        console.log(
+          `  command bar placeholder: "${placeholder}" text ${text}px in ${room}px (scrollWidth ${scrollWidth}, clientWidth ${clientWidth}) -> ${text <= room ? "fits" : "TRUNCATED"}`,
+        );
+      } else console.log("  command bar placeholder: not drawn");
+    },
+    /** The vault's list pane on a phone, the way a thumb reaches it. */
+    async openList(page) {
+      const all = page.getByRole("treeitem", { name: /^all\b/i }).first();
+      if (await all.count()) {
+        await all.tap();
+        await page.waitForTimeout(900);
+      }
     },
   };
 }

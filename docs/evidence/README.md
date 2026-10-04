@@ -48,7 +48,9 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-04-device-identity/`](2026-10-04-device-identity/README.md) | The device is the Identity plane (ADR 0160) — before and after |
+| [`2026-10-04-phone-tree-actions/`](2026-10-04-phone-tree-actions/README.md) | The phone's section tree carries the vault's command row |
 | [`2026-10-03-unlock-from-protector/`](2026-10-03-unlock-from-protector/README.md) | Unlock from an enrolled protector — before and after |
+| [`2026-10-03-touch-copy/`](2026-10-03-touch-copy/README.md) | Keyboard-only copy stands down under a finger |
 | [`2026-10-03-share-once-phone/`](2026-10-03-share-once-phone/README.md) | Share once on an item's page, seated for the phone |
 | [`2026-10-03-settings-walk/`](2026-10-03-settings-walk/README.md) | Settings walk: every row acts, or is not drawn (ADR 0158, second pass) |
 | [`2026-10-03-settings-keybindings-touch/`](2026-10-03-settings-keybindings-touch/README.md) | Settings has no Keybindings tab on a touch-only device |

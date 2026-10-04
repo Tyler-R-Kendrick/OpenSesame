@@ -748,8 +748,10 @@
     touch-action: pan-y;
   }
 
+  /* A field under 16px makes iOS zoom the page on focus and never zoom back. */
   .vtree__cmd input {
     min-height: 2.75rem;
+    font-size: 16px;
   }
 }
 
@@ -1130,6 +1132,23 @@ select.editor__ext:hover {
     display: inline-grid;
   }
 
+  /* The list's command row, at the head of the tree: full-bleed over the
+     pane's padding and pinned, so the verbs stay in reach while the tree
+     scrolls under them. The tree's own colours, not the list's. */
+  .vault__tree > .vtree__pathbar {
+    position: sticky;
+    top: -0.25rem;
+    z-index: 1;
+    justify-content: flex-start;
+    gap: 0.25rem;
+    margin: -0.25rem calc(-0.6rem - env(safe-area-inset-right)) 0.25rem
+      calc(-0.6rem - env(safe-area-inset-left));
+    padding: 0.15rem calc(0.6rem + env(safe-area-inset-right)) 0.15rem
+      calc(0.6rem + env(safe-area-inset-left));
+    background: var(--rail);
+    border-bottom: 1px solid var(--rail-line, var(--line));
+  }
+
   .detail {
     padding: 1rem 1rem 6rem;
   }
@@ -1226,6 +1245,23 @@ select.editor__ext:hover {
   font-family: var(--mono);
   font-size: 0.8125rem;
   color: var(--ink-3);
+}
+
+/* Keys stay off a finger (DESIGN.md § Touch); a line with a touch twin swaps
+   to it there, one without goes. */
+.buffer__keys-touch {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .buffer__keys--keys,
+  .buffer__keys-keys {
+    display: none;
+  }
+
+  .buffer__keys-touch {
+    display: inline;
+  }
 }
 
 /* The export sheet's refusal, a mark under its facts. */

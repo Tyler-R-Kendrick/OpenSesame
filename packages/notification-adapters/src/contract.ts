@@ -111,7 +111,29 @@ export interface RenderedMessage {
   body: string;
   rendezvousUrl?: string;
   decisionTokens?: DecisionTokens;
+  /**
+   * The structured form for a channel that carries no prose: the user agent
+   * draws its own text from a closed table and this only selects from it.
+   * Set by the Web Push adapter's `render`, and read back by its `deliver`.
+   */
+  wake?: WakeSignal;
 }
+
+/**
+ * What a Web Push payload is allowed to say: a notification class, a closed
+ * action label and an opaque reference — nothing a requester wrote, and no
+ * identifier of a person. The service worker (`apps/pages/src/lib/push.ts`,
+ * `pushNotificationBody`) reads exactly these three fields and maps the first
+ * two onto strings compiled into the page.
+ */
+export interface WakeSignal {
+  kind: NotificationClass;
+  action: WakeAction;
+  /** Matches `^[A-Za-z0-9_-]{1,128}$`; absent when the request has no such handle. */
+  ref?: string;
+}
+
+export type WakeAction = "review" | "decided" | "none";
 
 /* ------------------------------------------------------------------ *
  * Delivery

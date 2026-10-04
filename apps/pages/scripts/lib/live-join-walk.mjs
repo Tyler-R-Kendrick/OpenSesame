@@ -6,6 +6,7 @@
  */
 
 import { doorGuest } from "./front-door.mjs";
+import { SHARED_ITEM } from "./live-item-labels.mjs";
 import { addCapabilities, openSettingsCategory } from "./pages-journey.mjs";
 
 /** Every RTCPeerConnection's configuration, as the page made it. */
@@ -96,7 +97,7 @@ export async function ownerEnters(page, { origin, base, secret }) {
   const create = page.getByRole("link", { name: "New item", exact: true });
   await create.first().waitFor({ timeout: 20_000 });
   await create.first().click();
-  await page.getByLabel("Name", { exact: true }).fill("GitHub");
+  await page.getByLabel("Name", { exact: true }).fill(SHARED_ITEM.name);
   await page.getByLabel("Secret value", { exact: true }).fill(secret);
   // Unconcealed text the catalog carries: the probes check no carrier saw it.
   await page.getByRole("button", { name: "custom field" }).click();

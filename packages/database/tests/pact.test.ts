@@ -10,14 +10,14 @@ import {
   assertSourceOrder,
 } from "@opensesame/testing";
 import { describe, expect, it } from "vitest";
-import { createRepositories } from "../src/index.js";
+import { MemoryRepositories } from "../src/index.js";
 import { withPostgresRepos } from "./pg-harness.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
 describe("PACT — outbox claim", () => {
   it("memory claim hides the row from a second claimant", async () => {
-    const repos = createRepositories();
+    const repos = new MemoryRepositories();
     await repos.outbox.append({
       id: "outbox_pact",
       aggregateType: "principal",
@@ -33,7 +33,7 @@ describe("PACT — outbox claim", () => {
   });
 
   it("unpublished rows survive a failed mark after claim", async () => {
-    const repos = createRepositories();
+    const repos = new MemoryRepositories();
     await repos.outbox.append({
       id: "outbox_partition",
       aggregateType: "principal",
@@ -67,7 +67,7 @@ describe("PACT — outbox claim", () => {
   });
 
   it("outbox contract: claimed rows do not smuggle secret fields", async () => {
-    const repos = createRepositories();
+    const repos = new MemoryRepositories();
     await repos.outbox.append({
       id: "outbox_contract",
       aggregateType: "principal",
@@ -96,10 +96,13 @@ describe("PACT — outbox claim", () => {
         payload: {},
       });
       const now = new Date();
+      // Wide enough that leftovers from earlier runs against a long-lived
+      // database cannot crowd this run's row out of the batch.
       await assertExclusiveClaim(async () => {
-        const claimed = await repos.outbox.claimUnpublished(8, now, 30_000);
+        const claimed = await repos.outbox.claimUnpublished(1000, now, 30_000);
         return claimed.some((row) => row.id === id);
       }, 8);
+      await repos.outbox.markPublished(id, new Date());
     });
   });
 });
