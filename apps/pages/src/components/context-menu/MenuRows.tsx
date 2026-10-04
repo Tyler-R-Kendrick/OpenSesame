@@ -50,7 +50,7 @@ function MenuEntry({
       }}
     >
       <span className="ctxmenu__check">
-        {item.checked ? <IconCheck size={12} /> : null}
+        {item.checked ? <IconCheck size={12} /> : (item.icon ?? null)}
       </span>
       <span className="ctxmenu__label">{text}</span>
       {item.hint ? <kbd className="ctxmenu__hint">{item.hint}</kbd> : null}

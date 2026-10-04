@@ -14,6 +14,7 @@ import {
   resetShellRender,
   vault,
 } from "../components/app-shell.test-harness.js";
+import { ContextMenuLayer } from "../components/context-menu/ContextMenuLayer.js";
 import { stubScreen } from "../lib/use-narrow.test-support.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { VaultSection } from "./VaultSection.js";
@@ -32,12 +33,15 @@ Object.assign(vaultTreeSeams, {
 function renderVault(path: string) {
   return renderShell(
     path,
-    <Routes>
-      <Route path="/vault" element={<VaultSection />}>
-        <Route index element={<div>welcome pane</div>} />
-        <Route path=":itemId" element={<ItemDetail />} />
-      </Route>
-    </Routes>,
+    <>
+      <ContextMenuLayer />
+      <Routes>
+        <Route path="/vault" element={<VaultSection />}>
+          <Route index element={<div>welcome pane</div>} />
+          <Route path=":itemId" element={<ItemDetail />} />
+        </Route>
+      </Routes>
+    </>,
   );
 }
 
@@ -92,29 +96,50 @@ describe("the vault on a phone", () => {
     ).toBe("/vault?f=all");
   });
 
-  it("the tree carries the command row, so adding and backing up are one tap from the landing", () => {
+  it("the tree opens on a search field and one Add key; the keys of the desktop's row are not drawn", () => {
     renderVault("/vault");
-    const row = document.querySelector<HTMLElement>(".vault__tree");
-    for (const name of ["New item", "Export items", "Search (/)"]) {
-      expect(
-        row?.querySelector(`[aria-label="${name}"], [title="${name}"]`),
-      ).not.toBeNull();
-    }
-    expect(
-      screen
-        .getAllByRole("link", { name: "New item" })[0]
-        ?.getAttribute("href"),
-    ).toMatch(/^\/vault\/new/);
+    const tree = document.querySelector<HTMLElement>(".vault__tree");
+    expect(tree?.querySelector(".vadd__find")).not.toBeNull();
+    expect(tree?.querySelectorAll(".vadd__key")).toHaveLength(1);
+    expect(tree?.querySelector(".vtree__keys")).toBeNull();
+    // Import and Export stay mounted for the sheets they own, but as no key.
+    const hidden = tree?.querySelectorAll(".vadd__host > button") ?? [];
+    expect(hidden.length).toBeGreaterThan(0);
   });
 
-  it("the tree's search key opens the list of everything with its prompt ready", async () => {
+  it("the Add key opens the action sheet: New item, then Import and Export", async () => {
+    renderVault("/vault");
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    const menu = await screen.findByRole("menu", { name: "Add to the vault" });
+    const rows = [...menu.querySelectorAll('[role="menuitem"]')].map((row) =>
+      row.getAttribute("aria-label"),
+    );
+    // Whatever a capability adds (Import) sits between the two ends.
+    expect(rows[0]).toBe("New item");
+    expect(rows.at(-1)).toBe("Export items");
+    // A row presses the key of the command it stands for.
+    const key = document.querySelector<HTMLElement>(
+      '.vadd__host > [aria-label="Export items"]',
+    );
+    const pressed = vi.fn((event: Event) => event.stopImmediatePropagation());
+    key?.addEventListener("click", pressed);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Export items" }));
+    expect(pressed).toHaveBeenCalledOnce();
+  });
+
+  it("New item in the sheet opens the editor", async () => {
+    renderVault("/vault");
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: "New item" }));
+    await waitFor(() => expect(pane()).toBe("detail"));
+    expect(screen.queryByRole("menu", { name: "Add to the vault" })).toBeNull();
+  });
+
+  it("the tree's search field opens the list of everything with its prompt ready", async () => {
     renderVault("/vault");
     // The list focuses its rows once the saved collapse state has loaded.
     await act(async () => undefined);
-    const row = document.querySelector<HTMLElement>(".vault__tree");
-    const key = row?.querySelector<HTMLElement>('[title="Search (/)"]');
-    if (!key) throw new Error("the tree has no search key");
-    fireEvent.click(key);
+    fireEvent.click(screen.getByRole("button", { name: "Search the vault" }));
     await waitFor(() => expect(pane()).toBe("list"));
     await waitFor(() =>
       expect(document.activeElement).toBe(
