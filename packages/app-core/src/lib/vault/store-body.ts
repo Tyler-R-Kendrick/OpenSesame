@@ -56,6 +56,9 @@ export async function loadVaultBody(
       ...(body.itemTypes !== undefined
         ? { itemTypes: body.itemTypes }
         : undefined),
+      ...(body.itemTypesAt !== undefined
+        ? { itemTypesAt: body.itemTypesAt }
+        : undefined),
       ...(body.tombstones !== undefined
         ? { tombstones: body.tombstones }
         : undefined),

@@ -88,6 +88,9 @@ export function bodyBeforeWrite(body: VaultBody): VaultBody {
     ...(body.itemTypes !== undefined
       ? { itemTypes: body.itemTypes }
       : undefined),
+    ...(body.itemTypesAt !== undefined
+      ? { itemTypesAt: body.itemTypesAt }
+      : undefined),
     ...(body.rev !== undefined ? { rev: body.rev } : undefined),
     tombstones: body.tombstones,
     ...(body.deviceIdentityKey !== undefined
