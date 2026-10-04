@@ -38,8 +38,12 @@ export type HelpTopic = {
   /** Authored answer shown when there is no model to ask. */
   readonly answer: string;
   readonly routes: readonly GuideRouteId[];
-  /** Authored walkthrough that answers this question in tutorial mode. */
-  readonly goal: GuideGoalId;
+  /**
+   * Authored walkthrough that answers this question in tutorial mode. A topic
+   * for a screen the Support sheet is never mounted on (the gates, ADR 0090)
+   * has none: it is written help only.
+   */
+  readonly goal: GuideGoalId | null;
   /**
    * The words a person uses for this that the title and answer do not: "user"
    * for an account, "reset" for a master password. Retrieval is lexical and

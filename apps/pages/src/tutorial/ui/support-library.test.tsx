@@ -81,11 +81,24 @@ describe("the Tutorials tab", () => {
     expect(offered).toBeGreaterThanOrEqual(20);
   });
 
-  it("offers a gate's tutorial on the gate and nowhere else", async () => {
-    const away = await openLibrary("/vault");
+  it("offers no tutorial for a gate, which has no Support sheet to start one", async () => {
+    const { library } = await openLibrary("/vault");
+    for (const id of ["unlock.open", "setup.first-run", "broker.authorize"]) {
+      expect(library.querySelector(`[data-tutorial="${id}"]`)).toBeNull();
+    }
+  });
+
+  it("leaves out a tutorial this device has no use for", async () => {
+    const { library } = await openLibrary("/vault");
+    // No account is signed in, and no install is offered: both tours would
+    // point at a control that is not drawn.
     expect(
-      away.library.querySelector('[data-tutorial="unlock.open"]'),
+      library.querySelector('[data-tutorial="identity.sign-out"]'),
     ).toBeNull();
+    expect(library.querySelector('[data-tutorial="app.install"]')).toBeNull();
+    expect(
+      library.querySelector('[data-tutorial="vault.lock"]'),
+    ).not.toBeNull();
   });
 
   it("starts a tutorial from its row, and a second time replays it", async () => {
