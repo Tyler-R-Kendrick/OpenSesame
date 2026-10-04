@@ -86,4 +86,65 @@ describe("useInboxCount", () => {
     await act(async () => notifyLocalIamChange());
     expect(listInbox).toHaveBeenCalledTimes(1);
   });
+
+  it("tries a failed read again, later each time, and a few times only", async () => {
+    vi.useFakeTimers();
+    listInbox.mockRejectedValue(new Error("busy"));
+    renderHook(() => useInboxCount("tomb-a", listInbox));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(listInbox).toHaveBeenCalledTimes(1);
+    for (const [at, delay] of [1000, 2000, 4000, 8000].entries()) {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(delay - 1);
+      });
+      expect(listInbox, `before retry ${at + 1}`).toHaveBeenCalledTimes(1 + at);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(listInbox, `retry ${at + 1}`).toHaveBeenCalledTimes(2 + at);
+    }
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+    expect(listInbox).toHaveBeenCalledTimes(5);
+  });
+
+  it("shows the count again when a retry works", async () => {
+    vi.useFakeTimers();
+    listInbox.mockRejectedValueOnce(new Error("busy"));
+    listInbox.mockResolvedValue([row("a", Date.now() + 600_000)]);
+    const { result } = renderHook(() => useInboxCount("tomb-a", listInbox));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current).toBe(0);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(result.current).toBe(1);
+  });
+
+  it("leaves no timer behind for a read that another one overtook", async () => {
+    vi.useFakeTimers();
+    let release: (rows: ReturnType<typeof row>[]) => void = () => undefined;
+    listInbox.mockReturnValueOnce(
+      new Promise<ReturnType<typeof row>[]>((resolve) => {
+        release = resolve;
+      }),
+    );
+    renderHook(() => useInboxCount("tomb-a", listInbox));
+    // A second read starts and finishes while the first is still out.
+    listInbox.mockResolvedValue([]);
+    await act(async () => notifyLocalIamChange());
+    expect(listInbox).toHaveBeenCalledTimes(2);
+    // The first comes back late, with a request about to lapse: it is not the
+    // newest read, so it sets no count and starts no timer.
+    release([row("late", Date.now() + 500)]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+    expect(listInbox).toHaveBeenCalledTimes(2);
+  });
 });

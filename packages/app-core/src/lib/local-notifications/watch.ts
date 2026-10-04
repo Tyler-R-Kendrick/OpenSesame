@@ -27,7 +27,7 @@
  *  - A read that throws is survived; the watcher goes on.
  */
 
-import type { InboxRow } from "../device-inbox.js";
+import { type InboxRow, READ_RETRY_DELAYS_MS } from "../device-inbox.js";
 import {
   type LocalDestination,
   type LocalEnvironment,
@@ -43,6 +43,7 @@ export type WatchTrigger =
   | "change"
   | "other-tab"
   | "lapse"
+  | "retry"
   | "visible"
   | "preference";
 
@@ -81,6 +82,8 @@ type Memory = {
   seen: Set<string>;
   /** The last preference read; kept through a read that fails. */
   preference: LocalPreference;
+  /** Reads that have failed in a row; zero once one succeeds. */
+  failures: number;
   cancelLapse: (() => void) | undefined;
 };
 
@@ -137,8 +140,15 @@ async function readOnce(
     rows = await ports.list();
   } catch {
     clearMarks(ports);
+    // Again after a delay that grows, a few times: a lock held a moment too
+    // long mends itself, and a vault that is shut is not asked for ever.
+    const delay = READ_RETRY_DELAYS_MS[memory.failures];
+    memory.failures += 1;
+    if (delay !== undefined && !stopped())
+      memory.cancelLapse = ports.later(() => again("retry"), delay);
     return;
   }
+  memory.failures = 0;
   if (stopped()) return;
   const chosen = await currentPreference(ports, memory);
   const places = effectiveDestinations(
@@ -203,6 +213,7 @@ export function watchInbox(
     const memory: Memory = {
       seen: new Set(),
       preference: QUIET_PREFERENCE,
+      failures: 0,
       cancelLapse: undefined,
     };
     let stopped = false;

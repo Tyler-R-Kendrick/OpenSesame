@@ -29,6 +29,15 @@ import {
 import { isSignInInFlight } from "./local-request-summary.js";
 import { tombUnlocked } from "./vfs.js";
 
+/**
+ * How long to wait before reading the inbox again after a read failed, one
+ * delay per retry and no more retries than delays. A read that fails once is
+ * usually a lock someone else held a moment too long; one that keeps failing is
+ * a vault that is shut, which says so and is not asked again until something
+ * changes.
+ */
+export const READ_RETRY_DELAYS_MS: readonly number[] = [1000, 2000, 4000, 8000];
+
 /** What kind of thing is waiting. A closed set. */
 export type InboxKind = "local-access";
 
