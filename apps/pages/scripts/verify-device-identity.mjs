@@ -35,7 +35,18 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { WIDTHS } from "./lib/device-identity-scenarios.mjs";
+import {
+  WIDTHS,
+  chooseCapability,
+  configureScenarios,
+  connect,
+  go,
+  lateActivation,
+  memberVault,
+  openGeneral,
+  signOutRowCount,
+  walkAccess,
+} from "./lib/device-identity-scenarios.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { waitOpen } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
