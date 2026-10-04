@@ -13,6 +13,8 @@ type PointerInit = {
   x?: number;
   y?: number;
   pointerType?: string;
+  /** Which finger: a second one makes the touch two-fingered. */
+  id?: number;
 };
 
 /**
@@ -32,6 +34,7 @@ function pointer(type: string, init: PointerInit = {}): Event {
   Object.defineProperty(event, "pointerType", {
     value: init.pointerType ?? "touch",
   });
+  Object.defineProperty(event, "pointerId", { value: init.id ?? 1 });
   return event;
 }
 
@@ -165,6 +168,55 @@ describe("longPress", () => {
     el.dispatchEvent(pointer("pointerdown", { x: 40, y: 40 }));
     vi.advanceTimersByTime(gestureLimits.longPressMs + 50);
     expect(hold).not.toHaveBeenCalled();
+  });
+});
+
+describe("two fingers are not a one-finger swipe", () => {
+  /** Two fingers go down, travel `dx`, and lift, one after the other. */
+  function twoFingers(el: HTMLElement, dx: number) {
+    el.dispatchEvent(pointer("pointerdown", { x: 100, y: 100, id: 1 }));
+    el.dispatchEvent(pointer("pointerdown", { x: 180, y: 100, id: 2 }));
+    el.dispatchEvent(pointer("pointerup", { x: 100 + dx, y: 100, id: 1 }));
+    el.dispatchEvent(pointer("pointerup", { x: 180 + dx, y: 100, id: 2 }));
+  }
+
+  it("never opens a row's menu or goes back, so the keymap's gesture is the only one", () => {
+    const el = mount();
+    const menu = vi.fn();
+    const back = vi.fn();
+    swipe(el, "left", menu);
+    swipeBack(el, back);
+    twoFingers(el, -120);
+    twoFingers(el, 120);
+    expect(menu).not.toHaveBeenCalled();
+    expect(back).not.toHaveBeenCalled();
+  });
+
+  it("hears one finger again once both have lifted", () => {
+    const el = mount();
+    const back = vi.fn();
+    swipeBack(el, back);
+    twoFingers(el, 120);
+    el.dispatchEvent(pointer("pointerdown", { x: 10, y: 100 }));
+    el.dispatchEvent(
+      pointer("pointerup", { x: 10 + gestureLimits.swipeMinX + 5, y: 100 }),
+    );
+    expect(back).toHaveBeenCalledTimes(1);
+  });
+
+  it("forgets a finger that was cancelled", () => {
+    const el = mount();
+    const back = vi.fn();
+    swipeBack(el, back);
+    el.dispatchEvent(pointer("pointerdown", { x: 100, y: 100, id: 1 }));
+    el.dispatchEvent(pointer("pointerdown", { x: 180, y: 100, id: 2 }));
+    el.dispatchEvent(pointer("pointercancel", { id: 1 }));
+    el.dispatchEvent(pointer("pointercancel", { id: 2 }));
+    el.dispatchEvent(pointer("pointerdown", { x: 10, y: 100 }));
+    el.dispatchEvent(
+      pointer("pointerup", { x: 10 + gestureLimits.swipeMinX + 5, y: 100 }),
+    );
+    expect(back).toHaveBeenCalledTimes(1);
   });
 });
 
