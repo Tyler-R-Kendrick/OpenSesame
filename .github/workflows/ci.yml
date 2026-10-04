@@ -155,6 +155,17 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:keyboard
+      - name: Every tutorial, walked end to end
+        # ADR 0160: the Support sheet's Tutorials tab lists them, each is
+        # started from its row and walked with Next alone at desktop and phone
+        # width, on the shell with every capability on and on the gates. A
+        # step whose control is missing or covered, a card outside the screen,
+        # a Next that is not there, or focus dropped on the way out is a
+        # failure.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:tutorials
       - name: Phone and tablet layout and touch contract
         # Real coarse-pointer contexts at 320/390/430 and landscape: 44px
         # targets, no field under 16px (iOS zooms a smaller one on focus and

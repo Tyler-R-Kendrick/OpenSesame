@@ -251,6 +251,7 @@ function CapabilitySection({
 }: SectionProps) {
   const { plan } = useComposition();
   const roads = useConnectorRoads();
+  const headRef = useGuideTarget<HTMLDivElement>(`feature.${feature.id}`);
   const tiles = feature.capabilities.length > 1;
   const id = `feature-${feature.id}`;
   // The model picks configure AI and probe the browser and the harnesses on
@@ -274,7 +275,7 @@ function CapabilitySection({
       aria-labelledby={`${id}-title`}
       ref={sectionRef}
     >
-      <SectionHead id={`${id}-title`} title={feature.title}>
+      <SectionHead id={`${id}-title`} title={feature.title} headRef={headRef}>
         <WithdrawnMark feature={feature} />
         {isSwitchable(feature, plan) ? (
           <SectionSwitch

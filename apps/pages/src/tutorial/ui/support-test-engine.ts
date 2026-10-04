@@ -3,7 +3,7 @@ import { guideGoalIds } from "@opensesame/app-core/tutorial/registry/goals.js";
 import { GUIDE_ROUTES } from "@opensesame/app-core/tutorial/registry/routes.js";
 import { guidePredicateIds } from "@opensesame/app-core/tutorial/registry/state.js";
 import { guideTargetIds } from "@opensesame/app-core/tutorial/registry/targets.js";
-import { compileGuide } from "@opensesame/guide-lang";
+import { AUTHORED_GUIDE_LIMITS, compileGuide } from "@opensesame/guide-lang";
 import {
   type FakeGuideRoutes,
   type FakeGuideTargets,
@@ -22,6 +22,7 @@ import {
   supportVocabulary,
 } from "@opensesame/support-agent";
 import type { SupportEngine, SupportTransport } from "../session.js";
+import { tourRunner } from "../tour-runner.js";
 
 /**
  * The engine every test drives: the real support session, the real guide
@@ -65,7 +66,7 @@ export function buildEngine(
       }),
   });
   const renderer = createRecordingRenderer();
-  const targets = createFakeTargets(vocabulary.targets, vocabulary.targets);
+  const targets = createFakeTargets(guideTargetIds(), vocabulary.targets);
   const routes = createFakeRoutes(vocabulary.routes, "/vault");
   const clock = createTestClock();
   const runtime = createGuideRuntime({
@@ -93,15 +94,19 @@ export function buildEngine(
     // Authored walkthroughs compile against the whole registry, as they do in
     // the app.
     compileAuthored(source) {
-      const result = compileGuide(source, {
-        goals: guideGoalIds(),
-        targets: guideTargetIds(),
-        routes: GUIDE_ROUTES.map((route) => route.id),
-        predicates: guidePredicateIds(),
-      });
+      const result = compileGuide(
+        source,
+        {
+          goals: guideGoalIds(),
+          targets: guideTargetIds(),
+          routes: GUIDE_ROUTES.map((route) => route.id),
+          predicates: guidePredicateIds(),
+        },
+        AUTHORED_GUIDE_LIMITS,
+      );
       return result.ok ? result.program : null;
     },
-    runGuide: (program) => runtime.start(program),
+    ...tourRunner(runtime, AUTHORED_GUIDE_LIMITS),
     pauseGuide: () => runtime.pause(),
     cancelGuide: (reason) => runtime.cancel(reason),
     subscribeGuide: (listener) => runtime.subscribe({ onSnapshot: listener }),

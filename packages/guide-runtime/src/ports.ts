@@ -10,6 +10,7 @@
 
 import type {
   GuideGoalId,
+  GuideLimits,
   GuidePredicateId,
   GuideProgram,
   GuideRouteId,
@@ -142,6 +143,27 @@ export type GuideRuntimeStatus =
   | "done"
   | "failed";
 
+/**
+ * What a presentation needs to draw one step of a tour: the beat's own text,
+ * where it points, and where the person is in the walk. Everything is copied
+ * out of the checked program — the presentation never reads the program.
+ */
+export type GuideTourView = {
+  /** One-based position among the counted steps; the closing beat repeats the last. */
+  readonly step: number;
+  /** Counted steps, excluding the closing beat. */
+  readonly count: number;
+  readonly kind: "narrate" | "point" | "close";
+  readonly message: string | null;
+  readonly target: GuideTargetId | null;
+  readonly side: GuideSide | null;
+  /** Doing the highlighted thing also advances; Next advances either way. */
+  readonly action: boolean;
+  /** The target is not on screen: the step is shown without a spotlight. */
+  readonly degraded: boolean;
+  readonly canBack: boolean;
+};
+
 export type GuideRuntimeSnapshot = {
   readonly status: GuideRuntimeStatus;
   readonly goal: GuideGoalId | null;
@@ -153,6 +175,8 @@ export type GuideRuntimeSnapshot = {
   /** The last `say`/`success` line, for the support transcript. */
   readonly message: string | null;
   readonly error: GuideRuntimeError | null;
+  /** Present only while a `tour` run is on a beat. */
+  readonly tour: GuideTourView | null;
 };
 
 export interface GuideRuntimeObserver {
@@ -167,12 +191,38 @@ export type GuideRuntimePorts = {
   readonly clock: GuideClock;
 };
 
+/**
+ * How a run is paced.
+ *
+ * `auto` is a model's trajectory: it runs to its next observation boundary on
+ * its own and every wait has a deadline. `tour` is a person walking a
+ * tutorial: every step holds until they say Next, doing the highlighted thing
+ * also moves on, nothing times out on them, and a control that is not on
+ * screen degrades the step to text rather than failing the guide.
+ */
+export type GuideRunMode = "auto" | "tour";
+
+export type GuideRunOptions = {
+  readonly mode?: GuideRunMode;
+  /** The budget the program was compiled under; defaults to `GUIDE_LIMITS`. */
+  readonly limits?: GuideLimits;
+};
+
 export interface GuideRuntime {
   /**
    * Runs one trajectory to its next observation boundary. Starting a run
    * supersedes any run already in flight — `maxConcurrentGuides` is 1.
    */
-  start(program: GuideProgram): Promise<GuideOutcome>;
+  start(
+    program: GuideProgram,
+    options?: GuideRunOptions,
+  ): Promise<GuideOutcome>;
+  /** Tour only: advance past the current step, or finish from the last one. */
+  next(): void;
+  /** Tour only: return to the previous step. */
+  back(): void;
+  /** Tour only: begin again from the first step. */
+  restart(): void;
   pause(): void;
   cancel(reason: GuideCancelReason): void;
   snapshot(): GuideRuntimeSnapshot;

@@ -1,211 +1,175 @@
 /** @vitest-environment jsdom */
 
 /**
- * The walkthrough, as it behaves once the panel has handed it the page.
+ * The tutorial, as it behaves once the panel has handed it the page.
  *
- * `rendering/driver-renderer.test.ts` already proves the adapter in isolation:
- * reduced motion reaches Driver's config, an annotation is a `note` and takes
- * no caret, a hint gives the caret back. None of that is repeated here. What
- * is exercised instead is the composition the person actually meets — the
- * sheet closes itself, a walkthrough starts on the live page, and the two
- * disagree about who should hold focus if anybody got the sequencing wrong.
+ * `coach/placement.test.ts` proves where the card sits, and the runtime suite
+ * proves how a tour is paced. What is exercised here is the composition the
+ * person actually meets — the sheet closes itself, a tutorial starts on the
+ * live page, and the sheet's focus restore and the card's focus move have to
+ * agree about who holds the caret if the sequencing is wrong. It is also the
+ * one place that asks the questions an assistive technology would: does
+ * anything animate when it was asked not to, can the caret leave, can the
+ * keyboard get out.
  */
 
 import { fakeAgentAlwaysUnavailable } from "@opensesame/support-agent";
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
-import { ANNOTATION_ATTRIBUTE } from "../../rendering/annotation.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  TOURING,
   disposeSupport,
-  launcher,
   mountSupport,
   openPanel,
+  tutorialCard,
   walkthrough,
 } from "./harness.js";
 
-/**
- * Every annotation the run put on the page, kept after the fact.
- *
- * `end` clears the renderer, so a callout raised by a walkthrough that runs to
- * completion is gone by the time the test can look for it. Watching the
- * document is how its attributes stay observable — and the node's own
- * `remove()` does not rewrite them, so the assertions below are about the
- * annotation as it actually stood on screen.
- */
-type AnnotationWatcher = {
-  seen(): readonly HTMLElement[];
-  stop(): void;
-};
-
-function watchAnnotations(): AnnotationWatcher {
-  const seen: HTMLElement[] = [];
-  const collect = (nodes: NodeList): void => {
-    for (const node of nodes) {
-      if (
-        node instanceof HTMLElement &&
-        node.hasAttribute(ANNOTATION_ATTRIBUTE)
-      ) {
-        seen.push(node);
-      }
-    }
-  };
-  const observer = new MutationObserver((records) => {
-    for (const record of records) collect(record.addedNodes);
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-  return {
-    seen: () => {
-      for (const record of observer.takeRecords()) collect(record.addedNodes);
-      return [...seen];
-    },
-    stop: () => observer.disconnect(),
-  };
+/** A `matchMedia` that answers the reduced-motion query and nothing else. */
+function stubMotion(reduce: boolean): void {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: /prefers-reduced-motion/.test(query) ? reduce : false,
+    media: query,
+    addEventListener() {},
+    removeEventListener() {},
+  }));
 }
 
-afterEach(disposeSupport);
+afterEach(() => {
+  vi.unstubAllGlobals();
+  disposeSupport();
+});
+
+async function startLockTutorial(user: ReturnType<typeof userEvent.setup>) {
+  const harness = mountSupport({
+    agent: fakeAgentAlwaysUnavailable("no_local_model"),
+    transport: "none",
+    targets: ["shell.lock"],
+  });
+  await openPanel(user);
+  await user.click(walkthrough("Lock the vault"));
+  await tutorialCard();
+  return harness;
+}
 
 describe("reduced motion, through the panel", () => {
-  it("starts a walkthrough with no animation when the preference is set", async () => {
+  it("moves nothing between steps when the preference is set", async () => {
+    stubMotion(true);
     const user = userEvent.setup();
-    const harness = mountSupport({
-      agent: fakeAgentAlwaysUnavailable("no_local_model"),
-      transport: "none",
-      targets: ["shell.lock"],
-      reducedMotion: true,
-    });
-    await openPanel(user);
-    await user.click(walkthrough("Lock the vault"));
+    await startLockTutorial(user);
 
-    await waitFor(() => expect(harness.driver.records()).toHaveLength(1));
-    const config = harness.driver.records()[0]?.config;
-    expect(config?.animate).toBe(false);
-    expect(config?.smoothScroll).toBe(false);
+    await user.click(screen.getByRole("button", { name: /^Next/ }));
+    await waitFor(() =>
+      expect(
+        document.querySelector(".coach")?.getAttribute("data-coach-step"),
+      ).toBe("2"),
+    );
+    // The aperture does not glide: no transition class is ever put on it.
+    expect(document.querySelectorAll(".is-gliding")).toHaveLength(0);
   });
 
-  it("animates the same walkthrough when the preference is not set", async () => {
+  it("glides the aperture between steps when the preference is not set", async () => {
+    stubMotion(false);
     const user = userEvent.setup();
-    const harness = mountSupport({
-      agent: fakeAgentAlwaysUnavailable("no_local_model"),
-      transport: "none",
-      targets: ["shell.lock"],
-      reducedMotion: false,
-    });
-    await openPanel(user);
-    await user.click(walkthrough("Lock the vault"));
+    await startLockTutorial(user);
 
-    await waitFor(() => expect(harness.driver.records()).toHaveLength(1));
-    expect(harness.driver.records()[0]?.config.animate).toBe(true);
-  });
-
-  it("carries the preference into a hint beacon as well as the spotlight", async () => {
-    const user = userEvent.setup();
-    const harness = mountSupport({
-      agent: fakeAgentAlwaysUnavailable("no_local_model"),
-      transport: "none",
-      route: "/vault/health",
-      targets: ["vault.health.summary", "vault.health.findings"],
-      reducedMotion: true,
-    });
-    await openPanel(user);
-    await user.click(walkthrough("Review password health"));
-
-    await waitFor(() => expect(harness.hints.records()).toHaveLength(1));
-    const spec = harness.hints.records()[0]?.config.hints[0];
-    expect(spec?.beacon.animate).toBe(false);
-    // A beacon is an aside, so it never draws its own scrim either.
-    expect(harness.hints.records()[0]?.config.overlay).toBe(false);
+    await user.click(screen.getByRole("button", { name: /^Next/ }));
+    await waitFor(() =>
+      expect(document.querySelectorAll(".coach__dim.is-gliding").length).toBe(
+        4,
+      ),
+    );
   });
 });
 
-describe("who holds the caret once a walkthrough is live", () => {
-  it("hands the caret to the highlighted control rather than to the overlay", async () => {
+describe("who holds the caret once a tutorial is live", () => {
+  it("moves the caret to the card's Next key when a tutorial starts", async () => {
     const user = userEvent.setup();
-    const harness = mountSupport({
-      agent: fakeAgentAlwaysUnavailable("no_local_model"),
-      transport: "none",
-      targets: ["shell.lock"],
-    });
-    await openPanel(user);
-    await user.click(walkthrough("Lock the vault"));
+    await startLockTutorial(user);
 
-    const lock = harness.fixtures.element("shell.lock");
-    await waitFor(() => expect(document.activeElement).toBe(lock));
-    // The popover is on the page and is a dialog, but it is not where the
-    // person was left: acting on the guidance is one keypress, not a tab out.
-    const popovers = harness.driver.popovers();
-    expect(popovers).toHaveLength(1);
-    for (const popover of popovers) {
-      expect(popover.contains(document.activeElement)).toBe(false);
-    }
+    const next = screen.getByRole("button", { name: /^Next/ });
+    await waitFor(() => expect(document.activeElement).toBe(next));
+    // The sheet's own restore ran first, onto the launcher, and then lost to
+    // the card: the person is left on the key that goes on, not behind it.
+    expect((await tutorialCard()).contains(document.activeElement)).toBe(true);
   });
 
-  it("does not trap: the caret can leave the highlighted control again", async () => {
+  it("does not trap: the caret can leave the card again", async () => {
     const user = userEvent.setup();
-    const harness = mountSupport({
-      agent: fakeAgentAlwaysUnavailable("no_local_model"),
-      transport: "none",
-      targets: ["shell.lock"],
-    });
-    await openPanel(user);
-    await user.click(walkthrough("Lock the vault"));
+    await startLockTutorial(user);
+    const card = await tutorialCard();
+    await waitFor(() =>
+      expect(card.contains(document.activeElement)).toBe(true),
+    );
 
-    const lock = harness.fixtures.element("shell.lock");
-    await waitFor(() => expect(document.activeElement).toBe(lock));
-
-    await user.tab();
-    expect(document.activeElement).not.toBe(lock);
+    // Shift-Tab off the first key of the card, onto the page.
+    await user.tab({ shift: true });
+    await user.tab({ shift: true });
+    expect(card.contains(document.activeElement)).toBe(false);
     // Nothing pulls it back a beat later either.
-    await waitFor(() => expect(document.activeElement).not.toBe(lock));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(card.contains(document.activeElement)).toBe(false);
   });
 
-  it("annotates and hints through a whole walkthrough without taking the caret", async () => {
+  it("steps with the arrow keys only while the caret is in the card", async () => {
     const user = userEvent.setup();
-    mountSupport({
-      agent: fakeAgentAlwaysUnavailable("no_local_model"),
-      transport: "none",
-      route: "/vault/health",
-      targets: ["vault.health.summary", "vault.health.findings"],
-    });
-    await openPanel(user);
-    const watcher = watchAnnotations();
-    try {
-      await user.click(walkthrough("Review password health"));
+    const harness = await startLockTutorial(user);
+    const counter = () =>
+      document.querySelector(".coach__count")?.textContent ?? "";
+    expect(counter()).toBe("Step 1 of 2");
 
-      // The sheet steps aside, the walkthrough runs to its `end`, and the
-      // statusline goes back to saying plain "Support".
-      await waitFor(() => expect(watcher.seen()).toHaveLength(1));
-      await waitFor(() =>
-        expect(screen.getByRole("button", { name: "Support" })).toBeTruthy(),
-      );
+    // On the page's own control the arrow is the page's: the tutorial ignores it.
+    harness.fixtures.element("shell.lock").focus();
+    await user.keyboard("{ArrowRight}");
+    expect(counter()).toBe("Step 1 of 2");
 
-      const note = watcher.seen()[0];
-      if (!note) throw new Error("the walkthrough annotated nothing");
-      expect(note.getAttribute("role")).toBe("note");
-      expect(note.hasAttribute("aria-modal")).toBe(false);
-      expect(note.hasAttribute("tabindex")).toBe(false);
-      expect(
-        note.querySelectorAll("a, button, input, select, textarea, [tabindex]"),
-      ).toHaveLength(0);
-      expect(note.textContent).toContain("The verdict");
+    // In the card it is Next, and ArrowLeft is Back.
+    screen.getByRole("button", { name: /^Next/ }).focus();
+    await user.keyboard("{ArrowRight}");
+    await waitFor(() => expect(counter()).toBe("Step 2 of 2"));
+    await user.keyboard("{ArrowLeft}");
+    await waitFor(() => expect(counter()).toBe("Step 1 of 2"));
+  });
+});
 
-      // Nothing of the walkthrough is left on the page, and the caret is
-      // still on the control the person last used — not on a beacon, not on a
-      // popover, and not on a callout nobody can dismiss.
-      expect(
-        document.querySelectorAll(`[${ANNOTATION_ATTRIBUTE}]`),
-      ).toHaveLength(0);
-      expect(document.querySelectorAll(".driver-popover")).toHaveLength(0);
-      expect(document.activeElement).toBe(launcher());
+describe("leaving a tutorial", () => {
+  it("leaves on Escape and hands the caret back to where it was", async () => {
+    const user = userEvent.setup();
+    await startLockTutorial(user);
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: /^Next/ }),
+      ),
+    );
 
-      // And the panel still opens onto its own controls afterwards.
-      await user.click(launcher());
-      const sheet = await screen.findByRole("dialog", { name: "Support" });
-      expect(
-        within(sheet).getByRole("region", { name: "Questions" }),
-      ).toBeTruthy();
-    } finally {
-      watcher.stop();
-    }
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: /^Tutorial:/ })).toBeNull(),
+    );
+    // The mark that says a tutorial was live says plain "Support" again, and
+    // it is where the caret went — not dropped on the page.
+    const mark = await screen.findByRole("button", { name: "Support" });
+    expect(document.activeElement).toBe(mark);
+    expect(screen.queryByRole("button", { name: TOURING })).toBeNull();
+  });
+
+  it("leaves Escape to a text field, which is its own way out", async () => {
+    const user = userEvent.setup();
+    await startLockTutorial(user);
+    const field = document.createElement("input");
+    field.type = "text";
+    document.body.appendChild(field);
+    field.focus();
+
+    await user.keyboard("{Escape}");
+    expect(await tutorialCard()).toBeTruthy();
+
+    field.blur();
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: /^Tutorial:/ })).toBeNull(),
+    );
+    field.remove();
   });
 });

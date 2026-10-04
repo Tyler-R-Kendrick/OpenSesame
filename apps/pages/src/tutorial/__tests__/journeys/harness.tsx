@@ -37,7 +37,7 @@ import {
   isMountedGuideTarget,
   observeGuideTarget,
 } from "@opensesame/app-core/tutorial/registry/targets.js";
-import { compileGuide } from "@opensesame/guide-lang";
+import { AUTHORED_GUIDE_LIMITS, compileGuide } from "@opensesame/guide-lang";
 import type {
   GuideOutcome,
   RecordedRendererCall,
@@ -75,6 +75,7 @@ import {
   type SupportTransport,
   supportSessionSeams,
 } from "../../session.js";
+import { tourRunner } from "../../tour-runner.js";
 import {
   SupportLauncher,
   SupportSlotProvider,
@@ -222,6 +223,7 @@ function buildEngine(
     clock,
   });
   let destroyed = false;
+  const tour = tourRunner(runtime, AUTHORED_GUIDE_LIMITS);
 
   return {
     transport,
@@ -239,19 +241,26 @@ function buildEngine(
     // the app: a cross-route guide names a control on the screen it is about to
     // navigate to, which the route-scoped vocabulary cannot contain.
     compileAuthored(source) {
-      const result = compileGuide(source, {
-        goals: guideGoalIds(),
-        targets: guideTargetIds(),
-        routes: GUIDE_ROUTES.map((route) => route.id),
-        predicates: guidePredicateIds(),
-      });
+      const result = compileGuide(
+        source,
+        {
+          goals: guideGoalIds(),
+          targets: guideTargetIds(),
+          routes: GUIDE_ROUTES.map((route) => route.id),
+          predicates: guidePredicateIds(),
+        },
+        AUTHORED_GUIDE_LIMITS,
+      );
       return result.ok ? result.program : null;
     },
-    async runGuide(program) {
-      const outcome = await runtime.start(program);
+    async runGuide(program, origin) {
+      const outcome = await tour.runGuide(program, origin);
       outcomes.push(outcome);
       return outcome;
     },
+    nextStep: tour.nextStep,
+    backStep: tour.backStep,
+    restartGuide: tour.restartGuide,
     pauseGuide: () => runtime.pause(),
     cancelGuide: (reason) => runtime.cancel(reason),
     subscribeGuide: (listener) => runtime.subscribe({ onSnapshot: listener }),
@@ -368,8 +377,13 @@ export function resetJourney(): void {
 
 export {
   type JourneyUser,
+  TOURING,
   askSupport,
   countClicks,
+  finishTutorial,
+  nextStep,
   openSupport,
   reopenSupport,
+  stepOf,
+  tutorialCard,
 } from "./harness-support.js";

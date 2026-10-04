@@ -26,15 +26,15 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
 
   {
     id: "vault.store-manifest",
-    title: "Move items to and from the sealed store",
+    title: "Merge a sealed-store manifest by path",
     routes: [],
     guide: [
       "guide/1",
       'goal "vault.store-manifest"',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings/vaults"',
-      'wait route "/settings/vaults" timeout=15000',
-      'focus "vault.store-manifest" "This saves a plain-text manifest for opensesame pass seal to seal and shred. The vault\'s Import key merges one back by path." side=bottom',
+      'say "A store path manifest is the plain-text list of paths the command-line sealed store seals into entries. Importing one merges it by path: a path already in the vault is updated, a new one is added, and nothing is duplicated."',
+      'navigate "/vault"',
+      'wait route "/vault" timeout=15000',
+      'focus "vault.import" "Import reads the manifest and shows what merging it would add and update before anything is written." side=bottom',
       "end",
     ].join("\n"),
   },
@@ -46,6 +46,7 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "client.command-bar"',
+      'say "The command bar is the one typed field in the frame. A command runs; a sentence it cannot parse goes to Support as a question."',
       'wait state "vault.unlocked" is=true timeout=60000',
       'focus "shell.command-bar" "Type a command: go to a section, search, or copy a field. Enter runs it." side=bottom',
       "end",

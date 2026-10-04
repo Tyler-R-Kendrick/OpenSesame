@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 435,
-    "violations": 685,
-    "oversizedLines": 222831
+    "files": 433,
+    "violations": 679,
+    "oversizedLines": 221384
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -237,25 +237,19 @@
     "apps/pages/src/sections/wallet/PassesPanel.tsx": {
       "max-lines-per-function": 1
     },
-    "apps/pages/src/tutorial/__tests__/a11y/harness.tsx": {
-      "max-lines": 424
-    },
     "apps/pages/src/tutorial/__tests__/a11y/stylesheet-contract.test.ts": {
       "max-nested-callbacks": 1
     },
-    "apps/pages/src/tutorial/rendering/driver-renderer.ts": {
-      "max-lines-per-function": 1
-    },
     "apps/pages/src/tutorial/session.ts": {
       "complexity": 1,
-      "max-lines": 922,
-      "max-lines-per-function": 2
+      "max-lines": 679,
+      "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/ui/SupportPanel.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/ui/support.test.tsx": {
-      "max-lines": 555
+      "max-lines": 520
     },
     "crates/agent-events/src/lib.rs": {
       "max-lines": 493
@@ -744,7 +738,7 @@
       "max-lines": 451
     },
     "packages/app-core/src/tutorial/registry/goals.ts": {
-      "max-lines": 508
+      "max-lines": 459
     },
     "packages/audit/src/__tests__/chain.test.ts": {
       "max-lines": 419
@@ -1151,8 +1145,8 @@
       "max-lines": 490
     },
     "packages/guide-lang/src/parse.ts": {
-      "complexity": 3,
-      "max-lines": 743,
+      "complexity": 2,
+      "max-lines": 583,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -1160,8 +1154,6 @@
       "max-lines": 984
     },
     "packages/guide-runtime/src/runtime.ts": {
-      "complexity": 1,
-      "max-lines": 536,
       "max-lines-per-function": 1
     },
     "packages/identity-worker/src/__tests__/notifications.test.ts": {

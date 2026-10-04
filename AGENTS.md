@@ -226,6 +226,18 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # same way. Run before touching unlock methods, second steps or the unlock
 # screen.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:tutorials
+# Same harness, every tutorial (ADR 0160): the Support sheet's Tutorials tab
+# lists them, each is started from its row and walked with Next alone — the
+# mouse on one step, Enter on the next — on the shell with every optional
+# capability switched on and on the gates (front door, unlock, setup), at
+# desktop and phone width. Every step's card must sit inside the screen with
+# Next present, and a step that points at a control must light it, leave it
+# uncovered and reachable through the aperture. Then Back, Replay, Done, and
+# where focus went. A control that is missing is a failure here although a
+# person would see it degrade to text. Run before touching a tutorial, the
+# tutorial card, the Support sheet or the target registry.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:live-join
 # Same harness, live sessions (ADR 0150) in real browser contexts over real
 # WebRTC. Needs a second build first: `pnpm --filter @opensesame/pages
@@ -331,7 +343,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/control-plane` | Identity API, `:8788` (Hono + Better Auth + oidc-provider) |
 | `tools/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
 | `apps/pages` | Installable GitHub Pages offline PWA — the React shell over `@opensesame/app-core`: screens, sections, components, React bindings (`src/bindings/`), DOM/keyboard helpers, the service worker and the capability build (`src/lib/capabilities/{ownership,classification*,module-table,distribution}.ts`) |
-| `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088): the semantic target/route/predicate registries and the on-device and AG-UI transports live in the core; the Driver.js renderer and the support panel stay in the shell |
+| `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088) and tutorial mode (ADR 0160): the semantic target/route/predicate registries, the tutorial library (`registry/areas.ts`, one home per goal, one tour per Settings › Capabilities section in `registry/feature-goals.ts`) and the on-device and AG-UI transports live in the core; the support panel (Ask / Tutorials tabs) and the tutorial card (`coach/`: the dim and lit aperture, the step card with Back / Next, placement and focus) stay in the shell |
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
 | `packages/browser-at-rest` | At-rest sealing outside Pages (ADR 0149): a non-extractable AES-GCM key per origin in IndexedDB and an async sealed view of any `StorageLike`; used by `sdk-browser`, `static-auth` and the extension |
 | `packages/app-core/src/lib/at-rest/` | The at-rest seal (ADR 0149): the device key's states (`key.ts`), the seal (`cipher.ts`), sealed Web Storage, origin files and their boot sweep, and the browser's IndexedDB key store; the CLI's key file is `src/node/at-rest-key-file.ts` |
@@ -365,7 +377,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/capability-registry` | Agent-surface parity source of truth — every capability maps or ADR-excludes each of cli/pwa/mcp/webmcp (ADR 0065); parity tests in each surface package sweep it |
 | `packages/webmcp` | WebMCP (`document.modelContext`, with legacy `navigator.modelContext` fallback) browser library — feature detection, fenced registrar for `apps/pages` tools |
 | `packages/guide-lang` | GuideLang — the versioned tutorial language an in-product support model may write; parser, canonical serializer and validators. Deliberately cannot express a click, a selector or a URL (ADR 0088) |
-| `packages/guide-runtime` | Deterministic GuideLang execution over ports only — no DOM, no renderer, no real timers; re-enforces every budget rather than trusting the parser |
+| `packages/guide-runtime` | Deterministic GuideLang execution over ports only — no DOM, no renderer, no real timers; re-enforces every budget rather than trusting the parser. `auto` mode runs a model's trajectory to its next boundary; `tour` mode (`plan.ts`, `tour.ts`) walks a person through steps at their own pace — Next, Back, Replay, a step that degrades to text when its control is absent (ADR 0160) |
 | `packages/support-agent` | Provider-neutral support port, semantic page context, system-instruction builder and the egress boundary — no React, no vendor model SDK |
 | `packages/env-spec-bridge` | env-spec ↔ runtime config bridge |
 | `skills/` | Agent skills — see §7 |
@@ -456,7 +468,7 @@ Do not add new top-level directories or loose root files — find the group.
 - Identity API and Host API stay separate — no BFF merge —
   [ADR 0017](docs/adr/0017-host-client-product-topology.md).
 - Record consequential decisions as ADRs under `docs/adr/` (currently
-  0001–0159).
+  0001–0160).
 - **The static front end is complete without a backend**
   ([ADR 0090](docs/adr/0090-static-frontend-complete-without-backend.md)).
   `apps/pages` is a broker, and nothing — no operator ceremony, no Identity
@@ -752,13 +764,28 @@ Do not add new top-level directories or loose root files — find the group.
   keystroke, a submit, a fetch, a tool call, a selector or a URL — an id it
   names is resolved through the target registry in
   `packages/app-core/src/tutorial/registry`, or the program is discarded whole. Model
-  text reaches the document as text; the renderer hands Driver.js a placeholder
-  and writes prose with `textContent`. Page context is assembled from authored
+  text reaches the document as a React text node on the tutorial card, which parses
+  no markup. Page context is assembled from authored
   registries only, never from the DOM, so no secret, item name or folder name
   has a path into a prompt. A new control worth asking about gets a catalog
   entry with checked-in prose; a new authored guide is compiled by the same
   parser and validator model output goes through
   ([ADR 0088](docs/adr/0088-ai-native-contextual-support.md)).
+- **Every feature has a replayable tutorial, and every tutorial is walked in a
+  real browser** ([ADR 0160](docs/adr/0160-tutorial-mode.md)). A new section of
+  Settings › Capabilities gets a `feature.<id>` target and a tour in
+  `feature-goals.ts`; a new goal gets a home in `registry/areas.ts` (the test
+  fails without one) and a step is a `say`, a pointing directive with the
+  `wait` after it, or the closing `success` — every step must be reachable by
+  Next alone, and must point only at controls that are drawn where the tutorial
+  is offered (an authored tour may name up to 40 instructions; a model's stays
+  at 8). A tutorial that points at a section or a signed-in-only row says so
+  (`focus "feature.<id>"`, `requires`) and the library hides it where it
+  cannot work. Changes to a tutorial, the Support sheet, the tutorial card or
+  the target registry require `pnpm --filter @opensesame/pages verify:tutorials`
+  against a fresh Pages build (every tutorial, desktop and phone, Next and
+  Back and Replay and Done, keyboard and mouse, focus handed back), and keep it
+  in the required Bundle budgets job.
 - **Every new user-facing feature is a capability, and an optional one never
   loads before consent**
   ([ADR 0130](docs/adr/0130-operator-controlled-capability-composition.md)).

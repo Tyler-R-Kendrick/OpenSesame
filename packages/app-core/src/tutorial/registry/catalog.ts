@@ -13,6 +13,7 @@
 
 import { contributionsSnapshot } from "../../lib/contributions.js";
 import { GUIDE_TARGETS_MORE } from "./catalog-more.js";
+import { FEATURE_TARGETS } from "./feature-catalog.js";
 import { SHELL_TARGETS } from "./shell-catalog.js";
 import type { GuideTargetDescriptor } from "./targets.js";
 import { VAULT_TARGETS } from "./vault-catalog.js";
@@ -28,6 +29,7 @@ import { VAULT_TARGETS } from "./vault-catalog.js";
 export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   ...SHELL_TARGETS,
   ...VAULT_TARGETS,
+  ...FEATURE_TARGETS,
 
   // ── Settings: six categories and the panels people ask about ─────────
   {

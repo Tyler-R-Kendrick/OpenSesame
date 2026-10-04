@@ -163,6 +163,28 @@ export const GUIDE_LIMITS = {
   maxConcurrentGuides: 1,
 } as const;
 
+/** The shape of a budget: `GUIDE_LIMITS` and `AUTHORED_GUIDE_LIMITS` both fit it. */
+export type GuideLimits = { readonly [K in keyof typeof GUIDE_LIMITS]: number };
+
+/**
+ * The budget for a checked-in tutorial (a tour), which a model never writes.
+ *
+ * A model's trajectory stops at an observation boundary and replans, so eight
+ * instructions is generous for it. A tour is the opposite shape: a person
+ * walks it start to finish, one step at a time, and a step is a `say` or a
+ * pointing directive plus the wait that follows it — so seven steps already
+ * spend fourteen instructions. Only the *size* of a tour widens; the grammar,
+ * the vocabulary check, the text budget and the timeout range do not, and
+ * the caller (the engine's `authored` origin) is the only thing that chooses
+ * this budget — model output never reaches it (ADR 0160).
+ */
+export const AUTHORED_GUIDE_LIMITS: GuideLimits = {
+  ...GUIDE_LIMITS,
+  maxInstructions: 40,
+  maxProgramBytes: 16_384,
+  maxLines: 96,
+};
+
 /**
  * Characters rejected outright in model-authored text: C0/C1 controls carry no
  * meaning in a popover, and the bidi and zero-width ranges are how a reviewer

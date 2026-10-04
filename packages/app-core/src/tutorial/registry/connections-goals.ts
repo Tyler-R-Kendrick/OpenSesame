@@ -31,7 +31,7 @@ export const CONNECTIONS_GOALS: readonly GuideGoalDescriptor[] = [
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/connections"',
       'wait route "/connections" timeout=15000',
-      'focus "connections.attention" "Anything that needs a person is collected here." side=bottom',
+      'focus "connections.connected" "Every connection shows its state on this panel. One that needs a person is also gathered at the top of the page, and its row offers Renew or authorizing it again." side=bottom',
       "end",
     ].join("\n"),
   },

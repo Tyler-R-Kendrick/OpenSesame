@@ -55,6 +55,10 @@ const CATALOG_SOURCE = readFileSync(
     "...VAULT_TARGETS,",
     readFileSync(join(import.meta.dirname, "vault-catalog.ts"), "utf8"),
   )
+  .replace(
+    "...FEATURE_TARGETS,",
+    readFileSync(join(import.meta.dirname, "feature-catalog.ts"), "utf8"),
+  )
   .replace("...GUIDE_TARGETS_MORE,", CATALOG_MORE_SOURCE);
 
 /**
