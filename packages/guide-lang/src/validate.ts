@@ -7,7 +7,7 @@
  * rather than reach a resolver and become a lookup miss at run time.
  */
 
-import type { GuideProgram, WaitInstruction } from "./ast.js";
+import type { GuideLimits, GuideProgram, WaitInstruction } from "./ast.js";
 import type { GuideParseError } from "./errors.js";
 import type {
   GuideGoalId,
@@ -127,8 +127,9 @@ function waitError(
 export function compileGuide(
   source: string,
   vocabulary: GuideVocabulary,
+  limits?: GuideLimits,
 ): GuideCompileResult {
-  const parsed = parseGuide(source);
+  const parsed = parseGuide(source, limits);
   if (!parsed.ok) return { ok: false, stage: "parse", errors: parsed.errors };
   const validated = validateGuide(parsed.program, vocabulary);
   if (!validated.ok) {
