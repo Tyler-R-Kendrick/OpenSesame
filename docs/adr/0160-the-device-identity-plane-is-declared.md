@@ -2,6 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-10-04
+- Amended: 2026-10-04, §5 (the key travels with the vault; the earlier limit is
+  closed)
 - Amends: [ADR 0118](0118-device-native-identity-host.md) (§4's "a remote URL
   is set" question is replaced by a per-feature one; §6's `useIdentityPlane()`
   becomes `identityPlane()` and `identityServes(family)`)
@@ -179,9 +181,106 @@ How this relates to the other keys:
   later is not a migration. `device-identity-key.ts` cannot import
   `@opensesame/siop-v2` (owned by `identity.siop`), so it computes the
   thumbprint itself and a test pins it to siop-v2's.
-- **Not yet built from ADR 0138 §1:** the key is not carried by vault sync or an
-  offline backup, so a second device derives a different principal, and nothing
-  signs with it. The ADR does not claim either.
+- **Not built from ADR 0138 §1:** nothing signs with the key yet. That is a
+  later increment, and the ADR does not claim it. The key's travelling is
+  §5a.
+
+### 5a. The key travels with the vault
+
+The key is a tomb file, and the portable forms of a vault carry the header and
+the sealed body, not the tomb's other files. So the key was lost whenever a
+vault moved: a backup restored on another device, or a vault first synced
+there, derived a different principal. It now rides in the body.
+
+**Where.** `VaultBody.deviceIdentityKey` is an optional member of the sealed
+body (`packages/vault-core/src/device-key.ts`): the same record the tomb file
+holds, `{ version, keyId, publicJwk, privateJwkJson, createdAt }`. A member a
+reader does not know is ignored, so the body version stays 1 and an older
+build opens a newer vault; the format document says so (§6) and one golden
+vector, `backup-device-identity`, pins it. The body is sealed under the vault
+key, so only someone who can open the vault gets the key, as with every secret
+in it. The tomb file stays the host's working copy; the body is the carrier.
+
+**What carries it, and how that is shown.**
+
+| Carrier | How it carries the key |
+| --- | --- |
+| Offline backup, sealed export | The sealed body, as stored. |
+| Tailnet drive (ADR 0144) | The body in each snapshot, and `mergeVaultBodies`, which ranks two keys; a different key is different content, so a drive holding another key is replaced. |
+| Restore of a backup (`importSealed`) | See below. |
+| Travel (ADR 0143) | Every tomb file by its storage name, the key file included, byte for byte. |
+| `client-core` sync and the envelope's `syncBlobs` | Not carriers of a Pages vault. `client-core` syncs opaque Host records and has never held a tomb or a vault body, and nothing fills `syncBlobs`, so there is no key for them to carry. |
+| `opensesame vault verify\|ls`, `opensesame-id vault ...` | List `config/device-identity-key` as `concealed`, by path alone, and count it as no item. |
+
+**Keeping the two copies one.** At unlock, after a merge and after an import,
+the store levels the tomb's key and the body's (`device-identity-carry.ts`),
+under the same Web Lock that fences minting:
+
+| Tomb | Body | Does |
+| --- | --- | --- |
+| none | none | Nothing; the first use mints. |
+| none | key | The tomb takes the body's. A restored vault, or a second device, is the same principal. |
+| key | none | The body takes the tomb's. A vault from before keys travelled starts carrying it. |
+| key | same key | Nothing. |
+| key A | key B | The older `createdAt` wins; on a tie the smaller key id. |
+
+A key the host mints is published to the body at once, and a read of the
+principal that finds the body without its key publishes it then, so a backup
+made at any moment holds the key the vault has. Minting itself is unchanged:
+only under the lock, and never over a record it cannot read. Taking a carried
+key and ranking two keys are deterministic and idempotent, so a browser with no
+cross-tab lock still does them; it still mints nothing.
+
+**Restoring.** A restore is a fresh vault plus `importSealed`, so the import
+decides what becomes of the key:
+
+- A backup **of this vault** (the same `createdAt`, an older or newer copy):
+  the two keys are ranked as any merge ranks them.
+- A backup of **another vault into one that has done nothing yet** (no item,
+  live or trashed, and no folder): the backup's key becomes this vault's, even
+  if this vault already minted one and even if that one is older. This is the
+  person asking for the backup's principal. The key that gave way ends its
+  sessions and a bell notice says so.
+- A backup **with no key** (made before keys travelled) into such a vault: the
+  vault keeps its own, one key minted exactly once under the lock if it had
+  none, and a bell notice says the backup carried none, so its principal
+  differs from the one the backup was made under.
+- Another vault's items into a vault **with content**: the items merge and the
+  identity does not; the vault keeps its key.
+
+**Two devices, one vault, one principal.** Devices that sync a vault are the
+same principal by design. Session bearers stay per device, per tab, in memory
+(24 hours), and a bearer minted on one device is not honoured on another. The
+consequence is the vault's own: whoever can open the vault holds the key, and
+there is no rotation. A person who wants another principal makes another
+vault.
+
+**Two devices that each minted a key before they first met.** Their keys
+differ. When their bodies meet, on a merge or a restore, both devices reach the
+same answer by §5a's ranking: the older `createdAt`, then the smaller key id,
+whichever device syncs first. The device holding the other key replaces its
+tomb file; the session binding (the key id, above) ends every bearer minted
+under the loser on its next use, and a bell notice says that the device
+identity changed. The winner changes nothing and announces nothing.
+
+**A record that cannot be trusted is left alone, on both sides.** A carried
+record with a version this build does not know, a shape it does not know, or a
+key id that is not its public key's thumbprint is neither adopted nor
+overwritten, and nothing is minted beside it; the host answers with a
+provisional session and `identityKey: "unreadable"`, as for the tomb file. A
+merge keeps such a record over any it can read.
+
+**Concealed, everywhere.** The key is a secret and is listed by name only. No
+Settings file provider offers it, and the viewer drops it from any listing and
+refuses to read, check, write over or remove any path that names it
+(`withoutConcealedFiles`), so a person cannot paste over it. The configuration
+registry treats its path as forbidden. A backup's coverage record counts it as
+carried. A guest carries none: a guest's key lives in the guest tomb, which is
+never exported or synced. The guest tomb's wipe now removes the key file with
+the rest of the tomb's config, so a new guest does not meet the last one's
+ciphertext.
+
+The notices are bell notices, not captions on a screen (ADR 0158).
 
 ### 6. Assurance is provisional, and says so
 
@@ -262,8 +361,10 @@ this ADR does not repeat it.
   receipts panel that could only fail.
 - A device has a stable principal per vault, and a locked one has none to give.
   A guest's is as short-lived as the guest.
-- The principal is not portable yet (§5, last bullet). That is the next
-  increment of ADR 0138 §1, not a property to assume.
+- The principal is the vault's, so it is portable: a backup restored on
+  another device, or a vault synced to one, keeps it (§5a). It is the same
+  principal on every device that holds the vault, and whoever can open the
+  vault holds its key.
 
 ## Verification
 
@@ -281,5 +382,25 @@ this ADR does not repeat it.
   guest beside it is another principal that the member's bearer does not speak
   for. A third holds the local IAM chunk back and shows Receipts arrive without
   a navigation.
+- The key's travelling is pinned in four planes. `vault-core`:
+  `device-key.test.ts` (reading, ranking, commuting and converging merges) and
+  `vault-file.concealed.test.ts`. `app-core`: `device-identity-carry.test.ts`
+  (every row of the table, the tie, the untrusted record, the restore plan),
+  `device-identity-key.carried.test.ts`, `vault/device-key-restore.test.ts`
+  (a real store: backup, wipe, restore, the keyless backup, a guest),
+  `tailnet-sync/device-identity-sync.test.ts` (two devices, in either order of
+  sync, the loser's bearer ended), `travel/travel-identity-key.test.ts`,
+  `sections/settings/virtual-files.test.ts` and the Pages
+  `providers.concealed.test.tsx`. Across planes, the vector
+  `backup-device-identity` is written by the TypeScript store and read by the
+  TypeScript reader, the Rust reader (`pages_vault_vectors.rs`), `opensesame
+  vault ls` and `opensesame-id vault ls`, each of which lists the path and none
+  of the key.
+- `verify:device-identity` also walks backup and restore in real browser
+  contexts, one per device: export an offline backup, restore it on a fresh
+  device and the principal is the same; restore over a vault that had minted
+  its own and its bearer ends and the bell says so; a keyless backup mints one
+  key and says so, and that key travels with the next backup; a vault that
+  meets a second key for itself keeps the older.
 - `verify:static`, `verify:local-iam`, `verify:siop`, `verify:keyboard`,
   `verify:mobile` and `verify:auth` stay green.

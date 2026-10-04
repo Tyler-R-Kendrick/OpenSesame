@@ -116,6 +116,27 @@ The plaintext is `VaultBody` JSON:
 { "v": 1, "items": [], "folders": [], "itemTypes": {}, "rev": 12 }
 ```
 
+Optional members a reader that does not know them ignores (`itemTypesAt`,
+`tombstones`, and `deviceIdentityKey`, below).
+
+**`deviceIdentityKey`** (ADR 0160 §5) carries the vault's device identity
+key, so its principal travels with the vault: a P-256 key whose RFC 7638
+thumbprint is the principal (`prn_` + thumbprint).
+
+```json
+{ "version": 1, "keyId": "<43 base64url>", "createdAt": 1790000000000,
+  "publicJwk": { "kty": "EC", "crv": "P-256", "x": "…", "y": "…" },
+  "privateJwkJson": "<serialized private JWK>" }
+```
+
+It is a secret and sits only inside the sealed body. A lister names its path,
+`config/device-identity-key`, and never a member of it (`opensesame vault
+ls` prints `config/device-identity-key<TAB>concealed`). When two bodies of one
+vault carry different keys the older `createdAt` wins, then the smaller
+`keyId` in plain code-unit order; a record whose `version` a reader does not
+know is kept as it is and never replaced by one it does. The vector
+`backup-device-identity` in `spec/conformance/vault-vectors.json` carries one.
+
 **Sealing**
 - The body is sealed under VK with **additional data**. The additional data
   is the UTF-8 bytes of `"vault-seal" U+0000 <tomb> U+0000 "body"`
@@ -191,7 +212,9 @@ Per ADR 0063, each tomb lives under the flat key prefix `tomb/<name>/`:
 - `migrated.v1` and `seal-bound.v1`: plaintext markers
 
 `tombs.v1` lists the tomb names. Lockout counters sit outside the tomb, in
-plaintext. The portable envelopes carry only `header` and `body`.
+plaintext. The portable envelopes carry only `header` and `body`. Of the
+`config/*` files, one rides inside the body: the device identity key
+(`config/device-identity-key`, §6), whose working copy is the tomb file.
 
 ## 9. What a conforming reader must do
 
@@ -204,3 +227,5 @@ plaintext. The portable envelopes carry only `header` and `body`.
 5. Compare the sealed `body.rev` with `header.bodyRev` and report a
    rollback. Never "repair" it.
 6. Never write VK, MK or any plaintext anywhere.
+7. List a body's `deviceIdentityKey` by its path alone (§6) and print no member
+   of it.

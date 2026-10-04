@@ -25,6 +25,14 @@
 //      member's bearer does not speak for it.
 //   H. A capability that activates after Access Sessions drew (its chunk is
 //      held back) shows Receipts without a navigation.
+//   I. The principal across backup and restore (ADR 0160 §5), each device its
+//      own browser context: export an offline backup, restore it on a fresh
+//      device and the principal is the same; a device whose fresh vault had
+//      already minted a key takes the backup's, its old sessions end and the
+//      bell says so; a backup with no key mints one key, once, and says so,
+//      and that key travels with the next backup.
+//   J. A vault that meets a second key for itself keeps the older, whichever
+//      is restored last, and the newer key's sessions end.
 //   F. Access, once chosen: every tab reads clean, and Receipts is drawn only
 //      once Browser-local IAM is on, because only it keeps an audit trail for
 //      the device plane to serve.
@@ -35,6 +43,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  configureRestore,
+  olderKeyWins,
+  restoredElsewhere,
+  restoredWithoutKey,
+} from "./lib/device-identity-restore.mjs";
 import {
   WIDTHS,
   chooseCapability,
@@ -75,6 +89,7 @@ const { log, failures, check, setStep, launch, newPage, snap } = createHarness({
 });
 
 configureScenarios({ ORIGIN, BASE, DIST, check, setStep, newPage, snap });
+configureRestore({ ORIGIN, BASE, check, setStep, newPage });
 
 const browser = await launch();
 for (const width of WIDTHS) {
@@ -137,6 +152,9 @@ for (const width of WIDTHS) {
   await context.close();
 }
 await memberVault(browser);
+await restoredElsewhere(browser);
+await restoredWithoutKey(browser);
+await olderKeyWins(browser);
 await lateActivation(browser);
 await browser.close();
 
