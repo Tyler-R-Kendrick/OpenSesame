@@ -41,3 +41,50 @@ export function callsStarting(source, opener) {
 export function outboxAppendCalls(source) {
   return callsStarting(source, /\boutbox\.append\(/gu);
 }
+
+/**
+ * A constant that claims never to expire, to last forever, or to sit far in the
+ * future, but is a calendar date. The date arrives, and everything that compares
+ * it with a clock it does not own goes red that morning (wallet's
+ * interaction-handoff suite named 2030-01-01 "NEVER_EXPIRES").
+ */
+export const FOREVER_DATE =
+  /\b(?:const|let)\s+\w*(?:NEVER|FOREVER|FAR_?FUTURE|DISTANT|NO_EXPIR)\w*\s*(?::[^=]+)?=\s*(?:new Date\(\s*)?["'`]20\d\d-/iu;
+
+const AWAITED_CALL = /\bawait waitFor\(/gu;
+const UI_READ =
+  /^\s*(?:expect\(\s*)?(?:const \w+ = )?(?:screen|dialog|sheet\(\)|within\([^)]*\))\.(?:getBy|getAllBy)\w*\(/u;
+
+/**
+ * `await waitFor(() => expect(mock).toHaveBeenCalled...)` followed at once by a
+ * synchronous read of the screen.
+ *
+ * A mock being called is the question being asked, not the answer being drawn:
+ * whatever the call's promise resolves into reaches the screen later, after the
+ * test has already read it. It passes where promises settle in the same turn
+ * and fails on a loaded runner (Unlock methods' QR and "Code sent" reads did).
+ * Wait for the thing that is read: `await screen.findBy...`, or `waitFor` on it.
+ */
+export function readsBeforeTheAnswer(source) {
+  const found = [];
+  for (const match of source.matchAll(AWAITED_CALL)) {
+    const [call] = callsStarting(
+      source.slice(match.index, match.index + 2000),
+      /\bawait waitFor\(/gu,
+    );
+    const asksOnly =
+      /\.toHaveBeenCalled/u.test(call) &&
+      !/\b(?:getBy|findBy|queryBy)/u.test(call);
+    if (!asksOnly) continue;
+    const rest = source.slice(match.index + call.length).replace(/^;/u, "");
+    const next = rest
+      .split("\n")
+      .find((line, index) => index > 0 && line.trim() !== "");
+    if (next !== undefined && UI_READ.test(next)) {
+      found.push(
+        `${call.replace(/\s+/gu, " ").slice(0, 80)} -> ${next.trim()}`,
+      );
+    }
+  }
+  return found;
+}
