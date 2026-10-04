@@ -137,6 +137,13 @@ function tombSessionKeys(tomb: string): string[] {
     "config/identity-agent-keys",
     "config/identity-applications",
     "config/identity-requests",
+    // What this device decided and what it said it would do about it
+    // (ADR 0162): the audit of connector grants, the receipts and the list of
+    // receipts not yet written, and where the person wants to be told.
+    "config/access-audit",
+    "config/device-receipts",
+    "config/device-receipts-pending",
+    "config/local-notifications",
     "config/siop-keys",
     "config/tailnet-drive",
   ].map((path) => tombFileKey(tomb, path));

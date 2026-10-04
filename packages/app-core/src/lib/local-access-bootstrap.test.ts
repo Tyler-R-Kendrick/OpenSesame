@@ -18,6 +18,7 @@ import {
   listLocalShares,
   revokeLocalShare,
 } from "./local-share-grants.js";
+import { wipeTombOnDestroy } from "./vault/tomb-migration.js";
 import { GUEST_TOMB, lockAllTombs, unlockTomb, writeFile } from "./vfs.js";
 
 let tomb: string;
@@ -208,6 +209,30 @@ describe("ensureDefaultAccess", () => {
     );
     await ensureDefaultAccess(tomb);
     expect(await grantOf()).toEqual([]);
+  });
+
+  it("grants the standing connector shares again in a vault made after the last was deleted", async () => {
+    await ensureDefaultAccess(tomb);
+    const [agentGrant] = (await listLocalShares(tomb)).filter(
+      (share) =>
+        share.resourceKind === "connection" &&
+        share.principalId === SUPPORT_AGENT_ID,
+    );
+    await revokeLocalShare(tomb, agentGrant?.id ?? "");
+    // The vault is destroyed and another is made in the same tomb, with a key
+    // that cannot open what the first one sealed. Its audit of revocations
+    // must not stay behind as ciphertext the new vault reads as "unreadable",
+    // which would withhold every standing grant for good.
+    await wipeTombOnDestroy(tomb);
+    unlockTomb(tomb, (await mintVaultKey()).vaultKey);
+    await ensureDefaultAccess(tomb);
+    expect(
+      (await listLocalShares(tomb)).filter(
+        (share) =>
+          share.resourceKind === "connection" &&
+          share.principalId === SUPPORT_AGENT_ID,
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it("renews a revoked standing grant again once a person re-grants it", async () => {
