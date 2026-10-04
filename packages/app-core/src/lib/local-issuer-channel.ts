@@ -331,7 +331,9 @@ export class LocalIssuerChannel {
   }
 
   private async approveIdentity(identity: LocalSession) {
-    if (this.closed || !this.port || this.approved)
+    // A refusal in flight is the person's answer; an approval begun behind it
+    // would be a second, opposite one.
+    if (this.closed || !this.port || this.approved || this.denying)
       throw new Error("channel_unavailable");
     this.approved = true;
     this.session = this.agentSession ?? identity;

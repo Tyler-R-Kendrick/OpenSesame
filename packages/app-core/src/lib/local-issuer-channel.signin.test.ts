@@ -193,3 +193,14 @@ it("takes back what it raised when the passkey is refused", async () => {
     "revoked",
   ]);
 });
+
+it("refuses to approve while a refusal is being written, and approves nothing after it", async () => {
+  const denying = issuer.deny();
+  await expect(issuer.approve(session)).rejects.toThrow("channel_unavailable");
+  await denying;
+  await expect(issuer.approve(session)).rejects.toThrow("channel_unavailable");
+  expect(await listLocalAccessRequests(tomb)).toEqual([]);
+  expect((await listReceipts(tomb, 10)).map((row) => row.eventType)).toEqual([
+    "access.sign_in.denied",
+  ]);
+});
