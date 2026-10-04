@@ -320,6 +320,26 @@ describe("what is never a gesture", () => {
   });
 });
 
+describe("an event that lists no fingers", () => {
+  it("is ignored, never thrown at: a listener on the document is sent what others dispatch", () => {
+    const h = handlers();
+    for (const type of ["touchstart", "touchmove", "touchend"] as const) {
+      const bare = overlapCast<Event, TouchEvent>(
+        new Event(type, { bubbles: true, cancelable: true }),
+      );
+      expect(() =>
+        h[
+          type === "touchstart"
+            ? "start"
+            : type === "touchmove"
+              ? "move"
+              : "end"
+        ](bare),
+      ).not.toThrow();
+    }
+  });
+});
+
 describe("a gesture is a way to press a key, not a second authority", () => {
   it("goes into a register recording as the key would", () => {
     const chord = createChordState();

@@ -101,8 +101,17 @@ type Touching = Readonly<{
   target: EventTarget | null;
 }>;
 
+/**
+ * The fingers a list names. A real touch event always lists them; a synthetic
+ * one (an extension's, a test's) may not, and a listener on the document must
+ * never throw on what it was not sent.
+ */
+function fingersOf(list: TouchList | undefined): Touching[] {
+  return list ? Array.from(list) : [];
+}
+
 function changed(event: TouchEvent): Touching[] {
-  return Array.from(event.changedTouches);
+  return fingersOf(event.changedTouches);
 }
 
 /** One touch as the handlers follow it, from first finger down to last up. */
@@ -124,7 +133,7 @@ export function createGestureHandlers(host: GestureHost) {
   let ignoring = false;
 
   const fresh = (event: TouchEvent) =>
-    event.touches.length <= event.changedTouches.length;
+    fingersOf(event.touches).length <= changed(event).length;
 
   const start = (event: TouchEvent) => {
     if (fresh(event)) {
@@ -178,8 +187,9 @@ export function createGestureHandlers(host: GestureHost) {
 
   const end = (event: TouchEvent) => {
     follow(event);
-    if (event.touches.length > 0 || !tracking) {
-      if (event.touches.length === 0) ignoring = false;
+    const down = fingersOf(event.touches).length;
+    if (down > 0 || !tracking) {
+      if (down === 0) ignoring = false;
       return;
     }
     const done = tracking;
