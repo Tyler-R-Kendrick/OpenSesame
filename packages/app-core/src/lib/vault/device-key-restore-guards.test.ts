@@ -130,6 +130,22 @@ describe("a vault another tab gave something to after the choice was made", () =
   });
 });
 
+describe("a browser with no Web Locks", () => {
+  it("ignores the choice: the backup's key is not taken and the vault's tomb is left without one", async () => {
+    const backup = await backupWithKey();
+    vi.stubGlobal("navigator", {});
+    const target = await newVault(OTHER_PASSWORD);
+
+    await target.importSealed(backup.text, PASSWORD, TAKE);
+
+    await expect(readFile(PERSONAL_TOMB, KEY_FILE)).rejects.toMatchObject({
+      code: "not-found",
+    });
+    expect(bodyPortOf(target).body().deviceIdentityKey).toBeUndefined();
+    expect(listNotices()).toEqual([]);
+  });
+});
+
 describe("a device whose own key record cannot be read", () => {
   it("takes nothing, leaves the record as it is, and does not call the backup's key unusable", async () => {
     const backup = await backupWithKey();

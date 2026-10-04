@@ -33,6 +33,7 @@ import {
   syncInstalledTypes,
   vaultSealBinding,
 } from "@opensesame/vault-core";
+import { lockManager } from "../../ports.js";
 import type { IdentityChange } from "../device-identity-carry.js";
 import { BODY_PATH } from "../vfs.js";
 import { recordItemTypes } from "./body-edits.js";
@@ -125,10 +126,12 @@ export async function importSealedInto(
   if (!port.open()) throw new Error("Unlock this vault before importing.");
 
   // Whether to look at the backup's key at all is decided before anything is
-  // merged: only a vault that has done nothing yet, and only on request.
+  // merged: only a vault that carries a key and has Web Locks to fence it, that
+  // has done nothing yet, and only on request.
   const adopting =
     options.adoptIdentity === true &&
     port.carries() &&
+    lockManager() !== undefined &&
     isFreshVault(port.body());
   if (!adopting) return mergeAndCount(port, incoming);
 

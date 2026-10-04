@@ -11,7 +11,13 @@
  * A store path manifest (`manifest`) merges by path (ADR 0037 §6).
  */
 import { overlapCast } from "@opensesame/os-domain";
-import type { PasskeyUnlockRecord, VaultHeader } from "@opensesame/vault-core";
+import type {
+  Folder,
+  PasskeyUnlockRecord,
+  VaultHeader,
+  VaultItem,
+} from "@opensesame/vault-core";
+import { isGuestSessionTomb } from "../../../lib/duress/store/decoy-scratch.js";
 import {
   type ParseResult,
   type SourceId,
@@ -33,6 +39,7 @@ import {
   getPasskeyUnlockCeremony,
   unwrapVaultKeyWithPrf,
 } from "../../../lib/vault/unlock-methods.js";
+import { lockManager } from "../../../ports.js";
 import { readStoreManifest } from "./store-manifest.js";
 
 export type ImportStage =
@@ -92,6 +99,33 @@ export const importModelSeams = {
   getPasskeyUnlockCeremony,
   unwrapVaultKeyWithPrf,
 };
+
+/** What the restore card needs to know of the open vault to offer the backup's identity. */
+export type RestoreTarget = Readonly<{
+  guest: boolean;
+  tomb: string | null;
+  items: readonly VaultItem[];
+  folders: readonly Folder[];
+}>;
+
+/**
+ * Whether the restore card draws its choice to take the backup's device
+ * identity (ADR 0160 §5a). Only a vault that carries a key can take one: not a
+ * guest or scratch session, whose key is its own tomb's and never travels, and
+ * only where Web Locks fence the tomb's key against another tab. And only a
+ * vault that has done nothing yet, no item (trashed ones too) and no folder.
+ * Where any of that is not so the choice is absent, not drawn and dead (ADR
+ * 0158), and the restore sends none; the store refuses on the same terms.
+ */
+export function canTakeBackupIdentity(vault: RestoreTarget): boolean {
+  return (
+    !vault.guest &&
+    !isGuestSessionTomb(vault.tomb) &&
+    lockManager() !== undefined &&
+    vault.items.length === 0 &&
+    vault.folders.length === 0
+  );
+}
 
 export function messageFrom<Thrown>(caught: Thrown): string {
   return caught instanceof Error && caught.message !== ""

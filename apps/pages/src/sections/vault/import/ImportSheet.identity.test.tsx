@@ -13,8 +13,16 @@ import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-type VaultFixture = { current: { items: VaultItem[]; folders: Folder[] } };
-const vault: VaultFixture = { current: { items: [], folders: [] } };
+type VaultFixture = {
+  current: {
+    guest: boolean;
+    tomb: string;
+    items: VaultItem[];
+    folders: Folder[];
+  };
+};
+const empty = { guest: false, tomb: "personal", items: [], folders: [] };
+const vault: VaultFixture = { current: empty };
 const importSealed = vi.hoisted(() => vi.fn());
 
 import { vaultHooksSeams } from "../../../lib/vault/hooks.js";
@@ -51,12 +59,24 @@ async function openCard() {
   return screen.findByLabelText<HTMLInputElement>("Master password");
 }
 
+/** The browser has Web Locks, as every browser this runs in does. */
+function withWebLocks(): void {
+  Object.defineProperty(navigator, "locks", {
+    value: { request: vi.fn() },
+    configurable: true,
+  });
+}
+
 beforeEach(() => {
   importSealed.mockReset();
-  vault.current = { items: [], folders: [] };
+  vault.current = empty;
+  withWebLocks();
 });
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  Reflect.deleteProperty(navigator, "locks");
+});
 
 describe("taking the backup's device identity", () => {
   it("is offered to a vault that has done nothing, and is off until the person chooses it", async () => {
@@ -101,7 +121,7 @@ describe("taking the backup's device identity", () => {
       },
     ]) {
       cleanup();
-      vault.current = held;
+      vault.current = { ...empty, ...held };
       importSealed.mockResolvedValue(1);
       await userEvent.type(await openCard(), "pw");
       expect(screen.queryByRole("checkbox", { name: CHOICE })).toBeNull();
@@ -112,5 +132,34 @@ describe("taking the backup's device identity", () => {
         adoptIdentity: false,
       });
     }
+  });
+});
+
+describe("where a vault cannot take an identity at all", () => {
+  async function restoreAndCheckNoChoice(): Promise<void> {
+    importSealed.mockResolvedValue(1);
+    await userEvent.type(await openCard(), "pw");
+    expect(screen.queryByRole("checkbox", { name: CHOICE })).toBeNull();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Restore items" }),
+    );
+    expect(importSealed.mock.calls.at(-1)?.[2]).toEqual({
+      adoptIdentity: false,
+    });
+  }
+
+  it("draws no choice for a guest, and restores without one", async () => {
+    vault.current = { ...empty, guest: true };
+    await restoreAndCheckNoChoice();
+  });
+
+  it("draws no choice for the guest tomb or the scratch tomb either", async () => {
+    vault.current = { ...empty, tomb: "guest" };
+    await restoreAndCheckNoChoice();
+  });
+
+  it("draws no choice where the browser has no Web Locks, and restores without one", async () => {
+    Reflect.deleteProperty(navigator, "locks");
+    await restoreAndCheckNoChoice();
   });
 });

@@ -1,4 +1,5 @@
 import { sealedExportUnlock } from "@opensesame/app-core/lib/vault/offline-backup-file.js";
+import { canTakeBackupIdentity } from "@opensesame/app-core/sections/vault/import/model.js";
 import type { ReactNode } from "react";
 import { useRef } from "react";
 import { IconDownload, IconFolder, IconX } from "../../../components/Icons.js";
@@ -24,7 +25,8 @@ function StageBody({
   flow: ImportFlow;
   onClose: () => void;
 }): ReactNode {
-  const { folders, items } = useVault();
+  const vault = useVault();
+  const { folders } = vault;
   const { stage, error, busy } = flow;
   switch (stage.step) {
     case "reading":
@@ -58,7 +60,7 @@ function StageBody({
           opener={sealedExportUnlock(stage.sealed)}
           busy={busy}
           error={error}
-          canTakeIdentity={items.length === 0 && folders.length === 0}
+          canTakeIdentity={canTakeBackupIdentity(vault)}
           onRestore={flow.restore}
           onPasskey={flow.restorePasskey}
         />
