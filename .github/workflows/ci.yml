@@ -111,7 +111,7 @@ jobs:
       - name: Repository contract on a real Postgres
         # The same suites as the PGlite run, through the production driver.
         # Each suite creates and drops its own database.
-        if: contains(steps.affected.outputs.packages, '@opensesame/database')
+        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/database')
         env:
           DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
           OPENSESAME_CLAIM_PEPPER: ci-pepper-ci-pepper-ci-pepper-ci-pepper
@@ -119,7 +119,7 @@ jobs:
       - name: Worker delivery on a real Postgres
         # Web Push through the real worker tick and a stand-in push service,
         # over the production driver. Builds and drops its own database.
-        if: contains(steps.affected.outputs.packages, '@opensesame/identity-worker')
+        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/identity-worker')
         env:
           DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
         run: pnpm --filter @opensesame/identity-worker test:postgres
