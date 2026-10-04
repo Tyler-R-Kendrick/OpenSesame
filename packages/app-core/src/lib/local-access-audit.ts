@@ -36,6 +36,19 @@ export const ACCESS_AUDIT_EVENT_TYPES = [
   "access.connection.revoked",
   "connection.binding.bound",
   "connection.binding.unbound",
+  // What this device decided for a person (ADR 0162): a request raised,
+  // approved, denied or withdrawn; an application signed in, refused or
+  // ended; a Self-Issued sign-in approved or refused. Written by
+  // `device-receipts.ts`, which is the only caller that names them.
+  "access.request.created",
+  "access.request.approved",
+  "access.request.denied",
+  "access.request.withdrawn",
+  "access.sign_in.granted",
+  "access.sign_in.denied",
+  "access.sign_in.revoked",
+  "access.siop.approved",
+  "access.siop.denied",
 ] as const;
 
 export type AccessAuditEventType = (typeof ACCESS_AUDIT_EVENT_TYPES)[number];
@@ -135,6 +148,11 @@ export type RecordAccessAuditInput = {
   /** Must already be ids/enums — redacted again before seal. */
   metadata?: JsonObject;
   correlationId?: string;
+  /**
+   * Also write the Activity feed's line for it. A caller whose decision the
+   * feed already records (a request's own notes) says no and is not told twice.
+   */
+  activity?: boolean;
 };
 
 /**
@@ -226,13 +244,14 @@ export async function recordAccessAuditEvent(
     event.outcome === "succeeded" || event.outcome === "denied"
       ? event.outcome
       : "failed";
-  emitActivity({
-    category: "access",
-    type: event.eventType,
-    summary: event.eventType.replaceAll(".", " "),
-    outcome,
-    targetType: event.targetType,
-    targetId: event.targetId,
-  });
+  if (input.activity !== false)
+    emitActivity({
+      category: "access",
+      type: event.eventType,
+      summary: event.eventType.replaceAll(".", " "),
+      outcome,
+      targetType: event.targetType,
+      targetId: event.targetId,
+    });
   return next;
 }

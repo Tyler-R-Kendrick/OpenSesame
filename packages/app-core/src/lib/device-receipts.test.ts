@@ -1,0 +1,149 @@
+/**
+ * Receipts of what this device decided (ADR 0162): which decisions write one,
+ * what a receipt may name, and that none is ever edited or lost to a failure
+ * of the decision it records.
+ */
+
+import { mintVaultKey } from "@opensesame/vault-core";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
+import {
+  RECEIPT_KINDS,
+  type ReceiptKind,
+  grantRef,
+  listReceipts,
+  recordReceipt,
+  requestRef,
+} from "./device-receipts.js";
+import { lockAllTombs, unlockTomb } from "./vfs.js";
+
+let tomb: string;
+
+beforeEach(async () => {
+  tomb = `receipts-${crypto.randomUUID()}`;
+  unlockTomb(tomb, (await mintVaultKey()).vaultKey);
+  vi.stubGlobal("navigator", { locks: webLocksDouble() });
+});
+
+afterEach(() => {
+  lockAllTombs();
+  vi.unstubAllGlobals();
+});
+
+/** Every decision a receipt can record, once. */
+const KINDS = [
+  "request.created",
+  "request.approved",
+  "request.denied",
+  "request.withdrawn",
+  "sign_in.granted",
+  "sign_in.denied",
+  "sign_in.revoked",
+  "siop.approved",
+  "siop.denied",
+] as const satisfies readonly ReceiptKind[];
+
+const APP = "local_11111111-1111-4111-8111-111111111111";
+const PERSON = "local_22222222-2222-4222-8222-222222222222";
+const ORG = "local_33333333-3333-4333-8333-333333333333";
+
+describe("the decisions a receipt can record", () => {
+  it("is a closed table: each kind is one event name and one outcome", () => {
+    expect(Object.keys(RECEIPT_KINDS).sort()).toEqual([...KINDS].sort());
+    const names = Object.values(RECEIPT_KINDS).map(([name]) => name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("reads a refusal as denied and everything else as succeeded", async () => {
+    for (const kind of KINDS)
+      await recordReceipt(tomb, kind, { applicationId: APP });
+    const byType = new Map(
+      (await listReceipts(tomb, 50)).map((row) => [row.eventType, row.outcome]),
+    );
+    for (const [kind, [name, outcome]] of Object.entries(RECEIPT_KINDS)) {
+      expect(byType.get(name), kind).toBe(outcome);
+    }
+    expect(
+      [...byType.values()].filter((value) => value === "denied"),
+    ).toHaveLength(3);
+  });
+});
+
+describe("what a receipt names", () => {
+  it("is ids and a closed enum, never a scope, a reason or an address", async () => {
+    await recordReceipt(tomb, "request.approved", {
+      ...requestRef({
+        id: "9f1c1a3e-7d1d-4f56-9f6f-2f9e0a0d4c11",
+        applicationId: APP,
+        requesterId: PERSON,
+        organizationId: ORG,
+      }),
+      actor: PERSON,
+    });
+    const [receipt] = await listReceipts(tomb, 1);
+    expect(receipt?.metadata).toEqual({
+      authReqId: "9f1c1a3e-7d1d-4f56-9f6f-2f9e0a0d4c11",
+      subject: PERSON,
+      actor: PERSON,
+      organizationId: ORG,
+      targetType: "application",
+      targetId: APP,
+    });
+  });
+
+  it("drops a key the trail's allowlist does not carry", async () => {
+    // A caller cannot smuggle a field in through the type, and one that gets
+    // past it (an object built elsewhere) is dropped by the redactor.
+    const smuggled = {
+      ...grantRef({
+        applicationId: APP,
+        principalId: PERSON,
+        organizationId: ORG,
+      }),
+      redirectUri: "https://rp.example.test/callback",
+    };
+    await recordReceipt(tomb, "sign_in.granted", smuggled);
+    const [receipt] = await listReceipts(tomb, 1);
+    expect(JSON.stringify(receipt)).not.toContain("rp.example.test");
+  });
+});
+
+describe("the trail", () => {
+  it("is newest first and never edits what it already holds", async () => {
+    await recordReceipt(tomb, "request.created", { applicationId: APP });
+    const [first] = await listReceipts(tomb, 10);
+    await recordReceipt(tomb, "request.approved", { applicationId: APP });
+    await recordReceipt(tomb, "sign_in.granted", { applicationId: APP });
+    const rows = await listReceipts(tomb, 10);
+    expect(rows.map((row) => row.eventType)).toEqual([
+      "access.sign_in.granted",
+      "access.request.approved",
+      "access.request.created",
+    ]);
+    expect(rows[2]).toEqual(first);
+  });
+
+  it("returns at most the limit asked for", async () => {
+    for (let at = 0; at < 4; at += 1)
+      await recordReceipt(tomb, "request.created", { applicationId: APP });
+    expect(await listReceipts(tomb, 2)).toHaveLength(2);
+    expect(await listReceipts(tomb, 0)).toEqual([]);
+  });
+
+  it("never fails the decision it records", async () => {
+    lockAllTombs();
+    await expect(
+      recordReceipt(tomb, "request.approved", { applicationId: APP }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("does not write a second Activity line for a decision the feed has", async () => {
+    const { listActivityEvents } = await import("./activity-log.js");
+    await recordReceipt(tomb, "request.denied", { applicationId: APP });
+    expect(
+      (await listActivityEvents(tomb).catch(() => [])).filter(
+        (event) => event.category === "access",
+      ),
+    ).toEqual([]);
+  });
+});

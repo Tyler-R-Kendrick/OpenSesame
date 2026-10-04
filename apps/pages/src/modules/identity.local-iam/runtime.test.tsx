@@ -125,7 +125,8 @@ describe("identity.local-iam runtime", () => {
     // What needs a server stays unserved however the capability is on.
     expect(identityServes("mfa-codes")).toBe(false);
     expect(identityServes("notifications")).toBe(false);
-    expect((await deviceIdentityFetch("/v1/audit/events")).status).toBe(200);
+    // Served, and answered to a session only (ADR 0162): no bearer, no trail.
+    expect((await deviceIdentityFetch("/v1/audit/events")).status).toBe(401);
 
     await handle.dispose();
     expect(identityServes("directory")).toBe(false);

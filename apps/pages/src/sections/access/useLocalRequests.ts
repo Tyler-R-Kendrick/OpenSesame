@@ -7,7 +7,10 @@ import {
   LocalDirectoryError,
   readLocalDirectory,
 } from "@opensesame/app-core/lib/local-directory.js";
-import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
+import {
+  subscribeLocalIamChanges,
+  subscribeLocalIamChangesFromOtherTabs,
+} from "@opensesame/app-core/lib/local-iam-events.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 async function read(tomb: string) {
@@ -47,12 +50,15 @@ export function useLocalRequests(tomb: string) {
     alive.current = true;
     const refresh = () => void reload();
     const off = subscribeLocalIamChanges(refresh);
+    // A request raised or decided in another tab is waiting here too.
+    const offOtherTabs = subscribeLocalIamChangesFromOtherTabs(refresh);
     window.addEventListener("focus", refresh);
     refresh();
     return () => {
       alive.current = false;
       generation.current++;
       off();
+      offOtherTabs();
       window.removeEventListener("focus", refresh);
     };
   }, [reload]);

@@ -6,6 +6,7 @@ import {
   localMessage,
 } from "@opensesame/static-auth";
 import { page, pageOrigin } from "../ports.js";
+import { recordReceipt } from "./device-receipts.js";
 import { decideLocalAccessRequest } from "./local-access-requests.js";
 import {
   beginLocalAgentAuthentication,
@@ -91,6 +92,15 @@ export class LocalIssuerChannel {
     this.challenge = null;
     this.status("closed");
   };
+
+  /** The person pressed Deny: the receipts say so, then the window ends. */
+  async deny() {
+    if (!this.closed && !this.approved)
+      await recordReceipt(this.tomb, "sign_in.denied", {
+        applicationId: this.request.applicationId,
+      });
+    this.close();
+  }
 
   private connect = (event: MessageEvent<BoundaryValue>) => {
     if (

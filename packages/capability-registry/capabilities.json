@@ -5650,6 +5650,60 @@
     }
   },
   {
+    "id": "identity.notification.local.manage",
+    "title": "Choose how this device tells its person a request is waiting",
+    "plane": "client_local",
+    "kind": "admin",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/settings",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "choosing how this device announces a waiting request decides who notices it; an agent that could change that could keep its own requests from being seen",
+        "adr": "0162-device-receipts-inbox-and-local-notifications.md"
+      },
+      "mcp_client": {
+        "reason": "choosing how this device announces a waiting request decides who notices it; an agent that could change that could keep its own requests from being seen",
+        "adr": "0162-device-receipts-inbox-and-local-notifications.md"
+      },
+      "webmcp": {
+        "reason": "choosing how this device announces a waiting request decides who notices it; an agent that could change that could keep its own requests from being seen",
+        "adr": "0162-device-receipts-inbox-and-local-notifications.md"
+      }
+    }
+  },
+  {
+    "id": "identity.local.receipts.read",
+    "title": "Read the receipts of what this device decided for its person",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/access",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "the device's receipts record which requests were approved and which refused; an agent that could read them could learn what to route around",
+        "adr": "0162-device-receipts-inbox-and-local-notifications.md"
+      },
+      "mcp_client": {
+        "reason": "the device's receipts record which requests were approved and which refused; an agent that could read them could learn what to route around",
+        "adr": "0162-device-receipts-inbox-and-local-notifications.md"
+      },
+      "webmcp": {
+        "reason": "the device's receipts record which requests were approved and which refused; an agent that could read them could learn what to route around",
+        "adr": "0162-device-receipts-inbox-and-local-notifications.md"
+      }
+    }
+  },
+  {
     "id": "identity.org_signin.upstream.manage",
     "title": "Read and set an organization's sign-in upstream: OIDC issuer and client, or SAML IdP (PATCH /v1/organizations/:id)",
     "plane": "identity",

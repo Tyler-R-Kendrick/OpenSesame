@@ -12,6 +12,7 @@ import {
   bindSiopRequest,
   denySiopAuthorization,
   parsePagesSiopRequest,
+  recordSiopDenial,
 } from "@opensesame/app-core/lib/siop-authority.js";
 import type { NormalizedAuthorizationRequest } from "@opensesame/siop-v2";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -168,9 +169,10 @@ function SiopConsent({
     }
   }
 
-  function deny() {
+  async function deny() {
     if (busy || finished) return;
     setFinished(true);
+    await recordSiopDenial(tomb, request);
     globalThis.location.replace(denySiopAuthorization(request));
   }
 
@@ -242,7 +244,7 @@ function SiopConsent({
                 canVerify={Boolean(person)}
                 onAllow={() => void allow()}
                 onVerify={() => void verifyPasskey()}
-                onDeny={deny}
+                onDeny={() => void deny()}
               />
             </>
           ) : null}

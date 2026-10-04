@@ -1,6 +1,10 @@
+import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
+import { listReceipts } from "./device-receipts.js";
 import { LocalIssuerChannel } from "./local-issuer-channel.js";
 import { vaultStore } from "./vault/store.js";
+import { lockAllTombs, unlockTomb } from "./vfs.js";
 
 const request = {
   applicationId: "local_00000000-0000-4000-8000-000000000001",
@@ -145,4 +149,22 @@ it("does not admit expired pairing windows", () => {
   connect();
   expect(status.mock.calls).toEqual([["closed"]]);
   vi.useRealTimers();
+});
+it("says in the receipts that the person refused, then ends the window, once", async () => {
+  const tomb = `deny-${crypto.randomUUID()}`;
+  unlockTomb(tomb, (await mintVaultKey()).vaultKey);
+  vi.stubGlobal("navigator", { locks: webLocksDouble() });
+  issuer.close();
+  issuer = new LocalIssuerChannel(tomb, request, status);
+  await issuer.deny();
+  expect(status).toHaveBeenLastCalledWith("closed");
+  await issuer.deny();
+  const receipts = await listReceipts(tomb, 5);
+  expect(receipts.map((row) => [row.eventType, row.outcome])).toEqual([
+    ["access.sign_in.denied", "denied"],
+  ]);
+  expect(receipts[0]?.metadata).toMatchObject({
+    targetId: request.applicationId,
+  });
+  lockAllTombs();
 });

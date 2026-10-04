@@ -17,6 +17,7 @@ import { LocalRequestsPanel } from "./access/LocalRequestsPanel.js";
 import { LocalResourcesPanel } from "./access/LocalResourcesPanel.js";
 import { LocalSharePanel } from "./access/LocalSharePanel.js";
 import { SessionsPanel } from "./access/SessionsPanel.js";
+import { useInboxCount } from "./access/use-inbox.js";
 import "./access.css";
 import { useHashTarget } from "../lib/hash-target.js";
 
@@ -41,6 +42,7 @@ export function AccessSection() {
   const location = useLocation();
   const tab = accessViewFromLocation(location.pathname, location.search);
   const identityConfigured = useIdentityConfigured();
+  const waiting = useInboxCount(tomb);
   useHashTarget();
 
   return (
@@ -58,6 +60,7 @@ export function AccessSection() {
             label={label}
             to={accessPath(id)}
             current={tab === id}
+            waiting={id === "requests" ? waiting : 0}
           />
         ))}
       </nav>

@@ -30,6 +30,8 @@ import {
 import { IDENTITY_ROUTES, IDENTITY_TARGETS } from "./identity-catalog.js";
 import { IDENTITY_GOALS, IDENTITY_HELP } from "./identity-goals.js";
 import {
+  LOCAL_NOTIFICATIONS_GOALS,
+  LOCAL_NOTIFICATIONS_TARGETS,
   NOTIFICATIONS_GOALS,
   NOTIFICATIONS_ROUTES,
   NOTIFICATIONS_TARGETS,
@@ -108,6 +110,17 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     goals: NOTIFICATIONS_GOALS,
     help: [],
     routes: NOTIFICATIONS_ROUTES,
+  },
+  {
+    capability: "notifications.local",
+    files: {
+      targets: "notifications-catalog.ts",
+      goals: "notifications-catalog.ts",
+    },
+    targets: LOCAL_NOTIFICATIONS_TARGETS,
+    goals: LOCAL_NOTIFICATIONS_GOALS,
+    help: [],
+    routes: [],
   },
   {
     capability: "agents.surrogate-credentials",

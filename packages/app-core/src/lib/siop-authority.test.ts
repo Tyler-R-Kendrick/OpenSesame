@@ -5,6 +5,7 @@ import {
 } from "@opensesame/siop-v2";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { listReceipts } from "./device-receipts.js";
 import { configureLocalApplication } from "./local-applications.js";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
 import { changeLocalDirectory } from "./local-directory-admin.js";
@@ -22,6 +23,7 @@ import {
   denySiopAuthorization,
   dynamicSiopIssuer,
   parsePagesSiopRequest,
+  recordSiopDenial,
   siopIssuerProfile,
 } from "./siop-authority.js";
 import { ensureSiopKey } from "./siop-keys.js";
@@ -280,5 +282,31 @@ describe("siop-authority", () => {
       }),
     ).rejects.toThrow(/Admission no longer holds|unavailable/i);
     expect(admissionCalls).toBeGreaterThanOrEqual(2);
+    // A sign-in that was refused by the ceremony left no approval receipt.
+    expect(await listReceipts(tomb, 10)).toEqual([]);
+  });
+
+  it("writes a receipt for an approval and for a refusal, naming ids only", async () => {
+    const request = parsePagesSiopRequest(siopSearch());
+    const session = await signInLocalIdentity(tomb, person);
+    await approveSiopAuthorization(tomb, session, request, {
+      nowSeconds: () => fixedNow,
+    });
+    await recordSiopDenial(tomb, request);
+    const receipts = await listReceipts(tomb, 10);
+    expect(receipts.map((row) => [row.eventType, row.outcome])).toEqual([
+      ["access.siop.denied", "denied"],
+      ["access.siop.approved", "succeeded"],
+    ]);
+    const approved = receipts[1];
+    expect(approved?.metadata).toMatchObject({
+      targetType: "application",
+      targetId: app,
+      subject: person,
+    });
+    // The callback, the nonce and the state belong to the relying party's
+    // request, not to the trail.
+    expect(JSON.stringify(receipts)).not.toContain(redirect);
+    expect(JSON.stringify(receipts)).not.toContain("state-1");
   });
 });
