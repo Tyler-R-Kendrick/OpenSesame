@@ -39,7 +39,6 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "vault.item-types.install",
       "vault.import",
       "vault.export",
-      "vault.store-manifest",
       "vaults.switch",
       "vault.lock",
       "host.health.check",

@@ -68,7 +68,7 @@ describe("the SOPS engine is not reachable from an agent or support surface", ()
       );
     for (const importer of importers) {
       expect(importer, importer).toMatch(
-        /^(lib\/sops\/|sections\/settings\/(sops\/|FormatsInteroperabilityPanel))/u,
+        /^(lib\/sops\/|sections\/settings\/sops\/)/u,
       );
     }
   });
