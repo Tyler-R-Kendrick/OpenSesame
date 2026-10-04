@@ -30,10 +30,10 @@ import {
 } from "../lib/vault-list-path.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { PhoneAdd, PhoneFind } from "./vault/PhoneAdd.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultActions } from "./vault/VaultActions.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
-import { VaultPathbar } from "./vault/VaultPathbar.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import { WelcomeKeys } from "./vault/WelcomeKeys.js";
 import { askForSearch } from "./vault/use-search-handoff.js";
@@ -213,17 +213,17 @@ export function VaultSection() {
       <div className="vault__tree" ref={treePaneRef}>
         {narrow ? (
           <>
-            {/* The list's own command row, so adding, importing and backing
-                up are on the screen a phone opens on. Search jumps to the
-                list of everything with its prompt open. */}
-            <VaultPathbar
-              verbs={<VaultActions createPath={createPath} />}
-              search={() => {
+            {/* A phone's first pane is for finding and adding: the search
+                field the tree opens on, and the corner key's Add sheet.
+                Search jumps to the list of everything with its prompt open. */}
+            <PhoneFind
+              onOpen={() => {
                 askForSearch();
                 navigate(PHONE_ALL_ITEMS);
               }}
             />
             <NavTree />
+            <PhoneAdd createPath={createPath} />
           </>
         ) : null}
       </div>
