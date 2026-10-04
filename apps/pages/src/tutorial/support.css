@@ -473,6 +473,8 @@
   .support__tutorial,
   .support__tab {
     min-height: 2.75rem;
+    min-width: 2.75rem;
+    justify-content: center;
   }
 
   /* The composer is docked at the foot of a bottom sheet, so it owes the
