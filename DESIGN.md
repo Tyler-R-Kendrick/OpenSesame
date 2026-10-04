@@ -344,8 +344,11 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
 - **A finger gets gestures where the keyboard has keys.** The keymap is for a
   keyboard: under a coarse pointer the help row says *Gestures* and its sheet
   lists the ones the shell recognises (`lib/gesture-help.ts`) — tap opens, hold
-  or swipe a row left asks for its actions, swipe right goes back, and the
-  keys that matter (new, search) are visible 44px keys. A row never lists a
+  or swipe a row left asks for its actions, swipe right goes back, and what
+  the vault's first pane asks of a thumb is drawn for one: search is the
+  full-width field the tree opens on, and adding is a single filled 60px key in
+  the bottom corner whose action sheet carries New item, Import and Export as
+  rows — not the desktop's row of small keys. A row never lists a
   gesture with no recogniser behind it. Gestures are twins, never the only
   road, and a command that asks before it acts (trash, share) is still never a
   gesture of its own — it is an entry in the actions a hold or swipe opens.

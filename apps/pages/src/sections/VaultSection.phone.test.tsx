@@ -139,7 +139,7 @@ describe("the vault on a phone", () => {
     renderVault("/vault");
     // The list focuses its rows once the saved collapse state has loaded.
     await act(async () => undefined);
-    fireEvent.click(screen.getByRole("button", { name: "Search items" }));
+    fireEvent.click(screen.getByRole("button", { name: "Search the vault" }));
     await waitFor(() => expect(pane()).toBe("list"));
     await waitFor(() =>
       expect(document.activeElement).toBe(

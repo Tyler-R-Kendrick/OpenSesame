@@ -28,7 +28,7 @@ export function PhoneFind({ onOpen }: { onOpen: () => void }) {
     <button
       type="button"
       className="vadd__find"
-      aria-label="Search items"
+      aria-label="Search the vault"
       onClick={onOpen}
     >
       <IconSearch size={18} />
@@ -55,18 +55,15 @@ export function PhoneAdd({ createPath }: { createPath: string }) {
     // mounted, hidden, because each owns the sheet or file picker it opens;
     // a row of the sheet presses its key.
     const keys = [
-      ...(host.current?.querySelectorAll<HTMLButtonElement>(
-        ":scope > button",
+      ...(host.current?.querySelectorAll<HTMLElement>(
+        ":scope > button, :scope > a",
       ) ?? []),
     ];
-    const more: MenuGroup = keys.map((key) => {
+    // A command with no name has no row: an empty entry is worse than none.
+    const more: MenuGroup = keys.flatMap((key) => {
       const label = key.getAttribute("aria-label") ?? key.title;
-      return {
-        id: label,
-        label,
-        icon: ICONS[label],
-        run: () => key.click(),
-      };
+      if (!label) return [];
+      return [{ id: label, label, icon: ICONS[label], run: () => key.click() }];
     });
     openContextMenu(event, event.currentTarget, "Add to the vault", [
       [

@@ -1215,7 +1215,8 @@ select.editor__ext:hover {
     display: contents;
   }
 
-  .vadd__host > button {
+  .vadd__host > button,
+  .vadd__host > a {
     display: none;
   }
 
