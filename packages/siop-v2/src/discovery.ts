@@ -181,23 +181,47 @@ function sameOriginEndpoint(endpoint: string, issuer: string): string {
   if (url.origin !== new URL(issuer).origin) {
     refuse("malformed_metadata", "metadata");
   }
-  if (url.username !== "" || url.password !== "" || url.hash !== "") {
+  // A query would smuggle parameters into every authorization request.
+  // `URL` reads an empty `?` or `#` as no query and no fragment; refuse the characters.
+  if (
+    url.username !== "" ||
+    url.password !== "" ||
+    endpoint.includes("#") ||
+    endpoint.includes("?")
+  ) {
     refuse("malformed_metadata", "metadata");
   }
   return url.href;
+}
+
+export type SiopMetadataOptions = {
+  /** Accept loopback `http` for the issuer and endpoint. Development only. */
+  readonly allowLoopbackHttp?: boolean | undefined;
+};
+
+/** `https`, or loopback `http` when the caller asked for it; nothing else. */
+function requireSecure(value: string, allowLoopbackHttp: boolean): void {
+  assertAllowedIssuer(new URL(value).origin);
+  if (new URL(value).protocol === "http:" && !allowLoopbackHttp) {
+    refuse("issuer_mismatch", "issuer_profile");
+  }
 }
 
 /**
  * Accept a document only if it names the issuer the relying party already
  * expects and promises what this kit can consume: `id_token`, `openid`,
  * ES256, JWK-thumbprint subjects, and an authorization endpoint on the
- * issuer's own origin. Anything else is refused, never partially used.
+ * issuer's own origin with no query. Anything else is refused, never
+ * partially used.
  */
 export function parseSiopMetadata(
   raw: JsonValue,
   expectedIssuer: string,
+  options: SiopMetadataOptions = {},
 ): AcceptedSiopMetadata {
   assertAllowedIssuer(expectedIssuer);
+  const allowLoopbackHttp = options.allowLoopbackHttp === true;
+  requireSecure(expectedIssuer, allowLoopbackHttp);
   if (!isJsonObject(raw)) refuse("malformed_metadata", "metadata");
   const issuer = raw.issuer;
   if (!isString(issuer) || !constantTimeEquals(issuer, expectedIssuer)) {
@@ -206,7 +230,7 @@ export function parseSiopMetadata(
   const endpoint = raw.authorization_endpoint;
   if (!isString(endpoint)) refuse("malformed_metadata", "metadata");
   const authorizationEndpoint = sameOriginEndpoint(endpoint, expectedIssuer);
-  assertAllowedIssuer(authorizationEndpoint);
+  requireSecure(authorizationEndpoint, allowLoopbackHttp);
   const required: ReadonlyArray<readonly [string, string]> = [
     ["response_types_supported", "id_token"],
     ["scopes_supported", "openid"],
@@ -227,11 +251,19 @@ export function parseSiopMetadata(
   return { issuer: expectedIssuer, authorizationEndpoint };
 }
 
+/** The slice of a body reader the bounded read uses. */
+export type MetadataBodyReader = {
+  read(): Promise<{ done: boolean; value?: Uint8Array | undefined }>;
+  cancel(): Promise<void>;
+};
+
 /** The slice of a fetch `Response` the consumer reads. */
 export type MetadataResponse = {
   readonly ok: boolean;
   readonly status: number;
   readonly headers: { get(name: string): string | null };
+  /** Read as it arrives, so a hostile body is cut off at the cap. */
+  readonly body?: { getReader(): MetadataBodyReader } | null | undefined;
   text(): Promise<string>;
 };
 
@@ -244,16 +276,22 @@ export type MetadataFetch = (
   },
 ) => Promise<MetadataResponse>;
 
-export type FetchSiopMetadataInput = {
+export type FetchSiopMetadataInput = SiopMetadataOptions & {
   readonly fetch: MetadataFetch;
   readonly expectedIssuer: string;
   /** Defaults to the URL `siopMetadataUrl(expectedIssuer)` derives. */
   readonly metadataUrl?: string | undefined;
+  /**
+   * Accept a `metadataUrl` on another origin than the issuer's: a mirror of
+   * the document (a test, an air-gapped copy). The document must still name
+   * the pinned issuer. Without it an explicit URL must share the issuer's
+   * origin.
+   */
+  readonly allowMirror?: boolean | undefined;
   readonly timeoutMs?: number | undefined;
 };
 
-function readJsonText(text: string): JsonValue {
-  if (text.length > MAX_SIOP_METADATA_BYTES) refuse("limit_exceeded", "limits");
+function parseJsonText(text: string): JsonValue {
   try {
     // JSON.parse yields JSON; `parseSiopMetadata` shape-checks every field it reads.
     const value: JsonValue = JSON.parse(text);
@@ -263,36 +301,89 @@ function readJsonText(text: string): JsonValue {
   }
 }
 
+/** The body as text, refusing past `MAX_SIOP_METADATA_BYTES` bytes. */
+async function readBounded(response: MetadataResponse): Promise<string> {
+  const declared = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > MAX_SIOP_METADATA_BYTES) {
+    refuse("limit_exceeded", "limits");
+  }
+  const reader = response.body?.getReader();
+  if (reader === undefined) {
+    const text = await response.text();
+    if (new TextEncoder().encode(text).length > MAX_SIOP_METADATA_BYTES) {
+      refuse("limit_exceeded", "limits");
+    }
+    return text;
+  }
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done || value === undefined) break;
+    total += value.length;
+    if (total > MAX_SIOP_METADATA_BYTES) {
+      await reader.cancel();
+      refuse("limit_exceeded", "limits");
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(total);
+  let at = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, at);
+    at += chunk.length;
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 /**
  * Fetch and accept a deployment's metadata document. The fetch is injected so
  * a server, a browser and a test each bring their own, and the request refuses
  * redirects: a document that moved is a document the issuer did not publish
  * there. Non-JSON answers (a single-page app's `index.html` fallback is the
- * common one) are `malformed_metadata`, not a crash.
+ * common one) are `malformed_metadata`, not a crash. The body is read as it
+ * arrives and cut off at the cap; the request is timed out with an
+ * `AbortController`, which the browsers this kit targets all have.
  */
 export async function fetchSiopMetadata(
   input: FetchSiopMetadataInput,
 ): Promise<AcceptedSiopMetadata> {
   assertAllowedIssuer(input.expectedIssuer);
+  const allowLoopbackHttp = input.allowLoopbackHttp === true;
   const url = input.metadataUrl ?? siopMetadataUrl(input.expectedIssuer);
-  assertAllowedIssuer(new URL(url).origin);
-  let response: MetadataResponse;
+  requireSecure(url, allowLoopbackHttp);
+  if (
+    new URL(url).origin !== new URL(input.expectedIssuer).origin &&
+    input.allowMirror !== true
+  ) {
+    refuse("malformed_metadata", "metadata");
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(),
+    input.timeoutMs ?? DEFAULT_METADATA_TIMEOUT_MS,
+  );
   try {
-    response = await input.fetch(url, {
-      redirect: "error",
-      headers: { accept: "application/json" },
-      signal: AbortSignal.timeout(
-        input.timeoutMs ?? DEFAULT_METADATA_TIMEOUT_MS,
-      ),
+    let response: MetadataResponse;
+    try {
+      response = await input.fetch(url, {
+        redirect: "error",
+        headers: { accept: "application/json" },
+        signal: controller.signal,
+      });
+    } catch {
+      refuse("malformed_metadata", "metadata");
+    }
+    if (!response.ok) refuse("malformed_metadata", "metadata");
+    const type = response.headers.get("content-type") ?? "";
+    if (!type.toLowerCase().includes("json")) {
+      refuse("malformed_metadata", "metadata");
+    }
+    const text = await readBounded(response);
+    return parseSiopMetadata(parseJsonText(text), input.expectedIssuer, {
+      allowLoopbackHttp,
     });
-  } catch {
-    refuse("malformed_metadata", "metadata");
+  } finally {
+    clearTimeout(timer);
   }
-  if (!response.ok) refuse("malformed_metadata", "metadata");
-  const type = response.headers.get("content-type") ?? "";
-  if (!type.toLowerCase().includes("json")) {
-    refuse("malformed_metadata", "metadata");
-  }
-  const text = await response.text();
-  return parseSiopMetadata(readJsonText(text), input.expectedIssuer);
 }

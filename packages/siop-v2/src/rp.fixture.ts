@@ -1,6 +1,7 @@
 import { isSiopV2Error } from "./errors.js";
 import { buildSelfIssuedIdToken } from "./id-token.js";
 import {
+  type CompleteSiopLoginInput,
   SiopRelyingParty,
   type SiopRelyingPartyConfig,
   SiopRpError,
@@ -61,4 +62,25 @@ export async function mint(
 
 export function fragment(idToken: string, state: string): string {
   return `#${new URLSearchParams({ id_token: idToken, state }).toString()}`;
+}
+
+/** What `startLogin` gave back. */
+export type Started = Awaited<ReturnType<SiopRelyingParty["startLogin"]>>;
+
+/**
+ * The completion a well-behaved browser sends for `started`: its own binding,
+ * the redirect_uri it was sent to. `over` changes exactly the fields a case
+ * means to get wrong.
+ */
+export function answerFor(
+  started: Started,
+  idToken: string,
+  over: Partial<CompleteSiopLoginInput> = {},
+): CompleteSiopLoginInput {
+  return {
+    response: fragment(idToken, started.state),
+    binding: started.binding,
+    receivedRedirectUri: REDIRECT,
+    ...over,
+  };
 }

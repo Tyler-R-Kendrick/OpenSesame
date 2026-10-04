@@ -63,13 +63,41 @@ describe("fetchSiopMetadata", () => {
     ]);
   });
 
-  it("honours an explicit metadata URL but still pins the issuer", async () => {
-    const fetch: MetadataFetch = async () => answer(good);
+  it("ties an explicit metadata URL to the issuer's origin", async () => {
+    const seen: string[] = [];
+    const fetch: MetadataFetch = async (url) => {
+      seen.push(url);
+      return answer(good);
+    };
     await expect(
       fetchSiopMetadata({
         fetch,
         expectedIssuer: ISSUER,
-        metadataUrl: "http://127.0.0.1:4173/siop-metadata.json",
+        metadataUrl: `${PROJECT_PAGE.origin}/OpenSesame/siop-metadata.json`,
+      }),
+    ).resolves.toMatchObject({ issuer: ISSUER });
+    // Another origin is a different publisher, however the document reads.
+    expect(
+      await asyncCodeOf(() =>
+        fetchSiopMetadata({
+          fetch,
+          expectedIssuer: ISSUER,
+          metadataUrl: "https://evil.example/siop-metadata.json",
+        }),
+      ),
+    ).toBe("malformed_metadata");
+    expect(seen).toHaveLength(1);
+  });
+
+  it("reads a mirror only when told to, and still pins the issuer", async () => {
+    const fetch: MetadataFetch = async () => answer(good);
+    const mirror = "https://mirror.example/siop-metadata.json";
+    await expect(
+      fetchSiopMetadata({
+        fetch,
+        expectedIssuer: ISSUER,
+        metadataUrl: mirror,
+        allowMirror: true,
       }),
     ).resolves.toMatchObject({ issuer: ISSUER });
     expect(
@@ -77,19 +105,43 @@ describe("fetchSiopMetadata", () => {
         fetchSiopMetadata({
           fetch,
           expectedIssuer: "https://other.example/identity/siop",
+          metadataUrl: mirror,
+          allowMirror: true,
         }),
       ),
     ).toBe("issuer_mismatch");
   });
 
-  it("refuses a metadata URL on plain http to a non-loopback host", async () => {
+  it("refuses plain http unless loopback http is opted into, and then only to loopback", async () => {
     const fetch: MetadataFetch = async () => answer(good);
+    const loopback = "http://127.0.0.1:4173/siop-metadata.json";
+    expect(
+      await asyncCodeOf(() =>
+        fetchSiopMetadata({
+          fetch,
+          expectedIssuer: ISSUER,
+          metadataUrl: loopback,
+          allowMirror: true,
+        }),
+      ),
+    ).toBe("issuer_mismatch");
+    await expect(
+      fetchSiopMetadata({
+        fetch,
+        expectedIssuer: ISSUER,
+        metadataUrl: loopback,
+        allowMirror: true,
+        allowLoopbackHttp: true,
+      }),
+    ).resolves.toMatchObject({ issuer: ISSUER });
     expect(
       await asyncCodeOf(() =>
         fetchSiopMetadata({
           fetch,
           expectedIssuer: ISSUER,
           metadataUrl: "http://rp.example.com/siop-metadata.json",
+          allowMirror: true,
+          allowLoopbackHttp: true,
         }),
       ),
     ).toBe("issuer_mismatch");

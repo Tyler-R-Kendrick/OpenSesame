@@ -3,8 +3,8 @@ import { buildSelfIssuedIdToken } from "./id-token.js";
 import {
   CLIENT,
   ISSUER,
-  REDIRECT,
   T0,
+  answerFor,
   codeOf,
   fragment,
   mint,
@@ -17,38 +17,38 @@ describe("completeLogin — what a hostile or confused response gets", () => {
   it("refuses a wrong nonce and keeps the login open for the real token", async () => {
     const { rp } = relyingParty();
     const keys = await p256Pair();
-    const { state, nonce } = await rp.startLogin();
+    const started = await rp.startLogin();
     expect(
       await codeOf(async () =>
-        rp.completeLogin({
-          response: fragment(await mint(keys, { nonce: "other" }), state),
-        }),
+        rp.completeLogin(
+          answerFor(started, await mint(keys, { nonce: "other" })),
+        ),
       ),
     ).toBe("nonce_mismatch");
-    const result = await rp.completeLogin({
-      response: fragment(await mint(keys, { nonce }), state),
-    });
-    expect(result.state).toBe(state);
+    const result = await rp.completeLogin(
+      answerFor(started, await mint(keys, { nonce: started.nonce })),
+    );
+    expect(result.state).toBe(started.state);
   });
 
   it("closes a login after three failures", async () => {
     const { rp } = relyingParty();
     const keys = await p256Pair();
-    const { state, nonce } = await rp.startLogin();
+    const started = await rp.startLogin();
     for (let attempt = 0; attempt < 3; attempt += 1) {
       expect(
         await codeOf(async () =>
-          rp.completeLogin({
-            response: fragment(await mint(keys, { nonce: "bad" }), state),
-          }),
+          rp.completeLogin(
+            answerFor(started, await mint(keys, { nonce: "bad" })),
+          ),
         ),
       ).toBe("nonce_mismatch");
     }
     expect(
       await codeOf(async () =>
-        rp.completeLogin({
-          response: fragment(await mint(keys, { nonce }), state),
-        }),
+        rp.completeLogin(
+          answerFor(started, await mint(keys, { nonce: started.nonce })),
+        ),
       ),
     ).toBe("login_unknown");
   });
@@ -56,18 +56,18 @@ describe("completeLogin — what a hostile or confused response gets", () => {
   it("refuses another audience", async () => {
     const { rp } = relyingParty();
     const keys = await p256Pair();
-    const { state, nonce } = await rp.startLogin();
+    const started = await rp.startLogin();
     expect(
       await codeOf(async () =>
-        rp.completeLogin({
-          response: fragment(
+        rp.completeLogin(
+          answerFor(
+            started,
             await mint(keys, {
-              nonce,
+              nonce: started.nonce,
               audience: "local_11111111-1111-4111-8111-111111111111",
             }),
-            state,
           ),
-        }),
+        ),
       ),
     ).toBe("audience_mismatch");
   });
@@ -75,59 +75,57 @@ describe("completeLogin — what a hostile or confused response gets", () => {
   it("refuses another issuer, including the static one", async () => {
     const { rp } = relyingParty();
     const keys = await p256Pair();
-    const { state, nonce } = await rp.startLogin();
+    const started = await rp.startLogin();
     expect(
       await codeOf(async () =>
-        rp.completeLogin({
-          response: fragment(
+        rp.completeLogin(
+          answerFor(
+            started,
             await mint(keys, {
-              nonce,
+              nonce: started.nonce,
               issuer: "https://evil.example/OpenSesame/identity/siop",
             }),
-            state,
           ),
-        }),
+        ),
       ),
     ).toBe("issuer_mismatch");
     const staticToken = await buildSelfIssuedIdToken({
       profile: { kind: "static" },
       audience: CLIENT,
-      nonce,
+      nonce: started.nonce,
       publicJwk: keys.publicJwk,
       signingKey: keys.privateKey,
       nowSeconds: Math.floor(T0 / 1000),
     });
     expect(
-      await codeOf(() =>
-        rp.completeLogin({ response: fragment(staticToken, state) }),
-      ),
+      await codeOf(() => rp.completeLogin(answerFor(started, staticToken))),
     ).toBe("issuer_mismatch");
   });
 
   it("refuses an expired token and one from the future", async () => {
     const { rp, clock } = relyingParty({ loginTtlMs: 3_600_000 });
     const keys = await p256Pair();
-    const { state, nonce } = await rp.startLogin();
+    const started = await rp.startLogin();
     clock.now = T0 + 20 * 60_000;
     expect(
       await codeOf(async () =>
-        rp.completeLogin({
-          response: fragment(
-            await mint(keys, { nonce, at: T0, ttl: 60 }),
-            state,
+        rp.completeLogin(
+          answerFor(
+            started,
+            await mint(keys, { nonce: started.nonce, at: T0, ttl: 60 }),
           ),
-        }),
+        ),
       ),
     ).toBe("token_expired");
     clock.now = T0 + 60_000;
     expect(
       await codeOf(async () =>
-        rp.completeLogin({
-          response: fragment(
-            await mint(keys, { nonce, at: T0 + 3_600_000 }),
-            state,
+        rp.completeLogin(
+          answerFor(
+            started,
+            await mint(keys, { nonce: started.nonce, at: T0 + 3_600_000 }),
           ),
-        }),
+        ),
       ),
     ).toBe("token_not_fresh");
   });
@@ -136,73 +134,63 @@ describe("completeLogin — what a hostile or confused response gets", () => {
     const { rp } = relyingParty();
     const keys = await p256Pair();
     const attacker = await p256Pair();
-    const { state, nonce } = await rp.startLogin();
-    const good = await mint(keys, { nonce });
+    const started = await rp.startLogin();
+    const good = await mint(keys, { nonce: started.nonce });
     const flipped = `${good.slice(0, -4)}${good.endsWith("AAAA") ? "BBBB" : "AAAA"}`;
     expect(
-      await codeOf(() =>
-        rp.completeLogin({ response: fragment(flipped, state) }),
-      ),
+      await codeOf(() => rp.completeLogin(answerFor(started, flipped))),
     ).toBe("signature_invalid");
     // The attacker advertises the victim's sub_jwk but signs with their own key.
     const forged = await buildSelfIssuedIdToken({
       profile: { kind: "dynamic", issuer: ISSUER },
       audience: CLIENT,
-      nonce,
+      nonce: started.nonce,
       publicJwk: keys.publicJwk,
       signingKey: attacker.privateKey,
       nowSeconds: Math.floor(T0 / 1000),
     });
     expect(
-      await codeOf(() =>
-        rp.completeLogin({ response: fragment(forged, state) }),
-      ),
+      await codeOf(() => rp.completeLogin(answerFor(started, forged))),
     ).toBe("signature_invalid");
   });
 
   it("refuses a response that arrives at a different redirect_uri", async () => {
     const { rp } = relyingParty();
     const keys = await p256Pair();
-    const { state, nonce } = await rp.startLogin();
-    const response = fragment(await mint(keys, { nonce }), state);
-    expect(
-      await codeOf(() =>
-        rp.completeLogin({
-          response,
-          receivedRedirectUri: "https://rp.example/other-callback",
-        }),
-      ),
-    ).toBe("redirect_mismatch");
-    expect(
-      await codeOf(() =>
-        rp.completeLogin({
-          response,
-          receivedRedirectUri: "https://evil.example/callback",
-        }),
-      ),
-    ).toBe("redirect_mismatch");
-    const result = await rp.completeLogin({
-      response,
-      receivedRedirectUri: REDIRECT,
-    });
-    expect(result.state).toBe(state);
+    const started = await rp.startLogin();
+    const token = await mint(keys, { nonce: started.nonce });
+    for (const receivedRedirectUri of [
+      "https://rp.example/other-callback",
+      "https://evil.example/callback",
+    ]) {
+      expect(
+        await codeOf(() =>
+          rp.completeLogin(answerFor(started, token, { receivedRedirectUri })),
+        ),
+        receivedRedirectUri,
+      ).toBe("redirect_mismatch");
+    }
+    const result = await rp.completeLogin(answerFor(started, token));
+    expect(result.state).toBe(started.state);
   });
 
   it("refuses a state it never issued, and no state at all", async () => {
     const { rp } = relyingParty();
     const keys = await p256Pair();
+    const started = await rp.startLogin();
+    const token = await mint(keys, { nonce: "n" });
     expect(
-      await codeOf(async () =>
-        rp.completeLogin({
-          response: fragment(await mint(keys, { nonce: "n" }), "nope"),
-        }),
+      await codeOf(() =>
+        rp.completeLogin(
+          answerFor(started, token, { response: fragment(token, "nope") }),
+        ),
       ),
     ).toBe("login_unknown");
     expect(
-      await codeOf(async () =>
-        rp.completeLogin({
-          response: `#id_token=${await mint(keys, { nonce: "n" })}`,
-        }),
+      await codeOf(() =>
+        rp.completeLogin(
+          answerFor(started, token, { response: `#id_token=${token}` }),
+        ),
       ),
     ).toBe("missing_state");
   });
@@ -210,23 +198,28 @@ describe("completeLogin — what a hostile or confused response gets", () => {
   it("refuses a login that waited past its lifetime", async () => {
     const { rp, clock } = relyingParty({ loginTtlMs: 60_000 });
     const keys = await p256Pair();
-    const { state, nonce } = await rp.startLogin();
+    const started = await rp.startLogin();
     clock.now = T0 + 61_000;
     expect(
       await codeOf(async () =>
-        rp.completeLogin({
-          response: fragment(await mint(keys, { nonce, at: clock.now }), state),
-        }),
+        rp.completeLogin(
+          answerFor(
+            started,
+            await mint(keys, { nonce: started.nonce, at: clock.now }),
+          ),
+        ),
       ),
     ).toBe("login_expired");
   });
 
-  it("reports an OP error and closes the login", async () => {
+  it("reports an OP error to the browser that started the login, and closes it", async () => {
     const { rp } = relyingParty();
-    const { state } = await rp.startLogin();
-    const denied = `#error=access_denied&state=${state}`;
+    const started = await rp.startLogin();
+    const denied = answerFor(started, "unused", {
+      response: `#error=access_denied&state=${started.state}`,
+    });
     try {
-      await rp.completeLogin({ response: denied });
+      await rp.completeLogin(denied);
       expect.unreachable("expected provider_error");
     } catch (error) {
       expect(error).toBeInstanceOf(SiopRpError);
@@ -235,18 +228,19 @@ describe("completeLogin — what a hostile or confused response gets", () => {
         expect(error.providerError).toBe("access_denied");
       }
     }
-    expect(await codeOf(() => rp.completeLogin({ response: denied }))).toBe(
-      "login_unknown",
-    );
+    expect(await codeOf(() => rp.completeLogin(denied))).toBe("login_unknown");
   });
 
   it("refuses a response that is not a fragment response at all", async () => {
     const { rp } = relyingParty();
-    expect(
-      await codeOf(() => rp.completeLogin({ response: "#nothing=here" })),
-    ).toBe("malformed_request");
-    expect(await codeOf(() => rp.completeLogin({ response: "" }))).toBe(
-      "malformed_request",
-    );
+    const started = await rp.startLogin();
+    for (const response of ["#nothing=here", ""]) {
+      expect(
+        await codeOf(() =>
+          rp.completeLogin(answerFor(started, "unused", { response })),
+        ),
+        response,
+      ).toBe("malformed_request");
+    }
   });
 });

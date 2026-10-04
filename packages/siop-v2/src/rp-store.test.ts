@@ -9,6 +9,7 @@ import {
 
 const LOGIN: PendingSiopLogin = {
   clientId: "local_00000000-0000-4000-8000-000000000001",
+  binding: "browser-secret",
   nonce: "n",
   redirectUri: "https://rp.example/callback",
   createdAtMs: 1_000,
@@ -19,6 +20,10 @@ function memoryStorage(): LoginStorage & { entries: Map<string, string> } {
   const entries = new Map<string, string>();
   return {
     entries,
+    get length() {
+      return entries.size;
+    },
+    key: (index) => [...entries.keys()][index] ?? null,
     getItem: (key) => entries.get(key) ?? null,
     setItem: (key, value) => {
       entries.set(key, value);
@@ -32,26 +37,36 @@ function memoryStorage(): LoginStorage & { entries: Map<string, string> } {
 describe("MemoryLoginStore", () => {
   it("hands a login to exactly one taker", () => {
     const store = new MemoryLoginStore();
-    store.put("s", LOGIN);
+    expect(store.put("s", LOGIN)).toBe(true);
     expect(store.take("s")).toEqual(LOGIN);
     expect(store.take("s")).toBeUndefined();
   });
 
   it("drops logins older than its lifetime when another arrives", () => {
-    const store = new MemoryLoginStore(100, 1_000);
+    const store = new MemoryLoginStore(100, 1_000, () => 5_000);
     store.put("old", LOGIN);
     store.put("new", { ...LOGIN, createdAtMs: 5_000 });
     expect(store.size).toBe(1);
     expect(store.take("old")).toBeUndefined();
   });
 
-  it("never holds more than its bound", () => {
-    const store = new MemoryLoginStore(2);
-    for (const state of ["a", "b", "c"]) {
-      store.put(state, LOGIN);
-    }
+  it("refuses at its bound instead of evicting a live login", () => {
+    const store = new MemoryLoginStore(2, 60_000, () => 1_000);
+    expect(store.put("a", LOGIN)).toBe(true);
+    expect(store.put("b", LOGIN)).toBe(true);
+    expect(store.put("c", LOGIN)).toBe(false);
     expect(store.size).toBe(2);
-    expect(store.take("a")).toBeUndefined();
+    expect(store.take("a")).toEqual(LOGIN);
+    expect(store.put("c", LOGIN)).toBe(true);
+  });
+
+  it("lets a login that was taken come back when it is put again", () => {
+    const store = new MemoryLoginStore(1, 60_000, () => 1_000);
+    store.put("a", LOGIN);
+    const taken = store.take("a");
+    expect(taken).toBeDefined();
+    expect(store.put("a", { ...LOGIN, attempts: 1 })).toBe(true);
+    expect(store.take("a")?.attempts).toBe(1);
   });
 });
 
@@ -86,7 +101,7 @@ describe("StorageLoginStore", () => {
   it("round-trips a login and removes it on take", () => {
     const storage = memoryStorage();
     const store = new StorageLoginStore(storage);
-    store.put("s", LOGIN);
+    expect(store.put("s", LOGIN)).toBe(true);
     expect(storage.entries.size).toBe(1);
     expect(store.take("s")).toEqual(LOGIN);
     expect(storage.entries.size).toBe(0);
@@ -109,17 +124,20 @@ describe("StorageLoginStore", () => {
     );
     expect(store.take("wrong-types")).toBeUndefined();
     storage.setItem("siop-rp:login:partial", JSON.stringify({ nonce: "n" }));
-    storage.setItem(
-      "siop-rp:login:no-client",
-      JSON.stringify({
-        nonce: "n",
-        redirectUri: "https://rp.example/callback",
-        createdAtMs: 1,
-        attempts: 0,
-      }),
-    );
-    expect(store.take("no-client")).toBeUndefined();
     expect(store.take("partial")).toBeUndefined();
+    for (const missing of ["clientId", "binding"]) {
+      const { [missing as "clientId" | "binding"]: _omitted, ...rest } = LOGIN;
+      storage.setItem(`siop-rp:login:no-${missing}`, JSON.stringify(rest));
+      expect(store.take(`no-${missing}`)).toBeUndefined();
+    }
     expect(storage.entries.size).toBe(0);
+  });
+
+  it("sweeps entries it cannot read when it makes room", () => {
+    const storage = memoryStorage();
+    const store = new StorageLoginStore(storage, 2, 60_000, () => 1_000);
+    storage.setItem("siop-rp:login:junk", "{broken");
+    expect(store.put("a", LOGIN)).toBe(true);
+    expect(storage.entries.has("siop-rp:login:junk")).toBe(false);
   });
 });

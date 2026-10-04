@@ -11,9 +11,12 @@ import {
   serializePagesSiopMetadata,
   siopMetadataUrl,
 } from "./discovery.js";
+import { decodeBase64url } from "./encoding.js";
 import { isSiopV2Error } from "./errors.js";
+import { buildSelfIssuedIdToken } from "./id-token.js";
 import { SUPPORT_MATRIX } from "./index.js";
 import { STATIC_SIOP_METADATA } from "./issuer.js";
+import { p256Pair } from "./test-keys.js";
 
 const PROJECT_PAGE = {
   origin: "https://tyler-r-kendrick.github.io",
@@ -168,17 +171,23 @@ describe("buildPagesSiopMetadata", () => {
     expect(SIOP_DRAFT).toBe(SUPPORT_MATRIX.specification.draft);
   });
 
-  it("lists the claims the Pages issuer actually mints", () => {
-    expect(PAGES_SIOP_EXTENSION.id_token_claims).toEqual([
-      "iss",
-      "sub",
-      "aud",
-      "nonce",
-      "exp",
-      "iat",
-      "sub_jwk",
-      "i_am_siop",
-    ]);
+  it("lists exactly the claims the Pages issuer mints", async () => {
+    // Pages mints with `buildSelfIssuedIdToken` on the dynamic profile
+    // (`siop-authority.ts`); read the claims off a real one.
+    const keys = await p256Pair();
+    const token = await buildSelfIssuedIdToken({
+      profile: { kind: "dynamic", issuer: ISSUER },
+      audience: "local_00000000-0000-4000-8000-000000000001",
+      nonce: "n",
+      publicJwk: keys.publicJwk,
+      signingKey: keys.privateKey,
+    });
+    const payload = JSON.parse(
+      new TextDecoder().decode(decodeBase64url(token.split(".")[1] ?? "")),
+    );
+    expect(Object.keys(payload).sort()).toEqual(
+      [...PAGES_SIOP_EXTENSION.id_token_claims].sort(),
+    );
   });
 
   it("serializes to stable bytes that parse back to the same document", () => {

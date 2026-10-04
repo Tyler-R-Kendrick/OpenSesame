@@ -73,8 +73,10 @@ export {
 export {
   type AcceptedSiopMetadata,
   type FetchSiopMetadataInput,
+  type MetadataBodyReader,
   type MetadataFetch,
   type MetadataResponse,
+  type SiopMetadataOptions,
   type PagesOrigin,
   type PagesSiopMetadata,
   DEFAULT_METADATA_TIMEOUT_MS,
@@ -113,9 +115,11 @@ export {
   DEFAULT_LOGIN_TTL_MS,
   DEFAULT_MAX_LEDGER_ENTRIES,
   DEFAULT_MAX_PENDING_LOGINS,
+  DEFAULT_MAX_STORED_LOGINS,
   MemoryLoginStore,
   MemoryReplayLedger,
   StorageLoginStore,
+  readLogin,
 } from "./rp-store.js";
 
 export { readAudience } from "./audience.js";

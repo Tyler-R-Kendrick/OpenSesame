@@ -6,8 +6,15 @@
  * Both are interfaces because the right home differs: a Node process behind
  * one instance keeps them in memory, several instances share a store with an
  * atomic get-and-delete (`GETDEL`, `DELETE ... RETURNING`), and a browser SPA
- * keeps them in `sessionStorage` because the redirect is a full navigation.
- * The memory implementations are bounded; none grows without limit.
+ * keeps its one pending login in the tab's storage because the redirect is a
+ * full navigation.
+ *
+ * Every implementation here is bounded, and a full pending-login store
+ * **refuses** a new login instead of evicting a live one: an attacker who can
+ * start logins must not be able to push a victim's out. Expired logins are
+ * pruned first, from the oldest end, so a call costs the entries it removes
+ * and not the entries it holds. The replay ledger, by contrast, evicts its
+ * oldest entry when full: it only ever records tokens that already verified.
  */
 
 import {
@@ -20,6 +27,8 @@ import {
 export type PendingSiopLogin = {
   /** The application id this login asked for: the one `aud` must be. */
   readonly clientId: string;
+  /** The secret of the browser that started this login. */
+  readonly binding: string;
   readonly nonce: string;
   /** The exact redirect_uri this login sent; the response must arrive there. */
   readonly redirectUri: string;
@@ -29,7 +38,11 @@ export type PendingSiopLogin = {
 };
 
 export interface SiopLoginStore {
-  put(state: string, login: PendingSiopLogin): void | Promise<void>;
+  /**
+   * Keep a login. `false` means the store is full of live logins and refused
+   * it; the caller must not start the login.
+   */
+  put(state: string, login: PendingSiopLogin): boolean | Promise<boolean>;
   /**
    * Remove and return a login, atomically. Two concurrent calls for one state
    * must not both receive it: that single-winner property *is* the replay
@@ -53,39 +66,45 @@ export interface SiopReplayLedger {
 
 export const DEFAULT_MAX_PENDING_LOGINS = 10_000;
 export const DEFAULT_MAX_LEDGER_ENTRIES = 50_000;
+export const DEFAULT_MAX_STORED_LOGINS = 16;
 export const DEFAULT_LOGIN_TTL_MS = 10 * 60 * 1000;
 
-/** Pending logins in one process, oldest evicted first once full. */
+/** Pending logins in one process; full means refused, never evicted. */
 export class MemoryLoginStore implements SiopLoginStore {
   readonly #pending = new Map<string, PendingSiopLogin>();
   readonly #max: number;
   readonly #ttlMs: number;
+  readonly #now: () => number;
 
   constructor(
     maxEntries = DEFAULT_MAX_PENDING_LOGINS,
     ttlMs = DEFAULT_LOGIN_TTL_MS,
+    now: () => number = () => Date.now(),
   ) {
     this.#max = maxEntries;
     this.#ttlMs = ttlMs;
+    this.#now = now;
   }
 
   get size(): number {
     return this.#pending.size;
   }
 
-  put(state: string, login: PendingSiopLogin): void {
+  /** Drop expired logins from the oldest end, and stop at the first live one. */
+  #pruneExpired(): void {
+    const nowMs = this.#now();
+    for (const [state, held] of this.#pending) {
+      if (nowMs - held.createdAtMs <= this.#ttlMs) return;
+      this.#pending.delete(state);
+    }
+  }
+
+  put(state: string, login: PendingSiopLogin): boolean {
     this.#pending.delete(state);
-    for (const [key, held] of this.#pending) {
-      if (login.createdAtMs - held.createdAtMs > this.#ttlMs) {
-        this.#pending.delete(key);
-      }
-    }
-    while (this.#pending.size >= this.#max) {
-      const oldest = this.#pending.keys().next();
-      if (oldest.done === true) break;
-      this.#pending.delete(oldest.value);
-    }
+    this.#pruneExpired();
+    if (this.#pending.size >= this.#max) return false;
     this.#pending.set(state, login);
+    return true;
   }
 
   take(state: string): PendingSiopLogin | undefined {
@@ -108,7 +127,9 @@ export class MemoryReplayLedger implements SiopReplayLedger {
     return this.#seen.size;
   }
 
-  #prune(nowMs: number): void {
+  /** Only at capacity: drop what has expired, then the oldest if still full. */
+  #makeRoom(nowMs: number): void {
+    if (this.#seen.size < this.#max) return;
     for (const [key, expiresAtMs] of this.#seen) {
       if (expiresAtMs <= nowMs) this.#seen.delete(key);
     }
@@ -121,7 +142,7 @@ export class MemoryReplayLedger implements SiopReplayLedger {
 
   claim(key: string, expiresAtMs: number, nowMs: number): boolean {
     if (this.has(key, nowMs)) return false;
-    this.#prune(nowMs);
+    this.#makeRoom(nowMs);
     this.#seen.set(key, expiresAtMs);
     return true;
   }
@@ -139,6 +160,8 @@ export class MemoryReplayLedger implements SiopReplayLedger {
 
 /** The slice of `Storage` a browser relying party needs. */
 export type LoginStorage = {
+  readonly length: number;
+  key(index: number): string | null;
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
@@ -146,7 +169,8 @@ export type LoginStorage = {
 
 const STORAGE_PREFIX = "siop-rp:login:";
 
-function readLogin(raw: string): PendingSiopLogin | undefined {
+/** A stored login read back, or undefined when it is not one. */
+export function readLogin(raw: string): PendingSiopLogin | undefined {
   let parsed: JsonValue;
   try {
     parsed = JSON.parse(raw);
@@ -154,9 +178,11 @@ function readLogin(raw: string): PendingSiopLogin | undefined {
     return undefined;
   }
   if (!isJsonObject(parsed)) return undefined;
-  const { clientId, nonce, redirectUri, createdAtMs, attempts } = parsed;
+  const { clientId, binding, nonce, redirectUri, createdAtMs, attempts } =
+    parsed;
   if (
     !isString(clientId) ||
+    !isString(binding) ||
     !isString(nonce) ||
     !isString(redirectUri) ||
     !isNumber(createdAtMs) ||
@@ -164,23 +190,61 @@ function readLogin(raw: string): PendingSiopLogin | undefined {
   ) {
     return undefined;
   }
-  return { clientId, nonce, redirectUri, createdAtMs, attempts };
+  return { clientId, binding, nonce, redirectUri, createdAtMs, attempts };
 }
 
 /**
- * Pending logins in `sessionStorage` (or any `Storage`-shaped object), for a
- * single-page relying party whose redirect is a full page navigation. A
- * browser tab is single-threaded, so read-then-remove is atomic here.
+ * Pending logins in a `Storage`-shaped object a page can read synchronously
+ * (a test, an embedder's own store). Bounded like the memory store: a `put`
+ * prunes what has expired, then refuses when `maxEntries` live logins are
+ * kept. A browser tab is single-threaded, so read-then-remove is atomic here.
+ * A page that must not leave a login in the clear seals its store instead
+ * (`examples/siop-rp/src/spa` uses `@opensesame/browser-at-rest`).
  */
 export class StorageLoginStore implements SiopLoginStore {
   readonly #storage: LoginStorage;
+  readonly #max: number;
+  readonly #ttlMs: number;
+  readonly #now: () => number;
 
-  constructor(storage: LoginStorage) {
+  constructor(
+    storage: LoginStorage,
+    maxEntries = DEFAULT_MAX_STORED_LOGINS,
+    ttlMs = DEFAULT_LOGIN_TTL_MS,
+    now: () => number = () => Date.now(),
+  ) {
     this.#storage = storage;
+    this.#max = maxEntries;
+    this.#ttlMs = ttlMs;
+    this.#now = now;
   }
 
-  put(state: string, login: PendingSiopLogin): void {
-    this.#storage.setItem(`${STORAGE_PREFIX}${state}`, JSON.stringify(login));
+  #ownKeys(): string[] {
+    const keys: string[] = [];
+    for (let index = 0; index < this.#storage.length; index += 1) {
+      const key = this.#storage.key(index);
+      if (key?.startsWith(STORAGE_PREFIX)) keys.push(key);
+    }
+    return keys;
+  }
+
+  put(state: string, login: PendingSiopLogin): boolean {
+    const mine = `${STORAGE_PREFIX}${state}`;
+    this.#storage.removeItem(mine);
+    const nowMs = this.#now();
+    let live = 0;
+    for (const key of this.#ownKeys()) {
+      const raw = this.#storage.getItem(key);
+      const held = raw === null ? undefined : readLogin(raw);
+      if (held === undefined || nowMs - held.createdAtMs > this.#ttlMs) {
+        this.#storage.removeItem(key);
+      } else {
+        live += 1;
+      }
+    }
+    if (live >= this.#max) return false;
+    this.#storage.setItem(mine, JSON.stringify(login));
+    return true;
   }
 
   take(state: string): PendingSiopLogin | undefined {
