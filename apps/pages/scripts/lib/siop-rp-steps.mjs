@@ -83,21 +83,52 @@ export async function answer(page, personName, rpOrigin, how = "allow") {
   await Promise.all([leaves(), allow.click()]);
 }
 
+const ERROR_PAGE = "chrome-error:";
+const SETTLE_TIMEOUT = 15_000;
+
 /**
- * `page.goto` after a navigation this journey itself aborted: the aborted one
- * lands on the browser's error page and can cut the next one short.
+ * Wait until the browser has committed the error page for a navigation that
+ * failed at the network (the hop after the RP's 302 is made by the network
+ * stack and, here, cannot be resolved). Until it has, that commit is itself a
+ * navigation to the failed URL, and a `goto` to the same URL races it and is
+ * "interrupted by another navigation". Waiting for the commit, not for a
+ * retry, is what makes the next `goto` deterministic.
+ */
+export async function settleFailedNavigation(page) {
+  if (page.url().startsWith(ERROR_PAGE)) return;
+  await page
+    .waitForEvent("framenavigated", {
+      predicate: (frame) =>
+        frame === page.mainFrame() && frame.url().startsWith(ERROR_PAGE),
+      timeout: SETTLE_TIMEOUT,
+    })
+    .catch((failure) => {
+      // The commit may have landed between the check and the listener.
+      if (!page.url().startsWith(ERROR_PAGE)) {
+        throw new Error(
+          `the failed navigation never settled on the browser's error page within ${SETTLE_TIMEOUT / 1000}s (at ${page.url()}): ${failure.message}`,
+        );
+      }
+    });
+}
+
+/**
+ * `page.goto` after a navigation this journey itself let fail: settle the error
+ * page first, then go. If the browser reports the goto was interrupted by
+ * another navigation, that is a success when the other navigation is to this
+ * same URL (it is the navigation we asked for, begun by something else first),
+ * so wait for the page to be there, bounded; any other interruption fails.
  */
 export async function gotoAfterAbort(page, url) {
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      await page.goto(url);
-      return;
-    } catch (failure) {
-      const interrupted = /interrupted by another navigation/.test(
-        failure.message,
-      );
-      if (!interrupted || attempt === 3) throw failure;
-    }
+  await settleFailedNavigation(page);
+  try {
+    await page.goto(url);
+  } catch (failure) {
+    const toSameUrl =
+      /interrupted by another navigation/.test(failure.message) &&
+      failure.message.includes(`to "${url}"`);
+    if (!toSameUrl) throw failure;
+    await page.waitForURL(url, { timeout: SETTLE_TIMEOUT });
   }
 }
 

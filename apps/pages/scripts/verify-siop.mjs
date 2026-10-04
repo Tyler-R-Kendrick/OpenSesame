@@ -263,6 +263,19 @@ try {
     passthrough: [rpUrl],
   });
   await routeRp(context);
+  // A diagnostic, not part of the gate: `VERIFY_SIOP_PAGES_DELAY_MS=300` holds
+  // every *page* (navigation) the harness serves for Pages, to reproduce on a
+  // fast machine the ordering a slow runner produces. It falls through to the
+  // harness; assets are not held, so a run stays inside its time budget.
+  const delayMs = Number(process.env.VERIFY_SIOP_PAGES_DELAY_MS ?? 0);
+  if (delayMs > 0) {
+    await context.route(`${origin}/**`, async (route) => {
+      if (route.request().isNavigationRequest()) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+      await route.fallback();
+    });
+  }
   const { identities, credentials } = await timed("seed fixture", () =>
     seedSiopFixture(context, siopFixture, redirectUris),
   );
