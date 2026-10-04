@@ -147,10 +147,11 @@ describe("what a tutorial needs before it is offered", () => {
     expect(ids({ holds: () => true })).toContain("app.install");
   });
 
-  it("offers the email and text code tour only with a sign-in service", () => {
-    const holds = (predicate: string) =>
-      predicate !== "signin-service.configured";
-    expect(ids({ holds })).not.toContain("vault.second-step.code");
+  it("offers the email and text code tour only with a sign-in service and an enrolled key", () => {
+    for (const missing of ["signin-service.configured", "vault.key-enrolled"]) {
+      const holds = (predicate: string) => predicate !== missing;
+      expect(ids({ holds })).not.toContain("vault.second-step.code");
+    }
     expect(ids({ holds: () => true })).toContain("vault.second-step.code");
   });
 

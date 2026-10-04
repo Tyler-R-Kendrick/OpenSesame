@@ -303,21 +303,22 @@ new sources (no `vi.mock`, no bare `typeof`, no unexplained assertions, no
 with the new packages in the graph.
 
 The build's own output was also inspected once, by hand, because the
-source-graph tests (`rendering-contract.test.ts`, `bundle-hygiene.test.ts`)
-prove the *imports* are dynamic and not that the bundler honoured them. In the
-build measured here the entry chunk is `assets/index-*.js`; Driver.js is
-emitted as its own chunk plus a separate hints chunk and two stylesheets, and
-the string `driver-popover` appears in neither the entry chunk nor anything it
-statically imports. The AG-UI adapter is a small separate chunk reached through
-a `__vite__mapDeps` dynamic import, and the library closure that carries the
-AG-UI event vocabulary is a further chunk the entry does not name at all.
-(ADR 0163 later removed Driver.js: the tutorial card is a lazy React chunk
-loaded the first time a tutorial has a step to draw, behind the same `lazy`
-boundary as the panel.)
+source-graph test (`packages/app-core/src/tutorial/agents/ag-ui/bundle-hygiene.test.ts`)
+proves the *imports* are dynamic and not that the bundler honoured them. In the
+build measured here the entry chunk is `assets/index-*.js`. The AG-UI adapter
+is a small separate chunk reached through a `__vite__mapDeps` dynamic import,
+and the library closure that carries the AG-UI event vocabulary is a further
+chunk the entry does not name at all. That build still shipped Driver.js as
+its own chunk, a separate hints chunk and two stylesheets, none of them
+statically imported by the entry. ADR 0163 has since removed Driver.js, along
+with its `rendering/` adapter and `rendering-contract.test.ts`: the tutorial
+card is a lazy React chunk loaded the first time a tutorial has a step to
+draw, behind the same `lazy` boundary as the panel, and
+`pnpm --filter @opensesame/pages verify:tutorials` walks it in a real browser.
 
 **Residual gap.** That inspection is manual and one-off. Nothing in CI asserts
-it, so a bundler configuration change could pull either library into the boot
-chunk without failing a build or a test. A chunk-composition assertion is the
+it, so a bundler configuration change could pull the AG-UI library or the
+coach chunk into the boot chunk without failing a build or a test. A chunk-composition assertion is the
 missing gate, and the hashed filenames quoted above are specific to that build
 rather than stable identifiers to assert against.
 

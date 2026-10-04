@@ -54,7 +54,7 @@ export const FEATURE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "feature.certificates",
     description:
-      "The Certificate authority section of Settings › Capabilities: its switch adds issuing certificates and keeping them as vault records.",
+      "The Certificate authority section of Settings › Capabilities: the authorities this installation can connect to, each by reference. It has no switch unless a plan already approves it.",
     role: "surface",
     routes: ["/settings"],
     capabilityId: null,
@@ -182,7 +182,7 @@ export const FEATURE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "feature.telemetry",
     description:
-      "The Telemetry section of Settings › Capabilities: its switch sends anonymous usage and error telemetry to an operator's collector, and is off until chosen.",
+      "The Telemetry section of Settings › Capabilities: anonymous usage and error telemetry to an operator's collector, off until chosen. It has no switch unless a plan already approves it.",
     role: "surface",
     routes: ["/settings"],
     capabilityId: null,

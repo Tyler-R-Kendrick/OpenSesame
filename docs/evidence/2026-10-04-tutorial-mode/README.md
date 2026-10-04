@@ -1,6 +1,6 @@
 # Tutorial mode — before / after
 
-Two real builds walked the same way: `origin/main` (Driver.js bubble) and this branch (tutorial mode, ADR 0160). Guest vault, the *Lock the vault* tutorial, Next pressed twice. Desktop is 1280×800 with a mouse, phone is 390×844 with touch. Measurements come from the browser (`.coach__card` / `.driver-popover` box); the full interaction contract is checked by `pnpm --filter @opensesame/pages verify:tutorials` (62 tutorials, both widths, 6608 checks, 0 failed).
+Two real builds walked the same way: `origin/main` (Driver.js bubble) and this branch (tutorial mode, ADR 0163). Guest vault, the *Lock the vault* tutorial, Next pressed twice. Desktop is 1280×800 with a mouse, phone is 390×844 with touch. Measurements come from the browser (`.coach__card` / `.driver-popover` box); the full interaction contract is checked by `pnpm --filter @opensesame/pages verify:tutorials` (62 tutorials, both widths, 6608 checks, 0 failed).
 
 Reproduce: `docs/evidence/2026-10-04-tutorial-mode/journey.json` with `apps/pages/scripts/capture-evidence.mjs` (verbs `supportOpen`, `tutorialsTab`, `tour`, `tourNext`, `tourMeasure`).
 

@@ -183,7 +183,7 @@ export type TutorialGroup = {
  * Tours navigate where they are going, so from the shell they start from
  * anywhere. A goal that names only screens with no shell (the gates, which a
  * guide may wait on but never navigate to) is not offered: the Support sheet
- * is never mounted there, so nothing could start it (ADR 0090, ADR 0161 §4).
+ * is never mounted there, so nothing could start it (ADR 0090, ADR 0163 §4).
  */
 export function tutorialStartsFrom(
   goal: GuideGoalDescriptor,

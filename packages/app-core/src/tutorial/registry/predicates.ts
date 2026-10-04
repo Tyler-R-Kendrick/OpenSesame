@@ -17,6 +17,7 @@ import { describeAccount } from "../../lib/account.js";
 import { isRemoteIdentityConfigured } from "../../lib/device-identity.js";
 import { currentSession } from "../../lib/identity.js";
 import { vaultStore } from "../../lib/vault/store.js";
+import { listAvailableUnlockMethods } from "../../lib/vault/unlock-methods.js";
 import { isOnline, page } from "../../ports.js";
 import {
   type GuideRouteId,
@@ -137,6 +138,13 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
     description:
       "A sign-in service address is set, so email and text codes can be sent.",
     read: isRemoteIdentityConfigured,
+  },
+  {
+    id: "vault.key-enrolled",
+    description:
+      "This vault has a key enrolled (password, PIN or passkey), so a second step has a key to guard.",
+    read: () =>
+      listAvailableUnlockMethods(vaultStore.getSnapshot().header).length > 0,
   },
   {
     id: "install.offered",

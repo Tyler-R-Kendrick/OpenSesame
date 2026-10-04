@@ -6,9 +6,9 @@
  * feature tour is the same walk every time and cannot depend on the feature
  * being on: it navigates to the page, points at the section heading, and says
  * in a closing step what appears once the switch is. The sections that already
- * have a task-shaped tour — Backups, Networking, Notifications, AI, Browser
- * autofill, Surrogate credentials — are not repeated here; `feature-tours.ts`
- * says which tutorial a feature opens.
+ * have a task-shaped tour — Backups, Networking, Notifications, Local
+ * notifications, AI, Browser autofill, Surrogate credentials — are not
+ * repeated here; `FEATURE_TUTORIALS` below says which tutorial a feature opens.
  *
  * Authored, checked-in prose; compiled by the same parser and validator model
  * output goes through (ADR 0088).
@@ -109,18 +109,18 @@ export const FEATURE_GOALS: readonly GuideGoalDescriptor[] = [
   },
   {
     id: "feature.certificates",
-    title: "Turn on the certificate authority",
+    title: "Connect a certificate authority",
     routes: ["/settings"],
     libraryOnly: true,
     guide: [
       "guide/1",
       'goal "feature.certificates"',
-      'say "Certificate authority issues certificates from a connected authority and keeps them as certificate records in the vault."',
+      'say "Certificate authority lists the authorities this installation can connect to — Let\'s Encrypt, ZeroSSL and Cloudflare Origin CA."',
       'navigate "/settings/capabilities"',
       'wait route "/settings/capabilities" timeout=15000',
       'scroll "feature.certificates"',
-      'focus "feature.certificates" "The Certificate authority section. Its switch adds issuing; the tiles under it are the authorities you can connect — Let\'s Encrypt, ZeroSSL and Cloudflare Origin CA." side=bottom',
-      'say "Issued certificates are items in the vault like any other. A certificate whose key left the device is not renewed for you."',
+      'focus "feature.certificates" "The Certificate authority section. Each tile opens that authority\'s page, where it is connected by reference." side=bottom',
+      'say "Nothing is sent to an authority until you connect it. Certificates themselves are vault items, added from the vault."',
       'success "That is the certificate authority."',
       "end",
     ].join("\n"),
@@ -271,7 +271,7 @@ export const FEATURE_GOALS: readonly GuideGoalDescriptor[] = [
   },
   {
     id: "feature.telemetry",
-    title: "Turn on Telemetry",
+    title: "Telemetry",
     routes: ["/settings"],
     libraryOnly: true,
     guide: [
@@ -281,8 +281,8 @@ export const FEATURE_GOALS: readonly GuideGoalDescriptor[] = [
       'navigate "/settings/capabilities"',
       'wait route "/settings/capabilities" timeout=15000',
       'scroll "feature.telemetry"',
-      'focus "feature.telemetry" "The Telemetry section. Its switch is the whole choice: off, nothing is sent." side=bottom',
-      'say "A deployment with no collector configured has nowhere to send anything, whatever the switch says."',
+      'focus "feature.telemetry" "The Telemetry section. Nothing is sent unless it is chosen and a collector is configured." side=bottom',
+      'say "A deployment with no collector configured has nowhere to send anything."',
       'success "That is Telemetry."',
       "end",
     ].join("\n"),

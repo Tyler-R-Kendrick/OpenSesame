@@ -89,7 +89,12 @@ describe("locking while support is busy", { timeout: 30_000 }, () => {
     // The provider session that saw the transcript went with it.
     expect(journey.agentDestroyed()).toBe(true);
     // One highlight was ever drawn, and the overlays came down with the keys.
-    expect(journey.drawn().filter((call) => call.kind === "focus")).toEqual([
+    // A clear and a scroll are legitimate; a stray hint or annotate is not.
+    expect(
+      journey
+        .drawn()
+        .filter((call) => call.kind !== "clear" && call.kind !== "scroll"),
+    ).toEqual([
       {
         kind: "focus",
         target: "nav.connections",

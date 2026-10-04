@@ -6,6 +6,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { accountSeams } from "../../lib/account.js";
 import { deviceIdentitySeams } from "../../lib/device-identity.js";
 import { vaultStore } from "../../lib/vault/store.js";
+import { unlockMethodsSeams } from "../../lib/vault/unlock-methods.js";
 import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
 import {
   GUIDE_PREDICATES,
@@ -138,6 +139,18 @@ describe("reading a predicate", () => {
       expect(readGuidePredicate("signin-service.configured")).toBe(true);
     } finally {
       deviceIdentitySeams.remoteIdentityApi = real;
+    }
+  });
+
+  it("says whether the vault has a key enrolled", () => {
+    const real = unlockMethodsSeams.listAvailableUnlockMethods;
+    try {
+      unlockMethodsSeams.listAvailableUnlockMethods = () => [];
+      expect(readGuidePredicate("vault.key-enrolled")).toBe(false);
+      unlockMethodsSeams.listAvailableUnlockMethods = () => ["password"];
+      expect(readGuidePredicate("vault.key-enrolled")).toBe(true);
+    } finally {
+      unlockMethodsSeams.listAvailableUnlockMethods = real;
     }
   });
 
