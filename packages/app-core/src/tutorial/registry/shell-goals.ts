@@ -25,21 +25,6 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
   },
 
   {
-    id: "vault.store-manifest",
-    title: "Merge a sealed-store manifest by path",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "vault.store-manifest"',
-      'say "A store path manifest is the plain-text list of paths the command-line sealed store seals into entries. Importing one merges it by path: a path already in the vault is updated, a new one is added, and nothing is duplicated."',
-      'navigate "/vault"',
-      'wait route "/vault" timeout=15000',
-      'focus "vault.import" "Import reads the manifest and shows what merging it would add and update before anything is written." side=bottom',
-      "end",
-    ].join("\n"),
-  },
-
-  {
     id: "client.command-bar",
     title: "Run a command from the bar",
     routes: [],

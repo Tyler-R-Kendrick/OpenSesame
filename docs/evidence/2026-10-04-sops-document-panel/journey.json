@@ -1,0 +1,84 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "tab": "settings" },
+        { "open": "Security" },
+        {
+          "count": [
+            "button[aria-label=\"SOPS document\"]",
+            "main section.panel"
+          ]
+        },
+        { "report": "main section.panel h2" },
+        { "scrollToOptional": "SOPS" },
+        { "measure": "button[aria-label=\"SOPS document\"]" },
+        { "shot": "1280-security-sops" },
+        { "pressOptional": "SOPS document" },
+        { "count": ["[role=dialog][aria-label=\"SOPS document\"]"] },
+        { "shot": "1280-sops-sheet" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "tab": "settings" },
+        { "open": "Security" },
+        {
+          "count": [
+            "button[aria-label=\"SOPS document\"]",
+            "main section.panel"
+          ]
+        },
+        { "report": "main section.panel h2" },
+        { "scrollToOptional": "SOPS" },
+        { "measure": "button[aria-label=\"SOPS document\"]" },
+        { "shot": "390-security-sops" },
+        { "pressOptional": "SOPS document" },
+        { "count": ["[role=dialog][aria-label=\"SOPS document\"]"] },
+        { "shot": "390-sops-sheet" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-security-sops",
+      "width": 1280,
+      "title": "Settings › Security, desktop — 1280 × 900",
+      "caption": "A guest on Settings › Security. SOPS was not reachable from Settings at all; it is one row with one key.",
+      "before": "0 SOPS document keys, 2 panels (Unlock methods, Second step)",
+      "after": "1 SOPS document key (24x24), 3 panels (+ SOPS)"
+    },
+    {
+      "shot": "1280-sops-sheet",
+      "width": 1280,
+      "title": "The SOPS document key, desktop — 1280 × 900",
+      "caption": "Pressing the SOPS document key, where the key exists.",
+      "before": "no key to press, 0 SOPS sheets",
+      "after": "the key opens the SOPS document sheet, 1 dialog"
+    },
+    {
+      "shot": "390-security-sops",
+      "width": 390,
+      "title": "Settings › Security, phone — 390 × 844",
+      "caption": "A guest on Settings › Security, at phone width.",
+      "before": "0 SOPS document keys, 2 panels (Unlock methods, Second step)",
+      "after": "1 SOPS document key (44x44), 3 panels (+ SOPS)"
+    },
+    {
+      "shot": "390-sops-sheet",
+      "width": 390,
+      "title": "The SOPS document key, phone — 390 × 844",
+      "caption": "Pressing the SOPS document key, where the key exists.",
+      "before": "no key to press, 0 SOPS sheets",
+      "after": "the key opens the SOPS document sheet, 1 dialog"
+    }
+  ]
+}
