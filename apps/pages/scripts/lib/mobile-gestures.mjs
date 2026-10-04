@@ -1,5 +1,5 @@
 /**
- * Settings › Keybindings on a phone (ADR 0164, DESIGN.md § Touch).
+ * Settings › Keybindings on a phone (ADR 0165, DESIGN.md § Touch).
  *
  * A finger has no key to press, so a phone's keymap leads with gestures: the
  * page is drawn on every device, opens on its Gestures tab, keeps the Keyboard

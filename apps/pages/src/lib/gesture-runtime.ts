@@ -1,5 +1,5 @@
 /**
- * The shell's half of the gesture loadout (ADR 0164): touch events in, the
+ * The shell's half of the gesture loadout (ADR 0165): touch events in, the
  * keymap's own commands out. The recognizer in app-core decides what two
  * fingers did; this listens, stands down where a gesture would be wrong, and
  * runs what the gesture is bound to through `runTarget`, the one place a

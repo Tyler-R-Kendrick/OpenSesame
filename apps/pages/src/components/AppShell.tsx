@@ -108,7 +108,7 @@ function SessionPrompt() {
         @
       </span>
       <ProjectSwitcher />
-      <span className="prompt__dim" aria-hidden="true">
+      <span className="prompt__dim prompt__dim--path" aria-hidden="true">
         :/
       </span>
       <button
@@ -149,7 +149,7 @@ function Shell({ children }: { children?: ReactNode }) {
     return () => window.removeEventListener("keydown", keymap, true);
   }, [keymap]);
 
-  // The touch half of the same keymap: two fingers, and a shake (ADR 0164).
+  // The touch half of the same keymap: two fingers, and a shake (ADR 0165).
   useGestures({ navigate, showHelp: showKeymap, chord: SHELL_CHORD });
 
   // The loader builds a module's context before any component renders, so a

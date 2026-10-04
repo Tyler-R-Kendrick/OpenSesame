@@ -74,7 +74,7 @@ export type KeymapConfig = Readonly<{
    */
   contexts?: KeymapContexts;
   /**
-   * The touch loadout (ADR 0164): gesture → command, sparse against the
+   * The touch loadout (ADR 0165): gesture → command, sparse against the
    * catalogue's defaults. Absent reads as none.
    */
   gestures?: Readonly<GestureBindings>;

@@ -1,5 +1,5 @@
 /**
- * What a pair of fingers did, and whether the phone was shaken (ADR 0164).
+ * What a pair of fingers did, and whether the phone was shaken (ADR 0165).
  * Pure: no DOM, no timers, no events — a shell feeds it touch points and
  * motion samples and asks which gesture, if any, they made. The numbers are
  * stated once, here, so the tests and the shell read the same ones.

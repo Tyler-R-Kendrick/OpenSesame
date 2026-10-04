@@ -124,3 +124,15 @@ export function describeAccount(
     ? accountSeams.describeAccount()
     : accountSeams.describeAccount(session);
 }
+
+/**
+ * The id a person's glyph is drawn from (ADR 0164): the federated subject
+ * (stable per origin) when an assertion is saved, so the face is the same
+ * whether or not an Identity session is up at the moment; else the guest
+ * principal; else `guest`. Never a name or an address — they change, and one
+ * face must stay one person's. The subject stays out of `Account` (nothing
+ * that is displayed carries it); it is only hashed into dots.
+ */
+export function personGlyphId(session: IdentitySession | null): string {
+  return loadSession()?.pairwiseSub ?? session?.principalId ?? "guest";
+}

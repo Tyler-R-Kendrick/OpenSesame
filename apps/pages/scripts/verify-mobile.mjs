@@ -187,7 +187,7 @@ async function sections(page, stop) {
     if (await openTab(page, name)) await audit(page, stop(label));
   }
   // Settings is the last stop: a finger has no key to press, so the keymap
-  // it is given is the Gestures tab (ADR 0164), made with real touches.
+  // it is given is the Gestures tab (ADR 0165), made with real touches.
   await auditGestures(page, harness, stop, audit);
   // Access keeps five more tabs in a scrolling strip; the far one has to be
   // reachable and has to bring itself into view once it is current.

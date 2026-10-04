@@ -204,4 +204,5 @@ looks arbitrary, the ADR it cites explains it.
 | [0161](0161-what-a-static-origin-can-be-as-an-openid-provider.md) | What a static origin can be as an OpenID Provider | Accepted |
 | [0162](0162-device-receipts-inbox-and-local-notifications.md) | Device-mode receipts, inbox and local notifications | Accepted |
 | [0163](0163-tutorial-mode.md) | Tutorial mode: a tour you walk, one step at a time | Accepted |
-| [0164](0164-gesture-loadout.md) | The keymap has two loadouts, and a phone leads with gestures | Accepted |
+| [0164](0164-glyphs-for-identity-where-a-name-will-not-fit.md) | Glyphs: a dotted mark for identity where a name will not fit | Accepted |
+| [0165](0165-gesture-loadout.md) | The keymap has two loadouts, and a phone leads with gestures | Accepted |
