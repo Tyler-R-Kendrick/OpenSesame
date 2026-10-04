@@ -242,6 +242,40 @@ jobs:
           VITE_BASE: /OpenSesame/
         run: node apps/pages/scripts/verify-experience-journeys.mjs
 
+  device-inbox:
+    name: Device inbox and local notifications
+    needs: changes
+    if: needs.changes.outputs.bundle == 'true'
+    runs-on: ubuntu-latest
+    # Its own job, so the bundle job's 20 minutes are not spent on it: a build
+    # (about a minute) and the journey at two widths (about a minute). It is
+    # required through the Bundle budgets check below.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build the static front end
+        env:
+          VITE_BASE: /OpenSesame/
+        run: pnpm exec turbo run build --filter=@opensesame/pages
+      - name: Receipts, inbox and local notifications with no backend
+        # ADR 0162: a request raised, shown on the tab and told to a second
+        # tab, approved and refused with the keyboard and the passkey, every
+        # decision a receipt, and a locked device showing nothing and
+        # answering 423, at desktop and phone width.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:device-inbox
+
   rust:
     name: Rust tests
     needs: changes
@@ -348,7 +382,7 @@ jobs:
 
   bundle-check:
     name: Bundle budgets
-    needs: [changes, bundle]
+    needs: [changes, bundle, device-inbox]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -357,13 +391,18 @@ jobs:
         run: |
           changes="${{ needs.changes.result }}"
           heavy="${{ needs.bundle.result }}"
+          inbox="${{ needs.device-inbox.result }}"
           if [ "$changes" != "success" ]; then
             echo "change detection result: $changes"
             exit 1
           fi
           case "$heavy" in
-            success|skipped) exit 0 ;;
+            success|skipped) ;;
             *) echo "bundle tests result: $heavy"; exit 1 ;;
+          esac
+          case "$inbox" in
+            success|skipped) exit 0 ;;
+            *) echo "device inbox result: $inbox"; exit 1 ;;
           esac
 
   rust-check:

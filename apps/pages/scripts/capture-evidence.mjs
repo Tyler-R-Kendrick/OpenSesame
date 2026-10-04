@@ -34,6 +34,7 @@ import { capabilitySteps } from "./lib/capture-capability-steps.mjs";
 import { stubJourneyIdentity } from "./lib/capture-ceremony-steps.mjs";
 import { extraSteps } from "./lib/capture-extra-steps.mjs";
 import { fieldSteps } from "./lib/capture-field-steps.mjs";
+import { inboxSteps } from "./lib/capture-inbox-steps.mjs";
 import { liveJoinSteps, viewOf } from "./lib/capture-live-join-steps.mjs";
 import { livePolicySteps } from "./lib/capture-live-policy-steps.mjs";
 import { liveSteps } from "./lib/capture-live-steps.mjs";
@@ -98,11 +99,6 @@ const harness = createHarness({
   out: path.join(shots, ".log"),
 });
 
-/**
- * The steps a journey may take. Deliberately few and deliberately named after
- * what a person does, not what the DOM is: a journey file is read by whoever
- * is reviewing the evidence, and it has to say where the picture was taken.
- */
 /** `tap()` needs a touch context; a desktop capture has a mouse instead. */
 async function press(locator) {
   const touch = await locator.page().evaluate(() => "ontouchstart" in window);
@@ -116,6 +112,7 @@ async function openSettings(page, name) {
   await STEPS.open(page, name);
 }
 
+/** The steps a journey may take, named after what a person does, not the DOM. */
 const STEPS = {
   /**
    * Seal a password vault on this device: the operator's own installation,
@@ -200,6 +197,7 @@ const STEPS = {
   ...extraSteps({ press }),
   ...fieldSteps({ press }),
   ...readSteps(),
+  ...inboxSteps({ origin, base }),
   ...liveSteps({ harness }),
   ...livePolicySteps({ press, openSettings }),
   ...liveJoinSteps({ harness }),
