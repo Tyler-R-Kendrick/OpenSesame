@@ -731,7 +731,6 @@ describe("createGuideRuntime", () => {
       ]),
     );
     expect(outcome).toEqual({ kind: "paused", goal: GOAL });
-
     // A lock tears overlays down even when the last run left them up.
     runtime.cancel("lock");
     runtime.cancel("lock");
@@ -756,6 +755,7 @@ describe("createGuideRuntime", () => {
       runId: 0,
       message: null,
       error: null,
+      tour: null,
     });
 
     const running = runtime.start(

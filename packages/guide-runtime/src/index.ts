@@ -5,5 +5,7 @@
 
 export * from "./clock.js";
 export * from "./fakes.js";
+export * from "./plan.js";
 export * from "./ports.js";
 export * from "./runtime.js";
+export { TOUR_APPEAR_GRACE_MS } from "./tour.js";
