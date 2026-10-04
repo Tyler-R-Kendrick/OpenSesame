@@ -1,0 +1,115 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "open": "New item"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": ""
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "report": ".note--err, [role=alert]:not(.visually-hidden)"
+        },
+        {
+          "measure": ".note--err, [role=alert]:not(.visually-hidden)"
+        },
+        {
+          "shot": "1280-error"
+        },
+        {
+          "press": "Notifications"
+        },
+        {
+          "shot": "1280-tray"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "open": "New item"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": ""
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "report": ".note--err, [role=alert]:not(.visually-hidden)"
+        },
+        {
+          "measure": ".note--err, [role=alert]:not(.visually-hidden)"
+        },
+        {
+          "shot": "390-error"
+        },
+        {
+          "press": "More"
+        },
+        {
+          "press": "Notifications"
+        },
+        {
+          "shot": "390-tray"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-error",
+      "width": 1280,
+      "title": "An empty name, desktop \u2014 1280 \u00d7 800",
+      "caption": "Saving a new item with no name. Before, a red box opens in the middle of the editor and interrupts it to narrate one failed field. After, the editor is untouched and the bell takes the notice: the failure is announced and read in the notifications tray, where it can be dismissed, and it is not lost when the person moves on.",
+      "before": "red alert box in the editor",
+      "after": "no box \u00b7 bell carries the notice"
+    },
+    {
+      "shot": "1280-tray",
+      "width": 1280,
+      "title": "The same failure in the tray \u2014 1280 \u00d7 800",
+      "caption": "The bell opened. Before, the tray was empty and the failure lived only in the page. After, the tray holds the sentence as its own card, with a dismiss key.",
+      "before": "tray empty",
+      "after": "tray holds the failure"
+    },
+    {
+      "shot": "390-error",
+      "width": 390,
+      "title": "An empty name, phone \u2014 390 \u00d7 844",
+      "caption": "The same failure on a phone, where the box cost a band of the 844px screen and pushed the form down. The editor keeps its height; the More key carries the attention dot.",
+      "before": "red alert box in the editor",
+      "after": "no box \u00b7 More key carries the dot"
+    },
+    {
+      "shot": "390-tray",
+      "width": 390,
+      "title": "The same failure in the tray \u2014 390 \u00d7 844",
+      "caption": "Notifications opened from the More sheet, which is where a phone keeps the bell.",
+      "before": "tray empty",
+      "after": "tray holds the failure"
+    }
+  ]
+}
