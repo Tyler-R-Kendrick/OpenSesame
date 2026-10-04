@@ -5,11 +5,32 @@
  * the 400-line budget (ADR 0093). The shape is documented in
  * `capability-graph.mjs`.
  */
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { publicPathTarget } from "./capability-distribution.mjs";
 import {
   VIRTUAL_MODULES,
   isUnclassified,
   parseHtmlEntry,
 } from "./capability-graph.mjs";
+
+/**
+ * Whether an owned public file will be in the output: emitted into the bundle
+ * by a plugin, or copied from `public/`. A file a later step writes after the
+ * build (`.well-known/**`) is not, and an excluded capability's file that
+ * nothing emits is no violation. `undefined`, with no app root to look in,
+ * keeps the gate as conservative as it was; `measureEmittedFiles` replaces
+ * either with what `dist/` holds once the build has finished.
+ */
+function publicFilePresent(state, bundle, path) {
+  const target = publicPathTarget(path);
+  const emitted = Object.keys(bundle).some(
+    (file) => file === target || file.startsWith(`${target}/`),
+  );
+  if (emitted) return true;
+  if (state.appRoot === undefined) return undefined;
+  return existsSync(join(state.appRoot, "public", target));
+}
 
 /** One chunk record: its edges, its CSS/asset references and its modules. */
 function chunkRecord(file, output, classify) {
@@ -134,6 +155,7 @@ export function buildGraph(ctx, bundle, state, base) {
     publicFiles: state.publicFiles.map((p) => ({
       file: p.path,
       capability: p.capability,
+      present: publicFilePresent(state, bundle, p.path),
     })),
     moduleEdges,
     unclassified: [...unclassified].sort(),

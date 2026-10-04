@@ -7,6 +7,7 @@
  */
 
 import { isString } from "@opensesame/os-domain";
+import { auditRoute, requestsRoute } from "./device-identity-inbox.js";
 import type { DeviceRouteContribution } from "./device-identity-routes.js";
 import { readLocalApplications } from "./local-applications.js";
 import { readLocalDirectory } from "./local-directory.js";
@@ -62,10 +63,6 @@ function jsonResponse(body: string, status = 200): Response {
   });
 }
 
-function methodNotAllowed(): Response {
-  return jsonResponse(JSON.stringify({ error: "method_not_allowed" }), 405);
-}
-
 function notImplemented(path: string): Response {
   return jsonResponse(
     JSON.stringify({
@@ -74,10 +71,6 @@ function notImplemented(path: string): Response {
     }),
     501,
   );
-}
-
-function auditEvents(): Response {
-  return jsonResponse(JSON.stringify({ events: [] }));
 }
 
 function activeTomb(): string {
@@ -236,15 +229,6 @@ async function handleOauth(
   return notImplemented(`${method} ${bare}`);
 }
 
-async function handleAudit(
-  bare: string,
-  method: string,
-): Promise<Response | null> {
-  if (!bare.startsWith("/v1/audit/events")) return null;
-  if (method === "GET") return auditEvents();
-  return methodNotAllowed();
-}
-
 async function handleOrgs(
   bare: string,
   method: string,
@@ -279,20 +263,6 @@ async function handleProjects(
   return notImplemented(`${method} ${bare}`);
 }
 
-async function handleAuthz(
-  bare: string,
-  method: string,
-): Promise<Response | null> {
-  if (
-    bare !== "/v1/authorization-requests" &&
-    !bare.startsWith("/v1/authorization-requests/")
-  ) {
-    return null;
-  }
-  if (method === "GET") return jsonResponse(JSON.stringify({ requests: [] }));
-  return notImplemented(`${method} ${bare}`);
-}
-
 /** The directory family: oauth clients, organizations, agents, projects. */
 async function directoryRoute(
   bare: string,
@@ -309,8 +279,9 @@ async function directoryRoute(
 /**
  * What `identity.local-iam` contributes to the device plane (ADR 0160): the
  * directory (people, agents, organizations, projects, applications), the
- * audit trail and the request inbox, all read from this vault. It registers
- * this from `activate` and unregisters on dispose. The email and text code
+ * receipts and the request inbox (`device-identity-inbox.ts`, ADR 0162), all
+ * read from this vault. It registers this from `activate` and unregisters on
+ * dispose. The email and text code
  * routes are not here: no capability serves them on a device, and the host
  * answers them itself.
  */
@@ -318,7 +289,7 @@ export const LOCAL_IAM_DEVICE_ROUTES: DeviceRouteContribution = {
   id: "identity.local-iam",
   routes: {
     directory: ({ bare, method }) => directoryRoute(bare, method),
-    audit: ({ bare, method }) => handleAudit(bare, method),
-    requests: ({ bare, method }) => handleAuthz(bare, method),
+    audit: auditRoute,
+    requests: requestsRoute,
   },
 };

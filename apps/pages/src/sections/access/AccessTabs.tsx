@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 
+import { StatusMark } from "../../components/StatusMark.js";
 import { useStripItem } from "../../lib/strip.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
@@ -20,11 +21,14 @@ export function AccessTabLink({
   label,
   to,
   current,
+  waiting = 0,
 }: {
   guideId: string;
   label: string;
   to: string;
   current: boolean;
+  /** Requests waiting on this tab: a mark, not a count in words. */
+  waiting?: number;
 }) {
   const guideRef = useGuideTarget<HTMLAnchorElement>(guideId);
   const stripRef = useStripItem<HTMLAnchorElement>(current, guideRef);
@@ -38,6 +42,14 @@ export function AccessTabLink({
       aria-current={current ? "page" : undefined}
     >
       {label}
+      {waiting > 0 ? (
+        <StatusMark
+          tone="warn"
+          label={
+            waiting === 1 ? "1 request waiting" : `${waiting} requests waiting`
+          }
+        />
+      ) : null}
     </Link>
   );
 }

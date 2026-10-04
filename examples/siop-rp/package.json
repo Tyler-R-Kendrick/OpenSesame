@@ -6,18 +6,24 @@
   "scripts": {
     "dev": "node --import tsx src/server.ts",
     "start": "node --import tsx src/server.ts",
+    "dev:spa": "vite --config vite.spa.config.ts",
+    "build:spa": "vite build --config vite.spa.config.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
+    "@opensesame/browser-at-rest": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
-    "@opensesame/siop-v2": "workspace:*"
+    "@opensesame/siop-v2": "workspace:*",
+    "express": "5.2.1"
   },
   "devDependencies": {
+    "@types/express": "5.0.6",
     "@types/node": "22.15.29",
+    "jose": "6.2.8",
     "tsx": "4.19.4",
     "typescript": "5.8.3",
-    "vitest": "4.1.11",
-    "jose": "6.2.8"
+    "vite": "6.4.3",
+    "vitest": "4.1.11"
   }
 }

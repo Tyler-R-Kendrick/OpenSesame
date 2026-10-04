@@ -121,9 +121,13 @@ async function ensureConnectorShares(
   tomb: string,
   ownerId: string | null,
 ): Promise<void> {
-  // An unreadable trail fails open here, as the directory it seeds must still
-  // load: a damaged log should not lock a person out of Identity and Access.
-  const trail = await listAccessAuditEvents(tomb).catch(() => []);
+  // An unreadable trail fails closed: it is where a person's revocations live,
+  // so with it unreadable no standing connector grant is issued again. The
+  // rest of the directory seeds as before; the person is not locked out of
+  // Identity and Access by a damaged log, only left without a grant they may
+  // have taken away.
+  const trail = await listAccessAuditEvents(tomb).catch(() => null);
+  if (trail === null) return;
   for (const providerId of configuredProviderIds()) {
     const grants: [string, string][] = [[SUPPORT_AGENT_ID, "use"]];
     if (ownerId) grants.unshift([ownerId, "invoke"]);

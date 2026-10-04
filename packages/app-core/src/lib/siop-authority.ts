@@ -15,6 +15,7 @@ import {
 } from "@opensesame/siop-v2";
 import { env } from "../host.js";
 import { maybePage } from "../ports.js";
+import { recordReceipt } from "./device-receipts.js";
 import {
   type LocalApplication,
   readLocalApplications,
@@ -120,7 +121,7 @@ export async function approveSiopAuthorization(
   const nowSeconds = seams.nowSeconds ?? (() => Math.floor(Date.now() / 1000));
   const profile = siopIssuerProfile();
 
-  return withLocalIdentitySession(
+  const approved = await withLocalIdentitySession(
     tomb,
     session,
     async (identity, assertActive) => {
@@ -178,6 +179,21 @@ export async function approveSiopAuthorization(
       };
     },
   );
+  await recordReceipt(tomb, "siop.approved", {
+    applicationId: request.clientId,
+    subject: approved.identity.subjectId,
+  });
+  return approved;
+}
+
+/** Say in the receipts that the person refused, before the page leaves. */
+export function recordSiopDenial(
+  tomb: string,
+  request: NormalizedAuthorizationRequest,
+): Promise<void> {
+  return recordReceipt(tomb, "siop.denied", {
+    applicationId: request.clientId,
+  });
 }
 
 export function denySiopAuthorization(

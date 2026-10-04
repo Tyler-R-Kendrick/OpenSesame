@@ -40,6 +40,7 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "settings.model-provider": ["/settings/capabilities"],
     "settings.tailnet-sync": ["/settings/vaults"],
     "settings.notifications": ["/settings/notifications"],
+    "settings.local-notifications": ["/settings/capabilities"],
     "settings.backup": ["/settings/capabilities"],
     "settings.surrogate-credentials": ["/settings/capabilities"],
     "settings.browser-autofill": ["/settings/capabilities"],

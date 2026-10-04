@@ -1,6 +1,6 @@
 # Failures live in the tray — 2026-10-04
 
-Before/after for [ADR 0161](../../adr/0161-failures-live-in-the-tray.md): a
+Before/after for [ADR 0163](../../adr/0163-failures-live-in-the-tray.md): a
 failure is a notice in the tray, never a red box in the page. Captured from two
 real builds (base `c5c9ab6` and this branch), walked the same way by
 `journey.json`: a guest opens **New item**, clears the name, and presses **Save

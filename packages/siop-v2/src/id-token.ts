@@ -71,9 +71,9 @@ export interface VerifySelfIssuedIdTokenInput {
   readonly expectedAudience: string;
   readonly expectedNonce: string;
   readonly profile: SiopIssuerProfile;
-  readonly clockSkewSeconds?: number;
-  readonly maxIatAgeSeconds?: number;
-  readonly nowSeconds?: number;
+  readonly clockSkewSeconds?: number | undefined;
+  readonly maxIatAgeSeconds?: number | undefined;
+  readonly nowSeconds?: number | undefined;
 }
 
 function publicJwkToJson(jwk: EcP256PublicJwk): JsonObject {

@@ -3,6 +3,15 @@
 // own" walks through. Split from verify-static-origin.mjs like the other
 // contracts so the walk stays one screen per file.
 
+import { loadInventory } from "./capability-compose-state.mjs";
+
+/** How many optional capabilities the catalog this build ships declares. */
+async function optionalCapabilityCount() {
+  const { catalog } = await loadInventory();
+  return catalog.capabilities.filter((entry) => entry.tier === "optional")
+    .length;
+}
+
 async function count(page, role, name, exact = false) {
   return page.getByRole(role, { name, exact }).count();
 }
@@ -119,13 +128,13 @@ export async function walkSetupCeremony(page, check, snap) {
   await page.getByRole("button", { name: /^Family/ }).click();
   const cards = await snap(page, "A2-setup-cards");
   const rows = await page.locator(".capcards > li").count();
+  // One card per optional capability, read from the catalog the build ships,
+  // so a capability another branch adds changes this number and not this file.
+  // The always-on ones (sharing.drops among them) are not cards.
+  const optional = await optionalCapabilityCount();
   check(
-    // One card per optional capability. sharing.drops is always on, so it
-    // is not a card. ADR 0153 put Connections, Access, Identity and the
-    // derived item types on this list; vault.environments is optional too.
-    // The Family purpose draws every optional card: 25.
-    rows === 25,
-    `choosing a purpose draws one card per optional capability, none for always-on ones (${rows})`,
+    rows === optional,
+    `choosing a purpose draws one card per optional capability, none for always-on ones (${rows} of ${optional})`,
   );
   check(
     (await count(page, "button", "Save on this device")) === 1 &&

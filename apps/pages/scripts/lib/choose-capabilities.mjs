@@ -1,10 +1,10 @@
-import { expect } from "@playwright/test";
 import {
   ALWAYS_ON_TITLES,
   awaitCapabilitySections,
   capabilityOffSwitch,
   capabilityOnSwitch,
 } from "./always-on.mjs";
+import { expect } from "./patient-expect.mjs";
 
 const BASE = "https://tyler-r-kendrick.github.io/OpenSesame";
 

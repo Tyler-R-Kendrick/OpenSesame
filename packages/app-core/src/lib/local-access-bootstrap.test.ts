@@ -18,7 +18,8 @@ import {
   listLocalShares,
   revokeLocalShare,
 } from "./local-share-grants.js";
-import { GUEST_TOMB, lockAllTombs, unlockTomb } from "./vfs.js";
+import { wipeTombOnDestroy } from "./vault/tomb-migration.js";
+import { GUEST_TOMB, lockAllTombs, unlockTomb, writeFile } from "./vfs.js";
 
 let tomb: string;
 
@@ -180,6 +181,58 @@ describe("ensureDefaultAccess", () => {
     expect(after.map((share) => share.principalId)).toEqual([
       ownerGrant?.principalId,
     ]);
+  });
+
+  it("never re-issues a revoked grant when the trail that says so cannot be read", async () => {
+    await ensureDefaultAccess(tomb);
+    const [agentGrant] = (await listLocalShares(tomb)).filter(
+      (share) =>
+        share.resourceKind === "connection" &&
+        share.principalId === SUPPORT_AGENT_ID,
+    );
+    const provider = agentGrant?.resourceId ?? "";
+    const grantOf = async () =>
+      (await listLocalShares(tomb)).filter(
+        (share) =>
+          share.resourceKind === "connection" &&
+          share.resourceId === provider &&
+          share.principalId === SUPPORT_AGENT_ID,
+      );
+    await revokeLocalShare(tomb, agentGrant?.id ?? "");
+    expect(await grantOf()).toEqual([]);
+    // A build that writes the trail another way, a rollback, a damaged file:
+    // this one cannot tell what was revoked, so it issues nothing.
+    await writeFile(
+      tomb,
+      "config/access-audit",
+      new TextEncoder().encode(JSON.stringify({ version: 2, events: "?" })),
+    );
+    await ensureDefaultAccess(tomb);
+    expect(await grantOf()).toEqual([]);
+  });
+
+  it("grants the standing connector shares again in a vault made after the last was deleted", async () => {
+    await ensureDefaultAccess(tomb);
+    const [agentGrant] = (await listLocalShares(tomb)).filter(
+      (share) =>
+        share.resourceKind === "connection" &&
+        share.principalId === SUPPORT_AGENT_ID,
+    );
+    await revokeLocalShare(tomb, agentGrant?.id ?? "");
+    // The vault is destroyed and another is made in the same tomb, with a key
+    // that cannot open what the first one sealed. Its audit of revocations
+    // must not stay behind as ciphertext the new vault reads as "unreadable",
+    // which would withhold every standing grant for good.
+    await wipeTombOnDestroy(tomb);
+    unlockTomb(tomb, (await mintVaultKey()).vaultKey);
+    await ensureDefaultAccess(tomb);
+    expect(
+      (await listLocalShares(tomb)).filter(
+        (share) =>
+          share.resourceKind === "connection" &&
+          share.principalId === SUPPORT_AGENT_ID,
+      ).length,
+    ).toBeGreaterThan(0);
   });
 
   it("renews a revoked standing grant again once a person re-grants it", async () => {

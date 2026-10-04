@@ -201,7 +201,13 @@ it("filters the open list as characters are typed", async () => {
     />,
   );
   const input = await screen.findByTestId("github-repo-input");
-  await waitFor(() => expect(postRelay).toHaveBeenCalled());
+  // Asked is not answered: the answer rewrites the draft, so type after it.
+  await waitFor(() =>
+    expect(screen.getByTestId("github-repo-refresh")).toHaveProperty(
+      "disabled",
+      false,
+    ),
+  );
   await userEvent.clear(input);
   await userEvent.type(input, "vault");
   const list = await screen.findByTestId("github-repo-list");

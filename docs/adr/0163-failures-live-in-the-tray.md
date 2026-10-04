@@ -1,4 +1,4 @@
-# ADR 0161 — A failure lives in the tray, never in a box in the page
+# ADR 0163 — A failure lives in the tray, never in a box in the page
 
 - Status: Accepted
 - Date: 2026-10-04

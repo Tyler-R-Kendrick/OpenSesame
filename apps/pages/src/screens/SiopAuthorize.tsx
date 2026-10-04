@@ -12,6 +12,7 @@ import {
   bindSiopRequest,
   denySiopAuthorization,
   parsePagesSiopRequest,
+  recordSiopDenial,
 } from "@opensesame/app-core/lib/siop-authority.js";
 import type { NormalizedAuthorizationRequest } from "@opensesame/siop-v2";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -21,6 +22,7 @@ import { FormCommit } from "../components/FormCommit.js";
 import { IconKey } from "../components/IconKey.js";
 import { IconPasskey, IconX } from "../components/Icons.js";
 import { firstControl, keyboardIsIdle, landFocus } from "../lib/focus.js";
+import { useOnce } from "../lib/use-once.js";
 import { useVault } from "../lib/vault/hooks.js";
 
 export function SiopAuthorize() {
@@ -171,10 +173,17 @@ function SiopConsent({
     }
   }
 
+  // A refusal is recorded once, however fast it is pressed twice: `finished`
+  // is this render's, and a second press can land before the next one.
+  const refuse = useOnce(async () => {
+    setFinished(true);
+    await recordSiopDenial(tomb, request);
+    globalThis.location.replace(denySiopAuthorization(request));
+  });
+
   function deny() {
     if (busy || finished) return;
-    setFinished(true);
-    globalThis.location.replace(denySiopAuthorization(request));
+    void refuse();
   }
 
   return (
