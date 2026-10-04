@@ -22,7 +22,12 @@
 
 import type { JsonObject } from "@opensesame/os-domain";
 import { bytesToB64url } from "@opensesame/sdk-browser";
-import { ensureDeviceIdentityKey } from "./device-identity-key.js";
+import {
+  DeviceIdentityKeyError,
+  type DeviceIdentityKeyFault,
+  ensureDeviceIdentityKey,
+  readDeviceIdentityKey,
+} from "./device-identity-key.js";
 import type { DeviceCaller } from "./device-identity-routes.js";
 import { deviceVaultView } from "./device-identity-vault.js";
 import { VfsError } from "./vfs.js";
@@ -86,12 +91,38 @@ export type DeviceAuthentication =
   | { ok: true; session: DeviceSession; caller: DeviceCaller }
   | { ok: false; response: Response };
 
+/** Drop a session and answer 401: what a bearer that no longer stands gets. */
+function ended(session: DeviceSession): DeviceAuthentication {
+  sessionsByToken.delete(session.accessToken);
+  return { ok: false, response: json({ error: "unauthorized" }, 401) };
+}
+
+/**
+ * Does the vault open now still hold the key this session was bound to? A
+ * tomb has a fixed name (`guest` above all), so the name proves nothing: a
+ * tomb recreated or restored with another key is another principal, and the
+ * old bearer must not speak for it. Anything unreadable fails closed.
+ */
+async function stillBound(binding: Binding): Promise<boolean | "locked"> {
+  try {
+    const key = await readDeviceIdentityKey(binding.tomb);
+    return key !== null && key.keyId === binding.keyId;
+  } catch (error) {
+    return error instanceof VfsError && error.code === "locked"
+      ? "locked"
+      : false;
+  }
+}
+
 /**
  * Resolve a request's bearer against the vault as it is *now*. A bound
  * session answers `locked` while its vault is shut and is ended when another
- * vault is open; an unbound one is valid until it expires.
+ * vault is open or the open one no longer holds its key; an unbound one is
+ * valid until it expires.
  */
-export function authenticateDevice(init: RequestInit): DeviceAuthentication {
+export async function authenticateDevice(
+  init: RequestInit,
+): Promise<DeviceAuthentication> {
   const session = liveSession(bearerFrom(init));
   if (!session) {
     return { ok: false, response: json({ error: "unauthorized" }, 401) };
@@ -106,9 +137,11 @@ export function authenticateDevice(init: RequestInit): DeviceAuthentication {
   const view = deviceVaultView();
   if (view.kind === "locked") return { ok: false, response: lockedResponse() };
   if (view.kind !== "unlocked" || view.tomb !== binding.tomb) {
-    sessionsByToken.delete(session.accessToken);
-    return { ok: false, response: json({ error: "unauthorized" }, 401) };
+    return ended(session);
   }
+  const held = await stillBound(binding);
+  if (held === "locked") return { ok: false, response: lockedResponse() };
+  if (!held) return ended(session);
   return { ok: true, session, caller: caller(binding.tomb, binding.guest) };
 }
 
@@ -118,7 +151,13 @@ function randomPrincipal(): string {
 
 /** The principal for what is open now, or a response that says why not. */
 async function principalForNow(): Promise<
-  { principalId: string; binding: Binding | null } | { response: Response }
+  | {
+      principalId: string;
+      binding: Binding | null;
+      /** Why a vault is open but its principal is not its key's. */
+      identityKey?: DeviceIdentityKeyFault;
+    }
+  | { response: Response }
 > {
   const view = deviceVaultView();
   if (view.kind === "locked") return { response: lockedResponse() };
@@ -139,6 +178,17 @@ async function principalForNow(): Promise<
   } catch (error) {
     if (error instanceof VfsError && error.code === "locked") {
       return { response: lockedResponse() };
+    }
+    // The key cannot be had (a record this build cannot read, or no cross-tab
+    // lock to mint one under). A provisional session still opens, as it did
+    // before there was a key: random, unbound, provisional, and said so in the
+    // answer. The record is never touched, and nothing here claims more.
+    if (error instanceof DeviceIdentityKeyError) {
+      return {
+        principalId: randomPrincipal(),
+        binding: null,
+        identityKey: error.code,
+      };
     }
     return {
       response: json(
@@ -167,14 +217,14 @@ export async function mintProvisional(): Promise<Response> {
     expiresAtMs,
     binding: principal.binding,
   });
-  return json(
-    {
-      principalId: principal.principalId,
-      accessToken,
-      expiresAt: new Date(expiresAtMs).toISOString(),
-    },
-    201,
-  );
+  const body: JsonObject = {
+    principalId: principal.principalId,
+    accessToken,
+    expiresAt: new Date(expiresAtMs).toISOString(),
+  };
+  // Said only when a vault is open and its key could not be had.
+  if (principal.identityKey) body.identityKey = principal.identityKey;
+  return json(body, 201);
 }
 
 export function revokeProvisional(init: RequestInit): Response {
@@ -184,7 +234,7 @@ export function revokeProvisional(init: RequestInit): Response {
 }
 
 export async function principalsMe(init: RequestInit): Promise<Response> {
-  const auth = authenticateDevice(init);
+  const auth = await authenticateDevice(init);
   if (!auth.ok) return auth.response;
   const { session } = auth;
   const issued = new Date(

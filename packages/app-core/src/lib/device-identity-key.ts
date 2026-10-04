@@ -58,17 +58,25 @@ type Stored = {
   createdAt: number;
 };
 
+/**
+ * Why a key could not be had. `unreadable`: a record is there and cannot be
+ * trusted (unknown version, wrong shape, a key id that is not its key's
+ * thumbprint), and it is never overwritten. `no-fence`: there is no record and
+ * no cross-tab lock to mint one under, so none is minted.
+ */
+export type DeviceIdentityKeyFault = "unreadable" | "no-fence";
+
 export class DeviceIdentityKeyError extends Error {
-  constructor(message: string) {
+  readonly code: DeviceIdentityKeyFault;
+  constructor(code: DeviceIdentityKeyFault, message: string) {
     super(message);
     this.name = "DeviceIdentityKeyError";
+    this.code = code;
   }
 }
 
-function unavailable(
-  message = "The device identity key is unavailable.",
-): never {
-  throw new DeviceIdentityKeyError(message);
+function unreadable(message = "The device identity key is unreadable."): never {
+  throw new DeviceIdentityKeyError("unreadable", message);
 }
 
 /** RFC 7638: SHA-256 over the required members, in lexicographic order. */
@@ -106,27 +114,30 @@ function parseStored(value: BoundaryValue): Stored | null {
   };
 }
 
+function parseBytes(bytes: Uint8Array): Stored | null {
+  try {
+    return parseStored(JSON.parse(new TextDecoder().decode(bytes)));
+  } catch {
+    return null;
+  }
+}
+
 async function read(tomb: string): Promise<Stored | null> {
   await kvRefresh(tombFileKey(tomb, PATH), MAX_BYTES * 2);
+  let bytes: Uint8Array;
   try {
-    const bytes = await readFile(tomb, PATH);
-    if (bytes.length > MAX_BYTES) unavailable();
-    const stored = parseStored(JSON.parse(new TextDecoder().decode(bytes)));
-    // A record whose key id is not its public key's thumbprint is corrupt,
-    // and a principal must never be derived from a record that lies.
-    if (
-      !stored ||
-      stored.keyId !== (await p256JwkThumbprint(stored.publicJwk))
-    ) {
-      unavailable(
-        "The device identity key is corrupt. Restore a vault backup.",
-      );
-    }
-    return stored;
+    bytes = await readFile(tomb, PATH);
   } catch (error) {
     if (error instanceof VfsError && error.code === "not-found") return null;
     throw error;
   }
+  const stored = bytes.length > MAX_BYTES ? null : parseBytes(bytes);
+  // A record whose key id is not its public key's thumbprint is corrupt, and
+  // a principal must never be derived from a record that lies.
+  if (!stored || stored.keyId !== (await p256JwkThumbprint(stored.publicJwk))) {
+    unreadable("The device identity key record is not one this build trusts.");
+  }
+  return stored;
 }
 
 async function mint(): Promise<Stored> {
@@ -137,7 +148,7 @@ async function mint(): Promise<Stored> {
   );
   const pub = await crypto.subtle.exportKey("jwk", pair.publicKey);
   const priv = await crypto.subtle.exportKey("jwk", pair.privateKey);
-  if (!isString(pub.x) || !isString(pub.y) || !isString(priv.d)) unavailable();
+  if (!isString(pub.x) || !isString(pub.y) || !isString(priv.d)) unreadable();
   const publicJwk = { kty: "EC", crv: "P-256", x: pub.x, y: pub.y } as const;
   return {
     version: 1,
@@ -157,39 +168,71 @@ function view(stored: Stored): DeviceIdentityKey {
   };
 }
 
-const inFlight = new Map<string, Promise<DeviceIdentityKey>>();
+/**
+ * Read the key if there is one; never mints. Throws `VfsError("locked")` while
+ * the tomb is shut and `DeviceIdentityKeyError("unreadable")` for a record it
+ * cannot trust.
+ */
+export async function readDeviceIdentityKey(
+  tomb: string,
+): Promise<DeviceIdentityKey | null> {
+  const stored = await read(tomb);
+  return stored ? view(stored) : null;
+}
 
-async function ensureUnderFence(tomb: string): Promise<DeviceIdentityKey> {
+/** Mint only inside the fence, re-reading first: another tab may have won. */
+async function mintUnderFence(tomb: string): Promise<DeviceIdentityKey> {
   const existing = await read(tomb);
   if (existing) return view(existing);
   const minted = await mint();
-  const bytes = new TextEncoder().encode(JSON.stringify(minted));
-  await writeFile(tomb, PATH, bytes);
+  await writeFile(tomb, PATH, new TextEncoder().encode(JSON.stringify(minted)));
   return view(minted);
 }
 
+async function ensure(tomb: string): Promise<DeviceIdentityKey> {
+  // An existing key is read-only business and needs no fence.
+  const existing = await readDeviceIdentityKey(tomb);
+  if (existing) return existing;
+  const locks = lockManager();
+  // Two tabs that both miss and both mint leave one key on disk and a loser
+  // holding a principal that is not the vault's. With no cross-tab fence
+  // nothing is minted, as every comparable fence here refuses.
+  if (!locks) {
+    throw new DeviceIdentityKeyError(
+      "no-fence",
+      "This browser has no cross-tab lock, so no device identity key is created.",
+    );
+  }
+  return locks.request(`opensesame-device-identity-${tomb}`, () =>
+    mintUnderFence(tomb),
+  );
+}
+
+const inFlight = new Map<string, Promise<DeviceIdentityKey>>();
+
 /**
  * The vault's identity key, created and sealed on first use. Throws
- * `VfsError("locked")` while the tomb is locked, and
- * `DeviceIdentityKeyError` when the stored record cannot be trusted.
- *
- * Two tabs asking at once take one Web Lock so exactly one mints; without Web
- * Locks the tab still dedupes its own concurrent callers.
+ * `VfsError("locked")` while the tomb is locked and `DeviceIdentityKeyError`
+ * (`unreadable` or `no-fence`) when it cannot be had; it never overwrites a
+ * record it cannot read and never mints without a Web Lock. This tab dedupes
+ * its own concurrent callers; the lock makes it one key across tabs.
  */
 export function ensureDeviceIdentityKey(
   tomb: string,
 ): Promise<DeviceIdentityKey> {
   const pending = inFlight.get(tomb);
   if (pending) return pending;
-  const locks = lockManager();
-  const run = locks
-    ? locks.request(`opensesame-device-identity-${tomb}`, () =>
-        ensureUnderFence(tomb),
-      )
-    : ensureUnderFence(tomb);
-  const settled = Promise.resolve(run).finally(() => {
+  const settled = ensure(tomb).finally(() => {
     if (inFlight.get(tomb) === settled) inFlight.delete(tomb);
   });
   inFlight.set(tomb, settled);
   return settled;
+}
+
+/**
+ * Test seam: forget this tab's in-flight reads, so a test can stand two
+ * callers side by side as two tabs would be (each has its own).
+ */
+export function forgetDeviceIdentityKeyInFlightForTests(): void {
+  inFlight.clear();
 }

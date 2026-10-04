@@ -71,7 +71,7 @@ function claimTokenFrom(init: RequestInit): string | null {
 }
 
 async function createClaim(init: RequestInit): Promise<Response> {
-  const auth = authenticateDevice(init);
+  const auth = await authenticateDevice(init);
   if (!auth.ok) return auth.response;
   const body = await readJson(init);
   const manifest = body.targetManifest;
@@ -241,6 +241,17 @@ export async function deviceIdentityFetch(
   const method = (init.method ?? "GET").toUpperCase();
   const matched = matchCorePath(path);
 
+  // Claims hold what a vault sealed, whichever session asks: while a vault is
+  // on this device and shut, no claim is created, polled or presented. A
+  // session minted before any vault existed gets no exemption.
+  const touchesClaims =
+    matched.kind === "poll" ||
+    (matched.kind === "exact" &&
+      (matched.route === "claims" || matched.route === "present"));
+  if (touchesClaims && deviceVaultView().kind === "locked") {
+    return lockedResponse();
+  }
+
   if (matched.kind === "poll") {
     if (method !== "GET") return json({ error: "method_not_allowed" }, 405);
     return pollClaim(matched.claimId, init);
@@ -252,7 +263,7 @@ export async function deviceIdentityFetch(
     if (deviceVaultView().kind === "locked") return lockedResponse();
     // What needs a server is answered here, whoever is registered.
     if (familyOfPath(bare) === "mfa-codes") return mfaUnavailable();
-    const auth = authenticateDevice(init);
+    const auth = await authenticateDevice(init);
     // A handler is given the resolved caller and the body, never a header.
     const answered = await dispatchDeviceRoute({
       path,

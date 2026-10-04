@@ -129,15 +129,38 @@ routes it served before, unchanged.
 
 For an open vault the principal is `prn_` plus the RFC 7638 thumbprint of a
 P-256 key sealed in that vault's VFS (`config/device-identity-key`, under the
-vault key, ADR 0149). The key is created the first time the host needs a
-principal for the tomb, under a Web Lock so exactly one is minted, and read
-back thereafter. A record whose key id is not its public key's thumbprint is
-refused and nothing is minted over it. The private half is never returned by
-any route, and the host never prompts a passkey to make or read it: it runs in
-a vault the person has already opened.
+vault key, ADR 0149). The private half is never returned by any route, and the
+host never prompts a passkey to make or read it: it runs in a vault the person
+has already opened.
+
+**Minting is fenced.** The key is created the first time the host needs a
+principal for the tomb, inside a Web Lock named for the tomb that re-reads
+before it writes, so exactly one key exists across tabs. Reading a key that
+exists needs no lock. With no cross-tab lock (no `navigator.locks`) nothing is
+minted: two tabs that both missed would both mint, one write would win and the
+other tab would hold a principal that is not the vault's. This is the refusal
+every comparable fence in the client makes.
+
+**A record that cannot be trusted is never replaced.** An unknown version, a
+shape this build does not know, or a key id that is not its public key's
+thumbprint is `unreadable`: it is left exactly as it is (a newer build may own
+it) and nothing is minted over it.
+
+**A provisional session still opens when no key can be had.** Before there was
+a key, Connect always succeeded, and it must not become unavailable for a vault
+because of a record or a browser. When the key is `unreadable` or there is
+`no-fence`, the host mints a random, unbound, `provisional` principal, as it
+does with no vault, and the mint answer carries `identityKey: "unreadable"` or
+`"no-fence"` so the cause is visible rather than silent. Such a session is
+handed to capability handlers with no tomb, claims no assurance, and is not the
+vault's principal.
 
 Bearers stay memory-only and per tab (24 hours). A session is *bound* to the
-tomb and key it was minted in: it answers only while that vault is open, and
+tomb **and the key** it was minted with, and the binding is checked on every
+use against what the open vault holds now: a tomb has a fixed name (the guest
+tomb above all), so the name proves nothing, and a tomb recreated or restored
+with another key is another principal. The old bearer is ended, and anything
+unreadable fails closed. A bound session answers only while that vault is open;
 another vault opening ends it, so a bearer never follows a person from one vault
 to another. With no vault on the device yet there is nothing durable to derive
 from, so the host mints a random provisional principal, unbound, as ADR 0118
@@ -177,12 +200,16 @@ owner link in the directory, each its own decision.
 ### 7. A locked vault answers `locked`, and never falls back
 
 When a vault is on this device and none is open, the device routes answer
-`423 {"error":"locked"}`. Nothing is issued: no session, no principal, no claim.
-A session bound to a vault answers `locked` until that same vault opens. There
-is no plaintext fallback and no cached principal: a locked device does not
-speak for the vault. "A vault is on this device" is read from the tombs
-registry and the last-vault pointer, both already plaintext by design (ADR 0063);
-the host does not import the vault store, which sits on its import cycle.
+`423 {"error":"locked"}`. Nothing is issued: no session, no principal. That
+includes **every claim route** (create, poll, present), whatever the session:
+one minted before any vault existed, then a vault created and locked, is
+refused like any other, because a claim holds what a vault sealed. Health and
+revoke keep working. A session bound to a vault answers `locked` until that same
+vault opens. There is no plaintext fallback and no cached principal: a locked
+device does not speak for the vault. "A vault is on this device" is read from
+the tombs registry and the last-vault pointer, both already plaintext by design
+(ADR 0063); the host does not import the vault store, which sits on its import
+cycle.
 
 ### 8. A guest keeps a provisional principal
 

@@ -6,13 +6,17 @@
 /** @vitest-environment jsdom */
 import { overlapCast } from "@opensesame/os-domain";
 import { mintVaultKey } from "@opensesame/vault-core";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import { defaultCapabilityConnectors } from "./capabilities.js";
 import {
   deviceIdentityFetch,
   resetDeviceIdentitySessionsForTests,
 } from "./device-identity-host.js";
-import { ensureDeviceIdentityKey } from "./device-identity-key.js";
+import {
+  ensureDeviceIdentityKey,
+  forgetDeviceIdentityKeyInFlightForTests,
+} from "./device-identity-key.js";
 import {
   type DeviceRouteRequest,
   registerDeviceRoutes,
@@ -23,14 +27,19 @@ import {
   deviceVaultSeams,
 } from "./device-identity-vault.js";
 import { saveSettings } from "./settings.js";
-import { lockTomb, unlockTomb } from "./vfs.js";
+import { lockTomb, readFile, unlockTomb, writeFile } from "./vfs.js";
 
 const realView = deviceVaultSeams.view;
 let view: DeviceVaultView = { kind: "none" };
 
+/** The key each tomb was opened with, so a re-unlock is the same vault. */
+const vaultKeys = new Map<string, CryptoKey>();
+
 async function open(guest = false): Promise<string> {
   const tomb = `device-principal-${crypto.randomUUID()}`;
-  unlockTomb(tomb, (await mintVaultKey()).vaultKey);
+  const { vaultKey } = await mintVaultKey();
+  vaultKeys.set(tomb, vaultKey);
+  unlockTomb(tomb, vaultKey);
   view = { kind: "unlocked", tomb, guest };
   return tomb;
 }
@@ -73,11 +82,14 @@ beforeEach(() => {
   });
   view = { kind: "none" };
   deviceVaultSeams.view = () => view;
+  vi.stubGlobal("navigator", { locks: webLocksDouble() });
   resetDeviceIdentitySessionsForTests();
   resetDeviceRoutesForTests();
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
+  forgetDeviceIdentityKeyInFlightForTests();
   deviceVaultSeams.view = realView;
   resetDeviceIdentitySessionsForTests();
   resetDeviceRoutesForTests();
@@ -204,7 +216,9 @@ describe("with a locked vault", () => {
     const locked = await me(minted.accessToken);
     expect(locked.status).toBe(423);
     expect(overlapCast(await locked.json()).error).toBe("locked");
-    unlockTomb(tomb, (await mintVaultKey()).vaultKey);
+    const vaultKey = vaultKeys.get(tomb);
+    if (!vaultKey) throw new Error("the tomb was never opened");
+    unlockTomb(tomb, vaultKey);
     view = { kind: "unlocked", tomb, guest: false };
     expect((await me(minted.accessToken)).status).toBe(200);
   });
@@ -254,19 +268,6 @@ describe("with a locked vault", () => {
     const res = await mint();
     expect(res.status).toBe(423);
     expect(overlapCast(await res.json()).error).toBe("locked");
-  });
-
-  it("answers 503, not a random principal, when the stored key is corrupt", async () => {
-    const tomb = await open();
-    const { writeFile } = await import("./vfs.js");
-    await writeFile(
-      tomb,
-      "config/device-identity-key",
-      new TextEncoder().encode("{}"),
-    );
-    const res = await mint();
-    expect(res.status).toBe(503);
-    expect(overlapCast(await res.json()).error).toBe("unreachable");
   });
 
   it("does not issue if the vault locks while the key is being read", async () => {
@@ -346,5 +347,194 @@ describe("what a contribution is handed", () => {
       501,
     );
     expect((await deviceIdentityFetch("/v1/projects")).status).toBe(200);
+  });
+});
+
+const KEY_PATH = "config/device-identity-key";
+
+async function plant(tomb: string, bytes: string): Promise<void> {
+  await writeFile(tomb, KEY_PATH, new TextEncoder().encode(bytes));
+}
+
+async function stored(tomb: string): Promise<string> {
+  return new TextDecoder().decode(await readFile(tomb, KEY_PATH));
+}
+
+describe("a key record this build cannot read", () => {
+  it("still opens a provisional session: random, unbound, provisional, and says why", async () => {
+    const tomb = await open();
+    await plant(tomb, '{"version":2,"from":"a newer build"}');
+    const res = await mint();
+    expect(res.status).toBe(201);
+    const body = overlapCast(await res.json());
+    expect(body.identityKey).toBe("unreadable");
+    expect(String(body.principalId)).toMatch(/^prn_[A-Za-z0-9_-]{16}$/);
+    const principal = overlapCast(
+      await (await me(String(body.accessToken))).json(),
+    );
+    expect(principal).toMatchObject({
+      id: body.principalId,
+      state: "provisional",
+      assurance: "provisional",
+    });
+    expect(principal.verifiedAt).toBeUndefined();
+  });
+
+  it("never overwrites or destroys the record", async () => {
+    const tomb = await open();
+    const unknown = '{"version":2,"from":"a newer build"}';
+    await plant(tomb, unknown);
+    await mint();
+    await mint();
+    expect(await stored(tomb)).toBe(unknown);
+  });
+
+  it("does not bind that session to the vault, so it is no member's principal", async () => {
+    const tomb = await open();
+    await plant(tomb, "not json");
+    const minted = await session();
+    const seen: DeviceRouteRequest[] = [];
+    registerDeviceRoutes({
+      id: "probe",
+      routes: {
+        directory: async (received) => {
+          seen.push(received);
+          return new Response("{}");
+        },
+      },
+    });
+    await deviceIdentityFetch("/v1/projects", {
+      headers: { authorization: `Bearer ${minted.accessToken}` },
+    });
+    expect(seen[0]?.caller).toEqual({
+      principalId: minted.principalId,
+      tomb: "",
+      guest: false,
+    });
+  });
+});
+
+describe("with no cross-tab lock", () => {
+  it("opens a provisional session and mints no key", async () => {
+    const tomb = await open();
+    vi.stubGlobal("navigator", {});
+    const res = await mint();
+    expect(res.status).toBe(201);
+    const body = overlapCast(await res.json());
+    expect(body.identityKey).toBe("no-fence");
+    expect(String(body.principalId)).toMatch(/^prn_[A-Za-z0-9_-]{16}$/);
+    await expect(readFile(tomb, KEY_PATH)).rejects.toMatchObject({
+      code: "not-found",
+    });
+  });
+
+  it("binds to a key that already exists, with or without the lock", async () => {
+    const tomb = await open();
+    const key = await ensureDeviceIdentityKey(tomb);
+    forgetDeviceIdentityKeyInFlightForTests();
+    vi.stubGlobal("navigator", {});
+    expect((await session()).principalId).toBe(key.principalId);
+  });
+});
+
+describe("a tomb whose key changed under a live bearer", () => {
+  async function replaceKey(tomb: string): Promise<void> {
+    const other = await open();
+    await ensureDeviceIdentityKey(other);
+    await plant(tomb, await stored(other));
+    view = {
+      kind: "unlocked",
+      tomb,
+      guest: view.kind === "unlocked" && view.guest,
+    };
+  }
+
+  it("ends the bearer when a same-named tomb holds another key", async () => {
+    const tomb = await open(true);
+    const minted = await session();
+    expect((await me(minted.accessToken)).status).toBe(200);
+    await replaceKey(tomb);
+    const res = await me(minted.accessToken);
+    expect(res.status).toBe(401);
+    // Gone, not merely refused once: the old principal does not come back.
+    expect((await me(minted.accessToken)).status).toBe(401);
+  });
+
+  it("refuses a claim, and a capability call is handed no caller", async () => {
+    const tomb = await open();
+    const minted = await session();
+    await replaceKey(tomb);
+    const claim = await deviceIdentityFetch("/v1/claims", {
+      method: "POST",
+      headers: { authorization: `Bearer ${minted.accessToken}` },
+      body: JSON.stringify({ targetManifest: { kind: "drop" } }),
+    });
+    expect(claim.status).toBe(401);
+  });
+
+  it("fails closed when the key can no longer be read", async () => {
+    const tomb = await open();
+    const minted = await session();
+    await plant(tomb, "garbage");
+    expect((await me(minted.accessToken)).status).toBe(401);
+  });
+
+  it("keeps the bearer while the same key is in place", async () => {
+    await open();
+    const minted = await session();
+    expect((await me(minted.accessToken)).status).toBe(200);
+    expect((await me(minted.accessToken)).status).toBe(200);
+  });
+});
+
+describe("claims while a vault is shut", () => {
+  const claimBody = JSON.stringify({ targetManifest: { kind: "drop" } });
+
+  it("refuses create, poll and present for a session minted before any vault existed", async () => {
+    const early = await session();
+    await open();
+    view = { kind: "locked" };
+    const create = await deviceIdentityFetch("/v1/claims", {
+      method: "POST",
+      headers: { authorization: `Bearer ${early.accessToken}` },
+      body: claimBody,
+    });
+    expect(create.status).toBe(423);
+    expect(overlapCast(await create.json()).error).toBe("locked");
+    const poll = await deviceIdentityFetch("/v1/claims/c1/poll", {
+      headers: { "x-claim-token": "t" },
+    });
+    expect(poll.status).toBe(423);
+    const present = await deviceIdentityFetch("/v1/claims/present", {
+      method: "POST",
+      body: JSON.stringify({ token: "t", userCode: "u" }),
+    });
+    expect(present.status).toBe(423);
+  });
+
+  it("still creates a claim for that same session once the vault is open", async () => {
+    const early = await session();
+    const tomb = await open();
+    const create = await deviceIdentityFetch("/v1/claims", {
+      method: "POST",
+      headers: { authorization: `Bearer ${early.accessToken}` },
+      body: claimBody,
+    });
+    expect(create.status).toBe(201);
+    expect(tomb).toBeTruthy();
+  });
+
+  it("leaves health and revoke working while locked", async () => {
+    const early = await session();
+    view = { kind: "locked" };
+    expect((await deviceIdentityFetch("/v1/health/live")).status).toBe(200);
+    const revoked = await deviceIdentityFetch(
+      "/v1/principals/provisional/revoke",
+      {
+        method: "POST",
+        headers: { authorization: `Bearer ${early.accessToken}` },
+      },
+    );
+    expect(revoked.status).toBe(200);
   });
 });
