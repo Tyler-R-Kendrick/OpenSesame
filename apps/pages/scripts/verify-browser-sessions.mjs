@@ -9,6 +9,14 @@ import { chromium, expect } from "@playwright/test";
 import { doorGuest } from "./lib/front-door.mjs";
 import { joinerSaves, ownerSeesSave } from "./lib/live-edit-walk.mjs";
 import {
+  PRIVATE_ITEM,
+  SHARED_ITEM,
+  fieldLabel,
+  itemAbsent,
+  joinerSeesCatalog,
+  revealButton,
+} from "./lib/live-item-labels.mjs";
+import {
   WATCH_RTC,
   endSession,
   joinerAsks,
@@ -85,13 +93,13 @@ async function device(browser, options = {}) {
   return made;
 }
 
-async function createLogin(page, { name, username, password }) {
+/** New item is a secret (ADR 0153): a name and one concealed value. */
+async function createSecret(page, { name, value }) {
   const create = page.getByRole("link", { name: "New item", exact: true });
   await create.first().waitFor({ timeout: 20_000 });
   await create.first().click();
   await page.getByLabel("Name", { exact: true }).fill(name);
-  await page.getByLabel("Username", { exact: true }).fill(username);
-  await page.getByLabel("Password", { exact: true }).fill(password);
+  await page.getByLabel("Secret value", { exact: true }).fill(value);
   await page
     .getByRole("button", { name: "Save item", exact: true })
     .first()
@@ -126,16 +134,8 @@ async function hostVault(page) {
   setStep("owner-vault");
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await doorGuest(page).click();
-  await createLogin(page, {
-    name: "GitHub",
-    username: "octo",
-    password: secret,
-  });
-  await createLogin(page, {
-    name: "Payroll",
-    username: "ada",
-    password: privateSecret,
-  });
+  await createSecret(page, { name: SHARED_ITEM.name, value: secret });
+  await createSecret(page, { name: PRIVATE_ITEM.name, value: privateSecret });
   await addCapabilities(page, ["Live sessions"]);
 }
 
@@ -172,15 +172,12 @@ try {
   });
   const reply = await ownerAdmitsByHand(owner.page, panel, request, joinerName);
   await joinerConnects(joiner.page, reply);
-  await joiner.page
-    .getByRole("button", { name: "Reveal GitHub Password" })
-    .click();
+  await joinerSeesCatalog(joiner.page);
+  await revealButton(joiner.page, SHARED_ITEM).click();
   await expect(joiner.page.getByText(secret)).toBeVisible({ timeout: 45_000 });
   check(
     (await joiner.page.getByText(privateSecret).count()) === 0 &&
-      (await joiner.page
-        .getByRole("button", { name: "Reveal Payroll Password" })
-        .count()) === 0,
+      (await itemAbsent(joiner.page, PRIVATE_ITEM)),
     "scoped live view: the unshared item was not projected",
   );
   const made = [
@@ -241,16 +238,17 @@ try {
     joinerName,
   );
   await joinerConnects(joiner.page, editReply);
-  await joinerSaves(joiner.page, { label: "GitHub Password", value: edited });
+  await joinerSaves(joiner.page, {
+    label: fieldLabel(SHARED_ITEM),
+    value: edited,
+  });
   check(
     (await joiner.page.getByText(privateSecret).count()) === 0 &&
-      (await joiner.page
-        .getByRole("button", { name: "Reveal Payroll Password" })
-        .count()) === 0,
+      (await itemAbsent(joiner.page, PRIVATE_ITEM)),
     "edit session: the unshared item was not projected",
   );
   await ownerSeesSave(owner.page, {
-    name: "GitHub",
+    name: SHARED_ITEM.name,
     value: edited,
     previous: secret,
   });

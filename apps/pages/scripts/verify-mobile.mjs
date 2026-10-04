@@ -30,8 +30,11 @@ import {
   phoneContext,
   recordStop,
 } from "./lib/mobile-contract.mjs";
+import { auditKeybindingsAbsent } from "./lib/mobile-keybindings-absent.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
+import { backOutStops, openVaultList } from "./lib/phone-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import { touchCopyStop } from "./lib/touch-copy-contract.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
@@ -78,6 +81,7 @@ async function audit(page, label) {
     result.coarse,
     `${label}: measured in a coarse-pointer context`,
   );
+  await touchCopyStop(page, label, harness);
   await harness.snap(page, label, { fullPage: false });
   const chrome = result.chrome.statusline
     ? ` footer=${result.chrome.statusline.h}px`
@@ -178,6 +182,8 @@ async function sections(page, stop) {
   ]) {
     if (await openTab(page, name)) await audit(page, stop(label));
   }
+  // Settings is the last stop: no finger can press a key, so no key editor.
+  await auditKeybindingsAbsent(page, harness, stop);
   // Access keeps five more tabs in a scrolling strip; the far one has to be
   // reachable and has to bring itself into view once it is current.
   if (!(await openTab(page, "Access"))) return;
@@ -201,10 +207,14 @@ async function sections(page, stop) {
  * into, so the walk saves an item and comes back through it.
  */
 async function vaultItem(page, stop) {
+  await openVaultList(page);
   const create = page
     .getByRole("link", { name: "New item", exact: true })
     .first();
-  if ((await create.count()) === 0) return;
+  if ((await create.count()) === 0) {
+    harness.check(false, `${stop("list")}: the list has no New item key`);
+    return;
+  }
   await create.tap();
   await page.waitForTimeout(800);
   await audit(page, stop("editor"));
@@ -216,8 +226,7 @@ async function vaultItem(page, stop) {
   await save.tap();
   await page.waitForTimeout(900);
   await audit(page, stop("item"));
-  await openTab(page, "Vault");
-  await audit(page, stop("list"));
+  await backOutStops(page, stop, { harness, audit });
 }
 
 async function walk(browser, phone) {

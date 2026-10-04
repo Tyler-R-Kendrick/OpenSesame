@@ -32,15 +32,21 @@ function isTouchLike(event: PointerEvent): boolean {
 }
 
 /**
- * Calls `onBack` when a touch drags left-to-right across `el`.
+ * Calls `on` when a touch drags across `el` in `direction`, with the pointer
+ * that lifted and the element it started on.
  *
- * Only when the element is not scrolled sideways, so a horizontally
- * scrollable child (the filter chips) keeps its own gesture.
+ * Only a mostly-horizontal, quick drag counts, so a scroll is never a swipe,
+ * and a horizontally scrollable child (the filter chips) keeps its own.
  */
-export function swipeBack(el: HTMLElement, onBack: () => void): Disposer {
+export function swipe(
+  el: HTMLElement,
+  direction: "left" | "right",
+  on: (event: PointerEvent, from: Element | null) => void,
+): Disposer {
   let startX = 0;
   let startY = 0;
   let startAt = 0;
+  let from: Element | null = null;
   let tracking = false;
 
   const down = (event: PointerEvent) => {
@@ -49,19 +55,20 @@ export function swipeBack(el: HTMLElement, onBack: () => void): Disposer {
     startX = event.clientX;
     startY = event.clientY;
     startAt = event.timeStamp;
+    from = event.target instanceof Element ? event.target : null;
   };
 
   const up = (event: PointerEvent) => {
     if (!tracking) return;
     tracking = false;
-    const dx = event.clientX - startX;
+    const dx = (event.clientX - startX) * (direction === "right" ? 1 : -1);
     const dy = Math.abs(event.clientY - startY);
     if (
       dx >= SWIPE_MIN_X &&
       dy <= SWIPE_MAX_Y &&
       event.timeStamp - startAt <= SWIPE_MAX_MS
     ) {
-      onBack();
+      on(event, from);
     }
   };
 
@@ -77,6 +84,11 @@ export function swipeBack(el: HTMLElement, onBack: () => void): Disposer {
     el.removeEventListener("pointerup", up);
     el.removeEventListener("pointercancel", cancel);
   };
+}
+
+/** Dragging a pane rightwards goes back: the twin of the ← key. */
+export function swipeBack(el: HTMLElement, onBack: () => void): Disposer {
+  return swipe(el, "right", () => onBack());
 }
 
 /**
@@ -145,6 +157,9 @@ export const gestureLimits = {
   longPressSlop: LONG_PRESS_SLOP,
 } as const;
 
+/** The one media query that says "a finger", for the CSS twin and the hook. */
+export const COARSE_POINTER_QUERY = "(pointer: coarse)";
+
 /**
  * Whether this pointer is a finger (or a stylus) rather than a mouse.
  *
@@ -152,5 +167,14 @@ export const gestureLimits = {
  * touch device, and treating it as one would change what the tests see.
  */
 export function isTouchPointer(): boolean {
-  return globalThis.matchMedia?.("(pointer: coarse)").matches ?? false;
+  return globalThis.matchMedia?.(COARSE_POINTER_QUERY).matches ?? false;
+}
+
+/**
+ * The ⋯ menu's row (and the page menu's, and the sheet's title) that lists
+ * every key, or every gesture where the pointer is a finger. Copy that points
+ * at that row names it through here, so the pointer and the row cannot drift.
+ */
+export function keymapLabel(touch: boolean = isTouchPointer()): string {
+  return touch ? "Gestures" : "Keyboard shortcuts";
 }

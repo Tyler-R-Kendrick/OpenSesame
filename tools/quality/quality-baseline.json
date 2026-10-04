@@ -18,7 +18,7 @@
   "totals": {
     "files": 435,
     "violations": 683,
-    "oversizedLines": 222788
+    "oversizedLines": 222786
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -217,7 +217,7 @@
     },
     "apps/pages/src/sections/vault/ItemDetail.tsx": {
       "complexity": 2,
-      "max-lines": 790,
+      "max-lines": 788,
       "max-lines-per-function": 2
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {

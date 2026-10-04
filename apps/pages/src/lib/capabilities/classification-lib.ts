@@ -26,6 +26,9 @@ const CORE_INFRA = [
   "focus",
   "use-focus-after",
   "gestures",
+  "gesture-help",
+  "use-narrow",
+  "vault-list-path",
   "modal-focus",
   "strip",
   "scroll-panel",
@@ -323,11 +326,8 @@ export const LIB_RULES = [
     "vault.local-unlock",
     "browser reset clears ambient sign-in instances",
   ),
-  ...each(L, ["capabilities/settling"], (p) =>
-    core(p, SHELL, "whether the plan is still coming up, for the router"),
-  ),
-  ...each(L, ["router-seam"], (p) =>
-    core(p, SHELL, "the router's navigate, read from outside React"),
+  ...each(L, ["capabilities/settling", "router-seam"], (p) =>
+    core(p, SHELL, "router inputs: is the plan up, and navigate from outside"),
   ),
   ...each(L, ["ambient-auth-seam"], (p) =>
     core(p, SIGNIN, "the ambient seam core federation calls through"),

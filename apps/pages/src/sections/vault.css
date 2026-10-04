@@ -13,6 +13,14 @@
 
 /* —— List pane ————————————————————————————————————————————— */
 
+/* The section tree is a phone's first pane: the rail's own tree, drawn in the
+   buffer where a finger can reach it. A desktop has the rail, so it has no
+   such pane, and the key that climbs back to it. */
+.vault__tree,
+.vault__back {
+  display: none;
+}
+
 .vault__list {
   display: flex;
   flex-direction: column;
@@ -418,6 +426,10 @@
   display: none;
 }
 
+.vtree__key-touch {
+  display: none;
+}
+
 .detail__head {
   display: flex;
   align-items: flex-start;
@@ -471,6 +483,39 @@
   font-weight: 600;
   color: var(--ink-2);
   border-bottom: 1px solid var(--line);
+}
+
+/* The closed Share once offer. On a desktop it is the bare key it always
+   was: the group and its bar draw no box and the head is not drawn. On a
+   phone the key sits at the end of a headed bar, the same head every other
+   group carries. */
+.detail__offer,
+.detail__offer > .detail__groupbar {
+  display: contents;
+}
+
+.detail__offer .detail__grouphead {
+  display: none;
+}
+
+@media (max-width: 900px), (pointer: coarse) {
+  .detail__offer {
+    display: block;
+  }
+
+  .detail__offer > .detail__groupbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .detail__offer .detail__grouphead {
+    display: block;
+    padding: 0;
+    border-bottom: 0;
+  }
 }
 
 .detail__update {
@@ -679,6 +724,28 @@
 
   .vtree__key--help {
     display: none;
+  }
+
+  /* `/` is a typed character; a finger looks for the thing it does. */
+  .vtree__key-glyph {
+    display: none;
+  }
+
+  .vtree__key-touch {
+    display: block;
+  }
+
+  .vtree__key:not(.vtree__key--help) {
+    display: inline-grid;
+    place-items: center;
+  }
+
+  /* A row swiped left asks for its actions (lib/gestures.ts): the browser
+     keeps the vertical pan and hands the horizontal drag to the page, or it
+     would claim the swipe and cancel it. */
+  .vtree [role="treeitem"],
+  .railtree [role="treeitem"] {
+    touch-action: pan-y;
   }
 
   .vtree__cmd input {
@@ -1037,12 +1104,30 @@ select.editor__ext:hover {
     border-right: none;
   }
 
-  .vault[data-pane="detail"] .vault__list {
+  /* One pane at a time: tree, then the list it opens, then the item. */
+  .vault[data-pane="tree"] .vault__list,
+  .vault[data-pane="tree"] .vault__detail,
+  .vault[data-pane="detail"] .vault__list,
+  .vault[data-pane="detail"] .vault__tree,
+  .vault[data-pane="list"] .vault__tree,
+  .vault[data-pane="list"] .vault__detail {
     display: none;
   }
 
-  .vault[data-pane="list"] .vault__detail {
-    display: none;
+  .vault[data-pane="tree"] .vault__tree {
+    display: block;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.25rem calc(0.6rem + env(safe-area-inset-right)) 0.75rem
+      calc(0.6rem + env(safe-area-inset-left));
+    background: var(--rail);
+    color: var(--rail-fg);
+  }
+
+  .vault__back {
+    display: inline-grid;
   }
 
   .detail {
@@ -1051,6 +1136,21 @@ select.editor__ext:hover {
 
   .detail .detail__backbtn {
     display: inline-grid;
+  }
+
+  /* The keys beside a name took 140px of a 358px row and wrapped the name
+     over three lines. They drop under it, to the end of their own row, the
+     moment the name would have to give. */
+  .detail__head {
+    flex-wrap: wrap;
+  }
+
+  .detail__heading {
+    flex: 1 1 12rem;
+  }
+
+  .detail__tools {
+    margin-left: auto;
   }
 
   .editor__row {
@@ -1126,6 +1226,23 @@ select.editor__ext:hover {
   font-family: var(--mono);
   font-size: 0.8125rem;
   color: var(--ink-3);
+}
+
+/* Keys stay off a finger (DESIGN.md § Touch); a line with a touch twin swaps
+   to it there, one without goes. */
+.buffer__keys-touch {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .buffer__keys--keys,
+  .buffer__keys-keys {
+    display: none;
+  }
+
+  .buffer__keys-touch {
+    display: inline;
+  }
 }
 
 /* The export sheet's refusal, a mark under its facts. */

@@ -9,7 +9,7 @@ import {
 } from "@opensesame/vault-core";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
-import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
+import { EmptyTip } from "../../components/EmptyTip.js";
 import {
   ConcealedValue,
   CopyButton,
@@ -34,6 +34,7 @@ import {
 import { QrCode } from "../../components/QrCode.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { TotpCode, currentTotp } from "../../components/TotpCode.js";
+import { useVaultList } from "../../lib/vault-list-path.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { UpdateSecretPanel } from "./SecretUpdate.js";
 import { StrengthBar } from "./StrengthBar.js";
@@ -51,8 +52,7 @@ export function ItemDetail() {
   const { itemId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  // The active filter travels in the query string, so going back keeps it.
-  const listPath = `/vault${location.search}`;
+  const { listPath, backLabel } = useVaultList(location.search);
   const { items, folders } = useVault();
   const store = useVaultStore();
   const { copied, failed, copy } = useCopyFeedback();
@@ -72,7 +72,7 @@ export function ItemDetail() {
       <div className="detail">
         <div className="empty">
           <h2>That item is not in this vault</h2>
-          <EmptyTip>{emptyTips.escBack}</EmptyTip>
+          <EmptyTip tip="escBack" />
           <Link className="btn btn--sm" to={listPath}>
             Back to the vault
           </Link>
@@ -91,8 +91,6 @@ export function ItemDetail() {
 
   const folder = folders.find((candidate) => candidate.id === item.folderId);
   const inTrash = item.deletedAt !== null;
-  const backLabel =
-    listPath === "/vault" ? "Back to all items" : "Back to list";
 
   return (
     <div className="detail">

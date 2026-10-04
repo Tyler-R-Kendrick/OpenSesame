@@ -34,6 +34,7 @@ import {
   needsAttention,
 } from "@opensesame/app-core/lib/connectors.js";
 import { type RefObject, useCallback, useRef, useState } from "react";
+import { keymapLabel } from "../lib/gestures.js";
 import { showKeymapHelp } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
@@ -262,7 +263,7 @@ function UtilityRows({
         }}
       >
         <IconTerminal size={17} />
-        <span className="more__name">Keyboard shortcuts</span>
+        <span className="more__name">{keymapLabel()}</span>
       </button>
     </div>
   );

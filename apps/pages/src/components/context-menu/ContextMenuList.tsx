@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import { IconChevronLeft } from "../Icons.js";
 import "./context-menu.css";
 import { ParentRows, SubmenuPane } from "./MenuRows.js";
 import type { MenuGroup } from "./menu-model.js";
@@ -22,6 +23,7 @@ export function ContextMenuList({
   listRef,
   ignoreOutside,
   title,
+  sheet = false,
 }: {
   groups: readonly MenuGroup[];
   label: string;
@@ -35,6 +37,8 @@ export function ContextMenuList({
   ignoreOutside?: string;
   /** Drawn above the entries where the menu is not beside what it is for. */
   title?: string;
+  /** The phone arrangement: a submenu replaces the list rather than hang off it. */
+  sheet?: boolean;
 }) {
   const session = useMenuSession(groups, onClose, ignoreOutside);
   return (
@@ -43,13 +47,23 @@ export function ContextMenuList({
         session.own.current = node;
         listRef?.(node);
       }}
-      className={className}
+      className={`${className}${sheet && session.inSub ? " is-drilled" : ""}`}
       style={style}
       role="menu"
       aria-label={label}
       onContextMenu={(event) => event.preventDefault()}
     >
-      {title ? (
+      {sheet && session.subOwner ? (
+        <button
+          type="button"
+          className="ctxmenu__back"
+          aria-label={`Back from ${session.subOwner.label}`}
+          onClick={session.leave}
+        >
+          <IconChevronLeft size={16} />
+          <span>{session.subOwner.label}</span>
+        </button>
+      ) : title ? (
         <p className="ctxmenu__title" aria-hidden="true">
           {title}
         </p>

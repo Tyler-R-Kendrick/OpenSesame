@@ -20,10 +20,11 @@ import { type FieldValue, missingRequired } from "@opensesame/vault-item-types";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useWebMcpLoginDraft } from "../../bindings/webmcp-login-draft.js";
-import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
+import { EmptyTip } from "../../components/EmptyTip.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconEye, IconEyeOff } from "../../components/Icons.js";
+import { useVaultAllTo } from "../../lib/vault-list-path.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { EditorActions } from "./EditorActions.js";
 import { EditorExtras } from "./EditorExtras.js";
@@ -49,6 +50,7 @@ export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
 function EditorForm({ mode }: { mode: "new" | "edit" }) {
   const { kind: kindParam, itemId } = useParams();
   const [search] = useSearchParams();
+  const allItemsTo = useVaultAllTo();
   const navigate = useNavigate();
   const { items, folders } = useVault();
   const store = useVaultStore();
@@ -93,7 +95,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
       <div className="detail">
         <div className="empty">
           <h2>Nothing to edit</h2>
-          <EmptyTip>{emptyTips.escBack}</EmptyTip>
+          <EmptyTip tip="escBack" />
           <Link className="btn btn--sm" to="/vault">
             Back to the vault
           </Link>
@@ -145,7 +147,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
       <div className="detail">
         <div className="empty">
           <h2>Drops cannot be edited</h2>
-          <EmptyTip>{emptyTips.escBack}</EmptyTip>
+          <EmptyTip tip="escBack" />
           <Link className="btn btn--sm" to={`/vault/${draft.id}`}>
             Back to the drop
           </Link>
@@ -251,7 +253,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
     }
   }
 
-  const closeTo = mode === "edit" ? `/vault/${draft.id}` : "/vault";
+  const closeTo = mode === "edit" ? `/vault/${draft.id}` : allItemsTo;
   const saveVerb = saving
     ? draft.kind === "certificate" && !draft.certificatePem
       ? "Issuing…"

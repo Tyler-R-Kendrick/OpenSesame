@@ -196,10 +196,16 @@ the other sections read as a single 60rem flowing document of chapters.
 
 Below 900px the rail gives way to a slim top bar (the account and the lock),
 the statusline keeps the command, a section drawer key closes the
-frame, and the vault collapses to one pane at a time with a back key and a
-back swipe. Because the rail carries the vault's
-filters, the list header grows a scrolling chip row at that breakpoint —
-nothing in the rail may become unreachable.
+frame, and the vault collapses to one pane at a time, each with a back key and
+a back swipe: the **section tree** (the rail's own `NavTree`, drawn in the
+buffer where a finger can reach it, and the screen the vault opens on), the
+**list** a tree entry opens (`/vault?f=…`, with `/vault?f=all` as the tree's
+"all" entry — the bare `/vault` is the tree), and the **item**. The tree is
+mounted in exactly one place at a time — the rail above the breakpoint, the
+vault's first pane below it — so two `role="tree"` never share a page. Because
+the tree carries the vault's filters, nothing in the rail may become
+unreachable, and the list keeps its funnel key for switching without going
+back.
 
 Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
 
@@ -330,6 +336,26 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   rule that sizes a field reads `max(<its size>, var(--field-min))`; the token
   is `0` on a desktop and `1rem` under coarse/narrow, so the trap cannot be
   reopened by adding one more field style.
+- **A finger gets gestures where the keyboard has keys.** The keymap is for a
+  keyboard: under a coarse pointer the help row says *Gestures* and its sheet
+  lists the ones the shell recognises (`lib/gesture-help.ts`) — tap opens, hold
+  or swipe a row left asks for its actions, swipe right goes back, and the
+  keys that matter (new, search) are visible 44px keys. A row never lists a
+  gesture with no recogniser behind it. Gestures are twins, never the only
+  road, and a command that asks before it acts (trash, share) is still never a
+  gesture of its own — it is an entry in the actions a hold or swipe opens.
+- **Keyboard tips stay off touch-primary surfaces; one with a touch twin swaps
+  to it there.** No line a finger reads names a key (`Esc`, `Enter`, `n`, `/`,
+  `?`, `j/k`, `gv`). `EmptyTip` and the welcome buffer's key line draw a keys
+  voice and a touch voice and the stylesheet picks one under
+  `(pointer: coarse)`; copy that lives in an attribute (the command bar's
+  placeholder) reads `useCoarsePointer`. A narrow window with a mouse keeps the
+  keys: the pointer decides, not the width. A twin names only what the shell
+  really does (see `lib/gesture-help.ts`).
+- **A submenu is a drill-in, not a box.** A sheet's nested choices replace its
+  list under a 44px back row that names the parent; the floating menu keeps its
+  submenu beside the row. A finger is never shown the keyboard's inverse-video
+  cursor: that paint belongs to `:focus-visible`.
 - **Nothing waits to find out it was a tap.** Interactive elements set
   `touch-action: manipulation`, drop the platform tap highlight, and answer
   with a `:active` ink instead.
@@ -368,6 +394,10 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   is reachable only by scrolling.
 - **The keyboard is not summoned uninvited**: a form does not autofocus on a
   touch pointer, where it would throw the keyboard over the record.
+- **Keybindings is drawn only where a pointing device is attached.** Settings ›
+  Keybindings is absent when `(any-pointer: fine)` is false, and its address
+  lands on General; the query cannot see a keyboard, so a phone with only a
+  hardware keyboard loses the tab.
 
 None of this is a screenshot review: `pnpm --filter @opensesame/pages
 verify:mobile` walks the phone journey at 320, 390, 430 and landscape in a real

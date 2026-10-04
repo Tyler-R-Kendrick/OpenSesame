@@ -5,7 +5,7 @@ import {
 } from "@opensesame/app-core/lib/vault/health.js";
 import { useMemo } from "react";
 import { Link } from "react-router";
-import { EmptyTip, emptyTips } from "../../components/EmptyTip.js";
+import { EmptyTip } from "../../components/EmptyTip.js";
 import { IconChevronLeft, IconEdit } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
@@ -45,7 +45,7 @@ export function HealthPanel() {
       {report.scored === 0 ? (
         <div className="empty">
           <h2>No passwords to review</h2>
-          <EmptyTip>{emptyTips.vaultEmpty}</EmptyTip>
+          <EmptyTip tip="vaultEmpty" />
           <Link className="btn btn--primary btn--sm" to="/vault/new/login">
             New login
           </Link>

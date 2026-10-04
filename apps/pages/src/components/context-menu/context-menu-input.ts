@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { longPress } from "../../lib/gestures.js";
+import { longPress, swipe } from "../../lib/gestures.js";
 import { typing } from "../../lib/keymap-targets.js";
 import {
   closeContextMenu,
@@ -176,10 +176,19 @@ function longPressRecognizer(
     },
     attach(root: Document): () => void {
       const stop = longPress(root.documentElement, hold);
+      // The touch twin of the `⋯` key: a row swiped left asks for its
+      // actions, as a held one does (DESIGN.md § Touch).
+      const flick = swipe(root.documentElement, "left", (event, from) => {
+        const row = from?.closest('[role="treeitem"]');
+        if (!row?.isConnected || typing(row) || !holdable(row)) return;
+        navigator.vibrate?.(8);
+        open(row, event.clientX, event.clientY);
+      });
       root.addEventListener("pointerdown", down, true);
       root.addEventListener("click", click, true);
       return () => {
         stop();
+        flick();
         root.removeEventListener("pointerdown", down, true);
         root.removeEventListener("click", click, true);
       };
