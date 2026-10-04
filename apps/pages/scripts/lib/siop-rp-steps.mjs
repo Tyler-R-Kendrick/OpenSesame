@@ -101,14 +101,37 @@ export async function gotoAfterAbort(page, url) {
   }
 }
 
-/** What the RP's own start route sends the browser to, read without following it. */
-export async function startLogin(rpUrl, clientId) {
-  const query = clientId === undefined ? "" : `?client_id=${clientId}`;
-  const response = await fetch(`${rpUrl}/auth/start${query}`, {
-    redirect: "manual",
+const BINDING_COOKIE = "__Host-siop_binding";
+
+/**
+ * The binding cookie as this browser holds it, or null. The jar is read whole:
+ * filtering it by an `http` URL would hide a `Secure` cookie even though
+ * Chromium treats loopback as a secure context and keeps it.
+ */
+export async function bindingCookieOf(context, rpUrl) {
+  const { hostname } = new URL(rpUrl);
+  const held = (await context.cookies()).find(
+    (cookie) => cookie.name === BINDING_COOKIE && cookie.domain === hostname,
+  );
+  return held ?? null;
+}
+
+/**
+ * What the RP's own start route sends the browser to, read without following
+ * it. Asked through the *browser context's* own request client, so the binding
+ * cookie the RP sets lands in that browser's jar exactly as a followed
+ * redirect would put it there: the login is this browser's.
+ */
+export async function startLogin(context, rpUrl, { clientId, callback } = {}) {
+  const query = new URLSearchParams();
+  if (clientId !== undefined) query.set("client_id", clientId);
+  if (callback !== undefined) query.set("callback", callback);
+  const suffix = query.size === 0 ? "" : `?${query}`;
+  const response = await context.request.get(`${rpUrl}/auth/start${suffix}`, {
+    maxRedirects: 0,
   });
-  expect(response.status).toBe(302);
-  const url = new URL(response.headers.get("location") ?? "");
+  expect(response.status()).toBe(302);
+  const url = new URL(response.headers().location ?? "");
   return {
     url,
     state: url.searchParams.get("state") ?? "",
@@ -116,11 +139,25 @@ export async function startLogin(rpUrl, clientId) {
   };
 }
 
-/** What an attacker with a captured response would send the RP's callback. */
-export async function post(rpUrl, path, response) {
+/** A login started by somebody else's client: its cookie is theirs, not the browser's. */
+export async function startLoginElsewhere(rpUrl) {
+  const response = await fetch(`${rpUrl}/auth/start`, { redirect: "manual" });
+  expect(response.status).toBe(302);
+  const url = new URL(response.headers.get("location") ?? "");
+  const header = response.headers.get("set-cookie") ?? "";
+  return {
+    url,
+    state: url.searchParams.get("state") ?? "",
+    nonce: url.searchParams.get("nonce") ?? "",
+    cookie: header.split(";")[0] ?? "",
+  };
+}
+
+/** What a caller would send the RP's callback, with the cookie it holds (if any). */
+export async function post(rpUrl, path, response, cookie = "") {
   const answered = await fetch(`${rpUrl}${path}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ response }),
   });
   return { status: answered.status, body: await answered.json() };

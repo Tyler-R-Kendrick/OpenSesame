@@ -8,6 +8,8 @@ const repoRoot = resolve(import.meta.dirname, "../..");
  *
  *   OPENSESAME_PAGES_BASE   https://<owner>.github.io/<repo>
  *   SIOP_RP_CLIENT_ID       local_<uuid>, as the person registered it
+ *   SIOP_RP_ALLOW_LOOPBACK_HTTP  1 to accept a loopback http Pages (local
+ *                           development; a production build leaves it off)
  *
  * The redirect URI is the page's own address, so register
  * `http://127.0.0.1:4111/` (dev) or wherever you host the build.
@@ -23,6 +25,7 @@ export default defineConfig({
       clientId:
         process.env.SIOP_RP_CLIENT_ID ??
         "local_00000000-0000-4000-8000-000000000001",
+      allowLoopbackHttp: process.env.SIOP_RP_ALLOW_LOOPBACK_HTTP === "1",
     }),
   },
   build: {

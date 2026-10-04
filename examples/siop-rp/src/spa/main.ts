@@ -1,8 +1,10 @@
 /**
  * Browser wiring for `login.ts`. Configuration is baked in at build time by
- * `vite.spa.config.ts` (`OPENSESAME_PAGES_BASE`, `SIOP_RP_CLIENT_ID`).
+ * `vite.spa.config.ts` (`OPENSESAME_PAGES_BASE`, `SIOP_RP_CLIENT_ID`,
+ * `SIOP_RP_ALLOW_LOOPBACK_HTTP`).
  */
 import { type SpaConfig, beginSignIn, finishSignIn } from "./login.js";
+import { SealedLoginSlot } from "./sealed-login.js";
 
 declare const __SIOP_SPA_CONFIG__: SpaConfig;
 
@@ -17,7 +19,7 @@ const detail = element("detail");
 const signin = element("signin");
 
 const deps = {
-  storage: sessionStorage,
+  slot: new SealedLoginSlot(sessionStorage),
   fetch: globalThis.fetch.bind(globalThis),
   page: {
     origin: location.origin,

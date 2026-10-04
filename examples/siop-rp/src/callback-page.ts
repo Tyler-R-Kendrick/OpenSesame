@@ -29,7 +29,7 @@ ${SHELL_HEAD}
 <form action="/auth/start" method="get">
 <label for="client_id">Your OpenSesame application id</label>
 <input id="client_id" name="client_id" placeholder="local_00000000-0000-4000-8000-000000000000" pattern="local_[0-9a-f\\-]{36}" size="44" />
-<button type="submit">Sign in with OpenSesame Pages</button>
+<button id="signin-form" type="submit">Sign in with OpenSesame Pages</button>
 </form>
 <p><a id="signin" href="/auth/start">Sign in as the configured application</a></p>
 <dl>
@@ -76,7 +76,8 @@ function show(state, text, extra) {
 if (response.length <= 1) {
   show("refused", "No response in the address.");
 } else {
-  fetch(location.pathname, {
+  // The route that answers is the route that was asked: path and query.
+  fetch(location.pathname + location.search, {
     method: "POST",
     credentials: "same-origin",
     headers: { "content-type": "application/json" },

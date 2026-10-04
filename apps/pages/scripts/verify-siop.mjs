@@ -123,6 +123,8 @@ async function bundleSpa(clientId, pagesBase) {
   // The single-page RP bakes its two settings in at build time.
   process.env.OPENSESAME_PAGES_BASE = pagesBase;
   process.env.SIOP_RP_CLIENT_ID = clientId;
+  // This build talks to an https Pages: no plaintext allowance is baked in.
+  process.env.SIOP_RP_ALLOW_LOOPBACK_HTTP = "";
   const result = await build({
     configFile: `${root}/examples/siop-rp/vite.spa.config.ts`,
     logLevel: "error",

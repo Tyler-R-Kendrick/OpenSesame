@@ -458,6 +458,9 @@ importers:
 
   examples/siop-rp:
     dependencies:
+      '@opensesame/browser-at-rest':
+        specifier: workspace:*
+        version: link:../../packages/browser-at-rest
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../../packages/os-domain

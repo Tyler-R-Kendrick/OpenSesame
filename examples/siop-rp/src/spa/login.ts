@@ -10,26 +10,30 @@
  * server holds the state and starts a real session.
  *
  * The one thing a browser must add: the redirect is a full page navigation, so
- * the login's state and nonce live in `sessionStorage`, not in a variable.
+ * the login's state, nonce and binding live in the tab's `sessionStorage`, not
+ * in a variable. They live there sealed (`sealed-login.ts`, ADR 0149), and a
+ * response that returns to a tab that did not start the login finds none of
+ * them: that is this page's form of the binding.
  */
 import {
-  type LoginStorage,
   type MetadataFetch,
   type SiopLoginResult,
   SiopRpError,
-  StorageLoginStore,
   createSiopRelyingParty,
   fetchSiopMetadata,
   isSiopV2Error,
   pagesOriginOf,
   pagesSiopIssuer,
 } from "@opensesame/siop-v2";
+import type { SealedLoginSlot } from "./sealed-login.js";
 
 export type SpaConfig = {
   /** The Pages deployment: `https://<owner>.github.io/<repo>`. */
   pagesBase: string;
   /** The application id the person registered in their vault. */
   clientId: string;
+  /** Accept a loopback `http` Pages or redirect URL: local development only. */
+  allowLoopbackHttp?: boolean | undefined;
 };
 
 /** The parts of `location` the flow reads. */
@@ -41,7 +45,8 @@ export type SpaPage = {
 };
 
 export type SpaDeps = {
-  storage: LoginStorage;
+  /** This tab's sealed login; one per page. */
+  slot: SealedLoginSlot;
   fetch: MetadataFetch;
   page: SpaPage;
   /** Leave for the OP: `location.assign`. */
@@ -72,7 +77,8 @@ function relyingParty(
     // The page is its own callback: the redirect_uri is the address without
     // its query or fragment, and it must be the one the person registered.
     redirectUri: `${deps.page.origin}${deps.page.pathname}`,
-    store: new StorageLoginStore(deps.storage),
+    allowLoopbackHttp: config.allowLoopbackHttp === true,
+    store: deps.slot,
     now: deps.now,
   });
 }
@@ -89,13 +95,22 @@ export async function beginSignIn(
   const accepted = await fetchSiopMetadata({
     fetch: deps.fetch,
     expectedIssuer: issuerOf(config),
+    allowLoopbackHttp: config.allowLoopbackHttp === true,
   });
-  const { authorizationUrl } = await relyingParty(
+  const started = await relyingParty(
     config,
     deps,
     accepted.authorizationEndpoint,
   ).startLogin();
-  deps.navigate(authorizationUrl);
+  // Nothing may be written in the clear, and a value held only in memory does
+  // not survive the redirect: with no key to seal under, do not leave.
+  if (!deps.slot.kept || !(await deps.slot.bind(started.binding))) {
+    deps.slot.release();
+    throw new Error(
+      "This browser keeps no at-rest key for this site, so a login could not survive the redirect.",
+    );
+  }
+  deps.navigate(started.authorizationUrl);
 }
 
 function refusalCode(failure: Error): string {
@@ -119,8 +134,10 @@ export async function finishSignIn(
   try {
     const result = await relyingParty(config, deps).completeLogin({
       response,
+      binding: await deps.slot.binding(),
       receivedRedirectUri: `${deps.page.origin}${deps.page.pathname}`,
     });
+    deps.slot.release();
     return { kind: "signed-in", result };
   } catch (failure) {
     return {

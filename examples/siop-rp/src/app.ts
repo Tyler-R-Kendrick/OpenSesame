@@ -1,19 +1,25 @@
 /**
  * A relying party for a Pages Self-Issued OP, as an Express app (ADR 0161).
  *
- * Copy this file, `callback-page.ts` and `config.ts`. The protocol work is
- * `@opensesame/siop-v2`'s `SiopRelyingParty`; what is left here is routes:
+ * Copy this file, `callback-page.ts`, `rate-limit.ts` and `config.ts`. The
+ * protocol work is `@opensesame/siop-v2`'s `SiopRelyingParty`; what is left
+ * here is routes:
  *
- *   GET  /auth/start       begin a login: remember state + nonce, redirect
+ *   GET  /auth/start       begin a login: remember state + nonce, hand this
+ *                          browser its binding cookie, redirect
  *   GET  <callback path>   the page that reads the URL fragment
  *   POST <callback path>   verify the response and start *your* session
  *
- * The completion POST goes to the same path the page was served from, and the
- * server derives the redirect_uri from that route, so a response that landed on
- * the wrong callback is refused (`redirect_mismatch`) without trusting the page.
+ * Two things keep a response with the wrong browser or the wrong address from
+ * signing anyone in. The binding cookie (`__Host-`, HttpOnly, SameSite=Lax) is
+ * the browser's half of the login: a response somebody else obtained, planted
+ * in a victim's browser, arrives without it. And the redirect_uri a response
+ * is checked against is built from the *request the server received*, path and
+ * query, never from anything the page says about itself.
  */
 import { isString } from "@opensesame/os-domain";
 import {
+  MemoryLoginStore,
   type SiopLoginResult,
   type SiopRelyingParty,
   SiopRpError,
@@ -33,13 +39,19 @@ import {
   indexHtml,
 } from "./callback-page.js";
 import { type SiopRpConfig, issuerOf } from "./config.js";
+import { StartRateLimit } from "./rate-limit.js";
 
 export type SiopRpAppOptions = {
   /** What discovery named, when the operator turned it on. */
   authorizationEndpoint?: string | undefined;
   /** Share these across instances: see `SiopLoginStore` / `SiopReplayLedger`. */
   relyingParty?: SiopRelyingParty | undefined;
+  /** A test seam for the rate limit's clock. */
+  now?: (() => number) | undefined;
 };
+
+const BINDING_COOKIE = "__Host-siop_binding";
+const BINDING_MAX_AGE_SECONDS = 600;
 
 /** What the page is told: a stable code, never a message and never the token. */
 function refusalCode(failure: Error): string {
@@ -69,6 +81,24 @@ function responseFrom(req: Request): string | null {
   return response;
 }
 
+/**
+ * The binding as a cookie only this browser holds. `__Host-` pins it to this
+ * exact host, over https, at path `/`; HttpOnly keeps script (including this
+ * page's own) from reading it; SameSite=Lax keeps it off cross-site requests
+ * other than the top-level navigation the redirect back is.
+ */
+function bindingCookie(value: string, maxAge: number): string {
+  return `${BINDING_COOKIE}=${value}; Max-Age=${maxAge}; Path=/; HttpOnly; Secure; SameSite=Lax`;
+}
+
+function bindingFrom(req: Request): string {
+  for (const part of (req.headers.cookie ?? "").split(";")) {
+    const [name, ...value] = part.trim().split("=");
+    if (name === BINDING_COOKIE) return value.join("=");
+  }
+  return "";
+}
+
 export function createSiopRpApp(
   config: SiopRpConfig,
   options: SiopRpAppOptions = {},
@@ -80,8 +110,22 @@ export function createSiopRpApp(
       authorizationEndpoint: options.authorizationEndpoint,
       clientId: config.clientId,
       redirectUri: config.redirectUri,
+      allowedRedirectUris: config.redirectUris,
+      allowLoopbackHttp: config.allowLoopbackHttp,
+      store: new MemoryLoginStore(config.maxPendingLogins),
     });
   const origin = new URL(config.redirectUri).origin;
+  // The pages and endpoints a form may submit to: this server, and the Pages
+  // deployment its 302 sends the browser on to (a form's redirect is checked
+  // against `form-action` too).
+  const pagesOrigin = new URL(issuerOf(config)).origin;
+  const redirectFor = new Map(
+    config.callbackPaths.map((path, index) => [
+      path,
+      config.redirectUris[index] ?? config.redirectUri,
+    ]),
+  );
+  const limit = new StartRateLimit(config.startsPerMinute, options.now);
   const app = express();
   app.disable("x-powered-by");
   app.use((_req, res, next) => {
@@ -90,7 +134,7 @@ export function createSiopRpApp(
     res.setHeader("x-content-type-options", "nosniff");
     res.setHeader(
       "content-security-policy",
-      "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      `default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self' ${pagesOrigin}; frame-ancestors 'none'`,
     );
     next();
   });
@@ -112,21 +156,41 @@ export function createSiopRpApp(
   });
 
   // The application id is minted by the person's own vault, so a relying
-  // party for many people takes it per login: `?client_id=local_<uuid>`. With
-  // none, the configured id is used.
+  // party for many people takes it per login: `?client_id=local_<uuid>`. A
+  // second registered callback is chosen the same way: `?callback=/path`.
   app.get("/auth/start", async (req, res) => {
+    if (!limit.allow(req.ip ?? "unknown")) {
+      res.setHeader("retry-after", "60");
+      res.status(429).json({ error: "rate_limited" });
+      return;
+    }
     const asked = req.query.client_id;
     const clientId = isString(asked) && asked.length > 0 ? asked : undefined;
+    const path = req.query.callback;
+    const redirectUri =
+      isString(path) && path.length > 0 ? redirectFor.get(path) : undefined;
+    if (isString(path) && path.length > 0 && redirectUri === undefined) {
+      res.status(400).json({ error: "invalid_callback" });
+      return;
+    }
     try {
-      const { authorizationUrl } = await relyingParty.startLogin({ clientId });
-      res.redirect(302, authorizationUrl);
+      const started = await relyingParty.startLogin({ clientId, redirectUri });
+      res.setHeader(
+        "set-cookie",
+        bindingCookie(started.binding, BINDING_MAX_AGE_SECONDS),
+      );
+      res.redirect(302, started.authorizationUrl);
     } catch (failure) {
-      if (
-        failure instanceof SiopRpError &&
-        failure.code === "invalid_configuration"
-      ) {
-        res.status(400).json({ error: "invalid_client_id" });
-        return;
+      if (failure instanceof SiopRpError) {
+        if (failure.code === "capacity_exceeded") {
+          res.setHeader("retry-after", "30");
+          res.status(503).json({ error: "busy" });
+          return;
+        }
+        if (failure.code === "invalid_configuration") {
+          res.status(400).json({ error: "invalid_client_id" });
+          return;
+        }
       }
       respondRefused(res, failure instanceof Error ? failure : new Error());
     }
@@ -146,12 +210,15 @@ export function createSiopRpApp(
       try {
         const result = await relyingParty.completeLogin({
           response,
-          // The route that received this response, not a value the page sent.
-          receivedRedirectUri: `${origin}${path}`,
+          binding: bindingFrom(req),
+          // The address this server was asked at, query included: not a
+          // value the page sent.
+          receivedRedirectUri: `${origin}${req.originalUrl}`,
         });
         // Your session starts here: set your own cookie for `result.subject`.
         // The subject is the thumbprint of a key the person holds for this
         // application; it proves possession, not an email address or a name.
+        res.setHeader("set-cookie", bindingCookie("", 0));
         res.json(sessionBody(result));
       } catch (failure) {
         respondRefused(res, failure instanceof Error ? failure : new Error());

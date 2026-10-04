@@ -39,9 +39,32 @@ export async function routeSpa(context, bundle) {
   });
 }
 
+/**
+ * Record every value the page writes to `sessionStorage`, as it writes it:
+ * the page leaves for Pages, and its storage is not readable from the error
+ * page a held navigation lands on. What was written is what a copy of the
+ * tab's storage would hold.
+ */
+async function recordStorageWrites(page) {
+  const writes = [];
+  await page.exposeFunction("__recordWrite", (key, value) => {
+    writes.push({ key, value });
+  });
+  await page.addInitScript(() => {
+    const set = Storage.prototype.setItem;
+    Storage.prototype.setItem = function record(key, value) {
+      if (this === globalThis.sessionStorage)
+        globalThis.__recordWrite(key, value);
+      return set.call(this, key, value);
+    };
+  });
+  return writes;
+}
+
 export async function spaRpJourney(env) {
   const { page, issuer, ids, siopVerify } = env;
   const watched = watch(page, issuer, SPA_ORIGIN);
+  const writes = await recordStorageWrites(page);
   await page.goto(`${SPA_ORIGIN}/`);
   await page.locator("#signin").click();
   await answer(page, ids.personName, SPA_ORIGIN);
@@ -60,12 +83,40 @@ export async function spaRpJourney(env) {
     "PASS spa allow: discovery read cross-origin, the single-page relying party verified the token in the browser",
   );
 
+  // Nothing of the login was written in the clear (ADR 0149): every value is
+  // an at-rest seal, and neither the state nor the nonce is readable in one.
+  const sent = watched.asked.at(-1);
+  expect(writes.length).toBeGreaterThan(0);
+  for (const { value } of writes) {
+    expect(value.startsWith("osc1.")).toBe(true);
+    for (const secret of [
+      sent.searchParams.get("state"),
+      sent.searchParams.get("nonce"),
+      ids.appOneId,
+    ]) {
+      expect(value).not.toContain(secret);
+    }
+  }
+  console.log(
+    `PASS spa at rest: ${writes.length} sessionStorage writes, every one an osc1. seal with the state, nonce and application id unreadable in it`,
+  );
+
   // The same response again, in the same tab: the state was taken once.
   // (A hash-only change would not reload the page, so leave it first.)
   await page.goto("about:blank");
   await page.goto(watched.answered.at(-1));
   await expectRefused(page, "login_unknown");
   console.log("PASS spa replay: the same response is refused (login_unknown)");
+
+  // A login's response opened in a tab that did not start it: this page's form
+  // of the binding is the tab's own sealed storage, and another tab has none.
+  const other = await page.context().newPage();
+  await other.goto(watched.answered.at(-1));
+  await expectRefused(other, "login_unknown");
+  await other.close();
+  console.log(
+    "PASS spa binding: a valid response opened in another tab is refused (login_unknown)",
+  );
 }
 
 /** The published bytes are exactly what the kit says a build publishes. */
