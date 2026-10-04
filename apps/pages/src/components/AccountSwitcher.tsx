@@ -90,7 +90,7 @@ function AccountSwitcherDefault() {
   const brand = account?.providerId ? brandFor(account.providerId) : null;
   // What the prompt wears in place of the name on a phone: the organization's
   // face while one is active, else the person's.
-  const personId = personGlyphId(session, account);
+  const personId = personGlyphId(session);
   const promptGlyph = activeOrg
     ? ({ kind: "org", id: activeOrg.id } as const)
     : ({ kind: "person", id: personId } as const);

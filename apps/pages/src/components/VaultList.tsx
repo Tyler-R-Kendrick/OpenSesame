@@ -14,7 +14,6 @@
 import {
   type DeviceVault,
   describeSealedAt,
-  vaultGlyphId,
 } from "@opensesame/app-core/lib/vaults.js";
 import type { ReactNode } from "react";
 import { GlyphMark } from "./GlyphMark.js";
@@ -76,7 +75,7 @@ export function VaultList({
               }`}
               aria-hidden="true"
             >
-              <GlyphMark kind="vault" id={vaultGlyphId(vault.id)} />
+              <GlyphMark kind="vault" id={vault.id} />
             </span>
             <span className="vault-row__text">
               <span className="vault-row__name">{vault.label}</span>

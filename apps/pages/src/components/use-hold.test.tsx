@@ -126,3 +126,20 @@ describe("useHold — a hold that does not apply", () => {
     expect(onHold).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("useHold — a hold that never gets its click", () => {
+  it("does not swallow the keyboard activation that comes after it", () => {
+    vi.useFakeTimers();
+    const { button, consume } = mount(() => undefined);
+    act(() => {
+      button.dispatchEvent(pointer("pointerdown", "touch"));
+      vi.advanceTimersByTime(gestureLimits.longPressMs + 10);
+      // Android answers a hold with `contextmenu`, not a click; the person
+      // then closes the menu from a hardware keyboard and presses Enter.
+      document.body.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter" }),
+      );
+    });
+    expect(consume()).toBe(false);
+  });
+});

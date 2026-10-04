@@ -30,7 +30,6 @@ import {
   enterActiveProjectScope,
   guestVaultLabel,
   switchToGuest,
-  vaultGlyphId,
   vaultLabel,
 } from "@opensesame/app-core/lib/vaults.js";
 import { useCallback, useState, useSyncExternalStore } from "react";
@@ -146,7 +145,7 @@ function ProjectSwitcherDefault() {
         <GlyphMark
           className="prompt__glyph"
           kind="vault"
-          id={vaultGlyphId(guestOpen ? GUEST_TOMB : (active?.id ?? "personal"))}
+          id={guestOpen ? GUEST_TOMB : (active?.id ?? "personal")}
         />
       </button>
 

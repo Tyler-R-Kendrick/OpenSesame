@@ -48,11 +48,15 @@ export function useHold(
     const down = () => {
       held.current = false;
     };
+    // …and so does a key: Enter or Space on the control, after the menu a hold
+    // opened was closed from the keyboard, is a press, not the hold's lift.
     const doc = element.ownerDocument;
     doc.addEventListener("pointerdown", down, true);
+    doc.addEventListener("keydown", down, true);
     stop.current = () => {
       release();
       doc.removeEventListener("pointerdown", down, true);
+      doc.removeEventListener("keydown", down, true);
     };
   }, []);
 

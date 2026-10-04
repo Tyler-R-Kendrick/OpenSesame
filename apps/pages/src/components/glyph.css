@@ -84,8 +84,12 @@
    left edge, ran off the screen besides). The segments ellipsise their own
    names, so the prompt has nothing left to clip, and the menus take the width
    of the screen, under the bar, whichever segment opened them. */
-.topbar .rail__prompt {
+.topbar > .rail__prompt {
   overflow: visible;
+  /* Two 44px glyph segments, the `@` and the lock are 140px; at 320px the
+     prompt has 143. Its side padding is for text and made the lock overlap the
+     theme key by 3px. */
+  padding-inline: 0;
 }
 
 .topbar .rail__prompt .project-switcher__menu,
