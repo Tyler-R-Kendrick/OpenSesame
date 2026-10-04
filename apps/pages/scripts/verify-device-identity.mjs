@@ -33,6 +33,8 @@
 //      one key, once, and says so, and that key travels with the next backup.
 //   J. A restore that does not take the backup's identity (the card's choice
 //      is offered, and off) keeps the vault's principal and says nothing.
+//   K. A guest session's restore card draws no choice about the identity at
+//      all (a guest carries no key), and the backup restores and says nothing.
 //   F. Access, once chosen: every tab reads clean, and Receipts is drawn only
 //      once Browser-local IAM is on, because only it keeps an audit trail for
 //      the device plane to serve.
@@ -45,6 +47,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   configureRestore,
+  restoreAsGuest,
   restoreDeclined,
   restoredElsewhere,
   restoredWithoutKey,
@@ -155,6 +158,7 @@ await memberVault(browser);
 await restoredElsewhere(browser);
 await restoredWithoutKey(browser);
 await restoreDeclined(browser);
+await restoreAsGuest(browser);
 await lateActivation(browser);
 await browser.close();
 

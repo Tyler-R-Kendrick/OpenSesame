@@ -209,18 +209,29 @@ The tomb file stays the host's working copy; the body is the carrier.
 
 **A record is trusted or it is not a key.** Everything that ranks, adopts,
 restores or publishes a key first passes one door
-(`device-identity-trust.ts`): the record has the shape this build reads, its
-`createdAt` is a positive time no more than a day past this device's clock
-(the clock margin; a record dated outside it is not one an honest device wrote,
-and a forged date must not decide a ranking), its key id is the RFC 7638
-thumbprint of its public key, and its private half is that public key's, proven
-by signing with one and verifying with the other. Anything else (a forged id, a
-private half that belongs to another key, a `null`, a string, a number, an
-impossible time) is *poison*: it is treated as absent, never ranks, never wins,
-never replaces a genuine key on either side, and is dropped from a body that
-would carry it on. One kind of record is not poison and is not trusted: a
-version this build does not know. It is left exactly as it is on both sides and
-nothing is minted beside it.
+(`device-identity-trust.ts`). The record has the shape this build reads, and
+that shape is bounded before anything is hashed, parsed or imported: the key id
+and each public coordinate are exactly the 43 base64url characters an encoder
+writes for 32 bytes, with the padding bits of the last character zero (a
+respelling of the same bytes names the same key under another id, and so
+another principal, and WebCrypto in a browser reads it), and the private half is
+at most 4096 characters. Its `createdAt` is a whole time inside the window of
+the vault it is read for: no more than a day past this device's clock and no
+more than a day before the vault's header says the vault was made (the clock
+margin; a record dated outside it is not one an honest device wrote, and a
+forged date must not decide a ranking). Its key id is the RFC 7638 thumbprint of
+its public key, and its private half is that public key's, proven by signing
+with one and verifying with the other. Anything else (a forged id, a
+respelled coordinate, a private half that belongs to another key, a `null`, a
+string, a number, an impossible time) is *poison*: it is treated as absent,
+never ranks, never wins, never replaces a genuine key on either side, and is
+dropped from a body that would carry it on. One kind of record is not poison and
+is not trusted: a version this build does not know, which is left exactly as it
+is on both sides with nothing minted beside it. It has to look like a key
+record to be honoured as one: a whole version above 1, a text key id of at most
+128 characters, a public key object, and at most 8192 characters of JSON. A
+high version number on anything else is poison, or anyone who can write a body
+could stop a vault from ever making its principal.
 
 **What carries it, and how that is shown.**
 
@@ -250,19 +261,56 @@ read. A key the host mints is published to the body at once. Taking a carried
 key and ranking two keys are deterministic and idempotent, so a browser with no
 cross-tab lock still does them; it still mints nothing.
 
+**What is published is dated inside the window.** The tomb's file is this
+device's own and is read as it was written, with no upper bound on its date, so
+a clock that ran ahead and was put back cannot lock a vault out of its own
+principal. What goes into the body is that key with its `createdAt` brought
+inside the vault's window (never later than now, never a day before the vault
+existed), and that clamped date is what it is ranked by, so a date beyond the
+margin cannot make a key outrank an honest one nor leave a body the readers
+call poison. The publish seam itself vets what it is offered (a record that is
+not a genuine key is never carried) and writes nothing when the body already
+carries that key, so an unlock that finds the two copies level, which is every
+unlock after the first, seals no new revision; the vault's revision is the same
+after three unlocks as after the first.
+
 **Writes to the body are not made from a stale tab.** The vault body is written
-by whichever tab holds it, and a tab that answers Connect may hold a body
-another tab has since changed. So a plain read of the principal writes nothing
-(a vault from before keys travelled gets its key into the body at its next
-unlock, not at a read), and every write of the key to the body, at a mint, a
-reconcile or a restore, runs under the cross-tab body lock starting from the
-disk's copy of the body and header. Another tab's edit is kept, and the sealed
-revision is never one the header has already moved past. The identity lock is
-always taken before the body lock, never after. A merge writes the merged body
-and levels the tomb's key in one step under the identity lock; a restore that
-takes the key writes the tomb's file and then the body, and puts the tomb's file
-back (or removes it, if there was none) when the body cannot be written, so a
-failed restore fails loudly and leaves the vault as it was.
+by whichever tab holds it, and a tab may hold a body another tab has since
+changed. So a plain read of the principal writes nothing (a vault from before
+keys travelled gets its key into the body at its next unlock, not at a read),
+and *every* write the store makes, an ordinary edit as much as the key's, goes
+through one step (`#exclusive` in `store.ts`): queued on the store's write chain,
+then under the cross-tab body lock, starting from the header read again and,
+when the body on disk is not the one this tab last wrote or read (the seal's IV
+says so without opening it), from the disk's copy. Another tab's edit is kept,
+the identity key another tab published is kept (an ordinary edit from a tab that
+is behind cannot drop it from the sealed body), and the sealed revision is never
+one the header has already moved past. The guarantee is as good as Web Locks: a
+browser that has stored files and no Web Locks writes bare, as it always did,
+and a stale tab there can still seal a body without the member; the tomb file is
+untouched and the next unlock, merge or restore puts the member back, and that
+browser mints and adopts nothing. A guest or scratch session has no header of its
+own beside the vault and starts from its own body. The order is always the
+identity lock, then the write chain, then the body lock, never another: a
+publish that held the body lock and then queued on the chain used to wait for a
+`destroy()` that had queued on the chain and was waiting for the body lock, so
+deleting a vault while a key was being published never finished. Now `destroy`
+and every write take the chain and then the lock, and the key's publish and a
+restore write through the step they were handed, not a second queue. A merge
+writes the merged body and levels the tomb's key in one step under the identity
+lock; a restore that takes the key writes the tomb's file and then the body, and
+puts the tomb's file back (or removes it, if there was none) when the body
+cannot be written or when another tab gave the vault something in between (the
+body is checked again under the locks), so a failed restore fails loudly and
+leaves the vault as it was.
+
+**The seam is not a public surface.** The store hands its body to
+`store-device-key.ts` once (`registerBodyPort`) and installs the carrier the
+device host reads and writes through (`installDeviceKeyCarrier`); `bodyPortOf`
+is how a test reaches it. They hand out the whole sealed body, so
+`pnpm quality:app-core` fails on any importer that is not `store.ts`, that module,
+the golden-vector generator or a test, in any package or app
+(`scripts/lib/app-core-seams.mjs`).
 
 **Ranking happens only where the author is a device of this vault.** A tailnet
 snapshot opens only under this vault's own key and its `createdAt` must equal the
@@ -280,11 +328,26 @@ merge. The backup's key is considered only when both hold:
 
 The choice is offered only to such a vault and is off until chosen; it is the
 confirmation, drawn as the same labelled check the sealing screen uses, not a
-verb on a button. With the choice made:
+verb on a button. It is drawn only where a vault can take an identity: not for a
+guest or scratch session (which carries no key), not where the browser has no Web
+Locks to fence the tomb's key against another tab, and not for a vault with an
+item or a folder. Where any of that is not so the control is absent, not drawn
+and dead (ADR 0158), the restore sends no choice, and the store refuses on the
+same terms if asked anyway. With the choice made:
 - A trusted key becomes this vault's, even if this vault already minted one and
   whichever is older. If the vault had a different key, its sessions end (the key
   id binding) and the bell says "Device identity changed", that the person took
   the backup's key. If it had none, nothing is lost and nothing is announced.
+  The key is taken *dated just before the one it replaced* (never after its own
+  date, always inside the vault's window), because another device of this vault
+  still holds the replaced key and a merge keeps the older of two: without that,
+  the next sync put the old key back on the device that had just taken the new
+  one and the person's choice lasted until the first merge. A key some third
+  device minted earlier and has not yet synced still ranks first, which is the
+  rule every two keys meet under, and that device's person is told when it
+  happens. If the vault's own record cannot be read it is never replaced: the
+  items merge, nothing else changes, and the bell says "Identity key not taken",
+  that this device's own record could not be read.
 - A backup with no key (made before keys travelled): the vault keeps its own, one
   key is minted exactly once under the lock if it had none, and the bell says
   "Restored without an identity key".
@@ -434,9 +497,20 @@ this ADR does not repeat it.
   keyless and unusable backups, a restore that cannot finish, a guest),
   `vault/device-key-hostile.test.ts` (a backup that copies the victim's header
   time), `vault/device-key-stale-tab.test.ts` (two tabs),
-  `device-identity-trust.test.ts` (the door),
+  `vault/device-key-concurrency.test.ts` (an ordinary edit from a tab that is
+  behind keeps the other tab's key and edit; a delete and a publish settle in
+  either order), `vault/device-key-clock.test.ts` (a key dated outside the
+  window, three unlocks, one revision), `vault/device-key-restore-guards.test.ts`
+  (the second freshness check and its rollback, a browser with no Web Locks, an
+  unreadable own record), `device-identity-trust.test.ts` (the door, with a
+  respelled coordinate, oversize fields and a bare high version number),
   `tailnet-sync/device-identity-sync.test.ts` (two devices, in either order of
-  sync, the loser's bearer ended, a forged or null record never winning), `travel/travel-identity-key.test.ts`,
+  sync, the loser's bearer ended, a forged or null record never winning),
+  `tailnet-sync/device-identity-restore-sync.test.ts` (a key taken from a backup
+  survives the next sync on the other device), `sections/vault/import/model.test.ts`
+  and the Pages `ImportSheet.identity.test.tsx` (the card's choice is absent for a
+  guest, the guest tomb, no Web Locks and a vault with content),
+  `scripts/lib/app-core-seams.test.mjs` (the seam gate), `travel/travel-identity-key.test.ts`,
   `sections/settings/virtual-files.test.ts` and the Pages
   `providers.concealed.test.tsx`. Across planes, the vector
   `backup-device-identity` is written by the TypeScript store and read by the
@@ -449,6 +523,6 @@ this ADR does not repeat it.
   over a vault that had minted its own and its bearer ends and the bell says so;
   a keyless backup mints one key and says so, and that key travels with the next
   backup; a restore that declines the identity keeps the vault's principal and
-  says nothing.
+  says nothing; and a guest session's restore card draws no choice at all.
 - `verify:static`, `verify:local-iam`, `verify:siop`, `verify:keyboard`,
   `verify:mobile` and `verify:auth` stay green.

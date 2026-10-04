@@ -66,8 +66,10 @@ async function settle(store: VaultStore): Promise<void> {
   await vfsFlush();
 }
 
+type KeyedBackup = { text: string; id: string };
+
 /** A backup of a vault that has its own identity key. */
-async function backupWithKey(): Promise<{ text: string; id: string }> {
+async function backupWithKey(): Promise<KeyedBackup> {
   const source = await newVault(PASSWORD);
   const id = await principal();
   await settle(source);

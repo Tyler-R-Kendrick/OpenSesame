@@ -86,7 +86,9 @@ describe("the seams only the store, the generator and tests may import", () => {
     ]);
     expect(violations.map((v) => v.names)).toEqual([["*"]]);
   });
+});
 
+describe("what the seams leave open", () => {
   it("lets the module, the store that wires it and the vector generator use them", () => {
     expect(
       find([

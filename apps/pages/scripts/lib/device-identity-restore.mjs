@@ -14,8 +14,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { asBearer, hostCall, mintInit } from "./device-identity-scenarios.mjs";
-import { passTheDoor } from "./front-door.mjs";
-import { PASSWORD, sealLocalOnly } from "./pages-journey.mjs";
+import { doorGuest, passTheDoor } from "./front-door.mjs";
+import { PASSWORD, sealLocalOnly, waitOpen } from "./pages-journey.mjs";
 
 const env = {};
 
@@ -263,5 +263,49 @@ export async function restoreDeclined(browser) {
     `${label}: nothing is announced`,
   );
   await Promise.all([source, target].map(({ context }) => context.close()));
+  fs.rmSync(backup, { force: true });
+}
+
+/**
+ * A guest session carries no key (its tomb's key never travels), so the restore
+ * card has no choice to draw: absent, not drawn and dead (ADR 0158). The backup
+ * still restores, nothing is announced, and a fresh vault beside it, which does
+ * carry one, is offered the choice.
+ */
+export async function restoreAsGuest(browser) {
+  const label = "guest";
+  env.setStep(label);
+  const source = await newDevice(browser);
+  await connect(source.page);
+  const backup = tmp("guest");
+  await exportBackup(source.page, backup);
+
+  const { page, context } = await env.newPage(browser);
+  await page.goto(`${env.ORIGIN}${env.BASE}`, { waitUntil: "networkidle" });
+  await doorGuest(page).click();
+  await waitOpen(page);
+  await page
+    .getByLabel("Choose a file to import")
+    .first()
+    .setInputFiles(backup);
+  const sheet = page.getByRole("dialog", { name: "Import items" });
+  await sheet.waitFor({ timeout: 15000 });
+  await sheet.getByLabel("Master password", { exact: true }).waitFor();
+  env.check(
+    (await sheet.getByRole("checkbox", { name: TAKE }).count()) === 0,
+    `${label}: a guest session's restore card draws no choice about the identity`,
+  );
+  await sheet.getByLabel("Master password", { exact: true }).fill(PASSWORD);
+  await sheet.getByRole("button", { name: "Restore items" }).click();
+  await sheet
+    .getByText("Restored", { exact: true })
+    .waitFor({ timeout: 30000 });
+  await sheet.getByRole("button", { name: "Close" }).first().click();
+  await sheet.waitFor({ state: "detached", timeout: 10000 });
+  env.check(
+    !(await bellSays(page, "Device identity changed")),
+    `${label}: nothing is announced`,
+  );
+  await Promise.all([source, { context }].map((d) => d.context.close()));
   fs.rmSync(backup, { force: true });
 }

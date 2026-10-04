@@ -32,7 +32,12 @@ node apps/pages/scripts/capture-evidence.mjs compose \
 A backup restored into a vault that has done nothing yet. The card offers the
 backup's device identity as one labelled check, off until the person chooses it.
 It is offered only to such a vault; a vault with items or folders is shown no
-choice and the backup's identity is ignored.
+choice and the backup's identity is ignored. It is also absent, not drawn and
+dead, where a vault carries no key to take one into: a guest session, or a
+browser with no Web Locks. The journey captured here is a sealed, non-guest vault
+in a browser with Web Locks, so the pictures below are what that vault is shown;
+a guest's card is the base build's card (no choice), and
+`verify:device-identity` walks it and asserts the control is not in the page.
 
 ![390](390-card.png)
 ![1280](1280-card.png)
@@ -81,10 +86,20 @@ minted once), on both builds' walk; only the notice differs.
 Nothing else on these screens changed: the cards are the existing status
 notice card, with a title and a sentence and no new control.
 
+One more notice exists and is not pictured. When the device's own key record
+cannot be read, a restore that was asked to take the backup's key takes nothing
+and the bell says "Identity key not taken", that this device's own record could
+not be read. That state needs a corrupt tomb file, which the app cannot be
+walked into from its own keys, so it is covered by
+`vault/device-key-restore-guards.test.ts` (title, body, record untouched) and
+`device-identity-carry.test.ts` (its words) instead of a capture. It is the same
+status notice card as the two above.
+
 ## Gate
 
 `pnpm --filter @opensesame/pages verify:device-identity` walks the same restore
 flows with assertions (principal kept, replaced key's bearer ended, one key
 minted, the notices in the bell, and a declined choice leaving the principal
-alone and saying nothing). Its restore and keyless walks fail on the
-`origin/main` build and pass on this branch.
+alone and saying nothing, and a guest session's card drawing no choice). Its
+restore and keyless walks fail on the `origin/main` build and pass on this
+branch.

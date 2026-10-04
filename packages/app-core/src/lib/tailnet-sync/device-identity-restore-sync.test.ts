@@ -71,13 +71,15 @@ async function pairedAndEmpty() {
   return { drive, laptop, phone, minted };
 }
 
+type Backup = { text: string; principalId: string };
+
 /**
  * A backup from another vault whose key is newer than the one the laptop will
  * mint: made two hours on, then the clock is put back. Made first and its vault
  * locked, because every device here names its tomb the same and a vault that
  * stayed open would take the laptop's tomb key from under it.
  */
-async function newerBackup(): Promise<{ text: string; principalId: string }> {
+async function newerBackup(): Promise<Backup> {
   vi.setSystemTime(clock + 2 * 3_600_000);
   const source = device("source");
   await as(source, () => source.store.create(OTHER_PASSWORD));
