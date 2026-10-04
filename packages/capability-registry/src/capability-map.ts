@@ -51,7 +51,6 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- always-on: other managers' formats (the vault's Import key) -----
     "vault.import": "vault.interop-formats",
     // The sealed-store bridge's path manifest (ADR 0037 §6).
-    "vault.store_manifest.export": "vault.interop-formats",
     "vault.store_manifest.import": "vault.interop-formats",
 
     // --- core: front door / identity session ----------------------------

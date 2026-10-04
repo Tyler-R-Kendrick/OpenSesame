@@ -39,13 +39,9 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   alwaysOn(
     "vault.interop-formats",
     "Import and export formats",
-    "Import other managers' exports (KDBX, CXF, CSV, ZIP, browser and manager formats), an encrypted backup or a sealed-store path manifest from the vault's Import key; the Formats panel and the Sealed store manifest in Settings.",
+    "Import other managers' exports (KDBX, CXF, CSV, ZIP, browser and manager formats), an encrypted backup or a sealed-store path manifest from the vault's Import key.",
     {
-      operationIds: [
-        "vault.import",
-        "vault.store_manifest.export",
-        "vault.store_manifest.import",
-      ],
+      operationIds: ["vault.import", "vault.store_manifest.import"],
       // KDBX key derivation runs Argon2 in Wasm on large files.
       environments: ["document", "dedicated-worker"],
       keyAccess: "item-plaintext",
