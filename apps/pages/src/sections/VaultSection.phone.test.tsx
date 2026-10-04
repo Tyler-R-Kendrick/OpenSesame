@@ -1,11 +1,5 @@
 /** @vitest-environment jsdom */
-import {
-  act,
-  cleanup,
-  fireEvent,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { act, cleanup, screen, waitFor } from "@testing-library/react";
 import { Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -14,6 +8,7 @@ import {
   resetShellRender,
   vault,
 } from "../components/app-shell.test-harness.js";
+import { createKeymapHandler } from "../lib/keymap.js";
 import { stubScreen } from "../lib/use-narrow.test-support.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { VaultSection } from "./VaultSection.js";
@@ -92,35 +87,59 @@ describe("the vault on a phone", () => {
     ).toBe("/vault?f=all");
   });
 
-  it("the tree carries the command row, so adding and backing up are one tap from the landing", () => {
+  it("the tree's row carries import and export; New is the corner button and search is the prompt", () => {
     renderVault("/vault");
     const row = document.querySelector<HTMLElement>(".vault__tree");
-    for (const name of ["New item", "Export items", "Search (/)"]) {
-      expect(
-        row?.querySelector(`[aria-label="${name}"], [title="${name}"]`),
-      ).not.toBeNull();
-    }
     expect(
-      screen
-        .getAllByRole("link", { name: "New item" })[0]
-        ?.getAttribute("href"),
-    ).toMatch(/^\/vault\/new/);
+      row?.querySelector('[aria-label="Export items"], [title="Export items"]'),
+    ).not.toBeNull();
+    // No New key and no search key in the row: neither is drawn twice.
+    expect(row?.querySelector('[aria-label="New item"]')).toBeNull();
+    expect(row?.querySelector('[title="Search (/)"]')).toBeNull();
+    const fab = document.querySelector<HTMLAnchorElement>(".vault > .fab");
+    expect(fab?.getAttribute("aria-label")).toBe("New item");
+    expect(fab?.getAttribute("href")).toMatch(/^\/vault\/new/);
   });
 
-  it("the tree's search key opens the list of everything with its prompt ready", async () => {
-    renderVault("/vault");
+  it("the corner button follows the tree and the list, and leaves the item and the trash alone", () => {
+    renderVault("/vault?f=all");
+    expect(document.querySelectorAll(".fab")).toHaveLength(1);
+    cleanup();
+    renderVault("/vault?f=trash");
+    expect(document.querySelector(".fab")).toBeNull();
+    cleanup();
+    renderVault("/vault/itm_1?f=all");
+    expect(document.querySelector(".fab")).toBeNull();
+  });
+
+  it("a search left in the address narrows the list and rides back from an item", () => {
+    renderVault("/vault?f=all&q=git");
+    expect(pane()).toBe("list");
+    expect(screen.queryByRole("textbox", { name: /search/i })).toBeNull();
+    expect(
+      document.querySelector(".vault__status-meta")?.textContent,
+    ).toContain("/git");
+    cleanup();
+    renderVault("/vault/itm_1?q=git");
+    // A narrowed list is not "all items", so the key says "list".
+    expect(
+      screen.getByRole("link", { name: "Back to list" }).getAttribute("href"),
+    ).toBe("/vault?q=git&f=all");
+  });
+
+  it("the / key writes the search verb into the real prompt rather than opening a box", async () => {
+    renderVault("/vault?f=all");
     // The list focuses its rows once the saved collapse state has loaded.
     await act(async () => undefined);
-    const row = document.querySelector<HTMLElement>(".vault__tree");
-    const key = row?.querySelector<HTMLElement>('[title="Search (/)"]');
-    if (!key) throw new Error("the tree has no search key");
-    fireEvent.click(key);
-    await waitFor(() => expect(pane()).toBe("list"));
-    await waitFor(() =>
-      expect(document.activeElement).toBe(
-        screen.getByRole("textbox", { name: /search/i }),
-      ),
-    );
+    const handler = createKeymapHandler({
+      navigate: vi.fn(),
+      showHelp: vi.fn(),
+    });
+    act(() => handler(new KeyboardEvent("keydown", { key: "/" })));
+    const prompt = screen.getByRole("combobox", { name: "Command" });
+    await waitFor(() => expect((prompt as HTMLInputElement).value).toBe("/? "));
+    expect(document.activeElement).toBe(prompt);
+    expect(screen.queryByLabelText("Search items")).toBeNull();
   });
 
   it("the tree's all entry names the list, so tapping it leaves the tree", () => {

@@ -205,12 +205,30 @@ mounted in exactly one place at a time — the rail above the breakpoint, the
 vault's first pane below it — so two `role="tree"` never share a page. Because
 the tree carries the vault's filters, nothing in the rail may become
 unreachable, and the list keeps its funnel key for switching without going
-back. The list's command row is not a pane away either: the same keys — new
-item, whatever a capability adds beside it (Import), Export, and search — are
-pinned above the tree (`VaultActions`, in the list's own `VaultPathbar`), each
-at the 44px floor. The funnel and the back key stay on the list, where there
-is something to filter and somewhere to go back from; the tree's search key
-opens the list of everything with its prompt focused.
+back. The list's command row is not a pane away either: the keys that add or
+take out — whatever a capability adds (Import) and Export — are pinned above
+the tree (`VaultActions`, in the list's own `VaultPathbar`), each at the 44px
+floor. The funnel and the back key stay on the list, where there is something
+to filter and somewhere to go back from.
+
+**New is the one primary action, and on a phone it is a corner button**
+(`NewItemFab`): a 56px circle pinned to the bottom right of the tree and of
+the list, the way a phone's own apps seat theirs, instead of a key in a row at
+the top. It is drawn in the vault's box, which never scrolls (its rows do), so
+it is always under the thumb, above the pane's status line and clear of the
+statusline's prompt; the last row pads past it. The item's screen and the
+trash draw none. It is the only floating control, and it is the exception to
+"nothing floating rests on a control" only in motion — at rest, and at the end
+of the list, it covers nothing (`verify:mobile` measures its size, its corner
+and its clearance of the statusline).
+
+**Search is a verb of the prompt, never a second box.** The statusline's
+command field lists `search` in its hint, and `/? words` (or `/search words`)
+narrows the list of everything to them: the command navigates to
+`/vault?f=all&q=…` and the list reads `q` from the address, so a search
+survives opening an item and coming back, and Esc clears it. There is no
+search key in the row and no search field above the prompt; the `/` key
+writes `/? ` into the prompt and focuses it. Bare `/?` is still help.
 
 Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
 

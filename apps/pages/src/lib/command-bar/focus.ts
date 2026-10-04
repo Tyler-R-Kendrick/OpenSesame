@@ -11,6 +11,30 @@ export function focusCommandBar(): void {
   }
 }
 
+let fillField: ((value: string) => void) | null = null;
+
+/** CommandBar registers how to write its field, so a key can pre-type a verb. */
+export function registerCommandBarFill(
+  fill: (value: string) => void,
+): () => void {
+  fillField = fill;
+  return () => {
+    if (fillField === fill) fillField = null;
+  };
+}
+
+/**
+ * Search is the command bar's `/?` verb, not a second box beside it. The `/`
+ * key and a row's Search entry land here: the field holds `/? ` and the caret
+ * stands after it, ready for the words.
+ */
+export function searchInCommandBar(): void {
+  const input = document.getElementById("command-bar-input");
+  if (!(input instanceof HTMLInputElement)) return;
+  input.focus();
+  fillField?.("/? ");
+}
+
 /** CommandBar registers its listen toggle so the keymap can fire `m`. */
 export function registerCommandBarMic(toggle: () => void): () => void {
   micToggle = toggle;

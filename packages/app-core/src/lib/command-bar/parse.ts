@@ -132,7 +132,11 @@ export function parseCommand(raw: string): AppCommand | null {
 
 const SLASH_DESTINATION = /^\/[a-z0-9-]+(?:\?[a-z0-9._=&%-]+)?$/i;
 
-/** `/vault`, `/search …`, `/copy password …`. Sentences stay on the other parsers. */
+/**
+ * `/vault`, `/search …`, `/? …`, `/copy password …`. Sentences stay on the
+ * other parsers. A bare `/?` is help; with words after it, `?` is the short
+ * name for search, the one the `/` key writes into the field.
+ */
 function parseSlash(text: string): AppCommand | null {
   const body = text.slice(1).trim();
   if (body === "") return null;
@@ -146,7 +150,7 @@ function parseSlash(text: string): AppCommand | null {
 }
 
 function parseSlashSearch(body: string): AppCommand | null {
-  const query = /^search\s+(.+)$/i.exec(body)?.[1]?.trim() ?? "";
+  const query = /^(?:search|\?)\s+(.+)$/i.exec(body)?.[1]?.trim() ?? "";
   if (query === "") return null;
   return { action: "search", query };
 }

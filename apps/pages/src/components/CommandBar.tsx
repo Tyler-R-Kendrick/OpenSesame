@@ -1,9 +1,16 @@
 import { executeCommand } from "@opensesame/app-core/lib/command-bar/execute.js";
 import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
 import type { SlashSuggestion } from "@opensesame/app-core/lib/command-bar/slash.js";
-import { type FormEvent, useCallback, useMemo, useState } from "react";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useNavigate } from "react-router";
 import { useContributions } from "../bindings/contributions.js";
+import { registerCommandBarFill } from "../lib/command-bar/focus.js";
 import { useCopySecret, useVault } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportIfMounted } from "../tutorial/support-access.js";
@@ -122,6 +129,7 @@ export function CommandBar() {
   const touch = useCoarsePointer();
   const barRef = useGuideTarget<HTMLElement>("shell.command-bar");
   const suggestions = useCommandSuggestions(value, names);
+  useEffect(() => registerCommandBarFill(setValue), [setValue]);
 
   const choose = (suggestion: SlashSuggestion) => {
     setValue(suggestion.insert);

@@ -53,10 +53,12 @@ export async function backOutStops(page, stop, { harness, audit }) {
 }
 
 /**
- * The command row above the tree: adding, importing, exporting and searching
- * are on the screen a phone opens on, each key at the 44px floor, and the
- * search key lands on the list with its prompt focused. Skipped where the walk
- * is not on the tree, so it can be called wherever the vault is entered.
+ * The phone's tree: importing and exporting are in the row above it, each key
+ * at the 44px floor; New is the corner button, pinned over the pane's bottom
+ * right and clear of the statusline's prompt; and search is the prompt's own
+ * `/?` verb — there is no search key, and typing it lands on the list narrowed
+ * to the words. Skipped where the walk is not on the tree, so it can be called
+ * wherever the vault is entered.
  */
 export async function treeActions(page, stop, { harness, audit }) {
   const pane = () => page.locator(".vault").first().getAttribute("data-pane");
@@ -74,32 +76,71 @@ export async function treeActions(page, stop, { harness, audit }) {
   );
   // The `?` key stands down on a phone: drawn nowhere, so it has no size.
   const shown = keys.filter((key) => key.width > 0);
-  for (const name of ["New item", "Export items", "Search (/)"]) {
-    harness.check(
-      keys.some((key) => key.name === name),
-      `${stop("tree-actions")}: the tree carries the ${name} key`,
-    );
-  }
+  harness.check(
+    keys.some((key) => key.name === "Export items"),
+    `${stop("tree-actions")}: the tree carries the Export items key`,
+  );
+  harness.check(
+    !keys.some((key) => key.name === "New item" || key.name === "Search (/)"),
+    `${stop("tree-actions")}: New is the corner button and search is the prompt, neither a key in the row`,
+  );
   harness.check(
     shown.length > 0 && shown.every((k) => k.width >= 44 && k.height >= 44),
     `${stop("tree-actions")}: every key is 44px (${shown
       .map((k) => `${k.name} ${k.width}x${k.height}`)
       .join(", ")})`,
   );
+  await fabIsPinned(page, stop("tree-actions"), harness);
   await audit(page, stop("tree-actions"));
-  await row.locator('[title="Search (/)"]').tap();
+
+  const prompt = page.locator("#command-bar-input");
+  await prompt.fill("/? zz-no-such-item");
+  await prompt.press("Enter");
   await page.waitForTimeout(600);
   harness.check(
     (await pane()) === "list",
-    `${stop("tree-actions")}: search opens the list`,
+    `${stop("tree-actions")}: /? opens the list`,
   );
-  const focused = await page.evaluate(() =>
-    document.activeElement?.getAttribute("aria-label"),
+  const meta = await page.locator(".vault__status-meta").first().textContent();
+  harness.check(
+    (meta ?? "").includes("/zz-no-such-item"),
+    `${stop("tree-actions")}: the list is narrowed to the words (${meta})`,
   );
   harness.check(
-    focused === "Search items",
-    `${stop("tree-actions")}: the search prompt is focused (${focused})`,
+    (await page.locator(".vtree__cmd").count()) === 0,
+    `${stop("tree-actions")}: no second search box is drawn above the prompt`,
   );
+  await fabIsPinned(page, stop("tree-actions"), harness);
   await page.getByRole("link", { name: "Back to sections" }).first().tap();
   await page.waitForTimeout(500);
+}
+
+/** The corner button: 56px, in the bottom right, above the statusline. */
+async function fabIsPinned(page, label, harness) {
+  const fab = await page.evaluate(() => {
+    const node = document.querySelector(".fab");
+    if (!node) return null;
+    const box = node.getBoundingClientRect();
+    const strip = document
+      .querySelector(".statusline")
+      ?.getBoundingClientRect();
+    return {
+      width: Math.round(box.width),
+      height: Math.round(box.height),
+      right: Math.round(window.innerWidth - box.right),
+      clearOfStrip: strip ? box.bottom <= strip.top + 1 : false,
+      inRightHalf: box.left > window.innerWidth / 2,
+      label: node.getAttribute("aria-label"),
+    };
+  });
+  harness.check(
+    fab !== null &&
+      fab.label === "New item" &&
+      fab.width >= 56 &&
+      fab.height >= 56 &&
+      fab.inRightHalf &&
+      fab.right >= 8 &&
+      fab.clearOfStrip,
+    `${label}: New item is a 56px corner button above the prompt (${JSON.stringify(fab)})`,
+  );
 }

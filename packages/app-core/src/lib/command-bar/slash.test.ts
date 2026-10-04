@@ -54,6 +54,14 @@ describe("slashSuggestions", () => {
     expect(JSON.stringify(rows)).not.toContain("password");
   });
 
+  it("answers `/?` as search, and completes names after it in kind", () => {
+    expect(slashSuggestions("/?", SECTIONS, []).map((row) => row.id)).toEqual([
+      "search",
+    ]);
+    const rows = slashSuggestions("/? g", SECTIONS, ["GitHub", "Bank"]);
+    expect(rows.map((row) => row.insert)).toEqual(["/? GitHub"]);
+  });
+
   it("canonicalizes a copy-field alias before naming items", () => {
     const rows = slashSuggestions("/copy pass ", SECTIONS, ["GitHub"]);
     expect(rows).toEqual([

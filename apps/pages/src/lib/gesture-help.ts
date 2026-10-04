@@ -14,6 +14,6 @@ export const GESTURE_HELP: readonly (readonly [
   ["Hold a row", "Its actions"],
   ["Swipe a row left", "Its actions"],
   ["Swipe right", "Back"],
-  ["Tap the + key", "New item"],
-  ["Tap the search key", "Search the list"],
+  ["Tap the + button", "New item"],
+  ["Type /? and a name in the prompt", "Search the list"],
 ];

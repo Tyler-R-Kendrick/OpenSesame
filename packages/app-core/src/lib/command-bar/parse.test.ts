@@ -111,6 +111,14 @@ describe("parseCommand", () => {
       action: "search",
       query: "router",
     });
+    expect(parseCommand("/? router")).toEqual({
+      action: "search",
+      query: "router",
+    });
+    expect(parseCommand("/?router")).not.toEqual({
+      action: "search",
+      query: "router",
+    });
     expect(parseCommand("/open amazon")).toEqual({
       action: "open_item",
       query: "amazon",
@@ -130,6 +138,8 @@ describe("parseCommand", () => {
       query: "GitHub",
     });
     expect(parseCommand("/help")).toEqual({ action: "help" });
+    // `/?` alone is still help; it is search only with words after it.
+    expect(parseCommand("/?")).toEqual({ action: "help" });
     expect(parseCommand("/settings/security/config.yaml")).toEqual({
       action: "open_path",
       path: "/settings/security?file=config.yaml",

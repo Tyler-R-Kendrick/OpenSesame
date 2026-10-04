@@ -23,20 +23,16 @@ import { IconChevronLeft } from "../components/Icons.js";
 import { NavTree } from "../components/NavTree.js";
 import { swipeBack } from "../lib/gestures.js";
 import { useNarrow } from "../lib/use-narrow.js";
-import {
-  PHONE_ALL_ITEMS,
-  vaultListPath,
-  vaultPane,
-} from "../lib/vault-list-path.js";
+import { vaultListPath, vaultPane } from "../lib/vault-list-path.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { NewItemFab } from "./vault/NewItemFab.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultActions } from "./vault/VaultActions.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
 import { VaultPathbar } from "./vault/VaultPathbar.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import { WelcomeKeys } from "./vault/WelcomeKeys.js";
-import { askForSearch } from "./vault/use-search-handoff.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
 import "./vault.css";
 import {
@@ -183,6 +179,11 @@ export function VaultSection() {
   const createRef = useGuideTarget<HTMLAnchorElement>("vault.create");
   const listRef = useGuideTarget<HTMLDivElement>("vault.list");
   const listPath = vaultListPath(location.search, narrow);
+  // Where New records itself for focus and the guide, wherever it is drawn.
+  const recordNewItem = (element: HTMLAnchorElement | null) => {
+    newItemRef.current = element;
+    createRef(element);
+  };
 
   useVaultFocus({
     tree: treePaneRef,
@@ -213,15 +214,10 @@ export function VaultSection() {
       <div className="vault__tree" ref={treePaneRef}>
         {narrow ? (
           <>
-            {/* The list's own command row, so adding, importing and backing
-                up are on the screen a phone opens on. Search jumps to the
-                list of everything with its prompt open. */}
+            {/* The list's own command row, so importing and backing up are
+                on the screen a phone opens on. New is the corner button. */}
             <VaultPathbar
-              verbs={<VaultActions createPath={createPath} />}
-              search={() => {
-                askForSearch();
-                navigate(PHONE_ALL_ITEMS);
-              }}
+              verbs={<VaultActions createPath={createPath} create={false} />}
             />
             <NavTree />
           </>
@@ -271,10 +267,8 @@ export function VaultSection() {
               ) : (
                 <VaultActions
                   createPath={createPath}
-                  createRef={(element) => {
-                    newItemRef.current = element;
-                    createRef(element);
-                  }}
+                  create={!narrow}
+                  createRef={recordNewItem}
                 />
               )}
             </>
@@ -287,6 +281,13 @@ export function VaultSection() {
       <div className="vault__detail" ref={detailRef} tabIndex={-1}>
         <Outlet />
       </div>
+
+      {/* A phone's primary action, pinned to the corner of the tree and the
+          list; the item's own screen has its own keys, and the trash has
+          nothing to add to. */}
+      {narrow && showing !== "detail" && !inTrash ? (
+        <NewItemFab to={createPath} fabRef={recordNewItem} />
+      ) : null}
     </div>
   );
 }
