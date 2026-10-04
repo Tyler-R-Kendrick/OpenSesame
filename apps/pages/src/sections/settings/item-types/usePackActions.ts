@@ -1,5 +1,5 @@
 /**
- * What pressing a row does (ADR 0164): switch the pack on — the cue to
+ * What pressing a row does (ADR 0165): switch the pack on — the cue to
  * download and install — or off, and tell assistive technology what moved.
  * The work itself is `lib/type-packs/installer.ts`, queued and paced off the
  * main thread; this only starts it and listens.

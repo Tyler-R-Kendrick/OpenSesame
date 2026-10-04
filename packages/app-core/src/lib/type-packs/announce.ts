@@ -1,5 +1,5 @@
 /**
- * The pack journey, told in the bell tray (ADR 0164).
+ * The pack journey, told in the bell tray (ADR 0165).
  *
  * The Item types screen shows each row's state itself; this is for the person
  * who switched a type on and moved away. One notice, `type-packs`, follows

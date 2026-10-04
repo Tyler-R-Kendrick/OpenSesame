@@ -81,7 +81,7 @@ export function useItemKinds(): readonly ItemKindRow[] {
   const entries: readonly ItemKindContribution[] =
     useContributions("item-kind");
   // A pack switched on or off in Settings changes the kinds without any
-  // contribution moving (ADR 0164).
+  // contribution moving (ADR 0165).
   const { revision } = usePackSnapshot();
   // biome-ignore lint/correctness/useExhaustiveDependencies: `revision` is the pack state's version, read through `packItemKinds()`
   return useMemo(() => itemKindsFrom(entries), [entries, revision]);

@@ -1,5 +1,5 @@
 /**
- * Settings › Vaults › Item types as a list of switches (ADR 0164).
+ * Settings › Vaults › Item types as a list of switches (ADR 0165).
  *
  * Pure: the rows a screen draws from the pack state, and the sentence each
  * one carries for assistive technology and the status glyph. The component

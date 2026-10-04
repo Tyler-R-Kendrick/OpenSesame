@@ -48,6 +48,7 @@ import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
 import { switchSteps } from "./lib/switch-steps.mjs";
+import { tapStep } from "./lib/tap-step.mjs";
 import { composeSheet } from "./lib/visual-evidence.mjs";
 
 const [mode, ...rest] = process.argv.slice(2);
@@ -191,6 +192,7 @@ const STEPS = {
     }
   },
   ...extraSteps({ press }),
+  ...tapStep({ press }),
   ...fieldSteps({ press }),
   ...readSteps(),
   ...inboxSteps({ origin, base }),

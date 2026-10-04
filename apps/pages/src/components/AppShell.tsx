@@ -107,7 +107,7 @@ function SessionPrompt() {
         @
       </span>
       <ProjectSwitcher />
-      <span className="prompt__dim" aria-hidden="true">
+      <span className="prompt__dim prompt__dim--path" aria-hidden="true">
         :/
       </span>
       <button

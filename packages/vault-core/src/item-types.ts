@@ -37,7 +37,7 @@ import type { InstalledItemTypes, VaultItem } from "./model.js";
 
 let registry: ItemTypeRegistry = builtinRegistry();
 
-/** The pack set `registry` was built against (ADR 0164). */
+/** The pack set `registry` was built against (ADR 0165). */
 let builtAgainst = packsVersion();
 
 /** Definitions installed into this vault, keyed by type id, as authored JSON. */

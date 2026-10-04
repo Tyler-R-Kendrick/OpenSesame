@@ -1,5 +1,5 @@
 /**
- * Switching an item-type pack on or off (ADR 0164).
+ * Switching an item-type pack on or off (ADR 0165).
  *
  * Switching on is the cue to download and install: the pack's chunk is
  * fetched, its digest and definition checked, a sealed copy kept for the next

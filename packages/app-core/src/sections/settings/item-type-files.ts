@@ -61,7 +61,7 @@ function idOf(path: string, directory: string): string | null {
 
 /**
  * The built-ins this document has: the embedded core, and the packs that have
- * been switched on (ADR 0164). A pack that is off has no file to show.
+ * been switched on (ADR 0165). A pack that is off has no file to show.
  */
 function builtinText(): ReadonlyMap<string, string> {
   const text = new Map(Object.entries(BUILTIN_DEFINITION_JSON));

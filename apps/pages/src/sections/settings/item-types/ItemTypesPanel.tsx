@@ -1,5 +1,5 @@
 /**
- * Settings › Vaults › Item types (ADR 0087 §7, ADR 0134, ADR 0164).
+ * Settings › Vaults › Item types (ADR 0087 §7, ADR 0134, ADR 0165).
  *
  * A list of switches. Each built-in type beyond the secret and the file is
  * one row; switching it on downloads and installs it — nothing of it is in

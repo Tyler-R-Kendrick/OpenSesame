@@ -1,6 +1,6 @@
 /**
  * The built-in item types, grouped by what they are for, each a switch
- * (ADR 0164). A search field narrows the list by any word of a type's title,
+ * (ADR 0165). A search field narrows the list by any word of a type's title,
  * extension or summary — on a phone, eighteen rows are a scroll, and the
  * field is how a person gets to Wi-Fi without it.
  */

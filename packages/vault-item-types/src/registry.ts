@@ -246,7 +246,7 @@ export class ItemTypeRegistry {
    * Every name a type already holds: the registered types, and the built-in
    * packs that are not loaded. A pack that is off still owns its id, title,
    * directory and extension — switching it on later must never find them
-   * taken (ADR 0164).
+   * taken (ADR 0165).
    */
   *#names(): Iterable<{ id: string; title: string; plural: string }> {
     for (const definition of this.#definitions()) {

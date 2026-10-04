@@ -111,7 +111,7 @@ export async function bootCore(): Promise<CoreBoot> {
   const runtimeConfig = await loadRuntimeConfig();
   await kvHydrate([...CORE_BOOT_KEYS]);
   // The item types this device switched on come back from their sealed copy,
-  // with no request, before anything draws a type (ADR 0164).
+  // with no request, before anything draws a type (ADR 0165).
   await restorePacks();
   rehydrateProjects();
   // The active project's plaintext boundary is what legacy storage migrates

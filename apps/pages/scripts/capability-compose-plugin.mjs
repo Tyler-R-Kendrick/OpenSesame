@@ -117,7 +117,7 @@ function installManualChunks(build, state) {
     // statically reachable from the first page load.
     output.onlyExplicitManualChunks = true;
     output.manualChunks = (id, api) => {
-      // A built-in item type is a pack, a download of its own (ADR 0164).
+      // A built-in item type is a pack, a download of its own (ADR 0165).
       const pack = itemTypePackChunk(id);
       if (pack) return pack;
       // A lazy leaf first: a carrier inside a module directory would

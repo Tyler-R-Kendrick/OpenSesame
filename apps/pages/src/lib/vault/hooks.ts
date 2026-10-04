@@ -18,7 +18,7 @@ import {
 
 function useVaultDefault(): VaultState {
   // A built-in type switched on or off changes how every item draws, and the
-  // registry is module state no vault snapshot moves with (ADR 0164): hearing
+  // registry is module state no vault snapshot moves with (ADR 0165): hearing
   // it here re-renders whatever reads the vault, so an item of a type that has
   // just arrived stops reading "type not installed" without a reload.
   useSyncExternalStore(subscribePacks, packsVersion);

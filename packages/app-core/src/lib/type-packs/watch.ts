@@ -1,5 +1,5 @@
 /**
- * Keep the open vault's own types available (ADR 0164).
+ * Keep the open vault's own types available (ADR 0165).
  *
  * A pack that is off is a pack the person has not chosen to create more of.
  * It is not a reason for the items they already hold to lose their form.

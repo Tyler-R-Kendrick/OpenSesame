@@ -1,5 +1,5 @@
 /**
- * Bring back the packs this device switched on (ADR 0164).
+ * Bring back the packs this device switched on (ADR 0165).
  *
  * Runs at boot, after the sealed store is hydrated and before the first
  * paint, so the rail and the new-item picker open already knowing their

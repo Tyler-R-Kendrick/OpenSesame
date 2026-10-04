@@ -1,5 +1,5 @@
 /**
- * One built-in item type as a switch (ADR 0164).
+ * One built-in item type as a switch (ADR 0165).
  *
  * The whole row is the switch, so a thumb anywhere on it changes the type
  * and a finger never has to find a 24px track. Its name is the type's title;

@@ -4,7 +4,7 @@
  * secret. The contribution is the creation surface (SURFACE-08): a record
  * already in the vault still opens when this capability is off.
  *
- * The definitions are packs (ADR 0164): `activate` loads all of them, one at a
+ * The definitions are packs (ADR 0165): `activate` loads all of them, one at a
  * time, from their own chunks of this same origin — no other egress. A person
  * who wants some of them, not all, switches those in Settings › Vaults › Item
  * types, which needs no capability.
@@ -27,7 +27,7 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
-    // The definitions are packs (ADR 0164): the capability being on is the
+    // The definitions are packs (ADR 0165): the capability being on is the
     // cue to fetch them, one at a time so the page is never held.
     for (const kind of DERIVED_ITEM_KINDS) {
       await loadPack(kind).catch(() => undefined);

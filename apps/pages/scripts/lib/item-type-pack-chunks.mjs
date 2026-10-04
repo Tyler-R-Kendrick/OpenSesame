@@ -1,5 +1,5 @@
 /**
- * One chunk per built-in item-type pack (ADR 0164).
+ * One chunk per built-in item-type pack (ADR 0165).
  *
  * A pack's definition is ~2 KB, far under `experimentalMinChunkSize`, so
  * Rollup folds each into whatever chunk it may — five of the eighteen landed in

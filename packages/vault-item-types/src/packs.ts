@@ -1,5 +1,5 @@
 /**
- * Built-in item types that arrive on demand (ADR 0164).
+ * Built-in item types that arrive on demand (ADR 0165).
  *
  * The entry bundle embeds only the core types. Every other built-in is a
  * pack: a metadata entry that is always here (`PACK_INDEX`, enough to draw a

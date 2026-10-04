@@ -1,4 +1,4 @@
-# ADR 0164 — Built-in item types are packs: switched on, then downloaded
+# ADR 0165 — Built-in item types are packs: switched on, then downloaded
 
 - **Status:** Accepted — implemented
 - **Date:** 2026-10-04

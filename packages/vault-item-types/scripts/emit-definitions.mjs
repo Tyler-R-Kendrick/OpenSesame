@@ -8,7 +8,7 @@
  * importing JSON keeps the package loadable under both Node's ESM resolver and
  * Vite without an import attribute in either.
  *
- * The corpus is split in two (ADR 0164):
+ * The corpus is split in two (ADR 0165):
  *
  *   - `src/definitions.generated.ts` — the CORE types, embedded. These are the
  *     kinds a minimal vault creates or a capability owns, so they are in the

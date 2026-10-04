@@ -1,4 +1,4 @@
-# Item types: a list of switches (ADR 0164)
+# Item types: a list of switches (ADR 0165)
 
 Before/after from two real builds — `main` at `0d975968` and this branch —
 walked the same way (`journey.json`): seal a local vault, Settings › Vaults,

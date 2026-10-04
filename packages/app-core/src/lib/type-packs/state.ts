@@ -1,5 +1,5 @@
 /**
- * What the item-type packs are doing right now (ADR 0164).
+ * What the item-type packs are doing right now (ADR 0165).
  *
  * A pack is one built-in item type that is not in the entry bundle. Switching
  * it on is a short journey the screen has to be able to show, so the journey

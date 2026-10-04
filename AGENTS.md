@@ -760,7 +760,7 @@ Do not add new top-level directories or loose root files — find the group.
   definition it offers meets ADR 0087's parser and registry — and it is read
   only when a person opens it.
 - **Built-in item types beyond the core are packs, switched on to download**
-  ([ADR 0164](docs/adr/0164-item-type-packs-on-demand.md)). Only `secret`,
+  ([ADR 0165](docs/adr/0165-item-type-packs-on-demand.md)). Only `secret`,
   `file`, `passkey`, `certificate` and `drop` are embedded in the bundle; the
   other 18 are `packages/vault-item-types/src/packs/<id>.generated.ts`, each its
   own chunk behind a dynamic `import()`, indexed by `PACK_INDEX` (metadata and a

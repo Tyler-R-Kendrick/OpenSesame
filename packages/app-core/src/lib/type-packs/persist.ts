@@ -1,6 +1,6 @@
 /**
  * The packs this device has switched on, kept so they survive a reload and
- * work offline (ADR 0164).
+ * work offline (ADR 0165).
  *
  * The definition text is stored beside its digest, sealed at rest like every
  * other value the client keeps (ADR 0149). On the next boot a pack is
