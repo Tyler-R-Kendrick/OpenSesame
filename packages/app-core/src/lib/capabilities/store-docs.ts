@@ -24,7 +24,7 @@ import {
 import type { ParsedRuntimeConfig } from "../runtime-config.js";
 import { collectRuntimeFacts, evaluatedModuleIds } from "./facts.js";
 import { withoutPresetResidue } from "./preset-residue.js";
-import type { PersistedDocs } from "./store-persist.js";
+import { type PersistedDocs, readPersistedDocs } from "./store-persist.js";
 import { storeSeams } from "./store-seams.js";
 
 export type StoreState = {
@@ -35,6 +35,8 @@ export type StoreState = {
   provenance: PolicyProvenance;
   policy: InstanceCapabilityPolicy | null;
   policyValid: boolean;
+  /** The boot runtime config was invalid: the plan stays core-only until a reload. */
+  configInvalid: boolean;
   selection: InstallationCapabilitySelection | null;
   receipt: ConsentReceipt | null;
   vaultSelection: VaultCapabilitySelection | null;
@@ -62,6 +64,7 @@ export function initialState(): StoreState {
     provenance: "personal-local",
     policy: null,
     policyValid: true,
+    configInvalid: false,
     selection: null,
     receipt: null,
     vaultSelection: null,
@@ -99,6 +102,7 @@ export function readPolicy(
   note: Note,
 ): void {
   const section = config.capabilityComposition;
+  state.configInvalid = config.status === "invalid";
   if (config.status === "invalid") {
     state.provenance = section ? "same-origin-deployment" : "personal-local";
     state.policy = null;
@@ -115,6 +119,31 @@ export function readPolicy(
     return;
   }
   state.provenance = "personal-local";
+  readLocalPolicy(state, docs, note);
+}
+
+/**
+ * Re-read the device's own policy after its owner wrote it. A managed
+ * instance's policy is the deployment's and is never re-read from the device,
+ * and a boot whose runtime config was invalid stays core-only: no write to the
+ * device's policy repairs the config, so a lock or any other invalidate must
+ * not lift the fail-closed plan.
+ */
+export function reloadLocalPolicy(state: StoreState, note: Note): void {
+  if (state.provenance !== "personal-local" || state.configInvalid) return;
+  readLocalPolicy(state, readPersistedDocs(state.vaultId), note);
+}
+
+/**
+ * The device's own policy, as its owner last wrote it. Read at boot, and again
+ * whenever the owner writes it (`invalidate`): a preset or a saved
+ * `instance-policy.yaml` governs from that moment, not from the next load.
+ */
+export function readLocalPolicy(
+  state: StoreState,
+  docs: PersistedDocs,
+  note: Note,
+): void {
   if (docs.localPolicy.present && docs.localPolicy.policy === null) {
     state.policy = null;
     state.policyValid = false;

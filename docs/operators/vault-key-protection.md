@@ -61,6 +61,20 @@ to. Password, PIN and a typed recovery or age key are unaffected.
 YubiKey PIV, Azure Key Vault Keys and a device-local key are **not** enrolled in
 the browser (ADR 0152); the native client keeps them.
 
+**Rotate compromised vault key** (the alert key on the panel) mints a new root
+and keeps only the password's wrap: the PIN, passkeys, recovery key, age and
+cloud protectors, the second steps (authenticator, email, text) and the
+recovery codes were wrapped or sealed under the old root and go with it. Unlike
+`pass protect root-rotate`, which refuses until a recovery key is removed or
+reissued, the browser does not refuse: its sheet names exactly the enrolled ones
+that will be removed before the key is pressed, and the notice after repeats
+them. Add each back afterwards. The sheet asks for the current master password
+and the store proves it against the vault's password wrap before any key changes
+(a wrong one is refused, and nothing is rewritten); it is the same password,
+wrapped anew. A vault with no master password enrolled has none to prove, so its
+sheet asks for a new one and says the password entered becomes the master
+password.
+
 Settings → **Connections** stores the AWS and Google credentials the Add sheet
 uses. A connection is **not** enrollment, and it cannot be removed while a
 protector on its key is enrolled.
