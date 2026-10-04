@@ -25,8 +25,6 @@
 //   VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
 
 import assert from "node:assert/strict";
-import fs from "node:fs";
-import http from "node:http";
 import path from "node:path";
 import { chromium } from "@playwright/test";
 import {
@@ -40,6 +38,12 @@ import {
   openSettingsCategory,
   waitOpen,
 } from "./lib/pages-journey.mjs";
+import {
+  notificationsOf as notificationsFrom,
+  scriptsOf as scriptsFrom,
+  serve as serveDist,
+  until,
+} from "./lib/push-worker-harness.mjs";
 
 const dist = path.resolve(import.meta.dirname, "../dist");
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
@@ -47,94 +51,13 @@ const TITLE = "Push notifications";
 const REF = "rv_Ab12-Cd34";
 const REF_AFTER = "rv_After-0001";
 
-const MIME = {
-  ".html": "text/html",
-  ".js": "text/javascript",
-  ".css": "text/css",
-  ".json": "application/json",
-  ".svg": "image/svg+xml",
-  ".wasm": "application/wasm",
-  ".webmanifest": "application/manifest+json",
-  ".woff2": "font/woff2",
-};
-
-/** `dist/` under `base`, as a static host serves it; a route is index.html. */
-function serve() {
-  const server = http.createServer((request, response) => {
-    const { pathname } = new URL(request.url ?? "/", "http://localhost");
-    const rel = pathname.startsWith(base)
-      ? pathname.slice(base.length)
-      : pathname.slice(1);
-    const file = path.join(dist, rel);
-    if (rel && fs.existsSync(file) && fs.statSync(file).isFile()) {
-      response.writeHead(200, {
-        "content-type": MIME[path.extname(file)] ?? "application/octet-stream",
-        "cache-control": "no-store",
-      });
-      return response.end(fs.readFileSync(file));
-    }
-    if (/\.[a-z0-9]+$/i.test(rel)) {
-      response.writeHead(404);
-      return response.end("not found");
-    }
-    response.writeHead(200, { "content-type": "text/html" });
-    response.end(fs.readFileSync(path.join(dist, "index.html")));
-  });
-  return new Promise((resolve) =>
-    server.listen(0, "127.0.0.1", () => resolve(server)),
-  );
-}
-
 const failures = [];
 const check = (condition, what) => {
   console.log(condition ? "PASS" : "FAIL", what);
   if (!condition) failures.push(what);
 };
 
-/** The worker script this scope runs, or what is installing over it. */
-const scriptsOf = (page) =>
-  page.evaluate(
-    async (scope) => {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      const own = registrations.filter((r) => r.scope === scope);
-      return {
-        registrations: registrations.length,
-        active: own[0]?.active?.scriptURL ?? null,
-        installing: own[0]?.installing?.scriptURL ?? null,
-        waiting: own[0]?.waiting?.scriptURL ?? null,
-        controller: navigator.serviceWorker.controller?.scriptURL ?? null,
-      };
-    },
-    `${new URL(page.url()).origin}${base}`,
-  );
-
-async function until(read, ok, what, timeout = 60_000) {
-  const stop = Date.now() + timeout;
-  let last;
-  while (Date.now() < stop) {
-    try {
-      last = await read();
-      if (ok(last)) return last;
-    } catch (error) {
-      last = String(error);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 150));
-  }
-  throw new Error(`${what}: ${JSON.stringify(last)}`);
-}
-
-const notificationsOf = (page) =>
-  page.evaluate(async () => {
-    const registration = await navigator.serviceWorker.ready;
-    return (await registration.getNotifications()).map((n) => ({
-      title: n.title,
-      body: n.body,
-      tag: n.tag,
-      data: n.data,
-    }));
-  });
-
-const server = await serve();
+const server = await serveDist(dist, base);
 const origin = `http://localhost:${server.address().port}`;
 const scope = `${origin}${base}`;
 const browser = await chromium.launch({
@@ -212,7 +135,7 @@ try {
     let waitingSince = null;
     let last;
     while (Date.now() < stop) {
-      last = await scriptsOf(page);
+      last = await scriptsFrom(page, base);
       if (last.active === script && last.controller === script) return last;
       waitingSince =
         last.waiting === script ? (waitingSince ?? Date.now()) : null;
@@ -240,7 +163,7 @@ try {
       await deliver(payload);
       try {
         const list = await until(
-          () => notificationsOf(page),
+          () => notificationsFrom(page),
           ok,
           what,
           attempt === 5 ? 15_000 : 3_000,
@@ -257,7 +180,7 @@ try {
   await page.goto(scope);
   const core = `${scope}sw.js`;
   await until(
-    () => scriptsOf(page),
+    () => scriptsFrom(page, base),
     (s) => s.active === core && s.controller === core,
     "the core worker should be active and controlling after first load",
   );
@@ -267,7 +190,7 @@ try {
   // The first install reloads the page once, by design; count from here.
   await page.waitForTimeout(500);
   const documentBefore = await documentOrigin();
-  let state = await scriptsOf(page);
+  let state = await scriptsFrom(page, base);
   check(
     state.active === core,
     "before approval the scope runs the core worker",
@@ -279,7 +202,7 @@ try {
   other.on("pageerror", (error) => pageErrors.push(String(error?.message)));
   await other.goto(scope);
   await until(
-    () => scriptsOf(other),
+    () => scriptsFrom(other, base),
     (s) => s.controller === core,
     "the second tab should be controlled by the core worker",
   );
@@ -298,7 +221,7 @@ try {
   await deliver({ kind: "authorization_request", action: "review", ref: REF });
   await page.waitForTimeout(1500);
   check(
-    (await notificationsOf(page)).length === 0,
+    (await notificationsFrom(page)).length === 0,
     "the core worker shows nothing for a push (it has no handler); control below",
   );
 
@@ -326,7 +249,7 @@ try {
     "the vault is still open: the in-flight page survived the worker change",
   );
   const otherState = await until(
-    () => scriptsOf(other),
+    () => scriptsFrom(other, base),
     (s) => s.controller === `${scope}sw-push.js`,
     "the second tab should be handed to the push worker too",
   );
@@ -388,7 +311,7 @@ try {
   // approved registers nothing new.
   await page.reload();
   state = await until(
-    () => scriptsOf(page),
+    () => scriptsFrom(page, base),
     (s) =>
       s.active === `${scope}sw-push.js` &&
       s.controller === `${scope}sw-push.js`,
@@ -440,7 +363,7 @@ try {
   );
   await other.waitForTimeout(3000);
   check(
-    (await scriptsOf(other)).controller === core &&
+    (await scriptsFrom(other, base)).controller === core &&
       (await other.evaluate(() => performance.timeOrigin)) === otherAtRevert &&
       (await other
         .getByRole("button", { name: "Lock vault" })
@@ -457,7 +380,7 @@ try {
   });
   await page.waitForTimeout(Math.max(1500, ringMs * 4));
   check(
-    (await notificationsOf(page)).every((n) => n.data?.ref !== REF_AFTER),
+    (await notificationsFrom(page)).every((n) => n.data?.ref !== REF_AFTER),
     "after reverting, the core worker again shows nothing for a push (control above: the push worker did)",
   );
 

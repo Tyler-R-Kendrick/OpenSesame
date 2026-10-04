@@ -40,7 +40,7 @@
  */
 
 import { overlapCast } from "@opensesame/os-domain";
-import { retirePushSubscriptionId } from "../push-ledger.js";
+import { retirePushSubscriptionId } from "../web-push-ledger.js";
 import { activeScript, becomesActive } from "./worker/activation.js";
 import {
   askWorker,

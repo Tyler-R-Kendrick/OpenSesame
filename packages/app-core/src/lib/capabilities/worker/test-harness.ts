@@ -277,6 +277,9 @@ export class FakeContainer {
       this.installingScript = null;
     } else this.installingScript = url;
     const registration = this.view();
+    // A redundant worker is not held by the registration for long; it is
+    // returned as installing only so the caller can watch it fail.
+    const watched = this.installOutcome !== "activate";
     return {
       ...registration,
       active: this.activeScript
@@ -284,10 +287,7 @@ export class FakeContainer {
           ? worker
           : new FakeWorker(this.activeScript, "activated")
         : null,
-      installing: this.installOutcome === "hang" ? worker : null,
-      // A redundant worker is not held by the registration; it is returned
-      // only so the caller can watch it fail.
-      ...(this.installOutcome === "redundant" ? { installing: worker } : {}),
+      installing: watched ? worker : null,
     };
   }
 
@@ -330,13 +330,15 @@ export class FakeContainer {
 const original = { ...workerControllerSeams };
 
 /** What the seams did, for a test to assert on. */
-export const env: {
+type HarnessEnv = {
   reloads: number;
   isolated: boolean;
   timers: { run: () => void; ms: number; live: boolean }[];
   /** Run every timer still waiting, as if its time had come. */
   elapse: () => void;
-} = {
+};
+
+export const env: HarnessEnv = {
   reloads: 0,
   isolated: false,
   timers: [],

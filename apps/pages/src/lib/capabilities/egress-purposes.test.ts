@@ -201,7 +201,7 @@ function verdicts(text: string, load: ModuleLoader = nothing): string[] {
 
 describe("shapes that must fail", () => {
   const retyped = '"push enrolment with the configured Identity API"';
-  const shapes: [string, string, RegExp][] = [
+  const evasions: [string, string, RegExp][] = [
     [
       "an identifier key",
       `egress.fetch(u, i, { capability: "x", purpose: ${retyped} });`,
@@ -264,7 +264,7 @@ describe("shapes that must fail", () => {
     ],
   ];
 
-  it.each(shapes)("%s", (_name, text, expected) => {
+  it.each(evasions)("%s", (_name, text, expected) => {
     const found = verdicts(text);
     expect(found.length).toBeGreaterThan(0);
     expect(found.join("\n")).toMatch(expected);

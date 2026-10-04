@@ -5,7 +5,7 @@ import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   PUSH_PENDING_FORGET_KEY,
   pendingPushForgets,
-} from "@opensesame/app-core/lib/push-ledger.js";
+} from "@opensesame/app-core/lib/web-push-ledger.js";
 import { overlapCast } from "@opensesame/os-domain";
 import {
   cleanup,

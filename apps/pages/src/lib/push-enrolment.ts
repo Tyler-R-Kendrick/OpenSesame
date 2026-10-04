@@ -6,7 +6,7 @@ import {
   addPendingPushForget,
   clearPendingPushForget,
   pendingPushForgets,
-} from "@opensesame/app-core/lib/push-ledger.js";
+} from "@opensesame/app-core/lib/web-push-ledger.js";
 import {
   type BoundaryValue,
   isJsonObject,

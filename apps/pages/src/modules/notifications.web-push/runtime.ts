@@ -31,7 +31,7 @@ import { identityBase } from "@opensesame/app-core/lib/identity.js";
 import {
   PUSH_PENDING_FORGET_KEY,
   PUSH_SUBSCRIPTION_KEY,
-} from "@opensesame/app-core/lib/push-ledger.js";
+} from "@opensesame/app-core/lib/web-push-ledger.js";
 import { createElement } from "react";
 import { pushSeams } from "../../lib/push-enrolment.js";
 import { noRoadOut } from "../../lib/push-seams.js";

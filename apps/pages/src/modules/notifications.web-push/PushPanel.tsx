@@ -19,7 +19,7 @@ import {
   dismissNotice,
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
-import { PUSH_SUBSCRIPTION_KEY } from "@opensesame/app-core/lib/push-ledger.js";
+import { PUSH_SUBSCRIPTION_KEY } from "@opensesame/app-core/lib/web-push-ledger.js";
 import { useEffect, useRef, useState } from "react";
 import { useIdentitySession } from "../../bindings/identity.js";
 import { IconKey } from "../../components/IconKey.js";

@@ -4,7 +4,7 @@ import {
   PUSH_PENDING_FORGET_KEY,
   addPendingPushForget,
   pendingPushForgets,
-} from "@opensesame/app-core/lib/push-ledger.js";
+} from "@opensesame/app-core/lib/web-push-ledger.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { enablePush, flushPendingForgets } from "./push-enrolment.js";
 import {

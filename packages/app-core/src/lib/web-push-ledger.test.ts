@@ -7,7 +7,7 @@ import {
   clearPendingPushForget,
   pendingPushForgets,
   retirePushSubscriptionId,
-} from "./push-ledger.js";
+} from "./web-push-ledger.js";
 
 beforeEach(() => {
   kvDelete(PUSH_SUBSCRIPTION_KEY);

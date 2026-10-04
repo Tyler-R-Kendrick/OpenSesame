@@ -178,10 +178,9 @@ function metaArgument(call: ts.CallExpression): ts.Expression | undefined {
   return call.arguments[verb === "decide" ? 1 : 2];
 }
 
-export function analyze(
-  source: ts.SourceFile,
-  load: ModuleLoader,
-): Readonly<{ sites: Site[]; findings: Finding[] }> {
+export type Analysis = Readonly<{ sites: Site[]; findings: Finding[] }>;
+
+export function analyze(source: ts.SourceFile, load: ModuleLoader): Analysis {
   const sites: Site[] = [];
   const findings: Finding[] = [];
   if (!dealsInEgress(source)) return { sites, findings };
@@ -240,10 +239,9 @@ export function analyze(
 }
 
 /** The catalog export a site's purpose comes from, or why it is not one. */
-export function catalogConstant(
-  site: Site,
-  load: ModuleLoader,
-): Readonly<{ name: string }> | Readonly<{ problem: string }> {
+export type Traced = Readonly<{ name: string }> | Readonly<{ problem: string }>;
+
+export function catalogConstant(site: Site, load: ModuleLoader): Traced {
   let current: ts.Expression = unwrap(site.value);
   // The module the expression being followed was written in.
   let source = site.source;

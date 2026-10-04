@@ -11,7 +11,7 @@ import {
   PUSH_PENDING_FORGET_KEY,
   PUSH_SUBSCRIPTION_KEY,
   pendingPushForgets,
-} from "../push-ledger.js";
+} from "../web-push-ledger.js";
 import { workerStatus } from "./worker-controller.js";
 import {
   CORE_URL,
