@@ -42,7 +42,9 @@ import {
   notificationsOf as notificationsFrom,
   scriptsOf as scriptsFrom,
   serve as serveDist,
+  trackControlledBirth,
   until,
+  untilBornControlled,
 } from "./lib/push-worker-harness.mjs";
 
 const dist = path.resolve(import.meta.dirname, "../dist");
@@ -110,6 +112,7 @@ try {
           }
         : null;
   });
+  await trackControlledBirth(context);
   const page = await context.newPage();
   const pageErrors = [];
   page.on("pageerror", (error) => pageErrors.push(String(error?.message)));
@@ -173,6 +176,9 @@ try {
   // A device that has only met the front door holds the core worker.
   await page.goto(scope);
   const core = `${scope}sw.js`;
+  // The first install reloads the page once, by design; the door is not
+  // touched until that reload has happened (`untilBornControlled`).
+  await untilBornControlled(page);
   await until(
     () => scriptsFrom(page, base),
     (s) => same(s.active, core) && same(s.controller, core),
@@ -195,6 +201,7 @@ try {
   const other = await context.newPage();
   other.on("pageerror", (error) => pageErrors.push(String(error?.message)));
   await other.goto(scope);
+  await untilBornControlled(other);
   await until(
     () => scriptsFrom(other, base),
     (s) => same(s.controller, core),

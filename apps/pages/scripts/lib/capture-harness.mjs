@@ -21,6 +21,10 @@ import path from "node:path";
 import { chromium } from "@playwright/test";
 import { installPushShim } from "./push-browser-shim.mjs";
 import { PAGES_ORIGIN, startPushStack } from "./push-stack.mjs";
+import {
+  trackControlledBirth,
+  untilBornControlled,
+} from "./push-worker-harness.mjs";
 import { createHarness } from "./static-origin-harness.mjs";
 
 /** The production origin, unless a journey shows what a dedicated deployment does. */
@@ -46,6 +50,8 @@ async function pushHarness({ dist, base }) {
         executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
         headless: true,
       }),
+    /** After `goto`: the first load's one reload under the core worker is over. */
+    settleFirstLoad: (page) => untilBornControlled(page),
     async newPage(browser, { device, screen } = {}) {
       served = screen?.runtimeConfig ?? {};
       const context = await browser.newContext({
@@ -57,6 +63,7 @@ async function pushHarness({ dist, base }) {
         origin: PAGES_ORIGIN,
       });
       const shim = await installPushShim(context, () => stack.standIn.mint());
+      await trackControlledBirth(context);
       const page = await context.newPage();
       const session = { shim, principal: null };
       // The anonymous session the page is given at boot, as the page got it.
