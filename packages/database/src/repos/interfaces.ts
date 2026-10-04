@@ -520,8 +520,8 @@ export interface WebhookDeliveryRepository {
     uow?: UnitOfWork,
   ): Promise<WebhookDelivery>;
   /**
-   * Due, undelivered, un-dead deliveries — attempts bumped on claim so two
-   * dispatchers racing cannot both count the same try as the first.
+   * Due, undelivered, un-dead deliveries — attempts bumped and a lease taken
+   * (`DELIVERY_LEASE_MS`) so a racing dispatcher neither recounts nor resends.
    */
   claimDue(limit: number, now: Date): Promise<WebhookDelivery[]>;
   markDelivered(id: string, at: Date): Promise<void>;
@@ -634,7 +634,7 @@ export interface NotificationDeliveryRepository {
     delivery: NotificationDelivery,
     uow?: UnitOfWork,
   ): Promise<NotificationDelivery>;
-  /** Attempts counted on claim, so a crash mid-send still burned a try. */
+  /** Counts the attempt and takes a lease (`DELIVERY_LEASE_MS`) on claim. */
   claimDue(limit: number, now: Date): Promise<NotificationDelivery[]>;
   markDelivered(
     id: string,
@@ -746,8 +746,8 @@ export interface PushSubscriptionRepository {
   getById(id: string): Promise<PushSubscription | null>;
   /** A browser re-subscribing with the same endpoint must replace, not duplicate. */
   findByEndpointDigest(digest: string): Promise<PushSubscription | null>;
-  /** Compare-and-set: true only for the caller that actually disabled it. */
-  disable(id: string, at: Date): Promise<boolean>;
+  /** Compare-and-set; with `principalId`, only that owner's row. */
+  disable(id: string, at: Date, principalId?: string): Promise<boolean>;
 }
 
 export interface CallbackReplayRepository {

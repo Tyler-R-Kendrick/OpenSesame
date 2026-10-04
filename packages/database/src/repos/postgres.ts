@@ -46,6 +46,10 @@ import type postgres from "postgres";
 import * as schema from "../schema/index.js";
 import { createPostgresAgentAuthRepository } from "./agent-auth-repo.js";
 import {
+  claimDueNotificationRows,
+  claimDueWebhookRows,
+} from "./delivery-claims.js";
+import {
   type ApprovalActivationRepository,
   type ApprovalReceiptRepository,
   type AuditEventRepository,
@@ -1475,36 +1479,8 @@ export class PostgresRepositories implements Repositories {
       return mapWebhookDelivery(row);
     },
 
-    claimDue: async (limit, now) => {
-      // Same discipline as the outbox drain: SKIP LOCKED so two dispatchers
-      // racing split the due set instead of double-delivering it, and the
-      // attempt is counted on claim so a crash mid-send still burned a try.
-      return this.db.transaction(async (tx) => {
-        const candidates = await tx
-          .select()
-          .from(schema.webhookDeliveries)
-          .where(
-            and(
-              isNull(schema.webhookDeliveries.deliveredAt),
-              isNull(schema.webhookDeliveries.deadAt),
-              lte(schema.webhookDeliveries.nextAttemptAt, now),
-            ),
-          )
-          .orderBy(schema.webhookDeliveries.nextAttemptAt)
-          .limit(limit)
-          .for("update", { skipLocked: true });
-        const claimed: WebhookDelivery[] = [];
-        for (const row of candidates) {
-          const [updated] = await tx
-            .update(schema.webhookDeliveries)
-            .set({ attempts: row.attempts + 1 })
-            .where(eq(schema.webhookDeliveries.id, row.id))
-            .returning();
-          if (updated) claimed.push(mapWebhookDelivery(updated));
-        }
-        return claimed;
-      });
-    },
+    claimDue: async (limit, now) =>
+      (await claimDueWebhookRows(this.db, limit, now)).map(mapWebhookDelivery),
 
     markDelivered: async (id, at) => {
       await this.db
@@ -1908,38 +1884,10 @@ export class PostgresRepositories implements Repositories {
       }
     },
 
-    claimDue: async (limit, now) => {
-      // Same discipline as the outbox drain: SKIP LOCKED so two dispatchers
-      // racing split the due set instead of double-delivering it, and the
-      // attempt is counted on claim so a crash mid-send still burned a try.
-      return this.db.transaction(async (tx) => {
-        const candidates = await tx
-          .select()
-          .from(schema.notificationDeliveries)
-          .where(
-            and(
-              or(
-                eq(schema.notificationDeliveries.state, "pending"),
-                eq(schema.notificationDeliveries.state, "failed"),
-              ),
-              lte(schema.notificationDeliveries.nextAttemptAt, now),
-            ),
-          )
-          .orderBy(asc(schema.notificationDeliveries.nextAttemptAt))
-          .limit(limit)
-          .for("update", { skipLocked: true });
-        const claimed: NotificationDelivery[] = [];
-        for (const row of candidates) {
-          const [updated] = await tx
-            .update(schema.notificationDeliveries)
-            .set({ attempts: row.attempts + 1 })
-            .where(eq(schema.notificationDeliveries.id, row.id))
-            .returning();
-          if (updated) claimed.push(mapNotificationDelivery(updated));
-        }
-        return claimed;
-      });
-    },
+    claimDue: async (limit, now) =>
+      (await claimDueNotificationRows(this.db, limit, now)).map(
+        mapNotificationDelivery,
+      ),
 
     markDelivered: async (id, at, providerMessageRef) => {
       await this.db

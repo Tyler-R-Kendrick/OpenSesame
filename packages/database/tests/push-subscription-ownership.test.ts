@@ -93,6 +93,34 @@ describe.each(engines)("$name.pushSubscriptions ownership", (engine) => {
     expect(again.authSecret).not.toBe(first.authSecret);
   });
 
+  it("adversarial: disabling on behalf of a principal cannot retire a row that changed hands", async () => {
+    const { repos, owner, other } = await twoPrincipals();
+    const endpointDigest = `sha256:${randomUUID()}`;
+    const first = await repos.pushSubscriptions.create(
+      makePushSubscription(owner, { endpointDigest }),
+    );
+    // The owner's request checked ownership, then lost the race: the endpoint
+    // was freed and re-registered by `other` before the owner's disable ran.
+    await repos.pushSubscriptions.disable(first.id, new Date(), owner);
+    await repos.pushSubscriptions.create(
+      makePushSubscription(other, { endpointDigest }),
+    );
+
+    expect(
+      await repos.pushSubscriptions.disable(first.id, new Date(), owner),
+    ).toBe(false);
+    expect(
+      (await repos.pushSubscriptions.getById(first.id))?.disabledAt,
+    ).toBeUndefined();
+    expect(
+      (await repos.pushSubscriptions.listForPrincipal(other)).map((r) => r.id),
+    ).toEqual([first.id]);
+    // A system retirement (no principal) and the real owner still work.
+    expect(
+      await repos.pushSubscriptions.disable(first.id, new Date(), other),
+    ).toBe(true);
+  });
+
   it("contract: a row its owner disabled may be registered by someone else", async () => {
     const { repos, owner, other } = await twoPrincipals();
     const endpointDigest = `sha256:${randomUUID()}`;

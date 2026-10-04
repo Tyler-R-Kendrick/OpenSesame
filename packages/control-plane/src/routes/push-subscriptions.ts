@@ -6,7 +6,10 @@ import {
   RegisterPushSubscriptionSchema,
 } from "@opensesame/contracts";
 import { ConflictError, type PushSubscription } from "@opensesame/database";
-import { pushSubscriptionRefusal } from "@opensesame/notification-adapters";
+import {
+  normalizePushEndpoint,
+  pushSubscriptionRefusal,
+} from "@opensesame/notification-adapters";
 import { Hono } from "hono";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
@@ -18,6 +21,19 @@ import { authenticatedPrincipalId } from "./organizations.js";
  * provider identity, and needs none of the binding ceremony.
  */
 export const pushSubscriptionRoutes = new Hono<{ Variables: Variables }>();
+
+/**
+ * Live subscriptions one principal may hold. A person has a handful of
+ * browsers; anything near this is somebody pointing the shared worker at
+ * endpoints that never answer, and every one of them is a request the worker
+ * must wait out. Registering past it answers 409 `subscription_limit_reached`;
+ * replacing a subscription already held, or unsubscribing one, never counts
+ * against it.
+ */
+export const MAX_PUSH_SUBSCRIPTIONS_PER_PRINCIPAL = 10;
+
+const sha256Hex = (text: string) =>
+  createHash("sha256").update(text).digest("hex");
 
 pushSubscriptionRoutes.get("/key", requirePrincipal(), (c) => {
   const ctx = c.get("ctx");
@@ -43,6 +59,7 @@ pushSubscriptionRoutes.get("/key", requirePrincipal(), (c) => {
  */
 pushSubscriptionRoutes.post("/subscriptions", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
+  const repo = ctx.repos.pushSubscriptions;
   const principalId = authenticatedPrincipalId(c.get("principalId"));
   const parsed = RegisterPushSubscriptionSchema.safeParse(
     await c.req.json().catch(() => ({})),
@@ -53,31 +70,58 @@ pushSubscriptionRoutes.post("/subscriptions", requirePrincipal(), async (c) => {
       400,
     );
   }
+  // One spelling per endpoint, so the digest the ownership rule keys on cannot
+  // be sidestepped with a differently written copy of the same URL.
+  const endpoint = normalizePushEndpoint(parsed.data.endpoint);
+  if (!endpoint) {
+    return c.json(
+      { error: "invalid_request", detail: "insecure_endpoint" },
+      400,
+    );
+  }
   // The same policy delivery enforces, applied while the person can still be
   // told: HTTPS, no userinfo, no loopback, private or metadata host, and keys
   // that are what RFC 8291 encrypts to. A row failing any of it could never
   // be delivered to.
   const refusal = pushSubscriptionRefusal({
-    endpoint: parsed.data.endpoint,
+    endpoint,
     keys: parsed.data.keys,
   });
   if (refusal) {
     return c.json({ error: "invalid_request", detail: refusal }, 400);
   }
+  const digest = sha256Hex(endpoint);
+  // Rows written before endpoints were normalized are keyed on the raw string.
+  // They keep working as they are; one the presented spelling matches is still
+  // somebody's, and is carried over below if it is the caller's own.
+  const rawDigest = sha256Hex(parsed.data.endpoint);
+  const legacy =
+    rawDigest === digest ? null : await repo.findByEndpointDigest(rawDigest);
+  const legacyLive = legacy && !legacy.disabledAt ? legacy : null;
+  if (legacyLive && legacyLive.principalId !== principalId) {
+    return c.json({ error: "endpoint_already_registered" }, 409);
+  }
+  const limit = (): Response =>
+    c.json({ error: "subscription_limit_reached" }, 409);
+  const held = await repo.listForPrincipal(principalId);
+  const replacing = held.some(
+    (row) => row.endpointDigest === digest || row.endpointDigest === rawDigest,
+  );
+  if (!replacing && held.length >= MAX_PUSH_SUBSCRIPTIONS_PER_PRINCIPAL) {
+    return limit();
+  }
   const now = ctx.clock();
   let created: PushSubscription;
   try {
-    created = await ctx.repos.pushSubscriptions.create({
+    created = await repo.create({
       id: `push_${randomBytes(12).toString("base64url")}`,
       principalId,
-      endpoint: parsed.data.endpoint,
+      endpoint,
       p256dhKey: parsed.data.keys.p256dh,
       authSecret: parsed.data.keys.auth,
       // How a subscription is named and deduplicated without naming the
       // capability URL itself.
-      endpointDigest: createHash("sha256")
-        .update(parsed.data.endpoint)
-        .digest("hex"),
+      endpointDigest: digest,
       ...(parsed.data.deviceLabel
         ? { deviceLabel: parsed.data.deviceLabel }
         : undefined),
@@ -92,6 +136,18 @@ pushSubscriptionRoutes.post("/subscriptions", requirePrincipal(), async (c) => {
     }
     throw error;
   }
+  // Concurrent registrations can each pass the check above. Count again, and
+  // withdraw this one if the principal is now over: two racers may both back
+  // out (fail closed), but the cap is never exceeded.
+  if (
+    !replacing &&
+    (await repo.listForPrincipal(principalId)).length >
+      MAX_PUSH_SUBSCRIPTIONS_PER_PRINCIPAL
+  ) {
+    await repo.disable(created.id, now, principalId);
+    return limit();
+  }
+  if (legacyLive) await repo.disable(legacyLive.id, now, principalId);
   await appendAuditEvent(ctx.repos.auditEvents, {
     eventType: "notification.push.subscribed",
     principalId,
@@ -119,14 +175,22 @@ pushSubscriptionRoutes.delete(
   requirePrincipal(),
   async (c) => {
     const ctx = c.get("ctx");
+    const repo = ctx.repos.pushSubscriptions;
     const principalId = authenticatedPrincipalId(c.get("principalId"));
     const id = c.req.param("id") ?? "";
-    const subscription = await ctx.repos.pushSubscriptions.getById(id);
-    // Someone else's subscription answers 404, never 403.
-    if (!subscription || subscription.principalId !== principalId) {
-      return c.json({ error: "not_found" }, 404);
+    // The owner is part of the write itself. Reading the owner first and
+    // disabling after left a gap in which the endpoint, freed and registered
+    // by someone else, could have its new row disabled by the old owner.
+    const retired = await repo.disable(id, ctx.clock(), principalId);
+    if (!retired) {
+      // Already unsubscribed by this caller is fine and stays a 204; anyone
+      // else's subscription, or none, answers 404, never 403.
+      const row = await repo.getById(id);
+      if (!row || row.principalId !== principalId) {
+        return c.json({ error: "not_found" }, 404);
+      }
+      return c.body(null, 204);
     }
-    await ctx.repos.pushSubscriptions.disable(subscription.id, ctx.clock());
     await appendAuditEvent(ctx.repos.auditEvents, {
       eventType: "notification.push.unsubscribed",
       principalId,
@@ -134,8 +198,8 @@ pushSubscriptionRoutes.delete(
       outcome: "succeeded",
       correlationId: c.get("correlationId"),
       targetType: "push_subscription",
-      targetId: subscription.id,
-      metadata: { subscriptionId: subscription.id },
+      targetId: id,
+      metadata: { subscriptionId: id },
     });
     return c.body(null, 204);
   },

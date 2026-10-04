@@ -76,8 +76,18 @@ async function register(
   return mapPushSubscription(row);
 }
 
-/** Compare-and-set on `disabled_at is null`: only the real retirer is told. */
-async function disable(db: Database, id: string, at: Date): Promise<boolean> {
+/**
+ * Compare-and-set on `disabled_at is null`: only the real retirer is told. With
+ * a principal the owner is part of the same statement, so a caller cannot
+ * retire a row that changed hands between their ownership check and this write
+ * (a freed endpoint re-registered by someone else).
+ */
+async function disable(
+  db: Database,
+  id: string,
+  at: Date,
+  principalId?: string,
+): Promise<boolean> {
   const rows = await db
     .update(schema.pushSubscriptions)
     .set({ disabledAt: at })
@@ -85,6 +95,9 @@ async function disable(db: Database, id: string, at: Date): Promise<boolean> {
       and(
         eq(schema.pushSubscriptions.id, id),
         isNull(schema.pushSubscriptions.disabledAt),
+        principalId === undefined
+          ? undefined
+          : eq(schema.pushSubscriptions.principalId, principalId),
       ),
     )
     .returning({ id: schema.pushSubscriptions.id });
@@ -127,6 +140,6 @@ export function createPostgresPushSubscriptions(
     findByEndpointDigest: (digest) =>
       one(eq(schema.pushSubscriptions.endpointDigest, digest)),
 
-    disable: (id, at) => disable(db, id, at),
+    disable: (id, at, principalId) => disable(db, id, at, principalId),
   };
 }

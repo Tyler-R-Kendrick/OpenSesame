@@ -73,11 +73,15 @@ export function createMemoryPushSubscriptions(
       return null;
     },
 
-    disable: async (id, at) => {
+    disable: async (id, at, principalId) => {
       const current = rows.get(id);
-      // Compare-and-set on "not already disabled", so only the caller that
-      // actually retired the subscription is told it did.
+      // Compare-and-set on "not already disabled" (and, given a principal, on
+      // the owner), so only the caller that actually retired the subscription
+      // is told it did.
       if (!current || current.disabledAt) return false;
+      if (principalId !== undefined && current.principalId !== principalId) {
+        return false;
+      }
       rows.set(id, { ...current, disabledAt: at });
       return true;
     },

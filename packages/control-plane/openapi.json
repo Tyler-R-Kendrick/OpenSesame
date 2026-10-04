@@ -4365,7 +4365,7 @@
             "description": "Authentication required"
           },
           "409": {
-            "description": "Endpoint owned by another principal"
+            "description": "Owned by someone else, or limit reached"
           }
         }
       }

@@ -27,6 +27,7 @@ import type {
 } from "@opensesame/os-domain";
 import { interactionMachine } from "@opensesame/os-domain";
 import { MemoryAgentAuthRepository } from "./agent-auth-repo.js";
+import { claimDueMemoryRows } from "./delivery-claims.js";
 import {
   type ApprovalActivationRepository,
   type ApprovalReceiptRepository,
@@ -985,25 +986,14 @@ export class MemoryRepositories implements Repositories {
       return structuredClone(row);
     },
 
-    claimDue: async (limit, now) => {
-      const due = [...this.#store.webhookDeliveries.values()]
-        .filter(
-          (row) =>
-            row.deliveredAt === undefined &&
-            row.deadAt === undefined &&
-            row.nextAttemptAt <= now,
-        )
-        .sort((a, b) => a.nextAttemptAt.getTime() - b.nextAttemptAt.getTime())
-        .slice(0, limit);
-      const claimed: WebhookDelivery[] = [];
-      for (const row of due) {
-        const next = structuredClone(row);
-        next.attempts = row.attempts + 1;
-        this.#store.webhookDeliveries.set(row.id, structuredClone(next));
-        claimed.push(next);
-      }
-      return claimed;
-    },
+    claimDue: async (limit, now) =>
+      claimDueMemoryRows(
+        this.#store.webhookDeliveries,
+        (row) => row.deliveredAt === undefined && row.deadAt === undefined,
+        limit,
+        now,
+        (row) => structuredClone(row),
+      ),
 
     markDelivered: async (id, at) => {
       const row = this.#store.webhookDeliveries.get(id);
@@ -1227,27 +1217,14 @@ export class MemoryRepositories implements Repositories {
       return cloneNotificationDelivery(row);
     },
 
-    claimDue: async (limit, now) => {
-      const due = [...this.#store.notificationDeliveries.values()]
-        .filter(
-          (row) =>
-            (row.state === "pending" || row.state === "failed") &&
-            row.nextAttemptAt <= now,
-        )
-        .sort((a, b) => a.nextAttemptAt.getTime() - b.nextAttemptAt.getTime())
-        .slice(0, limit);
-      const claimed: NotificationDelivery[] = [];
-      for (const row of due) {
-        const next = cloneNotificationDelivery(row);
-        next.attempts = row.attempts + 1;
-        this.#store.notificationDeliveries.set(
-          row.id,
-          cloneNotificationDelivery(next),
-        );
-        claimed.push(next);
-      }
-      return claimed;
-    },
+    claimDue: async (limit, now) =>
+      claimDueMemoryRows(
+        this.#store.notificationDeliveries,
+        (row) => row.state === "pending" || row.state === "failed",
+        limit,
+        now,
+        cloneNotificationDelivery,
+      ),
 
     markDelivered: async (id, at, providerMessageRef) => {
       const row = this.#store.notificationDeliveries.get(id);

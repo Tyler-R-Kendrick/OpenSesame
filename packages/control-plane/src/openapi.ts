@@ -1399,7 +1399,7 @@ export function buildOpenApiDocument(config: ControlPlaneConfig) {
           responses: {
             "201": { description: "Subscription id and device label" },
             "400": { description: "Invalid subscription" },
-            "409": { description: "Endpoint owned by another principal" },
+            "409": { description: "Owned by someone else, or limit reached" },
             ...authenticationUnauthorizedResponse,
           },
         },
