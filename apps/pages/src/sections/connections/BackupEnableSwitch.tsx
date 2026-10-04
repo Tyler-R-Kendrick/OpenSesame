@@ -91,7 +91,6 @@ export function BackupEnableSwitch({
       className="toggle"
       role="switch"
       aria-checked={enabled}
-      aria-pressed={enabled}
       aria-busy={busy || undefined}
       disabled={busy}
       aria-label={label}

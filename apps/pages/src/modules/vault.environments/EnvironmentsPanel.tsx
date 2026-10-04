@@ -91,17 +91,21 @@ export function EnvironmentsPanel({ plan, vaultId, items }: PanelProps) {
           names={state.names}
           active={state.active}
         />
-        <ul>
-          {items.map((item) => (
-            <EnvironmentItemRow
-              key={item.id}
-              plan={plan}
-              vaultId={vaultId}
-              item={item}
-              state={state}
-            />
-          ))}
-        </ul>
+        {/* A value is held for a named environment: with none, a row would be
+            a disabled box and an input that cannot take text (ADR 0158). */}
+        {state.active === null ? null : (
+          <ul>
+            {items.map((item) => (
+              <EnvironmentItemRow
+                key={item.id}
+                plan={plan}
+                vaultId={vaultId}
+                item={item}
+                state={state}
+              />
+            ))}
+          </ul>
+        )}
       </div>
     </section>
   );
@@ -123,21 +127,25 @@ function EnvironmentSwitch({
   };
   return (
     <div className="field">
-      <label htmlFor="vault-environment">Environment</label>
-      <select
-        id="vault-environment"
-        value={active ?? ""}
-        onChange={(event) => {
-          switchEnvironment(plan, vaultId, event.target.value);
-        }}
-      >
-        {active === null ? <option value="" /> : null}
-        {names.map((name) => (
-          <option key={name} value={name}>
-            {name}
-          </option>
-        ))}
-      </select>
+      {names.length === 0 ? null : (
+        <>
+          <label htmlFor="vault-environment">Environment</label>
+          <select
+            id="vault-environment"
+            value={active ?? ""}
+            onChange={(event) => {
+              switchEnvironment(plan, vaultId, event.target.value);
+            }}
+          >
+            {active === null ? <option value="" /> : null}
+            {names.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </>
+      )}
       <input
         aria-label="Environment name"
         value={draft}
@@ -171,7 +179,6 @@ function EnvironmentItemRow({
           type="checkbox"
           aria-label={`${item.key} required`}
           checked={required}
-          disabled={active === null}
           onChange={(event) => {
             if (active === null) return;
             markEnvironmentRequired(
@@ -188,7 +195,6 @@ function EnvironmentItemRow({
       <input
         aria-label={`${item.key} value`}
         value={value}
-        disabled={active === null}
         onChange={(event) => {
           if (active === null) return;
           assignEnvironmentValue(

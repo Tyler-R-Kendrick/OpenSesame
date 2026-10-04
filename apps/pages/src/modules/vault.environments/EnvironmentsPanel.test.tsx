@@ -57,13 +57,30 @@ describe("environments panel", () => {
     });
     expect(enableVaultEnvironments(plan, VAULT)).toBe(true);
     render(<EnvironmentsPanel plan={plan} vaultId={VAULT} items={ITEMS} />);
+    // Nothing to choose and no value to hold until an environment is named:
+    // the name field and its add key are what act (ADR 0158).
+    expect(screen.queryByRole("combobox", { name: "Environment" })).toBeNull();
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: /value$/ })).toBeNull();
+    expect(
+      screen.getByRole("textbox", { name: "Environment name" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Add environment" }),
+    ).toBeTruthy();
+    act(() => {
+      expect(switchEnvironment(plan, VAULT, "production").ok).toBe(true);
+    });
     expect(screen.getByRole("combobox", { name: "Environment" })).toBeTruthy();
     expect(
       screen.getByRole("checkbox", { name: "API_TOKEN required" }),
-    ).toBeTruthy();
+    ).toHaveProperty("disabled", false);
     expect(
       screen.getByRole("checkbox", { name: "API_URL required" }),
     ).toBeTruthy();
+    expect(
+      screen.getByRole("textbox", { name: "API_URL value" }),
+    ).toHaveProperty("disabled", false);
     expect(environmentSnapshot(VAULT).schema).toBe(
       "# @type=string\nAPI_TOKEN=\n\n# @type=string\nAPI_URL=",
     );

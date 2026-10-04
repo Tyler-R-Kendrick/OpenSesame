@@ -5,6 +5,10 @@ import {
   duressStatus,
   type enableDuressCode,
 } from "@opensesame/app-core/lib/duress/settings/device-duress.js";
+import {
+  dismissNotice,
+  setStatusNotice,
+} from "@opensesame/app-core/lib/notices.js";
 import { useEffect, useState } from "react";
 import { IconKey } from "../../../components/IconKey.js";
 import {
@@ -13,7 +17,6 @@ import {
   IconPlus,
   IconShield,
 } from "../../../components/Icons.js";
-import { StatusNote } from "../../../components/StatusNote.js";
 import { useVault } from "../../../lib/vault/hooks.js";
 import { DuressCeremony } from "./DuressCeremony.js";
 import { MethodRow } from "./MethodRow.js";
@@ -26,28 +29,35 @@ export function useDuressPanelShown(): boolean {
   return !guest && status === "unlocked";
 }
 
-type Message = { tone: "ok" | "err"; text: string } | null;
+const NOTICE_ID = "duress-code";
 
-/** One action at a time, with what it said, the way the key sheets run. */
+/**
+ * One action at a time, the way the key sheets run: a success is announced
+ * (the row's own state shows it), a failure is a notice in the tray rather
+ * than a box in the page behind the sheet (DESIGN.md).
+ */
 function useDuressRun() {
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<Message>(null);
+  const [said, setSaid] = useState("");
   const run: Run = async (action, ok) => {
-    setMessage(null);
+    dismissNotice(NOTICE_ID);
+    setSaid("");
     setBusy(true);
     try {
       await action();
-      if (ok !== null) setMessage({ tone: "ok", text: ok });
+      if (ok !== null) setSaid(ok);
     } catch (caught) {
-      setMessage({
+      setStatusNotice({
+        id: NOTICE_ID,
         tone: "err",
-        text: caught instanceof Error ? caught.message : String(caught),
+        title: "Duress code",
+        body: caught instanceof Error ? caught.message : String(caught),
       });
     } finally {
       setBusy(false);
     }
   };
-  return { busy, message, setMessage, run };
+  return { busy, said, setSaid, run };
 }
 
 function DuressRow({
@@ -114,7 +124,7 @@ export function DuressPanel({
   const [status, setStatus] = useState(duressStatus);
   const { armed } = status;
   const refresh = () => setStatus(duressStatus());
-  const { busy, message, setMessage, run } = useDuressRun();
+  const { busy, said, setSaid, run } = useDuressRun();
 
   // Locking takes the row away; it must take the sheet with it, or the next
   // unlock opens a ceremony nobody asked for.
@@ -129,14 +139,12 @@ export function DuressPanel({
       <div className="panel__head">
         <div>
           <h2>Duress</h2>
-          <p className="hint">
-            A second code that opens something else, in front of someone who
-            makes you unlock.
-          </p>
         </div>
       </div>
       <div className="panel__body">
-        <StatusNote message={message} />
+        <output className="visually-hidden" aria-live="polite">
+          {said}
+        </output>
         <DuressRow
           status={status}
           busy={busy}
@@ -150,7 +158,8 @@ export function DuressPanel({
             }, "Cleared. The code is still on.")
           }
           onOpen={() => {
-            setMessage(null);
+            dismissNotice(NOTICE_ID);
+            setSaid("");
             setOpen(true);
           }}
         />
@@ -175,7 +184,7 @@ export function DuressPanel({
             onDone={(text) => {
               setOpen(false);
               refresh();
-              if (text) setMessage({ tone: "ok", text });
+              if (text) setSaid(text);
             }}
           />
         </SheetFrame>

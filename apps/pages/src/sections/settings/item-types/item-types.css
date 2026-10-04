@@ -290,17 +290,6 @@
   color: var(--ink-2);
 }
 
-.itype-empty__go {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--accent);
-  font: inherit;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-  cursor: pointer;
-}
-
 /* ——— Phone: actions drop under the text; nothing is clipped ——————— */
 @media (max-width: 560px) {
   .itype__row,
@@ -326,8 +315,7 @@
 
 @media (pointer: coarse), (max-width: 900px) {
   .itype-tab,
-  .itype-builtin > summary,
-  .itype-empty__go {
+  .itype-builtin > summary {
     min-height: 2.75rem;
   }
 }

@@ -9,6 +9,7 @@ import {
   type RootProtectionManifest,
   type VaultHeader,
   mintVaultKey,
+  unwrapRawVaultKeyFromPassword,
   wrapVaultKeyWithPassword,
 } from "@opensesame/vault-core";
 import {
@@ -212,8 +213,12 @@ export async function testProtector(
  * Mint a new vault root, re-seal the body, re-wrap with password, and reset
  * the protection manifest to the password path (root-rotate).
  *
- * The new password meets the same floor as every other master-password path
- * (policy, then the duress-code collision probe) before any key changes.
+ * The password meets the same floor as every other master-password path
+ * (policy, then the duress-code collision probe) before any key changes. When
+ * the vault has a master password, the one typed must be that password: a
+ * rotation re-wraps it under the new root, and changing it is
+ * `changeMasterPassword`'s job. With no master password enrolled there is none
+ * to prove, and the password typed becomes it.
  */
 export async function rotateCompromisedRoot(
   host: LifecycleHost,
@@ -226,6 +231,10 @@ export async function rotateCompromisedRoot(
       "unavailable",
       "There is no vault header on this device.",
     );
+  }
+  if (header.wrap && header.kdf) {
+    // Throws WrongPasswordError, before any key changes.
+    await unwrapRawVaultKeyFromPassword(header, input.password);
   }
   const base = requireManifest(header);
   const { rawVaultKey } = await mintVaultKey();
