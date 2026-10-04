@@ -1,6 +1,6 @@
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import type { SecretItem } from "@opensesame/vault-core";
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import {
@@ -30,6 +30,7 @@ Object.assign(identityHookSeams, {
   }),
   useIdentitySession: () => session.current,
 });
+import { standInPrompt } from "../lib/command-bar/search.test-support.js";
 import { useOnlineSeams } from "../lib/use-online.js";
 Object.assign(useOnlineSeams, { useOnline: () => online.value });
 const shouldAutoConnect = vi.hoisted(() => vi.fn(() => true));
@@ -124,7 +125,9 @@ afterAll(() =>
 declareConnectionsTutorial();
 
 describe("ConnectionsSection gallery", () => {
+  let prompt = standInPrompt();
   beforeEach(() => {
+    prompt = standInPrompt();
     online.value = true;
     session.current = { principalId: "prn_op" };
     connectState.connecting = false;
@@ -140,6 +143,7 @@ describe("ConnectionsSection gallery", () => {
 
   afterEach(() => {
     cleanup();
+    prompt.stop();
     clearNotices();
     setVercelConnectAuth(null);
     vi.clearAllMocks();
@@ -162,21 +166,17 @@ describe("ConnectionsSection gallery", () => {
     ).toBeNull();
   });
 
-  it("filters the catalog by search and clears it", async () => {
+  it("filters the catalog by the prompt's words and clears it", async () => {
     const { container } = renderAt("/connections");
     await screen.findByText("Linear");
-    await userEvent.click(
-      screen.getByRole("button", { name: "Search connectors" }),
-    );
-    const search = () =>
-      screen.getByRole("textbox", { name: "Search connectors" });
-    await userEvent.type(search(), "linear");
+    // No key or field of its own: the catalog is searched in the prompt.
+    expect(screen.queryByLabelText("Search connectors")).toBeNull();
+    act(() => prompt.type("/? linear"));
     // SAFETY: fixture constructed in this test matches the declared contract.
     const grid = container.querySelector(".conn-grid") as HTMLElement;
     expect(within(grid).getByText("Linear")).toBeTruthy();
     expect(container.querySelectorAll(".conn-tile").length).toBe(1);
-    await userEvent.clear(search());
-    await userEvent.type(search(), "zzzz");
+    act(() => prompt.type("/? zzzz"));
     expect(screen.getByText("No matching connectors")).toBeTruthy();
     await userEvent.click(
       screen.getByRole("button", { name: /Clear search/i }),

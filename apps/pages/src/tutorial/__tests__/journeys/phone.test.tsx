@@ -121,7 +121,9 @@ describe("support at phone width", { timeout: 20_000 }, () => {
       kind: "completed",
       goal: "connection.create",
     });
-    expect(await screen.findByLabelText("Search connectors")).toBeTruthy();
+    expect(
+      await screen.findByRole("combobox", { name: "Command" }),
+    ).toBeTruthy();
 
     // And the conversation is still readable afterwards.
     const reopened = await openSupport(user);
