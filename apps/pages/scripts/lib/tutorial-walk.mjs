@@ -260,6 +260,15 @@ async function pressNext(page, { info, byKeyboard, check, label }) {
   await page.keyboard.press("Enter");
 }
 
+/** The number of steps shown before the close is the number the tutorial declared. */
+function checkDeclaredTotal({ id, check, shown, total }) {
+  if (total === null || !Number.isFinite(total)) return;
+  check(
+    shown === total,
+    `${id}: ${shown} steps were shown before the close, the tutorial declared ${total}`,
+  );
+}
+
 /**
  * Press Next through a whole tutorial, checking every step. Returns the
  * ordered list of steps seen. `press` alternates mouse and keyboard so both
@@ -282,13 +291,7 @@ export async function walkSteps(
     for (const [ok, what] of stepChecks(info, { phone }))
       check(ok, `${label}: ${what}`);
     if (info.kind === "close") {
-      const shown = seen.length;
-      if (total !== null && Number.isFinite(total)) {
-        check(
-          shown === total,
-          `${id}: ${shown} steps were shown before the close, the tutorial declared ${total}`,
-        );
-      }
+      checkDeclaredTotal({ id, check, shown: seen.length, total });
       seen.push(info);
       if (snap) await snap(info, guard);
       return seen;
