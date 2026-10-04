@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { contextMenuOpen, statusBubbleOpen } from "../../lib/keymap-targets.js";
 import type { SupportController } from "../session.js";
 
 /** How long a step change glides, matching `--coach-glide` in the stylesheet. */
@@ -19,6 +20,33 @@ function editable(target: EventTarget | null): boolean {
       target instanceof HTMLTextAreaElement ||
       (target instanceof HTMLInputElement &&
         !["button", "checkbox", "radio", "submit"].includes(target.type)))
+  );
+}
+
+/**
+ * Whose Escape it is. The card always exits the tour; from anywhere else a
+ * sheet, drawer, menu or status bubble that is open takes the key first, so
+ * one press closes one thing and the topmost surface goes before the tour.
+ */
+function surfaceOwnsEscape(target: EventTarget | null): boolean {
+  if (target instanceof Element && target.closest(".coach__card")) return false;
+  return (
+    contextMenuOpen() ||
+    statusBubbleOpen() ||
+    document.querySelector(".sheet, .drawer") !== null
+  );
+}
+
+/**
+ * Someone is typing in the page, outside the Support UI that starts a tour
+ * (its panel, its launcher). A browser agent can start a tour with no gesture
+ * at all; the card must not take the caret from a field it did not open from.
+ */
+function typingElsewhere(held: Element | null): boolean {
+  return (
+    held !== null &&
+    editable(held) &&
+    held.closest('[aria-label="Support"], .support-launch') === null
   );
 }
 
@@ -86,7 +114,11 @@ export function useCoachFocus(
   useEffect(() => {
     if (!placed) return;
     const held = document.activeElement;
-    if (
+    if (!arrived.current && typingElsewhere(held)) {
+      // A start with no gesture in the Support UI: leave the caret where the
+      // person is working, and do not claim it on a later step either.
+      lastInputInCard.current = false;
+    } else if (
       !arrived.current ||
       held === document.body ||
       card.current?.contains(held) ||
@@ -99,15 +131,16 @@ export function useCoachFocus(
 }
 
 /**
- * Escape leaves the tour from anywhere except a text field. Capture phase:
- * the app's own handlers are on the window too, and a tour that Escape cannot
- * leave is a trap.
+ * Escape leaves the tour from anywhere except a text field or under an open
+ * sheet. Capture phase, and the shell keymap stands down for it, so listener
+ * order cannot decide: a tour that Escape cannot leave is a trap.
  */
 export function useEscapeToExit(support: SupportController): void {
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
       if (event.isComposing || editable(event.target)) return;
+      if (surfaceOwnsEscape(event.target)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       support.stopGuide();

@@ -85,9 +85,15 @@ because the sheet is closed while a tutorial runs.
 The HUD is **not a modal**: the aperture passes clicks to the lit control, Tab
 leaves the card for the page, and the card owns only the keys that belong to
 a tour — Escape exits (except from a text field, where it is the field's own
-way out), and the arrow keys step it while the caret is in the card. Focus
-moves to the card when a tour starts and goes back to where it was when the
-tour ends; in between it moves only if it was already the card's.
+way out, and except while an open sheet, drawer, menu or status bubble should
+take it first; from the card itself it always exits), and the arrow keys step
+it while the caret is in the card. A pane with nothing to close does not
+consume Escape while a tour is live. Focus moves to the card when a tour
+starts — unless the person is typing in a page text field and did not start
+the tour from the Support sheet (an agent-started tour never takes a caret) —
+and goes back to where it was when the tour ends; in between it moves only if
+it was already the card's, or if the page took it on arrival after a step that
+navigated and the person's last input was in the card.
 
 On a phone (`max-width: 900px` or a coarse pointer) the card is a sheet docked
 to the screen edge the lit control is *not* on, and its keys are 44px.

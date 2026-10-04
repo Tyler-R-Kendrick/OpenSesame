@@ -178,4 +178,29 @@ describe("clearOfDock", () => {
     const hole = { left: 300, top: 600, width: 44, height: 44 };
     expect(clearOfDock(hole, viewport, card, "top")).toEqual(hole);
   });
+
+  it("keeps the card off the lit area once the safe-area inset is added", () => {
+    const hole = { left: 0, top: 60, width: 390, height: 740 };
+    const bottom = clearOfDock(hole, viewport, card, "bottom", {
+      top: 0,
+      bottom: 34,
+    });
+    // card 180 + margins 24 + home indicator 34
+    expect(bottom.top + bottom.height).toBe(800 - 238);
+    const top = clearOfDock(
+      { left: 0, top: 0, width: 390, height: 700 },
+      viewport,
+      card,
+      "top",
+      { top: 59, bottom: 34 },
+    );
+    expect(top.top).toBe(180 + 24 + 59);
+  });
+
+  it("ignores the inset at the edge the card is not on", () => {
+    const hole = { left: 0, top: 60, width: 390, height: 740 };
+    expect(
+      clearOfDock(hole, viewport, card, "bottom", { top: 59, bottom: 0 }),
+    ).toEqual(clearOfDock(hole, viewport, card, "bottom"));
+  });
 });
