@@ -29,6 +29,7 @@ import {
   IDENTITY_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/identity-catalog.js";
 import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
+import { NAV_IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/section-nav-goals.js";
 import { LocalAuthorize } from "../../screens/LocalAuthorize.js";
 import { IdentitySection } from "../../sections/IdentitySection.js";
 import { contributeIdentityViews } from "../../sections/identity/identity-views.js";
@@ -63,13 +64,16 @@ export const TUTORIAL = {
     "identity.devices",
     "identity.service-accounts",
   ]),
-  goals: pickById(IDENTITY_GOALS, [
-    "identity.local.agent.keys.manage",
-    "identity.local.application.authorize",
-    "identity.local.passkeys.manage",
-    "identity.local.directory.manage",
-    "identity.local.organizations.member",
-  ]),
+  goals: [
+    ...NAV_IDENTITY_GOALS,
+    ...pickById(IDENTITY_GOALS, [
+      "identity.local.agent.keys.manage",
+      "identity.local.application.authorize",
+      "identity.local.passkeys.manage",
+      "identity.local.directory.manage",
+      "identity.local.organizations.member",
+    ]),
+  ],
   routes: IDENTITY_ROUTES,
 } as const;
 
