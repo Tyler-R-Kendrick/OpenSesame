@@ -31,6 +31,20 @@ export function vaultSteps({ press, visit }) {
       await page.waitForTimeout(500);
     },
     /**
+     * Add secrets through the editor, one per `{ name, secret }`: the default
+     * kind of a new item. A vault with items in it is what a list, a trip's
+     * choice of what stays home and a search all need.
+     */
+    async secrets(page, items) {
+      for (const { name, secret } of items) {
+        await visit(page, "vault/new");
+        await page.getByLabel("Name", { exact: true }).fill(name);
+        await page.getByLabel("Secret value", { exact: true }).fill(secret);
+        await press(page.getByRole("button", { name: "Save item" }).first());
+        await page.waitForTimeout(900);
+      }
+    },
+    /**
      * Hold a finger on a control as raw touch events, long enough for the
      * app's own long-press recognizer, then lift: the road a phone takes to a
      * context menu.

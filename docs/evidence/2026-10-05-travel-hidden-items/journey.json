@@ -1,0 +1,266 @@
+{
+  "out": ".",
+  "clock": "2026-10-05T10:00:00.000Z",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "secrets": [
+            {
+              "name": "Zebra Offshore Bank",
+              "secret": "pw-zebra-7f3a"
+            },
+            {
+              "name": "Quartz Escrow Account",
+              "secret": "pw-quartz-7f3a"
+            },
+            {
+              "name": "Keeper One",
+              "secret": "pw-keeper-7f3a"
+            },
+            {
+              "name": "Keeper Two",
+              "secret": "pw-keeper-7f3a"
+            }
+          ]
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "scrollTo": "Travel"
+        },
+        {
+          "report": "#travel .sw__name"
+        },
+        {
+          "measure": "#travel .sw--method"
+        },
+        {
+          "shot": "1280-travel-panel"
+        },
+        {
+          "pressOptional": "Choose items to leave at home"
+        },
+        {
+          "switchOptional": "Stays home: Zebra Offshore Bank"
+        },
+        {
+          "switchOptional": "Stays home: Quartz Escrow Account"
+        },
+        {
+          "report": ".travel__name"
+        },
+        {
+          "measure": ".travel__row [role=switch]"
+        },
+        {
+          "shot": "1280-choose"
+        },
+        {
+          "pressOptional": "Pack the items for travel"
+        },
+        {
+          "measure": ".travel__ack"
+        },
+        {
+          "shot": "1280-packed"
+        },
+        {
+          "checkOptional": "The bundle is saved somewhere other than this device"
+        },
+        {
+          "checkOptional": "The return code is written down, and it stays home"
+        },
+        {
+          "checkOptional": "Other devices, exports and backups still hold these items; losing the bundle and the code loses them here"
+        },
+        {
+          "pressOptional": "Take them out of this vault"
+        },
+        {
+          "escape": null
+        },
+        {
+          "visit": "vault"
+        },
+        {
+          "report": ".vtree__row, [role=treeitem], .vlist__row"
+        },
+        {
+          "shot": "1280-vault-after"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "secrets": [
+            {
+              "name": "Zebra Offshore Bank",
+              "secret": "pw-zebra-7f3a"
+            },
+            {
+              "name": "Quartz Escrow Account",
+              "secret": "pw-quartz-7f3a"
+            },
+            {
+              "name": "Keeper One",
+              "secret": "pw-keeper-7f3a"
+            },
+            {
+              "name": "Keeper Two",
+              "secret": "pw-keeper-7f3a"
+            }
+          ]
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "scrollTo": "Travel"
+        },
+        {
+          "report": "#travel .sw__name"
+        },
+        {
+          "measure": "#travel .sw--method"
+        },
+        {
+          "measure": "#travel .icon-btn"
+        },
+        {
+          "shot": "390-travel-panel"
+        },
+        {
+          "pressOptional": "Choose items to leave at home"
+        },
+        {
+          "switchOptional": "Stays home: Zebra Offshore Bank"
+        },
+        {
+          "switchOptional": "Stays home: Quartz Escrow Account"
+        },
+        {
+          "report": ".travel__name"
+        },
+        {
+          "measure": ".travel__row [role=switch]"
+        },
+        {
+          "measure": ".travel__row"
+        },
+        {
+          "shot": "390-choose"
+        },
+        {
+          "pressOptional": "Pack the items for travel"
+        },
+        {
+          "measure": ".travel__ack"
+        },
+        {
+          "shot": "390-packed"
+        },
+        {
+          "checkOptional": "The bundle is saved somewhere other than this device"
+        },
+        {
+          "checkOptional": "The return code is written down, and it stays home"
+        },
+        {
+          "checkOptional": "Other devices, exports and backups still hold these items; losing the bundle and the code loses them here"
+        },
+        {
+          "pressOptional": "Take them out of this vault"
+        },
+        {
+          "escape": null
+        },
+        {
+          "visit": "vault"
+        },
+        {
+          "shot": "390-vault-after"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-travel-panel",
+      "width": 1280,
+      "title": "Settings \u203a Security \u203a Travel \u2014 1280 \u00d7 900",
+      "caption": "A vault with four items. The Travel panel gains one row, drawn only because an item can leave: Leave items at home.",
+      "before": "Come home from a trip only",
+      "after": "Leave items at home (4 items) above it"
+    },
+    {
+      "shot": "1280-choose",
+      "width": 1280,
+      "title": "Choose what stays home \u2014 1280 \u00d7 900",
+      "caption": "The open vault's items, each a Stays home switch. The key packs; nothing is removed yet.",
+      "before": "No way to choose an item; the panel is unchanged",
+      "after": "Four rows, two switched on, one icon key to pack"
+    },
+    {
+      "shot": "1280-packed",
+      "width": 1280,
+      "title": "Packed, ready to leave \u2014 1280 \u00d7 900",
+      "caption": "The bundle and the return code, shown once, and the three confirmations that gate the removal.",
+      "before": "Not available",
+      "after": "Bundle, return code and three unticked confirmations; the removal key is disabled"
+    },
+    {
+      "shot": "1280-vault-after",
+      "width": 1280,
+      "title": "The vault as it opens afterwards \u2014 1280 \u00d7 900",
+      "caption": "Two items left, no trash entry, nothing named.",
+      "before": "All four items",
+      "after": "Keeper One and Keeper Two only"
+    },
+    {
+      "shot": "390-travel-panel",
+      "width": 390,
+      "title": "Settings \u203a Security \u203a Travel \u2014 390 \u00d7 844",
+      "caption": "The same row on a phone.",
+      "before": "Come home from a trip only",
+      "after": "Leave items at home above it"
+    },
+    {
+      "shot": "390-choose",
+      "width": 390,
+      "title": "Choose what stays home \u2014 390 \u00d7 844",
+      "caption": "Switches are 44px rows with 16px type.",
+      "before": "No way to choose an item",
+      "after": "Four rows, two on"
+    },
+    {
+      "shot": "390-packed",
+      "width": 390,
+      "title": "Packed, ready to leave \u2014 390 \u00d7 844",
+      "caption": "The bundle, the return code and the confirmations.",
+      "before": "Not available",
+      "after": "Bundle, code, three confirmations"
+    },
+    {
+      "shot": "390-vault-after",
+      "width": 390,
+      "title": "The vault as it opens afterwards \u2014 390 \u00d7 844",
+      "caption": "Two items left.",
+      "before": "All four items",
+      "after": "Keeper One and Keeper Two only"
+    }
+  ]
+}

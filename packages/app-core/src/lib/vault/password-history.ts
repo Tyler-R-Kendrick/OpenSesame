@@ -41,6 +41,33 @@ export function resetPasswordHistoryForTest(): void {
   memory.clear();
 }
 
+/**
+ * Forget what is known about an item's retired passwords: an item that leaves
+ * a vault for a trip (ADR 0171) must not stay recognisable by them. Resolves
+ * with how many digests went.
+ */
+export async function forgetRetiredPasswords(
+  tomb: string,
+  itemIds: readonly string[],
+): Promise<number> {
+  let gone = 0;
+  for (const id of itemIds) {
+    const scope = `${tomb}\u0000${id}`;
+    gone += memory.get(scope)?.size ?? 0;
+    memory.delete(scope);
+    gone +=
+      (await withDb(async (db) => {
+        const store = db.transaction(DIGESTS, "readwrite").objectStore(DIGESTS);
+        const keys: IDBValidKey[] = await idbReq(
+          store.index("by_scope").getAllKeys(scope),
+        );
+        for (const key of keys) await idbReq(store.delete(key));
+        return keys.length;
+      })) ?? 0;
+  }
+  return gone;
+}
+
 /** True only when a backup target is enabled or a history remote is bound. */
 export function persistenceProvided(): boolean {
   try {
