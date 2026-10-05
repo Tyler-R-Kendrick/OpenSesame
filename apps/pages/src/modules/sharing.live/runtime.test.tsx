@@ -34,9 +34,10 @@ describe("sharing.live runtime", () => {
         "route",
         "settings-category",
         "tutorial-target",
+        "tutorial-goal",
         "tutorial-route",
       ],
-      count: 4,
+      count: 5,
     });
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);

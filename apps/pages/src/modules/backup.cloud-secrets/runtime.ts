@@ -31,9 +31,11 @@ import {
 } from "@opensesame/app-core/lib/feature-request-send.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 
+import { SOPS_GOALS } from "@opensesame/app-core/tutorial/registry/settings-goals.js";
 import { applySavedConnectors } from "../../lib/apply-saved-connectors.js";
 import { SopsDocumentPanel } from "../../sections/settings/sops/SopsDocumentPanel.js";
 import { createActivation } from "../activation.js";
+import { registerTutorial } from "../tutorial-contributions.js";
 
 export const CAPABILITY = "backup.cloud-secrets";
 
@@ -91,6 +93,8 @@ export const capabilityRuntime: CapabilityRuntime = {
     activation.onDispose(releaseStorage);
     activation.onDispose(releaseEncryption);
     activation.register("settings-panel", SOPS_DOCUMENT_PANEL);
+    // The SOPS row is drawn by this capability, so its tour arrives with it.
+    registerTutorial(activation, { goals: SOPS_GOALS });
     return activation.handle();
   },
 };

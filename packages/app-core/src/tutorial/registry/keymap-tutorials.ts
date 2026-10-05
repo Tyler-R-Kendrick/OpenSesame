@@ -8,4 +8,7 @@
  */
 export type KeymapTutorial = Readonly<{ goal: string; says: string }>;
 
-export const KEYMAP_TUTORIALS: Readonly<Record<string, KeymapTutorial>> = {};
+export const KEYMAP_TUTORIALS: Readonly<Record<string, KeymapTutorial>> = {
+  "section.vault": { goal: "shell.sections", says: "Press g then v" },
+  "section.settings": { goal: "shell.sections", says: "opened with g then s" },
+};

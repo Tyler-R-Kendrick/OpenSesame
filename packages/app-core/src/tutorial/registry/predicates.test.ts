@@ -11,7 +11,9 @@ import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
 import {
   GUIDE_PREDICATES,
   noteGuideConnectionsPresent,
+  provideGuideDeviceForm,
   provideGuideInstallOffer,
+  provideGuidePluginPanel,
   registerGuidePredicates,
 } from "./predicates.js";
 import {
@@ -162,6 +164,34 @@ describe("reading a predicate", () => {
     } finally {
       provideGuideInstallOffer(() => false);
     }
+  });
+
+  it("reads how the shell is drawn from the reader the shell provides", () => {
+    const read = (id: string) => readGuidePredicate(id);
+    try {
+      provideGuideDeviceForm(() => ({ narrow: false, keys: true }));
+      expect([read("shell.wide"), read("shell.narrow")]).toEqual([true, false]);
+      expect(read("shell.keys")).toBe(true);
+      provideGuideDeviceForm(() => ({ narrow: true, keys: false }));
+      expect([read("shell.wide"), read("shell.narrow")]).toEqual([false, true]);
+      expect(read("shell.keys")).toBe(false);
+    } finally {
+      provideGuideDeviceForm(() => ({ narrow: false, keys: true }));
+    }
+  });
+
+  it("says a plugin panel is drawn only while its capability answers so", () => {
+    const id = "plugin.browser-autofill.panel";
+    expect(readGuidePredicate(id)).toBe(false);
+    const forget = provideGuidePluginPanel("browser-autofill", () => true);
+    expect(readGuidePredicate(id)).toBe(true);
+    expect(readGuidePredicate("plugin.surrogate-proxy.panel")).toBe(false);
+    forget();
+    expect(readGuidePredicate(id)).toBe(false);
+  });
+
+  it("says whether this vault has made recovery codes", () => {
+    expect(readGuidePredicate("vault.recovery-made")).toBe(false);
   });
 
   it("refuses an id nothing declared", () => {

@@ -7,6 +7,9 @@ import { useSyncExternalStore } from "react";
  */
 export const NARROW_QUERY = "(max-width: 900px)";
 
+/** True while any attached pointer is precise: a mouse, a trackpad, a pen. */
+export const FINE_POINTER_QUERY = "(any-pointer: fine)";
+
 function list(media: string): MediaQueryList | null {
   if (globalThis.window === undefined) return null;
   try {
@@ -31,6 +34,16 @@ export function useMediaQuery(media: string, absent: boolean): boolean {
     () => list(media)?.matches ?? absent,
     () => absent,
   );
+}
+
+/** Whether the shell is below the one-pane breakpoint right now, off any render. */
+export function narrowNow(): boolean {
+  return list(NARROW_QUERY)?.matches ?? false;
+}
+
+/** Whether a precise pointer is attached right now, off any render. */
+export function finePointerNow(): boolean {
+  return list(FINE_POINTER_QUERY)?.matches ?? true;
 }
 
 /**

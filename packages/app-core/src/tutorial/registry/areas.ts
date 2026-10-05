@@ -31,6 +31,37 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
     goals: ["client.support", "client.command-bar", "app.install"],
   },
   {
+    id: "around",
+    title: "Finding your way around",
+    goals: [
+      "shell.sections",
+      "shell.sections.phone",
+      "shell.sections.access",
+      "shell.sections.activity",
+      "shell.sections.connections",
+      "shell.sections.identity",
+      "shell.sections.wallet",
+      "shell.statusline",
+      "shell.more",
+    ],
+  },
+  {
+    id: "settings",
+    title: "Settings, one category at a time",
+    goals: [
+      "settings.general.review",
+      "settings.auto-lock.set",
+      "settings.keybindings.review",
+      "settings.capabilities.review",
+      "settings.vaults.review",
+      "settings.danger.review",
+      "vault.master-password.change",
+      "vault.recovery.view",
+      "settings.sops-document.open",
+      "settings.live.host",
+    ],
+  },
+  {
     id: "vault",
     title: "Your vault",
     goals: [
@@ -136,6 +167,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
     goals: [
       "settings.model-provider",
       "settings.notifications",
+      "feature.notifications",
       "settings.local-notifications",
       "settings.surrogate-credentials",
       "settings.browser-autofill",
