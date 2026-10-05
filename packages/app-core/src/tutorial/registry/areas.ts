@@ -76,7 +76,6 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "settings.danger.review",
       "vault.master-password.change",
       "vault.recovery.view",
-      "settings.sops-document.open",
       "settings.live.host",
     ],
   },

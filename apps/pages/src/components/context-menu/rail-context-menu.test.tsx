@@ -39,9 +39,9 @@ describe("the rail's context menu", () => {
     const row = screen.getByRole("treeitem", { name: "Vault" });
     const touch = (type: string, x: number, y: number) => {
       const event = new Event(type, { bubbles: true, cancelable: true });
-      Object.defineProperty(event, "touches", {
-        value: [{ clientX: x, clientY: y }],
-      });
+      const finger = { identifier: 1, clientX: x, clientY: y, target: row };
+      Object.defineProperty(event, "touches", { value: [finger] });
+      Object.defineProperty(event, "changedTouches", { value: [finger] });
       row.dispatchEvent(event);
       return event;
     };

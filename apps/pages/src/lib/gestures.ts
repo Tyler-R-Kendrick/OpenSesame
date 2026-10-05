@@ -50,18 +50,31 @@ export function swipe(
   let startAt = 0;
   let from: Element | null = null;
   let tracking = false;
+  /** Fingers down now. A second one makes the touch two-fingered, not a swipe. */
+  const fingers = new Set<number>();
+  let multi = false;
 
   const down = (event: PointerEvent) => {
     if (!isTouchLike(event)) return;
-    tracking = true;
+    fingers.add(event.pointerId);
+    // Two fingers are the keymap's gestures (ADR 0170), never this one's.
+    if (fingers.size > 1) multi = true;
+    tracking = !multi;
     startX = event.clientX;
     startY = event.clientY;
     startAt = event.timeStamp;
     from = event.target instanceof Element ? event.target : null;
   };
 
+  const lift = (event: PointerEvent) => {
+    fingers.delete(event.pointerId);
+    if (fingers.size === 0) multi = false;
+  };
+
   const up = (event: PointerEvent) => {
-    if (!tracking) return;
+    const counted = tracking && !multi;
+    lift(event);
+    if (!counted) return;
     tracking = false;
     const dx = (event.clientX - startX) * (direction === "right" ? 1 : -1);
     const dy = Math.abs(event.clientY - startY);
@@ -74,7 +87,8 @@ export function swipe(
     }
   };
 
-  const cancel = () => {
+  const cancel = (event: PointerEvent) => {
+    lift(event);
     tracking = false;
   };
 

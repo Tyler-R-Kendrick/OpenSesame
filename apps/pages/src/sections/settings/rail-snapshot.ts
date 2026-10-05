@@ -4,7 +4,6 @@ import { useComposition } from "../../bindings/capabilities.js";
 import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import { useContributions } from "../../bindings/contributions.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
-import { useFinePointer } from "../../lib/use-narrow.js";
 import { useGuestRowShown } from "./CapabilitySwitch.js";
 import { useInstallPanelShown } from "./InstallPanel.js";
 import type { SettingsRailSnapshot } from "./page-tree.js";
@@ -26,7 +25,6 @@ export function useSettingsPanels(): SettingsRailSnapshot {
   const duress = useDuressPanelShown();
   const panels = useContributions("settings-panel");
   const roads = useConnectorRoads();
-  const keybindings = useFinePointer();
   const { plan } = useComposition();
   const identityApi = useIdentityConfigured();
   const emptyFeatures = FEATURES.filter(
@@ -50,6 +48,5 @@ export function useSettingsPanels(): SettingsRailSnapshot {
     contributed,
     duress,
     emptyFeatures,
-    keybindings,
   };
 }

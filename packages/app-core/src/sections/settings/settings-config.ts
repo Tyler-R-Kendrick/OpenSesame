@@ -84,6 +84,10 @@ function patchField(
     patchBindings(document, ["keybindings"], current.keybindings);
     return;
   }
+  if (field.kind === "gestures") {
+    patchBindings(document, ["gestures"], current.gestures ?? {});
+    return;
+  }
   if (field.kind === "contexts") {
     patchContexts(document, current.contexts ?? {});
     return;

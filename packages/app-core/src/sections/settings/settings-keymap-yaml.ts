@@ -23,6 +23,8 @@ export type ContextsDoc = Record<string, BindingsDoc>;
 
 export type KeymapParts = Readonly<{
   keybindings: Readonly<Record<string, string>>;
+  /** The touch loadout (ADR 0170): gesture → action. */
+  gestures?: Readonly<BindingsDoc>;
   contexts?: Readonly<ContextsDoc>;
   macros?: Readonly<Record<string, MacroDoc>>;
 }>;
@@ -87,10 +89,11 @@ function macroLines(macros: Readonly<Record<string, MacroDoc>>): string[] {
 /** The keymap's lines, for the keys this directory has. */
 export function keymapLines(
   parts: KeymapParts,
-  has: (key: "keymap" | "contexts" | "macros") => boolean,
+  has: (key: "keymap" | "contexts" | "macros" | "gestures") => boolean,
 ): string[] {
   return [
     ...(has("keymap") ? bindingLines("keybindings", parts.keybindings) : []),
+    ...(has("gestures") ? bindingLines("gestures", parts.gestures ?? {}) : []),
     ...(has("contexts") ? contextLines(parts.contexts ?? {}) : []),
     ...(has("macros") ? macroLines(parts.macros ?? {}) : []),
   ];
@@ -172,6 +175,7 @@ export function rawKeymapRefusal(
       bindings: raw.keybindings ?? {},
       macros: raw.macros ?? {},
       contexts: raw.contexts ?? {},
+      gestures: raw.gestures ?? {},
     },
     commands,
     defaultBindings(commands),
@@ -183,6 +187,7 @@ export function rawKeymapRefusal(
 export function readKeymapParts(
   parts: KeymapParts,
   singleKeys: BoundaryValue,
+  motion: BoundaryValue = true,
 ): KeymapResult {
   const commands = keymapCommands();
   return readKeymap(
@@ -190,7 +195,9 @@ export function readKeymapParts(
       bindings: parts.keybindings,
       macros: parts.macros ?? {},
       singleKeys,
+      motion,
       contexts: parts.contexts ?? {},
+      gestures: parts.gestures ?? {},
     },
     commands,
     defaultBindings(commands),

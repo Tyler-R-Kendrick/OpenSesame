@@ -90,14 +90,6 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "vault.protectors.manage",
   },
   {
-    id: "settings.sops-document",
-    description:
-      "SOPS under Security: the SOPS document key opens a sheet to choose a SOPS YAML or JSON file, unlock it with an age identity, edit it and save ciphertext. It all runs in this browser.",
-    role: "action",
-    routes: ["/settings"],
-    capabilityId: null,
-  },
-  {
     id: "settings.second-step",
     description:
       "The Second step list under Security: the authenticator app, and the email and text codes your sign-in service sends as fallbacks. Each row's Add opens the sheet; nothing turns on until a code from the new method matches.",
