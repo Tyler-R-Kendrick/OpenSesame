@@ -50,10 +50,9 @@ export function deviceWithVaults(): VaultsDevice {
   for (const file of KEPT_FILES) {
     if (!origin.files.has(file)) origin.files.set(file, `{"kept":"${file}"}`);
   }
-  const device = Object.assign(origin, {
-    gone: [] as string[][],
-    removals: [] as string[],
-  });
+  const gone: string[][] = [];
+  const removals: string[] = [];
+  const device = Object.assign(origin, { gone, removals });
   const { remove } = origin.deps.storage;
   origin.deps.storage.remove = async (file) => {
     device.removals.push(file);

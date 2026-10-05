@@ -17,6 +17,7 @@ import {
 } from "../../vault/offline-backup-file.js";
 import { vaultStore } from "../../vault/store.js";
 import { loadIncidentIntent } from "../incident/intent-journal.js";
+import { rejectionOf } from "../rejection.test-support.js";
 import { duressSessionFence } from "../session/fence.js";
 import {
   clearDuressIncidents,
@@ -94,10 +95,9 @@ describe("a wiped device recovers", () => {
     await kvFlush();
 
     // The code is typed. The device is wiped, and held.
-    const typed = await unlockWithPinAfterDuressGate(
-      vaultStore,
-      WIPE_CODE,
-    ).catch((error: unknown) => error);
+    const typed = await rejectionOf(
+      unlockWithPinAfterDuressGate(vaultStore, WIPE_CODE),
+    );
     expect(typed).toBeInstanceOf(WrongPasswordError);
     expect(vaultFileNames()).toEqual([]);
     expect(fenced()).toBeGreaterThan(0);
