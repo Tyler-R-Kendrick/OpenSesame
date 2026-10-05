@@ -32,6 +32,7 @@ import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/ru
 import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { liveTransportFiles } from "@opensesame/app-core/sections/settings/live-transport-files.js";
 import {
+  LIVE_GOALS,
   LIVE_ROUTES,
   LIVE_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/live-catalog.js";
@@ -86,6 +87,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     });
     registerTutorial(activation, {
       targets: LIVE_TARGETS,
+      goals: LIVE_GOALS,
       routes: LIVE_ROUTES,
     });
 

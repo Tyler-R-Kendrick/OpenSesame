@@ -54,6 +54,21 @@ const NOTHING_TO_DO_HERE = new Set([
 ]);
 
 describe("sections — one list, one style, a switch only where something is optional", () => {
+  it("lets the first section's subheader stand for the list in a tutorial", () => {
+    const { container } = renderPanel();
+    const marked = container.querySelectorAll(
+      '[data-guide-targets~="settings.connectivity"]',
+    );
+    expect(marked).toHaveLength(1);
+    const first = [...container.querySelectorAll(".capsection")].find(
+      (section) => section.id !== "feature-guests",
+    );
+    expect(marked[0]?.closest(".capsection")).toBe(first);
+    expect(marked[0]?.getAttribute("data-guide-targets")).toContain(
+      `feature.${first?.id.replace("feature-", "")}`,
+    );
+  });
+
   it("draws every section once, as a subheader, never as a card row", () => {
     const { container } = renderPanel();
     const titles = [
