@@ -89,6 +89,11 @@ export const SHELL_RULES = [
   core("src/test-setup", null, "installs the app-core test host (ADR 0133)"),
   core("src/boot-transport", null, "boot never reaches the transport client"),
   core("src/runtime-config.shipped", null, "the shipped runtime config file"),
+  core(
+    "src/no-source-toggle",
+    null,
+    "guard: no Visual/Source toggle in the client",
+  ),
   core("src/bindings/", null, "React hooks over the core's stores (ADR 0133)"),
   core(
     "src/screens/capabilities/",
