@@ -35,6 +35,7 @@ const CORE_INFRA = [
   "use-gestures",
   "use-claimed-drags",
   "gesture-help",
+  "pane-trail",
   "use-narrow",
   "vault-list-path",
   "modal-focus",

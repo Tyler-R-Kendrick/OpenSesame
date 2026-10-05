@@ -34,6 +34,7 @@ import { auditGestures } from "./lib/mobile-gestures.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
 import { phonePolish } from "./lib/phone-polish.mjs";
 import {
+  backKeysPop,
   backOutStops,
   openVaultList,
   treeActions,
@@ -235,6 +236,7 @@ async function vaultItem(page, stop) {
   await page.waitForTimeout(900);
   await audit(page, stop("item"));
   await backOutStops(page, stop, { harness, audit });
+  await backKeysPop(page, stop, { harness });
 }
 
 async function walk(browser, phone) {
