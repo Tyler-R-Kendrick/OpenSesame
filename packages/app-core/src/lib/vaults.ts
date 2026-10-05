@@ -96,7 +96,8 @@ export function vaultLabel(project: Pick<PagesProject, "id" | "name">): string {
  * below was one vault under two names).
  */
 export function openVaultLabel(): string {
-  return vaultStore.getSnapshot().guest
+  const snapshot = vaultStore.getSnapshot();
+  return snapshot.guest && !snapshot.decoy
     ? guestVaultLabel()
     : vaultLabel(activeProject());
 }
@@ -118,10 +119,12 @@ function describeVault(project: PagesProject): DeviceVault {
   const header = readTombHeader(project.id);
   // A guest session that happens to run in this tomb (a first-run guest
   // lives in `personal`) is the guest row's to report, not this vault's.
+  // A decoy is drawn as the vault the unlock screen was showing: the active one.
   const open =
     snapshot.status === "unlocked" &&
-    snapshot.tomb === project.id &&
-    !snapshot.guest;
+    (snapshot.decoy
+      ? project.id === activeProject().id
+      : snapshot.tomb === project.id && !snapshot.guest);
   const named = project.name !== project.id;
   return {
     id: project.id,
@@ -142,7 +145,8 @@ function describeVault(project: PagesProject): DeviceVault {
  */
 function listDeviceVaultsDefault(): DeviceVault[] {
   const snapshot = vaultStore.getSnapshot();
-  const guestOpen = snapshot.status === "unlocked" && snapshot.guest;
+  const guestOpen =
+    snapshot.status === "unlocked" && snapshot.guest && !snapshot.decoy;
   // With guests switched off there is no guest row to open (ADR 0135 §4),
   // unless a guest session is the one open right now.
   const guestRow = guestOpen
