@@ -158,7 +158,13 @@ async function typeAtUnlock(page, secret) {
     );
   });
   const ms = Date.now() - started;
-  return { text: await takeRefusal(page), ms };
+  // What the screen shows is read the moment the refusal lands, before the tray
+  // is opened: a wipe that runs behind the sentence redraws the screen meanwhile.
+  const guest = await page
+    .getByRole("button", { name: "Continue as guest" })
+    .count();
+  const body = await bodyText(page);
+  return { text: await takeRefusal(page), ms, guest, body };
 }
 
 async function reloadToUnlock(page) {
@@ -244,16 +250,13 @@ async function whole(context) {
     `the refusal reads as a wrong PIN's ("${wiped.text}" vs "${ordinary.text}")`,
   );
   check(
-    !/wipe|removed|duress|decoy/i.test(await bodyText(page)),
+    !/wipe|removed|duress|decoy/i.test(wiped.body),
     "the screen says nothing of a wipe",
   );
   console.log(
     `  refusal timing: wrong PIN ${ordinary.ms} ms, wipe code ${wiped.ms} ms`,
   );
-  check(
-    (await guestRoad.count()) === 1,
-    "and offers it still after the wipe code was typed",
-  );
+  check(wiped.guest === 1, "and offers it still after the wipe code was typed");
   await snap(page, "J-DURESS-WIPE-refused");
   check(
     (await vaultFiles(page)).length === 0,
