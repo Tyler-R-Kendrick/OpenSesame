@@ -12,7 +12,11 @@ import {
 import { isFunction, isTypeofObject } from "@opensesame/os-domain";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { AUTHORED_GUIDE_TARGETS, AUTHORED_HELP_TOPICS } from "./authored.js";
+import {
+  AUTHORED_GUIDE_TARGETS,
+  AUTHORED_HELP_TOPICS,
+  OPTIONAL_TUTORIALS,
+} from "./authored.js";
 import { mergedGuideTargets } from "./catalog.js";
 import * as devModule from "./dev.js";
 import {
@@ -58,14 +62,11 @@ const CATALOG_SOURCE = read("catalog.ts")
  * still checked-in prose that must never interpolate a user value.
  */
 const OPTIONAL_TARGET_SOURCES = [
-  "connections-catalog.ts",
-  "access-catalog.ts",
-  "identity-catalog.ts",
-  "wallet-catalog.ts",
-  "activity-catalog.ts",
-  "live-catalog.ts",
-  "notifications-catalog.ts",
-  "plugins-catalog.ts",
+  ...new Set(
+    OPTIONAL_TUTORIALS.map((partition) => partition.files.targets).filter(
+      (file) => file !== "catalog.ts",
+    ),
+  ),
 ];
 
 const TARGET_SOURCES = [CATALOG_SOURCE, ...OPTIONAL_TARGET_SOURCES.map(read)];
@@ -189,7 +190,7 @@ describe("the page context a model is handed", () => {
 describe("the authored guides", () => {
   /** The same checks as model output; only a tour's size is wider (ADR 0163). */
   it("compile against the live registries", () => {
-    const vocabulary = {
+    const vocab = {
       goals: guideGoalIds(),
       targets: guideTargetIds(),
       routes: mergedGuideRoutes().map((route) => route.id),
@@ -197,11 +198,7 @@ describe("the authored guides", () => {
     };
 
     for (const goal of mergedGuideGoals()) {
-      const compiled = compileGuide(
-        goal.guide,
-        vocabulary,
-        AUTHORED_GUIDE_LIMITS,
-      );
+      const compiled = compileGuide(goal.guide, vocab, AUTHORED_GUIDE_LIMITS);
       if (!compiled.ok) {
         throw new Error(
           `${goal.id} failed at ${compiled.stage}: ${JSON.stringify(compiled.errors)}`,

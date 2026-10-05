@@ -39,14 +39,15 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "vault.filter",
     description:
-      "Opens the list of filters — favorites, each item type this vault holds, your folders, and the trash — with the count each would show. Narrowing the list never changes an item. On a wide screen the same roads are in the rail and this key is not drawn.",
+      "The vault's filters: favorites, each item type this vault holds, your folders and the trash, with the count each would show. Narrowing the list never changes an item. They are rows of the section tree, on a wide screen and on a phone's first screen; in a phone's list one key opens the same roads as a sheet.",
     role: "filter",
     routes: ["/vault"],
     capabilityId: "vault.items.search",
   },
   {
     id: "vault.filter.favorites",
-    description: "Narrows the item list to the items marked as favorites.",
+    description:
+      "Narrows the item list to the items marked as favorites. A row of the filters, always drawn.",
     role: "filter",
     routes: ["/vault"],
     capabilityId: "vault.items.search",
@@ -74,5 +75,61 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
     role: "surface",
     routes: ["/vault/health"],
     capabilityId: null,
+  },
+  {
+    id: "item.favorite",
+    description:
+      "The star on an open item: marks it as a favorite, or takes the mark off. A favorite is listed under the Favorites filter and starred in the list.",
+    role: "action",
+    routes: ["/vault/item"],
+    capabilityId: "vault.items.write_meta",
+  },
+  {
+    id: "item.edit",
+    description:
+      "Opens the open item in the editor, with the fields it was made with. Nothing changes until the editor saves.",
+    role: "action",
+    routes: ["/vault/item"],
+    capabilityId: "vault.items.write_meta",
+  },
+  {
+    id: "item.trash",
+    description:
+      "Moves the open item to the trash. It stays sealed there and can be restored; only deleting it from the trash erases it.",
+    role: "action",
+    routes: ["/vault/item"],
+    capabilityId: "vault.items.write_meta",
+  },
+  {
+    id: "item.copy-username",
+    description:
+      "Copies the open login's username to the clipboard. Drawn only when the login has a username.",
+    role: "action",
+    routes: ["/vault/item"],
+    capabilityId: "vault.items.reveal",
+  },
+  {
+    id: "item.copy-password",
+    description:
+      "Copies the open login's password to the clipboard without showing it. The clipboard is cleared again when the vault locks, and after the delay set in Settings if there is one. Drawn only when the login has a password.",
+    role: "action",
+    routes: ["/vault/item"],
+    capabilityId: "vault.items.reveal",
+  },
+  {
+    id: "trash.restore",
+    description:
+      "Restores the trash's selected item to the list, as it was. Drawn while the trash is showing.",
+    role: "action",
+    routes: ["/vault/trash"],
+    capabilityId: "vault.items.write_meta",
+  },
+  {
+    id: "trash.purge",
+    description:
+      "Deletes the trash's selected item for good. The first press arms it and asks again; the second erases the sealed record, and nothing brings it back. Drawn while the trash is showing.",
+    role: "action",
+    routes: ["/vault/trash"],
+    capabilityId: "vault.items.write_meta",
   },
 ];
