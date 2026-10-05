@@ -84,14 +84,28 @@ function overriding<T extends object>(base: T, own: Partial<T>): T {
 type Sealing = { sealer: EventSealer };
 
 function openOutbox(sealer: EventSealer, event: OutboxEvent): OutboxEvent {
-  return { ...event, payload: sealer.open(OUTBOX, event.payload) };
+  return {
+    ...event,
+    payload: sealer.open(
+      `${OUTBOX}:${event.id}`,
+      event.payload,
+      JSON.stringify([event.aggregateType, event.aggregateId]),
+    ),
+  };
 }
 
 function sealOutbox(
   sealer: EventSealer,
   event: NewOutboxEvent,
 ): NewOutboxEvent {
-  return { ...event, payload: sealer.seal(OUTBOX, event.payload) };
+  return {
+    ...event,
+    payload: sealer.seal(
+      `${OUTBOX}:${event.id}`,
+      event.payload,
+      JSON.stringify([event.aggregateType, event.aggregateId]),
+    ),
+  };
 }
 
 function sealedUow({ sealer }: Sealing, uow: UnitOfWork): UnitOfWork {
@@ -110,13 +124,24 @@ function sealedAudit(
 ): Repositories["auditEvents"] {
   const open = (event: AuditEvent): AuditEvent => ({
     ...event,
-    metadata: sealer.open(AUDIT, event.metadata),
+    metadata: sealer.open(
+      `${AUDIT}:${event.id}`,
+      event.metadata,
+      event.organizationId ?? event.principalId ?? "deployment",
+    ),
   });
   return overriding(base, {
     append: async (event: AuditEvent, uow?: UnitOfWork) =>
       open(
         await base.append(
-          { ...event, metadata: sealer.seal(AUDIT, event.metadata) },
+          {
+            ...event,
+            metadata: sealer.seal(
+              `${AUDIT}:${event.id}`,
+              event.metadata,
+              event.organizationId ?? event.principalId ?? "deployment",
+            ),
+          },
           uow,
         ),
       ),
@@ -157,7 +182,14 @@ function sealedOutboxRepo(
   });
 }
 
-function sealedDeliveries<D extends { id: string; payload: JsonObject }>(
+function sealedDeliveries<
+  D extends {
+    id: string;
+    payload: JsonObject;
+    principalId?: string;
+    endpointId?: string;
+  },
+>(
   { sealer }: Sealing,
   purpose: string,
   base: {
@@ -173,13 +205,24 @@ function sealedDeliveries<D extends { id: string; payload: JsonObject }>(
 ) {
   const open = (delivery: D): D => ({
     ...delivery,
-    payload: sealer.open(purpose, delivery.payload),
+    payload: sealer.open(
+      `${purpose}:${delivery.id}`,
+      delivery.payload,
+      delivery.principalId ?? delivery.endpointId ?? "deployment",
+    ),
   });
   return {
     enqueue: async (delivery: D, uow?: UnitOfWork) =>
       open(
         await base.enqueue(
-          { ...delivery, payload: sealer.seal(purpose, delivery.payload) },
+          {
+            ...delivery,
+            payload: sealer.seal(
+              `${purpose}:${delivery.id}`,
+              delivery.payload,
+              delivery.principalId ?? delivery.endpointId ?? "deployment",
+            ),
+          },
           uow,
         ),
       ),
@@ -202,7 +245,11 @@ function sealedNotifications(
     listForRequest: async (authReqId: string) =>
       (await base.listForRequest(authReqId)).map((d) => ({
         ...d,
-        payload: sealing.sealer.open(NOTIFICATION, d.payload),
+        payload: sealing.sealer.open(
+          `${NOTIFICATION}:${d.id}`,
+          d.payload,
+          d.principalId,
+        ),
       })),
   };
 }

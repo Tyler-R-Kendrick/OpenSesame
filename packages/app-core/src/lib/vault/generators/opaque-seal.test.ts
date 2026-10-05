@@ -20,7 +20,7 @@ describe("the OPAQUE pepper seal at its standard cost", () => {
     const started = performance.now();
     const seal = await sealWithOpaque(SECRET, PEPPER, BINDING);
     expect(seal).toMatchObject({
-      v: 2,
+      v: 3,
       suite: "rfc9807-ristretto255-argon2id",
       ksf: "standard",
     });

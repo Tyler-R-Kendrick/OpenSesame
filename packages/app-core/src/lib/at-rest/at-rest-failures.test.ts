@@ -179,6 +179,22 @@ describe("a file sealed under another key", () => {
 });
 
 describe("what counts as a key that existed", () => {
+  it.each(["osr1.AA", "osr9.AA"])(
+    "preserves missing-root protection for %s origin files",
+    async (text) => {
+      const root = {
+        entries: async function* () {
+          yield ["opensesame-pages-legacy.json", { kind: "file" }];
+        },
+        getFileHandle: async () => ({ getFile: async () => new Blob([text]) }),
+      };
+      const handle: FileSystemDirectoryHandle = overlapCast(root);
+      configureHost(
+        createTestHost({ originFiles: () => Promise.resolve(handle) }),
+      );
+      expect(await deviceHoldsSeals()).toBe(true);
+    },
+  );
   it("is not one tab's session storage, nor an origin store that will not list", async () => {
     const session = createMemoryStorage();
     session.setItem(

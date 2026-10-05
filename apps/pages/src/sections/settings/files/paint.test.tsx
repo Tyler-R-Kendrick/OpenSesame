@@ -153,15 +153,18 @@ describe("painting a long or hostile line", () => {
     expect(longestLine("ab\ncde\n")).toBe(3);
   });
 
-  it("sizes the editor over a long file: the widest line, and the whole text in the textarea", () => {
-    // 200k lines would be 200k painted DOM nodes in jsdom, seconds of work that
-    // say nothing about the editor; `longestLine` above takes the 200k.
-    const text = `${"a\n".repeat(2_000)}${"b".repeat(9)}`;
+  it("sizes the editor over 200k lines", () => {
+    const text = "a\n".repeat(200_000);
     const { container } = render(
-      <PaintedText language="toml" path="a.toml" source={text} />,
+      <PaintedText
+        language="toml"
+        path="a.toml"
+        source={text}
+        painter={() => []}
+      />,
     );
     const stage = container.querySelector<HTMLElement>(".set-raw__stage");
-    expect(stage?.style.getPropertyValue("--cols")).toBe("9");
+    expect(stage?.style.getPropertyValue("--cols")).toBe("1");
     expect(container.querySelector("textarea")?.value).toBe(text);
   });
 });

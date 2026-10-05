@@ -1,3 +1,4 @@
+import { isString, isTypeofObject } from "@opensesame/os-domain";
 /**
  * Which of the open vault's items may be shown under a duress code, and the
  * copy of one (ADR 0168).
@@ -17,11 +18,6 @@
  * Pure: a function of the items it is handed, with no reach into the vault.
  */
 
-import {
-  type BoundaryValue,
-  isJsonObject,
-  isString,
-} from "@opensesame/os-domain";
 import {
   KIND_LABEL,
   type VaultItem,
@@ -119,22 +115,25 @@ export function pickRows(items: readonly VaultItem[]): DuressPickRow[] {
   }));
 }
 
-function sharedValue(value: BoundaryValue | undefined): SharedValue | null {
+function sharedValue(
+  value: (VaultItem & { kind: "typed" })["values"][string] | undefined,
+): SharedValue | null {
   if (isString(value)) return cutText(value);
   if (Array.isArray(value)) {
-    const texts: string[] = [];
-    for (const entry of value) {
-      if (isString(entry)) texts.push(entry);
-    }
-    return texts.slice(0, VISIBLE_LIMITS.list).map(cutText);
+    return value
+      .filter((entry): entry is string => isString(entry))
+      .slice(0, VISIBLE_LIMITS.list)
+      .map(cutText);
   }
-  if (isJsonObject(value)) {
+  if (isTypeofObject(value) && value !== null) {
     const out: Record<string, string> = {};
     for (const [key, part] of Object.entries(value).slice(
       0,
       VISIBLE_LIMITS.parts,
     )) {
-      if (isString(part) && key !== "__proto__") out[key] = cutText(part);
+      if (isString(part) && key !== "__proto__") {
+        out[key] = cutText(part);
+      }
     }
     return out;
   }

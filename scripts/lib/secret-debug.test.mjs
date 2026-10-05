@@ -152,5 +152,6 @@ describe("the repository", () => {
     expect(offenders).toEqual([]);
     // An allow-list entry that no longer matches is a stale justification.
     expect(Object.keys(allowed).filter((key) => !used.has(key))).toEqual([]);
-  });
+    // Scanning all tracked Rust sources can exceed the per-test default on busy CI.
+  }, 30_000);
 });

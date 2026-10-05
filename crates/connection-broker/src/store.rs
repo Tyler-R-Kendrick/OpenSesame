@@ -19,6 +19,10 @@ use crate::model::{BindingTargetKind, BindingView, ConnectionStatus, EventKind, 
 #[path = "event_view.rs"]
 mod event_view;
 
+#[path = "event_write.rs"]
+mod event_write;
+use event_write::append_connection_event;
+
 #[derive(Clone, Debug)]
 pub struct ConnectionRow {
     pub id: String,
@@ -261,14 +265,7 @@ pub async fn transition_unless_revoked(
         .rows_affected()
         == 1;
     if changed {
-        sqlx::query("INSERT INTO connection_events (id, connection_id, kind, detail, at) VALUES (?, ?, ?, ?, ?)")
-            .bind(uuid::Uuid::now_v7().to_string())
-            .bind(id)
-            .bind(event_kind.as_str())
-            .bind(opensesame_event_seal::seal_opt("connection_events.detail", event_detail))
-            .bind(&now)
-            .execute(&mut *transaction)
-            .await?;
+        append_connection_event(&mut transaction, id, event_kind, event_detail, &now).await?;
         transaction.commit().await?;
     } else {
         transaction.rollback().await?;
@@ -314,14 +311,7 @@ pub async fn invalidate_credential_unless_revoked(
         detail,
     )
     .await?;
-    sqlx::query("INSERT INTO connection_events (id, connection_id, kind, detail, at) VALUES (?, ?, ?, ?, ?)")
-        .bind(uuid::Uuid::now_v7().to_string())
-        .bind(id)
-        .bind(event_kind.as_str())
-        .bind(opensesame_event_seal::seal("connection_events.detail", detail))
-        .bind(&now)
-        .execute(&mut *transaction)
-        .await?;
+    append_connection_event(&mut transaction, id, event_kind, Some(detail), &now).await?;
     transaction.commit().await?;
     Ok(true)
 }
@@ -535,14 +525,14 @@ pub async fn activate_credential_unless_revoked(
         .execute(&mut *transaction)
         .await?
         ;
-    sqlx::query("INSERT INTO connection_events (id, connection_id, kind, detail, at) VALUES (?, ?, ?, ?, ?)")
-            .bind(uuid::Uuid::now_v7().to_string())
-            .bind(&c.connection_id)
-            .bind(activation.event_kind.as_str())
-            .bind(opensesame_event_seal::seal_opt("connection_events.detail", activation.event_detail))
-            .bind(&now)
-        .execute(&mut *transaction)
-        .await?;
+    append_connection_event(
+        &mut transaction,
+        &c.connection_id,
+        activation.event_kind,
+        activation.event_detail,
+        &now,
+    )
+    .await?;
     append_backup_outbox(
         &mut transaction,
         "connection.credential.stored",
@@ -877,16 +867,16 @@ pub async fn append_event(
     kind: EventKind,
     detail: Option<&str>,
 ) -> Result<()> {
-    sqlx::query(
-        "INSERT INTO connection_events (id, connection_id, kind, detail, at) VALUES (?, ?, ?, ?, ?)",
+    let mut transaction = pool.begin().await?;
+    append_connection_event(
+        &mut transaction,
+        connection_id,
+        kind,
+        detail,
+        &Utc::now().to_rfc3339(),
     )
-    .bind(uuid::Uuid::now_v7().to_string())
-    .bind(connection_id)
-    .bind(kind.as_str())
-    .bind(opensesame_event_seal::seal_opt("connection_events.detail", detail))
-    .bind(Utc::now().to_rfc3339())
-    .execute(pool)
     .await?;
+    transaction.commit().await?;
     Ok(())
 }
 
@@ -895,7 +885,7 @@ pub async fn append_event(
 /// Returns an error when storage cannot be read.
 pub async fn list_events(pool: &SqlitePool, connection_id: &str) -> Result<Vec<EventView>> {
     let rows = sqlx::query(
-        "SELECT id, kind, detail, at FROM connection_events WHERE connection_id = ? ORDER BY at ASC, id ASC",
+        "SELECT e.id, e.connection_id, e.kind, e.detail, e.at, c.organization_id FROM connection_events e JOIN connections c ON c.id = e.connection_id WHERE e.connection_id = ? ORDER BY e.at ASC, e.id ASC",
     )
     .bind(connection_id)
     .fetch_all(pool)

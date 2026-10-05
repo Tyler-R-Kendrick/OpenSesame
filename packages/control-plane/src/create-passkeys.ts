@@ -4,19 +4,23 @@ import {
   createPasskeySeam,
   createSimpleWebAuthnVerifyFn,
 } from "@opensesame/auth-upstream";
-import type { Database } from "@opensesame/database";
+import type { Database, EventSealer } from "@opensesame/database";
 import type { ControlPlaneConfig } from "./config.js";
 import {
   durablePasskeyChallenges,
   durablePasskeyCredentials,
 } from "./repos/durable-passkey-store.js";
 
-export function createPasskeys(config: ControlPlaneConfig, db?: Database) {
+export function createPasskeys(
+  config: ControlPlaneConfig,
+  sealer: EventSealer,
+  db?: Database,
+) {
   const passkeyChallenges = db
-    ? durablePasskeyChallenges(db)
+    ? durablePasskeyChallenges(db, sealer)
     : createMemoryChallengeStore();
   const credentialStore = db
-    ? durablePasskeyCredentials(db)
+    ? durablePasskeyCredentials(db, sealer)
     : createMemoryPasskeyCredentialStore();
   const rp = {
     rpID: new URL(config.publicUrl).hostname,

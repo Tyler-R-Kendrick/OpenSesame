@@ -154,6 +154,7 @@ jobs:
           - shard: sign-in
           - shard: static
           - shard: auth
+          - shard: customer-crypto
           - shard: journeys
           # One phone each (about a minute and three quarters apiece); the
           # tablets walk in half a minute and ride with the first.
@@ -282,6 +283,11 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:auth
+      - name: Customer vault and file envelopes in real WebCrypto
+        if: matrix.shard == 'customer-crypto'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+        run: pnpm verify:customer-vault-browser
       - name: Experience journeys
         if: matrix.shard == 'journeys'
         env:
@@ -463,6 +469,11 @@ jobs:
     if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:

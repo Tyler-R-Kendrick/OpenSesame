@@ -8,16 +8,18 @@
  * row: AES-256-GCM, with the column named in the associated data so a value
  * copied into another table does not open.
  *
- * A sealed payload is still valid JSON in the same column: `{"$sealed":
- * "osev1.<base64url(iv | ciphertext | tag)>"}`. That keeps the schema, the
- * migrations and every query that does not read the payload as they were. The
- * key is derived by HKDF from a required secret (the claim pepper unless a
- * dedicated `OPENSESAME_EVENT_KEY` is set), so there is no new secret to lose.
+ * New payloads use `osev2`: a fresh AES-256-GCM data key seals each value,
+ * and a scope-derived AES-256-GCM key wraps that data key. Both layers bind
+ * the scope and purpose as associated data. Repositories include the record
+ * identity in the purpose and the customer, principal or aggregate in scope.
+ * The deployment root remains required; independent customer KMS roots are
+ * a separate provider integration. The reader retains `osev1` compatibility.
  */
 
 import {
   createCipheriv,
   createDecipheriv,
+  createHmac,
   hkdfSync,
   randomBytes,
 } from "node:crypto";
@@ -26,6 +28,7 @@ import { type JsonObject, isString } from "@opensesame/os-domain";
 /** The one key of a sealed payload. */
 export const SEALED_FIELD = "$sealed";
 const PREFIX = "osev1.";
+const ENVELOPE_PREFIX = "osev2.";
 const KEY_INFO = "opensesame:event-seal:v1";
 const IV_BYTES = 12;
 const TAG_BYTES = 16;
@@ -40,43 +43,125 @@ export class EventSealError extends Error {
 }
 
 export interface EventSealer {
+  /** Domain-separated keyed lookup for durable bearer-token indexes. */
+  lookupToken(purpose: string, value: string): string;
   /** Seal a payload for the named column, e.g. `audit_events.metadata`. */
-  seal(purpose: string, value: JsonObject): JsonObject;
+  seal(purpose: string, value: JsonObject, scope?: string): JsonObject;
   /**
    * Open a payload. A payload an older release left in the clear is returned
    * as it is; a sealed one that fails authentication throws rather than read
    * as empty.
    */
-  open(purpose: string, value: JsonObject): JsonObject;
+  open(purpose: string, value: JsonObject, scope?: string): JsonObject;
   isSealed(value: JsonObject): boolean;
 }
 
 function sealedToken(value: JsonObject): string | undefined {
   const token = value[SEALED_FIELD];
-  if (!isString(token) || !token.startsWith(PREFIX)) return undefined;
+  if (
+    !isString(token) ||
+    !(token.startsWith(PREFIX) || token.startsWith(ENVELOPE_PREFIX))
+  )
+    return undefined;
   return Object.keys(value).length === 1 ? token : undefined;
+}
+
+function sealEnvelope(
+  key: Buffer,
+  purpose: string,
+  value: JsonObject,
+  scope: string,
+): JsonObject {
+  const kek = Buffer.from(
+    hkdfSync("sha256", key, scope, "opensesame:event-envelope:v2", 32),
+  );
+  const dataKey = randomBytes(32);
+  const aad = Buffer.from(JSON.stringify([scope, purpose]));
+  const encrypt = (secret: Buffer, plain: Buffer) => {
+    const iv = randomBytes(IV_BYTES);
+    const cipher = createCipheriv("aes-256-gcm", secret, iv);
+    cipher.setAAD(aad);
+    return Buffer.concat([
+      iv,
+      cipher.update(plain),
+      cipher.final(),
+      cipher.getAuthTag(),
+    ]);
+  };
+  try {
+    const packed = Buffer.concat([
+      encrypt(kek, dataKey),
+      encrypt(dataKey, Buffer.from(JSON.stringify(value))),
+    ]);
+    return {
+      [SEALED_FIELD]: `${ENVELOPE_PREFIX}${packed.toString("base64url")}`,
+    };
+  } finally {
+    dataKey.fill(0);
+    kek.fill(0);
+  }
 }
 
 export function createEventSealer(secret: string): EventSealer {
   if (secret === "") throw new Error("The event sealing secret is empty");
   const key = Buffer.from(hkdfSync("sha256", secret, "", KEY_INFO, 32));
 
+  const lookupKey = Buffer.from(
+    hkdfSync("sha256", key, "", "opensesame:token-lookup:key:v1", 32),
+  );
+
   return {
+    lookupToken: (purpose, value) =>
+      `oslookup1.${createHmac("sha256", lookupKey)
+        .update(JSON.stringify(["opensesame:token-lookup:v1", purpose, value]))
+        .digest("base64url")}`,
     isSealed: (value) => sealedToken(value) !== undefined,
-    seal(purpose, value) {
-      const iv = randomBytes(IV_BYTES);
-      const cipher = createCipheriv("aes-256-gcm", key, iv);
-      cipher.setAAD(Buffer.from(purpose));
-      const body = Buffer.concat([
-        cipher.update(JSON.stringify(value), "utf8"),
-        cipher.final(),
-      ]);
-      const packed = Buffer.concat([iv, body, cipher.getAuthTag()]);
-      return { [SEALED_FIELD]: `${PREFIX}${packed.toString("base64url")}` };
-    },
-    open(purpose, value) {
+    seal: (purpose, value, scope = "deployment") =>
+      sealEnvelope(key, purpose, value, scope),
+    open(purpose, value, scope = "deployment") {
       const token = sealedToken(value);
-      if (token === undefined) return value;
+      if (token === undefined) {
+        if (SEALED_FIELD in value) throw new EventSealError(purpose);
+        return value;
+      }
+      if (token.startsWith(ENVELOPE_PREFIX)) {
+        const packed = Buffer.from(
+          token.slice(ENVELOPE_PREFIX.length),
+          "base64url",
+        );
+        const wrappedBytes = IV_BYTES + 32 + TAG_BYTES;
+        if (packed.length < wrappedBytes + IV_BYTES + TAG_BYTES)
+          throw new EventSealError(purpose);
+        const kek = Buffer.from(
+          hkdfSync("sha256", key, scope, "opensesame:event-envelope:v2", 32),
+        );
+        const aad = Buffer.from(JSON.stringify([scope, purpose]));
+        const decrypt = (secret: Buffer, body: Buffer) => {
+          const cipher = createDecipheriv(
+            "aes-256-gcm",
+            secret,
+            body.subarray(0, IV_BYTES),
+          );
+          cipher.setAAD(aad);
+          cipher.setAuthTag(body.subarray(body.length - TAG_BYTES));
+          return Buffer.concat([
+            cipher.update(body.subarray(IV_BYTES, body.length - TAG_BYTES)),
+            cipher.final(),
+          ]);
+        };
+        let dataKey: Buffer | undefined;
+        try {
+          dataKey = decrypt(kek, packed.subarray(0, wrappedBytes));
+          return JSON.parse(
+            decrypt(dataKey, packed.subarray(wrappedBytes)).toString("utf8"),
+          );
+        } catch {
+          throw new EventSealError(purpose);
+        } finally {
+          dataKey?.fill(0);
+          kek.fill(0);
+        }
+      }
       const packed = Buffer.from(token.slice(PREFIX.length), "base64url");
       if (packed.length < IV_BYTES + TAG_BYTES)
         throw new EventSealError(purpose);
@@ -86,7 +171,7 @@ export function createEventSealer(secret: string): EventSealer {
           key,
           packed.subarray(0, IV_BYTES),
         );
-        decipher.setAAD(Buffer.from(purpose));
+        decipher.setAAD(Buffer.from(purpose.split(":")[0] ?? purpose));
         decipher.setAuthTag(packed.subarray(packed.length - TAG_BYTES));
         const plain = Buffer.concat([
           decipher.update(packed.subarray(IV_BYTES, packed.length - TAG_BYTES)),

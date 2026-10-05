@@ -83,3 +83,97 @@ fn the_process_wide_sealer_seals_when_installed_and_passes_through_otherwise() {
         "a sealed value with no sealer installed is refused, not returned as ciphertext"
     );
 }
+
+fn legacy_value(column: &str, text: &str) -> String {
+    let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
+    let ciphertext = sealer()
+        .cipher()
+        .encrypt(
+            &nonce,
+            Payload {
+                msg: text.as_bytes(),
+                aad: column.as_bytes(),
+            },
+        )
+        .unwrap();
+    let mut packed = nonce.to_vec();
+    packed.extend_from_slice(&ciphertext);
+    format!("{LEGACY_PREFIX}{}", URL_SAFE_NO_PAD.encode(packed))
+}
+
+#[test]
+fn legacy_ciphertext_remains_readable_and_recognized() {
+    let legacy = legacy_value("t.c", "old secret");
+    assert!(is_sealed(&legacy));
+    assert_eq!(sealer().open("t.c", &legacy).unwrap(), "old secret");
+    assert!(sealer().open("t.other", &legacy).is_err());
+    assert!(sealer().open("t.c", "osev1.").is_err());
+}
+
+#[test]
+fn customer_envelopes_require_the_customer_and_root() {
+    let first = EventSealer::from_customer_key(&[5; 32], "first");
+    let sealed = first.seal("t.c", "customer secret");
+    assert_eq!(first.open("t.c", &sealed).unwrap(), "customer secret");
+    assert!(EventSealer::from_customer_key(&[5; 32], "second")
+        .open("t.c", &sealed)
+        .is_err());
+    assert!(EventSealer::from_customer_key(&[6; 32], "first")
+        .open("t.c", &sealed)
+        .is_err());
+    assert!(sealer().open("t.c", &sealed).is_err());
+    assert!(first.open("t.c", &legacy_value("t.c", "old")).is_err());
+}
+
+#[test]
+fn scoped_process_envelopes_bind_customer_record_and_column() {
+    let _turn = SERIAL.lock().unwrap_or_else(PoisonError::into_inner);
+    install(&[5; 32]);
+    let sealed = seal_in("first", "t.c", "record1", "secret");
+    assert_eq!(
+        open_in("first", "t.c", "record1", &sealed).unwrap(),
+        "secret"
+    );
+    assert!(open_in("second", "t.c", "record1", &sealed).is_err());
+    assert!(open_in("first", "t.c", "record2", &sealed).is_err());
+    assert!(open_in("first", "t.other", "record1", &sealed).is_err());
+    assert!(open("t.c", &sealed).is_err());
+    assert_eq!(
+        open_in("first", "t.c", "record1", &legacy_value("t.c", "old")).unwrap(),
+        "old"
+    );
+    clear();
+    assert!(open_in("first", "t.c", "record1", &sealed).is_err());
+}
+
+#[test]
+fn malformed_envelopes_fail_closed() {
+    for body in ["", "!", "AA", "AAAA"] {
+        let stored = format!("{PREFIX}{body}");
+        assert!(is_sealed(&stored));
+        assert!(sealer().open("t.c", &stored).is_err());
+    }
+    let sealed = sealer().seal("t.c", "");
+    assert_eq!(sealer().open("t.c", &sealed).unwrap(), "");
+    let packed = URL_SAFE_NO_PAD
+        .decode(sealed.strip_prefix(PREFIX).unwrap())
+        .unwrap();
+    for offset in [0, NONCE_LEN, NONCE_LEN + WRAPPED_KEY_LEN, packed.len() - 1] {
+        let mut altered = packed.clone();
+        altered[offset] ^= 1;
+        assert!(sealer()
+            .open(
+                "t.c",
+                &format!("{PREFIX}{}", URL_SAFE_NO_PAD.encode(altered))
+            )
+            .is_err());
+    }
+}
+
+#[test]
+fn unknown_envelope_versions_are_not_plaintext() {
+    for stored in ["osev3.AA", "osev99.unknown", "osev2", "osev"] {
+        assert!(is_sealed(stored));
+        assert!(sealer().open("t.c", stored).is_err());
+    }
+}

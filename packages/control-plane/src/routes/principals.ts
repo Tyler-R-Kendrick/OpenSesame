@@ -22,6 +22,7 @@ import { resolveTrustedIssuer } from "../interactions/trust.js";
 import { cookieAuthAllowed, requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { deleteSecurityMapEntry } from "../repos/durable-map.js";
 import { serializeKeyed } from "../serialize.js";
 import { emailLinkFields } from "../services/email-authority.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
@@ -88,7 +89,7 @@ principalRoutes.post(
           session,
         ] of await ctx.stores.provisionalSessions.entries()) {
           if (session.expiresAt.getTime() > now.getTime()) continue;
-          await ctx.stores.provisionalSessions.delete(id);
+          await deleteSecurityMapEntry(ctx.stores.provisionalSessions, id);
           const deleted = await ctx.repos.principals.deleteUnlinkedProvisional(
             session.principalId,
           );
@@ -138,7 +139,6 @@ principalRoutes.post(
           },
         );
 
-        // Align expires with injected clock for tests
         const provisionalSession: ProvisionalSession = {
           ...session,
           createdAt: now,

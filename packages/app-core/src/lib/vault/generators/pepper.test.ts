@@ -89,7 +89,7 @@ describe("storePassword", () => {
   it("seals under the pepper and leaves secret empty", async () => {
     const out = await sealed();
     expect(out.secret).toBe("");
-    expect(out.sealed?.v).toBe(2);
+    expect(out.sealed?.v).toBe(3);
     expect(JSON.stringify(out)).not.toContain(PASSWORD);
     expect(JSON.stringify(out)).not.toContain(PEPPER);
     expect(out.changedAt).toBe(NOW.toISOString());
@@ -311,7 +311,7 @@ describe("a derived password", () => {
     const plain = await usePassword(ACCOUNT, method, asking(PEPPER));
     const on = await enablePepper(ACCOUNT.id, method, method.secret, PEPPER);
     expect(on).toMatchObject({ pepper: true, secret: "" });
-    expect(on.sealed?.v).toBe(2);
+    expect(on.sealed?.v).toBe(3);
     expect(JSON.stringify(on)).not.toContain(method.secret);
     const ask = asking(PEPPER);
     expect(await usePassword(ACCOUNT, on, ask)).toBe(plain);

@@ -1,5 +1,5 @@
 /**
- * The pepper seal ADR 0173 writes (`PepperSealV2`): a secret held under a
+ * The pepper seal ADR 0173 writes (`PepperSealOpaque`): a secret held under a
  * pepper through OPAQUE, RFC 9807 (ristretto255, Argon2id), as implemented by
  * `@serenity-kit/opaque` (the Rust `opaque-ke` crate in WebAssembly). Nothing
  * here is protocol code of our own.
@@ -17,7 +17,7 @@
  */
 
 import {
-  type PepperSealV2,
+  type PepperSealOpaque,
   VaultCorruptError,
   WrongPepperError,
   b64ToBytes,
@@ -40,12 +40,12 @@ const KSF = {
     "argon2id-custom": { iterations: 3, memory: 65536, parallelism: 1 },
   },
   fast: { "argon2id-custom": { iterations: 1, memory: 8, parallelism: 1 } },
-} as const satisfies Record<PepperSealV2["ksf"], KeyStretching>;
+} as const satisfies Record<PepperSealOpaque["ksf"], KeyStretching>;
 
-let writing: PepperSealV2["ksf"] = "standard";
+let writing: PepperSealOpaque["ksf"] = "standard";
 
 /** Tests ask for the cheap cost; the app never does. */
-export function writeSealsWith(ksf: PepperSealV2["ksf"]): void {
+export function writeSealsWith(ksf: PepperSealOpaque["ksf"]): void {
   writing = ksf;
 }
 
@@ -91,7 +91,7 @@ export async function sealWithOpaque(
   secret: string,
   pepper: string,
   binding: string,
-): Promise<PepperSealV2> {
+): Promise<PepperSealOpaque> {
   if (pepper === "") throw new Error("A pepper cannot be empty.");
   const opaque = await loadOpaque();
   const ksf = writing;
@@ -117,7 +117,7 @@ export async function sealWithOpaque(
     enc.encode(secret),
   );
   return {
-    v: 2,
+    v: 3,
     suite: "rfc9807-ristretto255-argon2id",
     ksf,
     serverSetup,
@@ -133,7 +133,7 @@ export async function sealWithOpaque(
  */
 function loginResult(
   opaque: OpaqueLibrary,
-  sealed: PepperSealV2,
+  sealed: PepperSealOpaque,
   password: string,
   binding: string,
 ): { exportKey: string } | undefined {
@@ -160,7 +160,7 @@ function loginResult(
 
 /** Throws `WrongPepperError` for a wrong pepper or a seal moved to another method. */
 export async function openWithOpaque(
-  sealed: PepperSealV2,
+  sealed: PepperSealOpaque,
   pepper: string,
   binding: string,
 ): Promise<string> {

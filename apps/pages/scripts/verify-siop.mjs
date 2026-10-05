@@ -40,7 +40,9 @@ import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
 const base = process.env.VITE_BASE ?? "/OpenSesame/";
-const dist = fileURLToPath(new URL("../dist", import.meta.url));
+const dist =
+  process.env.PAGES_VERIFY_DIST ??
+  fileURLToPath(new URL("../dist", import.meta.url));
 const root = fileURLToPath(new URL("../../..", import.meta.url));
 const out = process.env.PAGES_VERIFY_OUT ?? "/tmp/opensesame-siop";
 const VAULT_PASSWORD = "Cedar-lantern-47-river!";
@@ -212,9 +214,11 @@ const harness = createHarness({ dist, origin, base, out });
 // by itself) must not reach the real site: on a runner with internet access it
 // would succeed, the page would leave for the live deployment, and nothing the
 // journey waits for would happen. Resolving the name nowhere makes that hop
-// fail at once, everywhere, the same way.
+// fail at once, everywhere, the same way. Disable proxy resolution too: a
+// proxy can resolve the hostname itself and bypass Chromium's DNS rule.
 const browser = await harness.launch({
   args: [
+    "--no-proxy-server",
     `--host-resolver-rules=MAP ${new URL(origin).hostname} ~NOTFOUND, MAP *.example.test ~NOTFOUND`,
   ],
 });

@@ -43,7 +43,7 @@ function openSeal(
   pepper: string,
   binding: string,
 ): Promise<string> {
-  return sealed.v === 2
+  return sealed.v === 3
     ? openWithOpaque(sealed, pepper, binding)
     : openWithPepper(sealed, pepper, binding);
 }

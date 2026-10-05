@@ -1,5 +1,6 @@
 import { PGlite } from "@electric-sql/pglite";
 import { createPasskeySeam } from "@opensesame/auth-upstream";
+import { createEventSealer } from "@opensesame/database";
 import * as schema from "@opensesame/database/schema";
 import { overlapCast } from "@opensesame/os-domain";
 import { drizzle } from "drizzle-orm/pglite";
@@ -56,7 +57,15 @@ it("shares sessions/revocation and atomic passkey/counter state across app insta
       (await first.app.request("/v1/principals/me", { headers })).status,
     ).toBe(401);
     const counters = [1, 2].map(
-      () => new DurableMap<number>(overlapCast(db), "OpenSesame:CounterTest"),
+      () =>
+        new DurableMap<number>(
+          overlapCast(db),
+          "OpenSesame:CounterTest",
+          undefined,
+          undefined,
+          undefined,
+          createEventSealer("durable-security-fixture-key"),
+        ),
     );
     expect(
       (
@@ -67,7 +76,10 @@ it("shares sessions/revocation and atomic passkey/counter state across app insta
     ).toEqual([1, 2]);
     const makeSeam = () =>
       createPasskeySeam({
-        credentialStore: durablePasskeyCredentials(overlapCast(db)),
+        credentialStore: durablePasskeyCredentials(
+          overlapCast(db),
+          createEventSealer("durable-security-fixture-key"),
+        ),
         verifyAssertion: async () => ({ ok: true, newCounter: 2 }),
       });
     const a = makeSeam();

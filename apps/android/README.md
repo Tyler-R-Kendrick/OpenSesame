@@ -15,6 +15,19 @@ cd apps/android/android
 gradle :app:assembleDebug -PopensesameWalletBackendUrl=https://identity.example
 ```
 
+The JVM boundary tests exercise the generated Kotlin bindings against the
+real Rust library, including rejection of a link from another associated
+origin and a private-network credential request. Build the host FFI
+library first, then provide its directory to JNA:
+
+```bash
+export CARGO_TARGET_DIR="$HOME/.cache/packages/cargo-target"
+cargo +1.88.0 build -p opensesame-authenticator-core --features ffi
+cd apps/android/android
+JAVA_TOOL_OPTIONS="-Djna.library.path=$CARGO_TARGET_DIR/debug" \
+  gradle :app:testDebugUnitTest -PopensesameWalletBackendUrl=https://identity.example
+```
+
 `openid4vp`, `haip-vp`, and the Android Digital Credentials API delegate to
 Multipaz presentment with an explicit consent prompt. `openid-credential-offer`
 and `haip-vci` use its provisioning state machine with redirects disabled and

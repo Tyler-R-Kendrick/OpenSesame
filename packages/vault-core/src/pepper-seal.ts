@@ -1,16 +1,16 @@
 /**
- * The v1 pepper seal (ADR 0172), kept so a vault that holds one still opens.
- * ADR 0173 writes v2 (OPAQUE, `app-core/.../opaque-seal.ts`). The pepper is
+ * The PBKDF2 pepper seals (ADR 0172: v1, and v2 which wraps a per-password key),
+ * kept so a vault that holds one still opens. ADR 0173 writes v3 (OPAQUE, `app-core/.../opaque-seal.ts`). The pepper is
  * something the person types each time a password is used; it is never stored,
  * so the sealed body alone cannot produce the password.
  *
  * PBKDF2-SHA256 at the vault's own iteration floor stretches the pepper into an
- * AES-GCM key. The seal is bound to the account and method ids: moved to
+ * AES-GCM wrapping key for a fresh per-password DEK. The seal is bound to the account and method ids: moved to
  * another method, it fails to open.
  */
 
-import { overlapCast } from "@opensesame/os-domain";
-import type { PepperSeal, PepperSealV1 } from "./account.js";
+import { isString, overlapCast } from "@opensesame/os-domain";
+import type { PepperSealPbkdf2 } from "./account.js";
 import { b64ToBytes, bytesToB64 } from "./bytes.js";
 import {
   PBKDF2_ITERATIONS,
@@ -22,6 +22,10 @@ import {
 import { gcmOpen, gcmSeal } from "./gcm.js";
 
 const IV_BYTES = 12;
+const DEK_BYTES = 32;
+const TAG_BYTES = 16;
+// v2 ciphertext: wrapping nonce | wrapped DEK + tag | payload + tag.
+const HEADER_BYTES = IV_BYTES + DEK_BYTES + TAG_BYTES;
 
 export class WrongPepperError extends Error {
   constructor(message = "That pepper did not open this password.") {
@@ -31,7 +35,7 @@ export class WrongPepperError extends Error {
 }
 
 export function pepperBinding(accountId: string, methodId: string): string {
-  return `pepper-seal\u0000${accountId}\u0000${methodId}`;
+  return JSON.stringify(["pepper-seal", accountId, methodId]);
 }
 
 async function pepperKey(
@@ -55,41 +59,100 @@ async function pepperKey(
   );
 }
 
+function context(sealed: PepperSealPbkdf2, binding: string): Uint8Array {
+  return new TextEncoder().encode(
+    JSON.stringify([
+      "pepper-envelope",
+      sealed.v,
+      binding,
+      sealed.kdf.alg,
+      sealed.kdf.saltB64,
+      sealed.kdf.iterations,
+      sealed.seal.ivB64,
+    ]),
+  );
+}
+
+function joined(...parts: Uint8Array[]): Uint8Array {
+  const out = new Uint8Array(
+    parts.reduce((size, part) => size + part.length, 0),
+  );
+  let at = 0;
+  for (const part of parts) {
+    out.set(part, at);
+    at += part.length;
+  }
+  return out;
+}
+
+function legacyBinding(binding: string): string {
+  if (!binding.startsWith("[")) return binding;
+  const parts = JSON.parse(binding);
+  if (
+    !Array.isArray(parts) ||
+    parts.length !== 3 ||
+    parts[0] !== "pepper-seal" ||
+    !parts.every((part) => isString(part) && !part.includes("\u0000"))
+  ) {
+    throw new VaultCorruptError("ambiguous legacy pepper binding");
+  }
+  return parts.join("\u0000");
+}
+
+async function dataKey(bytes: Uint8Array): Promise<CryptoKey> {
+  return crypto.subtle.importKey("raw", overlapCast(bytes), "AES-GCM", false, [
+    "encrypt",
+    "decrypt",
+  ]);
+}
+
 export async function sealWithPepper(
   password: string,
   pepper: string,
   binding: string,
-): Promise<PepperSealV1> {
+): Promise<PepperSealPbkdf2> {
   if (pepper === "") throw new Error("A pepper cannot be empty.");
   const salt = randomBytes(SALT_BYTES);
   const key = await pepperKey(pepper, salt, PBKDF2_ITERATIONS);
   const iv = randomBytes(IV_BYTES);
-  const plaintext = new TextEncoder().encode(password);
-  const body = await gcmSeal(
-    key,
-    plaintext,
-    iv,
-    new TextEncoder().encode(binding),
-  );
-  plaintext.fill(0);
-  return {
-    v: 1,
+  const sealed: PepperSealPbkdf2 = {
+    v: 2,
     kdf: {
       alg: "PBKDF2-SHA256",
       saltB64: bytesToB64(salt),
       iterations: PBKDF2_ITERATIONS,
     },
-    seal: { ivB64: bytesToB64(iv), ctB64: bytesToB64(body) },
+    seal: { ivB64: bytesToB64(iv), ctB64: "" },
   };
+  const dek = randomBytes(DEK_BYTES);
+  const plaintext = new TextEncoder().encode(password);
+  try {
+    const wrapIv = randomBytes(IV_BYTES);
+    const aad = context(sealed, binding);
+    const wrapped = await gcmSeal(key, dek, wrapIv, aad);
+    const header = joined(wrapIv, wrapped);
+    const body = await gcmSeal(
+      await dataKey(dek),
+      plaintext,
+      iv,
+      joined(aad, header),
+    );
+    sealed.seal.ctB64 = bytesToB64(joined(header, body));
+    return sealed;
+  } finally {
+    dek.fill(0);
+    plaintext.fill(0);
+  }
 }
 
-/** Opens a v1 seal (ADR 0172). Throws `WrongPepperError` for a wrong pepper or a seal moved to another method. */
+/** Opens a PBKDF2 seal, v1 or v2 (ADR 0172). The outer vault root supplies customer isolation; this nested seal adds a user factor. Throws `WrongPepperError` for a wrong pepper or a seal moved to another method. */
 export async function openWithPepper(
-  sealed: PepperSeal,
+  sealed: PepperSealPbkdf2,
   pepper: string,
   binding: string,
 ): Promise<string> {
-  if (sealed.v !== 1) throw new VaultCorruptError("not a v1 pepper seal");
+  if (sealed.v !== 1 && sealed.v !== 2)
+    throw new VaultCorruptError("not a PBKDF2 pepper seal");
   assertKdfParams(sealed.kdf);
   const key = await pepperKey(
     pepper,
@@ -98,16 +161,46 @@ export async function openWithPepper(
   );
   let bytes: Uint8Array;
   try {
-    bytes = await gcmOpen(
-      key,
-      b64ToBytes(sealed.seal.ivB64),
-      b64ToBytes(sealed.seal.ctB64),
-      new TextEncoder().encode(binding),
-    );
+    const iv = b64ToBytes(sealed.seal.ivB64);
+    const body = b64ToBytes(sealed.seal.ctB64);
+    if (iv.length !== IV_BYTES) throw new Error("invalid pepper nonce");
+    if (sealed.v === 1) {
+      bytes = await gcmOpen(
+        key,
+        iv,
+        body,
+        new TextEncoder().encode(legacyBinding(binding)),
+      );
+    } else {
+      if (body.length < HEADER_BYTES + TAG_BYTES)
+        throw new Error("invalid pepper envelope");
+      const aad = context(sealed, binding);
+      const header = body.subarray(0, HEADER_BYTES);
+      const dek = await gcmOpen(
+        key,
+        header.subarray(0, IV_BYTES),
+        header.subarray(IV_BYTES),
+        aad,
+      );
+      try {
+        if (dek.length !== DEK_BYTES)
+          throw new Error("invalid pepper data key");
+        bytes = await gcmOpen(
+          await dataKey(dek),
+          iv,
+          body.subarray(HEADER_BYTES),
+          joined(aad, header),
+        );
+      } finally {
+        dek.fill(0);
+      }
+    }
   } catch {
     throw new WrongPepperError();
   }
-  const text = new TextDecoder().decode(bytes);
-  bytes.fill(0);
-  return text;
+  try {
+    return new TextDecoder().decode(bytes);
+  } finally {
+    bytes.fill(0);
+  }
 }

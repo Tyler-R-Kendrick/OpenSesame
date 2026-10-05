@@ -262,8 +262,8 @@ describe("a pepper seal and a Sphinx key cross the whole path untouched", () => 
     const sealed = accountOf(back, "p").methods.find(
       (method) => method.type === "password" && method.sealed,
     );
-    if (sealed?.type !== "password" || !sealed.sealed)
-      throw new Error("no seal");
+    if (sealed?.type !== "password" || !sealed.sealed || sealed.sealed.v === 3)
+      throw new Error("no PBKDF2 seal");
     await expect(
       openWithPepper(
         sealed.sealed,

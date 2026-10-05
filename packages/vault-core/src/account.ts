@@ -101,18 +101,18 @@ export type PasswordGenerator =
  * A secret sealed under a pepper. The pepper is never stored, and the seal is
  * bound to the account and method ids, so it cannot be moved to another method.
  *
- * `v: 2` is the seal ADR 0173 writes: OPAQUE (RFC 9807) with ristretto255 and
+ * `v: 3` is the seal ADR 0173 writes: OPAQUE (RFC 9807) with ristretto255 and
  * Argon2id. The pepper is the OPAQUE password, `serverSetup` and
  * `registrationRecord` are the two halves a server would hold, and the AES-GCM
  * key that holds the secret comes from the OPAQUE export key. A wrong pepper
  * fails the OPAQUE login, so it is detected before anything is decrypted.
  * `ksf` names the Argon2id cost (`opaque-seal.ts`).
  *
- * `v: 1` is the seal ADR 0172 wrote (PBKDF2-SHA256 over the pepper, AES-GCM
- * over the secret). It still opens; nothing writes it.
+ * `v: 1` and `v: 2` are the PBKDF2-SHA256 seals (ADR 0172; v2 wraps a
+ * per-password key). They still open; nothing writes them.
  */
-export type PepperSealV1 = {
-  v: 1;
+export type PepperSealPbkdf2 = {
+  v: 1 | 2;
   kdf: {
     alg: "PBKDF2-SHA256";
     saltB64: string;
@@ -121,8 +121,8 @@ export type PepperSealV1 = {
   seal: SealedBlob;
 };
 
-export type PepperSealV2 = {
-  v: 2;
+export type PepperSealOpaque = {
+  v: 3;
   suite: "rfc9807-ristretto255-argon2id";
   ksf: "standard" | "fast";
   serverSetup: string;
@@ -130,7 +130,7 @@ export type PepperSealV2 = {
   seal: SealedBlob;
 };
 
-export type PepperSeal = PepperSealV1 | PepperSealV2;
+export type PepperSeal = PepperSealPbkdf2 | PepperSealOpaque;
 
 export type PasswordMethod = {
   id: string;

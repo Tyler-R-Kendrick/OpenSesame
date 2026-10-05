@@ -37,7 +37,7 @@ pub fn assert_account_methods(name: &str, body: &Value) {
 
 /// The derived vector (ADR 0173): a root kept in the clear, with the counter
 /// and rules its password is computed from, and one sealed under the pepper
-/// through OPAQUE (`v` 2, the record and server setup beside the ciphertext).
+/// through OPAQUE (`v` 3, the record and server setup beside the ciphertext).
 pub fn assert_derived_methods(name: &str, body: &Value) {
     let methods: Vec<&Value> = body["items"]
         .as_array()
@@ -57,7 +57,7 @@ pub fn assert_derived_methods(name: &str, body: &Value) {
     assert!(
         methods.iter().any(|m| m["pepper"] == true
             && m["secret"] == ""
-            && m["sealed"]["v"] == 2
+            && m["sealed"]["v"] == 3
             && m["sealed"]["registrationRecord"].is_string()
             && m["sealed"]["serverSetup"].is_string()),
         "{name}: a root sealed under the pepper"

@@ -2,7 +2,7 @@
  * Durable launcher-registration store (ADR 0119 / ADR 0125).
  */
 
-import type { Database } from "@opensesame/database";
+import type { Database, EventSealer } from "@opensesame/database";
 import type {
   WalletRegistration,
   WalletRegistrationInput,
@@ -15,12 +15,14 @@ export class DurableWalletRegistrationStore implements WalletRegistrationStore {
   private readonly rows: DurableMap<WalletRegistration>;
   private readonly clock: () => Date;
 
-  constructor(db: Database, clock: () => Date) {
+  constructor(db: Database, clock: () => Date, sealer: EventSealer) {
     this.rows = new DurableMap(
       db,
       "OpenSesame:WalletRegistration",
       false,
       null,
+      10_000,
+      sealer,
     );
     this.clock = clock;
   }

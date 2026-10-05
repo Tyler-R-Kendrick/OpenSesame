@@ -26,7 +26,9 @@ export function PaintedText({
   onKeyDown,
   onKeyUp,
   onFocus,
+  painter = paintSource,
 }: {
+  painter?: typeof paintSource;
   language: FileLanguage;
   /** The file's path, which names the textarea. */
   path: string;
@@ -60,7 +62,7 @@ export function PaintedText({
       className={`set-raw__stage${readOnly ? " set-raw__stage--ro" : ""}`}
     >
       <pre ref={paint} className="set-raw__paint" aria-hidden="true">
-        {paintSource(language, source)}
+        {painter(language, source)}
       </pre>
       <textarea
         ref={inputRef}

@@ -111,6 +111,7 @@ if (check) {
   const inputs = [
     "packages/static-auth",
     "packages/sdk-browser",
+    "packages/browser-at-rest",
     "packages/os-domain",
     "pnpm-lock.yaml",
     "package.json",
