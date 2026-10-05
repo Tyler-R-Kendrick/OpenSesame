@@ -6,7 +6,7 @@ import {
   typeLabel,
 } from "@opensesame/vault-core";
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
 import {
   ConcealedValue,
   CopyButton,
@@ -14,21 +14,14 @@ import {
   RevealButton,
   useCopyFeedback,
 } from "../../components/FieldRow.js";
-import { IconKey } from "../../components/IconKey.js";
-import {
-  IconChevronLeft,
-  IconEdit,
-  IconRefresh,
-  IconStar,
-  IconTrash,
-  IconX,
-} from "../../components/Icons.js";
+import { IconChevronLeft } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { UpLink } from "../../components/UpLink.js";
 import { useVaultList } from "../../lib/vault-list-path.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { AccountDetail } from "./AccountDetail.js";
 import { ItemGone } from "./ItemGone.js";
+import { ItemTools } from "./ItemTools.js";
 import { UpdateSecretPanel } from "./SecretUpdate.js";
 import { TypedFieldRows, UnknownTypeRows } from "./TypedFields.js";
 import { KindRecord, SecretShares } from "./item-contributions.js";
@@ -42,7 +35,6 @@ function formatDate(iso: string): string {
 
 export function ItemDetail() {
   const { itemId } = useParams();
-  const navigate = useNavigate();
   const location = useLocation();
   const { listPath, backLabel } = useVaultList(location.search);
   const { items, folders } = useVault();
@@ -98,91 +90,12 @@ export function ItemDetail() {
             {inTrash ? <StatusMark tone="warn" label="In trash" /> : null}
           </div>
         </div>
-        {/* The item's verbs are keys in one toolbar — symbols, named for
-            the screen reader and the hover. */}
-        <div className="detail__tools">
-          {inTrash ? (
-            <>
-              <IconKey
-                label="Restore"
-                onClick={() => void store.restoreItem(item.id)}
-              >
-                <IconRefresh size={17} />
-              </IconKey>
-              <button
-                type="button"
-                className={`icon-btn icon-btn--danger${confirmPurge ? " is-armed" : ""}`}
-                onClick={() => {
-                  if (!confirmPurge) {
-                    setConfirmPurge(true);
-                    return;
-                  }
-                  void store.purgeItem(item.id);
-                  navigate("/vault?f=trash");
-                }}
-                aria-label={
-                  confirmPurge
-                    ? "Really delete permanently? This cannot be undone"
-                    : "Delete permanently"
-                }
-                title={
-                  confirmPurge
-                    ? "Really delete permanently? This cannot be undone"
-                    : "Delete permanently"
-                }
-              >
-                <IconTrash size={17} />
-              </button>
-              {confirmPurge ? (
-                <IconKey
-                  label="Keep this item"
-                  onClick={() => setConfirmPurge(false)}
-                >
-                  <IconX size={17} />
-                </IconKey>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={`icon-btn${item.favorite ? " is-on" : ""}`}
-                onClick={() => void store.toggleFavorite(item.id)}
-                aria-pressed={item.favorite}
-                aria-label={
-                  item.favorite ? "Remove from favorites" : "Add to favorites"
-                }
-                title={
-                  item.favorite ? "Remove from favorites" : "Add to favorites"
-                }
-              >
-                <IconStar size={17} filled={item.favorite} />
-              </button>
-              {item.kind !== "drop" ? (
-                <Link
-                  className="icon-btn"
-                  aria-label="Edit"
-                  title="Edit (e)"
-                  to={`/vault/${item.id}/edit`}
-                >
-                  <IconEdit size={17} />
-                </Link>
-              ) : null}
-              <button
-                type="button"
-                className="icon-btn icon-btn--danger"
-                onClick={() => {
-                  void store.trashItem(item.id);
-                  navigate(listPath);
-                }}
-                aria-label="Move to trash"
-                title="Move to trash (x)"
-              >
-                <IconTrash size={17} />
-              </button>
-            </>
-          )}
-        </div>
+        <ItemTools
+          item={item}
+          listPath={listPath}
+          confirmPurge={confirmPurge}
+          onConfirmPurge={setConfirmPurge}
+        />
       </div>
 
       {inTrash ? (

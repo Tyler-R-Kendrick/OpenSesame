@@ -1,10 +1,15 @@
-import type { AccountItem, PasswordMethod } from "@opensesame/vault-core";
+import {
+  type AccountItem,
+  type PasswordMethod,
+  passwordMethod,
+} from "@opensesame/vault-core";
 import { CopyButton, FieldRow } from "../../components/FieldRow.js";
 import {
   type PepperAskFn,
   usePepperPrompt,
 } from "../../components/PepperPrompt.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import {
   ApiKeyRows,
   AuthenticatorRows,
@@ -45,6 +50,8 @@ function MethodRows({
   onSave: (method: PasswordMethod) => Promise<void>;
 }) {
   const { copied, failed, copy } = ports;
+  // The tutorials point at the first password's copy key, one target.
+  const firstPassword = passwordMethod(item);
   return item.methods.map((method) => {
     switch (method.type) {
       case "password":
@@ -56,6 +63,7 @@ function MethodRows({
             title={methodTitle(item.methods, method)}
             ask={ask}
             copying={{ copied, failed, copy }}
+            guide={method === firstPassword}
             onSave={onSave}
           />
         );
@@ -84,6 +92,7 @@ export function AccountDetail({
 }: { item: AccountItem } & Ports) {
   const store = useVaultStore();
   const pepper = usePepperPrompt();
+  const usernameRef = useGuideTarget<HTMLButtonElement>("item.copy-username");
   const ports = { name: item.name, revealed, toggle, copied, failed, copy };
   const firstPassword = item.methods.find(
     (method): method is PasswordMethod => method.type === "password",
@@ -115,6 +124,7 @@ export function AccountDetail({
                 copied={copied}
                 failed={failed}
                 onCopy={copy}
+                guideRef={usernameRef}
               />
             }
           >

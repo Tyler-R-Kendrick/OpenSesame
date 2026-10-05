@@ -54,6 +54,7 @@ export const TUTORIAL = {
     "identity.org-signin",
   ]),
   goals: pickById(IDENTITY_GOALS, [
+    "identity.organizations.review",
     "identity.users.manage",
     "identity.agents.manage",
     "identity.device.approve",

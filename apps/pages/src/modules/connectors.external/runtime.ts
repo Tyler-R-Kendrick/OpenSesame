@@ -47,6 +47,7 @@ import {
   CONNECTIONS_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/connections-catalog.js";
 import { CONNECTIONS_GOALS } from "@opensesame/app-core/tutorial/registry/connections-goals.js";
+import { NAV_CONNECTIONS_GOALS } from "@opensesame/app-core/tutorial/registry/section-nav-goals.js";
 import {
   CONNECTIONS_READ_TOOL,
   OPEN_CONNECT_CEREMONY_TOOL,
@@ -84,7 +85,7 @@ export const HYDRATE_KEYS: readonly string[] = [DIRECTORY_KEY, FIRST_RUN_KEY];
  */
 export const TUTORIAL = {
   targets: CONNECTIONS_TARGETS,
-  goals: CONNECTIONS_GOALS,
+  goals: [...CONNECTIONS_GOALS, ...NAV_CONNECTIONS_GOALS],
   routes: CONNECTIONS_ROUTES,
 } as const;
 

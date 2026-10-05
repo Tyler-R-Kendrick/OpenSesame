@@ -6,6 +6,7 @@ import {
   itemTypeId,
 } from "@opensesame/vault-core";
 import type { PageTreeNode } from "../lib/page-to-tree.js";
+import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { PageTreeBranch, PageTreeLeafRow } from "./PageTreeBranch.js";
 
 export type VaultCounts = {
@@ -41,20 +42,24 @@ export function VaultRail({
    */
   allTo?: string;
 }) {
+  const filtersRef = useGuideTarget<HTMLDivElement>("vault.filter");
   const nested = new Set(
     kinds.flatMap(({ id }) =>
       foldersForKind(id, items, folders).map((folder) => folder.id),
     ),
   );
   return (
-    <div className="railtree__kids">
+    <div className="railtree__kids" ref={filtersRef}>
       <PageTreeLeafRow
         node={vaultLeaf("all", allTo, counts.all)}
         level={2}
         current={selectedTo}
       />
       <PageTreeLeafRow
-        node={vaultLeaf("favorites", "/vault?f=favorites", counts.favorites)}
+        node={{
+          ...vaultLeaf("favorites", "/vault?f=favorites", counts.favorites),
+          guide: "vault.filter.favorites",
+        }}
         level={2}
         current={selectedTo}
       />
@@ -130,7 +135,10 @@ function KindFilter({
   if (folders.length === 0) {
     return (
       <PageTreeLeafRow
-        node={vaultLeaf(segment, `/vault?f=${id}`, count, false, id)}
+        node={{
+          ...vaultLeaf(segment, `/vault?f=${id}`, count, false, id),
+          guide: id === "account" ? "vault.filter.logins" : undefined,
+        }}
         level={2}
         current={selectedTo}
       />

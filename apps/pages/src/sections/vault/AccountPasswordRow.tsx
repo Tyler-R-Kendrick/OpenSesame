@@ -12,6 +12,7 @@ import {
 } from "../../components/FieldRow.js";
 import type { PepperAskFn } from "../../components/PepperPrompt.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { UpdateSecretPanel } from "./SecretUpdate.js";
 import { StrengthBar } from "./StrengthBar.js";
 import { usePasswordReading } from "./use-password-reading.js";
@@ -34,6 +35,7 @@ export function AccountPasswordRow({
   title,
   ask,
   copying,
+  guide,
   onSave,
 }: {
   item: AccountItem;
@@ -41,8 +43,11 @@ export function AccountPasswordRow({
   title: string;
   ask: PepperAskFn;
   copying: Copying;
+  /** This row holds the tutorials' `item.copy-password` target. */
+  guide: boolean;
   onSave: (method: PasswordMethod) => Promise<void>;
 }) {
+  const copyRef = useGuideTarget<HTMLButtonElement>("item.copy-password");
   const { shown, setShown, wrong, read } = usePasswordReading(
     item,
     method,
@@ -89,6 +94,7 @@ export function AccountPasswordRow({
             fieldKey={key}
             copied={copying.copied}
             failed={copying.failed}
+            guideRef={guide ? copyRef : undefined}
             onCopy={async (fieldKey) => {
               const password = await read();
               if (password !== null) await copying.copy(fieldKey, password);

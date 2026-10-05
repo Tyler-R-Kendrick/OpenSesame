@@ -23,6 +23,7 @@ import { IconChevronLeft } from "../components/Icons.js";
 import { NavTree } from "../components/NavTree.js";
 import { usePepperPrompt } from "../components/PepperPrompt.js";
 import { UpLink } from "../components/UpLink.js";
+import { clearCommandBarSearch } from "../lib/command-bar/focus.js";
 import { swipeBack } from "../lib/gestures.js";
 import { AscendProvider, usePaneTrail } from "../lib/pane-trail.js";
 import { useNarrow } from "../lib/use-narrow.js";
@@ -200,6 +201,18 @@ export function VaultSection() {
     createRef(element);
   };
 
+  // The list stays mounted behind the tree on a phone, and the prompt's words
+  // are the shell's, not the pane's: a search typed on the list came back,
+  // filter and all, the next time a tree entry opened it ("all" drew no rows
+  // beside a count of three). Arriving at the tree ends it. An item is another
+  // pane too, but Back from it returns to the same search, so only the tree
+  // does.
+  const wasShowing = useRef(showing);
+  useEffect(() => {
+    if (narrow && showing === "tree" && wasShowing.current !== "tree")
+      clearCommandBarSearch();
+    wasShowing.current = showing;
+  }, [narrow, showing]);
   const ascend = usePaneTrail(showing);
   useVaultFocus({
     tree: treePaneRef,
