@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CAPABILITIES } from "@opensesame/capability-registry";
 import {
+  AUTHORED_GUIDE_LIMITS,
   MAX_SEMANTIC_ID_CHARS,
   compileGuide,
   isGuideSemanticId,
@@ -11,7 +12,11 @@ import {
 import { isFunction, isTypeofObject } from "@opensesame/os-domain";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { AUTHORED_GUIDE_TARGETS, AUTHORED_HELP_TOPICS } from "./authored.js";
+import {
+  AUTHORED_GUIDE_TARGETS,
+  AUTHORED_HELP_TOPICS,
+  OPTIONAL_TUTORIALS,
+} from "./authored.js";
 import { mergedGuideTargets } from "./catalog.js";
 import * as devModule from "./dev.js";
 import {
@@ -69,13 +74,7 @@ const CATALOG_SOURCE = readFileSync(
  * still checked-in prose that must never interpolate a user value.
  */
 const OPTIONAL_TARGET_SOURCES = [
-  "connections-catalog.ts",
-  "access-catalog.ts",
-  "identity-catalog.ts",
-  "wallet-catalog.ts",
-  "activity-catalog.ts",
-  "notifications-catalog.ts",
-  "plugins-catalog.ts",
+  ...new Set(OPTIONAL_TUTORIALS.map((partition) => partition.files.targets)),
 ];
 
 const TARGET_SOURCES = [
@@ -209,7 +208,7 @@ describe("the authored guides", () => {
    * at a resolver, at run time, in front of somebody asking for help.
    */
   it("compile against the live registries", () => {
-    const vocabulary = {
+    const vocab = {
       goals: guideGoalIds(),
       targets: guideTargetIds(),
       routes: mergedGuideRoutes().map((route) => route.id),
@@ -217,7 +216,7 @@ describe("the authored guides", () => {
     };
 
     for (const goal of mergedGuideGoals()) {
-      const compiled = compileGuide(goal.guide, vocabulary);
+      const compiled = compileGuide(goal.guide, vocab, AUTHORED_GUIDE_LIMITS);
       if (!compiled.ok) {
         throw new Error(
           `${goal.id} failed at ${compiled.stage}: ${JSON.stringify(compiled.errors)}`,

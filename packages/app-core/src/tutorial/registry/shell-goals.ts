@@ -5,6 +5,8 @@
 
 import { DURESS_GOALS, DURESS_HELP } from "./duress-goals.js";
 import type { GuideGoalDescriptor, HelpTopic } from "./goals.js";
+import { KEYBOARD_GOALS } from "./keyboard-goals.js";
+import { VAULT_ITEM_GOALS } from "./vault-item-goals.js";
 
 export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
   {
@@ -39,6 +41,8 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
   },
 
   ...DURESS_GOALS,
+  ...VAULT_ITEM_GOALS,
+  ...KEYBOARD_GOALS,
 ];
 
 /** The shell's help topics, drawn beside the walkthroughs they open. */

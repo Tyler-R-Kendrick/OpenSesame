@@ -21,6 +21,7 @@ import {
   CONNECTIONS_TARGETS,
 } from "./connections-catalog.js";
 import { CONNECTIONS_GOALS, CONNECTIONS_HELP } from "./connections-goals.js";
+import { DROPS_GOALS, DROPS_TARGETS } from "./drops-catalog.js";
 import {
   CORE_GUIDE_GOALS,
   CORE_HELP_TOPICS,
@@ -135,6 +136,14 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     files: { targets: "plugins-catalog.ts", goals: "plugins-catalog.ts" },
     targets: AUTOFILL_TARGETS,
     goals: AUTOFILL_GOALS,
+    help: [],
+    routes: [],
+  },
+  {
+    capability: "sharing.drops",
+    files: { targets: "drops-catalog.ts", goals: "drops-catalog.ts" },
+    targets: DROPS_TARGETS,
+    goals: DROPS_GOALS,
     help: [],
     routes: [],
   },
