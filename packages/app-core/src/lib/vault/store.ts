@@ -31,7 +31,9 @@ import {
   endEphemeralTomb,
   forgetDecoyScratch,
   guestTombIsSealed,
+  isDecoySession,
   isGuestSessionTomb,
+  markDecoySession,
   presentedTomb,
 } from "../duress/store/decoy-scratch.js";
 import { createDuressVaultActivationHost } from "../duress/store/vault-activation-host.js";
@@ -182,26 +184,8 @@ export {
   normalizeVaultPrefs,
 } from "./prefs.js";
 
-export type VaultStatus = "empty" | "locked" | "unlocked";
-
-export type VaultState = {
-  status: VaultStatus;
-  /** The tomb this session is scoped to — a project id, `personal`, or `guest`. */
-  tomb: string;
-  /** True while a guest session holds the key: never wrapped to disk. */
-  guest: boolean;
-  header: VaultHeader | null;
-  items: VaultItem[];
-  folders: Folder[];
-  prefs: VaultPrefs;
-  /** Milliseconds until auto-lock, or null when no timer is armed. */
-  lockedOutUntil: number | null;
-  failedAttempts: number;
-  /** Primary unlocked; second step enrolled but not yet confirmed. */
-  awaitingSecondStep: boolean;
-  /** False when storage is tab-only (no durable OPFS). */
-  durable: boolean;
-};
+import type { VaultState } from "./store-state.js";
+export type { VaultState, VaultStatus } from "./store-state.js";
 
 type Listener = () => void;
 
@@ -424,6 +408,7 @@ export class VaultStore {
       status: this.#vaultKey ? "unlocked" : this.#header ? "locked" : "empty",
       tomb: presentedTomb(this.#scope.tomb),
       guest: this.#ephemeral && this.#vaultKey !== null,
+      decoy: this.#ephemeral && this.#vaultKey !== null && isDecoySession(),
       header: this.#header,
       items: this.#body.items,
       folders: this.#body.folders,
@@ -536,9 +521,9 @@ export class VaultStore {
     if (this.#vaultKey || this.#pendingVaultKey) {
       throw new Error("Lock the open vault before continuing as a guest.");
     }
-    // Guests always run in GUEST_TOMB — physically separate from member tombs,
-    // including first-run when no sealed vault exists yet. A duress decoy never
-    // wipes a guest tomb that holds its own key: it runs in a scratch tomb.
+    // Guests run in GUEST_TOMB, apart from member tombs; a decoy never wipes a
+    // guest tomb that holds its own key: it runs in a scratch tomb.
+    markDecoySession(options?.decoy === true);
     const scratch = options?.decoy === true && guestTombIsSealed();
     this.#scope = scratch ? decoyScratchScope() : guestVaultScope();
     // Fresh Continue-as-guest drops prior claims; unlock/resume keeps them (GitHub App return).
@@ -559,7 +544,8 @@ export class VaultStore {
     this.#body = emptyBody();
     this.#ephemeral = true;
     unlockTomb(this.#scope.tomb, vaultKey);
-    writeLastVaultId(GUEST_TOMB);
+    // A decoy leaves the unlock screen on the vault it was typed at.
+    if (!options?.decoy) writeLastVaultId(GUEST_TOMB);
     this.touch();
     this.#armIdleTimer();
     this.#emit();
@@ -1157,6 +1143,7 @@ export class VaultStore {
     const wasUnlocked = this.#vaultKey !== null;
     const lockedTombForLog = this.#scope.tomb;
     const wasGuest = this.#ephemeral;
+    const wasDecoy = markDecoySession(false);
     this.#vaultKey = null;
     this.#zeroRaw();
     this.#pendingVaultKey = null;
@@ -1177,10 +1164,7 @@ export class VaultStore {
     lockTomb(this.#scope.tomb);
     discardTombCaches();
     if (guestBesideVault) {
-      if (recordLastVault) writeLastVaultId(GUEST_TOMB);
-      this.#scope = guestVaultScope();
-      // A decoy's scratch tomb hands back to the sealed guest it stood beside.
-      this.#header = ephemeralTomb === GUEST_TOMB ? null : this.#readHeader();
+      this.#handBackFromGuest(ephemeralTomb, wasDecoy, recordLastVault);
     } else if (recordLastVault) {
       writeLastVaultId(lockedTomb);
     }
@@ -1200,6 +1184,19 @@ export class VaultStore {
     }
     this.#emit();
   };
+
+  /** Where the unlock screen lands after a guest ends; a decoy returns to the vault it was typed at. */
+  #handBackFromGuest(
+    ephemeralTomb: string | null,
+    wasDecoy: boolean,
+    recordLastVault: boolean,
+  ): void {
+    const toGuest = !wasDecoy || lastVaultIsGuest();
+    if (recordLastVault && toGuest) writeLastVaultId(GUEST_TOMB);
+    this.#scope = toGuest ? guestVaultScope() : scopedVaultScope();
+    this.#header =
+      toGuest && ephemeralTomb === GUEST_TOMB ? null : this.#readHeader();
+  }
 
   isUnlocked(): boolean {
     return this.#vaultKey !== null;

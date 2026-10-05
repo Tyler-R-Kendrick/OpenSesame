@@ -76,7 +76,9 @@ function ProjectSwitcherDefault() {
     },
     [promptRef, hold.bind],
   );
-  const name = guestOpen
+  // A duress decoy is isolated like a guest but drawn as the vault it was typed at.
+  const guestShown = guestOpen && !snapshot.decoy;
+  const name = guestShown
     ? guestVaultLabel()
     : active
       ? vaultLabel(active)
@@ -145,7 +147,7 @@ function ProjectSwitcherDefault() {
         <GlyphMark
           className="prompt__glyph"
           kind="vault"
-          id={guestOpen ? GUEST_TOMB : (active?.id ?? "personal")}
+          id={guestShown ? GUEST_TOMB : (active?.id ?? "personal")}
         />
       </button>
 
