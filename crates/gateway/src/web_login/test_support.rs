@@ -222,17 +222,24 @@ where
 
 /// The steps a run has queued so far, by name, in order.
 pub(super) async fn queued(db: &Db, run_id: &str) -> Vec<String> {
-    let rows: Vec<String> =
-        sqlx::query_scalar("SELECT request_json FROM runner_steps WHERE run_id = ? ORDER BY seq")
-            .bind(run_id)
-            .fetch_all(db.pool())
-            .await
-            .unwrap();
+    let rows: Vec<(String, i64, String)> = sqlx::query_as(
+        "SELECT organization_id, seq, request_json FROM runner_steps WHERE run_id = ? ORDER BY seq",
+    )
+    .bind(run_id)
+    .fetch_all(db.pool())
+    .await
+    .unwrap();
     rows.iter()
-        .map(|row| {
+        .map(|(organization, seq, row)| {
             // The column rests sealed once any test in the process has
             // installed the sealer (ADR 0157); read it the way the store does.
-            let row = opensesame_event_seal::open("runner_steps.request_json", row).unwrap();
+            let row = opensesame_event_seal::open_in(
+                organization,
+                "runner_steps.request_json",
+                &format!("{run_id}:{seq}"),
+                row,
+            )
+            .unwrap();
             serde_json::from_str::<Value>(&row).unwrap()["step"]
                 .as_str()
                 .unwrap()

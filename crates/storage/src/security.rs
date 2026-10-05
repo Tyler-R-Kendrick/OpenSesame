@@ -548,7 +548,7 @@ impl Db {
         .bind(&delivery.event_type)
         .bind(&delivery.subject_kind)
         .bind(&delivery.subject_id)
-        .bind(sealed::seal("security_deliveries.payload_json", &delivery.payload_json))
+        .bind(sealed::seal_in(&delivery.organization_id, "security_deliveries.payload_json", &delivery.id, &delivery.payload_json))
         .bind(&delivery.state)
         .bind(delivery.attempts)
         .bind(&delivery.available_at)

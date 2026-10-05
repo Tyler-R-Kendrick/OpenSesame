@@ -1,7 +1,9 @@
 import { type OrgLdapConfig, overlapCast } from "@opensesame/os-domain";
 import { and, asc, eq } from "drizzle-orm";
+import type { EventSealer } from "./event-seal.js";
 import type { Database } from "./repos/postgres.js";
 import * as schema from "./schema/index.js";
+import { openSecretText, sealSecretText } from "./secret-seal.js";
 
 /**
  * An email domain an organization claims, for home-realm discovery
@@ -214,7 +216,21 @@ export function createMemoryOrgFederationStores(): OrgFederationStores {
 
 export function createPostgresOrgFederationStores(
   db: Database,
+  sealer?: EventSealer,
 ): OrgFederationStores {
+  const openLdap = (row: typeof schema.orgLdapConfig.$inferSelect) =>
+    mapLdapConfig({
+      ...row,
+      serviceBindSecret:
+        row.serviceBindSecret && sealer
+          ? openSecretText(
+              sealer,
+              "org_ldap_config.service_bind_secret",
+              row.organizationId,
+              row.serviceBindSecret,
+            )
+          : row.serviceBindSecret,
+    });
   return {
     emailDomains: {
       async claim(record) {
@@ -308,11 +324,19 @@ export function createPostgresOrgFederationStores(
           .from(schema.orgLdapConfig)
           .where(eq(schema.orgLdapConfig.organizationId, organizationId))
           .limit(1);
-        return row ? mapLdapConfig(row) : null;
+        return row ? openLdap(row) : null;
       },
 
       async put(config) {
         const values = ldapRowValues(normalizeLdapConfig(config));
+        if (values.serviceBindSecret && sealer) {
+          values.serviceBindSecret = sealSecretText(
+            sealer,
+            "org_ldap_config.service_bind_secret",
+            config.organizationId,
+            values.serviceBindSecret,
+          );
+        }
         const { organizationId: _org, ...update } = values;
         const [row] = await db
           .insert(schema.orgLdapConfig)
@@ -323,7 +347,7 @@ export function createPostgresOrgFederationStores(
           })
           .returning();
         if (!row) throw new Error("upsert ldap config returned no row");
-        return mapLdapConfig(row);
+        return openLdap(row);
       },
 
       async remove(organizationId) {
@@ -341,7 +365,7 @@ export function createPostgresOrgFederationStores(
           .select()
           .from(schema.orgLdapConfig)
           .orderBy(asc(schema.orgLdapConfig.organizationId));
-        return rows.map(mapLdapConfig);
+        return rows.map(openLdap);
       },
     },
   };

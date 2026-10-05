@@ -44,9 +44,10 @@ export function dressed(): AccountItem {
     ],
   });
   // What the model does not name must not travel either.
-  const extra: Record<string, unknown> = item;
-  extra.history = [{ password: "old-history-password" }];
-  extra.attachments = [{ name: "scan.pdf", key: "file-part-key" }];
+  Object.assign(item, {
+    history: [{ password: "old-history-password" }],
+    attachments: [{ name: "scan.pdf", key: "file-part-key" }],
+  });
   return item;
 }
 

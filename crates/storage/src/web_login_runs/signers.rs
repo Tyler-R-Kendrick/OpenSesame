@@ -11,7 +11,7 @@
 use sqlx::{sqlite::SqliteRow, Row};
 
 use super::recipes::RecipeAudit;
-use crate::{append_outbox_tx, Db};
+use crate::{append_outbox_event_in, Db};
 
 /// Pinned keys one organization may hold at once, revoked ones included. A
 /// bound on what a run's verification and a listing walk.
@@ -176,7 +176,13 @@ impl Db {
             return Ok(row.map_or(SignerPinOutcome::LimitReached, SignerPinOutcome::Exists));
         }
         let row = row.ok_or_else(|| anyhow::anyhow!("pinned recipe signer vanished"))?;
-        append_outbox_tx(&mut transaction, audit.event_type, audit.payload_json).await?;
+        append_outbox_event_in(
+            &mut transaction,
+            Some(pin.organization_id),
+            audit.event_type,
+            audit.payload_json,
+        )
+        .await?;
         transaction.commit().await?;
         Ok(SignerPinOutcome::Pinned(row))
     }
@@ -227,7 +233,13 @@ impl Db {
             }));
         }
         let row = row.ok_or_else(|| anyhow::anyhow!("revoked recipe signer vanished"))?;
-        append_outbox_tx(&mut transaction, audit.event_type, audit.payload_json).await?;
+        append_outbox_event_in(
+            &mut transaction,
+            Some(organization_id),
+            audit.event_type,
+            audit.payload_json,
+        )
+        .await?;
         transaction.commit().await?;
         Ok(SignerRevokeOutcome::Revoked(row))
     }

@@ -1,3 +1,4 @@
+import { createEventSealer } from "@opensesame/database";
 /**
  * The mounted OpenID4VCI issuer: F10 protected redemption (T-24) and durable,
  * non-process-local grants (T-25), driven through the real routes.
@@ -324,6 +325,9 @@ function grantReplica(db: Database): DurablePreAuthorizedCodeStore {
       db,
       "OpenSesame:Oid4vciGrants",
       true,
+      undefined,
+      undefined,
+      createEventSealer("durable-security-fixture-key"),
     ),
   );
 }

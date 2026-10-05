@@ -18,7 +18,7 @@
   "totals": {
     "files": 427,
     "violations": 668,
-    "oversizedLines": 218067
+    "oversizedLines": 218016
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -288,7 +288,7 @@
       "max-lines": 824
     },
     "crates/connection-broker/src/store.rs": {
-      "max-lines": 2746
+      "max-lines": 2736
     },
     "crates/connection-broker/src/sync_target.rs": {
       "max-lines": 807
@@ -1092,7 +1092,7 @@
     },
     "packages/database/src/repos/postgres.ts": {
       "complexity": 1,
-      "max-lines": 2732
+      "max-lines": 2691
     },
     "packages/database/src/schema/index.ts": {
       "max-lines": 2370

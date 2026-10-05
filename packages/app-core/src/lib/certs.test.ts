@@ -258,8 +258,8 @@ describe.skipIf(!hasOpenssl)("openssl x509 reads the certificate", () => {
     const text = result.stdout;
     expect(text).toContain("Version: 3 (0x2)");
     expect(text).toContain("Signature Algorithm: ecdsa-with-SHA256");
-    expect(text).toContain("Subject: CN = barber.local");
-    expect(text).toContain("Issuer: CN = barber.local");
+    expect(text).toMatch(/Subject: CN\s*=\s*barber\.local\r?\n/);
+    expect(text).toMatch(/Issuer: CN\s*=\s*barber\.local\r?\n/);
     expect(text).toContain("ASN1 OID: prime256v1");
     expect(text).toMatch(/X509v3 Basic Constraints: critical\s+CA:FALSE/);
     expect(text).toMatch(/X509v3 Key Usage: critical\s+Digital Signature/);

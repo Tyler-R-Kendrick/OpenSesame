@@ -28,17 +28,12 @@ pub async fn narrow_identity_role(
         changed == 1,
         "Host membership absent, revoked or evidence stale"
     );
-    sqlx::query("INSERT INTO outbox_events(id,event_type,payload_json,created_at) VALUES(?,?,?,?)")
-        .bind(uuid::Uuid::now_v7().to_string())
-        .bind("config.authorization.identity_narrowed")
-        .bind(crate::sealed::seal(
-            "outbox_events.payload_json",
-            &serde_json::json!({"organization_id":organization,"principal_id":principal})
-                .to_string(),
-        ))
-        .bind(chrono::Utc::now().to_rfc3339())
-        .execute(&mut **tx)
-        .await?;
+    crate::outbox::append_outbox_tx(
+        tx,
+        "config.authorization.identity_narrowed",
+        &serde_json::json!({"organization_id":organization,"principal_id":principal}).to_string(),
+    )
+    .await?;
     Ok(())
 }
 

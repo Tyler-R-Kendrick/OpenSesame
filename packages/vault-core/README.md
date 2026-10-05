@@ -53,3 +53,12 @@ vector that stops opening is a format break.
 - [Vault format v1](../../docs/architecture/vault-format-v1.md) — header, key wraps and portable envelopes
 - [ADR 0062](../../docs/adr/0062-secret-drop.md) and [secret drop design](../../docs/design/secret-drop.md)
 - [ADR 0087](../../docs/adr/0087-vault-item-type-plugins.md) — item types
+
+Peppered account passwords use version 2 envelope seals: each password has a
+fresh random data key, wrapped by the pepper-derived PBKDF2 key. Authenticated
+context includes the canonical account/method binding and KDF metadata; the
+payload also authenticates its wrapped-key header. Version 1 direct seals remain
+readable for unambiguous legacy bindings, and subsequent writes use version 2.
+This is an additional user-factor seal inside the encrypted vault body. Customer
+isolation comes from each vault's independent random outer root, rather than
+from a shared pepper or account identifier.

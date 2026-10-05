@@ -345,9 +345,9 @@ export async function revokeOrganizationMembership(
   const sessions = membershipRemoved
     ? await ctx.stores.provisionalSessions.entries()
     : [];
-  for (const [id, session] of sessions) {
+  for (const [, session] of sessions) {
     if (session.principalId !== input.principalId) continue;
-    await ctx.stores.provisionalSessions.delete(id);
+    await ctx.stores.provisionalSessions.delete(session.id);
     sessionsRevoked += 1;
   }
   await removeOrphanTokens(ctx.stores);

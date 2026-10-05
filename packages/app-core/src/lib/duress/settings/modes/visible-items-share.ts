@@ -1,3 +1,4 @@
+import { isString, isTypeofObject } from "@opensesame/os-domain";
 /**
  * Which of the open vault's items may be shown under a duress code, and the
  * copy of one (ADR 0168).
@@ -114,21 +115,23 @@ export function pickRows(items: readonly VaultItem[]): DuressPickRow[] {
   }));
 }
 
-function sharedValue(value: unknown): SharedValue | null {
-  if (typeof value === "string") return cutText(value);
+function sharedValue(
+  value: (VaultItem & { kind: "typed" })["values"][string] | undefined,
+): SharedValue | null {
+  if (isString(value)) return cutText(value);
   if (Array.isArray(value)) {
     return value
-      .filter((entry): entry is string => typeof entry === "string")
+      .filter((entry): entry is string => isString(entry))
       .slice(0, VISIBLE_LIMITS.list)
       .map(cutText);
   }
-  if (typeof value === "object" && value !== null) {
+  if (isTypeofObject(value) && value !== null) {
     const out: Record<string, string> = {};
     for (const [key, part] of Object.entries(value).slice(
       0,
       VISIBLE_LIMITS.parts,
     )) {
-      if (typeof part === "string" && key !== "__proto__") {
+      if (isString(part) && key !== "__proto__") {
         out[key] = cutText(part);
       }
     }

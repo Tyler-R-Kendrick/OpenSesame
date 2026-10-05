@@ -108,11 +108,14 @@ describe("authentication service in a real browser", () => {
             path: string,
             body: Body,
           ) => {
-            const response = await fetch(`/v1/authentication/public${path}`, {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify(body),
-            });
+            const response = await fetch(
+              `/v1/authentication/public/applications/${applicationId}${path}`,
+              {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(body),
+              },
+            );
             if (!response.ok) throw new Error(`${path}:${response.status}`);
             return response.json();
           };
