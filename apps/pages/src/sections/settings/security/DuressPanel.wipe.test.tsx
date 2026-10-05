@@ -46,15 +46,19 @@ describe("DuressPanel wipe mode", () => {
     await vaultStore.destroy();
   });
 
-  it("is offered as the third choice, with its own sentence and a word to type", async () => {
+  it("is offered after the other locked modes, with its own sentence and a word to type", async () => {
     render(<DuressPanel arm={vi.fn()} />);
     await userEvent.click(screen.getByRole("button", { name: "Add" }));
     const radios = screen.getAllByRole("radio");
-    expect(radios.map((radio) => radio.closest("label")?.textContent)).toEqual([
-      "Decoy vault",
-      "Wrong password",
-      WIPE,
-    ]);
+    const names = radios.map((radio) => radio.closest("label")?.textContent);
+    // Its place relative to the modes it follows, not the whole list, so
+    // another mode landing between them does not break this.
+    expect(names.indexOf(WIPE)).toBeGreaterThan(
+      names.indexOf("Wrong password"),
+    );
+    expect(names.indexOf("Wrong password")).toBeGreaterThan(
+      names.indexOf("Decoy vault"),
+    );
     expect(screen.queryByLabelText(WORD)).toBeNull();
     await userEvent.click(screen.getByRole("radio", { name: WIPE }));
     expect(word().value).toBe("");

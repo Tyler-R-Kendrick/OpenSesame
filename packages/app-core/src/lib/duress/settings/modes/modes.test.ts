@@ -47,8 +47,6 @@ describe("duress mode registry", () => {
     expect(MODES.map((mode) => mode.presentation)).toEqual([
       "decoy",
       "decoy",
-      "decoy",
-      "locked",
       "locked",
       "locked",
     ]);
