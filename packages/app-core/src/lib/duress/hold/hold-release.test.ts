@@ -6,44 +6,19 @@
 
 import { createVault } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-const opened = vi.hoisted(() => [] as Uint8Array[]);
-
-vi.mock("@opensesame/vault-core", async (original) => {
-  const real = await original<typeof import("@opensesame/vault-core")>();
-  return {
-    ...real,
-    unwrapRawVaultKeyFromPassword: async (
-      ...args: Parameters<typeof real.unwrapRawVaultKeyFromPassword>
-    ) => {
-      const raw = await real.unwrapRawVaultKeyFromPassword(...args);
-      opened.push(raw);
-      return raw;
-    },
-  };
-});
-
-vi.mock("../../vault/unlock-methods.js", async (original) => {
-  const real = await original<typeof import("../../vault/unlock-methods.js")>();
-  return {
-    ...real,
-    unwrapVaultKeyWithPin: async (
-      ...args: Parameters<typeof real.unwrapVaultKeyWithPin>
-    ) => {
-      const raw = await real.unwrapVaultKeyWithPin(...args);
-      opened.push(raw);
-      return raw;
-    },
-  };
-});
-
 import { kvDelete, kvSet } from "../../kv.js";
 import { LAST_VAULT_KEY } from "../../last-vault.js";
+import { unwrapSeams } from "../../vault/primary-unwrap.js";
 import { ATTEMPTS_KEY, VaultStore } from "../../vault/store.js";
 import { HEADER_PATH, PERSONAL_TOMB, tombFileKey } from "../../vfs.js";
 import { HOLD_KEY } from "../store/boot-keys.js";
 import { clearJournal } from "../store/journal.js";
 import { HOUR_MS, extendHold } from "./record.js";
+
+// Every raw key a credential unwrapped, seen through the store's own seam: the
+// real unwrapping still runs, and the bytes it hands back are kept to be read.
+const opened: Uint8Array[] = [];
+const real = { ...unwrapSeams };
 
 const PASSWORD = "correct horse battery staple";
 const PIN = "48291037";
@@ -76,6 +51,16 @@ function expectReleased(store: VaultStore): void {
 }
 
 beforeEach(() => {
+  unwrapSeams.password = async (...args) => {
+    const raw = await real.password(...args);
+    opened.push(raw);
+    return raw;
+  };
+  unwrapSeams.pin = async (...args) => {
+    const raw = await real.pin(...args);
+    opened.push(raw);
+    return raw;
+  };
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(Date.UTC(2026, 9, 5, 12, 0, 0));
   clearJournal(HOLD_KEY);
@@ -85,6 +70,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  Object.assign(unwrapSeams, real);
   vi.useRealTimers();
   clearJournal(HOLD_KEY);
 });

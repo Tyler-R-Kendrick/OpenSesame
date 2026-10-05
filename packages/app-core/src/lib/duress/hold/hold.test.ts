@@ -9,6 +9,7 @@ import {
   PERSONAL_TOMB,
   tombFileKey,
 } from "../../vfs.js";
+import { rejectionOf } from "../rejection.test-support.js";
 import { HOLD_KEY } from "../store/boot-keys.js";
 import { clearJournal, journalSeams, writeJournal } from "../store/journal.js";
 import { isFrozen } from "./gate.js";
@@ -27,13 +28,10 @@ async function lockedStore(): Promise<VaultStore> {
   return store;
 }
 
-async function messageOf(attempt: Promise<unknown>): Promise<string> {
-  const error = await attempt.then(
-    () => null,
-    (caught: unknown) => caught,
-  );
+async function messageOf<T>(attempt: Promise<T>): Promise<string> {
+  const error = await rejectionOf(attempt);
   expect(error).toBeInstanceOf(WrongPasswordError);
-  return (error as Error).message;
+  return error.message;
 }
 
 beforeEach(() => {
@@ -106,7 +104,7 @@ describe("what counts as a hold", () => {
   });
 
   it("fails open on a record that is garbled, unversioned or asks for too much", async () => {
-    const garbled: unknown[] = [
+    const garbled: string[] = [
       "{not json",
       JSON.stringify({ schemaVersion: 2, revision: 1, payload: {} }),
       JSON.stringify({ schemaVersion: 1, revision: 1 }),
@@ -132,7 +130,7 @@ describe("what counts as a hold", () => {
       }),
     ];
     for (const raw of garbled) {
-      kvSet(HOLD_KEY, String(raw));
+      kvSet(HOLD_KEY, raw);
       expect(readHold()).toBeNull();
       expect(isFrozen()).toBe(false);
     }

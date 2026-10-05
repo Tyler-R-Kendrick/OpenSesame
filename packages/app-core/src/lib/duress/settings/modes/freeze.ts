@@ -1,4 +1,5 @@
 import { extendHold } from "../../hold/record.js";
+import { isJsonObject } from "../../json-boundary.js";
 import type { EffectRunner } from "./effects.js";
 import type { DuressMode } from "./mode.js";
 
@@ -40,10 +41,6 @@ export const FREEZE = {
 export const FREEZE_RUNNER: EffectRunner = {
   phase: "on_match",
   run: async (body) => {
-    const hours =
-      typeof body === "object" && body !== null && "hours" in body
-        ? body.hours
-        : undefined;
-    await extendHold(hours);
+    await extendHold(isJsonObject(body) ? body.hours : undefined);
   },
 };
