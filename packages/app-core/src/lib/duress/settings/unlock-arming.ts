@@ -26,6 +26,8 @@ export type SealUnlockTriggerInput = Readonly<{
   policyRevision?: number;
   keyEpoch?: number;
   presentation: PresentationClass | string;
+  /** The mode's sealed plan (`modes/payload.ts`), read back at unlock. */
+  payload?: Uint8Array;
   previous?: EnrollmentState | null;
   /**
    * Explicit owner consent. When omitted, a previous state's recorded consent
@@ -115,6 +117,7 @@ export async function sealUnlockTriggerFromCeremony(
       compartmentKey: createIndependentCompartmentKey(),
       actionCapability: null,
       presentation: asPresentation(String(input.presentation)),
+      ...(input.payload ? { payload: input.payload } : {}),
     },
     replace: true,
     autoRehearse: true,

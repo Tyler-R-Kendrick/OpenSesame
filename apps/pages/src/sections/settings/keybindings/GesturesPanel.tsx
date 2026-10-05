@@ -34,7 +34,7 @@ function FixedGestures() {
 }
 
 /**
- * Settings › Keybindings › Gestures (ADR 0168): the touch loadout. One row per
+ * Settings › Keybindings › Gestures (ADR 0169): the touch loadout. One row per
  * gesture a hand may bind, each a choice of what it runs; the gestures that
  * keep the touch road open sit under the lock, as the keyboard's Fixed keys do.
  */

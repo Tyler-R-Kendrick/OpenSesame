@@ -57,7 +57,7 @@ export function swipe(
   const down = (event: PointerEvent) => {
     if (!isTouchLike(event)) return;
     fingers.add(event.pointerId);
-    // Two fingers are the keymap's gestures (ADR 0168), never this one's.
+    // Two fingers are the keymap's gestures (ADR 0169), never this one's.
     if (fingers.size > 1) multi = true;
     tracking = !multi;
     startX = event.clientX;

@@ -1,5 +1,5 @@
 /**
- * The gestures in force (ADR 0168): the catalogue's defaults with a person's
+ * The gestures in force (ADR 0169): the catalogue's defaults with a person's
  * changes laid over them, read by the shell's recognizer, the `?` sheet and
  * Settings › Keybindings › Gestures, so none of them can disagree. It mirrors
  * `effective.ts`, one layer deep: a gesture has one target, not a sequence.
@@ -135,7 +135,7 @@ export function retargetGestures(
 /**
  * The keymap with its keys and macros forgotten and its gestures kept — those
  * that do not name a macro, which goes with the rest. The Keyboard tab's reset
- * (ADR 0168): each loadout is reset on its own tab.
+ * (ADR 0169): each loadout is reset on its own tab.
  */
 export function keysForgotten(config: KeymapConfig): KeymapConfig {
   const kept: GestureBindings = {};

@@ -1,5 +1,5 @@
 /**
- * Glyphs for Settings › Keybindings › Gestures (ADR 0168): two fingers moving
+ * Glyphs for Settings › Keybindings › Gestures (ADR 0169): two fingers moving
  * (the dots trail the arrow), two fingers tapping (a ring about each), and a
  * phone shaken. The swipes are one glyph turned, so the dots always sit where
  * the fingers started.

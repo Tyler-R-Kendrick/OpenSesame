@@ -229,7 +229,7 @@ export function resetKeymap(): KeymapResult {
 
 /**
  * Forget every key and macro, and keep the gestures that name none: the
- * Keyboard tab's reset (ADR 0168). Written as one save, so a store that will
+ * Keyboard tab's reset (ADR 0169). Written as one save, so a store that will
  * not take it is refused and the live keymap stays as it was.
  */
 export function resetKeys(): KeymapResult {

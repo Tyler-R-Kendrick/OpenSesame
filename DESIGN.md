@@ -374,7 +374,7 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   is `0` on a desktop and `1rem` under coarse/narrow, so the trap cannot be
   reopened by adding one more field style.
 - **A finger gets gestures where the keyboard has keys.** The keymap has two
-  loadouts ([ADR 0168](docs/adr/0168-gesture-loadout.md)), and the device leads
+  loadouts ([ADR 0169](docs/adr/0169-gesture-loadout.md)), and the device leads
   with the one it is used with: under a coarse pointer the help row says
   *Gestures* and its sheet lists the ones the shell recognises
   (`lib/gesture-help.ts`) — tap opens, hold

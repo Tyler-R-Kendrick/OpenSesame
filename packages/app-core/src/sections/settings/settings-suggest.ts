@@ -106,7 +106,7 @@ export function inBindings(source: string, caret: number): boolean {
 }
 
 /**
- * Whether the caret's line is a key of the `gestures:` mapping (ADR 0168),
+ * Whether the caret's line is a key of the `gestures:` mapping (ADR 0169),
  * where a gesture's name is the key and an action id the value.
  */
 export function inGestures(source: string, caret: number): boolean {

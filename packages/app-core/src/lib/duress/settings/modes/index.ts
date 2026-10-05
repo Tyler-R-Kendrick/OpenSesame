@@ -4,10 +4,20 @@ import { WRONG_PASSWORD } from "./wrong-password.js";
 
 export type {
   DuressEffectName,
+  DuressInputOption,
   DuressMode,
   DuressModeInput,
+  DuressPlan,
   DuressPresentation,
 } from "./mode.js";
+export { inputReady, itemLines } from "./inputs.js";
+export { decodePlan, encodePlan } from "./payload.js";
+export {
+  type EffectHost,
+  type EffectPhase,
+  hasEffectRunner,
+  runDuressEffects,
+} from "./effects.js";
 
 /** Every mode the sheet offers, in the order it draws them. */
 export const MODES = [DECOY, WRONG_PASSWORD] as const;
