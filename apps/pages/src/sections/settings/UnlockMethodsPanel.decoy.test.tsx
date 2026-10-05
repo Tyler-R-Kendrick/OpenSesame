@@ -1,5 +1,11 @@
 /** @vitest-environment jsdom */
-import { cleanup, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { UnlockMethodsPanel } from "./UnlockMethodsPanel.js";
 import {
@@ -28,5 +34,53 @@ describe("Unlock methods in a duress decoy", () => {
     guestHeader();
     render(<UnlockMethodsPanel />);
     expect(screen.getByText(/You are a guest/)).toBeTruthy();
+  });
+
+  it("draws no Duress or Travel section, nothing that says they are there", () => {
+    decoyHeader();
+    const { container } = render(<UnlockMethodsPanel />);
+    expect(screen.queryByText("Duress")).toBeNull();
+    expect(screen.queryByText("Travel")).toBeNull();
+    expect(container.querySelector("#duress-after-key")).toBeNull();
+    expect(container.querySelector("#travel-after-key")).toBeNull();
+  });
+});
+
+/**
+ * A person who came in by the front door's Skip has a guest vault with no key.
+ * Duress and Travel need a kept vault, so a guest is shown both, and their
+ * Add key sets the key first, the way the authenticator row does; without
+ * them the page never says the features exist.
+ */
+describe("Duress and Travel for a guest with no key", () => {
+  it("draws both sections, each with a key that acts", () => {
+    guestHeader();
+    const { container } = render(<UnlockMethodsPanel />);
+    const duress = container.querySelector("#duress-after-key");
+    const travel = container.querySelector("#travel-after-key");
+    expect(duress?.textContent).toContain("Duress code");
+    expect(travel?.textContent).toContain("Leave items at home");
+    for (const section of [duress, travel]) {
+      expect(section?.textContent).toContain("After a key.");
+      expect(section?.querySelector("button")).not.toBeNull();
+    }
+  });
+
+  it("opens the sheet that adds the first key from either one", () => {
+    guestHeader();
+    const { container } = render(<UnlockMethodsPanel />);
+    for (const id of ["#duress-after-key", "#travel-after-key"]) {
+      const key = container.querySelector(`${id} button`);
+      expect(key).not.toBeNull();
+      if (key) fireEvent.click(key);
+      // The key sheet is the one the Unlock methods rows open.
+      expect(screen.getByRole("dialog")).toBeTruthy();
+      const [close] = within(screen.getByRole("dialog")).getAllByRole(
+        "button",
+        { name: "Close" },
+      );
+      if (close) fireEvent.click(close);
+      expect(screen.queryByRole("dialog")).toBeNull();
+    }
   });
 });
