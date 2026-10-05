@@ -2,17 +2,17 @@ import { type Ref, useCallback } from "react";
 import { Link } from "react-router";
 import { useContributions } from "../../bindings/contributions.js";
 import { IconDotsVertical, IconPlus } from "../../components/Icons.js";
-import { openContextMenu } from "../../components/context-menu/menu-model.js";
+import {
+  type MenuOpening,
+  openContextMenu,
+} from "../../components/context-menu/menu-model.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ExportEntry } from "./ExportKey.js";
 import { addEntries } from "./add-menu.js";
 import "./new-item-fab.css";
 
 /** The menu of the other ways to add, as the context menu draws it. */
-function openAddMenu(
-  event: { clientX: number; clientY: number; preventDefault: () => void },
-  anchor: Element | null,
-): void {
+function openAddMenu(event: MenuOpening, anchor: Element | null): void {
   const entries = addEntries().map(({ id, label, run }) => ({
     id,
     label,

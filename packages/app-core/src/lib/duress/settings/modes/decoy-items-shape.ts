@@ -7,6 +7,13 @@
  * range, any non-string, and the whole body is no plan.
  */
 
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
+
 /** Items the decoy holds, and how long a title may be. */
 export const DECOY_ITEM_LIMITS = {
   min: 3,
@@ -28,26 +35,23 @@ export function cleanTitle(line: string): string {
   return line.replace(CONTROLS, " ").replace(/\s+/gu, " ").trim();
 }
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== "object" || value === null) return false;
-  const proto: unknown = Object.getPrototypeOf(value);
-  return proto === Object.prototype || proto === null;
+/** A plain JSON object, or nothing: a class instance or a dressed prototype is not one. */
+function plainObject(value: BoundaryValue): JsonObject | null {
+  if (!isJsonObject(value)) return null;
+  const proto: object | null = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null ? value : null;
 }
 
-function hasExactKeys(
-  value: Record<string, unknown>,
-  keys: readonly string[],
-): boolean {
+function hasExactKeys(value: JsonObject, keys: readonly string[]): boolean {
   const own = Object.keys(value);
   return own.length === keys.length && keys.every((key) => own.includes(key));
 }
 
-function readItem(value: unknown): DecoyItem | null {
-  if (!isPlainObject(value) || !hasExactKeys(value, ["title", "secret"])) {
-    return null;
-  }
-  const { title, secret } = value;
-  if (typeof title !== "string" || typeof secret !== "string") return null;
+function readItem(value: BoundaryValue): DecoyItem | null {
+  const object = plainObject(value);
+  if (!object || !hasExactKeys(object, ["title", "secret"])) return null;
+  const { title, secret } = object;
+  if (!isString(title) || !isString(secret)) return null;
   if (title.length === 0 || title.length > DECOY_ITEM_LIMITS.maxTitle) {
     return null;
   }
@@ -63,9 +67,10 @@ function readItem(value: unknown): DecoyItem | null {
 }
 
 /** The items of a sealed body, or nothing: a body that is not exactly ours is not run. */
-export function readDecoyItemsBody(body: unknown): DecoyItem[] | null {
-  if (!isPlainObject(body) || !hasExactKeys(body, ["items"])) return null;
-  const { items } = body;
+export function readDecoyItemsBody(body: BoundaryValue): DecoyItem[] | null {
+  const object = plainObject(body);
+  if (!object || !hasExactKeys(object, ["items"])) return null;
+  const { items } = object;
   if (
     !Array.isArray(items) ||
     items.length < DECOY_ITEM_LIMITS.min ||
@@ -74,7 +79,7 @@ export function readDecoyItemsBody(body: unknown): DecoyItem[] | null {
     return null;
   }
   const read: DecoyItem[] = [];
-  for (const entry of items as unknown[]) {
+  for (const entry of items) {
     const item = readItem(entry);
     if (!item) return null;
     read.push(item);
