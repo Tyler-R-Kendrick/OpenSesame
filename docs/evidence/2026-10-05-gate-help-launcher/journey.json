@@ -1,0 +1,275 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "shot": "door-1280"
+        },
+        {
+          "measure": ".door__theme button"
+        },
+        {
+          "pressOptional": "^Support"
+        },
+        {
+          "measure": ".sheet.support"
+        },
+        {
+          "shot": "door-1280-sheet"
+        },
+        {
+          "pressOptional": "Tutorials"
+        },
+        {
+          "shot": "door-1280-library"
+        },
+        {
+          "pressOptional": "The front door"
+        },
+        {
+          "pressOptional": "Next"
+        },
+        {
+          "pressOptional": "Next"
+        },
+        {
+          "pressOptional": "Next"
+        },
+        {
+          "measure": ".coach__card"
+        },
+        {
+          "shot": "door-1280-tour"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "shot": "door-390"
+        },
+        {
+          "measure": ".door__theme button"
+        },
+        {
+          "pressOptional": "^Support"
+        },
+        {
+          "pressOptional": "Tutorials"
+        },
+        {
+          "shot": "door-390-library"
+        },
+        {
+          "pressOptional": "The front door"
+        },
+        {
+          "pressOptional": "Next"
+        },
+        {
+          "pressOptional": "Next"
+        },
+        {
+          "pressOptional": "Next"
+        },
+        {
+          "measure": ".coach__card"
+        },
+        {
+          "shot": "door-390-tour"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "height": 640,
+      "steps": [
+        {
+          "press": "Set up your own"
+        },
+        {
+          "shot": "setup-320"
+        },
+        {
+          "measure": ".setup__bar button, .setup__bar .gate-seat"
+        },
+        {
+          "pressOptional": "Custom"
+        },
+        {
+          "shot": "setup-320-tabs"
+        },
+        {
+          "measure": ".setup__bar button, .setup__bar .gate-seat"
+        }
+      ]
+    },
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "arrive": ""
+        },
+        {
+          "shot": "unlock-1280"
+        },
+        {
+          "measure": ".unlock__brand-tools button"
+        },
+        {
+          "pressOptional": "^Support"
+        },
+        {
+          "pressOptional": "Tutorials"
+        },
+        {
+          "shot": "unlock-1280-library"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "arrive": ""
+        },
+        {
+          "shot": "unlock-390"
+        },
+        {
+          "measure": ".unlock__brand-tools button"
+        },
+        {
+          "pressOptional": "^Support"
+        },
+        {
+          "pressOptional": "Tutorials"
+        },
+        {
+          "shot": "unlock-390-library"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "arrive": "?error=access_denied"
+        },
+        {
+          "shot": "federation-390"
+        },
+        {
+          "measure": ".broker__bar button"
+        },
+        {
+          "pressOptional": "^Support"
+        },
+        {
+          "pressOptional": "Tutorials"
+        },
+        {
+          "shot": "federation-390-library"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "door-1280",
+      "width": 1280,
+      "title": "Front door \u2014 1280 \u00d7 800",
+      "caption": "The door gets one more key, in the card's corner beside the theme key: the help key. The wordmark, the two roads and the guest Skip have not moved.",
+      "before": "theme key alone, 32\u00d732 at 109,288; nothing to press for help",
+      "after": "theme key 32\u00d732 at 109,288 and help key 32\u00d732 at 145,288, 4px apart"
+    },
+    {
+      "shot": "door-1280-sheet",
+      "width": 1280,
+      "title": "The help key opens the Support sheet \u2014 1280 \u00d7 800",
+      "caption": "The same sheet the shell has, built offline: the Ask tab lists written help for this screen and offers no model to download or ask.",
+      "before": "no key, so nothing opens",
+      "after": "Support sheet docked right, 480\u00d7800 at 800,0; Ask tab"
+    },
+    {
+      "shot": "door-1280-library",
+      "width": 1280,
+      "title": "Tutorials on the door \u2014 1280 \u00d7 800",
+      "caption": "The Tutorials tab lists the two written for the door, and none of the shell's.",
+      "before": "no tutorials on a gate",
+      "after": "2 tutorials: The front door: two roads and Skip (4 steps); Join a session (3 steps)"
+    },
+    {
+      "shot": "door-1280-tour",
+      "width": 1280,
+      "title": "The door's tutorial lights the guest Skip \u2014 1280 \u00d7 800",
+      "caption": "Step 4 of 4 points at Skip. The card sits beside it, covers neither Skip nor the roads, and Next is there.",
+      "before": "Skip with no tour behind it",
+      "after": "card 368\u00d7177 at 369,339; Skip lit; Back and Next"
+    },
+    {
+      "shot": "door-390",
+      "width": 390,
+      "title": "Front door \u2014 390 \u00d7 844, touch",
+      "caption": "On a phone the key is 44\u00d744 like the theme key beside it, in the same corner row, and rests on nothing.",
+      "before": "theme key 44\u00d744 at 14,46",
+      "after": "theme key 44\u00d744 at 14,46 and help key 44\u00d744 at 62,46"
+    },
+    {
+      "shot": "door-390-tour",
+      "width": 390,
+      "title": "The door's tutorial on a phone \u2014 390 \u00d7 844",
+      "caption": "The card is a sheet docked to the screen edge the lit control is not on; Skip stays lit and uncovered at the top.",
+      "before": "no tour",
+      "after": "card 374\u00d7209 at 8,627 docked to the bottom; Skip lit at the top right"
+    },
+    {
+      "shot": "setup-320-tabs",
+      "width": 320,
+      "title": "Setup ceremony \u2014 320 \u00d7 640, touch",
+      "caption": "The bar holds the mark, the help key, Close and Skip all, each 44px. At 320px the lettering waits so Skip all is never pushed off the edge (before this rule it landed at x=322).",
+      "before": "Close at 214, Skip all at 270 to 314",
+      "after": "help key at 42, Close at 202, Skip all at 258 to 302 (inside 320)"
+    },
+    {
+      "shot": "unlock-1280",
+      "width": 1280,
+      "title": "Unlock \u2014 1280 \u00d7 800",
+      "caption": "The unlock form's corner holds the theme key and now the help key; the form, the guest link and the release notes are untouched.",
+      "before": "theme key 32\u00d732 at 557,232",
+      "after": "theme key at 519,232 and help key at 557,232, 32\u00d732 each"
+    },
+    {
+      "shot": "unlock-390-library",
+      "width": 390,
+      "title": "Tutorials on the unlock form \u2014 390 \u00d7 844",
+      "caption": "With the sheet open the library lists the tutorials for the form that is on screen: here the typed key and the account menu.",
+      "before": "no help on the unlock screen",
+      "after": "Tutorials tab: Open this device's vault; Who is signed in on the unlock screen"
+    },
+    {
+      "shot": "federation-390",
+      "width": 390,
+      "title": "Federation return \u2014 390 \u00d7 844",
+      "caption": "The screen that finishes a provider sign-in keeps a corner row, and the help key sits in it, away from the failure card and its Back to sign-in.",
+      "before": "no corner row, no help",
+      "after": "help key 44\u00d744 at 326,32"
+    }
+  ]
+}
