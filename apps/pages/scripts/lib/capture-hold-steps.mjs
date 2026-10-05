@@ -40,7 +40,8 @@ export function holdSteps() {
     /** `{ "slideHeld": -70 }` — drag the held finger this many px from where it landed. */
     async slideHeld(page, by) {
       const finger = down.get(page);
-      if (!finger) throw new Error("capture-evidence slideHeld: no finger is down");
+      if (!finger)
+        throw new Error("capture-evidence slideHeld: no finger is down");
       for (let step = 1; step <= 6; step++) {
         await send(finger, "touchMove", finger.y + (by * step) / 6);
         await page.waitForTimeout(30);

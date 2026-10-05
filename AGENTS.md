@@ -1216,13 +1216,20 @@ CI lives in `.github/workflows/`:
   The suite behind a check runs only when the diff touches that area
   (`scripts/lib/ci-changed-areas.mjs`). Inside a suite,
   `scripts/lib/ci-affected-tests.mjs` tests the changed packages or crates
-  and the ones that depend on them: TypeScript runs `turbo run typecheck test`
-  for that set, and Rust runs `cargo test --all-targets -p` for that set on
-  Rust 1.88.0. A root lockfile or manifest tests the whole suite. Bundle
+  and the ones that depend on them: TypeScript runs that set as a matrix of
+  legs so that no leg is the whole job (`static` lint, quality and typecheck;
+  `tests` for every affected package but Pages; Pages' own suite in four
+  `--shard`s; `experience`; `legCommands` in `scripts/lib/ci-affected-tests.mjs`
+  is the plan), and Rust runs `cargo test --all-targets -p` for that set on
+  Rust 1.88.0. Each leg pays about a minute to install, so a leg should do
+  under three minutes of work; a suite that outgrows that is cut into more
+  legs, never given a longer timeout. A root lockfile or manifest tests the whole suite. Bundle
   budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`;
   its browser gates run as parallel shards of one matrix job (`bundle`: each
   shard builds Pages once and walks its own gates; `verify:mobile` is split by
-  viewport with `MOBILE_SIZES`), and `scripts/lib/ci-bundle-shards.test.mjs`
+  viewport with `MOBILE_SIZES`, the experience walks in halves with
+  `EXPERIENCE_SHARD`, and `verify:tutorials` in slices with `TUTORIALS_SHARD`
+  plus a `gates` leg), and `scripts/lib/ci-bundle-shards.test.mjs`
   fails on a gate that runs in no shard or in two. A new gate goes in exactly
   one shard, not appended to a serial list;
   "Web Push end to end" (`verify:push`) is its own job that the same check

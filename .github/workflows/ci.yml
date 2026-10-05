@@ -53,11 +53,29 @@ jobs:
         run: node scripts/lib/ci-changed-areas.mjs
 
   typescript-tests:
-    name: TypeScript tests
+    # One leg is never the whole job. The affected suites used to run as one
+    # step of about ten minutes, nearly all of it Pages' own vitest run, so the
+    # job is a matrix: the static checks and typecheck, every affected package
+    # but Pages, Pages in four shards, and the experience contracts. Each leg
+    # pays about a minute to install, so a leg should do under three minutes of
+    # work (scripts/lib/ci-affected-tests.mjs, `legCommands`). `typescript`
+    # below folds every leg into the required "TypeScript" check.
+    name: TypeScript tests (${{ matrix.leg }})
     needs: changes
     if: needs.changes.outputs.typescript == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        leg:
+          - static
+          - tests
+          - pages:1/4
+          - pages:2/4
+          - pages:3/4
+          - pages:4/4
+          - experience
     services:
       # A real server for the repository contract: PGlite accepts a `Date`
       # in raw SQL that the production driver (postgres-js) rejects.
@@ -96,23 +114,27 @@ jobs:
         # DATABASE_URL) and installs git hooks, neither of which belongs in CI.
         run: pnpm install --frozen-lockfile
       - name: Lint (changed files)
+        if: matrix.leg == 'static'
         run: node scripts/quality/lint-changed.mjs
       - name: Lint generated auth artifacts
-        if: steps.affected.outputs.lint_artifacts == 'true'
+        if: matrix.leg == 'static' && steps.affected.outputs.lint_artifacts == 'true'
         run: pnpm lint:artifacts
       - name: Quality gates (structure + component coupling)
         # Ratchets against tools/quality/quality-baseline.json / tools/quality/package-metrics-baseline.json
         # and hard-fails on dependency cycles and phantom deps. Sub-second.
+        if: matrix.leg == 'static'
         run: pnpm quality
       - name: Typecheck and test affected packages
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          # `static` typechecks; the others are the legs named above.
+          TS_LEG: ${{ matrix.leg == 'static' && 'typecheck' || matrix.leg }}
         run: node scripts/lib/ci-affected-tests.mjs run-ts
       - name: Repository contract on a real Postgres
         # The same suites as the PGlite run, through the production driver.
         # Each suite creates and drops its own database.
-        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/database')
+        if: matrix.leg == 'tests' && (steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/database'))
         env:
           DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
           OPENSESAME_CLAIM_PEPPER: ci-pepper-ci-pepper-ci-pepper-ci-pepper
@@ -120,15 +142,10 @@ jobs:
       - name: Worker delivery on a real Postgres
         # Web Push through the real worker tick and a stand-in push service,
         # over the production driver. Builds and drops its own database.
-        if: steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/identity-worker')
+        if: matrix.leg == 'tests' && (steps.affected.outputs.scope == 'all' || contains(steps.affected.outputs.packages, '@opensesame/identity-worker'))
         env:
           DATABASE_URL: postgres://opensesame:opensesame@127.0.0.1:5432/postgres
         run: pnpm --filter @opensesame/identity-worker test:postgres
-      - name: Product-experience contracts
-        # One block across the experience packages. It runs when the
-        # affected set includes any of them.
-        if: steps.affected.outputs.verify_experience == 'true'
-        run: pnpm verify:experience
 
   bundle:
     # Shards of one job, run in parallel: each builds Pages (about a minute) and
@@ -155,7 +172,12 @@ jobs:
           - shard: static
           - shard: auth
           - shard: customer-crypto
-          - shard: journeys
+          # The experience walks, in two interleaved halves: one job was
+          # about four and a half minutes of walking behind its build.
+          - shard: journeys-1
+            experience: "1/2"
+          - shard: journeys-2
+            experience: "2/2"
           # One phone each (about a minute and three quarters apiece); the
           # tablets walk in half a minute and ride with the first.
           - shard: mobile-320
@@ -289,10 +311,11 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
         run: pnpm verify:customer-vault-browser
       - name: Experience journeys
-        if: matrix.shard == 'journeys'
+        if: startsWith(matrix.shard, 'journeys-')
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
+          EXPERIENCE_SHARD: ${{ matrix.experience }}
         run: node apps/pages/scripts/verify-experience-journeys.mjs
 
   device-inbox:
@@ -411,26 +434,31 @@ jobs:
         run: pnpm --filter @opensesame/pages verify:device-identity
 
   tutorials-e2e:
-    # Its own job, one per width: every tutorial is walked end to end (the
+    # Its own job, one per width and slice: every tutorial is walked end to end (the
     # shell's, each started, walked, gone back through, replayed and walked
     # again, and the gates', ADR 0166, each started from the help key its
-    # screen draws). Measured locally that is about four minutes a width for
-    # the shell with the fixed sleeps gone, twice that on a hosted runner,
-    # and the gate pass adds a minute or two on top of it, which still sits
-    # inside the twenty-five minutes below; it does not fit in
-    # the Bundle budget job's twenty minutes beside its builds and gates. `bundle-check` below folds the
+    # screen draws). Measured on a hosted runner that is about seven and a half
+    # minutes of walking a width, which is why it is cut into four interleaved
+    # slices (about a minute and a half each beside the build) and a leg of
+    # their own for the gate pass; it never fit in the Bundle budget job beside its
+    # builds and gates. `bundle-check` below folds the
     # result into the required "Bundle budgets" check, so it gates merges
     # without another required name.
-    name: Every tutorial, walked (${{ matrix.width }}px)
+    name: Every tutorial, walked (${{ matrix.width }}px, ${{ matrix.shard }})
     needs: changes
     # The Pages build, the app core and the guide runtime that build ships.
     if: needs.changes.outputs.bundle == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
         width: [1280, 390]
+        # Four interleaved slices of the library (TUTORIALS_SHARD): the walk
+        # was about seven and a half minutes a width in one job, and each
+        # slice now walks a quarter of it. `gates` is what belongs to no
+        # tutorial: the gates, the popups and the two interaction checks.
+        shard: ["1/4", "2/4", "3/4", "4/4", "gates"]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -461,6 +489,7 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
           TUTORIALS_WIDTHS: ${{ matrix.width }}
+          TUTORIALS_SHARD: ${{ matrix.shard }}
         run: pnpm --filter @opensesame/pages verify:tutorials
 
   rust:

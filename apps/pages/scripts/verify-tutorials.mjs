@@ -28,6 +28,11 @@
  *
  * `TUTORIALS_DEV_URL=http://localhost:5180` walks a running dev server
  * instead of `dist/`; `TUTORIALS_ONLY=vault.lock,vault.export` narrows it.
+ * `TUTORIALS_SHARD=2/4` walks the second of four interleaved slices of the
+ * library (every fourth tutorial) and nothing else, and `TUTORIALS_SHARD=gates`
+ * walks no tutorial of the shell at all: it runs the gates, the popups and the
+ * two interaction checks, which belong to no tutorial. CI runs the slices and
+ * the gates in parallel jobs; unset is all of it in one run.
  */
 
 import fs from "node:fs";
@@ -63,6 +68,25 @@ const only = new Set(
 const widths = (process.env.TUTORIALS_WIDTHS ?? "1280,390")
   .split(",")
   .map(Number);
+/**
+ * This run's share of the walk: `i/n` is slice i of n of the shell's library,
+ * `gates` is everything that is not a shell tutorial, and unset is all of it.
+ */
+const shard = process.env.TUTORIALS_SHARD ?? "";
+const [sliceAt, sliceOf] = /^\d+\/\d+$/.test(shard)
+  ? shard.split("/").map(Number)
+  : [1, 1];
+if (
+  shard !== "" &&
+  shard !== "gates" &&
+  !(sliceAt >= 1 && sliceAt <= sliceOf)
+) {
+  console.error("TUTORIALS_SHARD must be i/n with 1 <= i <= n, or gates");
+  process.exit(2);
+}
+const inShard = (_, at) => shard !== "gates" && at % sliceOf === sliceAt - 1;
+/** The gates, the popups and the interaction checks: not in a slice. */
+const withGates = shard === "" || shard === "gates";
 const keepShots = process.env.TUTORIALS_SHOTS === "1";
 const verbose = process.env.TUTORIALS_VERBOSE === "1";
 
@@ -158,7 +182,8 @@ async function sealedShell(width) {
 
 const wants = (id) => only.size === 0 || only.has(id);
 const gatesWanted =
-  only.size === 0 || [...only].some((id) => id.startsWith("gate."));
+  withGates &&
+  (only.size === 0 || [...only].some((id) => id.startsWith("gate.")));
 
 /** One tutorial a gate offers, walked on the gate it was listed from. */
 async function walkGate(page, entry, { phone, width }) {
@@ -189,18 +214,21 @@ async function shellPass(width) {
     !listed.some((entry) => entry.id.startsWith("gate.")),
     "the shell's library offers none of the gates' tutorials (ADR 0166)",
   );
-  const entries = listed.filter(
+  const wanted = listed.filter(
     (entry) => only.size === 0 || only.has(entry.id),
   );
-  console.log(`${width}px: ${entries.length} tutorials on the shell`);
+  const entries = wanted.filter(inShard);
+  console.log(
+    `${width}px: ${entries.length} of ${wanted.length} tutorials on the shell (${shard || "all"})`,
+  );
   const started = Date.now();
-  if (only.size === 0 || only.has("vault.lock")) {
+  if (withGates && (only.size === 0 || only.has("vault.lock"))) {
     where = `${width}px escape`;
     await guarded(page, "escape", () =>
       escapeEndsTheTour(page, { check, base }),
     );
   }
-  if (only.size === 0 || only.has("vaults.switch")) {
+  if (withGates && (only.size === 0 || only.has("vaults.switch"))) {
     where = `${width}px move`;
     await guarded(page, "move", () =>
       moveAdvancesTheTour(page, { check, base }),
@@ -210,17 +238,21 @@ async function shellPass(width) {
   // A tutorial that points at an item is offered only where the vault holds
   // one, so a second pass adds items the way a person does and walks what the
   // library offers then that it did not before.
-  const walked = new Set(entries.map((entry) => entry.id));
+  // Every slice's first pass counts as walked, not just this one's.
+  const walked = new Set(wanted.map((entry) => entry.id));
   where = `${width}px seed`;
   await guarded(page, "seed", () => seedVault(page, base));
-  const later = (await listTutorials(page)).filter(
-    (entry) => !walked.has(entry.id) && (only.size === 0 || only.has(entry.id)),
-  );
+  const later = (await listTutorials(page))
+    .filter(
+      (entry) =>
+        !walked.has(entry.id) && (only.size === 0 || only.has(entry.id)),
+    )
+    .filter(inShard);
   console.log(`${width}px: ${later.length} more once the vault holds items`);
   await walkEntries(page, later, { phone, width });
   const seconds = Math.round((Date.now() - started) / 1000);
   const total = entries.length + later.length;
-  check(total > 0, "the library offers tutorials");
+  check(total > 0 || shard !== "", "the library offers tutorials");
   console.log(`${width}px: ${total} tutorials walked in ${seconds}s`);
   if (gatesWanted) {
     const popupsBegan = Date.now();
