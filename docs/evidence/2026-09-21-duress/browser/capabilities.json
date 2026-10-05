@@ -5,9 +5,7 @@
   "chromium": {
     "path": "/opt/pw-browsers/chromium",
     "source": "env:PLAYWRIGHT_CHROMIUM",
-    "probed": [
-      "/opt/pw-browsers/chromium"
-    ],
+    "probed": ["/opt/pw-browsers/chromium"],
     "version": "Chromium 141.0.7390.37"
   },
   "webcrypto": {
