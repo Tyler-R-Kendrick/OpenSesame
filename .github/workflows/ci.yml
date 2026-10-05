@@ -131,15 +131,40 @@ jobs:
         run: pnpm verify:experience
 
   bundle:
-    name: Bundle budget tests
+    # Shards of one job, run in parallel: each builds Pages (about a minute) and
+    # walks its own gates. One serial job grew to the whole twenty minutes, then
+    # past them (a run on #717 took 19m52s, the next on #718 was cancelled at
+    # the limit with every walk passing), because each journey added lengthened
+    # it. The slowest gate, `verify:mobile`, is split by viewport (MOBILE_SIZES).
+    # Every gate named below runs in exactly one shard (the workflow test
+    # `ci-bundle-shards.test.mjs` fails on one that runs in none or in two), and
+    # `bundle-check` reads this job's result across all shards, so a failed
+    # shard fails the required "Bundle budgets" check.
+    name: Bundle budget tests (${{ matrix.shard }})
     needs: changes
     if: needs.changes.outputs.bundle == 'true'
     runs-on: ubuntu-latest
-    # 2026-10-05: 20 -> 30. The job builds Pages and then walks every
-    # verify:* journey, and each journey added (the duress modes' three, the
-    # tutorials') lengthens it. A run on #717 finished in 19m52s and the next on
-    # #718 was cancelled by this limit mid-journey with every walk passing.
-    timeout-minutes: 30
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: budgets
+          - shard: keyboard
+          - shard: sign-in
+          - shard: static
+          - shard: auth
+          - shard: journeys
+          # One phone each (about a minute and three quarters apiece); the
+          # tablets walk in half a minute and ride with the first.
+          - shard: mobile-320
+            sizes: "320,tablet-portrait,tablet-landscape"
+          - shard: mobile-390
+            sizes: "390"
+          - shard: mobile-430
+            sizes: "430"
+          - shard: mobile-landscape
+            sizes: "landscape"
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -151,7 +176,13 @@ jobs:
           cache: pnpm
       - name: Install
         run: pnpm install --frozen-lockfile
+      - name: Build Pages
+        if: matrix.shard != 'budgets'
+        env:
+          VITE_BASE: /OpenSesame/
+        run: pnpm exec turbo run build --filter=@opensesame/pages
       - name: Build and measure shipped bundles
+        if: matrix.shard == 'budgets'
         # apps/pages precaches its whole dist for offline use, so growth here is
         # growth in what every installing device downloads. The two hardened
         # capability profiles are built too: each build fails on an excluded
@@ -165,6 +196,7 @@ jobs:
           done
           node scripts/quality/bundle-budget-gate.mjs
       - name: Capability matrix shapes the budgets do not measure
+        if: matrix.shard == 'budgets'
         # `build:profile --all` (BUILD-07) found three regressions the two
         # builds above cannot see: an organization that keeps Access but not
         # browser-local IAM or Connections (enterprise-selected, hardened) had
@@ -178,6 +210,7 @@ jobs:
           VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:profile \
             --profile capability-profiles/rich-explicit.json --mode selective
       - name: Native Chrome WebMCP discovery and control
+        if: matrix.shard == 'budgets'
         # Chrome's WebMCP CDP domain backs the Application pane. No polyfill;
         # unavailable native support or zero tools must fail this required job.
         env:
@@ -187,11 +220,13 @@ jobs:
           google-chrome --version
           pnpm --filter @opensesame/pages verify:webmcp
       - name: Keyboard-only first-load and navigation contract
+        if: matrix.shard == 'keyboard'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:keyboard
       - name: Push worker installs on approval and reverts on removal
+        if: matrix.shard == 'budgets'
         # A real localhost origin with service workers allowed (context.route
         # never sees a worker's fetches). A device holding the core worker
         # approves Push notifications and must end on sw-push.js at the same
@@ -203,6 +238,7 @@ jobs:
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:push-worker
       - name: Phone and tablet layout and touch contract
+        if: startsWith(matrix.shard, 'mobile-')
         # Real coarse-pointer contexts at 320/390/430 and landscape: 44px
         # targets, no field under 16px (iOS zooms a smaller one on focus and
         # never zooms back), one-row statusline, safe areas, nothing floating
@@ -214,19 +250,23 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
+          MOBILE_SIZES: ${{ matrix.sizes }}
         run: pnpm --filter @opensesame/pages verify:mobile
       - name: Browser-local application sign-in contract
+        if: matrix.shard == 'sign-in'
         # Real cross-origin popup and virtual WebAuthn, no Identity/Host backend.
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:local-iam
       - name: Self-Issued OpenID Provider v2 contract
+        if: matrix.shard == 'keyboard'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:siop
       - name: Static front end complete without a backend
+        if: matrix.shard == 'static'
         # ADR 0090: first screen is sign-in + guest, deep links resolve, no
         # loopback request or backend copy. verify:experience in the
         # TypeScript job skips browser gates (it builds no dist), so this is
@@ -236,12 +276,14 @@ jobs:
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:static
       - name: Unlock methods and second steps
+        if: matrix.shard == 'auth'
         # ADR 0091: key first, then scan, then a code; lock → PIN → code.
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:auth
       - name: Experience journeys
+        if: matrix.shard == 'journeys'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
