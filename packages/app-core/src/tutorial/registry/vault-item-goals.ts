@@ -7,8 +7,9 @@
  * (`/vault/item`) and, for the trash, the trash itself (`/vault/trash`); both
  * are places a tour may name without naming an item (`vault-routes.ts`). They
  * need an item to open, so they are offered only where `vault.has-items`
- * holds. Trash, restore and delete forever are locked keys (ADR 0156): the
- * tours point at them and say what they do, and never press or bind one.
+ * holds. Trash and delete forever are locked keys (ADR 0156): the tours point
+ * at them, and at restore beside them, say what they do, and never press or
+ * bind one.
  *
  * Every string is a checked-in literal: nothing here names an item.
  */
@@ -98,7 +99,7 @@ export const VAULT_ITEM_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "vault.item.trash"',
-      'say "Trash, restore and delete forever are locked keys: none can be remapped onto, and no macro can run one. This tour only points at them."',
+      'say "Trash and delete forever are locked keys: nothing can be remapped onto them, and no macro can run them. This tour only points at the keys for trash, restore and delete; it never presses one."',
       'navigate "/vault/item"',
       'wait route "/vault/item" timeout=15000',
       'focus "item.trash" "Move to trash sets the open item aside. It stays sealed there and can be restored. Press x in the list to trash the row under the cursor." side=bottom',

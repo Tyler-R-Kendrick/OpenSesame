@@ -47,7 +47,7 @@ export const KEYBOARD_GOALS: readonly GuideGoalDescriptor[] = [
       'wait route "/vault" timeout=15000',
       'focus "shell.command-bar" "Press : or Ctrl-l and the cursor jumps here. Type a command: go to a section, search, or copy a field. Enter runs it." side=bottom',
       'say "Press ? and the keyboard help opens: every key now in force, so a key you moved shows where it went."',
-      'say "Press m to speak. It listens while the command bar draws a microphone, which needs voice input switched on and a browser that can hear you; press m again to run what was heard. With no microphone, the key does nothing."',
+      'say "Press m to speak. It listens while the command bar draws a microphone, which needs the On-device model switched on under Settings → Capabilities and a browser that can hear you; press m again to run what was heard. With no microphone, the key does nothing."',
       "end",
     ].join("\n"),
   },
