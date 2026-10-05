@@ -126,6 +126,23 @@ try {
     await expect(
       page.getByRole("button", { name: "Join a session" }),
     ).toBeFocused();
+    // The help key sits in the card's corner row, after the roads in Tab order
+    // (ADR 0166): Tab reaches it, Enter opens the Support sheet, and Escape
+    // closes it with the focus back on the key. It never held the focus on
+    // arrival — the door landed on Set up above.
+    await page.keyboard.press("Tab");
+    const help = page.getByRole("button", { name: "Support", exact: true });
+    await expect(help).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("dialog", { name: "Support", exact: true }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(
+      page.getByRole("dialog", { name: "Support", exact: true }),
+    ).toHaveCount(0);
+    await expect(help).toBeFocused();
+    await page.keyboard.press("Shift+Tab");
     await page.keyboard.press("Shift+Tab");
     await page.keyboard.press("Shift+Tab");
     await expect(

@@ -4,6 +4,7 @@
  */
 
 import type { EnrollmentState } from "../trigger/enrollment.js";
+import { ENROLLMENT_STATE_KEY } from "./boot-keys.js";
 import {
   type JournalWriteResult,
   clearJournal,
@@ -13,7 +14,7 @@ import {
   writeJournal,
 } from "./journal.js";
 
-export const ENROLLMENT_STATE_KEY = "duress.enrollment-state.v1";
+export { ENROLLMENT_STATE_KEY };
 
 type Options = Readonly<{ requireDurable?: boolean }>;
 const defaultOptions = {} satisfies Options;

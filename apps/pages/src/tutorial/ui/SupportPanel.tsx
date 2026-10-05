@@ -1,15 +1,17 @@
 import {
   type LibraryOptions,
   goalOffered,
+  tutorialStartsFrom,
 } from "@opensesame/app-core/tutorial/registry/areas.js";
 import { searchHelpTopics } from "@opensesame/app-core/tutorial/registry/goals-search.js";
 import {
   type GuideGoalDescriptor,
+  type HelpTopic,
   guideGoal,
   helpTopicsForRoute,
   mergedGuideGoals,
 } from "@opensesame/app-core/tutorial/registry/goals.js";
-import { guideRouteWithin } from "@opensesame/app-core/tutorial/registry/routes.js";
+import { scopeApplies } from "@opensesame/app-core/tutorial/registry/routes.js";
 import {
   type ReactElement,
   useCallback,
@@ -67,9 +69,29 @@ function goalsForRoute(
     (goal) =>
       goal.libraryOnly !== true &&
       goalOffered(goal, gate) &&
-      (goal.routes.length === 0 ||
-        goal.routes.some((candidate) => guideRouteWithin(route, candidate))),
+      scopeApplies(goal.routes, route),
   );
+}
+
+/**
+ * The written help worth listing on `route`: a topic whose tutorial is not
+ * offered is dropped, and one whose tutorial cannot start from this screen
+ * keeps its written answer without a Show me — a search reaches every topic,
+ * and a gate cannot start the shell's tours (ADR 0166).
+ */
+function topicsHere(
+  topics: readonly HelpTopic[],
+  route: string,
+  gate: LibraryOptions,
+): readonly HelpTopic[] {
+  return topics.flatMap((topic) => {
+    const named = topic.goal ? guideGoal(topic.goal) : null;
+    if (named === null) return [topic];
+    if (!goalOffered(named, gate)) return [];
+    return [
+      tutorialStartsFrom(named, route) ? topic : { ...topic, goal: null },
+    ];
+  });
 }
 
 /**
@@ -99,13 +121,11 @@ export function SupportPanel(): ReactElement {
   const gate = useTutorialGate();
   const topics = useMemo(
     () =>
-      (query.trim()
-        ? searchHelpTopics(query)
-        : helpTopicsForRoute(view.route)
-      ).filter((topic) => {
-        const named = topic.goal ? guideGoal(topic.goal) : null;
-        return named === null || goalOffered(named, gate);
-      }),
+      topicsHere(
+        query.trim() ? searchHelpTopics(query) : helpTopicsForRoute(view.route),
+        view.route,
+        gate,
+      ),
     [query, view.route, gate],
   );
   const goals = useMemo(
