@@ -11,7 +11,7 @@ import {
   it,
   vi,
 } from "vitest";
-import type { ContextWithPorts } from "../ports-b.js";
+import { type ContextWithPorts, readOperationIds } from "../ports-b.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
@@ -93,9 +93,7 @@ describe("agents.webmcp runtime", () => {
       "opensesame_navigate",
       "opensesame_health",
     ]);
-    expect(
-      tools.map((tool) => (tool as { operationId?: string }).operationId),
-    ).toEqual(
+    expect(tools.map((tool) => readOperationIds(tool)?.[0])).toEqual(
       expect.arrayContaining([
         "app.status",
         "app.navigate",
@@ -113,7 +111,7 @@ describe("agents.webmcp runtime", () => {
     }
     // Every one carries its operations, or the core could not filter it.
     for (const tool of tools) {
-      expect((tool as { operationId?: string }).operationId).toBeTruthy();
+      expect(readOperationIds(tool)?.[0]).toBeTruthy();
     }
     expect(t.entries("background-job").map((job) => job.id)).toEqual([
       "webmcp-boot",
@@ -142,9 +140,7 @@ describe("agents.webmcp runtime", () => {
 
   it("contributes the session binding as a shell wrapper and revokes it", async () => {
     const t = createTestContext();
-    const handle = await runtime.capabilityRuntime.activate(
-      t.ctx as ContextWithPorts,
-    );
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
     const record = t.registered.find((entry) => entry.kind === "shell-wrapper");
     expect(record?.entry).toMatchObject({ id: "webmcp-session", order: 20 });
     expect(t.liveKinds()).toContain("shell-wrapper");
