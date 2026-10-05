@@ -24,6 +24,7 @@ import { clearActivePresentation } from "@opensesame/app-core/lib/duress/compart
 import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation.js";
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
+import { useTabSwipe } from "./lib/use-tab-swipe.js";
 import {
   useSessionGuards as defaultUseSessionGuards,
   useTheme as defaultUseTheme,
@@ -330,6 +331,7 @@ function VaultApp() {
  */
 export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   usePaneEscape();
+  useTabSwipe();
   const resolved = { ...defaultSlots, ...slots };
   const location = useLocation();
   const routes = resolved.useRouteContributions();

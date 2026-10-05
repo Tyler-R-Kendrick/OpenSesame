@@ -22,6 +22,7 @@ export const GESTURE_HELP: readonly GestureHelpRow[] = [
   ["Hold a row", "Its actions"],
   ["Swipe a row left", "Its actions"],
   ["Swipe right", "Back"],
+  ["Swipe a page with tabs", "Next or previous tab"],
   ["Tap the + button", "Add an item"],
   ["Hold the + button", "Import or export"],
 ];

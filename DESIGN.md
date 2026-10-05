@@ -378,7 +378,8 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   with the one it is used with: under a coarse pointer the help row says
   *Gestures* and its sheet lists the ones the shell recognises
   (`lib/gesture-help.ts`) — tap opens, hold
-  or swipe a row left asks for its actions, swipe right goes back, then the
+  or swipe a row left asks for its actions, swipe right goes back, swiping a
+  page with tabs turns to the next or the previous tab, then the
   two-finger swipes, the two-finger tap and the shake in force — and what
   the vault's first pane asks of a thumb is drawn for one: search is the
   status-line prompt (`/? words`), the one text input on the screen, and adding
