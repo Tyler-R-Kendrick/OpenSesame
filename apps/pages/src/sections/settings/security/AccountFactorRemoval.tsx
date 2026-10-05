@@ -140,7 +140,6 @@ export function AccountFactorRemoval({
   const land = (at: string) =>
     setLanding((last) => ({ at, n: (last?.n ?? 0) + 1 }));
 
-  const top = passkey ? "Remove this passkey?" : "Remove the authenticator?";
   const title = passkey ? "Account passkey" : "Account authenticator app";
 
   if (removed) {
@@ -155,7 +154,6 @@ export function AccountFactorRemoval({
     return (
       <CeremonyShell
         ok={false}
-        top={top}
         name="This browser cannot use a passkey"
         facts={[{ key: "Use", value: "a browser with passkeys" }]}
         secondary={{ label: "Keep it", onClick: onDone }}
@@ -175,11 +173,11 @@ export function AccountFactorRemoval({
       refused: (message) => {
         setRefusal(message);
         setCode("");
-        land(by === "totp" ? "input" : ".btn--danger");
+        land(by === "totp" ? "input" : ".go--danger");
       },
       removed: () => {
         setRemoved(true);
-        land(".btn--primary");
+        land(".go");
       },
     });
   };
@@ -189,7 +187,6 @@ export function AccountFactorRemoval({
       <ProveForm
         passkey={passkey}
         name={factor.name}
-        top={top}
         by={by}
         offered={offered}
         code={code}
@@ -216,7 +213,6 @@ export function AccountFactorRemoval({
 function ProveForm({
   passkey,
   name,
-  top,
   by,
   offered,
   code,
@@ -230,7 +226,6 @@ function ProveForm({
 }: {
   passkey: boolean;
   name: string;
-  top: string;
   by: AccountFactorKind;
   offered: AccountFactorKind[];
   code: string;
@@ -250,8 +245,6 @@ function ProveForm({
       }
     >
       <CeremonyShell
-        ok={false}
-        top={top}
         name={name}
         facts={[
           {

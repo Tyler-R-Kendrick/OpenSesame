@@ -49,8 +49,6 @@ function RemoveCard({
 }) {
   return (
     <CeremonyShell
-      ok={false}
-      top="Remove the duress code?"
       name="Duress code · this device"
       facts={[
         { key: "After", value: "unlock is ordinary; the code is just a guess" },

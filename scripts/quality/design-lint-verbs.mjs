@@ -29,6 +29,11 @@ const CHOICE_ROLE =
 const CHOICE_CLASS =
   /\b(choice|road|vault-row__body--road|unlock__switch|identity-ceremony__later|broker__link|account-switcher__(exit|add)|signin__menu-item)\b/;
 
+/** The open tag says its words are the thing chosen, by role or by class. */
+export function wordsAreChoice(tag) {
+  return CHOICE_ROLE.test(tag) || CHOICE_CLASS.test(tag);
+}
+
 /** Index just past the `>` that ends the tag opened at `from`. */
 function tagEnd(source, from) {
   let depth = 0;
@@ -42,7 +47,10 @@ function tagEnd(source, from) {
 }
 
 /** The words a button shows: JSX text, and string literals in its braces. */
-function faces(inner) {
+function faces(face) {
+  // A template's holes are braces too: `{`Add ${preset.label}`}` must read
+  // as one expression, or the verb in front of the hole is never seen.
+  const inner = face.replace(/\$\{[^{}]*\}/g, "…");
   const out = [];
   const text = inner
     .replace(/<[^>]*>/g, " ")
@@ -69,7 +77,7 @@ export function wordVerbHits(source) {
     if (KEY.test(tag.match(/className=("[^"]*"|\{[\s\S]*?\})/)?.[1] ?? "")) {
       continue;
     }
-    if (CHOICE_ROLE.test(tag) || CHOICE_CLASS.test(tag)) continue;
+    if (wordsAreChoice(tag)) continue;
     const close = source.indexOf("</button>", end);
     if (close === -1) continue;
     if (faces(source.slice(end, close)).some((face) => EXECUTING.test(face))) {
