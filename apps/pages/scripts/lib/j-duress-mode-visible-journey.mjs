@@ -46,12 +46,12 @@ async function toTheVault(page, base) {
   await page.waitForTimeout(1200);
 }
 
-const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** A list row: the item's name and its type, as the list draws them (`Gym locker.secret`). */
 const row = (page, name) =>
   page
-    .getByText(new RegExp(`^${escape(name)}\\.\\w+$`))
+    .getByText(new RegExp(`^${escapeRe(name)}\\.\\w+$`))
     .locator("visible=true");
 
 const visible = (page, name) => row(page, name).count();
@@ -118,12 +118,16 @@ async function turnOn({ page, check, snap }) {
     await page.getByRole("switch", { name: `Hide ${item.name}` }).click();
   }
   const after = await switches.evaluateAll((nodes) =>
-    nodes.map((n) => [n.getAttribute("aria-label"), n.getAttribute("aria-checked")]),
+    nodes.map((n) => [
+      n.getAttribute("aria-label"),
+      n.getAttribute("aria-checked"),
+    ]),
   );
   check(
     after.every(
       ([label, state]) =>
-        state === (SHOWN.some((i) => label === `Hide ${i.name}`) ? "false" : "true"),
+        state ===
+        (SHOWN.some((i) => label === `Hide ${i.name}`) ? "false" : "true"),
     ),
     "switching Hidden off on two items leaves exactly those two shown",
   );

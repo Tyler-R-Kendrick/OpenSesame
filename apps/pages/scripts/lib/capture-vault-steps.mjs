@@ -18,6 +18,19 @@ export function vaultSteps({ press, visit }) {
       }
     },
     /**
+     * Bring the first match to the top of its scroller, when this build draws
+     * it: a sheet longer than the screen shows its foot, and the part a pair
+     * is about may be above it. A base build without it is skipped.
+     */
+    async bringIntoViewOptional(page, selector) {
+      const target = page.locator(selector).first();
+      if (!(await target.count())) return;
+      await target.evaluate((node) => {
+        node.scrollIntoView({ block: "start", behavior: "instant" });
+      });
+      await page.waitForTimeout(500);
+    },
+    /**
      * Hold a finger on a control as raw touch events, long enough for the
      * app's own long-press recognizer, then lift: the road a phone takes to a
      * context menu.
