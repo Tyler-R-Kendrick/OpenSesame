@@ -105,6 +105,20 @@ export async function editPangolin({ page, stub, shot, until }) {
   console.log("TD-EDIT ok");
 }
 
+/** The key Tailscale was asked for: a week, reusable, pre-approved, tag:ci. */
+function expectMintedAsChosen(stub) {
+  const body = received(stub, "POST", "/api/v2/tailnet/example.com/keys").at(
+    -1,
+  )?.body;
+  const create = body?.capabilities?.devices?.create;
+  const asChosen =
+    body?.expirySeconds === 604_800 &&
+    create?.reusable === true &&
+    create?.preauthorized === true &&
+    JSON.stringify(create?.tags) === '["tag:ci"]';
+  if (!asChosen) throw new Error(`TD-ADD: minted ${JSON.stringify(body)}`);
+}
+
 // TD-ADD
 export async function mintAndJoin({ page, stub, shot, until }) {
   await page.getByRole("button", { name: "Add a device" }).click();
@@ -121,15 +135,7 @@ export async function mintAndJoin({ page, stub, shot, until }) {
   await expect(sheet.getByLabel("Join command", { exact: true })).toHaveValue(
     `tailscale up --auth-key=${secret}`,
   );
-  const minted = received(stub, "POST", "/api/v2/tailnet/example.com/keys");
-  const create = minted.at(-1)?.body?.capabilities?.devices?.create;
-  if (
-    minted.at(-1)?.body?.expirySeconds !== 604_800 ||
-    create?.reusable !== true ||
-    create?.preauthorized !== true ||
-    JSON.stringify(create?.tags) !== '["tag:ci"]'
-  )
-    throw new Error(`TD-ADD: minted ${JSON.stringify(minted.at(-1)?.body)}`);
+  expectMintedAsChosen(stub);
   await shot(page, "1280-key-minted");
   await sheet.getByRole("button", { name: "Done" }).click();
   await sheet.waitFor({ state: "detached" });

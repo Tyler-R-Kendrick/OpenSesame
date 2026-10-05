@@ -123,26 +123,46 @@ function readJson(request) {
   });
 }
 
-function changeDevice(tailnet, found, what, body, response) {
-  if (what === "authorized") found.authorized = body?.authorized === true;
-  else if (what === "name") found.name = `${body?.name}.${DOMAIN}`;
-  else if (what === "key") found.keyExpiryDisabled = body?.keyExpiryDisabled;
-  else if (what === "expire") found.expires = new Date().toISOString();
-  else if (what === "tags") {
-    const bad = (body?.tags ?? []).find((tag) => !OWNED_TAGS.has(tag));
-    if (bad) return refuse(response, 400, `${bad} is not a valid tag`);
-    found.tags = body.tags;
-    if (found.tags.length > 0) found.user = "";
-  } else if (what === "routes") {
-    const routes = body?.routes ?? [];
-    found.enabledRoutes = routes.filter((r) =>
-      found.advertisedRoutes.includes(r),
-    );
-    return ok(response, {
-      advertisedRoutes: found.advertisedRoutes,
-      enabledRoutes: found.enabledRoutes,
-    });
-  } else return refuse(response, 404, "not found");
+function setTags(found, body, response) {
+  const bad = (body?.tags ?? []).find((tag) => !OWNED_TAGS.has(tag));
+  if (bad) return refuse(response, 400, `${bad} is not a valid tag`);
+  found.tags = body.tags;
+  if (found.tags.length > 0) found.user = "";
+  return ok(response);
+}
+
+function setRoutes(found, body, response) {
+  found.enabledRoutes = (body?.routes ?? []).filter((r) =>
+    found.advertisedRoutes.includes(r),
+  );
+  return ok(response, {
+    advertisedRoutes: found.advertisedRoutes,
+    enabledRoutes: found.enabledRoutes,
+  });
+}
+
+/** The plain setters: each writes one field and answers 200 with no body. */
+const SETTERS = {
+  authorized: (found, body) => {
+    found.authorized = body?.authorized === true;
+  },
+  name: (found, body) => {
+    found.name = `${body?.name}.${DOMAIN}`;
+  },
+  key: (found, body) => {
+    found.keyExpiryDisabled = body?.keyExpiryDisabled;
+  },
+  expire: (found) => {
+    found.expires = new Date().toISOString();
+  },
+};
+
+function changeDevice(found, what, body, response) {
+  if (what === "tags") return setTags(found, body, response);
+  if (what === "routes") return setRoutes(found, body, response);
+  const set = Object.hasOwn(SETTERS, what) ? SETTERS[what] : null;
+  if (!set) return refuse(response, 404, "not found");
+  set(found, body);
   return ok(response);
 }
 
@@ -201,8 +221,7 @@ function route(tailnet, method, path, body, response) {
       tailnet.devices = tailnet.devices.filter((d) => d !== found);
       return ok(response);
     }
-    if (method === "POST")
-      return changeDevice(tailnet, found, parts[2], body, response);
+    if (method === "POST") return changeDevice(found, parts[2], body, response);
   }
   return refuse(response, 404, "not found");
 }
