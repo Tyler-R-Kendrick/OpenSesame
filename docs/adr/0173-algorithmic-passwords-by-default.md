@@ -60,9 +60,12 @@ method made with Sphinx reads **Algorithmic (earlier)**.
 Plain words: *Capital letters*, *Lowercase letters*, *Numbers*, *Symbols*,
 *Avoid look-alike characters* (it says what it means on hover), *Fewest numbers*,
 *Fewest symbols*, and a strength word (Excellent, Strong, Fair, Weak) in place of
-a bit count. What a person needs is on the form: the generator, one line that says
-what it will make, the password, and *Include pepper*. The options open from that
-line, a native disclosure.
+a bit count. What a person needs is on the form: the password, with its show and
+make-another keys, and one line, *Options*. The generator (*Algorithmic* unless
+chosen otherwise), its options and *Include pepper* are inside that line, a native
+disclosure, closed. A new password's pepper is on and goes at the end
+([ADR 0174 §2](0174-the-pepper-is-the-persons-and-passwords-are-produced-by-one-facade.md)),
+so neither has to be asked about.
 
 ### 4. Sphinx is retired, not silently broken
 

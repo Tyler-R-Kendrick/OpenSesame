@@ -45,7 +45,7 @@ export function newMethod(
         id,
         type,
         generator,
-        pepper: false,
+        pepper: true,
         secret: mintRootSecret(),
         changedAt: now.toISOString(),
       };

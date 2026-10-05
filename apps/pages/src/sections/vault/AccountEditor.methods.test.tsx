@@ -216,11 +216,13 @@ describe("account editor: methods and generators", () => {
     // What is stored is the root, not the password the person saw.
     expect(method.secret).toHaveLength(44);
     expect(method.secret).not.toBe(rotated);
-    expect(method.pepper).toBe(false);
+    // The pepper is on by default and goes at the end: no position is kept.
+    expect(method.pepper).toBe(true);
+    expect(method.pepperAt).toBeUndefined();
     expect(method.sealed).toBeUndefined();
   });
 
-  it("keeps the same algorithmic password when the pepper goes on: the root stays, a slot appears", async () => {
+  it("keeps the same algorithmic password when the pepper goes off: the root stays", async () => {
     open("/vault/new/account");
     const password = block("Password");
     await userEvent.selectOptions(
@@ -236,7 +238,7 @@ describe("account editor: methods and generators", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     const method = passwordOf(saved());
-    expect(method).toMatchObject({ pepper: true });
+    expect(method).toMatchObject({ pepper: false });
     expect(method.secret).toHaveLength(44);
     expect(method.sealed).toBeUndefined();
     expect(method.generator).toMatchObject({ id: "derived", counter: 0 });

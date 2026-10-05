@@ -4,7 +4,7 @@ import { DEFAULT_RULES, type PasswordGenerator } from "@opensesame/vault-core";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GeneratorOptions, describeGenerator } from "./GeneratorOptions.js";
+import { GeneratorOptions } from "./GeneratorOptions.js";
 
 afterEach(cleanup);
 
@@ -28,15 +28,6 @@ function Harness({
 }
 
 describe("GeneratorOptions", () => {
-  it("is closed to a line that says what it will make, and the options open from it", () => {
-    const { container } = render(<Harness start={defaultGenerator("rules")} />);
-    const more = container.querySelector("details");
-    expect(more?.open).toBe(false);
-    expect(more?.querySelector("summary")?.textContent).toBe(
-      "20 characters: letters, numbers, symbols",
-    );
-  });
-
   it("draws the rules in plain words: length, character types, fewest of each, look-alikes and a strength word", () => {
     render(<Harness start={defaultGenerator("rules")} />);
     expect(screen.getByLabelText("Length")).toBeTruthy();
@@ -61,22 +52,6 @@ describe("GeneratorOptions", () => {
       screen.getByLabelText("Avoid look-alike characters").closest("label")
         ?.title,
     ).toMatch(/easy to mix up/);
-  });
-
-  it("describes each generator in a line", () => {
-    expect(describeGenerator({ id: "manual" })).toBe("");
-    expect(describeGenerator(defaultGenerator("passphrase"))).toMatch(
-      /^\d+ words/,
-    );
-    expect(
-      describeGenerator({
-        id: "rules",
-        ...DEFAULT_RULES,
-        upper: false,
-        digits: false,
-        symbols: false,
-      }),
-    ).toBe("20 characters: lowercase letters");
   });
 
   it("reports each change as a whole generator", () => {

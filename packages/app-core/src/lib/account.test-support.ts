@@ -119,13 +119,27 @@ export function pepperedDerivedAccount(
   return item;
 }
 
-/** Type a password into a method, which makes it a manual one: a new account's is derived. */
+/**
+ * Type a password into a method, which makes it a manual one: a new account's is
+ * derived. The fixture is a plain password, so it has no pepper slot (a new
+ * account's has one, at the end).
+ */
 export function typePassword(method: PasswordMethod, password: string): void {
   method.generator = { id: "manual" };
+  method.pepper = false;
   method.secret = password;
 }
 
 /** The whole password an account produces with nothing from the person, else `""`. */
 export function producedPassword(item: AccountItem): string {
   return completePassword(produceAccountPassword(item)) ?? "";
+}
+
+/** What the product produces before the person's own pepper: the whole password, or what surrounds the slot. */
+export function visiblePassword(item: AccountItem): string {
+  const produced = produceAccountPassword(item);
+  if (produced.status === "ok") return produced.password;
+  return produced.status === "slotted"
+    ? `${produced.head}${produced.tail}`
+    : "";
 }

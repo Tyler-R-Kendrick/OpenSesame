@@ -22,17 +22,34 @@ import { makeAccount } from "./account.test-support.js";
 describe("account editor: pepper (ADR 0174)", () => {
   installEditorHarness();
 
-  it("turns Include pepper on without asking for one, and draws where it goes only then", async () => {
+  it("has Include pepper on at the end by default, never asks for one, and draws where it goes only while it is on", async () => {
     open("/vault/new/account");
     const password = block("Password");
-    expect(password.queryByLabelText("Pepper goes")).toBeNull();
-    await userEvent.click(password.getByLabelText("Include pepper"));
+    expect(
+      password.getByLabelText<HTMLInputElement>("Include pepper").checked,
+    ).toBe(true);
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.queryByLabelText("Pepper")).toBeNull();
-    const at = password.getByLabelText("Pepper goes");
+    const at = password.getByLabelText<HTMLInputElement>("Pepper goes");
     expect(at.getAttribute("placeholder")).toBe("end");
+    expect(at.value).toBe("");
     await userEvent.click(password.getByLabelText("Include pepper"));
     expect(password.queryByLabelText("Pepper goes")).toBeNull();
+    await userEvent.click(password.getByLabelText("Include pepper"));
+    expect(password.getByLabelText("Pepper goes")).toBeTruthy();
+  });
+
+  it("keeps the options behind one line, closed, with the generator and the pepper inside", () => {
+    const { container } = open("/vault/new/account");
+    const more = container.querySelector("details.gen__more");
+    expect(more?.hasAttribute("open")).toBe(false);
+    expect(more?.querySelector("summary")?.textContent).toBe("Options");
+    expect(
+      more?.contains(block("Password").getByLabelText("Password generator")),
+    ).toBe(true);
+    expect(
+      more?.contains(block("Password").getByLabelText("Include pepper")),
+    ).toBe(true);
   });
 
   it("saves the password and where the pepper goes, and never a pepper or a seal", async () => {
@@ -43,7 +60,6 @@ describe("account editor: pepper (ADR 0174)", () => {
     );
     const shown = input("Password").value;
     expect(shown.length).toBeGreaterThan(8);
-    await userEvent.click(password.getByLabelText("Include pepper"));
     await userEvent.type(password.getByLabelText("Pepper goes"), "-3");
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
@@ -59,7 +75,6 @@ describe("account editor: pepper (ADR 0174)", () => {
   it("takes a Python-style position, and marks one that is not, keeping the last good one", async () => {
     open("/vault/new/account");
     const password = block("Password");
-    await userEvent.click(password.getByLabelText("Include pepper"));
     const at = password.getByLabelText("Pepper goes");
     await userEvent.type(at, "2:5");
     expect(password.queryByRole("img")).toBeNull();

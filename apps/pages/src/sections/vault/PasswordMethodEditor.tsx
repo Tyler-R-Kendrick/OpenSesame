@@ -22,9 +22,10 @@ function generatorId(value: string): OfferedGeneratorId | undefined {
 }
 
 /**
- * One password method: its generator, that generator's options behind one line,
- * the password (typed, generated or computed) and *Include pepper* with where
- * it goes (ADR 0172 §6, ADR 0174). A password an older version made from a typed
+ * One password method: the password (typed, generated or computed) and one
+ * *Options* line. The generator, its options and *Include pepper* (on by
+ * default, at the end) are inside it, out of the way until wanted (ADR 0172 §6,
+ * ADR 0174). A password an older version made from a typed
  * pepper has none of that: it is converted once, then it is an ordinary one.
  */
 export function PasswordMethodEditor({
@@ -57,29 +58,34 @@ export function PasswordMethodEditor({
 
   return (
     <>
-      <div className="field">
-        <label htmlFor={`${method.id}-generator`}>Generator</label>
-        <div className="editor__inline">
-          <select
-            id={`${method.id}-generator`}
-            aria-label="Password generator"
-            value={generator.id}
-            onChange={(event) => {
-              const id = generatorId(event.target.value);
-              if (id) onEdit(switchGenerator(method, id));
-            }}
-          >
-            {options.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <GeneratorOptions generator={generator} onChange={retuneOptions} />
       <PasswordFieldRow method={method} onEdit={onEdit} />
-      <PepperCheck method={method} onEdit={onEdit} />
+      <details className="gen__more">
+        <summary>Options</summary>
+        <div className="gen__opts">
+          <div className="field">
+            <label htmlFor={`${method.id}-generator`}>Generator</label>
+            <div className="editor__inline">
+              <select
+                id={`${method.id}-generator`}
+                aria-label="Password generator"
+                value={generator.id}
+                onChange={(event) => {
+                  const id = generatorId(event.target.value);
+                  if (id) onEdit(switchGenerator(method, id));
+                }}
+              >
+                {options.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <GeneratorOptions generator={generator} onChange={retuneOptions} />
+          <PepperCheck method={method} onEdit={onEdit} />
+        </div>
+      </details>
     </>
   );
 }

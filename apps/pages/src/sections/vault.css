@@ -910,7 +910,7 @@ select.editor__ext:hover {
   gap: 0.6rem;
 }
 
-/* What the generator will make, in a line; the options open from it. */
+/* The one Options line; the generator, its options and the pepper open from it. */
 .gen__more > summary {
   width: fit-content;
   max-width: 100%;

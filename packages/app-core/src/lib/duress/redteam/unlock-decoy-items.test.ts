@@ -13,7 +13,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { duressContinueSeams } from "../../../screens/unlock/unlock-duress-continue.js";
 import { unlockWithPasswordAfterDuressGate } from "../../../screens/unlock/unlock-password-duress.js";
-import { producedPassword } from "../../account.test-support.js";
+import { visiblePassword } from "../../account.test-support.js";
 import { forgetDeviceIdentityKeyInFlightForTests } from "../../device-identity-key.js";
 import { kvDelete, kvGet } from "../../kv.js";
 import { ATTEMPTS_KEY, VaultStore } from "../../vault/store.js";
@@ -141,7 +141,7 @@ describe("decoy with everyday items, through unlock", () => {
     expect(items).toHaveLength(ITEMS.length);
     for (const item of items) {
       if (item.kind !== "account") throw new Error("expected accounts");
-      const password = producedPassword(item);
+      const password = visiblePassword(item);
       expect(password.length).toBeGreaterThanOrEqual(12);
       expect(item.name).not.toContain(password);
       expect(itemSubtitle(item)).not.toContain(password);
@@ -151,7 +151,7 @@ describe("decoy with everyday items, through unlock", () => {
     expect(
       new Set(
         items.flatMap((i) =>
-          i.kind === "account" ? [producedPassword(i)] : [],
+          i.kind === "account" ? [visiblePassword(i)] : [],
         ),
       ).size,
     ).toBe(ITEMS.length);
@@ -164,7 +164,7 @@ describe("decoy with everyday items, through unlock", () => {
       store
         .getSnapshot()
         .items.map((item) =>
-          item.kind === "account" ? producedPassword(item) : "",
+          item.kind === "account" ? visiblePassword(item) : "",
         );
     await typeCode(store);
     const first = passwords();
@@ -198,7 +198,7 @@ describe("decoy with everyday items, through unlock", () => {
     const shown = store
       .getSnapshot()
       .items.flatMap((item) =>
-        item.kind === "account" ? [item.name, producedPassword(item)] : [],
+        item.kind === "account" ? [item.name, visiblePassword(item)] : [],
       );
     expect(shown).toHaveLength(ITEMS.length * 2);
     store.lock();

@@ -222,40 +222,10 @@ function strengthOf(generator: PasswordGenerator): {
   return { word: "Weak", bits: rounded };
 }
 
-function kindsOf(rules: CharacterRules): string {
-  const kinds: string[] = [];
-  if (rules.upper && rules.lower) kinds.push("letters");
-  else if (rules.upper) kinds.push("capital letters");
-  else if (rules.lower) kinds.push("lowercase letters");
-  if (rules.digits) kinds.push("numbers");
-  if (rules.symbols) kinds.push("symbols");
-  return kinds.length === 0 ? "nothing chosen" : kinds.join(", ");
-}
-
-/** The current choice in plain words: what the disclosure shows while it is closed. */
-export function describeGenerator(generator: PasswordGenerator): string {
-  switch (generator.id) {
-    case "manual":
-      return "";
-    case "passphrase": {
-      const extras = [
-        generator.capitalize ? "capitalised" : "",
-        generator.includeNumber ? "with a number" : "",
-      ].filter((part) => part !== "");
-      return [`${generator.words} words`, ...extras].join(", ");
-    }
-    case "rules":
-      return `${generator.length} characters: ${kindsOf(generator)}`;
-    case "derived":
-    case "sphinx":
-      return `${generator.rules.length} characters: ${kindsOf(generator.rules)}`;
-  }
-}
-
 /**
- * The chosen generator's options (ADR 0172 §6, ADR 0173), kept out of the way:
- * one line says what the generator will make, and the options open from it.
- * `manual` has none.
+ * The chosen generator's options (ADR 0172 §6, ADR 0173), in plain words. They
+ * are drawn inside the method's one *Options* disclosure, never on the form
+ * itself. `manual` has none.
  */
 export function GeneratorOptions({
   generator,
@@ -267,49 +237,46 @@ export function GeneratorOptions({
   if (generator.id === "manual") return null;
   const strength = strengthOf(generator);
   return (
-    <details className="gen__more">
-      <summary>{describeGenerator(generator)}</summary>
-      <div className="gen__opts">
-        {generator.id === "rules" ? (
-          <RuleOptions
-            rules={generator}
-            onChange={(rules) => onChange({ id: "rules", ...rules })}
-          />
-        ) : null}
-        {generator.id === "derived" ? (
+    <>
+      {generator.id === "rules" ? (
+        <RuleOptions
+          rules={generator}
+          onChange={(rules) => onChange({ id: "rules", ...rules })}
+        />
+      ) : null}
+      {generator.id === "derived" ? (
+        <RuleOptions
+          rules={generator.rules}
+          onChange={(rules) => onChange({ ...generator, rules })}
+        />
+      ) : null}
+      {generator.id === "passphrase" ? (
+        <PassphraseOptions generator={generator} onChange={onChange} />
+      ) : null}
+      {generator.id === "sphinx" ? (
+        <>
           <RuleOptions
             rules={generator.rules}
             onChange={(rules) => onChange({ ...generator, rules })}
           />
-        ) : null}
-        {generator.id === "passphrase" ? (
-          <PassphraseOptions generator={generator} onChange={onChange} />
-        ) : null}
-        {generator.id === "sphinx" ? (
-          <>
-            <RuleOptions
-              rules={generator.rules}
-              onChange={(rules) => onChange({ ...generator, rules })}
+          <div className="gen__checks">
+            <Count
+              label="Counter"
+              value={generator.counter}
+              max={9999}
+              onChange={(counter) => onChange({ ...generator, counter })}
             />
-            <div className="gen__checks">
-              <Count
-                label="Counter"
-                value={generator.counter}
-                max={9999}
-                onChange={(counter) => onChange({ ...generator, counter })}
-              />
-            </div>
-          </>
-        ) : null}
-        {strength === null ? null : (
-          <output
-            className="gen__bits"
-            title={`About ${strength.bits} bits of guesswork`}
-          >
-            {strength.word}
-          </output>
-        )}
-      </div>
-    </details>
+          </div>
+        </>
+      ) : null}
+      {strength === null ? null : (
+        <output
+          className="gen__bits"
+          title={`About ${strength.bits} bits of guesswork`}
+        >
+          {strength.word}
+        </output>
+      )}
+    </>
   );
 }

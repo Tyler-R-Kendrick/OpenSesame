@@ -323,7 +323,7 @@ export function newPasswordMethod(
     id: `${accountId}:password`,
     type: "password",
     generator: { id: "derived", rules: { ...DEFAULT_RULES }, counter: 0 },
-    pepper: false,
+    pepper: true,
     secret: "",
     changedAt: createdAt,
   };

@@ -102,14 +102,14 @@ describe("normalizeLegacyItems", () => {
 });
 
 describe("a new account", () => {
-  it("starts with one derived password method, with no root yet, that is not peppered", () => {
+  it("starts with one derived password method, with no root yet, with a pepper slot at the end", () => {
     const account = createItem("account", "Site");
     if (account.kind !== "account") throw new Error("expected account");
     expect(account.methods).toHaveLength(1);
     expect(account.methods[0]).toMatchObject({
       type: "password",
       generator: { id: "derived", counter: 0 },
-      pepper: false,
+      pepper: true,
       secret: "",
       changedAt: account.createdAt,
     });

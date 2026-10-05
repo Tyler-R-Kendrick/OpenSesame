@@ -30,7 +30,10 @@ and no "wrong pepper": nothing here can tell.
 
 ### 2. Where the pepper goes is a Python-style index expression
 
-Empty or `end` is after the last character, the default. `3` puts it before the
+Empty or `end` is after the last character, the default; a new account's
+password has *Include pepper* on, at the end, so the person is not asked to choose
+either (both sit inside the form's *Options*, ADR 0173 §3). A password typed over,
+or one an import brings in, keeps whatever it had: an import has none. `3` puts it before the
 character at index 3 (`password[:3] + pepper + password[3:]`); a negative index
 counts from the end (`-2` is before the last two). A slice stands in for what it
 covers: `2:5`, `:4`, `-3:` (the pepper replaces `password[2:5]`, the first four

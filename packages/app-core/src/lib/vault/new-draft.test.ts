@@ -6,7 +6,7 @@ import {
   syncInstalledTypes,
 } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
-import { producedPassword } from "../account.test-support.js";
+import { producedPassword, visiblePassword } from "../account.test-support.js";
 import {
   acceptsDraftUsername,
   generateDraftLabels,
@@ -87,8 +87,8 @@ describe("new vault draft defaults", () => {
     const second = newItemDraft("account");
     if (first.kind !== "account" || second.kind !== "account")
       throw new Error("fixture");
-    expect(producedPassword(first)).toHaveLength(20);
-    expect(producedPassword(first)).not.toBe(producedPassword(second));
+    expect(visiblePassword(first)).toHaveLength(20);
+    expect(visiblePassword(first)).not.toBe(visiblePassword(second));
     expect(first.username).toMatch(/^user_[a-f0-9]+$/);
     expect(first.username).not.toBe(second.username);
     expect(accountTotp(first)).toBe("");
@@ -252,16 +252,17 @@ describe("public link prefills", () => {
       uris: [{ uri: "https://example.com/login" }],
     });
     if (item.kind !== "account") throw new Error("fixture");
-    expect(producedPassword(item)).toHaveLength(20);
+    expect(visiblePassword(item)).toHaveLength(20);
   });
   it("keeps a fresh root in the first password method, which computes a password under the rules", () => {
     const item = newItemDraft("account");
     if (item.kind !== "account") throw new Error("fixture");
     const [first, ...rest] = item.methods;
     expect(rest).toEqual([]);
+    // Pepper is on by default, at the end: no position is kept.
     expect(first).toMatchObject({
       type: "password",
-      pepper: false,
+      pepper: true,
       generator: { id: "derived", counter: 0, rules: { length: 20 } },
     });
     // A root is 32 bytes, base64; what the person sees is what it computes.
