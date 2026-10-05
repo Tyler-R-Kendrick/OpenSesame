@@ -5,6 +5,7 @@
  */
 import { overlapCast } from "@opensesame/os-domain";
 import {
+  type AccountItem,
   DEVICE_IDENTITY_KEY_PATH,
   type SealedVaultFile,
   type VaultBody,
@@ -13,6 +14,8 @@ import {
   WrongPasswordError,
   b64ToBytes,
   openVaultBody,
+  passwordMethod,
+  produceAccountPassword,
   readDeviceIdentityKeyRecord,
   readVaultFile,
   unwrapRawVaultKeyFromPassword,
@@ -121,6 +124,33 @@ describe("golden vault vectors", () => {
       expect(kinds, name).not.toContain("login");
       expect(JSON.stringify(body), name).not.toContain('"kind":"login"');
     }
+  });
+
+  it("opens the derived vector: a computed password, and one with a pepper slot it is never given", async () => {
+    const opened = openEnvelope(
+      fixture.vectors["backup-personal-derived"].file,
+    );
+    const raw = await unwrapRawVaultKeyFromPassword(
+      opened.header,
+      fixture.password,
+    );
+    const { body } = await openBody(raw, opened);
+    const accounts = body.items.filter(
+      (item): item is AccountItem => item.kind === "account",
+    );
+    const [clear, slotted] = accounts;
+    if (clear === undefined || slotted === undefined) throw new Error("two");
+    const whole = produceAccountPassword(clear);
+    expect(whole.status).toBe("ok");
+    expect(passwordMethod(clear)?.generator).toMatchObject({
+      id: "derived",
+      counter: 2,
+    });
+    const partial = produceAccountPassword(slotted);
+    expect(partial.status).toBe("slotted");
+    if (partial.status !== "slotted") return;
+    expect(partial.tail).toHaveLength(4);
+    expect(JSON.stringify(slotted)).not.toContain(partial.head);
   });
 
   it("normalizes the password with NFKC before deriving", async () => {

@@ -95,8 +95,8 @@ describe("shareText", () => {
     ).toBe("network-secret");
   });
 
-  it("shares nothing of a peppered password, and falls back to notes", async () => {
-    const account = await pepperedAccount("GitHub", "hunter2", "pepper");
+  it("shares nothing of a password with a pepper slot, and falls back to notes", () => {
+    const account = pepperedAccount("GitHub", "hunter2");
     expect(concealedValue(account)).toBeNull();
     expect(shareText(account)).toBeNull();
     expect(shareText({ ...account, notes: "fallback" })).toBe("fallback");

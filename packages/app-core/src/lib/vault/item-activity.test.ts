@@ -4,6 +4,7 @@ import {
   passwordMethod,
 } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { typePassword } from "../account.test-support.js";
 import {
   ACTIVITY_LOG_PATH,
   type ActivityEvent,
@@ -125,9 +126,9 @@ describe("item activity", () => {
     const account = createItem("account", "Work");
     const method = passwordMethod(account);
     if (!method) throw new Error("expected a password method");
-    method.secret = "login-canary-password";
+    typePassword(method, "login-canary-password");
     await vaultStore.saveItem(account);
-    method.secret = "login-canary-password-2";
+    typePassword(method, "login-canary-password-2");
     await vaultStore.saveItem(account);
     await vi.waitFor(async () => {
       const types = (await eventsOf(tomb)).map((event) => event.type);

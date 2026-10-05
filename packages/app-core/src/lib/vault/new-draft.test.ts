@@ -1,5 +1,4 @@
 import {
-  accountPlainPassword,
   accountTotp,
   createItem,
   installItemType,
@@ -7,6 +6,7 @@ import {
   syncInstalledTypes,
 } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
+import { producedPassword } from "../account.test-support.js";
 import {
   acceptsDraftUsername,
   generateDraftLabels,
@@ -87,8 +87,8 @@ describe("new vault draft defaults", () => {
     const second = newItemDraft("account");
     if (first.kind !== "account" || second.kind !== "account")
       throw new Error("fixture");
-    expect(accountPlainPassword(first)).toHaveLength(20);
-    expect(accountPlainPassword(first)).not.toBe(accountPlainPassword(second));
+    expect(producedPassword(first)).toHaveLength(20);
+    expect(producedPassword(first)).not.toBe(producedPassword(second));
     expect(first.username).toMatch(/^user_[a-f0-9]+$/);
     expect(first.username).not.toBe(second.username);
     expect(accountTotp(first)).toBe("");
@@ -110,7 +110,7 @@ describe("new vault draft defaults", () => {
     expect(draft.values.password).toHaveLength(20);
     expect(draft.values.username).toMatch(/^user_/);
     expect(draft.values.connectionString).toBe("");
-    expect(accountPlainPassword(createItem("account"))).toBe("");
+    expect(producedPassword(createItem("account"))).toBe("");
     expect(() => newItemDraft("missing-type")).toThrow(
       "Unknown vault item type",
     );
@@ -252,9 +252,9 @@ describe("public link prefills", () => {
       uris: [{ uri: "https://example.com/login" }],
     });
     if (item.kind !== "account") throw new Error("fixture");
-    expect(accountPlainPassword(item)).toHaveLength(20);
+    expect(producedPassword(item)).toHaveLength(20);
   });
-  it("puts the generated password in the first password method, under its rules", () => {
+  it("keeps a fresh root in the first password method, which computes a password under the rules", () => {
     const item = newItemDraft("account");
     if (item.kind !== "account") throw new Error("fixture");
     const [first, ...rest] = item.methods;
@@ -262,9 +262,10 @@ describe("public link prefills", () => {
     expect(first).toMatchObject({
       type: "password",
       pepper: false,
-      generator: { id: "rules", length: 20 },
+      generator: { id: "derived", counter: 0, rules: { length: 20 } },
     });
-    expect(first?.type === "password" ? first.secret : "").toHaveLength(20);
+    // A root is 32 bytes, base64; what the person sees is what it computes.
+    expect(first?.type === "password" ? first.secret : "").toHaveLength(44);
     expect(first?.type === "password" ? first.sealed : "x").toBeUndefined();
   });
   it("still opens an account draft for the retired login name", () => {

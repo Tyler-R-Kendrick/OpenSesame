@@ -5,10 +5,11 @@ import { isString } from "@opensesame/os-domain";
  */
 import {
   type VaultItem,
-  accountPlainPassword,
+  completePassword,
   definitionFor,
   itemTypeId,
   itemTypeRegistry,
+  produceAccountPassword,
   readItemField,
 } from "@opensesame/vault-core";
 import { RESERVED_TYPE_IDS } from "@opensesame/vault-item-types";
@@ -42,9 +43,12 @@ export function chipTypeIds(live: readonly VaultItem[]): readonly string[] {
 
 /** Any registered type may be the one a filtered "+ new" creates. */
 export function concealedValue(item: VaultItem): string | null {
-  // A peppered or Sphinx password reads as "" here and so as absent: this is a
-  // sync read that cannot ask the person for anything (ADR 0172 §4).
-  if (item.kind === "account") return accountPlainPassword(item) || null;
+  // The facade's whole password. A part of one, with a slot for the person's
+  // pepper, is not a value to share, and one an older version made is absent
+  // (ADR 0174).
+  if (item.kind === "account") {
+    return completePassword(produceAccountPassword(item)) || null;
+  }
   if (item.kind === "secret") return item.value;
   if (item.kind === "card") return item.number;
   if (item.kind === "certificate") return item.privateKeyPem;

@@ -21,10 +21,11 @@ import { isString, isTypeofObject } from "@opensesame/os-domain";
 import {
   KIND_LABEL,
   type VaultItem,
-  accountPlainPassword,
+  completePassword,
   isRetired,
   itemTypeRegistry,
   passwordMethod,
+  produceAccountPassword,
   typeLabel,
 } from "@opensesame/vault-core";
 import {
@@ -182,7 +183,7 @@ export function shareItem(item: VaultItem): SharedItem | null {
         ...base,
         kind: "login",
         username: cutText(item.username),
-        password: cutText(accountPlainPassword(item)),
+        password: cutText(completePassword(produceAccountPassword(item)) ?? ""),
         passwordChangedAt: when(
           passwordMethod(item)?.changedAt ?? "",
           updatedAt,

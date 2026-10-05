@@ -54,12 +54,8 @@ describe("the catalog", () => {
     expect(github.find((field) => field.key === "notes")?.concealed).toBe(true);
   });
 
-  it("offers no password for a peppered account, sealed or otherwise", async () => {
-    const peppered = await pepperedAccount(
-      "Vaulted",
-      "the-peppered-password",
-      "pepper",
-    );
+  it("offers no password for an account with a pepper slot, nor one an older version sealed", async () => {
+    const peppered = pepperedAccount("Vaulted", "the-peppered-password", "-2");
     peppered.username = "ada";
     const catalog = vaultCatalog({
       title: "Team",

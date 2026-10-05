@@ -14,8 +14,9 @@ import {
 } from "@opensesame/os-domain";
 import {
   type VaultItem,
+  completePassword,
   methodsOfType,
-  plainPassword,
+  producePassword,
 } from "@opensesame/vault-core";
 import { openOwnedDatabase } from "../../ports.js";
 import { atRestBinding, openAtRest, sealAtRest } from "../at-rest/cipher.js";
@@ -109,7 +110,7 @@ function heldSecrets(
     for (const method of methodsOfType(item, "password")) {
       held.set(
         methodScope(tomb, item.id, method.id),
-        plainPassword(method) ?? "",
+        completePassword(producePassword(method)) ?? "",
       );
     }
   } else if (item.kind === "secret") {

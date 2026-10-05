@@ -14,11 +14,12 @@
 
 import {
   type VaultItem,
-  accountPlainPassword,
   accountTotp,
   activeItems,
+  completePassword,
   definitionFor,
   itemTypeId,
+  produceAccountPassword,
   readItemField,
 } from "@opensesame/vault-core";
 import {
@@ -69,7 +70,9 @@ function heldValue(
   field: FieldDefinition,
 ): FieldValue | undefined {
   if (item.kind === "account") {
-    if (field.id === "password") return accountPlainPassword(item);
+    if (field.id === "password") {
+      return completePassword(produceAccountPassword(item)) ?? "";
+    }
     if (field.id === "totp") return accountTotp(item);
   }
   return readItemField(item, field);

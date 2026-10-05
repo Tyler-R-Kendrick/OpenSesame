@@ -6,11 +6,9 @@
  * secret's value, notes, a custom field, or a typed item's string value.
  * Anything else is refused, so a save cannot invent a property.
  *
- * A password goes through `storePassword` (ADR 0172 §4), never into a method
- * field by hand. A method that keeps its password under a pepper is written
- * only when the person can be asked for that pepper; with no way to ask, or for
- * a Sphinx password that is computed and never stored, the write is refused
- * with `PasswordWriteRefused` and nothing is saved, least of all in the clear.
+ * A password is written into a stored method. For a derived or Sphinx password
+ * that is computed and never stored, the write is refused with
+ * `PasswordWriteRefused` and nothing is saved (ADR 0174).
  */
 
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
@@ -19,11 +17,10 @@ import {
   type TypedItem,
   type VaultItem,
   authenticatorMethod,
+  isAlgorithmic,
   passwordMethod,
 } from "@opensesame/vault-core";
 import type { FieldValue } from "@opensesame/vault-item-types";
-import type { AskPepper } from "../account-password.js";
-import { storePassword } from "../vault/generators/index.js";
 import type { WriteField } from "./host-peer.js";
 import { type CatalogInput, sharedItems, vaultField } from "./vault-share.js";
 
@@ -71,12 +68,9 @@ function writeTyped(
   return { ...item, notes: text, updatedAt: now() };
 }
 
-export type PasswordWriteRefusal =
-  | "pepper_required"
-  | "computed"
-  | "no_password";
+export type PasswordWriteRefusal = "computed" | "no_password";
 
-/** A password write that could not be made without a plaintext or a guess. */
+/** A password write that could not be made without a guess. */
 export class PasswordWriteRefused extends Error {
   readonly reason: PasswordWriteRefusal;
   constructor(reason: PasswordWriteRefusal) {
@@ -86,31 +80,26 @@ export class PasswordWriteRefused extends Error {
   }
 }
 
-async function writePassword(
-  item: AccountItem,
-  text: string,
-  askPepper: AskPepper | undefined,
-): Promise<VaultItem> {
+/**
+ * A password written into a stored method. One an algorithm computes, or an
+ * older version made from a typed pepper, is never written: a stored password
+ * would silently replace the algorithm (ADR 0174).
+ */
+function writePassword(item: AccountItem, text: string): VaultItem {
   const method = passwordMethod(item);
   if (method === undefined) throw new PasswordWriteRefused("no_password");
-  if (method.generator.id === "sphinx")
+  if (isAlgorithmic(method) || method.sealed !== undefined) {
     throw new PasswordWriteRefused("computed");
-  let pepper: string | null = null;
-  if (method.pepper) {
-    if (askPepper === undefined)
-      throw new PasswordWriteRefused("pepper_required");
-    pepper = await askPepper();
-    if (pepper === null || pepper === "")
-      throw new PasswordWriteRefused("pepper_required");
   }
-  const at = new Date();
-  const stored = await storePassword(item.id, method, text, pepper, at);
+  const at = new Date().toISOString();
   return {
     ...item,
     methods: item.methods.map((entry) =>
-      entry.id === method.id ? stored : entry,
+      entry.id === method.id
+        ? { ...method, secret: text, changedAt: at }
+        : entry,
     ),
-    updatedAt: at.toISOString(),
+    updatedAt: at,
   };
 }
 
@@ -131,16 +120,15 @@ function writeTotp(item: AccountItem, text: string): VaultItem {
   return { ...item, methods, updatedAt: now() };
 }
 
-async function writeNamed(
+function writeNamed(
   item: VaultItem,
   key: string,
   text: string,
-  askPepper: AskPepper | undefined,
-): Promise<VaultItem | null> {
+): VaultItem | null {
   if (item.kind === "account" && key === "username")
     return { ...item, username: text, updatedAt: now() };
   if (item.kind === "account" && key === "password")
-    return writePassword(item, text, askPepper);
+    return writePassword(item, text);
   if (item.kind === "account" && key === "totp") return writeTotp(item, text);
   if (item.kind === "secret" && key === "value")
     return { ...item, value: text, updatedAt: now() };
@@ -155,12 +143,11 @@ export async function assignField(
   item: VaultItem,
   key: string,
   text: string,
-  askPepper?: AskPepper,
 ): Promise<VaultItem | null> {
   if (key.startsWith("custom:")) return writeCustom(item, key, text);
   if (item.kind === "typed") return writeTyped(item, key, text);
   if (key === "notes") return { ...item, notes: text, updatedAt: now() };
-  return writeNamed(item, key, text, askPepper);
+  return writeNamed(item, key, text);
 }
 
 /**
@@ -171,7 +158,6 @@ export async function assignField(
 export function vaultWrite(
   input: Pick<CatalogInput, "scope" | "items">,
   save: (item: VaultItem) => Promise<void>,
-  askPepper?: AskPepper,
 ): WriteField {
   const read = vaultField(input);
   return async (itemId, key, value) => {
@@ -181,7 +167,7 @@ export function vaultWrite(
     if (!item || (await read(itemId, key)) === null) return false;
     let next: VaultItem | null;
     try {
-      next = await assignField(item, key, value, askPepper);
+      next = await assignField(item, key, value);
     } catch (error) {
       if (error instanceof PasswordWriteRefused) return false;
       throw error;
