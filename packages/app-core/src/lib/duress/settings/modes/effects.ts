@@ -9,6 +9,7 @@
  * to avoid. A runner that cannot finish leaves its own record of that.
  */
 
+import { FREEZE_RUNNER } from "./freeze.js";
 import type { DuressPlan } from "./mode.js";
 
 export type EffectPhase = "on_match" | "after_session";
@@ -28,7 +29,7 @@ export type EffectRunner = Readonly<{
 const RUNNERS: ReadonlyMap<string, EffectRunner> = new Map<
   string,
   EffectRunner
->([]);
+>([["freeze", FREEZE_RUNNER]]);
 
 /** Whether unlock can run `effect`: a mode may only seal one that it can. */
 export function hasEffectRunner(effect: string): boolean {
