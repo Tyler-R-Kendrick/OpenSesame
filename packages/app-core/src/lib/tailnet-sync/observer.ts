@@ -11,9 +11,10 @@
  */
 import { isString } from "@opensesame/os-domain";
 import { maybeEnvironment, maybePage } from "../../ports.js";
+import { refreshProjectsView } from "../projects.js";
 import { GUEST_TOMB, vaultStore } from "../vault/store.js";
-import { PERSONAL_TOMB } from "../vfs.js";
-import { adoptFromDrive } from "./adopt.js";
+import { switchVault } from "../vaults.js";
+import { adoptSnapshot, isProjectTomb } from "./adopt.js";
 import { reachDrive } from "./client.js";
 import {
   holdPendingPairing,
@@ -244,9 +245,26 @@ export async function pairTailnetDrive(
       await failureMessage(error instanceof Error ? error : String(error)),
     );
   }
-  if (snap.status === "empty" || snap.guest) {
-    await adoptFromDrive(next, tailnetSyncSeams.transport);
-    holdPendingPairing(next, PERSONAL_TOMB);
+  const theirs = (await tailnetSyncSeams.transport.read(next)).snapshot;
+  // A project vault this device does not have open lands beside its vaults.
+  const project =
+    theirs !== null &&
+    isProjectTomb(theirs.tomb) &&
+    theirs.tomb !== vaultStore.activeTomb();
+  if (snap.status === "empty" || snap.guest || project) {
+    if (!theirs) {
+      throw new Error(
+        "The drive is empty. Sync from a device that holds the vault first.",
+      );
+    }
+    await adoptSnapshot(theirs);
+    holdPendingPairing(next, theirs.tomb);
+    if (project) {
+      // Its unlock screen is next — or it opens, sharing this session's key.
+      await refreshProjectsView();
+      await switchVault(theirs.tomb);
+      return "adopted";
+    }
     if (snap.guest) vaultStore.lock({ recordLastVault: false });
     vaultStore.rehydrate();
     return "adopted";
