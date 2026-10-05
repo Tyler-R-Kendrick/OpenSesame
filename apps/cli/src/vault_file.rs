@@ -21,7 +21,7 @@ use opensesame_human_vault::pages_vault::{
     open_body, read_vault_file, summarize, unwrap_with_password, OpenedVaultFile, SealedVaultFile,
     VaultFileError,
 };
-use opensesame_vault_item_types::ItemTypeRegistry;
+use opensesame_vault_item_types::{resolve_type_id, ItemTypeRegistry};
 use secrecy::{ExposeSecret, SecretString};
 use serde_json::{json, Value};
 
@@ -169,7 +169,13 @@ pub fn open(
             .get(id)
             .map(|definition| definition.spec.extension.clone())
     };
-    Ok(summarize(file, &body, &extension_of))
+    let mut opened = summarize(file, &body, &extension_of);
+    // A vault written before ADR 0166 holds `login` items; the TS reader lists
+    // them as accounts, and the CLI says what `opensesame-id vault` says.
+    for item in &mut opened.items {
+        item.kind = resolve_type_id(&item.kind).to_owned();
+    }
+    Ok(opened)
 }
 
 fn read_master_password() -> anyhow::Result<SecretString> {
