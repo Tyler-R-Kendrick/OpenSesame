@@ -4,7 +4,7 @@ import { itemPath, tombPath } from "./paths.js";
 
 describe("vault tree paths", () => {
   it("maps root and folder items into the tomb path space", () => {
-    const root = createItem("login");
+    const root = createItem("account");
     root.name = "Mail";
     const nested = createItem("secret");
     nested.name = "Deploy token";
