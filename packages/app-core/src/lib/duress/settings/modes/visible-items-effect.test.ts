@@ -1,4 +1,4 @@
-import type { VaultItem } from "@opensesame/vault-core";
+import { type VaultItem, accountTotp } from "@opensesame/vault-core";
 import { describe, expect, it, vi } from "vitest";
 import { runDuressEffects } from "./effects.js";
 import { VISIBLE_ITEMS_RUNNER, materialize } from "./visible-items-effect.js";
@@ -41,7 +41,7 @@ describe("visible items runner", () => {
     }
     expect(new Set(added.map((item) => item.id)).size).toBe(added.length);
     const first = added[0];
-    expect(first?.kind === "login" && first.totp).toBe("");
+    expect(first?.kind === "account" && accountTotp(first)).toBe("");
     // A second run draws other ids: the ids are not sealed.
     const again = adder();
     await VISIBLE_ITEMS_RUNNER.run(built.body, { store: { addItems: again } });
@@ -55,7 +55,7 @@ describe("visible items runner", () => {
     const copy = shareItem(original);
     if (!copy) throw new Error("no copy");
     const made = materialize(copy);
-    if (made.kind !== "login") throw new Error("not a login");
+    if (made.kind !== "account") throw new Error("not an account");
     expect(made.fields[0]?.id).not.toBe("f1");
     expect(made.uris[0]?.id).not.toBe("u1");
     expect(made.fields[0]).toMatchObject({ name: "Branch", value: "Downtown" });

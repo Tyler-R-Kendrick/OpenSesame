@@ -10,7 +10,7 @@
  */
 
 import type { JsonValue } from "@opensesame/os-domain";
-import type { AccountItem } from "@opensesame/vault-core";
+import type { VaultItem } from "@opensesame/vault-core";
 import { runWipeEffect } from "../../wipe/real.js";
 import { DECOY_ITEMS_RUNNER } from "./decoy-items-effect.js";
 import { FREEZE_RUNNER } from "./freeze.js";
@@ -22,7 +22,7 @@ export type EffectPhase = "on_match" | "after_session";
 /** What the unlock path hands a runner; a runner narrows what it needs. */
 /** What a runner may ask of the open session's store; each is optional. */
 export type EffectStore = Readonly<{
-  addItems?: (items: AccountItem[]) => Promise<void>;
+  addItems?: (items: VaultItem[]) => Promise<void>;
 }>;
 
 export type EffectHost = Readonly<{ store: EffectStore }>;

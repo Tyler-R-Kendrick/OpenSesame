@@ -5,12 +5,13 @@
  */
 
 import {
-  type LoginItem,
+  type AccountItem,
   type VaultItem,
   createItem,
 } from "@opensesame/vault-core";
 import { duressContinueSeams } from "../../../screens/unlock/unlock-duress-continue.js";
 import { unlockWithPasswordAfterDuressGate } from "../../../screens/unlock/unlock-password-duress.js";
+import { plainAccount } from "../../account.test-support.js";
 import { kvGet } from "../../kv.js";
 import { LAST_VAULT_KEY } from "../../last-vault.js";
 import { ATTEMPTS_KEY, VaultStore } from "../../vault/store.js";
@@ -72,10 +73,10 @@ export function resetFence(): void {
 
 export type Seeded = {
   store: VaultStore;
-  netflix: LoginItem;
-  authy: LoginItem;
+  netflix: AccountItem;
+  authy: AccountItem;
   passkey: VaultItem;
-  trashed: LoginItem;
+  trashed: AccountItem;
   all: VaultItem[];
 };
 
@@ -83,26 +84,24 @@ export type Seeded = {
 export async function openVault(): Promise<Seeded> {
   const store = new VaultStore();
   await store.create(PASSWORD);
-  const netflix: LoginItem = {
-    ...createItem("login", "Netflix"),
-    username: "me@example.test",
-    password: "netflix-pw-4417",
+  const netflix: AccountItem = {
+    ...plainAccount("Netflix", "netflix-pw-4417", {
+      username: "me@example.test",
+    }),
     notes: "family plan",
     favorite: true,
     uris: [{ id: "uri-1", uri: "https://netflix.example.test", match: "host" }],
     fields: [{ id: "f-1", name: "Profile", value: "Kids", hidden: false }],
     folderId: "folder-real-1",
   };
-  const authy: LoginItem = {
-    ...createItem("login", "Mail with 2FA"),
+  const authy = plainAccount("Mail with 2FA", "mail-pw-6612", {
     username: "mail@example.test",
-    password: "mail-pw-6612",
     totp: SEED,
-  };
-  const hidden: LoginItem = {
-    ...createItem("login", HIDDEN.name),
-    username: HIDDEN.username,
-    password: HIDDEN.password,
+  });
+  const hidden: AccountItem = {
+    ...plainAccount(HIDDEN.name, HIDDEN.password, {
+      username: HIDDEN.username,
+    }),
     notes: HIDDEN.notes,
     uris: [{ id: "uri-h", uri: HIDDEN.uri, match: "host" }],
   };
@@ -111,10 +110,7 @@ export async function openVault(): Promise<Seeded> {
     notes: HIDDEN_NOTE.notes,
   };
   const passkey = createItem("passkey", PASSKEY_NAME);
-  const trashed: LoginItem = {
-    ...createItem("login", TRASHED.name),
-    password: TRASHED.password,
-  };
+  const trashed = plainAccount(TRASHED.name, TRASHED.password);
   for (const item of [netflix, authy, hidden, hiddenNote, passkey, trashed]) {
     await store.saveItem(item);
   }

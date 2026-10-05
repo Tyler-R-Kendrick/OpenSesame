@@ -13,11 +13,12 @@
 
 import type { JsonValue } from "@opensesame/os-domain";
 import {
+  type AccountItem,
   type CustomField,
-  type LoginItem,
   type TypedItem,
   type VaultItem,
   createItem,
+  manualPassword,
   newId,
   newUri,
 } from "@opensesame/vault-core";
@@ -45,15 +46,22 @@ export function materialize(shared: SharedItem): VaultItem {
   };
   switch (shared.kind) {
     case "login": {
-      const login: LoginItem = {
-        ...createItem("login", shared.name),
+      // A copy's `login` is an account holding one typed password.
+      const account = createItem("account", shared.name);
+      const made: AccountItem = {
+        ...account,
         ...common,
         username: shared.username,
-        password: shared.password,
-        passwordChangedAt: shared.passwordChangedAt,
         uris: shared.uris.map((entry) => newUri(entry.uri, entry.match)),
+        methods: [
+          manualPassword(
+            `${account.id}:password`,
+            shared.password,
+            shared.passwordChangedAt,
+          ),
+        ],
       };
-      return login;
+      return made;
     }
     case "note":
       return { ...createItem("note", shared.name), ...common };

@@ -16,9 +16,9 @@ import {
 } from "@opensesame/app-core/lib/travel/return-code.js";
 import {
   type FakeItemsVault,
+  account,
   fakeItemsVault,
   folder,
-  login,
 } from "@opensesame/app-core/lib/travel/travel-items.test-support.js";
 import {
   fakeOrigin,
@@ -43,8 +43,8 @@ let guest = false;
 beforeEach(() => {
   fake = fakeItemsVault(
     [
-      login("Bank", { folderId: "f-1", notes: "n" }),
-      login("Mail", { folderId: "f-2" }),
+      account("Bank", { folderId: "f-1", notes: "n" }),
+      account("Mail", { folderId: "f-2" }),
     ],
     [folder("f-1", "Money"), folder("f-2", "Misc")],
   );
@@ -104,7 +104,7 @@ describe("Settings › Vaults › Travel › leave items at home (ADR 0171)", ()
     const { unmount } = render(<TravelPanel />);
     expect(screen.queryByRole("button", { name: KEY })).toBeNull();
     unmount();
-    fake.body.items = [login("Bank")];
+    fake.body.items = [account("Bank")];
     guest = true;
     render(<TravelPanel />);
     expect(
@@ -128,7 +128,7 @@ describe("Settings › Vaults › Travel › leave items at home (ADR 0171)", ()
 
   it("offers no trashed item, no drop, and no item that holds a file", () => {
     fake.body.items.push(
-      login("Gone", { deletedAt: "2026-01-01T00:00:00.000Z" }),
+      account("Gone", { deletedAt: "2026-01-01T00:00:00.000Z" }),
     );
     render(<TravelPanel />);
     fireEvent.click(screen.getByRole("button", { name: KEY }));

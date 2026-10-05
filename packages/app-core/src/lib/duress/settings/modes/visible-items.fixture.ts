@@ -1,25 +1,36 @@
 /** What the visible-items tests are made of: a few real items, one dressed in everything a copy must leave behind. */
 import {
-  type LoginItem,
+  type AccountItem,
   type VaultItem,
   createItem,
+  passwordMethod,
 } from "@opensesame/vault-core";
+import { plainAccount } from "../../../account.test-support.js";
 
 export const HIDDEN = "hidden-distinct-password-91Qz";
 
-export function login(name: string, over: Partial<LoginItem> = {}): LoginItem {
-  return {
-    ...createItem("login", name),
+type AccountOver = Partial<AccountItem> & {
+  password?: string;
+  totp?: string;
+  passwordChangedAt?: string;
+};
+
+export function account(name: string, over: AccountOver = {}): AccountItem {
+  const { password = `pw-${name}`, totp, passwordChangedAt, ...rest } = over;
+  const item = plainAccount(name, password, {
     username: `${name.toLowerCase()}@example.test`,
-    password: `pw-${name}`,
-    notes: `notes of ${name}`,
-    ...over,
-  };
+    ...(totp === undefined ? {} : { totp }),
+  });
+  const method = passwordMethod(item);
+  if (method && passwordChangedAt !== undefined) {
+    method.changedAt = passwordChangedAt;
+  }
+  return { ...item, notes: `notes of ${name}`, ...rest };
 }
 
-/** A login dressed with everything a copy must leave behind. */
-export function dressed(): LoginItem {
-  const item = login("Bank", {
+/** An account dressed with everything a copy must leave behind. */
+export function dressed(): AccountItem {
+  const item = account("Bank", {
     totp: "JBSWY3DPEXAMPLESEED",
     folderId: "folder-secret-id",
     resetEmailId: "reset-mail-id",
@@ -48,8 +59,8 @@ export const secret = (name: string): VaultItem => ({
 });
 
 export const items = (): VaultItem[] => [
-  login("Netflix"),
-  login("Hidden Bank", { password: HIDDEN }),
+  account("Netflix"),
+  account("Hidden Bank", { password: HIDDEN }),
   createItem("note", "Gym code"),
   secret("Wi-Fi"),
   createItem("card", "Visa"),

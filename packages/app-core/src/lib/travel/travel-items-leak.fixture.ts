@@ -9,10 +9,12 @@ import {
   type VaultBody,
   type VaultItem,
   createItem,
+  manualPassword,
   openJson,
   unlockVaultKey,
   vaultSealBinding,
 } from "@opensesame/vault-core";
+import { plainAccount } from "../account.test-support.js";
 import {
   ACTIVITY_LOG_PATH,
   flushActivityLog,
@@ -104,25 +106,32 @@ export function bodyOf(): VaultBody {
 export async function seedVault(): Promise<Seeded> {
   await vaultStore.create(PASSWORD);
   const vault: Folder = await vaultStore.addFolder(S.folder);
-  const bank = createItem("login", S.name);
-  Object.assign(bank, {
+  const bank = plainAccount(S.name, S.password, {
     username: S.username,
-    password: S.password,
-    notes: S.notes,
     totp: S.totp,
+  });
+  Object.assign(bank, {
+    notes: S.notes,
     folderId: vault.id,
     fields: [{ id: "cf-1", name: "Account", value: S.field, hidden: true }],
   });
   const trashed = createItem("note", S.trashName);
   trashed.notes = S.trashNotes;
-  const hist = createItem("login", S.histName);
-  hist.password = S.histOld;
-  const keeper = createItem("login", KEEP.name);
-  keeper.password = KEEP.password;
+  const hist = plainAccount(S.histName, S.histOld);
+  const keeper = plainAccount(KEEP.name, KEEP.password);
   const keeperNote = createItem("note", KEEP.note);
   await vaultStore.saveItems([bank, trashed, hist, keeper, keeperNote]);
   // A prior edit: the old password is retired, and an "updated" line is written.
-  await vaultStore.saveItem({ ...hist, password: S.histNew });
+  await vaultStore.saveItem({
+    ...hist,
+    methods: [
+      manualPassword(
+        `${hist.id}:password`,
+        S.histNew,
+        new Date().toISOString(),
+      ),
+    ],
+  });
   await vaultStore.trashItem(trashed.id);
   await flushActivityLog();
   const items = vaultStore.getSnapshot().items;
