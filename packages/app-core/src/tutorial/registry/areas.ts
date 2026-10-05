@@ -44,6 +44,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "host.health.check",
       "feature.item-types",
       "feature.environments",
+      "feature.security-checks",
     ],
   },
   {

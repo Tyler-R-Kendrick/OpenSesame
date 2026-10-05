@@ -37,6 +37,7 @@
       "vault.derived-records",
       "vault.environments",
       "vault.passkey-records",
+      "vault.security-checks",
       "wallet.spending"
     ],
     "chosenAlternatives": {

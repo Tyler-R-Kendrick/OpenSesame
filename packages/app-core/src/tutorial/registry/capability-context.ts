@@ -64,6 +64,7 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "app.install": ["/settings"],
     "feature.identity": ["/settings/capabilities"],
     "feature.sharing": ["/settings/capabilities"],
+    "feature.security-checks": ["/settings/capabilities", "/settings/vaults"],
     "access.connectors": ["/access"],
     "browser.pair": ["/connections", "/settings/capabilities"],
     "browser.authenticate": ["/connections", "/settings/capabilities"],

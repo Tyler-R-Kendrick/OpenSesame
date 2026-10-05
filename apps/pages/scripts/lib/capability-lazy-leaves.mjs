@@ -34,6 +34,11 @@ const LAZY_LEAVES = [
     "vault.environments",
     "cap-vault.environments",
   ],
+  [
+    "/packages/app-core/src/lib/vault/security-checks",
+    "vault.security-checks",
+    "cap-vault.security-checks",
+  ],
   ["/src/modules/sharing.live/carriers/nostr", "sharing.live", "live-nostr"],
   ["/node_modules/nostr-tools/", "sharing.live", "live-nostr"],
 ];

@@ -31,6 +31,7 @@ export const CAPABILITY_TUTORIALS = {
   "backup.status": "settings.backup",
   "backup.target.set": "settings.backup",
   "vault.drive.sync": "settings.tailnet-sync",
+  "vault.health.security_check": "feature.security-checks",
   "plugins.surrogate_proxy.switch": "settings.surrogate-credentials",
   "plugins.surrogate_proxy.tripwires": "settings.surrogate-credentials",
   "plugins.browser_autofill.switch": "settings.browser-autofill",

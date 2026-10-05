@@ -153,6 +153,13 @@ export const BREACH_CHECK_TAKES_A_SECRET: CapabilityExclusion = {
   adr: ADR_SECURITY_EVENTS,
 };
 
+/** The Pages check reads every login's password; a person starts it, never an agent. */
+export const VAULT_CHECK_READS_PASSWORDS: CapabilityExclusion = {
+  reason:
+    "the check reads every login's password to hash it and sends hash prefixes to a third party; only the person whose vault it is decides to run it",
+  adr: ADR_SECURITY_EVENTS,
+};
+
 export const ADR_ITEM_TYPE_PLUGINS = "0087-vault-item-type-plugins.md";
 
 export const ITEM_TYPE_HUMAN_CEREMONY: CapabilityExclusion = {

@@ -132,6 +132,9 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "identity.notification.bindings.manage": "notifications.routing",
     "identity.notification.preferences.manage": "notifications.routing",
 
+    // --- optional: breach and two-step checks (ADR 0080 §5) ------------
+    "vault.health.security_check": "vault.security-checks",
+
     // --- optional: tailnet networking -----------------------------------
     "vault.drive.sync": "networking.tailnet",
     // The daemon the plugin tiles reach is paired through the tailnet
