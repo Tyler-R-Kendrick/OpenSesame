@@ -154,6 +154,7 @@ async function openOverflowRow(page, pattern, label) {
 
 /** The front door: its two roads, and the guest road in the corner (ADR 0150 §1). */
 async function frontDoor(page, stop) {
+  await helpKey(page, stop("front-door"));
   await audit(page, stop("front-door"));
   for (const name of [
     "Set up your own",
@@ -172,9 +173,29 @@ async function frontDoor(page, stop) {
     await setup.tap();
     await page.waitForTimeout(900);
     await audit(page, stop("setup"));
+    // The ceremony's bar holds the wordmark, the help key, Close and Skip all
+    // (ADR 0165): at 320px none of them may be pushed off the edge.
+    const custom = page.getByRole("button", { name: "Custom" }).first();
+    if (await custom.count()) {
+      await custom.tap();
+      await page.getByRole("tablist", { name: "Setup step" }).waitFor();
+      await page.waitForTimeout(900);
+      await audit(page, stop("setup-ceremony"));
+      await helpKey(page, stop("setup-ceremony"));
+    }
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     await page.waitForTimeout(700);
   }
+}
+
+/** A gate's help key is drawn, and is a touch target (the audit measures the floor). */
+async function helpKey(page, label) {
+  const key = page.getByRole("button", { name: "Support", exact: true });
+  await key
+    .first()
+    .waitFor({ timeout: 15000 })
+    .catch(() => {});
+  harness.check((await key.count()) === 1, `${label}: one help key is drawn`);
 }
 
 /** Every section behind the sections drawer, and the tab the Access strip hides. */
