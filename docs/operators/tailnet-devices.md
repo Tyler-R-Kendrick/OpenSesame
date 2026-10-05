@@ -188,6 +188,6 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:tailnet-devices
 ```
 
-A shipped build ignores `OPENSESAME_TAILSCALE_API_BASE`. Only a build with
-the `tailnet-admin-test-upstream` feature reads it, and only for a loopback
-address.
+A shipped build ignores `OPENSESAME_TAILSCALE_API_BASE`. Only a debug build
+with the `tailnet-admin-test-upstream` feature reads it, and only for a
+loopback address.

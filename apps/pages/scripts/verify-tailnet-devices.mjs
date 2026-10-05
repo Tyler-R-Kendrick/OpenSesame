@@ -119,8 +119,16 @@ try {
   ])
     await expect(activity.getByText(said).first()).toBeVisible();
   const kept = stateFiles();
-  if (!kept.includes("device.authorize") || !kept.includes("Ops laptop"))
+  // The trail rests sealed; the operator reads it back through the CLI.
+  const trail = stack.cli("audit");
+  if (!trail.includes("device.authorize") || !trail.includes("Ops laptop"))
     throw new Error("TD-AUDIT: the daemon's log is missing the approval");
+  const rest = fs
+    .readFileSync(path.join(state, "tailnet-admin-audit.jsonl"), "utf8")
+    .trim()
+    .split("\n");
+  if (!rest.every((line) => line.startsWith("osl1.")))
+    throw new Error("TD-AUDIT: the audit trail rests in the clear");
   if (kept.includes(minted) || kept.includes(API_TOKEN) || /tskey-/.test(kept))
     throw new Error("TD-AUDIT: a key or credential is in the daemon's state");
   const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }));

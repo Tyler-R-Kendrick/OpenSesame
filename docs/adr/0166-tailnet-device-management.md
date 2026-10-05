@@ -73,8 +73,12 @@ bodies are capped, only allowlisted headers travel, and a response that
 echoes the credential is scrubbed. The row is restated from
 `spec/connectors/catalog.json` and a drift test fails if they disagree. The
 access-token mint is one fixed `POST` to `/api/v2/oauth/token` on the same
-host, with redirects off. A loopback upstream exists only in a build with the
-`upstream-override` feature, which no release enables.
+host, with redirects off. Device answers may be up to 32 MiB (a few KiB a
+machine, so about ten thousand machines); every other fence is the broker's
+default. A loopback upstream exists only in a debug build with the
+`upstream-override` feature: a workspace test run can unify the feature into
+a binary it builds, so a release build never reads the base whatever its
+features.
 
 ### 3. Pairing: one origin, one role, one code, once
 
@@ -95,6 +99,15 @@ The roles are the whole permission model:
 | --- | --- |
 | `read` | the status, the device list and one device, its routes, the auth-key list, the audit trail |
 | `manage` | all of `read`, and authorize or deauthorize, rename, set tags, enable or disable key expiry, expire a key, set enabled routes, remove a device, create and revoke auth keys |
+
+A pairing link is something a person may be sent, and any `*.ts.net` host can
+be public through Funnel, so a link must not quietly re-point a page at
+someone else's tailnet: before anything is pressed, the pairing sheet names
+the daemon the code points at, the role and the name it carries, and the
+pairing it would replace, and its commit then reads *Replace the paired
+daemon*. Once a new bearer is sealed, the one it replaced is revoked at the
+daemon that issued it, best effort, so it does not stay live until an
+operator unpairs it.
 
 ### 4. The routes
 
@@ -146,14 +159,23 @@ the daemon and the Pages client replay it, so neither side can drift alone.
 Each mutating call appends one line to `tailnet-admin-audit.jsonl`
 (`0600`): when, which pairing (id, label, origin), the action, the device or
 key id, and the outcome status. No value is recorded: not a key, not a tag
-list's secret-looking content, not a token. The file keeps its newest 2,000
-lines. `GET /v1/tailnet/audit` returns the newest 200 to a `read` bearer, and
-Identity › Devices shows them.
+list's secret-looking content, not a token. Each line rests sealed (the
+`osl1.` sealed-log format, XChaCha20-Poly1305) under a key in its own `0600`
+file beside the trail, as ADR 0157 requires of anything the authority plane
+writes about itself; without that key the trail reads as nothing. The file
+keeps its newest 2,000 lines. `GET /v1/tailnet/audit` returns the newest 200
+to a `read` bearer, and Identity › Devices shows them.
+
+The pairings file and the audit trail are each written under an exclusive
+lock file that the daemon and the CLI beside it share, so `unpair` at a
+terminal never races a page's exchange into bringing a revoked bearer back,
+and an append never lands between a trim's read and its rename.
 
 ### 6. In Pages: one optional capability, one panel
 
 `networking.tailnet-devices` is an optional capability that depends on
-`networking.tailnet` and is off until a person turns it on (ADR 0130). Its
+`networking.tailnet` and `identity.local-iam` (whose section it is drawn in)
+and is off until a person turns it on (ADR 0130). Its
 module puts the device manager into Identity › Devices through a slot, so the
 always-on section carries none of its code. With nothing paired the panel
 shows its pair key and nothing else; paired, it lists the tailnet's devices
