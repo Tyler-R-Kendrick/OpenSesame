@@ -67,10 +67,10 @@ export const COVERAGE_EXEMPT: Readonly<Record<string, string>> = {
     "declared but drawn nowhere: Pages binds a connector with a local share, taught on Access › Connectors (ADR 0115), and the Host road that had this panel is gone",
   "target:connections.renew":
     "declared but drawn nowhere: Renew needs the Host's rotation (connections.rotate has no PWA surface)",
-  "target:identity.claim-access": "no tutorial points at it yet",
-  "target:identity.org-signin": "no tutorial points at it yet",
-  "target:identity.organization": "no tutorial points at it yet",
-  "target:identity.service-accounts": "no tutorial points at it yet",
+  "target:identity.claim-access":
+    "declared but drawn nowhere on Identity: a claim is opened by its /claim link (ADR 0140), never from a key",
+  "target:identity.org-signin":
+    "inside the Organizations tab, which a URL selects and a guide cannot navigate to, and drawn only for an owner with a session on a remote Identity API",
   "target:nav.access": "no tutorial points at it yet",
   "target:nav.activity": "no tutorial points at it yet",
   "target:nav.connections": "no tutorial points at it yet",
