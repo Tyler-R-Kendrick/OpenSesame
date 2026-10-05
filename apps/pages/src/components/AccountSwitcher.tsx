@@ -38,7 +38,7 @@ import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AddOrganization } from "./AddOrganization.js";
 import { GlyphMark } from "./GlyphMark.js";
 import { IconCheck, IconPlus, IconUser } from "./Icons.js";
-import { glyphIsDrawn } from "./prompt-glyph.js";
+import { glyphStandsForName } from "./prompt-glyph.js";
 import { useHold } from "./use-hold.js";
 
 import { useAccount } from "../bindings/account.js";
@@ -109,7 +109,7 @@ function AccountSwitcherDefault() {
   // profile — and the lift that ends the hold does not close it again.
   const hold = useHold(
     useCallback(() => setOpen(true), []),
-    glyphIsDrawn,
+    glyphStandsForName,
   );
   const bindSegment = useCallback(
     (element: HTMLButtonElement | null) => {
@@ -137,14 +137,15 @@ function AccountSwitcherDefault() {
         onContextMenu={(event) => {
           // A finger held here is asking for the switcher, not for the
           // session menu the prompt answers a right-click with.
-          if (!isTouchPointer() || !glyphIsDrawn(event.currentTarget)) return;
+          if (!isTouchPointer() || !glyphStandsForName(event.currentTarget))
+            return;
           event.preventDefault();
           event.stopPropagation();
           setOpen(true);
         }}
       >
-        <span className="prompt__name">{label}</span>
         <GlyphMark className="prompt__glyph" {...promptGlyph} />
+        <span className="prompt__name">{label}</span>
       </button>
 
       {open ? (
