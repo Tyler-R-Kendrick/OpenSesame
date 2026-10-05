@@ -63,3 +63,31 @@ pub fn assert_derived_methods(name: &str, body: &Value) {
         "{name}: a root sealed under the pepper"
     );
 }
+
+/// Every string leaf of a JSON value.
+pub fn string_leaves(value: &Value, out: &mut Vec<String>) {
+    match value {
+        Value::String(leaf) => out.push(leaf.clone()),
+        Value::Array(rows) => rows.iter().for_each(|row| string_leaves(row, out)),
+        Value::Object(map) => map.values().for_each(|row| string_leaves(row, out)),
+        _ => {}
+    }
+}
+
+/// What the derived vector lists: two accounts, by name, kind and path (ADR 0173).
+/// Neither name holds the word `derived`, which the vector stores as a value.
+pub fn assert_derived_listing(name: &str, listed: &[(&str, &str, &str)]) {
+    let want = [
+        (
+            "Personal computed account",
+            "account",
+            "Personal computed account.account",
+        ),
+        (
+            "Personal computed peppered account",
+            "account",
+            "Personal computed peppered account.account",
+        ),
+    ];
+    assert_eq!(listed, want, "{name}");
+}

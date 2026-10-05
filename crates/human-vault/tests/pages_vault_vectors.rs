@@ -125,16 +125,6 @@ fn independent_body(file: &str, tomb: &str) -> Value {
     serde_json::from_slice(&body).unwrap()
 }
 
-/// Every string leaf of a JSON value.
-fn string_leaves(value: &Value, out: &mut Vec<String>) {
-    match value {
-        Value::String(leaf) => out.push(leaf.clone()),
-        Value::Array(rows) => rows.iter().for_each(|row| string_leaves(row, out)),
-        Value::Object(map) => map.values().for_each(|row| string_leaves(row, out)),
-        _ => {}
-    }
-}
-
 /// Name, kind and path of every listed item: a legacy vector lists its login
 /// as `.login`, an account vector lists accounts as `.account` (ADR 0172).
 fn assert_listing(name: &str, opened: &OpenedVaultFile) {
@@ -157,25 +147,7 @@ fn assert_listing(name: &str, opened: &OpenedVaultFile) {
         return;
     }
     if DERIVED_VECTORS.contains(&name) {
-        let expected = [
-            ("Personal computed account", "account", ".account"),
-            ("Personal computed peppered account", "account", ".account"),
-        ];
-        let want: Vec<(String, String, String)> = expected
-            .iter()
-            .map(|(item, kind, ext)| {
-                (
-                    (*item).to_owned(),
-                    (*kind).to_owned(),
-                    format!("{item}{ext}"),
-                )
-            })
-            .collect();
-        let got: Vec<(String, String, String)> = listed
-            .iter()
-            .map(|(a, b, c)| ((*a).to_owned(), (*b).to_owned(), (*c).to_owned()))
-            .collect();
-        assert_eq!(got, want, "{name}");
+        support::assert_derived_listing(name, &listed);
         return;
     }
     let label = if name.contains("project") {
@@ -234,11 +206,11 @@ fn every_vector_opens_to_its_recorded_summary_and_lists_no_value() {
             for listed in ["id", "name", "kind"] {
                 rest.remove(listed);
             }
-            string_leaves(&Value::Object(rest), &mut values);
+            support::string_leaves(&Value::Object(rest), &mut values);
         }
         // Nor any part of the device identity key a body carries (ADR 0160 §5).
         if let Some(key) = body.get("deviceIdentityKey") {
-            string_leaves(key, &mut values);
+            support::string_leaves(key, &mut values);
         }
         if ACCOUNT_VECTORS.contains(&name.as_str()) {
             // The pepper that opens a sealed password is never listed either.
@@ -397,7 +369,7 @@ fn lists_the_device_identity_key_by_name_and_never_by_value() {
 
     let body = independent_body(&file, &opened.tomb);
     let mut secrets = Vec::new();
-    string_leaves(&body["deviceIdentityKey"], &mut secrets);
+    support::string_leaves(&body["deviceIdentityKey"], &mut secrets);
     secrets.retain(|value| value.chars().count() >= 6);
     assert!(secrets.len() >= 3, "the key holds ids and coordinates");
     let printed = format!("{opened:?}");

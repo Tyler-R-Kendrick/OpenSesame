@@ -319,7 +319,7 @@ async function derivedItems(): Promise<VaultBody["items"]> {
 }
 
 /** The derived vector, keyed by name. Nothing here is added to an existing key. */
-export async function emitDerivedVectors(): Promise<Record<string, Vector>> {
+export async function emitDerivedVectors() {
   const { header, vaultKey, rawVaultKey } = await createVault(
     VECTOR_ACCOUNT_PASSWORD,
     "vector hint",
