@@ -64,6 +64,9 @@
           "measure": ".topbar .prompt__seg"
         },
         {
+          "measure": ".topbar .prompt__glyph"
+        },
+        {
           "report": ".topbar .rail__prompt"
         },
         {
@@ -101,9 +104,9 @@
       "shot": "390-prompt",
       "width": 390,
       "title": "The phone is unchanged \u2014 390 \u00d7 844",
-      "caption": "On a phone the top bar still draws the glyphs alone; the names are read in the switcher a press opens.",
-      "before": "two 44\u00d744 glyph segments at x=62 and x=113, text is `@` only",
-      "after": "identical: two 44\u00d744 glyph segments at x=62 and x=113"
+      "caption": "On a phone the top bar still draws the glyphs alone, where they were; the names are read in the switcher a press opens.",
+      "before": "two 44\u00d744 segments at x=62 and x=113, each holding a 28\u00d724 glyph at the same x (y=20); text is `@` only",
+      "after": "identical, glyph position included: 44\u00d744 segments at x=62 and x=113, 28\u00d724 glyphs at the same x (y=20)"
     }
   ]
 }

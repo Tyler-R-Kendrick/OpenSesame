@@ -30,4 +30,8 @@ The profile named beside its glyph; the menu is unchanged at 224×154.
 ![The phone prompt](390-prompt.png)
 
 The top bar still draws the glyphs alone (two 44×44 segments at x=62 and
-x=113); the names are read in the switcher a press opens.
+x=113, and the 28×24 glyphs themselves at the same x, y=20, measured on both
+builds); the names are read in the switcher a press opens. A first version of
+this change moved those glyphs 8px inside their keys, because the rail's new
+flex rule also matched the top bar's prompt; review caught it, the rule is now
+scoped to the rail, and the glyph position is part of the measurement.
