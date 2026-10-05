@@ -53,7 +53,16 @@ function pointer(type: string, pointerType = "touch"): Event {
   return event;
 }
 
+/** The phone's top bar draws the glyph alone: `glyph.css` hides the name. */
+function hideNames(): () => void {
+  const style = document.createElement("style");
+  style.textContent = ".prompt__name { display: none; }";
+  document.head.append(style);
+  return () => style.remove();
+}
+
 describe("AccountSwitcher — the glyph a phone draws for the name", () => {
+  let showNames = () => {};
   beforeEach(() => {
     sessionStorage.clear();
     setActiveOrgProfileId(GUEST_PROFILE_ID);
@@ -61,8 +70,10 @@ describe("AccountSwitcher — the glyph a phone draws for the name", () => {
     identityHookSeams.useIdentitySession = () => null;
     identitySeams.currentSession = () => null;
     orgs.listOrgMemberships.mockResolvedValue([]);
+    showNames = hideNames();
   });
   afterEach(() => {
+    showNames();
     cleanup();
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -186,23 +197,28 @@ describe("AccountSwitcher — the glyph a phone draws for the name", () => {
   });
 });
 
-describe("AccountSwitcher — where the name is drawn, nothing changes", () => {
-  let style: HTMLStyleElement;
+describe("AccountSwitcher — where the name is drawn beside its glyph, nothing changes", () => {
   beforeEach(() => {
     sessionStorage.clear();
     setActiveOrgProfileId(GUEST_PROFILE_ID);
     orgs.listOrgMemberships.mockResolvedValue([]);
     identityHookSeams.useIdentitySession = () => null;
-    // The rail draws the name: `glyph.css` hides the glyph there.
-    style = document.createElement("style");
-    style.textContent = ".prompt__glyph { display: none; }";
-    document.head.append(style);
   });
   afterEach(() => {
-    style.remove();
     cleanup();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it("draws the glyph and the name together, the mark first", () => {
+    renderSwitcher();
+    const seg = document.querySelector(".account-switcher .prompt__seg");
+    if (!seg) throw new Error("no segment");
+    expect(seg.children[0]?.getAttribute("class")).toContain("prompt__glyph");
+    expect(seg.querySelector("svg.prompt__glyph")).not.toBeNull();
+    const name = seg.querySelector(".prompt__name");
+    if (!name) throw new Error("no name");
+    expect(getComputedStyle(name).display).not.toBe("none");
   });
 
   it("leaves a touch long-press's contextmenu to the session menu, as before", () => {
