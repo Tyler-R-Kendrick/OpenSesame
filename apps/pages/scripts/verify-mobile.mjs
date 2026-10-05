@@ -31,7 +31,7 @@ import {
   recordStop,
 } from "./lib/mobile-contract.mjs";
 import { doorRoads, helpKey, setupCeremony } from "./lib/mobile-gates.mjs";
-import { auditKeybindingsAbsent } from "./lib/mobile-keybindings-absent.mjs";
+import { auditGestures } from "./lib/mobile-gestures.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
 import { phonePolish } from "./lib/phone-polish.mjs";
 import {
@@ -156,8 +156,9 @@ async function sections(page, stop) {
   ]) {
     if (await openTab(page, name)) await audit(page, stop(label));
   }
-  // Settings is the last stop: no finger can press a key, so no key editor.
-  await auditKeybindingsAbsent(page, harness, stop);
+  // Settings is the last stop: a finger has no key to press, so the keymap
+  // it is given is the Gestures tab (ADR 0170), made with real touches.
+  await auditGestures(page, harness, stop, audit);
   // Access keeps five more tabs in a scrolling strip; the far one has to be
   // reachable and has to bring itself into view once it is current.
   if (!(await openTab(page, "Access"))) return;

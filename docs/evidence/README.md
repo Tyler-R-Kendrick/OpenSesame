@@ -69,6 +69,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-04-mobile-visual-polish/`](2026-10-04-mobile-visual-polish/README.md) | Mobile visual polish |
 | [`2026-10-04-item-type-switches/`](2026-10-04-item-type-switches/README.md) | Item types: a list of switches (ADR 0165) |
 | [`2026-10-04-glyph-identity/`](2026-10-04-glyph-identity/README.md) | Glyphs for vaults and people on a phone (ADR 0164) |
+| [`2026-10-04-gesture-loadout/`](2026-10-04-gesture-loadout/README.md) | The keymap has two loadouts, and a phone leads with gestures |
 | [`2026-10-04-device-inbox/`](2026-10-04-device-inbox/README.md) | Device-mode receipts, inbox and local notifications (ADR 0162) — before and after |
 | [`2026-10-04-device-identity-carry/`](2026-10-04-device-identity-carry/README.md) | The device identity key travels with the vault (ADR 0160 §5a) — before and after |
 | [`2026-10-04-device-identity/`](2026-10-04-device-identity/README.md) | The device is the Identity plane (ADR 0160) — before and after |

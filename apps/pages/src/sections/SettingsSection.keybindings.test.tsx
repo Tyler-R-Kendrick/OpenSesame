@@ -47,9 +47,8 @@ Object.assign(settingsSeams, {
   saveSettings: vi.fn(),
 });
 afterAll(() => Object.assign(settingsSeams, originalSettingsSeams));
-import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import { registerOptionalTutorials } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
-import { stubPointer } from "../lib/use-narrow.test-support.js";
+import { stubScreen } from "../lib/use-narrow.test-support.js";
 import { SettingsSection } from "./SettingsSection.js";
 import { settingsPageSources } from "./settings/page-tree.js";
 
@@ -109,67 +108,61 @@ function tabNames(): string[] {
 }
 
 describe("Settings > Keybindings on a touch-only device", () => {
-  it("leaves the tab out of the strip and lands its deep link on General", async () => {
-    stubPointer(false);
-    renderAt("/settings/keybindings");
-    expect(tabNames()).not.toContain("Keybindings");
-    // General's own address is the bare `/settings`.
-    await waitFor(() =>
-      expect(screen.getByTestId("where").textContent).toBe(
-        settingsPath("general"),
-      ),
-    );
-    expect(screen.getByRole("heading", { name: "Appearance" })).toBeTruthy();
-  });
-
-  it("never draws the key editor, even for the one commit before the rewrite", async () => {
-    stubPointer(false);
-    renderAt("/settings/keybindings?file=config.yaml");
-    await waitFor(() =>
-      expect(screen.getByTestId("where").textContent).toBe(
-        settingsPath("general"),
-      ),
-    );
-    expect(new Set(marked)).toEqual(new Set(["General"]));
-    expect(visited).toHaveLength(2);
-  });
-
-  it("sends the legacy #keybindings hash to General in one navigation", async () => {
-    stubPointer(false);
-    renderAt("/settings#keybindings");
-    await waitFor(() =>
-      expect(screen.getByTestId("where").textContent).toBe(
-        settingsPath("general"),
-      ),
-    );
-    // The first entry is the arrival; one replace is the whole journey.
-    expect(visited).toHaveLength(2);
-    expect(new Set(marked)).toEqual(new Set(["General"]));
-  });
-
-  it("leaves the rail's settings tree without the tab", () => {
-    stubPointer(false);
-    const ids = (keybindings?: boolean) =>
-      settingsPageSources({ keybindings }).map((tab) => tab.id);
-    expect(ids(false)).not.toContain("keybindings");
-    expect(ids(true)).toContain("keybindings");
-    expect(ids(undefined)).toContain("keybindings");
-  });
-});
-
-describe("Settings > Keybindings with a fine pointer", () => {
-  it("keeps the tab and the deep link", async () => {
-    stubPointer(true);
+  it("keeps the tab and its deep link, and opens on the Gestures loadout", async () => {
+    stubScreen({ narrow: true, coarse: true });
     renderAt("/settings/keybindings");
     expect(tabNames()).toContain("Keybindings");
     expect(screen.getByTestId("where").textContent).toBe(
       "/settings/keybindings",
     );
-    expect(tabNames()).toContain("Keybindings");
+    // The editor is its own chunk: wait for it.
+    const gestures = await screen.findByRole("tab", { name: "Gestures" });
+    expect(gestures.getAttribute("aria-selected")).toBe("true");
+    expect(
+      await screen.findByRole("heading", { name: "Gestures" }),
+    ).toBeTruthy();
+    // The keys are one tab away, never gone.
+    expect(screen.getByRole("tab", { name: "Keyboard" })).toBeTruthy();
   });
 
   it("sends the legacy #keybindings hash to its tab in one navigation", async () => {
-    stubPointer(true);
+    stubScreen({ narrow: true, coarse: true });
+    renderAt("/settings#keybindings");
+    await waitFor(() =>
+      expect(screen.getByTestId("where").textContent).toBe(
+        "/settings/keybindings",
+      ),
+    );
+    expect(visited).toHaveLength(2);
+  });
+
+  it("lists the loadouts' panels in the rail's settings tree", () => {
+    stubScreen({ narrow: true, coarse: true });
+    const tab = settingsPageSources({}).find(
+      (entry) => entry.id === "keybindings",
+    );
+    expect(tab?.sections?.map((section) => section.label)).toEqual([
+      "Keymap",
+      "Gestures",
+      "Macros",
+    ]);
+  });
+});
+
+describe("Settings > Keybindings with a pointer and a keyboard", () => {
+  it("keeps the tab and the deep link, and opens on the Keyboard loadout", async () => {
+    stubScreen({ narrow: false, coarse: false });
+    renderAt("/settings/keybindings");
+    expect(tabNames()).toContain("Keybindings");
+    expect(screen.getByTestId("where").textContent).toBe(
+      "/settings/keybindings",
+    );
+    const keyboard = await screen.findByRole("tab", { name: "Keyboard" });
+    expect(keyboard.getAttribute("aria-selected")).toBe("true");
+    expect(await screen.findByRole("heading", { name: "Keymap" })).toBeTruthy();
+  });
+
+  it("sends the legacy #keybindings hash to its tab in one navigation", async () => {
     renderAt("/settings#keybindings");
     await waitFor(() =>
       expect(screen.getByTestId("where").textContent).toBe(
@@ -182,5 +175,18 @@ describe("Settings > Keybindings with a fine pointer", () => {
   it("keeps the tab where there is no matchMedia to ask", () => {
     renderAt("/settings");
     expect(tabNames()).toContain("Keybindings");
+  });
+
+  it("opens the Gestures loadout for a link to its panel", async () => {
+    stubScreen({ narrow: false, coarse: false });
+    renderAt("/settings/keybindings#settings-gestures");
+    expect(
+      await screen.findByRole("heading", { name: "Gestures" }),
+    ).toBeTruthy();
+    expect(
+      screen
+        .getByRole("tab", { name: "Gestures" })
+        .getAttribute("aria-selected"),
+    ).toBe("true");
   });
 });

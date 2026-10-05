@@ -2,7 +2,7 @@ import { FIXED_ROWS } from "@opensesame/app-core/lib/keymap/commands.js";
 import type { KeymapConfig } from "@opensesame/app-core/lib/keymap/config.js";
 import { resetTarget } from "@opensesame/app-core/lib/keymap/effective.js";
 import { keycapLabel } from "@opensesame/app-core/lib/keymap/notation.js";
-import { resetKeymap } from "@opensesame/app-core/lib/keymap/store.js";
+import { resetKeys } from "@opensesame/app-core/lib/keymap/store.js";
 import {
   KEYMAP_FILTERS,
   KEYMAP_SCOPES,
@@ -165,7 +165,8 @@ function ResetAll({ state, onLand }: { state: KeymapState; onLand: Land }) {
               setArmed(true);
               return;
             }
-            const reset = resetKeymap();
+            // Keys and macros only: the gestures are the other tab's.
+            const reset = resetKeys();
             setArmed(false);
             if (!reset.ok) {
               refusals.current += 1;
