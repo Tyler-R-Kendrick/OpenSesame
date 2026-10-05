@@ -1,6 +1,7 @@
 import { type ReactElement, Suspense, lazy } from "react";
 import { createPortal } from "react-dom";
 import { IconHelp } from "../../components/Icons.js";
+import { useGateSeat } from "../gate-seat.js";
 import { useGuideTarget } from "../registry/react.jsx";
 import { useSupport } from "../session.js";
 import "../support.css";
@@ -48,11 +49,17 @@ function markClass(chrome: boolean, guiding: boolean, open: boolean): string {
 
 /**
  * The question mark. On an unlocked shell it sits in the statusline beside
- * CommandBar. Unlock/setup have no statusline, so it falls back to a corner.
+ * CommandBar. A gate (ADR 0166) has no statusline: it sits in the seat the
+ * screen drew in its own chrome row and, with no seat drawn, it is not drawn
+ * at all — never a floating square over a screen's controls.
  */
-export function SupportLauncher(): ReactElement {
+export function SupportLauncher({
+  gate = false,
+}: { gate?: boolean }): ReactElement {
   const { view, support } = useSupport();
-  const slot = useSupportMarkSlot();
+  const statusline = useSupportMarkSlot();
+  const seat = useGateSeat();
+  const slot = gate ? seat : statusline;
   const ref = useGuideTarget<HTMLButtonElement>("shell.support");
   const chrome = slot !== null;
   const guiding = LIVE_STATUSES.has(view.guide?.status ?? "");
@@ -71,13 +78,13 @@ export function SupportLauncher(): ReactElement {
       tabIndex={view.open ? -1 : undefined}
       onClick={() => (view.open ? support.close() : support.open())}
     >
-      <IconHelp size={chrome ? 15 : 18} />
+      <IconHelp size={chrome && !gate ? 15 : 18} />
     </button>
   );
 
   return (
     <>
-      {slot ? createPortal(mark, slot) : mark}
+      {slot ? createPortal(mark, slot) : gate ? null : mark}
       {touring ? (
         <Suspense fallback={null}>
           <CoachHud />

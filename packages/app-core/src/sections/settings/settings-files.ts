@@ -80,7 +80,7 @@ export type SettingsDoc = {
   macros?: Record<string, MacroDoc>;
   /** Keys that hold in one listing only: `vault:` or `rail:` (ADR 0156 §6). */
   contexts?: ContextsDoc;
-  /** The touch loadout: gesture → action (ADR 0166). */
+  /** The touch loadout: gesture → action (ADR 0167). */
   gestures?: Record<string, string>;
 };
 

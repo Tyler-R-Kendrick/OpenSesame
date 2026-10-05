@@ -1,6 +1,6 @@
 /**
  * The phone's motion sensor, for the one gesture that is made by moving it
- * (ADR 0166): a shake. Three things are true of it that are not true of a
+ * (ADR 0167): a shake. Three things are true of it that are not true of a
  * touch, and each is handled here rather than assumed:
  *
  * - Some browsers (iOS Safari) give a page the sensor only after a person

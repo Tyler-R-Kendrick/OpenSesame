@@ -22,7 +22,7 @@ function loadoutOfHash(hash: string): Loadout | null {
 
 /**
  * Settings › Keybindings: the keymap in two loadouts, Keyboard and Gestures
- * (ADR 0166), then the macros that bind into either. A device opens on its own
+ * (ADR 0167), then the macros that bind into either. A device opens on its own
  * loadout — a finger first lands on gestures, anything else on keys — and the
  * other is one tab away: keys still work on a phone with a keyboard, and
  * gestures on a laptop with a touch screen. The scope the keymap is read in

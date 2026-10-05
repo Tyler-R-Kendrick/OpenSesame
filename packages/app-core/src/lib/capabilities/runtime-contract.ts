@@ -251,10 +251,17 @@ export type UnlockEffectContribution = Readonly<{
  *
  * Wrappers nest by `order`, lowest outermost, then by `id`, so two
  * capabilities arriving in either sequence produce the same tree.
+ *
+ * `Gate` is the same capability's part of the screens in front of the shell —
+ * the front door, unlock, setup, join, the broker popup and the federation
+ * return (ADR 0166). It is drawn *beside* the screen, never around it, so a
+ * capability arriving or leaving cannot remount the screen it sits beside; the
+ * core owns the seat it draws into and the route the screen declares.
  */
 export type ShellWrapperContribution = Readonly<{
   id: string;
   Wrapper: ComponentType<{ children?: ReactNode }>;
+  Gate?: ComponentType;
   order: number;
 }>;
 

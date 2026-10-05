@@ -251,7 +251,12 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # Same harness, every tutorial (ADR 0163): the Support sheet's Tutorials tab
 # lists them, each is started from its row and walked with Next alone — the
 # mouse on one step, Enter on the next — on the shell with every optional
-# capability switched on, at desktop and phone width. Every step's card must sit inside the screen with
+# capability switched on, and on the gates (ADR 0166: the front door, setup,
+# sign-in, unlock, the broker popup and the federation return each draw a help
+# key and offer the tutorials written for them), at desktop and phone width.
+# Each gate's key is held to the ADR: one icon key in the screen's chrome, 44px
+# on a phone, resting on no control, reachable by Tab, never holding the focus
+# on arrival. Every step's card must sit inside the screen with
 # Next present, and a step that points at a control must light it, leave it
 # uncovered and reachable through the aperture. Then Back, Replay, Done, and
 # where focus went. A control that is missing is a failure here although a
@@ -410,7 +415,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `apps/browser-extension` | WXT browser extension; `runner/` is the local runner of the hosted step protocol (ADR 0159): claims steps with the person's Host session for an armed origin, executes them in an isolated-world injection, answers only canonical outcomes, submits at most once, and answers `failed(transport)` for the two capture steps no host envelope scheme exists for |
 | `examples/*` | Example relying parties (`rp-alpha`, `rp-beta`, `static-rp`, `siop-rp`), agents (`agent`, `static-agent`) and a headless device-login client (`headless`) |
 | `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |
-| `packages/app-core/src/lib/keymap/{gestures,gesture-bindings,gesture-recognizer}.ts`, `apps/pages/src/lib/{gesture-runtime,gesture-motion,use-gestures,gesture-help}.ts`, `apps/pages/src/sections/settings/keybindings/{LoadoutTabs,GesturesPanel,GestureRow,MotionSwitch}.tsx` | The keymap's touch loadout (ADR 0166): a closed set of two-finger swipes, a two-finger tap and a shake bound to the same commands as keys through `runTarget` (never a command that asks first, never a register key); the pure recognizer (`RECOGNIZER`, `SHAKE`) in app-core, the touch handlers that claim only a bound swipe that began in a listing, and the motion sensor behind an Allow key where the browser asks first; Settings › Keybindings draws Keyboard and Gestures as tabs and opens on the device's own |
+| `packages/app-core/src/lib/keymap/{gestures,gesture-bindings,gesture-recognizer}.ts`, `apps/pages/src/lib/{gesture-runtime,gesture-motion,use-gestures,gesture-help}.ts`, `apps/pages/src/sections/settings/keybindings/{LoadoutTabs,GesturesPanel,GestureRow,MotionSwitch}.tsx` | The keymap's touch loadout (ADR 0167): a closed set of two-finger swipes, a two-finger tap and a shake bound to the same commands as keys through `runTarget` (never a command that asks first, never a register key); the pure recognizer (`RECOGNIZER`, `SHAKE`) in app-core, the touch handlers that claim only a bound swipe that began in a listing, and the motion sensor behind an Allow key where the browser asks first; Settings › Keybindings draws Keyboard and Gestures as tabs and opens on the device's own |
 | `packages/app-core/src/lib/{device-receipts,device-inbox,device-identity-inbox}.ts`, `src/lib/local-notifications/`, `apps/pages/src/modules/notifications.local/` | The device's receipts, inbox and local notifications (ADR 0162): receipts are the vault's own sealed file (`device-receipts-store.ts`), apart from the Access audit, written after each decision and retried from a sealed pending list; the inbox is the pending local requests; the `audit` and `requests` device routes answer them to a session and decide nothing; `notifications.local` rings through the bell, the tab title and badge, and the Notification API (permission asked only on its key), routing narrowed to policy, no server and no push |
 | `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`spec/conformance/vault-vectors.json`, also read by the Rust reader `crates/human-vault` `pages_vault`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
 | `packages/app-core/src/lib/item-type-marketplace/`, `packages/app-core/src/sections/settings/{virtual-files,item-type-files}.ts`, `apps/pages/src/sections/settings/files/` | Item-type marketplaces read from any git repository's `.opensesame/marketplace.json` (ours by default: `.opensesame/`, `marketplace/item-types/`, re-pin with `node scripts/release/pin-marketplace.mjs`), and Settings as files — the source view is a file viewer over `VirtualFileProvider`s and the Form is drawn from the same files (ADR 0134) |
@@ -557,7 +562,12 @@ Do not add new top-level directories or loose root files — find the group.
   a shared link opens join by itself. Once setup is answered or skipped the
   sign-in screen — the compiled-in Google-via-Shoo road, guest, the
   local-only seal — is the first screen, and setup lives behind unlock
-  (Settings), not as quiet foot links. `setupRequired` does not
+  (Settings), not as quiet foot links. The one thing a gate may draw beside
+  its own chrome is a **help key** (`tutorial/gate-seat.tsx`,
+  [ADR 0166](docs/adr/0166-gate-help-launcher.md)): a single icon key in the
+  screen's chrome row, never in front of its content, its roads or the guest
+  Skip, offline, opening the same Support sheet with only the tutorials written
+  for that screen. `setupRequired` does not
   exist and must not come back. No
   default may point at a local host: `packages/app-core/src/lib/settings.ts` defaults are empty on
   every origin, and `127.0.0.1` addresses are suggestions a loopback tab may
@@ -864,7 +874,11 @@ Do not add new top-level directories or loose root files — find the group.
   (`focus "feature.<id>"`, `requires`) and the library hides it where it
   cannot work. A control a guide can point at, and every key the keymap binds,
   is taught by a tutorial or named in `coverage-ledger.ts` with a reason
-  (`coverage.test.ts`; the ledger only falls). Changes to a tutorial, the Support sheet, the tutorial card or
+  (`coverage.test.ts`; the ledger only falls). A gate (the front door, unlock,
+  setup, the broker popup, the federation return) draws a help key and starts
+  tutorials scoped to its own route (`gate-goals.ts`, `useSupportRoute`'s
+  `/unlock/door`, `/setup/identity` and the rest; ADR 0166), and is offered
+  none of the shell's. Changes to a tutorial, the Support sheet, the tutorial card or
   the target registry require `pnpm --filter @opensesame/pages verify:tutorials`
   against a fresh Pages build (every tutorial, desktop and phone, Next and
   Back and Replay and Done, keyboard and mouse, focus handed back), and keep it

@@ -9,7 +9,7 @@ export const loadoutTabId = (id: Loadout) => `kb-tab-${id}`;
 export const loadoutPanelId = (id: Loadout) => `kb-loadout-${id}`;
 
 /**
- * Keyboard and Gestures: the two loadouts of one keymap (ADR 0166), as tabs.
+ * Keyboard and Gestures: the two loadouts of one keymap (ADR 0167), as tabs.
  * Arrow keys, Home and End move between them as a tablist does; the device's
  * own loadout is the one a person lands on, never the only one drawn.
  */

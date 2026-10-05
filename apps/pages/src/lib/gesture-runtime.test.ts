@@ -1,7 +1,7 @@
 import { EMPTY_KEYMAP } from "@opensesame/app-core/lib/keymap/config.js";
 /** @vitest-environment jsdom */
 /**
- * ADR 0166: two fingers in a listing run the keymap's own commands. These
+ * ADR 0167: two fingers in a listing run the keymap's own commands. These
  * drive the touch handlers with real touch sequences, not with a handler spy.
  */
 import {
