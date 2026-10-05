@@ -10,12 +10,19 @@
  */
 
 import type { JsonValue } from "@opensesame/os-domain";
+import type { LoginItem } from "@opensesame/vault-core";
+import { DECOY_ITEMS_RUNNER } from "./decoy-items-effect.js";
 import type { DuressPlan } from "./mode.js";
 
 export type EffectPhase = "on_match" | "after_session";
 
 /** What the unlock path hands a runner; a runner narrows what it needs. */
-export type EffectHost = Readonly<{ store: object }>;
+/** What a runner may ask of the open session's store; each is optional. */
+export type EffectStore = Readonly<{
+  addItems?: (items: LoginItem[]) => Promise<void>;
+}>;
+
+export type EffectHost = Readonly<{ store: EffectStore }>;
 
 export type EffectRunner = Readonly<{
   phase: EffectPhase;
@@ -29,7 +36,7 @@ export type EffectRunner = Readonly<{
 const RUNNERS: ReadonlyMap<string, EffectRunner> = new Map<
   string,
   EffectRunner
->([]);
+>([["decoy_items", DECOY_ITEMS_RUNNER]]);
 
 /** Whether unlock can run `effect`: a mode may only seal one that it can. */
 export function hasEffectRunner(effect: string): boolean {
