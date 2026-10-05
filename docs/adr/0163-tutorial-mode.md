@@ -134,6 +134,16 @@ optional capability on, and sits in the required Bundle budgets check as one
 job per width (`tutorials-e2e`, folded into `bundle-check`) so the walk does not
 share the bundle job's time.
 
+A tour that points at an item's own controls (favorite, edit, copy, trash,
+share, the logins filter) needs an item to open, so the library offers it only
+where the vault holds one (`vault.has-items`) and the walk makes a second pass:
+it adds a login and a trashed login through the editor, as a person does, then
+walks whatever the library offers that it did not before. Such a tour names the
+pane of an item (`/vault/item`) or the trash (`/vault/trash`), two places no
+path spells; the shell resolves them (`vault-routes.ts`) and reads the vault
+only for the id of the first item outside the trash. A locked key (trash,
+share, delete) is only ever pointed at: no tour waits for it to be pressed.
+
 ### 6. A control with no tutorial is a debt the build counts
 
 "Every feature has a tutorial" is a claim that rots unless a build checks it,

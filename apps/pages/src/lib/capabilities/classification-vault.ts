@@ -142,6 +142,7 @@ export const TUTORIAL_RULES = [
       "ui/",
       "__tests__/",
       "session",
+      "use-support-route",
       "ask-guard",
       "choose-agent",
       "support-access",

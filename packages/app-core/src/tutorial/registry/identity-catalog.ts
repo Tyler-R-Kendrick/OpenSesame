@@ -75,14 +75,6 @@ export const IDENTITY_TARGETS: readonly GuideTargetDescriptor[] = [
   },
 
   {
-    id: "identity.claim-access",
-    description:
-      "Starts the ceremony that claims a grant minted for this person, by entering the claim code.",
-    role: "ceremony",
-    routes: ["/identity"],
-    capabilityId: "delegations.claim",
-  },
-  {
     id: "nav.identity",
     description:
       "Rail entry that opens Identity, where accounts, upstream providers and linked identities are managed.",

@@ -6,9 +6,9 @@
  * feature tour is the same walk every time and cannot depend on the feature
  * being on: it navigates to the page, points at the section heading, and says
  * in a closing step what appears once the switch is. The sections that already
- * have a task-shaped tour — Backups, Networking, Notifications, Local
- * notifications, AI, Browser autofill, Surrogate credentials — are not
- * repeated here; `FEATURE_TUTORIALS` below says which tutorial a feature opens.
+ * have a task-shaped tour — Backups, Networking, Local notifications, AI,
+ * Browser autofill, Surrogate credentials — are not repeated here;
+ * `FEATURE_TUTORIALS` below says which tutorial a feature opens.
  *
  * Authored, checked-in prose; compiled by the same parser and validator model
  * output goes through (ADR 0088).
@@ -288,6 +288,24 @@ export const FEATURE_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   {
+    id: "feature.notifications",
+    title: "Turn on Notifications",
+    routes: ["/settings"],
+    libraryOnly: true,
+    guide: [
+      "guide/1",
+      'goal "feature.notifications"',
+      'say "Notifications decide where you hear that a request is waiting: Web Push, and the order each kind of request tries its channels. Where you are told never changes what it takes to approve."',
+      'navigate "/settings/capabilities"',
+      'wait route "/settings/capabilities" timeout=15000',
+      'scroll "feature.notifications"',
+      'focus "feature.notifications" "The Notifications section. Its switch adds Web Push and notification routing." side=bottom',
+      'say "With it on, Settings gains a Notifications category, where each kind of request has its own order of channels."',
+      'success "That is Notifications."',
+      "end",
+    ].join("\n"),
+  },
+  {
     id: "feature.telemetry",
     title: "Telemetry",
     routes: ["/settings"],
@@ -332,7 +350,7 @@ export const FEATURE_TUTORIALS = {
   "password-reset": "feature.password-reset",
   surrogates: "settings.surrogate-credentials",
   networking: "settings.tailnet-sync",
-  notifications: "settings.notifications",
+  notifications: "feature.notifications",
   "local-notifications": "settings.local-notifications",
   telemetry: "feature.telemetry",
 } as const;
