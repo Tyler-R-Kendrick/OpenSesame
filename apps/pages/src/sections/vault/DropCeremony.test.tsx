@@ -2,7 +2,18 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+
+import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
 
 import type {
   DropItem,
@@ -130,6 +141,13 @@ function makeLogin(): LoginItem {
     passwordChangedAt: "2026-08-01T00:00:00Z",
   };
 }
+
+// The Share once key is a tutorial target `sharing.drops` contributes.
+let revokeRealm = () => {};
+beforeAll(() => {
+  revokeRealm = registerTutorialRealm();
+});
+afterAll(() => revokeRealm());
 
 beforeEach(() => {
   for (const mock of Object.values(store)) mock.mockReset();

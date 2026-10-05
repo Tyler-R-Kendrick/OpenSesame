@@ -24,8 +24,14 @@ describe("sharing.drops runtime", () => {
   it("registers the legacy record, the share offer and the sweep (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "sharing.drops",
-      kinds: ["item-kind", "secret-share", "unlock-effect"],
-      count: 3,
+      kinds: [
+        "item-kind",
+        "secret-share",
+        "tutorial-goal",
+        "tutorial-target",
+        "unlock-effect",
+      ],
+      count: 5,
     });
   });
 

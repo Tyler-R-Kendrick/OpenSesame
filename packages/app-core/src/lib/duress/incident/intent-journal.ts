@@ -13,6 +13,10 @@ import {
 import { z } from "zod";
 import { duressSessionFence } from "../session/fence.js";
 import {
+  INCIDENT_INTENT_KEY,
+  INCIDENT_RECORD_KEY,
+} from "../store/boot-keys.js";
+import {
   type JournalWriteResult,
   clearJournal,
   clearJournalDurable,
@@ -21,8 +25,7 @@ import {
 } from "../store/journal.js";
 import { parseIncidentRecord } from "../store/storage-resilience.js";
 
-export const INCIDENT_INTENT_KEY = "duress.incident-intent.v1";
-export const INCIDENT_RECORD_KEY = "duress.incident-record.v1";
+export { INCIDENT_INTENT_KEY, INCIDENT_RECORD_KEY };
 
 export type IncidentIntent = Readonly<{
   incidentId: string;

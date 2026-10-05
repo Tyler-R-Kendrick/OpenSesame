@@ -9,7 +9,6 @@
  */
 import {
   PASSWORD,
-  lockVault,
   openSettingsCategory,
   sealWithPassword,
   waitOpen,
@@ -74,13 +73,26 @@ const TELLS = [
   /duress/i,
 ];
 
-/** Typed where the vault unlocks, the code opens a decoy, never the vault. */
+/**
+ * Typed where the vault unlocks, the code opens a decoy, never the vault.
+ * The page is reloaded first: an armed code lives in the origin's files, and
+ * a code that only worked in the tab that set it is no code at all.
+ */
 async function useCode({ page, check, snap }) {
   const real = await promptLabel(page);
-  await lockVault(page);
+  await page.waitForTimeout(1500);
+  await page.reload({ waitUntil: "networkidle" });
+  await page
+    .getByLabel("Password", { exact: true })
+    .waitFor({ timeout: 15000 });
   await page.getByLabel("Password", { exact: true }).fill(CODE);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
-  await waitOpen(page);
+  await waitOpen(page).catch(async (error) => {
+    const body = await page.evaluate(() => document.body.innerText);
+    throw new Error(
+      `the code did not open the decoy after a reload: ${body.slice(0, 300)} (${error.message})`,
+    );
+  });
   await page.waitForTimeout(1000);
   const seen = await pageText(page);
   check(
