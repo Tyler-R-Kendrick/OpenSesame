@@ -5,6 +5,8 @@
 - Amends: [ADR 0088](0088-ai-native-contextual-support.md) §1 and §4 (the
   authored budget, and what draws a step) and §5 (Driver.js is no longer the
   rendering primitive). It does not widen the language.
+- Amended by: [ADR 0165](0165-gate-help-launcher.md) §1–§3 and §6 (the gates draw
+  a help key, so gate tutorials exist and `verify:tutorials` walks them)
 - Builds on: [ADR 0065](0065-agent-surface-parity.md) (ceremonies stay human),
   [ADR 0130](0130-operator-controlled-capability-composition.md) (every
   feature is a capability), [ADR 0149](0149-nothing-stored-in-the-clear.md)
@@ -102,10 +104,11 @@ to the screen edge the lit control is *not* on, and its keys are 44px.
 
 The Support sheet gains a **Tutorials** tab beside Ask: every live tutorial,
 grouped by what a person wants to do (`areas.ts`), each row a title, a step
-count and a start key. Starting one is replaying it. There is no tutorial for
-a gate — unlock, setup, the broker popup, join: the Support sheet is not
-mounted there (ADR 0090), so nothing could start one. Written help for those
-screens stays, as help topics with no walkthrough. The Ask tab and the library
+count and a start key. Starting one is replaying it. There was no
+tutorial for a gate — unlock, setup, the broker popup, join — while the Support
+sheet was not mounted there (ADR 0090). ADR 0165 gives each gate a help key of
+its own that opens this sheet offline, so gates have tutorials, offered only
+where they can be walked, and written help for them names its tour. The Ask tab and the library
 share one gate (`goalOffered`, read through `useTutorialGate`): a goal that
 points at a section of Settings › Capabilities is offered only where that
 section is drawn, and one that `requires` a state predicate (`account.signed-in`,
