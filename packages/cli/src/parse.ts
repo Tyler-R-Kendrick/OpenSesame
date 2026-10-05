@@ -67,7 +67,8 @@ export type ParsedCommand =
       field: "secret" | "username";
       flags: GlobalFlags;
     }
-  | { name: "vault-share"; query: string; flags: GlobalFlags };
+  | { name: "vault-share"; query: string; flags: GlobalFlags }
+  | { name: "vault-sync"; code?: string; flags: GlobalFlags };
 
 function takeFlag(args: string[], name: string): boolean {
   const idx = args.indexOf(name);
@@ -227,6 +228,14 @@ function parseVaultShare(args: string[], flags: GlobalFlags): ParsedCommand {
   return { name: "vault-share", query, flags };
 }
 
+function parseVaultSync(args: string[], flags: GlobalFlags): ParsedCommand {
+  const code = takeOption(args, "--pair");
+  leftover(args, "sync");
+  return code === undefined
+    ? { name: "vault-sync", flags }
+    : { name: "vault-sync", code, flags };
+}
+
 function parseVaultList(args: string[], flags: GlobalFlags): ParsedCommand {
   leftover(args, "list");
   return { name: "vault-list", flags };
@@ -255,6 +264,8 @@ function parseVault(args: string[], flags: GlobalFlags): ParsedCommand {
       return parseVaultCopy(args, flags);
     case "share":
       return parseVaultShare(args, flags);
+    case "sync":
+      return parseVaultSync(args, flags);
     default:
       throw new Error(`Unknown command: vault ${verb}`);
   }
@@ -353,6 +364,8 @@ Commands:
   vault copy <item> [--field secret|username]
                                Copy a field to the clipboard, never print it
   vault share <item>           Share a secret once; prints the link and code
+  vault sync [--pair <code>]   Sync with a tailnet drive (ADR 0144); with no
+                               vault here, set it up from the drive first
   mcp host|client              Serve the host- or client-facing MCP tools
                                (stdio; OPENSESAME_MCP_TRANSPORT=http for HTTP)
 

@@ -101,7 +101,6 @@
     "transport.status.view",
     "transport.trust.manage",
     "transport.verify.run",
-    "vault.drive.sync",
     "vault.item_types.install",
     "vault.item_types.list",
     "vault.item_types.marketplace",
