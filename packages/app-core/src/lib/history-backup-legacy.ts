@@ -22,9 +22,9 @@ import { HISTORY_BACKUP_DATABASE } from "./storage-ownership.js";
  * are plain. With no durable key nothing reaches IndexedDB.
  */
 
-const DB_VERSION = 1;
-const ACCOUNTS = "accounts";
-const ENTRIES = "entries";
+export const DB_VERSION = 1;
+export const ACCOUNTS = "accounts";
+export const ENTRIES = "entries";
 
 let legacySwept = false;
 
@@ -50,7 +50,7 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-function idbReq<T>(request: IDBRequest<T>): Promise<T> {
+export function idbReq<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () =>
@@ -91,7 +91,7 @@ function sealRow(
 }
 
 /** A row's record: opened when sealed, as stored when written before sealing. */
-function openRow(
+export function openRow(
   atRest: AtRestKey,
   store: string,
   row: BoundaryValue,
@@ -108,7 +108,9 @@ function openRow(
   }
 }
 
-function asAccount(value: BoundaryValue): ProvisionalHistoryAccount | null {
+export function asAccount(
+  value: BoundaryValue,
+): ProvisionalHistoryAccount | null {
   if (
     !isJsonObject(value) ||
     !isString(value.id) ||
@@ -131,7 +133,7 @@ function asAccount(value: BoundaryValue): ProvisionalHistoryAccount | null {
   return account;
 }
 
-function asEntry(value: BoundaryValue): HistoryEntryRecord | null {
+export function asEntry(value: BoundaryValue): HistoryEntryRecord | null {
   if (
     !isJsonObject(value) ||
     !isString(value.id) ||
@@ -149,7 +151,7 @@ function asEntry(value: BoundaryValue): HistoryEntryRecord | null {
   };
 }
 
-function present<T>(value: T | null): value is T {
+export function present<T>(value: T | null): value is T {
   return value !== null;
 }
 
@@ -277,63 +279,3 @@ export const legacyHistoryStore: HistoryRowStore = {
       return true as const;
     }),
 };
-
-export type LegacyHistory = {
-  accounts: ProvisionalHistoryAccount[];
-  entries: HistoryEntryRecord[];
-};
-
-/** Open the database only if it exists: opening alone would create it. */
-function openExisting(): Promise<IDBDatabase | undefined> {
-  return new Promise((resolve, reject) => {
-    const req = openOwnedDatabase(HISTORY_BACKUP_DATABASE, DB_VERSION);
-    let created = false;
-    req.onupgradeneeded = (event) => {
-      if (event.oldVersion !== 0) return;
-      created = true;
-      req.transaction?.abort();
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () =>
-      created
-        ? resolve(undefined)
-        : reject(req.error ?? new Error("indexedDB open failed"));
-  });
-}
-
-/**
- * Everything the sealed database holds, opened, for moving into the
- * encrypted one; undefined when there is nothing to move or it cannot be
- * opened (no durable key, no database).
- */
-export async function readLegacyHistory(): Promise<LegacyHistory | undefined> {
-  if (storageWritesHalted()) return undefined;
-  let atRest: AtRestKey;
-  try {
-    atRest = await atRestReady();
-    if (!atRest.durable) return undefined;
-    const db = await openExisting();
-    if (!db) return undefined;
-    try {
-      const tx = db.transaction([ACCOUNTS, ENTRIES], "readonly");
-      const accounts: BoundaryValue[] = await idbReq(
-        tx.objectStore(ACCOUNTS).getAll(),
-      );
-      const entries: BoundaryValue[] = await idbReq(
-        tx.objectStore(ENTRIES).getAll(),
-      );
-      return {
-        accounts: accounts
-          .map((row) => asAccount(openRow(atRest, ACCOUNTS, row)))
-          .filter(present),
-        entries: entries
-          .map((row) => asEntry(openRow(atRest, ENTRIES, row)))
-          .filter(present),
-      };
-    } finally {
-      db.close();
-    }
-  } catch {
-    return undefined;
-  }
-}

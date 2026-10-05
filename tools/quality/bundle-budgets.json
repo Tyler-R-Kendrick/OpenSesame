@@ -126,7 +126,16 @@
       "Four kibibytes over the measurement, as before. The way back under is",
       "to load the age adapters on demand, which moves the whole noble",
       "ed25519 module (about 55 KiB) out of the entry; that touches the",
-      "unlock path and is a change of its own, not this one's."
+      "unlock path and is a change of its own, not this one's.",
+      "2026-10-05: largestAsset 798 -> 800 for both hardened profiles (ADR",
+      "0173, encrypted search). The entry chunk measures 798.7 KiB, 0.7 over. What",
+      "joined the core entry is authored text and seams, not a library: the",
+      "capability's descriptor and its Settings section, its tour and target",
+      "(about 1.5 KiB of copy the catalog carries for every optional",
+      "capability), the history and password-digest store seams, and the hashed",
+      "database names Reset derives. The searchable library, the migration and",
+      "the module load only when the capability is on and are in none of these",
+      "builds. The ceiling is about one kibibyte over the measurement."
     ],
     "builds": {
       "minimal-local-hardened": {
@@ -136,7 +145,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 798
+          "largestAsset": 800
         }
       },
       "family-local-hardened": {
@@ -146,7 +155,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 798
+          "largestAsset": 800
         }
       }
     }

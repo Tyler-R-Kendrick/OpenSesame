@@ -11,15 +11,15 @@
  */
 
 import { installHistoryRowStore } from "../history-backup-idb.js";
-import { readLegacyHistory } from "../history-backup-legacy.js";
 import {
   HISTORY_BACKUP_DATABASE,
   PASSWORD_HISTORY_DATABASE,
 } from "../storage-ownership.js";
-import { readLegacyDigests } from "../vault/password-history-legacy.js";
 import { installPasswordDigestStore } from "../vault/password-history.js";
 import { createHistoryStore } from "./history-store.js";
 import { deleteDatabase } from "./idb.js";
+import { readLegacyDigests } from "./legacy-digests.js";
+import { readLegacyHistory } from "./legacy-history.js";
 import { createPasswordDigestStore } from "./password-store.js";
 
 export type MigrationReport = Readonly<{

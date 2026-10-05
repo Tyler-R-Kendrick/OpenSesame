@@ -18,8 +18,8 @@ import type { PasswordDigestStore } from "./password-history-types.js";
  * names. With no durable key nothing reaches IndexedDB.
  */
 
-const DB_VERSION = 1;
-const DIGESTS = "digests";
+export const DB_VERSION = 1;
+export const DIGESTS = "digests";
 
 export function isDigest(value: string): boolean {
   return /^[0-9a-f]{64}$/.test(value);
@@ -40,7 +40,7 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-function idbReq<T>(request: IDBRequest<T>): Promise<T> {
+export function idbReq<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
     request.onerror = () =>
@@ -70,7 +70,10 @@ async function withDb<T>(
   }
 }
 
-function openDigest(atRest: AtRestKey, row: BoundaryValue): string | null {
+export function openDigest(
+  atRest: AtRestKey,
+  row: BoundaryValue,
+): string | null {
   if (!isJsonObject(row) || !isString(row.id) || !isString(row.sealed)) {
     return null;
   }
@@ -114,55 +117,3 @@ export const legacyPasswordDigestStore: PasswordDigestStore = {
       return keys.length;
     }),
 };
-
-/** Open the database only if it exists: opening alone would create it. */
-function openExisting(): Promise<IDBDatabase | undefined> {
-  return new Promise((resolve, reject) => {
-    const req = openOwnedDatabase(PASSWORD_HISTORY_DATABASE, DB_VERSION);
-    let created = false;
-    req.onupgradeneeded = (event) => {
-      if (event.oldVersion !== 0) return;
-      created = true;
-      req.transaction?.abort();
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () =>
-      created
-        ? resolve(undefined)
-        : reject(req.error ?? new Error("indexedDB open failed"));
-  });
-}
-
-export type LegacyDigest = { scope: string; digest: string };
-
-/**
- * Every digest the sealed database holds, opened, for moving into the
- * encrypted one; undefined when there is nothing to move or it cannot be
- * opened (no durable key, no database).
- */
-export async function readLegacyDigests(): Promise<LegacyDigest[] | undefined> {
-  if (storageWritesHalted()) return undefined;
-  try {
-    const atRest = await atRestReady();
-    if (!atRest.durable) return undefined;
-    const db = await openExisting();
-    if (!db) return undefined;
-    try {
-      const rows: BoundaryValue[] = await idbReq(
-        db.transaction(DIGESTS, "readonly").objectStore(DIGESTS).getAll(),
-      );
-      const out: LegacyDigest[] = [];
-      for (const row of rows) {
-        const digest = openDigest(atRest, row);
-        if (digest !== null && isJsonObject(row) && isString(row.scope)) {
-          out.push({ scope: row.scope, digest });
-        }
-      }
-      return out;
-    } finally {
-      db.close();
-    }
-  } catch {
-    return undefined;
-  }
-}
