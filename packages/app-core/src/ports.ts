@@ -128,6 +128,12 @@ export type WorkerConstructor = new (
   options?: WorkerOptions,
 ) => Worker;
 
+/** The two `IDBKeyRange` constructors the core uses. */
+export type KeyRangeFactory = {
+  only(value: IDBValidKey): IDBKeyRange;
+  bound(lower: IDBValidKey, upper: IDBValidKey): IDBKeyRange;
+};
+
 export type Ports = {
   readonly storage?: StoragePorts;
   readonly atRestKeys?: AtRestKeyPort;
@@ -142,6 +148,8 @@ export type Ports = {
   /** The origin-private file system root (`navigator.storage.getDirectory`). */
   readonly originFiles?: () => Promise<FileSystemDirectoryHandle>;
   readonly indexedDB?: IDBFactory;
+  /** Builds the key ranges an IndexedDB index is queried with. */
+  readonly keyRange?: KeyRangeFactory;
   /**
    * Resolves a peer hostname before a duress peer request. A host that
    * cannot resolve leaves this unset, and a name is then refused.
@@ -313,6 +321,13 @@ export function openOwnedDatabase(
 
 export function maybeIndexedDatabases(): IDBFactory | undefined {
   return host().indexedDB;
+}
+
+/** The host's `IDBKeyRange`; throws where the host keeps none. */
+export function keyRanges(): KeyRangeFactory {
+  const factory = host().keyRange;
+  if (!factory) throw missing("IDBKeyRange");
+  return factory;
 }
 
 export function maybeCacheStorage(): CacheStorage | undefined {

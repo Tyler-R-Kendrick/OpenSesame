@@ -15,9 +15,12 @@ import {
   originFiles,
   serviceWorkerContainer,
 } from "../ports.js";
+import { atRestSettled } from "./at-rest/key.js";
+import { edbKnownDatabaseNames } from "./encrypted-db/names.js";
 import {
   APP_DATABASES,
   type WebStorageArea,
+  ownsDatabase,
   ownsOriginFile,
   ownsServiceWorkerScope,
   ownsWebStorageKey,
@@ -103,19 +106,46 @@ function deleteDatabase(
 }
 
 /**
+ * The encrypted databases (ADR 0173) this device holds. Their names are
+ * keyed hashes, so they are found two ways: listed, where the browser can
+ * (`indexedDB.databases()` is missing before Firefox 126), and derived from
+ * the device key for every logical name the app opens. The key is read only
+ * if it has already loaded - a reset must not mint one - and before the
+ * database that holds it is deleted.
+ */
+async function encryptedDatabaseNames(factory: IDBFactory): Promise<string[]> {
+  const names = new Set<string>();
+  try {
+    for (const entry of (await factory.databases?.()) ?? []) {
+      if (entry.name !== undefined && ownsDatabase(entry.name)) {
+        names.add(entry.name);
+      }
+    }
+  } catch {
+    // An engine that refuses to list is handled by the derived names.
+  }
+  const key = atRestSettled();
+  if (key?.durable) {
+    for (const name of edbKnownDatabaseNames(key.key)) names.add(name);
+  }
+  return [...names].filter((name) => !APP_DATABASES.includes(name));
+}
+
+/**
  * The app's databases, by their known names. Deleting a database that does
- * not exist succeeds, so there is no need to list the origin's databases —
- * which `indexedDB.databases()` cannot do before Firefox 126 anyway.
+ * not exist succeeds, so most need no listing: the encrypted ones, whose
+ * names are hashes, are the exception (`encryptedDatabaseNames`).
  */
 export async function clearDatabases(
   waitMs: number = DELETE_WAIT_MS,
 ): Promise<void> {
   const factory = maybeIndexedDatabases();
   if (!factory) return;
+  const names = [...APP_DATABASES, ...(await encryptedDatabaseNames(factory))];
   throwIfRefused(
     "databases",
     await Promise.allSettled(
-      APP_DATABASES.map((name) => deleteDatabase(factory, name, waitMs)),
+      names.map((name) => deleteDatabase(factory, name, waitMs)),
     ),
   );
 }

@@ -1,29 +1,12 @@
-/**
- * Retired-password digests when no backup is configured.
- *
- * The store answers only whether a password was used before. A configured
- * backup is not opened: historical records are never read and never copied
- * here. Rows are sealed under the device at-rest key (ADR 0149). The
- * password itself is never stored.
- */
-
-import {
-  type BoundaryValue,
-  isJsonObject,
-  isString,
-} from "@opensesame/os-domain";
 import {
   type VaultItem,
   methodsOfType,
   plainPassword,
 } from "@opensesame/vault-core";
-import { openOwnedDatabase } from "../../ports.js";
-import { atRestBinding, openAtRest, sealAtRest } from "../at-rest/cipher.js";
-import { type AtRestKey, atRestReady } from "../at-rest/key.js";
 import { listLocalBackupTargets } from "../backup-target-local.js";
 import { loadHistorySelections } from "../history-backups.js";
-import { storageWritesHalted } from "../storage-halt.js";
-import { PASSWORD_HISTORY_DATABASE } from "../storage-ownership.js";
+import { legacyPasswordDigestStore } from "./password-history-legacy.js";
+import type { PasswordDigestStore } from "./password-history-types.js";
 
 export class PasswordUsedBeforeError extends Error {
   constructor() {
@@ -37,9 +20,20 @@ export type RetiredDigest = {
   digest: string;
 };
 
-const DB_VERSION = 1;
-const DIGESTS = "digests";
 const memory = new Map<string, Set<string>>();
+let installed: PasswordDigestStore | null = null;
+
+/** The store digests rest in: the encrypted one while it is installed. */
+function store(): PasswordDigestStore {
+  return installed ?? legacyPasswordDigestStore;
+}
+
+/** Route digests to `next`, or back to the device-sealed database with null. */
+export function installPasswordDigestStore(
+  next: PasswordDigestStore | null,
+): void {
+  installed = next;
+}
 
 export function resetPasswordHistoryForTest(): void {
   memory.clear();
@@ -59,15 +53,7 @@ export async function forgetRetiredPasswords(
     const scope = `${tomb}\u0000${id}`;
     gone += memory.get(scope)?.size ?? 0;
     memory.delete(scope);
-    gone +=
-      (await withDb(async (db) => {
-        const store = db.transaction(DIGESTS, "readwrite").objectStore(DIGESTS);
-        const keys: IDBValidKey[] = await idbReq(
-          store.index("by_scope").getAllKeys(scope),
-        );
-        for (const key of keys) await idbReq(store.delete(key));
-        return keys.length;
-      })) ?? 0;
+    gone += (await store().forget(scope)) ?? 0;
   }
   return gone;
 }
@@ -152,10 +138,6 @@ async function digestPassword(password: string): Promise<string> {
     .join("");
 }
 
-function isDigest(value: string): boolean {
-  return /^[0-9a-f]{64}$/.test(value);
-}
-
 /**
  * Refuse a proposed password whose digest is already retired. Returns the
  * digests to record only after the vault write commits.
@@ -220,85 +202,13 @@ function scopeSet(scope: string): Set<string> {
   return created;
 }
 
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = openOwnedDatabase(PASSWORD_HISTORY_DATABASE, DB_VERSION);
-    req.onerror = () => reject(req.error ?? new Error("indexedDB open failed"));
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(DIGESTS)) {
-        const store = db.createObjectStore(DIGESTS, { keyPath: "id" });
-        store.createIndex("by_scope", "scope", { unique: false });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-  });
-}
-
-function idbReq<T>(request: IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () =>
-      reject(request.error ?? new Error("indexedDB request failed"));
-  });
-}
-
-function rowBinding(id: string): Uint8Array {
-  return atRestBinding(`idb.${PASSWORD_HISTORY_DATABASE}.${DIGESTS}`, id);
-}
-
-async function withDb<T>(
-  run: (db: IDBDatabase, atRest: AtRestKey) => Promise<T>,
-): Promise<T | undefined> {
-  if (storageWritesHalted()) return undefined;
-  try {
-    const atRest = await atRestReady();
-    if (!atRest.durable) return undefined;
-    const db = await openDb();
-    try {
-      return await run(db, atRest);
-    } finally {
-      db.close();
-    }
-  } catch {
-    return undefined;
-  }
-}
-
 async function rememberDigest(scope: string, digest: string): Promise<void> {
   const known = scopeSet(scope);
   if (known.has(digest)) return;
   known.add(digest);
-  await withDb(async (db, atRest) => {
-    const id = crypto.randomUUID();
-    const tx = db.transaction(DIGESTS, "readwrite");
-    await idbReq(
-      tx.objectStore(DIGESTS).put({
-        id,
-        scope,
-        sealed: sealAtRest(atRest.key, rowBinding(id), digest),
-      }),
-    );
-  });
-}
-
-function openDigest(atRest: AtRestKey, row: BoundaryValue): string | null {
-  if (!isJsonObject(row) || !isString(row.id) || !isString(row.sealed)) {
-    return null;
-  }
-  const text = openAtRest(atRest.key, rowBinding(row.id), row.sealed);
-  return text !== null && isDigest(text) ? text : null;
+  await store().add(scope, digest);
 }
 
 async function digestsFor(scope: string): Promise<string[]> {
-  const rows = await withDb(async (db, atRest) => {
-    const tx = db.transaction(DIGESTS, "readonly");
-    const stored: BoundaryValue[] = await idbReq(
-      tx.objectStore(DIGESTS).index("by_scope").getAll(scope),
-    );
-    return stored
-      .map((row) => openDigest(atRest, row))
-      .filter((digest): digest is string => digest !== null);
-  });
-  return rows ?? [];
+  return (await store().digestsFor(scope)) ?? [];
 }
