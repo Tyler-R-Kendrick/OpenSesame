@@ -19,6 +19,7 @@ import {
   isNumber,
   overlapCast,
 } from "../json-boundary.js";
+import { commitKeyOf, stagingKeyOf } from "./boot-keys.js";
 
 export const journalSeams = {
   durability: (): ReturnType<typeof kvDurability> => kvDurability(),
@@ -45,13 +46,8 @@ export type JournalRecord<T> = Readonly<{
   payload: T;
 }>;
 
-function stagingKey(key: string): string {
-  return `${key}.__staging`;
-}
-
-function commitKey(key: string): string {
-  return `${key}.__commit`;
-}
+const stagingKey = stagingKeyOf;
+const commitKey = commitKeyOf;
 
 function parseRecord<T>(raw: string | null): JournalRecord<T> | null {
   if (!raw) return null;

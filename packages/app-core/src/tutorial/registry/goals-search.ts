@@ -10,7 +10,7 @@
 import type { HelpTopic } from "./goals.js";
 import { mergedHelpTopics } from "./goals.js";
 import type { GuideRouteId } from "./routes.js";
-import { guideRouteWithin } from "./routes.js";
+import { scopeApplies } from "./routes.js";
 
 /**
  * Words that carry no topic on their own. A question is mostly these, and a
@@ -160,11 +160,7 @@ export function rankHelpTopics(
   const ranked: RankedHelpTopic[] = [];
   for (const indexed of helpIndex()) {
     const { topic } = indexed;
-    const scoped =
-      route === null ||
-      topic.routes.length === 0 ||
-      topic.routes.some((candidate) => guideRouteWithin(route, candidate));
-    if (!scoped) continue;
+    if (route !== null && !scopeApplies(topic.routes, route)) continue;
     const score = scoreTopic(indexed, words);
     if (score === 0) continue;
     ranked.push({ topic, score, strong: score >= STRONG_SCORE });

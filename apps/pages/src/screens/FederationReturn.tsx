@@ -1,6 +1,7 @@
 import { describeFederationError } from "@opensesame/app-core/lib/federation-copy.js";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
+import { GateHelpSeat } from "../tutorial/gate-seat.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import "./broker.css";
@@ -8,7 +9,8 @@ import { runReturn } from "@opensesame/app-core/screens/federation-return-model.
 
 export function FederationReturn() {
   useSupportRoute("/federation");
-  const rootRef = useGuideTarget<HTMLDivElement>("federation.return");
+  // What the tour points at is the sentence the screen says, not the page.
+  const statusRef = useGuideTarget<HTMLElement>("federation.return");
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
 
@@ -30,9 +32,14 @@ export function FederationReturn() {
 
   if (error) {
     return (
-      <div ref={rootRef} className="broker">
+      <div className="broker">
+        <FederationBar />
         <main className="broker__main">
-          <div className="broker__card broker__card--err" role="alert">
+          <div
+            ref={statusRef}
+            className="broker__card broker__card--err"
+            role="alert"
+          >
             <h2>Sign-in didn't finish</h2>
             <p>{error}</p>
             <button
@@ -49,9 +56,23 @@ export function FederationReturn() {
   }
 
   return (
-    <div ref={rootRef} className="broker">
-      <p className="broker__status">Finishing sign-in…</p>
+    <div className="broker">
+      <FederationBar />
+      <p ref={statusRef} className="broker__status">
+        Finishing sign-in…
+      </p>
     </div>
+  );
+}
+
+/** The corner row: the seat the help key is drawn in (ADR 0166). */
+function FederationBar() {
+  return (
+    <header className="broker__head">
+      <div className="broker__bar">
+        <GateHelpSeat />
+      </div>
+    </header>
   );
 }
 

@@ -18,7 +18,7 @@ import type {
 } from "@opensesame/support-agent";
 import { mergedGuideTargets } from "./catalog.js";
 import { inDevelopment } from "./dev.js";
-import { type GuideRouteId, guideRouteWithin } from "./routes.js";
+import { type GuideRouteId, scopeApplies } from "./routes.js";
 
 export type GuideTargetDescriptor = {
   readonly id: GuideTargetId;
@@ -284,10 +284,7 @@ export function describeGuideTargets(
 ): readonly SupportTargetDescription[] {
   const out: SupportTargetDescription[] = [];
   for (const descriptor of mergedGuideTargets()) {
-    const scoped =
-      descriptor.routes.length === 0 ||
-      descriptor.routes.some((candidate) => guideRouteWithin(route, candidate));
-    if (!scoped) continue;
+    if (!scopeApplies(descriptor.routes, route)) continue;
     out.push({
       id: descriptor.id,
       description: descriptor.description,

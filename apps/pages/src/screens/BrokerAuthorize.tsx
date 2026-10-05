@@ -28,6 +28,7 @@ import {
 } from "@opensesame/app-core/lib/site-broker.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router";
+import { GateHelpSeat } from "../tutorial/gate-seat.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import "./broker.css";
@@ -58,7 +59,7 @@ function resumePath(request: BrokerRequest): string {
 
 export function BrokerAuthorize() {
   useSupportRoute("/broker/authorize");
-  const rootRef = useGuideTarget<HTMLDivElement>("broker.consent");
+  const mainRef = useGuideTarget<HTMLElement>("broker.consent");
   const [searchParams] = useSearchParams();
   const [phase, setPhase] = useState<Phase>({ kind: "loading" });
 
@@ -175,13 +176,16 @@ export function BrokerAuthorize() {
   };
 
   return (
-    <div ref={rootRef} className="broker">
+    <div className="broker">
       <header className="broker__head">
-        <p className="broker__brand">OpenSesame</p>
+        <div className="broker__bar">
+          <p className="broker__brand">OpenSesame</p>
+          <GateHelpSeat />
+        </div>
         <h1>Sign in for a static site</h1>
       </header>
 
-      <main className="broker__main">
+      <main ref={mainRef} className="broker__main">
         {phase.kind === "loading" ? (
           <p className="broker__status">Checking request…</p>
         ) : null}
