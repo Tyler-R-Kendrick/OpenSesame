@@ -52,6 +52,25 @@ Canonical principals live in OpenSesame domain models
 - Oxlint `1.79.0` with vendored anti-slop (`pnpm lint:anti-slop`)
 - Vitest `4.1.11` (TS unit/integration tests), Playwright `1.55.1` (e2e)
 
+## Cursor Cloud specific instructions
+
+This repository ships a **Cursor-hosted Cloud Agent** environment (managed VMs —
+not My Machines or a contributor’s local PC). Image and bootstrap live in
+[`.cursor/environment.json`](.cursor/environment.json) and
+[`.cursor/Dockerfile`](.cursor/Dockerfile).
+
+- **Grok Build** is installed on `PATH` as `grok` (and `agent`). With
+  `XAI_API_KEY` set as a Cursor **Runtime Secret** (or `GROK_DEPLOYMENT_KEY` where
+  applicable), headless use looks like:
+  `grok -p "…" --always-approve --output-format json`.
+- **Never run `sudo`** in agent commands (see `.cursor/rules/no-sudo.mdc`). The
+  image includes `sudo` for Cursor platform tooling only.
+- **Never commit API keys** or other secrets; inject them through Cursor Secrets.
+
+After checkout, `install` runs `.cursor/install.sh` (`corepack` + `pnpm install`
++ `cargo +1.88.0 fetch`). Prefer the shared cargo target dir documented in §9
+when compiling Rust in Cloud Agents.
+
 ## 3. Command crib sheet
 
 All scripts below are defined in the root `package.json` unless noted.

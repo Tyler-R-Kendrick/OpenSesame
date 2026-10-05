@@ -18,6 +18,9 @@ pnpm setup:hooks      # git uses .githooks/: lint, Clippy, design lint, gitleaks
 the [repository tour](docs/getting-started/repository-tour.md) covers where
 code goes.
 
+**Cursor Cloud Agents** use the repo-managed environment in `.cursor/` (see
+[`AGENTS.md`](AGENTS.md) — Cursor Cloud specific instructions).
+
 ## Before you push
 
 ```bash
