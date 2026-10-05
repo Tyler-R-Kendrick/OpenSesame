@@ -238,8 +238,8 @@ describe("verifyPresentation", () => {
     expect(serialized).not.toContain(scenario.credential.issuerJwt);
     expect(serialized).not.toContain(presentation);
     expect(serialized).not.toContain("~");
-    expect(serialized).not.toContain("cnf");
-    expect(serialized).not.toContain("_sd");
+    // As keys: the base64url refs spell `cnf` or `_sd` by chance now and then.
+    expect(serialized).not.toMatch(/"(cnf|_sd|_sd_alg)"\s*:/);
   });
 
   it("refuses a nonce that is not the one this session issued", async () => {
