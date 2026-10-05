@@ -48,13 +48,24 @@ import { makeAccount } from "./account.test-support.js";
 
 const PLAIN = "correct-horse-battery";
 
-/** An account whose first password is sealed under `right` (one real PBKDF2). */
-async function pepperedAccount() {
+async function sealPeppered() {
   const base = makeAccount({ id: "itm_pep", password: PLAIN });
   const method = passwordMethod(base);
   if (!method) throw new Error("fixture");
   const sealed = await enablePepper(base.id, method, PLAIN, "right");
   return { account: { ...base, methods: [sealed] }, method: sealed };
+}
+
+let peppered: ReturnType<typeof sealPeppered> | undefined;
+
+/**
+ * An account whose first password is sealed under `right`. Sealing is one real
+ * PBKDF2 at its production strength, and the sealed record is never changed by
+ * a test, so it is derived once for the file rather than once per test.
+ */
+function pepperedAccount() {
+  peppered ??= sealPeppered();
+  return peppered;
 }
 
 function sphinxAccount(): AccountItem {
