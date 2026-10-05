@@ -75,10 +75,7 @@
           "revealSelector": "#live-routes .frow"
         },
         {
-          "count": [
-            "#live-routes .frow",
-            "[id^=live-nats-session-]"
-          ]
+          "count": ["#live-routes .frow", "[id^=live-nats-session-]"]
         },
         {
           "report": "#live-routes .frow"
@@ -161,10 +158,7 @@
           "revealSelector": "#live-routes .frow"
         },
         {
-          "count": [
-            "#live-routes .frow",
-            "[id^=live-nats-session-]"
-          ]
+          "count": ["#live-routes .frow", "[id^=live-nats-session-]"]
         },
         {
           "report": "#live-routes .frow"
