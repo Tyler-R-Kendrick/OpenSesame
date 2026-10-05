@@ -190,7 +190,8 @@ export const DEFAULT_RULES: CharacterRules = {
   upper: true,
   digits: true,
   symbols: true,
-  avoidAmbiguous: false,
+  // spec/conformance/password-policy.json: the default every target shares.
+  avoidAmbiguous: true,
   minDigits: 0,
   minSymbols: 0,
 };
