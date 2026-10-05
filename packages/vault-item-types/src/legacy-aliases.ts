@@ -22,25 +22,27 @@ export const LEGACY_EXTENSION_ALIASES = {
   ".login": ".account",
 } as const satisfies Readonly<Record<string, string>>;
 
-/** The replacement `table` names for `key`, never one inherited from a prototype. */
+/** What a table of retired names says replaced `key`, when it names it. */
 function aliasOf(
-  table: Readonly<Record<string, string>>,
+  table: readonly (readonly [string, string])[],
   key: string,
 ): string | undefined {
-  return Object.hasOwn(table, key) ? table[key] : undefined;
+  return table.find(([retired]) => retired === key)?.[1];
 }
 
 /** The current type id for `id`, which may be a legacy name. */
 export function resolveTypeId(id: string): string {
-  return aliasOf(LEGACY_TYPE_ALIASES, id) ?? id;
+  return aliasOf(Object.entries(LEGACY_TYPE_ALIASES), id) ?? id;
 }
 
 /** The current extension for `extension`, which may be a legacy one. */
 export function resolveExtension(extension: string): string {
-  return aliasOf(LEGACY_EXTENSION_ALIASES, extension) ?? extension;
+  return (
+    aliasOf(Object.entries(LEGACY_EXTENSION_ALIASES), extension) ?? extension
+  );
 }
 
 /** True when `id` is a retired name rather than a type's own id. */
 export function isLegacyTypeAlias(id: string): boolean {
-  return aliasOf(LEGACY_TYPE_ALIASES, id) !== undefined;
+  return aliasOf(Object.entries(LEGACY_TYPE_ALIASES), id) !== undefined;
 }

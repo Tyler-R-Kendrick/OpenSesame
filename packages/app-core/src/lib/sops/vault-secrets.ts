@@ -79,9 +79,7 @@ type PepperFiltered = { items: VaultItem[]; omitted: number };
  * under it, or a Sphinx key) is left out whole: never its sealed form, never
  * an OPRF key (ADR 0166 §4). The rest of the account goes as it is.
  */
-function withoutPepperedPasswords(
-  items: readonly VaultItem[],
-): PepperFiltered {
+function withoutPepperedPasswords(items: readonly VaultItem[]): PepperFiltered {
   let omitted = 0;
   const kept = items.map((item) => {
     if (item.kind !== "account") return item;

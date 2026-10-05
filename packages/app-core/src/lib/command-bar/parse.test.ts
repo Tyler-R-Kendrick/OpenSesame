@@ -182,16 +182,19 @@ describe("executeCommand copy_field", () => {
     items: readonly VaultItem[],
     copied: string[],
     askPepper?: CommandPorts["askPepper"],
-  ): CommandPorts => ({
-    navigate: () => undefined,
-    copy: async (value) => {
-      copied.push(value);
-      return "copied";
-    },
-    items: () => items,
-    vaultLocked: () => false,
-    ...(askPepper === undefined ? {} : { askPepper }),
-  });
+  ): CommandPorts => {
+    const ports: CommandPorts = {
+      navigate: () => undefined,
+      copy: async (value) => {
+        copied.push(value);
+        return "copied";
+      },
+      items: () => items,
+      vaultLocked: () => false,
+    };
+    if (askPepper !== undefined) ports.askPepper = askPepper;
+    return ports;
+  };
 
   it("asks for the pepper exactly once and copies the opened password", async () => {
     const account = await pepperedAccount(

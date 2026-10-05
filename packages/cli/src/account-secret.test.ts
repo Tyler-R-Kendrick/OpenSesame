@@ -1,6 +1,7 @@
 import {
   type AccountItem,
   type PasswordMethod,
+  type PepperSeal,
   createItem,
   passwordMethod,
 } from "@opensesame/vault-core";
@@ -15,7 +16,7 @@ const SEALED = {
   v: 1,
   kdf: { alg: "PBKDF2-SHA256", saltB64: "c2FsdA==", iterations: 600000 },
   seal: { ivB64: "aXY=", ctB64: "c2VhbGVk" },
-} as unknown as NonNullable<PasswordMethod["sealed"]>;
+} as const satisfies PepperSeal;
 
 function account(over: Partial<PasswordMethod> = {}): AccountItem {
   const item = createItem("account", "Mail");

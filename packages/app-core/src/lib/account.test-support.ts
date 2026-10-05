@@ -8,10 +8,12 @@ import {
   sealWithPepper,
 } from "@opensesame/vault-core";
 
+type PlainAccountExtras = { username?: string; totp?: string };
+
 export function plainAccount(
   name: string,
   password: string,
-  extra: { username?: string; totp?: string } = {},
+  extra: PlainAccountExtras = {},
 ): AccountItem {
   const item = createItem("account", name);
   item.username = extra.username ?? "";
