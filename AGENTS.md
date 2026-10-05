@@ -228,6 +228,8 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # one row, the sections sit in a drawer, the chrome stays under a third
 # of the screen, and no strip hides its own selected item. Run before touching
 # layout, chrome, controls or any of the CSS under `(pointer: coarse)`.
+# `MOBILE_SIZES=320,390` (names from `lib/mobile-contract.mjs`) walks only those
+# sizes, which is how CI shards it; an unknown name fails, unset walks them all.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:auth
 # Same harness, the authentication flow (ADR 0091): a guest presses Add on the
@@ -1193,6 +1195,11 @@ CI lives in `.github/workflows/`:
   for that set, and Rust runs `cargo test --all-targets -p` for that set on
   Rust 1.88.0. A root lockfile or manifest tests the whole suite. Bundle
   budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`;
+  its browser gates run as parallel shards of one matrix job (`bundle`: each
+  shard builds Pages once and walks its own gates; `verify:mobile` is split by
+  viewport with `MOBILE_SIZES`), and `scripts/lib/ci-bundle-shards.test.mjs`
+  fails on a gate that runs in no shard or in two. A new gate goes in exactly
+  one shard, not appended to a serial list;
   "Web Push end to end" (`verify:push`) is its own job that the same check
   waits for, and runs when the Pages build or the server code it imports changes.
   The TypeScript job also runs the signature preflight, changed-file lint,
