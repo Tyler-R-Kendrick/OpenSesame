@@ -3,8 +3,12 @@ export {
   defaultGenerator,
   generateStored,
   generatorEntropyBits,
+  offeredGenerators,
 } from "./registry.js";
-export type { GeneratorDescriptor } from "./registry.js";
+export type {
+  GeneratorDescriptor,
+  OfferedGeneratorId,
+} from "./registry.js";
 export {
   checkPepper,
   disablePepper,
@@ -14,6 +18,7 @@ export {
 } from "./pepper.js";
 export type { PepperAsk } from "./pepper.js";
 export {
+  mintOprfKey,
   rotateSphinx,
   sphinxPassword,
   vaultEvaluator,

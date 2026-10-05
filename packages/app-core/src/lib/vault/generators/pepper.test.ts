@@ -2,6 +2,8 @@ import {
   DEFAULT_RULES,
   type PasswordMethod,
   WrongPepperError,
+  deriveCharacters,
+  mintRootSecret,
 } from "@opensesame/vault-core";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -11,9 +13,8 @@ import {
   storePassword,
   usePassword,
 } from "./pepper.js";
-import { defaultGenerator } from "./registry.js";
 import type { OprfEvaluator } from "./sphinx.js";
-import { vaultEvaluator } from "./sphinx.js";
+import { mintOprfKey, vaultEvaluator } from "./sphinx.js";
 
 const ACCOUNT = { id: "acct-1", username: "ada@example.com" };
 const PEPPER = "pepper-7f3a-never-in-errors";
@@ -33,7 +34,13 @@ const manual = (over: Partial<PasswordMethod> = {}): PasswordMethod => ({
 
 const sphinx = (): PasswordMethod => ({
   ...manual({ id: "acct-1:sphinx", pepper: true }),
-  generator: defaultGenerator("sphinx", { realm: "example.com" }),
+  generator: {
+    id: "sphinx",
+    rules: { ...DEFAULT_RULES },
+    realm: "example.com",
+    counter: 0,
+    oprfKeyB64: mintOprfKey(),
+  },
 });
 
 /** The message a failing call threw, or a marker when it did not throw. */
@@ -82,7 +89,7 @@ describe("storePassword", () => {
   it("seals under the pepper and leaves secret empty", async () => {
     const out = await sealed();
     expect(out.secret).toBe("");
-    expect(out.sealed?.v).toBe(1);
+    expect(out.sealed?.v).toBe(2);
     expect(JSON.stringify(out)).not.toContain(PASSWORD);
     expect(JSON.stringify(out)).not.toContain(PEPPER);
     expect(out.changedAt).toBe(NOW.toISOString());
@@ -265,5 +272,77 @@ describe("checkPepper", () => {
     expect(
       await checkPepper(ACCOUNT.id, manual({ secret: PASSWORD }), PEPPER),
     ).toBe(false);
+  });
+});
+
+const derived = (root = mintRootSecret()): PasswordMethod =>
+  manual({
+    id: "acct-1:derived",
+    generator: { id: "derived", rules: { ...DEFAULT_RULES }, counter: 0 },
+    secret: root,
+  });
+
+describe("a derived password", () => {
+  it("is computed from its root without asking, and the same every time", async () => {
+    const method = derived();
+    const ask = asking(PEPPER);
+    const first = await usePassword(ACCOUNT, method, ask);
+    expect(ask).not.toHaveBeenCalled();
+    expect(first).toHaveLength(DEFAULT_RULES.length);
+    expect(first).toBe(deriveCharacters(method.secret, 0, DEFAULT_RULES));
+    expect(await usePassword(ACCOUNT, method, ask)).toBe(first);
+    expect(first).not.toBe(method.secret);
+  });
+
+  it("rotates with the counter and not with anything else", async () => {
+    const method = derived();
+    const first = await usePassword(ACCOUNT, method, asking(PEPPER));
+    const rotated: PasswordMethod = {
+      ...method,
+      generator: { id: "derived", rules: { ...DEFAULT_RULES }, counter: 1 },
+    };
+    expect(await usePassword(ACCOUNT, rotated, asking(PEPPER))).not.toBe(first);
+    const renamed = { ...ACCOUNT, username: "grace@example.com" };
+    expect(await usePassword(renamed, method, asking(PEPPER))).toBe(first);
+  });
+
+  it("keeps its password when the pepper goes on and off, and asks for the pepper once per use", async () => {
+    const method = derived();
+    const plain = await usePassword(ACCOUNT, method, asking(PEPPER));
+    const on = await enablePepper(ACCOUNT.id, method, method.secret, PEPPER);
+    expect(on).toMatchObject({ pepper: true, secret: "" });
+    expect(on.sealed?.v).toBe(2);
+    expect(JSON.stringify(on)).not.toContain(method.secret);
+    const ask = asking(PEPPER);
+    expect(await usePassword(ACCOUNT, on, ask)).toBe(plain);
+    expect(ask).toHaveBeenCalledTimes(1);
+    const off = await disablePepper(ACCOUNT.id, on, PEPPER);
+    expect(off.secret).toBe(method.secret);
+    expect(await usePassword(ACCOUNT, off, asking(PEPPER))).toBe(plain);
+  });
+
+  it("is never computed under a wrong pepper", async () => {
+    const method = derived();
+    const on = await enablePepper(ACCOUNT.id, method, method.secret, PEPPER);
+    await expect(
+      usePassword(ACCOUNT, on, asking("not-the-pepper-123")),
+    ).rejects.toBeInstanceOf(WrongPepperError);
+  });
+
+  it("stores a root through storePassword, in the clear or sealed", async () => {
+    const root = mintRootSecret();
+    const plain = await storePassword(ACCOUNT.id, derived(""), root, null, NOW);
+    expect(plain.secret).toBe(root);
+    const peppered = await storePassword(
+      ACCOUNT.id,
+      { ...derived(""), pepper: true },
+      root,
+      PEPPER,
+      NOW,
+    );
+    expect(peppered.secret).toBe("");
+    expect(await usePassword(ACCOUNT, peppered, asking(PEPPER))).toBe(
+      await usePassword(ACCOUNT, plain, asking(PEPPER)),
+    );
   });
 });

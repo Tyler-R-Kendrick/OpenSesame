@@ -1,18 +1,22 @@
 /**
- * The pepper-aware password API (ADR 0172 §4, §5). A password with *Include
- * pepper* is sealed under a pepper the person types each time it is used; a
- * Sphinx password is never stored at all. The pepper, the master input and the
- * password never appear in an error message.
+ * The pepper-aware password API (ADR 0172 §4, ADR 0173). A secret with *Include
+ * pepper* is sealed under a pepper the person types each time it is used
+ * (OPAQUE, `opaque-seal.ts`). The secret is the password for a stored
+ * generator and the root a derived password is computed from for `derived`; a
+ * Sphinx password (ADR 0172, read only) is computed from a master input. The
+ * pepper, the master input and the password never appear in an error message.
  */
 
 import {
   type AccountItem,
   type PasswordMethod,
+  type PepperSeal,
   WrongPepperError,
+  deriveCharacters,
   openWithPepper,
   pepperBinding,
-  sealWithPepper,
 } from "@opensesame/vault-core";
+import { openWithOpaque, sealWithOpaque } from "./opaque-seal.js";
 import {
   type OprfEvaluator,
   sphinxPassword,
@@ -33,19 +37,30 @@ function refuseSphinx(method: PasswordMethod): void {
   }
 }
 
+/** Opens either seal: v1 (ADR 0172, PBKDF2) still opens, v2 (OPAQUE) is what is written. */
+function openSeal(
+  sealed: PepperSeal,
+  pepper: string,
+  binding: string,
+): Promise<string> {
+  return sealed.v === 2
+    ? openWithOpaque(sealed, pepper, binding)
+    : openWithPepper(sealed, pepper, binding);
+}
+
 async function open(
   accountId: string,
   method: PasswordMethod,
   pepper: string,
 ): Promise<string> {
   if (!method.sealed || pepper === "") throw new WrongPepperError();
-  return openWithPepper(
-    method.sealed,
-    pepper,
-    pepperBinding(accountId, method.id),
-  );
+  return openSeal(method.sealed, pepper, pepperBinding(accountId, method.id));
 }
 
+/**
+ * Store what a method keeps: the password, or for `derived` its root secret
+ * (`mintRootSecret()`), in the clear or sealed under the pepper.
+ */
 export async function storePassword(
   accountId: string,
   method: PasswordMethod,
@@ -61,7 +76,7 @@ export async function storePassword(
   if (pepper === null || pepper === "") {
     throw new Error("A pepper is required to store this password.");
   }
-  const sealed = await sealWithPepper(
+  const sealed = await sealWithOpaque(
     password,
     pepper,
     pepperBinding(accountId, method.id),
@@ -76,7 +91,7 @@ export async function enablePepper(
   pepper: string,
 ): Promise<PasswordMethod> {
   refuseSphinx(method);
-  const sealed = await sealWithPepper(
+  const sealed = await sealWithOpaque(
     currentPassword,
     pepper,
     pepperBinding(accountId, method.id),
@@ -115,8 +130,14 @@ export async function usePassword(
       evaluator ?? vaultEvaluator(generator.oprfKeyB64),
     );
   }
-  if (!method.pepper || !method.sealed) return method.secret;
-  return open(account.id, method, await ask());
+  const secret =
+    !method.pepper || !method.sealed
+      ? method.secret
+      : await open(account.id, method, await ask());
+  if (generator.id !== "derived") return secret;
+  return secret === ""
+    ? ""
+    : deriveCharacters(secret, generator.counter, generator.rules);
 }
 
 /** True when `pepper` opens the seal. False when it does not, or there is no seal. */

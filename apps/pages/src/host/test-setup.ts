@@ -1,6 +1,7 @@
 import { browserPorts } from "@opensesame/app-core/browser/host.js";
 import { composeHost, configureHost } from "@opensesame/app-core/host.js";
 import { installWipeGuard } from "@opensesame/app-core/lib/duress/wipe/test-guard.js";
+import { writeSealsWith } from "@opensesame/app-core/lib/vault/generators/opaque-seal.js";
 import {
   assertOwnedStorageWrites,
   recordStorageWrite,
@@ -18,6 +19,10 @@ import { loadPack, packEntries } from "@opensesame/vault-item-types";
 import { afterEach } from "vitest";
 import { closeJsdomGaps } from "./jsdom-gaps.js";
 import { shellBuild } from "./shell-build.js";
+
+// Pepper seals cost a quarter of a second each at the real Argon2id setting;
+// the suites ask for the cheap one (app-core's opaque-seal.test.ts proves the real one).
+writeSealsWith("fast");
 
 repairInertWebStorage();
 configureHost(

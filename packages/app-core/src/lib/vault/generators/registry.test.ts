@@ -6,83 +6,87 @@ import {
   defaultGenerator,
   generateStored,
   generatorEntropyBits,
+  offeredGenerators,
 } from "./index.js";
 
 describe("GENERATORS", () => {
-  it("lists rules, passphrase, sphinx, manual in that order", () => {
+  it("lists derived first, then rules, passphrase, manual", () => {
     expect(GENERATORS.map((g) => g.id)).toEqual([
+      "derived",
       "rules",
       "passphrase",
-      "sphinx",
       "manual",
     ]);
     expect(GENERATORS.map((g) => g.label)).toEqual([
+      "Derived",
       "Rules",
       "Passphrase",
-      "Sphinx",
       "Manual",
     ]);
   });
 
-  it("offers the pepper flag for every generator but sphinx", () => {
-    const flags = Object.fromEntries(
-      GENERATORS.map((g) => [g.id, g.offersPepperFlag]),
-    );
-    expect(flags).toEqual({
-      rules: true,
-      passphrase: true,
-      sphinx: false,
-      manual: true,
-    });
+  it("offers the pepper flag for every generator it lists", () => {
+    expect(GENERATORS.every((g) => g.offersPepperFlag)).toBe(true);
   });
 
   it("says what each produces", () => {
     expect(GENERATORS.map((g) => g.produces)).toEqual([
-      "stored",
-      "stored",
       "derived",
+      "stored",
+      "stored",
       "typed",
     ]);
+  });
+
+  it("adds the earlier Sphinx row only for a method that already uses it", () => {
+    expect(offeredGenerators("rules")).toBe(GENERATORS);
+    const withSphinx = offeredGenerators("sphinx");
+    expect(withSphinx.map((g) => g.id)).toEqual([
+      ...GENERATORS.map((g) => g.id),
+      "sphinx",
+    ]);
+    expect(withSphinx.at(-1)).toMatchObject({
+      label: "Sphinx (earlier)",
+      offersPepperFlag: false,
+    });
   });
 });
 
 describe("defaultGenerator", () => {
-  const context = { realm: "example.com" };
-
   it("gives each id its default shape", () => {
-    expect(defaultGenerator("rules", context)).toEqual({
+    expect(defaultGenerator("derived")).toEqual({
+      id: "derived",
+      rules: DEFAULT_RULES,
+      counter: 0,
+    });
+    expect(defaultGenerator("rules")).toEqual({
       id: "rules",
       ...DEFAULT_RULES,
     });
-    expect(defaultGenerator("passphrase", context)).toEqual({
+    expect(defaultGenerator("passphrase")).toEqual({
       id: "passphrase",
       words: 4,
       separator: "-",
       capitalize: true,
       includeNumber: true,
     });
-    expect(defaultGenerator("manual", context)).toEqual({ id: "manual" });
+    expect(defaultGenerator("manual")).toEqual({ id: "manual" });
   });
 
-  it("mints a fresh sphinx key, counter zero and the realm, every call", () => {
-    const a = defaultGenerator("sphinx", context);
-    const b = defaultGenerator("sphinx", context);
-    if (a.id !== "sphinx" || b.id !== "sphinx")
-      throw new Error("expected sphinx");
-    expect(a.oprfKeyB64).not.toBe(b.oprfKeyB64);
-    expect(a.oprfKeyB64.length).toBeGreaterThan(40);
-    expect(a).toMatchObject({
-      counter: 0,
-      realm: "example.com",
-      rules: DEFAULT_RULES,
-    });
+  it("gives every call its own rules, so editing one never edits the default", () => {
+    const a = defaultGenerator("derived");
+    const b = defaultGenerator("derived");
+    if (a.id !== "derived" || b.id !== "derived") throw new Error("shape");
+    expect(a.rules).not.toBe(b.rules);
+    a.rules.length = 99;
+    expect(b.rules.length).toBe(DEFAULT_RULES.length);
   });
 });
 
 describe("generateStored", () => {
   it("makes a password for the rules and passphrase generators", () => {
-    const rules = defaultGenerator("rules", { realm: "r" });
-    const phrase = defaultGenerator("passphrase", { realm: "r" });
+    const rules = defaultGenerator("rules");
+    const phrase = defaultGenerator("passphrase");
     if (rules.id !== "rules" || phrase.id !== "passphrase")
       throw new Error("shape");
     expect(generateStored(rules)).toHaveLength(DEFAULT_RULES.length);
@@ -129,12 +133,21 @@ describe("generatorEntropyBits", () => {
     );
   });
 
-  it("reads a sphinx generator by the shape it encodes into, and is null for manual", () => {
-    const sphinx = defaultGenerator("sphinx", { realm: "r" });
-    if (sphinx.id !== "sphinx") throw new Error("shape");
-    expect(generatorEntropyBits(sphinx)).toBe(
-      generatorEntropyBits({ id: "rules", ...sphinx.rules }),
+  it("reads a derived or earlier sphinx generator by the shape it encodes into, and is null for manual", () => {
+    const rules = { ...DEFAULT_RULES, length: 24 };
+    const same = generatorEntropyBits({ id: "rules", ...rules });
+    expect(generatorEntropyBits({ id: "derived", rules, counter: 3 })).toBe(
+      same,
     );
+    expect(
+      generatorEntropyBits({
+        id: "sphinx",
+        rules,
+        realm: "r",
+        counter: 0,
+        oprfKeyB64: "k",
+      }),
+    ).toBe(same);
     expect(generatorEntropyBits({ id: "manual" })).toBeNull();
   });
 });
