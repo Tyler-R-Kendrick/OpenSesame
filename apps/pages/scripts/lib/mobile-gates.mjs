@@ -26,3 +26,17 @@ export async function setupCeremony(page, stop, { audit, harness }) {
   await audit(page, stop("setup-ceremony"));
   await helpKey(page, stop("setup-ceremony"), harness);
 }
+
+/** The door offers its two roads and the guest road. */
+export async function doorRoads(page, stop, harness) {
+  for (const name of [
+    "Set up your own",
+    "Join a session",
+    "Skip sign-in and continue as guest",
+  ]) {
+    harness.check(
+      (await page.getByRole("button", { name }).count()) > 0,
+      `${stop("front-door")}: "${name}" is offered`,
+    );
+  }
+}
