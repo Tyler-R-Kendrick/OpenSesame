@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   DURESS_BOOT_KEYS,
   ENROLLMENT_STATE_KEY,
+  HOLD_KEY,
   INCIDENT_INTENT_KEY,
   INCIDENT_RECORD_KEY,
   commitKeyOf,
@@ -31,6 +32,7 @@ describe("duress boot keys", () => {
       ENROLLMENT_STATE_KEY,
       INCIDENT_INTENT_KEY,
       INCIDENT_RECORD_KEY,
+      HOLD_KEY,
     ]) {
       expect(journalKeysOf(key)).toEqual([
         key,
@@ -50,6 +52,7 @@ describe("duress boot keys", () => {
       ENROLLMENT_STATE_KEY,
       INCIDENT_INTENT_KEY,
       INCIDENT_RECORD_KEY,
+      HOLD_KEY,
     ]) {
       written.clear();
       await writeJournal(key, { probe: true });
