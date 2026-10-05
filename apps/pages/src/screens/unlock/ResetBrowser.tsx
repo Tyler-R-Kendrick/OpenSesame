@@ -6,10 +6,15 @@
  * run without digging through the browser's own site-data settings.
  * What goes, and what cannot, is `lib/browser-reset.ts`.
  *
- * The question wears the one shape every irreversible act wears —
- * a ceremony in a sheet (`CeremonyShell` in the shared sheet
- * frame), the danger key beside the safe one and the keyboard
- * landed on the safe one — not an inline fieldset on the page.
+ * The sheet is the shape every irreversible act wears: its mark, its
+ * name and its close key in the head; one card naming the place that
+ * is erased, with the facts that justify it — how many vaults go,
+ * what comes after, what is untouched; and the erase key — the `.go`
+ * square in the error ink with its verb beside it — next to the Keep
+ * key, where the keyboard lands. No warning wash, no kicker, and no
+ * caption in a foot: an ask has not failed, and the facts already say
+ * what a sentence would (`design-lint` `ask-is-not-alarm`,
+ * `sheet-caption`).
  *
  * Erasing always leaves for a fresh document (`reset-browser-run.ts`);
  * while it runs the app is not drawn (`ResetGate`). Whatever a reset
@@ -20,7 +25,10 @@
  * with it.
  */
 
+import { pagesPublicBase } from "@opensesame/app-core/lib/site-broker.js";
+import { briefOrigin } from "@opensesame/os-domain";
 import { type RefObject, useRef, useState } from "react";
+import { useDeviceVaults } from "../../bindings/vaults.js";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
 import { IconTrash, IconX } from "../../components/Icons.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
@@ -94,6 +102,7 @@ function ResetBrowserSheet({
   onClose: () => void;
   sheetRef: RefObject<HTMLDivElement | null>;
 }) {
+  const vaults = useDeviceVaults().filter((vault) => vault.state !== "empty");
   return (
     <div
       className="sheet-layer"
@@ -117,7 +126,7 @@ function ResetBrowserSheet({
         className="sheet"
         // biome-ignore lint/a11y/useSemanticElements: native <dialog open> inerts the page and paints a blank top-layer surface
         role="dialog"
-        aria-label="Reset this browser?"
+        aria-label="Reset this browser"
         aria-modal="true"
       >
         <div className="sheet__head">
@@ -125,13 +134,14 @@ function ResetBrowserSheet({
             <IconTrash size={20} />
           </span>
           <div className="sheet__grow">
-            <h2>Reset this browser?</h2>
+            <h2>Reset this browser</h2>
           </div>
           <button
             type="button"
             className="icon-btn"
             aria-label="Close"
             title="Close"
+            disabled={busy}
             onClick={onClose}
           >
             <IconX size={18} />
@@ -139,15 +149,15 @@ function ResetBrowserSheet({
         </div>
         <div className="sheet__body">
           <CeremonyShell
-            ok={false}
-            top="Everything this app keeps here"
-            name="Reset this browser?"
+            name={briefOrigin(pagesPublicBase())}
             facts={[
-              { key: "Erased", value: "every vault, sign-in and setting" },
-              { key: "Starts again", value: "as a first visit" },
+              { key: "Vaults", value: String(vaults.length) },
+              { key: "With them", value: "sign-ins, settings" },
+              { key: "After", value: "a first visit" },
+              { key: "Untouched", value: "backups, other devices" },
             ]}
             primary={{
-              label: "Erase everything in this browser",
+              label: "Erase this browser",
               tone: "danger",
               busy,
               onClick: erase,
@@ -159,12 +169,6 @@ function ResetBrowserSheet({
               onClick: onClose,
             }}
           />
-        </div>
-        <div className="sheet__foot">
-          <p className="hint">
-            Copies outside this browser — a backup, another device — are not
-            touched.
-          </p>
         </div>
       </div>
     </div>

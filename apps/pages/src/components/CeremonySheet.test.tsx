@@ -7,12 +7,11 @@ import { CeremonySheet } from "./CeremonySheet.js";
 afterEach(cleanup);
 
 describe("CeremonySheet", () => {
-  it("frames a ceremony as a named dialog with its foot", () => {
+  it("frames a ceremony as a named dialog", () => {
     render(
       <CeremonySheet
         title="Turn on travel mode"
         mark={<span>mark</span>}
-        foot="Nothing leaves yet."
         onClose={() => {}}
       >
         <p>the card</p>
@@ -21,15 +20,15 @@ describe("CeremonySheet", () => {
     const dialog = screen.getByRole("dialog", { name: "Turn on travel mode" });
     expect(dialog.getAttribute("aria-modal")).toBe("true");
     expect(screen.getByText("the card")).toBeTruthy();
-    expect(screen.getByText("Nothing leaves yet.")).toBeTruthy();
   });
 
-  it("leaves no foot when it has nothing to say", () => {
+  it("carries no caption: nothing under the title, no foot", () => {
     render(
       <CeremonySheet title="Sheet" mark={null} onClose={() => {}}>
         <p>card</p>
       </CeremonySheet>,
     );
+    expect(document.querySelector(".sheet__head p")).toBeNull();
     expect(document.querySelector(".sheet__foot")).toBeNull();
   });
 

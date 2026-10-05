@@ -38,7 +38,6 @@ import { KeyCeremony } from "./KeyCeremony.js";
 import type { Run } from "./run.js";
 import { useAbandonEnrollment } from "./useAbandonEnrollment.js";
 
-type Setter = (foot: string | null) => void;
 type Ledger = Codes & { since: string };
 
 function CodesList({ codes, used }: { codes: string[]; used: boolean[] }) {
@@ -130,11 +129,9 @@ function FreshCodes({
 export function RecoveryCeremony({
   busy,
   run,
-  setFoot,
 }: {
   busy: boolean;
   run: Run;
-  setFoot: Setter;
 }) {
   const store = useVaultStore();
   const [ledger, setLedger] = useState<Ledger | null | undefined>(undefined);
@@ -181,12 +178,7 @@ export function RecoveryCeremony({
         ok={false}
         top="None yet"
         name="Made with your first second step"
-      >
-        <p className="hint">
-          Add an authenticator, email or text code; the codes are shown once
-          when it turns on, and again here.
-        </p>
-      </CeremonyShell>
+      />
     );
   }
   const left = ledger.used.filter((flag) => !flag).length;
@@ -204,7 +196,6 @@ export function RecoveryCeremony({
             aria-label="Make a new set"
             title="Make a new set"
             onClick={() => {
-              setFoot("The old codes stopped working. Save the new ones.");
               void run(async () => {
                 setFresh(await store.generateRecoveryCodes());
               }, "A new set of recovery codes was made.");
@@ -224,13 +215,18 @@ export function RecoveryCeremony({
         name={`Made ${new Date(ledger.since).toLocaleDateString()}`}
         primary={{
           label: copied ? "Copied" : "Copy",
+          icon: <IconCopy size={18} />,
           onClick: () =>
             void copyCodes(ledger).then(
               () => setCopied(true),
               () => setCopied(false),
             ),
         }}
-        secondary={{ label: "Download", onClick: () => downloadCodes(ledger) }}
+        secondary={{
+          label: "Download",
+          icon: <IconDownload size={18} />,
+          onClick: () => downloadCodes(ledger),
+        }}
       >
         <CodesList codes={ledger.codes} used={ledger.used} />
       </CeremonyShell>
@@ -282,7 +278,6 @@ export function AuthenticatorCeremony({
   busy,
   run,
   onDone,
-  setFoot,
 }: {
   view: "add" | "change" | "remove";
   enrolled: UnlockMethodId[];
@@ -290,7 +285,6 @@ export function AuthenticatorCeremony({
   busy: boolean;
   run: Run;
   onDone: () => void;
-  setFoot: Setter;
 }) {
   const store = useVaultStore();
   const { header } = useVault();
@@ -334,17 +328,6 @@ export function AuthenticatorCeremony({
     );
   }, [view, store]);
 
-  useEffect(() => {
-    const foots = {
-      key: "The code is asked for after this key. Nothing is written yet.",
-      scan: "The seed lives only in memory until a code matches.",
-      confirm:
-        "Nothing is written until a code matches. A bad scan cannot lock you out.",
-      done: "The codes are sealed under the vault key. Settings › Security › Recovery shows the ones left.",
-    } satisfies Record<TotpStage, string>;
-    setFoot(view === "remove" ? null : foots[stage]);
-  }, [view, stage, setFoot]);
-
   if (view === "remove") {
     const lastStep = listSecondSteps(header).length < 2;
     const facts = [
@@ -356,8 +339,6 @@ export function AuthenticatorCeremony({
     ];
     return (
       <CeremonyShell
-        ok={false}
-        top="Remove the authenticator?"
         name="Authenticator app"
         facts={facts}
         primary={{
@@ -606,7 +587,6 @@ export function CodeCeremony({
   run,
   accountEmail,
   onDone,
-  setFoot,
 }: {
   channel: CodeChannel;
   view: "add" | "change" | "remove";
@@ -614,7 +594,6 @@ export function CodeCeremony({
   run: Run;
   accountEmail: string | null;
   onDone: () => void;
-  setFoot: Setter;
 }) {
   const store = useVaultStore();
   const { header } = useVault();
@@ -648,21 +627,10 @@ export function CodeCeremony({
       .then(setMasked, () => setMasked(null));
   }, [view, channel, store]);
 
-  useEffect(() => {
-    if (view === "remove") setFoot(null);
-    else if (stage === "done") {
-      setFoot(
-        "The codes are sealed under the vault key. Settings › Security › Recovery shows the ones left.",
-      );
-    } else setFoot(null);
-  }, [view, stage, setFoot]);
-
   if (view === "remove") {
     const lastStep = listSecondSteps(header).length < 2;
     return (
       <CeremonyShell
-        ok={false}
-        top={`Remove the ${words.medium} code?`}
         name={masked ?? words.name}
         facts={[
           {
