@@ -17,6 +17,7 @@ import {
   IconX,
 } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { PaintedText } from "./PaintedText.js";
 
 type Outcome = { tone: "ok" | "warn" | "err"; text: string } | null;
 
@@ -196,18 +197,14 @@ export function VirtualFileEditor({
         />
       </div>
       <div className="panel__body">
-        <textarea
-          className="vfile__text"
-          aria-label={file.path}
-          spellCheck={false}
-          autoComplete="off"
-          wrap="off"
+        <PaintedText
+          language={file.language}
+          path={file.path}
+          source={text}
           readOnly={file.readOnly}
-          aria-invalid={!check.ok}
-          rows={Math.min(Math.max(text.split("\n").length + 1, 8), 32)}
-          value={text}
-          onChange={(event) => {
-            setText(event.target.value);
+          invalid={!check.ok}
+          onChange={(next) => {
+            setText(next);
             setOutcome(null);
           }}
           onKeyDown={(event) => {
