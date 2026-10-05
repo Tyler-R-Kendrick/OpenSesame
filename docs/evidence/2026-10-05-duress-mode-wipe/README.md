@@ -52,12 +52,12 @@ the "stays sealed" the other modes show.
 
 ## What the pictures do not show, and what to read with them
 
-- **The refusal text differs on the password tab.** The last row is a finding,
-  not a success: an ordinary wrong password says "credential", while the
-  seam's locked refusal says "password" (`UNLOCK_PASSWORD_MISS`). That is the
-  seam's, not this mode's, and it applies to the existing Wrong password mode
-  too; the PIN tab's two texts are identical. The `J-DURESS-MODE-WIPE`
-  journey runs on a PIN vault and asserts the PIN refusals equal.
+- **The refusal text row is the base's, not this mode's.** On the password
+  tab the seam's locked refusal said "password" where an ordinary wrong
+  password says "credential"; that is a property of the seam the base was
+  captured at (the freeze mode fixed it separately), and the existing Wrong
+  password mode had it too. The PIN tab's two texts are identical, which is why
+  the `J-DURESS-MODE-WIPE` journey runs on a PIN vault and asserts them equal.
 - The cold-loaded "after" screen is Sign in because the device has answered
   setup; a device that had not would show the front door. It offers "Use
   without an account", not a guest button, as every vaultless device that has
@@ -66,5 +66,8 @@ the "stays sealed" the other modes show.
   run by `verify-experience-journeys.mjs`) also covers what a still picture
   cannot: a wipe the page dies in the middle of (headers gone, bodies still on
   disk, intent on disk, the next boot finishes it), the refusal staying on
-  screen while the vaults are removed, and the duress code still working
-  afterwards.
+  screen while the vaults are removed, the duress code still working
+  afterwards, and the owner's recovery: a new vault sealed on the held device,
+  the Duress row marked used, Clear lifting it, and a new code arming. The
+  restore of a backup made before the wipe is proved in
+  `packages/app-core/src/lib/duress/wipe/wipe-recovery.test.ts`.
