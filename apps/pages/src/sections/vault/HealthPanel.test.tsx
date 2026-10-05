@@ -11,7 +11,7 @@ import {
   vi,
 } from "vitest";
 
-import type { LoginItem, VaultItem } from "@opensesame/vault-core";
+import type { AccountItem, VaultItem } from "@opensesame/vault-core";
 
 type VaultFixture = { current: { items: VaultItem[] } };
 
@@ -27,29 +27,23 @@ Object.assign(vaultHooksSeams, { useVault: () => vault.current });
 afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
 
 import { HealthPanel } from "./HealthPanel.js";
+import {
+  type AccountSeed,
+  makeAccount as makeAccountBase,
+} from "./account.test-support.js";
 
 let seq = 0;
 
-function makeAccount(overrides: Partial<LoginItem> = {}): LoginItem {
+function makeAccount(overrides: AccountSeed = {}): AccountItem {
   seq += 1;
-  return {
+  return makeAccountBase({
     id: `itm_${seq}`,
-    kind: "login",
-    name: `Login ${seq}`,
-    folderId: null,
-    favorite: false,
-    notes: "",
-    fields: [],
-    createdAt: "2026-08-01T00:00:00Z",
-    updatedAt: "2026-08-01T00:00:00Z",
-    deletedAt: null,
-    username: "me@example.com",
+    name: `Account ${seq}`,
     password: "correct horse battery staple 99!",
     totp: "JBSWY3DPEHPK3PXP",
-    uris: [],
     passwordChangedAt: new Date().toISOString(),
     ...overrides,
-  };
+  });
 }
 
 function renderPanel() {
@@ -74,11 +68,11 @@ describe("HealthPanel", () => {
     renderPanel();
     expect(screen.getByText("No passwords to review")).toBeTruthy();
     expect(
-      screen.getByRole("link", { name: /New login/i }).getAttribute("href"),
-    ).toBe("/vault/new/login");
+      screen.getByRole("link", { name: /New account/i }).getAttribute("href"),
+    ).toBe("/vault/new/account");
   });
 
-  it("ignores trashed and password-less logins", () => {
+  it("ignores trashed and password-less accounts", () => {
     vault.current = {
       items: [
         makeAccount({ deletedAt: "2026-08-10T00:00:00Z" }),

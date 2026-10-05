@@ -6,7 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
   DropItem,
-  LoginItem,
   SecretItem,
   VaultItem,
 } from "@opensesame/vault-core";
@@ -60,6 +59,7 @@ Object.assign(vaultHooksSeams, {
 Object.assign(dropSeams, { createClaim, pollClaim });
 
 import { DropRecordFields, ShareSecretDrop } from "./DropCeremony.js";
+import { makeAccount } from "./account.test-support.js";
 
 function sessionFor(claimId = "clm_test") {
   return {
@@ -108,26 +108,6 @@ function makeDrop(overrides: Partial<DropItem> = {}): DropItem {
     bearerToken: "osc_clm_clm_test.secret",
     expiresAt: new Date(Date.now() + 600_000).toISOString(),
     ...overrides,
-  };
-}
-
-function makeAccount(): LoginItem {
-  return {
-    id: "itm_login",
-    kind: "login",
-    name: "GitHub",
-    folderId: null,
-    favorite: false,
-    notes: "",
-    fields: [],
-    createdAt: "2026-08-01T00:00:00Z",
-    updatedAt: "2026-08-01T00:00:00Z",
-    deletedAt: null,
-    username: "octocat",
-    password: "hunter2-login",
-    totp: "",
-    uris: [],
-    passwordChangedAt: "2026-08-01T00:00:00Z",
   };
 }
 
@@ -252,11 +232,11 @@ describe("share ceremony on an item", () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it("seals a login password the same way", async () => {
+  it("seals an account password the same way", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
-        <ShareSecretDrop item={makeAccount()} />
+        <ShareSecretDrop item={makeAccount({ id: "itm_login", name: "GitHub", username: "octocat", password: "hunter2-login" })} />
       </MemoryRouter>,
     );
     await user.click(screen.getByRole("button", { name: /Share once/i }));
