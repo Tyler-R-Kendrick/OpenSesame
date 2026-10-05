@@ -22,7 +22,13 @@ import {
 } from "../keys/pin-floors.js";
 import { duressSessionFence } from "../session/fence.js";
 import { loadEnrollmentStateForUnlock } from "../store/unlock-enrollment.js";
-import { type DuressMode, type DuressModeId, getMode } from "./modes/index.js";
+import {
+  type DuressMode,
+  type DuressModeId,
+  encodePlan,
+  getMode,
+  inputReady,
+} from "./modes/index.js";
 import {
   armPersistedUnlockEnrollment,
   disarmPersistedUnlockEnrollment,
@@ -77,11 +83,6 @@ export function duressStatus(): DuressStatus {
   };
 }
 
-/** Whether every input the mode declares came with a value. */
-function hasInputs(mode: DuressMode, extras: Readonly<Record<string, string>>) {
-  return mode.input.kind === "none" || Boolean(extras[mode.input.id]?.trim());
-}
-
 type Checked =
   | { readonly ok: true; readonly mode: DuressMode }
   | { readonly ok: false; readonly code: DuressRefusal };
@@ -100,7 +101,7 @@ function checkRequest(input: {
     return { ok: false, code: "code_format" };
   }
   const mode = getMode(input.mode ?? input.outcome ?? "");
-  if (!mode || !hasInputs(mode, input.extras ?? {})) {
+  if (!mode || !inputReady(mode, input.extras ?? {})) {
     return { ok: false, code: "failed" };
   }
   return { ok: true, mode };
@@ -124,7 +125,7 @@ export async function enableDuressCode(input: {
   mode?: string;
   /** The name `mode` had before the registry; read when `mode` is absent. */
   outcome?: string;
-  /** Values for the inputs the mode declares; no mode declares one yet. */
+  /** Values for the inputs the mode declares, by the input's id. */
   extras?: Readonly<Record<string, string>>;
   /** The vault the owner is in, so the enrollment names a real one. */
   vaultRef: string;
@@ -149,6 +150,9 @@ export async function enableDuressCode(input: {
       vaultRef: input.vaultRef,
       deviceBindingRef: DEVICE_BINDING,
       presentation: mode.presentation,
+      ...(mode.plan
+        ? { payload: encodePlan(mode.plan(input.extras ?? {})) }
+        : {}),
       previous: null,
       policyRevision: before?.policyRevision ?? 1,
       keyEpoch: before?.keyEpoch ?? 1,
