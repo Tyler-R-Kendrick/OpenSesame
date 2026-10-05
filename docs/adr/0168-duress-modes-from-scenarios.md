@@ -119,7 +119,8 @@ items.
   origin's files; 64 KiB of ciphertext is about 87 KiB of base64.
 - **The mode is absent when it cannot act** (ADR 0158): it is not drawn unless
   the open session is the owner's real vault with at least one item it can show.
-  A guest session, which includes every decoy, already draws no Duress row.
+  A decoy draws no Duress row. A keyless guest is drawn the "After a key"
+  placeholder instead (ADR 0155), which names no mode.
 
 Not offered, and why: **alert a contact** needs a delivery path and an
 independent receiver, neither of which a static app has (INV-14, INV-16);

@@ -40,10 +40,13 @@ way: the "safe for travel" marks were forgotten on every reload.
   refuses without durable storage — a code the browser would lose on reload
   fails silently when it is needed most. Arming seals the code and proves the
   sealed slot opens with it before it says "on".
-- **Invisible where it must be.** A guest session — which is what a decoy is
-  — is drawn no row at all, so a person made to open Settings in front of
-  someone finds nothing to disable and nothing that says it is there
-  (ADR 0130, INV-27).
+- **Invisible where it must be.** A decoy is drawn no row at all, so a person
+  made to open Settings in front of someone finds nothing to disable and
+  nothing that says it is there (ADR 0130, INV-27). A guest who has not made
+  a key yet is not a decoy: with no key there is nothing to guard, so Security
+  draws a Duress and a Travel section marked "After a key" whose Add opens the
+  key sheet (ADR 0158); once a key exists the real rows replace them
+  (`GuestAfterKeyRows`, walked by J-DURESS-GUEST). A decoy never gets either.
 - **The owner can recover.** Using the code fences the device: the person who
   unlocks is held to a guest's powers, travel and code changes are refused
   (`duress_active`). A session opened with the vault's own key sees the row
