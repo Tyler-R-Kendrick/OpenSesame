@@ -114,3 +114,18 @@ things for a while, remove this device's copy, or tell a contact
 modes from that list (decoy, decoy with everyday items, wrong password, freeze
 for a while, wipe this device's copy). It does not offer alert-a-contact: a static
 app has no delivery path and no independent receiver for it.
+
+## 7. Items, not only vaults
+
+1Password's Travel Mode is vault-level, and so is ADR 0143. Both work only
+where the vault that is carried never needs to be opened with its key: the
+vault that opens is the one that stays. A person compelled to unlock the
+vault they carry sees everything in it.
+
+Taking an item out of an open vault is hiding only if nothing the owner's key
+opens still holds it. The audit of where an item persists (trash, tombstones,
+activity lines, retired-password digests, caches, backups, a paired drive's
+merge, shares, file parts) is in
+[`travel-hidden-items.md`](travel-hidden-items.md). The design, which refuses
+beside what it cannot reach rather than claiming to hide, is
+[ADR 0171](../adr/0171-hide-items-while-traveling.md).

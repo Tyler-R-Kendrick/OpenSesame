@@ -41,6 +41,48 @@ preview names those sites. They get that permission back only if you tick
 Tick it only for a bundle you made yourself. Sites you had blocked stay
 blocked either way.
 
+## Leaving items at home
+
+Travel mode above moves whole vaults. If you must unlock the vault you carry,
+choose which of **its items** stay home instead ([ADR 0171](../adr/0171-hide-items-while-traveling.md);
+audit in [`travel-hidden-items.md`](../research/travel-hidden-items.md)).
+
+1. Open the vault. In **Settings › Vaults › Travel** press **Choose items to
+   leave at home**. Switch on **Stays home** for each item. Press **Pack the
+   items for travel**. Nothing is removed yet.
+2. Save the **travel bundle** and write down the **return code**, as above.
+   Tick all three boxes, the third being that other devices, exports and
+   backups still hold these items and that losing the bundle and the code
+   loses them here.
+3. Press **Take them out of this vault**. The items leave in one step. Their
+   activity lines and retired-password digests go with them, and nothing is
+   put in the trash or written as a deletion.
+4. To bring them back, open the vault and press **Turn off travel mode**,
+   choose the bundle and type the code. The preview lists the items. Press
+   **Bring them back**. They return with their own ids, dates and folders;
+   returning twice changes nothing.
+
+It refuses, and says why, while any of these is on:
+
+- a **backup target** or a history remote (the remote keeps every older copy);
+- a **paired drive** (its next sync would bring the items back);
+- a **share** of the item (end it first);
+- a duress incident, a guest or decoy session, or a browser that keeps no
+  files.
+
+Files (attachments) and drops cannot be left home on their own; they are not
+offered. Use whole-vault travel for them.
+
+Nothing on the device lists what is away: the panel looks the same whether
+items are hidden or not, and the choice is not remembered. That is on
+purpose, and it means you must keep your own record of what you left.
+
+**Limits.** This is not protection from coercion; you may be made to say items
+are hidden, or to give up the bundle and the code. Copies on other devices,
+exports and backups you made remain. A merge or an import of an older export
+that you do later can bring items back. Removal is the browser's, not a disk
+wipe. A connector bound to a hidden item stops working until it returns.
+
 ## What this does not do
 
 - **It is not a forensic wipe.** The browser deletes its files. That is not
