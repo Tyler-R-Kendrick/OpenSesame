@@ -3743,6 +3743,7 @@ dependencies = [
  "opensesame-sealed-store",
  "opensesame-session-observe",
  "opensesame-storage",
+ "opensesame-tailnet-admin",
  "opensesame-vault-item-types",
  "opensesame-worker",
  "qr2term",
