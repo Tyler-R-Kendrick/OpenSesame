@@ -18,6 +18,7 @@
  * works beside it, always.
  */
 
+import { sessionOver } from "./nats-route.js";
 import { fromB64url, toB64url } from "./seal.js";
 import type { CarrierSpec } from "./transport.js";
 
@@ -26,12 +27,22 @@ export type Carrier = Readonly<{
   /** Hear every frame on the topic; returns how to stop. */
   listen(onText: (text: string) => void): () => void;
   close(): void;
+  /**
+   * A carrier on a subject below this one, on the same connection: where a
+   * seat's sealed session travels (`seat-channel.ts`). Only NATS has one;
+   * closing it leaves this carrier open.
+   */
+  channel?: (name: string) => Carrier;
 }>;
+
+/** Which side of a session opens a carrier: the owner's tab also serves. */
+export type CarrierRole = "owner" | "joiner";
 
 /** Open one carrier on one topic; rejects if it cannot be reached. */
 export type CarrierFactory = (
   spec: CarrierSpec,
   topic: string,
+  role?: CarrierRole,
 ) => Promise<Carrier>;
 
 /**
@@ -187,11 +198,12 @@ export class Rendezvous {
     secret: string,
     factory: CarrierFactory,
     onCode: (code: string) => void,
+    role: CarrierRole = "joiner",
   ): Rendezvous {
     const rendezvous = new Rendezvous(specs);
     void carrierTopic(secret).then((topic) =>
       specs.forEach((spec, at) => {
-        factory(spec, topic).then(
+        factory(spec, topic, role).then(
           (carrier) => rendezvous.#ready(at, carrier, onCode),
           (error) =>
             rendezvous.#mark(
@@ -277,6 +289,24 @@ export class Rendezvous {
         resolve();
       });
     });
+  }
+
+  /**
+   * A seat's channel on the first ready carrier that may carry a session
+   * (a NATS server whose `session` is not `off`), or null when none can.
+   */
+  seat(name: string): Carrier | null {
+    for (const [at, carrier] of this.#carriers.entries()) {
+      const state = this.#states[at];
+      if (!carrier?.channel || !state || state.status !== "ready") continue;
+      if (sessionOver(state.spec) !== "off") return carrier.channel(name);
+    }
+    return null;
+  }
+
+  /** Whether any carrier this session names may carry a session at all. */
+  get relays(): boolean {
+    return this.#states.some((state) => sessionOver(state.spec) !== "off");
   }
 
   /** Post a code on every carrier that is ready. */
