@@ -88,8 +88,10 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
     title: "Access",
     goals: [
       "access.grant",
+      "access.review",
       "access.connectors",
       "access.relay",
+      "access.requests.hosted",
       "access.sessions.review",
       "agent.control",
       "agent.observe",

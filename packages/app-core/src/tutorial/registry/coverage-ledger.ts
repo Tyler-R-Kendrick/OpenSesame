@@ -63,10 +63,6 @@ export const COVERAGE_EXEMPT: Readonly<Record<string, string>> = {
     "a gate screen: its tour needs the gate help launcher (ADR 0165)",
   "target:settings.live-session": "no tutorial points at it yet",
   "target:settings.live-routes": "no tutorial points at it yet",
-  "target:access.grants": "no tutorial points at it yet",
-  "target:access.policies": "no tutorial points at it yet",
-  "target:access.relay": "no tutorial points at it yet",
-  "target:access.resources": "no tutorial points at it yet",
   "target:connections.bindings":
     "declared but drawn nowhere: Pages binds a connector with a local share, taught on Access › Connectors (ADR 0115), and the Host road that had this panel is gone",
   "target:connections.renew":
