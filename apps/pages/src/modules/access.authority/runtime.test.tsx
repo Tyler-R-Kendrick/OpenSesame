@@ -85,7 +85,12 @@ describe("access.authority runtime", () => {
     expect(t.entries("tutorial-goal").map((d) => d.id)).toContain(
       "identity.local.requests.manage",
     );
-    expect(t.entries("tutorial-route").map((d) => d.id)).toEqual(["/access"]);
+    expect(t.entries("tutorial-route").map((d) => d.id)).toEqual([
+      "/access",
+      "/access/requests",
+      "/access/resources",
+      "/access/policies",
+    ]);
     expect(t.hydrated).toEqual([]);
     await handle.dispose();
   });

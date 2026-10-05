@@ -64,6 +64,7 @@ export const TUTORIAL = {
     "identity.service-accounts",
   ]),
   goals: pickById(IDENTITY_GOALS, [
+    "identity.applications.manage",
     "identity.local.agent.keys.manage",
     "identity.local.application.authorize",
     "identity.local.passkeys.manage",

@@ -72,30 +72,12 @@ export const CONNECTIONS_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "connections.create",
   },
   {
-    id: "connections.renew",
-    description:
-      "Renews the credential behind an active connection without asking for consent again. Present only while the connection can be refreshed.",
-    role: "action",
-    routes: ["/connections"],
-    capabilityId: "connections.rotate",
-  },
-  {
     id: "connections.revoke",
     description:
       "Revokes a connection, cutting off every project and agent bound to it and asking the provider to invalidate the credential.",
     role: "action",
     routes: ["/connections"],
     capabilityId: "connections.remove",
-  },
-  {
-    id: "connections.bindings",
-    description:
-      "The Who can use it panel: which identities, groups, devices, projects and agents may use this authorization. None of them receive the credential.",
-    role: "surface",
-    routes: ["/connections"],
-    // In Pages a connector is bound by a local share (ADR 0115), not a Host
-    // binding (ADR 0128).
-    capabilityId: "connectors.bind",
   },
   {
     id: "nav.connections",
@@ -111,5 +93,9 @@ export const CONNECTIONS_ROUTES: readonly GuideRouteDescriptor[] = [
   {
     id: "/connections",
     title: "Connections — provider connections and their state",
+  },
+  {
+    id: "/connections/git",
+    title: "Connections — the generic git remote's own page",
   },
 ];

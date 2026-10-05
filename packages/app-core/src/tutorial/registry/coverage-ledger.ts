@@ -10,7 +10,7 @@
  * A reason says what is missing. It is never a way to leave a control out:
  * "not worth a tutorial" is not a reason.
  */
-export const COVERAGE_EXEMPT: Readonly<Record<string, string>> = {
+export const COVERAGE_EXEMPT = {
   "target:nav.menu": "no tutorial points at it yet",
   "target:nav.vault": "no tutorial points at it yet",
   "target:nav.settings": "no tutorial points at it yet",
@@ -63,21 +63,8 @@ export const COVERAGE_EXEMPT: Readonly<Record<string, string>> = {
     "a gate screen: its tour needs the gate help launcher (ADR 0165)",
   "target:settings.live-session": "no tutorial points at it yet",
   "target:settings.live-routes": "no tutorial points at it yet",
-  "target:access.grants": "no tutorial points at it yet",
-  "target:access.policies": "no tutorial points at it yet",
-  "target:access.relay": "no tutorial points at it yet",
-  "target:access.resources": "no tutorial points at it yet",
-  "target:connections.attention": "no tutorial points at it yet",
-  "target:connections.back": "no tutorial points at it yet",
-  "target:connections.bindings": "no tutorial points at it yet",
-  "target:connections.catalog": "no tutorial points at it yet",
-  "target:connections.reload": "no tutorial points at it yet",
-  "target:connections.renew": "no tutorial points at it yet",
-  "target:connections.revoke": "no tutorial points at it yet",
-  "target:identity.claim-access": "no tutorial points at it yet",
-  "target:identity.org-signin": "no tutorial points at it yet",
-  "target:identity.organization": "no tutorial points at it yet",
-  "target:identity.service-accounts": "no tutorial points at it yet",
+  "target:identity.org-signin":
+    "sits in the Organizations tab, which a URL query selects, so a guide cannot navigate there; it also needs an owner with a session on a remote Identity API, so it cannot be reached with Next alone",
   "target:nav.access": "no tutorial points at it yet",
   "target:nav.activity": "no tutorial points at it yet",
   "target:nav.connections": "no tutorial points at it yet",
@@ -115,4 +102,4 @@ export const COVERAGE_EXEMPT: Readonly<Record<string, string>> = {
   "key:register.replay": "no tutorial teaches this key yet",
   "key:section.vault": "no tutorial teaches this key yet",
   "key:section.settings": "no tutorial teaches this key yet",
-};
+} as const satisfies Readonly<Record<string, string>>;
