@@ -24,6 +24,8 @@ import {
 } from "@opensesame/vault-item-types";
 import type { ItemKindContribution } from "./capabilities/runtime-contract.js";
 import { contributionsSnapshot } from "./contributions.js";
+import { derivedKindOrder, derivedKindSegment } from "./derived-item-kinds.js";
+import { getPackSnapshot, isPackOn } from "./type-packs/state.js";
 
 export type ItemKindRow = Readonly<{
   /** The item type id, also the `?f=` filter value. */
@@ -44,8 +46,34 @@ export const CORE_ITEM_KINDS: readonly ItemKindRow[] = [
   { id: "file", segment: "files", label: "File", order: 45 },
 ];
 
+/**
+ * The built-in kinds a person switched on in Settings › Vaults › Item types
+ * (ADR 0165). They take the rail position the same kind has when a
+ * capability contributes it, so a type reads the same wherever it came from.
+ */
+export function packItemKinds(): readonly ItemKindRow[] {
+  const snapshot = getPackSnapshot();
+  const registry = itemTypeRegistry();
+  return Object.keys(snapshot.status)
+    .filter((id) => isPackOn(id, snapshot))
+    .sort()
+    .flatMap((id, index) => {
+      const definition = registry.get(id);
+      if (definition === undefined) return [];
+      return [
+        {
+          id,
+          segment: derivedKindSegment(id, directoryName(definition)),
+          label: definition.spec.title,
+          order: derivedKindOrder(id, index),
+        },
+      ];
+    });
+}
+
 export function itemKindsFrom(
   contributions: readonly ItemKindContribution[],
+  packs: readonly ItemKindRow[] = packItemKinds(),
 ): readonly ItemKindRow[] {
   const contributed = contributions
     .filter((entry) => entry.creatable !== false)
@@ -56,7 +84,12 @@ export function itemKindsFrom(
       label: entry.label,
       order: entry.order,
     }));
-  return [...CORE_ITEM_KINDS, ...contributed].sort((left, right) =>
+  const seen = new Set([
+    ...CORE_ITEM_KINDS.map((row) => row.id),
+    ...contributed.map((row) => row.id),
+  ]);
+  const chosen = packs.filter((row) => !seen.has(row.id));
+  return [...CORE_ITEM_KINDS, ...contributed, ...chosen].sort((left, right) =>
     left.order !== right.order
       ? left.order - right.order
       : left.id.localeCompare(right.id),

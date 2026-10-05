@@ -1,5 +1,6 @@
 /**
- * J-TYPES: install an inert VaultItemType as a file — a new file in
+ * J-TYPES: switch a built-in type on (a download, no reload) and off again,
+ * then install an inert VaultItemType as a file — a new file in
  * `settings/item-types/installed/`, opened from the Vaults directory's files
  * (ADR 0134) — without a reload, then remove it from the Form without
  * rewriting the item values it shaped (ADR 0087 §7).
@@ -61,10 +62,36 @@ export async function walkJTypes({ page, origin, base, check, snap }) {
     timeout: 15000,
   });
   check(
-    // Folded under builtin/: counted in the DOM, not by what is expanded.
-    (await page.locator('[aria-label="Built-in types"] li').count()) > 0,
-    "built-in types are listed before anything is installed",
+    (await page.getByRole("switch").count()) === 18,
+    "every built-in type beyond the core is a switch",
   );
+  check(
+    (await page.locator('[role="switch"][aria-checked="true"]').count()) === 0,
+    "a minimal vault starts with every one of them off",
+  );
+  await snap(page, "J-TYPES-off");
+
+  // Switching on is the cue to download and install: the switch moves at
+  // once, is busy while the pack arrives, and the page is never reloaded.
+  const login = page.getByRole("switch", { name: "Login", exact: true });
+  await login.click();
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[role="switch"][aria-label="Login"]')
+        ?.getAttribute("aria-busy") === "false",
+    undefined,
+    { timeout: 15000 },
+  );
+  check(
+    (await login.getAttribute("aria-checked")) === "true",
+    "Login is on once its pack has arrived",
+  );
+  await page.getByText("1 of 18 on").waitFor({ timeout: 5000 });
+  await snap(page, "J-TYPES-on");
+  await login.click();
+  await page.getByText("0 of 18 on").waitFor({ timeout: 5000 });
+  check(true, "switching it off drops the pack again");
 
   // Installing is writing a file: the directory's files, then a new one.
   await openConfigFile(page, "vaults");
@@ -78,7 +105,7 @@ export async function walkJTypes({ page, origin, base, check, snap }) {
   await snap(page, "J-TYPES-file");
 
   await openConfigForm(page, "Vaults");
-  const installed = page.getByRole("list", { name: "Installed types" });
+  const installed = page.getByRole("list", { name: "Types you added" });
   await installed.getByText("Event ticket").waitFor({ timeout: 8000 });
   check(true, "the Form lists the installed type");
   await snap(page, "J-TYPES-installed");
