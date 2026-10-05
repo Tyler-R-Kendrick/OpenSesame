@@ -13,6 +13,7 @@ import { walkJConfig } from "./lib/j-config-journey.mjs";
 import { walkJConflict } from "./lib/j-conflict-journey.mjs";
 import { walkJDuress } from "./lib/j-duress-journey.mjs";
 import { walkJDuressFreeze } from "./lib/j-duress-mode-freeze-journey.mjs";
+import { walkJDuressItems } from "./lib/j-duress-mode-items-journey.mjs";
 import { walkJExplain } from "./lib/j-explain-journey.mjs";
 import { walkJFile } from "./lib/j-file-journey.mjs";
 import { walkJNav } from "./lib/j-nav-journey.mjs";
@@ -83,6 +84,7 @@ try {
   await runWalk("J-RECOVERY", walkJRecovery);
   await runWalk("J-SUPPORT", walkJSupport);
   await runWalk("J-DURESS", walkJDuress);
+  await runWalk("J-DURESS-ITEMS", walkJDuressItems);
   await runWalk("J-DURESS-FREEZE", walkJDuressFreeze);
   await runWalk("J-TRAVEL", walkJTravel);
 } finally {

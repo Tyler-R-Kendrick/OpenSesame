@@ -75,7 +75,13 @@ async function arm({ page, check, snap }) {
   await fields.nth(0).fill(CODE);
   await fields.nth(1).fill(CODE);
   const radios = await page.locator("[role=dialog] input[type=radio]").count();
-  check(radios === 3, `the sheet offers three modes (saw ${radios})`);
+  check(
+    radios >= 3 &&
+      (await page
+        .getByRole("radio", { name: "Freeze for a while" })
+        .count()) === 1,
+    `the sheet offers Freeze among at least three modes (saw ${radios})`,
+  );
   await page.getByRole("radio", { name: "Freeze for a while" }).check();
   const go = page.getByRole("button", { name: "Turn on duress code" });
   await page.getByRole("checkbox").check();

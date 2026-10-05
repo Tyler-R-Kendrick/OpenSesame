@@ -48,6 +48,12 @@ export type DuressModeInput =
       max: number;
       /** Longest a single line may be. */
       maxLength: number;
+      /**
+       * Lines the sheet offers when the mode is picked, so the owner edits a
+       * plausible list rather than facing a blank box. Authored with the mode,
+       * never read from the vault.
+       */
+      starter?: readonly string[];
     }>
   | Readonly<{
       kind: "confirm";

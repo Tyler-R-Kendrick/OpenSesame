@@ -9,6 +9,7 @@
  * to avoid. A runner that cannot finish leaves its own record of that.
  */
 
+import { DECOY_ITEMS_RUNNER } from "./decoy-items-effect.js";
 import { FREEZE_RUNNER } from "./freeze.js";
 import type { DuressPlan } from "./mode.js";
 
@@ -29,7 +30,10 @@ export type EffectRunner = Readonly<{
 const RUNNERS: ReadonlyMap<string, EffectRunner> = new Map<
   string,
   EffectRunner
->([["freeze", FREEZE_RUNNER]]);
+>([
+  ["decoy_items", DECOY_ITEMS_RUNNER],
+  ["freeze", FREEZE_RUNNER],
+]);
 
 /** Whether unlock can run `effect`: a mode may only seal one that it can. */
 export function hasEffectRunner(effect: string): boolean {

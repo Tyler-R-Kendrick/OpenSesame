@@ -40,3 +40,12 @@ export function inputReady(mode: DuressMode, extras: ModeExtras): boolean {
       );
   }
 }
+
+/**
+ * What the sheet puts in a mode's input when the mode is picked: the starter
+ * lines of an `items` input, one per line, and nothing for any other kind.
+ */
+export function starterText(mode: DuressMode): string {
+  const { input } = mode;
+  return input.kind === "items" ? (input.starter ?? []).join("\n") : "";
+}
