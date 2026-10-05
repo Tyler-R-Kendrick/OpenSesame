@@ -1,0 +1,112 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "count": [".rail .prompt__seg", ".rail .prompt__glyph"]
+        },
+        {
+          "measure": ".rail .rail__prompt"
+        },
+        {
+          "measure": ".rail .prompt__seg"
+        },
+        {
+          "measure": ".rail .prompt__glyph"
+        },
+        {
+          "report": ".rail .rail__prompt"
+        },
+        {
+          "shot": "1280-prompt"
+        },
+        {
+          "tap": ".rail .project-switcher .prompt__seg"
+        },
+        {
+          "measure": ".rail .project-switcher__menu"
+        },
+        {
+          "shot": "1280-vault-menu"
+        },
+        {
+          "tap": [".project-switcher__backdrop", 700, 600]
+        },
+        {
+          "tap": ".rail .account-switcher .prompt__seg"
+        },
+        {
+          "measure": ".rail .account-switcher__menu"
+        },
+        {
+          "shot": "1280-account-menu"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "count": [".topbar .prompt__glyph"]
+        },
+        {
+          "measure": ".topbar .prompt__seg"
+        },
+        {
+          "measure": ".topbar .prompt__glyph"
+        },
+        {
+          "report": ".topbar .rail__prompt"
+        },
+        {
+          "shot": "390-prompt"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-prompt",
+      "width": 1280,
+      "title": "Desktop rail prompt \u2014 1280 \u00d7 900",
+      "caption": "Each segment of who@vault:/ now wears its glyph, and still says its name.",
+      "before": "two 55\u00d720 name segments, no glyph (glyph 0\u00d70, hidden)",
+      "after": "two 84\u00d721 segments, each a 24\u00d721 glyph then its name; rail prompt still 247\u00d742"
+    },
+    {
+      "shot": "1280-vault-menu",
+      "width": 1280,
+      "title": "Pressing the vault on desktop \u2014 1280 \u00d7 900",
+      "caption": "The same switcher as before; each vault is named beside its own glyph, and the open one's glyph is the one at the prompt.",
+      "before": "menu 324\u00d7215 at x=78",
+      "after": "menu 324\u00d7215 at x=108, under the vault segment; each vault beside its own glyph"
+    },
+    {
+      "shot": "1280-account-menu",
+      "width": 1280,
+      "title": "Pressing the account on desktop \u2014 1280 \u00d7 900",
+      "caption": "The account menu, the profile named beside its glyph.",
+      "before": "menu 224\u00d7154 at x=16, profile named",
+      "after": "menu 224\u00d7154 at x=16, profile beside its glyph"
+    },
+    {
+      "shot": "390-prompt",
+      "width": 390,
+      "title": "The phone is unchanged \u2014 390 \u00d7 844",
+      "caption": "On a phone the top bar still draws the glyphs alone, where they were; the names are read in the switcher a press opens.",
+      "before": "two 44\u00d744 segments at x=62 and x=113, each holding a 28\u00d724 glyph at the same x (y=20); text is `@` only",
+      "after": "identical, glyph position included: 44\u00d744 segments at x=62 and x=113, 28\u00d724 glyphs at the same x (y=20)"
+    }
+  ]
+}
