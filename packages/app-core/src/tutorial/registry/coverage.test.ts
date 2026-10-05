@@ -28,8 +28,11 @@ function pointedAt(): ReadonlySet<string> {
   return pointed;
 }
 
+/** Each key command and the tutorial that teaches it. */
+const TUTORIAL_OF_KEY = new Map(Object.entries(KEYMAP_TUTORIALS));
+
 const keyIsTaught = (id: string): boolean => {
-  const entry = KEYMAP_TUTORIALS[id];
+  const entry = TUTORIAL_OF_KEY.get(id);
   if (!entry) return false;
   const goal = guideGoal(entry.goal);
   return goal?.guide.includes(entry.says) === true;

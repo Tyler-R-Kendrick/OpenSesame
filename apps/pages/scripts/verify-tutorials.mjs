@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Every tutorial, walked end to end in a real browser (ADR 0163).
+ * Every tutorial, walked end to end in a real browser (ADR 0163, ADR 0166).
  *
  * The Support sheet's Tutorials tab is the only way in: this suite lists what
  * the product offers, starts each one from its row, and gets through it with
@@ -10,11 +10,12 @@
  * control being pointed at is lit, visible, uncovered and reachable through
  * the aperture. Then it goes Back, Replays, finishes with
  * Done and checks where focus went. It does this at desktop and phone width,
- * on the shell with every optional capability switched on. The gates (front
- * door, unlock, setup) carry no Support mark by design (ADR 0090), and no
- * tutorial is offered there: every tutorial is one a Support mark can start.
- * It also leaves a tour with Escape from the card and from the lit control,
- * and makes the move an action step waits for through the aperture. The
+ * on the shell with every optional capability switched on, and on the gates:
+ * the front door, setup, sign-in, unlock and the broker and federation
+ * screens each draw a help key (ADR 0166), and the gate pass starts every
+ * tutorial a gate offers from that key, on the real screen. It also leaves a
+ * tour with Escape from the card and from the lit control, and makes the move
+ * an action step waits for through the aperture. The
  * control a step lights is found by its registry target id, and a pointer at
  * its visible centre must reach it, not the card, the dim or anything else.
  *
@@ -36,21 +37,18 @@ import { enableEverything } from "./lib/enable-capabilities.mjs";
 import { passTheDoor } from "./lib/front-door.mjs";
 import { sealLocalOnly } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import { gatePass, popupPass } from "./lib/tutorial-gates.mjs";
 import {
   escapeEndsTheTour,
   moveAdvancesTheTour,
 } from "./lib/tutorial-interact.mjs";
+import { seedVault } from "./lib/tutorial-seed.mjs";
 import {
-  advancedFrom,
   listTutorials,
-  reachedStep,
-  readStep,
   resetToVault,
-  startTutorial,
-  tutorialDialog,
   unlockIfLocked,
-  walkSteps,
 } from "./lib/tutorial-walk.mjs";
+import { createWalker } from "./lib/tutorial-walker.mjs";
 
 const devUrl = process.env.TUTORIALS_DEV_URL ?? "";
 const origin = devUrl || "https://tyler-r-kendrick.github.io";
@@ -86,6 +84,17 @@ function check(ok, what) {
     console.log(`  FAIL [${where}] ${what}`);
   }
 }
+
+const walker = createWalker({
+  check,
+  setWhere: (next) => {
+    where = next;
+  },
+  base,
+  out,
+  keepShots,
+});
+const { walkOne, guarded } = walker;
 
 const browser = devUrl
   ? await chromium.launch({
@@ -147,154 +156,43 @@ async function sealedShell(width) {
   return made;
 }
 
-async function finishTour(page, id, phone, total, shot) {
-  // Back goes back, and Replay begins again.
-  const replay = page.getByRole("button", { name: "Replay" });
-  await replay.click();
-  const first = await readStep(page);
-  check(
-    Boolean(first) && first.step === 1 && first.kind !== "close",
-    `${id}: Replay returns to the first step`,
-  );
-  const again = await walkSteps(page, {
-    id: `${id} (replay)`,
-    check,
-    phone,
-    total,
-    press: "keyboard",
-  });
-  check(
-    again.at(-1)?.kind === "close",
-    `${id}: the replay reaches the closing card again`,
-  );
-  if (shot) await page.screenshot({ path: `${out}/${shot}-close.png` });
-  await page.getByRole("button", { name: "Done" }).click();
-  await tutorialDialog(page)
-    .waitFor({ state: "detached", timeout: 5000 })
-    .catch(() => {});
-  check(
-    (await tutorialDialog(page).count()) === 0,
-    `${id}: Done closes the tutorial`,
-  );
-  const focus = await page.evaluate(
-    () => document.activeElement?.tagName ?? "none",
-  );
-  check(
-    focus !== "BODY" && focus !== "none",
-    `${id}: focus is handed back, not dropped on the page (${focus})`,
-  );
-}
+const wants = (id) => only.size === 0 || only.has(id);
+const gatesWanted =
+  only.size === 0 || [...only].some((id) => id.startsWith("gate."));
 
-/** Forward one step, then Back, so the first step is walked again from its start. */
-async function backAndForth(page, id, first) {
-  if (first.kind === "close") return;
-  await page.locator(".coach__btn--go").click();
-  check(await advancedFrom(page, first), `${id}: Next leaves the first step`);
-  const second = await readStep(page);
-  if (!second) return;
-  if (second.kind === "close") {
-    // A one-step tutorial goes straight to its close, which offers Replay
-    // where a step offers Back: begin again, so the step itself is walked.
-    await page.getByRole("button", { name: "Replay" }).click();
-    check(
-      await reachedStep(page, first.step),
-      `${id}: Replay leaves the closing card`,
-    );
-    const again = await readStep(page);
-    check(
-      again?.step === first.step,
-      `${id}: Replay returns to the first step`,
-    );
-    return;
-  }
-  check(
-    second.step === first.step + 1,
-    `${id}: Next advances exactly one step`,
-  );
-  check(
-    second.backDisabled === false,
-    `${id}: Back is available after the first step`,
-  );
-  await page.getByRole("button", { name: "Back" }).click();
-  check(
-    await reachedStep(page, first.step),
-    `${id}: Back leaves the second step`,
-  );
-  const back = await readStep(page);
-  check(back?.step === first.step, `${id}: Back returns to the previous step`);
-}
-
-async function walkOne(page, entry, { phone, width, reset = true }) {
-  const id = entry.id;
-  where = `${width}px ${id}`;
-  if (reset) {
-    await resetToVault(page, base);
-    await unlockIfLocked(page);
-  }
-  const card = await startTutorial(page, id);
-  check((await card.count()) === 1, `${id}: the tutorial opens its card`);
-  const first = await readStep(page);
-  check(Boolean(first), `${id}: the first step is drawn`);
-  if (!first) return;
-  check(
-    first.focusInCard,
-    `${id}: focus lands on the card when a tutorial starts`,
-  );
-  if (first.counter) {
-    const total = Number(first.counter.split(" of ")[1]);
-    check(
-      Number.isFinite(total) && total === entry.steps,
-      `${id}: the library said ${entry.steps} steps and the tutorial has ${total}`,
-    );
-  }
-  await backAndForth(page, id, first);
-  const shots = keepShots
-    ? async (info, index) =>
-        page.screenshot({
-          path: `${out}/${width}-${id.replace(/[^a-z0-9]+/gi, "_")}-${index}.png`,
-        })
-    : null;
-  const seen = await walkSteps(page, {
-    id,
-    check,
-    phone,
-    total: entry.steps,
-    snap: shots,
-  });
-  check(
-    seen.at(-1)?.kind === "close",
-    `${id}: reaches its closing card with Next alone`,
-  );
-  if (seen.at(-1)?.kind === "close")
-    await finishTour(
-      page,
-      id,
-      phone,
-      entry.steps,
-      keepShots ? `${width}-${id}` : null,
-    );
-  else await page.keyboard.press("Escape");
-}
-
-/** One interaction check; a throw is a failure with its cause, never a skip. */
-async function guarded(page, what, run) {
+/** One tutorial a gate offers, walked on the gate it was listed from. */
+async function walkGate(page, entry, { phone, width }) {
+  const began = Date.now();
   try {
-    await run();
+    await walkOne(page, entry, { phone, width, reset: false });
   } catch (error) {
-    check(false, `${what}: threw — ${String(error.message).split("\n")[0]}`);
+    check(
+      false,
+      `${entry.id}: walking threw — ${String(error.message).split("\n")[0]}`,
+    );
+    await page
+      .screenshot({ path: `${out}/${width}-${entry.id}-error.png` })
+      .catch(() => {});
     await page.keyboard.press("Escape").catch(() => {});
   }
+  timings.push({ id: `${width}px ${entry.id}`, ms: Date.now() - began });
 }
+
+const helpers = { say, wants, walkGate, guarded };
 
 async function shellPass(width) {
   const phone = width < 600;
   where = `${width}px shell`;
   const { page, context } = await sealedShell(width);
-  const entries = (await listTutorials(page)).filter(
+  const listed = await listTutorials(page);
+  check(
+    !listed.some((entry) => entry.id.startsWith("gate.")),
+    "the shell's library offers none of the gates' tutorials (ADR 0166)",
+  );
+  const entries = listed.filter(
     (entry) => only.size === 0 || only.has(entry.id),
   );
   console.log(`${width}px: ${entries.length} tutorials on the shell`);
-  check(entries.length > 0, "the library offers tutorials");
   const started = Date.now();
   if (only.size === 0 || only.has("vault.lock")) {
     where = `${width}px escape`;
@@ -308,6 +206,46 @@ async function shellPass(width) {
       moveAdvancesTheTour(page, { check, base }),
     );
   }
+  await walkEntries(page, entries, { phone, width });
+  // A tutorial that points at an item is offered only where the vault holds
+  // one, so a second pass adds items the way a person does and walks what the
+  // library offers then that it did not before.
+  const walked = new Set(entries.map((entry) => entry.id));
+  where = `${width}px seed`;
+  await guarded(page, "seed", () => seedVault(page, base));
+  const later = (await listTutorials(page)).filter(
+    (entry) => !walked.has(entry.id) && (only.size === 0 || only.has(entry.id)),
+  );
+  console.log(`${width}px: ${later.length} more once the vault holds items`);
+  await walkEntries(page, later, { phone, width });
+  const seconds = Math.round((Date.now() - started) / 1000);
+  const total = entries.length + later.length;
+  check(total > 0, "the library offers tutorials");
+  console.log(`${width}px: ${total} tutorials walked in ${seconds}s`);
+  if (gatesWanted) {
+    const popupsBegan = Date.now();
+    await guarded(page, "popups", () =>
+      popupPass({
+        width,
+        phone,
+        context,
+        origin,
+        base,
+        check,
+        setWhere: (next) => {
+          where = next;
+        },
+        helpers,
+      }),
+    );
+    console.log(
+      `${width}px: popups walked in ${Math.round((Date.now() - popupsBegan) / 1000)}s`,
+    );
+  }
+  await context.close();
+}
+
+async function walkEntries(page, entries, { phone, width }) {
   for (const entry of entries) {
     const began = Date.now();
     try {
@@ -325,14 +263,41 @@ async function shellPass(width) {
     timings.push({ id: `${width}px ${entry.id}`, ms: Date.now() - began });
     if (failures.length > 0 && process.env.TUTORIALS_BAIL === "1") break;
   }
-  const seconds = Math.round((Date.now() - started) / 1000);
-  console.log(`${width}px: ${entries.length} tutorials walked in ${seconds}s`);
-  await context.close();
+}
+
+async function gateScreens(width) {
+  const began = Date.now();
+  const phone = width < 600;
+  where = `${width}px gates`;
+  try {
+    await gatePass({
+      width,
+      phone,
+      newPage,
+      origin,
+      base,
+      check,
+      setWhere: (next) => {
+        where = next;
+      },
+      walker,
+      helpers,
+    });
+  } catch (error) {
+    check(
+      false,
+      `gates: walking threw — ${String(error.message).split("\n")[0]}`,
+    );
+  }
+  console.log(
+    `${width}px: gates walked in ${Math.round((Date.now() - began) / 1000)}s`,
+  );
 }
 
 try {
   for (const width of widths) {
     await shellPass(width);
+    if (gatesWanted) await gateScreens(width);
   }
 } finally {
   await browser.close();

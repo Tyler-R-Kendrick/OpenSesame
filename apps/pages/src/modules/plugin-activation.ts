@@ -15,6 +15,7 @@ import type { PluginEntry } from "@opensesame/app-core/lib/plugins/catalog.js";
 import type { PluginDaemon } from "@opensesame/app-core/lib/plugins/client.js";
 import { createPluginSession } from "@opensesame/app-core/lib/plugins/session.js";
 import { pluginFiles } from "@opensesame/app-core/sections/settings/plugin-files.js";
+import { provideGuidePluginPanel } from "@opensesame/app-core/tutorial/registry/predicates.js";
 import { createElement } from "react";
 import { sectionCategory } from "../sections/settings/CapabilitySections.js";
 import { notifySettingsFilesChanged } from "../sections/settings/files/revision.js";
@@ -44,6 +45,14 @@ export function contributePlugin(
   activation.onDispose(() => session.dispose());
   // The file viewer lists from the same session: tell it when the view moves.
   activation.onDispose(session.subscribe(notifySettingsFilesChanged));
+  // The panel is drawn with a daemon paired or the means to pair one
+  // (`PluginPanel`); a walkthrough that points at it asks the same question.
+  activation.onDispose(
+    provideGuidePluginPanel(
+      plugin.id,
+      () => session.view().daemon !== null || session.canPair(),
+    ),
+  );
   const Panel = () => createElement(PluginPanel, { session, guideId });
   activation.register("settings-panel", {
     id: `plugin-${plugin.id}`,

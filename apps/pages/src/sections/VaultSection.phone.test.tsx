@@ -7,7 +7,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { Route, Routes } from "react-router";
+import { Route, Routes, useNavigationType } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   registerContributedShell,
@@ -43,7 +43,15 @@ function renderVault(path: string) {
     <>
       <ContextMenuLayer />
       <Routes>
-        <Route path="/vault" element={<VaultSection />}>
+        <Route
+          path="/vault"
+          element={
+            <>
+              <VaultSection />
+              <Arrival />
+            </>
+          }
+        >
           <Route index element={<div>welcome pane</div>} />
           <Route path=":itemId" element={<ItemDetail />} />
         </Route>
@@ -59,6 +67,11 @@ function drawn(selector: string): HTMLElement {
     throw new Error(`nothing drawn at ${selector}`);
   }
   return element;
+}
+
+/** Says how the current entry was arrived at, for the tests to read. */
+function Arrival() {
+  return <output data-testid="arrival">{useNavigationType()}</output>;
 }
 
 const pane = () =>
@@ -256,6 +269,32 @@ describe("the vault on a phone", () => {
     ).toBe("/vault?q=git&f=all");
   });
 
+  it("the Back keys pop the history, so the system Back button is not sent back in", async () => {
+    renderVault("/vault");
+    await act(async () => undefined);
+    fireEvent.click(screen.getByRole("treeitem", { name: "all" }));
+    await waitFor(() => expect(pane()).toBe("list"));
+    expect(screen.getByTestId("arrival").textContent).toBe("PUSH");
+    fireEvent.click(screen.getByRole("link", { name: "Back to sections" }));
+    await waitFor(() => expect(pane()).toBe("tree"));
+    expect(screen.getByTestId("arrival").textContent).toBe("POP");
+    fireEvent.click(screen.getByRole("treeitem", { name: "all" }));
+    await waitFor(() => expect(pane()).toBe("list"));
+    fireEvent.click(drawn('.vault__list [role="treeitem"]'));
+    await waitFor(() => expect(pane()).toBe("detail"));
+    fireEvent.click(screen.getByRole("link", { name: "Back to all items" }));
+    await waitFor(() => expect(pane()).toBe("list"));
+    expect(screen.getByTestId("arrival").textContent).toBe("POP");
+  });
+
+  it("a link into the middle replaces on the way up, since nothing is below it", async () => {
+    renderVault("/vault?f=all");
+    await act(async () => undefined);
+    fireEvent.click(screen.getByRole("link", { name: "Back to sections" }));
+    await waitFor(() => expect(pane()).toBe("tree"));
+    expect(screen.getByTestId("arrival").textContent).toBe("REPLACE");
+  });
+
   it("the / key writes the search verb into the real prompt rather than opening a box", async () => {
     renderVault("/vault?f=all");
     // The list focuses its rows once the saved collapse state has loaded.
@@ -269,6 +308,50 @@ describe("the vault on a phone", () => {
     await waitFor(() => expect(prompt).toHaveProperty("value", "/? "));
     expect(document.activeElement).toBe(prompt);
     expect(screen.queryByLabelText("Search items")).toBeNull();
+  });
+
+  /** Types into the shell's one prompt, the way the `/` key and a keyboard do. */
+  async function typeSearch(words: string): Promise<HTMLInputElement> {
+    const handler = createKeymapHandler({
+      navigate: vi.fn(),
+      showHelp: vi.fn(),
+    });
+    act(() => handler(new KeyboardEvent("keydown", { key: "/" })));
+    const prompt = screen.getByRole("combobox", { name: "Command" });
+    if (!(prompt instanceof HTMLInputElement))
+      throw new Error("the command prompt is not a text field");
+    await waitFor(() => expect(prompt.value).toBe("/? "));
+    fireEvent.change(prompt, { target: { value: `/? ${words}` } });
+    return prompt;
+  }
+
+  it("a search typed on the list ends when the tree comes back, so all shows every item", async () => {
+    renderVault("/vault?f=all");
+    await act(async () => undefined);
+    const prompt = await typeSearch("zzz");
+    expect(screen.queryAllByText("GitHub")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("link", { name: "Back to sections" }));
+    await waitFor(() => expect(pane()).toBe("tree"));
+    await waitFor(() => expect(prompt.value).toBe(""));
+    fireEvent.click(screen.getByRole("treeitem", { name: "all" }));
+    await waitFor(() => expect(pane()).toBe("list"));
+    expect(screen.getAllByText("GitHub").length).toBeGreaterThan(0);
+  });
+
+  it("an item opened from a search comes back to that same search", async () => {
+    renderVault("/vault?f=all");
+    await act(async () => undefined);
+    const prompt = await typeSearch("git");
+    // The match is highlighted, which splits the name across elements.
+    const row = document.querySelector<HTMLElement>(
+      '.vault__list [role="treeitem"]',
+    );
+    if (!row) throw new Error("the search matched no row");
+    fireEvent.click(row);
+    await waitFor(() => expect(pane()).toBe("detail"));
+    fireEvent.click(screen.getByRole("link", { name: "Back to all items" }));
+    await waitFor(() => expect(pane()).toBe("list"));
+    expect(prompt.value).toBe("/? git");
   });
 
   it("the tree's all entry names the list, so tapping it leaves the tree", () => {

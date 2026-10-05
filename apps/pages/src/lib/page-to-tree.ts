@@ -22,6 +22,8 @@ export type PageTreeLeaf = {
   kind?: "file" | "trash" | "folder" | "filter";
   /** A directory's own `config.yaml`, which its context menu can open. */
   config?: string;
+  /** The tutorial target this row is, when a tutorial points at it. */
+  guide?: string;
 };
 
 export type PageTreeNode = PageTreeLeaf & {
