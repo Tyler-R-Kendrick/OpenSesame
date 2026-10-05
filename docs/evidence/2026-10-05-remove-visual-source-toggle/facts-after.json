@@ -1,0 +1,18 @@
+{
+  "390": {
+    "visualButton": false,
+    "sourceButton": false,
+    "modeGroup": false,
+    "sourceTextarea": false,
+    "editorHeightPx": 2853,
+    "summaryToOrganizationPx": 127
+  },
+  "1280": {
+    "visualButton": false,
+    "sourceButton": false,
+    "modeGroup": false,
+    "sourceTextarea": false,
+    "editorHeightPx": 2058,
+    "summaryToOrganizationPx": 71
+  }
+}
