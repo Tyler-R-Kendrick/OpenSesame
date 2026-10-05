@@ -1,0 +1,96 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Bank"
+          }
+        },
+        {
+          "shot": "390-default"
+        },
+        {
+          "openDisclosureOptional": "characters"
+        },
+        {
+          "report": ".method"
+        },
+        {
+          "measure": ".method"
+        },
+        {
+          "shot": "390-options"
+        },
+        {
+          "selectOptional": {
+            "label": "Password generator",
+            "value": "passphrase"
+          }
+        },
+        {
+          "openDisclosureOptional": "words"
+        },
+        {
+          "shot": "390-words"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Bank"
+          }
+        },
+        {
+          "shot": "1280-default"
+        },
+        {
+          "openDisclosureOptional": "characters"
+        },
+        {
+          "report": ".method"
+        },
+        {
+          "measure": ".method"
+        },
+        {
+          "shot": "1280-options"
+        },
+        {
+          "selectOptional": {
+            "label": "Password generator",
+            "value": "passphrase"
+          }
+        },
+        {
+          "openDisclosureOptional": "words"
+        },
+        {
+          "shot": "1280-words"
+        }
+      ],
+      "desktop": true
+    }
+  ]
+}

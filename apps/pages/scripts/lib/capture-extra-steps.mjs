@@ -76,6 +76,20 @@ export function extraSteps({ press }) {
       await page.waitForTimeout(400);
     },
     /**
+     * Open a native disclosure whose summary reads like `pattern`, when this
+     * build has one — the options a form keeps behind a line of what it will
+     * make. A base build that draws them open is a legitimate difference.
+     */
+    async openDisclosureOptional(page, pattern) {
+      const summary = page
+        .locator("details:not([open]) > summary")
+        .filter({ hasText: new RegExp(pattern, "i") })
+        .first();
+      if (!(await summary.count())) return;
+      await summary.click();
+      await page.waitForTimeout(400);
+    },
+    /**
      * Choose an option in a labelled select when this build has it — a
      * device's platform. A base build without the field is a legitimate
      * difference, not a miss.
