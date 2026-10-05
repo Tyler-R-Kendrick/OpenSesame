@@ -169,7 +169,7 @@ export async function executeCommand(
     case "help":
       return {
         ok: true,
-        message: "Try: /vault · /search … · /open … · copy password for …",
+        message: "Try: /vault · /? … · /open … · copy password for …",
       };
     case "navigate":
       return openSection(command, ports);
@@ -177,7 +177,9 @@ export async function executeCommand(
       ports.navigate(command.path);
       return { ok: true, message: `Opened ${command.label}` };
     case "search":
-      ports.navigate(`/vault?q=${encodeURIComponent(command.query)}`);
+      // `f=all` is the list of everything on a phone too, where the bare
+      // `/vault` is the section tree; the list narrows itself to `q`.
+      ports.navigate(`/vault?f=all&q=${encodeURIComponent(command.query)}`);
       return { ok: true, message: `Searching for “${command.query}”` };
     case "open_item":
       return openItem(command, ports);

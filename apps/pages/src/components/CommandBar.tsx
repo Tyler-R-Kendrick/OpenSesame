@@ -4,6 +4,7 @@ import type { SlashSuggestion } from "@opensesame/app-core/lib/command-bar/slash
 import { type FormEvent, useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { useContributions } from "../bindings/contributions.js";
+import { useFieldSearch } from "../lib/command-bar/use-field-search.js";
 import { useCopySecret, useVault } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportIfMounted } from "../tutorial/support-access.js";
@@ -112,6 +113,21 @@ export function commandPlaceholder(asks: boolean, touch: boolean): string {
     : "go to vault · search · copy password for …";
 }
 
+/** The submit key; a search with no words yet has nothing to run. */
+function RunKey({ off }: { off: boolean }) {
+  return (
+    <button
+      type="submit"
+      className="command-bar__go"
+      aria-label="Run command"
+      title="Run"
+      disabled={off}
+    >
+      <IconArrowRight size={16} />
+    </button>
+  );
+}
+
 /**
  * Shell omnibox. With no model it runs parsed commands: navigate, search,
  * copy. A model adds interpretation, the mic, and the ask road.
@@ -122,6 +138,15 @@ export function CommandBar() {
   const touch = useCoarsePointer();
   const barRef = useGuideTarget<HTMLElement>("shell.command-bar");
   const suggestions = useCommandSuggestions(value, names);
+  const search = useFieldSearch({
+    value,
+    setValue,
+    // No stale notice from the last command, and the suggestions open again.
+    onFill: () => {
+      setNotice(null);
+      suggestions.setDismissed(false);
+    },
+  });
 
   const choose = (suggestion: SlashSuggestion) => {
     setValue(suggestion.insert);
@@ -136,6 +161,10 @@ export function CommandBar() {
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
     suggestions.setDismissed(true);
+    if (search.live !== null) {
+      search.commit();
+      return;
+    }
     void run(value);
   };
 
@@ -164,7 +193,10 @@ export function CommandBar() {
           disabled={busy}
           onFocus={() => suggestions.setFocused(true)}
           onBlur={() => suggestions.setFocused(false)}
-          onKeyDown={(event) => suggestions.onKeyDown(event, choose)}
+          onKeyDown={(event) =>
+            search.onEscape(event, suggestions.open) ||
+            suggestions.onKeyDown(event, choose)
+          }
           onChange={(event) => {
             suggestions.setDismissed(false);
             setNotice(null);
@@ -179,15 +211,7 @@ export function CommandBar() {
             busy={busy}
           />
         ) : null}
-        <button
-          type="submit"
-          className="command-bar__go"
-          aria-label="Run command"
-          title="Run"
-          disabled={busy || value.trim() === ""}
-        >
-          <IconArrowRight size={16} />
-        </button>
+        <RunKey off={busy || value.trim() === "" || search.empty} />
       </form>
       {suggestions.open ? (
         <CommandSuggestions
