@@ -2,14 +2,10 @@ import { type ComponentType, Suspense, lazy, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { PageIndex } from "../components/PageIndex.js";
 import { useHashTarget } from "../lib/hash-target.js";
-import { useFinePointer } from "../lib/use-narrow.js";
 import { settingsPageSources } from "./settings/page-tree.js";
 import { useSettingsCategory } from "./settings/use-settings-category.js";
 
-import {
-  settingsCategoryFromLocation,
-  settingsPath,
-} from "@opensesame/app-core/lib/crumbs.js";
+import { settingsPath } from "@opensesame/app-core/lib/crumbs.js";
 import { categoryFromHash } from "@opensesame/app-core/sections/settings-section-nav-model.js";
 import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { SettingsDangerPanel } from "./SettingsDangerPanel.js";
@@ -51,27 +47,19 @@ export type { SettingsPanels } from "./SettingsSectionNav.js";
  */
 function useSettingsLocation(category: string, hash: string, pathname: string) {
   const navigate = useNavigate();
-  const keys = useFinePointer();
-  // One navigation per address. Nothing on a touch-only device can press a
-  // key, so any road to the key editor (its path, its legacy hash) goes
-  // straight to General; every other `#fragment` lands on its category's path.
+  // One navigation per address: every `#fragment` lands on its category's path.
   useEffect(() => {
     const fromPath = pathname.match(/\/settings\/[^/]+/) !== null;
     const target = fromPath ? null : categoryFromHash(hash);
-    const named = settingsCategoryFromLocation(pathname, hash);
-    if (!keys && named === "keybindings") {
-      navigate(settingsPath("general"), { replace: true });
-    } else if (target) {
-      navigate(settingsPath(target, hash), { replace: true });
-    }
-  }, [hash, keys, navigate, pathname]);
+    if (target) navigate(settingsPath(target, hash), { replace: true });
+  }, [hash, navigate, pathname]);
 
   // Keybindings were a panel of General before they had a tab (ADR 0156).
   useEffect(() => {
-    if (!keys || category !== "general") return;
+    if (category !== "general") return;
     if (hash !== "#settings-keybindings") return;
     navigate(settingsPath("keybindings"), { replace: true });
-  }, [category, hash, keys, navigate]);
+  }, [category, hash, navigate]);
 
   useEffect(() => {
     if (category !== "security") return;

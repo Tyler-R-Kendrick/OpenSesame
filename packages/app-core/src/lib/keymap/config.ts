@@ -5,6 +5,7 @@
  * they chose otherwise.
  */
 import {
+  type BoundaryObject,
   type BoundaryValue,
   isBoolean,
   isJsonObject,
@@ -23,7 +24,15 @@ import {
   isKeymapContext,
 } from "./context.js";
 import {
+  type GestureBindings,
+  gestureBindingProblem,
+  gestureById,
+  gestureNameProblem,
+  isGestureId,
+} from "./gestures.js";
+import {
   type Macro,
+  type MacroJson,
   type Read,
   accept,
   isMacroTarget,
@@ -64,6 +73,13 @@ export type KeymapConfig = Readonly<{
    * (ADR 0156 §6). Absent reads as none.
    */
   contexts?: KeymapContexts;
+  /**
+   * The touch loadout (ADR 0170): gesture → command, sparse against the
+   * catalogue's defaults. Absent reads as none.
+   */
+  gestures?: Readonly<GestureBindings>;
+  /** WCAG 2.5.4: gestures made by moving the phone can be switched off. */
+  motion?: boolean;
 }>;
 
 export const EMPTY_KEYMAP: KeymapConfig = {
@@ -205,6 +221,45 @@ function readContexts(
   return accept(contexts);
 }
 
+/** `gestures:`, each name a gesture and each value what it runs. */
+function readGestures(
+  raw: BoundaryValue | undefined,
+  commands: readonly KeymapCommand[],
+  macros: Readonly<Record<string, Macro>>,
+): Read<GestureBindings> {
+  if (raw === undefined || raw === null) return accept({});
+  if (!isJsonObject(raw))
+    return refuse("gestures is a mapping of gestures to action ids.");
+  const gestures: GestureBindings = {};
+  for (const [name, target] of Object.entries(raw)) {
+    if (!isGestureId(name))
+      return refuse(gestureNameProblem(name) ?? `"${name}" is not a gesture.`);
+    const value = target === null ? NOP : target;
+    if (!isString(value))
+      return refuse(`Gesture "${name}" is not an action id.`);
+    const problem = gestureBindingProblem(value, commands, macros);
+    if (problem) return refuse(problem);
+    const shipped = gestureById(name)?.default;
+    // Restating the default is not a change; striking a gesture is.
+    if (value === shipped) continue;
+    gestures[name] = value;
+  }
+  return accept(gestures);
+}
+
+/** The touch loadout: the gestures a person changed, and the motion switch. */
+function readTouch(
+  candidate: BoundaryObject,
+  commands: readonly KeymapCommand[],
+  macros: Readonly<Record<string, Macro>>,
+): Read<{ gestures: GestureBindings; motion: boolean }> {
+  const gestures = readGestures(candidate.gestures, commands, macros);
+  if (!gestures.ok) return gestures;
+  const motion = candidate.motion ?? true;
+  if (!isBoolean(motion)) return refuse("motion must be true or false.");
+  return accept({ gestures: gestures.value, motion });
+}
+
 /**
  * Decode a keymap from boundary data (the stored JSON, or the parsed file).
  * Every problem is refused whole: a keymap is never half-applied.
@@ -229,13 +284,19 @@ export function readKeymap(
   const singleKeys = candidate.singleKeys ?? true;
   if (!isBoolean(singleKeys))
     return refuse("singleKeys must be true or false.");
-  const config = { bindings: bindings.value, macros: macros.value, singleKeys };
-  return {
-    ok: true,
-    config: hasContexts(contexts.value)
-      ? { ...config, contexts: contexts.value }
-      : config,
+  const touch = readTouch(candidate, commands, macros.value);
+  if (!touch.ok) return touch;
+  let config: KeymapConfig = {
+    bindings: bindings.value,
+    macros: macros.value,
+    singleKeys,
   };
+  if (hasContexts(contexts.value))
+    config = { ...config, contexts: contexts.value };
+  if (Object.keys(touch.value.gestures).length > 0)
+    config = { ...config, gestures: touch.value.gestures };
+  if (!touch.value.motion) config = { ...config, motion: false };
+  return { ok: true, config };
 }
 
 /** Whether any context holds a key. */
@@ -245,9 +306,22 @@ export function hasContexts(contexts: KeymapContexts | undefined): boolean {
   );
 }
 
-/** The keymap as plain JSON, for storage. A context appears once it has keys. */
-export function keymapJson(config: KeymapConfig) {
-  const json = {
+/** The keymap as plain JSON, as storage and the file hold it. */
+export type KeymapJson = {
+  bindings: KeymapBindings;
+  macros: Record<string, MacroJson>;
+  singleKeys: boolean;
+  contexts?: Partial<Record<KeymapContext, KeymapBindings>>;
+  gestures?: GestureBindings;
+  motion?: boolean;
+};
+
+/**
+ * The keymap as plain JSON, for storage. A context appears once it has keys,
+ * the gestures once one is changed, and `motion` once it is off.
+ */
+export function keymapJson(config: KeymapConfig): KeymapJson {
+  const json: KeymapJson = {
     bindings: { ...config.bindings },
     macros: Object.fromEntries(
       Object.entries(config.macros).map(([name, macro]) => [
@@ -257,11 +331,16 @@ export function keymapJson(config: KeymapConfig) {
     ),
     singleKeys: config.singleKeys,
   };
-  if (!hasContexts(config.contexts)) return json;
-  const contexts: Partial<Record<KeymapContext, KeymapBindings>> = {};
-  for (const [name, layer] of Object.entries(config.contexts ?? {})) {
-    if (isKeymapContext(name) && Object.keys(layer).length > 0)
-      contexts[name] = { ...layer };
+  if (hasContexts(config.contexts)) {
+    const contexts: Partial<Record<KeymapContext, KeymapBindings>> = {};
+    for (const [name, layer] of Object.entries(config.contexts ?? {})) {
+      if (isKeymapContext(name) && Object.keys(layer).length > 0)
+        contexts[name] = { ...layer };
+    }
+    json.contexts = contexts;
   }
-  return { ...json, contexts };
+  if (Object.keys(config.gestures ?? {}).length > 0)
+    json.gestures = { ...config.gestures };
+  if (config.motion === false) json.motion = false;
+  return json;
 }

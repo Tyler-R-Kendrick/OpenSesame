@@ -230,11 +230,6 @@ export const SECTION_RULES = [
   ...each("src/sections/settings/", ["VaultKeyProtectionCeremonies"], (p) =>
     optional(p, CLOUD, "cloud KMS sheets; ceremonies MIXED"),
   ),
-  optional(
-    "src/sections/settings/sops/",
-    CLOUD,
-    "the SOPS document panel and sheet (ADR 0130)",
-  ),
   ...each(
     "src/sections/settings/",
     ["AiModelRoles", "ModelProviderPanel", "ai-model-roles"],
