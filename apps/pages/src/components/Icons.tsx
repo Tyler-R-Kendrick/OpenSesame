@@ -13,7 +13,12 @@ import {
 } from "./Icons.actions.js";
 import { type IconProps, Svg } from "./icon-frame.js";
 
-export { IconKeyboard, IconRecord, IconSwap } from "./Icons.keys.js";
+export {
+  IconDotsVertical,
+  IconKeyboard,
+  IconRecord,
+  IconSwap,
+} from "./Icons.keys.js";
 
 export type { IconProps };
 export {

@@ -28,7 +28,7 @@ export const emptyTipKeys: readonly EmptyTipKey[] =
 export const touchTips = {
   navigate: "Tap a row to open it.",
   vaultMove: "Tap an item to open it.",
-  vaultEmpty: "The + above adds the first item.",
+  vaultEmpty: "The + button adds the first item.",
   rail: "The menu key at the top opens every section.",
   // Names the ⋯ menu's own row (`keymapLabel`), not the one that opens Support.
   keymap: `${keymapLabel(true)} in the ⋯ menu lists every gesture.`,
