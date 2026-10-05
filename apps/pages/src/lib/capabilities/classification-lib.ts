@@ -22,7 +22,7 @@ const CORE_INFRA = [
   "vfs",
   "projects",
   "vaults",
-  // The dotted mark for a vault, person or organization (ADR 0164): drawn in
+  // The dotted mark for a vault, person or organization (ADR 0165): drawn in
   // the shell's prompt, so it is core with the prompt.
   "glyph",
   "last-vault",
@@ -176,6 +176,11 @@ export const LIB_RULES = [
     `${L}item-type-marketplace/`,
     "vault.passwords",
     "item-type marketplaces read from a git repository (ADR 0134)",
+  ),
+  core(
+    `${L}type-packs/`,
+    "vault.passwords",
+    "built-in item types downloaded and installed when switched on (ADR 0165)",
   ),
   core(
     `${L}file-parts-store`,

@@ -35,7 +35,8 @@
       "packages/app-core/src/lib/sops/fixtures/upstream/**",
       "docs/design/**",
       "spec/connectors/catalog.view.json",
-      "spec/agent-hooks/conformance/**"
+      "spec/agent-hooks/conformance/**",
+      "packages/vault-item-types/src/**/*.generated.ts"
     ]
   },
   "overrides": [
