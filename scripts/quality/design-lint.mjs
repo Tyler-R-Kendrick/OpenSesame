@@ -21,6 +21,7 @@ import { fileURLToPath } from "node:url";
 import { checkCopy } from "./design-lint-copy.mjs";
 import { checkFailureCss, checkInPageErrors } from "./design-lint-failures.mjs";
 import { checkCommitKeys, checkFieldWidths } from "./design-lint-layout.mjs";
+import { checkSheets } from "./design-lint-sheets.mjs";
 import { wordVerbHits } from "./design-lint-verbs.mjs";
 import { checkProse } from "./prose-lint.mjs";
 
@@ -179,6 +180,7 @@ function checkTsx(file, source) {
   checkCopy(root, file, source, report, lineOf);
   checkInPageErrors(file, source, report, lineOf);
   checkCommitKeys(file, source, report, lineOf);
+  checkSheets(file, source, report, lineOf);
   checkWordVerbs(file, source);
 }
 
@@ -237,29 +239,70 @@ function checkWordVerbs(file, source) {
   }
 }
 
+/** Comments blanked to spaces, so every offset still points at its rule. */
+function blankComments(css) {
+  return css.replace(/\/\*[\s\S]*?\*\//g, (comment) =>
+    comment.replace(/[^\n]/g, " "),
+  );
+}
+
+let entrances;
+
+/** Every `@keyframes` in the UI whose last frame is `transform: none`. */
+function entranceKeyframes() {
+  if (entrances) return entrances;
+  entrances = new Set();
+  const sheets = [];
+  for (const dir of ROOTS) walk(join(root, dir), sheets);
+  for (const sheet of sheets.filter((path) => path.endsWith(".css"))) {
+    const css = blankComments(readFileSync(sheet, "utf8"));
+    for (const frames of css.matchAll(
+      /@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}/g,
+    )) {
+      const last = /(?:\bto|100%)\s*\{([^{}]*)\}/.exec(frames[2]);
+      if (last && /transform\s*:\s*none/.test(last[1])) {
+        entrances.add(frames[1]);
+      }
+    }
+  }
+  return entrances;
+}
+
 function checkCss(file, source) {
   checkDropdowns(file, source);
   checkFailureCss(file, source, report, lineOf);
   // Comments blanked to the same number of lines, so a reported line
   // number still points at the rule.
-  checkFieldWidths(
-    file,
-    source.replace(/\/\*[\s\S]*?\*\//g, (comment) =>
-      comment.replace(/[^\n]/g, ""),
-    ),
-    report,
-    lineOf,
-  );
+  checkFieldWidths(file, blankComments(source), report, lineOf);
   // 2. Sentence case everywhere (DESIGN.md § Overview): case is written in
   //    the string, never forced by a rule, so no label turns to capitals.
-  for (const match of source
-    .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ""))
-    .matchAll(/text-transform\s*:\s*(uppercase|capitalize)\b/g)) {
+  for (const match of blankComments(source).matchAll(
+    /text-transform\s*:\s*(uppercase|capitalize)\b/g,
+  )) {
     report(
       file,
       lineOf(source, match.index ?? 0),
       "sentence-case",
       "Sentence case everywhere: write the label's case in its string, never text-transform it. See DESIGN.md § Overview.",
+    );
+  }
+  // A held animation fill keeps the last keyframe's transform applied, and
+  // a transformed element is the containing block of every `position:
+  // fixed` descendant: the unlock card's `settle … both` caught the reset
+  // sheet inside the card, under its release notes, with a scrollbar of its
+  // own. An entrance (one that ends at `transform: none`) gains nothing by
+  // holding its last frame, so it fills `backwards`, which looks the same and
+  // lets go. A countdown that must stay at its end (`kb-drain`) is not one.
+  for (const match of blankComments(source).matchAll(
+    /animation(?:-name)?\s*:([^;{}]*)\b(both|forwards)\b/g,
+  )) {
+    const names = match[1].split(/[\s,]+/);
+    if (!names.some((name) => entranceKeyframes().has(name))) continue;
+    report(
+      file,
+      lineOf(source, match.index ?? 0),
+      "animation-lets-go",
+      `An entrance that fills \`${match[2]}\` holds its transform after it ends, and traps every fixed sheet inside the element. Fill \`backwards\`.`,
     );
   }
   // 3. `.go` is defined once per app, in that app's control home.

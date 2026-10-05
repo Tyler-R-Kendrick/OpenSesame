@@ -8,20 +8,22 @@ import { ExportKey } from "./ExportKey.js";
  * The keys that add to a vault or take it out: New item, whatever a capability
  * adds beside it (Import, from the formats it reads), and Export.
  *
- * One cluster, two places. The list pane carries it in its command row; a
- * phone's first pane is the section tree, and the same row sits above it so
- * the way to add, import or back up a vault is on the screen a phone opens on
- * rather than a pane away.
+ * A desktop's list carries the cluster in its command row. A phone does not
+ * draw it: Add is `NewItemFab` — the `+` for a new item, with Import and
+ * Export behind its ellipsis and its long press.
  */
 export function VaultActions({
   createPath,
   createRef,
+  hidden = false,
 }: {
   createPath: string;
   /** Where the list pane records its New key for focus and the guide. */
   createRef?: Ref<HTMLAnchorElement>;
+  /** A phone draws none of this cluster: see `NewItemFab`. */
+  hidden?: boolean;
 }) {
-  const commands = useContributions("vault-command");
+  if (hidden) return null;
   return (
     <>
       <Link
@@ -33,6 +35,19 @@ export function VaultActions({
       >
         <IconPlus size={15} />
       </Link>
+      <VaultCommands />
+    </>
+  );
+}
+
+/**
+ * Whatever a capability adds beside New item (Import), then Export: the icon
+ * keys of a desktop's command row.
+ */
+export function VaultCommands() {
+  const commands = useContributions("vault-command");
+  return (
+    <>
       {commands.map(({ id, Command }) => (
         <Command key={id} />
       ))}

@@ -204,13 +204,45 @@ buffer where a finger can reach it, and the screen the vault opens on), the
 mounted in exactly one place at a time — the rail above the breakpoint, the
 vault's first pane below it — so two `role="tree"` never share a page. Because
 the tree carries the vault's filters, nothing in the rail may become
-unreachable, and the list keeps its funnel key for switching without going
-back. The list's command row is not a pane away either: the same keys — new
-item, whatever a capability adds beside it (Import), Export, and search — are
-pinned above the tree (`VaultActions`, in the list's own `VaultPathbar`), each
-at the 44px floor. The funnel and the back key stay on the list, where there
-is something to filter and somewhere to go back from; the tree's search key
-opens the list of everything with its prompt focused.
+unreachable, and the list keeps a way to switch without going back.
+
+**A phone does not get a desktop's strip of icon keys.** Four thin glyphs in a
+row at the top (a funnel, a down arrow, an up arrow) are a guess nobody can
+read, and the top of a tall screen is the hardest place to reach. The section
+tree stays the sections and nothing else — no key strip, no tool rows. The
+phone's actions are redrawn for a thumb:
+
+- **The list's header** is back and the view it is showing, *named* — `All
+  items ▾`, one choice the width of the rest and 48px tall
+  (`VaultFilterMenu`), in the accent colour while it narrows the vault.
+- **Adding is one button, in the bottom corner** (`NewItemFab`): the `+`, a
+  56px target, is the default and one tap; attached to it is a vertical
+  ellipsis (44px wide), and **a long press on the `+` is the same ask as the
+  ellipsis** — the platform's context-menu road. Both open one menu, `Add
+  actions`, of the alternatives to a new item: Import and Export, and whatever
+  a capability adds. It is the app's own context menu, so on a phone it is an
+  action sheet at the bottom edge; the hold does not follow the `+` link. The
+  button is drawn in the vault's box, which never scrolls (its rows do), so it
+  is always under the thumb, above the pane's status line and clear of the
+  prompt; the last row pads past it. The item's screen and the trash draw
+  none. Rows pass beneath it as they scroll, as in any phone app.
+- **A flow behind that menu is a `vault-command`'s `Entry`**: mounted beside
+  the button, it registers its menu entry (`add-menu.ts`) and draws its own
+  sheet and nothing else; its `Command` is the icon key a desktop's list
+  shows. Import and Export are the same flows either way.
+
+**Search is a verb of the one text input, never a second box.** The
+statusline's prompt lists `search` in its hint, and `/? words` (or `/search
+words`) is typed into it. The words are published as they are typed
+(`lib/command-bar/search.ts`) and whichever listing is on screen — the vault,
+Activity, the connector catalog — narrows to them live, with the count in its
+status line. Enter keeps the words in the field, hands the keyboard to the
+listing (or brings up the vault's list when nothing on screen is searching),
+and opens no notice over the prompt; Esc, in the field or the list, empties it.
+Words typed for one section are dropped when a person goes to another by any
+other road. There is no search key and no search field in any pane; the `/`
+key writes `/? ` into the prompt and focuses it. A bare `/?` is still help.
+`verify:mobile` counts the text inputs on the screen and fails on a second.
 
 Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
 
@@ -341,11 +373,17 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   rule that sizes a field reads `max(<its size>, var(--field-min))`; the token
   is `0` on a desktop and `1rem` under coarse/narrow, so the trap cannot be
   reopened by adding one more field style.
-- **A finger gets gestures where the keyboard has keys.** The keymap is for a
-  keyboard: under a coarse pointer the help row says *Gestures* and its sheet
-  lists the ones the shell recognises (`lib/gesture-help.ts`) — tap opens, hold
-  or swipe a row left asks for its actions, swipe right goes back, and the
-  keys that matter (new, search) are visible 44px keys. A row never lists a
+- **A finger gets gestures where the keyboard has keys.** The keymap has two
+  loadouts ([ADR 0170](docs/adr/0170-gesture-loadout.md)), and the device leads
+  with the one it is used with: under a coarse pointer the help row says
+  *Gestures* and its sheet lists the ones the shell recognises
+  (`lib/gesture-help.ts`) — tap opens, hold
+  or swipe a row left asks for its actions, swipe right goes back, then the
+  two-finger swipes, the two-finger tap and the shake in force — and what
+  the vault's first pane asks of a thumb is drawn for one: search is the
+  status-line prompt (`/? words`), the one text input on the screen, and adding
+  is one button in the bottom corner — a `+` with an attached ellipsis whose
+  menu carries Import and Export — not the desktop's row of small keys. A row never lists a
   gesture with no recogniser behind it. Gestures are twins, never the only
   road, and a command that asks before it acts (trash, share) is still never a
   gesture of its own — it is an entry in the actions a hold or swipe opens.
@@ -404,10 +442,13 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   is reachable only by scrolling.
 - **The keyboard is not summoned uninvited**: a form does not autofocus on a
   touch pointer, where it would throw the keyboard over the record.
-- **Keybindings is drawn only where a pointing device is attached.** Settings ›
-  Keybindings is absent when `(any-pointer: fine)` is false, and its address
-  lands on General; the query cannot see a keyboard, so a phone with only a
-  hardware keyboard loses the tab.
+- **Keybindings is drawn on every device, as two tabs.** Settings › Keybindings
+  has a Keyboard tab and a Gestures tab, and opens on the one the pointer in
+  use is (a finger lands on Gestures). Neither is withheld: a phone with a
+  hardware keyboard keeps the keys, and a touch laptop keeps the gestures. Under
+  `(pointer: coarse), (max-width: 900px)` the tabs are 44px, and a gesture's
+  row is its name over its choice at the full width of the panel, the reset key
+  at the end of the name's line.
 
 None of this is a screenshot review: `pnpm --filter @opensesame/pages
 verify:mobile` walks the phone journey at 320, 390, 430 and landscape in a real
@@ -455,8 +496,17 @@ beside it), and an icon-only menu would be mystery meat.
 Text on a control is only the object of a choice: a provider, a mode, a
 navigation target, or the guest road. Never a text verb stretched across a
 row, a card foot, or an empty state. A form or ceremony that ends in an
-action ends in the `.go` square with its verb beside it (`FormCommit`), and a
-second action on that row — deny, keep, close — is a key beside it. A button
+action ends in the `.go` square with its verb beside it (`FormCommit`, and
+`CeremonyShell` for every ceremony card), and a second action on that row —
+deny, keep, close — is a key beside it. A verb handed to a component in a
+prop is still a verb on a button: `pnpm lint:design` fails a text button
+whose face is a prop (`word-slot`).
+
+A confirmation sheet is its mark, its name and its close key, then one card:
+the object the act touches, the facts that justify it ("After", "Untouched"),
+and the danger square beside Keep. It wears no warning wash and no kicker —
+an ask has not failed — and no caption under the title or in a foot
+(`docs/design/controls.md` rules 10–13). A button
 whose words are its choice says so by its role (tab, radio, switch, menu
 entry, pressed toggle) or its class (`road`, `unlock__switch`, `choice`).
 `pnpm lint:design` rejects a word-verb `<button>` that is not an icon key —
@@ -630,6 +680,17 @@ never invisible: it is listed under **Unavailable**, after the commands and
 before **Fixed**, as its keycap and the command's id, with a status mark
 that says the command is not on this plan and a remove key. There is no
 caption above it.
+
+Keyboard and Gestures are tabs over a hairline, as Installed and Marketplace
+are: text, with a 2px ink rule under the chosen one. The Gestures tab is a
+list, not a table of keycaps: a gesture's glyph (two dots trailing an arrow for a
+swipe, a ring about each for a tap, a phone between two swings for a shake),
+its name over its id, and what it runs as a native choice, grouped as the
+keymap's rows are and ending with the person's macros. "No action" strikes a
+gesture. A command that asks before it acts is not a choice at all. A change is
+the same gutter mark and reset key a keyboard row carries; the fixed gestures sit
+under the lock. The motion switch is not drawn where the browser has no motion
+sensor, and its Allow key only where the browser asks first.
 
 A key is recorded where its keycap was, never in a dialog, and pressing the
 Remove or Cancel key beside the field never costs it its focus. Press the key,

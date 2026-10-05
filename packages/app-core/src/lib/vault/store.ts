@@ -16,7 +16,6 @@ import {
   rewrapVaultKey,
   syncInstalledTypes,
   uninstallItemType,
-  unwrapRawVaultKeyFromPassword,
   withTombstone,
   wrapVaultKeyWithPassword,
 } from "@opensesame/vault-core";
@@ -26,19 +25,22 @@ import {
   noteVaultUnlocked,
   recordActivityEvent,
 } from "../activity-log.js";
+import { refuseWhileFrozen } from "../duress/hold/gate.js";
 import {
   decoyScratchScope,
   endEphemeralTomb,
   forgetDecoyScratch,
   guestTombIsSealed,
+  isDecoySession,
   isGuestSessionTomb,
+  markDecoySession,
   presentedTomb,
 } from "../duress/store/decoy-scratch.js";
 import { createDuressVaultActivationHost } from "../duress/store/vault-activation-host.js";
 import { sessionRootDigestFromKey } from "../duress/store/vault-session-digest.js";
 import { clearGuestConnections } from "../guest-connections.js";
 /** Vault session store: unlocked body in memory, sealed to OPFS, key dropped on lock (ADR 0063). */
-import { kvDelete, kvDeleteDurable, kvDurability, kvSet } from "../kv.js";
+import { kvDelete, kvDeleteDurable, kvDurability } from "../kv.js";
 import { lastVaultIsGuest, writeLastVaultId } from "../last-vault.js";
 import {
   BODY_PATH,
@@ -149,7 +151,6 @@ import {
   primaryUnlockCount,
   sealText,
   totpCodeMatches,
-  unwrapVaultKeyWithPin,
   wrapVaultKeyWithPin,
 } from "./unlock-methods.js";
 import { assertNewPassword, assertNewPin } from "./unlock-secret-guard.js";
@@ -163,16 +164,18 @@ export { PREFS_CONFIG_PATH, PREFS_SOURCE_CONFIG_PATH } from "./prefs-io.js";
 
 /** Guest-beside-vault tomb — isolated, throwaway, never a project id. */
 export { GUEST_TOMB };
+import { PIN_MISS, unwrapPassword, unwrapPin } from "./primary-unwrap.js";
 import {
   ATTEMPTS_KEY,
-  BASE_LOCKOUT_MS,
-  LOCK_AFTER_FAILS,
-  MAX_LOCKOUT_MS,
   type VaultScope,
   guestVaultScope,
-  readJson,
   scopedVaultScope,
 } from "./store-scope.js";
+import {
+  assertNotLockedOut,
+  readAttempts,
+  recordFailedUnlock,
+} from "./unlock-attempts.js";
 export { ATTEMPTS_KEY };
 export {
   type VaultPrefs,
@@ -182,26 +185,8 @@ export {
   normalizeVaultPrefs,
 } from "./prefs.js";
 
-export type VaultStatus = "empty" | "locked" | "unlocked";
-
-export type VaultState = {
-  status: VaultStatus;
-  /** The tomb this session is scoped to — a project id, `personal`, or `guest`. */
-  tomb: string;
-  /** True while a guest session holds the key: never wrapped to disk. */
-  guest: boolean;
-  header: VaultHeader | null;
-  items: VaultItem[];
-  folders: Folder[];
-  prefs: VaultPrefs;
-  /** Milliseconds until auto-lock, or null when no timer is armed. */
-  lockedOutUntil: number | null;
-  failedAttempts: number;
-  /** Primary unlocked; second step enrolled but not yet confirmed. */
-  awaitingSecondStep: boolean;
-  /** False when storage is tab-only (no durable OPFS). */
-  durable: boolean;
-};
+import type { VaultState } from "./store-state.js";
+export type { VaultState, VaultStatus } from "./store-state.js";
 
 type Listener = () => void;
 
@@ -379,8 +364,8 @@ export class VaultStore {
     return readTombHeader(this.#scope.tomb);
   }
 
-  #readAttempts(): { fails: number; until: number } {
-    return readJson(this.#scope.attempts, { fails: 0, until: 0 });
+  #readAttempts() {
+    return readAttempts(this.#scope.attempts);
   }
 
   #persistPrefs(): void {
@@ -424,6 +409,7 @@ export class VaultStore {
       status: this.#vaultKey ? "unlocked" : this.#header ? "locked" : "empty",
       tomb: presentedTomb(this.#scope.tomb),
       guest: this.#ephemeral && this.#vaultKey !== null,
+      decoy: this.#ephemeral && this.#vaultKey !== null && isDecoySession(),
       header: this.#header,
       items: this.#body.items,
       folders: this.#body.folders,
@@ -536,9 +522,9 @@ export class VaultStore {
     if (this.#vaultKey || this.#pendingVaultKey) {
       throw new Error("Lock the open vault before continuing as a guest.");
     }
-    // Guests always run in GUEST_TOMB — physically separate from member tombs,
-    // including first-run when no sealed vault exists yet. A duress decoy never
-    // wipes a guest tomb that holds its own key: it runs in a scratch tomb.
+    // Guests run in GUEST_TOMB, apart from member tombs; a decoy never wipes a
+    // guest tomb that holds its own key: it runs in a scratch tomb.
+    markDecoySession(options?.decoy === true);
     const scratch = options?.decoy === true && guestTombIsSealed();
     this.#scope = scratch ? decoyScratchScope() : guestVaultScope();
     // Fresh Continue-as-guest drops prior claims; unlock/resume keeps them (GitHub App return).
@@ -559,7 +545,8 @@ export class VaultStore {
     this.#body = emptyBody();
     this.#ephemeral = true;
     unlockTomb(this.#scope.tomb, vaultKey);
-    writeLastVaultId(GUEST_TOMB);
+    // A decoy leaves the unlock screen on the vault it was typed at.
+    if (!options?.decoy) writeLastVaultId(GUEST_TOMB);
     this.touch();
     this.#armIdleTimer();
     this.#emit();
@@ -627,22 +614,27 @@ export class VaultStore {
   }
 
   #assertNotLockedOut(): void {
-    const attempts = this.#readAttempts();
-    if (attempts.until > Date.now()) {
-      const seconds = Math.ceil((attempts.until - Date.now()) / 1000);
-      throw new Error(`Too many attempts. Try again in ${seconds}s.`);
-    }
+    assertNotLockedOut(this.#scope.attempts);
   }
 
   #recordFailedUnlock(): void {
-    const fails = this.#readAttempts().fails + 1;
-    const backoff = Math.min(
-      BASE_LOCKOUT_MS * 2 ** (fails - LOCK_AFTER_FAILS),
-      MAX_LOCKOUT_MS,
-    );
-    const until = fails >= LOCK_AFTER_FAILS ? Date.now() + backoff : 0;
-    kvSet(this.#scope.attempts, JSON.stringify({ fails, until }));
+    recordFailedUnlock(this.#scope.attempts);
     this.#emit();
+  }
+
+  /**
+   * A held device (a freeze duress code, ADR 0168) refuses a right credential
+   * as a wrong one: same error, same count; the key it opened is zeroed.
+   */
+  #refuseWhileFrozen(miss?: string): void {
+    refuseWhileFrozen(
+      this.#scope.tomb,
+      () => {
+        this.#recordFailedUnlock();
+        if (!this.#vaultKey) this.cancelTotpChallenge();
+      },
+      miss,
+    );
   }
 
   async #loadBody(vaultKey: CryptoKey): Promise<VaultBody> {
@@ -650,6 +642,7 @@ export class VaultStore {
   }
 
   async #activateSession(vaultKey: CryptoKey): Promise<void> {
+    this.#refuseWhileFrozen();
     this.#vaultKey = vaultKey;
     this.#pendingVaultKey = null;
     this.#pendingChallenge.clear();
@@ -679,7 +672,8 @@ export class VaultStore {
     noteVaultUnlocked();
   }
   /** After primary unwrap: either activate or park the key for a second step. */
-  async #afterPrimaryUnwrap(vaultKey: CryptoKey): Promise<void> {
+  async #afterPrimaryUnwrap(vaultKey: CryptoKey, miss?: string) {
+    this.#refuseWhileFrozen(miss);
     if (hasSecondStep(this.#header)) {
       this.#pendingVaultKey = vaultKey;
       const gate = this.#header?.unlocks?.totp;
@@ -709,47 +703,24 @@ export class VaultStore {
   async unlock(password: string): Promise<void> {
     this.#assertNotLockedOut();
     if (!this.#header) throw new Error("There is no vault on this device yet.");
-    // A challenge this vault never enrolled must fail exactly like a wrong
-    // secret — same error, same lockout count — or the screen enumerates methods.
-    if (!this.#header.wrap || !this.#header.kdf) {
-      this.#recordFailedUnlock();
-      throw new WrongPasswordError();
-    }
-
-    let raw: Uint8Array;
-    try {
-      raw = await unwrapRawVaultKeyFromPassword(this.#header, password);
-    } catch (error) {
-      if (!(error instanceof WrongPasswordError)) throw error;
-      this.#recordFailedUnlock();
-      throw error;
-    }
-    this.#stashRaw(raw);
-    const vaultKey = await importVaultKey(raw);
-    await this.#afterPrimaryUnwrap(vaultKey);
+    const record = () => this.#recordFailedUnlock();
+    await this.#openWithRaw(
+      await unwrapPassword(this.#header, password, record),
+    );
   }
 
   async unlockWithPin(pin: string): Promise<void> {
     this.#assertNotLockedOut();
     if (!this.#header) throw new Error("There is no vault on this device yet.");
-    const record = this.#header.unlocks?.pin;
-    // Unenrolled challenge: fail like a wrong PIN, lockout included (see unlock).
-    if (!record) {
-      this.#recordFailedUnlock();
-      throw new WrongPasswordError("That PIN did not unlock the vault.");
-    }
+    const record = () => this.#recordFailedUnlock();
+    const raw = await unwrapPin(this.#header, pin, record);
+    await this.#openWithRaw(raw, PIN_MISS);
+  }
 
-    let raw: Uint8Array;
-    try {
-      raw = await unwrapVaultKeyWithPin(record, pin);
-    } catch (error) {
-      if (!(error instanceof WrongPasswordError)) throw error;
-      this.#recordFailedUnlock();
-      throw new WrongPasswordError("That PIN did not unlock the vault.");
-    }
+  /** A primary secret opened the root: keep it, then park it or activate. */
+  async #openWithRaw(raw: Uint8Array, miss?: string): Promise<void> {
     this.#stashRaw(raw);
-    const vaultKey = await importVaultKey(raw);
-    await this.#afterPrimaryUnwrap(vaultKey);
+    await this.#afterPrimaryUnwrap(await importVaultKey(raw), miss);
   }
 
   async probePasskeyCeremony(
@@ -789,8 +760,8 @@ export class VaultStore {
       assertNotLockedOut: () => this.#assertNotLockedOut(),
       recordFailedUnlock: () => this.#recordFailedUnlock(),
       stashRaw: (raw: Uint8Array) => this.#stashRaw(raw),
-      afterPrimaryUnwrap: (vaultKey: CryptoKey) =>
-        this.#afterPrimaryUnwrap(vaultKey),
+      afterPrimaryUnwrap: (vaultKey: CryptoKey, miss?: string) =>
+        this.#afterPrimaryUnwrap(vaultKey, miss),
     };
   }
 
@@ -918,11 +889,17 @@ export class VaultStore {
   }
 
   async removePasskey(): Promise<void> {
-    if (!this.#header?.unlocks?.passkey) return;
-    assertKeepsPrimaryUnlock(this.#header, "passkey");
-    const { passkey: _removed, ...rest } = this.#header.unlocks;
+    await this.#removeUnlock("passkey");
+  }
+
+  /** Drop one enrolled unlock method, if the vault keeps another primary. */
+  async #removeUnlock(method: "passkey" | "pin"): Promise<void> {
+    const header = this.#header;
+    if (!header?.unlocks?.[method]) return;
+    assertKeepsPrimaryUnlock(header, method);
+    const { [method]: _removed, ...rest } = header.unlocks;
     await this.#persistHeader({
-      ...this.#header,
+      ...header,
       unlocks: Object.keys(rest).length ? rest : undefined,
     });
   }
@@ -936,13 +913,7 @@ export class VaultStore {
   }
 
   async removePin(): Promise<void> {
-    if (!this.#header?.unlocks?.pin) return;
-    assertKeepsPrimaryUnlock(this.#header, "pin");
-    const { pin: _removed, ...rest } = this.#header.unlocks;
-    await this.#persistHeader({
-      ...this.#header,
-      unlocks: Object.keys(rest).length ? rest : undefined,
-    });
+    await this.#removeUnlock("pin");
   }
 
   async enrollPassword(password: string): Promise<void> {
@@ -1157,6 +1128,7 @@ export class VaultStore {
     const wasUnlocked = this.#vaultKey !== null;
     const lockedTombForLog = this.#scope.tomb;
     const wasGuest = this.#ephemeral;
+    const wasDecoy = markDecoySession(false);
     this.#vaultKey = null;
     this.#zeroRaw();
     this.#pendingVaultKey = null;
@@ -1177,10 +1149,7 @@ export class VaultStore {
     lockTomb(this.#scope.tomb);
     discardTombCaches();
     if (guestBesideVault) {
-      if (recordLastVault) writeLastVaultId(GUEST_TOMB);
-      this.#scope = guestVaultScope();
-      // A decoy's scratch tomb hands back to the sealed guest it stood beside.
-      this.#header = ephemeralTomb === GUEST_TOMB ? null : this.#readHeader();
+      this.#handBackFromGuest(ephemeralTomb, wasDecoy, recordLastVault);
     } else if (recordLastVault) {
       writeLastVaultId(lockedTomb);
     }
@@ -1200,6 +1169,19 @@ export class VaultStore {
     }
     this.#emit();
   };
+
+  /** Where the unlock screen lands after a guest ends; a decoy returns to the vault it was typed at. */
+  #handBackFromGuest(
+    ephemeralTomb: string | null,
+    wasDecoy: boolean,
+    recordLastVault: boolean,
+  ): void {
+    const toGuest = !wasDecoy || lastVaultIsGuest();
+    if (recordLastVault && toGuest) writeLastVaultId(GUEST_TOMB);
+    this.#scope = toGuest ? guestVaultScope() : scopedVaultScope();
+    this.#header =
+      toGuest && ephemeralTomb === GUEST_TOMB ? null : this.#readHeader();
+  }
 
   isUnlocked(): boolean {
     return this.#vaultKey !== null;

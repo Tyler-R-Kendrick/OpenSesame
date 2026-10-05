@@ -22,12 +22,24 @@ export async function openVaultList(page) {
  */
 export async function toTheList(page) {
   const create = page.getByRole("link", { name: "New item", exact: true });
-  if (await create.isVisible()) return;
   const back = page
     .getByRole("link", { name: /^Back to (all items|list)$/ })
     .first();
-  if (await back.isVisible()) await back.click();
   const all = page.getByRole("treeitem", { name: /^all\b/i }).first();
+  // A viewport change re-renders the shell a frame or more later, and a busy
+  // main thread (a runner, packs installing) stretches that. Reading three
+  // `isVisible()`s the instant it changes sees none of the panes and acts on
+  // nothing, so wait for whichever pane the shell settles on.
+  await create
+    .or(back)
+    .or(all)
+    .first()
+    .waitFor({ state: "visible", timeout: 15000 });
+  if (await create.isVisible()) return;
+  if (await back.isVisible()) {
+    await back.click();
+    await create.or(all).first().waitFor({ state: "visible", timeout: 15000 });
+  }
   if (!(await create.isVisible()) && (await all.isVisible())) await all.click();
 }
 
@@ -53,53 +65,286 @@ export async function backOutStops(page, stop, { harness, audit }) {
 }
 
 /**
- * The command row above the tree: adding, importing, exporting and searching
- * are on the screen a phone opens on, each key at the 44px floor, and the
- * search key lands on the list with its prompt focused. Skipped where the walk
- * is not on the tree, so it can be called wherever the vault is entered.
+ * The phone's vault actions, measured. The tree is the sections and nothing
+ * else: no strip of keys, no tool rows. Add is one button in the bottom corner
+ * — the `+`, one tap, with a vertical ellipsis attached — and the ellipsis and
+ * a real long press on the `+` open the same menu of the alternatives (Import,
+ * Export), without navigating. The list's header is back and the view it
+ * shows, named, as one choice the width of the rest. Search is the status-line
+ * prompt's `/?` verb — the one text input on the screen, which keeps the words
+ * and narrows the list as they are typed. Skipped where the walk is not on the
+ * tree, so it can be called wherever the vault is entered.
  */
 export async function treeActions(page, stop, { harness, audit }) {
   const pane = () => page.locator(".vault").first().getAttribute("data-pane");
   if ((await pane()) !== "tree") return;
-  const row = page.locator(".vault__tree .vtree__keys");
-  const keys = await row.locator("a, button").evaluateAll((nodes) =>
-    nodes.map((node) => {
-      const box = node.getBoundingClientRect();
-      return {
-        name: node.getAttribute("aria-label") ?? node.getAttribute("title"),
-        width: Math.round(box.width),
-        height: Math.round(box.height),
-      };
-    }),
-  );
-  // The `?` key stands down on a phone: drawn nowhere, so it has no size.
-  const shown = keys.filter((key) => key.width > 0);
-  for (const name of ["New item", "Export items", "Search (/)"]) {
-    harness.check(
-      keys.some((key) => key.name === name),
-      `${stop("tree-actions")}: the tree carries the ${name} key`,
-    );
-  }
   harness.check(
-    shown.length > 0 && shown.every((k) => k.width >= 44 && k.height >= 44),
-    `${stop("tree-actions")}: every key is 44px (${shown
-      .map((k) => `${k.name} ${k.width}x${k.height}`)
-      .join(", ")})`,
+    (await page
+      .locator(".vault__tree .vtree__pathbar, .vault__tree .vtools")
+      .count()) === 0,
+    `${stop("tree-actions")}: the tree carries no strip of keys and no tool rows`,
   );
+  await fabIsPinned(page, stop("tree-actions"), harness);
+  await addMenu(page, stop("tree-actions"), harness, { stop, audit });
   await audit(page, stop("tree-actions"));
-  await row.locator('[title="Search (/)"]').tap();
+
+  await page
+    .getByRole("treeitem", { name: /^all\b/i })
+    .first()
+    .tap();
   await page.waitForTimeout(600);
+  const header = await page.evaluate(() => {
+    const bar = document.querySelector(".vault__list .vtree__pathbar");
+    const view = bar?.querySelector(".vfilter__open");
+    if (!bar || !view) return null;
+    const box = view.getBoundingClientRect();
+    // The `?` shortcuts key stands down on a touch device: drawn nowhere.
+    const keys = [...bar.querySelectorAll("a, button")].filter(
+      (n) => n.getBoundingClientRect().width > 0,
+    );
+    return {
+      height: Math.round(box.height),
+      share: Math.round((box.width / bar.getBoundingClientRect().width) * 100),
+      text: view.textContent?.trim(),
+      keys: keys.length,
+    };
+  });
   harness.check(
-    (await pane()) === "list",
-    `${stop("tree-actions")}: search opens the list`,
-  );
-  const focused = await page.evaluate(() =>
-    document.activeElement?.getAttribute("aria-label"),
+    header !== null && header.height >= 44 && header.share >= 70 && header.text,
+    `${stop("tree-actions")}: the header names the view as one wide choice (${JSON.stringify(header)})`,
   );
   harness.check(
-    focused === "Search items",
-    `${stop("tree-actions")}: the search prompt is focused (${focused})`,
+    header !== null && header.keys === 2,
+    `${stop("tree-actions")}: the header is back and the view, nothing else`,
   );
+
+  const prompt = page.locator("#command-bar-input");
+  await prompt.fill("/? zz-no-such-item");
+  await page.waitForTimeout(400);
+  const live = await page.locator(".vault__status-meta").first().textContent();
+  harness.check(
+    (live ?? "").includes("/zz-no-such-item"),
+    `${stop("tree-actions")}: the list narrows as the words are typed (${live})`,
+  );
+  await prompt.press("Enter");
+  await page.waitForTimeout(500);
+  harness.check(
+    (await prompt.inputValue()) === "/? zz-no-such-item",
+    `${stop("tree-actions")}: Enter keeps the words in the prompt`,
+  );
+  harness.check(
+    (await page.locator(".command-bar__status").count()) === 0,
+    `${stop("tree-actions")}: no notice box opens over the prompt`,
+  );
+  const inputs = await page.evaluate(
+    () =>
+      [...document.querySelectorAll("input, textarea")].filter((el) => {
+        const type = el.getAttribute("type") ?? "text";
+        if (["file", "hidden", "checkbox", "radio"].includes(type))
+          return false;
+        if (el.classList.contains("visually-hidden")) return false;
+        const box = el.getBoundingClientRect();
+        return box.width > 0 && box.height > 0;
+      }).length,
+  );
+  harness.check(
+    inputs === 1,
+    `${stop("tree-actions")}: the prompt is the only text input on screen (${inputs})`,
+  );
+  await fabIsPinned(page, stop("tree-actions"), harness);
+  await prompt.fill("");
+  await page.waitForTimeout(300);
   await page.getByRole("link", { name: "Back to sections" }).first().tap();
   await page.waitForTimeout(500);
+}
+
+/**
+ * The Back keys climb the history instead of adding to it. The Navigation
+ * API's own entry index is the ground truth: a key that pushed the pane it
+ * climbed to would leave the index one higher each time, and the system Back
+ * button would walk back through every pane just visited. Needs an item in the
+ * vault (the deepest leg opens it) and leaves the walk on the tree it found.
+ */
+export async function backKeysPop(page, stop, { harness }) {
+  const pane = () => page.locator(".vault").first().getAttribute("data-pane");
+  if ((await pane()) !== "tree") return;
+  const label = stop("back-keys-pop");
+  const entry = () =>
+    page.evaluate(() => window.navigation?.currentEntry?.index);
+  const tap = async (locator) => {
+    await locator.first().tap();
+    await page.waitForTimeout(500);
+  };
+  const tree = await entry();
+  harness.check(
+    Number.isInteger(tree),
+    `${label}: the Navigation API is there`,
+  );
+  await tap(page.getByRole("treeitem", { name: /^all\b/i }));
+  const list = await entry();
+  await tap(page.locator('.vault__list [role="treeitem"]'));
+  const item = await entry();
+  await tap(page.getByRole("link", { name: "Back to all items" }));
+  const backToList = await entry();
+  await tap(page.getByRole("link", { name: "Back to sections" }));
+  const backToTree = await entry();
+  harness.check(
+    list === tree + 1 && item === tree + 2,
+    `${label}: going down adds one entry a pane (${tree}, ${list}, ${item})`,
+  );
+  harness.check(
+    backToList === list,
+    `${label}: Back to all items returns to the list's entry (${backToList}, expected ${list})`,
+  );
+  harness.check(
+    backToTree === tree,
+    `${label}: Back to sections returns to the tree's entry (${backToTree}, expected ${tree})`,
+  );
+}
+
+/** The Add button: `+` 56px and an attached ellipsis, bottom right, above the prompt. */
+async function fabIsPinned(page, label, harness) {
+  const fab = await page.evaluate(() => {
+    const node = document.querySelector(".fab");
+    const add = node?.querySelector(".fab__add");
+    const more = node?.querySelector(".fab__more");
+    if (!node || !add || !more) return null;
+    const box = node.getBoundingClientRect();
+    const plus = add.getBoundingClientRect();
+    const dots = more.getBoundingClientRect();
+    const strip = document
+      .querySelector(".statusline")
+      ?.getBoundingClientRect();
+    return {
+      plus: `${Math.round(plus.width)}x${Math.round(plus.height)}`,
+      plusOk: plus.width >= 56 && plus.height >= 56,
+      dots: `${Math.round(dots.width)}x${Math.round(dots.height)}`,
+      dotsOk: dots.width >= 44 && dots.height >= 44,
+      attached: Math.abs(dots.left - plus.right) <= 1,
+      right: Math.round(window.innerWidth - box.right),
+      clearOfStrip: strip ? box.bottom <= strip.top + 1 : false,
+      inRightHalf: box.left > window.innerWidth / 2,
+      lowerHalf: box.top > window.innerHeight / 2,
+      label: add.getAttribute("aria-label"),
+      more: more.getAttribute("aria-label"),
+    };
+  });
+  harness.check(
+    fab !== null &&
+      fab.label === "New item" &&
+      fab.more === "More ways to add" &&
+      fab.plusOk &&
+      fab.dotsOk &&
+      fab.attached &&
+      fab.inRightHalf &&
+      fab.lowerHalf &&
+      fab.right >= 8 &&
+      fab.right <= 24 &&
+      fab.clearOfStrip,
+    `${label}: Add is a + (56px) with an attached ellipsis (44px+), bottom right, above the prompt (${JSON.stringify(fab)})`,
+  );
+}
+
+/** The menu behind the Add button: by the ellipsis, by a real long press, and what it starts. */
+async function addMenu(page, label, harness, { stop, audit }) {
+  const entries = () =>
+    page.locator('[role="menuitem"]').evaluateAll((nodes) =>
+      nodes.map((node) => ({
+        name: node.textContent?.trim(),
+        height: Math.round(node.getBoundingClientRect().height),
+      })),
+    );
+  const where = () => page.evaluate(() => location.pathname);
+  const before = await where();
+  await page.locator(".fab__more").tap();
+  await page.waitForTimeout(400);
+  const byEllipsis = await entries();
+  harness.check(
+    byEllipsis.map((e) => e.name).join("|") === "Import items|Export items" &&
+      byEllipsis.every((e) => e.height >= 44),
+    `${label}: the ellipsis lists Import and Export at 44px+ (${JSON.stringify(byEllipsis)})`,
+  );
+  await audit(page, stop("add-menu"));
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser", { timeout: 4000 }).catch(() => null),
+    page.getByRole("menuitem", { name: "Import items" }).tap(),
+  ]);
+  harness.check(
+    chooser !== null,
+    `${label}: Import starts the OS file picker from the menu tap`,
+  );
+  await page.waitForTimeout(300);
+  // A real hold, as raw touch events: the app's own recognizer must see it,
+  // and the lift that ends it must not follow the \`+\` link.
+  const box = await page.locator(".fab__add").boundingBox();
+  const cdp = await page.context().newCDPSession(page);
+  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [at],
+  });
+  await page.waitForTimeout(900);
+  await cdp.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+  await page.waitForTimeout(500);
+  const byHold = await entries();
+  harness.check(
+    byHold.map((e) => e.name).join("|") === "Import items|Export items" &&
+      (await where()) === before,
+    `${label}: a long press on the + opens the same menu and does not navigate (${JSON.stringify(byHold)})`,
+  );
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(300);
+  harness.check(
+    (await page.locator('[role="menu"]').count()) === 0,
+    `${label}: Escape closes the Add menu`,
+  );
+  // The default is still one tap: the + goes to the editor.
+  await page.locator(".fab__add").tap();
+  await page.waitForTimeout(600);
+  harness.check(
+    (await where()).endsWith("/vault/new"),
+    `${label}: a tap on the + opens the editor (${await where()})`,
+  );
+  await page.goBack();
+  await page.waitForTimeout(500);
+}
+
+/**
+ * A search typed on the list must end when the tree comes back: the list stays
+ * mounted behind it, and a filter that survived made "all" draw no rows. Needs
+ * an item in the vault (an empty list shows nothing either way) and leaves the
+ * walk on the tree it found.
+ */
+export async function searchEndsWithTheList(page, stop, { harness }) {
+  const pane = () => page.locator(".vault").first().getAttribute("data-pane");
+  if ((await pane()) !== "tree") return;
+  const label = stop("search-round-trip");
+  const prompt = page.locator("#command-bar-input");
+  const all = () => page.getByRole("treeitem", { name: /^all\b/i }).first();
+  await all().tap();
+  await page.waitForTimeout(600);
+  await prompt.tap();
+  await page.keyboard.type("/? no-such-item-zzz");
+  await page.waitForTimeout(500);
+  await page.getByRole("link", { name: "Back to sections" }).first().tap();
+  await page.waitForTimeout(500);
+  harness.check(
+    (await prompt.inputValue()) === "",
+    `${label}: the search prompt emptied with the list`,
+  );
+  await all().tap();
+  await page.waitForTimeout(600);
+  const rows = await page.locator('.vault__list [role="treeitem"]').count();
+  harness.check(rows > 0, `${label}: all shows its items again (${rows} rows)`);
+  await page.getByRole("link", { name: "Back to sections" }).first().tap();
+  await page.waitForTimeout(500);
+}
+
+/** The walks that start from the tree with an item in the vault and end on it. */
+export async function treeWalks(page, stop, ctx) {
+  await backKeysPop(page, stop, ctx);
+  await searchEndsWithTheList(page, stop, ctx);
 }

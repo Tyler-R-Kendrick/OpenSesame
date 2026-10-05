@@ -1,10 +1,6 @@
-/**
- * Vitest setup: the same host main.tsx installs, with Vitest's own
- * `import.meta.env` (BASE_URL "/", DEV true), so modules see what they did
- * before the env moved behind the host (ADR 0133).
- */
 import { browserPorts } from "@opensesame/app-core/browser/host.js";
 import { composeHost, configureHost } from "@opensesame/app-core/host.js";
+import { installWipeGuard } from "@opensesame/app-core/lib/duress/wipe/test-guard.js";
 import { clearNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   assertOwnedStorageWrites,
@@ -14,6 +10,12 @@ import {
   repairInertWebStorage,
   testAtRestKeys,
 } from "@opensesame/app-core/test-host.js";
+/**
+ * Vitest setup: the same host main.tsx installs, with Vitest's own
+ * `import.meta.env` (BASE_URL "/", DEV true), so modules see what they did
+ * before the env moved behind the host (ADR 0133).
+ */
+import { loadPack, packEntries } from "@opensesame/vault-item-types";
 import { afterEach } from "vitest";
 import { closeJsdomGaps } from "./jsdom-gaps.js";
 import { shellBuild } from "./shell-build.js";
@@ -37,3 +39,10 @@ afterEach(assertOwnedStorageWrites);
 
 // A failure a test raised in the tray never reaches the next test.
 afterEach(clearNotices);
+// The duress wipe removes every vault in the origin's storage: a test that
+// reaches the real runner fails when it ends, unless it opted in by name.
+installWipeGuard();
+
+// Built-in packs arrive on demand in the app (ADR 0165); these suites are
+// written against the whole corpus, so they switch every pack on first.
+await Promise.all(packEntries().map((entry) => loadPack(entry.id)));

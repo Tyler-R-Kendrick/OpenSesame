@@ -65,7 +65,6 @@ export function TailnetPairSheet({
     <CeremonySheet
       title="Pair with a drive"
       mark={<IconConnection size={20} />}
-      foot="The code is used once and is not kept."
       onClose={onClose}
     >
       <form

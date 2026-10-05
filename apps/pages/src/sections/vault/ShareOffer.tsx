@@ -1,7 +1,8 @@
-import { type Ref, useEffect, useRef } from "react";
+import { type Ref, useCallback, useEffect, useRef } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconDrop, IconX } from "../../components/Icons.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { TtlPicker } from "./DropTtl.js";
 
 /**
@@ -10,15 +11,24 @@ import { TtlPicker } from "./DropTtl.js";
  * A mount that is already open moves nothing.
  */
 export function useShareFocus(open: boolean) {
-  const keyRef = useRef<HTMLButtonElement>(null);
+  const key = useRef<HTMLButtonElement | null>(null);
   const ttlRef = useRef<HTMLSelectElement>(null);
   const next = useRef<"ttl" | "key" | null>(null);
+  // The offer's key is also the control a tutorial points at (`item.share`).
+  const guideRef = useGuideTarget<HTMLButtonElement>("item.share");
+  const keyRef = useCallback(
+    (element: HTMLButtonElement | null) => {
+      key.current = element;
+      guideRef(element);
+    },
+    [guideRef],
+  );
 
   useEffect(() => {
     const target = next.current;
     next.current = null;
     if (target === "ttl" && open) ttlRef.current?.focus();
-    if (target === "key" && !open) keyRef.current?.focus();
+    if (target === "key" && !open) key.current?.focus();
   }, [open]);
 
   return {

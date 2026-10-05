@@ -1,0 +1,38 @@
+{
+  "out": ".",
+  "screens": [],
+  "sheets": [
+    {
+      "shot": "1280-devices",
+      "width": 1280,
+      "title": "Identity › Devices — 1280 × 900",
+      "caption": "Before, the tab listed this browser and nothing else. After, it leads with the tailnet's real machines, read from Tailscale through the paired daemon, waiting ones first, each with approve, settings, expire and remove keys, then auth keys, activity and the browsers.",
+      "before": "1 panel, 1 row, 0 tailnet machines, 3 keys",
+      "after": "4 panels, 4 tailnet machines + 1 browser, 18 keys"
+    },
+    {
+      "shot": "1280-add",
+      "width": 1280,
+      "title": "The add key — 1280 × 900",
+      "caption": "Before, + opened a Name / Platform form that wrote a record nothing on the tailnet knew about. After, + mints a real Tailscale auth key (lifetime, reusable, ephemeral, pre-approved, tags) through the daemon and shows it once with its tailscale up command.",
+      "before": "New device → Name + Platform, Register device",
+      "after": "Add a device → auth key sheet, Mint an auth key"
+    },
+    {
+      "shot": "390-devices",
+      "width": 390,
+      "title": "Identity › Devices — 390 × 844",
+      "caption": "The same walk on a phone: the machine list, its marks and its keys at the touch sizes.",
+      "before": "1 row, 0 tailnet machines",
+      "after": "4 tailnet machines + 1 browser"
+    },
+    {
+      "shot": "390-add",
+      "width": 390,
+      "title": "The add key — 390 × 844",
+      "caption": "Adding a device on a phone is the same auth-key ceremony, in a bottom sheet.",
+      "before": "Name + Platform form",
+      "after": "auth key sheet"
+    }
+  ]
+}

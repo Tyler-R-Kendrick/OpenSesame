@@ -21,7 +21,13 @@ import {
 } from "@opensesame/app-core/tutorial/registry/goals.js";
 import { afterEach, describe, expect, it } from "vitest";
 import { UNAVAILABLE_TEXT } from "../../ui/messages.js";
-import { openSupport, renderJourney, resetJourney } from "./harness.jsx";
+import {
+  nextStep,
+  openSupport,
+  renderJourney,
+  resetJourney,
+  tutorialCard,
+} from "./harness.jsx";
 
 /** Starts the walkthrough offered beside a named goal in the panel. */
 async function showMe(
@@ -120,6 +126,10 @@ describe(
         await user.click(
           await showMe(panel, "How do I tell whether OpenSesame is healthy?"),
         );
+        // It opens on a sentence and goes nowhere until the person says so.
+        await tutorialCard();
+        expect(journey.navigations()).toEqual([]);
+        await nextStep(user);
         await waitFor(
           () => expect(journey.navigations()).toEqual(["/vault/health"]),
           { timeout: 10_000 },
@@ -156,6 +166,8 @@ describe(
 
       const panel = await openSupport(user);
       await user.click(await showMe(panel, "How do I connect a provider?"));
+      await tutorialCard();
+      await nextStep(user);
 
       // It walks from the vault to Connections and points at the picker there.
       await waitFor(() =>
@@ -176,6 +188,8 @@ describe(
       await onConnections.user.click(
         await showMe(reopened, "How do I connect a provider?"),
       );
+      await tutorialCard();
+      await nextStep(onConnections.user);
 
       await waitFor(() =>
         expect(onConnections.focused()).toEqual([

@@ -39,14 +39,18 @@ import { inboxSteps } from "./lib/capture-inbox-steps.mjs";
 import { liveJoinSteps, viewOf } from "./lib/capture-live-join-steps.mjs";
 import { livePolicySteps } from "./lib/capture-live-policy-steps.mjs";
 import { liveSteps } from "./lib/capture-live-steps.mjs";
+import { metricsSteps } from "./lib/capture-metrics-steps.mjs";
 import { stubJourneyDaemon } from "./lib/capture-plugin-steps.mjs";
 import { pushSteps } from "./lib/capture-push-steps.mjs";
 import { readSteps } from "./lib/capture-read-steps.mjs";
 import { scopedSteps } from "./lib/capture-scoped-steps.mjs";
 import { prepareScreen, tabStep } from "./lib/capture-tab-step.mjs";
+import { vaultSteps } from "./lib/capture-vault-steps.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
+import { switchSteps } from "./lib/switch-steps.mjs";
+import { tapStep } from "./lib/tap-step.mjs";
 import { composeSheet } from "./lib/visual-evidence.mjs";
 
 const [mode, ...rest] = process.argv.slice(2);
@@ -122,6 +126,7 @@ const STEPS = {
     await page.waitForTimeout(1400);
   },
   ...tabStep({ press, visit: (page, route) => STEPS.visit(page, route) }),
+  ...switchSteps({ press }),
   async press(page, name) {
     const target = page
       .getByRole("button", { name: new RegExp(name, "i") })
@@ -189,8 +194,11 @@ const STEPS = {
     }
   },
   ...extraSteps({ press }),
+  ...tapStep({ press }),
   ...fieldSteps({ press }),
   ...readSteps(),
+  ...metricsSteps(),
+  ...vaultSteps({ press, visit: (page, route) => STEPS.visit(page, route) }),
   ...inboxSteps({ origin, base }),
   ...liveSteps({ harness }),
   ...livePolicySteps({ press, openSettings }),
@@ -217,16 +225,6 @@ const STEPS = {
     if ((await box.count()) && (await box.isEnabled())) {
       await press(box);
       await page.waitForTimeout(400);
-    }
-  },
-  /**
-   * Print how many elements match each selector, so a sheet's before/after
-   * numbers are read from the browser rather than from the diff.
-   */
-  async count(page, selectors) {
-    for (const selector of [selectors].flat()) {
-      const n = await page.locator(selector).count();
-      console.log(`  count ${selector}: ${n}`);
     }
   },
   /** `scrollTo`, for a heading only one of the two builds has. */
@@ -351,7 +349,10 @@ async function capture(browser, into) {
     // The wordmark reels settle in 2.31-4.62s (DESIGN.md). Both captures wait
     // them out, or the pair differs in ciphertext that means nothing.
     await page.waitForTimeout(5200);
-    for (const step of screen.steps) {
+    for (const { only, ...step } of screen.steps) {
+      // A step for one side of the pair: a key the base has and the branch
+      // removed, or a verb only the branch understands.
+      if (only !== undefined && only !== label) continue;
       if (step.shot) {
         await page.waitForTimeout(400);
         await viewOf(page).screenshot({

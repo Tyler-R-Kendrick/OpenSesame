@@ -28,11 +28,23 @@ import { type ReactNode, useCallback, useRef } from "react";
 export function useGuideTarget<E extends HTMLElement = HTMLElement>(
   id: GuideTargetId,
 ): (element: E | null) => void {
+  return useOptionalGuideTarget<E>(id);
+}
+
+/**
+ * The same ref for a row that is a target only sometimes — a rail row that is
+ * one of the filters a tutorial names, its neighbours not. With no id it binds
+ * nothing, so one component serves both without a hook behind a condition.
+ */
+export function useOptionalGuideTarget<E extends HTMLElement = HTMLElement>(
+  id: GuideTargetId | undefined,
+): (element: E | null) => void {
   const bound = useRef<(() => void) | null>(null);
   return useCallback(
     (element: E | null) => {
       bound.current?.();
-      bound.current = element ? mountGuideTarget(id, element) : null;
+      bound.current =
+        element && id !== undefined ? mountGuideTarget(id, element) : null;
     },
     [id],
   );

@@ -18,9 +18,6 @@ import type { useTravelFlow } from "./useTravelFlow.js";
 
 type Flow = ReturnType<typeof useTravelFlow>;
 
-const FOOT =
-  "Nothing leaves this device until you confirm the bundle and the return code are somewhere else.";
-
 function PlanCard({ flow }: { flow: Flow }) {
   const { safe, busy, notice } = flow;
   const vaults = useDeviceVaults().filter(
@@ -43,6 +40,7 @@ function PlanCard({ flow }: { flow: Flow }) {
       ]}
       primary={{
         label: "Pack the rest for travel",
+        icon: <IconDownload size={18} />,
         busy,
         onClick: flow.pack,
       }}
@@ -169,7 +167,6 @@ export function TravelLeaveSheet({
     <CeremonySheet
       title="Turn on travel mode"
       mark={<IconUpload size={20} />}
-      foot={FOOT}
       onClose={onClose}
     >
       {mode.kind === "packed" ? (

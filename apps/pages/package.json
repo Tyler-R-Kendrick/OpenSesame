@@ -15,7 +15,6 @@
     "test:relay": "node --test server/test/*.test.mjs",
     "generate:connect": "node scripts/emit-connect-verify-targets.mjs && biome format --write server/connect-verify-targets.generated.mjs",
     "verify:static": "node scripts/verify-static-origin.mjs",
-    "verify:sops-static": "node scripts/verify-sops-static.mjs",
     "verify:auth": "node scripts/verify-auth-flow.mjs",
     "verify:device-identity": "node scripts/verify-device-identity.mjs",
     "verify:device-inbox": "node scripts/verify-device-inbox.mjs",
@@ -25,6 +24,7 @@
     "verify:browser-session-lifecycle": "node scripts/verify-browser-session-lifecycle.mjs",
     "test:browser-sessions": "VITE_BASE=/OpenSesame/ pnpm run build && pnpm run verify:browser-sessions",
     "verify:keyboard": "node scripts/verify-keyboard.mjs",
+    "verify:tutorials": "node scripts/verify-tutorials.mjs",
     "verify:push-worker": "node scripts/verify-push-worker.mjs",
     "verify:mobile": "node scripts/verify-mobile.mjs",
     "verify:local-iam": "vitest run scripts/local-iam-headers.test.mjs && node scripts/verify-local-iam.mjs",
@@ -45,11 +45,13 @@
     "build:live-dedicated": "PAGES_DEPLOYMENT_PROFILE=dedicated_origin PAGES_CANONICAL_ORIGIN=https://opensesame.example.test PAGES_HEADER_SECURITY=1 node scripts/stamped-build.mjs 'vite build --outDir dist-live-dedicated --emptyOutDir'",
     "verify:capability-graph": "node scripts/verify-capability-graph.mjs",
     "verify:mutations": "node scripts/verify-mutations.mjs",
-    "verify:tailnet-sync": "node scripts/verify-tailnet-sync.mjs"
+    "verify:tailnet-sync": "node scripts/verify-tailnet-sync.mjs",
+    "verify:tailnet-devices": "node scripts/verify-tailnet-devices.mjs"
   },
   "dependencies": {
     "@azure/msal-browser": "5.22.0",
     "@nats-io/nats-core": "3.4.0",
+    "@nats-io/services": "3.4.0",
     "@openfeature/core": "1.12.0",
     "@openfeature/web-sdk": "1.10.0",
     "@opensesame/app-core": "workspace:*",
@@ -68,7 +70,6 @@
     "@opensesame/vault-item-types": "workspace:*",
     "@opensesame/webmcp": "workspace:*",
     "age-encryption": "0.3.1",
-    "driver.js": "1.8.0",
     "mqtt": "5.16.0",
     "nostr-tools": "2.25.2",
     "react": "19.2.8",

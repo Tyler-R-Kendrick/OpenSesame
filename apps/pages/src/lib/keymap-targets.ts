@@ -83,12 +83,18 @@ export function currentRailTarget(): RailKeymapTarget | null {
   return railTarget;
 }
 
-/** The search box mounted right now, if any. */
+/** The listing that handles the search verb right now, if any. */
 export function currentSearchTarget(): SearchKeymapTarget | null {
   return searchTarget;
 }
 
-export function listingOf(event: KeyboardEvent): "rail" | "vault" | null {
+/**
+ * Where a command was asked from: a key press, or a gesture's first touch.
+ * Both say only which element they landed on, which is all a listing needs.
+ */
+export type Origin = Readonly<{ target: EventTarget | null }>;
+
+export function listingOf(event: Origin): "rail" | "vault" | null {
   const node = event.target;
   if (node instanceof Element) {
     if (node.closest(".railtree")) return "rail";
@@ -97,7 +103,7 @@ export function listingOf(event: KeyboardEvent): "rail" | "vault" | null {
   return null;
 }
 
-export function movementTarget(event: KeyboardEvent): ListingMotion | null {
+export function movementTarget(event: Origin): ListingMotion | null {
   const listing = listingOf(event);
   if (listing === "rail") return railTarget;
   if (listing === "vault") return vaultTarget;

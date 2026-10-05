@@ -72,6 +72,7 @@ import {
 } from "react";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { landFocus } from "../../lib/focus.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ByoProviderSheet } from "./ByoProviderSheet.js";
 import { IdentifierField } from "./IdentifierField.js";
 import { MagicLinkStage } from "./MagicLinkStage.js";
@@ -98,6 +99,7 @@ type Stage = "hub" | "magic-link" | "byo";
 
 export function SignInPanel(props: Props) {
   const { providers } = props;
+  const localOnlyRef = useGuideTarget<HTMLButtonElement>("unlock.local-only");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>("hub");
@@ -358,6 +360,7 @@ export function SignInPanel(props: Props) {
         <div className="signin__more">
           {props.placement === "primary" ? (
             <button
+              ref={localOnlyRef}
               type="button"
               className="unlock__switch"
               disabled={busy}

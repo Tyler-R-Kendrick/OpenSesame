@@ -78,3 +78,23 @@
 .capsections + .capsection {
   margin-top: 0.75rem;
 }
+
+/* One column of switches. A section's switch sits on its subheader at the
+   column's edge while its tiles' switches sit inside the tile's border and
+   padding, so the two read as two columns a tile's inset apart; the subheader's
+   switch takes the same inset. A long name wraps to two lines instead of being
+   cut at an ellipsis a whole switch short of the edge. */
+@media (max-width: 900px) {
+  .capsection__head .capsection__switch {
+    margin-right: 0.8125rem;
+  }
+
+  .capsection__cap .conn-tile__name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}

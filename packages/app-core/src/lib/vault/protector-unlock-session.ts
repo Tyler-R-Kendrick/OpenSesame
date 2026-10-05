@@ -75,7 +75,7 @@ export async function unlockVaultWithHeldRoot(
   const raw = new Uint8Array(root.slice(0));
   host.stashRaw(raw);
   const vaultKey = await importVaultKey(raw);
-  await host.afterPrimaryUnwrap(vaultKey);
+  await host.afterPrimaryUnwrap(vaultKey, protectorUnlockMiss(method));
 }
 
 export async function unlockVaultWithProtector(

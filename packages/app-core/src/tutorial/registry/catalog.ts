@@ -13,6 +13,7 @@
 
 import { contributionsSnapshot } from "../../lib/contributions.js";
 import { GUIDE_TARGETS_MORE } from "./catalog-more.js";
+import { FEATURE_TARGETS } from "./feature-catalog.js";
 import { SHELL_TARGETS } from "./shell-catalog.js";
 import type { GuideTargetDescriptor } from "./targets.js";
 import { VAULT_TARGETS } from "./vault-catalog.js";
@@ -28,6 +29,7 @@ import { VAULT_TARGETS } from "./vault-catalog.js";
 export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   ...SHELL_TARGETS,
   ...VAULT_TARGETS,
+  ...FEATURE_TARGETS,
 
   // ── Settings: six categories and the panels people ask about ─────────
   {
@@ -58,7 +60,7 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.connectivity",
     description:
-      "The sections of Settings › Capabilities: each a subheader with its providers, and a switch on it where the section has something optional to turn on.",
+      "The first section of Settings › Capabilities, standing for all of them: each is a subheader with its providers under it, and a switch on it where the section has something optional to turn on.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: "host.health.pages",
@@ -86,14 +88,6 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     role: "action",
     routes: ["/settings"],
     capabilityId: "vault.protectors.manage",
-  },
-  {
-    id: "settings.sops-document",
-    description:
-      "SOPS under Security: the SOPS document key opens a sheet to choose a SOPS YAML or JSON file, unlock it with an age identity, edit it and save ciphertext. It all runs in this browser.",
-    role: "action",
-    routes: ["/settings"],
-    capabilityId: null,
   },
   {
     id: "settings.second-step",
@@ -136,17 +130,9 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
   {
-    id: "settings.data",
-    description:
-      "There is no Vault data settings category. Folders, backup, and the build record live with the surfaces that own them.",
-    role: "navigation",
-    routes: ["/settings"],
-    capabilityId: "vault.export",
-  },
-  {
     id: "settings.danger",
     description:
-      "The Danger settings category, which holds the irreversible action of deleting this vault from this browser.",
+      "The Danger settings category, which holds the irreversible actions: deleting this vault from this browser, and the trash, where an item is restored, deleted for good, or the whole trash emptied.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: null,

@@ -65,6 +65,7 @@ import {
   approveConsent,
   consentFor,
 } from "@opensesame/app-core/lib/site-broker.js";
+import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registry/targets.js";
 import { BrokerAuthorize } from "./BrokerAuthorize.js";
 
 const mockedDeliver = vi.mocked(siteBrokerSeams.deliverToRp);
@@ -215,6 +216,21 @@ describe("BrokerAuthorize", () => {
       id_token: "id.token.here",
     });
     expect(targetOrigin).toBe(ORIGIN);
+  });
+
+  it("keeps a seat for the help key in the header, away from the consent card (ADR 0166)", async () => {
+    fed.loadSession.mockReturnValue(IDENTITY);
+    const { container } = renderBroker(validSearch());
+    await screen.findByText("Allow this site?");
+    const seat = container.querySelector(".broker__head .gate-seat");
+    expect(seat).not.toBeNull();
+    expect(container.querySelector(".broker__card")?.contains(seat)).toBe(
+      false,
+    );
+    // The card is what the tutorial points at; it is the screen's one control.
+    expect(resolveGuideTargetElement("broker.consent")).toBe(
+      container.querySelector(".broker__main"),
+    );
   });
 
   it("denies the origin and tells the user the window can close", async () => {

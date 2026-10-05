@@ -21,16 +21,35 @@ export type GuideRouteDescriptor = {
 
 const SECTION_ROUTES: readonly GuideRouteDescriptor[] = [
   { id: "/unlock", title: "Unlock — open the vault or sign in" },
+  // The screens behind `/unlock` and `/setup`, each its own place a tutorial
+  // can be scoped to (ADR 0166). `/unlock` and `/setup` stay the parents: a
+  // control or a written answer scoped to one still applies in every child.
+  { id: "/unlock/door", title: "Front door — set up, join, or skip" },
+  { id: "/unlock/form", title: "Unlock — open this device's vault" },
+  {
+    id: "/unlock/passkey",
+    title: "Unlock with a passkey — open this device's vault",
+  },
+  { id: "/unlock/signin", title: "Sign in — a provider, or seal this device" },
   {
     id: "/setup",
     title: "Setup — connectors, sign-in and backups for this deployment",
   },
+  { id: "/setup/choose", title: "Setup — choose a configuration" },
+  { id: "/setup/capabilities", title: "Setup — what this installation runs" },
+  { id: "/setup/identity", title: "Setup — who can sign in" },
+  { id: "/setup/connectors", title: "Setup — the connector directory" },
   {
     id: "/broker/authorize",
     title: "Broker — approve a static site sign-in",
   },
   { id: "/vault", title: "Vault — every item this deployment holds" },
   { id: "/vault/health", title: "Vault health — weak, reused and aging items" },
+  { id: "/vault/item", title: "An item — the pane of one item in the vault" },
+  {
+    id: "/vault/trash",
+    title: "Trash — the items that were moved out of the list",
+  },
   { id: "/settings", title: "Settings — this deployment's preferences" },
 ];
 
@@ -98,14 +117,40 @@ export function mergedGuideRoutes(): readonly GuideRouteDescriptor[] {
   return GUIDE_ROUTES;
 }
 
-/** Named by `useSupportRoute`; a guide may wait on them, never navigate to them. */
+/**
+ * The gates: screens in front of the shell, named by `useSupportRoute`. A
+ * guide may wait on them and never navigate to them, and a tutorial scoped to
+ * one is started from the help key that screen draws (ADR 0166).
+ */
 export const GUIDE_OVERLAY_ROUTES: ReadonlySet<GuideRouteId> = new Set([
   "/unlock",
+  "/unlock/door",
+  "/unlock/form",
+  "/unlock/passkey",
+  "/unlock/signin",
   "/setup",
+  "/setup/choose",
+  "/setup/capabilities",
+  "/setup/identity",
+  "/setup/connectors",
   "/broker/authorize",
   "/federation",
   "/identity/authorize",
 ]);
+
+/**
+ * Whether something scoped to `scopes` applies on `route`. Named scopes apply
+ * where the route lies within one; no scope means the shell — every section,
+ * and no gate, because a control or a tutorial about the shell points at
+ * nothing on a screen in front of it (ADR 0166).
+ */
+export function scopeApplies(
+  scopes: readonly GuideRouteId[],
+  route: GuideRouteId,
+): boolean {
+  if (scopes.length === 0) return !GUIDE_OVERLAY_ROUTES.has(route);
+  return scopes.some((scope) => guideRouteWithin(route, scope));
+}
 
 reindex(CORE_GUIDE_ROUTES);
 
@@ -137,6 +182,29 @@ export function guideRouteWithin(
   scope: GuideRouteId,
 ): boolean {
   return route === scope || route.startsWith(`${scope}/`);
+}
+
+/** `/vault/<id>`: one item's pane. `new` and `health` are screens of their own. */
+const ITEM_PANE = /^\/vault\/(?!new(?:\/|$)|health(?:\/|$))[^/]+\/?$/;
+
+/**
+ * Where the person stands, to the precision a tour needs. A path alone cannot
+ * tell the list from an item's pane or from the trash (`/vault?f=trash`), and
+ * a tour that points at an item's controls has to wait for the item to be
+ * open. A deep path the registry cannot name still reports its section.
+ */
+export function guideRouteForLocation(
+  pathname: string,
+  search = "",
+): GuideRouteId {
+  const section = guideRouteForPath(pathname);
+  if (section !== "/vault") return section;
+  if (pathname === "/vault" || pathname === "/vault/") {
+    return new URLSearchParams(search).get("f") === "trash"
+      ? "/vault/trash"
+      : "/vault";
+  }
+  return ITEM_PANE.test(pathname) ? "/vault/item" : "/vault";
 }
 
 /**

@@ -16,6 +16,9 @@
   top: 0.35rem;
   left: 0;
   z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 /* The title is the wordmark at hero scale — one authored moment, then

@@ -21,6 +21,7 @@ import {
   CONNECTIONS_TARGETS,
 } from "./connections-catalog.js";
 import { CONNECTIONS_GOALS, CONNECTIONS_HELP } from "./connections-goals.js";
+import { DROPS_GOALS, DROPS_TARGETS } from "./drops-catalog.js";
 import {
   CORE_GUIDE_GOALS,
   CORE_HELP_TOPICS,
@@ -29,6 +30,7 @@ import {
 } from "./goals.js";
 import { IDENTITY_ROUTES, IDENTITY_TARGETS } from "./identity-catalog.js";
 import { IDENTITY_GOALS, IDENTITY_HELP } from "./identity-goals.js";
+import { LIVE_GOALS, LIVE_ROUTES, LIVE_TARGETS } from "./live-catalog.js";
 import {
   LOCAL_NOTIFICATIONS_GOALS,
   LOCAL_NOTIFICATIONS_TARGETS,
@@ -43,6 +45,18 @@ import {
   SURROGATE_TARGETS,
 } from "./plugins-catalog.js";
 import { CORE_GUIDE_ROUTES, type GuideRouteDescriptor } from "./routes.js";
+import {
+  NAV_ACCESS_GOALS,
+  NAV_ACTIVITY_GOALS,
+  NAV_CONNECTIONS_GOALS,
+  NAV_IDENTITY_GOALS,
+  NAV_WALLET_GOALS,
+} from "./section-nav-goals.js";
+import {
+  TAILNET_DEVICES_GOALS,
+  TAILNET_DEVICES_HELP,
+  TAILNET_DEVICES_TARGETS,
+} from "./tailnet-devices-catalog.js";
 import type { GuideTargetDescriptor } from "./targets.js";
 import { WALLET_ROUTES, WALLET_TARGETS } from "./wallet-catalog.js";
 
@@ -64,7 +78,7 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     capability: "connectors.external",
     files: { targets: "connections-catalog.ts", goals: "connections-goals.ts" },
     targets: CONNECTIONS_TARGETS,
-    goals: CONNECTIONS_GOALS,
+    goals: [...CONNECTIONS_GOALS, ...NAV_CONNECTIONS_GOALS],
     help: CONNECTIONS_HELP,
     routes: CONNECTIONS_ROUTES,
   },
@@ -72,7 +86,7 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     capability: "access.authority",
     files: { targets: "access-catalog.ts", goals: "access-goals.ts" },
     targets: ACCESS_TARGETS,
-    goals: [...ACCESS_GOALS, ...AUTHORITY_GOALS],
+    goals: [...ACCESS_GOALS, ...AUTHORITY_GOALS, ...NAV_ACCESS_GOALS],
     help: [...ACCESS_HELP, ...AUTHORITY_HELP],
     routes: ACCESS_ROUTES,
   },
@@ -80,7 +94,7 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     capability: "identity.federation",
     files: { targets: "identity-catalog.ts", goals: "identity-goals.ts" },
     targets: IDENTITY_TARGETS,
-    goals: IDENTITY_GOALS,
+    goals: [...IDENTITY_GOALS, ...NAV_IDENTITY_GOALS],
     help: IDENTITY_HELP,
     routes: IDENTITY_ROUTES,
   },
@@ -88,7 +102,7 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     capability: "wallet.spending",
     files: { targets: "wallet-catalog.ts" },
     targets: WALLET_TARGETS,
-    goals: [],
+    goals: NAV_WALLET_GOALS,
     help: [],
     routes: WALLET_ROUTES,
   },
@@ -96,9 +110,17 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     capability: "activity.log",
     files: { targets: "activity-catalog.ts" },
     targets: ACTIVITY_TARGETS,
-    goals: [],
+    goals: NAV_ACTIVITY_GOALS,
     help: [],
     routes: ACTIVITY_ROUTES,
+  },
+  {
+    capability: "sharing.live",
+    files: { targets: "live-catalog.ts", goals: "live-catalog.ts" },
+    targets: LIVE_TARGETS,
+    goals: LIVE_GOALS,
+    help: [],
+    routes: LIVE_ROUTES,
   },
   {
     capability: "notifications.routing",
@@ -136,6 +158,25 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     targets: AUTOFILL_TARGETS,
     goals: AUTOFILL_GOALS,
     help: [],
+    routes: [],
+  },
+  {
+    capability: "sharing.drops",
+    files: { targets: "drops-catalog.ts", goals: "drops-catalog.ts" },
+    targets: DROPS_TARGETS,
+    goals: DROPS_GOALS,
+    help: [],
+    routes: [],
+  },
+  {
+    capability: "networking.tailnet-devices",
+    files: {
+      targets: "tailnet-devices-catalog.ts",
+      goals: "tailnet-devices-catalog.ts",
+    },
+    targets: TAILNET_DEVICES_TARGETS,
+    goals: TAILNET_DEVICES_GOALS,
+    help: TAILNET_DEVICES_HELP,
     routes: [],
   },
 ];

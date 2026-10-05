@@ -408,7 +408,7 @@ function IdpCeremony({
                 <button
                   key={provider.id}
                   type="button"
-                  className={`btn signin__social${
+                  className={`btn choice signin__social${
                     brand ? ` ${brand.className}` : ""
                   }`}
                   aria-label={`Continue with ${provider.label}`}

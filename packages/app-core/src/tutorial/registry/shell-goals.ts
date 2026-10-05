@@ -5,6 +5,10 @@
 
 import { DURESS_GOALS, DURESS_HELP } from "./duress-goals.js";
 import type { GuideGoalDescriptor, HelpTopic } from "./goals.js";
+import { KEYBOARD_GOALS } from "./keyboard-goals.js";
+import { SETTINGS_GOALS } from "./settings-goals.js";
+import { SHELL_TOUR_GOALS } from "./shell-tour-goals.js";
+import { VAULT_ITEM_GOALS } from "./vault-item-goals.js";
 
 export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
   {
@@ -17,7 +21,7 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
       'say "Import takes a .env, .csv, .json, .1pux, .zip or .kdbx export and merges it into this vault. Nothing leaves the device."',
       'navigate "/vault"',
       'wait route "/vault" timeout=15000',
-      'focus "vault.import" "This opens the file picker; the file is previewed in a sheet beside the list before anything is written." side=bottom',
+      'focus "vault.import" "Import opens the file picker; on a phone it is in the menu of the Add button: tap its ellipsis, or hold the +. The file is previewed in a sheet before anything is written." side=bottom',
       'wait target "vault.import" event=activate timeout=60000',
       'success "Choose an export to import. The items land sealed in this vault."',
       "end",
@@ -31,6 +35,7 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "client.command-bar"',
+      'say "The command bar is the one typed field in the frame. A command runs; a sentence it cannot parse goes to Support as a question."',
       'wait state "vault.unlocked" is=true timeout=60000',
       'focus "shell.command-bar" "Type a command: go to a section, search, or copy a field. Enter runs it." side=bottom',
       "end",
@@ -38,6 +43,10 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
   },
 
   ...DURESS_GOALS,
+  ...SHELL_TOUR_GOALS,
+  ...SETTINGS_GOALS,
+  ...VAULT_ITEM_GOALS,
+  ...KEYBOARD_GOALS,
 ];
 
 /** The shell's help topics, drawn beside the walkthroughs they open. */

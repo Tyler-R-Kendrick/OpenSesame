@@ -6,6 +6,7 @@
  */
 
 import { CAPABILITY_BOOT_KEYS } from "@opensesame/app-core/lib/capabilities/keys.js";
+import { DURESS_BOOT_KEYS } from "@opensesame/app-core/lib/duress/store/boot-keys.js";
 import { GUEST_ACCESS_KEY } from "@opensesame/app-core/lib/guest-access.js";
 import { LAST_VAULT_KEY } from "@opensesame/app-core/lib/last-vault.js";
 import {
@@ -14,6 +15,7 @@ import {
 } from "@opensesame/app-core/lib/local-guest.js";
 import { PROJECTS_KEY } from "@opensesame/app-core/lib/projects.js";
 import { TRAVEL_SAFE_KEY } from "@opensesame/app-core/lib/travel/safe-flags.js";
+import { PACKS_KEY } from "@opensesame/app-core/lib/type-packs/persist.js";
 import { TOMBS_REGISTRY_KEY } from "@opensesame/app-core/lib/vfs.js";
 import { THEME_KEY } from "../lib/theme.js";
 
@@ -37,6 +39,12 @@ export const CORE_BOOT_KEYS: readonly string[] = [
   GUEST_ACCESS_KEY,
   // Which vaults are marked safe to carry — chosen at home, needed at the border.
   TRAVEL_SAFE_KEY,
+  // The built-in item types this device switched on, kept to work offline.
+  PACKS_KEY,
+  // The armed duress code and the incident journals that hold a device fenced.
+  // Journal reads are synchronous: unhydrated, the code typed after a reload
+  // matches nothing and fails like a wrong password.
+  ...DURESS_BOOT_KEYS,
   // Installation id, selection, receipt, policies, generation counter.
   ...CAPABILITY_BOOT_KEYS,
 ];

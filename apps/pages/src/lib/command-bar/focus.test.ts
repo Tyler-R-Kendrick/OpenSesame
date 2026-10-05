@@ -3,7 +3,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   focusCommandBar,
   handleCommandBarChord,
+  registerCommandBarFill,
   registerCommandBarMic,
+  searchInCommandBar,
   toggleCommandBarMic,
 } from "./focus.js";
 
@@ -18,6 +20,27 @@ describe("command-bar focus chords", () => {
     expect(input).toBeInstanceOf(HTMLInputElement);
     focusCommandBar();
     expect(document.activeElement).toBe(input);
+  });
+
+  it("searchInCommandBar focuses the field and writes the search verb into it", () => {
+    document.body.innerHTML = '<input id="command-bar-input" />';
+    const fill = vi.fn();
+    const stop = registerCommandBarFill(fill);
+    searchInCommandBar();
+    expect(document.activeElement?.id).toBe("command-bar-input");
+    expect(fill).toHaveBeenCalledWith("/? ");
+    stop();
+    fill.mockClear();
+    searchInCommandBar();
+    expect(fill).not.toHaveBeenCalled();
+  });
+
+  it("searchInCommandBar does nothing where there is no command bar", () => {
+    const fill = vi.fn();
+    const stop = registerCommandBarFill(fill);
+    searchInCommandBar();
+    expect(fill).not.toHaveBeenCalled();
+    stop();
   });
 
   it("Ctrl/Cmd+L focuses the command bar like a browser URL bar", () => {

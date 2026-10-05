@@ -13,7 +13,7 @@ import {
 } from "@opensesame/app-core/lib/identity.js";
 import { type CeremonyAlt, CeremonyShell } from "./CeremonyShell.js";
 import { FieldShell } from "./FieldShell.js";
-import { IconLogin, IconTerminal, IconUser } from "./Icons.js";
+import { IconLogin, IconRefresh, IconTerminal, IconUser } from "./Icons.js";
 import { StatusNote } from "./StatusNote.js";
 
 import { useConnect, useIdentitySession } from "../bindings/identity.js";
@@ -172,11 +172,13 @@ export function IdentityCeremony({
           session
             ? {
                 label: busy === "refresh" ? "Refreshing…" : "Refresh session",
+                icon: <IconRefresh size={18} />,
                 onClick: refresh,
                 busy: busy === "refresh",
               }
             : {
                 label: `Sign in with ${upstream.accountKind}`,
+                choice: true,
                 onClick: () => {
                   void identityCeremonyDependencies.beginSignIn(upstream);
                 },
@@ -189,6 +191,7 @@ export function IdentityCeremony({
             : {
                 label:
                   busy === "guest" ? "Starting guest…" : "Continue as guest",
+                choice: true,
                 busy: busy === "guest",
                 disabled: connecting,
                 onClick: startGuest,

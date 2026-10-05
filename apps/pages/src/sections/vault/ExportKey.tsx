@@ -19,6 +19,7 @@ import { useModalFocus } from "../../lib/modal-focus.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { downloadSeams } from "../../screens/capabilities/download.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { useAddEntry } from "./add-menu.js";
 
 const NOTICE = "vault-export";
 
@@ -131,11 +132,22 @@ function ExportSheet({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** The export flow: the encrypted-backup sheet, opened and closed. */
+function useExportFlow() {
+  const [open, setOpen] = useState(false);
+  const show = useCallback(() => setOpen(true), []);
+  const close = useCallback(() => setOpen(false), []);
+  return {
+    open,
+    show,
+    element: open ? <ExportSheet onClose={close} /> : null,
+  };
+}
+
 /** The path strip's Export key: opens the encrypted-backup sheet. */
 export function ExportKey() {
   const guideRef = useGuideTarget<HTMLButtonElement>("vault.export");
-  const [open, setOpen] = useState(false);
-  const close = useCallback(() => setOpen(false), []);
+  const flow = useExportFlow();
   return (
     <>
       <button
@@ -145,12 +157,27 @@ export function ExportKey() {
         aria-label="Export items"
         title="Export encrypted vault"
         aria-haspopup="dialog"
-        aria-expanded={open}
-        onClick={() => setOpen(true)}
+        aria-expanded={flow.open}
+        onClick={flow.show}
       >
         <IconUpload size={15} />
       </button>
-      {open ? <ExportSheet onClose={close} /> : null}
+      {flow.element}
     </>
   );
+}
+
+/**
+ * Export as one of the Add button's other ways to add, on a phone: the same
+ * sheet, behind the button's menu instead of a key of its own.
+ */
+export function ExportEntry() {
+  const flow = useExportFlow();
+  useAddEntry({
+    id: "export",
+    label: "Export items",
+    order: 20,
+    run: flow.show,
+  });
+  return flow.element;
 }

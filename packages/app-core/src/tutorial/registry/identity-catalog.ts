@@ -36,7 +36,7 @@ export const IDENTITY_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "identity.devices",
     description:
-      "The Devices tab: browsers and installs that have unlocked this vault, and devices registered here before their first unlock, named like a Tailscale node or Entra device.",
+      "The Devices tab: the tailnet's machines, when a daemon is paired for device management, and the browsers and installs that have unlocked this vault.",
     role: "navigation",
     routes: ["/identity"],
     capabilityId: "identity.device.approve",
@@ -74,14 +74,6 @@ export const IDENTITY_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "identity.admin",
   },
 
-  {
-    id: "identity.claim-access",
-    description:
-      "Starts the ceremony that claims a grant minted for this person, by entering the claim code.",
-    role: "ceremony",
-    routes: ["/identity"],
-    capabilityId: "delegations.claim",
-  },
   {
     id: "nav.identity",
     description:

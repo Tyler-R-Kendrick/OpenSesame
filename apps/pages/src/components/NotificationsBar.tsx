@@ -36,6 +36,7 @@ import {
   IconArrowRight,
   IconBell,
   IconInfo,
+  IconLogin,
   IconRefresh,
   IconShield,
   IconX,
@@ -217,6 +218,7 @@ function NotificationsBarDefault({
                     })()}
                     primary={{
                       label: "Sign in to claim",
+                      icon: <IconLogin size={18} />,
                       onClick: () => {
                         void notificationsBarDependencies.beginSignIn(
                           notificationsBarDependencies.defaultUpstream(),

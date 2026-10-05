@@ -36,6 +36,16 @@ export function useMediaQuery(media: string, absent: boolean): boolean {
   );
 }
 
+/** Whether the shell is below the one-pane breakpoint right now, off any render. */
+export function narrowNow(): boolean {
+  return list(NARROW_QUERY)?.matches ?? false;
+}
+
+/** Whether a precise pointer is attached right now, off any render. */
+export function finePointerNow(): boolean {
+  return list(FINE_POINTER_QUERY)?.matches ?? true;
+}
+
 /**
  * True while the shell is below the one-pane breakpoint. A browser with no
  * `matchMedia` is drawn as a desktop: the rail is the frame that is always
@@ -43,15 +53,4 @@ export function useMediaQuery(media: string, absent: boolean): boolean {
  */
 export function useNarrow(): boolean {
   return useMediaQuery(NARROW_QUERY, false);
-}
-
-/**
- * False where no pointing device is attached, which is how a touch-only
- * phone reads. `(any-pointer: fine)` detects pointers, not keyboards, so a
- * phone whose only extra is a hardware keyboard also reads false and loses
- * the Keybindings tab (DESIGN.md § Touch). A laptop, a tablet with a mouse or
- * trackpad, and a renderer with no `matchMedia` all count as having a key.
- */
-export function useFinePointer(): boolean {
-  return useMediaQuery(FINE_POINTER_QUERY, true);
 }

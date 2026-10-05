@@ -8,11 +8,11 @@
  * the vault's own items and louder than the "new item" key beside it. That is
  * the hierarchy upside down.
  *
- * So the filters move behind one key, the way a phone puts a filtered view
- * behind one: the key carries a dot while a filter is narrowing the list, and
- * the sheet names every road with the count it would show. Nothing is lost by
- * closing it — the list's own status line already ends in the filter's name,
- * so the screen never stops saying what is being looked at.
+ * So the filters move behind one choice, the way a phone puts a filtered view
+ * behind one: it is named after the view it is showing ("All items ▾"), in
+ * the header where a finger looks for it, rather than a funnel glyph that
+ * says nothing until it is tapped. The sheet names every road with the count
+ * it would show.
  */
 
 import {
@@ -22,7 +22,7 @@ import {
 import type { Folder, VaultItem } from "@opensesame/vault-core";
 import { type RefObject, useCallback, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
-import { IconFilter, IconX } from "../../components/Icons.js";
+import { IconChevronDown, IconX } from "../../components/Icons.js";
 import { useModalFocus } from "../../lib/modal-focus.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
@@ -101,20 +101,22 @@ export function VaultFilterMenu({
       <button
         ref={openRef}
         type="button"
-        className={`icon-btn icon-btn--sm vfilter__open${narrowed ? " is-narrowed" : ""}`}
+        className={`choice vfilter__open${narrowed ? " is-narrowed" : ""}`}
         aria-label={label}
         title={label}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen(true)}
       >
-        <IconFilter size={15} />
+        <span className="vfilter__label">
+          {active?.label ?? (resting ? "All items" : filter)}
+        </span>
+        <IconChevronDown size={16} />
       </button>
 
       {open ? (
         <FilterSheet
           roads={roads}
-          heading={active?.label ?? "All items"}
           sheetRef={sheetRef}
           closeRef={closeRef}
           close={close}
@@ -127,13 +129,11 @@ export function VaultFilterMenu({
 /** The sheet itself: the scrim, the head, and one row per road. */
 function FilterSheet({
   roads,
-  heading,
   sheetRef,
   closeRef,
   close,
 }: {
   roads: Road[];
-  heading: string;
   sheetRef: RefObject<HTMLDivElement | null>;
   closeRef: RefObject<HTMLButtonElement | null>;
   close: () => void;
@@ -157,7 +157,6 @@ function FilterSheet({
         <div className="sheet__head">
           <div className="sheet__grow">
             <h2>Filter</h2>
-            <p>{heading}</p>
           </div>
           <button
             type="button"

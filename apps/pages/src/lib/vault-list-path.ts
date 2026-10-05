@@ -1,5 +1,8 @@
 import { useNarrow } from "./use-narrow.js";
 
+/** The three panes a phone shows one at a time. */
+export type VaultPane = "tree" | "list" | "detail";
+
 /** Where a phone's "all items" list lives: its bare `/vault` is the tree. */
 export const PHONE_ALL_ITEMS = "/vault?f=all";
 
@@ -15,11 +18,12 @@ export function vaultListPath(search: string, narrow: boolean): string {
   if (!narrow) return `/vault${search}`;
   const params = new URLSearchParams(search);
   const kept = new URLSearchParams();
-  for (const key of ["f", "folder"]) {
+  for (const key of ["f", "folder", "q"]) {
     const value = params.get(key);
     if (value !== null) kept.set(key, value);
   }
-  if (kept.size === 0) kept.set("f", "all");
+  // A search narrows a list; on its own it names none.
+  if (!kept.has("f") && !kept.has("folder")) kept.set("f", "all");
   return `/vault?${kept.toString()}`;
 }
 
@@ -58,7 +62,7 @@ function vaultBackLabel(listPath: string): string {
 export function vaultPane(
   pathname: string,
   params: URLSearchParams,
-): "tree" | "list" | "detail" {
+): VaultPane {
   if (pathname !== "/vault") return "detail";
   return params.has("f") || params.has("folder") ? "list" : "tree";
 }

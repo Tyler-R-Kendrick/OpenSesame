@@ -202,7 +202,6 @@ export const FALLBACK_CLASSIFICATION = Object.freeze([
   ...optional(
     "support.guided-help",
     "src/tutorial/",
-    "node_modules/driver.js",
     "packages/guide-lang/",
     "packages/guide-runtime/",
     "packages/support-agent/",

@@ -12,6 +12,10 @@ import {
 import { authorityLocked } from "../../lib/keymap/config.js";
 import { isKeymapContext } from "../../lib/keymap/context.js";
 import { defaultBindings } from "../../lib/keymap/effective.js";
+import {
+  GESTURE_IDS,
+  gestureBindingProblem,
+} from "../../lib/keymap/gestures.js";
 import { canonicalSequence } from "../../lib/keymap/notation.js";
 import { yamlKey, yamlWord } from "./settings-keymap-yaml.js";
 
@@ -101,6 +105,23 @@ export function inBindings(source: string, caret: number): boolean {
   );
 }
 
+/**
+ * Whether the caret's line is a key of the `gestures:` mapping (ADR 0170),
+ * where a gesture's name is the key and an action id the value.
+ */
+export function inGestures(source: string, caret: number): boolean {
+  const lines = source.split("\n");
+  const index = source.slice(0, caret).split("\n").length - 1;
+  const indent = indentOf(lines[index] ?? "");
+  if (indent === 0) return false;
+  const parent = parentOf(lines, index, indent);
+  return (
+    parent !== -1 &&
+    indentOf(lines[parent] ?? "") === 0 &&
+    keyName(lines[parent] ?? "") === "gestures"
+  );
+}
+
 export type Typing = Readonly<{
   /** Before the colon (a key), or after it (an action id or a value). */
   position: "key" | "value";
@@ -176,6 +197,37 @@ export function bindingSuggestions(source: string, caret: number): string[] {
         id !== typed &&
         id.startsWith(typed) &&
         !authorityLocked(key, id, commands, defaults),
+    )
+    .map(yamlWord);
+}
+
+/**
+ * Gesture names and action ids for a line inside `gestures:`, narrowed to
+ * what has been typed. A gesture is offered only the actions it may bind:
+ * nothing that asks first, and no register key.
+ */
+export function gestureSuggestions(source: string, caret: number): string[] {
+  const { position, typed } = typingAt(source, caret);
+  if (position === "key")
+    return GESTURE_IDS.filter((id) => id.startsWith(typed));
+  const commands = keymapCommands();
+  const macros = Object.fromEntries(
+    macroIds(source).map((id) => [
+      id.slice(MACRO_PREFIX.length),
+      { steps: [] },
+    ]),
+  );
+  const ids = [
+    ...commands.map((command) => command.id),
+    ...macroIds(source),
+    NOP,
+  ];
+  return [...new Set(ids)]
+    .filter(
+      (id) =>
+        id !== typed &&
+        id.startsWith(typed) &&
+        gestureBindingProblem(id, commands, macros) === null,
     )
     .map(yamlWord);
 }

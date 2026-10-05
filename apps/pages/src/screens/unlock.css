@@ -210,7 +210,7 @@
   background: transparent;
   color: var(--ink);
   box-shadow: none;
-  animation: settle 520ms var(--ease) both;
+  animation: settle 520ms var(--ease) backwards;
 }
 
 .unlock__card > *,
@@ -932,8 +932,9 @@
   }
 
   /* Same dock the setup foot and phone tab bar leave: the overlay would
-     otherwise sit on Unlock. */
-  .unlock .go-row {
+     otherwise sit on Unlock. A ceremony card's keys in a sheet over the
+     screen (`.found__do`) are not that commit, and keep the card's edge. */
+  .unlock .go-row:not(.found__do) {
     padding-left: 1.6rem;
   }
 }

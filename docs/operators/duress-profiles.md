@@ -12,21 +12,39 @@ Evidence: `docs/evidence/2026-09-21-duress/`.
 the row is there for the owner of an open vault, and it is not drawn in a guest
 session — which is what a decoy is.
 
-1. Press **Add**. Choose what the code shows: a **decoy vault** (empty, reads
-   as a normal unlock) or a **wrong password** (refused).
+1. Press **Add**. Choose what the code does (the five modes below).
 2. Type a code of 8 to 12 digits twice. It may not be a PIN that opens a vault on
    this device; you are told now, not at the border.
 3. Tick that you understand, then turn it on. The browser must keep files for
-   the site, or arming is refused.
+   the site, or arming is refused. A mode that asks for more (a duration, a list
+   of items, the word `WIPE`) will not arm until you have given it.
 
 Type the code where you unlock, as the whole code. Nothing else is asked. After
 it is used, the device is held to a guest's powers (no travel, no code changes)
 until you open the vault with its **real** key and press **Clear** on the row.
-The code stays on until you **Change** or remove it.
+The code stays on until you **Change** or remove it. Nothing stored says which
+mode a code is, and the sheet cannot read it back: to change the mode, arm again.
 
-What it does **not** do: it is one code per device, the decoy is empty, and it
-sends no alert to anyone. The holds, custodians and removal described below are
-not applied by this road.
+What it does **not** do: it is one code per device, and it sends no alert to
+anyone. The holds, custodians and removal described further below are not
+applied by this road.
+
+### The five modes
+
+Each is chosen from the situation, and each has its own consent sentence. None
+is protection from coercion: each changes what a forced unlock reveals on this
+device and nothing more (ADR 0168).
+
+| Mode | When | What the code does | What to know |
+| --- | --- | --- | --- |
+| **Decoy vault** | Made to unlock, and something must be shown | Opens an empty vault that reads as a normal unlock | An empty vault is itself a tell |
+| **Decoy with everyday items** | Same, and an empty vault would look wrong | The same decoy, holding 3 to 12 ordinary logins you typed or took from the starter set (Netflix, Wi-Fi at home, Library card, Gym, Spotify, Electric bill) | Items are written, never copied from your real vault. Each gets a random 20-character secret made when you arm. Names are up to 40 characters. They show with no username |
+| **Wrong password** | Made to unlock, and nothing may be shown | Refused exactly like a mistyped password | The refusal text is the same as an ordinary wrong password's |
+| **Freeze for a while** | The device is taken and the unlock is being forced or guessed | Refused like a wrong password, and for 1, 24 or 72 hours the device refuses the vault's real credentials too | You choose the duration, there is no default. It cannot be shortened from the device, only extended. **It holds you as well**: you cannot open the real vault, or press Clear, until it ends. Guest and decoy sessions are not held. Uses the device clock |
+| **Wipe this device's copy** | The device is about to be surrendered for good | Refused like a wrong password, and this browser's copy of every vault except the guest vault is removed | Restorable only from a backup you made. Asks you to type `WIPE`. Removes this browser's storage, not what the disk may still hold. Leaves file parts, the history backup, settings and the Identity session |
+
+Pick a mode by what you can afford to lose. A freeze costs a stretch of time; a
+wipe costs the on-device copy for good.
 
 ## When to use this
 

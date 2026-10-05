@@ -17,6 +17,7 @@ import {
   macroName,
 } from "./config.js";
 import { KEYMAP_CONTEXTS, type KeymapContext } from "./context.js";
+import { retargetGestures } from "./gesture-bindings.js";
 import { isCharacterKey, parseSequence } from "./notation.js";
 
 /** Default sequence → command id, first claim wins. */
@@ -310,8 +311,8 @@ export function resetTarget(
 }
 
 /**
- * Every key bound to `from`, in every scope, moved to `to` — or, with null,
- * let go (a renamed or deleted macro).
+ * Every key (and gesture) bound to `from`, in every scope, moved to `to` — or,
+ * with null, let go (a renamed or deleted macro).
  */
 export function retargetKeys(
   config: KeymapConfig,
@@ -331,7 +332,7 @@ export function retargetKeys(
     const layer = config.contexts?.[context];
     if (layer) next = withScope(next, context, move(layer));
   }
-  return next;
+  return retargetGestures(next, from, to);
 }
 
 /** The label a target is drawn with: the command's, or the macro's name. */

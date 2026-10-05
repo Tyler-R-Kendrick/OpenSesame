@@ -26,6 +26,7 @@ import { IconKey, ReloadKey } from "../../components/IconKey.js";
 import { IconArrowRight, IconLogin } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useOnline } from "../../lib/use-online.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
 export const hostedRequestsSeams = { list: () => listHostedRequests() };
 
@@ -95,8 +96,10 @@ export function HostedRequestsPanel() {
   const { connect, connecting } = useConnect();
   const { inbox, busy, load } = useHostedInbox();
   const count = inbox?.kind === "rows" ? inbox.rows.length : null;
+  const panelRef = useGuideTarget<HTMLElement>("access.relay");
   return (
     <section
+      ref={panelRef}
       className="panel"
       id="hosted-requests"
       aria-label={APPROVAL_LABELS.inbox}

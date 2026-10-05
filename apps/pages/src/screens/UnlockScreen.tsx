@@ -26,6 +26,7 @@ import {
 } from "@opensesame/app-core/lib/vaults.js";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { FailureNotice } from "../components/FailureNotice.js";
+import { GateTools } from "../components/GateTools.js";
 import { IconKey } from "../components/IconKey.js";
 import {
   IconArrowRight,
@@ -36,12 +37,10 @@ import {
   IconSettings,
   IconShield,
 } from "../components/Icons.js";
-import { ThemeToggle } from "../components/ThemeToggle.js";
 import { Wordmark } from "../components/Wordmark.js";
 import { checkForAppUpdate } from "../lib/pwa-update.js";
 import { useVault, useVaultStore } from "../lib/vault/hooks.js";
-import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
-import { useSupportRoute } from "../tutorial/session.js";
+import { GuideTarget } from "../tutorial/registry/react.jsx";
 import { FrontDoor } from "./FrontDoor.js";
 import { SetupScreen, type SetupStep } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
@@ -74,6 +73,7 @@ import {
 } from "./unlock/unlock-method-tabs.js";
 import { useFederatedProviders } from "./unlock/use-federated-providers.js";
 import { usePasskeyCeremony } from "./unlock/use-passkey-ceremony.js";
+import { useUnlockRoute, useUnlockTargets } from "./unlock/use-unlock-gate.js";
 import { useCountdown } from "./unlock/useCountdown.js";
 import "./unlock.css";
 
@@ -161,11 +161,8 @@ function UnlockForm({
   /** Back to the front door: every vault on this device (ADR 0089). */
   onOpenVaults: () => void;
 }) {
-  useSupportRoute("/unlock");
-  const submitRef = useGuideTarget<HTMLButtonElement>("unlock.submit");
-  const secretRef = useGuideTarget<HTMLInputElement>("unlock.secret");
-  const passkeyRef = useGuideTarget<HTMLButtonElement>("unlock.passkey");
-  const setupRef = useGuideTarget<HTMLButtonElement>("unlock.setup");
+  const { submitRef, secretRef, passkeyRef, setupRef, methodsRef } =
+    useUnlockTargets();
   const {
     status,
     tomb,
@@ -241,6 +238,8 @@ function UnlockForm({
   // The duress code reuses the PIN field after a passkey unlock.
   const showsPrimaryField =
     !awaitingSecondStep && methods.includes(activeMethod);
+  const keyed = showMethodTabs && showsPrimaryField;
+  useUnlockRoute(signInStage, showSignIn, keyed ? activeMethod : "");
   const showsPinField =
     !awaitingSecondStep &&
     (awaitingPasskeyDuressCode ||
@@ -424,7 +423,7 @@ function UnlockForm({
         <div className="unlock__brand">
           <Wordmark className="unlock__wordmark" size={28} replay />
           <div className="unlock__brand-tools">
-            <ThemeToggle />
+            <GateTools />
           </div>
         </div>
         <div className="unlock__heading">
@@ -543,6 +542,7 @@ function UnlockForm({
 
             {showMethodTabs ? (
               <div
+                ref={methodsRef}
                 className="unlock__methods"
                 role="tablist"
                 aria-label="Unlock method"

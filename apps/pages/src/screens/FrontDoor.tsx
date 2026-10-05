@@ -21,9 +21,9 @@
 import { clearAuthOutcome } from "@opensesame/app-core/lib/auth-outcome.js";
 import { continueAsGuest } from "@opensesame/app-core/lib/guest-auth.js";
 import { useEffect, useRef, useState } from "react";
+import { GateTools } from "../components/GateTools.js";
 import { IconAuthority } from "../components/Icons.js";
 import { StatusMark } from "../components/StatusMark.js";
-import { ThemeToggle } from "../components/ThemeToggle.js";
 import { Wordmark } from "../components/Wordmark.js";
 import { landFocus } from "../lib/focus.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
@@ -46,7 +46,7 @@ export function FrontDoor({
   /** Join a session: a live one browser to browser (ADR 0150), or a Host's. */
   onOpenJoin: () => void;
 }) {
-  useSupportRoute("/unlock");
+  useSupportRoute("/unlock/door");
   const setupRef = useGuideTarget<HTMLButtonElement>("unlock.setup");
   const firstRoad = useRef<HTMLButtonElement | null>(null);
   const [busy, setBusy] = useState(false);
@@ -113,7 +113,7 @@ export function FrontDoor({
         </fieldset>
 
         <div className="door__theme">
-          <ThemeToggle tabIndex={-1} />
+          <GateTools tabIndex={-1} />
         </div>
 
         {guestFailed ? <StatusMark tone="err" label={guestFailed} /> : null}

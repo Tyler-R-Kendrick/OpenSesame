@@ -13,8 +13,11 @@
  * it.
  */
 
+import { describeAccount } from "../../lib/account.js";
+import { isRemoteIdentityConfigured } from "../../lib/device-identity.js";
 import { currentSession } from "../../lib/identity.js";
 import { vaultStore } from "../../lib/vault/store.js";
+import { listAvailableUnlockMethods } from "../../lib/vault/unlock-methods.js";
 import { isOnline, page } from "../../ports.js";
 import {
   type GuideRouteId,
@@ -42,6 +45,58 @@ export function noteGuideConnectionsPresent(present: boolean): void {
   announceGuideStateChange();
 }
 
+let installOffer: () => boolean = () => false;
+
+/**
+ * Where the shell says whether Settings draws an install to make or report.
+ * That state lives in Pages (the browser's install signals), so the shell
+ * hands the registry its reader instead of the registry importing a screen.
+ */
+export function provideGuideInstallOffer(read: () => boolean): void {
+  installOffer = read;
+}
+
+/** How this device draws the shell, as the shell last said it. */
+export type GuideDeviceForm = Readonly<{
+  /** Below the one-pane breakpoint: a menu key and a More key, no rail. */
+  narrow: boolean;
+  /** A precise pointer is attached, so Settings draws Keybindings. */
+  keys: boolean;
+}>;
+
+let deviceForm: () => GuideDeviceForm = () => ({ narrow: false, keys: true });
+
+/**
+ * Where the shell says how it is drawn. The width and the pointer live in the
+ * browser, so the shell hands the registry its reader instead of the registry
+ * asking the window; absent, the page is a desktop with a keyboard.
+ */
+export function provideGuideDeviceForm(read: () => GuideDeviceForm): void {
+  deviceForm = read;
+}
+
+/** The plugin panels the active plugin capabilities draw, by plugin id. */
+const pluginPanels = new Map<string, () => boolean>();
+
+/**
+ * A plugin capability says whether its panel is drawn, which depends on a
+ * paired daemon or the means to pair one. Returns what undoes it, so a
+ * capability that is no longer in the plan stops answering.
+ */
+export function provideGuidePluginPanel(
+  plugin: string,
+  read: () => boolean,
+): () => void {
+  pluginPanels.set(plugin, read);
+  return () => {
+    if (pluginPanels.get(plugin) === read) pluginPanels.delete(plugin);
+  };
+}
+
+function pluginPanelDrawn(plugin: string): boolean {
+  return pluginPanels.get(plugin)?.() === true;
+}
+
 function currentRoute(): GuideRouteId {
   return guideRouteForPath(page().location.pathname);
 }
@@ -66,6 +121,20 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
       "The vault is showing no items at all. True while it is locked, because nothing is decrypted to show.",
     read: () =>
       vaultStore.getSnapshot().items.every((item) => item.deletedAt !== null),
+  },
+  {
+    id: "vault.has-items",
+    description:
+      "The open vault holds at least one item outside the trash. False while it is locked.",
+    read: () =>
+      vaultStore.getSnapshot().items.some((item) => item.deletedAt === null),
+  },
+  {
+    id: "vault.has-trash",
+    description:
+      "The open vault has at least one item in the trash. False while it is locked.",
+    read: () =>
+      vaultStore.getSnapshot().items.some((item) => item.deletedAt !== null),
   },
   {
     id: "route.vault",
@@ -114,6 +183,31 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
     read: () => currentSession() !== null,
   },
   {
+    id: "account.signed-in",
+    description:
+      "An account is signed in on this device, a guest included: the account menu has an account to sign out of.",
+    read: () => describeAccount() !== null,
+  },
+  {
+    id: "signin-service.configured",
+    description:
+      "A sign-in service address is set, so email and text codes can be sent.",
+    read: isRemoteIdentityConfigured,
+  },
+  {
+    id: "vault.key-enrolled",
+    description:
+      "This vault has a key enrolled (password, PIN or passkey), so a second step has a key to guard.",
+    read: () =>
+      listAvailableUnlockMethods(vaultStore.getSnapshot().header).length > 0,
+  },
+  {
+    id: "install.offered",
+    description:
+      "Settings draws an Install panel: this browser has an install to offer or to report that the one-gesture dialog does not cover.",
+    read: () => installOffer(),
+  },
+  {
     id: "connections.any",
     description:
       "The Connections section is showing at least one connection that has not been revoked.",
@@ -123,6 +217,42 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
     id: "network.online",
     description: "This browser believes it has a network.",
     read: () => isOnline(),
+  },
+  {
+    id: "shell.wide",
+    description:
+      "The shell is wide enough for the section rail and the statusline. Below 900px it draws one pane, with a Sections key and a More key in the top bar instead.",
+    read: () => !deviceForm().narrow,
+  },
+  {
+    id: "shell.narrow",
+    description:
+      "The shell is drawn one pane at a time, with a Sections key and a More key in the top bar and no rail or statusline.",
+    read: () => deviceForm().narrow,
+  },
+  {
+    id: "shell.keys",
+    description:
+      "A precise pointer is attached, so Settings draws the Keybindings category.",
+    read: () => deviceForm().keys,
+  },
+  {
+    id: "vault.recovery-made",
+    description:
+      "This vault has recovery codes, so Settings › Security draws a Recovery row.",
+    read: () => Boolean(vaultStore.getSnapshot().header?.unlocks?.recovery),
+  },
+  {
+    id: "plugin.surrogate-proxy.panel",
+    description:
+      "Settings › Capabilities draws the surrogate proxy's panel: a daemon is paired, or this device may pair one.",
+    read: () => pluginPanelDrawn("surrogate-proxy"),
+  },
+  {
+    id: "plugin.browser-autofill.panel",
+    description:
+      "Settings › Capabilities draws the autofill extension's panel: a daemon is paired, or this device may pair one.",
+    read: () => pluginPanelDrawn("browser-autofill"),
   },
 ];
 

@@ -46,6 +46,13 @@
   outline: none;
 }
 
+/* The form's ring is this field's focus mark. The global input underline
+   would draw a second one inside it. */
+.command-bar__input:focus-visible {
+  border-bottom-color: transparent;
+  box-shadow: none;
+}
+
 .command-bar__form:focus-within {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
@@ -269,5 +276,15 @@
   .command-bar {
     padding-left: calc(0.75rem + env(safe-area-inset-left));
     padding-right: calc(0.75rem + env(safe-area-inset-right));
+  }
+}
+
+/* The shared field focus is an ink underline under the input; the command bar
+   already draws its focus as the accent ring around the whole form, and the
+   underline showed as a second, shorter rule inside it. */
+@media (max-width: 900px) {
+  .command-bar__input:focus-visible {
+    border-bottom-color: transparent;
+    box-shadow: none;
   }
 }

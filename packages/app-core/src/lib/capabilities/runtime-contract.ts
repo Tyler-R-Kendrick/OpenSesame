@@ -216,7 +216,14 @@ export type CommandAssistContribution = Readonly<{
 export type VaultCommandContribution = Readonly<{
   id: string;
   order: number;
+  /** The icon key in a desktop list's path strip. */
   Command: ComponentType;
+  /**
+   * The same flow as a way to add, for a phone: mounted beside the corner Add
+   * button, it registers a menu entry (the long-press and ellipsis menu on that
+   * button) and draws its own sheet, and draws nothing else.
+   */
+  Entry?: ComponentType;
 }>;
 
 export type BackgroundJobContribution = Readonly<{
@@ -244,10 +251,17 @@ export type UnlockEffectContribution = Readonly<{
  *
  * Wrappers nest by `order`, lowest outermost, then by `id`, so two
  * capabilities arriving in either sequence produce the same tree.
+ *
+ * `Gate` is the same capability's part of the screens in front of the shell —
+ * the front door, unlock, setup, join, the broker popup and the federation
+ * return (ADR 0166). It is drawn *beside* the screen, never around it, so a
+ * capability arriving or leaving cannot remount the screen it sits beside; the
+ * core owns the seat it draws into and the route the screen declares.
  */
 export type ShellWrapperContribution = Readonly<{
   id: string;
   Wrapper: ComponentType<{ children?: ReactNode }>;
+  Gate?: ComponentType;
   order: number;
 }>;
 

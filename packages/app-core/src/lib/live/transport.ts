@@ -33,7 +33,9 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { toB64url } from "./b64.js";
+import type { NatsCredential } from "./nats-credentials.js";
 import {
+  type CarrierSetting,
   type CarrierSpec,
   type Errors,
   type IceServerSetting,
@@ -52,6 +54,7 @@ import {
 export {
   CARRIER_KINDS,
   type CarrierKind,
+  type CarrierSetting,
   type CarrierSpec,
   type IceServerSetting,
   type IceServerSpec,
@@ -86,7 +89,7 @@ export type LiveTransport = Readonly<{
   addresses: readonly string[];
   ice: readonly IceServerSetting[];
   relay: boolean;
-  carriers: readonly CarrierSpec[];
+  carriers: readonly CarrierSetting[];
 }>;
 
 export const DIRECT_TRANSPORT: LiveTransport = {
@@ -123,6 +126,20 @@ export function carrierKey(carrier: CarrierSpec): string {
   return `${carrier.kind} ${carrier.url}`;
 }
 
+/** About what a minted joiner credential weighs in a link. */
+const MINTED_PREVIEW = {
+  jwt: `${"a".repeat(60)}.${"b".repeat(900)}.${"c".repeat(86)}`,
+  seed: `SU${"A".repeat(56)}`,
+} satisfies NatsCredential;
+
+/** A carrier as a link carries it: a signing key becomes a credential. */
+function linkCarrier(
+  { mint, ...carrier }: CarrierSetting,
+  minted: Readonly<{ jwt: string; seed: string }> | null,
+): CarrierSpec {
+  return mint && minted ? { ...carrier, ...minted } : carrier;
+}
+
 /** What a link would carry of a profile, with a minted credential's length. */
 function previewRoutes(transport: LiveTransport): LiveRoutes {
   return {
@@ -136,7 +153,9 @@ function previewRoutes(transport: LiveTransport): LiveRoutes {
         : server,
     ),
     relay: transport.relay,
-    carriers: transport.carriers,
+    carriers: transport.carriers.map((carrier) =>
+      linkCarrier(carrier, MINTED_PREVIEW),
+    ),
   };
 }
 
@@ -162,7 +181,8 @@ export function carriesCredentials(transport: LiveTransport): boolean {
       (server) => !server.secret && (server.username || server.credential),
     ) ||
     transport.carriers.some(
-      (carrier) => carrier.username || carrier.password || carrier.token,
+      (carrier) =>
+        carrier.username || carrier.password || carrier.token || carrier.jwt,
     )
   );
 }
@@ -193,7 +213,7 @@ export function readTransport(value: BoundaryValue): TransportRead {
   );
   const carriers = unique(
     list(value.carriers, "carriers", MAX_CARRIERS, errors)
-      .map((entry, at) => readCarrier(entry, `carriers[${at}]`, errors))
+      .map((entry, at) => readCarrier(entry, `carriers[${at}]`, errors, true))
       .filter((entry) => entry !== null),
     carrierKey,
   );
@@ -273,16 +293,63 @@ export async function iceServersFor(
   );
 }
 
+/** A session's routes: what its link carries, and what the owner's tab opens. */
+export type SessionRoutes = Readonly<{
+  link: LiveRoutes;
+  own: readonly CarrierSpec[];
+}>;
+
+/**
+ * What a session's link carries of the owner's profile (`link`), and the
+ * carriers the owner's own tab opens (`own`). A NATS signing key mints two
+ * credentials scoped to the session's `topic` and expiring with it: the
+ * joiner's goes in the link, the owner's stays here (ADR 0167). The minting
+ * code loads only for a profile that names a signing key.
+ */
+export async function sessionRoutes(
+  transport: LiveTransport,
+  expiresAt: number,
+  topic: string,
+): Promise<SessionRoutes> {
+  const minting = transport.carriers.some((carrier) => carrier.mint);
+  const mint = minting
+    ? (await import("./nats-credentials.js")).mintNatsCredential
+    : null;
+  const link: CarrierSpec[] = [];
+  const own: CarrierSpec[] = [];
+  for (const carrier of transport.carriers) {
+    if (!carrier.mint || !mint) {
+      link.push(linkCarrier(carrier, null));
+      own.push(linkCarrier(carrier, null));
+      continue;
+    }
+    link.push(
+      linkCarrier(
+        carrier,
+        await mint(carrier.mint, "joiner", topic, expiresAt),
+      ),
+    );
+    own.push(
+      linkCarrier(carrier, await mint(carrier.mint, "owner", topic, expiresAt)),
+    );
+  }
+  return {
+    link: {
+      ice: await iceServersFor(transport.ice, expiresAt),
+      relay: transport.relay,
+      carriers: link,
+    },
+    own,
+  };
+}
+
 /** What a session's link carries of the owner's profile. */
 export async function routesFor(
   transport: LiveTransport,
   expiresAt: number,
+  topic = "",
 ): Promise<LiveRoutes> {
-  return {
-    ice: await iceServersFor(transport.ice, expiresAt),
-    relay: transport.relay,
-    carriers: transport.carriers,
-  };
+  return (await sessionRoutes(transport, expiresAt, topic)).link;
 }
 
 /** The host part of a stun:/turn: URL. */

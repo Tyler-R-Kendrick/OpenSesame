@@ -1,11 +1,17 @@
+import {
+  type LibraryOptions,
+  goalOffered,
+  tutorialStartsFrom,
+} from "@opensesame/app-core/tutorial/registry/areas.js";
 import { searchHelpTopics } from "@opensesame/app-core/tutorial/registry/goals-search.js";
 import {
-  GUIDE_GOALS,
   type GuideGoalDescriptor,
+  type HelpTopic,
   guideGoal,
   helpTopicsForRoute,
+  mergedGuideGoals,
 } from "@opensesame/app-core/tutorial/registry/goals.js";
-import { guideRouteWithin } from "@opensesame/app-core/tutorial/registry/routes.js";
+import { scopeApplies } from "@opensesame/app-core/tutorial/registry/routes.js";
 import {
   type ReactElement,
   useCallback,
@@ -21,12 +27,14 @@ import { useSupport } from "../session.js";
 import { SupportComposer } from "./SupportComposer.js";
 import "../support.css";
 import { RemoteSupportPreview } from "./RemoteSupportPreview.js";
-import { Availability, GuideStatus } from "./SupportPanelChrome.js";
+import { Availability } from "./SupportPanelChrome.js";
 import {
   SupportQuestions,
   questionsFromGoals,
   questionsFromTopics,
 } from "./SupportQuestions.js";
+import { SupportTutorials } from "./SupportTutorials.js";
+import { useTutorialGate } from "./use-tutorial-gate.js";
 
 const SPEAKER = {
   question: "you",
@@ -47,12 +55,43 @@ const SPOKEN_SPEAKER = {
   note: "note",
 } satisfies Record<SupportEntry["kind"], string>;
 
-function goalsForRoute(route: string): readonly GuideGoalDescriptor[] {
-  return GUIDE_GOALS.filter(
+/**
+ * The scenarios this route offers: the goals that fit the screen, minus the
+ * ones only the library lists, and only those the Tutorials tab would offer
+ * too (`useTutorialGate`) — a tour of a section that is not drawn, or of a
+ * row this device has no use for, is not a question to ask.
+ */
+function goalsForRoute(
+  route: string,
+  gate: LibraryOptions,
+): readonly GuideGoalDescriptor[] {
+  return mergedGuideGoals().filter(
     (goal) =>
-      goal.routes.length === 0 ||
-      goal.routes.some((candidate) => guideRouteWithin(route, candidate)),
+      goal.libraryOnly !== true &&
+      goalOffered(goal, gate) &&
+      scopeApplies(goal.routes, route),
   );
+}
+
+/**
+ * The written help worth listing on `route`: a topic whose tutorial is not
+ * offered is dropped, and one whose tutorial cannot start from this screen
+ * keeps its written answer without a Show me — a search reaches every topic,
+ * and a gate cannot start the shell's tours (ADR 0166).
+ */
+function topicsHere(
+  topics: readonly HelpTopic[],
+  route: string,
+  gate: LibraryOptions,
+): readonly HelpTopic[] {
+  return topics.flatMap((topic) => {
+    const named = topic.goal ? guideGoal(topic.goal) : null;
+    if (named === null) return [topic];
+    if (!goalOffered(named, gate)) return [];
+    return [
+      tutorialStartsFrom(named, route) ? topic : { ...topic, goal: null },
+    ];
+  });
 }
 
 /**
@@ -77,13 +116,22 @@ export function SupportPanel(): ReactElement {
   useModalFocus(true, sheetRef, closeRef, close);
 
   const [query, setQuery] = useState("");
+  const [tab, setTab] = useState<"ask" | "tutorials">("ask");
 
+  const gate = useTutorialGate();
   const topics = useMemo(
     () =>
-      query.trim() ? searchHelpTopics(query) : helpTopicsForRoute(view.route),
-    [query, view.route],
+      topicsHere(
+        query.trim() ? searchHelpTopics(query) : helpTopicsForRoute(view.route),
+        view.route,
+        gate,
+      ),
+    [query, view.route, gate],
   );
-  const goals = useMemo(() => goalsForRoute(view.route), [view.route]);
+  const goals = useMemo(
+    () => goalsForRoute(view.route, gate),
+    [view.route, gate],
+  );
 
   const availability = view.availability;
   // Asking must work with no local model: refuseUntrustedProposal and authored
@@ -92,7 +140,7 @@ export function SupportPanel(): ReactElement {
 
   const questions = useMemo(() => {
     const fromTopics = questionsFromTopics(topics, support, canAsk);
-    const covered = new Set(topics.map((topic) => topic.goal));
+    const covered = new Set(topics.flatMap((topic) => topic.goal ?? []));
     const fromGoals = query.trim()
       ? []
       : questionsFromGoals(goals, covered, support, canAsk);
@@ -139,113 +187,164 @@ export function SupportPanel(): ReactElement {
             availability={availability}
             onAcquire={() => void support.acquireModel()}
           />
-          <GuideStatus />
 
-          {/* The region is always here, even while empty. A live region created
+          <div className="support__tabs" role="tablist" aria-label="Support">
+            {(["ask", "tutorials"] as const).map((id) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                id={`support-tab-${id}`}
+                aria-selected={tab === id}
+                aria-controls={`support-panel-${id}`}
+                tabIndex={tab === id ? 0 : -1}
+                className={`support__tab${tab === id ? " is-active" : ""}`}
+                onClick={() => setTab(id)}
+                onKeyDown={(event) => {
+                  if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") {
+                    return;
+                  }
+                  event.preventDefault();
+                  const next = id === "ask" ? "tutorials" : "ask";
+                  setTab(next);
+                  document.getElementById(`support-tab-${next}`)?.focus();
+                }}
+              >
+                {id === "ask" ? "Ask" : "Tutorials"}
+              </button>
+            ))}
+          </div>
+
+          {tab === "tutorials" ? (
+            <div
+              role="tabpanel"
+              id="support-panel-tutorials"
+              aria-labelledby="support-tab-tutorials"
+            >
+              <SupportTutorials
+                query={query}
+                route={view.route}
+                support={support}
+              />
+            </div>
+          ) : (
+            <div
+              className="support__ask"
+              role="tabpanel"
+              id="support-panel-ask"
+              aria-labelledby="support-tab-ask"
+            >
+              {/* The region is always here, even while empty. A live region created
               in the same paint as its first message is not reliably announced,
               which would lose exactly the turn that matters most: the first
               question somebody asks and the answer they get back. */}
-          <section
-            className="support__thread"
-            aria-label="Conversation"
-            aria-live="polite"
-          >
-            {view.transcript.map((entry) => (
-              <article
-                key={entry.id}
-                className={`support__line support__line--${entry.kind}`}
-                aria-label={SPOKEN_SPEAKER[entry.kind]}
+              <section
+                className="support__thread"
+                aria-label="Conversation"
+                aria-live="polite"
               >
-                <span className="support__who" aria-hidden="true">
-                  {SPEAKER[entry.kind]}
-                </span>
-                <p className="support__text">{entry.text}</p>
-                {entry.thoughts ? (
-                  <details className="support__trace" aria-live="off">
-                    <summary>Thoughts</summary>
-                    <p className="support__trace-body">{entry.thoughts}</p>
-                  </details>
-                ) : null}
-                {entry.computer.length > 0 ? (
-                  <details className="support__trace" aria-live="off">
-                    <summary>Computer</summary>
-                    <ol className="support__computer">
-                      {entry.computer.map((step, index) => (
-                        <li key={`${step.title}:${index}`}>
-                          <span className="support__computer-title">
-                            {step.title}
-                          </span>
-                          {step.detail ? (
-                            <p className="support__computer-detail">
-                              {step.detail}
-                            </p>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ol>
-                  </details>
-                ) : null}
-                {entry.walkthroughs.length > 0 ? (
-                  <div className="support__suggestions">
-                    {entry.walkthroughs.map((walkthrough) => {
-                      const named = guideGoal(walkthrough.goal);
-                      if (!named) return null;
-                      return (
-                        <button
-                          key={walkthrough.goal}
-                          type="button"
-                          className="btn btn--sm choice"
-                          onClick={() =>
-                            void support.startGuide(named.guide, "authored")
-                          }
-                        >
-                          Show me: {walkthrough.title}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-                {entry.suggestions.length > 0 ? (
-                  <div className="support__suggestions">
-                    {entry.suggestions.map((suggestion) => (
-                      <button
-                        key={suggestion}
-                        type="button"
-                        className="btn btn--sm btn--ghost"
-                        disabled={!canAsk}
-                        onClick={() => void support.ask(suggestion)}
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </article>
-            ))}
-          </section>
+                {view.transcript.map((entry) => (
+                  <article
+                    key={entry.id}
+                    className={`support__line support__line--${entry.kind}`}
+                    aria-label={SPOKEN_SPEAKER[entry.kind]}
+                  >
+                    <span className="support__who" aria-hidden="true">
+                      {SPEAKER[entry.kind]}
+                    </span>
+                    <p className="support__text">{entry.text}</p>
+                    {entry.thoughts ? (
+                      <details className="support__trace" aria-live="off">
+                        <summary>Thoughts</summary>
+                        <p className="support__trace-body">{entry.thoughts}</p>
+                      </details>
+                    ) : null}
+                    {entry.computer.length > 0 ? (
+                      <details className="support__trace" aria-live="off">
+                        <summary>Computer</summary>
+                        <ol className="support__computer">
+                          {entry.computer.map((step, index) => (
+                            <li key={`${step.title}:${index}`}>
+                              <span className="support__computer-title">
+                                {step.title}
+                              </span>
+                              {step.detail ? (
+                                <p className="support__computer-detail">
+                                  {step.detail}
+                                </p>
+                              ) : null}
+                            </li>
+                          ))}
+                        </ol>
+                      </details>
+                    ) : null}
+                    {entry.walkthroughs.length > 0 ? (
+                      <div className="support__suggestions">
+                        {entry.walkthroughs.map((walkthrough) => {
+                          const named = guideGoal(walkthrough.goal);
+                          if (!named) return null;
+                          return (
+                            <button
+                              key={walkthrough.goal}
+                              type="button"
+                              className="btn btn--sm choice"
+                              onClick={() =>
+                                void support.startGuide(named.guide, "authored")
+                              }
+                            >
+                              Show me: {walkthrough.title}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                    {entry.suggestions.length > 0 ? (
+                      <div className="support__suggestions">
+                        {entry.suggestions.map((suggestion) => (
+                          <button
+                            key={suggestion}
+                            type="button"
+                            className="btn btn--sm btn--ghost choice"
+                            disabled={!canAsk}
+                            onClick={() => void support.ask(suggestion)}
+                          >
+                            {suggestion}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+              </section>
 
-          {view.transcript.length > 0 ? (
-            <div className="actions">
-              <IconKey
-                label="Clear conversation"
-                small
-                onClick={() => support.clear()}
-              >
-                <IconTrash size={16} />
-              </IconKey>
+              {view.transcript.length > 0 ? (
+                <div className="actions">
+                  <IconKey
+                    label="Clear conversation"
+                    small
+                    onClick={() => support.clear()}
+                  >
+                    <IconTrash size={16} />
+                  </IconKey>
+                </div>
+              ) : null}
+
+              {view.thinking ? (
+                <div className="support__pending">
+                  <output className="support__pending-read">Thinking…</output>
+                  <IconKey
+                    label="Cancel"
+                    small
+                    onClick={() => support.cancel()}
+                  >
+                    <IconX size={16} />
+                  </IconKey>
+                </div>
+              ) : null}
+
+              <SupportQuestions questions={questions} />
             </div>
-          ) : null}
-
-          {view.thinking ? (
-            <div className="support__pending">
-              <output className="support__pending-read">Thinking…</output>
-              <IconKey label="Cancel" small onClick={() => support.cancel()}>
-                <IconX size={16} />
-              </IconKey>
-            </div>
-          ) : null}
-
-          <SupportQuestions questions={questions} />
+          )}
         </div>
         <div className="sheet__foot">
           <SupportComposer query={query} onQueryChange={setQuery} />

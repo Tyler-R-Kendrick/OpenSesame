@@ -32,6 +32,7 @@ import {
 } from "./lib/vault/hooks.js";
 import { FederationReturn as DefaultFederationReturn } from "./screens/FederationReturn.js";
 import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
+import { GateHost } from "./tutorial/gate-seat.js";
 
 import { useComposition } from "./bindings/capabilities.js";
 import { useRegistryContributions as defaultUseContributions } from "./bindings/contributions.js";
@@ -264,7 +265,11 @@ function VaultApp() {
   );
 
   if (status !== "unlocked") {
-    return <slots.UnlockScreen />;
+    return (
+      <GateHost wrappers={wrappers}>
+        <slots.UnlockScreen />
+      </GateHost>
+    );
   }
 
   // Mounting before the unlock's own generation has activated builds the
@@ -329,6 +334,7 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   const resolved = { ...defaultSlots, ...slots };
   const location = useLocation();
   const routes = resolved.useRouteContributions();
+  const wrappers = resolved.useShellWrappers();
   const { status } = resolved.useVault();
   const isAuthCallback = resolved.hasAuthResponse(location.search);
   useEffect(() => activatePlan(compositionStore), []);
@@ -337,9 +343,13 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
     ? null
     : ungatedRoute(routes, location.pathname, status === "unlocked");
   const body = isAuthCallback ? (
-    <resolved.FederationReturn />
+    <GateHost wrappers={wrappers}>
+      <resolved.FederationReturn />
+    </GateHost>
   ) : ungated ? (
-    <UngatedRoute route={ungated} />
+    <GateHost wrappers={wrappers}>
+      <UngatedRoute route={ungated} />
+    </GateHost>
   ) : (
     <VaultApp />
   );

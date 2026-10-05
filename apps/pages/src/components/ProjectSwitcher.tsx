@@ -21,7 +21,10 @@ import {
   setActiveProject,
   subscribeProjects,
 } from "@opensesame/app-core/lib/projects.js";
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import {
+  GUEST_TOMB,
+  vaultStore,
+} from "@opensesame/app-core/lib/vault/store.js";
 import {
   type DeviceVault,
   enterActiveProjectScope,
@@ -29,12 +32,16 @@ import {
   switchToGuest,
   vaultLabel,
 } from "@opensesame/app-core/lib/vaults.js";
-import { useState, useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router";
+import { isTouchPointer } from "../lib/gestures.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { FailureNotice } from "./FailureNotice.js";
+import { GlyphMark } from "./GlyphMark.js";
 import { IconPlus } from "./Icons.js";
 import { VaultList } from "./VaultList.js";
+import { glyphStandsForName } from "./prompt-glyph.js";
+import { useHold } from "./use-hold.js";
 
 import { useDeviceVaults } from "../bindings/vaults.js";
 function ProjectSwitcherDefault() {
@@ -57,6 +64,26 @@ function ProjectSwitcherDefault() {
     setDraftName("");
     setError(null);
   }
+
+  // Held, the segment does what pressing it does: the list of vaults, by name.
+  const hold = useHold(
+    useCallback(() => setOpen(true), []),
+    glyphStandsForName,
+  );
+  const bindSegment = useCallback(
+    (element: HTMLButtonElement | null) => {
+      promptRef(element);
+      hold.bind(element);
+    },
+    [promptRef, hold.bind],
+  );
+  // A duress decoy is isolated like a guest but drawn as the vault it was typed at.
+  const guestShown = guestOpen && !snapshot.decoy;
+  const name = guestShown
+    ? guestVaultLabel()
+    : active
+      ? vaultLabel(active)
+      : "personal";
 
   async function swap(vault: DeviceVault): Promise<void> {
     if (vault.state === "open") {
@@ -96,19 +123,34 @@ function ProjectSwitcherDefault() {
   return (
     <div className="project-switcher">
       <button
-        ref={promptRef}
+        ref={bindSegment}
         type="button"
-        className="prompt__seg prompt__seg--tomb"
+        className="prompt__seg prompt__seg--tomb prompt__seg--glyph"
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-label={name}
         title="Switch vault"
-        onClick={() => (open ? close() : setOpen(true))}
+        onClick={() => {
+          if (hold.consumeHold()) return;
+          if (open) close();
+          else setOpen(true);
+        }}
+        onContextMenu={(event) => {
+          // A finger held here is asking for the vaults, not for the
+          // session menu the prompt answers a right-click with.
+          if (!isTouchPointer() || !glyphStandsForName(event.currentTarget))
+            return;
+          event.preventDefault();
+          event.stopPropagation();
+          setOpen(true);
+        }}
       >
-        {guestOpen
-          ? guestVaultLabel()
-          : active
-            ? vaultLabel(active)
-            : "personal"}
+        <GlyphMark
+          className="prompt__glyph"
+          kind="vault"
+          id={guestShown ? GUEST_TOMB : (active?.id ?? "personal")}
+        />
+        <span className="prompt__name">{name}</span>
       </button>
 
       {open ? (
@@ -116,7 +158,9 @@ function ProjectSwitcherDefault() {
           {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop mirrors Escape, handled on the menu */}
           <div
             className="project-switcher__backdrop"
-            onClick={close}
+            onClick={() => {
+              if (!hold.consumeHold()) close();
+            }}
             aria-hidden="true"
           />
           <div

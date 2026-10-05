@@ -25,6 +25,7 @@ import {
   captureClaimArrivalFromPage,
 } from "@opensesame/app-core/lib/claims/arrival.js";
 import { captureDeviceLinkFromPage } from "@opensesame/app-core/lib/device-link.js";
+import { resumeWipeAtBoot } from "@opensesame/app-core/lib/duress/wipe/real.js";
 import { captureInteractionArrivalFromPage } from "@opensesame/app-core/lib/interactions-link.js";
 import { captureInvocationArrivalFromPage } from "@opensesame/app-core/lib/invoke-link.js";
 import {
@@ -43,6 +44,8 @@ import {
   type ParsedRuntimeConfig,
   loadRuntimeConfig,
 } from "@opensesame/app-core/lib/runtime-config.js";
+import { restorePacks } from "@opensesame/app-core/lib/type-packs/restore.js";
+import { watchVaultTypes } from "@opensesame/app-core/lib/type-packs/watch.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   migrateLegacyVaultStorage,
@@ -108,7 +111,14 @@ export async function bootCore(): Promise<CoreBoot> {
   // static deploy still knows its Identity API without a rebuild.
   const runtimeConfig = await loadRuntimeConfig();
   await kvHydrate([...CORE_BOOT_KEYS]);
+  // The item types this device switched on come back from their sealed copy,
+  // with no request, before anything draws a type (ADR 0165).
+  await restorePacks();
   rehydrateProjects();
+  // A duress wipe the page died in finishes before any header is read, so a
+  // vault it had already unlisted is never offered at the unlock screen
+  // (ADR 0168). Nothing happens when none began.
+  await resumeWipeAtBoot();
   // The active project's plaintext boundary is what legacy storage migrates
   // into. But the tomb the unlock screen will ask about is the guest tomb
   // when that was the last authorized account (AGENTS.md §5), so its header
@@ -136,6 +146,8 @@ export async function bootCore(): Promise<CoreBoot> {
   // bytes); sealed config migrates on unlock.
   await migrateLegacyVaultStorage(tomb);
   vaultStore.rehydrate();
+  // Types the open vault holds items of stay available whatever is switched on.
+  const stopTypes = watchVaultTypes(vaultStore);
   bootstrapTheme();
 
   await ensureInstallationId();
@@ -147,6 +159,10 @@ export async function bootCore(): Promise<CoreBoot> {
       now: bootSeams.now(),
     }),
   });
-  const stopWatching = startInvalidationWatch(compositionStore);
+  const stopInvalidation = startInvalidationWatch(compositionStore);
+  const stopWatching = () => {
+    stopTypes();
+    stopInvalidation();
+  };
   return { runtimeConfig, stopWatching };
 }

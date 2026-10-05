@@ -104,6 +104,10 @@ export const VAULT_LIB_RULES = [
 
 export const TUTORIAL_RULES = [
   shared(
+    `${T}gate-seat`,
+    "the seat a gate screen keeps for the help key, and the host that holds it; core screens import it, the capability draws into it (ADR 0166)",
+  ),
+  shared(
     `${T}registry/`,
     "target/route/predicate registration hooks used by core chrome",
   ),
@@ -131,10 +135,13 @@ export const TUTORIAL_RULES = [
   ...each(
     T,
     [
-      "rendering/",
+      "coach/",
+      "engine",
+      "tour-runner",
       "ui/",
       "__tests__/",
       "session",
+      "use-support-route",
       "ask-guard",
       "choose-agent",
       "support-access",
@@ -145,7 +152,7 @@ export const TUTORIAL_RULES = [
       optional(
         p,
         HELP,
-        "support panel, Driver.js renderer, session; session MIXED",
+        "support panel, tutorial HUD, tour engine, session; session MIXED",
       ),
   ),
   optional(

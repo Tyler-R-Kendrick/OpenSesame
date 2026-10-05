@@ -1,0 +1,53 @@
+{
+  "description": "Golden vectors for the glyph generator (ADR 0164). Seed = opensesame:glyph:v1:<kind>:<key>; sha256 of its UTF-8 bytes; first four bytes little-endian are the left half of an 8x8 dot grid (bit = row*4+col), re-drawn with seed + NUL + n until 10..22 dots are lit; byte 4 mod 24 times 15 is the hue; the half is mirrored and written as braille U+2800.",
+  "vectors": [
+    {
+      "kind": "vault",
+      "key": "personal",
+      "hue": 285,
+      "lines": ["⢳⣿⣿⡞", "⠗⡤⢤⠺"]
+    },
+    {
+      "kind": "vault",
+      "key": "guest",
+      "hue": 300,
+      "lines": ["⠓⠏⠹⠚", "⢯⢍⡩⡽"]
+    },
+    {
+      "kind": "vault",
+      "key": "prj_4f2a",
+      "hue": 45,
+      "lines": ["⠗⡈⢁⠺", "⡾⢕⡪⢷"]
+    },
+    {
+      "kind": "vault",
+      "key": "prj_9c11",
+      "hue": 270,
+      "lines": ["⣤⢉⡉⣤", "⡬⣟⣻⢥"]
+    },
+    {
+      "kind": "person",
+      "key": "prn_8f3c",
+      "hue": 165,
+      "lines": ["⣔⣱⣎⣢", "⠫⣐⣂⠝"]
+    },
+    {
+      "kind": "person",
+      "key": "guest-2",
+      "hue": 165,
+      "lines": ["⠕⠀⠀⠪", "⣪⠇⠸⣕"]
+    },
+    {
+      "kind": "org",
+      "key": "org_acme",
+      "hue": 105,
+      "lines": ["⠏⡵⢮⠹", "⣴⠻⠟⣦"]
+    },
+    {
+      "kind": "vault",
+      "key": "prj_ünï·😀",
+      "hue": 195,
+      "lines": ["⢶⣩⣍⡶", "⢔⢍⡩⡢"]
+    }
+  ]
+}

@@ -129,6 +129,15 @@ export default defineConfig({
   },
   optimizeDeps: {
     exclude: ["@opensesame/os-domain"],
+    // Reached late (the import pipeline, SOPS sealing), so the dev server
+    // only finds them mid-session, re-optimizes and reloads the page: a cold
+    // first load navigated four times and sat blank until it settled. Named
+    // through app-core, which owns them.
+    include: [
+      "@opensesame/app-core > kdbxweb",
+      "@opensesame/app-core > hash-wasm",
+      "@opensesame/app-core > @noble/ciphers/aes",
+    ],
     esbuildOptions: { target: "es2022" },
   },
   server: {

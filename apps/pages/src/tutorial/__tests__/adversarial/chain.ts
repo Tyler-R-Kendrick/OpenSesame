@@ -23,8 +23,13 @@ import {
   mountGuideTarget,
   observeGuideTarget,
 } from "@opensesame/app-core/tutorial/registry/targets.js";
-import { type GuideProgram, compileGuide } from "@opensesame/guide-lang";
 import {
+  AUTHORED_GUIDE_LIMITS,
+  type GuideProgram,
+  compileGuide,
+} from "@opensesame/guide-lang";
+import {
+  type GuideOutcome,
   type GuideRouteController,
   type GuideRuntime,
   type RecordingGuideRenderer,
@@ -42,6 +47,8 @@ import {
   type SupportTurn,
   supportVocabulary,
 } from "@opensesame/support-agent";
+import type { GuideOrigin } from "../../engine.js";
+import { tourRunner } from "../../tour-runner.js";
 
 export const GUIDE_HEADER = "guide/1";
 
@@ -167,6 +174,14 @@ export type SupportChain = {
   readonly targets: MountedTargets;
   /** The app's own compile edge: real compiler, real page vocabulary. */
   compile(source: string): GuideProgram | null;
+  /**
+   * The app's own run edge: the engine's `tourRunner` over this runtime, which
+   * starts every guide, model-origin included, in tour mode. `runtime.start`
+   * with no options is `auto`, which the app never reaches.
+   */
+  runGuide(program: GuideProgram, origin: GuideOrigin): Promise<GuideOutcome>;
+  /** The person pressing Next. */
+  nextStep(): void;
   dispose(): void;
 };
 
@@ -208,10 +223,13 @@ export function createSupportChain(route = "/vault"): SupportChain {
     },
     clock,
   });
+  const tour = tourRunner(runtime, AUTHORED_GUIDE_LIMITS);
 
   return {
     context,
     vocabulary,
+    runGuide: tour.runGuide,
+    nextStep: tour.nextStep,
     renderer,
     routes,
     clock,
@@ -228,6 +246,28 @@ export function createSupportChain(route = "/vault"): SupportChain {
       revokeRealm();
     },
   };
+}
+
+/**
+ * A person pressing Next until the guide closes. A tour holds on every step,
+ * so a test that only awaited the outcome would hang; this is the walk the
+ * card's Next key makes, one press per drained step.
+ */
+export async function walkToEnd(
+  active: SupportChain,
+  running: Promise<GuideOutcome>,
+  presses = 24,
+): Promise<GuideOutcome> {
+  let settled = false;
+  void running.then(() => {
+    settled = true;
+  });
+  for (let press = 0; press < presses && !settled; press += 1) {
+    await active.clock.advance(0);
+    active.nextStep();
+  }
+  await active.clock.advance(0);
+  return running;
 }
 
 /**

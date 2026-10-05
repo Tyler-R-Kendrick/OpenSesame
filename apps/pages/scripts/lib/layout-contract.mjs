@@ -56,9 +56,10 @@ export const LAYOUT_AUDIT =
 
   // 9. A key is never alone on a row. The chrome is exempt by name: its
   //    strips are rows of keys by design (statusline, top bar, drawer, the
-  //    vault's path strip and tree keys, the rail).
+  //    vault's path strip and tree keys, the rail). The Add button rests alone
+  //    in the thumb's corner by design.
   const CHROME = ".statusline, .topbar, .drawer, .railtree, .vtree__keys, "
-    + ".vault-pathbar, .sheet__head, .keymap, nav";
+    + ".fab, .vault-pathbar, .sheet__head, .keymap, nav";
   const keys = [...document.querySelectorAll("main button, main a")]
     .filter((el) => drawn(el) && iconOnly(el) && !el.closest(CHROME));
   // Only a stop with a key pays for the row-mates, and each is measured once.
@@ -86,7 +87,7 @@ export const LAYOUT_AUDIT =
   //     the fault; a phone's fields fill their row by design.
   const vw = document.documentElement.clientWidth;
   if (vw > 900) {
-    const SPAN = ".command-bar, .vtree__cmd, .codefield, .set-raw, .slash";
+    const SPAN = ".command-bar, .codefield, .set-raw, .slash";
     for (const field of document.querySelectorAll("main input, main select, main textarea")) {
       if (!drawn(field) || field.closest(SPAN)) continue;
       const type = (field.getAttribute("type") || "").toLowerCase();

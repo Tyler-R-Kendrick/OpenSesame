@@ -204,3 +204,11 @@ looks arbitrary, the ADR it cites explains it.
 | [0161](0161-what-a-static-origin-can-be-as-an-openid-provider.md) | What a static origin can be as an OpenID Provider | Accepted |
 | [0162](0162-device-receipts-inbox-and-local-notifications.md) | Device-mode receipts, inbox and local notifications | Accepted |
 | [0163](0163-failures-live-in-the-tray.md) | A failure lives in the tray, never in a box in the page | Accepted |
+| [0163](0163-tutorial-mode.md) | Tutorial mode: a tour you walk, one step at a time | Accepted |
+| [0164](0164-glyphs-for-identity-where-a-name-will-not-fit.md) | Glyphs: a dotted mark for identity where a name will not fit | Accepted |
+| [0165](0165-item-type-packs-on-demand.md) | Built-in item types are packs: switched on, then downloaded | Accepted |
+| [0166](0166-gate-help-launcher.md) | A help key on the screens in front of the shell | Accepted |
+| [0167](0167-nats-live-session-route.md) | A NATS server as a live session's route, served from the owner's tab | Accepted |
+| [0168](0168-duress-modes-from-scenarios.md) | Duress modes, derived from the scenarios people meet | Accepted |
+| [0169](0169-tailnet-device-management.md) | Tailnet device management through the paired daemon | Accepted |
+| [0170](0170-gesture-loadout.md) | The keymap has two loadouts, and a phone leads with gestures | Accepted |

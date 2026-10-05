@@ -30,6 +30,7 @@ import {
 } from "@opensesame/app-core/lib/capabilities/features.js";
 import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
+import { useCallback } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
 import { useConnectorRoads } from "../../bindings/connector-roads.js";
 import { useContributions } from "../../bindings/contributions.js";
@@ -242,6 +243,8 @@ type SectionProps = {
   current: FeatureProposal;
   onPropose: Propose;
   sectionRef?: (element: HTMLElement | null) => void;
+  /** The first section drawn: its subheader stands for the list in a tutorial. */
+  first?: boolean;
 };
 
 function CapabilitySection({
@@ -249,9 +252,19 @@ function CapabilitySection({
   current,
   onPropose,
   sectionRef,
+  first = false,
 }: SectionProps) {
   const { plan } = useComposition();
   const roads = useConnectorRoads();
+  const ownHead = useGuideTarget<HTMLDivElement>(`feature.${feature.id}`);
+  const listHead = useGuideTarget<HTMLDivElement>("settings.connectivity");
+  const headRef = useCallback(
+    (element: HTMLDivElement | null) => {
+      ownHead(element);
+      if (first) listHead(element);
+    },
+    [ownHead, listHead, first],
+  );
   const identityApi = useIdentityConfigured();
   const tiles = feature.capabilities.length > 1;
   const id = `feature-${feature.id}`;
@@ -276,7 +289,7 @@ function CapabilitySection({
       aria-labelledby={`${id}-title`}
       ref={sectionRef}
     >
-      <SectionHead id={`${id}-title`} title={feature.title}>
+      <SectionHead id={`${id}-title`} title={feature.title} headRef={headRef}>
         <WithdrawnMark feature={feature} />
         {isSwitchable(feature, plan, { identityApi }) ? (
           <SectionSwitch
@@ -339,26 +352,30 @@ export function CapabilitySections({
   current: FeatureProposal;
   onPropose: Propose;
 }) {
-  const ref = useGuideTarget<HTMLDivElement>("settings.connectivity");
   const { plan } = useComposition();
+  const roads = useConnectorRoads();
   const identityApi = useIdentityConfigured();
+  const context = { identityApi };
+  const features = FEATURES.map((feature) => shown(feature, plan, context));
+  const first = features.find((feature) =>
+    featureDraws(feature, roads.tile, plan, context),
+  )?.id;
   return (
-    <div className="capsections" id="settings-connections" ref={ref}>
+    <div className="capsections" id="settings-connections">
       <GuestSection />
-      {FEATURES.map((feature) => shown(feature, plan, { identityApi })).map(
-        (feature) => {
-          const Section =
-            feature.id === "backups" ? BackupsSection : CapabilitySection;
-          return (
-            <Section
-              key={feature.id}
-              feature={feature}
-              current={current}
-              onPropose={onPropose}
-            />
-          );
-        },
-      )}
+      {features.map((feature) => {
+        const Section =
+          feature.id === "backups" ? BackupsSection : CapabilitySection;
+        return (
+          <Section
+            key={feature.id}
+            feature={feature}
+            current={current}
+            onPropose={onPropose}
+            first={feature.id === first}
+          />
+        );
+      })}
     </div>
   );
 }

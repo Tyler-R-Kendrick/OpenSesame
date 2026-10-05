@@ -22,13 +22,20 @@ const CORE_INFRA = [
   "vfs",
   "projects",
   "vaults",
+  // The dotted mark for a vault, person or organization (ADR 0165): drawn in
+  // the shell's prompt, so it is core with the prompt.
+  "glyph",
   "last-vault",
   "theme",
   "focus",
   "use-focus-after",
   "gestures",
+  "gesture-runtime",
+  "gesture-motion",
+  "use-gestures",
   "use-claimed-drags",
   "gesture-help",
+  "pane-trail",
   "use-narrow",
   "vault-list-path",
   "modal-focus",
@@ -175,6 +182,11 @@ export const LIB_RULES = [
     "item-type marketplaces read from a git repository (ADR 0134)",
   ),
   core(
+    `${L}type-packs/`,
+    "vault.passwords",
+    "built-in item types downloaded and installed when switched on (ADR 0165)",
+  ),
+  core(
     `${L}file-parts-store`,
     "vault.passwords",
     "sealed parts of a file item",
@@ -250,6 +262,11 @@ export const LIB_RULES = [
     `${L}tailnet-sync/`,
     "networking.tailnet",
     "tailnet vault sync: drive client, merge pass, adoption (ADR 0144)",
+  ),
+  optional(
+    `${L}tailnet-admin/`,
+    "networking.tailnet-devices",
+    "tailnet device management: daemon client, sealed pairing, device model (ADR 0169)",
   ),
   core(
     `${L}join/`,

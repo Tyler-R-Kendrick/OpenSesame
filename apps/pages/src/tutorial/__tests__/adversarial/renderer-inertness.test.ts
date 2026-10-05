@@ -3,12 +3,12 @@
 /**
  * Markup from a model, all the way to the glass.
  *
- * `driver-xss.test.ts` hands payloads straight to the renderer, which proves
- * the adapter. It does not prove the chain: a raw completion has to survive
- * `parseSupportTurn`'s fence handling, the compiler's string literals, the
- * runtime's own message checks and the port hop before it reaches a popover,
- * and every one of those touches the string. This drives the whole path with
- * the real Driver.js library and asserts on the document at the end of it.
+ * A raw completion has to survive `parseSupportTurn`'s fence handling, the
+ * compiler's string literals, the runtime's own message checks and the
+ * controller before it reaches the tutorial card, and every one of those
+ * touches the string. This drives the whole path with the real card and
+ * asserts on the document at the end of it: the words arrive as text, and
+ * nothing a model wrote becomes an element.
  */
 
 import { parseSupportTurn } from "@opensesame/support-agent";
@@ -18,6 +18,7 @@ import {
   createDeferredSupportAgent,
   createDomEngine,
   liveOverlayCount,
+  mountTour,
   waitUntil,
 } from "./harness.js";
 
@@ -34,14 +35,18 @@ const PAYLOADS: readonly string[] = [
 const CONTROL_LABEL = "ELEMENT-LABEL-SENTINEL";
 
 let engine: DomEngine | null = null;
+let tour: ReturnType<typeof mountTour> | null = null;
 
 function build(): DomEngine {
   const built = createDomEngine(createDeferredSupportAgent());
   engine = built;
+  tour = mountTour(built);
   return built;
 }
 
 afterEach(() => {
+  tour?.unmount();
+  tour = null;
   engine?.destroy();
   engine?.targets.unmountAll();
   engine = null;
@@ -62,73 +67,63 @@ function completion(directive: string): string {
   ].join("\n");
 }
 
-async function run(active: DomEngine, directive: string): Promise<void> {
+async function run(_active: DomEngine, directive: string): Promise<void> {
   const turn = parseSupportTurn(completion(directive));
   expect(turn.guide).not.toBeNull();
-  const program = active.compile(turn.guide ?? "");
-  if (program === null) throw new Error(`did not compile: ${directive}`);
-  void active.runGuide(program);
+  void tour?.controller.startGuide(turn.guide ?? "", "model");
   await waitUntil(() => liveOverlayCount() > 0);
 }
 
-function popoverText(): string {
-  const description = document.querySelector(".driver-popover-description");
-  return description?.textContent ?? "";
+/** The step's sentence as a person reads it, without the screen-reader prefix. */
+function stepText(): string {
+  return (
+    document
+      .querySelector(".coach__text")
+      ?.textContent?.replace(/^Step \d+ of \d+\. /, "") ?? ""
+  );
 }
 
 function expectInert(scope: ParentNode): void {
   expect(
-    scope.querySelectorAll("img, script, svg, iframe, style, a").length,
+    scope.querySelectorAll(
+      "img, script, svg:not([aria-hidden]), iframe, style, a",
+    ).length,
   ).toBe(0);
 }
 
 describe("model markup, driven from a raw completion to the document", () => {
-  for (const payload of PAYLOADS) {
-    it(`stays literal text in a focus popover: ${payload}`, async () => {
-      const active = build();
-      await run(active, `focus "shell.lock" ${JSON.stringify(payload)}`);
+  for (const directive of ["focus", "annotate", "hint"] as const) {
+    for (const payload of PAYLOADS) {
+      it(`stays literal text in a ${directive} step: ${payload}`, async () => {
+        const active = build();
+        await run(
+          active,
+          `${directive} "shell.lock" ${JSON.stringify(payload)}`,
+        );
 
-      const popover = document.querySelector(".driver-popover");
-      expect(popover).not.toBeNull();
-      expect(popoverText()).toBe(payload);
-      if (popover) expectInert(popover);
-      expect(document.images).toHaveLength(0);
-      expect(document.scripts).toHaveLength(0);
-      expect(document.querySelectorAll("iframe")).toHaveLength(0);
-    });
-
-    it(`stays literal text in an annotation: ${payload}`, async () => {
-      const active = build();
-      await run(active, `annotate "shell.lock" ${JSON.stringify(payload)}`);
-
-      const annotation = document.querySelector("[data-os-guide-annotation]");
-      expect(annotation).not.toBeNull();
-      expect(annotation?.textContent).toBe(payload);
-      if (annotation) expectInert(annotation);
-      expect(document.images).toHaveLength(0);
-      expect(document.scripts).toHaveLength(0);
-    });
+        const card = document.querySelector(".coach__card");
+        expect(card).not.toBeNull();
+        expect(stepText()).toBe(payload);
+        if (card) expectInert(card);
+        expect(document.images).toHaveLength(0);
+        expect(document.scripts).toHaveLength(0);
+        expect(document.querySelectorAll("iframe")).toHaveLength(0);
+      });
+    }
   }
-
-  it("stays literal text in a hint popover", async () => {
-    const active = build();
-    const payload = PAYLOADS[0] ?? "";
-    await run(active, `hint "shell.lock" ${JSON.stringify(payload)}`);
-
-    expect(popoverText()).toBe(payload);
-    expect(document.images).toHaveLength(0);
-  });
 });
 
-describe("the popover a walkthrough draws", () => {
+describe("the card a tutorial draws", () => {
   it("is named by us, never by the message", async () => {
     const active = build();
     await run(active, 'focus "shell.lock" "<h1>Guide by evil</h1>"');
 
-    const popover = document.querySelector(".driver-popover");
-    expect(popover?.getAttribute("aria-label")).toBe("Guide");
-    expect(popover?.hasAttribute("aria-labelledby")).toBe(false);
-    expect(popover?.querySelector("h1")).toBeNull();
+    const card = document.querySelector(".coach__card");
+    const titleId = card?.getAttribute("aria-labelledby") ?? "";
+    expect(document.getElementById(titleId)?.textContent).toBe(
+      "Tutorial: Lock the vault",
+    );
+    expect(card?.querySelector("h1")).toBeNull();
   });
 
   it("carries no text from the control it is pointing at", async () => {
@@ -137,9 +132,9 @@ describe("the popover a walkthrough draws", () => {
 
     await run(active, 'focus "shell.lock" "Press this to lock the vault."');
 
-    const popover = document.querySelector(".driver-popover");
-    expect(popover?.textContent).not.toContain(CONTROL_LABEL);
-    expect(popoverText()).toBe("Press this to lock the vault.");
+    const card = document.querySelector(".coach__card");
+    expect(card?.textContent).not.toContain(CONTROL_LABEL);
+    expect(stepText()).toBe("Press this to lock the vault.");
     // The label really is on the page, so the assertion above is not vacuous.
     expect(document.body.textContent).toContain(CONTROL_LABEL);
   });

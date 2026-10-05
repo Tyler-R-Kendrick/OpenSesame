@@ -67,7 +67,10 @@ Independent findings run together through `.grok/workflows/task-swarm.rhai`:
 one agent per disjoint set of files, and the parent integrates. Each logical
 slice is its own GitHub-verified commit (`createCommitOnBranch`) on a stacked
 pull request. After each commit the session runs `df -h /` and deletes only
-the scratch and build output that commit created. `/tmp/os-wallet-ship`, the
+the scratch and build output that commit created. A session that cannot reach
+GraphQL builds the stack as local commits and has a person with a working `gh`
+login replay it as verified commits with `scripts/release/land-signed-stack.mjs`
+(see `scripts/release/README.md`). `/tmp/os-wallet-ship`, the
 Host on `127.0.0.1:8787`, and unrelated worktrees stay in place.
 
 When the stack is finished the session self-reviews, resolves review threads,

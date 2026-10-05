@@ -64,6 +64,8 @@ pnpm dev:pwa             # Pages vite on :5180, no backend
 pnpm dev:cli             # native opensesame CLI; verb after --
 pnpm dev:host            # host on 127.0.0.1:8787
 pnpm dev:daemon          # daemon on 127.0.0.1:18790
+pnpm dev:live-nats       # nats-server config in operator mode for live sessions
+                          #   (minted per-session credentials, ADR 0167)
 pnpm build               # turbo run build
 pnpm typecheck           # turbo run typecheck
 pnpm lint                # Biome gate for files changed from origin/main
@@ -183,6 +185,14 @@ cargo build -p opensesame-cli
 ./target/debug/opensesame pass backup                      # commit + push to origin
 # backup auth for GitHub HTTPS remotes: GITHUB_TOKEN → GitHub App
 # (GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY_PATH) → `gh auth token`
+
+# Tailnet device management (ADR 0169): the daemon holds the Tailscale credential
+./target/debug/opensesame daemon tailnet connect --tailnet example.com \
+  --oauth-client-id k123CNTRL --secret-file ./oauth-secret   # or --api-token
+./target/debug/opensesame daemon tailnet pair --origin https://vault.example.com \
+  --role manage --url https://desk.tail4c2e.ts.net           # prints code + link
+./target/debug/opensesame daemon tailnet devices             # approve/rename/tag/routes/expire/remove/mint/revoke/audit
+./target/debug/opensesame daemon tailnet unpair --all
 ```
 
 **Pages (offline PWA) — local debug (attached HMR):**
@@ -218,6 +228,8 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # one row, the sections sit in a drawer, the chrome stays under a third
 # of the screen, and no strip hides its own selected item. Run before touching
 # layout, chrome, controls or any of the CSS under `(pointer: coarse)`.
+# `MOBILE_SIZES=320,390` (names from `lib/mobile-contract.mjs`) walks only those
+# sizes, which is how CI shards it; an unknown name fails, unset walks them all.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:auth
 # Same harness, the authentication flow (ADR 0091): a guest presses Add on the
@@ -246,6 +258,22 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # application signed in and revoked, and a locked vault showing nothing and
 # answering 423. Own CI job, required through Bundle budgets. Run before
 # touching `device-receipts`, `device-inbox`, `local-notifications` or Receipts.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:tutorials
+# Same harness, every tutorial (ADR 0163): the Support sheet's Tutorials tab
+# lists them, each is started from its row and walked with Next alone — the
+# mouse on one step, Enter on the next — on the shell with every optional
+# capability switched on, and on the gates (ADR 0166: the front door, setup,
+# sign-in, unlock, the broker popup and the federation return each draw a help
+# key and offer the tutorials written for them), at desktop and phone width.
+# Each gate's key is held to the ADR: one icon key in the screen's chrome, 44px
+# on a phone, resting on no control, reachable by Tab, never holding the focus
+# on arrival. Every step's card must sit inside the screen with
+# Next present, and a step that points at a control must light it, leave it
+# uncovered and reachable through the aperture. Then Back, Replay, Done, and
+# where focus went. A control that is missing is a failure here although a
+# person would see it degrade to text. Run before touching a tutorial, the
+# tutorial card, the Support sheet or the target registry.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:live-join
 # Same harness, live sessions (ADR 0150) in real browser contexts over real
@@ -366,6 +394,8 @@ Do not add new top-level directories or loose root files — find the group.
 | `crates/a2h` | A2H (Agent-to-Human) v1.0 client — envelope, intent mapping, callback verification; a reply may only narrow authority (ADR 0081 §10) |
 | `crates/rotation-web` | Web-login rotation: the step IR, the tool boundary (no method returns a credential value), and the ordering that must not be rearranged (ADR 0076); plus the same boundary read backwards — `CeremonyTransport`'s capture verbs, which seal what a page produced and answer with a digest (ADR 0082 §3); `src/hooks` is the agent-hooks/0.1 **host** (every verb bracketed, authority pinned, no lock across an approval, `Refused` vs `Withheld`; CTK claims A and B in `docs/validation/agent-hooks-conformance.md`) and `src/recipe_doc` the signed recipe document (ADR 0159) |
 | `crates/vault-item-types` | Host-plane item type parser, registry, and native-secret projection; embeds the shared definition corpus (ADR 0087) |
+| `crates/tailnet-admin` | Tailnet device management, daemon side (ADR 0169): the Tailscale credential (0600, never sent to a page), origin- and role-bound page pairings, value-blind audit, validation, and the Tailscale API v2 client through `invoke-through`; `/v1/tailnet/*` routes in `crates/daemon/src/tailnet_admin_*.rs`, CLI `opensesame daemon tailnet`, replayed by both planes against `spec/conformance/tailnet-admin-protocol.json` |
+| `packages/app-core/src/lib/tailnet-admin/`, `apps/pages/src/modules/networking.tailnet-devices/` | Identity › Devices for the tailnet's real machines (optional `networking.tailnet-devices`, needs `networking.tailnet` + `identity.local-iam`): sealed pairing, the daemon client, approve/rename/tag/routes/exit node/expire/remove, Add a device (auth key shown once), auth keys, activity. Refused on the shared-origin demo. End to end: `pnpm --filter @opensesame/pages verify:tailnet-devices` (real daemon + Tailscale stub + dedicated build) |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
 | `crates/tailscale-authn` | Tailnet caller identity via tailscaled LocalAPI whois (ADR 0048 §8) |
@@ -386,7 +416,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/control-plane` | Identity API, `:8788` (Hono + Better Auth + oidc-provider) |
 | `tools/mock-upstream-idp` | Deterministic mock OIDC upstream for local dev, `:9090` |
 | `apps/pages` | Installable GitHub Pages offline PWA — the React shell over `@opensesame/app-core`: screens, sections, components, React bindings (`src/bindings/`), DOM/keyboard helpers, the service worker and the capability build (`src/lib/capabilities/{ownership,classification*,module-table,distribution}.ts`) |
-| `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088): the semantic target/route/predicate registries and the on-device and AG-UI transports live in the core; the Driver.js renderer and the support panel stay in the shell |
+| `apps/pages/src/tutorial`, `packages/app-core/src/tutorial` | In-product contextual support (ADR 0088) and tutorial mode (ADR 0163): the semantic target/route/predicate registries, the tutorial library (`registry/areas.ts`, one home per goal, one tour per Settings › Capabilities section in `registry/feature-goals.ts`) and the on-device and AG-UI transports live in the core; the support panel (Ask / Tutorials tabs) and the tutorial card (`coach/`: the dim and lit aperture, the step card with Back / Next, placement and focus) stay in the shell |
 | `packages/app-core/src/lib/join/`, `apps/pages/src/screens/JoinScreen.tsx`, `apps/pages/src/screens/join/` | Join a session (ADR 0136): invite (link + out-of-band code) or open session at a named endpoint; approval (a browser pairing under the join-only `host.join` ceiling, renewed to a 30-minute sitting, provisioning no org role) → passkey verify → look up once per device → per-item consent → claim/ask; a public session may admit on ask, as an observer holding nothing (ADR 0137). The one Host-speaking ceremony in Pages; never writes `settings.hostApi`, never stores the code, never sends an offer's bearer to an endpoint it was not looked up at |
 | `packages/browser-at-rest` | At-rest sealing outside Pages (ADR 0149): a non-extractable AES-GCM key per origin in IndexedDB and an async sealed view of any `StorageLike`; used by `sdk-browser`, `static-auth` and the extension |
 | `packages/app-core/src/lib/at-rest/` | The at-rest seal (ADR 0149): the device key's states (`key.ts`), the seal (`cipher.ts`), sealed Web Storage, origin files and their boot sweep, and the browser's IndexedDB key store; the CLI's key file is `src/node/at-rest-key-file.ts` |
@@ -399,6 +429,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `apps/browser-extension` | WXT browser extension; `runner/` is the local runner of the hosted step protocol (ADR 0159): claims steps with the person's Host session for an armed origin, executes them in an isolated-world injection, answers only canonical outcomes, submits at most once, and answers `failed(transport)` for the two capture steps no host envelope scheme exists for |
 | `examples/*` | Example relying parties (`rp-alpha`, `rp-beta`, `static-rp`, `siop-rp`), agents (`agent`, `static-agent`) and a headless device-login client (`headless`) |
 | `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |
+| `packages/app-core/src/lib/keymap/{gestures,gesture-bindings,gesture-recognizer}.ts`, `apps/pages/src/lib/{gesture-runtime,gesture-motion,use-gestures,gesture-help}.ts`, `apps/pages/src/sections/settings/keybindings/{LoadoutTabs,GesturesPanel,GestureRow,MotionSwitch}.tsx` | The keymap's touch loadout (ADR 0170): a closed set of two-finger swipes, a two-finger tap and a shake bound to the same commands as keys through `runTarget` (never a command that asks first, never a register key); the pure recognizer (`RECOGNIZER`, `SHAKE`) in app-core, the touch handlers that claim only a bound swipe that began in a listing, and the motion sensor behind an Allow key where the browser asks first; Settings › Keybindings draws Keyboard and Gestures as tabs and opens on the device's own |
 | `packages/app-core/src/lib/{device-receipts,device-inbox,device-identity-inbox}.ts`, `src/lib/local-notifications/`, `apps/pages/src/modules/notifications.local/` | The device's receipts, inbox and local notifications (ADR 0162): receipts are the vault's own sealed file (`device-receipts-store.ts`), apart from the Access audit, written after each decision and retried from a sealed pending list; the inbox is the pending local requests; the `audit` and `requests` device routes answer them to a session and decide nothing; `notifications.local` rings through the bell, the tab title and badge, and the Notification API (permission asked only on its key), routing narrowed to policy, no server and no push |
 | `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`spec/conformance/vault-vectors.json`, also read by the Rust reader `crates/human-vault` `pages_vault`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
 | `packages/app-core/src/lib/item-type-marketplace/`, `packages/app-core/src/sections/settings/{virtual-files,item-type-files}.ts`, `apps/pages/src/sections/settings/files/` | Item-type marketplaces read from any git repository's `.opensesame/marketplace.json` (ours by default: `.opensesame/`, `marketplace/item-types/`, re-pin with `node scripts/release/pin-marketplace.mjs`), and Settings as files — the source view is a file viewer over `VirtualFileProvider`s and the Form is drawn from the same files (ADR 0134) |
@@ -421,7 +452,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `packages/capability-registry` | Agent-surface parity source of truth — every capability maps or ADR-excludes each of cli/pwa/mcp/webmcp (ADR 0065); parity tests in each surface package sweep it |
 | `packages/webmcp` | WebMCP (`document.modelContext`, with legacy `navigator.modelContext` fallback) browser library — feature detection, fenced registrar for `apps/pages` tools |
 | `packages/guide-lang` | GuideLang — the versioned tutorial language an in-product support model may write; parser, canonical serializer and validators. Deliberately cannot express a click, a selector or a URL (ADR 0088) |
-| `packages/guide-runtime` | Deterministic GuideLang execution over ports only — no DOM, no renderer, no real timers; re-enforces every budget rather than trusting the parser |
+| `packages/guide-runtime` | Deterministic GuideLang execution over ports only — no DOM, no renderer, no real timers; re-enforces every budget rather than trusting the parser. `auto` mode runs a model's trajectory to its next boundary; `tour` mode (`plan.ts`, `tour.ts`) walks a person through steps at their own pace — Next, Back, Replay, a step that degrades to text when its control is absent (ADR 0163) |
 | `packages/support-agent` | Provider-neutral support port, semantic page context, system-instruction builder and the egress boundary — no React, no vendor model SDK |
 | `packages/env-spec-bridge` | env-spec ↔ runtime config bridge |
 | `skills/` | Agent skills — see §7 |
@@ -545,7 +576,12 @@ Do not add new top-level directories or loose root files — find the group.
   a shared link opens join by itself. Once setup is answered or skipped the
   sign-in screen — the compiled-in Google-via-Shoo road, guest, the
   local-only seal — is the first screen, and setup lives behind unlock
-  (Settings), not as quiet foot links. `setupRequired` does not
+  (Settings), not as quiet foot links. The one thing a gate may draw beside
+  its own chrome is a **help key** (`tutorial/gate-seat.tsx`,
+  [ADR 0166](docs/adr/0166-gate-help-launcher.md)): a single icon key in the
+  screen's chrome row, never in front of its content, its roads or the guest
+  Skip, offline, opening the same Support sheet with only the tutorials written
+  for that screen. `setupRequired` does not
   exist and must not come back. No
   default may point at a local host: `packages/app-core/src/lib/settings.ts` defaults are empty on
   every origin, and `127.0.0.1` addresses are suggestions a loopback tab may
@@ -748,6 +784,22 @@ Do not add new top-level directories or loose root files — find the group.
   through its forge's anonymous raw-file route; it confers no trust — every
   definition it offers meets ADR 0087's parser and registry — and it is read
   only when a person opens it.
+- **Built-in item types beyond the core are packs, switched on to download**
+  ([ADR 0165](docs/adr/0165-item-type-packs-on-demand.md)). Only `secret`,
+  `file`, `passkey`, `certificate` and `drop` are embedded in the bundle; the
+  other 18 are `packages/vault-item-types/src/packs/<id>.generated.ts`, each its
+  own chunk behind a dynamic `import()`, indexed by `PACK_INDEX` (metadata and a
+  SHA-256, nothing else). Settings › Vaults › Item types is a list of switches —
+  the whole row is the switch, `role="switch"`, for a thumb. Switching on queues
+  `enablePack` (`packages/app-core/src/lib/type-packs/`): download, digest,
+  parse, sealed copy for offline, register — downloads a few ahead, installs one
+  at a time, the main thread handed back between steps, no reload, state told on the row, in a live region
+  and in the bell tray. Never import `*.generated.js` under `src/packs/`
+  statically, and never read a pack's text from the entry; a type the open
+  vault holds items of is installed for the document and has no switch. After
+  editing `marketplace/item-types/builtin/*.json`, re-run
+  `pnpm --filter @opensesame/vault-item-types generate`. A suite that assumes
+  the whole corpus loads every pack in its setup.
 - A vault item type is a manifest, never a code path. Adding one is a JSON
   file in `marketplace/item-types/builtin/` (embedded by both planes),
   and a user can install one at runtime with no build. Fields name types from
@@ -817,13 +869,34 @@ Do not add new top-level directories or loose root files — find the group.
   keystroke, a submit, a fetch, a tool call, a selector or a URL — an id it
   names is resolved through the target registry in
   `packages/app-core/src/tutorial/registry`, or the program is discarded whole. Model
-  text reaches the document as text; the renderer hands Driver.js a placeholder
-  and writes prose with `textContent`. Page context is assembled from authored
+  text reaches the document as a React text node on the tutorial card, which parses
+  no markup. Page context is assembled from authored
   registries only, never from the DOM, so no secret, item name or folder name
   has a path into a prompt. A new control worth asking about gets a catalog
   entry with checked-in prose; a new authored guide is compiled by the same
   parser and validator model output goes through
   ([ADR 0088](docs/adr/0088-ai-native-contextual-support.md)).
+- **Every feature has a replayable tutorial, and every tutorial is walked in a
+  real browser** ([ADR 0163](docs/adr/0163-tutorial-mode.md)). A new section of
+  Settings › Capabilities gets a `feature.<id>` target and a tour in
+  `feature-goals.ts`; a new goal gets a home in `registry/areas.ts` (the test
+  fails without one) and a step is a `say`, a pointing directive with the
+  `wait` after it, or the closing `success` — every step must be reachable by
+  Next alone, and must point only at controls that are drawn where the tutorial
+  is offered (an authored tour may name up to 40 instructions; a model's stays
+  at 8). A tutorial that points at a section or a signed-in-only row says so
+  (`focus "feature.<id>"`, `requires`) and the library hides it where it
+  cannot work. A control a guide can point at, and every key the keymap binds,
+  is taught by a tutorial or named in `coverage-ledger.ts` with a reason
+  (`coverage.test.ts`; the ledger only falls). A gate (the front door, unlock,
+  setup, the broker popup, the federation return) draws a help key and starts
+  tutorials scoped to its own route (`gate-goals.ts`, `useSupportRoute`'s
+  `/unlock/door`, `/setup/identity` and the rest; ADR 0166), and is offered
+  none of the shell's. Changes to a tutorial, the Support sheet, the tutorial card or
+  the target registry require `pnpm --filter @opensesame/pages verify:tutorials`
+  against a fresh Pages build (every tutorial, desktop and phone, Next and
+  Back and Replay and Done, keyboard and mouse, focus handed back), and keep it
+  in the required Bundle budgets job.
 - **Every new user-facing feature is a capability, and an optional one never
   loads before consent**
   ([ADR 0130](docs/adr/0130-operator-controlled-capability-composition.md)).
@@ -1132,6 +1205,11 @@ CI lives in `.github/workflows/`:
   for that set, and Rust runs `cargo test --all-targets -p` for that set on
   Rust 1.88.0. A root lockfile or manifest tests the whole suite. Bundle
   budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`;
+  its browser gates run as parallel shards of one matrix job (`bundle`: each
+  shard builds Pages once and walks its own gates; `verify:mobile` is split by
+  viewport with `MOBILE_SIZES`), and `scripts/lib/ci-bundle-shards.test.mjs`
+  fails on a gate that runs in no shard or in two. A new gate goes in exactly
+  one shard, not appended to a serial list;
   "Web Push end to end" (`verify:push`) is its own job that the same check
   waits for, and runs when the Pages build or the server code it imports changes.
   The TypeScript job also runs the signature preflight, changed-file lint,

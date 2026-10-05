@@ -3,6 +3,7 @@
  * Suggestions name commands and item names. They never carry a secret.
  */
 
+import { liveSearchOf } from "./parse.js";
 import type { CommandField } from "./types.js";
 
 export type SlashSuggestion = {
@@ -42,6 +43,9 @@ const VERBS: readonly SlashSuggestion[] = [
   { id: "copy-otp", insert: "/copy otp ", label: "Copy code", run: false },
   { id: "copy-url", insert: "/copy url ", label: "Copy link", run: false },
 ];
+
+/** A short name a verb answers to, typed after the slash: `/?` for search. */
+const ALIASES: ReadonlyMap<string, string> = new Map([["search", "/?"]]);
 
 const LEAD_VERBS = new Set(["help", "search", "open", "copy-password"]);
 
@@ -151,8 +155,10 @@ function destination(section: SlashSection): SlashSuggestion {
 function matchesCommand(row: SlashSuggestion, lower: string): boolean {
   const insert = row.insert.trim().toLowerCase();
   const label = row.label.toLowerCase();
+  const alias = ALIASES.get(row.id);
   return (
     insert.startsWith(lower) ||
+    alias?.startsWith(lower) ||
     label.startsWith(lower.slice(1)) ||
     `/${label}`.startsWith(lower)
   );
@@ -162,8 +168,9 @@ function argumentSuggestions(
   text: string,
   itemNames: readonly string[],
 ): readonly SlashSuggestion[] | null {
-  const search = /^\/search\s+(.*)$/i.exec(text);
-  if (search) return itemRows("search", "/search ", search[1] ?? "", itemNames);
+  // Search has no list of names to pick from: the listing narrows as the
+  // words are typed, and is the completion.
+  if (liveSearchOf(text) !== null) return [];
   const opened = /^\/open\s+(.*)$/i.exec(text);
   if (opened) return itemRows("open", "/open ", opened[1] ?? "", itemNames);
   const copied = /^\/copy\s+(\S+)\s+(.*)$/i.exec(text);

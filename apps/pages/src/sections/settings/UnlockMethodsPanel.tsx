@@ -61,7 +61,7 @@ export function UnlockMethodsPanel() {
 }
 
 function UnlockMethodsBody() {
-  const { header, guest } = useVault();
+  const { header, guest, decoy } = useVault();
   const store = useVaultStore();
   const enrolled = listAvailableUnlockMethods(header);
   const secondSteps = listSecondSteps(header);
@@ -204,7 +204,7 @@ function UnlockMethodsBody() {
           {/* True only while there is no key behind this vault: enrolling one
               puts the header on disk like any other vault, and the note would
               then be claiming something that is no longer so. */}
-          {guest && enrolled.length === 0 ? (
+          {guest && !decoy && enrolled.length === 0 ? (
             // A line in the list's own voice, not a boxed note pressed
             // against the first row (DESIGN.md: no in-page note box).
             <p className="hint">

@@ -213,7 +213,9 @@ to `/pair/decision`, which the gateway never routed; it now posts to
 (`lib/join/client.ts:claimInvite`, `:askToJoin`) under `access.authority`,
 and `browser.grant.renew` is registered beside the other pairing
 capabilities (`lib/browser-pairing.ts:renewBrowserGrant`). The first two
-are mapped to the `setup.join-session` support goal.
+are mapped to the support goals `identity.claim.accept` and
+`feature.sharing` respectively (the join screen has no Support sheet; ADR
+0163 §4).
 
 ## Consequences
 

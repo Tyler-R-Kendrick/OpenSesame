@@ -23,19 +23,17 @@ import { contextMenuTouchContract } from "./lib/context-menu-touch-contract.mjs"
 import { doorGuest } from "./lib/front-door.mjs";
 import { auditSettings } from "./lib/layout-contract.mjs";
 import { chooseCapabilitiesHere } from "./lib/mobile-capabilities.mjs";
-import {
-  AUDIT,
-  PHONES,
-  TABLETS,
-  phoneContext,
-  recordStop,
-} from "./lib/mobile-contract.mjs";
-import { auditKeybindingsAbsent } from "./lib/mobile-keybindings-absent.mjs";
+import { AUDIT, phoneContext, recordStop } from "./lib/mobile-contract.mjs";
+import { doorRoads, helpKey, setupCeremony } from "./lib/mobile-gates.mjs";
+import { auditGestures } from "./lib/mobile-gestures.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
+import { sizesToWalk } from "./lib/mobile-sizes.mjs";
+import { phonePolish } from "./lib/phone-polish.mjs";
 import {
   backOutStops,
   openVaultList,
   treeActions,
+  treeWalks,
 } from "./lib/phone-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { touchCopyStop } from "./lib/touch-copy-contract.mjs";
@@ -153,17 +151,9 @@ async function openOverflowRow(page, pattern, label) {
 
 /** The front door: its two roads, and the guest road in the corner (ADR 0150 §1). */
 async function frontDoor(page, stop) {
+  await helpKey(page, stop("front-door"), harness);
   await audit(page, stop("front-door"));
-  for (const name of [
-    "Set up your own",
-    "Join a session",
-    "Skip sign-in and continue as guest",
-  ]) {
-    harness.check(
-      (await page.getByRole("button", { name }).count()) > 0,
-      `${stop("front-door")}: "${name}" is offered`,
-    );
-  }
+  await doorRoads(page, stop, harness);
   // The other road off the front door, and the one a person takes on a phone
   // when they are standing up a deployment.
   const setup = page.getByRole("button", { name: "Set up your own" }).first();
@@ -171,6 +161,7 @@ async function frontDoor(page, stop) {
     await setup.tap();
     await page.waitForTimeout(900);
     await audit(page, stop("setup"));
+    await setupCeremony(page, stop, { audit, harness });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     await page.waitForTimeout(700);
   }
@@ -186,8 +177,9 @@ async function sections(page, stop) {
   ]) {
     if (await openTab(page, name)) await audit(page, stop(label));
   }
-  // Settings is the last stop: no finger can press a key, so no key editor.
-  await auditKeybindingsAbsent(page, harness, stop);
+  // Settings is the last stop: a finger has no key to press, so the keymap
+  // it is given is the Gestures tab (ADR 0170), made with real touches.
+  await auditGestures(page, harness, stop, audit);
   // Access keeps five more tabs in a scrolling strip; the far one has to be
   // reachable and has to bring itself into view once it is current.
   if (!(await openTab(page, "Access"))) return;
@@ -213,6 +205,7 @@ async function sections(page, stop) {
 async function vaultItem(page, stop) {
   await treeActions(page, stop, { harness, audit });
   await openVaultList(page);
+  await phonePolish.searchKeysBare(page, stop, { harness });
   const create = page
     .getByRole("link", { name: "New item", exact: true })
     .first();
@@ -232,6 +225,7 @@ async function vaultItem(page, stop) {
   await page.waitForTimeout(900);
   await audit(page, stop("item"));
   await backOutStops(page, stop, { harness, audit });
+  await treeWalks(page, stop, { harness });
 }
 
 async function walk(browser, phone) {
@@ -246,6 +240,7 @@ async function walk(browser, phone) {
   await doorGuest(page).tap();
   await page.waitForTimeout(1100);
   await audit(page, stop("vault"));
+  await phonePolish.topbarPromptFits(page, stop, { harness });
 
   await sections(page, stop);
 
@@ -259,6 +254,7 @@ async function walk(browser, phone) {
     openTab,
   });
   await audit(page, stop("chosen"));
+  await phonePolish.switchesAligned(page, stop, { harness });
 
   await openTab(page, "Vault");
   await openChromeKey(page, /^More —/, stop("more"));
@@ -268,6 +264,7 @@ async function walk(browser, phone) {
 
   await vaultItem(page, stop);
   await contextMenuTouchContract(page, stop, { harness, openTab, audit });
+  await phonePolish.passwordKeysOneLine(page, stop, { harness, base });
 
   // A locked reload is the screen most phone sessions actually start on.
   await openTab(page, "Vault");
@@ -362,14 +359,21 @@ async function tablet(browser, size) {
   await context.close();
 }
 
+let walked;
+try {
+  walked = sizesToWalk(process.env.MOBILE_SIZES);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(2);
+}
 checkSafeAreas();
 const browser = await harness.launch();
 try {
-  for (const phone of PHONES) {
+  for (const phone of walked.phones) {
     await walk(browser, phone);
     await protectorUnlock(browser, phone);
   }
-  for (const size of TABLETS) await tablet(browser, size);
+  for (const size of walked.tablets) await tablet(browser, size);
 } finally {
   await browser.close();
 }
@@ -386,7 +390,7 @@ if (harness.failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  `\nPASS: the touch contract holds at ${[...PHONES, ...TABLETS]
+  `\nPASS: the touch contract holds at ${[...walked.phones, ...walked.tablets]
     .map((size) => size.width)
     .join(", ")}px.`,
 );

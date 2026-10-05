@@ -5,10 +5,11 @@
  */
 
 import { pluginSteps } from "./capture-plugin-steps.mjs";
+import { tourSteps } from "./capture-tour-steps.mjs";
 
-/** The plugin pairing verbs and the Settings walk verbs, as one registration. */
+/** The plugin pairing, Settings walk and tutorial verbs, as one registration. */
 export function pluginAndWalkSteps() {
-  return { ...pluginSteps(), ...settingsWalkSteps() };
+  return { ...pluginSteps(), ...settingsWalkSteps(), ...tourSteps() };
 }
 
 function settingsWalkSteps() {

@@ -7,9 +7,13 @@
  * key, the entry shows it, so the menu teaches the keymap it stands in for.
  */
 
+import type { ReactNode } from "react";
+
 export type MenuItem = {
   id: string;
   label: string;
+  /** A glyph in the slot a checkbox entry draws its tick in. */
+  icon?: ReactNode;
   /** The key that does the same thing, shown beside the label. */
   hint?: string;
   /** A checkbox entry (`menuitemcheckbox`), with its current state. */
@@ -31,6 +35,16 @@ export type MenuGroup = readonly MenuItem[];
 
 /** A viewport point a menu opens at. */
 export type MenuPoint = { x: number; y: number };
+
+/**
+ * What opens a menu: a pointer event, or a point an opener names for itself
+ * (a tapped key's corner) with the event it stands in for.
+ */
+export type MenuOpening = {
+  clientX: number;
+  clientY: number;
+  preventDefault: () => void;
+};
 
 /** Where a measured menu is drawn, kept inside the viewport. */
 export type MenuPlacement = { left: number; top: number };
@@ -80,7 +94,7 @@ export function openedByKeyboard(now = Date.now()): boolean {
  * the pointer.
  */
 export function openContextMenu(
-  event: { clientX: number; clientY: number; preventDefault: () => void },
+  event: MenuOpening,
   anchor: Element | null,
   label: string,
   groups: readonly MenuGroup[],
