@@ -27,7 +27,7 @@ import { useNarrow } from "../lib/use-narrow.js";
 import { vaultListPath, vaultPane } from "../lib/vault-list-path.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
-import { PhoneAdd } from "./vault/PhoneAdd.js";
+import { NewItemFab } from "./vault/NewItemFab.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultActions } from "./vault/VaultActions.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
@@ -179,10 +179,15 @@ export function VaultSection() {
   const createRef = useGuideTarget<HTMLAnchorElement>("vault.create");
   const listRef = useGuideTarget<HTMLDivElement>("vault.list");
   // A phone opens on the section tree, where the list pane is not drawn: the
-  // tree answers to the list's target, and PhoneAdd's Add key to the create
-  // one, and the registry points at whichever copy is on screen.
+  // tree answers to the list's target, and the Add button to the create one,
+  // and the registry points at whichever copy is on screen.
   const treeListRef = useGuideTarget<HTMLDivElement>("vault.list");
   const listPath = vaultListPath(location.search, narrow);
+  // Where New records itself for focus and the guide, wherever it is drawn.
+  const recordNewItem = (element: HTMLAnchorElement | null) => {
+    newItemRef.current = element;
+    createRef(element);
+  };
 
   // The list stays mounted behind the tree on a phone, and the prompt's words
   // are the shell's, not the pane's: a search typed on the list came back,
@@ -232,11 +237,7 @@ export function VaultSection() {
       >
         {narrow ? (
           <>
-            {/* A phone's first pane is for finding and adding. Finding is the
-                status-line prompt (`/? words`), so the pane draws no field
-                of its own; adding is the corner key's Add sheet. */}
             <NavTree />
-            <PhoneAdd createPath={createPath} />
           </>
         ) : null}
       </div>
@@ -283,11 +284,9 @@ export function VaultSection() {
                 />
               ) : (
                 <VaultActions
+                  hidden={narrow}
                   createPath={createPath}
-                  createRef={(element) => {
-                    newItemRef.current = element;
-                    createRef(element);
-                  }}
+                  createRef={recordNewItem}
                 />
               )}
             </>
@@ -300,6 +299,15 @@ export function VaultSection() {
       <div className="vault__detail" ref={detailRef} tabIndex={-1}>
         <Outlet />
       </div>
+
+      {/* A phone's primary action, pinned to the corner of the tree and the
+          list; the item's own screen has its own keys, and the trash has
+          nothing to add to. */}
+      <NewItemFab
+        shown={narrow && showing !== "detail" && !inTrash}
+        to={createPath}
+        fabRef={recordNewItem}
+      />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   fireEvent,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,11 +16,16 @@ import {
   vault,
 } from "../components/app-shell.test-harness.js";
 import { ContextMenuLayer } from "../components/context-menu/ContextMenuLayer.js";
+import {
+  closeContextMenu,
+  contextMenuSnapshot,
+} from "../components/context-menu/menu-model.js";
 import { createKeymapHandler } from "../lib/keymap.js";
 import { stubScreen } from "../lib/use-narrow.test-support.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { VaultSection } from "./VaultSection.js";
 import { ItemDetail } from "./vault/ItemDetail.js";
+import "./vault/commands.test-support.js";
 import { vaultTreeSeams } from "./vault/VaultTree.js";
 import { makeLogin } from "./vault/section-items.test-support.js";
 
@@ -97,59 +103,139 @@ describe("the vault on a phone", () => {
     ).toBe("/vault?f=all");
   });
 
-  it("the tree opens on the sections and one Add key; the keys of the desktop's row and any search field are not drawn", () => {
+  it("the tree is the sections and nothing else: no strip of keys, no tool rows", () => {
     renderVault("/vault");
     const tree = document.querySelector<HTMLElement>(".vault__tree");
-    // Finding is the status-line prompt: the pane draws no field of its own.
-    expect(tree?.querySelector(".vadd__find")).toBeNull();
-    expect(tree?.querySelectorAll(".vadd__key")).toHaveLength(1);
-    expect(tree?.querySelector(".vtree__keys")).toBeNull();
-    // Import and Export stay mounted for the sheets they own, but as no key.
-    const hidden = tree?.querySelectorAll(".vadd__host > button") ?? [];
-    expect(hidden.length).toBeGreaterThan(0);
+    expect(tree?.querySelector(".vtree__pathbar")).toBeNull();
+    expect(tree?.querySelector(".vtools")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Import items" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Export items" })).toBeNull();
   });
 
-  it("the Add key opens the action sheet: New item, then Import and Export", async () => {
+  it("Add is one button: the default + with an attached ellipsis", () => {
     renderVault("/vault");
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
-    const menu = await screen.findByRole("menu", { name: "Add to the vault" });
-    const rows = [...menu.querySelectorAll('[role="menuitem"]')].map((row) =>
-      row.getAttribute("aria-label"),
-    );
-    // Whatever a capability adds (Import) sits between the two ends.
-    expect(rows[0]).toBe("New item");
-    expect(rows.at(-1)).toBe("Export items");
-    // A row presses the key of the command it stands for.
-    const key = document.querySelector<HTMLElement>(
-      '.vadd__host > [aria-label="Export items"]',
-    );
-    const pressed = vi.fn((event: Event) => event.stopImmediatePropagation());
-    key?.addEventListener("click", pressed);
-    fireEvent.click(screen.getByRole("menuitem", { name: "Export items" }));
-    expect(pressed).toHaveBeenCalledOnce();
-  });
-
-  it("New item in the sheet opens the editor", async () => {
-    renderVault("/vault");
-    fireEvent.click(screen.getByRole("button", { name: "Add" }));
-    fireEvent.click(await screen.findByRole("menuitem", { name: "New item" }));
-    await waitFor(() => expect(pane()).toBe("detail"));
-    expect(screen.queryByRole("menu", { name: "Add to the vault" })).toBeNull();
-  });
-
-  it("the / key writes the search verb into the real prompt rather than opening a box", async () => {
-    renderVault("/vault?f=all");
-    // The list focuses its rows once the saved collapse state has loaded.
-    await act(async () => undefined);
-    const handler = createKeymapHandler({
-      navigate: vi.fn(),
-      showHelp: vi.fn(),
+    const add = document.querySelector<HTMLAnchorElement>(".vault > .fab");
+    const plus = within(add as HTMLElement).getByRole("link", {
+      name: "New item",
     });
-    act(() => handler(new KeyboardEvent("keydown", { key: "/" })));
-    const prompt = screen.getByRole("combobox", { name: "Command" });
-    await waitFor(() => expect((prompt as HTMLInputElement).value).toBe("/? "));
-    expect(document.activeElement).toBe(prompt);
-    expect(screen.queryByLabelText("Search items")).toBeNull();
+    expect(plus.getAttribute("href")).toMatch(/^\/vault\/new/);
+    const more = within(add as HTMLElement).getByRole("button", {
+      name: "More ways to add",
+    });
+    expect(more.getAttribute("aria-haspopup")).toBe("menu");
+    expect(more.textContent).toBe("");
+  });
+
+  it("the ellipsis, and a context menu on the +, list the alternatives to adding", () => {
+    renderVault("/vault");
+    const listed = () =>
+      contextMenuSnapshot()
+        ?.groups.flat()
+        .map((entry) => entry.label) ?? [];
+    expect(listed()).toEqual([]);
+    fireEvent.click(screen.getByRole("button", { name: "More ways to add" }));
+    expect(listed()).toEqual(["Import items", "Export items"]);
+    expect(contextMenuSnapshot()?.label).toBe("Add actions");
+    // Drawn by the real layer, as an action sheet of named rows.
+    expect(
+      within(screen.getByRole("menu", { name: "Add actions" }))
+        .getAllByRole("menuitem")
+        .map((row) => row.textContent),
+    ).toEqual(["Import items", "Export items"]);
+    closeContextMenu();
+    // A long press is the platform's context-menu road: the same ask, the
+    // same menu — not the link's "Open link / Copy link address" menu.
+    fireEvent.contextMenu(screen.getByRole("link", { name: "New item" }));
+    expect(listed()).toEqual(["Import items", "Export items"]);
+    expect(contextMenuSnapshot()?.label).toBe("Add actions");
+  });
+
+  it("Import's entry starts the file picker, and Export's opens its sheet", async () => {
+    renderVault("/vault");
+    const picker = vi
+      .spyOn(HTMLInputElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    const ellipsis = screen.getByRole("button", { name: "More ways to add" });
+    fireEvent.click(ellipsis);
+    const entry = (id: string) =>
+      contextMenuSnapshot()
+        ?.groups.flat()
+        .find((item) => item.id === id);
+    act(() => entry("import")?.run());
+    expect(picker).toHaveBeenCalledOnce();
+    picker.mockRestore();
+    const real = vaultHooksSeams.useVault;
+    vaultHooksSeams.useVault = () => ({
+      ...real(),
+      tomb: "personal",
+      header: null,
+      status: "unlocked",
+    });
+    fireEvent.click(ellipsis);
+    act(() => entry("export")?.run());
+    expect(
+      await screen.findByRole("dialog", { name: "Export encrypted vault" }),
+    ).toBeTruthy();
+    vaultHooksSeams.useVault = real;
+  });
+
+  it("closing the menu returns the keyboard to the ellipsis", async () => {
+    renderVault("/vault");
+    const ellipsis = screen.getByRole("button", { name: "More ways to add" });
+    fireEvent.click(ellipsis);
+    await screen.findByRole("menu", { name: "Add actions" });
+    fireEvent.keyDown(document.activeElement ?? document.body, {
+      key: "Escape",
+    });
+    await waitFor(() => expect(document.activeElement).toBe(ellipsis));
+  });
+
+  it("the menu lists Import before Export, each a flow the button mounts", () => {
+    renderVault("/vault");
+    fireEvent.click(screen.getByRole("button", { name: "More ways to add" }));
+    const entries = contextMenuSnapshot()?.groups.flat() ?? [];
+    expect(entries.map((entry) => entry.id)).toEqual(["import", "export"]);
+    // Their file input is mounted beside the button, ready for the tap.
+    expect(
+      document.querySelector('input[type="file"][aria-label]'),
+    ).not.toBeNull();
+  });
+
+  it("the list's header is back and the view it shows, named; nothing else is a key", () => {
+    renderVault("/vault?f=all");
+    const bar = document.querySelector<HTMLElement>(
+      ".vault__list .vtree__pathbar",
+    );
+    const view = within(bar as HTMLElement).getByRole("button", {
+      name: /^Filter — /,
+    });
+    expect(view.textContent).toBe("All items");
+    expect(
+      within(bar as HTMLElement).getByRole("link", {
+        name: "Back to sections",
+      }),
+    ).toBeTruthy();
+    // New is the corner button; Import and Export are on the landing; search
+    // is the prompt. None is repeated in the header.
+    for (const name of ["New item", "Import items", "Export items"]) {
+      expect(
+        (bar as HTMLElement).querySelector(`[aria-label="${name}"]`),
+      ).toBeNull();
+    }
+    expect(
+      (bar as HTMLElement).querySelector('[title="Search (/)"]'),
+    ).toBeNull();
+  });
+
+  it("the corner button follows the tree and the list, and leaves the item and the trash alone", () => {
+    renderVault("/vault?f=all");
+    expect(document.querySelectorAll(".fab")).toHaveLength(1);
+    cleanup();
+    renderVault("/vault?f=trash");
+    expect(document.querySelector(".fab")).toBeNull();
+    cleanup();
+    renderVault("/vault/itm_1?f=all");
+    expect(document.querySelector(".fab")).toBeNull();
   });
 
   it("a search left in the address narrows the list and rides back from an item", () => {
@@ -165,6 +251,21 @@ describe("the vault on a phone", () => {
     expect(
       screen.getByRole("link", { name: "Back to list" }).getAttribute("href"),
     ).toBe("/vault?q=git&f=all");
+  });
+
+  it("the / key writes the search verb into the real prompt rather than opening a box", async () => {
+    renderVault("/vault?f=all");
+    // The list focuses its rows once the saved collapse state has loaded.
+    await act(async () => undefined);
+    const handler = createKeymapHandler({
+      navigate: vi.fn(),
+      showHelp: vi.fn(),
+    });
+    act(() => handler(new KeyboardEvent("keydown", { key: "/" })));
+    const prompt = screen.getByRole("combobox", { name: "Command" });
+    await waitFor(() => expect((prompt as HTMLInputElement).value).toBe("/? "));
+    expect(document.activeElement).toBe(prompt);
+    expect(screen.queryByLabelText("Search items")).toBeNull();
   });
 
   /** Types into the shell's one prompt, the way the `/` key and a keyboard do. */

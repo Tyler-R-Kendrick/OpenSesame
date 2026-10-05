@@ -1,0 +1,247 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "seed": [
+            "GitHub",
+            "GitLab",
+            "Gmail",
+            "Google Cloud",
+            "AWS Console",
+            "Netflix",
+            "Notion",
+            "Slack",
+            "Stripe",
+            "Spotify",
+            "Twitter",
+            "Vercel",
+            "Zoom",
+            "Bank of Example"
+          ]
+        },
+        {
+          "visit": "vault?f=all"
+        },
+        {
+          "measure": "input:visible:not([type=checkbox]):not([type=radio]):not([type=hidden]), textarea:visible"
+        },
+        {
+          "measure": ".vtree__pathbar button, .vtree__pathbar a"
+        },
+        {
+          "measure": ".fab, .fab__add, .fab__more"
+        },
+        {
+          "report": ".vtree__pathbar"
+        },
+        {
+          "shot": "390-list"
+        },
+        {
+          "tap": ".vtree__key[title^=\"Search\"]",
+          "only": "before"
+        },
+        {
+          "fill": {
+            "label": "Search items",
+            "text": "git"
+          },
+          "only": "before"
+        },
+        {
+          "fill": {
+            "label": "Command",
+            "text": "/? git"
+          },
+          "only": "after"
+        },
+        {
+          "count": ".vtree__row"
+        },
+        {
+          "measure": "input:visible:not([type=checkbox]):not([type=radio]):not([type=hidden]), textarea:visible"
+        },
+        {
+          "shot": "390-search"
+        },
+        {
+          "fill": {
+            "label": "Command",
+            "text": ""
+          },
+          "only": "after"
+        },
+        {
+          "visit": "vault"
+        },
+        {
+          "measure": ".vadd__key, .vadd__find, .fab"
+        },
+        {
+          "shot": "390-tree"
+        },
+        {
+          "hold": ".vadd__key, .fab__add"
+        },
+        {
+          "report": ".ctxmenu__title, .ctxmenu__item"
+        },
+        {
+          "measure": ".ctxmenu__item"
+        },
+        {
+          "shot": "390-menu"
+        },
+        {
+          "escape": null
+        },
+        {
+          "tap": ".fab__more",
+          "only": "after"
+        },
+        {
+          "report": ".ctxmenu__title, .ctxmenu__item",
+          "only": "after"
+        },
+        {
+          "shot": "390-ellipsis",
+          "only": "after"
+        },
+        {
+          "escape": null,
+          "only": "after"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "seed": [
+            "GitHub",
+            "GitLab",
+            "Gmail",
+            "Google Cloud",
+            "AWS Console",
+            "Netflix",
+            "Notion",
+            "Slack",
+            "Stripe",
+            "Spotify",
+            "Twitter",
+            "Vercel",
+            "Zoom",
+            "Bank of Example"
+          ]
+        },
+        {
+          "visit": "vault?f=all"
+        },
+        {
+          "measure": "input:visible:not([type=checkbox]):not([type=radio]):not([type=hidden]), textarea:visible"
+        },
+        {
+          "measure": ".vtree__pathbar button, .vtree__pathbar a"
+        },
+        {
+          "measure": ".fab, .fab__add, .fab__more"
+        },
+        {
+          "report": ".vtree__pathbar"
+        },
+        {
+          "shot": "1280-list"
+        },
+        {
+          "tap": ".vtree__key[title^=\"Search\"]",
+          "only": "before"
+        },
+        {
+          "fill": {
+            "label": "Search items",
+            "text": "git"
+          },
+          "only": "before"
+        },
+        {
+          "fill": {
+            "label": "Command",
+            "text": "/? git"
+          },
+          "only": "after"
+        },
+        {
+          "count": ".vtree__row"
+        },
+        {
+          "measure": "input:visible:not([type=checkbox]):not([type=radio]):not([type=hidden]), textarea:visible"
+        },
+        {
+          "shot": "1280-search"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-search",
+      "width": 390,
+      "title": "Search in the prompt — 390 × 844",
+      "caption": "A vault of 14 logins, searched for \"git\". Search is the prompt's own `/?` verb: the list narrows in place and the status row counts it, instead of a second field opening above the prompt.",
+      "before": "2 text inputs on screen (search field 352x44 above the prompt 248x44); list 2 of 14 after typing in the second one",
+      "after": "1 text input on screen (the prompt, 248x44); `/? git` narrows the list to 2 rows, status reads 2/14 · /git"
+    },
+    {
+      "shot": "390-list",
+      "width": 390,
+      "title": "The list, its header and the Add button — 390 × 844",
+      "caption": "The same 14-item list at rest. Add is one button in the corner; the header names the view and carries a way back and the filter.",
+      "before": "header of 6 keys, each 44x44 (back, filter, +, import, export, search); no corner button",
+      "after": "header is back 44x44 + the view's name 331x48 (\"All items\"); one Add button 100x56 in the corner: + 56x56 with an attached ellipsis 44x56"
+    },
+    {
+      "shot": "390-tree",
+      "width": 390,
+      "title": "The section tree — 390 × 844",
+      "caption": "The tree holds the sections and nothing else; Add is the same single button.",
+      "before": "a 390x52 search key row across the top and a separate 60x60 Add key",
+      "after": "no search row; one Add button 100x56 (+ 56x56 with attached ellipsis 44x56)"
+    },
+    {
+      "shot": "390-menu",
+      "width": 390,
+      "title": "Add's alternatives — 390 × 844",
+      "caption": "A long press on the + (the ellipsis next to it is the same ask) opens one `Add actions` menu as the app's own context sheet. Tapping + goes straight to a new item.",
+      "before": "tap Add opens \"Add to the vault\": 3 entries (New item, Import items, Export items), each 374x44",
+      "after": "long press opens \"Add actions\": 2 entries (Import items, Export items), each 374x44; New item is the + itself"
+    },
+    {
+      "shot": "1280-search",
+      "width": 1280,
+      "title": "Search in the prompt — 1280 × 900",
+      "caption": "Desktop, the same search for \"git\" with a mouse.",
+      "before": "2 text inputs on screen (search field 297x20 and the prompt 1132x32); a search key in the list header",
+      "after": "1 text input on screen (the prompt, 1132x32); the list narrows to 2 rows; the search key is gone"
+    },
+    {
+      "shot": "1280-list",
+      "width": 1280,
+      "title": "The list header — 1280 × 900",
+      "caption": "The desktop list's header, the keys it carries, at rest.",
+      "before": "6 header keys drawn (4 at 24x24, 2 at 18x18), the last the search key",
+      "after": "5 header keys drawn (4 at 24x24, 1 at 18x18); no search key; no corner Add button (it is a phone's)"
+    }
+  ]
+}
