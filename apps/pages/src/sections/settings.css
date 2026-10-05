@@ -272,9 +272,23 @@
    longest line in characters: both widen to it, and the stage scrolls
    sideways rather than the textarea scrolling by itself. */
 .set-raw__stage {
+  /* One size for both layers, so they always scale together. Fields read
+     the shared floor (DESIGN.md § Touch): 13px on a desktop, 16px under a
+     coarse pointer or a narrow window, so iOS never zooms a focused field.
+     `--cols` is in `ch`, and the line height is unitless: both follow. */
+  --set-raw-size: max(0.8125rem, var(--field-min));
   display: grid;
   min-height: 16rem;
   overflow-x: auto;
+  /* The textarea is transparent and borderless, so the stage carries the
+     focus cue: a rule that turns ink, as a field's does (a read-only file
+     draws no caret, and this is then the only sign of where the keys go). */
+  border-bottom: 1px solid var(--line);
+}
+
+.set-raw__stage:focus-within {
+  border-bottom-color: var(--ink);
+  box-shadow: 0 1px 0 0 var(--ink);
 }
 
 .set-raw__paint,
@@ -288,7 +302,7 @@
   padding: 0.75rem 0;
   border: 0;
   font-family: var(--mono);
-  font-size: 0.8125rem;
+  font-size: var(--set-raw-size);
   line-height: 1.55;
   white-space: pre;
   tab-size: 2;
@@ -299,6 +313,8 @@
   color: var(--ink);
 }
 
+/* Selected text is deliberately drawn in plain ink by the global ::selection
+   rule, so it stays legible over the selection wash. */
 .set-raw__input {
   height: 100%;
   overflow: hidden;

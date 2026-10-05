@@ -11,6 +11,8 @@
  */
 import type { FileLanguage } from "@opensesame/app-core/sections/settings/virtual-files.js";
 import { type KeyboardEvent, type Ref, useLayoutEffect, useRef } from "react";
+import { revealCaret } from "./caret-reveal.js";
+import { longestLine } from "./lines.js";
 import { paintSource } from "./paint.js";
 
 export function PaintedText({
@@ -37,18 +39,27 @@ export function PaintedText({
   onKeyUp?: (caret: number) => void;
   onFocus?: () => void;
 }) {
-  const cols = Math.max(0, ...source.split("\n").map((line) => line.length));
+  const cols = longestLine(source);
   const stage = useRef<HTMLDivElement>(null);
+  const paint = useRef<HTMLPreElement>(null);
   // A custom property is not a React style key; set it where it is read.
   useLayoutEffect(() => {
     stage.current?.style.setProperty("--cols", String(cols));
   }, [cols]);
+  // The painted copy has just grown: the browser tried to show the caret
+  // before it did, so show it now (only for someone typing, only if needed).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: runs on the text
+  useLayoutEffect(() => {
+    const field = stage.current?.querySelector("textarea");
+    if (stage.current && paint.current && field)
+      revealCaret(stage.current, paint.current, field);
+  }, [source]);
   return (
     <div
       ref={stage}
       className={`set-raw__stage${readOnly ? " set-raw__stage--ro" : ""}`}
     >
-      <pre className="set-raw__paint" aria-hidden="true">
+      <pre ref={paint} className="set-raw__paint" aria-hidden="true">
         {paintSource(language, source)}
       </pre>
       <textarea
