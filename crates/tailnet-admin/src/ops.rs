@@ -1,4 +1,4 @@
-//! The device and key operations (ADR 0168 §4), validated before anything is
+//! The device and key operations (ADR 0169 §4), validated before anything is
 //! sent and answered in [`crate::wire`]'s shapes. The daemon's routes and the
 //! `opensesame tailnet` CLI both call these; neither speaks to Tailscale any
 //! other way.

@@ -1,4 +1,4 @@
-//! Tailnet device management through the daemon (ADR 0168).
+//! Tailnet device management through the daemon (ADR 0169).
 //!
 //! Tailscale's control-plane API cannot be read from a page (it answers no
 //! CORS), and the credential that drives it can admit a stranger's machine to

@@ -18,6 +18,12 @@ import {
 
 export const MAX_SLOTS = 8;
 
+/**
+ * Most bytes a slot may carry beyond its keys and presentation. A mode's plan
+ * is a few lines of JSON; the cap keeps a slot from becoming a store.
+ */
+export const MAX_SLOT_PAYLOAD_BYTES = 8192;
+
 export type SealedSlot = Readonly<{
   version: 1;
   slotId: string;
@@ -36,6 +42,12 @@ export type SlotPlaintext = Readonly<{
   compartmentKey: Uint8Array;
   actionCapability: Uint8Array | null;
   presentation: string;
+  /**
+   * What the mode does when it matches (`settings/modes/payload.ts`). Sealed
+   * after the presentation and a NUL, so a slot written before modes had a
+   * payload still opens, with none.
+   */
+  payload?: Uint8Array | null;
 }>;
 
 function aadFor(slot: Omit<SealedSlot, "ivB64" | "ciphertextB64">): Uint8Array {
@@ -84,9 +96,22 @@ export async function sealProfileSlot(input: {
     iterations,
   };
   const pres = te.encode(input.plaintext.presentation);
+  if (pres.includes(0)) throw new Error("presentation holds a NUL byte");
+  const payload = input.plaintext.payload ?? new Uint8Array(0);
+  if (payload.length > MAX_SLOT_PAYLOAD_BYTES) {
+    throw new Error("slot payload is too large");
+  }
   const cap = input.plaintext.actionCapability ?? new Uint8Array(0);
+  // The NUL that ends the presentation is only written when there is a
+  // payload, so a slot without one is byte-for-byte what it always was.
+  const tail = payload.length > 0 ? 1 + payload.length : 0;
   const body = new Uint8Array(
-    4 + input.plaintext.compartmentKey.length + 4 + cap.length + pres.length,
+    4 +
+      input.plaintext.compartmentKey.length +
+      4 +
+      cap.length +
+      pres.length +
+      tail,
   );
   const view = new DataView(body.buffer);
   let o = 0;
@@ -99,6 +124,8 @@ export async function sealProfileSlot(input: {
   body.set(cap, o);
   o += cap.length;
   body.set(pres, o);
+  o += pres.length;
+  if (payload.length > 0) body.set(payload, o + 1);
 
   const ct = new Uint8Array(
     await crypto.subtle.encrypt(
@@ -164,8 +191,15 @@ export async function openProfileSlot(
     o += 4;
     const actionCapability = clen > 0 ? pt.slice(o, o + clen) : null;
     o += clen;
-    const presentation = new TextDecoder().decode(pt.slice(o));
-    return { compartmentKey, actionCapability, presentation };
+    const rest = pt.slice(o);
+    const nul = rest.indexOf(0);
+    const presentation = new TextDecoder().decode(
+      nul < 0 ? rest : rest.slice(0, nul),
+    );
+    const payload = nul < 0 ? null : rest.slice(nul + 1);
+    return payload && payload.length > 0
+      ? { compartmentKey, actionCapability, presentation, payload }
+      : { compartmentKey, actionCapability, presentation };
   } catch (error) {
     if (error instanceof DuressKdfError) throw error;
     return null;

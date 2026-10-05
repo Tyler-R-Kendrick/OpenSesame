@@ -1,6 +1,6 @@
 /**
  * The daemon a person paired this page with for tailnet device management
- * (ADR 0168), as the port the device panel works through.
+ * (ADR 0169), as the port the device panel works through.
  *
  * A person runs `opensesame daemon tailnet pair --origin <this page> --role
  * <read|manage>` on the daemon's machine and pastes the code it prints, or

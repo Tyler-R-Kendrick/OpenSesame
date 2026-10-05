@@ -2,7 +2,7 @@ import { ADR_TAILNET_DEVICES } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 /**
- * Tailnet device management (ADR 0168): the daemon holds the Tailscale
+ * Tailnet device management (ADR 0169): the daemon holds the Tailscale
  * credential and makes every call; a page manages the tailnet's machines
  * through it with an origin- and role-bound bearer, and the operator does the
  * same from a terminal with `opensesame daemon tailnet`.

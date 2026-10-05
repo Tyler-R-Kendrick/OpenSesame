@@ -1,4 +1,4 @@
-//! HTTP face of tailnet device management (ADR 0168).
+//! HTTP face of tailnet device management (ADR 0169).
 //!
 //! ```text
 //! POST   /v1/tailnet/pairing                 {"code"}  Origin -> 201 {id,origin,role,label,token}

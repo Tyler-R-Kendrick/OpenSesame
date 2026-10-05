@@ -25,7 +25,7 @@ export const ADR_DEVICE_VAULTS = "0089-device-vault-switching.md";
 export const ADR_PAGES_WITHOUT_HOST = "0128-pages-without-host.md";
 export const ADR_PAGES_CEREMONIES = "0140-pages-hosts-every-ceremony.md";
 export const ADR_TAILNET_SYNC = "0144-tailnet-vault-sync.md";
-export const ADR_TAILNET_DEVICES = "0168-tailnet-device-management.md";
+export const ADR_TAILNET_DEVICES = "0169-tailnet-device-management.md";
 
 export const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:

@@ -3,7 +3,7 @@ import { expect } from "@playwright/test";
 // Identity › Devices lists the browsers that opened this vault, driven from
 // the keyboard alone: this browser is listed and never removable, it is
 // renamed (and named back) from its pencil key, and no key invents a device
-// (ADR 0168 — the tailnet's real machines are the optional device manager's,
+// (ADR 0169 — the tailnet's real machines are the optional device manager's,
 // above this list).
 export async function localDeviceContract(page, tabTo) {
   await tabTo(page, page.getByRole("tab", { name: "Devices", exact: true }));

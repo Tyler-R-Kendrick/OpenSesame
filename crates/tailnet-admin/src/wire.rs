@@ -1,4 +1,4 @@
-//! Tailscale's shapes in, the daemon's own out (ADR 0168 §4).
+//! Tailscale's shapes in, the daemon's own out (ADR 0169 §4).
 //!
 //! A page is answered in snake case with only the fields it shows, so a
 //! change to Tailscale's wire format is absorbed here and a field Tailscale

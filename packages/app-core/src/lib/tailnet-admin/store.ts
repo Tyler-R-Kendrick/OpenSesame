@@ -1,5 +1,5 @@
 /**
- * The open vault's tailnet admin pairing (ADR 0168 §3), as
+ * The open vault's tailnet admin pairing (ADR 0169 §3), as
  * `plugin-daemon-store.ts` keeps the plugin pairing: read from the tomb once
  * the vault is open, dropped when it locks or another vault opens, and never
  * held for a guest. It follows the vault only while a panel listens, so

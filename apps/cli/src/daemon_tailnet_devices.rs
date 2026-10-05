@@ -1,5 +1,5 @@
 //! `opensesame daemon tailnet devices | approve | … | audit`: from a terminal,
-//! the device and key operations a paired page performs (ADR 0168 §4),
+//! the device and key operations a paired page performs (ADR 0169 §4),
 //! through the same validation, the same upstream and the same audit trail —
 //! recorded as `terminal`.
 

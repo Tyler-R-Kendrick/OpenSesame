@@ -197,7 +197,7 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "networking.tailnet-devices",
     "Tailnet devices",
-    "Manage the tailnet's real machines from Identity › Devices: approve, rename, tag, re-key, route and remove them, and add one with an auth key. The paired daemon holds the Tailscale credential and makes every call (ADR 0168).",
+    "Manage the tailnet's real machines from Identity › Devices: approve, rename, tag, re-key, route and remove them, and add one with an auth key. The paired daemon holds the Tailscale credential and makes every call (ADR 0169).",
     {
       dependencies: ["networking.tailnet", "identity.local-iam"],
       operationIds: [

@@ -263,7 +263,7 @@ export const LIB_RULES = [
   optional(
     `${L}tailnet-admin/`,
     "networking.tailnet-devices",
-    "tailnet device management: daemon client, sealed pairing, device model (ADR 0168)",
+    "tailnet device management: daemon client, sealed pairing, device model (ADR 0169)",
   ),
   core(
     `${L}join/`,

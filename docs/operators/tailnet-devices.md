@@ -5,7 +5,7 @@ web app, or from a terminal: see what Tailscale reports for each one, approve
 the ones waiting, rename and tag them, turn key expiry on or off, expire a
 key, approve subnet routes and exit nodes, remove a machine, and add one by
 minting an auth key
-([ADR 0168](../adr/0168-tailnet-device-management.md)).
+([ADR 0169](../adr/0169-tailnet-device-management.md)).
 
 The `opensesame` daemon on one machine holds the Tailscale credential and
 makes every call to the Tailscale API. A page never sees that credential: it

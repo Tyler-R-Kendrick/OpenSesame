@@ -1,7 +1,7 @@
 /**
  * One tailnet device: what it is, what about it needs someone, and the keys
  * its pairing's role allows — approve one waiting, open its settings, expire
- * its key, remove it. Every change goes through the daemon (ADR 0168).
+ * its key, remove it. Every change goes through the daemon (ADR 0169).
  */
 
 import {

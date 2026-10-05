@@ -1,4 +1,4 @@
-//! One line per change made through the tailnet routes (ADR 0168 §5).
+//! One line per change made through the tailnet routes (ADR 0169 §5).
 //!
 //! When, which pairing (id, label, origin), the action, the device or key id,
 //! and the status that came back. Never a value: no key, no token, no name a

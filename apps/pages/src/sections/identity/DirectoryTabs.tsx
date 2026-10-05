@@ -11,7 +11,7 @@ import { useDirectoryPanels } from "./directory-panel-slot.js";
 import { useTailnetDevices } from "./tailnet-devices-slot.js";
 
 /**
- * Devices: the tailnet's machines when device management is on (ADR 0168),
+ * Devices: the tailnet's machines when device management is on (ADR 0169),
  * this vault's browsers, then the directory's approval if it runs.
  */
 export function DevicesTab({
