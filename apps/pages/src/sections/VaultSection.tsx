@@ -21,6 +21,7 @@ import {
 import { EmptyTip } from "../components/EmptyTip.js";
 import { IconChevronLeft } from "../components/Icons.js";
 import { NavTree } from "../components/NavTree.js";
+import { usePepperPrompt } from "../components/PepperPrompt.js";
 import { UpLink } from "../components/UpLink.js";
 import { swipeBack } from "../lib/gestures.js";
 import { AscendProvider, usePaneTrail } from "../lib/pane-trail.js";
@@ -34,6 +35,7 @@ import { VaultActions } from "./vault/VaultActions.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import { WelcomeKeys } from "./vault/WelcomeKeys.js";
+import { accountSecretToCopy } from "./vault/account-copy.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
 import "./vault.css";
 import {
@@ -50,6 +52,7 @@ export function VaultSection() {
   const { items, folders } = useVault();
   const store = useVaultStore();
   const copySecret = useCopySecret();
+  const pepper = usePepperPrompt();
   const navigate = useNavigate();
 
   const filter = resolveFilterSlug(params.get("f") ?? "all");
@@ -132,6 +135,12 @@ export function VaultSection() {
         }
       },
       copySecret: (item: VaultItem) => {
+        if (item.kind === "account") {
+          void accountSecretToCopy(item, pepper.ask).then((value) => {
+            if (value) void copySecret(value);
+          });
+          return;
+        }
         const value = concealedValue(item);
         if (value) void copySecret(value);
       },
@@ -156,6 +165,7 @@ export function VaultSection() {
     [
       armedPurgeId,
       copySecret,
+      pepper.ask,
       createPath,
       inTrash,
       itemId,
@@ -214,6 +224,7 @@ export function VaultSection() {
 
   return (
     <AscendProvider value={narrow ? ascend : null}>
+      {pepper.element}
       <div className="vault" data-pane={showing}>
         {/* The section tree: the rail's own tree, drawn where a phone looks.
           It is mounted only below the breakpoint, so the rail and this pane

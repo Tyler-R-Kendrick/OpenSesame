@@ -37,7 +37,7 @@ describe("the buffer states what the list beside it holds", () => {
     vault.current = { items: [makeAccount()] };
     expect(welcome("/vault?f=certificate")).toBe("no certificates yet");
     cleanup();
-    expect(welcome("/vault?f=login")).toBe("1 item · logins");
+    expect(welcome("/vault?f=login")).toBe("1 item · accounts");
   });
 
   it("says the trash is empty rather than that nothing is sealed", () => {

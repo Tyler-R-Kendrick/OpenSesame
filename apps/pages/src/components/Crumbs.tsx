@@ -94,7 +94,7 @@ function CrumbsDefault() {
   // tab spent a row of the frame saying nothing. Two or more is a path, which
   // neither nav shows, so that row stays.
   if (crumbs.length < 2) return null;
-  // Nor is "Settings › Vaults" or "Vault › Logins" when the page already
+  // Nor is "Settings › Vaults" or "Vault › Accounts" when the page already
   // marks that second step — the selected tab under the title, the filter
   // the list is showing. Drawn only on those sub-views, it pushed the title
   // 24px down against its sibling tabs; a path the page does not already

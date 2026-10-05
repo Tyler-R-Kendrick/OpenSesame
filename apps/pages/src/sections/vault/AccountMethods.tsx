@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { IconKey } from "../../components/IconKey.js";
 import { IconPlus, IconX } from "../../components/Icons.js";
 import type { PepperAskFn } from "../../components/PepperPrompt.js";
-import { METHOD_LABELS, MethodPicker, newMethod } from "./MethodPicker.js";
+import { MethodPicker, methodTitle, newMethod } from "./MethodPicker.js";
 import {
   ApiKeyFields,
   AuthenticatorFields,
@@ -57,12 +57,6 @@ function MethodFields({
   }
 }
 
-function titleOf(methods: readonly LoginMethod[], method: LoginMethod): string {
-  const same = methods.filter((entry) => entry.type === method.type);
-  const label = METHOD_LABELS[method.type];
-  return same.length > 1 ? `${label} ${same.indexOf(method) + 1}` : label;
-}
-
 /**
  * The account's login methods: one block each, in order, under a heading whose
  * `+` opens the type choice. An account may hold none, so every block can go.
@@ -90,11 +84,11 @@ export function AccountMethods({
 
   useEffect(() => {
     if (added === null) return;
-    list.current
-      ?.querySelector<HTMLElement>(
-        `[data-method="${CSS.escape(added)}"] :is(input, select)`,
-      )
-      ?.focus();
+    const blocks = list.current?.querySelectorAll<HTMLElement>("[data-method]");
+    for (const candidate of blocks ?? []) {
+      if (candidate.dataset.method !== added) continue;
+      candidate.querySelector<HTMLElement>("input, select")?.focus();
+    }
     setAdded(null);
   }, [added]);
 
@@ -136,12 +130,12 @@ export function AccountMethods({
       ) : null}
       <div ref={list} className="method__list">
         {methods.map((method) => {
-          const title = titleOf(methods, method);
+          const title = methodTitle(methods, method);
           return (
             <fieldset
               key={method.id}
               className="method"
-              aria-label={title}
+              aria-label={`${title} method`}
               data-method={method.id}
             >
               <span className="label editor__grouplabel">

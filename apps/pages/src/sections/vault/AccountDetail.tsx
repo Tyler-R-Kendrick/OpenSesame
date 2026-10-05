@@ -1,13 +1,13 @@
-import { loginWebsiteLink } from "@opensesame/app-core/lib/vault/website-pattern.js";
-import {
-  type AccountItem,
-  type LoginMethod,
-  type PasswordMethod,
-  hostOf,
+import type {
+  AccountItem,
+  LoginMethod,
+  PasswordMethod,
 } from "@opensesame/vault-core";
 import { CopyButton, FieldRow } from "../../components/FieldRow.js";
-import { IconExternal } from "../../components/Icons.js";
-import { usePepperPrompt } from "../../components/PepperPrompt.js";
+import {
+  type PepperAskFn,
+  usePepperPrompt,
+} from "../../components/PepperPrompt.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import {
   ApiKeyRows,
@@ -16,19 +16,14 @@ import {
   TokenRows,
 } from "./AccountMethodRows.js";
 import { AccountPasswordRow } from "./AccountPasswordRow.js";
-import { METHOD_LABELS } from "./MethodPicker.js";
+import { AccountWebsiteRows } from "./AccountWebsiteRows.js";
+import { methodTitle } from "./MethodPicker.js";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
     dateStyle: "medium",
     timeStyle: "short",
   });
-}
-
-function titleOf(methods: readonly LoginMethod[], method: LoginMethod): string {
-  const same = methods.filter((entry) => entry.type === method.type);
-  const label = METHOD_LABELS[method.type];
-  return same.length > 1 ? `${label} ${same.indexOf(method) + 1}` : label;
 }
 
 type Ports = {
@@ -38,6 +33,49 @@ type Ports = {
   failed: string | null;
   copy: (key: string, value: string) => Promise<void>;
 };
+
+type RowPorts = Parameters<typeof ApiKeyRows>[0]["ports"];
+
+/** One row group per login method, in the account's order. */
+function MethodRows({
+  item,
+  ports,
+  ask,
+  onSave,
+}: {
+  item: AccountItem;
+  ports: RowPorts;
+  ask: PepperAskFn;
+  onSave: (method: PasswordMethod) => Promise<void>;
+}) {
+  const { copied, failed, copy } = ports;
+  return item.methods.map((method) => {
+    switch (method.type) {
+      case "password":
+        return (
+          <AccountPasswordRow
+            key={method.id}
+            item={item}
+            method={method}
+            title={methodTitle(item.methods, method)}
+            ask={ask}
+            copying={{ copied, failed, copy }}
+            onSave={onSave}
+          />
+        );
+      case "api-key":
+        return <ApiKeyRows key={method.id} method={method} ports={ports} />;
+      case "token":
+        return <TokenRows key={method.id} method={method} ports={ports} />;
+      case "oauth":
+        return <OAuthRows key={method.id} method={method} ports={ports} />;
+      case "authenticator":
+        return (
+          <AuthenticatorRows key={method.id} method={method} ports={ports} />
+        );
+    }
+  });
+}
 
 /** An account: who it is, one row group per login method, and the sites it lives at. */
 export function AccountDetail({
@@ -87,84 +125,10 @@ export function AccountDetail({
             <span className="frow__value">{item.username}</span>
           </FieldRow>
         ) : null}
-        {item.methods.map((method) => {
-          switch (method.type) {
-            case "password":
-              return (
-                <AccountPasswordRow
-                  key={method.id}
-                  item={item}
-                  method={method}
-                  title={titleOf(item.methods, method)}
-                  ask={pepper.ask}
-                  copying={{ copied, failed, copy }}
-                  onSave={saveMethod}
-                />
-              );
-            case "api-key":
-              return (
-                <ApiKeyRows key={method.id} method={method} ports={ports} />
-              );
-            case "token":
-              return (
-                <TokenRows key={method.id} method={method} ports={ports} />
-              );
-            case "oauth":
-              return (
-                <OAuthRows key={method.id} method={method} ports={ports} />
-              );
-            case "authenticator":
-              return (
-                <AuthenticatorRows
-                  key={method.id}
-                  method={method}
-                  ports={ports}
-                />
-              );
-          }
-        })}
+        <MethodRows item={item} ports={ports} ask={pepper.ask} onSave={saveMethod} />
       </section>
 
-      {item.uris.length > 0 ? (
-        <section className="detail__group">
-          <h2 className="detail__grouphead">Websites</h2>
-          {item.uris.map((uri) => {
-            const href = loginWebsiteLink(uri);
-            return (
-              <FieldRow
-                key={uri.id}
-                label={`Match: ${uri.match}`}
-                actions={
-                  <>
-                    {href ? (
-                      <a
-                        className="icon-btn"
-                        href={href}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        aria-label={`Open ${hostOf(uri.uri) || uri.uri}`}
-                        title="Open in a new tab"
-                      >
-                        <IconExternal size={17} />
-                      </a>
-                    ) : null}
-                    <CopyButton
-                      value={uri.uri}
-                      label="address"
-                      fieldKey={`uri-${uri.id}`}
-                      copied={copied}
-                      failed={failed}
-                      onCopy={copy}
-                    />
-                  </>
-                }
-              >
-                <span className="frow__value">{uri.uri}</span>
-              </FieldRow>
-            );
-          })}
-        </section>
-      ) : null}
+      <AccountWebsiteRows item={item} copying={{ copied, failed, copy }} />
 
       {firstPassword ? (
         <p className="hint">

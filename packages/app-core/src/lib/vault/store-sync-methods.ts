@@ -111,31 +111,27 @@ function generatorOf(value: JsonObject | null): PasswordGenerator | null {
   return manual;
 }
 
+function kdfOf(value: JsonObject | null): PepperSeal["kdf"] | null {
+  const saltB64 = text(value?.saltB64);
+  const iterations = count(value?.iterations);
+  return value?.alg !== "PBKDF2-SHA256" ||
+    saltB64 === null ||
+    iterations === null
+    ? null
+    : { alg: "PBKDF2-SHA256", saltB64, iterations };
+}
+
 /** `undefined` for no seal, `null` for one that is not whole. */
 function sealOf(value: JsonValue | undefined): PepperSeal | null | undefined {
   if (value === undefined) return undefined;
   const seal = objectAt(value);
-  const kdf = objectAt(seal?.kdf);
   const blob = objectAt(seal?.seal);
-  const saltB64 = text(kdf?.saltB64);
-  const iterations = count(kdf?.iterations);
+  const kdf = kdfOf(objectAt(seal?.kdf));
   const ivB64 = text(blob?.ivB64);
   const ctB64 = text(blob?.ctB64);
-  if (
-    seal?.v !== 1 ||
-    kdf?.alg !== "PBKDF2-SHA256" ||
-    saltB64 === null ||
-    iterations === null ||
-    ivB64 === null ||
-    ctB64 === null
-  ) {
-    return null;
-  }
-  return {
-    v: 1,
-    kdf: { alg: "PBKDF2-SHA256", saltB64, iterations },
-    seal: { ivB64, ctB64 },
-  };
+  return seal?.v !== 1 || kdf === null || ivB64 === null || ctB64 === null
+    ? null
+    : { v: 1, kdf, seal: { ivB64, ctB64 } };
 }
 
 const password: Read<LoginMethod> = (m) => {

@@ -14,14 +14,16 @@ import {
 import { planeHookSeams } from "../../bindings/planes.js";
 
 import type {
+  AccountItem,
   CardItem,
   Folder,
-  LoginItem,
   NoteItem,
   PasskeyItem,
+  PasswordMethod,
   SecretItem,
   VaultItem,
 } from "@opensesame/vault-core";
+import { manualPassword, passwordMethod } from "@opensesame/vault-core";
 
 type VaultFixture = { current: { items: VaultItem[]; folders: Folder[] } };
 
@@ -57,6 +59,10 @@ Object.assign(connectionSeams, { listConnections });
 afterAll(() => Object.assign(connectionSeams, originalConnectionSeams));
 
 import { ItemDetail } from "./ItemDetail.js";
+import {
+  type AccountSeed,
+  makeAccount as makeAccountBase,
+} from "./account.test-support.js";
 
 function base<K extends VaultItem["kind"]>(kind: K, id: string, name: string) {
   return {
@@ -73,16 +79,19 @@ function base<K extends VaultItem["kind"]>(kind: K, id: string, name: string) {
   };
 }
 
-function makeAccount(overrides: Partial<LoginItem> = {}): LoginItem {
-  return {
-    ...base("login", "itm_login", "Webmail"),
-    username: "me@example.com",
+function makeAccount(overrides: AccountSeed = {}): AccountItem {
+  return makeAccountBase({
+    id: "itm_login",
     password: "hunter2hunter2",
-    totp: "",
-    uris: [],
-    passwordChangedAt: "2026-08-01T00:00:00Z",
     ...overrides,
-  };
+  });
+}
+
+function passwordOf(item: VaultItem): PasswordMethod {
+  if (item.kind !== "account") throw new Error("expected a saved account");
+  const method = passwordMethod(item);
+  if (!method) throw new Error("expected a password method");
+  return method;
 }
 
 function savedItem(): VaultItem {
@@ -124,12 +133,12 @@ describe("ItemDetail", () => {
     ).toBeTruthy();
   });
 
-  it("renders a login with concealed password and reveals it on demand", async () => {
+  it("renders an account with concealed password and reveals it on demand", async () => {
     vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login");
     expect(screen.getByRole("heading", { name: "Webmail" })).toBeTruthy();
     expect(screen.getByText("me@example.com")).toBeTruthy();
-    expect(screen.getByText(/Login/)).toBeTruthy();
+    expect(screen.getByText(/Account/)).toBeTruthy();
     // Concealed until asked.
     expect(screen.queryByText("hunter2hunter2")).toBeNull();
     await userEvent.click(
@@ -203,7 +212,7 @@ describe("ItemDetail", () => {
     expect(screen.queryByRole("link", { name: /Open chrome/ })).toBeNull();
   });
 
-  it("shows the authenticator section and QR reveal for TOTP logins", async () => {
+  it("shows the authenticator section and QR reveal for TOTP accounts", async () => {
     vault.current = {
       items: [makeAccount({ totp: "JBSWY3DPEHPK3PXP" })],
       folders: [],
@@ -241,10 +250,10 @@ describe("ItemDetail", () => {
     );
     await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
     const saved = savedItem();
-    if (saved.kind !== "login") throw new Error("expected saved login");
-    expect(saved.password).not.toBe("hunter2hunter2");
-    expect(saved.password).toHaveLength(32);
-    expect(saved.passwordChangedAt).not.toBe("2026-08-01T00:00:00Z");
+    const method = passwordOf(saved);
+    expect(method.secret).not.toBe("hunter2hunter2");
+    expect(method.secret).toHaveLength(32);
+    expect(method.changedAt).not.toBe("2026-08-01T00:00:00Z");
   });
 
   it("requires a value in provide mode and saves what is typed", async () => {
@@ -268,8 +277,7 @@ describe("ItemDetail", () => {
     );
     await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
     const saved = savedItem();
-    if (saved.kind !== "login") throw new Error("expected saved login");
-    expect(saved.password).toBe("typed-secret-value");
+    expect(passwordOf(saved).secret).toBe("typed-secret-value");
   });
 
   it("cancels the update panel without saving", async () => {
@@ -545,10 +553,16 @@ describe("ItemDetail edge branches", () => {
     vi.clearAllMocks();
   });
 
-  it("renders an untitled login without username or password", () => {
+  it("renders an untitled account without username or password", () => {
     vault.current = {
       items: [
-        makeAccount({ name: "", username: "", password: "", totp: "" }),
+        makeAccount({
+          name: "",
+          username: "",
+          methods: [
+            manualPassword("itm_login:password", "", "2026-08-01T00:00:00Z"),
+          ],
+        }),
         makeAccount({ id: "itm_other", name: "Other" }),
       ],
       folders: [],
@@ -556,7 +570,7 @@ describe("ItemDetail edge branches", () => {
     renderAt("itm_login");
     expect(screen.getByRole("heading", { name: "Untitled" })).toBeTruthy();
     // No username row, and the update affordance stands alone.
-    expect(screen.queryByText("Username")).toBeNull();
+    expect(screen.queryByText("Username / ID")).toBeNull();
     expect(
       screen.getByRole("button", { name: /Update password/i }),
     ).toBeTruthy();

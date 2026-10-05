@@ -17,6 +17,16 @@ export const METHOD_LABELS: Record<LoginMethodType, string> = {
   authenticator: "Authenticator",
 };
 
+/** The type's label, numbered when the account holds more than one of it. */
+export function methodTitle(
+  methods: readonly LoginMethod[],
+  method: LoginMethod,
+): string {
+  const same = methods.filter((entry) => entry.type === method.type);
+  const label = METHOD_LABELS[method.type];
+  return same.length > 1 ? `${label} ${same.indexOf(method) + 1}` : label;
+}
+
 /** A new, empty method of a type. A password starts with a generated one. */
 export function newMethod(
   account: Pick<AccountItem, "id">,

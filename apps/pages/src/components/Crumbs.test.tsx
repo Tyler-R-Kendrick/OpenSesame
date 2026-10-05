@@ -98,6 +98,6 @@ describe("Crumbs", () => {
       </MemoryRouter>,
     );
     const strip = screen.getByRole("navigation", { name: "Vault path" });
-    expect(strip.textContent).toBe("VaultNew login");
+    expect(strip.textContent).toBe("VaultNew account");
   });
 });

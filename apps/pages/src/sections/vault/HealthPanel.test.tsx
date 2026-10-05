@@ -92,6 +92,21 @@ describe("HealthPanel", () => {
     ).toBeTruthy();
   });
 
+  it("counts a peppered password as unchecked, never as clean or weak", () => {
+    const peppered = makeAccount({ id: "itm_pep", name: "Sealed" });
+    const method = peppered.methods[0];
+    if (method?.type !== "password") throw new Error("fixture");
+    vault.current = {
+      items: [
+        makeAccount(),
+        { ...peppered, methods: [{ ...method, pepper: true, secret: "" }] },
+      ],
+    };
+    renderPanel();
+    expect(screen.getByText(/1 reviewed · 1 clean/)).toBeTruthy();
+    expect(screen.getByText(/· 1 unchecked/)).toBeTruthy();
+  });
+
   it("flags weak, reused, old, and 2FA-less passwords", () => {
     const old = new Date(Date.now() - 400 * 86_400_000).toISOString();
     vault.current = {

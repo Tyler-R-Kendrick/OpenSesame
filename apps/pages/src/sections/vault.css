@@ -942,8 +942,15 @@ select.editor__ext:hover {
 
 /* The account's login methods: one ruled block each, the generator's options
    inline under its select, the entropy a one-line readout. */
-.method__group > * {
+.field.method__group > *:not(label):not(.label),
+.field.method__group > .label {
   grid-column: 1 / -1;
+}
+
+/* The pepper prompt: its fields and its one key, a breath apart. */
+.pepper {
+  display: grid;
+  gap: 0.9rem;
 }
 
 .method__list {

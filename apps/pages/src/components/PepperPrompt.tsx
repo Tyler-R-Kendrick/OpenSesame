@@ -36,7 +36,7 @@ export class PepperCancelled extends Error {
   }
 }
 
-export function isPepperCancelled(caught: unknown): caught is PepperCancelled {
+export function isPepperCancelled<T>(caught: T): caught is T & PepperCancelled {
   return caught instanceof PepperCancelled;
 }
 
@@ -89,6 +89,7 @@ export function PepperPrompt({
       initialFocus={input}
     >
       <form
+        className="pepper"
         aria-label={purpose}
         onSubmit={(event) => {
           event.preventDefault();
@@ -153,10 +154,9 @@ type Pending = {
  * `element` is drawn once by the caller, outside any `<form>` of its own;
  * `ask` opens it. Asking again while it is open cancels the earlier ask.
  */
-export function usePepperPrompt(): {
-  ask: PepperAskFn;
-  element: ReactNode;
-} {
+export type PepperPromptHandle = { ask: PepperAskFn; element: ReactNode };
+
+export function usePepperPrompt(): PepperPromptHandle {
   const [open, setOpen] = useState<Open | null>(null);
   const pending = useRef<Pending | null>(null);
   const count = useRef(0);

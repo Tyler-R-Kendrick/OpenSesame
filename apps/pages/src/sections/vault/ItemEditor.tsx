@@ -23,10 +23,6 @@ import { useWebMcpLoginDraft } from "../../bindings/webmcp-login-draft.js";
 import { EmptyTip } from "../../components/EmptyTip.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconEye, IconEyeOff } from "../../components/Icons.js";
-import {
-  isPepperCancelled,
-  usePepperPrompt,
-} from "../../components/PepperPrompt.js";
 import { useVaultAllTo } from "../../lib/vault-list-path.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { AccountFields } from "./AccountFields.js";
@@ -36,9 +32,9 @@ import { EditorTitle } from "./EditorTitle.js";
 import { UnknownItemType } from "./EditorType.js";
 import { NativeItemFields } from "./NativeItemFields.js";
 import { TypedFieldInputs } from "./TypedFields.js";
-import { type PlainMap, sealForSave } from "./account-secrets.js";
 import { useEditorContributions } from "./item-contributions.js";
 import { seedDraft } from "./seed-draft.js";
+import { useAccountSecrets } from "./use-account-secrets.js";
 import { useEditorPath } from "./useEditorPath.js";
 
 export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
@@ -66,9 +62,8 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
 
   const [draft, setDraft] = useState<VaultItem | null>(initial.item);
   const [reveal, setReveal] = useState(false);
-  const [plain, setPlain] = useState<PlainMap>({});
-  const pepper = usePepperPrompt();
   const [saving, setSaving] = useState(false);
+  const secrets = useAccountSecrets(saving);
   const [error, setError] = useState<string | null>(initial.error);
   const [pendingDeliveryId, setPendingDeliveryId] = useState<string>();
   const [issuanceKey, setIssuanceKey] = useState(() => crypto.randomUUID());
@@ -77,10 +72,10 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
     setDraft(initial.item);
     setError(initial.error);
     setReveal(false);
-    setPlain({});
+    secrets.clear();
     setPendingDeliveryId(undefined);
     setIssuanceKey(crypto.randomUUID());
-  }, [initial]);
+  }, [initial, secrets.clear]);
 
   const patch = (changes: Partial<VaultItem>) =>
     setDraft((current) =>
@@ -133,7 +128,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
     });
     setError(null);
     setReveal(false);
-    setPlain({});
+    secrets.clear();
   };
   const onTypeChange =
     mode === "new" && kindParam === undefined ? changeType : undefined;
@@ -165,11 +160,6 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   const typedDefinition =
     draft.kind === "typed" ? definitionFor(draft) : undefined;
 
-  const setPlainEntry = (id: string, entry: PlainMap[string] | null) =>
-    setPlain((current) => {
-      const { [id]: _dropped, ...rest } = current;
-      return entry === null ? rest : { ...rest, [id]: entry };
-    });
   const patchValue = (fieldId: string, value: FieldValue) =>
     setDraft((current) =>
       current === null || current.kind !== "typed"
@@ -244,11 +234,9 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
       if (next.kind === "account") {
         // Peppered passwords are sealed here, after the pepper is asked for
         // once; the plaintext never reaches the item the store is handed.
-        next = await sealForSave(
+        next = await secrets.seal(
           next,
           existing?.kind === "account" ? existing : undefined,
-          plain,
-          pepper.ask,
         );
       }
       await store.saveItem(next, location.folder);
@@ -256,11 +244,11 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         await acknowledgeCertificateDelivery(deliveryId);
         setPendingDeliveryId(undefined);
       }
-      setPlain({});
+      secrets.clear();
       navigate(`/vault/${next.id}`);
     } catch (caught) {
       // Closing the pepper prompt is a decision, not a failure: nothing is saved.
-      if (!isPepperCancelled(caught))
+      if (!(caught instanceof Error && secrets.cancelled(caught)))
         setError(
           caught instanceof Error
             ? caught.message
@@ -284,7 +272,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
 
   return (
     <div className="detail">
-      {pepper.element}
+      {secrets.pepper.element}
       <form className="editor" onSubmit={(event) => void onSubmit(event)}>
         <EditorTitle
           value={draft}
@@ -314,11 +302,11 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         {draft.kind === "account" ? (
           <AccountFields
             draft={draft}
-            plain={plain}
-            ask={pepper.ask}
+            plain={secrets.plain}
+            ask={secrets.pepper.ask}
             liveRoll={mode === "new"}
             onPatch={patch}
-            onPlain={setPlainEntry}
+            onPlain={secrets.setEntry}
           />
         ) : null}
 
@@ -375,7 +363,12 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
             <span>{error}</span>
           </p>
         ) : null}
-        <EditorActions busy={saving} label={saveVerb} closeTo={closeTo} />
+        <EditorActions
+          busy={saving}
+          label={saveVerb}
+          closeTo={closeTo}
+          saveRef={secrets.saveRef}
+        />
       </form>
     </div>
   );

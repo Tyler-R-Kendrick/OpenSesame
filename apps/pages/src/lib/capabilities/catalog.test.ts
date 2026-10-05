@@ -190,7 +190,7 @@ describe("CAPABILITY_CATALOG (S02-F)", () => {
         owners.set(kind, entry.id);
       }
     }
-    expect(owners.get("login")).toBe("vault.derived-records");
+    expect(owners.get("account")).toBe("vault.derived-records");
     expect(owners.get("note")).toBe("vault.derived-records");
     expect(owners.get("card")).toBe("vault.derived-records");
     expect(owners.get("secret")).toBe("vault.passwords");

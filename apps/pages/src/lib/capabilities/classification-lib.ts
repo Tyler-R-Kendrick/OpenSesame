@@ -35,6 +35,8 @@ const CORE_INFRA = [
   "pane-trail",
   "use-narrow",
   "vault-list-path",
+  // `?f=login` is the retired name of `?f=account` (ADR 0166): the vault list and rail read it.
+  "vault-filter-slug",
   "modal-focus",
   "strip",
   "scroll-panel",

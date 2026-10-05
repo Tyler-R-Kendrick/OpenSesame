@@ -22,6 +22,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkAccountWebsites } from "./lib/account-websites-contract.mjs";
 import { checkNothingInTheClear } from "./lib/at-rest-contract.mjs";
 import {
   addCapability,
@@ -35,7 +36,6 @@ import {
   walkSetupCeremony,
 } from "./lib/front-door-contract.mjs";
 import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
-import { checkLoginWebsites } from "./lib/login-websites-contract.mjs";
 import { openSection, sealLocalOnly } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { checkStatusline } from "./lib/statusline-contract.mjs";
@@ -121,7 +121,7 @@ const browser = await launch();
   await checkEditorTabOrder(page, check);
   await checkEditorRoutes(page, check);
   await checkEditorPaths(page, check);
-  await checkLoginWebsites(page, check);
+  await checkAccountWebsites(page, check);
 
   for (const [label, name] of [
     ["connections/", "B-connections"],
