@@ -28,7 +28,7 @@ import { walkJTypes } from "./lib/j-types-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const DIST = path.resolve(here, "..", "dist");
+const DIST = process.env.PAGES_VERIFY_DIST ?? path.resolve(here, "..", "dist");
 const ORIGIN = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const OUT = path.resolve(

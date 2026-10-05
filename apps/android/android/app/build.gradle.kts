@@ -48,4 +48,5 @@ dependencies {
     implementation("androidx.fragment:fragment-ktx:1.8.9")
     implementation("io.ktor:ktor-client-android:3.3.1")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("net.java.dev.jna:jna:5.18.1")
 }

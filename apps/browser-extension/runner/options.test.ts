@@ -142,7 +142,7 @@ describe("the options page", () => {
     });
     expect(field("password")?.value).toBe("");
     for (const [key, value] of wired.store.rows) {
-      expect(value.startsWith("osc1."), key).toBe(true);
+      expect(value.startsWith("osc2."), key).toBe(true);
       expect(value).not.toContain("hunter2");
     }
   });
@@ -174,7 +174,7 @@ describe("the options page", () => {
     expect(token?.value).toBe("");
     for (const value of wired.store.rows.values()) {
       expect(value).not.toContain("session-token-value");
-      expect(value.startsWith("osc1.")).toBe(true);
+      expect(value.startsWith("osc2.")).toBe(true);
     }
     expect(document.querySelector("#ready li")?.getAttribute("data-ok")).toBe(
       "true",
