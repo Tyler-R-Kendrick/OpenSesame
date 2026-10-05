@@ -57,20 +57,8 @@ const ONLY = (process.env.EXPERIENCE_ONLY ?? "")
   .map((name) => name.trim())
   .filter(Boolean);
 
-// EXPERIENCE_SHARD=2/3 runs the second of three interleaved slices of the
-// walks, in the order they are listed, so CI can run them in parallel jobs.
-const [shardAt, shardOf] = (process.env.EXPERIENCE_SHARD ?? "1/1")
-  .split("/")
-  .map(Number);
-if (!(shardAt >= 1 && shardAt <= shardOf)) {
-  console.error("EXPERIENCE_SHARD must be i/n with 1 <= i <= n");
-  process.exit(2);
-}
-let walkAt = 0;
-
 async function runWalk(name, walk) {
-  const mine = walkAt++ % shardOf === shardAt - 1;
-  if (!mine || (ONLY.length > 0 && !ONLY.includes(name))) return;
+  if (ONLY.length > 0 && !ONLY.includes(name)) return;
   const { page, context } = await newPage(browser);
   setStep(name);
   try {

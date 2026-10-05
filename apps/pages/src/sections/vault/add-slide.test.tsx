@@ -62,9 +62,7 @@ function renderVault(path: string) {
  * A pointer event jsdom will dispatch, carrying what the slide reads. jsdom has
  * no PointerEvent, so this is a MouseEvent with the pointer's own fields.
  */
-type PointerAt = Readonly<{ y: number }>;
-
-function pointer(type: string, init: PointerAt): Event {
+function pointer(type: string, init: { y: number }): Event {
   const event = new MouseEvent(type, {
     bubbles: true,
     cancelable: true,

@@ -72,90 +72,30 @@ function runListed(command, args) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-const PAGES = "@opensesame/pages";
-
-const filters = (list) => list.map((name) => `--filter=${name}`);
-const turbo = (tasks, extra) => [
-  "pnpm",
-  ["exec", "turbo", "run", ...tasks, "--concurrency=4", ...extra],
-];
-const everything = (plan) => plan.scope === "all";
-
-/** Typecheck and test the whole affected set in one go (a local run). */
-function allLeg(plan) {
-  if (everything(plan))
-    return [
-      ["pnpm", ["typecheck"]],
-      ["pnpm", ["test"]],
-    ];
-  return [turbo(["typecheck", "test"], filters(plan.packages))];
-}
-
-function typecheckLeg(plan) {
-  if (everything(plan)) return [["pnpm", ["typecheck"]]];
-  return [turbo(["typecheck"], filters(plan.packages))];
-}
-
-/** Every affected package's tests but Pages', which has its own shards. */
-function testsLeg(plan) {
-  if (everything(plan)) return [turbo(["test"], [`--filter=!${PAGES}`])];
-  const names = plan.packages.filter((name) => name !== PAGES);
-  return names.length === 0 ? [] : [turbo(["test"], filters(names))];
-}
-
-/** The `at`-th of `of` shards of Pages' own suite. */
-function pagesLeg(plan, at, of) {
-  if (!everything(plan) && !plan.packages.includes(PAGES)) return [];
-  const commands = [
-    // What Pages' tests import is built first, as `turbo run test` would.
-    ["pnpm", ["exec", "turbo", "run", "build", `--filter=${PAGES}^...`]],
-    [
-      "pnpm",
-      ["--filter", PAGES, "exec", "vitest", "run", "--maxWorkers=4"].concat(
-        `--shard=${at}/${of}`,
-      ),
-    ],
-  ];
-  // The relay's `node --test` suites ride with the first shard.
-  if (at === "1") {
-    const relay = ["exec", "node", "--test", "server/test/*.test.mjs"];
-    commands.push(["pnpm", ["--filter", PAGES, ...relay]]);
-  }
-  return commands;
-}
-
-/**
- * The commands one leg of the TypeScript job runs. The job is a matrix of legs
- * so that no leg is the whole job: `typecheck`, `tests` (every affected package
- * but Pages), `pages:i/n` (the i-th of n shards of Pages' own suite, by far the
- * largest) and `experience`. `all` is everything in one go, for a local run.
- * Pure, so the plan for each leg is testable without running anything.
- */
-export function legCommands(plan, leg = "all") {
-  if (plan.scope === "none") return [];
-  if (leg === "all") return allLeg(plan);
-  if (leg === "typecheck") return typecheckLeg(plan);
-  if (leg === "tests") return testsLeg(plan);
-  if (leg === "experience") {
-    return plan.verifyExperience ? [["pnpm", ["verify:experience"]]] : [];
-  }
-  const shard = /^pages:(\d+)\/(\d+)$/.exec(leg);
-  if (shard) return pagesLeg(plan, shard[1], shard[2]);
-  throw new Error(`unknown TypeScript leg: ${leg}`);
-}
-
-function runTs(plan, leg) {
+function runTs(plan) {
   if (plan.scope === "none") {
     console.log("no workspace package changed");
     return;
   }
-  if (plan.scope !== "all" && plan.packages.length === 0) {
+  if (plan.scope === "all") {
+    runListed("pnpm", ["typecheck"]);
+    runListed("pnpm", ["test"]);
+    return;
+  }
+  if (plan.packages.length === 0) {
     console.error("affected scope was packages but the list was empty");
     process.exit(1);
   }
-  const commands = legCommands(plan, leg);
-  if (commands.length === 0) console.log(`nothing for the ${leg} leg`);
-  for (const [command, args] of commands) runListed(command, args);
+  const filters = plan.packages.map((name) => `--filter=${name}`);
+  runListed("pnpm", [
+    "exec",
+    "turbo",
+    "run",
+    "typecheck",
+    "test",
+    "--concurrency=4",
+    ...filters,
+  ]);
 }
 
 function runCargo(plan) {
@@ -187,7 +127,7 @@ function main() {
     return;
   }
   if (command === "run-ts") {
-    runTs(readPlan("packages"), process.env.TS_LEG ?? "all");
+    runTs(readPlan("packages"));
     return;
   }
   if (command === "run-cargo") {
