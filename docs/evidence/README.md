@@ -54,6 +54,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-04-search-in-prompt-fab/`](2026-10-04-search-in-prompt-fab/README.md) | Search in the prompt, Add as one button |
 | [`2026-10-04-push-enrolment-copy/`](2026-10-04-push-enrolment-copy/README.md) | Push enrolment: the Push row and its notices, before and after |
 | [`2026-10-04-phone-tree-actions/`](2026-10-04-phone-tree-actions/README.md) | The phone's section tree carries the vault's command row |
+| [`2026-10-04-phone-search-resets/`](2026-10-04-phone-search-resets/README.md) | A phone's search ends when the tree comes back |
 | [`2026-10-04-phone-add/`](2026-10-04-phone-add/README.md) | The phone's section tree opens on a search field and one Add key |
 | [`2026-10-04-mobile-visual-polish/`](2026-10-04-mobile-visual-polish/README.md) | Mobile visual polish |
 | [`2026-10-04-item-type-switches/`](2026-10-04-item-type-switches/README.md) | Item types: a list of switches (ADR 0165) |
