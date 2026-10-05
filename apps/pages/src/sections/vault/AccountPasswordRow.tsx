@@ -58,7 +58,9 @@ export function AccountPasswordRow({
   const key = `password:${method.id}`;
 
   const empty = !asks && method.secret === "";
-  const update = sphinx ? null : (
+  // A computed password is rotated in the editor, never typed over here.
+  const computed = sphinx || method.generator.id === "derived";
+  const update = computed ? null : (
     <UpdateSecretPanel
       label="password"
       onUpdate={async (next) => {

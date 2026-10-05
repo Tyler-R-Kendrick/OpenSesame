@@ -1,11 +1,12 @@
 import {
   GENERATORS,
+  type OfferedGeneratorId,
+  offeredGenerators,
   rotateSphinx,
 } from "@opensesame/app-core/lib/vault/generators/index.js";
 import type {
   AccountItem,
   PasswordGenerator,
-  PasswordGeneratorId,
   PasswordMethod,
 } from "@opensesame/vault-core";
 import { useState } from "react";
@@ -23,15 +24,19 @@ import {
   switchGenerator,
 } from "./account-secrets.js";
 
-function generatorId(value: string): PasswordGeneratorId | undefined {
-  return GENERATORS.find((entry) => entry.id === value)?.id;
+/** The generator a select value names, if it is one a person can choose. */
+function generatorId(value: string): OfferedGeneratorId | undefined {
+  const id = GENERATORS.find((entry) => entry.id === value)?.id;
+  return id === "sphinx" ? undefined : id;
 }
 
 /**
  * One password method: its generator, that generator's options, the password
- * (typed, generated, or computed on use) and *Include pepper* (ADR 0172 §6).
- * Nothing is drawn for a precondition that is unmet: Sphinx has no password
- * field and no pepper flag; a sealed password has no eye until it is new.
+ * (typed, generated, or computed) and *Include pepper* (ADR 0172 §6, ADR 0173),
+ * which every generator offers. Nothing is drawn for a precondition that is
+ * unmet: the earlier Sphinx generator has no password field and no pepper flag
+ * (its master input is the pepper); a sealed password has no eye until it is
+ * new.
  */
 export function PasswordMethodEditor({
   account,
@@ -52,7 +57,8 @@ export function PasswordMethodEditor({
   const [wrong, setWrong] = useState(false);
   const { generator } = method;
   const entry = plain[method.id];
-  const descriptor = GENERATORS.find((option) => option.id === generator.id);
+  const options = offeredGenerators(generator.id);
+  const descriptor = options.find((option) => option.id === generator.id);
 
   const retune = (next: PasswordGenerator) =>
     onEdit({ method: { ...method, generator: next }, plain: entry ?? null });
@@ -76,10 +82,10 @@ export function PasswordMethodEditor({
             value={generator.id}
             onChange={(event) => {
               const id = generatorId(event.target.value);
-              if (id) onEdit(switchGenerator(account, method, id, plain));
+              if (id) onEdit(switchGenerator(method, id, plain));
             }}
           >
-            {GENERATORS.map((option) => (
+            {options.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.label}
               </option>

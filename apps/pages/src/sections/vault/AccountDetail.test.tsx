@@ -1,12 +1,13 @@
 /** @vitest-environment jsdom */
 import { listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
-  defaultGenerator,
   enablePepper,
+  mintOprfKey,
   usePassword,
 } from "@opensesame/app-core/lib/vault/generators/index.js";
 import {
   type AccountItem,
+  DEFAULT_RULES,
   type Folder,
   type VaultItem,
   passwordMethod,
@@ -65,7 +66,13 @@ function sphinxAccount(): AccountItem {
       {
         id: `${base.id}:password`,
         type: "password",
-        generator: defaultGenerator("sphinx", { realm: "bank.example.com" }),
+        generator: {
+          id: "sphinx",
+          rules: { ...DEFAULT_RULES },
+          realm: "bank.example.com",
+          counter: 0,
+          oprfKeyB64: mintOprfKey(),
+        },
         pepper: true,
         secret: "",
         changedAt: base.createdAt,

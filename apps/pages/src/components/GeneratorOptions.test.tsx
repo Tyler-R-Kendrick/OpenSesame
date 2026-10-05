@@ -8,8 +8,6 @@ import { GeneratorOptions } from "./GeneratorOptions.js";
 
 afterEach(cleanup);
 
-const context = { realm: "example.com" };
-
 function Harness({
   start,
   onChange,
@@ -31,7 +29,7 @@ function Harness({
 
 describe("GeneratorOptions", () => {
   it("draws the rules: length, classes, floors and ambiguity, with its entropy", () => {
-    render(<Harness start={defaultGenerator("rules", context)} />);
+    render(<Harness start={defaultGenerator("rules")} />);
     expect(screen.getByLabelText("Length")).toBeTruthy();
     for (const name of ["A–Z", "a–z", "0–9", "Symbols", "Avoid l1IO0"])
       expect(screen.getByLabelText(name)).toBeTruthy();
@@ -42,12 +40,7 @@ describe("GeneratorOptions", () => {
 
   it("reports each change as a whole generator", () => {
     const onChange = vi.fn();
-    render(
-      <Harness
-        start={defaultGenerator("rules", context)}
-        onChange={onChange}
-      />,
-    );
+    render(<Harness start={defaultGenerator("rules")} onChange={onChange} />);
     fireEvent.change(screen.getByLabelText("Length"), {
       target: { value: "40" },
     });
@@ -71,10 +64,7 @@ describe("GeneratorOptions", () => {
   it("draws the passphrase's own options", () => {
     const onChange = vi.fn();
     render(
-      <Harness
-        start={defaultGenerator("passphrase", context)}
-        onChange={onChange}
-      />,
+      <Harness start={defaultGenerator("passphrase")} onChange={onChange} />,
     );
     expect(screen.queryByLabelText("Length")).toBeNull();
     fireEvent.change(screen.getByLabelText("Word count"), {
@@ -92,11 +82,33 @@ describe("GeneratorOptions", () => {
     );
   });
 
-  it("draws the rules and a counter for Sphinx, and nothing for Manual", () => {
+  it("draws the rules for Derived, with no counter to type", () => {
+    const onChange = vi.fn();
+    render(<Harness start={defaultGenerator("derived")} onChange={onChange} />);
+    expect(screen.queryByLabelText("Counter")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Length"), {
+      target: { value: "30" },
+    });
+    expect(onChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        id: "derived",
+        counter: 0,
+        rules: expect.objectContaining({ length: 30 }),
+      }),
+    );
+  });
+
+  it("still draws the rules and a counter for the earlier Sphinx, and nothing for Manual", () => {
     const onChange = vi.fn();
     const { unmount } = render(
       <Harness
-        start={defaultGenerator("sphinx", context)}
+        start={{
+          id: "sphinx",
+          rules: { ...DEFAULT_RULES },
+          realm: "example.com",
+          counter: 0,
+          oprfKeyB64: "k",
+        }}
         onChange={onChange}
       />,
     );
@@ -110,17 +122,9 @@ describe("GeneratorOptions", () => {
         realm: "example.com",
       }),
     );
-    fireEvent.change(screen.getByLabelText("Length"), {
-      target: { value: "30" },
-    });
-    expect(onChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        rules: expect.objectContaining({ length: 30 }),
-      }),
-    );
     unmount();
     const { container } = render(
-      <Harness start={defaultGenerator("manual", context)} />,
+      <Harness start={defaultGenerator("manual")} />,
     );
     expect(container.textContent).toBe("");
   });

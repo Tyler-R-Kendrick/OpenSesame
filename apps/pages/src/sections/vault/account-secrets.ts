@@ -1,11 +1,13 @@
 /**
- * What the account editor does to a password method's secret (ADR 0172 §4).
+ * What the account editor does to a password method's secret (ADR 0172 §4,
+ * ADR 0173).
  *
- * A password that is peppered is never in the draft item: the draft holds
- * `secret: ""` and the sealed envelope. The plaintext the person typed or
- * generated lives in the editor's `PlainMap` (component state) until Save,
- * where it is sealed under a pepper asked for once and dropped. A password
- * without a pepper is the draft's own `secret`, as it always was.
+ * A method's secret is its password, or for `derived` the root the password is
+ * computed from. One that is peppered is never in the draft item: the draft
+ * holds `secret: ""` and the sealed envelope. The plaintext the person typed
+ * or generated lives in the editor's `PlainMap` (component state) until Save,
+ * where it is sealed under a pepper asked for once and dropped. One without a
+ * pepper is the draft's own `secret`, as it always was.
  */
 
 import {
@@ -15,12 +17,13 @@ import {
   generateStored,
   storePassword,
 } from "@opensesame/app-core/lib/vault/generators/index.js";
+import type { OfferedGeneratorId } from "@opensesame/app-core/lib/vault/generators/index.js";
 import {
   type AccountItem,
   type LoginMethod,
-  type PasswordGeneratorId,
   type PasswordMethod,
-  hostOf,
+  deriveCharacters,
+  mintRootSecret,
   plainPassword,
 } from "@opensesame/vault-core";
 import type { PepperAskFn } from "../../components/PepperPrompt.js";
@@ -35,32 +38,39 @@ export type MethodEdit = {
   plain: PlainEntry | null;
 };
 
-/** The host of the first website, else the item id. Fixed when Sphinx is chosen. */
-export function realmOf(account: AccountItem): string {
-  for (const entry of account.uris) {
-    const host = hostOf(entry.uri);
-    if (host !== "") return host;
-  }
-  return account.id;
-}
-
 function withoutSeal(method: PasswordMethod): PasswordMethod {
   const { sealed: _sealed, ...rest } = method;
   return rest;
 }
 
-function isStored(id: PasswordGeneratorId): boolean {
-  return id === "rules" || id === "passphrase";
-}
-
-/** The password as the editor knows it: its plaintext entry, else the clear secret. */
-export function knownPassword(
+/**
+ * What the method keeps, as the editor knows it: its plaintext entry, else the
+ * clear secret. For `derived` that is the root. Null when it is sealed and the
+ * editor does not hold it.
+ */
+export function knownSecret(
   method: PasswordMethod,
   plain: PlainMap,
 ): string | null {
   const entry = plain[method.id];
   if (entry) return entry.value;
-  return plainPassword(method);
+  return method.pepper || method.generator.id === "sphinx"
+    ? null
+    : method.secret;
+}
+
+/** The password as the editor knows it: what a derived method computes, else the secret itself. */
+export function knownPassword(
+  method: PasswordMethod,
+  plain: PlainMap,
+): string | null {
+  const secret = knownSecret(method, plain);
+  if (secret === null) return null;
+  const { generator } = method;
+  if (generator.id !== "derived") return secret;
+  return secret === ""
+    ? ""
+    : deriveCharacters(secret, generator.counter, generator.rules);
 }
 
 /** A new value for a method: peppered ones keep it in `plain`, the rest in `secret`. */
@@ -78,18 +88,11 @@ export function holdValue(method: PasswordMethod, value: string): MethodEdit {
 }
 
 export function switchGenerator(
-  account: AccountItem,
   method: PasswordMethod,
-  id: PasswordGeneratorId,
+  id: OfferedGeneratorId,
   plain: PlainMap,
 ): MethodEdit {
-  const generator = defaultGenerator(id, { realm: realmOf(account) });
-  if (generator.id === "sphinx") {
-    return {
-      method: { ...withoutSeal(method), generator, pepper: true, secret: "" },
-      plain: null,
-    };
-  }
+  const generator = defaultGenerator(id);
   const wasSphinx = method.generator.id === "sphinx";
   const next: PasswordMethod = {
     ...method,
@@ -108,20 +111,42 @@ export function switchGenerator(
         }
       : { method: { ...withoutSeal(next), secret: kept }, plain: null };
   }
-  if (!isStored(generator.id)) return { method: next, plain: null };
+  if (generator.id === "derived") return holdValue(next, mintRootSecret());
+  if (generator.id !== "rules" && generator.id !== "passphrase") {
+    return { method: next, plain: null };
+  }
   return holdValue(next, generateStored(generator));
 }
 
-/** A fresh value from the method's own generator. Unchanged when the rules cannot make one. */
+/**
+ * A fresh value from the method's own generator. Null when there is nothing to
+ * make: the rules choose no class (the options are the problem, not a
+ * message), or the generator is `derived`, which is rotated instead.
+ */
 export function regenerate(method: PasswordMethod): MethodEdit | null {
   const { generator } = method;
   if (generator.id !== "rules" && generator.id !== "passphrase") return null;
   try {
     return holdValue(method, generateStored(generator));
   } catch {
-    // No character class is chosen: the options are the problem, not a message.
     return null;
   }
+}
+
+/** A derived password's next one: the counter moves, the root and the pepper stay. */
+export function rotate(
+  method: PasswordMethod,
+  entry: PlainEntry | undefined,
+): MethodEdit | null {
+  const { generator } = method;
+  if (generator.id !== "derived") return null;
+  return {
+    method: {
+      ...method,
+      generator: { ...generator, counter: generator.counter + 1 },
+    },
+    plain: entry ?? null,
+  };
 }
 
 /** Include pepper turned on: ask twice, then seal the password the editor holds. */
@@ -132,7 +157,7 @@ export async function pepperOn(
   ask: PepperAskFn,
 ): Promise<MethodEdit> {
   const pepper = await ask("set", "Set pepper");
-  const current = knownPassword(method, plain) ?? "";
+  const current = knownSecret(method, plain) ?? "";
   const sealed = await enablePepper(account.id, method, current, pepper);
   return { method: sealed, plain: { value: current, dirty: false } };
 }
@@ -156,6 +181,16 @@ export async function pepperOff(
     method: await disablePepper(account.id, method, pepper),
     plain: null,
   };
+}
+
+function savedMethod(
+  existing: AccountItem | undefined,
+  id: string,
+): PasswordMethod | undefined {
+  return existing?.methods.find(
+    (candidate): candidate is PasswordMethod =>
+      candidate.type === "password" && candidate.id === id,
+  );
 }
 
 /**
@@ -187,18 +222,26 @@ export async function sealForSave(
       methods.push({ ...withoutSeal(method), pepper: true, secret: "" });
     } else if (method.pepper) {
       const entry = plain[method.id];
-      methods.push(
-        isDirty(method) && entry
-          ? await storePassword(account.id, method, entry.value, pepper)
-          : { ...method, secret: "" },
-      );
+      if (isDirty(method) && entry) {
+        methods.push(
+          await storePassword(account.id, method, entry.value, pepper),
+        );
+      } else {
+        const before = savedMethod(existing, method.id);
+        // A derived password is rotated or re-shaped without its root being
+        // typed again: its generator moved, so the password did.
+        const moved =
+          method.generator.id === "derived" &&
+          before !== undefined &&
+          JSON.stringify(before.generator) !== JSON.stringify(method.generator);
+        const kept: PasswordMethod = { ...method, secret: "" };
+        if (moved) kept.changedAt = new Date().toISOString();
+        methods.push(kept);
+      }
     } else {
-      const before = existing?.methods.find(
-        (candidate): candidate is PasswordMethod =>
-          candidate.type === "password" && candidate.id === method.id,
-      );
+      const before = savedMethod(existing, method.id);
       const was = before ? plainPassword(before) : null;
-      const changed = was !== null && was !== method.secret;
+      const changed = was !== null && was !== plainPassword(method);
       methods.push(
         changed
           ? await storePassword(account.id, method, method.secret, null)

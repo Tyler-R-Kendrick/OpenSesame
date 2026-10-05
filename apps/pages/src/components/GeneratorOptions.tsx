@@ -85,7 +85,7 @@ function Count({
   );
 }
 
-/** Length, classes, floors and ambiguity: the options `rules` and `sphinx` share. */
+/** Length, classes, floors and ambiguity: the options `rules`, `derived` and `sphinx` share. */
 function RuleOptions({
   rules,
   onChange,
@@ -227,6 +227,12 @@ export function GeneratorOptions({
         <RuleOptions
           rules={generator}
           onChange={(rules) => onChange({ id: "rules", ...rules })}
+        />
+      ) : null}
+      {generator.id === "derived" ? (
+        <RuleOptions
+          rules={generator.rules}
+          onChange={(rules) => onChange({ ...generator, rules })}
         />
       ) : null}
       {generator.id === "passphrase" ? (

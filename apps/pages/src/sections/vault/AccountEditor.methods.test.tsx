@@ -11,6 +11,7 @@ import {
   passwordOf,
   saveItem,
   saved,
+  typeInPrompt,
 } from "./account-editor.test-support.js";
 
 describe("account editor: methods and generators", () => {
@@ -108,7 +109,7 @@ describe("account editor: methods and generators", () => {
     open("/vault/new/account?uri=https://bank.example.com");
     await userEvent.selectOptions(
       block("Password").getByLabelText("Password generator"),
-      "sphinx",
+      "derived",
     );
     const port = requireLoginDraft();
     const view = port.read();
@@ -158,14 +159,13 @@ describe("account editor: methods and generators", () => {
         .getAttribute("type"),
     ).toBe("password");
 
-    await userEvent.selectOptions(select, "sphinx");
-    expect(password.getByLabelText("Counter")).toBeTruthy();
+    await userEvent.selectOptions(select, "derived");
+    // The rules shape the computed password; there is no counter to type.
     expect(password.getByLabelText("Length")).toBeTruthy();
-    // Computed on use: no password field, a mark and a rotate key instead.
+    expect(password.queryByLabelText("Counter")).toBeNull();
     expect(
-      password.queryByLabelText("Password", { selector: "input" }),
-    ).toBeNull();
-    expect(password.getByRole("img", { name: /never stored/ })).toBeTruthy();
+      password.getByRole("button", { name: "Generate another password" }),
+    ).toBeTruthy();
 
     await userEvent.selectOptions(select, "manual");
     expect(password.queryByLabelText("Length")).toBeNull();
@@ -178,38 +178,74 @@ describe("account editor: methods and generators", () => {
     ).toBeNull();
   });
 
-  it("offers Include pepper for every generator but Sphinx, and no disabled stand-in", async () => {
+  it("offers Include pepper on the generation form for every generator it lists, and the earlier Sphinx is not among them", async () => {
     open("/vault/new/account");
     const password = block("Password");
     const select = password.getByLabelText("Password generator");
-    for (const id of ["rules", "passphrase", "manual"]) {
+    const offered = [...select.querySelectorAll("option")].map(
+      (option) => option.value,
+    );
+    expect(offered).toEqual(["derived", "rules", "passphrase", "manual"]);
+    for (const id of offered) {
       await userEvent.selectOptions(select, id);
       expect(password.getByLabelText("Include pepper")).toBeTruthy();
     }
-    await userEvent.selectOptions(select, "sphinx");
-    expect(password.queryByLabelText("Include pepper")).toBeNull();
-    expect(screen.queryByText("Include pepper")).toBeNull();
   });
 
-  it("saves a Sphinx method with a key and no password at all", async () => {
+  it("saves a derived method as a root and rotates it with the counter", async () => {
     open("/vault/new/account?uri=https://bank.example.com");
+    const password = block("Password");
     await userEvent.selectOptions(
-      block("Password").getByLabelText("Password generator"),
-      "sphinx",
+      password.getByLabelText("Password generator"),
+      "derived",
     );
+    const shown = () => input("Password");
     await userEvent.click(
-      screen.getByRole("button", { name: "Rotate password" }),
+      password.getByRole("button", { name: "Show password" }),
     );
-    expect(input("Counter").value).toBe("1");
+    const first = shown().value;
+    expect(first).toHaveLength(20);
+    await userEvent.click(
+      password.getByRole("button", { name: "Generate another password" }),
+    );
+    const rotated = shown().value;
+    expect(rotated).not.toBe(first);
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     const method = passwordOf(saved());
-    expect(method).toMatchObject({ secret: "", pepper: true });
+    expect(method.generator).toMatchObject({ id: "derived", counter: 1 });
+    // What is stored is the root, not the password the person saw.
+    expect(method.secret).toHaveLength(44);
+    expect(method.secret).not.toBe(rotated);
+    expect(method.pepper).toBe(false);
     expect(method.sealed).toBeUndefined();
-    expect(method.generator).toMatchObject({
-      id: "sphinx",
-      realm: "bank.example.com",
-      counter: 1,
-    });
+  });
+
+  it("keeps the same derived password when the pepper goes on, and seals the root", async () => {
+    open("/vault/new/account");
+    const password = block("Password");
+    await userEvent.selectOptions(
+      password.getByLabelText("Password generator"),
+      "derived",
+    );
+    await userEvent.click(
+      password.getByRole("button", { name: "Show password" }),
+    );
+    const before = input("Password").value;
+    await userEvent.click(password.getByLabelText("Include pepper"));
+    await typeInPrompt("derived-pepper-1", true);
+    await userEvent.click(screen.getByRole("button", { name: "Set pepper" }));
+    await waitFor(() =>
+      expect(
+        password.getByLabelText<HTMLInputElement>("Include pepper").checked,
+      ).toBe(true),
+    );
+    expect(input("Password").value).toBe(before);
+    await userEvent.click(screen.getByRole("button", { name: "Save item" }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    const method = passwordOf(saved());
+    expect(method).toMatchObject({ pepper: true, secret: "" });
+    expect(method.sealed?.v).toBe(2);
+    expect(method.generator).toMatchObject({ id: "derived", counter: 0 });
   });
 });
