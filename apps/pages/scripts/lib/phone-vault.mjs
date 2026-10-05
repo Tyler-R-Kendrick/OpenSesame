@@ -65,10 +65,12 @@ export async function backOutStops(page, stop, { harness, audit }) {
 }
 
 /**
- * What the tree asks of a thumb: a search field the width of the screen under
- * the top bar, one filled Add key in the bottom corner, and an action sheet it
- * opens with New item, Import and Export as full-width rows. Skipped where the
- * walk is not on the tree, so it can be called wherever the vault is entered.
+ * What the tree asks of a thumb: one filled Add key in the bottom corner and
+ * the action sheet it opens with New item, Import and Export as full-width
+ * rows. Finding is the status-line prompt's `/?` verb — the one text input on
+ * the screen, which keeps the words and narrows the list as they are typed; the
+ * pane draws no field of its own. Skipped where the walk is not on the tree, so
+ * it can be called wherever the vault is entered.
  */
 export async function treeActions(page, stop, { harness, audit }) {
   const pane = () => page.locator(".vault").first().getAttribute("data-pane");
@@ -81,10 +83,10 @@ export async function treeActions(page, stop, { harness, audit }) {
   await treeReach(page, { label, view, harness });
   await audit(page, label);
   await addSheet(page, { label, view, stop, harness, audit });
-  await searchField(page, { label, pane, harness });
+  await promptSearch(page, { label, pane, harness });
 }
 
-/** The search field and the Add key: their size, where they rest, what clears. */
+/** The Add key: its size, where it rests, what clears. */
 async function treeReach(page, { label, view, harness }) {
   const box = (selector) =>
     page
@@ -101,10 +103,9 @@ async function treeReach(page, { label, view, harness }) {
           bottom: r.bottom,
         };
       });
-  const find = await box(".vault__tree .vadd__find");
   harness.check(
-    find.h >= 52 && find.w >= view.w - 2,
-    `${label}: the search field is a full-width 52px row (${Math.round(find.w)}x${Math.round(find.h)})`,
+    (await page.locator(".vault__tree .vadd__find").count()) === 0,
+    `${label}: the tree draws no search field of its own`,
   );
   const add = await box(".vault__tree .vadd__key");
   harness.check(
@@ -177,18 +178,44 @@ async function addSheet(page, { label, view, stop, harness, audit }) {
   await page.waitForTimeout(500);
 }
 
-/** The search field lands on the list with its prompt focused. */
-async function searchField(page, { label, pane, harness }) {
-  await page.locator(".vault__tree .vadd__find").tap();
+/** Search is the prompt: live narrowing, Enter keeps the words, one text input. */
+async function promptSearch(page, { label, pane, harness }) {
+  const prompt = page.locator("#command-bar-input");
+  await prompt.fill("/? zz-no-such-item");
+  await page.waitForTimeout(400);
+  const live = await page.locator(".vault__status-meta").first().textContent();
+  harness.check(
+    (live ?? "").includes("/zz-no-such-item"),
+    `${label}: the list narrows as the words are typed (${live})`,
+  );
+  await prompt.press("Enter");
   await page.waitForTimeout(600);
-  harness.check((await pane()) === "list", `${label}: search opens the list`);
-  const focused = await page.evaluate(() =>
-    document.activeElement?.getAttribute("aria-label"),
+  harness.check((await pane()) === "list", `${label}: Enter opens the list`);
+  harness.check(
+    (await prompt.inputValue()) === "/? zz-no-such-item",
+    `${label}: Enter keeps the words in the prompt`,
   );
   harness.check(
-    focused === "Search items",
-    `${label}: the search prompt is focused (${focused})`,
+    (await page.locator(".command-bar__status").count()) === 0,
+    `${label}: no notice box opens over the prompt`,
   );
+  const inputs = await page.evaluate(
+    () =>
+      [...document.querySelectorAll("input, textarea")].filter((el) => {
+        const type = el.getAttribute("type") ?? "text";
+        if (["file", "hidden", "checkbox", "radio"].includes(type))
+          return false;
+        if (el.classList.contains("visually-hidden")) return false;
+        const box = el.getBoundingClientRect();
+        return box.width > 0 && box.height > 0;
+      }).length,
+  );
+  harness.check(
+    inputs === 1,
+    `${label}: the prompt is the only text input on screen (${inputs})`,
+  );
+  await prompt.fill("");
+  await page.waitForTimeout(300);
   await page.getByRole("link", { name: "Back to sections" }).first().tap();
   await page.waitForTimeout(500);
 }

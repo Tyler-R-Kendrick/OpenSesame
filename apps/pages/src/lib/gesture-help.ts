@@ -15,5 +15,4 @@ export const GESTURE_HELP: readonly (readonly [
   ["Swipe a row left", "Its actions"],
   ["Swipe right", "Back"],
   ["Tap the + key", "Add an item"],
-  ["Tap the search key", "Search the vault"],
 ];

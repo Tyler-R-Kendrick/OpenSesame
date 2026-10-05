@@ -15,15 +15,15 @@ import {
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { EmptyTip } from "../../components/EmptyTip.js";
 import { IconChevronRight } from "../../components/Icons.js";
-import { SlashSearchField } from "../../components/SlashSearch.js";
 import { openContextMenu } from "../../components/context-menu/menu-model.js";
+import { searchInCommandBar } from "../../lib/command-bar/focus.js";
 import { focusRailListing, registerVaultKeymap } from "../../lib/keymap.js";
 import { pageSteps, viewportIndex } from "../../lib/tree-motion.js";
 import { useClaimedDrags } from "../../lib/use-claimed-drags.js";
 import { VaultPathbar } from "./VaultPathbar.js";
 import { Decorations } from "./VaultRowDecorations.js";
 import { useMenuFlip } from "./use-menu-flip.js";
-import { useSearchHandoff } from "./use-search-handoff.js";
+import { useVaultSearch } from "./use-vault-search.js";
 import { type VaultTreeActions, vaultRowMenu } from "./vault-menu.js";
 import { VaultRowMenu } from "./vault-row-menu.js";
 
@@ -69,7 +69,6 @@ export function VaultTree({
   emptyMessage,
 }: VaultTreeProps) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  const [query, setQuery] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const rowsRef = useRef<TreeRow[]>([]);
@@ -77,13 +76,13 @@ export function VaultTree({
   const actionsRef = useRef(actions);
   actionsRef.current = actions;
   const treeRef = useRef<HTMLDivElement>(null);
+  const paneRef = useRef<HTMLDivElement>(null);
   useClaimedDrags(treeRef);
   const { listRef, menuAbove } = useMenuFlip(menuFor, treeRef);
   const onMenuClose = (restore: boolean) => {
     setMenuFor(null);
     if (restore) treeRef.current?.focus();
   };
-  const searchRef = useRef<HTMLInputElement>(null);
   const persistReadyRef = useRef(false);
   // The keymap effect registers once; these refs hand it the live values.
   const collapsedRef = useRef(collapsed);
@@ -98,6 +97,11 @@ export function VaultTree({
     else next.add(row.path);
     setAndSaveCollapsedRef.current(next);
   });
+
+  const { query, close: closeSearch } = useVaultSearch(paneRef, treeRef);
+  // The keymap effect registers once; this hands it the live close.
+  const closeSearchRef = useRef(closeSearch);
+  closeSearchRef.current = closeSearch;
 
   const tomb = vaultTreeSeams.activeTomb();
   const needle = (query ?? "").trim().toLowerCase();
@@ -153,11 +157,6 @@ export function VaultTree({
       .getElementById(rowId(cursor))
       ?.scrollIntoView?.({ block: "nearest" });
   }, [cursor]);
-
-  useEffect(() => {
-    if (query !== null) searchRef.current?.focus();
-  }, [query]);
-  useSearchHandoff(setQuery);
 
   useEffect(() => {
     const rowAt = (key: string | null) =>
@@ -242,9 +241,9 @@ export function VaultTree({
         if (row.type === "item") actionsRef.current.open(row.item);
         else toggleDir(row);
       },
-      search: () => setQuery((current) => current ?? ""),
+      search: searchInCommandBar,
       closeSearch: () => {
-        setQuery(null);
+        closeSearchRef.current();
         treeRef.current?.focus();
       },
       copySecret: withItem((item) => actionsRef.current.copySecret(item)),
@@ -266,11 +265,8 @@ export function VaultTree({
       : `${items.length || "-"}/${total || "-"} · ${title}`;
 
   return (
-    <div className="vtree">
-      <VaultPathbar
-        verbs={verbs}
-        search={() => setQuery((current) => current ?? "")}
-      />
+    <div className="vtree" ref={paneRef}>
+      <VaultPathbar verbs={verbs} />
       {items.length === 0 ? (
         <div className="empty">
           <h2>{emptyMessage}</h2>
@@ -306,7 +302,7 @@ export function VaultTree({
               (dir) => {
                 if (dir.type === "dir") toggleDirRef.current(dir);
               },
-              () => setQuery((current) => current ?? ""),
+              searchInCommandBar,
             ),
           );
         }}
@@ -373,20 +369,6 @@ export function VaultTree({
           );
         })}
       </div>
-
-      {query !== null ? (
-        <SlashSearchField
-          query={query}
-          onChange={(value) => setQuery(value)}
-          onClose={() => {
-            setQuery(null);
-            treeRef.current?.focus();
-          }}
-          onCommit={() => treeRef.current?.focus()}
-          inputRef={searchRef}
-          label="Search items"
-        />
-      ) : null}
 
       <output className="vault__status" aria-live="polite">
         <span className="vault__status-path">{statusPath}</span>
