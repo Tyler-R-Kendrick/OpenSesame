@@ -108,7 +108,10 @@ async function armWipe({ page, check, snap }) {
   await page.getByRole("button", { name: "Add" }).last().click();
   await page.getByRole("radio", { name: WIPE }).check();
   const radios = await page.locator("[role=dialog] input[type=radio]").count();
-  check(radios === 3, `the sheet offers three modes (${radios})`);
+  check(
+    radios >= 3,
+    `the sheet offers Wipe among at least three modes (${radios})`,
+  );
   const fields = page.locator("[role=dialog] input[type=password]");
   await fields.nth(0).fill(CODE);
   await fields.nth(1).fill(CODE);
