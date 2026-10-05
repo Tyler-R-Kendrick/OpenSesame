@@ -1,34 +1,62 @@
 /**
- * A drive pairing link (`…/settings/vaults#pair-drive=<code>`, ADR 0144)
- * carries a slot key in its fragment. The fragment never reaches a server,
- * but it stays in the address bar and in history — which some browsers sync
- * to other devices — until something removes it. Boot removes it at once,
- * and again on every in-page arrival (a link pasted into a tab already on
- * the page is a fragment change, not a load), whether or not Networking is on
- * or a vault is open. The code is held in memory only, for the Tailnet sync
- * panel to take; a reload before it does costs opening the link again.
+ * A pairing link carries a secret in its fragment: a drive's slot key
+ * (`…/settings/vaults#pair-drive=<code>`, ADR 0144) or a tailnet device
+ * management code (`…/identity?view=devices#pair-tailnet=<code>`, ADR 0165).
+ * The fragment never reaches a server, but it stays in the address bar and in
+ * history — which some browsers sync to other devices — until something
+ * removes it. Boot removes it at once, and again on every in-page arrival (a
+ * link pasted into a tab already on the page is a fragment change, not a
+ * load), whether or not the capability that uses it is on or a vault is open.
+ * The code is held in memory only, for its panel to take; a reload before it
+ * does costs opening the link again.
  */
 
-const LINK_KEY = "pair-drive=";
+type Address = Pick<Location, "hash" | "pathname" | "search">;
+type History_ = Pick<History, "replaceState" | "state">;
 
-let linked = "";
-const listeners = new Set<() => void>();
+/** One kind of code a link may carry, held until its panel takes it. */
+function linkCapture(key: string) {
+  let linked = "";
+  const listeners = new Set<() => void>();
+  return {
+    capture(location: Address, history: History_): void {
+      const at = location.hash.indexOf(key);
+      if (at === -1) return;
+      const code = location.hash.slice(at + key.length);
+      history.replaceState(
+        history.state,
+        "",
+        location.pathname + location.search,
+      );
+      try {
+        linked = decodeURIComponent(code);
+      } catch {
+        linked = "";
+      }
+      for (const listener of listeners) listener();
+    },
+    subscribe(listener: () => void): () => void {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    take(): string {
+      const code = linked;
+      linked = "";
+      return code;
+    },
+  };
+}
 
-/** Take a pairing code out of the address bar, leaving no trace of it. */
+const drive = linkCapture("pair-drive=");
+const tailnet = linkCapture("pair-tailnet=");
+
+/** Take any pairing code out of the address bar, leaving no trace of it. */
 export function captureLinkedPairing(
-  location: Pick<Location, "hash" | "pathname" | "search"> = window.location,
-  history: Pick<History, "replaceState" | "state"> = window.history,
+  location: Address = window.location,
+  history: History_ = window.history,
 ): void {
-  const at = location.hash.indexOf(LINK_KEY);
-  if (at === -1) return;
-  const code = location.hash.slice(at + LINK_KEY.length);
-  history.replaceState(history.state, "", location.pathname + location.search);
-  try {
-    linked = decodeURIComponent(code);
-  } catch {
-    linked = "";
-  }
-  for (const listener of listeners) listener();
+  drive.capture(location, history);
+  tailnet.capture(location, history);
 }
 
 /**
@@ -37,8 +65,8 @@ export function captureLinkedPairing(
  */
 export function watchLinkedPairing(
   target: Pick<Window, "addEventListener"> = window,
-  location: Pick<Location, "hash" | "pathname" | "search"> = window.location,
-  history: Pick<History, "replaceState" | "state"> = window.history,
+  location: Address = window.location,
+  history: History_ = window.history,
 ): void {
   captureLinkedPairing(location, history);
   const again = () => captureLinkedPairing(location, history);
@@ -46,15 +74,14 @@ export function watchLinkedPairing(
   target.addEventListener("popstate", again);
 }
 
-/** Hear about a code captured while the panel is already open. */
-export function subscribeLinkedPairing(listener: () => void): () => void {
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
+/** Hear about a drive code captured while the panel is already open. */
+export const subscribeLinkedPairing = drive.subscribe;
 
-/** The code boot took from the address bar, handed over once. */
-export function takeLinkedPairing(): string {
-  const code = linked;
-  linked = "";
-  return code;
-}
+/** The drive code boot took from the address bar, handed over once. */
+export const takeLinkedPairing = drive.take;
+
+/** Hear about a tailnet code captured while the device panel is open. */
+export const subscribeLinkedTailnetPairing = tailnet.subscribe;
+
+/** The tailnet code boot took from the address bar, handed over once. */
+export const takeLinkedTailnetPairing = tailnet.take;

@@ -254,6 +254,11 @@ export const LIB_RULES = [
     "networking.tailnet",
     "tailnet vault sync: drive client, merge pass, adoption (ADR 0144)",
   ),
+  optional(
+    `${L}tailnet-admin/`,
+    "networking.tailnet-devices",
+    "tailnet device management: daemon client, sealed pairing, device model (ADR 0165)",
+  ),
   core(
     `${L}join/`,
     SIGNIN,
