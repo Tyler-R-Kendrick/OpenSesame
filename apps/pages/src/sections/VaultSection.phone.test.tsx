@@ -309,6 +309,50 @@ describe("the vault on a phone", () => {
     expect(screen.queryByLabelText("Search items")).toBeNull();
   });
 
+  /** Types into the shell's one prompt, the way the `/` key and a keyboard do. */
+  async function typeSearch(words: string): Promise<HTMLInputElement> {
+    const handler = createKeymapHandler({
+      navigate: vi.fn(),
+      showHelp: vi.fn(),
+    });
+    act(() => handler(new KeyboardEvent("keydown", { key: "/" })));
+    const prompt = screen.getByRole("combobox", {
+      name: "Command",
+    }) as HTMLInputElement;
+    await waitFor(() => expect(prompt.value).toBe("/? "));
+    fireEvent.change(prompt, { target: { value: `/? ${words}` } });
+    return prompt;
+  }
+
+  it("a search typed on the list ends when the tree comes back, so all shows every item", async () => {
+    renderVault("/vault?f=all");
+    await act(async () => undefined);
+    const prompt = await typeSearch("zzz");
+    expect(screen.queryAllByText("GitHub")).toHaveLength(0);
+    fireEvent.click(screen.getByRole("link", { name: "Back to sections" }));
+    await waitFor(() => expect(pane()).toBe("tree"));
+    await waitFor(() => expect(prompt.value).toBe(""));
+    fireEvent.click(screen.getByRole("treeitem", { name: "all" }));
+    await waitFor(() => expect(pane()).toBe("list"));
+    expect(screen.getAllByText("GitHub").length).toBeGreaterThan(0);
+  });
+
+  it("an item opened from a search comes back to that same search", async () => {
+    renderVault("/vault?f=all");
+    await act(async () => undefined);
+    const prompt = await typeSearch("git");
+    // The match is highlighted, which splits the name across elements.
+    const row = document.querySelector<HTMLElement>(
+      '.vault__list [role="treeitem"]',
+    );
+    if (!row) throw new Error("the search matched no row");
+    fireEvent.click(row);
+    await waitFor(() => expect(pane()).toBe("detail"));
+    fireEvent.click(screen.getByRole("link", { name: "Back to all items" }));
+    await waitFor(() => expect(pane()).toBe("list"));
+    expect(prompt.value).toBe("/? git");
+  });
+
   it("the tree's all entry names the list, so tapping it leaves the tree", () => {
     renderVault("/vault");
     expect(
