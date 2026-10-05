@@ -1,36 +1,35 @@
 /**
- * How the terminal reads and writes an account's password (ADR 0172 §4). A
- * password that is peppered or Sphinx-derived is absent here: the CLI never
- * reveals, accepts or logs a pepper, a sealed envelope or a method secret.
+ * How the terminal reads and writes an account's password (ADR 0174). Every
+ * password is produced through the vault-core facade, so the terminal knows no
+ * technique: a stored one, one an algorithm computes and one with a slot for the
+ * person's own pepper all come out of `producePassword`. The terminal never asks
+ * for a pepper and never stores one; what it copies stops before the slot, and
+ * `--field rest` copies what follows it.
  */
 import { shareText } from "@opensesame/app-core/sections/vault-section-model.js";
 import {
   type AccountItem,
   type VaultItem,
-  accountPlainPassword,
+  handoff,
   manualPassword,
-  needsPepper,
   passwordMethod,
+  produceAccountPassword,
 } from "@opensesame/vault-core";
 
-/**
- * A password the terminal cannot ask a pepper for is absent here: the CLI
- * never reveals, accepts or logs a pepper or a sealed envelope (ADR 0172 §4).
- */
-export class NeedsPepperError extends Error {
-  readonly code = "needs_pepper";
+/** An account an older version made from a pepper the person typed: only the app converts it. */
+export class LegacyPasswordError extends Error {
+  readonly code = "legacy_password";
   constructor(itemName: string) {
     super(
-      `needs_pepper: the password of ${itemName} needs a pepper; open it in the vault app`,
+      `legacy_password: ${itemName} was made with an earlier pepper; open it in the vault app to convert it`,
     );
-    this.name = "NeedsPepperError";
+    this.name = "LegacyPasswordError";
   }
 }
 
 /**
- * A typed password is the account's first password method, as `manual`. A
- * method that is peppered or Sphinx-derived is never overwritten from a
- * terminal: that would need the pepper, which only the vault app asks for.
+ * A typed password is the account's first password method, as `manual`. The
+ * method keeps its place, and where its pepper goes if it has one.
  */
 export function withPassword(item: AccountItem, value: string): AccountItem {
   const current = passwordMethod(item);
@@ -40,20 +39,43 @@ export function withPassword(item: AccountItem, value: string): AccountItem {
     new Date().toISOString(),
   );
   if (!current) return { ...item, methods: [typed, ...item.methods] };
-  if (needsPepper(current)) throw new NeedsPepperError(item.name);
+  const replacement =
+    current.pepper && current.sealed === undefined
+      ? {
+          ...typed,
+          pepper: true,
+          ...(current.pepperAt === undefined
+            ? undefined
+            : { pepperAt: current.pepperAt }),
+        }
+      : typed;
   return {
     ...item,
     methods: item.methods.map((method) =>
-      method.id === current.id ? typed : method,
+      method.id === current.id ? replacement : method,
     ),
   };
 }
 
-/** What `vault copy` puts on the clipboard; a peppered password is refused, not sealed-copied. */
-export function secretText(item: VaultItem): string | null {
-  if (item.kind !== "account") return shareText(item);
-  const method = passwordMethod(item);
-  if (method && needsPepper(method)) throw new NeedsPepperError(item.name);
-  const plain = accountPlainPassword(item);
-  return plain === "" ? null : plain;
+/**
+ * What `vault copy` puts on the clipboard. For `rest`, what follows the pepper's
+ * slot. Null when there is nothing to copy; a legacy password is refused.
+ */
+export function secretText(
+  item: VaultItem,
+  part: "now" | "later" = "now",
+): string | null {
+  if (item.kind !== "account") return part === "later" ? null : shareText(item);
+  const produced = produceAccountPassword(item);
+  if (produced.status === "legacy") throw new LegacyPasswordError(item.name);
+  const out = handoff(produced);
+  const text = out === null ? "" : out[part];
+  return text === "" ? null : text;
+}
+
+/** Whether copying an account's password leaves a slot for the person's pepper. */
+export function leavesPepperSlot(item: VaultItem): boolean {
+  return (
+    item.kind === "account" && produceAccountPassword(item).status === "slotted"
+  );
 }

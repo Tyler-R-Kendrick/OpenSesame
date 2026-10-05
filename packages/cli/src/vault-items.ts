@@ -17,7 +17,11 @@ import {
   activeItems,
   createItem,
 } from "@opensesame/vault-core";
-import { secretText, withPassword } from "./account-secret.js";
+import {
+  leavesPepperSlot,
+  secretText,
+  withPassword,
+} from "./account-secret.js";
 import { emit } from "./output.js";
 import type { ParsedCommand } from "./parse.js";
 import { readPasswordFromTty } from "./tty-password.js";
@@ -216,14 +220,23 @@ async function runCopy(
   deps: VaultItemDependencies,
 ): Promise<number> {
   const item = findItem(store.getSnapshot().items, command.query);
-  const text = command.field === "username" ? username(item) : secretText(item);
+  const text =
+    command.field === "username"
+      ? username(item)
+      : secretText(item, command.field === "rest" ? "later" : "now");
   if (!text) throw new Error(`Nothing to copy from ${item.name}.`);
   await (deps.writeClipboard ?? writeClipboard)(text);
-  emit(command.flags, "Copied.", {
-    ok: true,
-    id: item.id,
-    field: command.field,
-  });
+  emit(
+    command.flags,
+    command.field === "secret" && leavesPepperSlot(item)
+      ? "Copied. Add your pepper where it goes."
+      : "Copied.",
+    {
+      ok: true,
+      id: item.id,
+      field: command.field,
+    },
+  );
   return 0;
 }
 
