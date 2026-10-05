@@ -500,7 +500,7 @@ describe("disposal", () => {
 
   it("sweeps only live drop records out of a mixed body", async () => {
     identityFetch.mockResolvedValue(jsonResponse({ status: "pending" }, 400));
-    const login = createItem("login", "example");
+    const login = createItem("account", "example");
     const pending = dropRecord();
     const consumed = dropRecord({ state: "consumed" });
     const trashed = { ...dropRecord(), deletedAt: new Date().toISOString() };

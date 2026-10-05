@@ -23,10 +23,12 @@ import {
   type ItemKind,
   type LegacyItemKind,
   type VaultItem,
+  accountPlainPassword,
   createItem,
   newGrant,
   newId,
 } from "@opensesame/vault-core";
+import { graftAccountFormatOne } from "./store-sync-account.js";
 import type { StoreCustomField } from "./store-sync-entry.js";
 
 type Check = (value: JsonValue) => boolean;
@@ -69,10 +71,12 @@ const ROTATION = {
 /**
  * The property each kind promotes to line one. `null` for a kind whose
  * definition names no secret (`native.secret`): a drop's bearer token is not
- * something `pass show` should present as the password.
+ * something `pass show` should present as the password. An account has no
+ * such property: its line one is its first password method's, when that is
+ * kept in the clear (`store-sync-account.ts`).
  */
 export const LINE_ONE = {
-  login: "password",
+  account: null,
   passkey: "credentialIdB64",
   card: "number",
   secret: "value",
@@ -83,15 +87,15 @@ export const LINE_ONE = {
 
 /**
  * Every named property format 2 carries in `values`, beyond line one and the
- * keys the first format already gave their own place (a login's username,
- * TOTP and URIs; a secret's ConnectionRef).
+ * keys the first format already gave their own place (a secret's
+ * ConnectionRef). An account's values are all its own: `store-sync-account.ts`.
  *
  * A passkey's `unlocksVault` is left out on purpose: it is a claim about the
  * vault that enrolled the credential, and no other vault can inherit it
  * (`lib/vault/import/merge.ts` resets it for the same reason).
  */
 const NAMED = {
-  login: { passwordChangedAt: text, resetEmailId: text, ...ROTATION },
+  account: {},
   passkey: {
     rpId: text,
     username: text,
@@ -144,7 +148,7 @@ const NAMED = {
  * an old manifest never erases what that format could not carry.
  */
 const FORMAT_ONE = {
-  login: ["password", "username", "totp", "uris", "notes"],
+  account: [],
   secret: ["value", "connectionRef", "notes"],
   note: ["notes"],
   typed: ["typeId", "values", "notes"],
@@ -155,10 +159,10 @@ const FORMAT_ONE = {
 } satisfies Record<ItemKind, readonly string[]>;
 
 /** Properties a fresh item takes from the clock (`createItem`). */
-const STAMPED = new Set(["passwordChangedAt", "expiresAt"]);
+const STAMPED = new Set(["expiresAt"]);
 
 const LEGACY_KINDS: readonly LegacyItemKind[] = [
-  "login",
+  "account",
   "passkey",
   "card",
   "secret",
@@ -167,9 +171,13 @@ const LEGACY_KINDS: readonly LegacyItemKind[] = [
   "drop",
 ];
 
-/** The built-in kind a trailer names, or a login for anything else. */
+/**
+ * The built-in kind a trailer names, or an account for anything else: a
+ * trailer that says `login`, or nothing, is a login written before ADR 0172,
+ * and reads as the account it becomes.
+ */
 export function legacyKindOf(kind: string | undefined): LegacyItemKind {
-  return LEGACY_KINDS.find((candidate) => candidate === kind) ?? "login";
+  return LEGACY_KINDS.find((candidate) => candidate === kind) ?? "account";
 }
 
 /** Line one is one line: `pass` reserves it, and `pass seal` splits on `\n`. */
@@ -184,6 +192,7 @@ function propsOf(item: VaultItem): JsonObject {
 /** The text an item promotes to line one, whatever its line breaks. */
 export function lineOneValue(item: VaultItem): string {
   if (item.kind === "typed") return "";
+  if (item.kind === "account") return accountPlainPassword(item);
   const key = LINE_ONE[item.kind];
   const value = key === null ? undefined : propsOf(item)[key];
   return isString(value) ? value : "";
@@ -321,6 +330,9 @@ export function graftOnto(
     favorite: current.favorite,
   };
   if (current.kind !== incoming.kind) return { ...incoming, ...kept };
+  if (!whole && current.kind === "account" && incoming.kind === "account") {
+    return { ...graftAccountFormatOne(current, incoming), ...kept };
+  }
   if (whole) {
     const next: VaultItem = { ...incoming, ...kept };
     if (next.kind === "passkey" && current.kind === "passkey") {

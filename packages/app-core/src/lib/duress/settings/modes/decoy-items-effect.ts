@@ -1,6 +1,6 @@
 /**
  * The runner of "Decoy with everyday items": once the decoy session exists,
- * add the owner's items to it as ordinary logins.
+ * add the owner's items to it as ordinary accounts.
  *
  * The items go through the open session's store, which in a decoy is the
  * ephemeral tomb under a throwaway key, wiped when the decoy locks. Nothing
@@ -9,19 +9,21 @@
  */
 
 import type { JsonValue } from "@opensesame/os-domain";
-import { createItem } from "@opensesame/vault-core";
+import { createItem, manualPassword } from "@opensesame/vault-core";
 import { readDecoyItemsBody } from "./decoy-items-shape.js";
 import type { EffectHost, EffectRunner } from "./effects.js";
 
 async function run(body: JsonValue, host: EffectHost): Promise<void> {
   const items = readDecoyItemsBody(body);
   if (!items || !host.store.addItems) return;
-  const logins = items.map(({ title, secret }) => {
-    const login = createItem("login", title);
-    login.password = secret;
-    return login;
+  const accounts = items.map(({ title, secret }) => {
+    const account = createItem("account", title);
+    account.methods = [
+      manualPassword(`${account.id}:password`, secret, account.createdAt),
+    ];
+    return account;
   });
-  await host.store.addItems(logins);
+  await host.store.addItems(accounts);
 }
 
 export const DECOY_ITEMS_RUNNER: EffectRunner = {

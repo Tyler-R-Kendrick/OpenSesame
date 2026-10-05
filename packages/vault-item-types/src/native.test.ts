@@ -9,7 +9,7 @@ import {
 } from "./native.js";
 import { parseDefinition } from "./validate.js";
 
-// The concrete projection cases — what a login, a note, a drop or a bank
+// The concrete projection cases — what an account, a note, a drop or a bank
 // account writes and reads back — are `spec/conformance/item-type-cases.json`,
 // run by `conformance.test.ts` and by `crates/vault-item-types` (ADR 0139).
 // What stays here is corpus-wide or TypeScript-only.

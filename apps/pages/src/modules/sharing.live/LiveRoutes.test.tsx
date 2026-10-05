@@ -33,13 +33,14 @@ import {
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import { withPassword } from "../../sections/vault/account.test-support.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { LiveRoutesPanel } from "./LiveRoutesPanel.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
-const github = createItem("login", "GitHub");
-github.password = "correct horse battery staple";
+const github = createItem("account", "GitHub");
+withPassword(github, "correct horse battery staple");
 
 const originalHooks = { ...vaultHooksSeams };
 const originalLive = { ...liveSeams };

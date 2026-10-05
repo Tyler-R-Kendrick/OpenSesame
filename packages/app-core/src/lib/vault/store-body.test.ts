@@ -24,7 +24,7 @@ async function storeWithOneWrite(): Promise<VaultStore> {
   kvSet(HEADER_KEY, JSON.stringify(header));
   const store = new VaultStore();
   await store.unlock(PASSWORD);
-  await store.saveItem(createItem("login", "Written"));
+  await store.saveItem(createItem("account", "Written"));
   await store.flushPendingWrites();
   await vfsFlush();
   store.lock();

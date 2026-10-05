@@ -19,7 +19,7 @@ export const LOGIN_DRAFT_TOOLS: readonly LoginTool[] = [
     capabilityIds: ["vault.login_draft"],
     scope: "session",
     description:
-      "Read or fill the on-screen login editor. Metadata only: name, username, website, folder, favorite. Never reads or writes the password, TOTP seed, or other secrets. Write patches the form; the person saves.",
+      "Read or fill the on-screen account editor. Metadata only: name, username, website, folder, favorite. Never reads or writes a password, pepper, TOTP seed, or other secrets. Write patches the form; the person saves.",
     inputSchema: {
       type: "object",
       properties: {
@@ -42,7 +42,7 @@ export const LOGIN_DRAFT_TOOLS: readonly LoginTool[] = [
       if (action === "suggest") {
         return suggestItemMetadata({
           ...args,
-          kind: "login",
+          kind: "account",
           action: "suggest",
         });
       }

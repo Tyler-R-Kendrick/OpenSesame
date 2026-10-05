@@ -23,7 +23,7 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "vault.create",
     description:
-      "Starts a new vault item of the kind the current filter names, defaulting to a login. Opens the editor; nothing is stored until it is saved.",
+      "Starts a new vault item of the kind the current filter names, defaulting to an account. Opens the editor; nothing is stored until it is saved.",
     role: "action",
     routes: ["/vault"],
     capabilityId: "vault.items.write_meta",
@@ -55,7 +55,7 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "vault.filter.logins",
     description:
-      "Narrows the item list to logins. Present only while the vault holds at least one login.",
+      "Narrows the item list to accounts. Present only while the vault holds at least one account.",
     role: "filter",
     routes: ["/vault"],
     capabilityId: "vault.items.search",
@@ -103,7 +103,7 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "item.copy-username",
     description:
-      "Copies the open login's username to the clipboard. Drawn only when the login has a username.",
+      "Copies the open account's username to the clipboard. Drawn only when the account has a username.",
     role: "action",
     routes: ["/vault/item"],
     capabilityId: "vault.items.reveal",
@@ -111,7 +111,7 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "item.copy-password",
     description:
-      "Copies the open login's password to the clipboard without showing it. The clipboard is cleared again when the vault locks, and after the delay set in Settings if there is one. Drawn only when the login has a password.",
+      "Copies the open account's password to the clipboard without showing it. The clipboard is cleared again when the vault locks, and after the delay set in Settings if there is one. Drawn only when the login has a password.",
     role: "action",
     routes: ["/vault/item"],
     capabilityId: "vault.items.reveal",

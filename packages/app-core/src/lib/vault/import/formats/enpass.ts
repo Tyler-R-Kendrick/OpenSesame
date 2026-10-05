@@ -16,17 +16,17 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import {
+  type DraftAccount,
   type DraftCard,
   type DraftItem,
-  type DraftLogin,
   type ParseResult,
   type SkippedRecord,
   type TextImportAdapter,
   addField,
   addUri,
   asString,
+  draftAccount,
   draftCard,
-  draftLogin,
   draftNote,
   normaliseTotp,
   toIso,
@@ -82,8 +82,8 @@ function take(fields: EnpassField[], ...types: string[]): string {
   return field?.value ?? "";
 }
 
-function loginFrom(name: string, fields: EnpassField[]): DraftLogin {
-  const login = draftLogin(name);
+function loginFrom(name: string, fields: EnpassField[]): DraftAccount {
+  const login = draftAccount(name);
   login.username = take(fields, "username") || take(fields, "email");
   login.password = take(fields, "password");
   login.totp = normaliseTotp(take(fields, "totp"));

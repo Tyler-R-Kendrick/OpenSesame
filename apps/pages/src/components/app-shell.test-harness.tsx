@@ -70,8 +70,20 @@ import { registerLegacyShell } from "./legacy-sections.test-support.js";
 
 import { IDENTITY_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
 export const ITEMS = [
-  { kind: "login", deletedAt: null, favorite: true, folderId: "f1" },
-  { kind: "login", deletedAt: null, favorite: false, folderId: null },
+  {
+    kind: "account",
+    deletedAt: null,
+    favorite: true,
+    folderId: "f1",
+    methods: [],
+  },
+  {
+    kind: "account",
+    deletedAt: null,
+    favorite: false,
+    folderId: null,
+    methods: [],
+  },
   {
     kind: "card",
     deletedAt: "2025-06-01T00:00:00Z",

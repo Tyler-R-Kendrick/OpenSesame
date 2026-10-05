@@ -4,7 +4,12 @@
  * The store stamps every local edit after everything its vault has seen, and
  * records which fields it changed, so neither case loses a write.
  */
-import { type LoginItem, createItem } from "@opensesame/vault-core";
+import {
+  type AccountItem,
+  accountPlainPassword,
+  accountTotp,
+  createItem,
+} from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { adoptSnapshot } from "./adopt.js";
 import { type Device, as, device } from "./devices.fixture.js";
@@ -19,10 +24,20 @@ function sync(on: Device, drive: MemoryDrive) {
   return as(on, () => syncOnce(on.store, PAIRING, drive));
 }
 
-function login(on: Device, id: string): LoginItem {
+function login(on: Device, id: string): AccountItem {
   const item = on.store.getSnapshot().items.find((entry) => entry.id === id);
-  if (item?.kind !== "login") throw new Error(`no login ${id}`);
+  if (item?.kind !== "account") throw new Error(`no account ${id}`);
   return item;
+}
+
+/** The account with its password method's secret replaced. */
+function withPassword(item: AccountItem, secret: string): AccountItem {
+  return {
+    ...item,
+    methods: item.methods.map((method) =>
+      method.type === "password" ? { ...method, secret } : method,
+    ),
+  };
 }
 
 /** A laptop with one login, paired; a phone set up from the drive. */
@@ -30,10 +45,11 @@ async function pairedDevices() {
   const drive = memoryDrive();
   const laptop = device("laptop");
   const phone = device("phone");
-  const bank: LoginItem = {
-    ...createItem("login", "Bank"),
+  const created = createItem("account", "Bank");
+  if (created.kind !== "account") throw new Error("not an account");
+  const bank: AccountItem = {
+    ...withPassword(created, "first"),
     username: "ada",
-    password: "first",
   };
   await as(laptop, async () => {
     await laptop.store.create(PASSWORD);
@@ -66,24 +82,24 @@ describe("a device whose clock runs behind", () => {
     // The laptop's clock is an hour fast when it changes the password.
     vi.setSystemTime(NOW + HOUR);
     await as(laptop, () =>
-      laptop.store.saveItem({ ...login(laptop, id), password: "second" }),
+      laptop.store.saveItem(withPassword(login(laptop, id), "second")),
     );
     await sync(laptop, drive);
 
     // The phone, on the right time, sees that and then changes it again.
     vi.setSystemTime(NOW + 60_000);
     await sync(phone, drive);
-    expect(login(phone, id).password).toBe("second");
+    expect(accountPlainPassword(login(phone, id))).toBe("second");
     await as(phone, () =>
-      phone.store.saveItem({ ...login(phone, id), password: "third" }),
+      phone.store.saveItem(withPassword(login(phone, id), "third")),
     );
     // Stamped after the laptop's fast clock, not at the phone's own time.
     expect(login(phone, id).updatedAt > login(laptop, id).updatedAt).toBe(true);
     await sync(phone, drive);
     await sync(laptop, drive);
 
-    expect(login(laptop, id).password).toBe("third");
-    expect(login(phone, id).password).toBe("third");
+    expect(accountPlainPassword(login(laptop, id))).toBe("third");
+    expect(accountPlainPassword(login(phone, id))).toBe("third");
   });
 
   it("keeps an item it purged gone, even one a fast clock stamped", async () => {
@@ -132,7 +148,7 @@ describe("two devices editing one item", () => {
       const merged = login(on, id);
       expect(merged.notes).toBe("Call first");
       expect(merged.username).toBe("ada@bank");
-      expect(merged.password).toBe("first");
+      expect(accountPlainPassword(merged)).toBe("first");
     }
     expect(JSON.stringify(login(laptop, id))).toBe(
       JSON.stringify(login(phone, id)),
@@ -143,5 +159,38 @@ describe("two devices editing one item", () => {
       pulled: false,
       pushed: false,
     });
+  });
+
+  it("keeps a password changed here and an authenticator added there", async () => {
+    const { drive, laptop, phone, id } = await pairedDevices();
+
+    vi.setSystemTime(NOW + 60_000);
+    await as(laptop, () =>
+      laptop.store.saveItem(withPassword(login(laptop, id), "second")),
+    );
+    vi.setSystemTime(NOW + 120_000);
+    await as(phone, () => {
+      const item = login(phone, id);
+      return phone.store.saveItem({
+        ...item,
+        methods: [
+          ...item.methods,
+          {
+            id: `${id}:authenticator`,
+            type: "authenticator",
+            secret: "JBSWY3DP",
+          },
+        ],
+      });
+    });
+
+    await sync(laptop, drive);
+    await sync(phone, drive);
+    await sync(laptop, drive);
+
+    for (const on of [laptop, phone]) {
+      expect(accountPlainPassword(login(on, id))).toBe("second");
+      expect(accountTotp(login(on, id))).toBe("JBSWY3DP");
+    }
   });
 });

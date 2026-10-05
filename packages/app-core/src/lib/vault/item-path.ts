@@ -1,4 +1,9 @@
-import type { Folder, VaultBody, VaultItem } from "@opensesame/vault-core";
+import {
+  type Folder,
+  type VaultBody,
+  type VaultItem,
+  normalizeItems,
+} from "@opensesame/vault-core";
 
 export function itemCreatePath(
   kind: string | undefined,
@@ -70,7 +75,8 @@ export function writeItem(body: VaultBody, item: VaultItem, folder?: Folder) {
     if (!existing) body.folders = [...body.folders, folder];
     folderId = existing?.id ?? folder.id;
   }
-  const next = { ...item, folderId, updatedAt: new Date().toISOString() };
+  const [account = item] = normalizeItems([item]);
+  const next = { ...account, folderId, updatedAt: new Date().toISOString() };
   const index = body.items.findIndex((candidate) => candidate.id === item.id);
   body.items =
     index === -1

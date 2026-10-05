@@ -1,7 +1,7 @@
 import { expect } from "@playwright/test";
 import { toTheList } from "./phone-vault.mjs";
 
-export async function checkLoginWebsites(page, check) {
+export async function checkAccountWebsites(page, check) {
   const viewport = page.viewportSize();
   for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: 800 });

@@ -8,7 +8,12 @@ import {
   TWO_FACTOR_LIST_URL,
 } from "@opensesame/app-core/lib/vault/security-checks.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
-import { type LoginItem, createItem, newUri } from "@opensesame/vault-core";
+import {
+  type AccountItem,
+  createItem,
+  manualPassword,
+  newUri,
+} from "@opensesame/vault-core";
 import {
   cleanup,
   fireEvent,
@@ -34,8 +39,14 @@ let runtime: typeof Runtime;
 const RANGE = "1E4C9B93F3F0682250B6CF8331B7EE68FD8:42\r\n0000:0";
 const LIST = [["GitHub", { domain: "github.com", tfa: ["totp"] }]];
 
-function login(name: string, password: string, uri: string): LoginItem {
-  return { ...createItem("login", name), password, uris: [newUri(uri)] };
+function login(name: string, password: string, uri: string): AccountItem {
+  const base = createItem("account", name);
+  if (base.kind !== "account") throw new Error("not an account");
+  return {
+    ...base,
+    uris: [newUri(uri)],
+    methods: [manualPassword(`${base.id}:password`, password, base.createdAt)],
+  };
 }
 
 const ITEMS = [

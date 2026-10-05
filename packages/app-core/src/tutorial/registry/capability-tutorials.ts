@@ -100,6 +100,7 @@ export const CAPABILITY_TUTORIALS = {
   "vault.item.create": "vault.item.create",
   "vault.item.set": "vault.item.create",
   "vault.item.share": "vault.item.create",
+  "vault.account.pepper": "vault.item.create",
   "vault.item_types.list": "vault.item-types.install",
   "vault.item_types.install": "vault.item-types.install",
   "vault.item_types.marketplace": "vault.item-types.install",

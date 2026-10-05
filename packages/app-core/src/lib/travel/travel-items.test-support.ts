@@ -35,8 +35,11 @@ type FakeState = {
 
 export type FakeItemsVault = FakeState & { deps: ItemsDeps };
 
-export function login(name: string, extra: Partial<VaultItem> = {}): VaultItem {
-  const item = createItem("login", name);
+export function account(
+  name: string,
+  extra: Partial<VaultItem> = {},
+): VaultItem {
+  const item = createItem("account", name);
   return Object.assign(item, extra);
 }
 

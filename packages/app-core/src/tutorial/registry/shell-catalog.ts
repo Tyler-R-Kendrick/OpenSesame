@@ -24,7 +24,7 @@ export const SHELL_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "nav.vault",
     description:
-      "Rail entry that opens the Vault, where every stored login, passkey, card, secret and note lives.",
+      "Rail entry that opens the Vault, where every stored account, passkey, card, secret and note lives.",
     role: "navigation",
     routes: [],
     capabilityId: "app.navigate",

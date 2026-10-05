@@ -1,9 +1,5 @@
-import {
-  type LoginItem,
-  WrongPasswordError,
-  createItem,
-} from "@opensesame/vault-core";
-import { parseTotp, totpCode } from "@opensesame/vault-core";
+import { WrongPasswordError, createItem } from "@opensesame/vault-core";
+import { accountTotp, parseTotp, totpCode } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete, kvGet, kvSet } from "../kv.js";
 import {
@@ -223,7 +219,7 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
     const item = store
       .getSnapshot()
       .items.find((candidate) => candidate.name === SELF_AUTHENTICATOR_TITLE);
-    return item?.kind === "login" ? item : undefined;
+    return item?.kind === "account" ? item : undefined;
   }
 
   function selfItemId(store: VaultStore): string {
@@ -240,18 +236,22 @@ describe("the vault as its own authenticator (ADR 0113)", () => {
     expect(selfItemId(store)).toBe(item?.id);
     expect(item?.deletedAt).toBeNull();
     // The entry is a working authenticator: its seed makes the gate's code.
-    await expect(totpCode(parseTotp(item?.totp ?? ""))).resolves.toBe(
-      await totpCode(parseTotp(secret)),
-    );
+    await expect(
+      totpCode(parseTotp(item ? accountTotp(item) : "")),
+    ).resolves.toBe(await totpCode(parseTotp(secret)));
   });
 
   it("does not adopt a same-titled entry whose seed differs", async () => {
     const store = new VaultStore();
     await store.create(PASSWORD);
-    const own: LoginItem = {
-      ...createItem("login", SELF_AUTHENTICATOR_TITLE),
-      totp: randomTotpSecret(),
-    };
+    const own = createItem("account", SELF_AUTHENTICATOR_TITLE);
+    own.methods = [
+      {
+        id: `${own.id}:authenticator`,
+        type: "authenticator",
+        secret: randomTotpSecret(),
+      },
+    ];
     await store.saveItem(own);
     await enrollTotp(store);
     const marker = selfItemId(store);

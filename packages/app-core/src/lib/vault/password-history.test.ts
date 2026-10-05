@@ -1,8 +1,14 @@
 import { overlapCast } from "@opensesame/os-domain";
-import { createItem, createVault } from "@opensesame/vault-core";
+import {
+  type AccountItem,
+  createItem,
+  createVault,
+  manualPassword,
+} from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { configureHost } from "../../host.js";
 import { createTestHost } from "../../test-host.js";
+import { pepperedAccount } from "../account.test-support.js";
 import {
   type FakeDatabases,
   fakeIndexedDb,
@@ -32,6 +38,7 @@ import {
   PasswordUsedBeforeError,
   noteRetiredPassword,
   passwordPreviouslyUsed,
+  preparePasswordRetirement,
   resetPasswordHistoryForTest,
 } from "./password-history.js";
 import { VaultStore } from "./store.js";
@@ -197,6 +204,77 @@ describe("retired password digests", () => {
   });
 });
 
+/** The account with its one password method set to `password`. */
+function withPassword(item: AccountItem, password: string): void {
+  item.methods = [
+    manualPassword(`${item.id}:password`, password, item.updatedAt),
+  ];
+}
+
+function passwordOf(item: AccountItem | undefined): string {
+  const method = item?.methods.find((entry) => entry.type === "password");
+  return method?.type === "password" ? method.secret : "";
+}
+
+describe("password retirement per method", () => {
+  it("records nothing for a peppered password, before or after", async () => {
+    const plain = createItem("account", "Bank");
+    withPassword(plain, SECRET);
+    const peppered = await pepperedAccount(
+      "Bank",
+      "the-peppered-password",
+      "pepper",
+    );
+    const sealed: AccountItem = { ...peppered, id: plain.id };
+    sealed.methods = peppered.methods.map((method) => ({
+      ...method,
+      id: `${plain.id}:password`,
+    }));
+    // Plain -> peppered retires the plain digest; the sealed one has none.
+    const retired = await preparePasswordRetirement(
+      PERSONAL_TOMB,
+      [plain],
+      [sealed],
+    );
+    expect(retired).toHaveLength(1);
+    expect(retired[0]?.scope).toBe(`${PERSONAL_TOMB}\u0000${plain.id}`);
+    // Peppered -> peppered with a new seal: no plaintext, so nothing to retire.
+    const again = await preparePasswordRetirement(
+      PERSONAL_TOMB,
+      [sealed],
+      [{ ...sealed, methods: sealed.methods.map((m) => ({ ...m })) }],
+    );
+    expect(again).toEqual([]);
+    const fresh = await preparePasswordRetirement(PERSONAL_TOMB, [], [sealed]);
+    expect(fresh).toEqual([]);
+  });
+
+  it("keeps a second password method's history apart", async () => {
+    const item = createItem("account", "Bank");
+    withPassword(item, SECRET);
+    const second = manualPassword(`${item.id}:other`, NEXT, item.updatedAt);
+    const next: AccountItem = { ...item, methods: [...item.methods, second] };
+    expect(
+      await preparePasswordRetirement(PERSONAL_TOMB, [item], [next]),
+    ).toEqual([]);
+    const rotated: AccountItem = {
+      ...next,
+      methods: [
+        next.methods[0] ?? second,
+        { ...second, secret: "another-fresh-password-1" },
+      ],
+    };
+    const retired = await preparePasswordRetirement(
+      PERSONAL_TOMB,
+      [next],
+      [rotated],
+    );
+    expect(retired.map((note) => note.scope)).toEqual([
+      `${PERSONAL_TOMB}\u0000${item.id}\u0000${item.id}:other`,
+    ]);
+  });
+});
+
 describe("VaultStore password retirement", () => {
   async function unlocked(): Promise<VaultStore> {
     const { header } = await createVault(MASTER);
@@ -206,27 +284,29 @@ describe("VaultStore password retirement", () => {
     return store;
   }
 
-  it("refuses a retired login password and keeps the current one", async () => {
+  it("refuses a retired account password and keeps the current one", async () => {
     const store = await unlocked();
-    const item = createItem("login", "Bank");
-    item.password = SECRET;
+    const item = createItem("account", "Bank");
+    withPassword(item, SECRET);
     await store.saveItem(item);
-    item.password = NEXT;
+    withPassword(item, NEXT);
     await store.saveItem(item);
-    item.password = SECRET;
+    withPassword(item, SECRET);
     await expect(store.saveItem(item)).rejects.toBeInstanceOf(
       PasswordUsedBeforeError,
     );
     const saved = store.getSnapshot().items.find((row) => row.id === item.id);
-    expect(saved?.kind === "login" ? saved.password : "").toBe(NEXT);
+    expect(passwordOf(saved?.kind === "account" ? saved : undefined)).toBe(
+      NEXT,
+    );
     expect(
       JSON.stringify(rawRows(databases, PASSWORD_HISTORY_DATABASE, "digests")),
     ).not.toContain(SECRET);
 
-    item.password = NEXT;
+    withPassword(item, NEXT);
     await store.saveItem(item);
-    const other = createItem("login", "Shop");
-    other.password = SECRET;
+    const other = createItem("account", "Shop");
+    withPassword(other, SECRET);
     await store.saveItem(other);
   });
 
@@ -244,12 +324,12 @@ describe("VaultStore password retirement", () => {
   it("does not record a retired password when a backup is enabled", async () => {
     const store = await unlocked();
     enableBackup();
-    const item = createItem("login", "Bank");
-    item.password = SECRET;
+    const item = createItem("account", "Bank");
+    withPassword(item, SECRET);
     await store.saveItem(item);
-    item.password = NEXT;
+    withPassword(item, NEXT);
     await store.saveItem(item);
-    item.password = SECRET;
+    withPassword(item, SECRET);
     await store.saveItem(item);
     clearLocalBackupTarget();
     resetPasswordHistoryForTest();
@@ -260,14 +340,14 @@ describe("VaultStore password retirement", () => {
 
   it("rolls back a batch when one password was used before", async () => {
     const store = await unlocked();
-    const item = createItem("login", "Bank");
-    item.password = SECRET;
+    const item = createItem("account", "Bank");
+    withPassword(item, SECRET);
     await store.saveItem(item);
-    item.password = NEXT;
+    withPassword(item, NEXT);
     await store.saveItem(item);
-    item.password = SECRET;
-    const extra = createItem("login", "Extra");
-    extra.password = "unique-extra-password-77";
+    withPassword(item, SECRET);
+    const extra = createItem("account", "Extra");
+    withPassword(extra, "unique-extra-password-77");
     await expect(store.saveItems([item, extra])).rejects.toBeInstanceOf(
       PasswordUsedBeforeError,
     );

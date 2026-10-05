@@ -4,11 +4,16 @@
  * is the same whichever device merges.
  */
 import { describe, expect, it } from "vitest";
+import {
+  accountPlainPassword,
+  accountTotp,
+  passwordMethod,
+} from "./account.js";
 import { itemVersion, mergeItem } from "./item-merge.js";
 import { mergeVaultBodies, sameVaultContent } from "./merge.js";
 import {
+  type AccountItem,
   type CustomField,
-  type LoginItem,
   type TypedItem,
   type VaultBody,
   type VaultItem,
@@ -20,13 +25,22 @@ const T0 = "2026-01-01T00:00:00.000Z";
 const T1 = new Date("2026-01-02T00:00:00.000Z");
 const T2 = new Date("2026-01-03T00:00:00.000Z");
 
-const ORIGINAL: LoginItem = {
-  ...createItem("login", "Bank"),
+/** The account with its password method's secret replaced. */
+function withPassword(item: AccountItem, secret: string): AccountItem {
+  return {
+    ...item,
+    methods: item.methods.map((method) =>
+      method.type === "password" ? { ...method, secret } : method,
+    ),
+  };
+}
+
+const ORIGINAL: AccountItem = {
+  ...withPassword(account(createItem("account", "Bank")), "first"),
   id: "x",
   createdAt: T0,
   updatedAt: T0,
   username: "ada",
-  password: "first",
   notes: "",
   fields: [
     { id: "keep", name: "Branch", value: "Leeds", hidden: false },
@@ -37,15 +51,15 @@ const ORIGINAL: LoginItem = {
 /** One device's copy after an edit made at `now`, stamped as the store does. */
 function editedAt(
   now: Date,
-  change: (item: LoginItem) => LoginItem,
-  from: LoginItem = ORIGINAL,
-): LoginItem {
+  change: (item: AccountItem) => AccountItem,
+  from: AccountItem = ORIGINAL,
+): AccountItem {
   const target: VaultBody = { v: 1, items: [from], folders: [] };
   const before = captureBefore(target);
   target.items = [{ ...change(from), updatedAt: now.toISOString() }];
   restampEdits(before, target, now);
   const [out] = target.items;
-  if (out?.kind !== "login") throw new Error("not a login");
+  if (out?.kind !== "account") throw new Error("not an account");
   return out;
 }
 
@@ -55,8 +69,8 @@ function both(a: VaultItem, b: VaultItem): VaultItem {
   return ab;
 }
 
-function login(item: VaultItem): LoginItem {
-  if (item.kind !== "login") throw new Error("not a login");
+function account(item: VaultItem): AccountItem {
+  if (item.kind !== "account") throw new Error("not an account");
   return item;
 }
 
@@ -64,10 +78,10 @@ describe("mergeItem", () => {
   it("keeps both devices' edits to different fields", () => {
     const onPhone = editedAt(T1, (item) => ({ ...item, username: "ada@bank" }));
     const onDesk = editedAt(T2, (item) => ({ ...item, notes: "Call first" }));
-    const merged = login(both(onPhone, onDesk));
+    const merged = account(both(onPhone, onDesk));
     expect(merged.username).toBe("ada@bank");
     expect(merged.notes).toBe("Call first");
-    expect(merged.password).toBe("first");
+    expect(accountPlainPassword(merged)).toBe("first");
     expect(merged.updatedAt).toBe(T2.toISOString());
     expect(merged.fieldTimes).toEqual({
       username: T1.toISOString(),
@@ -76,9 +90,27 @@ describe("mergeItem", () => {
   });
 
   it("keeps the later change to the same field", () => {
-    const earlier = editedAt(T1, (item) => ({ ...item, password: "second" }));
-    const later = editedAt(T2, (item) => ({ ...item, password: "third" }));
-    expect(login(both(earlier, later)).password).toBe("third");
+    const earlier = editedAt(T1, (item) => withPassword(item, "second"));
+    const later = editedAt(T2, (item) => withPassword(item, "third"));
+    expect(accountPlainPassword(account(both(earlier, later)))).toBe("third");
+  });
+
+  it("merges login methods one at a time (ADR 0172)", () => {
+    const onPhone = editedAt(T1, (item) => withPassword(item, "second"));
+    const onDesk = editedAt(T2, (item) => ({
+      ...item,
+      methods: [
+        ...item.methods,
+        { id: "x:authenticator", type: "authenticator", secret: "JBSWY3DP" },
+      ],
+    }));
+    const merged = account(both(onPhone, onDesk));
+    expect(accountPlainPassword(merged)).toBe("second");
+    expect(accountTotp(merged)).toBe("JBSWY3DP");
+    expect(merged.fieldTimes).toMatchObject({
+      [`methods.${passwordMethod(ORIGINAL)?.id}`]: T1.toISOString(),
+      "methods.x:authenticator": T2.toISOString(),
+    });
   });
 
   it("merges custom fields one at a time: adds, edits and removals", () => {
@@ -100,7 +132,7 @@ describe("mergeItem", () => {
           field.id === "keep" ? { ...field, value: "York" } : field,
         ),
     }));
-    expect(login(both(onPhone, onDesk)).fields).toEqual([
+    expect(account(both(onPhone, onDesk)).fields).toEqual([
       { id: "keep", name: "Branch", value: "York", hidden: false },
       pin,
     ]);
@@ -117,7 +149,7 @@ describe("mergeItem", () => {
         field.id === "drop" ? { ...field, value: "9999" } : field,
       ),
     }));
-    expect(login(both(removed, edited)).fields.map((f) => f.value)).toEqual([
+    expect(account(both(removed, edited)).fields.map((f) => f.value)).toEqual([
       "Leeds",
       "9999",
     ]);

@@ -3,7 +3,12 @@
  * characters of a hash and a request for a public list, and what comes back
  * is matched here.
  */
-import { type LoginItem, createItem, newUri } from "@opensesame/vault-core";
+import {
+  type AccountItem,
+  createItem,
+  manualPassword,
+  newUri,
+} from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import {
   type CheckFetch,
@@ -70,12 +75,24 @@ function login(
   password: string,
   uri: string,
   totp = "",
-): LoginItem {
+): AccountItem {
+  const base = createItem("account", name);
+  if (base.kind !== "account") throw new Error("not an account");
   return {
-    ...createItem("login", name),
-    password,
-    totp,
+    ...base,
     uris: [newUri(uri)],
+    methods: [
+      manualPassword(`${base.id}:password`, password, base.createdAt),
+      ...(totp
+        ? [
+            {
+              id: `${base.id}:authenticator`,
+              type: "authenticator" as const,
+              secret: totp,
+            },
+          ]
+        : []),
+    ],
   };
 }
 

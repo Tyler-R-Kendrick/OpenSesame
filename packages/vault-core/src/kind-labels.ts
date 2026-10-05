@@ -5,7 +5,7 @@
  * item model (`model.ts`), which re-exports them.
  */
 export const KIND_LABEL = {
-  login: "Login",
+  account: "Account",
   passkey: "Passkey",
   card: "Card",
   secret: "Secret",
@@ -16,7 +16,7 @@ export const KIND_LABEL = {
 };
 
 export const KIND_PLURAL = {
-  login: "Logins",
+  account: "Accounts",
   passkey: "Passkeys",
   card: "Cards",
   secret: "Secrets",

@@ -33,12 +33,20 @@ export const ITEM_META_KEYS: ReadonlySet<string> = new Set([
   "fieldTimes",
 ]);
 
-/** Field keys a field time is recorded under: a property, a typed value, a custom field. */
+/**
+ * Item keys holding a list of records with ids, merged one record at a time:
+ * an item's custom fields, and an account's login methods (ADR 0172), so a
+ * password changed on one device and an authenticator added on another both
+ * survive.
+ */
+export const ID_LIST_KEYS: ReadonlySet<string> = new Set(["fields", "methods"]);
+
+/** Field keys a field time is recorded under: a property, a typed value, a listed record. */
 export function valueKey(name: string): string {
   return `values.${name}`;
 }
-export function customFieldKey(id: string): string {
-  return `fields.${id}`;
+export function listEntryKey(list: string, id: string): string {
+  return `${list}.${id}`;
 }
 
 function later(a: string, b: string | null | undefined): string {
@@ -88,7 +96,7 @@ export function recordOf(value: JsonValue | undefined): JsonObject {
   return isJsonObject(value) ? value : {};
 }
 
-/** Custom fields by id. */
+/** Listed records (custom fields, login methods) by id. */
 export function fieldsById(
   value: JsonValue | undefined,
 ): Map<string, JsonValue> {
@@ -115,15 +123,15 @@ export function changedFieldKeys(prev: VaultItem, next: VaultItem): string[] {
       for (const name of new Set([...Object.keys(was), ...Object.keys(now)])) {
         if (json(was[name]) !== json(now[name])) changed.push(valueKey(name));
       }
-    } else if (key === "fields") {
+    } else if (ID_LIST_KEYS.has(key)) {
       const was = fieldsById(before[key]);
       const now = fieldsById(after[key]);
       for (const id of new Set([...was.keys(), ...now.keys()])) {
         if (json(was.get(id)) !== json(now.get(id)))
-          changed.push(customFieldKey(id));
+          changed.push(listEntryKey(key, id));
       }
-      // A reorder alone changes no field, but is still this device's edit.
-      changed.push("fields");
+      // A reorder alone changes no record, but is still this device's edit.
+      changed.push(key);
     } else {
       changed.push(key);
     }

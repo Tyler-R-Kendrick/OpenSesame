@@ -122,10 +122,10 @@ describe("VaultStore rollback detection", () => {
   it("refuses a body older than the last write recorded here", async () => {
     const store = new VaultStore();
     await store.create(PASSWORD);
-    await store.saveItem(createItem("login", "First"));
+    await store.saveItem(createItem("account", "First"));
     const snapshot = kvGet(BODY_KEY);
 
-    await store.saveItem(createItem("login", "Second"));
+    await store.saveItem(createItem("account", "Second"));
     store.lock();
 
     // Put the older file back, exactly as a restore would.
@@ -139,16 +139,16 @@ describe("VaultStore rollback detection", () => {
   it("survives a failed write without looking rolled back", async () => {
     const store = new VaultStore();
     await store.create(PASSWORD);
-    await store.saveItem(createItem("login", "Kept"));
+    await store.saveItem(createItem("account", "Kept"));
 
     refuseWrites.on = true;
-    await expect(store.saveItem(createItem("login", "Lost"))).rejects.toThrow(
+    await expect(store.saveItem(createItem("account", "Lost"))).rejects.toThrow(
       /storage refused/u,
     );
     refuseWrites.on = false;
 
     // The mutation that failed is gone from memory, and what remains still opens.
-    await store.saveItem(createItem("login", "After"));
+    await store.saveItem(createItem("account", "After"));
     store.lock();
     const reopened = new VaultStore();
     await reopened.unlock(PASSWORD);
@@ -161,7 +161,7 @@ describe("VaultStore rollback detection", () => {
   it("opens the body it last wrote", async () => {
     const store = new VaultStore();
     await store.create(PASSWORD);
-    await store.saveItem(createItem("login", "Kept"));
+    await store.saveItem(createItem("account", "Kept"));
     store.lock();
 
     const reopened = new VaultStore();
@@ -201,7 +201,7 @@ describe("VaultStore multi-method unlock", () => {
     rehydrateProjects();
     const store = new VaultStore();
     await store.create(PASSWORD);
-    await store.saveItem(createItem("login", "Personal only"));
+    await store.saveItem(createItem("account", "Personal only"));
     const project = await createProject("Work");
     await setActiveProject(project.id);
     await store.forkUnlockedIntoActiveScope();
@@ -304,13 +304,13 @@ describe("VaultStore multi-method unlock", () => {
     rehydrateProjects();
     const store = new VaultStore();
     await store.create(PASSWORD);
-    await store.saveItem(createItem("login", "Personal only"));
+    await store.saveItem(createItem("account", "Personal only"));
 
     // Sealed with this vault's key (the Manage panel's "share" road).
     const shared = await createProject("Shared");
     await setActiveProject(shared.id);
     await store.forkUnlockedIntoActiveScope();
-    await store.saveItem(createItem("login", "Work only"));
+    await store.saveItem(createItem("account", "Work only"));
 
     // Back to personal the plain way: lock, unlock.
     await setActiveProject(PERSONAL_PROJECT_ID);
@@ -342,7 +342,7 @@ describe("VaultStore multi-method unlock", () => {
     expect(store.getSnapshot().items.map((item) => item.name)).toEqual([
       "Work only",
     ]);
-    await store.saveItem(createItem("login", "Still writable"));
+    await store.saveItem(createItem("account", "Still writable"));
 
     // Enrolling another method on one side does not break the prediction:
     // the shared records are still identical.

@@ -1,4 +1,6 @@
 import {
+  accountPlainPassword,
+  accountTotp,
   createItem,
   installItemType,
   itemTypeRegistry,
@@ -81,22 +83,22 @@ describe("new vault draft defaults", () => {
     });
   });
   it("generates independent concealed values and aliases, not TOTP seeds", () => {
-    const first = newItemDraft("login");
-    const second = newItemDraft("login");
-    if (first.kind !== "login" || second.kind !== "login")
+    const first = newItemDraft("account");
+    const second = newItemDraft("account");
+    if (first.kind !== "account" || second.kind !== "account")
       throw new Error("fixture");
-    expect(first.password).toHaveLength(20);
-    expect(first.password).not.toBe(second.password);
+    expect(accountPlainPassword(first)).toHaveLength(20);
+    expect(accountPlainPassword(first)).not.toBe(accountPlainPassword(second));
     expect(first.username).toMatch(/^user_[a-f0-9]+$/);
     expect(first.username).not.toBe(second.username);
-    expect(first.totp).toBe("");
+    expect(accountTotp(first)).toBe("");
     // An empty address that matches nothing until one is written — never a
-    // `*` that would offer the login on every site.
+    // `*` that would offer the account on every site.
     expect(first.uris).toEqual([
       { id: expect.any(String), uri: "", match: "domain" },
     ]);
     expect(first.uris[0]?.id).not.toBe(second.uris[0]?.id);
-    expect(createItem("login").uris).toEqual([]);
+    expect(createItem("account").uris).toEqual([]);
     const secret = newItemDraft("secret");
     if (secret.kind !== "secret") throw new Error("fixture");
     expect(secret.value).toHaveLength(20);
@@ -108,7 +110,7 @@ describe("new vault draft defaults", () => {
     expect(draft.values.password).toHaveLength(20);
     expect(draft.values.username).toMatch(/^user_/);
     expect(draft.values.connectionString).toBe("");
-    expect(createItem("login").password).toBe("");
+    expect(accountPlainPassword(createItem("account"))).toBe("");
     expect(() => newItemDraft("missing-type")).toThrow(
       "Unknown vault item type",
     );
@@ -121,15 +123,15 @@ describe("isGeneratedDraftName", () => {
       isGeneratedDraftName(generateDraftLabels("secret").name, "secret"),
     ).toBe(true);
     expect(
-      isGeneratedDraftName(generateDraftLabels("login").name, "login"),
+      isGeneratedDraftName(generateDraftLabels("account").name, "account"),
     ).toBe(true);
   });
 
   it("says no to a name another type generated", () => {
-    // The exact case: "New item" opens as a login, the person picks Secret,
+    // The exact case: "New item" opens as an account, the person picks Secret,
     // and the name still named the type they had left.
     expect(
-      isGeneratedDraftName(generateDraftLabels("login").name, "secret"),
+      isGeneratedDraftName(generateDraftLabels("account").name, "secret"),
     ).toBe(false);
   });
 
@@ -174,7 +176,7 @@ describe("public link prefills", () => {
     ["software-license", "seats", "1e999"],
     ["wifi", "hidden", "yes"],
     ["passport", "issuingCountry", "USA"],
-    ["login", "uris", "https://example.com"],
+    ["account", "uris", "https://example.com"],
     ["software-license", "registeredEmail", "private@example.com"],
   ])("refuses an invalid %s %s scalar", (type, field, value) => {
     expect(() =>
@@ -235,7 +237,7 @@ describe("public link prefills", () => {
   });
   it("uses public labels and a website without replacing generated secrets", () => {
     const item = prefillNewDraft(
-      "login",
+      "account",
       new URLSearchParams({
         name: "Example",
         username: "public_alias",
@@ -249,8 +251,29 @@ describe("public link prefills", () => {
       folderId: "work",
       uris: [{ uri: "https://example.com/login" }],
     });
-    if (item.kind !== "login") throw new Error("fixture");
-    expect(item.password).toHaveLength(20);
+    if (item.kind !== "account") throw new Error("fixture");
+    expect(accountPlainPassword(item)).toHaveLength(20);
+  });
+  it("puts the generated password in the first password method, under its rules", () => {
+    const item = newItemDraft("account");
+    if (item.kind !== "account") throw new Error("fixture");
+    const [first, ...rest] = item.methods;
+    expect(rest).toEqual([]);
+    expect(first).toMatchObject({
+      type: "password",
+      pepper: false,
+      generator: { id: "rules", length: 20 },
+    });
+    expect(first?.type === "password" ? first.secret : "").toHaveLength(20);
+    expect(first?.type === "password" ? first.sealed : "x").toBeUndefined();
+  });
+  it("still opens an account draft for the retired login name", () => {
+    const item = prefillNewDraft(
+      "login",
+      new URLSearchParams({ uri: "https://example.com" }),
+    );
+    expect(item.kind).toBe("account");
+    expect(newItemDraft("login").kind).toBe("account");
   });
   it("derives the label and RP hostname from a valid site, not its port", () => {
     expect(

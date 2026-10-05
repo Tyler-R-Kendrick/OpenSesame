@@ -5,8 +5,9 @@
  * written by `stamps.ts`). For every field the copy that changed it later
  * wins, so a username changed on one device and a note changed on another
  * both survive. A typed item's values and an item's custom fields merge one
- * value and one custom field at a time; one removed later than the other side
- * changed it stays removed.
+ * value and one custom field at a time, and an account's login methods one
+ * method at a time; one removed later than the other side changed it stays
+ * removed.
  *
  * Deterministic either way round: the whole copy that changed last is the
  * base, a field time decides each field, and a tie goes to the base. Two
@@ -21,11 +22,12 @@ import {
 } from "@opensesame/os-domain";
 import type { VaultItem } from "./model.js";
 import {
+  ID_LIST_KEYS,
   ITEM_META_KEYS,
   asJson,
-  customFieldKey,
   fieldsById,
   json,
+  listEntryKey,
   recordOf,
   valueKey,
 } from "./stamps.js";
@@ -71,12 +73,12 @@ function mergeValues(base: Side, other: Side): JsonObject {
   return out;
 }
 
-function mergeCustomFields(base: Side, other: Side): JsonValue[] {
-  const ours = fieldsById(base.item.fields);
-  const theirs = fieldsById(other.item.fields);
-  // The base's order, then fields only the other side added, in its order.
+function mergeIdList(base: Side, other: Side, list: string): JsonValue[] {
+  const ours = fieldsById(base.item[list]);
+  const theirs = fieldsById(other.item[list]);
+  // The base's order, then records only the other side added, in its order.
   const order =
-    timeOf(other, "fields") > timeOf(base, "fields")
+    timeOf(other, list) > timeOf(base, list)
       ? [...theirs.keys(), ...ours.keys()]
       : [...ours.keys(), ...theirs.keys()];
   const out: JsonValue[] = [];
@@ -84,7 +86,7 @@ function mergeCustomFields(base: Side, other: Side): JsonValue[] {
     const value = pick(
       base,
       other,
-      customFieldKey(id),
+      listEntryKey(list, id),
       ours.get(id),
       theirs.get(id),
     );
@@ -124,8 +126,8 @@ export function mergeItem(left: VaultItem, right: VaultItem): VaultItem {
     const value =
       key === "values"
         ? mergeValues(base, other)
-        : key === "fields"
-          ? mergeCustomFields(base, other)
+        : ID_LIST_KEYS.has(key)
+          ? mergeIdList(base, other, key)
           : pick(base, other, key, base.item[key], other.item[key]);
     if (value !== undefined) out[key] = value;
   }

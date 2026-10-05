@@ -3,6 +3,7 @@
  * and opened, and the item model inside it. No platform, no host, no storage;
  * every reader — the PWA, the CLI, an Android isolate — shares it.
  */
+export * from "./account.js";
 export * from "./bytes.js";
 export * from "./crypto.js";
 export * from "./device-key.js";
@@ -15,6 +16,7 @@ export * from "./model.js";
 export * from "./stamps.js";
 export * from "./offline-backup-format.js";
 export * from "./paths.js";
+export * from "./pepper-seal.js";
 export * from "./protection-limits.js";
 export * from "./protection-types.js";
 export * from "./seal-open.js";

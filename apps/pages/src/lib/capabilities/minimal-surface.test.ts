@@ -59,7 +59,7 @@ describe("minimal surface", () => {
       expect(plan.approvedModules, id).toContain(`${id}/runtime`);
     }
     expect(plan.approvedItemKinds).toContain("secret");
-    expect(plan.approvedItemKinds).toContain("login");
+    expect(plan.approvedItemKinds).toContain("account");
     expect(plan.approvedItemKinds).toContain("passkey");
     expect(plan.approvedItemKinds).not.toContain("drop");
   });

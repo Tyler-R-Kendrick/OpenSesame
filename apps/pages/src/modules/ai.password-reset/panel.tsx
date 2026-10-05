@@ -27,7 +27,7 @@ function snapshot(): string {
   return `${activeCapabilityVaultId()}\n${resetEmailEpoch()}`;
 }
 
-/** Addresses this vault may attach to a login. Empty is a valid list. */
+/** Addresses this vault may attach to an account. Empty is a valid list. */
 export function PasswordResetMailPanel() {
   useSyncExternalStore(subscribe, snapshot, snapshot);
   const emails = listResetEmails();

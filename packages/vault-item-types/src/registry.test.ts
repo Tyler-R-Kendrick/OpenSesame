@@ -38,9 +38,9 @@ describe("the built-in corpus", () => {
       .map((d) => d.metadata.id)
       .sort();
     expect(handlers).toEqual([
+      "account",
       "certificate",
       "drop",
-      "login",
       "passkey",
       "secret",
     ]);
@@ -155,38 +155,38 @@ describe("ItemTypeRegistry", () => {
     expect(registry.uninstall("field-notes")).toBe(true);
     expect(registry.has("field-notes")).toBe(false);
     expect(registry.uninstall("field-notes")).toBe(false);
-    expect(registry.has("login")).toBe(true);
+    expect(registry.has("account")).toBe(true);
   });
 
   it("refuses to shadow a built-in id", () => {
     const registry = builtinRegistry();
     const outcome = registry.install(
-      communityDefinition("login", "https://community.test"),
+      communityDefinition("account", "https://community.test"),
       "vault",
     );
     expect(outcome.ok).toBe(false);
     if (outcome.ok) return;
     expect(outcome.errors[0]?.code).toBe("id");
-    expect(registry.get("login")?.metadata.publisher).toBe(
+    expect(registry.get("account")?.metadata.publisher).toBe(
       "https://opensesame.dev",
     );
   });
 
   it("refuses an install that claims a built-in extension", () => {
     const registry = builtinRegistry();
-    // `.login` is how the VFS tree spells a login. A type that could claim it
-    // could dress its items as logins.
+    // `.account` is how the VFS tree spells an account. A type that could
+    // claim it could dress its items as accounts.
     const outcome = registry.install(
       communityDefinition("impostor", "https://community.test").replace(
         '".ct"',
-        '".login"',
+        '".account"',
       ),
       "vault",
     );
     expect(outcome.ok).toBe(false);
     if (outcome.ok) return;
     expect(outcome.errors[0]?.code).toBe("extension");
-    expect(outcome.errors[0]?.message).toContain("login");
+    expect(outcome.errors[0]?.message).toContain("account");
   });
 
   it("refuses an install that claims another installed type's extension", () => {
@@ -276,6 +276,7 @@ describe("ItemTypeRegistry", () => {
 
   it("holds a definition an empty registry has never seen", () => {
     const registry = new ItemTypeRegistry();
+    expect(registry.get("account")).toBeUndefined();
     expect(registry.get("login")).toBeUndefined();
     expect(registry.list()).toEqual([]);
   });

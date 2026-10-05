@@ -1,5 +1,10 @@
 {
   "$comment": "Vault item-type conformance cases (ADR 0087 section 8, ADR 0139). Both parsers and both native projections read this file: crates/vault-item-types (tests/conformance.rs) and packages/vault-item-types (src/conformance.test.ts). A definition valid on one plane must be valid on the other, a rejection on one a rejection on the other, and a projection must write and read back the same pass entry, or `opensesame pass` and the PWA disagree about what a stored item is. definitionCases: `set` is an ordered list of [JSON Pointer, value] pairs applied to a fresh copy of `draft` (a pointer may create a missing object key, and a final `-` appends to an array, as RFC 6901 spells it); `trust` is community unless it says platform; then exactly one of `codes` (every code must be refused with), `codesAnyOf` (at least one; used only where the host plane's serde refuses a closed enum as `syntax` and the TypeScript parser names the rule), or `valid: true`. projectionCases: with `values`, the type's projection must equal `entry` (and `rendered`, when given) and its readback is checked; without `values`, `entry` is the input read back. `readback.values` is exactly the fields read back (strings, lists, or record parts; the secret field always reads back, empty or not); `readback.extra` is exactly the unclaimed trailer keys kept.",
+  "legacyAliases": {
+    "$comment": "Retired names that still resolve (ADR 0172 section 1): the `login` type became `account`. Both registries answer the old id with the new definition and refuse an install that takes the old id or extension; crates/vault-item-types (src/legacy.rs) and packages/vault-item-types (src/legacy-aliases.ts) each carry this table and a test reads it back.",
+    "types": { "login": "account" },
+    "extensions": { ".login": ".account" }
+  },
   "draft": {
     "apiVersion": "opensesame.dev/v1alpha1",
     "kind": "VaultItemType",
@@ -631,8 +636,8 @@
   ],
   "projectionCases": [
     {
-      "name": "a login projects onto a pass entry",
-      "type": "login",
+      "name": "an account projects onto a pass entry",
+      "type": "account",
       "values": {
         "username": "ada",
         "password": "correct horse",
@@ -655,7 +660,7 @@
     },
     {
       "name": "a TOTP seed is written as a bare otpauth line where pass-otp looks",
-      "type": "login",
+      "type": "account",
       "values": {
         "username": "ada",
         "password": "pw",
@@ -677,7 +682,7 @@
     },
     {
       "name": "a repeating field repeats its key once per value",
-      "type": "login",
+      "type": "account",
       "values": {
         "username": "",
         "password": "",

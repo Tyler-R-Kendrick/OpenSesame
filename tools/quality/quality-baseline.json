@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 428,
-    "violations": 672,
-    "oversizedLines": 219357
+    "files": 427,
+    "violations": 668,
+    "oversizedLines": 218066
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -74,9 +74,6 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/components/NotificationsBar.tsx": {
-      "max-lines-per-function": 1
-    },
-    "apps/pages/src/components/PasswordGenerator.tsx": {
       "max-lines-per-function": 1
     },
     "apps/pages/src/components/ProjectSwitcher.tsx": {
@@ -152,7 +149,7 @@
       "complexity": 1
     },
     "apps/pages/src/sections/VaultSection.test.tsx": {
-      "max-lines": 680
+      "max-lines": 678
     },
     "apps/pages/src/sections/VaultSection.tsx": {
       "max-lines-per-function": 1
@@ -208,15 +205,15 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/ItemDetail.test.tsx": {
-      "max-lines": 645
+      "max-lines": 596
     },
     "apps/pages/src/sections/vault/ItemDetail.tsx": {
       "complexity": 1,
-      "max-lines": 706,
+      "max-lines": 520,
       "max-lines-per-function": 2
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
-      "max-lines": 643
+      "max-lines": 622
     },
     "apps/pages/src/sections/vault/ItemEditor.tsx": {
       "complexity": 2,
@@ -657,7 +654,6 @@
     },
     "packages/app-core/src/lib/vault/export/cxf.ts": {
       "complexity": 1,
-      "max-lines": 566,
       "max-lines-per-function": 1
     },
     "packages/app-core/src/lib/vault/import/formats-extra.test.ts": {
@@ -678,8 +674,7 @@
       "max-lines": 473
     },
     "packages/app-core/src/lib/vault/import/formats/cxf.ts": {
-      "complexity": 2,
-      "max-lines": 440,
+      "complexity": 1,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -1310,7 +1305,7 @@
     },
     "packages/support-agent/src/egress.ts": {
       "complexity": 1,
-      "max-lines": 571
+      "max-lines": 550
     },
     "packages/support-agent/src/instructions.ts": {
       "complexity": 1
@@ -1336,7 +1331,7 @@
     },
     "packages/vault-core/src/model.ts": {
       "complexity": 1,
-      "max-lines": 495
+      "max-lines": 491
     },
     "packages/vault-item-types/src/native.ts": {
       "complexity": 1,

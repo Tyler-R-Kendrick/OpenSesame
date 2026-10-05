@@ -1,3 +1,4 @@
+import type { Ref } from "react";
 import { Link } from "react-router";
 import { IconCheck, IconX } from "../../components/Icons.js";
 
@@ -10,10 +11,17 @@ export function EditorActions({
   busy,
   label,
   closeTo,
-}: { busy: boolean; label: string; closeTo: string }) {
+  saveRef,
+}: {
+  busy: boolean;
+  label: string;
+  closeTo: string;
+  saveRef?: Ref<HTMLButtonElement>;
+}) {
   return (
     <div className="editor__actions go-row">
       <button
+        ref={saveRef}
         type="submit"
         className="go"
         disabled={busy}

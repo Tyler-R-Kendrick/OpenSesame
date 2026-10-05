@@ -905,59 +905,6 @@ select.editor__ext:hover {
 
 /* —— Generator ————————————————————————————————————————————— */
 
-.gen {
-  display: grid;
-  gap: 0.75rem;
-  padding: 0.85rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-}
-
-.gen__out {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.6rem 0.5rem 0.6rem 0.75rem;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.gen__value {
-  flex: 1;
-  min-width: 0;
-  font-family: var(--mono);
-  font-size: 0.9375rem;
-  overflow-wrap: anywhere;
-  line-height: 1.45;
-}
-
-.gen__modes {
-  display: flex;
-  gap: 0.3rem;
-}
-
-.gen__mode {
-  appearance: none;
-  flex: 1;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--ink-2);
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.gen__mode[aria-pressed="true"] {
-  background: var(--accent);
-  border-color: transparent;
-  color: var(--accent-ink);
-}
-
 .gen__opts {
   display: grid;
   gap: 0.6rem;
@@ -991,6 +938,60 @@ select.editor__ext:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem 1.1rem;
+}
+
+/* The account's login methods: one ruled block each, the generator's options
+   inline under its select, the entropy a one-line readout. */
+.field.method__group > *:not(label):not(.label),
+.field.method__group > .label {
+  grid-column: 1 / -1;
+}
+
+/* The pepper prompt: its fields and its one key, a breath apart. */
+.pepper {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.method__list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.method {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.55rem 0 0.2rem;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.method__picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.method .gen__opts {
+  padding: 0.1rem 0 0.4rem;
+}
+
+.gen__count input {
+  width: 4.5rem;
+  min-width: 0;
+}
+
+.gen__bits {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
 }
 
 /* —— Welcome pane ——————————————————————————————————————————— */

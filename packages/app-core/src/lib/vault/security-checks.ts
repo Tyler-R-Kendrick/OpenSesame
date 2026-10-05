@@ -21,8 +21,10 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import {
-  type LoginItem,
+  type AccountItem,
   type VaultItem,
+  accountPlainPassword,
+  accountTotp,
   activeItems,
   hostOf,
 } from "@opensesame/vault-core";
@@ -38,7 +40,7 @@ export {
 export type CheckFetch = (url: string, init: RequestInit) => Promise<Response>;
 
 export type SecurityFinding = {
-  item: LoginItem;
+  item: AccountItem;
   /** Times the password appears in known breaches; 0 when it does not. */
   breaches: number;
   /** The site takes an authenticator code and this login stores none. */
@@ -148,9 +150,15 @@ export async function fetchTwoFactorSites(
   return parseTwoFactorList(await response.json());
 }
 
-function logins(items: readonly VaultItem[]): LoginItem[] {
+/**
+ * Live accounts whose password can be read without asking (ADR 0172). A
+ * password behind a pepper, or a Sphinx one that is never stored, is not
+ * checked: it is not here to hash.
+ */
+function logins(items: readonly VaultItem[]): AccountItem[] {
   return activeItems([...items]).filter(
-    (item): item is LoginItem => item.kind === "login" && item.password !== "",
+    (item): item is AccountItem =>
+      item.kind === "account" && accountPlainPassword(item) !== "",
   );
 }
 
@@ -168,18 +176,18 @@ export async function runSecurityChecks(
 ): Promise<SecurityReport> {
   const checked = logins(items);
   const counts = await breachCounts(
-    checked.map((login) => login.password),
+    checked.map(accountPlainPassword),
     fetchRange,
   );
-  const needCodes = checked.some((login) => !login.totp);
+  const needCodes = checked.some((login) => !accountTotp(login));
   const sites = needCodes
     ? await fetchTwoFactorSites(fetchList)
     : new Set<string>();
   const findings: SecurityFinding[] = [];
   for (const item of checked) {
-    const breaches = counts.get(item.password) ?? 0;
+    const breaches = counts.get(accountPlainPassword(item)) ?? 0;
     const twoFactorAvailable =
-      !item.totp &&
+      !accountTotp(item) &&
       item.uris.some((uri) => {
         const host = hostOf(uri.uri);
         return host !== "" && within(host, sites);

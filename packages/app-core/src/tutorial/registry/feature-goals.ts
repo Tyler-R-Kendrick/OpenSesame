@@ -187,7 +187,7 @@ export const FEATURE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "feature.item-types"',
-      'say "A minimal vault holds secrets and files. The Item types section adds the rest: login, note, card and the other built-in kinds, passkeys as vault items, and X.509 certificates."',
+      'say "A minimal vault holds secrets and files. The Item types section adds the rest: account, note, card and the other built-in kinds, passkeys as vault items, and X.509 certificates."',
       'navigate "/settings/capabilities"',
       'wait route "/settings/capabilities" timeout=15000',
       'scroll "feature.item-types"',
@@ -277,7 +277,7 @@ export const FEATURE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "feature.password-reset"',
-      'say "Password reset finds a reset message in a mailbox you configure and runs a website\'s reset ceremony for that login, so a stored password can be rotated without you doing each step."',
+      'say "Password reset finds a reset message in a mailbox you configure and runs a website\'s reset ceremony for that account, so a stored password can be rotated without you doing each step."',
       'navigate "/settings/capabilities"',
       'wait route "/settings/capabilities" timeout=15000',
       'scroll "feature.password-reset"',

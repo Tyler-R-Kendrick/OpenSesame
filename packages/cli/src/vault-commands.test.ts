@@ -71,6 +71,36 @@ async function vectorFile(name: string): Promise<string> {
   return path;
 }
 
+/**
+ * The TypeScript readers normalize a legacy `login` to an `account` on open
+ * (ADR 0172 §1); the golden vectors keep their `login` bytes untouched, so the
+ * listing names the account kind for them.
+ */
+const normalizedKind = <T extends { kind: string }>(item: T): T => ({
+  ...item,
+  kind: item.kind === "login" ? "account" : item.kind,
+});
+
+/**
+ * Closed vocabulary an account body names its methods and generators with
+ * (ADR 0172 §2-3). These are field *kinds*, not values: "sphinx" is also a word
+ * in an item's own name, which the listing may show. Every secret an account
+ * holds (a method's secret, sealed envelope, OPRF key, token, client secret)
+ * stays in the scan.
+ */
+const VOCABULARY = new Set([
+  "password",
+  "api-key",
+  "token",
+  "oauth",
+  "authenticator",
+  "rules",
+  "passphrase",
+  "sphinx",
+  "manual",
+  "PBKDF2-SHA256",
+]);
+
 const typed = (password: string) => ({
   readPassword: vi.fn(async () => password),
 });
@@ -122,7 +152,7 @@ describe("opensesame-id vault verify / ls over the golden vectors", () => {
           name: itemName,
           kind,
         })),
-      ).toEqual(vector.expect.items);
+      ).toEqual(vector.expect.items.map(normalizedKind));
       for (const item of listed.items)
         expect(Object.keys(item).sort()).toEqual([
           "id",
@@ -132,6 +162,19 @@ describe("opensesame-id vault verify / ls over the golden vectors", () => {
         ]);
     },
   );
+
+  it("lists an account with several methods as an .account path, with no method secret", async () => {
+    const code = await runCli(
+      ["vault", "ls", await vectorFile("export-personal-accounts"), "--json"],
+      typed(fixture.password),
+    );
+    expect(code).toBe(0);
+    const listed: { items: { kind: string; path: string }[] } = JSON.parse(out);
+    const accounts = listed.items.filter((item) => item.kind === "account");
+    expect(accounts.length).toBeGreaterThan(1);
+    for (const item of accounts) expect(item.path).toMatch(/\.account$/);
+    expect(out).not.toMatch(/oprfKey|"sealed"|"methods"|"secret"/);
+  });
 
   it("prints a path per line for a person", async () => {
     const code = await runCli(
@@ -160,7 +203,9 @@ describe("opensesame-id vault verify / ls over the golden vectors", () => {
       const { body } = await openVaultBody(sealed, raw);
       const values = body.items.flatMap(
         ({ id: _id, name: _name, kind: _kind, ...rest }) =>
-          stringLeaves(overlapCast(rest)).filter((v) => v.length >= 6),
+          stringLeaves(overlapCast(rest)).filter(
+            (v) => v.length >= 6 && !VOCABULARY.has(v),
+          ),
       );
       expect(values.length).toBeGreaterThan(0);
       for (const value of values) expect(out).not.toContain(value);

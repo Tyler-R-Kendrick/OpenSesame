@@ -11,15 +11,15 @@ const folders: Folder[] = [
 ];
 // SAFETY: fixture constructed in this test matches the declared contract.
 const items = [
-  { kind: "login", deletedAt: null, folderId: "work" },
+  { kind: "account", deletedAt: null, folderId: "work" },
   { kind: "note", deletedAt: null, folderId: "work" },
-  { kind: "login", deletedAt: "2026-01-02", folderId: "empty" },
+  { kind: "account", deletedAt: "2026-01-02", folderId: "empty" },
 ] as VaultItem[];
 
 describe("vault rail folders", () => {
   it("places a folder under each kind that has a live item in it", () => {
     expect(
-      foldersForKind("login", items, folders).map((folder) => folder.id),
+      foldersForKind("account", items, folders).map((folder) => folder.id),
     ).toEqual(["work"]);
     expect(
       foldersForKind("note", items, folders).map((folder) => folder.id),
@@ -32,17 +32,17 @@ describe("vault rail folders", () => {
     expect(uniqueFolderKind(items, "empty")).toBeNull();
   });
 
-  it("infers login when that is the only live kind in the folder", () => {
+  it("infers account when that is the only live kind in the folder", () => {
     // SAFETY: fixture constructed in this test matches the declared contract.
-    const onlyLogin = [
-      { kind: "login", deletedAt: null, folderId: "work" },
+    const onlyAccount = [
+      { kind: "account", deletedAt: null, folderId: "work" },
       { kind: "card", deletedAt: "2026-01-02", folderId: "work" },
     ] as VaultItem[];
     // The rail names a kind only while that kind is installed.
     const installed = [
-      { id: "login", segment: "logins", label: "Login", order: 0 },
+      { id: "account", segment: "accounts", label: "Account", order: 0 },
     ];
-    expect(uniqueFolderKind(onlyLogin, "work", installed)).toBe("login");
-    expect(uniqueFolderKind(onlyLogin, "work")).toBeNull();
+    expect(uniqueFolderKind(onlyAccount, "work", installed)).toBe("account");
+    expect(uniqueFolderKind(onlyAccount, "work")).toBeNull();
   });
 });

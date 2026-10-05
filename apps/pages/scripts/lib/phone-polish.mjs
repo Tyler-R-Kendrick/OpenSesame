@@ -93,12 +93,12 @@ export async function searchKeysBare(page, stop, { harness }) {
 }
 
 /**
- * A login's password keys (update, reveal, copy) share one line. The minimal
- * vault's own kind has no password, so the check saves a login to look at.
+ * An account's password keys (update, reveal, copy) share one line. The minimal
+ * vault's own kind has no password, so the check saves an account to look at.
  */
 export async function passwordKeysOneLine(page, stop, { harness, base }) {
   await page.evaluate((b) => {
-    history.pushState({}, "", `${b}vault/new/login`);
+    history.pushState({}, "", `${b}vault/new/account`);
     dispatchEvent(new PopStateEvent("popstate"));
   }, base);
   await page.waitForTimeout(900);
@@ -127,7 +127,7 @@ export async function passwordKeysOneLine(page, stop, { harness, base }) {
   });
   harness.check(
     res !== null && res.count >= 3,
-    `${stop("password-keys")}: a saved login shows its password row with three keys (${res?.count ?? 0})`,
+    `${stop("password-keys")}: a saved account shows its password row with three keys (${res?.count ?? 0})`,
   );
   if (!res) return;
   harness.check(

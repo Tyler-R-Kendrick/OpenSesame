@@ -10,8 +10,8 @@ import { readHeaderRow } from "./csv.js";
 import {
   ADAPTERS,
   type DetectInput,
+  type DraftAccount,
   type DraftItem,
-  type DraftLogin,
   ImportError,
   type SourceId,
   detectFormat,
@@ -42,9 +42,9 @@ function expectDetected(file: DetectInput, id: SourceId): void {
   expect(detectFormat(file)?.id).toBe(id);
 }
 
-function loginNamed(items: readonly DraftItem[], name: string): DraftLogin {
+function loginNamed(items: readonly DraftItem[], name: string): DraftAccount {
   const found = items.find(
-    (item): item is DraftLogin => item.kind === "login" && item.name === name,
+    (i): i is DraftAccount => i.kind === "account" && i.name === name,
   );
   if (!found) throw new Error(`No item named ${name}`);
   return found;
@@ -110,7 +110,7 @@ describe("Bitwarden JSON", () => {
 
   it("maps every item type", () => {
     const { items } = parseImport(file);
-    expect(items.map((i) => i.kind)).toEqual(["login", "note", "card", "note"]);
+    expect(items.map((i) => i.kind).join()).toBe("account,note,card,note");
   });
 
   it("carries folder, favourite, notes, totp, and dates onto a login", () => {
@@ -414,7 +414,7 @@ describe("Firefox", () => {
   });
 
   it("reads the password-changed timestamp for the health report", () => {
-    const login: DraftLogin = overlapCast(parseImport(file).items[0]);
+    const login: DraftAccount = overlapCast(parseImport(file).items[0]);
     expect(login.passwordChangedAt).toBe("2023-01-02T03:04:05.000Z");
   });
 });
@@ -485,7 +485,7 @@ describe("KeePass 2.x", () => {
   it("is detected", () => expectDetected(file, "keepass-csv"));
 
   it("maps its differently named columns", () => {
-    const login: DraftLogin = overlapCast(parseImport(file).items[0]);
+    const login: DraftAccount = overlapCast(parseImport(file).items[0]);
     expect(login).toMatchObject({
       name: "GitHub",
       username: "ada",
@@ -504,7 +504,7 @@ ada,ada@work.test,,GitHub,hunter2,a note,https://github.com,Dev,JBSWY3DPEHPK3PXP
     );
     expectDetected(file, "dashlane-csv");
     const result = parseImport(file);
-    const login: DraftLogin = overlapCast(result.items[0]);
+    const login: DraftAccount = overlapCast(result.items[0]);
     expect(login.folder).toBe("Dev");
     expect(login.totp).toBe("JBSWY3DPEHPK3PXP");
     expect(login.fields).toContainEqual({
@@ -543,7 +543,7 @@ Visa,,,,,Ada Lovelace,4111111111111111,123,11/2029,SW1,Cards,,,,,,,,`,
 
   it("splits one file into logins and cards", () => {
     const { items } = parseImport(file);
-    expect(items.map((i) => i.kind)).toEqual(["login", "card"]);
+    expect(items.map((i) => i.kind)).toEqual(["account", "card"]);
     expect(items[1]).toMatchObject({ expMonth: "11", expYear: "2029" });
   });
 });
@@ -640,7 +640,7 @@ GitHub,https://github.com,ada,hunter2,a note,E-42`,
     expectDetected(file, "generic-csv"));
 
   it("maps columns by meaning and keeps unclaimed ones as fields", () => {
-    const login: DraftLogin = overlapCast(parseImport(file).items[0]);
+    const login: DraftAccount = overlapCast(parseImport(file).items[0]);
     expect(login).toMatchObject({
       name: "GitHub",
       username: "ada",
@@ -661,7 +661,7 @@ GitHub,https://github.com,ada,hunter2,a note,E-42`,
   it("recognises common synonyms for the username column", () => {
     for (const header of ["Sign-in", "E-mail", "User ID", "Login Name"]) {
       const csv = input("x.csv", `Entry,${header},Secret\nGitHub,ada,hunter2`);
-      const login: DraftLogin = overlapCast(parseImport(csv).items[0]);
+      const login: DraftAccount = overlapCast(parseImport(csv).items[0]);
       expect(login.username, header).toBe("ada");
     }
   });
@@ -672,7 +672,7 @@ GitHub,https://github.com,ada,hunter2,a note,E-42`,
       "x.csv",
       "Site Name,Web Address,Login,Secret\nGitHub,https://github.com,ada,hunter2",
     );
-    const login: DraftLogin = overlapCast(parseImport(csv).items[0]);
+    const login: DraftAccount = overlapCast(parseImport(csv).items[0]);
     expect(login.name).toBe("GitHub");
     expect(login.uris[0]?.uri).toBe("https://github.com");
   });

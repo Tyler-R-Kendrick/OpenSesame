@@ -1,10 +1,8 @@
 import {
   type VaultItem,
   definitionFor,
-  hostOf,
   isVaultCustodied,
   itemTypeId,
-  totpSetupUri,
   typeLabel,
 } from "@opensesame/vault-core";
 import { useEffect, useState } from "react";
@@ -16,25 +14,15 @@ import {
   RevealButton,
   useCopyFeedback,
 } from "../../components/FieldRow.js";
-import {
-  IconCheck,
-  IconChevronLeft,
-  IconCopy,
-  IconExternal,
-  IconEye,
-  IconEyeOff,
-} from "../../components/Icons.js";
-import { QrCode } from "../../components/QrCode.js";
+import { IconChevronLeft } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { TotpCode, currentTotp } from "../../components/TotpCode.js";
 import { UpLink } from "../../components/UpLink.js";
 import { useVaultList } from "../../lib/vault-list-path.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { AccountDetail } from "./AccountDetail.js";
 import { ItemGone } from "./ItemGone.js";
 import { ItemTools } from "./ItemTools.js";
 import { UpdateSecretPanel } from "./SecretUpdate.js";
-import { StrengthBar } from "./StrengthBar.js";
 import { TypedFieldRows, UnknownTypeRows } from "./TypedFields.js";
 import { KindRecord, SecretShares } from "./item-contributions.js";
 
@@ -127,10 +115,7 @@ export function ItemDetail() {
         copy={copy}
         onUpdateSecret={async (next) => {
           const updated = { ...item, updatedAt: new Date().toISOString() };
-          if (updated.kind === "login") {
-            updated.password = next;
-            updated.passwordChangedAt = new Date().toISOString();
-          } else if (updated.kind === "secret") {
+          if (updated.kind === "secret") {
             updated.value = next;
           }
           await store.saveItem(updated);
@@ -224,187 +209,18 @@ function ItemFields({
   copy,
   onUpdateSecret,
 }: FieldsProps) {
-  const usernameRef = useGuideTarget<HTMLButtonElement>("item.copy-username");
-  const passwordRef = useGuideTarget<HTMLButtonElement>("item.copy-password");
   switch (item.kind) {
-    case "login":
+    case "account":
       return (
-        <>
-          <section className="detail__group">
-            <h2 className="detail__grouphead">Credentials</h2>
-            {item.username ? (
-              <FieldRow
-                label="Username"
-                actions={
-                  <CopyButton
-                    value={item.username}
-                    label="username"
-                    fieldKey="username"
-                    copied={copied}
-                    failed={failed}
-                    onCopy={copy}
-                    guideRef={usernameRef}
-                  />
-                }
-              >
-                <span className="frow__value">{item.username}</span>
-              </FieldRow>
-            ) : null}
-
-            {item.password ? (
-              <FieldRow
-                label="Password"
-                actions={
-                  <>
-                    <RevealButton
-                      revealed={revealed.has("password")}
-                      label="password"
-                      onToggle={() => toggle("password")}
-                    />
-                    <CopyButton
-                      value={item.password}
-                      label="password"
-                      fieldKey="password"
-                      copied={copied}
-                      failed={failed}
-                      onCopy={copy}
-                      guideRef={passwordRef}
-                    />
-                  </>
-                }
-              >
-                <ConcealedValue
-                  value={item.password}
-                  label="password"
-                  revealed={revealed.has("password")}
-                />
-                {revealed.has("password") ? (
-                  <StrengthBar password={item.password} />
-                ) : null}
-                <UpdateSecretPanel label="password" onUpdate={onUpdateSecret} />
-              </FieldRow>
-            ) : (
-              <UpdateSecretPanel label="password" onUpdate={onUpdateSecret} />
-            )}
-
-            {item.totp ? (
-              <>
-                <FieldRow
-                  label="Authenticator code"
-                  actions={
-                    <button
-                      type="button"
-                      className={`icon-btn${copied === "totp" ? " is-on" : ""}`}
-                      onClick={() => {
-                        void currentTotp(item.totp)
-                          .then((code) => copy("totp", code))
-                          .catch(() => undefined);
-                      }}
-                      aria-label="Copy current code"
-                      title="Copy current code"
-                    >
-                      {copied === "totp" ? (
-                        <IconCheck size={17} />
-                      ) : (
-                        <IconCopy size={17} />
-                      )}
-                    </button>
-                  }
-                >
-                  <TotpCode secret={item.totp} />
-                </FieldRow>
-                <FieldRow
-                  label="Setup QR"
-                  actions={
-                    <button
-                      type="button"
-                      className={`icon-btn${revealed.has("totp-qr") ? " is-on" : ""}`}
-                      onClick={() => toggle("totp-qr")}
-                      aria-label={
-                        revealed.has("totp-qr")
-                          ? "Hide setup QR"
-                          : "Show setup QR"
-                      }
-                      title={
-                        revealed.has("totp-qr")
-                          ? "Hide setup QR"
-                          : "Show setup QR"
-                      }
-                    >
-                      {revealed.has("totp-qr") ? (
-                        <IconEyeOff size={17} />
-                      ) : (
-                        <IconEye size={17} />
-                      )}
-                    </button>
-                  }
-                >
-                  {revealed.has("totp-qr") ? (
-                    <div className="detail__totp-qr">
-                      <QrCode
-                        value={totpSetupUri(item.totp, {
-                          label: item.name || "OpenSesame",
-                          issuer: "OpenSesame",
-                        })}
-                        label="Scan to enroll this authenticator secret in an authenticator app"
-                        size={144}
-                      />
-                    </div>
-                  ) : (
-                    <span className="frow__value frow__value--muted">
-                      Hidden — shows the otpauth enrollment QR.
-                    </span>
-                  )}
-                </FieldRow>
-              </>
-            ) : null}
-          </section>
-
-          {item.uris.length > 0 ? (
-            <section className="detail__group">
-              <h2 className="detail__grouphead">Websites</h2>
-              {item.uris.map((uri) => {
-                const href = loginWebsiteLink(uri);
-                return (
-                  <FieldRow
-                    key={uri.id}
-                    label={`Match: ${uri.match}`}
-                    actions={
-                      <>
-                        {href ? (
-                          <a
-                            className="icon-btn"
-                            href={href}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            aria-label={`Open ${hostOf(uri.uri) || uri.uri}`}
-                            title="Open in a new tab"
-                          >
-                            <IconExternal size={17} />
-                          </a>
-                        ) : null}
-                        <CopyButton
-                          value={uri.uri}
-                          label="address"
-                          fieldKey={`uri-${uri.id}`}
-                          copied={copied}
-                          failed={failed}
-                          onCopy={copy}
-                        />
-                      </>
-                    }
-                  >
-                    <span className="frow__value">{uri.uri}</span>
-                  </FieldRow>
-                );
-              })}
-            </section>
-          ) : null}
-
-          <p className="hint">
-            Password last changed {formatDate(item.passwordChangedAt)}.
-          </p>
-        </>
+        <AccountDetail
+          key={item.id}
+          item={item}
+          revealed={revealed}
+          toggle={toggle}
+          copied={copied}
+          failed={failed}
+          copy={copy}
+        />
       );
 
     case "passkey": {
@@ -702,5 +518,3 @@ function ItemFields({
       );
   }
 }
-
-import { loginWebsiteLink } from "@opensesame/app-core/lib/vault/website-pattern.js";

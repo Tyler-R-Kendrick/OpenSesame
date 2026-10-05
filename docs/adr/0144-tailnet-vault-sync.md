@@ -155,7 +155,8 @@ under its own key.**
     clock, or one millisecond past the latest time the vault records,
     whichever is later (`vault-core/stamps.ts`) — and records which fields of
     each item changed and when (`fieldTimes`: a property, a typed value, a
-    custom field). A merge takes each field from the copy that changed it
+    custom field, an account's login method — ADR 0172, so a password changed
+    on one device and an authenticator added on another both survive). A merge takes each field from the copy that changed it
     later, ties to the newer whole copy (`vault-core/item-merge.ts`); items
     with no field times keep the whole-item rule. An edit made after a device
     saw another's change always wins over it, whatever the two clocks say;

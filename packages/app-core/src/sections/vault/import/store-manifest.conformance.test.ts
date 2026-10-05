@@ -15,6 +15,7 @@ import {
   type Folder,
   type VaultItem,
   createItem,
+  manualPassword,
   newUri,
 } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
@@ -71,25 +72,45 @@ function sealedOf(manifest: readonly { path: string; trailer: string }[]) {
 
 /** The vault the fixture was written from. Nothing random reaches the file. */
 function fixtureVault() {
-  const github = createItem("login", "GitHub");
+  // Method ids derive from the item id, so the ids are fixed for the file.
+  const github = createItem("account", "GitHub");
+  github.id = "acct_github";
   github.folderId = DEV.id;
   github.username = "octo";
-  github.password = "correct-horse-7"; // gitleaks:allow -- conformance fixture
-  github.totp =
-    "otpauth://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP&issuer=GitHub";
+  github.methods = [
+    manualPassword(
+      "acct_github:password",
+      "correct-horse-7", // gitleaks:allow -- conformance fixture
+      CHANGED,
+    ),
+    {
+      id: "acct_github:authenticator",
+      type: "authenticator",
+      secret:
+        "otpauth://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP&issuer=GitHub",
+    },
+  ];
   github.uris = [
     newUri("https://github.com"),
     newUri("gist.github.com", "host"),
   ];
 
-  github.passwordChangedAt = CHANGED;
-
-  const bank = createItem("login", "Bank");
+  const bank = createItem("account", "Bank");
+  bank.id = "acct_bank";
   bank.username = "avery";
-  bank.password = "Fjord-Lantern-9"; // gitleaks:allow -- conformance fixture
-  bank.totp = "JBSWY3DPEHPK3PXP";
+  bank.methods = [
+    manualPassword(
+      "acct_bank:password",
+      "Fjord-Lantern-9", // gitleaks:allow -- conformance fixture
+      CHANGED,
+    ),
+    {
+      id: "acct_bank:authenticator",
+      type: "authenticator",
+      secret: "JBSWY3DPEHPK3PXP",
+    },
+  ];
   bank.notes = "Branch 12";
-  bank.passwordChangedAt = CHANGED;
 
   const hook = createItem("secret", "Deploy hook");
   hook.folderId = DEV.id;
@@ -129,7 +150,7 @@ function fixtureVault() {
   passkey.alg = -7;
 
   const gone = {
-    ...createItem("login", "Trashed"),
+    ...createItem("account", "Trashed"),
     deletedAt: "2026-02-01T00:00:00Z",
   };
   const items: VaultItem[] = [
@@ -169,7 +190,7 @@ describe("store path manifest conformance (spec/conformance/store-manifest.json)
   it("names each entry the sealed store is expected to hold, with its kind", () => {
     expect(fixture.sealed).toEqual(sealedOf(fixture.manifest));
     expect(new Set(fixture.sealed.map((entry) => entry.kind))).toEqual(
-      new Set(["login", "secret", "note", "card", "certificate", "passkey"]),
+      new Set(["account", "secret", "note", "card", "certificate", "passkey"]),
     );
   });
 

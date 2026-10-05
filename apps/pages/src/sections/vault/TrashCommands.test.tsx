@@ -16,13 +16,13 @@ import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { VaultSection } from "../VaultSection.js";
 import { vaultTreeSeams } from "./VaultTree.js";
 import { expectVaultCommands } from "./commands.test-support.js";
-import { makeLogin, makeNote } from "./section-items.test-support.js";
+import { makeAccount, makeNote } from "./section-items.test-support.js";
 import { PURGE_CONFIRM } from "./vault-menu.js";
 
 registerLegacyItemKinds();
 
 type TestVault = {
-  items: Array<ReturnType<typeof makeLogin> | ReturnType<typeof makeNote>>;
+  items: Array<ReturnType<typeof makeAccount> | ReturnType<typeof makeNote>>;
   folders: [];
   header: null;
 };
@@ -108,7 +108,7 @@ describe("trash directory commands", () => {
 
   it("replaces add, import and export with restore and delete", () => {
     vault.current = {
-      items: [makeLogin({ deletedAt: "2026-08-10T00:00:00Z" })],
+      items: [makeAccount({ deletedAt: "2026-08-10T00:00:00Z" })],
       folders: [],
       header: null,
     };
@@ -134,7 +134,7 @@ describe("trash directory commands", () => {
     vault.current = {
       items: [
         makeNote({ deletedAt: "2026-08-10T00:00:00Z" }),
-        makeLogin({ deletedAt: "2026-08-11T00:00:00Z" }),
+        makeAccount({ deletedAt: "2026-08-11T00:00:00Z" }),
       ],
       folders: [],
       header: null,
@@ -153,7 +153,7 @@ describe("trash directory commands", () => {
 
   it("does not add from the trash, and deletes from the keyboard", () => {
     vault.current = {
-      items: [makeLogin({ deletedAt: "2026-08-10T00:00:00Z" })],
+      items: [makeAccount({ deletedAt: "2026-08-10T00:00:00Z" })],
       folders: [],
       header: null,
     };
@@ -167,7 +167,7 @@ describe("trash directory commands", () => {
   });
 
   it("leaves a live item alone", () => {
-    vault.current = { items: [makeLogin()], folders: [], header: null };
+    vault.current = { items: [makeAccount()], folders: [], header: null };
     renderAt("/vault");
     press("r");
     press("X");
@@ -178,7 +178,7 @@ describe("trash directory commands", () => {
   });
 
   it("disables both keys when the trash is empty and lands on the filter", async () => {
-    vault.current = { items: [makeLogin()], folders: [], header: null };
+    vault.current = { items: [makeAccount()], folders: [], header: null };
     // jsdom focuses a hidden tree; hold the collapse load so it cannot steal.
     vaultTreeSeams.loadCollapsed = () => new Promise(() => undefined);
     renderAt("/vault?f=trash");

@@ -14,7 +14,7 @@ describe("a WebMCP draft suggestion from the on-device model", () => {
     await expect(
       suggestItemMetadata({
         action: "suggest",
-        kind: "login",
+        kind: "account",
         source: "browser",
       }),
     ).rejects.toThrow("on_device_model_not_enabled");
@@ -31,13 +31,32 @@ describe("a WebMCP draft suggestion from the on-device model", () => {
     await expect(
       suggestItemMetadata({
         action: "suggest",
-        kind: "login",
+        kind: "account",
         source: "browser",
         url: "https://mail.example",
       }),
     ).resolves.toMatchObject({ source: "browser", name: "Mail" });
     expect(suggest).toHaveBeenCalledWith(
-      { typeId: "login", website: "https://mail.example" },
+      { typeId: "account", website: "https://mail.example" },
+      expect.any(AbortSignal),
+    );
+  });
+
+  it("hands the model the account type for the retired login name", async () => {
+    const suggest = vi.fn(async () => ({ name: "Mail", username: "ada" }));
+    registerContributionForTest("item-draft-assist", {
+      id: "on-device",
+      order: 10,
+      Suggestions: () => null,
+      suggest,
+    });
+    await suggestItemMetadata({
+      action: "suggest",
+      kind: "login",
+      source: "browser",
+    });
+    expect(suggest).toHaveBeenCalledWith(
+      { typeId: "account", website: undefined },
       expect.any(AbortSignal),
     );
   });
@@ -45,7 +64,7 @@ describe("a WebMCP draft suggestion from the on-device model", () => {
   it("still labels at random with no model at all", async () => {
     const labels = await suggestItemMetadata({
       action: "suggest",
-      kind: "login",
+      kind: "account",
     });
     expect(labels.source).toBe("random");
   });

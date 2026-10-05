@@ -33,7 +33,7 @@ export const VAULT_ITEM_GOALS: readonly GuideGoalDescriptor[] = [
       'wait route "/vault" timeout=15000',
       'focus "vault.filter" "The filters: all items, favorites, each type this vault holds, your folders and the trash. Each shows the count it would list. Pick one to narrow the list to it." side=right',
       'focus "vault.filter.favorites" "Favorites lists the items you starred." side=right',
-      'focus "vault.filter.logins" "Logins lists only logins. A type is listed here once the vault holds one." side=right',
+      'focus "vault.filter.logins" "Accounts lists only accounts. A type is listed here once the vault holds one." side=right',
       'focus "shell.command-bar" "Search is done in the command bar. Press / and the bar holds /? ready for words; the list narrows as you type, Enter hands the keyboard to the list, and Esc empties the search." side=bottom',
       'success "Search narrows whichever list is on screen, so pick a filter first to search inside it."',
       "end",

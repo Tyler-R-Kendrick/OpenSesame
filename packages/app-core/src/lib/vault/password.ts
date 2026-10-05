@@ -77,7 +77,7 @@ function shuffle<T>(input: T[]): T[] {
 }
 
 /** The selected classes, each without the ambiguous characters if asked. */
-function characterPools(options: CharOptions): string[] {
+export function characterPools(options: CharOptions): string[] {
   const pools: string[] = [];
   if (options.lower) pools.push(LOWER);
   if (options.upper) pools.push(UPPER);

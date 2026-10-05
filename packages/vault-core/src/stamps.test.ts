@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { mergeVaultBodies, withTombstone } from "./merge.js";
 import {
-  type LoginItem,
+  type AccountItem,
   type VaultBody,
   type VaultItem,
   createItem,
@@ -25,9 +25,9 @@ const AHEAD = "2026-01-01T13:00:00.000Z";
 /** The wall clock of a device an hour behind it. */
 const BEHIND = new Date("2026-01-01T12:00:00.000Z");
 
-function login(id: string, at: string): LoginItem {
+function login(id: string, at: string): AccountItem {
   return {
-    ...createItem("login", id),
+    ...createItem("account", id),
     id,
     createdAt: T0,
     updatedAt: at,
@@ -133,7 +133,7 @@ describe("restampEdits", () => {
 
   it("names each changed field, typed value and custom field", () => {
     const before = login("x", T0);
-    const after: LoginItem = {
+    const after: AccountItem = {
       ...before,
       username: "ada",
       fields: [{ id: "f1", name: "PIN", value: "1", hidden: true }],

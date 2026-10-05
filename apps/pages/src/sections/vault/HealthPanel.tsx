@@ -46,8 +46,8 @@ export function HealthPanel() {
         <div className="empty" ref={findingsRef}>
           <h2 ref={summaryRef}>No passwords to review</h2>
           <EmptyTip tip="vaultEmpty" />
-          <Link className="btn btn--primary btn--sm" to="/vault/new/login">
-            New login
+          <Link className="btn btn--primary btn--sm" to="/vault/new/account">
+            New account
           </Link>
         </div>
       ) : (
@@ -66,6 +66,9 @@ export function HealthPanel() {
             ) : null}
             {report.counts.old > 0 ? (
               <span> · {report.counts.old} old</span>
+            ) : null}
+            {report.unchecked > 0 ? (
+              <span> · {report.unchecked} unchecked</span>
             ) : null}
           </p>
 

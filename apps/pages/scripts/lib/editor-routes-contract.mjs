@@ -35,7 +35,7 @@ export async function checkEditorRoutes(page, check) {
     "trash: hidden from the rail by default",
   );
   await setShowHidden(page, true);
-  for (const filter of ["all", "favorites", "trash", "login"]) {
+  for (const filter of ["all", "favorites", "trash", "account"]) {
     const query = filter === "all" ? "" : `?f=${filter}`;
     const listing = page
       .locator(`.railtree__kids a[href$="/vault${query}"]`)
@@ -64,7 +64,8 @@ export async function checkEditorRoutes(page, check) {
       );
       continue;
     }
-    const expected = filter === "login" ? `/vault/new/${filter}` : "/vault/new";
+    const expected =
+      filter === "account" ? `/vault/new/${filter}` : "/vault/new";
     for (const keyboard of [false, true]) {
       await listing.click();
       const create = page.getByRole("link", { name: "New item", exact: true });

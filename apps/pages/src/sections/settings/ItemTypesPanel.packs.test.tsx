@@ -107,30 +107,34 @@ describe("ItemTypesPanel switches", () => {
 
   it("downloads and installs a type when its switch goes on, and tells the live region", async () => {
     renderPanel();
-    const login = screen.getByRole("switch", { name: "Login" });
-    fireEvent.click(login);
+    const account = screen.getByRole("switch", { name: "Account" });
+    fireEvent.click(account);
     // On its way the switch is already set and marked busy.
-    expect(login.getAttribute("aria-checked")).toBe("true");
-    expect(login.getAttribute("aria-busy")).toBe("true");
-    await waitFor(() => expect(login.getAttribute("aria-busy")).toBe("false"));
-    expect(isPackLoaded("login")).toBe(true);
+    expect(account.getAttribute("aria-checked")).toBe("true");
+    expect(account.getAttribute("aria-busy")).toBe("true");
+    await waitFor(() =>
+      expect(account.getAttribute("aria-busy")).toBe("false"),
+    );
+    expect(isPackLoaded("account")).toBe(true);
     expect(screen.getByText("1 of 18 on")).toBeTruthy();
-    expect(screen.getByText("Login installed.")).toBeTruthy();
+    expect(screen.getByText("Account installed.")).toBeTruthy();
   });
 
   it("shows a failure on the row and retries when the switch is pressed again", async () => {
     packSeams.fetchText = () => Promise.reject(new Error("Offline."));
     renderPanel();
-    fireEvent.click(screen.getByRole("switch", { name: "Login" }));
-    await screen.findByRole("img", { name: "Login did not install: Offline." });
+    fireEvent.click(screen.getByRole("switch", { name: "Account" }));
+    await screen.findByRole("img", {
+      name: "Account did not install: Offline.",
+    });
     expect(
       screen
-        .getByRole("switch", { name: "Login" })
+        .getByRole("switch", { name: "Account" })
         .getAttribute("aria-checked"),
     ).toBe("false");
     packSeams.fetchText = originalPacks.fetchText;
-    fireEvent.click(screen.getByRole("switch", { name: "Login" }));
-    await waitFor(() => expect(isPackLoaded("login")).toBe(true));
+    fireEvent.click(screen.getByRole("switch", { name: "Account" }));
+    await waitFor(() => expect(isPackLoaded("account")).toBe(true));
   });
 
   it("switches a type off again, and keeps one the vault holds items of", async () => {

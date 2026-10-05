@@ -6,8 +6,11 @@ import type {
 } from "@opensesame/vault-item-types";
 // Type-only in the other direction, so this stays a leaf at runtime.
 import { typedSearchText, typedSubtitle } from "./item-types.js";
+
+import { type AccountItem, DEFAULT_RULES } from "./account.js";
 import type { LoginUri, UriMatch } from "./login-uri.js";
 import type { ItemTypeInstallTimes, VaultTombstones } from "./sync-model.js";
+export type { AccountItem } from "./account.js";
 export type { LoginUri, UriMatch } from "./login-uri.js";
 export type { ItemTypeInstallTimes, VaultTombstones } from "./sync-model.js";
 /**
@@ -15,7 +18,7 @@ export type { ItemTypeInstallTimes, VaultTombstones } from "./sync-model.js";
  * `itemTypeId()` bridges both shapes without rewriting existing vaults (ADR 0087).
  */
 export type ItemKind =
-  | "login"
+  | "account"
   | "passkey"
   | "card"
   | "secret"
@@ -34,7 +37,7 @@ export type CustomField = {
   hidden: boolean;
 };
 
-type BaseItem = {
+export type BaseItem = {
   id: string;
   kind: ItemKind;
   name: string;
@@ -47,20 +50,6 @@ type BaseItem = {
   deletedAt: string | null;
   /** Field key → when it last changed, so a merge keeps both devices' edits (`stamps.ts`). */
   fieldTimes?: Readonly<Record<string, string>>;
-};
-
-export type LoginItem = BaseItem & {
-  kind: "login";
-  username: string;
-  password: string;
-  /** Base32 TOTP seed, or an otpauth:// URI. Empty when the login has no 2FA. */
-  totp: string;
-  uris: LoginUri[];
-  passwordChangedAt: string;
-  resetEmailId?: string;
-  supersededById?: string;
-  retiredAt?: string | null;
-  reenrollState?: ReenrollState;
 };
 
 export type PasskeyCustody = "vault" | "external";
@@ -188,7 +177,7 @@ export type CertificateItem = BaseItem & {
 };
 
 export type VaultItem =
-  | LoginItem
+  | AccountItem
   | PasskeyItem
   | CardItem
   | SecretItem
@@ -311,7 +300,7 @@ function base(kind: ItemKind, name: string): BaseItem {
   };
 }
 
-export function createItem(kind: "login", name?: string): LoginItem;
+export function createItem(kind: "account", name?: string): AccountItem;
 export function createItem(kind: "passkey", name?: string): PasskeyItem;
 export function createItem(kind: "card", name?: string): CardItem;
 export function createItem(kind: "secret", name?: string): SecretItem;
@@ -322,15 +311,22 @@ export function createItem(kind: LegacyItemKind, name?: string): VaultItem;
 export function createItem(kind: LegacyItemKind, name = ""): VaultItem {
   const b = base(kind, name);
   switch (kind) {
-    case "login":
+    case "account":
       return {
         ...b,
-        kind: "login",
+        kind: "account",
         username: "",
-        password: "",
-        totp: "",
         uris: [],
-        passwordChangedAt: b.createdAt,
+        methods: [
+          {
+            id: `${b.id}:password`,
+            type: "password",
+            generator: { id: "rules", ...DEFAULT_RULES },
+            pepper: false,
+            secret: "",
+            changedAt: b.createdAt,
+          },
+        ],
       };
     case "passkey":
       return {
@@ -397,7 +393,7 @@ export function createItem(kind: LegacyItemKind, name = ""): VaultItem {
 /** Subtitle shown in the item list — never a secret value. */
 export function itemSubtitle(item: VaultItem): string {
   switch (item.kind) {
-    case "login":
+    case "account":
       return item.username || hostOf(item.uris[0]?.uri) || "No username";
     case "passkey":
       return item.username ? `${item.username} · ${item.rpId}` : item.rpId;
@@ -467,7 +463,7 @@ export function searchMatches(item: VaultItem, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   const haystack: string[] = [item.name, KIND_LABEL[item.kind], item.notes];
-  if (item.kind === "login") {
+  if (item.kind === "account") {
     haystack.push(item.username, ...item.uris.map((u) => u.uri));
   }
   if (item.kind === "passkey") haystack.push(item.username, item.rpId);

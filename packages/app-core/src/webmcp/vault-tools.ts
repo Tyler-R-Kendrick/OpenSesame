@@ -14,13 +14,16 @@ import {
   type PasskeyCustody,
   type UriMatch,
   type VaultItem,
+  accountTotp,
   activeItems,
   newUri,
   parseTotp,
+  passwordMethod,
   searchMatches,
   secondsRemaining,
   totpCode,
 } from "@opensesame/vault-core";
+import { resolveTypeId } from "@opensesame/vault-item-types";
 import { buildHealthReport } from "../lib/vault/health.js";
 import { newItemDraft } from "../lib/vault/new-draft.js";
 import { vaultStore } from "../lib/vault/store.js";
@@ -38,7 +41,7 @@ import {
 } from "./tool-shared.js";
 
 const ITEM_KINDS: readonly LegacyItemKind[] = [
-  "login",
+  "account",
   "passkey",
   "card",
   "secret",
@@ -49,7 +52,9 @@ const ITEM_KINDS: readonly LegacyItemKind[] = [
 
 /** WebMCP writes only kinds that predate the item-type registry (ADR 0087). */
 function isItemKind(value: string): value is LegacyItemKind {
-  return ITEM_KINDS.some((kind) => kind === value);
+  // `login` is the retired name of `account` and still resolves (ADR 0172).
+  const kind = resolveTypeId(value);
+  return ITEM_KINDS.some((known) => known === kind);
 }
 
 async function assertItemReach(
@@ -115,12 +120,13 @@ export function projectVaultItemMeta(item: VaultItem): VaultItemMeta {
     deletedAt: item.deletedAt,
   };
   switch (item.kind) {
-    case "login":
+    case "account":
       return {
         ...base,
         uris: item.uris.map((uri) => ({ uri: uri.uri, match: uri.match })),
-        passwordChangedAt: item.passwordChangedAt,
-        hasTotp: item.totp !== "",
+        // Dates and a yes/no only: no method, pepper flag, seal or key leaves.
+        passwordChangedAt: passwordMethod(item)?.changedAt ?? "",
+        hasTotp: accountTotp(item) !== "",
       };
     case "passkey":
       return { ...base, rpId: item.rpId, custody: item.custody ?? "external" };
@@ -173,7 +179,8 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
       type: "object",
       properties: {
         query: { type: "string", description: "Free-text match." },
-        kind: { type: "string", enum: [...ITEM_KINDS] },
+        // `login` is the retired name of `account` and still answers (ADR 0172).
+        kind: { type: "string", enum: [...ITEM_KINDS, "login"] },
         folderId: { type: "string" },
         favorites: { type: "boolean" },
       },
@@ -190,7 +197,7 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
       }
       const issues = healthIssuesById();
       const candidates = activeItems(vaultStore.getSnapshot().items)
-        .filter((item) => (kind ? item.kind === kind : true))
+        .filter((item) => (kind ? item.kind === resolveTypeId(kind) : true))
         .filter((item) => (folderId ? item.folderId === folderId : true))
         .filter((item) => (favorites ? item.favorite : true))
         .filter((item) => (query ? searchMatches(item, query) : true));
@@ -267,7 +274,7 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
         name: { type: "string" },
         folderId: { type: "string" },
         favorite: { type: "boolean" },
-        url: { type: "string", description: "Login items only." },
+        url: { type: "string", description: "Account items only." },
       },
       additionalProperties: false,
     },
@@ -300,8 +307,8 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
       }
       if (favorite !== null) item.favorite = favorite;
       if (url !== null) {
-        if (item.kind !== "login") {
-          throw new Error("url_requires_login_item");
+        if (item.kind !== "account") {
+          throw new Error("url_requires_account_item");
         }
         const [first = newUri(), ...rest] = item.uris;
         item.uris = [{ ...first, uri: url, match: "domain" }, ...rest];
@@ -315,7 +322,7 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
     capabilityIds: ["vault.totp.code"],
     scope: "session",
     description:
-      "Current TOTP code for a login item that has an authenticator secret, with seconds remaining in the period. The seed itself never leaves the vault; per-item rate limited.",
+      "Current TOTP code for an account that has an authenticator secret, with seconds remaining in the period. The seed itself never leaves the vault; per-item rate limited.",
     inputSchema: {
       type: "object",
       properties: { itemId: { type: "string" } },
@@ -330,7 +337,8 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
       const itemId = str(args, "itemId");
       await assertItemReach(itemId, "read");
       const item = findItem(itemId);
-      if (item.kind !== "login" || item.totp === "") {
+      const seed = item.kind === "account" ? accountTotp(item) : "";
+      if (item.kind !== "account" || seed === "") {
         throw new Error("item_has_no_totp");
       }
       const now = Date.now();
@@ -339,7 +347,7 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
         throw new Error("totp_rate_limited");
       }
       totpLastIssuedAt.set(item.id, now);
-      const config = parseTotp(item.totp);
+      const config = parseTotp(seed);
       const code = await totpCode(config);
       return {
         itemId: item.id,

@@ -102,7 +102,7 @@ describe("Enpass JSON", () => {
     const result = parseImport(input(EXPORT));
     const [login] = result.items;
     expect(login).toMatchObject({
-      kind: "login",
+      kind: "account",
       name: "Bank of Example",
       username: "ada",
       password: "correct horse",
