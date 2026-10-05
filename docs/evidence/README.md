@@ -50,6 +50,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-05-nats-live-route/`](2026-10-05-nats-live-route/README.md) | A NATS server as a live session's route — Settings › Live sessions › Routes |
 | [`2026-10-05-glyph-desktop-prompt/`](2026-10-05-glyph-desktop-prompt/README.md) | The glyph beside the name on desktop (ADR 0164) |
 | [`2026-10-05-gate-help-launcher/`](2026-10-05-gate-help-launcher/README.md) | A help key on the gates — before / after |
+| [`2026-10-05-duress-mode-wipe/`](2026-10-05-duress-mode-wipe/README.md) | Duress mode: wipe this device's copy — visual evidence |
 | [`2026-10-05-duress-mode-freeze/`](2026-10-05-duress-mode-freeze/README.md) | Duress mode: Freeze for a while — visual evidence |
 | [`2026-10-05-duress-mode-decoy-items/`](2026-10-05-duress-mode-decoy-items/README.md) | Decoy with everyday items — visual evidence |
 | [`2026-10-05-decoy-reads-like-unlock/`](2026-10-05-decoy-reads-like-unlock/README.md) | A duress-code unlock reads like an ordinary unlock — visual evidence |

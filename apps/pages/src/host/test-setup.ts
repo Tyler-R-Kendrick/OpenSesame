@@ -1,5 +1,6 @@
 import { browserPorts } from "@opensesame/app-core/browser/host.js";
 import { composeHost, configureHost } from "@opensesame/app-core/host.js";
+import { installWipeGuard } from "@opensesame/app-core/lib/duress/wipe/test-guard.js";
 import {
   assertOwnedStorageWrites,
   recordStorageWrite,
@@ -34,6 +35,10 @@ closeJsdomGaps();
 // A test that wrote a Web Storage key the app does not own fails here, even
 // when the code under test swallowed the write's outcome.
 afterEach(assertOwnedStorageWrites);
+
+// The duress wipe removes every vault in the origin's storage: a test that
+// reaches the real runner fails when it ends, unless it opted in by name.
+installWipeGuard();
 
 // Built-in packs arrive on demand in the app (ADR 0165); these suites are
 // written against the whole corpus, so they switch every pack on first.
