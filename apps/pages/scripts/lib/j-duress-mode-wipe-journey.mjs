@@ -12,8 +12,10 @@
  *     boot finishes the removal.
  *  2. A new vault is sealed under the same, still armed, code. After a reload
  *     the code is typed and the refusal reads exactly as a wrong PIN's does;
- *     the real PIN opens nothing; after another reload the device shows no vault
- *     and the guest road still opens a guest vault.
+ *     the real PIN opens nothing; after another reload the device shows no vault.
+ *  3. The owner recovers. A new vault is sealed on the held device, the Duress
+ *     row says the code was used, Clear lifts it, and a new code arms. (The
+ *     backup restore is proved in the unit suite, `wipe-recovery.test.ts`.)
  */
 import {
   openSettingsCategory,
@@ -219,7 +221,8 @@ async function interrupted({ page, context, check, snap, origin, base }) {
 }
 
 /** Walk 2: the whole wipe, typed at the unlock screen of a new vault. */
-async function whole({ page, check, snap, origin, base }) {
+async function whole(context) {
+  const { page, check, snap, origin, base } = context;
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await sealWithPin(page);
   await addItem(page, "Passport scan");
@@ -276,6 +279,37 @@ async function whole({ page, check, snap, origin, base }) {
   // visit that has already answered setup.
   await sealWithPin(page);
   check(true, "a new vault can be sealed where the wiped one was");
+  await recover(context);
+}
+
+const rowText = async (page) =>
+  (await page.locator("#duress-profiles").innerText()).replace(/\s+/g, " ");
+
+/** Walk 3: a held device with a new vault shows the code used and lets it be cleared. */
+async function recover({ page, check, snap }) {
+  await openSettingsCategory(page, "Security");
+  await page.locator("#duress-profiles").waitFor({ timeout: 15000 });
+  check(
+    /guest's powers/.test(await rowText(page)),
+    "the Duress row says the code was used, on the device the wipe left",
+  );
+  await snap(page, "J-DURESS-WIPE-used");
+  await page.getByRole("button", { name: "Clear" }).click();
+  await page.getByText("Cleared. The code is still on.").waitFor({
+    timeout: 15000,
+  });
+  check(
+    !/guest's powers/.test(await rowText(page)),
+    "Clear lifts what the code set off, with no vault but the new one",
+  );
+  await page.getByRole("button", { name: "Change" }).last().click();
+  const fields = page.locator("[role=dialog] input[type=password]");
+  await fields.nth(0).fill("135792468");
+  await fields.nth(1).fill("135792468");
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Change duress code" }).click();
+  await page.getByText("Duress code changed.").waitFor({ timeout: 20000 });
+  check(true, "a new duress code arms on the recovered device");
 }
 
 export async function walkJDuressModeWipe(context) {
