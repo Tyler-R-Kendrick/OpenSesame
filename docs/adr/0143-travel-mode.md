@@ -9,6 +9,9 @@
   [ADR 0130](0130-duress-profiles-trust-boundaries.md) (duress trust
   boundaries)
 - Research: [`docs/research/travel-mode.md`](../research/travel-mode.md)
+- Amended 2026-10-05: [ADR 0170](0170-hide-items-while-traveling.md) adds a
+  per-item choice for the **open** vault (the vault departure below is
+  unchanged), for a person who must still unlock what they carry.
 
 ## Context
 
@@ -229,6 +232,15 @@ tab is never mistaken for leftovers.
   date, or a custodian quorum, would add an independent authority (ADR 0130's
   third class). A client-side timer would not: local clocks are not tamper
   clocks (ADR 0130 INV-19). Both are left for a later ADR.
+
+## Beyond whole vaults
+
+This ADR moves vaults whole, at rest, with no key in memory. It cannot help a
+person who is compelled to unlock the vault they carry: that vault is open by
+definition. [ADR 0170](0170-hide-items-while-traveling.md) takes chosen items
+out of the open vault into an items bundle under its own return code, with a
+removal that leaves no tombstone, trash entry or activity line, and refuses
+beside a backup, a paired drive or any other copy it cannot rewrite.
 
 ## Alternatives considered
 
