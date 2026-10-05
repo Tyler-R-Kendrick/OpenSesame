@@ -11,32 +11,6 @@
  * "not worth a tutorial" is not a reason.
  */
 export const COVERAGE_EXEMPT = {
-  "target:unlock.submit":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:unlock.secret":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:unlock.passkey":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:unlock.account":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:unlock.signin":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:unlock.setup":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:setup.join":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:setup.ways":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:setup.connectors":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:setup.keep":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:setup.finish":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:broker.consent":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:federation.return":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
   "target:identity.org-signin":
     "sits in the Organizations tab, which a URL query selects, so a guide cannot navigate there; it also needs an owner with a session on a remote Identity API, so it cannot be reached with Next alone",
 } as const satisfies Readonly<Record<string, string>>;

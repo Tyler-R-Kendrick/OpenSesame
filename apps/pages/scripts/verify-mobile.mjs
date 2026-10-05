@@ -30,6 +30,7 @@ import {
   phoneContext,
   recordStop,
 } from "./lib/mobile-contract.mjs";
+import { helpKey, setupCeremony } from "./lib/mobile-gates.mjs";
 import { auditKeybindingsAbsent } from "./lib/mobile-keybindings-absent.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
 import { phonePolish } from "./lib/phone-polish.mjs";
@@ -154,6 +155,7 @@ async function openOverflowRow(page, pattern, label) {
 
 /** The front door: its two roads, and the guest road in the corner (ADR 0150 §1). */
 async function frontDoor(page, stop) {
+  await helpKey(page, stop("front-door"), harness);
   await audit(page, stop("front-door"));
   for (const name of [
     "Set up your own",
@@ -172,6 +174,7 @@ async function frontDoor(page, stop) {
     await setup.tap();
     await page.waitForTimeout(900);
     await audit(page, stop("setup"));
+    await setupCeremony(page, stop, { audit, harness });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     await page.waitForTimeout(700);
   }

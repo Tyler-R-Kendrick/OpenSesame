@@ -5,6 +5,13 @@ import type { GuideTargetDescriptor } from "./targets.js";
  * broker and federation returns. Split from the main catalog so the boot path
  * has one file to read (ADR 0115).
  */
+/** The setup ceremony's tabs that have a tour; the tabs' own frame is on all of them. */
+const CEREMONY = [
+  "/setup/capabilities",
+  "/setup/identity",
+  "/setup/connectors",
+];
+
 export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "unlock.submit",
@@ -27,6 +34,30 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
     description: "Chooses the passkey challenge as the way to open this vault.",
     role: "action",
     routes: ["/unlock"],
+    capabilityId: null,
+  },
+  {
+    id: "unlock.methods",
+    description:
+      "The tabs of unlock methods: exactly the keys this vault has enrolled — a passkey, a PIN, the master password — and on first run the three it can be sealed with.",
+    role: "navigation",
+    routes: ["/unlock"],
+    capabilityId: null,
+  },
+  {
+    id: "unlock.guest",
+    description:
+      "The guest road: Skip in the corner of the front door, and Continue as guest under the unlock form. A guest vault is sealed on this device and kept apart from any other vault here, which it never reads.",
+    role: "action",
+    routes: ["/unlock"],
+    capabilityId: null,
+  },
+  {
+    id: "unlock.local-only",
+    description:
+      "Use without an account, on first run: seals a vault on this device with a passkey, PIN or password and no account, so there is no sync and no account recovery.",
+    role: "action",
+    routes: ["/unlock/signin"],
     capabilityId: null,
   },
   {
@@ -78,11 +109,27 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: "setup.first_run",
   },
   {
+    id: "setup.configurations",
+    description:
+      "The four ways to set this device up — Minimal, Default, Full and Custom — with Skip all beneath them. Custom opens the tabbed ceremony.",
+    role: "surface",
+    routes: ["/setup/choose"],
+    capabilityId: null,
+  },
+  {
+    id: "setup.tabs",
+    description:
+      "The tabs of the setup ceremony, one for each concern and each skippable. The first is what this installation runs; the rest belong to features that are on.",
+    role: "navigation",
+    routes: CEREMONY,
+    capabilityId: null,
+  },
+  {
     id: "setup.ways",
     description:
       "The allowlist of sign-in roads: brokered providers, operators' own issuers, and an optional Identity service.",
     role: "surface",
-    routes: ["/setup"],
+    routes: ["/setup/identity"],
     capabilityId: "setup.first_run",
   },
   {
@@ -90,7 +137,7 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
     description:
       "The connectors tab of setup: a Nango-compatible directory endpoint and key, and the Sync that brings every connection it already holds across by reference.",
     role: "surface",
-    routes: ["/setup"],
+    routes: ["/setup/connectors"],
     capabilityId: "connectors.directory.sync",
   },
   {
@@ -98,7 +145,7 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
     description:
       "The offer to keep this app on the device — install the PWA, with no wrong answer if declined.",
     role: "action",
-    routes: ["/setup"],
+    routes: CEREMONY,
     capabilityId: "app.install",
   },
   {
@@ -106,13 +153,13 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
     description:
       "The ink square that finishes setup and returns to sign-in with the roads just chosen.",
     role: "action",
-    routes: ["/setup"],
+    routes: CEREMONY,
     capabilityId: "setup.first_run",
   },
   {
     id: "broker.consent",
     description:
-      "The broker popup that asks a person to approve a static site receiving an upstream identity assertion.",
+      "The card of the broker popup that asks a person to approve a static site receiving an upstream identity assertion, or says why it cannot.",
     role: "ceremony",
     routes: ["/broker/authorize"],
     capabilityId: "identity.login",
@@ -120,7 +167,7 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "federation.return",
     description:
-      "The screen that finishes an identity-provider redirect and lands back in the vault or on unlock.",
+      "What the screen that finishes an identity-provider redirect says: Finishing sign-in while it works, or why it could not, with Back to sign-in. It lands back in the vault or on unlock.",
     role: "ceremony",
     routes: ["/federation"],
     capabilityId: "identity.login",
