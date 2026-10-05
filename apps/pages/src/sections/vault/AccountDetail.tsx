@@ -4,10 +4,6 @@ import {
   passwordMethod,
 } from "@opensesame/vault-core";
 import { CopyButton, FieldRow } from "../../components/FieldRow.js";
-import {
-  type PepperAskFn,
-  usePepperPrompt,
-} from "../../components/PepperPrompt.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import {
@@ -41,12 +37,10 @@ type RowPorts = Parameters<typeof ApiKeyRows>[0]["ports"];
 function MethodRows({
   item,
   ports,
-  ask,
   onSave,
 }: {
   item: AccountItem;
   ports: RowPorts;
-  ask: PepperAskFn;
   onSave: (method: PasswordMethod) => Promise<void>;
 }) {
   const { copied, failed, copy } = ports;
@@ -61,7 +55,6 @@ function MethodRows({
             item={item}
             method={method}
             title={methodTitle(item.methods, method)}
-            ask={ask}
             copying={{ copied, failed, copy }}
             guide={method === firstPassword}
             onSave={onSave}
@@ -91,7 +84,6 @@ export function AccountDetail({
   copy,
 }: { item: AccountItem } & Ports) {
   const store = useVaultStore();
-  const pepper = usePepperPrompt();
   const usernameRef = useGuideTarget<HTMLButtonElement>("item.copy-username");
   const ports = { name: item.name, revealed, toggle, copied, failed, copy };
   const firstPassword = item.methods.find(
@@ -110,7 +102,6 @@ export function AccountDetail({
 
   return (
     <>
-      {pepper.element}
       <section className="detail__group">
         <h2 className="detail__grouphead">Credentials</h2>
         {item.username ? (
@@ -131,12 +122,7 @@ export function AccountDetail({
             <span className="frow__value">{item.username}</span>
           </FieldRow>
         ) : null}
-        <MethodRows
-          item={item}
-          ports={ports}
-          ask={pepper.ask}
-          onSave={saveMethod}
-        />
+        <MethodRows item={item} ports={ports} onSave={saveMethod} />
       </section>
 
       <AccountWebsiteRows item={item} copying={{ copied, failed, copy }} />

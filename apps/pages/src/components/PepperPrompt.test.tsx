@@ -4,20 +4,16 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   PepperCancelled,
-  type PepperMode,
   isPepperCancelled,
-  pepperAsk,
   usePepperPrompt,
 } from "./PepperPrompt.js";
 
 afterEach(cleanup);
 
 function Harness({
-  mode,
   onValue,
   onFail,
 }: {
-  mode: PepperMode;
   onValue: (value: string) => void;
   onFail: (reason: Error) => void;
 }) {
@@ -26,7 +22,7 @@ function Harness({
     <>
       <button
         type="button"
-        onClick={() => void ask(mode, "Reveal password").then(onValue, onFail)}
+        onClick={() => void ask("Reveal password").then(onValue, onFail)}
       >
         open
       </button>
@@ -35,10 +31,10 @@ function Harness({
   );
 }
 
-function setup(mode: PepperMode) {
+function setup() {
   const onValue = vi.fn();
   const onFail = vi.fn();
-  render(<Harness mode={mode} onValue={onValue} onFail={onFail} />);
+  render(<Harness onValue={onValue} onFail={onFail} />);
   return {
     onValue,
     onFail,
@@ -48,7 +44,7 @@ function setup(mode: PepperMode) {
 
 describe("PepperPrompt", () => {
   it("opens as a named modal with focus in the field, and resolves what was typed on Enter", async () => {
-    const { onValue, opener } = setup("enter");
+    const { onValue, opener } = setup();
     await userEvent.click(opener);
     const dialog = screen.getByRole("dialog", { name: "Reveal password" });
     expect(dialog.getAttribute("aria-modal")).toBe("true");
@@ -57,7 +53,7 @@ describe("PepperPrompt", () => {
     expect(field.getAttribute("type")).toBe("password");
     expect(field.getAttribute("autocomplete")).toBe("off");
     expect(field.getAttribute("spellcheck")).toBe("false");
-    // One field in enter mode, no confirmation.
+    // One field and no confirmation: nothing is sealed under it.
     expect(screen.queryByLabelText("Confirm pepper")).toBeNull();
     await userEvent.keyboard("white pepper{Enter}");
     await waitFor(() => expect(onValue).toHaveBeenCalledWith("white pepper"));
@@ -67,7 +63,7 @@ describe("PepperPrompt", () => {
   });
 
   it("offers no commit until there is something to commit", async () => {
-    const { opener } = setup("enter");
+    const { opener } = setup();
     await userEvent.click(opener);
     const use = screen.getByRole<HTMLButtonElement>("button", {
       name: "Use pepper",
@@ -77,25 +73,8 @@ describe("PepperPrompt", () => {
     expect(use.disabled).toBe(false);
   });
 
-  it("asks twice in set mode and commits only a matching pair", async () => {
-    const { onValue, opener } = setup("set");
-    await userEvent.click(opener);
-    const set = screen.getByRole<HTMLButtonElement>("button", {
-      name: "Set pepper",
-    });
-    await userEvent.type(screen.getByLabelText("Pepper"), "salt");
-    await userEvent.type(screen.getByLabelText("Confirm pepper"), "sal");
-    expect(screen.getByRole("img", { name: "Does not match" })).toBeTruthy();
-    expect(set.disabled).toBe(true);
-    await userEvent.type(screen.getByLabelText("Confirm pepper"), "t");
-    expect(screen.getByRole("img", { name: "Matches" })).toBeTruthy();
-    expect(set.disabled).toBe(false);
-    await userEvent.click(set);
-    await waitFor(() => expect(onValue).toHaveBeenCalledWith("salt"));
-  });
-
   it("reveals the typed value from an eye key, and hides it again", async () => {
-    const { opener } = setup("enter");
+    const { opener } = setup();
     await userEvent.click(opener);
     await userEvent.type(screen.getByLabelText("Pepper"), "abc");
     await userEvent.click(screen.getByRole("button", { name: "Show pepper" }));
@@ -107,7 +86,7 @@ describe("PepperPrompt", () => {
   });
 
   it("is cancelled by Escape from the keyboard, rejects, and hands focus back", async () => {
-    const { onValue, onFail, opener } = setup("enter");
+    const { onValue, onFail, opener } = setup();
     await userEvent.click(opener);
     await userEvent.keyboard("secret");
     // The first Escape leaves the text field for its sheet, the second closes.
@@ -123,7 +102,7 @@ describe("PepperPrompt", () => {
   });
 
   it("keeps Tab inside the sheet", async () => {
-    const { opener } = setup("enter");
+    const { opener } = setup();
     await userEvent.click(opener);
     await userEvent.type(screen.getByLabelText("Pepper"), "x");
     for (let step = 0; step < 6; step += 1) {
@@ -138,13 +117,15 @@ describe("PepperPrompt", () => {
     );
   });
 
-  it("adapts to the one-question shape generators ask", async () => {
-    function Adapter({ onValue }: { onValue: (value: string) => void }) {
+  it("names the field it was asked to, for an earlier master input", async () => {
+    function Named({ onValue }: { onValue: (value: string) => void }) {
       const { ask, element } = usePepperPrompt();
-      const asker = pepperAsk(ask, "Use master input", "Master input");
       return (
         <>
-          <button type="button" onClick={() => void asker().then(onValue)}>
+          <button
+            type="button"
+            onClick={() => void ask("Convert", "Master input").then(onValue)}
+          >
             go
           </button>
           {element}
@@ -152,7 +133,7 @@ describe("PepperPrompt", () => {
       );
     }
     const onValue = vi.fn();
-    render(<Adapter onValue={onValue} />);
+    render(<Named onValue={onValue} />);
     await userEvent.click(screen.getByRole("button", { name: "go" }));
     await userEvent.type(screen.getByLabelText("Master input"), "m{Enter}");
     await waitFor(() => expect(onValue).toHaveBeenCalledWith("m"));

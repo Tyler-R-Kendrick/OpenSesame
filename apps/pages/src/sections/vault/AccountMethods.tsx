@@ -6,7 +6,6 @@ import type {
 import { useEffect, useRef, useState } from "react";
 import { IconKey } from "../../components/IconKey.js";
 import { IconPlus, IconX } from "../../components/Icons.js";
-import type { PepperAskFn } from "../../components/PepperPrompt.js";
 import { MethodPicker, methodTitle, newMethod } from "./MethodPicker.js";
 import {
   ApiKeyFields,
@@ -15,23 +14,16 @@ import {
   TokenFields,
 } from "./OtherMethodEditors.js";
 import { PasswordMethodEditor } from "./PasswordMethodEditor.js";
-import type { MethodEdit, PlainMap } from "./account-secrets.js";
 
 function MethodFields({
   account,
   method,
-  plain,
-  ask,
   liveRoll,
-  onEdit,
   onChange,
 }: {
   account: AccountItem;
   method: LoginMethod;
-  plain: PlainMap;
-  ask: PepperAskFn;
   liveRoll: boolean;
-  onEdit: (edit: MethodEdit) => void;
   onChange: (next: LoginMethod) => void;
 }) {
   switch (method.type) {
@@ -40,10 +32,8 @@ function MethodFields({
         <PasswordMethodEditor
           account={account}
           method={method}
-          plain={plain}
-          ask={ask}
           liveRoll={liveRoll}
-          onEdit={onEdit}
+          onEdit={onChange}
         />
       );
     case "api-key":
@@ -61,21 +51,15 @@ function MethodFields({
 function MethodBlock({
   account,
   method,
-  plain,
-  ask,
   liveRoll,
   onReplace,
   onRemove,
-  onPlain,
 }: {
   account: AccountItem;
   method: LoginMethod;
-  plain: PlainMap;
-  ask: PepperAskFn;
   liveRoll: boolean;
   onReplace: (next: LoginMethod) => void;
   onRemove: (method: LoginMethod) => void;
-  onPlain: (id: string, entry: MethodEdit["plain"]) => void;
 }) {
   const title = methodTitle(account.methods, method);
   return (
@@ -97,13 +81,7 @@ function MethodBlock({
       <MethodFields
         account={account}
         method={method}
-        plain={plain}
-        ask={ask}
         liveRoll={liveRoll}
-        onEdit={(edit) => {
-          onReplace(edit.method);
-          onPlain(method.id, edit.plain);
-        }}
         onChange={onReplace}
       />
     </fieldset>
@@ -116,18 +94,12 @@ function MethodBlock({
  */
 export function AccountMethods({
   account,
-  plain,
-  ask,
   liveRoll,
   onMethods,
-  onPlain,
 }: {
   account: AccountItem;
-  plain: PlainMap;
-  ask: PepperAskFn;
   liveRoll: boolean;
   onMethods: (methods: LoginMethod[]) => void;
-  onPlain: (id: string, entry: MethodEdit["plain"]) => void;
 }) {
   const [picking, setPicking] = useState(false);
   const [added, setAdded] = useState<string | null>(null);
@@ -155,7 +127,6 @@ export function AccountMethods({
   };
   const remove = (method: LoginMethod) => {
     onMethods(methods.filter((entry) => entry.id !== method.id));
-    onPlain(method.id, null);
   };
 
   return (
@@ -187,12 +158,9 @@ export function AccountMethods({
             key={method.id}
             account={account}
             method={method}
-            plain={plain}
-            ask={ask}
             liveRoll={liveRoll}
             onReplace={replace}
             onRemove={remove}
-            onPlain={onPlain}
           />
         ))}
       </div>

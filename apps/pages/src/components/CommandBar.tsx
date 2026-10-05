@@ -1,7 +1,7 @@
 import { executeCommand } from "@opensesame/app-core/lib/command-bar/execute.js";
 import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
 import type { SlashSuggestion } from "@opensesame/app-core/lib/command-bar/slash.js";
-import { type FormEvent, useCallback, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useContributions } from "../bindings/contributions.js";
 import { useFieldSearch } from "../lib/command-bar/use-field-search.js";
@@ -14,7 +14,6 @@ import {
   useCommandSuggestions,
 } from "./CommandSuggestions.js";
 import { IconArrowRight } from "./Icons.js";
-import { useCommandPepper } from "./command-bar-pepper.js";
 import { useSupportRoad } from "./command-bar-support.js";
 import { useCoarsePointer } from "./use-coarse-pointer.js";
 import "./command-bar.css";
@@ -28,7 +27,7 @@ function useCommandRunner() {
   const [value, setValue] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const pepper = useCommandPepper(busy);
+  const input = useRef<HTMLInputElement>(null);
   const { canAsk, support } = useSupportRoad(assist != null);
 
   const names = useMemo(
@@ -43,9 +42,8 @@ function useCommandRunner() {
       copy,
       items: () => items,
       vaultLocked: () => vaultStatus !== "unlocked",
-      askPepper: pepper.askPepper,
     }),
-    [pepper.askPepper, copy, items, navigate, vaultStatus],
+    [copy, items, navigate, vaultStatus],
   );
 
   const run = useCallback(
@@ -87,7 +85,7 @@ function useCommandRunner() {
     busy,
     run,
     names,
-    pepper,
+    input,
     Voice: assist?.Voice,
     asks: assist != null,
   };
@@ -167,7 +165,7 @@ export function CommandBar() {
           Command
         </label>
         <input
-          ref={runner.pepper.input}
+          ref={runner.input}
           id="command-bar-input"
           className="command-bar__input"
           type="text"
@@ -217,7 +215,6 @@ export function CommandBar() {
       {notice !== null && !suggestions.open ? (
         <output className="command-bar__status">{notice}</output>
       ) : null}
-      {runner.pepper.element}
     </search>
   );
 }

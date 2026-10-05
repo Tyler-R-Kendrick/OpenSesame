@@ -1,11 +1,10 @@
 /** @vitest-environment jsdom */
-import { listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
-  enablePepper,
-  usePassword,
-} from "@opensesame/app-core/lib/vault/generators/index.js";
-import { passwordMethod } from "@opensesame/vault-core";
-import { screen, waitFor, within } from "@testing-library/react";
+  passwordMethod,
+  pepperBinding,
+  sealWithPepper,
+} from "@opensesame/vault-core";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import {
@@ -16,162 +15,133 @@ import {
   passwordOf,
   saveItem,
   saved,
-  typeInPrompt,
   vault,
 } from "./account-editor.test-support.js";
 import { makeAccount } from "./account.test-support.js";
 
-describe("account editor: pepper", () => {
+describe("account editor: pepper (ADR 0174)", () => {
   installEditorHarness();
 
-  it("seals a password under a pepper typed twice, and saves no plaintext", async () => {
+  it("turns Include pepper on without asking for one, and draws where it goes only then", async () => {
+    open("/vault/new/account");
+    const password = block("Password");
+    expect(password.queryByLabelText("Pepper goes")).toBeNull();
+    await userEvent.click(password.getByLabelText("Include pepper"));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByLabelText("Pepper")).toBeNull();
+    const at = password.getByLabelText("Pepper goes");
+    expect(at.getAttribute("placeholder")).toBe("end");
+    await userEvent.click(password.getByLabelText("Include pepper"));
+    expect(password.queryByLabelText("Pepper goes")).toBeNull();
+  });
+
+  it("saves the password and where the pepper goes, and never a pepper or a seal", async () => {
     open("/vault/new/account");
     const password = block("Password");
     await userEvent.click(
       password.getByRole("button", { name: "Show password" }),
     );
-    const plaintext = input("Password").value;
-    expect(plaintext.length).toBeGreaterThan(8);
-
+    const shown = input("Password").value;
+    expect(shown.length).toBeGreaterThan(8);
     await userEvent.click(password.getByLabelText("Include pepper"));
-    const dialog = screen.getByRole("dialog", { name: "Set pepper" });
-    expect(within(dialog).getByLabelText("Confirm pepper")).toBeTruthy();
-    await typeInPrompt("peppercorn", true);
-    await userEvent.click(screen.getByRole("button", { name: "Set pepper" }));
-    await waitFor(() =>
-      expect(
-        password.getByLabelText<HTMLInputElement>("Include pepper").checked,
-      ).toBe(true),
-    );
-    expect(screen.queryByRole("dialog")).toBeNull();
-    // Focus came back to the box that asked.
-    expect(document.activeElement).toBe(
-      password.getByLabelText("Include pepper"),
-    );
-
+    await userEvent.type(password.getByLabelText("Pepper goes"), "-3");
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const item = saved();
-    const method = passwordOf(item);
-    expect(method.pepper).toBe(true);
-    expect(method.secret).toBe("");
-    expect(method.sealed).toBeDefined();
-    const wire = JSON.stringify(item);
-    expect(wire).not.toContain(plaintext);
-    expect(wire).not.toContain("peppercorn");
-    // Only the right pepper opens it, and it opens to what the editor showed.
-    expect(await usePassword(item, method, async () => "peppercorn")).toBe(
-      plaintext,
-    );
+    const method = passwordOf(saved());
+    expect(method).toMatchObject({ pepper: true, pepperAt: "-3" });
+    expect(method.sealed).toBeUndefined();
+    // A new password is algorithmic: what is kept is its root, not what it computed.
+    expect(method.generator.id).toBe("derived");
+    expect(method.secret).not.toBe(shown);
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("asks for the pepper once at Save when a peppered password is new", async () => {
-    const account = makeAccount({ id: "itm_1", password: "old-password" });
-    const method = passwordMethod(account);
-    if (!method) throw new Error("fixture");
-    const sealed = await enablePepper(
-      account.id,
-      method,
-      "old-password",
-      "right",
-    );
-    vault.current = {
-      items: [{ ...account, methods: [sealed] }],
-      folders: [],
-    };
-    open("/vault/itm_1/edit");
-    // Sealed and unknown: nothing to show, nothing to reveal.
-    expect(input("Password").value).toBe("");
-    expect(screen.queryByRole("button", { name: "Show password" })).toBeNull();
-
-    const fresh = "fresh-typed-password";
-    await userEvent.type(input("Password"), fresh);
-    await userEvent.click(screen.getByRole("button", { name: "Save item" }));
-    await userEvent.type(await screen.findByLabelText("Pepper"), "left");
-    await userEvent.type(screen.getByLabelText("Confirm pepper"), "left");
-    await userEvent.click(screen.getByRole("button", { name: "Set pepper" }));
-    await waitFor(() => expect(saveItem).toHaveBeenCalledTimes(1));
-    const item = saved();
-    const next = passwordOf(item);
-    expect(next.secret).toBe("");
-    expect(JSON.stringify(item)).not.toContain(fresh);
-    expect(await usePassword(item, next, async () => "left")).toBe(fresh);
-  }, 20_000);
-
-  it("saves nothing when the pepper prompt at Save is closed, and returns focus to Save", async () => {
-    const account = makeAccount({ id: "itm_1" });
-    const method = passwordMethod(account);
-    if (!method) throw new Error("fixture");
-    vault.current = {
-      items: [{ ...account, methods: [{ ...method, pepper: true }] }],
-      folders: [],
-    };
-    open("/vault/itm_1/edit");
-    await userEvent.type(input("Password"), "typed-new");
-    const save = screen.getByRole("button", { name: "Save item" });
-    await userEvent.click(save);
-    expect(
-      await screen.findByRole("dialog", { name: "Set pepper" }),
-    ).toBeTruthy();
-    await userEvent.keyboard("{Escape}{Escape}");
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(saveItem).not.toHaveBeenCalled();
-    expect(document.activeElement).toBe(save);
-    // Closing the prompt is a decision, not a failure.
-    expect(screen.queryByRole("alert")).toBeNull();
-  });
-
-  it("shows a wrong pepper as a mark and a tray notice, never a box", async () => {
-    const account = makeAccount({ id: "itm_1", password: "old-password" });
-    const method = passwordMethod(account);
-    if (!method) throw new Error("fixture");
-    const sealed = await enablePepper(
-      account.id,
-      method,
-      "old-password",
-      "right",
-    );
-    vault.current = {
-      items: [{ ...account, methods: [sealed] }],
-      folders: [],
-    };
-    const { container } = open("/vault/itm_1/edit");
+  it("takes a Python-style position, and marks one that is not, keeping the last good one", async () => {
+    open("/vault/new/account");
     const password = block("Password");
     await userEvent.click(password.getByLabelText("Include pepper"));
-    await userEvent.type(
-      await screen.findByLabelText("Pepper"),
-      "wrong{Enter}",
-    );
+    const at = password.getByLabelText("Pepper goes");
+    await userEvent.type(at, "2:5");
+    expect(password.queryByRole("img")).toBeNull();
+    await userEvent.clear(at);
+    await userEvent.type(at, "middle");
     expect(
-      await password.findByRole("img", { name: "Wrong pepper" }),
+      password.getByRole("img", {
+        name: "Not a position: try end, 3, -2 or 2:5",
+      }),
     ).toBeTruthy();
-    expect(listNotices().some((n) => n.id === `pepper:${sealed.id}`)).toBe(
-      true,
-    );
-    expect(container.querySelector(".note")).toBeNull();
-    expect(container.querySelector(".conn-flash")).toBeNull();
-    // Still peppered: a wrong pepper changed nothing.
-    expect(
-      password.getByLabelText<HTMLInputElement>("Include pepper").checked,
-    ).toBe(true);
-
-    await userEvent.click(password.getByLabelText("Include pepper"));
-    await userEvent.type(
-      await screen.findByLabelText("Pepper"),
-      "right{Enter}",
-    );
-    await waitFor(() =>
-      expect(
-        password.getByLabelText<HTMLInputElement>("Include pepper").checked,
-      ).toBe(false),
-    );
-    expect(password.queryByRole("img", { name: "Wrong pepper" })).toBeNull();
+    await userEvent.clear(at);
+    await userEvent.type(at, "-2");
+    expect(password.queryByRole("img")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    expect(passwordOf(saved())).toMatchObject({
-      pepper: false,
-      secret: "old-password",
-    });
-    expect(passwordOf(saved()).sealed).toBeUndefined();
+    expect(passwordOf(saved()).pepperAt).toBe("-2");
+  });
+
+  it("keeps where a pepper goes through an edit and forgets it when the pepper is turned off", async () => {
+    const account = makeAccount({ id: "itm_1", password: "old-password" });
+    const method = passwordMethod(account);
+    if (!method) throw new Error("fixture");
+    vault.current = {
+      items: [
+        { ...account, methods: [{ ...method, pepper: true, pepperAt: "4" }] },
+      ],
+      folders: [],
+    };
+    open("/vault/itm_1/edit");
+    const password = block("Password");
+    expect(password.getByLabelText<HTMLInputElement>("Pepper goes").value).toBe(
+      "4",
+    );
+    await userEvent.click(password.getByLabelText("Include pepper"));
+    await userEvent.click(screen.getByRole("button", { name: "Save item" }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    const next = passwordOf(saved());
+    expect(next.pepper).toBe(false);
+    expect(next.pepperAt).toBeUndefined();
+    expect(next.secret).toBe("old-password");
+  });
+
+  it("converts a password an earlier pepper sealed, in the editor, and then edits it as a stored one", async () => {
+    const account = makeAccount({ id: "itm_1", password: "old-password" });
+    const method = passwordMethod(account);
+    if (!method) throw new Error("fixture");
+    vault.current = {
+      items: [
+        {
+          ...account,
+          methods: [
+            {
+              ...method,
+              pepper: true,
+              secret: "",
+              sealed: await sealWithPepper(
+                "old-password",
+                "right",
+                pepperBinding(account.id, method.id),
+              ),
+            },
+          ],
+        },
+      ],
+      folders: [],
+    };
+    open("/vault/itm_1/edit");
+    const password = block("Password");
+    expect(password.queryByLabelText("Include pepper")).toBeNull();
+    await userEvent.click(
+      password.getByRole("button", { name: "Convert password" }),
+    );
+    await userEvent.type(
+      await screen.findByLabelText("Earlier pepper"),
+      "right{Enter}",
+    );
+    expect(await password.findByLabelText("Include pepper")).toBeTruthy();
+    expect(input("Password").value).toBe("old-password");
+    await userEvent.click(screen.getByRole("button", { name: "Save item" }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    const next = passwordOf(saved());
+    expect(next).toMatchObject({ pepper: false, secret: "old-password" });
+    expect(next.sealed).toBeUndefined();
   }, 20_000);
 });

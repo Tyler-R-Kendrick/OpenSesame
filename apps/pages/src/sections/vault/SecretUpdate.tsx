@@ -2,7 +2,6 @@ import { generate } from "@opensesame/app-core/lib/vault/password.js";
 import { type ReactNode, useState } from "react";
 import { IconKey } from "../../components/IconKey.js";
 import { IconCheck, IconRefresh, IconX } from "../../components/Icons.js";
-import { isPepperCancelled } from "../../components/PepperPrompt.js";
 
 function generatedSecret(): string {
   return generate({
@@ -126,8 +125,6 @@ export function UpdateSecretPanel({
       setOpen(false);
       setValue("");
     } catch (caught) {
-      // Closing the pepper prompt leaves the editor open and says nothing.
-      if (isPepperCancelled(caught)) return;
       setError(caught instanceof Error ? caught.message : "Update failed.");
     } finally {
       setBusy(false);
