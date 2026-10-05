@@ -56,7 +56,11 @@ function toggled(
   return on ? [...rest, ...items] : rest;
 }
 
-/** Send only what changed, approval last so a renamed device is approved as itself. */
+/**
+ * Send only what changed. Taking a device off the tailnet goes first, so a
+ * refusal of a later change cannot leave it admitted; admitting one goes
+ * last, so it joins already renamed, tagged and routed.
+ */
 async function saveDiff(
   admin: TailnetModel["admin"],
   device: TailnetDevice,
@@ -65,14 +69,15 @@ async function saveDiff(
 ) {
   const before = draftOf(device);
   const id = device.id;
+  const authorize = draft.authorized !== before.authorized;
+  if (authorize && !draft.authorized) await admin.setAuthorized(id, false);
   if (draft.name !== before.name) await admin.rename(id, draft.name.trim());
   if (!same(tags, device.tags)) await admin.setTags(id, tags);
   if (draft.expiry !== before.expiry)
     await admin.setKeyExpiryDisabled(id, !draft.expiry);
   if (!same(draft.routes, before.routes))
     await admin.setRoutes(id, draft.routes);
-  if (draft.authorized !== before.authorized)
-    await admin.setAuthorized(id, draft.authorized);
+  if (authorize && draft.authorized) await admin.setAuthorized(id, true);
 }
 
 function changedFrom(

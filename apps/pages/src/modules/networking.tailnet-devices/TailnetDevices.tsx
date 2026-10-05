@@ -286,6 +286,7 @@ export function TailnetDevices({ admin }: { admin: TailnetAdmin }) {
       {pairCode !== null ? (
         <PairSheet
           initialCode={pairCode}
+          current={model.target}
           blocked={blockedText(admin)}
           onPair={(code) => admin.pair(code)}
           onClose={() => setPairCode(null)}

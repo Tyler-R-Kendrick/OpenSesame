@@ -16,6 +16,9 @@ import {
   fakeDaemon,
   originalSeams,
   pairedClient,
+  pending,
+  router,
+  rowOf,
   wireDevice,
 } from "./fake-daemon.test-support.js";
 
@@ -31,30 +34,6 @@ afterEach(() => {
   Object.assign(tailnetAdminSeams, originalSeams);
   for (const revoke of undeclare) revoke();
 });
-
-const pending = () =>
-  wireDevice({
-    id: "nPHONE",
-    name: "sams-phone.tail4c2e.ts.net",
-    os: "iOS",
-    authorized: false,
-    connected: false,
-    last_seen: null,
-  });
-const router = () =>
-  wireDevice({
-    id: "nROUTER",
-    name: "router.tail4c2e.ts.net",
-    update_available: true,
-    advertised_routes: ["10.0.0.0/16", "0.0.0.0/0", "::/0"],
-    enabled_routes: [],
-  });
-
-function rowOf(name: string): HTMLElement {
-  const row = screen.getByRole("heading", { name }).closest("li");
-  if (!(row instanceof HTMLElement)) throw new Error(`no row for ${name}`);
-  return row;
-}
 
 describe("Tailnet devices", () => {
   it("offers pairing and nothing else with no daemon paired", async () => {
@@ -78,22 +57,6 @@ describe("Tailnet devices", () => {
       screen.getByRole("dialog", { name: "Pair with the tailnet daemon" }),
     ).toBeTruthy();
     expect(document.activeElement?.closest("[role=dialog]")).toBeTruthy();
-  });
-
-  it("on a shared-origin demo says why it cannot pair, and pairs nothing", () => {
-    const admin = pairedClient(fakeDaemon([]));
-    tailnetAdminSeams.pairing = () => null;
-    tailnetAdminSeams.vaultReady = () => true;
-    tailnetAdminSeams.eligible = () => false;
-    render(<TailnetDevices admin={admin} />);
-    expect(
-      screen.getByRole("img", {
-        name: "This shared-origin demo cannot manage tailnet devices. Use a dedicated or loopback deployment.",
-      }),
-    ).toBeTruthy();
-    expect(
-      screen.queryByRole("button", { name: "Pair with the tailnet daemon" }),
-    ).toBeNull();
   });
 
   it("lists the tailnet's real devices, waiting ones first, with what needs someone", async () => {

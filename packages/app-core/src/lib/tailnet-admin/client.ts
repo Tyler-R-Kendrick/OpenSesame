@@ -29,6 +29,7 @@ import { TailnetAdminError } from "./errors.js";
 import {
   TAILNET_PAIRING_PATH,
   type TailnetAdminPairing,
+  type TailnetPairingCode,
   isTailnetRole,
   parseTailnetPairingCode,
 } from "./pairing.js";
@@ -212,6 +213,7 @@ async function pair(
     throw new TailnetAdminError("other-origin");
   const blocked = pairBlocker();
   if (blocked) throw new TailnetAdminError(blocked);
+  const replaced = tailnetAdminSeams.pairing();
   const began = tailnetAdminSeams.bind();
   const response = await wire
     .send(code.url, TAILNET_PAIRING_PATH, {
@@ -227,6 +229,20 @@ async function pair(
     throw new TailnetAdminError("pairing-refused", response.status);
   const answer = await readBody(response);
   if (!response.ok) throw refusal(response.status, answer);
+  const bearer = bearerFor(code, answer, response.status);
+  await tailnetAdminSeams.keep(bearer, began);
+  // The bearer this one replaced would stay live on its daemon until an
+  // operator unpaired it: revoke it there, best effort.
+  if (replaced && replaced.token !== bearer.token)
+    await revokeAt(wire, replaced, signal);
+}
+
+/** The bearer a daemon answered with, if it is one for this code's origin. */
+function bearerFor(
+  code: TailnetPairingCode,
+  answer: BoundaryValue,
+  status: number,
+): TailnetAdminPairing {
   if (
     !isJsonObject(answer) ||
     !isString(answer.token) ||
@@ -234,24 +250,22 @@ async function pair(
     answer.origin !== code.origin ||
     !isTailnetRole(answer.role)
   )
-    throw new TailnetAdminError("malformed", response.status);
-  await tailnetAdminSeams.keep(
-    {
-      url: code.url,
-      token: answer.token,
-      origin: code.origin,
-      role: answer.role,
-      label: code.label,
-    },
-    began,
-  );
+    throw new TailnetAdminError("malformed", status);
+  return {
+    url: code.url,
+    token: answer.token,
+    origin: code.origin,
+    role: answer.role,
+    label: code.label,
+  };
 }
 
-/** Tell the daemon to drop this page's bearer, then forget it here either way. */
-async function forget(wire: Transport, signal?: AbortSignal): Promise<void> {
-  const pairing = tailnetAdminSeams.pairing();
-  if (!pairing) return;
-  const issuedFor = tailnetAdminSeams.revision();
+/** Ask `pairing`'s daemon to drop its bearer; a daemon that is gone is fine. */
+async function revokeAt(
+  wire: Transport,
+  pairing: TailnetAdminPairing,
+  signal?: AbortSignal,
+): Promise<void> {
   await wire
     .send(pairing.url, TAILNET_PAIRING_PATH, {
       method: "DELETE",
@@ -259,6 +273,14 @@ async function forget(wire: Transport, signal?: AbortSignal): Promise<void> {
       signal,
     })
     .catch(() => null);
+}
+
+/** Tell the daemon to drop this page's bearer, then forget it here either way. */
+async function forget(wire: Transport, signal?: AbortSignal): Promise<void> {
+  const pairing = tailnetAdminSeams.pairing();
+  if (!pairing) return;
+  const issuedFor = tailnetAdminSeams.revision();
+  await revokeAt(wire, pairing, signal);
   await tailnetAdminSeams.drop(issuedFor);
 }
 

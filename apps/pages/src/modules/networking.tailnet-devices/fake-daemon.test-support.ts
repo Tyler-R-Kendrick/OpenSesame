@@ -16,6 +16,7 @@ import {
   type JsonObject,
   isJsonObject,
 } from "@opensesame/os-domain";
+import { screen } from "@testing-library/react";
 
 export type WireDevice = JsonObject & { id: string };
 
@@ -178,3 +179,30 @@ export function fakeDaemon(devices: WireDevice[]): FakeDaemon {
 }
 
 export const originalSeams = { ...tailnetAdminSeams };
+
+/** A phone that joined and waits for approval. */
+export const pending = (): WireDevice =>
+  wireDevice({
+    id: "nPHONE",
+    name: "sams-phone.tail4c2e.ts.net",
+    os: "iOS",
+    authorized: false,
+    connected: false,
+    last_seen: null,
+  });
+/** A subnet router offering an exit node, none of it approved. */
+export const router = (): WireDevice =>
+  wireDevice({
+    id: "nROUTER",
+    name: "router.tail4c2e.ts.net",
+    update_available: true,
+    advertised_routes: ["10.0.0.0/16", "0.0.0.0/0", "::/0"],
+    enabled_routes: [],
+  });
+
+/** The list item a device's heading is in. */
+export function rowOf(name: string): HTMLElement {
+  const row = screen.getByRole("heading", { name }).closest("li");
+  if (!(row instanceof HTMLElement)) throw new Error(`no row for ${name}`);
+  return row;
+}

@@ -51,7 +51,11 @@ export function ActivityPanel({ model }: { model: TailnetModel }) {
         <h2>Activity</h2>
       </div>
       <div className="panel__body">
-        {entries.length === 0 ? (
+        {model.loaded?.auditError ? (
+          <div className="actions">
+            <StatusMark tone="err" label={model.loaded.auditError} />
+          </div>
+        ) : entries.length === 0 ? (
           <div className="actions">
             <StatusMark
               tone="idle"

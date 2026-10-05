@@ -32,6 +32,13 @@ export type Loaded = Readonly<{
   devices: readonly TailnetDevice[];
   keys: readonly TailnetKey[];
   audit: readonly TailnetAuditEntry[];
+  /**
+   * Why the auth keys or the activity could not be read, in words; empty when
+   * they were. A daemon whose OAuth client has `devices:core` alone still
+   * lists its devices.
+   */
+  keysError: string;
+  auditError: string;
   /** When it was read, for "last seen" and expiry. */
   at: number;
 }>;
@@ -42,14 +49,30 @@ export type Armed = Readonly<{ action: string; id: string }>;
 /** Words for a refusal; anything that is not one is the daemon not answering. */
 const UNREACHABLE = new TailnetAdminError("unreachable");
 
+/** Words for a refusal; anything that is not one is the daemon not answering. */
+function wordsOf(caught: Error): string {
+  return tailnetErrorText(
+    caught instanceof TailnetAdminError ? caught : UNREACHABLE,
+  );
+}
+
+/** The status and the devices, or nothing; the keys and activity on their own. */
 async function readAll(admin: TailnetAdmin): Promise<Loaded> {
-  const [status, devices, keys, audit] = await Promise.all([
+  const optional = Promise.allSettled([admin.listKeys(), admin.audit()]);
+  const [status, devices] = await Promise.all([
     admin.status(),
     admin.listDevices(),
-    admin.listKeys(),
-    admin.audit(),
   ]);
-  return { status, devices, keys, audit, at: Date.now() };
+  const [keys, audit] = await optional;
+  return {
+    status,
+    devices,
+    keys: keys.status === "fulfilled" ? keys.value : [],
+    keysError: keys.status === "rejected" ? wordsOf(keys.reason) : "",
+    audit: audit.status === "fulfilled" ? audit.value : [],
+    auditError: audit.status === "rejected" ? wordsOf(audit.reason) : "",
+    at: Date.now(),
+  };
 }
 
 /** Read again every `REFRESH_MS` while the page is visible; stop on unmount. */
@@ -138,6 +161,9 @@ export function useTailnetAdmin(admin: TailnetAdmin) {
           caught instanceof TailnetAdminError ? caught : UNREACHABLE,
         ),
       );
+      // Part of a change may have landed before the refusal: read again so
+      // no row shows a state the daemon no longer reports.
+      await load();
       return false;
     } finally {
       setBusy(false);

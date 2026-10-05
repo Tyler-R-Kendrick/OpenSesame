@@ -91,6 +91,45 @@ describe("pairing", () => {
     ]);
   });
 
+  it("pairing again revokes the bearer it replaced, at the daemon that held it", async () => {
+    const kept = pairable();
+    const OLD = "o".repeat(43);
+    tailnetAdminSeams.pairing = () => ({
+      url: "https://old.tail4c2e.ts.net",
+      token: OLD,
+      origin: ORIGIN,
+      role: "manage",
+      label: "Old laptop",
+    });
+    const sent: Array<{ url: string; method: string; auth: string }> = [];
+    const port: EgressPort = {
+      async fetch(input, init) {
+        sent.push({
+          url: String(input),
+          method: init?.method ?? "GET",
+          auth: new Headers(init?.headers).get("Authorization") ?? "",
+        });
+        return init?.method === "DELETE"
+          ? new Response(null, { status: 204 })
+          : json(201, { origin: ORIGIN, role: "read", token: TOKEN });
+      },
+    };
+    await tailnetAdmin(port, "networking.tailnet-devices").pair(code());
+    expect(kept.map((k) => k.token)).toEqual([TOKEN]);
+    expect(sent).toEqual([
+      {
+        url: "https://desk.tail4c2e.ts.net/v1/tailnet/pairing",
+        method: "POST",
+        auth: "",
+      },
+      {
+        url: "https://old.tail4c2e.ts.net/v1/tailnet/pairing",
+        method: "DELETE",
+        auth: `Bearer ${OLD}`,
+      },
+    ]);
+  });
+
   it("refuses before sending anything it cannot use", async () => {
     pairable();
     const port = egress(() => json(201, {}));

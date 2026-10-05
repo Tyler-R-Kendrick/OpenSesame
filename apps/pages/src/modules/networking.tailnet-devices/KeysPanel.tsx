@@ -24,7 +24,11 @@ export function KeysPanel({ model }: { model: TailnetModel }) {
         <h2>Auth keys</h2>
       </div>
       <div className="panel__body">
-        {keys.length === 0 ? (
+        {model.loaded?.keysError ? (
+          <div className="actions">
+            <StatusMark tone="err" label={model.loaded.keysError} />
+          </div>
+        ) : keys.length === 0 ? (
           <div className="actions">
             <StatusMark tone="idle" label="No auth keys." />
           </div>
