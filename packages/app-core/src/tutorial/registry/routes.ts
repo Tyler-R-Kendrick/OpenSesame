@@ -31,6 +31,11 @@ const SECTION_ROUTES: readonly GuideRouteDescriptor[] = [
   },
   { id: "/vault", title: "Vault — every item this deployment holds" },
   { id: "/vault/health", title: "Vault health — weak, reused and aging items" },
+  { id: "/vault/item", title: "An item — the pane of one item in the vault" },
+  {
+    id: "/vault/trash",
+    title: "Trash — the items that were moved out of the list",
+  },
   { id: "/settings", title: "Settings — this deployment's preferences" },
 ];
 
@@ -137,6 +142,29 @@ export function guideRouteWithin(
   scope: GuideRouteId,
 ): boolean {
   return route === scope || route.startsWith(`${scope}/`);
+}
+
+/** `/vault/<id>`: one item's pane. `new` and `health` are screens of their own. */
+const ITEM_PANE = /^\/vault\/(?!new(?:\/|$)|health(?:\/|$))[^/]+\/?$/;
+
+/**
+ * Where the person stands, to the precision a tour needs. A path alone cannot
+ * tell the list from an item's pane or from the trash (`/vault?f=trash`), and
+ * a tour that points at an item's controls has to wait for the item to be
+ * open. A deep path the registry cannot name still reports its section.
+ */
+export function guideRouteForLocation(
+  pathname: string,
+  search = "",
+): GuideRouteId {
+  const section = guideRouteForPath(pathname);
+  if (section !== "/vault") return section;
+  if (pathname === "/vault" || pathname === "/vault/") {
+    return new URLSearchParams(search).get("f") === "trash"
+      ? "/vault/trash"
+      : "/vault";
+  }
+  return ITEM_PANE.test(pathname) ? "/vault/item" : "/vault";
 }
 
 /**

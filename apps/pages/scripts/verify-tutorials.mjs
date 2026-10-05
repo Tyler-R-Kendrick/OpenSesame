@@ -40,6 +40,7 @@ import {
   escapeEndsTheTour,
   moveAdvancesTheTour,
 } from "./lib/tutorial-interact.mjs";
+import { seedVault } from "./lib/tutorial-seed.mjs";
 import {
   advancedFrom,
   listTutorials,
@@ -294,7 +295,6 @@ async function shellPass(width) {
     (entry) => only.size === 0 || only.has(entry.id),
   );
   console.log(`${width}px: ${entries.length} tutorials on the shell`);
-  check(entries.length > 0, "the library offers tutorials");
   const started = Date.now();
   if (only.size === 0 || only.has("vault.lock")) {
     where = `${width}px escape`;
@@ -308,6 +308,26 @@ async function shellPass(width) {
       moveAdvancesTheTour(page, { check, base }),
     );
   }
+  await walkEntries(page, entries, { phone, width });
+  // A tutorial that points at an item is offered only where the vault holds
+  // one, so a second pass adds items the way a person does and walks what the
+  // library offers then that it did not before.
+  const walked = new Set(entries.map((entry) => entry.id));
+  where = `${width}px seed`;
+  await guarded(page, "seed", () => seedVault(page, base));
+  const later = (await listTutorials(page)).filter(
+    (entry) => !walked.has(entry.id) && (only.size === 0 || only.has(entry.id)),
+  );
+  console.log(`${width}px: ${later.length} more once the vault holds items`);
+  await walkEntries(page, later, { phone, width });
+  const seconds = Math.round((Date.now() - started) / 1000);
+  const total = entries.length + later.length;
+  check(total > 0, "the library offers tutorials");
+  console.log(`${width}px: ${total} tutorials walked in ${seconds}s`);
+  await context.close();
+}
+
+async function walkEntries(page, entries, { phone, width }) {
   for (const entry of entries) {
     const began = Date.now();
     try {
@@ -325,9 +345,6 @@ async function shellPass(width) {
     timings.push({ id: `${width}px ${entry.id}`, ms: Date.now() - began });
     if (failures.length > 0 && process.env.TUTORIALS_BAIL === "1") break;
   }
-  const seconds = Math.round((Date.now() - started) / 1000);
-  console.log(`${width}px: ${entries.length} tutorials walked in ${seconds}s`);
-  await context.close();
 }
 
 try {
