@@ -2,6 +2,7 @@
 # Idempotent Cloud Agent bootstrap (see environment.json). No secrets; no daemons.
 set -euo pipefail
 
+export PATH="/usr/local/cargo/bin:${PATH}"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$HOME/.cache/packages/cargo-target}"
 
 corepack enable
