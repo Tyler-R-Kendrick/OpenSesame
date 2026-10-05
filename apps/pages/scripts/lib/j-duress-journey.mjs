@@ -64,7 +64,7 @@ const pageText = async (page) =>
   (await page.locator("body").innerText()).replace(/\s+/g, " ");
 
 /** What a decoy must never say: it is read as an ordinary unlock. */
-const TELLS = [
+export const TELLS = [
   /Unavailable/,
   /missing_decoy/,
   /Vault locked/,
