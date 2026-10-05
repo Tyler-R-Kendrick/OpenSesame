@@ -1,5 +1,5 @@
 /**
- * Filter slugs a vault link may still carry from before ADR 0171: `?f=login`
+ * Filter slugs a vault link may still carry from before ADR 0172: `?f=login`
  * (the old type id) and `?f=logins` (the old rail directory). Both name the
  * account type now. Every reader of `?f=` resolves it through here.
  */

@@ -1,4 +1,4 @@
-/** Accounts for tests: a plain password, a peppered one, a Sphinx one (ADR 0171). */
+/** Accounts for tests: a plain password, a peppered one, a Sphinx one (ADR 0172). */
 
 import {
   type AccountItem,

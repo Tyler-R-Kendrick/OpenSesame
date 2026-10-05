@@ -25,7 +25,7 @@ export type HealthReport = {
   clean: number;
   /**
    * Accounts whose password needs a pepper (or is a Sphinx password): health
-   * cannot prompt, so it neither reads nor scores them (ADR 0171 §4).
+   * cannot prompt, so it neither reads nor scores them (ADR 0172 §4).
    */
   unchecked: number;
   counts: Record<HealthIssue, number>;

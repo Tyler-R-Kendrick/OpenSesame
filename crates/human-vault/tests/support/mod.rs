@@ -2,7 +2,7 @@
 
 use serde_json::Value;
 
-/// The account vectors hold every way to keep a login (ADR 0171 section 2): a
+/// The account vectors hold every way to keep a login (ADR 0172 section 2): a
 /// plain manual password, a peppered one with its sealed envelope, a sphinx
 /// one with its OPRF key, an authenticator, and api-key, token and oauth.
 pub fn assert_account_methods(name: &str, body: &Value) {

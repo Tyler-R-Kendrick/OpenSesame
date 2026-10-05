@@ -22,7 +22,7 @@ mod support;
 
 const VECTORS: &str = include_str!("../../../spec/conformance/vault-vectors.json");
 
-/// The vectors written before ADR 0171: their items are `login`, and stay so.
+/// The vectors written before ADR 0172: their items are `login`, and stay so.
 const LEGACY_VECTORS: [&str; 5] = [
     "export-personal",
     "backup-personal",
@@ -31,7 +31,7 @@ const LEGACY_VECTORS: [&str; 5] = [
     "backup-device-identity",
 ];
 
-/// The vectors added by ADR 0171, holding `account` items.
+/// The vectors added by ADR 0172, holding `account` items.
 const ACCOUNT_VECTORS: [&str; 3] = [
     "export-personal-accounts",
     "backup-personal-accounts",
@@ -133,7 +133,7 @@ fn string_leaves(value: &Value, out: &mut Vec<String>) {
 }
 
 /// Name, kind and path of every listed item: a legacy vector lists its login
-/// as `.login`, an account vector lists accounts as `.account` (ADR 0171).
+/// as `.login`, an account vector lists accounts as `.account` (ADR 0172).
 fn assert_listing(name: &str, opened: &OpenedVaultFile) {
     let listed: Vec<(&str, &str, &str)> = opened
         .items

@@ -42,7 +42,7 @@ export async function writeBody(
   const sealed = await sealJson(
     vaultKey,
     // The one door every write goes through: a `login` that reached memory by
-    // any route is sealed as the account it is (ADR 0171), never as a login.
+    // any route is sealed as the account it is (ADR 0172), never as a login.
     normalizeVaultBody({ ...body, rev }),
     vaultSealBinding(tomb, BODY_PATH),
   );

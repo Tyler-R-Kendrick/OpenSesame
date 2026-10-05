@@ -1,4 +1,4 @@
-//! Names that were renamed and still resolve (ADR 0171 §1).
+//! Names that were renamed and still resolve (ADR 0172 §1).
 //!
 //! The `login` item type became `account`. Links and paths already handed out
 //! (`?f=login`, `name.login`) keep working: the registry answers `login` with

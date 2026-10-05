@@ -58,7 +58,7 @@ export type DraftMethod =
   | { type: "api-key"; key: string; header: string };
 
 /**
- * An account (ADR 0171). `password` becomes a manual password method and
+ * An account (ADR 0172). `password` becomes a manual password method and
  * `totp` an authenticator method; `methods` carries any further ones.
  */
 export type DraftAccount = DraftBase & {

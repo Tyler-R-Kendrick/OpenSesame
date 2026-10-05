@@ -13,7 +13,7 @@
  * (ADR 0160 §5) to the file as it stands, leaving every other byte alone; it
  * refuses when that vector is already there.
  *
- * `--add accounts` adds the `account` vectors (ADR 0171) the same way: new
+ * `--add accounts` adds the `account` vectors (ADR 0172) the same way: new
  * keys under `vectors` and the pepper that opens them, every existing byte
  * left alone, refusing when they are already there. The legacy `login`
  * vectors are never touched. It needs only `@opensesame/vault-core`, so it

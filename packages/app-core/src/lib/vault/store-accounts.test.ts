@@ -1,5 +1,5 @@
 /**
- * A real vault store reading and writing accounts (ADR 0171 §1): a body a
+ * A real vault store reading and writing accounts (ADR 0172 §1): a body a
  * pre-account device left on disk, a drive snapshot from a device that has not
  * moved to accounts, and the byte-for-byte survival of a peppered password and
  * a Sphinx key through the store's own seal, merge and export.
@@ -56,7 +56,7 @@ async function clearVault(): Promise<void> {
 
 beforeEach(clearVault);
 
-/** A body as a pre-ADR-0171 device wrote it: a `login` item inside. */
+/** A body as a pre-ADR-0172 device wrote it: a `login` item inside. */
 function legacyBody(
   rev: number,
   updatedAt = T0,

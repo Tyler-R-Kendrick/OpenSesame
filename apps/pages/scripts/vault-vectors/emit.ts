@@ -182,7 +182,7 @@ async function legacyUnboundExport(): Promise<Vector> {
 }
 
 /**
- * The `account` vectors (ADR 0171) live in `emit-accounts.ts`, which needs only
+ * The `account` vectors (ADR 0172) live in `emit-accounts.ts`, which needs only
  * `@opensesame/vault-core`; they are added beside the legacy `login` vectors
  * with `--add accounts`, never by replacing them.
  */

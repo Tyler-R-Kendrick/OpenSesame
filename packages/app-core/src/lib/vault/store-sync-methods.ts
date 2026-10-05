@@ -1,6 +1,6 @@
 /**
  * An account's login methods as a sealed-store trailer carries them
- * (ADR 0171, ADR 0037 §6). A manifest is a file somebody handed the Import
+ * (ADR 0172, ADR 0037 §6). A manifest is a file somebody handed the Import
  * sheet, so every method read back is rebuilt from the fields its type names,
  * each checked against its shape: nothing else a file says reaches an item,
  * and a method that is not whole is left out rather than half trusted.

@@ -115,7 +115,7 @@ export async function openVaultBody(
     file.body,
     vaultSealBinding(file.tomb, "body"),
   );
-  // A body from before ADR 0171 holds `login` items; they leave here as accounts.
+  // A body from before ADR 0172 holds `login` items; they leave here as accounts.
   return { body: normalizeVaultBody(opened.value), bound: !opened.rebound };
 }
 

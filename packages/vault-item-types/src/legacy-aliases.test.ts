@@ -12,7 +12,7 @@ import {
 } from "./legacy-aliases.js";
 import { communityDefinition } from "./registry.test-support.js";
 
-describe("legacy aliases (ADR 0171)", () => {
+describe("legacy aliases (ADR 0172)", () => {
   it("is the table crates/vault-item-types carries", () => {
     expect(LEGACY_TYPE_ALIASES).toEqual(cases.legacyAliases.types);
     expect(LEGACY_EXTENSION_ALIASES).toEqual(cases.legacyAliases.extensions);

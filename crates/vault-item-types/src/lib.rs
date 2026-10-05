@@ -141,7 +141,7 @@ pub const BUILTIN_DEFINITIONS: &[(&str, &str)] = &[
 pub const ITEM_TYPE_DIR_ENV: &str = "OPENSESAME_VAULT_ITEM_TYPE_DIR";
 
 /// The seven ids that predate ADR 0087 and are still spelled out in the
-/// client's storage (`login` is `account` since ADR 0171; the old name resolves
+/// client's storage (`login` is `account` since ADR 0172; the old name resolves
 /// through [`legacy`]). Kept here so the corpus cannot lose one silently.
 pub const LEGACY_TYPE_IDS: &[&str] = &[
     "account",

@@ -1,4 +1,4 @@
-/** The `passphrase` generator: random words from the bundled list (ADR 0171 §3). */
+/** The `passphrase` generator: random words from the bundled list (ADR 0172 §3). */
 
 import type { PassphraseGenerator } from "@opensesame/vault-core";
 import { generatePassphrase } from "../password.js";

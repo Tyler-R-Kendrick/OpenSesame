@@ -29,7 +29,7 @@ const TOMBSTONE_KINDS = ["items", "folders", "itemTypes"] as const;
 /**
  * Deterministic, no-data-loss merge for two encrypted whole-vault snapshots.
  * Either side may still hold a legacy `login` (a device that has not opened
- * its vault since ADR 0171); both are normalized first, so a login and the
+ * its vault since ADR 0172); both are normalized first, so a login and the
  * account another device made of it are one item with one set of methods and
  * the newer copy of it wins as it always did.
  */

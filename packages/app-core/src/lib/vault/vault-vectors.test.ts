@@ -77,7 +77,7 @@ function summarize(body: VaultBody, bound: boolean, tomb: string): Expectation {
 const vectors = Object.entries(fixture.vectors);
 
 /**
- * The vectors record what was written. A `login` item (ADR 0171 §1) is read
+ * The vectors record what was written. A `login` item (ADR 0172 §1) is read
  * and normalized to an account, so every other part of an expectation holds
  * and the kind it names comes out as `account`.
  */

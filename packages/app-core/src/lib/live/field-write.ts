@@ -6,7 +6,7 @@
  * secret's value, notes, a custom field, or a typed item's string value.
  * Anything else is refused, so a save cannot invent a property.
  *
- * A password goes through `storePassword` (ADR 0171 §4), never into a method
+ * A password goes through `storePassword` (ADR 0172 §4), never into a method
  * field by hand. A method that keeps its password under a pepper is written
  * only when the person can be asked for that pepper; with no way to ask, or for
  * a Sphinx password that is computed and never stored, the write is refused

@@ -9,7 +9,7 @@ export const DENIED_KEY_TERMS: readonly string[] = [
   "secret",
   "token",
   "totp",
-  // An account's login-method secrets (ADR 0171): a pepper is typed by the
+  // An account's login-method secrets (ADR 0172): a pepper is typed by the
   // person and never stored, a sealed envelope and an OPRF key are as good as
   // the password they open, and an API key is a credential.
   "pepper",

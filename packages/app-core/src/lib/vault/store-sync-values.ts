@@ -173,7 +173,7 @@ const LEGACY_KINDS: readonly LegacyItemKind[] = [
 
 /**
  * The built-in kind a trailer names, or an account for anything else: a
- * trailer that says `login`, or nothing, is a login written before ADR 0171,
+ * trailer that says `login`, or nothing, is a login written before ADR 0172,
  * and reads as the account it becomes.
  */
 export function legacyKindOf(kind: string | undefined): LegacyItemKind {

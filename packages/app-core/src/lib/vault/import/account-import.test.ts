@@ -5,7 +5,7 @@ import { parseImport } from "./index.js";
 import { defaultMergeOptions, planMerge } from "./merge.js";
 
 /**
- * Every importer lands an account (ADR 0171): the password in a manual,
+ * Every importer lands an account (ADR 0172): the password in a manual,
  * unpeppered method and a seed in an authenticator method.
  */
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { assertNoStructuralLeak } from "./egress.js";
 
-describe("an account's login-method secrets (ADR 0171)", () => {
+describe("an account's login-method secrets (ADR 0172)", () => {
   it("refuses every key a method keeps a secret under", () => {
     for (const key of [
       "pepper",

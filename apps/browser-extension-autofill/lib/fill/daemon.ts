@@ -149,7 +149,7 @@ export function createDaemonClient(options: DaemonClientOptions): DaemonClient {
       );
       if (body.field !== field) throw new FillError("unexpected_response");
       // A peppered or Sphinx password is skipped, never filled in its sealed
-      // form (ADR 0171 §4): refuse before the value is handed anywhere.
+      // form (ADR 0172 §4): refuse before the value is handed anywhere.
       if (field === "password" && body.needsPepper === true) {
         throw new FillError(NEEDS_PEPPER);
       }
