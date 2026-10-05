@@ -2,7 +2,7 @@
  * Capture verbs for a finger held on a link: the phone's Add button, held and
  * slid. They drive raw touch events through the browser's own input pipeline
  * (CDP), so the app's recognizer sees what a thumb would make, and the finger
- * stays down across the steps between `hold` and `release` — a `shot` in the
+ * stays down across the steps between `holdLink` and `releaseHeld` — a `shot` in the
  * middle shows what the hold drew.
  */
 
@@ -16,17 +16,17 @@ export function holdSteps() {
     });
   return {
     /**
-     * `{ "hold": { "link": "New item", "ms": 700 } }` — put a finger on the
+     * `{ "holdLink": { "link": "New item", "ms": 700 } }` — put a finger on the
      * named link and keep it there. A link the build does not have is a miss.
      */
-    async hold(page, { link, ms = 700 }) {
+    async holdLink(page, { link, ms = 700 }) {
       const box = await page
         .getByRole("link", { name: link, exact: true })
         .first()
         .boundingBox();
       if (!box)
         throw new Error(
-          `capture-evidence hold("${link}"): no such link — refusing a silent miss`,
+          `capture-evidence holdLink("${link}"): no such link — refusing a silent miss`,
         );
       const finger = {
         cdp: await page.context().newCDPSession(page),
@@ -37,10 +37,10 @@ export function holdSteps() {
       await send(finger, "touchStart", finger.y);
       await page.waitForTimeout(ms);
     },
-    /** `{ "slide": -70 }` — drag the held finger this many px from where it landed. */
-    async slide(page, by) {
+    /** `{ "slideHeld": -70 }` — drag the held finger this many px from where it landed. */
+    async slideHeld(page, by) {
       const finger = down.get(page);
-      if (!finger) throw new Error("capture-evidence slide: no finger is down");
+      if (!finger) throw new Error("capture-evidence slideHeld: no finger is down");
       for (let step = 1; step <= 6; step++) {
         await send(finger, "touchMove", finger.y + (by * step) / 6);
         await page.waitForTimeout(30);
@@ -58,8 +58,8 @@ export function holdSteps() {
       );
       console.log(`  corners ${selector}: ${found.join(" | ") || "none"}`);
     },
-    /** `{ "release": null }` — lift the finger. */
-    async release(page) {
+    /** `{ "releaseHeld": null }` — lift the finger. */
+    async releaseHeld(page) {
       const finger = down.get(page);
       if (!finger) return;
       await send(finger, "touchEnd", finger.y);
