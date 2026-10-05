@@ -315,9 +315,9 @@ describe("the vault on a phone", () => {
       showHelp: vi.fn(),
     });
     act(() => handler(new KeyboardEvent("keydown", { key: "/" })));
-    const prompt = screen.getByRole("combobox", {
+    const prompt = screen.getByRole<HTMLInputElement>("combobox", {
       name: "Command",
-    }) as HTMLInputElement;
+    });
     await waitFor(() => expect(prompt.value).toBe("/? "));
     fireEvent.change(prompt, { target: { value: `/? ${words}` } });
     return prompt;

@@ -69,6 +69,14 @@
           "only": "after"
         },
         {
+          "measure": ".sheet input",
+          "only": "after"
+        },
+        {
+          "measure": ".sheet .go, .sheet .icon-btn",
+          "only": "after"
+        },
+        {
           "shot": "390-pepper"
         },
         {
@@ -171,6 +179,14 @@
           "only": "after"
         },
         {
+          "measure": ".sheet input",
+          "only": "after"
+        },
+        {
+          "measure": ".sheet .go, .sheet .icon-btn",
+          "only": "after"
+        },
+        {
           "shot": "1280-pepper"
         },
         {
@@ -207,5 +223,70 @@
       "desktop": true
     }
   ],
-  "sheets": []
+  "sheets": [
+    {
+      "shot": "390-editor",
+      "width": 390,
+      "title": "A new account \u2014 390 \u00d7 844",
+      "caption": "The item was a Login: a username, a password, and an authenticator tacked on. It is an Account now \u2014 a username or id, the sites it lives at, and a list of the ways it logs in. Same editor, same keys; the password is one method among several.",
+      "before": "Login \u00b7 .login \u00b7 one password field",
+      "after": "Account \u00b7 .account \u00b7 Username / ID \u00b7 Login methods"
+    },
+    {
+      "shot": "390-generator",
+      "width": 390,
+      "title": "Password generators \u2014 390 \u00d7 844",
+      "caption": "The generator was a popover on the password field with two modes. It is a choice on the password method itself: Rules (Bitwarden-style minimum digits and symbols), Passphrase, Sphinx \u2014 an RFC 9497 oblivious PRF, so the password is computed from a master input and never stored \u2014 and Manual.",
+      "before": "2 generators: Characters, Passphrase",
+      "after": "4 generators: Rules, Passphrase, Sphinx, Manual"
+    },
+    {
+      "shot": "390-pepper",
+      "width": 390,
+      "title": "Include pepper \u2014 390 \u00d7 844",
+      "caption": "A password can be kept so that the vault alone cannot produce it. Ticking Include pepper asks for a pepper, typed twice; the password is sealed under it and the pepper is never stored.",
+      "before": "no pepper option",
+      "after": "Include pepper \u2192 Set pepper sheet \u00b7 fields 44px, keys 44px"
+    },
+    {
+      "shot": "390-reveal",
+      "width": 390,
+      "title": "Reading a password \u2014 390 \u00d7 844",
+      "caption": "Using a peppered password asks for the pepper first. Reveal and copy open the sheet; the password is held only while it is shown. A wrong pepper is a mark on the row, not a box.",
+      "before": "Reveal shows the password at once",
+      "after": "Reveal opens Use pepper first"
+    },
+    {
+      "shot": "1280-editor",
+      "width": 1280,
+      "title": "A new account \u2014 1280 \u00d7 900",
+      "caption": "The item was a Login: a username, a password, and an authenticator tacked on. It is an Account now \u2014 a username or id, the sites it lives at, and a list of the ways it logs in. Same editor, same keys; the password is one method among several.",
+      "before": "Login \u00b7 .login \u00b7 one password field",
+      "after": "Account \u00b7 .account \u00b7 Username / ID \u00b7 Login methods"
+    },
+    {
+      "shot": "1280-generator",
+      "width": 1280,
+      "title": "Password generators \u2014 1280 \u00d7 900",
+      "caption": "The generator was a popover on the password field with two modes. It is a choice on the password method itself: Rules (Bitwarden-style minimum digits and symbols), Passphrase, Sphinx \u2014 an RFC 9497 oblivious PRF, so the password is computed from a master input and never stored \u2014 and Manual.",
+      "before": "2 generators: Characters, Passphrase",
+      "after": "4 generators: Rules, Passphrase, Sphinx, Manual"
+    },
+    {
+      "shot": "1280-pepper",
+      "width": 1280,
+      "title": "Include pepper \u2014 1280 \u00d7 900",
+      "caption": "A password can be kept so that the vault alone cannot produce it. Ticking Include pepper asks for a pepper, typed twice; the password is sealed under it and the pepper is never stored.",
+      "before": "no pepper option",
+      "after": "Include pepper \u2192 Set pepper sheet \u00b7 fields 34px"
+    },
+    {
+      "shot": "1280-reveal",
+      "width": 1280,
+      "title": "Reading a password \u2014 1280 \u00d7 900",
+      "caption": "Using a peppered password asks for the pepper first. Reveal and copy open the sheet; the password is held only while it is shown. A wrong pepper is a mark on the row, not a box.",
+      "before": "Reveal shows the password at once",
+      "after": "Reveal opens Use pepper first"
+    }
+  ]
 }
