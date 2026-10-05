@@ -25,17 +25,15 @@ RUN curl -fsSL https://x.ai/cli/install.sh | bash \
 RUN rustup component add rustfmt clippy \
   && rustup target add wasm32-unknown-unknown
 
-RUN useradd -m -u 1000 -s /bin/bash vscode \
-  && install -d -o vscode -g vscode /etc/sudoers.d \
-  && echo 'vscode ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/vscode \
-  && chmod 0440 /etc/sudoers.d/vscode
-
-USER vscode
-
 RUN corepack enable \
   && corepack prepare pnpm@9.15.0 --activate \
   && node -v \
   && pnpm -v \
   && rustc --version
 
-USER root
+RUN useradd -m -u 1000 -s /bin/bash vscode \
+  && install -d -o vscode -g vscode /etc/sudoers.d \
+  && echo 'vscode ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/vscode \
+  && chmod 0440 /etc/sudoers.d/vscode
+
+USER vscode
