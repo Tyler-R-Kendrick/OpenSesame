@@ -4,7 +4,7 @@ import type { DuressMode } from "./mode.js";
 
 /**
  * Refused like a wrong password, and then this device refuses the vault's real
- * credentials for 1, 24 or 72 hours (ADR 0167). The hold is the device's clock
+ * credentials for 1, 24 or 72 hours (ADR 0168). The hold is the device's clock
  * and its own storage: it can be lengthened but not shortened from here.
  */
 export const FREEZE = {

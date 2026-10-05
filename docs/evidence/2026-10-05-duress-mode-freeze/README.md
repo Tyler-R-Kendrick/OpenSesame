@@ -1,7 +1,7 @@
 # Duress mode: Freeze for a while — visual evidence
 
 Change: the duress sheet (Settings › Security › Duress › Add) offers a third
-mode, **Freeze for a while** (ADR 0167). Typed at the unlock screen it is
+mode, **Freeze for a while** (ADR 0168). Typed at the unlock screen it is
 refused like a wrong password, and for the chosen 1, 24 or 72 hours this device
 refuses the vault's real credentials as a wrong secret is refused.
 

@@ -623,7 +623,7 @@ export class VaultStore {
   }
 
   /**
-   * A held device (a freeze duress code, ADR 0167) refuses a right credential
+   * A held device (a freeze duress code, ADR 0168) refuses a right credential
    * as a wrong one: same error, same count; the key it opened is zeroed.
    */
   #refuseWhileFrozen(miss?: string): void {

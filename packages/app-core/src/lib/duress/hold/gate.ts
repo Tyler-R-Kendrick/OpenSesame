@@ -1,5 +1,5 @@
 /**
- * The unlock-side reading of the hold (ADR 0167): while it stands, the vault's
+ * The unlock-side reading of the hold (ADR 0168): while it stands, the vault's
  * real credentials are refused as a wrong secret is.
  *
  * Read at the vault store's unlock choke points, after a credential has been

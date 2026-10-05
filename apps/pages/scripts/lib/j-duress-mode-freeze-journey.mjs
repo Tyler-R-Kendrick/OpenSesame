@@ -1,5 +1,5 @@
 /**
- * J-DURESS-FREEZE: the "Freeze for a while" duress mode (ADR 0167), in the
+ * J-DURESS-FREEZE: the "Freeze for a while" duress mode (ADR 0168), in the
  * built app with nothing mocked.
  *
  * The owner arms it for 24 hours in Settings › Security, reloads, and types

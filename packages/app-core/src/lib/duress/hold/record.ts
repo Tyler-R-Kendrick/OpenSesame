@@ -1,5 +1,5 @@
 /**
- * The hold a "freeze" duress code leaves on this device (ADR 0167).
+ * The hold a "freeze" duress code leaves on this device (ADR 0168).
  *
  * One journal record, `{ until, setAt }`, in epoch milliseconds of THIS
  * device's clock, sealed at rest by the kv layer like every other value.
