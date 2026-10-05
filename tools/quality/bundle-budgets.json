@@ -126,7 +126,16 @@
       "Four kibibytes over the measurement, as before. The way back under is",
       "to load the age adapters on demand, which moves the whole noble",
       "ed25519 module (about 55 KiB) out of the entry; that touches the",
-      "unlock path and is a change of its own, not this one's."
+      "unlock path and is a change of its own, not this one's.",
+      "2026-10-05: largestAsset 798 -> 673 for both hardened profiles. That",
+      "change of its own is made: `age-encryption` and the noble curves it",
+      "carries no longer load with the app. `lib/age-lib.ts` is the one door and",
+      "imports the library on first use (an age protector at unlock, the SOPS",
+      "engine, the age keys panel); SOPS recipients and identities are checked",
+      "by their bech32 checksum (`sops/keys/bech32.ts`) without it. The entry",
+      "chunk measured 813.3 KiB before and 669.3 KiB after, so the ceiling is",
+      "the measurement plus four kibibytes, as before. The OPRF's 13.5 KiB that",
+      "raised it to 798 left the entry with the same module."
     ],
     "builds": {
       "minimal-local-hardened": {
@@ -136,7 +145,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 798
+          "largestAsset": 673
         }
       },
       "family-local-hardened": {
@@ -146,7 +155,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 798
+          "largestAsset": 673
         }
       }
     }
