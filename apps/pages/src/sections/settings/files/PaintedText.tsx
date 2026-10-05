@@ -10,7 +10,7 @@
  * sideways, which keeps the two aligned without syncing two scrollers.
  */
 import type { FileLanguage } from "@opensesame/app-core/sections/settings/virtual-files.js";
-import type { CSSProperties, KeyboardEvent, Ref } from "react";
+import { type KeyboardEvent, type Ref, useLayoutEffect, useRef } from "react";
 import { paintSource } from "./paint.js";
 
 export function PaintedText({
@@ -38,10 +38,15 @@ export function PaintedText({
   onFocus?: () => void;
 }) {
   const cols = Math.max(0, ...source.split("\n").map((line) => line.length));
+  const stage = useRef<HTMLDivElement>(null);
+  // A custom property is not a React style key; set it where it is read.
+  useLayoutEffect(() => {
+    stage.current?.style.setProperty("--cols", String(cols));
+  }, [cols]);
   return (
     <div
+      ref={stage}
       className={`set-raw__stage${readOnly ? " set-raw__stage--ro" : ""}`}
-      style={{ "--cols": cols } as CSSProperties}
     >
       <pre className="set-raw__paint" aria-hidden="true">
         {paintSource(language, source)}

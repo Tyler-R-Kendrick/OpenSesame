@@ -160,6 +160,15 @@ async function facts(page, name) {
         const stage = document.querySelector(".set-raw__stage");
         return stage ? stage.scrollWidth > stage.clientWidth : null;
       })(),
+      // The textarea must never scroll by itself: its text is drawn by the
+      // painted copy beneath it, and a second scroller would misalign them.
+      inputScrolls: (() => {
+        const input = document.querySelector(".set-raw__input");
+        return input
+          ? input.scrollHeight > input.clientHeight + 1 ||
+              input.scrollWidth > input.clientWidth + 1
+          : null;
+      })(),
       completions: [...document.querySelectorAll(".set-raw__option")].map(
         (option) => option.textContent?.trim(),
       ),

@@ -101,3 +101,16 @@ details > .vfiles__dirname {
   display: inline-flex;
   color: var(--ink-3);
 }
+
+@media (max-width: 900px) {
+  .vfiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  .vfiles__file,
+  .vfiles__dirname {
+    min-height: 2.75rem;
+  }
+}

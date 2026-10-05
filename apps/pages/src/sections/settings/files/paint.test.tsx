@@ -78,11 +78,8 @@ describe("the painted editor", () => {
         source={`ab\n${"x".repeat(120)}\n`}
       />,
     );
-    expect(
-      (
-        container.querySelector(".set-raw__stage") as HTMLElement
-      ).style.getPropertyValue("--cols"),
-    ).toBe("120");
+    const stage = container.querySelector<HTMLElement>(".set-raw__stage");
+    expect(stage?.style.getPropertyValue("--cols")).toBe("120");
   });
 
   it("marks a read-only file for the quieter ink", () => {

@@ -43,7 +43,7 @@
           "shot": "1280-json"
         },
         {
-          "openSettingsFile": "general"
+          "visit": "settings?file=config.yaml"
         },
         {
           "facts": "1280-config"
@@ -94,7 +94,7 @@
           "shot": "390-json"
         },
         {
-          "openSettingsFile": "general"
+          "visit": "settings?file=config.yaml"
         },
         {
           "facts": "390-config"
@@ -105,5 +105,54 @@
       ]
     }
   ],
-  "sheets": []
+  "sheets": [
+    {
+      "shot": "1280-capabilities",
+      "width": 1280,
+      "title": "Settings \u203a Capabilities heading \u2014 1280 \u00d7 800",
+      "caption": "The key that opens the page's file is the settings icon, not a terminal.",
+      "before": "terminal icon",
+      "after": "settings icon"
+    },
+    {
+      "shot": "1280-selection",
+      "width": 1280,
+      "title": "The installation selection \u2014 1280 \u00d7 800",
+      "caption": "Keys, strings, numbers and list items carry the colours config.yaml has.",
+      "before": "0 painted tokens",
+      "after": "25 painted tokens"
+    },
+    {
+      "shot": "1280-json",
+      "width": 1280,
+      "title": "A built-in item type \u2014 1280 \u00d7 800",
+      "caption": "JSON files are painted too; a line longer than the pane scrolls the stage sideways, never the textarea.",
+      "before": "0 painted tokens",
+      "after": "138 painted tokens, textarea scrolls: no"
+    },
+    {
+      "shot": "1280-config",
+      "width": 1280,
+      "title": "config.yaml \u2014 1280 \u00d7 800",
+      "caption": "The directory's own file is unchanged: it now shares the one painted editor.",
+      "before": "10 painted tokens",
+      "after": "10 painted tokens"
+    },
+    {
+      "shot": "390-selection",
+      "width": 390,
+      "title": "The installation selection on a phone \u2014 390 \u00d7 844",
+      "caption": "Same colours; the long line scrolls the stage.",
+      "before": "0 painted tokens",
+      "after": "25 painted tokens"
+    },
+    {
+      "shot": "390-json",
+      "width": 390,
+      "title": "A built-in item type on a phone \u2014 390 \u00d7 844",
+      "caption": "Same on a phone.",
+      "before": "0 painted tokens",
+      "after": "138 painted tokens, textarea scrolls: no"
+    }
+  ]
 }
