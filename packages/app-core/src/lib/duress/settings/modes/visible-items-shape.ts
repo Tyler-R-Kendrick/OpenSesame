@@ -114,13 +114,21 @@ const COMMON = [
   "updatedAt",
 ] as const;
 
-const EXTRA: Readonly<Record<SharedItem["kind"], readonly string[]>> = {
+const EXTRA = {
   login: ["username", "password", "passwordChangedAt", "uris"],
   note: [],
   secret: ["value"],
   card: ["cardholder", "brand", "number", "expMonth", "expYear", "code"],
   typed: ["typeId", "values"],
-};
+} as const satisfies Readonly<Record<SharedItem["kind"], readonly string[]>>;
+
+const KINDS = [
+  "login",
+  "note",
+  "secret",
+  "card",
+  "typed",
+] as const satisfies readonly SharedItem["kind"][];
 
 /** A value that is text no longer than `max`. */
 function text(value: BoundaryValue | undefined, max: number): string | null {
@@ -247,19 +255,15 @@ function readBase(object: JsonObject): Base | null {
   };
 }
 
-/** A set of named strings, each within the text limit; null when one is not. */
-function strings<K extends string>(
-  object: JsonObject,
-  keys: readonly K[],
-): Record<K, string> | null {
-  const out: Partial<Record<K, string>> = {};
+/** The named strings, in key order, each within the text limit; null when one is not. */
+function texts(object: JsonObject, keys: readonly string[]): string[] | null {
+  const out: string[] = [];
   for (const key of keys) {
     const read = text(object[key], VISIBLE_LIMITS.text);
     if (read === null) return null;
-    out[key] = read;
+    out.push(read);
   }
-  // SAFETY: every key in `keys` was assigned above, or the loop returned.
-  return out as Record<K, string>;
+  return out;
 }
 
 function readKind(
@@ -271,11 +275,13 @@ function readKind(
     case "note":
       return { ...base, kind };
     case "secret": {
-      const own = strings(object, ["value"]);
-      return own && { ...base, kind, ...own };
+      const own = texts(object, ["value"]);
+      if (!own) return null;
+      const [value = ""] = own;
+      return { ...base, kind, value };
     }
     case "card": {
-      const own = strings(object, [
+      const own = texts(object, [
         "cardholder",
         "brand",
         "number",
@@ -283,14 +289,40 @@ function readKind(
         "expYear",
         "code",
       ]);
-      return own && { ...base, kind, ...own };
+      if (!own) return null;
+      const [
+        cardholder = "",
+        brand = "",
+        number = "",
+        expMonth = "",
+        expYear = "",
+        code = "",
+      ] = own;
+      return {
+        ...base,
+        kind,
+        cardholder,
+        brand,
+        number,
+        expMonth,
+        expYear,
+        code,
+      };
     }
     case "login": {
-      const own = strings(object, ["username", "password"]);
+      const own = texts(object, ["username", "password"]);
       const uris = listOf(object.uris, VISIBLE_LIMITS.uris, readUri);
       const changed = date(object.passwordChangedAt);
       if (!own || !uris || changed === null) return null;
-      return { ...base, kind, ...own, passwordChangedAt: changed, uris };
+      const [username = "", password = ""] = own;
+      return {
+        ...base,
+        kind,
+        username,
+        password,
+        passwordChangedAt: changed,
+        uris,
+      };
     }
     case "typed": {
       const typeId = text(object.typeId, VISIBLE_LIMITS.typeId);
@@ -306,9 +338,7 @@ function readKind(
 function readItem(value: BoundaryValue): SharedItem | null {
   const object = plainObject(value);
   if (!object) return null;
-  const kind = (Object.keys(EXTRA) as SharedItem["kind"][]).find(
-    (known) => known === object.kind,
-  );
+  const kind = KINDS.find((known) => known === object.kind);
   if (kind === undefined) return null;
   if (!hasExactKeys(object, [...COMMON, ...EXTRA[kind]])) return null;
   const base = readBase(object);

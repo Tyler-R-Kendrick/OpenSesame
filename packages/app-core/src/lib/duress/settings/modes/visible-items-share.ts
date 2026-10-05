@@ -18,6 +18,11 @@
  */
 
 import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
+import {
   KIND_LABEL,
   type VaultItem,
   accountPlainPassword,
@@ -114,23 +119,22 @@ export function pickRows(items: readonly VaultItem[]): DuressPickRow[] {
   }));
 }
 
-function sharedValue(value: unknown): SharedValue | null {
-  if (typeof value === "string") return cutText(value);
+function sharedValue(value: BoundaryValue | undefined): SharedValue | null {
+  if (isString(value)) return cutText(value);
   if (Array.isArray(value)) {
-    return value
-      .filter((entry): entry is string => typeof entry === "string")
-      .slice(0, VISIBLE_LIMITS.list)
-      .map(cutText);
+    const texts: string[] = [];
+    for (const entry of value) {
+      if (isString(entry)) texts.push(entry);
+    }
+    return texts.slice(0, VISIBLE_LIMITS.list).map(cutText);
   }
-  if (typeof value === "object" && value !== null) {
+  if (isJsonObject(value)) {
     const out: Record<string, string> = {};
     for (const [key, part] of Object.entries(value).slice(
       0,
       VISIBLE_LIMITS.parts,
     )) {
-      if (typeof part === "string" && key !== "__proto__") {
-        out[key] = cutText(part);
-      }
+      if (isString(part) && key !== "__proto__") out[key] = cutText(part);
     }
     return out;
   }
