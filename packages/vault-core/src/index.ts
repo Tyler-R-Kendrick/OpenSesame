@@ -22,3 +22,4 @@ export * from "./totp.js";
 export * from "./tree-rows.js";
 export * from "./unlock-records.js";
 export * from "./vault-file.js";
+export type { FieldTimes, MasterWrap } from "./sync-model.js";

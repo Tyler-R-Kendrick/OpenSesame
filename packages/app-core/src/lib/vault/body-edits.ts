@@ -94,6 +94,7 @@ export function adoptMerged(body: VaultBody, merged: VaultBody): void {
   body.itemTypesAt = merged.itemTypesAt;
   body.tombstones = merged.tombstones;
   body.deviceIdentityKey = merged.deviceIdentityKey;
+  body.masterWrap = merged.masterWrap;
 }
 
 /** A copy of what a failed write must put back, so memory never runs ahead of disk. */
@@ -112,6 +113,9 @@ export function bodyBeforeWrite(body: VaultBody): VaultBody {
     tombstones: body.tombstones,
     ...(body.deviceIdentityKey !== undefined
       ? { deviceIdentityKey: body.deviceIdentityKey }
+      : undefined),
+    ...(body.masterWrap !== undefined
+      ? { masterWrap: body.masterWrap }
       : undefined),
   };
 }

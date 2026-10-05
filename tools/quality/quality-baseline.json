@@ -18,7 +18,7 @@
   "totals": {
     "files": 429,
     "violations": 674,
-    "oversizedLines": 219540
+    "oversizedLines": 219538
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -1339,7 +1339,7 @@
     },
     "packages/vault-core/src/model.ts": {
       "complexity": 1,
-      "max-lines": 497
+      "max-lines": 495
     },
     "packages/vault-item-types/src/native.ts": {
       "complexity": 1,

@@ -64,7 +64,7 @@ export function latestStamp(body: VaultBody): string {
   }
   for (const at of Object.values(body.itemTypesAt ?? {}))
     seen = later(seen, at);
-  return seen;
+  return later(seen, body.masterWrap?.at);
 }
 
 /** The wall clock, or one millisecond after `seen` when the clock is not past it. */
@@ -186,6 +186,7 @@ export type BodyBefore = {
   folders: ReadonlyMap<string, Folder>;
   tombstones: VaultBody["tombstones"];
   itemTypesAt: VaultBody["itemTypesAt"];
+  masterWrap: VaultBody["masterWrap"];
   seen: string;
 };
 
@@ -195,6 +196,7 @@ export function captureBefore(body: VaultBody): BodyBefore {
     folders: new Map(body.folders.map((folder) => [folder.id, folder])),
     tombstones: body.tombstones,
     itemTypesAt: body.itemTypesAt,
+    masterWrap: body.masterWrap,
     seen: latestStamp(body),
   };
 }
@@ -243,5 +245,9 @@ export function restampEdits(
       seen,
       at,
     );
+  }
+  const wrap = after.masterWrap;
+  if (wrap && wrap !== before.masterWrap && wrap.at <= seen) {
+    after.masterWrap = { ...wrap, at };
   }
 }

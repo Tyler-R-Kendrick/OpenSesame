@@ -212,11 +212,7 @@ export type VaultBody = {
   v: 1;
   items: VaultItem[];
   folders: Folder[];
-  /**
-   * Item type definitions installed into this vault (ADR 0087 §7). They live
-   * inside the sealed body so they sync E2EE to the user's other devices,
-   * work offline, and need no server.
-   */
+  /** Installed item type definitions (ADR 0087 §7): sealed, so they sync E2EE and work offline. */
   itemTypes?: InstalledItemTypes;
   /** When each of `itemTypes` was installed, so an uninstall elsewhere can lose to it. */
   itemTypesAt?: ItemTypeInstallTimes | undefined;
@@ -234,6 +230,8 @@ export type VaultBody = {
    * items. `device-key.ts` reads, merges and ranks it.
    */
   deviceIdentityKey?: JsonObject | undefined;
+  /** The current master-password wrap, so a change reaches every device (ADR 0144). */
+  masterWrap?: import("./sync-model.js").MasterWrap | undefined;
 };
 
 import { KIND_LABEL } from "./kind-labels.js";

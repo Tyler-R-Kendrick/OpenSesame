@@ -22,6 +22,28 @@ const ROLLED_BACK =
   "If you restored a backup, import it from Settings instead; " +
   "the vault here was not opened, so nothing has been lost yet";
 
+/** What a body carries beyond its items and folders, as it was sealed. */
+function syncedFields(body: VaultBody): Partial<VaultBody> {
+  return {
+    ...(body.itemTypes !== undefined
+      ? { itemTypes: body.itemTypes }
+      : undefined),
+    ...(body.itemTypesAt !== undefined
+      ? { itemTypesAt: body.itemTypesAt }
+      : undefined),
+    ...(body.tombstones !== undefined
+      ? { tombstones: body.tombstones }
+      : undefined),
+    // `null` or anything but an object is no key: it is not carried on.
+    ...(isJsonObject(body.deviceIdentityKey)
+      ? { deviceIdentityKey: body.deviceIdentityKey }
+      : undefined),
+    ...(body.masterWrap !== undefined
+      ? { masterWrap: body.masterWrap }
+      : undefined),
+  };
+}
+
 /**
  * The body of `tomb`, opened with `vaultKey`. A missing body is an empty vault
  * only while the header records no write: once `bodyRev` says a body landed,
@@ -54,19 +76,7 @@ export async function loadVaultBody(
       v: 1,
       items: body.items ?? [],
       folders: body.folders ?? [],
-      ...(body.itemTypes !== undefined
-        ? { itemTypes: body.itemTypes }
-        : undefined),
-      ...(body.itemTypesAt !== undefined
-        ? { itemTypesAt: body.itemTypesAt }
-        : undefined),
-      ...(body.tombstones !== undefined
-        ? { tombstones: body.tombstones }
-        : undefined),
-      // `null` or anything but an object is no key: it is not carried on.
-      ...(isJsonObject(body.deviceIdentityKey)
-        ? { deviceIdentityKey: body.deviceIdentityKey }
-        : undefined),
+      ...syncedFields(body),
       rev,
     };
     // What the retired sample-data feature wrote is not shown, exported or

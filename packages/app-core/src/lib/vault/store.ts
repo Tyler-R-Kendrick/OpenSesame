@@ -13,12 +13,10 @@ import {
   installItemType,
   installedDefinitions,
   mintVaultKey,
-  rewrapVaultKey,
   syncInstalledTypes,
   uninstallItemType,
   unwrapRawVaultKeyFromPassword,
   withTombstone,
-  wrapVaultKeyWithPassword,
 } from "@opensesame/vault-core";
 import {
   activitySeams,
@@ -64,6 +62,14 @@ import {
 import { headerCarriesGate } from "./header-gate.js";
 import { type ItemWriteHost, writeSavedItems } from "./item-writes.js";
 import { emitVaultLock } from "./lock-events.js";
+import {
+  adoptedMasterWrap,
+  headerWithNewPassword,
+  headerWithPassword,
+  headerWithoutPassword,
+  noteMasterWrap,
+  wrapMoved,
+} from "./master-wrap.js";
 import {
   probePasskeyCeremony,
   unlockVaultWithHeldPrf,
@@ -900,6 +906,9 @@ export class VaultStore {
     }
     this.#ephemeral = false;
     this.#emit();
+    // A password set, changed or removed is carried to every device (ADR 0144).
+    if (this.#vaultKey && wrapMoved(previous, next, this.#body))
+      await this.#mutate((body) => noteMasterWrap(body, next));
   }
 
   #requireUnlocked() {
@@ -948,23 +957,13 @@ export class VaultStore {
 
   async enrollPassword(password: string): Promise<void> {
     const { header } = this.#requireUnlocked();
-    await assertNewPassword(password);
-    const { kdf, wrap } = await wrapVaultKeyWithPassword(
-      this.#requireRaw(),
-      password,
-    );
-    await this.#persistHeader({ ...header, kdf, wrap });
+    const raw = this.#requireRaw();
+    await this.#persistHeader(await headerWithPassword(header, raw, password));
   }
 
   async removePassword(): Promise<void> {
-    if (!this.#header?.wrap) return;
-    assertKeepsPrimaryUnlock(this.#header, "password");
-    const { wrap: _w, kdf: _k, ...rest } = this.#header;
-    await this.#persistHeader({
-      ...rest,
-      wrap: undefined,
-      kdf: undefined,
-    });
+    if (this.#header?.wrap)
+      await this.#persistHeader(headerWithoutPassword(this.#header));
   }
 
   /**
@@ -1212,14 +1211,10 @@ export class VaultStore {
     hint?: string,
   ): Promise<void> {
     if (!this.#header) throw new Error("There is no vault to re-key.");
-    if (!this.#header.wrap || !this.#header.kdf) {
-      throw new Error(
-        "This vault has no master password. Add one under Unlock methods first.",
-      );
-    }
-    await assertNewPassword(next);
-    const header = await rewrapVaultKey(this.#header, current, next, hint);
-    await this.#persistHeader(header);
+    const header = this.#header;
+    await this.#persistHeader(
+      await headerWithNewPassword(header, current, next, hint),
+    );
   }
 
   // —— persistence ——————————————————————————————————————————
@@ -1246,7 +1241,12 @@ export class VaultStore {
   async mergeSnapshot(input: DriveSnapshotInput): Promise<SnapshotMerge> {
     const { vaultKey, header } = this.#requireUnlocked();
     await this.flushPendingWrites();
-    return mergeSnapshotInto(this.#bodyPort(), vaultKey, header, input);
+    const port = this.#bodyPort();
+    const merged = await mergeSnapshotInto(port, vaultKey, header, input);
+    // Another device's password change arrives in the body (`master-wrap.ts`).
+    const adopted = this.#header && adoptedMasterWrap(this.#body, this.#header);
+    if (adopted) await this.#persistHeader(adopted);
+    return merged;
   }
 
   /** This vault's header and sealed body as stored, once pending writes land. */

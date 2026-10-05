@@ -1,3 +1,5 @@
+import type { KdfParams, SealedBlob } from "./crypto.js";
+
 /**
  * What a merge needs beyond the item model (ADR 0144): when something was
  * removed, and when an item type was installed, so the newer of two devices'
@@ -20,3 +22,16 @@ export type FieldTimes = Readonly<Record<string, string>>;
 
 /** Field times while a stamp or a merge builds them. */
 export type FieldTimesDraft = Record<string, string>;
+
+/**
+ * The vault's master-password wrap as last set on any device, and when (ADR
+ * 0144). Sealed in the body, so only a device holding the vault key can write
+ * it; a device that merges a newer one takes it into its own header, which is
+ * how a password changed on one device opens the vault on the others. No
+ * `kdf`/`wrap` means the password was removed.
+ */
+export type MasterWrap = {
+  at: string;
+  kdf?: KdfParams | undefined;
+  wrap?: SealedBlob | undefined;
+};

@@ -16,6 +16,7 @@ import type {
   VaultItem,
   VaultTombstones,
 } from "./model.js";
+import type { MasterWrap } from "./sync-model.js";
 
 /**
  * Tombstones kept per kind. Ids and times only, so this bounds the body at a
@@ -36,6 +37,7 @@ export function mergeVaultBodies(left: VaultBody, right: VaultBody): VaultBody {
     right,
     tombstones?.itemTypes ?? {},
   );
+  const masterWrap = laterWrap(left.masterWrap, right.masterWrap);
   const deviceIdentityKey = mergeDeviceKeyFields(
     left.deviceIdentityKey,
     right.deviceIdentityKey,
@@ -52,6 +54,7 @@ export function mergeVaultBodies(left: VaultBody, right: VaultBody): VaultBody {
     ...(Object.keys(itemTypesAt).length > 0 ? { itemTypesAt } : undefined),
     ...(tombstones ? { tombstones } : undefined),
     ...(deviceIdentityKey ? { deviceIdentityKey } : undefined),
+    ...(masterWrap ? { masterWrap } : undefined),
     rev: Math.max(left.rev ?? 0, right.rev ?? 0),
   };
 }
@@ -132,6 +135,16 @@ function laterInstall(
   return `${right.at}\0${right.text}` > `${left.at}\0${left.text}`
     ? right
     : left;
+}
+
+/** The password set or removed last wins; content breaks a tie, so either order agrees. */
+function laterWrap(
+  left: MasterWrap | undefined,
+  right: MasterWrap | undefined,
+): MasterWrap | undefined {
+  if (!left || !right) return left ?? right;
+  const key = (wrap: MasterWrap) => `${wrap.at}\0${JSON.stringify(wrap)}`;
+  return key(right) > key(left) ? right : left;
 }
 
 /** An item whose folder was deleted anywhere moves to the root everywhere. */
@@ -217,5 +230,6 @@ function contentKey(body: VaultBody): string {
     sortedEntries(body.itemTypesAt),
     ...TOMBSTONE_KINDS.map((kind) => sortedEntries(body.tombstones?.[kind])),
     body.deviceIdentityKey ?? null,
+    body.masterWrap ?? null,
   ]);
 }
