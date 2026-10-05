@@ -10,6 +10,11 @@
  */
 
 import { kvGet } from "../../kv.js";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+} from "../json-boundary.js";
 import { WIPE_INTENT_KEY, journalKeysOf } from "../store/boot-keys.js";
 import {
   clearJournalDurable,
@@ -24,13 +29,11 @@ export type WipeIntent = Readonly<{
   startedAt: string;
 }>;
 
-function parse(payload: unknown): WipeIntent | null {
-  if (typeof payload !== "object" || payload === null) return null;
-  const { v, ids, startedAt } = payload as Partial<WipeIntent>;
-  if (v !== 1 || !Array.isArray(ids) || typeof startedAt !== "string") {
-    return null;
-  }
-  if (!ids.every((id) => typeof id === "string")) return null;
+function parse(payload: BoundaryValue): WipeIntent | null {
+  if (!isJsonObject(payload)) return null;
+  const { v, ids, startedAt } = payload;
+  if (v !== 1 || !Array.isArray(ids) || !isString(startedAt)) return null;
+  if (!ids.every(isString)) return null;
   // Whatever the record says, a session tomb is never a vault to remove.
   const named = ids.filter((id) => isVaultName(id) && !SESSION_VAULTS.has(id));
   return { v: 1, ids: named, startedAt };
@@ -38,7 +41,7 @@ function parse(payload: unknown): WipeIntent | null {
 
 /** The intent as written, or nothing: an unreadable or foreign one is none. */
 export function readWipeIntent(): WipeIntent | null {
-  return parse(readJournalPayload<unknown>(WIPE_INTENT_KEY));
+  return parse(readJournalPayload<BoundaryValue>(WIPE_INTENT_KEY));
 }
 
 /** Whether any record of a wipe is on this device, readable or not. */

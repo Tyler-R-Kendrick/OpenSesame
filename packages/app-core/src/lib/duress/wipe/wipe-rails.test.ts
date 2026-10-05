@@ -10,7 +10,6 @@ import { fileURLToPath } from "node:url";
 import { findForbiddenClaims } from "@opensesame/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureHost } from "../../../host.js";
-import type { PagePort } from "../../../ports.js";
 import { createTestHost } from "../../../test-host.js";
 import { vaultStore } from "../../vault/store.js";
 import { duressSessionFence } from "../session/fence.js";
@@ -28,6 +27,7 @@ import { WIPE_INTENT_KEY } from "../store/boot-keys.js";
 import { clearJournal } from "../store/journal.js";
 import { clearEnrollmentStateForUnlock } from "../store/unlock-enrollment.js";
 import { wipeGuard } from "./guard.js";
+import { pageWithListeners } from "./page.test-support.js";
 import { isWipeBody, runWipeEffect, wipeSeams } from "./real.js";
 import { allowRealWipe } from "./test-guard.js";
 import { deviceWithVaults, vaultFiles } from "./wipe.test-support.js";
@@ -129,13 +129,8 @@ describe("wipe runner: the refusal stays on screen", () => {
 
   it("brings the store up to date at the next touch of the page, not before", async () => {
     allowRealWipe();
-    const listeners = new Map<string, Set<() => void>>();
-    const page = {
-      addEventListener: (type: string, fn: () => void) =>
-        listeners.set(type, (listeners.get(type) ?? new Set()).add(fn)),
-      removeEventListener: (type: string, fn: () => void) =>
-        listeners.get(type)?.delete(fn),
-    } as unknown as PagePort;
+    // A page that keeps its listeners as the DOM does, capture flag and all.
+    const { page, fire, listenerCount } = pageWithListeners();
     configureHost(createTestHost({ page }));
     const rehydrate = vi.spyOn(vaultStore, "rehydrate");
     const device = observed();
@@ -145,10 +140,13 @@ describe("wipe runner: the refusal stays on screen", () => {
     expect(vaultFiles(device)).toEqual([]);
     expect(rehydrate).not.toHaveBeenCalled();
 
-    for (const fn of [...(listeners.get("keydown") ?? [])]) fn();
+    expect(listenerCount()).toBeGreaterThan(0);
+    fire("keydown");
     expect(rehydrate).toHaveBeenCalledTimes(1);
-    // One touch is enough: the listeners are gone.
-    expect([...listeners.values()].flatMap((set) => [...set])).toEqual([]);
+    // One touch is enough: every listener is gone, whatever the next touch is.
+    expect(listenerCount()).toBe(0);
+    for (const touch of ["pointerdown", "keydown", "touchstart"]) fire(touch);
+    expect(rehydrate).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -204,13 +202,15 @@ describe("wipe runner: arming and removing the code", () => {
     allowRealWipe();
     const device = observed();
     for (const confirm of [undefined, "", "wip", "WIPE IT"]) {
-      const result = await enableDuressCode({
+      const request = {
         code: "739104628",
         mode: "wipe",
-        ...(confirm === undefined ? {} : { extras: { confirm } }),
         vaultRef: "personal",
         requireDurable: false,
-      });
+      } as const;
+      const result = await enableDuressCode(
+        confirm === undefined ? request : { ...request, extras: { confirm } },
+      );
       expect(result, String(confirm)).toEqual({ ok: false, code: "failed" });
     }
     expect(device.removals).toEqual([]);

@@ -8,9 +8,20 @@
 
 import { vi } from "vitest";
 
+export type FakeFileHandle = {
+  getFile(): Promise<{ size: number; text(): Promise<string> }>;
+  createWritable(): Promise<{
+    write(value: string): Promise<void>;
+    close(): Promise<void>;
+  }>;
+};
+
 export type FakeOpfs = {
   files: Map<string, string>;
-  getFileHandle(name: string, options?: { create?: boolean }): Promise<unknown>;
+  getFileHandle(
+    name: string,
+    options?: { create?: boolean },
+  ): Promise<FakeFileHandle>;
   removeEntry(name: string): Promise<void>;
   keys(): AsyncGenerator<string>;
 };
