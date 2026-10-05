@@ -6,7 +6,7 @@ import { useLocation } from "react-router";
 
 /**
  * The category a settings address draws. Keybindings is drawn on every device
- * (ADR 0167): a phone's has a Gestures tab, and keys still work on a phone
+ * (ADR 0168): a phone's has a Gestures tab, and keys still work on a phone
  * with a keyboard attached.
  */
 export function useSettingsCategory(): SettingsCategory {

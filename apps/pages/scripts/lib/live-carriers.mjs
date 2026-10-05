@@ -19,7 +19,7 @@ import path from "node:path";
 import { Aedes } from "aedes";
 import { WebSocketServer, createWebSocketStream } from "ws";
 
-function freePort(host = "127.0.0.1") {
+export function freePort(host = "127.0.0.1") {
   return new Promise((resolve, reject) => {
     const server = net.createServer();
     server.once("error", reject);
@@ -150,7 +150,7 @@ function waitForPort(port, ms) {
   });
 }
 
-async function spawnServer(binary, args, port) {
+export async function spawnServer(binary, args, port) {
   const child = spawn(binary, args, { stdio: ["ignore", "pipe", "pipe"] });
   let output = "";
   const hear = (chunk) => {

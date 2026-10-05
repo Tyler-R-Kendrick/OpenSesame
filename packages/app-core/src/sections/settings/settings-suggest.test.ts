@@ -101,7 +101,7 @@ describe("suggesting inside the keymap file", () => {
   });
 });
 
-describe("gesture completion (ADR 0167)", () => {
+describe("gesture completion (ADR 0168)", () => {
   const at = (source: string) => gestureSuggestions(source, source.length);
 
   it("knows when the caret is inside gestures:", () => {

@@ -34,7 +34,7 @@ export type GestureView = Readonly<{
 }>;
 
 /**
- * The sheet a finger reads (ADR 0167): the fixed gestures, then the gestures
+ * The sheet a finger reads (ADR 0168): the fixed gestures, then the gestures
  * in force, each with what it runs now. A gesture a person struck is not
  * listed, and neither is a shake the phone cannot make.
  */
