@@ -97,4 +97,13 @@ export const ACCESS_TARGETS: readonly GuideTargetDescriptor[] = [
 
 export const ACCESS_ROUTES: readonly GuideRouteDescriptor[] = [
   { id: "/access", title: "Access — delegations, offers and running tasks" },
+  { id: "/access/requests", title: "Access — requests waiting on a decision" },
+  {
+    id: "/access/resources",
+    title: "Access — what a grant can be pointed at",
+  },
+  {
+    id: "/access/policies",
+    title: "Access — how broadly an application may ask",
+  },
 ];
