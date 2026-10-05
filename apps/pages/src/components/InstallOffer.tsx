@@ -9,8 +9,8 @@
  *
  * The shape follows `docs/design/controls.md`: what the browser told us is a
  * discovery, so it wears the `.found` card, and the action lives *inside* that
- * card as a `.btn--primary` beside the facts that justify it — never as the
- * screen's terminal commit, which belongs to the ceremony.
+ * card as an icon key beside the facts that justify it — never as the screen's
+ * terminal commit, which belongs to the ceremony.
  *
  * Drawn in `docs/design/canvases/pwa-install/`.
  */

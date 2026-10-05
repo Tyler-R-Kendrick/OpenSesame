@@ -13,6 +13,7 @@ export {
 export { assertTriggerCodeLength } from "./slot-bytes.js";
 export {
   MAX_SLOTS,
+  MAX_SLOT_PAYLOAD_BYTES,
   createIndependentCompartmentKey,
   openProfileSlot,
   sealProfileSlot,

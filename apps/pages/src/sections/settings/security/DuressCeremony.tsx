@@ -18,6 +18,7 @@ import {
 import { FieldShell } from "../../../components/FieldShell.js";
 import { IconShield, IconTrash } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { ModeInput } from "./DuressModeInput.js";
 import type { Run } from "./run.js";
 import { useDuressCeremony } from "./useDuressCeremony.js";
 import "./duress-sheet.css";
@@ -49,8 +50,6 @@ function RemoveCard({
 }) {
   return (
     <CeremonyShell
-      ok={false}
-      top="Remove the duress code?"
       name="Duress code · this device"
       facts={[
         { key: "After", value: "unlock is ordinary; the code is just a guess" },
@@ -105,31 +104,6 @@ function ModePick({
         ))}
       </ul>
     </fieldset>
-  );
-}
-
-/** The extra input a mode declares, below the radios; none does yet. */
-function ModeInput({
-  mode,
-  busy,
-  value,
-  onValue,
-}: {
-  mode: DuressMode;
-  busy: boolean;
-  value: string;
-  onValue: (next: string) => void;
-}) {
-  const { input } = mode;
-  if (input.kind === "none") return null;
-  return (
-    <FieldShell
-      label={input.label}
-      value={value}
-      onValueChange={onValue}
-      autoComplete="off"
-      disabled={busy}
-    />
   );
 }
 

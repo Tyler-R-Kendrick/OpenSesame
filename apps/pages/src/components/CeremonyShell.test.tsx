@@ -123,6 +123,57 @@ describe("CeremonyShell", () => {
     expect(onSecond).toHaveBeenCalledTimes(1);
   });
 
+  it("draws the primary as the .go square with its verb beside it, never a text slab", () => {
+    const { container } = renderShell();
+    const key = screen.getByRole("button", { name: "Re-probe" });
+    expect(key.className).toBe("go");
+    expect(key.getAttribute("title")).toBe("Re-probe");
+    // The face is a glyph; the words sit beside it, hidden from the reader
+    // that already heard them as the key's name.
+    expect(key.textContent).toBe("");
+    const verb = container.querySelector(".go-verb");
+    expect(verb?.textContent).toBe("Re-probe");
+    expect(verb?.getAttribute("aria-hidden")).toBe("true");
+    expect(container.querySelector(".btn")).toBeNull();
+  });
+
+  it("draws an ask plain: no wash, the danger square beside an icon Keep key", () => {
+    const keep = vi.fn();
+    const { container } = renderShell({
+      ok: false,
+      top: undefined,
+      primary: { label: "Delete vault", tone: "danger", onClick: () => {} },
+      secondary: { label: "Keep it", onClick: keep },
+    });
+    expect(container.querySelector(".found--ask")).toBeTruthy();
+    expect(container.querySelector(".found--attn")).toBeNull();
+    expect(screen.getByRole("button", { name: "Delete vault" }).className).toBe(
+      "go go--danger",
+    );
+    const keepKey = screen.getByRole("button", { name: "Keep it" });
+    expect(keepKey.className).toBe("icon-btn");
+    expect(keepKey.textContent).toBe("");
+    fireEvent.click(keepKey);
+    expect(keep).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the words on a key whose words are the thing chosen", () => {
+    renderShell({
+      primary: { label: "Recovery key", choice: true, onClick: () => {} },
+      secondary: {
+        label: "Continue as guest",
+        choice: true,
+        onClick: () => {},
+      },
+    });
+    const road = screen.getByRole("button", { name: "Continue as guest" });
+    expect(road.className).toBe("btn choice");
+    expect(road.textContent).toBe("Continue as guest");
+    expect(screen.getByRole("button", { name: "Recovery key" }).className).toBe(
+      "btn btn--primary choice",
+    );
+  });
+
   it("drops the or-rule when there are no alternatives", () => {
     const { container } = renderShell({ alts: [] });
     expect(container.querySelector(".or")).toBeNull();
