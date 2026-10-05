@@ -188,14 +188,16 @@ async function useCode({ page, base, check, snap }) {
     (await page.locator(".duress-presentation-overlay").count()) === 0,
     "the decoy draws no presentation overlay",
   );
-  // The copy opens, and carries what the owner kept.
+  // The copy opens, and carries the value the owner kept.
   await row(page, SHOWN[0].name).first().click();
-  const value = page.getByLabel("Secret value", { exact: true });
-  await value.waitFor({ timeout: 15000 });
-  check(
-    (await value.inputValue()) === SHOWN[0].secret,
-    "a shown item opens with the value the owner kept",
-  );
+  await page
+    .getByRole("button", { name: /Reveal/ })
+    .first()
+    .click({ timeout: 15000 });
+  await page
+    .getByText(SHOWN[0].secret, { exact: true })
+    .waitFor({ timeout: 15000 });
+  check(true, "a shown item opens with the value the owner kept");
   await toTheVault(page, base);
   await snap(page, "J-DURESS-VISIBLE-decoy");
 }
