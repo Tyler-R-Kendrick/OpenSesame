@@ -57,7 +57,8 @@ Canonical principals live in OpenSesame domain models
 This repository ships a **Cursor-hosted Cloud Agent** environment (managed VMs —
 not My Machines or a contributor’s local PC). Image and bootstrap live in
 [`.cursor/environment.json`](.cursor/environment.json) and
-[`.cursor/Dockerfile`](.cursor/Dockerfile).
+[`.cursor/Dockerfile`](.cursor/Dockerfile) (`rust:1.88.0-bookworm`, aligned with
+`rust-toolchain.toml`).
 
 - **Grok Build** is installed on `PATH` as `grok` (and `agent`). With
   `XAI_API_KEY` set as a Cursor **Runtime Secret** (or `GROK_DEPLOYMENT_KEY` where
