@@ -37,6 +37,7 @@ import {
   backOutStops,
   openVaultList,
   treeActions,
+  treeWalks,
 } from "./lib/phone-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { touchCopyStop } from "./lib/touch-copy-contract.mjs";
@@ -234,6 +235,7 @@ async function vaultItem(page, stop) {
   await page.waitForTimeout(900);
   await audit(page, stop("item"));
   await backOutStops(page, stop, { harness, audit });
+  await treeWalks(page, stop, { harness });
 }
 
 async function walk(browser, phone) {
