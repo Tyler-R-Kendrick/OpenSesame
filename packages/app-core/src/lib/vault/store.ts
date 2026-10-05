@@ -623,15 +623,15 @@ export class VaultStore {
   }
 
   /**
-   * A held device (a freeze duress code, ADR 0167) refuses a real credential
-   * that checked out as a wrong secret is refused: same error, same count.
+   * A held device (a freeze duress code, ADR 0167) refuses a right credential
+   * as a wrong one: same error, same count; the key it opened is zeroed.
    */
   #refuseWhileFrozen(miss?: string): void {
     refuseWhileFrozen(
       this.#scope.tomb,
       () => {
         this.#recordFailedUnlock();
-        this.cancelTotpChallenge();
+        if (!this.#vaultKey) this.cancelTotpChallenge();
       },
       miss,
     );
