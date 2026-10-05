@@ -4,8 +4,9 @@
  * One code per device. Typed complete where a vault is unlocked, it is caught
  * before any unwrap and the person is shown one of two things, never the
  * vault: an empty decoy that reads as a normal unlock, or the refusal a wrong
- * password gets. Both run wholly on the device. What a code does is sealed
- * with it, so nothing stored says which was chosen.
+ * password gets. Both run wholly on the device. What a code does is a mode in
+ * the registry (`modes/`), sealed with the code, so nothing stored says which
+ * was chosen.
  *
  * The rest of the duress vocabulary — holds, custodians, alerts, removal —
  * needs recipients or an independent authority a browser cannot supply
@@ -21,6 +22,7 @@ import {
 } from "../keys/pin-floors.js";
 import { duressSessionFence } from "../session/fence.js";
 import { loadEnrollmentStateForUnlock } from "../store/unlock-enrollment.js";
+import { type DuressMode, type DuressModeId, getMode } from "./modes/index.js";
 import {
   armPersistedUnlockEnrollment,
   disarmPersistedUnlockEnrollment,
@@ -44,8 +46,8 @@ export const DEVICE_DURESS_PROFILE = "device-duress";
 /** Enrollment is device-wide (ADR 0130); the binding names this browser. */
 export const DEVICE_BINDING = "this-browser";
 
-/** What entering the code does. */
-export type DuressOutcome = "decoy" | "refuse";
+/** What entering the code does: a mode's id (`modes/`). */
+export type DuressOutcome = DuressModeId;
 
 export type DuressStatus = Readonly<{
   /** A code is set and armed. */
@@ -75,7 +77,34 @@ export function duressStatus(): DuressStatus {
   };
 }
 
-const PRESENTATION = { decoy: "decoy", refuse: "locked" } as const;
+/** Whether every input the mode declares came with a value. */
+function hasInputs(mode: DuressMode, extras: Readonly<Record<string, string>>) {
+  return mode.input.kind === "none" || Boolean(extras[mode.input.id]?.trim());
+}
+
+type Checked =
+  | { readonly ok: true; readonly mode: DuressMode }
+  | { readonly ok: false; readonly code: DuressRefusal };
+
+/** What can be refused before anything is sealed: a held device, a bad code, an unknown mode. */
+function checkRequest(input: {
+  code: string;
+  mode?: string;
+  outcome?: string;
+  extras?: Readonly<Record<string, string>>;
+}): Checked {
+  if (duressSessionFence.readFence().activeIncidentIds.length > 0) {
+    return { ok: false, code: "incident_active" };
+  }
+  if (!isAcceptableDuressCode(input.code)) {
+    return { ok: false, code: "code_format" };
+  }
+  const mode = getMode(input.mode ?? input.outcome ?? "");
+  if (!mode || !hasInputs(mode, input.extras ?? {})) {
+    return { ok: false, code: "failed" };
+  }
+  return { ok: true, mode };
+}
 
 function refusalFor(message: string): DuressRefusal {
   if (message.startsWith("code ")) return "code_format";
@@ -91,7 +120,12 @@ function refusalFor(message: string): DuressRefusal {
  */
 export async function enableDuressCode(input: {
   code: string;
-  outcome: DuressOutcome;
+  /** The mode's id. Unknown ids refuse with `failed`. */
+  mode?: string;
+  /** The name `mode` had before the registry; read when `mode` is absent. */
+  outcome?: string;
+  /** Values for the inputs the mode declares; no mode declares one yet. */
+  extras?: Readonly<Record<string, string>>;
   /** The vault the owner is in, so the enrollment names a real one. */
   vaultRef: string;
   /**
@@ -100,12 +134,9 @@ export async function enableDuressCode(input: {
    */
   requireDurable?: boolean;
 }): Promise<DuressResult> {
-  if (duressSessionFence.readFence().activeIncidentIds.length > 0) {
-    return { ok: false, code: "incident_active" };
-  }
-  if (!isAcceptableDuressCode(input.code)) {
-    return { ok: false, code: "code_format" };
-  }
+  const request = checkRequest(input);
+  if (!request.ok) return request;
+  const { mode } = request;
   try {
     // One code per device: a fresh enrollment, never the old one with a new
     // trigger added. Replacing by profile id only drops a trigger of the same
@@ -117,7 +148,7 @@ export async function enableDuressCode(input: {
       profileId: DEVICE_DURESS_PROFILE,
       vaultRef: input.vaultRef,
       deviceBindingRef: DEVICE_BINDING,
-      presentation: PRESENTATION[input.outcome],
+      presentation: mode.presentation,
       previous: null,
       policyRevision: before?.policyRevision ?? 1,
       keyEpoch: before?.keyEpoch ?? 1,

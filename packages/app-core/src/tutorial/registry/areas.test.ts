@@ -16,7 +16,7 @@ import {
 } from "./goals.js";
 import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
 import { registerGuidePredicates } from "./predicates.js";
-import { GUIDE_OVERLAY_ROUTES } from "./routes.js";
+import { GUIDE_OVERLAY_ROUTES, guideRouteWithin } from "./routes.js";
 import { resetGuidePredicatesForTest } from "./state.js";
 
 let revoke = () => {};
@@ -70,25 +70,90 @@ describe("the tutorial library", () => {
   });
 });
 
+/** The gates that draw a help key: each must have a tutorial to offer (ADR 0166). */
+const KEYED_GATES = [
+  "/unlock/door",
+  "/unlock/form",
+  "/unlock/passkey",
+  "/unlock/signin",
+  "/setup/choose",
+  "/setup/capabilities",
+  "/setup/identity",
+  "/setup/connectors",
+  "/broker/authorize",
+  "/federation",
+] as const;
+
 describe("where a tutorial can start", () => {
   const gateOnly = {
     id: "x.gate-only",
     title: "Gate only",
-    routes: ["/unlock"],
+    routes: ["/unlock/door"],
     guide: "",
   };
 
-  it("never offers a tutorial only a gate could start", () => {
-    // The Support sheet is never mounted at a gate (ADR 0090), so a goal that
-    // names nothing but gates could not be started by anyone.
+  it("offers a tutorial written for a gate at that gate, and from no other screen", () => {
+    // A gate has no section to navigate to, so a tour for one cannot be walked
+    // from the shell or from another gate (ADR 0166, amending ADR 0163 §4).
+    expect(tutorialStartsFrom(gateOnly, "/unlock/door")).toBe(true);
     expect(tutorialStartsFrom(gateOnly, "/vault")).toBe(false);
-    for (const goal of mergedGuideGoals()) {
-      expect(
-        goal.routes.length === 0 ||
-          goal.routes.some((scope) => !GUIDE_OVERLAY_ROUTES.has(scope)),
-        `${goal.id} names only gates`,
-      ).toBe(true);
+    expect(tutorialStartsFrom(gateOnly, "/settings")).toBe(false);
+    expect(tutorialStartsFrom(gateOnly, "/unlock/form")).toBe(false);
+    expect(tutorialStartsFrom(gateOnly, "/setup/choose")).toBe(false);
+  });
+
+  it("offers a gate none of the shell's tutorials, which point at controls it does not draw", () => {
+    const lock = guideGoal("vault.lock");
+    const security = guideGoal("settings.security.review");
+    expect(lock).not.toBeNull();
+    expect(security).not.toBeNull();
+    for (const gate of GUIDE_OVERLAY_ROUTES) {
+      if (lock) expect(tutorialStartsFrom(lock, gate), gate).toBe(false);
+      if (security)
+        expect(tutorialStartsFrom(security, gate), gate).toBe(false);
     }
+  });
+
+  it("starts a tutorial that names only gates from every gate it names", () => {
+    for (const goal of mergedGuideGoals()) {
+      if (goal.routes.length === 0) continue;
+      if (!goal.routes.every((scope) => GUIDE_OVERLAY_ROUTES.has(scope))) {
+        continue;
+      }
+      for (const scope of goal.routes) {
+        expect(tutorialStartsFrom(goal, scope), `${goal.id} at ${scope}`).toBe(
+          true,
+        );
+      }
+      expect(tutorialStartsFrom(goal, "/vault"), `${goal.id}`).toBe(false);
+    }
+  });
+
+  it("gives every gate that draws a help key a tutorial to offer", () => {
+    for (const gate of KEYED_GATES) {
+      expect(GUIDE_OVERLAY_ROUTES.has(gate), `${gate} is a gate`).toBe(true);
+      const offered = tutorialLibrary(gate, {
+        sectionDrawn: () => true,
+        holds: () => true,
+      }).flatMap((group) => group.tutorials);
+      expect(offered.length, `${gate} offers nothing`).toBeGreaterThan(0);
+      for (const { goal } of offered) {
+        expect(
+          goal.routes.some((scope) => guideRouteWithin(gate, scope)),
+          `${goal.id} is offered at ${gate} but names no scope around it`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("lists nothing under a gate that the shell would list", () => {
+    const here = tutorialLibrary("/unlock/door", {
+      sectionDrawn: () => true,
+      holds: () => true,
+    })
+      .flatMap((group) => group.tutorials)
+      .map((entry) => entry.goal.id);
+    expect(here).toEqual(["gate.front-door", "gate.join"]);
   });
 
   it("starts a goal from the screens it names and from anywhere it navigates", () => {

@@ -53,6 +53,11 @@ const ABSENT: SupportAgentLoaders = {
 
 export const supportAgentLoaders: SupportAgentLoaders = { ...ABSENT };
 
+/** The loaders of a screen with no agent to ask: a gate (ADR 0166) reads these. */
+export const ABSENT_AGENT_LOADERS: SupportAgentLoaders = Object.freeze({
+  ...ABSENT,
+});
+
 /**
  * Install one or more loaders; returns the restore. Restoring puts back
  * exactly what was there before, so two capabilities disposing in either
