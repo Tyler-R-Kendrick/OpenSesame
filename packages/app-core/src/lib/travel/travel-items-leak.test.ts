@@ -34,6 +34,7 @@ import {
   hideThem,
   leaks,
   needlesOf,
+  ownerKey,
   readableSurfaces,
   seedVault,
   useDurableStorage,
@@ -48,12 +49,7 @@ describe("hiding items leaves nothing of them behind", () => {
   it("is findable before the hide: the seeded strings really are everywhere", async () => {
     const s = await seedVault();
     const tomb = vaultStore.getSnapshot().tomb;
-    const key = await unlockVaultKey(
-      vaultStore.getSnapshot().header as NonNullable<
-        ReturnType<typeof vaultStore.getSnapshot>["header"]
-      >,
-      PASSWORD,
-    );
+    const key = await ownerKey();
     const { surfaces } = await readableSurfaces(tomb, key);
     const found = leaks(surfaces, needlesOf(s));
     expect(found.some((hit) => hit.startsWith("sealed body: "))).toBe(true);
@@ -66,12 +62,7 @@ describe("hiding items leaves nothing of them behind", () => {
   it("leaves none of them in any surface the owner's key opens", async () => {
     const s = await seedVault();
     const tomb = vaultStore.getSnapshot().tomb;
-    const key = await unlockVaultKey(
-      vaultStore.getSnapshot().header as NonNullable<
-        ReturnType<typeof vaultStore.getSnapshot>["header"]
-      >,
-      PASSWORD,
-    );
+    const key = await ownerKey();
     const { receipt } = await hideThem(s.hide);
     expect(receipt.completion).toBe("applied_local");
     expect(receipt.foldersRemoved).toBe(1);
@@ -163,12 +154,7 @@ describe("what the hide cannot reach, it refuses to run beside", () => {
   it("refuses while a history snapshot holds an older revision with them in it", async () => {
     const s = await seedVault();
     const tomb = vaultStore.getSnapshot().tomb;
-    const key = await unlockVaultKey(
-      vaultStore.getSnapshot().header as NonNullable<
-        ReturnType<typeof vaultStore.getSnapshot>["header"]
-      >,
-      PASSWORD,
-    );
+    const key = await ownerKey();
     const older = readSealedFile(tomb, BODY_PATH);
     if (!older) throw new Error("no body");
     // An older sealed revision opens with the owner's key and holds the items:
@@ -212,12 +198,7 @@ describe("the same walk with the purge steps off must find them", () => {
   it("finds the activity lines and the digests when nothing is purged", async () => {
     const s = await seedVault();
     const tomb = vaultStore.getSnapshot().tomb;
-    const key = await unlockVaultKey(
-      vaultStore.getSnapshot().header as NonNullable<
-        ReturnType<typeof vaultStore.getSnapshot>["header"]
-      >,
-      PASSWORD,
-    );
+    const key = await ownerKey();
     travelItemSeams.deps = {
       ...travelItemSeams.deps,
       purge: {
@@ -237,7 +218,7 @@ describe("the same walk with the purge steps off must find them", () => {
 
   it("finds them in a body when the removal is an ordinary purge: trash, tombstones", async () => {
     const s = await seedVault();
-    const first = s.hide[0] as string;
+    const first = s.hide[0] ?? "";
     await vaultStore.trashItem(first);
     expect(
       vaultStore.getSnapshot().items.find((i) => i.id === first)?.deletedAt,

@@ -14,9 +14,8 @@ import {
 import { restoreIntoBody, withdrawFromBody } from "../vault/item-departure.js";
 import type { ItemsCopy, ItemsDeps } from "./items-depart.js";
 
-export type FakeItemsVault = {
+type FakeState = {
   body: VaultBody;
-  deps: ItemsDeps;
   tomb: string;
   createdAt: string;
   copies: ItemsCopy[];
@@ -34,6 +33,8 @@ export type FakeItemsVault = {
   beforeWithdraw: (() => void) | null;
 };
 
+export type FakeItemsVault = FakeState & { deps: ItemsDeps };
+
 export function login(name: string, extra: Partial<VaultItem> = {}): VaultItem {
   const item = createItem("login", name);
   return Object.assign(item, extra);
@@ -47,7 +48,7 @@ export function fakeItemsVault(
   items: readonly VaultItem[] = [],
   folders: readonly Folder[] = [],
 ): FakeItemsVault {
-  const state: FakeItemsVault = {
+  const state: FakeState = {
     body: { ...emptyBody(), items: [...items], folders: [...folders] },
     tomb: "personal",
     createdAt: "2026-02-02T00:00:00.000Z",
@@ -61,7 +62,6 @@ export function fakeItemsVault(
     calls: new Map(),
     purged: { activity: [], passwords: [], cache: [] },
     beforeWithdraw: null,
-    deps: undefined as never,
   };
   const purge = (name: string) => {
     const call = (state.calls.get(name) ?? 0) + 1;
@@ -70,7 +70,7 @@ export function fakeItemsVault(
       throw new Error(`${name} would not open`);
     }
   };
-  state.deps = {
+  const deps: ItemsDeps = {
     storage: { durable: () => state.durable },
     duressActive: async () => state.duress,
     ownerPresent: () => state.owner,
@@ -109,5 +109,5 @@ export function fakeItemsVault(
       },
     },
   };
-  return state;
+  return Object.assign(state, { deps });
 }

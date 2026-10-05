@@ -6,11 +6,11 @@
 
 import {
   type Folder,
-  type LoginItem,
   type VaultBody,
   type VaultItem,
   createItem,
   openJson,
+  unlockVaultKey,
   vaultSealBinding,
 } from "@opensesame/vault-core";
 import {
@@ -88,6 +88,13 @@ export async function clearTomb(): Promise<void> {
   resetHistoryBackupMemory();
 }
 
+/** The owner's vault key, derived from the master password the way unlock does. */
+export async function ownerKey(): Promise<CryptoKey> {
+  const header = vaultStore.getSnapshot().header;
+  if (!header) throw new Error("no vault is open");
+  return unlockVaultKey(header, PASSWORD);
+}
+
 export function bodyOf(): VaultBody {
   const { items, folders } = vaultStore.getSnapshot();
   return { v: 1, items: [...items], folders: [...folders] };
@@ -97,7 +104,7 @@ export function bodyOf(): VaultBody {
 export async function seedVault(): Promise<Seeded> {
   await vaultStore.create(PASSWORD);
   const vault: Folder = await vaultStore.addFolder(S.folder);
-  const bank = createItem("login", S.name) as LoginItem;
+  const bank = createItem("login", S.name);
   Object.assign(bank, {
     username: S.username,
     password: S.password,
@@ -108,9 +115,9 @@ export async function seedVault(): Promise<Seeded> {
   });
   const trashed = createItem("note", S.trashName);
   trashed.notes = S.trashNotes;
-  const hist = createItem("login", S.histName) as LoginItem;
+  const hist = createItem("login", S.histName);
   hist.password = S.histOld;
-  const keeper = createItem("login", KEEP.name) as LoginItem;
+  const keeper = createItem("login", KEEP.name);
   keeper.password = KEEP.password;
   const keeperNote = createItem("note", KEEP.note);
   await vaultStore.saveItems([bank, trashed, hist, keeper, keeperNote]);

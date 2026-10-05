@@ -17,7 +17,12 @@
  * leaving the person to believe an item is gone while a merge brings it back.
  */
 
-import { overlapCast } from "@opensesame/os-domain";
+import {
+  type BoundaryValue,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 import {
   type Folder,
   type VaultItem,
@@ -153,11 +158,11 @@ function refused(
   return { ok: false, code, ids, copies };
 }
 
-function stringsIn(value: unknown, out: string[] = []): string[] {
-  if (typeof value === "string") out.push(value);
+function stringsIn(value: BoundaryValue, out: string[] = []): string[] {
+  if (isString(value)) out.push(value);
   else if (Array.isArray(value))
     for (const entry of value) stringsIn(entry, out);
-  else if (value !== null && typeof value === "object") {
+  else if (isJsonObject(value)) {
     for (const entry of Object.values(value)) stringsIn(entry, out);
   }
   return out;
@@ -178,11 +183,10 @@ function label(item: VaultItem): string {
   return item.name.trim() === "" ? "Untitled" : item.name.trim();
 }
 
+type FolderPlan = { named: Folder[]; emptied: string[] };
+
 /** The folders `items` sat in, and those they would leave empty. */
-function foldersOf(
-  vault: OpenVault,
-  chosen: ReadonlySet<string>,
-): { named: Folder[]; emptied: string[] } {
+function foldersOf(vault: OpenVault, chosen: ReadonlySet<string>): FolderPlan {
   const naming = new Set(
     vault.items.flatMap((i) => (chosen.has(i.id) ? (i.folderId ?? []) : [])),
   );

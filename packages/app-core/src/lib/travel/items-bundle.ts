@@ -15,6 +15,7 @@
 
 import {
   type BoundaryValue,
+  isBoolean,
   isJsonObject,
   isString,
   overlapCast,
@@ -146,7 +147,7 @@ function readItem(raw: BoundaryValue): VaultItem {
     !isString(raw.updatedAt) ||
     !(raw.folderId === null || isString(raw.folderId)) ||
     !(raw.deletedAt === null || isString(raw.deletedAt)) ||
-    typeof raw.favorite !== "boolean" ||
+    !isBoolean(raw.favorite) ||
     !Array.isArray(raw.fields)
   ) {
     throw NOT_ITEMS();

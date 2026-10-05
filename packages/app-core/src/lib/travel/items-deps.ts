@@ -64,7 +64,9 @@ async function sharedItems(tomb: string): Promise<ReadonlySet<string>> {
   ]);
 }
 
-export const travelItemSeams: { deps: ItemsDeps } = {
+type TravelItemSeams = { deps: ItemsDeps };
+
+export const travelItemSeams: TravelItemSeams = {
   deps: {
     storage: originTravelStorage,
     duressActive,

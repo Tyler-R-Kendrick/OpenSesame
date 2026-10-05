@@ -174,7 +174,7 @@ describe("Settings › Vaults › Travel › leave items at home (ADR 0170)", ()
     // Saving the bundle: the sheet hands the browser a file; keep what it was.
     let saved: Blob | null = null;
     URL.createObjectURL = (blob: Blob | MediaSource) => {
-      saved = blob as Blob;
+      saved = blob instanceof Blob ? blob : null;
       return "blob:trip";
     };
     URL.revokeObjectURL = () => undefined;
