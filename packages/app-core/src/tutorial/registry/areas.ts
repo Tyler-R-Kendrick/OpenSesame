@@ -188,6 +188,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "identity.local.organizations.member",
       "identity.local.passkeys.manage",
       "identity.local.siop.authorize",
+      "identity.tailnet.devices.manage",
       "feature.identity",
       "feature.directory",
     ],

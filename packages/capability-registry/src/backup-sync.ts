@@ -6,11 +6,13 @@ import {
 } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 import { SCOPED_AGENT_ONLY } from "./lifecycle.js";
+import { tailnetDeviceCapabilities } from "./tailnet-devices.js";
 
 /**
  * Getting a vault off one device: the server-side backup posture (ADR 0039)
  * and tailnet vault sync (ADR 0144), where the daemon keeps one sealed
- * snapshot per slot and each device merges it under its own key.
+ * snapshot per slot and each device merges it under its own key. The same
+ * daemon's tailnet device management (ADR 0169) rides at the end.
  */
 
 /** Opening a slot mints its only key; the daemon refuses any browser request. */
@@ -147,4 +149,5 @@ export const backupSyncCapabilities: readonly Capability[] = [
       mcp_client: DRIVE_PAIRING_HUMAN,
     },
   },
+  ...tailnetDeviceCapabilities,
 ];

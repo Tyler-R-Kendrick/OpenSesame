@@ -5,12 +5,11 @@
  * kind of record: a browser (or PWA) that unlocked the tomb, named, last
  * seen, removable except for the one you are on. Passkeys stay on People.
  *
- * A device can also be registered before it has opened the vault — named
- * and given its platform here, the way an admin pre-registers a machine.
- * Such a record has never been seen (`lastSeenAt` is empty) until the
- * device itself opens the vault and claims it (`claimLocalDevice`), which
- * binds the record to that browser's id. A record is inventory: it grants
- * nothing, and removing one does not revoke the vault key a device holds.
+ * A browser lists itself when it opens the vault; nothing here invents a
+ * device. The tailnet's real machines — approved, re-keyed and removed
+ * through the paired daemon — are `tailnet-admin/` (ADR 0169). A record here
+ * is inventory: it grants nothing, and removing one does not revoke the vault
+ * key a browser holds.
  */
 
 import {
@@ -39,25 +38,9 @@ export type LocalDevice = {
   name: string;
   platform: string;
   createdAt: string;
-  /** Empty while a registered device has not yet opened the vault. */
+  /** Empty only on a record an earlier build let a person type in by hand. */
   lastSeenAt: string;
 };
-
-/** The platforms `describePlatform` reports, in the order a form offers them. */
-export const DEVICE_PLATFORMS = [
-  "iOS",
-  "Android",
-  "macOS",
-  "Windows",
-  "Linux",
-  "Unknown",
-] as const;
-
-export type DevicePlatform = (typeof DEVICE_PLATFORMS)[number];
-
-export function isDevicePlatform(value: string): value is DevicePlatform {
-  return DEVICE_PLATFORMS.some((platform) => platform === value);
-}
 
 /**
  * The list holds as many devices as it can: a browser that opens the vault
@@ -67,7 +50,11 @@ export function isDeviceListFull(devices: readonly LocalDevice[]): boolean {
   return devices.length >= MAX_DEVICES;
 }
 
-/** A device registered here that has not yet opened the vault itself. */
+/**
+ * A record typed in by hand by an earlier build, which no browser has opened
+ * the vault as. Such records are still shown, and may be removed; nothing
+ * makes new ones (ADR 0169).
+ */
 export function isPendingDevice(device: LocalDevice): boolean {
   return device.lastSeenAt === "";
 }
@@ -269,96 +256,24 @@ function checkedName(name: string): string {
   return trimmed;
 }
 
-function checkedPlatform(platform: string): DevicePlatform {
-  if (!isDevicePlatform(platform))
-    throw new LocalDeviceError("Choose the device's platform.");
-  return platform;
-}
-
 function findDevice(devices: LocalDevice[], id: string): LocalDevice {
   const target = devices.find((device) => device.id === id);
   if (!target) throw new LocalDeviceError("That device is not in this vault.");
   return target;
 }
 
-/**
- * Register a device that has not opened this vault yet. It is listed as
- * awaiting its first unlock until that device claims it.
- */
-export async function registerLocalDevice(
-  tomb: string,
-  input: { name: string; platform: string },
-): Promise<LocalDevice[]> {
-  const name = checkedName(input.name);
-  const platform = checkedPlatform(input.platform);
-  return mutateDevices(tomb, (devices) => {
-    // One slot stays free for a browser that opens the vault unlisted.
-    if (devices.length >= MAX_DEVICES - 1)
-      throw new LocalDeviceError(
-        `This vault already lists ${devices.length} devices. Remove one first.`,
-      );
-    return [
-      ...devices,
-      {
-        id: crypto.randomUUID(),
-        name,
-        platform,
-        createdAt: new Date().toISOString(),
-        lastSeenAt: "",
-      },
-    ];
-  });
-}
-
-/**
- * Change a device's name, and — while it has not opened the vault yet — the
- * platform it was registered with. A seen device's platform is what that
- * browser reported and is not edited.
- */
+/** Rename a browser this vault lists. */
 export async function updateLocalDevice(
   tomb: string,
   id: string,
-  input: { name: string; platform?: string },
+  input: { name: string },
 ): Promise<LocalDevice[]> {
   const name = checkedName(input.name);
   return mutateDevices(tomb, (devices) => {
-    const target = findDevice(devices, id);
-    const platform =
-      input.platform !== undefined && isPendingDevice(target)
-        ? checkedPlatform(input.platform)
-        : target.platform;
+    findDevice(devices, id);
     return devices.map((device) =>
-      device.id === id ? { ...device, name, platform } : device,
+      device.id === id ? { ...device, name } : device,
     );
-  });
-}
-
-/**
- * This browser is the device registered as `id`: the registration takes this
- * browser's id and platform and is marked seen, and the record this browser
- * made for itself on unlock is folded into it.
- */
-export async function claimLocalDevice(
-  tomb: string,
-  id: string,
-): Promise<LocalDevice[]> {
-  const mine = thisDeviceId();
-  return mutateDevices(tomb, (devices) => {
-    if (!isPendingDevice(findDevice(devices, id)))
-      throw new LocalDeviceError("That device has already opened this vault.");
-    const now = new Date().toISOString();
-    return devices
-      .filter((device) => device.id !== mine)
-      .map((device) =>
-        device.id === id
-          ? {
-              ...device,
-              id: mine,
-              platform: describePlatform(),
-              lastSeenAt: now,
-            }
-          : device,
-      );
   });
 }
 

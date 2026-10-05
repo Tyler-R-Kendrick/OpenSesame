@@ -84,6 +84,7 @@ pub(super) fn build_state(args: &Args) -> anyhow::Result<(App, bool)> {
             vault_drive: crate::vault_drive::default_dir()
                 .map(|dir| Arc::new(crate::vault_drive::DriveStore::new(dir))),
             plugins: crate::plugin_routes::PluginHost::from_process(),
+            tailnet: crate::tailnet_admin_routes::TailnetAdminHost::from_process(),
         },
         hsts,
     ))

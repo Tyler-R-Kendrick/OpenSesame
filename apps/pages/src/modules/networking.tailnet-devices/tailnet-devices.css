@@ -1,0 +1,57 @@
+/* Tailnet devices (ADR 0169): rows reuse the Identity list's own classes;
+   these add the marks line, the choices and the switches inside a sheet. */
+
+.tailnet-row__marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 4px;
+}
+
+.tailnet-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+
+.tailnet-choice {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tailnet-choice[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--canvas);
+}
+
+.tailnet-choice:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.tailnet-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+}
+
+@media (pointer: coarse) {
+  .tailnet-choice {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .tailnet-switch {
+    min-height: 44px;
+  }
+}

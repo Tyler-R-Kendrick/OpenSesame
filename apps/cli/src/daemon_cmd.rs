@@ -5,6 +5,8 @@ use crate::daemon_toolbar::ToolbarCmd;
 mod daemon_drive;
 #[path = "daemon_fill.rs"]
 mod daemon_fill;
+#[path = "daemon_tailnet.rs"]
+mod daemon_tailnet;
 use clap::Subcommand;
 use opensesame_host_core::endpoints::{self, DAEMON};
 use serde_json::json;
@@ -70,6 +72,9 @@ enum DaemonCmd {
     /// (the optional `browser-autofill` plugin, ADR 0150 §7).
     #[command(subcommand)]
     Fill(daemon_fill::FillCmd),
+    /// Manage the tailnet's devices from this machine (ADR 0169).
+    #[command(subcommand)]
+    Tailnet(daemon_tailnet::TailnetCmd),
     #[command(flatten)]
     Toolbar(ToolbarCmd),
 }
@@ -92,6 +97,7 @@ pub async fn run(args: DaemonArgs) -> anyhow::Result<()> {
         DaemonCmd::Drive(verb) => {
             daemon_drive::run(base, operator_token.as_deref(), verb).await?;
         }
+        DaemonCmd::Tailnet(verb) => daemon_tailnet::run(verb).await?,
         DaemonCmd::Fill(verb) => {
             daemon_fill::run(base, operator_token.as_deref(), verb).await?;
         }

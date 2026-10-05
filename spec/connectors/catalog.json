@@ -2950,11 +2950,24 @@
       ],
       "scopes": [],
       "egress": {
-        "scheme": "none",
-        "authorities": [],
+        "scheme": "https",
+        "authorities": ["api.tailscale.com"],
         "path_prefixes": []
       },
-      "operations": ["network.configure"]
+      "operations": [
+        "network.configure",
+        "device.list",
+        "device.authorize",
+        "device.rename",
+        "device.tags",
+        "device.key_expiry",
+        "device.expire",
+        "device.routes",
+        "device.delete",
+        "auth_key.list",
+        "auth_key.create",
+        "auth_key.delete"
+      ]
     },
     {
       "id": "cloudflare-wallet",
@@ -3465,6 +3478,6 @@
       "operations": ["otp.generate"]
     }
   ],
-  "revision": "2026-09-24.1",
+  "revision": "2026-10-05.1",
   "schema_version": 1
 }

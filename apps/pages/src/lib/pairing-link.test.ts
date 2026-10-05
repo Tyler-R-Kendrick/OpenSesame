@@ -69,3 +69,17 @@ describe("pairing link", () => {
     expect(replaced).toHaveLength(2);
   });
 });
+
+describe("tailnet pairing link", () => {
+  it("takes a tailnet code out of the address bar, apart from a drive code", async () => {
+    const { takeLinkedTailnetPairing } = await import("./pairing-link.js");
+    const { location, history, replaced } = address(
+      "#pair-tailnet=opensesame-tailnet%3Av1%3Axyz",
+    );
+    captureLinkedPairing(location, history);
+    expect(replaced).toEqual(["/OpenSesame/settings/vaults?a=1"]);
+    expect(takeLinkedPairing()).toBe("");
+    expect(takeLinkedTailnetPairing()).toBe("opensesame-tailnet:v1:xyz");
+    expect(takeLinkedTailnetPairing()).toBe("");
+  });
+});
