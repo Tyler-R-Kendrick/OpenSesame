@@ -1,6 +1,6 @@
 /**
  * Return: put items back into the open vault from their bundle and return
- * code (ADR 0170).
+ * code (ADR 0171).
  *
  * `openItemsReturn` opens the bundle and says, item by item, what would
  * happen; `completeItemsReturn` does it, in one sealed mutation that writes

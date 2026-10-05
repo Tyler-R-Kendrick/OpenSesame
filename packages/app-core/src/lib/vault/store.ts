@@ -1373,12 +1373,12 @@ export class VaultStore {
     await this.#mutate((body) => emptyTrash(body));
   }
 
-  /** Take items out of the body without a trace: no tombstone, trash or note (ADR 0170). */
+  /** Take items out of the body without a trace: no tombstone, trash or note (ADR 0171). */
   async withdrawItems(plan: ItemWithdrawal): Promise<void> {
     await this.#mutate((body) => withdrawFromBody(body, plan));
   }
 
-  /** Put withdrawn items back as they were, ids and times intact (ADR 0170). */
+  /** Put withdrawn items back as they were, ids and times intact (ADR 0171). */
   async restoreWithdrawn(back: ItemReturn): Promise<void> {
     await this.#mutate((body) => restoreIntoBody(body, back));
   }

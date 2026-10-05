@@ -23,6 +23,7 @@ import { focusCommandBar, toggleCommandBarMic } from "./command-bar/focus.js";
 import { sectionCommandPath } from "./keymap-jumps.js";
 import {
   type ListingMotion,
+  type Origin,
   currentRailTarget,
   currentSearchTarget,
   currentVaultTarget,
@@ -31,8 +32,11 @@ import {
 } from "./keymap-targets.js";
 
 export type CommandRun = Readonly<{
-  /** The key press, or a blank event for a trigger: it says which listing. */
-  event: KeyboardEvent;
+  /**
+   * The key press, a gesture's first touch, or a blank event for a trigger:
+   * it says which listing.
+   */
+  event: Origin;
   steps: number;
   hadCount: boolean;
   navigate: (path: string) => void;

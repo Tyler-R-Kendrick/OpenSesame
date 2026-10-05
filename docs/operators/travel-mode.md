@@ -44,7 +44,7 @@ blocked either way.
 ## Leaving items at home
 
 Travel mode above moves whole vaults. If you must unlock the vault you carry,
-choose which of **its items** stay home instead ([ADR 0170](../adr/0170-hide-items-while-traveling.md);
+choose which of **its items** stay home instead ([ADR 0171](../adr/0171-hide-items-while-traveling.md);
 audit in [`travel-hidden-items.md`](../research/travel-hidden-items.md)).
 
 1. Open the vault. In **Settings › Vaults › Travel** press **Choose items to

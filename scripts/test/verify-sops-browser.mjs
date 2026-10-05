@@ -3,12 +3,10 @@
  * `pnpm verify:sops-browser` — the mandatory local product gate for
  * browser-local SOPS.
  *
- * It runs the engine's type and unit suites, builds the production static
- * application twice (subpath and domain root), drives the compiled app in
- * a real browser against a plain static file server, and records one
- * machine-readable result per acceptance case. No Host is started, no
- * decryption service is stood up, and a static file server plus a test
- * runner are development infrastructure — not a runtime backend.
+ * It runs the engine's type and unit suites and records one
+ * machine-readable result per acceptance case. No Host is started and no
+ * decryption service is stood up. The Settings › Security document sheet and
+ * the browser walk that drove it were removed; the engine stays.
  */
 import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -41,7 +39,7 @@ function record(caseId, status, detail) {
 
 // ── 1. the engine's own suites, against checked-in upstream fixtures ──
 {
-  // The engine lives in @opensesame/app-core (ADR 0133); its sheets in Pages.
+  // The engine lives in @opensesame/app-core (ADR 0133).
   const engine = run("engine unit and fixture suites", "pnpm", [
     "--filter",
     "@opensesame/app-core",
@@ -50,15 +48,7 @@ function record(caseId, status, detail) {
     "run",
     "src/lib/sops",
   ]);
-  const sheets = run("settings sheet suites", "pnpm", [
-    "--filter",
-    "@opensesame/pages",
-    "exec",
-    "vitest",
-    "run",
-    "src/sections/settings/sops",
-  ]);
-  const ok = engine && sheets;
+  const ok = engine;
   for (const caseId of [
     "SB-001",
     "SB-002",
@@ -122,65 +112,11 @@ function record(caseId, status, detail) {
   ]) {
     record(caseId, ok ? "passed" : "failed", {
       evidenceKind: "unit-contract",
-      test: "vitest app-core src/lib/sops + pages src/sections/settings/sops",
+      test: "vitest app-core src/lib/sops",
       command: "pnpm verify:sops-browser",
       runtime: `node ${process.version}`,
       artifact: "docs/evidence/2026-09-22-browser-local-sops/results.json",
       reason: ok ? "Suite passed." : "Suite failed; see the run output.",
-    });
-  }
-}
-
-// ── 2. the compiled static app, in a real browser, both deployments ───
-for (const base of ["/OpenSesame/", "/"]) {
-  const label = base === "/" ? "domain root" : "subpath";
-  const out = join(
-    root,
-    "artifacts",
-    `sops-static${base === "/" ? "-root" : ""}`,
-  );
-  const built = run(
-    `build (${label})`,
-    "pnpm",
-    ["exec", "turbo", "run", "build", "--filter=@opensesame/pages"],
-    {
-      env: { VITE_BASE: base },
-    },
-  );
-  const drove =
-    built &&
-    run(
-      `static browser gate (${label})`,
-      "node",
-      ["apps/pages/scripts/verify-sops-static.mjs"],
-      {
-        env: { VITE_BASE: base, SOPS_VERIFY_OUT: out },
-      },
-    );
-  const status = drove ? "passed" : "failed";
-  const cases =
-    base === "/"
-      ? ["SB-073"]
-      : [
-          "SB-035",
-          "SB-064",
-          "SB-067",
-          "SB-071",
-          "SB-072",
-          "SB-074",
-          "SB-075",
-          "SB-076",
-        ];
-  for (const caseId of cases) {
-    record(caseId, status, {
-      evidenceKind: "real-browser",
-      test: `verify-sops-static.mjs (base ${base})`,
-      command: "pnpm verify:sops-browser",
-      runtime: `chromium ${process.env.PLAYWRIGHT_CHROMIUM ?? "bundled"}`,
-      artifact: `artifacts/sops-static${base === "/" ? "-root" : ""}/results.json`,
-      reason: drove
-        ? `The compiled app completed the journeys at base ${base}.`
-        : "The static gate failed.",
     });
   }
 }

@@ -43,7 +43,7 @@ export function resetPasswordHistoryForTest(): void {
 
 /**
  * Forget what is known about an item's retired passwords: an item that leaves
- * a vault for a trip (ADR 0170) must not stay recognisable by them. Resolves
+ * a vault for a trip (ADR 0171) must not stay recognisable by them. Resolves
  * with how many digests went.
  */
 export async function forgetRetiredPasswords(

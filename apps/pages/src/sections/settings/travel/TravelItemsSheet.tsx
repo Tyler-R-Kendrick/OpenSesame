@@ -1,5 +1,5 @@
 /**
- * Leaving items home (ADR 0170), as a ceremony in a sheet: choose which of
+ * Leaving items home (ADR 0171), as a ceremony in a sheet: choose which of
  * this vault's items stay home, pack them into a bundle under a return code,
  * then take them out once the bundle and the code are somewhere else.
  *

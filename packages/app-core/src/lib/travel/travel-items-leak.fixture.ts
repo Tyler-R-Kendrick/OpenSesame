@@ -1,5 +1,5 @@
 /**
- * Fixtures for the leak walk over hiding items (ADR 0170): a vault seeded with
+ * Fixtures for the leak walk over hiding items (ADR 0171): a vault seeded with
  * one distinctive string per place an item keeps something, and a reader that
  * collects every surface the owner's key can open.
  */

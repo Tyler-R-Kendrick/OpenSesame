@@ -1,5 +1,5 @@
 /**
- * What hiding items reads and writes in the running app (ADR 0170): the open
+ * What hiding items reads and writes in the running app (ADR 0171): the open
  * vault, the places that could hold a copy this device would hand back, and
  * the places that keep a trace of an item beside it. Tests replace the lot
  * through `travelItemSeams`.

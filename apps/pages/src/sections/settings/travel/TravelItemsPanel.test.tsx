@@ -98,7 +98,7 @@ async function packBank() {
   return screen.findByText("Ready to leave");
 }
 
-describe("Settings › Vaults › Travel › leave items at home (ADR 0170)", () => {
+describe("Settings › Vaults › Travel › leave items at home (ADR 0171)", () => {
   it("draws the row only where there is an item that can leave, and refused for a guest", () => {
     fake.body.items = [];
     const { unmount } = render(<TravelPanel />);

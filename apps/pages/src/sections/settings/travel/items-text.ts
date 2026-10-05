@@ -1,5 +1,5 @@
 /**
- * The words of leaving items home (ADR 0170): what a refusal means, what a
+ * The words of leaving items home (ADR 0171): what a refusal means, what a
  * hide or a return reports, the items a person may choose. Nothing here
  * reads storage; titles appear only while this vault is open in Settings,
  * and nothing remembers them afterwards.

@@ -1,6 +1,6 @@
 /**
  * Leaving items home: pack chosen items of the open vault, then take them
- * out of it (ADR 0170).
+ * out of it (ADR 0171).
  *
  * The vault is open and its key is in memory, so this is a different act
  * from a vault's departure (`depart.ts`, which moves files at rest). It has

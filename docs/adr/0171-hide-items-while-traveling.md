@@ -1,4 +1,4 @@
-# ADR 0170 — Hide items while traveling
+# ADR 0171 — Hide items while traveling
 
 - Status: Accepted
 - Date: 2026-10-05

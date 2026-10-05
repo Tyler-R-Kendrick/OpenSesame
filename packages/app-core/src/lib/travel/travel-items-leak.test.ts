@@ -1,5 +1,5 @@
 /**
- * The leak test for hiding items (ADR 0170): real crypto, the real vault
+ * The leak test for hiding items (ADR 0171): real crypto, the real vault
  * store, the real activity log, the real files of the origin. Items carrying
  * distinctive strings leave a vault; afterwards no place this device keeps
  * anything the owner's key can open may still hold one — and the same run

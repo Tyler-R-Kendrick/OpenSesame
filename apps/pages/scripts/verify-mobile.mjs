@@ -23,16 +23,11 @@ import { contextMenuTouchContract } from "./lib/context-menu-touch-contract.mjs"
 import { doorGuest } from "./lib/front-door.mjs";
 import { auditSettings } from "./lib/layout-contract.mjs";
 import { chooseCapabilitiesHere } from "./lib/mobile-capabilities.mjs";
-import {
-  AUDIT,
-  PHONES,
-  TABLETS,
-  phoneContext,
-  recordStop,
-} from "./lib/mobile-contract.mjs";
+import { AUDIT, phoneContext, recordStop } from "./lib/mobile-contract.mjs";
 import { doorRoads, helpKey, setupCeremony } from "./lib/mobile-gates.mjs";
-import { auditKeybindingsAbsent } from "./lib/mobile-keybindings-absent.mjs";
+import { auditGestures } from "./lib/mobile-gestures.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
+import { sizesToWalk } from "./lib/mobile-sizes.mjs";
 import { phonePolish } from "./lib/phone-polish.mjs";
 import {
   backOutStops,
@@ -182,8 +177,9 @@ async function sections(page, stop) {
   ]) {
     if (await openTab(page, name)) await audit(page, stop(label));
   }
-  // Settings is the last stop: no finger can press a key, so no key editor.
-  await auditKeybindingsAbsent(page, harness, stop);
+  // Settings is the last stop: a finger has no key to press, so the keymap
+  // it is given is the Gestures tab (ADR 0170), made with real touches.
+  await auditGestures(page, harness, stop, audit);
   // Access keeps five more tabs in a scrolling strip; the far one has to be
   // reachable and has to bring itself into view once it is current.
   if (!(await openTab(page, "Access"))) return;
@@ -363,14 +359,21 @@ async function tablet(browser, size) {
   await context.close();
 }
 
+let walked;
+try {
+  walked = sizesToWalk(process.env.MOBILE_SIZES);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(2);
+}
 checkSafeAreas();
 const browser = await harness.launch();
 try {
-  for (const phone of PHONES) {
+  for (const phone of walked.phones) {
     await walk(browser, phone);
     await protectorUnlock(browser, phone);
   }
-  for (const size of TABLETS) await tablet(browser, size);
+  for (const size of walked.tablets) await tablet(browser, size);
 } finally {
   await browser.close();
 }
@@ -387,7 +390,7 @@ if (harness.failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  `\nPASS: the touch contract holds at ${[...PHONES, ...TABLETS]
+  `\nPASS: the touch contract holds at ${[...walked.phones, ...walked.tablets]
     .map((size) => size.width)
     .join(", ")}px.`,
 );

@@ -1,6 +1,6 @@
 /**
  * J-TRAVEL-ITEMS: leaving items at home, from Settings › Security › Travel
- * (ADR 0170) — in the built app, real storage, real crypto, a real bundle file.
+ * (ADR 0171) — in the built app, real storage, real crypto, a real bundle file.
  *
  * A vault of several items. Two are chosen to stay home, packed, saved and
  * taken out. After a reload, a lock and an unlock with the real key — the

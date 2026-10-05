@@ -195,7 +195,7 @@ export function clearTravelRemnants(): Promise<ClearRemnantsOutcome> {
   return clearRemnants(travelSeams.deps);
 }
 
-/** Seal chosen items of the open vault into a bundle. Removes nothing (ADR 0170). */
+/** Seal chosen items of the open vault into a bundle. Removes nothing (ADR 0171). */
 export function packTravelItemDeparture(ids: readonly string[]) {
   return packItemDeparture(travelItemSeams.deps, {
     ids,

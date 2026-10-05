@@ -1,5 +1,5 @@
 /**
- * Items that leave an open vault for a trip, and come back (ADR 0170).
+ * Items that leave an open vault for a trip, and come back (ADR 0171).
  *
  * A normal removal leaves traces on purpose: trash keeps a copy, a purge
  * writes a tombstone so a sync cannot bring the item back, a save writes an

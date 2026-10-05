@@ -16,7 +16,7 @@ const TRAVELLER_ONLY: CapabilityExclusion = {
 const TRAVELLER_ITEMS_ONLY: CapabilityExclusion = {
   reason:
     "choosing which items leave an open vault for a trip, and bringing them back, is the traveller's own decision; an agent that could do either could strip a vault or undo the protection the traveller chose, and never holds a return code",
-  adr: "0170-hide-items-while-traveling.md",
+  adr: "0171-hide-items-while-traveling.md",
 };
 
 export const vaultTravelCapabilities: readonly Capability[] = [

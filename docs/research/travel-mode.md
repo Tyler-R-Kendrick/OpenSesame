@@ -128,4 +128,4 @@ activity lines, retired-password digests, caches, backups, a paired drive's
 merge, shares, file parts) is in
 [`travel-hidden-items.md`](travel-hidden-items.md). The design, which refuses
 beside what it cannot reach rather than claiming to hide, is
-[ADR 0170](../adr/0170-hide-items-while-traveling.md).
+[ADR 0171](../adr/0171-hide-items-while-traveling.md).

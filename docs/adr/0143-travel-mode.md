@@ -9,7 +9,7 @@
   [ADR 0130](0130-duress-profiles-trust-boundaries.md) (duress trust
   boundaries)
 - Research: [`docs/research/travel-mode.md`](../research/travel-mode.md)
-- Amended 2026-10-05: [ADR 0170](0170-hide-items-while-traveling.md) adds a
+- Amended 2026-10-05: [ADR 0171](0171-hide-items-while-traveling.md) adds a
   per-item choice for the **open** vault (the vault departure below is
   unchanged), for a person who must still unlock what they carry.
 
@@ -237,7 +237,7 @@ tab is never mistaken for leftovers.
 
 This ADR moves vaults whole, at rest, with no key in memory. It cannot help a
 person who is compelled to unlock the vault they carry: that vault is open by
-definition. [ADR 0170](0170-hide-items-while-traveling.md) takes chosen items
+definition. [ADR 0171](0171-hide-items-while-traveling.md) takes chosen items
 out of the open vault into an items bundle under its own return code, with a
 removal that leaves no tombstone, trash entry or activity line, and refuses
 beside a backup, a paired drive or any other copy it cannot rewrite.

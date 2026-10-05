@@ -228,6 +228,8 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # one row, the sections sit in a drawer, the chrome stays under a third
 # of the screen, and no strip hides its own selected item. Run before touching
 # layout, chrome, controls or any of the CSS under `(pointer: coarse)`.
+# `MOBILE_SIZES=320,390` (names from `lib/mobile-contract.mjs`) walks only those
+# sizes, which is how CI shards it; an unknown name fails, unset walks them all.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:auth
 # Same harness, the authentication flow (ADR 0091): a guest presses Add on the
@@ -427,6 +429,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `apps/browser-extension` | WXT browser extension; `runner/` is the local runner of the hosted step protocol (ADR 0159): claims steps with the person's Host session for an armed origin, executes them in an isolated-world injection, answers only canonical outcomes, submits at most once, and answers `failed(transport)` for the two capture steps no host envelope scheme exists for |
 | `examples/*` | Example relying parties (`rp-alpha`, `rp-beta`, `static-rp`, `siop-rp`), agents (`agent`, `static-agent`) and a headless device-login client (`headless`) |
 | `packages/app-core` | The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133): the vault store and its tombs, identity and federation, browser-local IAM, connectors, duress, SOPS, the WebMCP tools, the support registries and the screens' view-models (`*-model.ts`) — everything in the client that is not UI, laid out as `apps/pages/src` was. A shell plugs in through one host (`configureHost`, `src/host.ts`) whose ports (`src/ports.ts`: storage, page, authenticator, environment, locks, broadcast, worker, OPFS, IndexedDB) are read at call time, never at import (`src/no-host-import.test.ts`). Hosts: `src/browser/host.ts` (Pages installs it first thing in `main.tsx` via `apps/pages/src/host/boot.ts`), `src/node/host.ts` (the CLI; file storage, 0600) and `src/sandbox/host.ts` plus `sandbox/runtime-contract.ts` (a bare V8 isolate such as Android's JavaScriptSandbox; proven by `sandbox/bare-isolate.test.ts`). Gated by `pnpm quality:app-core` |
+| `packages/app-core/src/lib/keymap/{gestures,gesture-bindings,gesture-recognizer}.ts`, `apps/pages/src/lib/{gesture-runtime,gesture-motion,use-gestures,gesture-help}.ts`, `apps/pages/src/sections/settings/keybindings/{LoadoutTabs,GesturesPanel,GestureRow,MotionSwitch}.tsx` | The keymap's touch loadout (ADR 0170): a closed set of two-finger swipes, a two-finger tap and a shake bound to the same commands as keys through `runTarget` (never a command that asks first, never a register key); the pure recognizer (`RECOGNIZER`, `SHAKE`) in app-core, the touch handlers that claim only a bound swipe that began in a listing, and the motion sensor behind an Allow key where the browser asks first; Settings › Keybindings draws Keyboard and Gestures as tabs and opens on the device's own |
 | `packages/app-core/src/lib/{device-receipts,device-inbox,device-identity-inbox}.ts`, `src/lib/local-notifications/`, `apps/pages/src/modules/notifications.local/` | The device's receipts, inbox and local notifications (ADR 0162): receipts are the vault's own sealed file (`device-receipts-store.ts`), apart from the Access audit, written after each decision and retried from a sealed pending list; the inbox is the pending local requests; the `audit` and `requests` device routes answer them to a session and decide nothing; `notifications.local` rings through the bell, the tab title and badge, and the Notification API (permission asked only on its key), routing narrowed to policy, no server and no push |
 | `packages/vault-core` | The vault format kernel (ADR 0133): header, KDF and seals, unlock records, the item model and paths, TOTP, the offline-backup envelope, the vault-file reader (`openVaultFile`), the secret-drop format and the golden vectors (`spec/conformance/vault-vectors.json`, also read by the Rust reader `crates/human-vault` `pages_vault`). Depends on `os-domain` and `vault-item-types` only — no host, no storage, no platform; strict compiler base. Import from the root: `import { openVaultFile } from "@opensesame/vault-core"` |
 | `packages/app-core/src/lib/item-type-marketplace/`, `packages/app-core/src/sections/settings/{virtual-files,item-type-files}.ts`, `apps/pages/src/sections/settings/files/` | Item-type marketplaces read from any git repository's `.opensesame/marketplace.json` (ours by default: `.opensesame/`, `marketplace/item-types/`, re-pin with `node scripts/release/pin-marketplace.mjs`), and Settings as files — the source view is a file viewer over `VirtualFileProvider`s and the Form is drawn from the same files (ADR 0134) |
@@ -1192,6 +1195,11 @@ CI lives in `.github/workflows/`:
   for that set, and Rust runs `cargo test --all-targets -p` for that set on
   Rust 1.88.0. A root lockfile or manifest tests the whole suite. Bundle
   budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`;
+  its browser gates run as parallel shards of one matrix job (`bundle`: each
+  shard builds Pages once and walks its own gates; `verify:mobile` is split by
+  viewport with `MOBILE_SIZES`), and `scripts/lib/ci-bundle-shards.test.mjs`
+  fails on a gate that runs in no shard or in two. A new gate goes in exactly
+  one shard, not appended to a serial list;
   "Web Push end to end" (`verify:push`) is its own job that the same check
   waits for, and runs when the Pages build or the server code it imports changes.
   The TypeScript job also runs the signature preflight, changed-file lint,

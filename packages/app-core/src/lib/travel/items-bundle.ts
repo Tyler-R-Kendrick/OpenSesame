@@ -1,6 +1,6 @@
 /**
  * The items bundle: items an open vault leaves home for a trip, sealed under
- * a return code (ADR 0170).
+ * a return code (ADR 0171).
  *
  * The same family as the vault bundle (`bundle-format.ts`: AES-256-GCM, a key
  * from HKDF over the 144-bit return code salted with the bundle id, the format,

@@ -119,3 +119,11 @@ forbids putting a local host in front of a browser capability. A prompt for
   CI job. The sheet is back as the SOPS row under Settings › Security (a
   `settings-panel` of `backup.cloud-secrets`), and `verify:sops-static` is a
   CI step. Age armor, the protection manifest and Vault SOPS stay removed.
+- Amended 2026-10-05: the SOPS row is removed from Settings › Security for
+  good, on the owner's instruction. The sheet, its view and hook, the
+  `sops-document` panel `backup.cloud-secrets` contributed, the tutorial target,
+  the `verify:sops-static` walk and its CI job are gone, and the old
+  `#sops`/`#formats` fragments no longer redirect anywhere. The engine in
+  `packages/app-core/src/lib/sops` stays: vault key protection and its
+  conformance suites use it. `backup.cloud-secrets` registers no
+  `settings-panel`, and its runtime test fails if one returns.

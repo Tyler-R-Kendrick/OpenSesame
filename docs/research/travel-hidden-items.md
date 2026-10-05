@@ -1,6 +1,6 @@
 # Hiding items while traveling: what an item leaves behind
 
-Audit for [ADR 0170](../adr/0170-hide-items-while-traveling.md). It extends
+Audit for [ADR 0171](../adr/0171-hide-items-while-traveling.md). It extends
 [`travel-mode.md`](travel-mode.md), which covers whole vaults.
 
 ## The requirement

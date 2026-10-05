@@ -5,7 +5,7 @@ Before/after sheets from two real builds of `apps/pages` (base: `origin/main` at
 this branch), walked by `journey.json` with
 `apps/pages/scripts/capture-evidence.mjs` at 1280 × 900 and 390 × 844. Every
 number below was printed by the capture from the browser (`report`, `measure`).
-[ADR 0170](../../adr/0170-hide-items-while-traveling.md) records the decision;
+[ADR 0171](../../adr/0171-hide-items-while-traveling.md) records the decision;
 [the audit](../../research/travel-hidden-items.md) says what an item leaves
 behind.
 

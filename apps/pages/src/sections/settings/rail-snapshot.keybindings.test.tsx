@@ -3,7 +3,7 @@ import { cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { stubPointer } from "../../lib/use-narrow.test-support.js";
+import { stubScreen } from "../../lib/use-narrow.test-support.js";
 import { settingsPageSources } from "./page-tree.js";
 import { useSettingsPanels } from "./rail-snapshot.js";
 
@@ -25,15 +25,15 @@ function railTabs(): string[] {
 }
 
 describe("the rail's settings tree", () => {
-  it("has no /settings/keybindings entry on a touch-only device", () => {
-    stubPointer(false);
+  it("lists /settings/keybindings on a touch-only device: it has a Gestures loadout", () => {
+    stubScreen({ narrow: true, coarse: true });
     const tabs = railTabs();
-    expect(tabs).not.toContain("keybindings");
+    expect(tabs).toContain("keybindings");
     expect(tabs).toContain("general");
   });
 
   it("lists it where a fine pointer is attached", () => {
-    stubPointer(true);
+    stubScreen({ narrow: false, coarse: false });
     expect(railTabs()).toContain("keybindings");
   });
 });
