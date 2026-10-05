@@ -115,6 +115,30 @@ owning swarm (SETTINGS / ALERT / BUILD) — do not “fix” by disabling
 accessibility.
 
 
+## The real password is refused after a freeze code was used
+
+A **Freeze for a while** code refuses the vault's real credentials for the
+duration chosen (1, 24 or 72 hours), with the same text as an ordinary wrong
+password. It is working as designed, and it holds the owner too. The hold cannot
+be shortened from the device; only the clock reaching its end releases it. A
+guest session and a decoy still open, and a session already open in another tab
+keeps working. When it ends, open the vault with its real key and press **Clear**
+on the Duress row. The hold reads this device's clock: a clock moved forward ends
+it, and a clock moved back by more than 72 hours and a minute makes the record
+unreliable, so it is ignored rather than lock you out for good.
+
+## The vaults are gone after a wipe code was used
+
+A **Wipe this device's copy** code removed this browser's copy of every vault
+except the guest vault. The unlock screen then shows what a device with no vault
+shows. The vaults can be restored only from a backup you made. On the held
+device: seal a new vault, restore the backup into it, press **Clear** on the
+Duress row, and arm a new code. While a real vault exists the fence refuses
+arming and removal, so do these in that order. If the page died mid-wipe the next
+boot finishes it silently; the vault headers go first, so nothing could be
+unlocked in between. It does not remove encrypted file parts, the history backup,
+settings or the Identity session.
+
 ## Peer receiver (optional daemon)
 
 **Default:** off. Enable only on a trusted host with an operator token.
