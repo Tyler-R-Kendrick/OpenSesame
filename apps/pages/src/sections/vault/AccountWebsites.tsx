@@ -53,7 +53,7 @@ function PatternTest({ uri }: { uri: LoginUri }) {
   );
 }
 
-export function LoginWebsites({
+export function AccountWebsites({
   uris,
   onChange,
 }: { uris: LoginUri[]; onChange: (uris: LoginUri[]) => void }) {

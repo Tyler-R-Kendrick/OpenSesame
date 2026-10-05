@@ -14,6 +14,10 @@ function phraseLabel(id: string): string {
   return label;
 }
 
+function withArticle(label: string): string {
+  return `${/^[aeiou]/iu.test(label) ? "An" : "A"} ${label}`;
+}
+
 function itemName(item: VaultItem): string {
   const name = item.name.trim().replaceAll(/\s+/gu, " ");
   if (name.length <= 120) return name;
@@ -30,8 +34,8 @@ function savedSummary(item: VaultItem, created: boolean): string {
   }
   const label = phraseLabel(itemTypeId(item));
   return created
-    ? `A new ${label} was created${named}`
-    : `A ${label} was updated${named}`;
+    ? `${withArticle(`new ${label}`)} was created${named}`
+    : `${withArticle(label)} was updated${named}`;
 }
 
 /** Call only after the sealed mutation has committed. */

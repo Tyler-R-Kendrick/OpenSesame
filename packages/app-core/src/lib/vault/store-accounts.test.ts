@@ -271,7 +271,7 @@ describe("a pepper seal and a Sphinx key through the store", () => {
 
     const held = accountIn(store, account.id);
     expect(JSON.stringify(held.methods)).toBe(methodsJson);
-    const onDisk = JSON.parse(await bodyOnDisk(key)) as VaultBody;
+    const onDisk: VaultBody = JSON.parse(await bodyOnDisk(key));
     const written = onDisk.items.find((item) => item.id === account.id);
     expect(JSON.stringify(written?.kind === "account" && written.methods)).toBe(
       methodsJson,

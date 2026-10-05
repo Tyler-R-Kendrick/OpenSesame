@@ -8,6 +8,7 @@
  * store, a sync snapshot, a backup, an export — passes what it opened through
  * it, so no `login` item outlives the read.
  */
+import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import { isLegacyLogin, migrateLegacyLogin } from "./account.js";
 import type { LegacyLoginItem } from "./account.js";
 import { type SealedBlob, VaultCorruptError, openJson } from "./crypto.js";
@@ -42,8 +43,8 @@ export async function openJsonForRebind<T>(
 
 /** A legacy login read from JSON may lack a field an old writer never set. */
 function wholeLegacyLogin(legacy: LegacyLoginItem): LegacyLoginItem {
-  const text = (value: unknown, fallback = ""): string =>
-    typeof value === "string" ? value : fallback;
+  const text = (value: BoundaryValue, fallback = ""): string =>
+    isString(value) ? value : fallback;
   return {
     ...legacy,
     username: text(legacy.username),

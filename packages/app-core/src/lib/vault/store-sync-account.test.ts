@@ -4,10 +4,10 @@
  * account read as the same account every time, and a hostile manifest unable
  * to put anything on an item but a whole method.
  */
+import type { JsonObject, JsonValue } from "@opensesame/os-domain";
 import {
   type AccountItem,
   type LoginMethod,
-  type PepperSeal,
   accountPlainPassword,
   createItem,
   methodsOfType,
@@ -40,10 +40,7 @@ function accountOf(item: ReturnType<typeof entryToVaultItem>): AccountItem {
   return item;
 }
 
-async function richAccount(): Promise<{
-  item: AccountItem;
-  sealed: PepperSeal;
-}> {
+async function richAccount() {
   const item = createItem("account", "Rich");
   item.username = "ada";
   const sealed = await sealWithPepper(
@@ -166,7 +163,7 @@ describe("an account through a store entry", () => {
 });
 
 describe("entries written before the account", () => {
-  const legacyTrailer = (extra: object) =>
+  const legacyTrailer = (extra: JsonObject) =>
     JSON.stringify({ kind: "login", v: 2, username: "ada", ...extra });
 
   it("reads a login entry as the account migration would make it", () => {
@@ -275,7 +272,7 @@ describe("entries written before the account", () => {
 });
 
 describe("a hostile manifest", () => {
-  const entry = (methods: unknown) => ({
+  const entry = (methods: JsonValue) => ({
     path: "x",
     secret: "",
     trailer: JSON.stringify({ kind: "account", v: 2, values: { methods } }),

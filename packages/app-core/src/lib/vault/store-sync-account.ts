@@ -12,6 +12,7 @@
  */
 import {
   type JsonObject,
+  type JsonValue,
   type MutableJsonObject,
   isJsonObject,
   isString,
@@ -40,8 +41,8 @@ const OTPAUTH = /^otpauth:\/\//iu;
 const ONE_LINE = /^[^\r\n]*$/u;
 const REENROLL = ["none", "new-enrolled", "old-retired"] as const;
 
-function textOf(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
+function textOf(value: JsonValue | undefined): string | undefined {
+  return value !== undefined && isString(value) ? value : undefined;
 }
 
 function urisOf(meta: OsMeta): AccountItem["uris"] {
