@@ -1,27 +1,28 @@
-# The password generator form, closed by default
+# The password form: one field and one Options line
 
 Two real builds, walked the same way at 390 wide (a phone, 1500 tall so the whole
 editor shows) and 1280 wide (a mouse). The base is the branch below this one
-(`claude/lazy-age`: an account's generator is *Rules*, its options always drawn);
-the branch is this commit's build.
+(`claude/lazy-age`: the generator, its rules, a strength figure and the pepper
+checkbox are all drawn); the branch is this commit's build.
 
 | Sheet | What it shows |
 | --- | --- |
-| `390-default.png`, `1280-default.png` | A new account's password as it opens: *Algorithmic*, one line saying what it will make, the password, *Include pepper* |
-| `390-options.png`, `1280-options.png` | The options, opened from that line |
-| `390-pepper.png`, `1280-pepper.png` | *Include pepper* ticked, with *Pepper goes* (`-4`: before the last four characters) |
-| `390-words.png`, `1280-words.png` | The same line and disclosure for random words |
+| `390-default.png`, `1280-default.png` | A new account's password as it opens: the password with its show and make-another keys, and one line, *Options* |
+| `390-options.png`, `1280-options.png` | *Options* opened: the generator (*Algorithmic*), its choices in plain words, and *Include pepper* (on) with *Pepper goes* (`end`) |
+| `390-words.png`, `1280-words.png` | Random words chosen inside *Options* |
 
-Measured in the browser (`capture-evidence.mjs`, `measure` / `report` steps):
+Measured in the browser (`capture-evidence.mjs`, `measure` step on the password
+method, `.method`):
 
-- Options block opened, 390: **247 px (always drawn) → 274 px (hidden until opened)**.
-  At 1280: **130 px → 157 px**. Closed, it is the one summary line.
-- What the options say: `A–Z a–z 0–9 Symbols Avoid l1IO0 Minimum digits Minimum symbols ≈126 bits`
-  → `Capital letters Lowercase letters Numbers Symbols Avoid look-alike characters
-  Fewest numbers Fewest symbols Excellent`. No character string or bit count is on the page.
-- Default generator: *Rules* → *Algorithmic*. The list names kinds only.
-- *Include pepper* and *Pepper goes* are on the form for every generator; the
-  product asks for no pepper and keeps none (ADR 0174).
+- Closed, the method is **530 px → 169 px** at 390 and **314 px → 113 px** at 1280.
+  Opened it is 694 px and 442 px: the same choices, plus where the pepper goes.
+- The generator list and *Include pepper* / *Pepper goes* are no longer on the form;
+  they are inside *Options*. The default generator is *Algorithmic* and the pepper
+  is on, at the end, so neither needs to be opened to get a password.
+- The password field's own label is for screen readers; its group already says
+  *Password*.
+- Wording: `A–Z a–z 0–9 Avoid l1IO0 Minimum digits ≈126 bits` → `Capital letters
+  Lowercase letters Numbers Avoid look-alike characters Fewest numbers Excellent`.
 
 The journey (`journey.json`) is replayable with
 `node apps/pages/scripts/capture-evidence.mjs capture before|after <journey.json>`.

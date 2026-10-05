@@ -24,46 +24,25 @@
           }
         },
         {
-          "measure": "[aria-label='Password generator']"
-        },
-        {
-          "measure": ".gen__opts"
+          "measure": ".method"
         },
         {
           "shot": "390-default"
         },
         {
-          "openDisclosureOptional": "characters"
+          "openDisclosureOptional": "Options"
         },
         {
-          "report": ".gen__opts"
-        },
-        {
-          "measure": ".gen__opts"
+          "measure": ".method"
         },
         {
           "shot": "390-options"
-        },
-        {
-          "checkOptional": "Include pepper"
-        },
-        {
-          "fillOptional": {
-            "label": "Pepper goes",
-            "text": "-4"
-          }
-        },
-        {
-          "shot": "390-pepper"
         },
         {
           "selectOptional": {
             "label": "Password generator",
             "value": "passphrase"
           }
-        },
-        {
-          "openDisclosureOptional": "words"
         },
         {
           "shot": "390-words"
@@ -93,46 +72,25 @@
           }
         },
         {
-          "measure": "[aria-label='Password generator']"
-        },
-        {
-          "measure": ".gen__opts"
+          "measure": ".method"
         },
         {
           "shot": "1280-default"
         },
         {
-          "openDisclosureOptional": "characters"
+          "openDisclosureOptional": "Options"
         },
         {
-          "report": ".gen__opts"
-        },
-        {
-          "measure": ".gen__opts"
+          "measure": ".method"
         },
         {
           "shot": "1280-options"
-        },
-        {
-          "checkOptional": "Include pepper"
-        },
-        {
-          "fillOptional": {
-            "label": "Pepper goes",
-            "text": "-4"
-          }
-        },
-        {
-          "shot": "1280-pepper"
         },
         {
           "selectOptional": {
             "label": "Password generator",
             "value": "passphrase"
           }
-        },
-        {
-          "openDisclosureOptional": "words"
         },
         {
           "shot": "1280-words"
@@ -146,65 +104,49 @@
       "shot": "390-default",
       "width": 390,
       "title": "A new account's password — 390 wide",
-      "caption": "A new password is algorithmic, and the form shows what a person needs: how it is made, the password and Include pepper. The options sit behind one line that says what it will make.",
-      "before": "Rules, options always open",
-      "after": "Algorithmic, one line of options"
+      "caption": "The password, and one line: Options. Nothing else is asked.",
+      "before": "Generator, rules, strength and pepper all drawn",
+      "after": "The password and one Options line"
     },
     {
       "shot": "390-options",
       "width": 390,
-      "title": "The options, opened — 390 wide",
-      "caption": "Opened from that line: length, the kinds of character, the fewest numbers or symbols and a look-alike option in plain words, with a strength word instead of a bit count.",
-      "before": "A–Z · a–z · 0–9 · Avoid l1IO0 · ≈126 bits",
-      "after": "Capital letters · Lowercase letters · Numbers · Avoid look-alike characters · Excellent"
-    },
-    {
-      "shot": "390-pepper",
-      "width": 390,
-      "title": "Include pepper, and where it goes — 390 wide",
-      "caption": "Include pepper leaves a slot for a secret the person keeps. Pepper goes says where, as an index (-4 is before the last four characters). The product asks for no pepper and keeps none.",
-      "before": "No pepper control on the generator form",
-      "after": "Include pepper · Pepper goes −4"
+      "title": "Options, opened — 390 wide",
+      "caption": "The generator (Algorithmic), its choices and the pepper, which is on and goes at the end.",
+      "before": "Always drawn on the form",
+      "after": "Opened from one line, in plain words"
     },
     {
       "shot": "390-words",
       "width": 390,
       "title": "Random words — 390 wide",
-      "caption": "The same line and the same disclosure for a passphrase.",
-      "before": "Word count and separator always open",
-      "after": "One line, options on request"
+      "caption": "Choosing random words inside Options.",
+      "before": "Word count and separator always drawn",
+      "after": "Inside Options"
     },
     {
       "shot": "1280-default",
       "width": 1280,
       "title": "A new account's password — 1280 wide",
-      "caption": "A new password is algorithmic, and the form shows what a person needs: how it is made, the password and Include pepper. The options sit behind one line that says what it will make.",
-      "before": "Rules, options always open",
-      "after": "Algorithmic, one line of options"
+      "caption": "The password, and one line: Options. Nothing else is asked.",
+      "before": "Generator, rules, strength and pepper all drawn",
+      "after": "The password and one Options line"
     },
     {
       "shot": "1280-options",
       "width": 1280,
-      "title": "The options, opened — 1280 wide",
-      "caption": "Opened from that line: length, the kinds of character, the fewest numbers or symbols and a look-alike option in plain words, with a strength word instead of a bit count.",
-      "before": "A–Z · a–z · 0–9 · Avoid l1IO0 · ≈126 bits",
-      "after": "Capital letters · Lowercase letters · Numbers · Avoid look-alike characters · Excellent"
-    },
-    {
-      "shot": "1280-pepper",
-      "width": 1280,
-      "title": "Include pepper, and where it goes — 1280 wide",
-      "caption": "Include pepper leaves a slot for a secret the person keeps. Pepper goes says where, as an index (-4 is before the last four characters). The product asks for no pepper and keeps none.",
-      "before": "No pepper control on the generator form",
-      "after": "Include pepper · Pepper goes −4"
+      "title": "Options, opened — 1280 wide",
+      "caption": "The generator (Algorithmic), its choices and the pepper, which is on and goes at the end.",
+      "before": "Always drawn on the form",
+      "after": "Opened from one line, in plain words"
     },
     {
       "shot": "1280-words",
       "width": 1280,
       "title": "Random words — 1280 wide",
-      "caption": "The same line and the same disclosure for a passphrase.",
-      "before": "Word count and separator always open",
-      "after": "One line, options on request"
+      "caption": "Choosing random words inside Options.",
+      "before": "Word count and separator always drawn",
+      "after": "Inside Options"
     }
   ]
 }
