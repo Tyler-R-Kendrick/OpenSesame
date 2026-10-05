@@ -10,10 +10,9 @@ describe("the keys in a gate screen's corner", () => {
     const { container } = render(<GateTools />);
     const theme = screen.getByRole("button", { name: /^Theme:/ });
     const seat = container.querySelector(".gate-seat");
-    expect(seat).not.toBeNull();
+    if (!seat) throw new Error("no seat drawn");
     expect(
-      theme.compareDocumentPosition(seat as Element) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      theme.compareDocumentPosition(seat) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 

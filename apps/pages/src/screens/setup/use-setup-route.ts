@@ -9,11 +9,11 @@
 import type { GuideRouteId } from "@opensesame/app-core/tutorial/registry/routes.js";
 import { useSupportRoute } from "../../tutorial/session.js";
 
-const TAB_ROUTES: Readonly<Record<string, GuideRouteId>> = {
-  capabilities: "/setup/capabilities",
-  identity: "/setup/identity",
-  connectors: "/setup/connectors",
-};
+const TAB_ROUTES = new Map<string, GuideRouteId>([
+  ["capabilities", "/setup/capabilities"],
+  ["identity", "/setup/identity"],
+  ["connectors", "/setup/connectors"],
+]);
 
 export function setupRoute(
   phase: "choose" | "ceremony",
@@ -21,7 +21,7 @@ export function setupRoute(
 ): GuideRouteId {
   if (phase === "choose") return "/setup/choose";
   if (tab === undefined) return "/setup";
-  return TAB_ROUTES[tab] ?? "/setup";
+  return TAB_ROUTES.get(tab) ?? "/setup";
 }
 
 export function useSetupRoute(

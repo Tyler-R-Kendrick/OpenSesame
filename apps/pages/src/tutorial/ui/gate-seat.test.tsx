@@ -59,15 +59,13 @@ const support: ShellWrapperContribution = {
 };
 
 /** A gate screen: declares where it is, and draws its seat in its chrome row. */
+type GateScreenProps = { route: string; seat?: boolean };
+
 function Screen({
   route,
   seat = true,
   children,
-}: {
-  route: string;
-  seat?: boolean;
-  children?: ReactNode;
-}) {
+}: GateScreenProps & { children?: ReactNode }) {
   useSupportRoute(route);
   return (
     <div data-testid="screen">
@@ -80,7 +78,7 @@ function Screen({
 
 function renderGate(
   wrappers: readonly ShellWrapperContribution[],
-  screenProps: { route: string; seat?: boolean },
+  screenProps: GateScreenProps,
 ) {
   return render(
     <MemoryRouter>

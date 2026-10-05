@@ -51,15 +51,13 @@ const support: ShellWrapperContribution = {
 };
 
 /** A gate screen: declares where it is, and draws its seat in its chrome row. */
+type GateScreenProps = { route: string; seat?: boolean };
+
 function Screen({
   route,
   seat = true,
   children,
-}: {
-  route: string;
-  seat?: boolean;
-  children?: ReactNode;
-}) {
+}: GateScreenProps & { children?: ReactNode }) {
   useSupportRoute(route);
   return (
     <div data-testid="screen">
@@ -72,7 +70,7 @@ function Screen({
 
 function renderGate(
   wrappers: readonly ShellWrapperContribution[],
-  screenProps: { route: string; seat?: boolean },
+  screenProps: GateScreenProps,
 ) {
   return render(
     <MemoryRouter>
@@ -81,6 +79,13 @@ function renderGate(
       </GateHost>
     </MemoryRouter>,
   );
+}
+
+/** The written-help row a title belongs to. */
+function articleOf(title: HTMLElement): HTMLElement {
+  const row = title.closest("article");
+  if (!row) throw new Error("no written-help row around the title");
+  return row;
 }
 
 describe("what the key opens", () => {
@@ -141,9 +146,7 @@ describe("what the key opens", () => {
       "How do I unlock the vault?",
     );
     expect(
-      within(unlock.closest("article") as HTMLElement).queryByRole("button", {
-        name: "Show me",
-      }),
+      within(articleOf(unlock)).queryByRole("button", { name: "Show me" }),
     ).not.toBeNull();
     cleanup();
     const door = await open("/unlock/door");
@@ -151,9 +154,7 @@ describe("what the key opens", () => {
       "How do I unlock the vault?",
     );
     expect(
-      within(written.closest("article") as HTMLElement).queryByRole("button", {
-        name: "Show me",
-      }),
+      within(articleOf(written)).queryByRole("button", { name: "Show me" }),
     ).toBeNull();
   });
 });
