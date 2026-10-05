@@ -1,10 +1,19 @@
 import { type Crumb, crumbsFor } from "@opensesame/app-core/lib/crumbs.js";
 import { Link, useLocation } from "react-router";
+import { useNarrow } from "../lib/use-narrow.js";
 import { useVault } from "../lib/vault/hooks.js";
 import { IconChevronRight } from "./Icons.js";
 
-function tabOrFilter(pathname: string, folderId: string | null): boolean {
+function tabOrFilter(
+  pathname: string,
+  folderId: string | null,
+  narrow: boolean,
+): boolean {
   if (/^\/(settings|wallet)\/[^/]+$/.test(pathname)) return true;
+  // Access marks its tab under the title as Settings does. On a phone the
+  // crumb row appeared only on the sub-tabs and pushed the title 49px down
+  // against the first tab; a wide screen keeps the row it has always drawn.
+  if (narrow && /^\/access\/[^/]+$/.test(pathname)) return true;
   return pathname === "/vault" && !folderId;
 }
 
@@ -76,6 +85,7 @@ export function CrumbTrail({
 function CrumbsDefault() {
   const location = useLocation();
   const crumbs = useCrumbs();
+  const narrow = useNarrow();
   const folderId = new URLSearchParams(location.search).get("folder");
 
   // A breadcrumb with one item is not a breadcrumb, it is a label — and it is
@@ -89,7 +99,7 @@ function CrumbsDefault() {
   // the list is showing. Drawn only on those sub-views, it pushed the title
   // 24px down against its sibling tabs; a path the page does not already
   // show (an item, a folder, a connector) keeps the row.
-  if (crumbs.length === 2 && tabOrFilter(location.pathname, folderId)) {
+  if (crumbs.length === 2 && tabOrFilter(location.pathname, folderId, narrow)) {
     return null;
   }
 

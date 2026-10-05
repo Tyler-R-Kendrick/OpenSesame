@@ -32,6 +32,7 @@ import {
 } from "./lib/mobile-contract.mjs";
 import { auditGestures } from "./lib/mobile-gestures.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
+import { phonePolish } from "./lib/phone-polish.mjs";
 import {
   backOutStops,
   openVaultList,
@@ -214,6 +215,7 @@ async function sections(page, stop) {
 async function vaultItem(page, stop) {
   await treeActions(page, stop, { harness, audit });
   await openVaultList(page);
+  await phonePolish.searchKeysBare(page, stop, { harness });
   const create = page
     .getByRole("link", { name: "New item", exact: true })
     .first();
@@ -247,6 +249,7 @@ async function walk(browser, phone) {
   await doorGuest(page).tap();
   await page.waitForTimeout(1100);
   await audit(page, stop("vault"));
+  await phonePolish.topbarPromptFits(page, stop, { harness });
 
   await sections(page, stop);
 
@@ -260,6 +263,7 @@ async function walk(browser, phone) {
     openTab,
   });
   await audit(page, stop("chosen"));
+  await phonePolish.switchesAligned(page, stop, { harness });
 
   await openTab(page, "Vault");
   await openChromeKey(page, /^More —/, stop("more"));
@@ -269,6 +273,7 @@ async function walk(browser, phone) {
 
   await vaultItem(page, stop);
   await contextMenuTouchContract(page, stop, { harness, openTab, audit });
+  await phonePolish.passwordKeysOneLine(page, stop, { harness, base });
 
   // A locked reload is the screen most phone sessions actually start on.
   await openTab(page, "Vault");

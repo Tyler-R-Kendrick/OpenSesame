@@ -53,6 +53,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-04-push-enrolment-copy/`](2026-10-04-push-enrolment-copy/README.md) | Push enrolment: the Push row and its notices, before and after |
 | [`2026-10-04-phone-tree-actions/`](2026-10-04-phone-tree-actions/README.md) | The phone's section tree carries the vault's command row |
 | [`2026-10-04-phone-add/`](2026-10-04-phone-add/README.md) | The phone's section tree opens on a search field and one Add key |
+| [`2026-10-04-mobile-visual-polish/`](2026-10-04-mobile-visual-polish/README.md) | Mobile visual polish |
 | [`2026-10-04-glyph-identity/`](2026-10-04-glyph-identity/README.md) | Glyphs for vaults and people on a phone (ADR 0164) |
 | [`2026-10-04-gesture-loadout/`](2026-10-04-gesture-loadout/README.md) | The keymap has two loadouts, and a phone leads with gestures |
 | [`2026-10-04-device-inbox/`](2026-10-04-device-inbox/README.md) | Device-mode receipts, inbox and local notifications (ADR 0162) — before and after |

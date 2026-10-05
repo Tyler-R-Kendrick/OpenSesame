@@ -83,7 +83,7 @@ export function currentRailTarget(): RailKeymapTarget | null {
   return railTarget;
 }
 
-/** The search box mounted right now, if any. */
+/** The listing that handles the search verb right now, if any. */
 export function currentSearchTarget(): SearchKeymapTarget | null {
   return searchTarget;
 }
