@@ -2,6 +2,7 @@ import type { VaultItem } from "@opensesame/vault-core";
 import type { Dispatch, SetStateAction } from "react";
 import { useLayoutEffect, useState } from "react";
 import { IconRefresh, IconTrash } from "../../components/Icons.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { PURGE_CONFIRM } from "./vault-menu.js";
 
 type TrashStore = {
@@ -71,6 +72,8 @@ export function TrashCommands({
   onPurge: (item: VaultItem) => void;
 }) {
   const [cursorKey, setCursorKey] = useState<string | null>(null);
+  const restoreRef = useGuideTarget<HTMLButtonElement>("trash.restore");
+  const purgeRef = useGuideTarget<HTMLButtonElement>("trash.purge");
   useLayoutEffect(() => {
     const selected = document.querySelector<HTMLElement>(
       ".vtree__rows [aria-selected='true']",
@@ -84,6 +87,7 @@ export function TrashCommands({
   return (
     <>
       <button
+        ref={restoreRef}
         type="button"
         className="icon-btn icon-btn--sm"
         aria-label="Restore"
@@ -96,6 +100,7 @@ export function TrashCommands({
         <IconRefresh size={15} />
       </button>
       <button
+        ref={purgeRef}
         type="button"
         className={`icon-btn icon-btn--sm icon-btn--danger${armed ? " is-armed" : ""}`}
         aria-label={armed ? PURGE_CONFIRM : "Delete permanently"}

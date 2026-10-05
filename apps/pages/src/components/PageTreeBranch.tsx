@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { type PageTreeNode, pageTreeItemCount } from "../lib/page-to-tree.js";
+import { useOptionalGuideTarget } from "../tutorial/registry/react.jsx";
 import { IconChevronRight } from "./Icons.js";
 import { TreeRow } from "./RailRows.js";
 
@@ -62,12 +63,14 @@ export function PageTreeLeafRow({
   current: string;
 }) {
   const selected = rowSelected(current, node);
+  const guideRef = useOptionalGuideTarget<HTMLAnchorElement>(node.guide);
   return (
     <TreeRow
       child
       level={level}
       to={node.href}
       label={node.label}
+      navRef={guideRef}
       selectTo={node.selectTo}
       selected={selected}
       isActive={selected}
@@ -106,6 +109,7 @@ export function PageTreeBranch({
   const selected =
     rowSelected(current, node) || (!expanded && current === node.config);
   const shown = pageTreeItemCount(node) || "-";
+  const guideRef = useOptionalGuideTarget<HTMLAnchorElement>(node.guide);
   // Nothing to open: a row with no entries and no empty line of its own is
   // a place, not a directory — no caret, no "-" count (Settings › Danger).
   if (!children && !empty && !node.collection && node.children.length === 0) {
@@ -118,6 +122,7 @@ export function PageTreeBranch({
         level={level}
         to={node.href}
         label={node.label}
+        navRef={guideRef}
         expanded={expanded}
         selected={selected}
         isActive={selected}
