@@ -1,7 +1,16 @@
 /** @vitest-environment jsdom */
 
 import { isBoolean } from "@opensesame/os-domain";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { createItem } from "@opensesame/vault-core";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { accountSeams } from "../../lib/account.js";
 import { deviceIdentitySeams } from "../../lib/device-identity.js";
@@ -162,6 +171,26 @@ describe("reading a predicate", () => {
     } finally {
       provideGuideInstallOffer(() => false);
     }
+  });
+
+  it("says whether the vault holds items and trash, and nothing about which", () => {
+    vaultStore.lock();
+    expect(readGuidePredicate("vault.has-items")).toBe(false);
+    expect(readGuidePredicate("vault.has-trash")).toBe(false);
+    const snapshot = vaultStore.getSnapshot();
+    const held = (deletedAt: string | null) =>
+      vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
+        ...snapshot,
+        items: [{ ...createItem("secret", "one"), deletedAt }],
+      });
+    const spy = held(null);
+    expect(readGuidePredicate("vault.has-items")).toBe(true);
+    expect(readGuidePredicate("vault.has-trash")).toBe(false);
+    spy.mockRestore();
+    const trashed = held("2026-10-05T00:00:00.000Z");
+    expect(readGuidePredicate("vault.has-items")).toBe(false);
+    expect(readGuidePredicate("vault.has-trash")).toBe(true);
+    trashed.mockRestore();
   });
 
   it("refuses an id nothing declared", () => {
