@@ -130,7 +130,7 @@ all give it one.
 | `ntfy` | [ntfy](https://ntfy.sh) | `ntfy serve`; keep its message cache on (the default is 12 hours; do not set `cache-duration: 0`), so a code posted during a reconnect is kept; topics are created on first use. A token or user/password goes in the file. |
 | `nostr` | any NIP-01 relay ([strfry](https://github.com/hoytech/strfry), [nostr-rs-relay](https://github.com/scsibug/nostr-rs-relay)) | Must pass ephemeral kind 25050 events and index the `t` tag. |
 | `mqtt` | Mosquitto, EMQX, NanoMQ, HiveMQ | Mosquitto: `listener 9001` + `protocol websockets`, and a `password_file` or `allow_anonymous true`, since Mosquitto 2 refuses anonymous clients by default. Topic `opensesame/live/<topic>`, QoS 1. |
-| `nats` | [nats-server](https://nats.io) | `websocket { port: 8443, tls { … } }`. Subject `opensesame.live.<topic>`; grant `opensesame.live.>` to the user or token you name. |
+| `nats` | [nats-server](https://nats.io) | `pnpm dev:live-nats` writes a server in operator mode whose credentials each session mints ([below](#nats-a-credential-per-session-and-the-session-itself)). Or `websocket { port: 8443, tls { … } }` with a user or token granted `opensesame.live.>`. Subject `opensesame.live.<topic>`. |
 | `broadcast` | this browser | Owner and joiner in two tabs of one browser profile. Nothing leaves the device. |
 
 Publishing a carrier:
@@ -156,6 +156,43 @@ with nothing else to lose. MQTT and NATS can restrict a user to the
 live-session prefix (`opensesame/live/#`, `opensesame.live.>`); ntfy and Nostr
 topics have no prefix to restrict to, so give them a token or account used for
 nothing else.
+
+### NATS: a credential per session, and the session itself
+
+A NATS server can do two things the other carriers cannot
+([ADR 0167](../adr/0167-nats-live-session-route.md)):
+
+- **Mint a credential per session.** In operator mode the server trusts any
+  user an account signing key issues. Give Routes that key and each session
+  mints two user credentials from it: one for the link, one the owner's tab
+  keeps. Both reach only that session's subjects and stop working when it
+  ends; the signing key stays in the sealed profile and never travels.
+- **Carry the session when the browsers cannot meet.** *Session over this
+  server* is **If direct fails** by default: if the peer connection fails,
+  or has not connected after eight seconds, the joiner's seat moves onto the
+  server. **Always** skips the peer connection; **Codes only** keeps the
+  server to pairing codes. Every frame is sealed end
+  to end with the pairing's keys; the server sees ciphertext and its size,
+  as a TURN relay does.
+
+While a session runs, the owner's tab also answers as a NATS service,
+`opensesame-live` (`nats micro ls`, `$SRV.PING`), and on
+`opensesame.live.<topic>.info` says only that it is live.
+
+```bash
+# One server, once: operator mode, a WebSocket listener with TLS.
+pnpm dev:live-nats -- --websocket 0.0.0.0:8443 \
+  --tls-cert /etc/nats/live.crt --tls-key /etc/nats/live.key \
+  --out ~/live-nats
+nats-server -c ~/live-nats/live-sessions.conf
+# → Routes › NATS server: wss://nats.example.com:8443,
+#   Sign-in "Per session",
+#   the account public key and signing key from live-sessions.mint.json.
+```
+
+`operator.nk` is the operator's seed: keep it offline. To revoke every link
+at once, generate a new account and replace the server's configuration; a
+single session's credentials expire with it.
 
 Browsers may ask the person before a public page reaches a carrier on a
 tailnet or LAN address. Chrome calls this Local Network Access, and the
@@ -231,7 +268,8 @@ The roads:
 - each carrier, with nothing pasted:
   - Nostr (a relay in the test process);
   - MQTT (aedes);
-  - NATS: a real nats-server, set by `LIVE_NATS_SERVER` or the mTLS fixture pin;
+  - NATS: a real nats-server, set by `LIVE_NATS_SERVER` or the mTLS fixture pin
+    (`pnpm test:mtls:fixtures`);
   - ntfy: a real ntfy server, set by `LIVE_NTFY_SERVER`;
   - BroadcastChannel;
 - relay-only through a real TURN server, once for each way to reach one, each
@@ -251,10 +289,17 @@ The roads:
   and allocated for both peers, and no client traffic may have reached the
   others.
 
+- NATS in operator mode (`pnpm dev:live-nats`), named through the Form with
+  its signing key: `nats-always` reveals a value over the server with no
+  peer connection up, and `nats-fallback` does the same for a joiner whose
+  browser has no route at all. Both check the link carries a minted
+  credential and never the signing key, that the owner's tab answers
+  `$SRV.PING` and `info`, and that the server passed no plaintext.
+
 `LIVE_CARRIERS=nostr,mqtt` limits which carriers run, and
 `LIVE_SCENARIOS=relayed,relayed-tcp,relayed-tls` (from `direct`, `carriers`,
 `declined`, `relayed`, `relayed-tcp`, `relayed-tls`, `relayed-rest`,
-`relayed-rest-wrong`, `tunnel`) limits which walks. `LIVE_TURN_SERVER` names the `live-turn` binary; `pnpm
+`relayed-rest-wrong`, `nats-always`, `nats-fallback`, `tunnel`) limits which walks. `LIVE_TURN_SERVER` names the `live-turn` binary; `pnpm
 test:live-fixtures` builds it (Go is needed) to `.cache/live-fixtures/bin`. A
 missing server fails the run; it is never skipped silently.
 

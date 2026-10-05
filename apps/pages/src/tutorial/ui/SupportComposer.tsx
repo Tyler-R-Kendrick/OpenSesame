@@ -9,6 +9,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { IconArrowRight, IconSearch } from "../../components/Icons.js";
 import { useSupport } from "../session.js";
 
 type SupportSlotApi = {
@@ -88,7 +89,7 @@ export function SupportComposer({
   };
 
   return (
-    <form className="support__composer" onSubmit={submit}>
+    <form className="support__composer keyed-row" onSubmit={submit}>
       <label className="visually-hidden" htmlFor={askId}>
         {label}
       </label>
@@ -105,10 +106,12 @@ export function SupportComposer({
       </div>
       <button
         type="submit"
-        className="btn btn--primary"
+        className="icon-btn"
         disabled={value.trim().length === 0}
+        aria-label={modelReady ? "Ask" : "Search"}
+        title={modelReady ? "Ask" : "Search"}
       >
-        {modelReady ? "Ask" : "Search"}
+        {modelReady ? <IconArrowRight size={17} /> : <IconSearch size={17} />}
       </button>
     </form>
   );

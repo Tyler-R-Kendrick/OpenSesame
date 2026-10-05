@@ -23,12 +23,9 @@ export function DeleteVaultSheet({
     <CeremonySheet
       title="Delete a vault"
       mark={<IconTrash size={20} />}
-      foot="Copies outside this browser — a backup, another device — are not touched."
       onClose={onClose}
     >
       <CeremonyShell
-        ok={false}
-        top="Delete this vault?"
         name={label}
         facts={[
           { key: "Cleared", value: "its files in this browser" },

@@ -1,0 +1,130 @@
+{
+  "1280-devices": {
+    "panels": [
+      "Tailnet devices",
+      "Tailnet auth keys",
+      "Tailnet activity",
+      "This vault's browsers"
+    ],
+    "rows": 5,
+    "tailnetMachines": 4,
+    "keys": [
+      "Add a device",
+      "Reload tailnet devices",
+      "Forget this daemon's pairing",
+      "Approve sams-phone",
+      "Settings for sams-phone",
+      "Expire sams-phone's key",
+      "Remove sams-phone from the tailnet",
+      "Settings for amelies-laptop",
+      "Expire amelies-laptop's key",
+      "Remove amelies-laptop from the tailnet",
+      "Settings for build-box",
+      "Expire build-box's key",
+      "Remove build-box from the tailnet",
+      "Settings for pangolin",
+      "Expire pangolin's key",
+      "Remove pangolin from the tailnet",
+      "Reload browsers",
+      "Edit Chrome on Linux"
+    ]
+  },
+  "1280-add": {
+    "pressed": "Add a device",
+    "panels": [
+      "Tailnet devices",
+      "Tailnet auth keys",
+      "Tailnet activity",
+      "This vault's browsers"
+    ],
+    "rows": 5,
+    "tailnetMachines": 4,
+    "keys": [
+      "Add a device",
+      "Reload tailnet devices",
+      "Forget this daemon's pairing",
+      "Approve sams-phone",
+      "Settings for sams-phone",
+      "Expire sams-phone's key",
+      "Remove sams-phone from the tailnet",
+      "Settings for amelies-laptop",
+      "Expire amelies-laptop's key",
+      "Remove amelies-laptop from the tailnet",
+      "Settings for build-box",
+      "Expire build-box's key",
+      "Remove build-box from the tailnet",
+      "Settings for pangolin",
+      "Expire pangolin's key",
+      "Remove pangolin from the tailnet",
+      "Close",
+      "Close",
+      "Mint an auth key",
+      "Reload browsers",
+      "Edit Chrome on Linux"
+    ]
+  },
+  "390-devices": {
+    "panels": [
+      "Tailnet devices",
+      "Tailnet auth keys",
+      "Tailnet activity",
+      "This vault's browsers"
+    ],
+    "rows": 5,
+    "tailnetMachines": 4,
+    "keys": [
+      "Add a device",
+      "Reload tailnet devices",
+      "Forget this daemon's pairing",
+      "Approve sams-phone",
+      "Settings for sams-phone",
+      "Expire sams-phone's key",
+      "Remove sams-phone from the tailnet",
+      "Settings for amelies-laptop",
+      "Expire amelies-laptop's key",
+      "Remove amelies-laptop from the tailnet",
+      "Settings for build-box",
+      "Expire build-box's key",
+      "Remove build-box from the tailnet",
+      "Settings for pangolin",
+      "Expire pangolin's key",
+      "Remove pangolin from the tailnet",
+      "Reload browsers",
+      "Edit Chrome on Linux"
+    ]
+  },
+  "390-add": {
+    "pressed": "Add a device",
+    "panels": [
+      "Tailnet devices",
+      "Tailnet auth keys",
+      "Tailnet activity",
+      "This vault's browsers"
+    ],
+    "rows": 5,
+    "tailnetMachines": 4,
+    "keys": [
+      "Add a device",
+      "Reload tailnet devices",
+      "Forget this daemon's pairing",
+      "Approve sams-phone",
+      "Settings for sams-phone",
+      "Expire sams-phone's key",
+      "Remove sams-phone from the tailnet",
+      "Settings for amelies-laptop",
+      "Expire amelies-laptop's key",
+      "Remove amelies-laptop from the tailnet",
+      "Settings for build-box",
+      "Expire build-box's key",
+      "Remove build-box from the tailnet",
+      "Settings for pangolin",
+      "Expire pangolin's key",
+      "Remove pangolin from the tailnet",
+      "Close",
+      "Close",
+      "Mint an auth key",
+      "Reload browsers",
+      "Edit Chrome on Linux"
+    ]
+  }
+}

@@ -135,10 +135,10 @@ jobs:
     needs: changes
     if: needs.changes.outputs.bundle == 'true'
     runs-on: ubuntu-latest
-    # This job walks one build through every browser gate in turn. On
-    # 2026-10-05 it took 19 of its 20 minutes before the Settings-file stops
-    # joined verify:mobile (+1.5 minutes), and a run whose every step passed was
-    # cancelled at the limit. 30 keeps room for the next gate.
+    # 2026-10-05: 20 -> 30. The job builds Pages and then walks every
+    # verify:* journey, and each journey added (the duress modes' three, the
+    # tutorials') lengthens it. A run on #717 finished in 19m52s and the next on
+    # #718 was cancelled by this limit mid-journey with every walk passing.
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0

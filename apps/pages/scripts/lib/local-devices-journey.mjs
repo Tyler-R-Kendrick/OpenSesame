@@ -23,7 +23,9 @@ export async function localDevicesJourney({
     "devices",
     "identity",
   );
-  const panel = management.getByRole("region", { name: "Devices" });
+  const panel = management.getByRole("region", {
+    name: "This vault's browsers",
+  });
   await expect(panel).toBeVisible();
   // This device is named by its status mark, not a text pill.
   const mine = panel.getByRole("listitem").filter({

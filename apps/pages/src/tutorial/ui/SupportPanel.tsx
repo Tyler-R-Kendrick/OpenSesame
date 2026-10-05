@@ -304,7 +304,7 @@ export function SupportPanel(): ReactElement {
                           <button
                             key={suggestion}
                             type="button"
-                            className="btn btn--sm btn--ghost"
+                            className="btn btn--sm btn--ghost choice"
                             disabled={!canAsk}
                             onClick={() => void support.ask(suggestion)}
                           >

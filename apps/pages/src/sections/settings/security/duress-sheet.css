@@ -22,10 +22,29 @@
   color: var(--ink-3);
 }
 
+/* A list that wraps: two or three modes sit side by side, and a sixth on a
+   390px sheet folds under the others instead of overflowing. */
 .duress__choices {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
   gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.duress__choices > li {
+  min-width: 0;
+}
+
+/* A list of lines the owner writes: tall enough to read what was typed, with
+   the field floor so a phone does not zoom on focus. */
+.duress__lines {
+  resize: vertical;
+  min-height: 6rem;
+  padding: 0.5rem 0.45rem 0.5rem 0.1rem;
+  font-size: max(0.9375rem, var(--field-min));
+  line-height: 1.4;
 }
 
 .duress__choice,

@@ -43,10 +43,12 @@ mod peer_auth;
 mod plugin_routes;
 mod promote;
 mod ratelimit;
+mod requests;
 mod runner;
 mod startup;
 #[cfg(all(unix, feature = "tailscale"))]
 mod tailnet;
+mod tailnet_admin_routes;
 mod tailscale;
 mod token_source;
 mod toolbar;
@@ -97,8 +99,11 @@ struct App {
     vault_drive: Option<Arc<vault_drive::DriveStore>>,
     /// Optional plugins' settings file (ADR 0150 §7); never a plugin itself.
     plugins: plugin_routes::PluginHost,
+    /// Tailnet device management (ADR 0169).
+    tailnet: tailnet_admin_routes::TailnetAdminHost,
 }
 
+use requests::{ApproveClaimReq, ApproveDeviceReq, MintCapReq};
 use token_source::{cli_token_source_factory, TokenSourceFactory};
 
 #[derive(Clone, Debug)]
@@ -115,35 +120,6 @@ struct SessionCapability {
     audience: String,
     expires_at: chrono::DateTime<Utc>,
     scopes: Vec<String>,
-}
-
-#[derive(Deserialize)]
-struct MintCapReq {
-    audience: String,
-    #[serde(default)]
-    scopes: Vec<String>,
-    /// Bind the capability to this host session when more than one exists.
-    #[serde(default)]
-    session_id: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct ApproveDeviceReq {
-    user_code: String,
-    #[serde(default)]
-    principal: Option<String>,
-}
-
-#[derive(Deserialize)]
-struct ApproveClaimReq {
-    claim_id: String,
-    #[serde(default)]
-    access_token: Option<String>,
-    #[serde(default)]
-    claim_token: Option<String>,
-    /// User code shown by the device — required by the Identity API fallback.
-    #[serde(default)]
-    user_code: Option<String>,
 }
 
 /// Authorize an operator-route call.
@@ -568,6 +544,7 @@ fn router(state: App) -> Router {
         .route("/v1/duress/peer/envelope", post(duress_peer_envelope))
         .merge(vault_drive_routes::routes())
         .merge(plugin_routes::routes(&state))
+        .merge(tailnet_admin_routes::routes(&state))
         .merge(fill::routes(fill::FillState::from_env(), &state))
         .with_state(state)
 }
@@ -1014,6 +991,7 @@ mod tests {
             duress_peer: None,
             vault_drive: None,
             plugins: plugin_routes::PluginHost::at(None, Arc::new(|_| None)),
+            tailnet: tailnet_admin_routes::TailnetAdminHost::detached(),
         }
     }
 

@@ -8,46 +8,40 @@ import {
 } from "@opensesame/app-core/lib/local-devices.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconKey, ReloadKey } from "../../components/IconKey.js";
-import { IconPlus } from "../../components/Icons.js";
+import { ReloadKey } from "../../components/IconKey.js";
 import { StatusMark } from "../../components/StatusMark.js";
-import { byId, useFocusAfter } from "../../lib/use-focus-after.js";
+import { type FocusTarget, useFocusAfter } from "../../lib/use-focus-after.js";
 import {
   type ArmedKey,
   type DeviceDraft,
   DeviceForm,
   DeviceRows,
   type DevicesModel,
-  NEW_DEVICE_KEY_ID,
-  newDeviceDraft,
 } from "./LocalDeviceRows.js";
 
 const READ_ERROR =
   "Could not read devices from this vault. Unlock it and reload; restore a backup if the problem persists.";
 
 /**
- * Identity › Devices for this vault: the same commands as every other
- * Identity list — register one, reload, edit, remove behind an armed key —
- * over the device inventory (`local-devices.ts`).
+ * The browsers that opened this vault (`local-devices.ts`): each lists
+ * itself when it unlocks, and may be renamed or removed. The tailnet's real
+ * machines are a separate panel, above, when device management is on
+ * (ADR 0169).
  */
 export function LocalDevicesPanel({ tomb }: { tomb: string }) {
   const model = useDevices(tomb);
-  const { devices, draft, setDraft, busy, error, reload } = model;
+  const { devices, busy, error, reload } = model;
   return (
-    <section className="panel" aria-label="Devices">
+    <section className="panel" aria-label="This vault's browsers">
       <div className="panel__head">
-        <h2>Devices</h2>
-        <fieldset className="vtree__keys" aria-label="Device commands">
-          <IconKey
-            id={NEW_DEVICE_KEY_ID}
-            label="New device"
-            small
-            disabled={busy || !devices || draft !== null}
-            onClick={() => setDraft(newDeviceDraft())}
-          >
-            <IconPlus size={15} />
-          </IconKey>
-          <ReloadKey label="Reload devices" disabled={busy} onReload={reload} />
+        <h2>Browsers</h2>
+        <fieldset className="vtree__keys" aria-label="Browser commands">
+          <ReloadKey
+            label="Reload browsers"
+            disabled={busy}
+            onReload={reload}
+            keyRef={model.reloadKey}
+          />
         </fieldset>
       </div>
       <div className="panel__body">
@@ -67,10 +61,10 @@ export function LocalDevicesPanel({ tomb }: { tomb: string }) {
             </>
           ) : null}
           {!devices && !error ? (
-            <StatusMark tone="idle" label="Loading devices…" />
+            <StatusMark tone="idle" label="Loading browsers…" />
           ) : null}
           {devices?.length === 0 ? (
-            <StatusMark tone="idle" label="No devices yet." />
+            <StatusMark tone="idle" label="No browsers yet." />
           ) : null}
           {devices &&
           isDeviceListFull(devices) &&
@@ -119,6 +113,7 @@ function useDevices(tomb: string): DevicesModel & { reload: () => void } {
   const [busy, setBusy] = useState(false);
   const generation = useRef(0);
   const focusAfter = useFocusAfter(busy);
+  const reloadKey = useRef<HTMLButtonElement>(null);
 
   // Load through `load`, and drop a result a later load has overtaken.
   const load = useCallback(
@@ -150,7 +145,10 @@ function useDevices(tomb: string): DevicesModel & { reload: () => void } {
     };
   }, [tomb, load]);
 
-  async function run(action: () => Promise<LocalDevice[]>, focusId?: string) {
+  async function run(
+    action: () => Promise<LocalDevice[]>,
+    focus?: FocusTarget,
+  ) {
     if (busy) return;
     setBusy(true);
     setError("");
@@ -160,7 +158,7 @@ function useDevices(tomb: string): DevicesModel & { reload: () => void } {
       showRows(next);
       setDraft(null);
       setArmed(null);
-      if (focusId) focusAfter(byId(focusId));
+      if (focus) focusAfter(focus);
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -182,6 +180,7 @@ function useDevices(tomb: string): DevicesModel & { reload: () => void } {
     busy,
     error: rows.error,
     run,
+    reloadKey,
     // The explicit reload clears what is shown and touches again, so a
     // browser left off a full list is listed once a slot has been freed.
     reload: () => {

@@ -64,7 +64,7 @@ describe("Reset this browser on the lock screens", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Erase everything in this browser" }),
+      screen.getByRole("button", { name: "Erase this browser" }),
     ).toBeTruthy();
     expect(
       screen.getByRole("button", { name: "Continue as guest" }),

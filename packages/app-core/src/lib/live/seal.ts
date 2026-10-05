@@ -58,9 +58,10 @@ export function newCode(): string {
 /**
  * `request-outer` is keyed by the link secret alone: whoever cannot open it
  * does not hold the link. `request` and `reply` add the code and the secret
- * the owner and one joiner share.
+ * the owner and one joiner share; so does `channel`, each frame of a session
+ * relayed over NATS (`seat-channel.ts`).
  */
-export type Purpose = "request-outer" | "request" | "reply";
+export type Purpose = "request-outer" | "request" | "reply" | "channel";
 
 export type SealContext = Readonly<{
   /** The link secret, base64url. */

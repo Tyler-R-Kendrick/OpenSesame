@@ -6,7 +6,8 @@
  *
  * A row per address, ICE server and carrier, each with one key; one field to
  * add each kind. Credentials a TURN server needs are asked beside its URL;
- * a carrier's are written in the file.
+ * a NATS server's sign-in and session route beside its URL (ADR 0167); any
+ * other carrier's credentials are written in the file.
  */
 
 import {

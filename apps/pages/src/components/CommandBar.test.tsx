@@ -112,6 +112,15 @@ function renderBar(withSupport: boolean) {
 }
 
 /** The bar beside the address it navigates, and a way out of the section. */
+/** The command field, narrowed by a check rather than an assertion. */
+function commandField(): HTMLInputElement {
+  const field = screen.getByRole("combobox", { name: "Command" });
+  if (!(field instanceof HTMLInputElement)) {
+    throw new Error("the command field is not an input");
+  }
+  return field;
+}
+
 function Where() {
   const { pathname, search } = useLocation();
   return <output data-testid="where">{`${pathname}${search}`}</output>;
@@ -200,9 +209,7 @@ describe("CommandBar — command or ask", () => {
   it("searches in the field: the words stay, nothing opens over it, Esc empties it", async () => {
     const user = userEvent.setup();
     renderBar(false);
-    const field = screen.getByRole("combobox", {
-      name: "Command",
-    }) as HTMLInputElement;
+    const field = commandField();
     await user.type(field, "/? bank");
     expect(liveSearch()).toBe("bank");
     await user.keyboard("{Enter}");
@@ -221,7 +228,7 @@ describe("CommandBar — command or ask", () => {
     const focus = vi.fn(() => true);
     const stop = registerSearchConsumer({ visible: () => true, focus });
     renderBarAt("/start");
-    const field = screen.getByRole("combobox", { name: "Command" });
+    const field = commandField();
     await user.type(field, "/? bank{Enter}");
     expect(focus).toHaveBeenCalledOnce();
     expect(screen.getByTestId("where").textContent).toBe("/start");
@@ -230,7 +237,7 @@ describe("CommandBar — command or ask", () => {
     await user.clear(field);
     await user.type(field, "/? bank{Enter}");
     expect(screen.getByTestId("where").textContent).toBe("/vault?f=all");
-    expect((field as HTMLInputElement).value).toBe("/? bank");
+    expect(field.value).toBe("/? bank");
   });
 
   it("a listing with nothing to land on leaves the caret in the field", async () => {
@@ -241,20 +248,18 @@ describe("CommandBar — command or ask", () => {
       focus: () => false,
     });
     renderBarAt("/start");
-    const field = screen.getByRole("combobox", { name: "Command" });
+    const field = commandField();
     await user.type(field, "/? zzzz{Enter}");
     expect(document.activeElement).toBe(field);
     expect(screen.getByTestId("where").textContent).toBe("/start");
-    expect((field as HTMLInputElement).value).toBe("/? zzzz");
+    expect(field.value).toBe("/? zzzz");
     stop();
   });
 
   it("a commit that stays in its section does not carry the words into the next", async () => {
     const user = userEvent.setup();
     renderBarAt("/vault");
-    const field = screen.getByRole("combobox", {
-      name: "Command",
-    }) as HTMLInputElement;
+    const field = commandField();
     await user.type(field, "/? bank{Enter}");
     expect(screen.getByTestId("where").textContent).toBe("/vault?f=all");
     await user.click(screen.getByRole("link", { name: "elsewhere" }));
@@ -265,9 +270,7 @@ describe("CommandBar — command or ask", () => {
   it("Escape during an IME composition cancels the composition, not the search", async () => {
     const user = userEvent.setup();
     renderBarAt("/vault");
-    const field = screen.getByRole("combobox", {
-      name: "Command",
-    }) as HTMLInputElement;
+    const field = commandField();
     await user.type(field, "/? ba");
     fireEvent.keyDown(field, { key: "Escape", isComposing: true });
     expect(field.value).toBe("/? ba");
@@ -281,17 +284,15 @@ describe("CommandBar — command or ask", () => {
     renderBarAt("/vault");
     const run = screen.getByRole("button", { name: "Run command" });
     await user.type(screen.getByRole("combobox", { name: "Command" }), "/? ");
-    expect((run as HTMLButtonElement).disabled).toBe(true);
+    expect(run).toHaveProperty("disabled", true);
     await user.keyboard("a");
-    expect((run as HTMLButtonElement).disabled).toBe(false);
+    expect(run).toHaveProperty("disabled", false);
   });
 
   it("words typed for one section do not follow a person into another", async () => {
     const user = userEvent.setup();
     renderBarAt("/vault");
-    const field = screen.getByRole("combobox", {
-      name: "Command",
-    }) as HTMLInputElement;
+    const field = commandField();
     await user.type(field, "/? bank");
     await user.click(screen.getByRole("link", { name: "elsewhere" }));
     expect(field.value).toBe("");

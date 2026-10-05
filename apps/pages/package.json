@@ -46,11 +46,13 @@
     "build:live-dedicated": "PAGES_DEPLOYMENT_PROFILE=dedicated_origin PAGES_CANONICAL_ORIGIN=https://opensesame.example.test PAGES_HEADER_SECURITY=1 node scripts/stamped-build.mjs 'vite build --outDir dist-live-dedicated --emptyOutDir'",
     "verify:capability-graph": "node scripts/verify-capability-graph.mjs",
     "verify:mutations": "node scripts/verify-mutations.mjs",
-    "verify:tailnet-sync": "node scripts/verify-tailnet-sync.mjs"
+    "verify:tailnet-sync": "node scripts/verify-tailnet-sync.mjs",
+    "verify:tailnet-devices": "node scripts/verify-tailnet-devices.mjs"
   },
   "dependencies": {
     "@azure/msal-browser": "5.22.0",
     "@nats-io/nats-core": "3.4.0",
+    "@nats-io/services": "3.4.0",
     "@openfeature/core": "1.12.0",
     "@openfeature/web-sdk": "1.10.0",
     "@opensesame/app-core": "workspace:*",

@@ -1,0 +1,40 @@
+{
+  "1280-devices": {
+    "panels": ["Devices"],
+    "rows": 1,
+    "tailnetMachines": 0,
+    "keys": ["New device", "Reload devices", "Edit Chrome on Linux"]
+  },
+  "1280-add": {
+    "pressed": "New device",
+    "panels": ["Devices"],
+    "rows": 1,
+    "tailnetMachines": 0,
+    "keys": [
+      "New device",
+      "Reload devices",
+      "Edit Chrome on Linux",
+      "Register device",
+      "Cancel"
+    ]
+  },
+  "390-devices": {
+    "panels": ["Devices"],
+    "rows": 1,
+    "tailnetMachines": 0,
+    "keys": ["New device", "Reload devices", "Edit Chrome on Linux"]
+  },
+  "390-add": {
+    "pressed": "New device",
+    "panels": ["Devices"],
+    "rows": 1,
+    "tailnetMachines": 0,
+    "keys": [
+      "New device",
+      "Reload devices",
+      "Edit Chrome on Linux",
+      "Register device",
+      "Cancel"
+    ]
+  }
+}
