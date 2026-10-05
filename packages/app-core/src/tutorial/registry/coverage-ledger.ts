@@ -11,10 +11,6 @@
  * "not worth a tutorial" is not a reason.
  */
 export const COVERAGE_EXEMPT = {
-  "target:vault.filter": "no tutorial points at it yet",
-  "target:vault.filter.favorites": "no tutorial points at it yet",
-  "target:vault.filter.logins": "no tutorial points at it yet",
-  "target:vault.health.findings": "no tutorial points at it yet",
   "target:unlock.submit":
     "a gate screen: its tour needs the gate help launcher (ADR 0165)",
   "target:unlock.secret":
@@ -25,7 +21,6 @@ export const COVERAGE_EXEMPT = {
     "a gate screen: its tour needs the gate help launcher (ADR 0165)",
   "target:unlock.signin":
     "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:vaults.list": "no tutorial points at it yet",
   "target:unlock.setup":
     "a gate screen: its tour needs the gate help launcher (ADR 0165)",
   "target:setup.join":
@@ -44,32 +39,4 @@ export const COVERAGE_EXEMPT = {
     "a gate screen: its tour needs the gate help launcher (ADR 0165)",
   "target:identity.org-signin":
     "sits in the Organizations tab, which a URL query selects, so a guide cannot navigate there; it also needs an owner with a session on a remote Identity API, so it cannot be reached with Next alone",
-  "key:listing.next": "no tutorial teaches this key yet",
-  "key:listing.previous": "no tutorial teaches this key yet",
-  "key:listing.first": "no tutorial teaches this key yet",
-  "key:listing.last": "no tutorial teaches this key yet",
-  "key:listing.high": "no tutorial teaches this key yet",
-  "key:listing.mid": "no tutorial teaches this key yet",
-  "key:listing.low": "no tutorial teaches this key yet",
-  "key:listing.half-down": "no tutorial teaches this key yet",
-  "key:listing.half-up": "no tutorial teaches this key yet",
-  "key:listing.page-down": "no tutorial teaches this key yet",
-  "key:listing.page-up": "no tutorial teaches this key yet",
-  "key:listing.dive": "no tutorial teaches this key yet",
-  "key:listing.climb": "no tutorial teaches this key yet",
-  "key:listing.search": "no tutorial teaches this key yet",
-  "key:command.palette": "no tutorial teaches this key yet",
-  "key:help.keymap": "no tutorial teaches this key yet",
-  "key:voice.toggle": "no tutorial teaches this key yet",
-  "key:item.copy-secret": "no tutorial teaches this key yet",
-  "key:item.copy-username": "no tutorial teaches this key yet",
-  "key:item.edit": "no tutorial teaches this key yet",
-  "key:item.new": "no tutorial teaches this key yet",
-  "key:item.favorite": "no tutorial teaches this key yet",
-  "key:item.trash": "no tutorial teaches this key yet",
-  "key:item.share": "no tutorial teaches this key yet",
-  "key:item.restore": "no tutorial teaches this key yet",
-  "key:item.purge": "no tutorial teaches this key yet",
-  "key:register.record": "no tutorial teaches this key yet",
-  "key:register.replay": "no tutorial teaches this key yet",
 } as const satisfies Readonly<Record<string, string>>;

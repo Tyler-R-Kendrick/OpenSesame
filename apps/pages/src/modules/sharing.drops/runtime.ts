@@ -14,13 +14,18 @@
  *    (`lib/vault/drop-transport.ts`) — or the device-native claim plane on
  *    this origin (`lib/vault/local-drop-claims.ts`, OPFS kv, no network)
  *    when Pages is the claim host.
- * No tutorial descriptors exist for drops yet.
+ * Contributed: the Share once key's walkthrough
+ * (`tutorial/registry/drops-catalog.ts`).
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { sweepDrops } from "@opensesame/app-core/lib/vault/drop.js";
 import { LOCAL_DROP_CLAIM_KEYS } from "@opensesame/app-core/lib/vault/local-drop-claims.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import {
+  DROPS_GOALS,
+  DROPS_TARGETS,
+} from "@opensesame/app-core/tutorial/registry/drops-catalog.js";
 import { KIND_LABEL } from "@opensesame/vault-core";
 import { IconDrop } from "../../components/Icons.js";
 import {
@@ -29,6 +34,7 @@ import {
 } from "../../sections/vault/DropCeremony.js";
 import { createActivation } from "../activation.js";
 import { anySignal, runUnlessAborted } from "../signals.js";
+import { registerTutorial } from "../tutorial-contributions.js";
 
 export const CAPABILITY = "sharing.drops";
 
@@ -61,6 +67,10 @@ export const capabilityRuntime: CapabilityRuntime = {
       id: "drop",
       order: 10,
       Panel: ShareSecretDrop,
+    });
+    registerTutorial(activation, {
+      targets: DROPS_TARGETS,
+      goals: DROPS_GOALS,
     });
     // Disposal on unlock: a claimed or lapsed drop leaves the vault. It stops
     // between drops once the lease or this run's own signal aborts.
