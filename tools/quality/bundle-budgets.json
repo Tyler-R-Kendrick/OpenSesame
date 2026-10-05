@@ -126,7 +126,18 @@
       "Four kibibytes over the measurement, as before. The way back under is",
       "to load the age adapters on demand, which moves the whole noble",
       "ed25519 module (about 55 KiB) out of the entry; that touches the",
-      "unlock path and is a change of its own, not this one's."
+      "unlock path and is a change of its own, not this one's.",
+      "2026-10-05: largestAsset 798 -> 805 for both hardened profiles",
+      "(ADR 0144 items 11-18, tailnet sync). The entry chunk measures",
+      "801.0 KiB on this branch merged with accounts (#715) and 794.2 on",
+      "main at b0eee3c0, built the way the Bundle budgets job builds them.",
+      "The 7 KiB is core write-path code every profile runs: the skew-safe",
+      "stamps applied to every vault edit (vault-core/stamps.ts), the",
+      "field-level item merge that also merges login methods one by one",
+      "(item-merge.ts, merge.ts), and the master-password record the store",
+      "writes on every password change (vault/master-wrap.ts). None of it",
+      "can be loaded on demand: the store's one write path calls the stamp",
+      "synchronously. Four kibibytes over the measurement, as before."
     ],
     "builds": {
       "minimal-local-hardened": {
@@ -136,7 +147,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 798
+          "largestAsset": 805
         }
       },
       "family-local-hardened": {
@@ -146,7 +157,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 798
+          "largestAsset": 805
         }
       }
     }
