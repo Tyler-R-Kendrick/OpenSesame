@@ -46,13 +46,16 @@
    and the name is read in the switcher it opens. The name stays in the DOM and
    in `aria-label` either way, so what a control is called never changes with
    the width it is drawn at. */
-.rail__prompt .prompt__seg--glyph {
+/* The rail only: the phone's top bar prompt is a `.rail__prompt` too, and a
+   flex container there would let the coarse-pointer `justify-content: center`
+   move its glyph inside the key. */
+.rail .rail__prompt .prompt__seg--glyph {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
 }
 
-.rail__prompt .prompt__seg--glyph .prompt__glyph {
+.rail .rail__prompt .prompt__seg--glyph .prompt__glyph {
   width: 1.5rem;
 }
 
