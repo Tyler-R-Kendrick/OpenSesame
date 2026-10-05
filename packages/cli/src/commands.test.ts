@@ -7,6 +7,7 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { loadSession } from "./identity-session.js";
 import { runCli } from "./run.js";
 
 const ISSUER = "http://127.0.0.1:8788";
@@ -159,9 +160,7 @@ describe("runCli — login", () => {
     expect(code).toBe(0);
     expect(out).toContain('"userCode": "ABCD-EFGH"');
     expect(out).toContain('"authenticated": true');
-    expect(JSON.parse(await readFile(sessionFile(), "utf8")).accessToken).toBe(
-      "at-device",
-    );
+    expect((await loadSession())?.accessToken).toBe("at-device");
   });
 
   it("login --anonymous --json prints the guest envelope as JSON", async () => {
@@ -189,8 +188,8 @@ describe("runCli — login", () => {
       fetchImpl,
     });
     expect(code).toBe(0);
-    const saved = JSON.parse(await readFile(sessionFile(), "utf8"));
-    expect(saved.expiresAt).toBeUndefined();
+    const saved = await loadSession();
+    expect(saved?.expiresAt).toBeUndefined();
   });
 
   it("login --loopback completes the code exchange over the loopback server", async () => {
@@ -222,11 +221,11 @@ describe("runCli — login", () => {
     });
     expect(code).toBe(0);
     expect(out).toMatch(/Logged in via loopback/);
-    const saved = JSON.parse(await readFile(sessionFile(), "utf8"));
-    expect(saved.accessToken).toBe("at-loop");
-    expect(saved.refreshToken).toBe("rt-loop");
-    expect(saved.idToken).toBe("id-loop");
-    expect(saved.expiresAt).toBeGreaterThan(Date.now());
+    const saved = await loadSession();
+    expect(saved?.accessToken).toBe("at-loop");
+    expect(saved?.refreshToken).toBe("rt-loop");
+    expect(saved?.idToken).toBe("id-loop");
+    expect(saved?.expiresAt).toBeGreaterThan(Date.now());
   });
 });
 
@@ -578,10 +577,10 @@ describe("runCli — session refresh", () => {
     const code = await runCli(["whoami", "--issuer", ISSUER], { fetchImpl });
     expect(code).toBe(0);
     expect(seen).toEqual(["Bearer at-new"]);
-    const saved = JSON.parse(await readFile(sessionFile(), "utf8"));
-    expect(saved.accessToken).toBe("at-new");
-    expect(saved.refreshToken).toBe("rt-new");
-    expect(saved.expiresAt).toBeGreaterThan(Date.now());
+    const saved = await loadSession();
+    expect(saved?.accessToken).toBe("at-new");
+    expect(saved?.refreshToken).toBe("rt-new");
+    expect(saved?.expiresAt).toBeGreaterThan(Date.now());
   });
 
   it("keeps the old refresh token when the grant does not rotate it", async () => {
@@ -594,10 +593,10 @@ describe("runCli — session refresh", () => {
     });
     const code = await runCli(["whoami", "--issuer", ISSUER], { fetchImpl });
     expect(code).toBe(0);
-    const saved = JSON.parse(await readFile(sessionFile(), "utf8"));
-    expect(saved.refreshToken).toBe("rt-old");
+    const saved = await loadSession();
+    expect(saved?.refreshToken).toBe("rt-old");
     // No expires_in in the grant: the previous expiry is carried over.
-    expect(saved.expiresAt).toBeLessThan(Date.now());
+    expect(saved?.expiresAt).toBeLessThan(Date.now());
   });
 
   it("gives up when discovery fails", async () => {
@@ -672,9 +671,7 @@ describe("runCli — session refresh", () => {
     const code = await runCli(["whoami", "--issuer", ISSUER], { fetchImpl });
     expect(code).toBe(1);
     expect(out).toMatch(/Not authenticated/);
-    expect(JSON.parse(await readFile(sessionFile(), "utf8")).accessToken).toBe(
-      "at-old",
-    );
+    expect((await loadSession())?.accessToken).toBe("at-old");
   });
 });
 
@@ -722,7 +719,7 @@ describe("runCli — environment defaults", () => {
       fetchImpl,
     });
     expect(code).toBe(0);
-    const saved = JSON.parse(await readFile(sessionFile(), "utf8"));
-    expect(saved.accessToken).toBe("pst_guest");
+    const saved = await loadSession();
+    expect(saved?.accessToken).toBe("pst_guest");
   });
 });

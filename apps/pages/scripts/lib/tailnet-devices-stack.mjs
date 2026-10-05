@@ -15,7 +15,12 @@ import { createHarness } from "./static-origin-harness.mjs";
 import { API_TOKEN, TAILNET, startTailscaleStub } from "./tailscale-stub.mjs";
 
 const repo = fileURLToPath(new URL("../../../..", import.meta.url));
-const binary = path.join(repo, "target/debug/opensesame");
+const binary =
+  process.env.OPENSESAME_BIN ??
+  path.join(
+    process.env.CARGO_TARGET_DIR ?? path.join(repo, "target"),
+    "debug/opensesame",
+  );
 
 export async function until(check, what, ms = 20_000) {
   const end = Date.now() + ms;

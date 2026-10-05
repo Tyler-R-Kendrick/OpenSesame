@@ -1,4 +1,4 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { isFunction } from "@opensesame/os-domain";
@@ -24,6 +24,20 @@ const BASE_URL = `http://${HOST}:${PORT}`;
  * invented here.
  */
 const PREVIEW_ENV = { VITE_BASE: "/" };
+const previewCommand = `pnpm --filter @opensesame/pages exec vite preview --host ${HOST} --port ${PORT} --strictPort`;
+// Opt in only after a current VITE_BASE=/ build; defaults still build dependencies.
+const usePrebuilt = process.env.PAGES_VISUAL_PREBUILT === "1";
+if (usePrebuilt) {
+  const index = new URL("../../apps/pages/dist/index.html", import.meta.url);
+  if (
+    !existsSync(index) ||
+    !readFileSync(index, "utf8").includes('src="/assets/')
+  ) {
+    throw new Error(
+      "PAGES_VISUAL_PREBUILT requires an existing Pages build with VITE_BASE=/",
+    );
+  }
+}
 
 /**
  * Prefer a pinned Chromium at /opt/pw-browsers (container image). Otherwise
@@ -33,6 +47,7 @@ const PREVIEW_ENV = { VITE_BASE: "/" };
 const PINNED_CHROMIUM = "/opt/pw-browsers/chromium";
 
 function resolveChromium(): string | undefined {
+  if (process.env.PLAYWRIGHT_CHROMIUM) return process.env.PLAYWRIGHT_CHROMIUM;
   if (existsSync(PINNED_CHROMIUM)) return PINNED_CHROMIUM;
   const root =
     process.env.PLAYWRIGHT_BROWSERS_PATH ??
@@ -102,7 +117,9 @@ export default defineConfig({
     // turbo builds the workspace packages Pages imports first; a bare
     // `pnpm --filter @opensesame/pages build` fails on a fresh checkout whose
     // dependencies have never been built.
-    command: `pnpm exec turbo run build --filter=@opensesame/pages && pnpm --filter @opensesame/pages exec vite preview --port ${PORT} --strictPort`,
+    command: usePrebuilt
+      ? previewCommand
+      : `pnpm exec turbo run build --filter=@opensesame/pages && ${previewCommand}`,
     // Playwright 1.55.1 rejects a webServer config specifying both `port`
     // and `url` ("Either 'port' or 'url' should be specified"); `url` alone
     // both pins the readiness check and matches `use.baseURL` above, so it's

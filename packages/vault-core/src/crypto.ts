@@ -154,6 +154,9 @@ export function assertKdfParams(kdf: KdfParams): void {
 }
 
 export async function importVaultKey(raw: Uint8Array): Promise<CryptoKey> {
+  if (raw.byteLength !== VAULT_KEY_BYTES) {
+    throw new VaultCorruptError("vault key is the wrong size");
+  }
   return crypto.subtle.importKey("raw", overlapCast(raw), "AES-GCM", false, [
     "encrypt",
     "decrypt",

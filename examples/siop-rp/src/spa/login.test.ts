@@ -222,7 +222,7 @@ describe("single-page relying party: the login is the tab's and is sealed", () =
     await beginSignIn(CONFIG, page.deps(""));
     const sent = new URL(page.navigations[0] ?? "");
     const dump = page.storage.dump();
-    expect(dump).toContain("osc1.");
+    expect(dump).toContain("osc2.");
     for (const secret of [
       sent.searchParams.get("state") ?? "",
       sent.searchParams.get("nonce") ?? "",

@@ -1,5 +1,7 @@
 import { type JsonObject, isString, overlapCast } from "@opensesame/os-domain";
 import { and, eq, lt } from "drizzle-orm";
+import type { EventSealer } from "./event-seal.js";
+import { oidcLookup, openOidcRow, sealOidcRow } from "./oidc-seal.js";
 import type { Database } from "./repos/postgres.js";
 import * as schema from "./schema/index.js";
 
@@ -103,16 +105,13 @@ export function oidcPayloadFromRow(
   return payload;
 }
 
-export function createPostgresOidcStore(db: Database): OidcStore {
-  const rowFor = (model: string, id: string) =>
-    and(eq(schema.oidcPayloads.model, model), eq(schema.oidcPayloads.id, id));
-
-  const live = (row: OidcRow): OidcStorePayload | undefined =>
-    oidcPayloadFromRow(row);
-
+function oidcWrites(
+  db: Database,
+  codec: EventSealer,
+): Pick<OidcStore, "upsert" | "pruneExpired"> {
   return {
     async upsert(model, id, payload, expiresAt) {
-      const values = oidcRowValues(model, id, payload, expiresAt);
+      const values = { ...sealOidcRow(codec, model, id, payload), expiresAt };
       await db
         .insert(schema.oidcPayloads)
         .values(values)
@@ -120,6 +119,7 @@ export function createPostgresOidcStore(db: Database): OidcStore {
           target: [schema.oidcPayloads.model, schema.oidcPayloads.id],
           set: {
             payload: values.payload,
+            sealScope: values.sealScope,
             expiresAt: values.expiresAt,
             uid: values.uid,
             userCode: values.userCode,
@@ -128,6 +128,37 @@ export function createPostgresOidcStore(db: Database): OidcStore {
         });
     },
 
+    async pruneExpired(now = new Date()) {
+      // Rows with no TTL are the provider's long-lived models; they stay.
+      const removed = await db
+        .delete(schema.oidcPayloads)
+        .where(lt(schema.oidcPayloads.expiresAt, now))
+        .returning({ id: schema.oidcPayloads.id });
+      return removed.length;
+    },
+  };
+}
+
+export function createPostgresOidcStore(
+  db: Database,
+  sealer?: EventSealer,
+): OidcStore {
+  if (!sealer)
+    throw new Error("A durable sealing key is required for OIDC storage");
+  const codec = sealer;
+  const rowFor = (model: string, id: string) =>
+    and(
+      eq(schema.oidcPayloads.model, model),
+      eq(schema.oidcPayloads.id, oidcLookup(codec, model, "id", id)),
+    );
+
+  const live = (
+    row: typeof schema.oidcPayloads.$inferSelect,
+  ): OidcStorePayload | undefined =>
+    oidcPayloadFromRow({ ...row, payload: openOidcRow(codec, row) });
+
+  return {
+    ...oidcWrites(db, codec),
     async find(model, id) {
       const [row] = await db
         .select()
@@ -144,7 +175,10 @@ export function createPostgresOidcStore(db: Database): OidcStore {
         .where(
           and(
             eq(schema.oidcPayloads.model, model),
-            eq(schema.oidcPayloads.userCode, userCode),
+            eq(
+              schema.oidcPayloads.userCode,
+              oidcLookup(codec, model, "userCode", userCode),
+            ),
           ),
         )
         .limit(1);
@@ -158,7 +192,7 @@ export function createPostgresOidcStore(db: Database): OidcStore {
         .where(
           and(
             eq(schema.oidcPayloads.model, model),
-            eq(schema.oidcPayloads.uid, uid),
+            eq(schema.oidcPayloads.uid, oidcLookup(codec, model, "uid", uid)),
           ),
         )
         .limit(1);
@@ -179,16 +213,12 @@ export function createPostgresOidcStore(db: Database): OidcStore {
     async revokeByGrantId(grantId) {
       await db
         .delete(schema.oidcPayloads)
-        .where(eq(schema.oidcPayloads.grantId, grantId));
-    },
-
-    async pruneExpired(now = new Date()) {
-      // Rows with no TTL are the provider's long-lived models; they stay.
-      const removed = await db
-        .delete(schema.oidcPayloads)
-        .where(lt(schema.oidcPayloads.expiresAt, now))
-        .returning({ id: schema.oidcPayloads.id });
-      return removed.length;
+        .where(
+          eq(
+            schema.oidcPayloads.grantId,
+            oidcLookup(codec, "", "grantId", grantId),
+          ),
+        );
     },
   };
 }

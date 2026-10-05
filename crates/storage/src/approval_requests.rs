@@ -9,7 +9,7 @@ use super::{
     now_rfc3339, stored_approval_decision, stored_approval_request, validate_json_document, Db,
     StoredApprovalDecision, StoredApprovalRequest,
 };
-use crate::sealed::{open_opt, seal_opt};
+use crate::sealed::{open_opt_in, seal_opt_in};
 
 impl Db {
     /// # Errors
@@ -139,7 +139,7 @@ impl Db {
         .bind(decision.step_seq)
         .bind(&decision.approver)
         .bind(&decision.decision)
-        .bind(seal_opt("approval_decisions.comment", decision.comment.as_deref()))
+        .bind(seal_opt_in(&decision.organization_id, "approval_decisions.comment", &decision.id, decision.comment.as_deref()))
         .bind(&decision.decided_at)
         .bind(decision.version)
         .bind(&decision.created_at)
@@ -167,7 +167,12 @@ impl Db {
         rows.iter()
             .map(|row| {
                 let mut decision = stored_approval_decision(row);
-                decision.comment = open_opt("approval_decisions.comment", decision.comment)?;
+                decision.comment = open_opt_in(
+                    &decision.organization_id,
+                    "approval_decisions.comment",
+                    &decision.id,
+                    decision.comment,
+                )?;
                 Ok(decision)
             })
             .collect()

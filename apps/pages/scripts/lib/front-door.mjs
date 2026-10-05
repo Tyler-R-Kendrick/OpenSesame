@@ -17,6 +17,9 @@ export function doorGuest(page) {
  */
 export async function passTheDoor(page) {
   const setUp = page.getByRole("button", { name: "Set up your own" });
+  const signIn = page.getByRole("heading", { level: 1, name: "Sign in" });
+  // A newly opened page can reach network idle before React paints the door.
+  await setUp.or(signIn).first().waitFor({ state: "visible", timeout: 15000 });
   if ((await setUp.count()) === 0) return;
   await setUp.click();
   await page.getByRole("button", { name: "Skip all" }).click();
