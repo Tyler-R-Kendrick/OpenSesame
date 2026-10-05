@@ -36,30 +36,18 @@ import {
   undeclaredGuideTargetMounts,
 } from "./targets.js";
 
-const CATALOG_MORE_SOURCE = readFileSync(
-  join(import.meta.dirname, "catalog-more.ts"),
-  "utf8",
-).replace(
+const read = (file: string) =>
+  readFileSync(join(import.meta.dirname, file), "utf8");
+
+const CATALOG_MORE_SOURCE = read("catalog-more.ts").replace(
   "...SETUP_TARGETS,",
-  readFileSync(join(import.meta.dirname, "setup-catalog.ts"), "utf8"),
+  read("setup-catalog.ts"),
 );
 
-const CATALOG_SOURCE = readFileSync(
-  join(import.meta.dirname, "catalog.ts"),
-  "utf8",
-)
-  .replace(
-    "...SHELL_TARGETS,",
-    readFileSync(join(import.meta.dirname, "shell-catalog.ts"), "utf8"),
-  )
-  .replace(
-    "...VAULT_TARGETS,",
-    readFileSync(join(import.meta.dirname, "vault-catalog.ts"), "utf8"),
-  )
-  .replace(
-    "...FEATURE_TARGETS,",
-    readFileSync(join(import.meta.dirname, "feature-catalog.ts"), "utf8"),
-  )
+const CATALOG_SOURCE = read("catalog.ts")
+  .replace("...SHELL_TARGETS,", read("shell-catalog.ts"))
+  .replace("...VAULT_TARGETS,", read("vault-catalog.ts"))
+  .replace("...FEATURE_TARGETS,", read("feature-catalog.ts"))
   .replace("...GUIDE_TARGETS_MORE,", CATALOG_MORE_SOURCE);
 
 /**
@@ -75,16 +63,12 @@ const OPTIONAL_TARGET_SOURCES = [
   "identity-catalog.ts",
   "wallet-catalog.ts",
   "activity-catalog.ts",
+  "live-catalog.ts",
   "notifications-catalog.ts",
   "plugins-catalog.ts",
 ];
 
-const TARGET_SOURCES = [
-  CATALOG_SOURCE,
-  ...OPTIONAL_TARGET_SOURCES.map((file) =>
-    readFileSync(join(import.meta.dirname, file), "utf8"),
-  ),
-];
+const TARGET_SOURCES = [CATALOG_SOURCE, ...OPTIONAL_TARGET_SOURCES.map(read)];
 
 const GOALS_SOURCES = [
   "goals.ts",

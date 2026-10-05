@@ -56,6 +56,47 @@ export function provideGuideInstallOffer(read: () => boolean): void {
   installOffer = read;
 }
 
+/** How this device draws the shell, as the shell last said it. */
+export type GuideDeviceForm = Readonly<{
+  /** Below the one-pane breakpoint: a menu key and a More key, no rail. */
+  narrow: boolean;
+  /** A precise pointer is attached, so Settings draws Keybindings. */
+  keys: boolean;
+}>;
+
+let deviceForm: () => GuideDeviceForm = () => ({ narrow: false, keys: true });
+
+/**
+ * Where the shell says how it is drawn. The width and the pointer live in the
+ * browser, so the shell hands the registry its reader instead of the registry
+ * asking the window; absent, the page is a desktop with a keyboard.
+ */
+export function provideGuideDeviceForm(read: () => GuideDeviceForm): void {
+  deviceForm = read;
+}
+
+/** The plugin panels the active plugin capabilities draw, by plugin id. */
+const pluginPanels = new Map<string, () => boolean>();
+
+/**
+ * A plugin capability says whether its panel is drawn, which depends on a
+ * paired daemon or the means to pair one. Returns what undoes it, so a
+ * capability that is no longer in the plan stops answering.
+ */
+export function provideGuidePluginPanel(
+  plugin: string,
+  read: () => boolean,
+): () => void {
+  pluginPanels.set(plugin, read);
+  return () => {
+    if (pluginPanels.get(plugin) === read) pluginPanels.delete(plugin);
+  };
+}
+
+function pluginPanelDrawn(plugin: string): boolean {
+  return pluginPanels.get(plugin)?.() === true;
+}
+
 function currentRoute(): GuideRouteId {
   return guideRouteForPath(page().location.pathname);
 }
@@ -162,6 +203,42 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
     id: "network.online",
     description: "This browser believes it has a network.",
     read: () => isOnline(),
+  },
+  {
+    id: "shell.wide",
+    description:
+      "The shell is wide enough for the section rail and the statusline. Below 900px it draws one pane, with a Sections key and a More key in the top bar instead.",
+    read: () => !deviceForm().narrow,
+  },
+  {
+    id: "shell.narrow",
+    description:
+      "The shell is drawn one pane at a time, with a Sections key and a More key in the top bar and no rail or statusline.",
+    read: () => deviceForm().narrow,
+  },
+  {
+    id: "shell.keys",
+    description:
+      "A precise pointer is attached, so Settings draws the Keybindings category.",
+    read: () => deviceForm().keys,
+  },
+  {
+    id: "vault.recovery-made",
+    description:
+      "This vault has recovery codes, so Settings › Security draws a Recovery row.",
+    read: () => Boolean(vaultStore.getSnapshot().header?.unlocks?.recovery),
+  },
+  {
+    id: "plugin.surrogate-proxy.panel",
+    description:
+      "Settings › Capabilities draws the surrogate proxy's panel: a daemon is paired, or this device may pair one.",
+    read: () => pluginPanelDrawn("surrogate-proxy"),
+  },
+  {
+    id: "plugin.browser-autofill.panel",
+    description:
+      "Settings › Capabilities draws the autofill extension's panel: a daemon is paired, or this device may pair one.",
+    read: () => pluginPanelDrawn("browser-autofill"),
   },
 ];
 
