@@ -1,13 +1,12 @@
 /**
- * Installed: the files in `settings/item-types/installed/`, one row each,
- * with a key that opens the file and one that removes it — armed in place
- * before it acts — and `builtin/` folded beneath, read-only, because a
- * built-in cannot be removed (ADR 0087 §5). Removing a file never rewrites
- * the items its type shaped.
+ * Types a person wrote or took from a marketplace: the files in
+ * `settings/item-types/installed/`, one row each, with a key that opens the
+ * file and one that removes it — armed in place before it acts. Built-ins are
+ * the switches above; they are not files to manage here. Removing a file never
+ * rewrites the items its type shaped (ADR 0087 §5).
  */
 
 import {
-  BUILTIN_DIR,
   INSTALLED_DIR,
   NEW_TYPE_PATH,
   installedPath,
@@ -97,24 +96,18 @@ function definitionsIn(
     .sort((a, b) => a.spec.title.localeCompare(b.spec.title));
 }
 
-/**
- * With nothing installed the list is empty and says nothing: the Marketplace
- * tab is beside it, and the one thing to do here is write a type, which is a
- * key (ADR 0158) — where a file viewer exists to write it in.
- */
-function Empty() {
+/** The one key that writes a new type, where a file viewer exists to write it in. */
+function NewTypeKey() {
   const openFile = useOpenSettingsFile();
   if (!openFile) return null;
   return (
-    <div className="itype-empty">
-      <IconKey
-        small
-        label="Write a new item type"
-        onClick={() => openFile(NEW_TYPE_PATH)}
-      >
-        <IconPlus size={16} />
-      </IconKey>
-    </div>
+    <IconKey
+      small
+      label="Write a new item type"
+      onClick={() => openFile(NEW_TYPE_PATH)}
+    >
+      <IconPlus size={16} />
+    </IconKey>
   );
 }
 
@@ -129,14 +122,17 @@ export function InstalledTypes({
 }) {
   const [armed, setArmed] = useState<string | null>(null);
   const installed = definitionsIn(files, INSTALLED_DIR);
-  const builtin = definitionsIn(files, BUILTIN_DIR);
 
   return (
-    <>
-      {installed.length === 0 ? (
-        <Empty />
-      ) : (
-        <ul className="itype-list" aria-label="Installed types">
+    <section className="pack-group" aria-labelledby="pack-group-yours">
+      <div className="pack-group__head">
+        <h3 className="pack-group__label" id="pack-group-yours">
+          Yours
+        </h3>
+        <NewTypeKey />
+      </div>
+      {installed.length === 0 ? null : (
+        <ul className="itype-list" aria-label="Types you added">
           {installed.map((definition) => {
             const id = definition.metadata.id;
             const title = definition.spec.title;
@@ -165,29 +161,6 @@ export function InstalledTypes({
           })}
         </ul>
       )}
-      <details className="itype-builtin">
-        <summary>
-          <span>builtin/</span>
-          <span className="itype-count">{builtin.length}</span>
-        </summary>
-        <ul
-          className="itype-list itype-list--compact"
-          aria-label="Built-in types"
-        >
-          {builtin.map((definition) => (
-            <TypeRow
-              key={definition.metadata.id}
-              definition={definition}
-              trailing={
-                <OpenFileKey
-                  path={`${BUILTIN_DIR}/${definition.metadata.id}.json`}
-                  name={`${definition.metadata.id}.json`}
-                />
-              }
-            />
-          ))}
-        </ul>
-      </details>
-    </>
+    </section>
   );
 }

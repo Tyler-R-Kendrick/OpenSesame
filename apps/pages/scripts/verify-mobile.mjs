@@ -37,6 +37,7 @@ import {
   backOutStops,
   openVaultList,
   treeActions,
+  treeWalks,
 } from "./lib/phone-vault.mjs";
 import { settingsFileStops } from "./lib/settings-file-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -235,6 +236,7 @@ async function vaultItem(page, stop) {
   await page.waitForTimeout(900);
   await audit(page, stop("item"));
   await backOutStops(page, stop, { harness, audit });
+  await treeWalks(page, stop, { harness });
 }
 
 async function walk(browser, phone) {
