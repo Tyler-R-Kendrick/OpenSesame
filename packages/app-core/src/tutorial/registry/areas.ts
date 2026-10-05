@@ -76,6 +76,8 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
     goals: [
       "connection.create",
       "connection.repair",
+      "connection.review",
+      "connection.revoke",
       "browser.pair",
       "browser.authenticate",
       "feature.connections",
@@ -86,8 +88,10 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
     title: "Access",
     goals: [
       "access.grant",
+      "access.review",
       "access.connectors",
       "access.relay",
+      "access.requests.hosted",
       "access.sessions.review",
       "agent.control",
       "agent.observe",
@@ -108,6 +112,8 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "identity.switch-account",
       "identity.account.add",
       "identity.agents.manage",
+      "identity.applications.manage",
+      "identity.organizations.review",
       "identity.users.manage",
       "identity.approval.review",
       "identity.claim.accept",

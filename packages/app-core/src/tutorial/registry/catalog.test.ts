@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CAPABILITIES } from "@opensesame/capability-registry";
 import {
+  AUTHORED_GUIDE_LIMITS,
   MAX_SEMANTIC_ID_CHARS,
   compileGuide,
   isGuideSemanticId,
@@ -202,12 +203,7 @@ describe("the page context a model is handed", () => {
 });
 
 describe("the authored guides", () => {
-  /**
-   * The important one. An authored guide gets no privileged path: it goes
-   * through exactly the parser and vocabulary check a model's output does, so
-   * a goal naming a control this build does not have fails here rather than
-   * at a resolver, at run time, in front of somebody asking for help.
-   */
+  /** The same checks as model output; only a tour's size is wider (ADR 0163). */
   it("compile against the live registries", () => {
     const vocabulary = {
       goals: guideGoalIds(),
@@ -217,7 +213,11 @@ describe("the authored guides", () => {
     };
 
     for (const goal of mergedGuideGoals()) {
-      const compiled = compileGuide(goal.guide, vocabulary);
+      const compiled = compileGuide(
+        goal.guide,
+        vocabulary,
+        AUTHORED_GUIDE_LIMITS,
+      );
       if (!compiled.ok) {
         throw new Error(
           `${goal.id} failed at ${compiled.stage}: ${JSON.stringify(compiled.errors)}`,
