@@ -7,11 +7,25 @@
  */
 import { listHostedRequests } from "@opensesame/app-core/lib/approvals.js";
 import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";
+import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
+import {
+  isMountedGuideTarget,
+  resolveGuideTargetElement,
+} from "@opensesame/app-core/tutorial/registry/targets.js";
 import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { identityHookSeams } from "../../bindings/identity.js";
 import { useOnlineSeams } from "../../lib/use-online.js";
 import {
@@ -22,6 +36,14 @@ import {
   HostedRequestsPanel,
   hostedRequestsSeams,
 } from "./HostedRequestsPanel.js";
+
+// The panel is the Access walkthrough's `access.relay`, which the access
+// capability declares when it activates.
+let revokeRealm = () => {};
+beforeAll(() => {
+  revokeRealm = registerTutorialRealm();
+});
+afterAll(() => revokeRealm());
 
 const session: { current: IdentitySession | null } = { current: null };
 const connect = vi.fn();
@@ -58,6 +80,17 @@ afterEach(() => {
 });
 
 describe("Access › Requests' hosted rows", () => {
+  it("is the control the requests tutorial points at, while it is drawn", async () => {
+    const { unmount } = show();
+    await screen.findByText("Deploy the billing service");
+    expect(isMountedGuideTarget("access.relay")).toBe(true);
+    expect(resolveGuideTargetElement("access.relay")?.id).toBe(
+      "hosted-requests",
+    );
+    unmount();
+    expect(isMountedGuideTarget("access.relay")).toBe(false);
+  });
+
   it("links each row to its review, and decides nothing on the list", async () => {
     show();
     expect(await screen.findByText("Deploy the billing service")).toBeTruthy();
