@@ -83,7 +83,7 @@ describe("import preview", () => {
     const existing: VaultItem[] = [
       overlapCast({
         id: "itm_1",
-        kind: "login",
+        kind: "account",
         name: "Site 0",
         username: "u0",
         deletedAt: null,

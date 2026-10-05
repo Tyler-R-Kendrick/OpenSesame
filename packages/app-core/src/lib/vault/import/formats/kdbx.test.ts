@@ -177,7 +177,7 @@ function toStoreEntries(result: ParseResult) {
     const pairs: [string, string][] = [];
     let secret = "";
     let otp: string | null = null;
-    if (item.kind === "login") {
+    if (item.kind === "account") {
       secret = item.password;
       otp = item.totp === "" ? null : item.totp;
       if (item.username !== "") pairs.push(["login", item.username]);
@@ -268,7 +268,7 @@ describe("keepassKdbx against the shared conformance fixture", () => {
 
   it("carries every field type off one entry", () => {
     const item = result.items.find((row) => row.name === "Example Mail");
-    if (item?.kind !== "login") throw new Error("expected a login");
+    if (item?.kind !== "account") throw new Error("expected an account");
     expect(item.username).toBe("alice@example.com");
     expect(item.password).toBe("fixture-password-one");
     expect(item.uris[0]?.uri).toBe("https://mail.example.com/");
@@ -290,7 +290,7 @@ describe("keepassKdbx against the shared conformance fixture", () => {
 
   it("builds the same TOTP URI from TimeOtp attributes as the Rust mapping", () => {
     const item = result.items.find((row) => row.name === "Deploy Token");
-    if (item?.kind !== "login") throw new Error("expected a login");
+    if (item?.kind !== "account") throw new Error("expected an account");
     expect(item.totp).toBe(
       "otpauth://totp/Deploy%20Token?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&digits=8&period=60&algorithm=SHA256",
     );
@@ -302,7 +302,7 @@ describe("keepassKdbx against the shared conformance fixture", () => {
   it("leaves an entry in the root group unfiled", () => {
     const item = result.items.find((row) => row.name === "Root Note");
     expect(item?.folder).toBeNull();
-    if (item?.kind !== "login") throw new Error("expected a login");
+    if (item?.kind !== "account") throw new Error("expected an account");
     expect(item.password).toBe("");
   });
 

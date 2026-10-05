@@ -18,8 +18,8 @@ import {
   type TextImportAdapter,
   addField,
   addUri,
+  draftAccount,
   draftCard,
-  draftLogin,
   draftNote,
   normaliseTotp,
 } from "../types.js";
@@ -54,8 +54,8 @@ export const lastpassCsv: TextImportAdapter = {
       const notes = pick(row, "extra");
       const isNote = url === "http://sn" || url === "https://sn";
 
-      const item: DraftItem = isNote ? draftNote(name) : draftLogin(name);
-      if (item.kind === "login") {
+      const item: DraftItem = isNote ? draftNote(name) : draftAccount(name);
+      if (item.kind === "account") {
         item.username = pick(row, "username");
         item.password = pick(row, "password");
         item.totp = normaliseTotp(pick(row, "totp"));
@@ -104,7 +104,9 @@ export const keepassxcCsv: TextImportAdapter = {
 
     for (const row of rows) {
       const url = pick(row, "url");
-      const item = draftLogin(pick(row, "title") || hostOf(url) || "Untitled");
+      const item = draftAccount(
+        pick(row, "title") || hostOf(url) || "Untitled",
+      );
       item.username = pick(row, "username");
       item.password = pick(row, "password");
       item.totp = normaliseTotp(pick(row, "totp"));
@@ -137,7 +139,7 @@ export const keepassCsv: TextImportAdapter = {
 
     for (const row of rows) {
       const url = pick(row, "web site");
-      const item = draftLogin(
+      const item = draftAccount(
         pick(row, "account") || hostOf(url) || "Untitled",
       );
       item.username = pick(row, "login name");
@@ -198,7 +200,9 @@ export const dashlaneCsv: TextImportAdapter = {
       }
 
       const url = pick(row, "url");
-      const item = draftLogin(pick(row, "title") || hostOf(url) || "Untitled");
+      const item = draftAccount(
+        pick(row, "title") || hostOf(url) || "Untitled",
+      );
       item.username = pick(row, "username", "email");
       item.password = pick(row, "password");
       item.totp = normaliseTotp(pick(row, "otpsecret"));
@@ -264,7 +268,7 @@ export const nordpassCsv: TextImportAdapter = {
         addField(card, "Postcode", pick(row, "zipcode"));
         item = card;
       } else if (password || url || pick(row, "username")) {
-        const login = draftLogin(name);
+        const login = draftAccount(name);
         login.username = pick(row, "username");
         login.password = password;
         addUri(login, url);

@@ -20,7 +20,7 @@ import {
   readImportFile,
   summarise,
 } from "./index.js";
-import { draftLogin, draftNote, draftSecret } from "./types.js";
+import { draftAccount, draftNote, draftSecret } from "./types.js";
 
 describe("readImportFile", () => {
   it("rejects empty and absurdly large files before reading them", async () => {
@@ -148,11 +148,11 @@ describe("adapterFor", () => {
 
 describe("summarise", () => {
   it("counts kinds, 2FA, missing passwords, and folders", () => {
-    const login = draftLogin("Mail");
+    const login = draftAccount("Mail");
     login.password = "x";
     login.totp = "JBSWY3DPEHPK3PXP";
     login.folder = "Email";
-    const noPassword = draftLogin("Empty");
+    const noPassword = draftAccount("Empty");
     noPassword.folder = "email"; // case differences stay distinct
     const secret = draftSecret("Deploy");
     const note = draftNote("Note");
@@ -185,10 +185,10 @@ describe("summarise", () => {
 describe("duplicateKey", () => {
   it("normalizes case and whitespace but keeps kinds apart", () => {
     expect(
-      duplicateKey({ kind: "login", name: " Mail ", username: "ADA" }),
-    ).toBe(duplicateKey({ kind: "login", name: "mail", username: "ada" }));
+      duplicateKey({ kind: "account", name: " Mail ", username: "ADA" }),
+    ).toBe(duplicateKey({ kind: "account", name: "mail", username: "ada" }));
     expect(
-      duplicateKey({ kind: "login", name: "mail", username: "ada" }),
+      duplicateKey({ kind: "account", name: "mail", username: "ada" }),
     ).not.toBe(duplicateKey({ kind: "note", name: "mail" }));
     expect(duplicateKey({ kind: "note", name: "x" })).toBe(
       duplicateKey({ kind: "note", name: "x", username: undefined }),

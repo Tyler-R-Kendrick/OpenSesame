@@ -20,8 +20,8 @@ import {
   addField,
   addUri,
   asString,
+  draftAccount,
   draftCard,
-  draftLogin,
   draftNote,
   normaliseTotp,
   toIso,
@@ -113,7 +113,7 @@ export const protonpassJson: TextImportAdapter = {
           addField(card, "PIN", asString(content.pin), true);
           item = card;
         } else if (type === "login") {
-          const login = draftLogin(name);
+          const login = draftAccount(name);
           login.username =
             asString(content.itemUsername) ||
             asString(content.itemEmail) ||
@@ -159,7 +159,7 @@ export const protonpassJson: TextImportAdapter = {
             asString(fieldData.content) || asString(fieldData.totpUri);
           if (
             fieldType === "totp" &&
-            item.kind === "login" &&
+            item.kind === "account" &&
             item.totp === ""
           ) {
             item.totp = normaliseTotp(value);

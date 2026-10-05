@@ -47,12 +47,27 @@ type DraftBase = {
   passwordChangedAt: string | null;
 };
 
-export type DraftLogin = DraftBase & {
-  kind: "login";
+/**
+ * A login method an importer found beyond the first password and the first
+ * authenticator seed (those live in `password` and `totp`). Ids and timestamps
+ * are minted at merge time, like everything else a draft does not carry.
+ */
+export type DraftMethod =
+  | { type: "password"; secret: string }
+  | { type: "authenticator"; secret: string }
+  | { type: "api-key"; key: string; header: string };
+
+/**
+ * An account (ADR 0166). `password` becomes a manual password method and
+ * `totp` an authenticator method; `methods` carries any further ones.
+ */
+export type DraftAccount = DraftBase & {
+  kind: "account";
   username: string;
   password: string;
   totp: string;
   uris: DraftUri[];
+  methods: DraftMethod[];
 };
 
 export type DraftCard = DraftBase & {
@@ -90,7 +105,7 @@ export type DraftSecret = DraftBase & {
 };
 
 export type DraftItem =
-  | DraftLogin
+  | DraftAccount
   | DraftPasskey
   | DraftCard
   | DraftNote
@@ -222,13 +237,14 @@ export function emptyDraft<K extends DraftItem["kind"]>(
   };
 }
 
-export function draftLogin(name: string): DraftLogin {
+export function draftAccount(name: string): DraftAccount {
   return {
-    ...emptyDraft("login", name),
+    ...emptyDraft("account", name),
     username: "",
     password: "",
     totp: "",
     uris: [],
+    methods: [],
   };
 }
 
@@ -311,7 +327,7 @@ export function addField(
 }
 
 export function addUri(
-  item: DraftLogin,
+  item: DraftAccount,
   uri: string,
   match: UriMatch = "domain",
 ): void {

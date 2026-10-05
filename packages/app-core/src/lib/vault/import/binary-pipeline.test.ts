@@ -14,7 +14,7 @@ import type {
   ParseInput,
   ParseResult,
 } from "./types.js";
-import { draftLogin, passwordRequired } from "./types.js";
+import { draftAccount, passwordRequired } from "./types.js";
 
 /**
  * The binary path through the import pipeline.
@@ -50,7 +50,7 @@ function fakeBinaryAdapter(): BinaryImportAdapter & {
       if (input.password !== "open sesame") {
         throw new Error("That password did not open it.");
       }
-      const item = draftLogin("Unlocked");
+      const item = draftAccount("Unlocked");
       item.password = "secret";
       return {
         source: "keepass-kdbx",

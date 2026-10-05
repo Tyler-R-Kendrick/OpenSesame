@@ -25,8 +25,8 @@ import {
   addField,
   addUri,
   asString,
+  draftAccount,
   draftCard,
-  draftLogin,
   draftNote,
   normaliseTotp,
   toIso,
@@ -122,7 +122,7 @@ export const bitwardenJson: TextImportAdapter = {
       switch (bw.type) {
         case 1: {
           const login: JsonObject = overlapCast(bw.login ?? {});
-          const draft = draftLogin(name);
+          const draft = draftAccount(name);
           draft.username = asString(login.username);
           draft.password = asString(login.password);
           draft.totp = normaliseTotp(asString(login.totp));
@@ -221,8 +221,8 @@ export const bitwardenCsv: TextImportAdapter = {
       const type = pick(row, "type").toLowerCase();
       const isNote = type === "note" || type === "securenote";
 
-      const item: DraftItem = isNote ? draftNote(name) : draftLogin(name);
-      if (item.kind === "login") {
+      const item: DraftItem = isNote ? draftNote(name) : draftAccount(name);
+      if (item.kind === "account") {
         item.username = pick(row, "login_username");
         item.password = pick(row, "login_password");
         item.totp = normaliseTotp(pick(row, "login_totp"));

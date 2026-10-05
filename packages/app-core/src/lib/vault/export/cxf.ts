@@ -43,174 +43,25 @@ import {
   base64ToBase64Url,
   base64UrlToBase64,
 } from "../import/types.js";
+import { accountCredentials } from "./cxf-account.js";
+import {
+  CXF_EXPORTER,
+  CXF_EXTENSION,
+  CXF_TYPES,
+  CXF_VERSION,
+  type CxfCollection,
+  type CxfCredential,
+  type CxfDocument,
+  type CxfDocumentCandidate,
+  type CxfEditableField,
+  type CxfExportAttempt,
+  type CxfExportOptions,
+  type CxfExportResult,
+  type CxfItem,
+  field,
+} from "./cxf-model.js";
 
-export const CXF_VERSION = 1 as const;
-export const CXF_EXPORTER = "OpenSesame" as const;
-
-/** CXF credential discriminators, as this vault writes them. */
-export const CXF_TYPES = {
-  basicAuth: "basic-auth",
-  passkey: "passkey",
-  totp: "totp",
-  creditCard: "credit-card",
-  note: "note",
-  sshKey: "ssh-key",
-  apiKey: "api-key",
-  wifi: "wifi",
-  address: "address",
-  personName: "person-name",
-  file: "file",
-  customFields: "custom-fields",
-} as const;
-
-/** Vendor extension name used for what CXF has no field of its own for. */
-export const CXF_EXTENSION = "com.opensesame.vault" as const;
-
-export type CxfFieldType =
-  | "string"
-  | "concealed-string"
-  | "email"
-  | "number"
-  | "boolean"
-  | "date"
-  | "year-month";
-
-export type CxfEditableField = {
-  id?: string;
-  fieldType: CxfFieldType;
-  value: string;
-  label?: string;
-};
-
-export type CxfExtension = {
-  name: typeof CXF_EXTENSION;
-  /** Only ever metadata CXF cannot carry — never a value CXF has a field for. */
-  [key: string]: string | boolean | undefined;
-};
-
-export type CxfCredential =
-  | {
-      type: typeof CXF_TYPES.basicAuth;
-      username?: CxfEditableField;
-      password?: CxfEditableField;
-    }
-  | {
-      type: typeof CXF_TYPES.passkey;
-      credentialId: string;
-      rpId: string;
-      username: string;
-      userDisplayName: string;
-      userHandle: string;
-      /**
-       * base64url PKCS#8 private key. Always empty in a document this vault
-       * writes — it never holds a passkey private key, and a format field is
-       * not a reason to start.
-       */
-      key: string;
-      extensions?: CxfExtension[];
-    }
-  | {
-      type: typeof CXF_TYPES.totp;
-      secret: string;
-      period: number;
-      digits: number;
-      algorithm: "sha1" | "sha256" | "sha512";
-      username: string;
-      issuer?: string;
-      extensions?: CxfExtension[];
-    }
-  | {
-      type: typeof CXF_TYPES.creditCard;
-      number?: CxfEditableField;
-      fullName?: CxfEditableField;
-      cardType?: CxfEditableField;
-      verificationNumber?: CxfEditableField;
-      expiryDate?: CxfEditableField;
-    }
-  | { type: typeof CXF_TYPES.note; content: CxfEditableField }
-  | {
-      type: typeof CXF_TYPES.sshKey;
-      keyType: string;
-      privateKey: CxfEditableField;
-      keyComment?: string;
-    }
-  | {
-      type: typeof CXF_TYPES.apiKey;
-      key: CxfEditableField;
-      username?: string;
-      keyType?: string;
-      extensions?: CxfExtension[];
-    }
-  | {
-      type: typeof CXF_TYPES.customFields;
-      id: string;
-      label: string;
-      fields: CxfEditableField[];
-    };
-
-export type CxfItem = {
-  id: string;
-  creationAt: number;
-  modifiedAt: number;
-  title: string;
-  favorite?: boolean;
-  tags?: string[];
-  scope?: { urls: string[]; androidApps: string[] };
-  credentials: CxfCredential[];
-};
-
-export type CxfCollection = {
-  id: string;
-  creationAt: number;
-  modifiedAt: number;
-  title: string;
-  /** Ids of the items in this collection, per CXF's linked-item model. */
-  items: { item: string }[];
-  subcollections?: CxfCollection[];
-};
-
-export type CxfAccount = {
-  id: string;
-  username: string;
-  email: string;
-  collections: CxfCollection[];
-  items: CxfItem[];
-};
-
-export type CxfDocument = {
-  version: typeof CXF_VERSION;
-  exporter: string;
-  timestamp: number;
-  accounts: CxfAccount[];
-};
-
-export type CxfExportOptions = {
-  /**
-   * Proof that a person asked for this in the unlocked vault. There is no
-   * default: an export that nobody consented to must be impossible to obtain
-   * by forgetting an argument.
-   */
-  humanConfirmed: true;
-  /** Account label written into the document. Never a credential. */
-  username?: string;
-  email?: string;
-  exportedAt?: Date;
-  exporter?: string;
-};
-
-type CxfExportAttempt = Omit<CxfExportOptions, "humanConfirmed"> & {
-  humanConfirmed: boolean;
-};
-
-type CxfDocumentCandidate = Omit<CxfDocument, "version"> & {
-  version: number;
-};
-
-export type CxfExportResult = {
-  document: CxfDocument;
-  /** Items this format cannot carry, and why, for the UI to show. */
-  skipped: SkippedRecord[];
-};
+export * from "./cxf-model.js";
 
 export class CxfExportError extends Error {
   constructor(message: string) {
@@ -226,16 +77,6 @@ export const urlToB64 = base64UrlToBase64;
 function epoch(iso: string): number {
   const ms = Date.parse(iso);
   return Number.isNaN(ms) ? 0 : Math.floor(ms / 1000);
-}
-
-function field(
-  value: string,
-  fieldType: CxfFieldType = "string",
-  label?: string,
-): CxfEditableField {
-  return label === undefined
-    ? { fieldType, value }
-    : { fieldType, value, label };
 }
 
 /**
@@ -307,57 +148,6 @@ function customFieldsCredential(
   };
 }
 
-/**
- * TOTP as CXF models it — separate parameters rather than a URI. A vault entry
- * that already holds an `otpauth://` URI keeps it verbatim in an extension, so
- * a document written here and read back here is exact even where CXF's own
- * field set cannot express the original label.
- */
-function totpCredential(totp: string, username: string): CxfCredential | null {
-  const raw = totp.trim();
-  if (raw === "") return null;
-  if (!/^otpauth:\/\//iu.test(raw)) {
-    return {
-      type: CXF_TYPES.totp,
-      secret: raw,
-      period: 30,
-      digits: 6,
-      algorithm: "sha1",
-      username,
-    };
-  }
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    // A malformed URI is still the user's data; carry it as the secret rather
-    // than dropping a second factor on the floor.
-    return {
-      type: CXF_TYPES.totp,
-      secret: raw,
-      period: 30,
-      digits: 6,
-      algorithm: "sha1",
-      username,
-    };
-  }
-  const params = url.searchParams;
-  const algorithm = (params.get("algorithm") ?? "sha1").toLowerCase();
-  const issuer = params.get("issuer");
-  const credential: CxfCredential = {
-    type: CXF_TYPES.totp,
-    secret: params.get("secret") ?? "",
-    period: Number.parseInt(params.get("period") ?? "30", 10) || 30,
-    digits: Number.parseInt(params.get("digits") ?? "6", 10) || 6,
-    algorithm:
-      algorithm === "sha256" || algorithm === "sha512" ? algorithm : "sha1",
-    username,
-  };
-  if (issuer !== null) credential.issuer = issuer;
-  credential.extensions = [{ name: CXF_EXTENSION, otpauth: raw }];
-  return credential;
-}
-
 function itemFor(item: VaultItem) {
   const base: CxfItem = {
     id: item.id,
@@ -377,17 +167,14 @@ function itemFor(item: VaultItem) {
           content: field(item.notes),
         } satisfies CxfCredential);
 
+  let withheldHere = 0;
   switch (item.kind) {
-    case "login": {
+    case "account": {
       const urls = item.uris.map((uri) => uri.uri).filter((uri) => uri !== "");
       if (urls.length > 0) base.scope = { urls, androidApps: [] };
-      base.credentials.push({
-        type: CXF_TYPES.basicAuth,
-        username: field(item.username, "string"),
-        password: field(item.password, "concealed-string"),
-      });
-      const totp = totpCredential(item.totp, item.username);
-      if (totp !== null) base.credentials.push(totp);
+      const { credentials, withheld } = accountCredentials(item);
+      base.credentials.push(...credentials);
+      withheldHere = withheld;
       break;
     }
     case "passkey":
@@ -447,6 +234,7 @@ function itemFor(item: VaultItem) {
     case "certificate":
       return {
         cxf: null,
+        withheld: 0,
         skipped: {
           name: item.name,
           reason:
@@ -456,6 +244,7 @@ function itemFor(item: VaultItem) {
     case "drop":
       return {
         cxf: null,
+        withheld: 0,
         skipped: {
           name: item.name,
           reason:
@@ -476,7 +265,7 @@ function itemFor(item: VaultItem) {
 
   if (note !== null) base.credentials.push(note);
   if (extra !== null) base.credentials.push(extra);
-  return { cxf: base, skipped: null };
+  return { cxf: base, skipped: null, withheld: withheldHere };
 }
 
 function buildCxfExportDefault(
@@ -491,11 +280,13 @@ function buildCxfExportDefault(
   const exportedAt = options.exportedAt ?? new Date();
   const items: CxfItem[] = [];
   const skipped: SkippedRecord[] = [];
+  let withheld = 0;
   const byFolder = new Map<string, { item: string }[]>();
 
   for (const item of body.items) {
     if (item.deletedAt !== null) continue;
-    const { cxf, skipped: rejected } = itemFor(item);
+    const { cxf, skipped: rejected, withheld: held } = itemFor(item);
+    withheld += held;
     if (cxf === null) {
       if (rejected !== null) skipped.push(rejected);
       continue;
@@ -534,6 +325,7 @@ function buildCxfExportDefault(
       ],
     },
     skipped,
+    withheld,
   };
 }
 
