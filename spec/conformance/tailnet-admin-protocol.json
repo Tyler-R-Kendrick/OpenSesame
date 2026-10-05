@@ -5,24 +5,18 @@
   "connectedAt": 1790000000,
   "pairing": {
     "prefix": "opensesame-tailnet:v1:",
-    "printed": "opensesame-tailnet:v1:eyJjb2RlIjoiVkdGcGJHNWxkQzF3WVdseWFXNW5MV052WkdVdGJtOTBMV0V0Y21WaGJDMXYiLCJsYWJlbCI6Ik9wcyBsYXB0b3AiLCJvcmlnaW4iOiJodHRwczovL29wcy5leGFtcGxlLmNvbSIsInJvbGUiOiJtYW5hZ2UiLCJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0In0",
+    "printed": "opensesame-tailnet:v1:eyJjb2RlIjoiZEdGcGJHNWxkQzF3WVdseWFXNW5MV052WkdVdGJtOTBMV0V0Y21WaGJDMCIsImxhYmVsIjoiT3BzIGxhcHRvcCIsIm9yaWdpbiI6Imh0dHBzOi8vb3BzLmV4YW1wbGUuY29tIiwicm9sZSI6Im1hbmFnZSIsInVybCI6Imh0dHBzOi8vZGVzay50YWlsNGMyZS50cy5uZXQifQ",
     "url": "https://desk.tail4c2e.ts.net",
-    "code": "VGFpbG5ldC1wYWlyaW5nLWNvZGUtbm90LWEtcmVhbC1v",
+    "code": "dGFpbG5ldC1wYWlyaW5nLWNvZGUtbm90LWEtcmVhbC0",
     "origin": "https://ops.example.com",
     "role": "manage",
     "label": "Ops laptop",
     "exchange": {
       "path": "/v1/tailnet/pairing",
       "request": {
-        "code": "VGFpbG5ldC1wYWlyaW5nLWNvZGUtbm90LWEtcmVhbC1v"
+        "code": "dGFpbG5ldC1wYWlyaW5nLWNvZGUtbm90LWEtcmVhbC0"
       },
-      "responseKeys": [
-        "id",
-        "label",
-        "origin",
-        "role",
-        "token"
-      ]
+      "responseKeys": ["id", "label", "origin", "role", "token"]
     }
   },
   "exchanges": [
@@ -66,10 +60,7 @@
           "response": {
             "devices": [
               {
-                "addresses": [
-                  "100.101.102.103",
-                  "fd7a:115c:a1e0::1"
-                ],
+                "addresses": ["100.101.102.103", "fd7a:115c:a1e0::1"],
                 "id": "92960230385",
                 "nodeId": "n292kg92CNTRL",
                 "user": "amelie@example.com",
@@ -88,26 +79,16 @@
                 "machineKey": "mkey:not-forwarded",
                 "nodeKey": "nodekey:not-forwarded",
                 "blocksIncomingConnections": false,
-                "enabledRoutes": [
-                  "10.0.0.0/16"
-                ],
-                "advertisedRoutes": [
-                  "10.0.0.0/16",
-                  "0.0.0.0/0",
-                  "::/0"
-                ],
-                "tags": [
-                  "tag:web"
-                ],
+                "enabledRoutes": ["10.0.0.0/16"],
+                "advertisedRoutes": ["10.0.0.0/16", "0.0.0.0/0", "::/0"],
+                "tags": ["tag:web"],
                 "tailnetLockError": "",
                 "sshEnabled": true,
                 "isEphemeral": false,
                 "multipleConnections": false
               },
               {
-                "addresses": [
-                  "100.88.1.2"
-                ],
+                "addresses": ["100.88.1.2"],
                 "id": "51234",
                 "nodeId": "nNEWPHONECNTRL",
                 "user": "sam@example.com",
@@ -146,13 +127,8 @@
               "client_version": "1.80.2",
               "update_available": true,
               "user": "amelie@example.com",
-              "addresses": [
-                "100.101.102.103",
-                "fd7a:115c:a1e0::1"
-              ],
-              "tags": [
-                "tag:web"
-              ],
+              "addresses": ["100.101.102.103", "fd7a:115c:a1e0::1"],
+              "tags": ["tag:web"],
               "authorized": true,
               "external": false,
               "ephemeral": false,
@@ -164,14 +140,8 @@
               "blocks_incoming": false,
               "ssh_enabled": true,
               "multiple_connections": false,
-              "advertised_routes": [
-                "10.0.0.0/16",
-                "0.0.0.0/0",
-                "::/0"
-              ],
-              "enabled_routes": [
-                "10.0.0.0/16"
-              ],
+              "advertised_routes": ["10.0.0.0/16", "0.0.0.0/0", "::/0"],
+              "enabled_routes": ["10.0.0.0/16"],
               "tailnet_lock_error": null
             },
             {
@@ -182,9 +152,7 @@
               "client_version": "1.82.0",
               "update_available": false,
               "user": "sam@example.com",
-              "addresses": [
-                "100.88.1.2"
-              ],
+              "addresses": ["100.88.1.2"],
               "tags": [],
               "authorized": false,
               "external": false,
@@ -221,10 +189,7 @@
           "body": null,
           "status": 200,
           "response": {
-            "addresses": [
-              "100.101.102.103",
-              "fd7a:115c:a1e0::1"
-            ],
+            "addresses": ["100.101.102.103", "fd7a:115c:a1e0::1"],
             "id": "92960230385",
             "nodeId": "n292kg92CNTRL",
             "user": "amelie@example.com",
@@ -243,17 +208,9 @@
             "machineKey": "mkey:not-forwarded",
             "nodeKey": "nodekey:not-forwarded",
             "blocksIncomingConnections": false,
-            "enabledRoutes": [
-              "10.0.0.0/16"
-            ],
-            "advertisedRoutes": [
-              "10.0.0.0/16",
-              "0.0.0.0/0",
-              "::/0"
-            ],
-            "tags": [
-              "tag:web"
-            ],
+            "enabledRoutes": ["10.0.0.0/16"],
+            "advertisedRoutes": ["10.0.0.0/16", "0.0.0.0/0", "::/0"],
+            "tags": ["tag:web"],
             "tailnetLockError": "",
             "sshEnabled": true,
             "isEphemeral": false,
@@ -271,13 +228,8 @@
           "client_version": "1.80.2",
           "update_available": true,
           "user": "amelie@example.com",
-          "addresses": [
-            "100.101.102.103",
-            "fd7a:115c:a1e0::1"
-          ],
-          "tags": [
-            "tag:web"
-          ],
+          "addresses": ["100.101.102.103", "fd7a:115c:a1e0::1"],
+          "tags": ["tag:web"],
           "authorized": true,
           "external": false,
           "ephemeral": false,
@@ -289,14 +241,8 @@
           "blocks_incoming": false,
           "ssh_enabled": true,
           "multiple_connections": false,
-          "advertised_routes": [
-            "10.0.0.0/16",
-            "0.0.0.0/0",
-            "::/0"
-          ],
-          "enabled_routes": [
-            "10.0.0.0/16"
-          ],
+          "advertised_routes": ["10.0.0.0/16", "0.0.0.0/0", "::/0"],
+          "enabled_routes": ["10.0.0.0/16"],
           "tailnet_lock_error": null
         }
       }
@@ -402,10 +348,7 @@
         "method": "POST",
         "path": "/v1/tailnet/devices/n292kg92CNTRL/tags",
         "body": {
-          "tags": [
-            "tag:web",
-            "tag:ci"
-          ]
+          "tags": ["tag:web", "tag:ci"]
         }
       },
       "upstream": [
@@ -413,10 +356,7 @@
           "method": "POST",
           "path": "/api/v2/device/n292kg92CNTRL/tags",
           "body": {
-            "tags": [
-              "tag:ci",
-              "tag:web"
-            ]
+            "tags": ["tag:ci", "tag:web"]
           },
           "status": 200,
           "response": null
@@ -497,11 +437,7 @@
         "method": "POST",
         "path": "/v1/tailnet/devices/n292kg92CNTRL/routes",
         "body": {
-          "enabled_routes": [
-            "10.0.0.0/16",
-            "0.0.0.0/0",
-            "::/0"
-          ]
+          "enabled_routes": ["10.0.0.0/16", "0.0.0.0/0", "::/0"]
         }
       },
       "upstream": [
@@ -509,40 +445,20 @@
           "method": "POST",
           "path": "/api/v2/device/n292kg92CNTRL/routes",
           "body": {
-            "routes": [
-              "10.0.0.0/16",
-              "0.0.0.0/0",
-              "::/0"
-            ]
+            "routes": ["10.0.0.0/16", "0.0.0.0/0", "::/0"]
           },
           "status": 200,
           "response": {
-            "advertisedRoutes": [
-              "10.0.0.0/16",
-              "0.0.0.0/0",
-              "::/0"
-            ],
-            "enabledRoutes": [
-              "10.0.0.0/16",
-              "0.0.0.0/0",
-              "::/0"
-            ]
+            "advertisedRoutes": ["10.0.0.0/16", "0.0.0.0/0", "::/0"],
+            "enabledRoutes": ["10.0.0.0/16", "0.0.0.0/0", "::/0"]
           }
         }
       ],
       "response": {
         "status": 200,
         "body": {
-          "advertised_routes": [
-            "10.0.0.0/16",
-            "0.0.0.0/0",
-            "::/0"
-          ],
-          "enabled_routes": [
-            "10.0.0.0/16",
-            "0.0.0.0/0",
-            "::/0"
-          ]
+          "advertised_routes": ["10.0.0.0/16", "0.0.0.0/0", "::/0"],
+          "enabled_routes": ["10.0.0.0/16", "0.0.0.0/0", "::/0"]
         }
       },
       "audit": {
@@ -622,9 +538,7 @@
                   "reusable": true,
                   "ephemeral": false,
                   "preauthorized": true,
-                  "tags": [
-                    "tag:ci"
-                  ]
+                  "tags": ["tag:ci"]
                 }
               }
             }
@@ -645,9 +559,7 @@
               "reusable": true,
               "ephemeral": false,
               "preauthorized": true,
-              "tags": [
-                "tag:ci"
-              ]
+              "tags": ["tag:ci"]
             }
           ]
         }
@@ -799,9 +711,7 @@
         "method": "POST",
         "path": "/v1/tailnet/devices/n292kg92CNTRL/tags",
         "body": {
-          "tags": [
-            "Web"
-          ]
+          "tags": ["Web"]
         }
       },
       "upstream": [],
@@ -820,9 +730,7 @@
         "method": "POST",
         "path": "/v1/tailnet/devices/n292kg92CNTRL/routes",
         "body": {
-          "enabled_routes": [
-            "10.0.0.1/16"
-          ]
+          "enabled_routes": ["10.0.0.1/16"]
         }
       },
       "upstream": [],
@@ -868,9 +776,7 @@
         "method": "POST",
         "path": "/v1/tailnet/devices/n292kg92CNTRL/tags",
         "body": {
-          "tags": [
-            "tag:nobody"
-          ]
+          "tags": ["tag:nobody"]
         }
       },
       "upstream": [
@@ -878,9 +784,7 @@
           "method": "POST",
           "path": "/api/v2/device/n292kg92CNTRL/tags",
           "body": {
-            "tags": [
-              "tag:nobody"
-            ]
+            "tags": ["tag:nobody"]
           },
           "status": 400,
           "response": {

@@ -92,7 +92,7 @@ pub enum TailnetCmd {
 pub fn pairing_link(pages_url: &str, code: &str) -> String {
     let base = pages_url.split('#').next().unwrap_or(pages_url);
     format!(
-        "{}/identity/devices#pair-tailnet={code}",
+        "{}/identity?view=devices#pair-tailnet={code}",
         base.trim_end_matches('/')
     )
 }
@@ -254,7 +254,7 @@ mod tests {
     fn the_link_opens_identity_devices_with_the_code_in_the_fragment() {
         assert_eq!(
             pairing_link("https://example.test/app/#x", "opensesame-tailnet:v1:abc"),
-            "https://example.test/app/identity/devices#pair-tailnet=opensesame-tailnet:v1:abc"
+            "https://example.test/app/identity?view=devices#pair-tailnet=opensesame-tailnet:v1:abc"
         );
     }
 

@@ -237,4 +237,8 @@ fn the_pairing_code_is_the_one_the_spec_records() {
         pairing["label"].as_str().unwrap(),
     );
     assert_eq!(code, pairing["printed"].as_str().unwrap());
+    assert!(
+        opensesame_plugin_settings::is_secret_shaped(pairing["code"].as_str().unwrap()),
+        "the sample secret has the shape a real one has"
+    );
 }
