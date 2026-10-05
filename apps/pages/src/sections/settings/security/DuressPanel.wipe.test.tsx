@@ -67,7 +67,7 @@ describe("DuressPanel wipe mode", () => {
     for (const part of [
       "backup I made",
       "not what the disk may still hold",
-      "takes a moment before the refusal appears",
+      "how long the refusal takes may differ from a wrong password",
     ]) {
       expect(sentence.textContent).toContain(part);
     }

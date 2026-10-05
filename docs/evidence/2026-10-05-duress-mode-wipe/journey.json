@@ -42,7 +42,7 @@
           }
         },
         {
-          "checkOptional": "I understand this removes the vaults stored in this browser. They can be restored only from a backup I made. It removes what this browser stores, not what the disk may still hold, and it takes a moment before the refusal appears."
+          "checkOptional": "I understand this removes the vaults stored in this browser. They can be restored only from a backup I made. It removes what this browser stores, not what the disk may still hold, and how long the refusal takes may differ from a wrong password's."
         },
         {
           "count": ["[role=dialog] input.f__input:not([type=password])"]
@@ -146,7 +146,7 @@
           }
         },
         {
-          "checkOptional": "I understand this removes the vaults stored in this browser. They can be restored only from a backup I made. It removes what this browser stores, not what the disk may still hold, and it takes a moment before the refusal appears."
+          "checkOptional": "I understand this removes the vaults stored in this browser. They can be restored only from a backup I made. It removes what this browser stores, not what the disk may still hold, and how long the refusal takes may differ from a wrong password's."
         },
         {
           "count": ["[role=dialog] input.f__input:not([type=password])"]

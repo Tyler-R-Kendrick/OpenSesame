@@ -7,6 +7,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { findForbiddenClaims } from "@opensesame/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureHost } from "../../../host.js";
 import type { PagePort } from "../../../ports.js";
@@ -256,5 +257,22 @@ describe("wipe runner: one road in", () => {
       "apps/pages/src/bootstrap/boot.ts",
       "packages/app-core/src/lib/duress/settings/modes/effects.ts",
     ]);
+  });
+});
+
+describe("wipe mode copy", () => {
+  const mode = getMode("wipe");
+
+  it("makes no forbidden claim, and none about timing it cannot keep", () => {
+    if (!mode) throw new Error("no wipe mode");
+    const copy = [mode.label, mode.opens, mode.vault ?? "", mode.consent].join(
+      " ",
+    );
+    expect(findForbiddenClaims(copy)).toEqual([]);
+    // The refusal measured faster than a wrong password's, not slower: the
+    // sheet promises neither, and says only that the two may differ.
+    expect(copy).not.toMatch(/takes a moment|slower|faster|instant/i);
+    expect(mode.consent).toContain("may differ from a wrong password");
+    expect(mode.consent).toContain("not what the disk may still hold");
   });
 });
