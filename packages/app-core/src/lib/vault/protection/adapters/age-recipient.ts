@@ -24,10 +24,10 @@ import {
 } from "@opensesame/vault-core";
 import {
   type AgeIdentityCustody,
+  ageRecipientsOf,
   decryptWithAge,
   encryptWithAge,
   isAgeIdentity,
-  isAgeRecipient,
 } from "../../../age-keys.js";
 import { canonicalizeToBytes } from "../canonicalize.js";
 import { contextsEqual } from "../capsule.js";
@@ -56,10 +56,10 @@ export function equalBytes(left: Uint8Array, right: Uint8Array): boolean {
   return diff === 0;
 }
 
-export function requireRecipients(recipients: readonly string[]): string[] {
-  const cleaned = [
-    ...new Set(recipients.map((line) => line.trim()).filter(isAgeRecipient)),
-  ];
+export async function requireRecipients(
+  recipients: readonly string[],
+): Promise<string[]> {
+  const cleaned = [...new Set(await ageRecipientsOf(recipients))];
   if (cleaned.length === 0) {
     throw new ProtectionError(
       "malformed_encoding",
@@ -202,7 +202,7 @@ export type PublishUntestedAgeRecipientInput = {
 export async function publishUntestedAgeRecipient(
   input: PublishUntestedAgeRecipientInput,
 ): Promise<AgeRecipientProtectorRecord> {
-  const recipients = requireRecipients(input.recipients);
+  const recipients = await requireRecipients(input.recipients);
   const capsule = await encryptWithAge(
     buildPayload(input.context, input.rootKey),
     recipients,
@@ -242,7 +242,7 @@ export async function openAgeCapsule(
   context: ProtectionContext,
   identity: string,
 ): Promise<Uint8Array> {
-  if (!isAgeIdentity(identity)) {
+  if (!(await isAgeIdentity(identity))) {
     throw new ProtectionError(
       "unavailable",
       "Age identity required to open recipient protector.",

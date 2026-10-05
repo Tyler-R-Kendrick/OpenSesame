@@ -8,8 +8,8 @@
  */
 
 import type { RootProtectionManifest } from "@opensesame/vault-core";
-import * as age from "age-encryption";
-import { isAgeIdentity, isAgeRecipient } from "../../age-keys.js";
+import { ageRecipientsOf, isAgeIdentity } from "../../age-keys.js";
+import { loadAge } from "../../age-lib.js";
 import { ProtectionError } from "./errors.js";
 
 export type FormatCapability =
@@ -48,15 +48,14 @@ export async function exportAgeArmored(
   plaintext: Uint8Array,
   recipients: readonly string[],
 ): Promise<string> {
-  const cleaned = [
-    ...new Set(recipients.map((line) => line.trim()).filter(isAgeRecipient)),
-  ];
+  const cleaned = [...new Set(await ageRecipientsOf(recipients))];
   if (cleaned.length === 0) {
     throw new ProtectionError(
       "malformed_encoding",
       "age export needs at least one recipient.",
     );
   }
+  const age = await loadAge();
   const encrypter = new age.Encrypter();
   for (const recipient of cleaned) encrypter.addRecipient(recipient);
   const ciphertext = await encrypter.encrypt(plaintext);
@@ -68,12 +67,13 @@ export async function importAgeArmored(
   armored: string,
   identity: string,
 ): Promise<Uint8Array> {
-  if (!isAgeIdentity(identity)) {
+  if (!(await isAgeIdentity(identity))) {
     throw new ProtectionError(
       "unavailable",
       "age import needs a valid identity.",
     );
   }
+  const age = await loadAge();
   const decoded = age.armor.decode(armored);
   const decrypter = new age.Decrypter();
   decrypter.addIdentity(identity);
