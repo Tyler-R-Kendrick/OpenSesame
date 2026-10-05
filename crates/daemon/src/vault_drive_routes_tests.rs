@@ -225,3 +225,48 @@ async fn a_configured_browser_origin_may_call_the_device_routes_only() {
         .is_none());
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// A page served from a public origin (GitHub Pages) reaching a drive at a
+/// tailnet or loopback address: Chrome's Private Network Access preflight
+/// must be answered, and a saved connector's own headers let through.
+#[tokio::test]
+async fn a_public_page_may_reach_a_private_drive() {
+    let origin = "https://tyler-r-kendrick.github.io";
+    let state = crate::tests::test_state("http://127.0.0.1:1");
+    let devices = device_routes_for(&[origin.to_string()]).with_state(state);
+    let preflight = |from: &str| {
+        Request::builder()
+            .method("OPTIONS")
+            .uri("/v1/vault-drive/slots/slot-0000aaaa/snapshot")
+            .header("origin", from)
+            .header("access-control-request-method", "PUT")
+            .header(
+                "access-control-request-headers",
+                "authorization,content-type,x-tailnet-tailnet,x-tailscale-auth-key",
+            )
+            .header("access-control-request-private-network", "true")
+            .body(Body::empty())
+            .unwrap()
+    };
+    let response = devices.clone().oneshot(preflight(origin)).await.unwrap();
+    assert!(response.status().is_success());
+    let headers = response.headers();
+    assert_eq!(headers["access-control-allow-origin"], origin);
+    assert_eq!(headers["access-control-allow-private-network"], "true");
+    let allowed = headers["access-control-allow-headers"]
+        .to_str()
+        .unwrap()
+        .to_ascii_lowercase();
+    for name in ["authorization", "x-tailnet-tailnet", "x-tailscale-auth-key"] {
+        assert!(allowed.contains(name), "{name} not allowed: {allowed}");
+    }
+    // An origin nobody configured learns nothing, private network or not.
+    let response = devices
+        .oneshot(preflight("https://evil.example"))
+        .await
+        .unwrap();
+    assert!(response
+        .headers()
+        .get("access-control-allow-origin")
+        .is_none());
+}

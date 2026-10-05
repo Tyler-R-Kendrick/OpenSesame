@@ -21,14 +21,16 @@ export async function openVaultList(page) {
  * key already, so this is a no-op there.
  */
 export async function toTheList(page) {
-  const create = page.getByRole("link", { name: "New item", exact: true });
-  if (await create.isVisible()) return;
+  // The pane, not the New item key: the + is drawn on the tree pane too.
+  const pane = () => page.locator(".vault").first().getAttribute("data-pane");
+  if ((await pane()) === "list") return;
   const back = page
     .getByRole("link", { name: /^Back to (all items|list)$/ })
     .first();
   if (await back.isVisible()) await back.click();
+  if ((await pane()) === "list") return;
   const all = page.getByRole("treeitem", { name: /^all\b/i }).first();
-  if (!(await create.isVisible()) && (await all.isVisible())) await all.click();
+  if (await all.isVisible()) await all.click();
 }
 
 /**

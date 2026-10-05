@@ -17,7 +17,10 @@ import {
   isJsonObject,
   isNumber,
 } from "@opensesame/os-domain";
-import { localNetworkFetch } from "../local-network-fetch.js";
+import {
+  type LocalNetworkFetchInit,
+  localNetworkFetch,
+} from "../local-network-fetch.js";
 import type { DrivePairing } from "./pairing.js";
 import { currentTailnet, tailnetSyncHeaders } from "./saved-connector.js";
 import { type DriveSnapshot, parseDriveSnapshot } from "./snapshot.js";
@@ -39,12 +42,15 @@ export class DriveError extends Error {
   }
 }
 
+/** How long a drive request may take before it is given up as unanswered. */
+export const DRIVE_TIMEOUT_MS = 15_000;
+
 export const driveClientSeams = {
-  fetch: (url: string, init: RequestInit) =>
+  fetch: (url: string, init: LocalNetworkFetchInit) =>
     localNetworkFetch(url, {
+      timeoutMs: DRIVE_TIMEOUT_MS,
       ...init,
       ciphertextDrive: true,
-      timeoutMs: 15_000,
     }),
 };
 
@@ -93,13 +99,32 @@ function refused(response: Response): DriveError {
   );
 }
 
-export async function readDrive(pairing: DrivePairing): Promise<DriveRead> {
-  const response = await driveClientSeams.fetch(slotUrl(pairing), {
+function getSlot(pairing: DrivePairing, timeoutMs?: number) {
+  return driveClientSeams.fetch(slotUrl(pairing), {
+    ...(timeoutMs ? { timeoutMs } : undefined),
     method: "GET",
     headers: headers(pairing),
     credentials: "omit",
     cache: "no-store",
   });
+}
+
+/**
+ * One read given `waitMs` to be answered: the first request of a pass a
+ * person asked for, which may sit on the browser's Local Network Access
+ * prompt until they answer it (`network-access.ts`). Once they allow it,
+ * every later request of the pass goes straight out.
+ */
+export async function reachDrive(
+  pairing: DrivePairing,
+  waitMs: number,
+): Promise<void> {
+  const response = await getSlot(pairing, waitMs);
+  if (!response.ok) throw refused(response);
+}
+
+export async function readDrive(pairing: DrivePairing): Promise<DriveRead> {
+  const response = await getSlot(pairing);
   if (!response.ok) throw refused(response);
   const json = await readJson(response);
   const generation = generationOf(json);

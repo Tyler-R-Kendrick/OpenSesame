@@ -6,10 +6,17 @@
 //   PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 //     pnpm --filter @opensesame/pages verify:tailnet-sync
 //
-// The daemon listens on loopback (a drive address pairing accepts) with a
-// throwaway slot directory. Each device is its own browser context — its own
-// storage, as separate as two phones — served `dist/` under the production
-// origin; the only other address either may reach is the drive.
+// The daemon listens on loopback with a throwaway slot directory, and is
+// reached the way Tailscale Serve exposes it: HTTPS at a `*.ts.net` name,
+// through a TLS proxy in front of it (`lib/serve-shaped-drive.mjs`). Each
+// device is its own browser context — its own storage, as separate as two
+// phones — served `dist/` under the production origin; the only other address
+// either may reach is the drive.
+//
+// Chrome's Local Network Access check stays on, as in a person's browser: the
+// page is public and the drive resolves to a private address, so a request
+// waits on the permission prompt until it is answered. Headless Chrome shows
+// no prompt, so each device's answer is set through the DevTools protocol.
 //
 //   TS-PAIR    device A seals a vault with a password, saves an item, turns
 //              Networking on and pairs (the row's key opens the pairing
@@ -21,6 +28,12 @@
 //              bar, pressing the sheet's commit hands over to an unlock
 //              screen, and A's master password opens A's item
 //   TS-BACK    B saves an item; A, syncing, shows it
+//   LNA-WAIT   A's permission back at "ask": a change on A does not go out by
+//              itself and the panel says sync waits on the browser; once
+//              allowed, Sync now lands it
+//   LNA-DENIED device C refused local network access: the browser itself
+//              refuses a request to the drive, and pairing says where to
+//              allow it
 //
 // Screenshots land in $TAILNET_SYNC_OUT (default: the system temp dir).
 import { spawn } from "node:child_process";
@@ -33,6 +46,7 @@ import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword, unlockWithPassword } from "./lib/pages-journey.mjs";
 import { toTheList } from "./lib/phone-vault.mjs";
+import { serveShapedDrive } from "./lib/serve-shaped-drive.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
@@ -88,7 +102,7 @@ async function openSlot() {
       "content-type": "application/json",
       "x-opensesame-operator": operator,
     },
-    body: JSON.stringify({ label: "Verify drive", url: drive }),
+    body: JSON.stringify({ label: "Verify drive", url: serve.url }),
   });
   if (response.status !== 201) throw new Error(`slot: ${response.status}`);
   return (await response.json()).pairing_code;
@@ -105,14 +119,49 @@ async function readSlot(code) {
   return response.json();
 }
 
+/** How a person answered Chrome's local-network prompt for this device. */
+async function answerPrompt(page, setting) {
+  const session = await page.context().newCDPSession(page);
+  const { targetInfo } = await session.send("Target.getTargetInfo");
+  await session.detach();
+  await browserSession.send("Browser.setPermission", {
+    permission: { name: "local-network-access" },
+    setting,
+    origin,
+    browserContextId: targetInfo.browserContextId,
+  });
+}
+
+/** Whether the browser itself lets the page reach the drive. */
+function browserReaches(page) {
+  return page.evaluate(async (url) => {
+    try {
+      // Opaque: whether the request went out, not what CORS lets it read.
+      const signal = AbortSignal.timeout(3000);
+      await fetch(`${url}/health`, { signal, mode: "no-cors" });
+      return true;
+    } catch {
+      return false;
+    }
+  }, serve.url);
+}
+
 /** A device: the harness page, allowed to reach the drive and nothing else. */
-async function device(browser, options) {
-  const { page, context } = await harness.newPage(browser, options);
-  await context.route(`${drive}/**`, (route) => route.continue());
-  // A person answers Chrome's local-network prompt once; headless cannot.
+async function device(browser, options, answer = "granted") {
+  const { page, context } = await harness.newPage(browser, {
+    ...options,
+    device: { ...options.device, ignoreHTTPSErrors: true },
+  });
+  await context.route(`${serve.url}/**`, (route) => route.continue());
+  await answerPrompt(page, answer);
   pages.push(page);
   const errors = [];
   page.on("pageerror", (error) => errors.push(String(error)));
+  page.on("requestfailed", (request) =>
+    console.error(
+      `  request failed: ${request.method()} ${request.url()} ${request.failure()?.errorText}`,
+    ),
+  );
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await page.waitForTimeout(3000);
   return { page, context, errors };
@@ -162,15 +211,13 @@ async function shot(page, name) {
 }
 
 const daemon = startDrive();
-// Chrome asks a person before a public page reaches a local address (Local
-// Network Access); headless has nobody to ask, so the check is switched off.
+const serve = await serveShapedDrive(drive);
 const browser = await chromium.launch({
   executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
   headless: true,
-  args: [
-    "--disable-features=LocalNetworkAccessChecks,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults",
-  ],
+  args: serve.browserArgs,
 });
+const browserSession = await browser.newBrowserCDPSession();
 const pages = [];
 let failed = false;
 try {
@@ -257,7 +304,56 @@ try {
   console.log("TS-BACK ok");
   await shot(a.page, "1280-device-a-received");
 
-  const errors = [...a.errors, ...b.errors];
+  // LNA-WAIT
+  await answerPrompt(a.page, "prompt");
+  const before = (await readSlot(code)).generation;
+  await saveItem(a.page, "Waiting on the browser");
+  await visit(a.page, "settings/vaults");
+  await expect(a.page.locator("#tailnet-sync .status-mark")).toHaveAttribute(
+    "aria-label",
+    /waiting for local network access/,
+    { timeout: 20_000 },
+  );
+  if ((await readSlot(code)).generation !== before)
+    throw new Error("LNA-WAIT: a pass went out past the browser's prompt");
+  await shot(a.page, "1280-device-a-waiting");
+  await answerPrompt(a.page, "granted");
+  await a.page.getByRole("button", { name: "Sync now" }).click();
+  await inStep(a.page);
+  if (!((await readSlot(code)).generation > before))
+    throw new Error("LNA-WAIT: Sync now did not land the change");
+  console.log("LNA-WAIT ok");
+
+  // LNA-DENIED
+  const c = await device(
+    browser,
+    { device: { viewport: { width: 1280, height: 900 } } },
+    "denied",
+  );
+  if (await browserReaches(c.page))
+    throw new Error("LNA-DENIED: the browser let a refused page through");
+  if (!(await browserReaches(a.page)))
+    throw new Error("LNA-DENIED: an allowed page could not reach the drive");
+  await doorGuest(c.page).click();
+  await c.page.waitForTimeout(1400);
+  await networkingOn(c.page);
+  await visit(c.page, `settings/vaults#pair-drive=${code}`);
+  const refused = c.page.getByRole("dialog");
+  await refused
+    .getByRole("button", {
+      name: "Set this device up from the drive",
+      exact: true,
+    })
+    .click();
+  await expect(
+    refused.getByRole("alert").locator(".status-mark"),
+  ).toHaveAttribute("aria-label", /Allow local network access for this site/, {
+    timeout: 20_000,
+  });
+  await shot(c.page, "1280-device-c-denied");
+  console.log("LNA-DENIED ok");
+
+  const errors = [...a.errors, ...b.errors, ...c.errors];
   if (errors.length > 0) throw new Error(`page errors:\n${errors.join("\n")}`);
   console.log("verify:tailnet-sync PASS");
 } catch (error) {
@@ -269,10 +365,16 @@ try {
       .locator("#tailnet-sync")
       .innerText()
       .catch(() => "(no panel)");
+    const marks = await page
+      .locator(".status-mark")
+      .evaluateAll((all) => all.map((mark) => mark.getAttribute("aria-label")))
+      .catch(() => []);
     console.error(`device ${n} at ${page.url()}: ${panel}`);
+    console.error(`device ${n} marks: ${marks.join(" | ")}`);
   }
 } finally {
   await browser.close();
+  serve.close();
   daemon.kill();
   fs.rmSync(slots, { recursive: true, force: true });
 }

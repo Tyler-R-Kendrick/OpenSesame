@@ -226,7 +226,9 @@ pub(crate) async fn write_snapshot(
 ///
 /// CORS is route-scoped in this codebase: these two are the only daemon
 /// routes a browser may call, so they alone carry the configured origins
-/// (`OPENSESAME_CORS_ORIGINS`). The operator routes carry none.
+/// (`OPENSESAME_CORS_ORIGINS`), and answer Chrome's Private Network Access
+/// preflight, since the page calling them is public and the drive is not.
+/// The operator routes carry none.
 pub(crate) fn device_routes() -> Router<App> {
     device_routes_for(&opensesame_host_core::http_security::cors_origins_from_env())
 }
@@ -239,9 +241,7 @@ pub(crate) fn device_routes_for(origins: &[String]) -> Router<App> {
                 .put(write_snapshot)
                 .layer(DefaultBodyLimit::max(MAX_PUT_BYTES)),
         )
-        .layer(opensesame_host_core::http_security::browser_cors_layer(
-            origins,
-        ))
+        .layer(opensesame_host_core::http_security::ciphertext_drive_cors_layer(origins))
 }
 
 /// Every drive route, for the main listener.
