@@ -11,7 +11,11 @@ import {
 import { isFunction, isTypeofObject } from "@opensesame/os-domain";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { AUTHORED_GUIDE_TARGETS, AUTHORED_HELP_TOPICS } from "./authored.js";
+import {
+  AUTHORED_GUIDE_TARGETS,
+  AUTHORED_HELP_TOPICS,
+  OPTIONAL_TUTORIALS,
+} from "./authored.js";
 import { mergedGuideTargets } from "./catalog.js";
 import * as devModule from "./dev.js";
 import {
@@ -68,14 +72,9 @@ const CATALOG_SOURCE = readFileSync(
  * corpus rather than the view — a description a plan happens to exclude is
  * still checked-in prose that must never interpolate a user value.
  */
+// Each partition names its own targets file; a file two partitions share is read once.
 const OPTIONAL_TARGET_SOURCES = [
-  "connections-catalog.ts",
-  "access-catalog.ts",
-  "identity-catalog.ts",
-  "wallet-catalog.ts",
-  "activity-catalog.ts",
-  "notifications-catalog.ts",
-  "plugins-catalog.ts",
+  ...new Set(OPTIONAL_TUTORIALS.map((partition) => partition.files.targets)),
 ];
 
 const TARGET_SOURCES = [
@@ -94,6 +93,7 @@ const GOALS_SOURCES = [
   "access-goals.ts",
   "authority-help.ts",
   "identity-goals.ts",
+  "tailnet-devices-catalog.ts",
 ].map((file) => readFileSync(join(import.meta.dirname, file), "utf8"));
 
 const CAPABILITY_IDS = new Set(CAPABILITIES.map((capability) => capability.id));

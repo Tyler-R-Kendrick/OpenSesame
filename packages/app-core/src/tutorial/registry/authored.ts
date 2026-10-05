@@ -43,6 +43,11 @@ import {
   SURROGATE_TARGETS,
 } from "./plugins-catalog.js";
 import { CORE_GUIDE_ROUTES, type GuideRouteDescriptor } from "./routes.js";
+import {
+  TAILNET_DEVICES_GOALS,
+  TAILNET_DEVICES_HELP,
+  TAILNET_DEVICES_TARGETS,
+} from "./tailnet-devices-catalog.js";
 import type { GuideTargetDescriptor } from "./targets.js";
 import { WALLET_ROUTES, WALLET_TARGETS } from "./wallet-catalog.js";
 
@@ -136,6 +141,17 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     targets: AUTOFILL_TARGETS,
     goals: AUTOFILL_GOALS,
     help: [],
+    routes: [],
+  },
+  {
+    capability: "networking.tailnet-devices",
+    files: {
+      targets: "tailnet-devices-catalog.ts",
+      goals: "tailnet-devices-catalog.ts",
+    },
+    targets: TAILNET_DEVICES_TARGETS,
+    goals: TAILNET_DEVICES_GOALS,
+    help: TAILNET_DEVICES_HELP,
     routes: [],
   },
 ];

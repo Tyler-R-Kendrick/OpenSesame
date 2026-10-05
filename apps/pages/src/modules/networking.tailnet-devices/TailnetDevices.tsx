@@ -25,6 +25,7 @@ import {
   subscribeLinkedTailnetPairing,
   takeLinkedTailnetPairing,
 } from "../../lib/pairing-link.js";
+import { GuideTarget, useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ActivityPanel } from "./ActivityPanel.js";
 import { AddDeviceSheet } from "./AddDeviceSheet.js";
 import { ArmedKey } from "./ArmedKey.js";
@@ -120,15 +121,17 @@ function HeadKeys({
   return (
     <fieldset className="vtree__keys" aria-label="Tailnet device commands">
       {canManage ? (
-        <IconKey
-          id={ADD_DEVICE_KEY_ID}
-          label="Add a device"
-          small
-          disabled={busy || !loaded?.status.connected}
-          onClick={onAdd}
-        >
-          <IconPlus size={15} />
-        </IconKey>
+        <GuideTarget id="identity.tailnet-devices.add">
+          <IconKey
+            id={ADD_DEVICE_KEY_ID}
+            label="Add a device"
+            small
+            disabled={busy || !loaded?.status.connected}
+            onClick={onAdd}
+          >
+            <IconPlus size={15} />
+          </IconKey>
+        </GuideTarget>
       ) : null}
       <ReloadKey
         label="Reload tailnet devices"
@@ -195,6 +198,7 @@ function useLinkedPairing(onCode: (code: string) => void) {
 
 export function TailnetDevices({ admin }: { admin: TailnetAdmin }) {
   const model = useTailnetAdmin(admin);
+  const guide = useGuideTarget<HTMLElement>("identity.tailnet-devices");
   const [filter, setFilter] = useState<DeviceFilter>("all");
   const [editing, setEditing] = useState<TailnetDevice | null>(null);
   const [adding, setAdding] = useState(false);
@@ -207,7 +211,7 @@ export function TailnetDevices({ admin }: { admin: TailnetAdmin }) {
   const devices = loaded ? visibleDevices(loaded.devices, filter, "", now) : [];
   return (
     <>
-      <section className="panel" aria-label="Tailnet devices">
+      <section ref={guide} className="panel" aria-label="Tailnet devices">
         <div className="panel__head">
           <h2>Tailnet devices</h2>
           <HeadKeys

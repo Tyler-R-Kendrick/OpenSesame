@@ -1,5 +1,7 @@
 /** @vitest-environment jsdom */
+import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { tailnetAdminSeams } from "@opensesame/app-core/lib/tailnet-admin/client.js";
+import { TAILNET_DEVICES_TARGETS } from "@opensesame/app-core/tutorial/registry/tailnet-devices-catalog.js";
 import {
   cleanup,
   render,
@@ -8,7 +10,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TailnetDevices } from "./TailnetDevices.js";
 import {
   fakeDaemon,
@@ -17,9 +19,17 @@ import {
   wireDevice,
 } from "./fake-daemon.test-support.js";
 
+// The panel and its add key are tutorial targets the module declares on activation.
+let undeclare: Array<() => void> = [];
+beforeEach(() => {
+  undeclare = TAILNET_DEVICES_TARGETS.map((target) =>
+    registerContributionForTest("tutorial-target", target),
+  );
+});
 afterEach(() => {
   cleanup();
   Object.assign(tailnetAdminSeams, originalSeams);
+  for (const revoke of undeclare) revoke();
 });
 
 const pending = () =>

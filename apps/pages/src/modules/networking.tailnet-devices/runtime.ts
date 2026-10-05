@@ -6,7 +6,8 @@
  *
  * Contributed: the Tailnet devices, Auth keys and Activity panels, put into
  * Identity › Devices through its slot (`sections/identity/tailnet-devices-slot.ts`)
- * so the always-on section imports none of this code.
+ * so the always-on section imports none of this code; and the walkthrough
+ * that points at them (`tutorial/registry/tailnet-devices-catalog.ts`).
  *
  * Egress this module makes, all through `ctx.egress` to the one daemon a
  * person paired this page with (`opensesame daemon tailnet pair`), and only
@@ -22,12 +23,22 @@
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { tailnetAdmin } from "@opensesame/app-core/lib/tailnet-admin/client.js";
+import {
+  TAILNET_DEVICES_GOALS,
+  TAILNET_DEVICES_TARGETS,
+} from "@opensesame/app-core/tutorial/registry/tailnet-devices-catalog.js";
 import { createElement } from "react";
 import { contributeTailnetDevices } from "../../sections/identity/tailnet-devices-slot.js";
 import { createActivation } from "../activation.js";
+import { registerTutorial } from "../tutorial-contributions.js";
 import { TailnetDevices } from "./TailnetDevices.js";
 
 export const CAPABILITY = "networking.tailnet-devices";
+
+export const TUTORIAL = {
+  targets: TAILNET_DEVICES_TARGETS,
+  goals: TAILNET_DEVICES_GOALS,
+} as const;
 
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
@@ -37,6 +48,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     const admin = tailnetAdmin(ctx.egress, CAPABILITY);
     const Panels = () => createElement(TailnetDevices, { admin });
     activation.onDispose(contributeTailnetDevices(Panels));
+    registerTutorial(activation, TUTORIAL);
     return activation.handle();
   },
 };

@@ -26,11 +26,11 @@ describe("networking.tailnet-devices runtime", () => {
     );
   });
 
-  it("registers nothing in the shell; its panels go in the Devices slot", async () => {
+  it("registers only its walkthrough in the shell; its panels go in the Devices slot", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "networking.tailnet-devices",
-      kinds: [],
-      count: 0,
+      kinds: ["tutorial-goal", "tutorial-target"],
+      count: runtime.TUTORIAL.targets.length + runtime.TUTORIAL.goals.length,
     });
   });
 
