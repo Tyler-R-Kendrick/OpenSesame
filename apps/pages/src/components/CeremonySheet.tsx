@@ -3,9 +3,10 @@ import { useModalFocus } from "../lib/modal-focus.js";
 import { IconX } from "./Icons.js";
 
 /**
- * The side sheet a ceremony runs in: a mark and a name in the head, the
- * ceremony's card in the body, and one line of what is and is not written
- * yet in the foot. A row's action opens it; closing it puts the person back
+ * The side sheet a ceremony runs in: a mark, a name and the close key in the
+ * head, the ceremony's card in the body, and nothing else — no line under the
+ * title and no caption in a foot (`design-lint` `sheet-caption`): the card's
+ * facts and keys say what the sheet does. A row's action opens it; closing it puts the person back
  * on the row they came from (`useModalFocus` returns the focus).
  *
  * The card inside is a `CeremonyShell`; this is only the frame, so a Settings
@@ -14,14 +15,12 @@ import { IconX } from "./Icons.js";
 export function CeremonySheet({
   title,
   mark,
-  foot,
   onClose,
   initialFocus,
   children,
 }: {
   title: string;
   mark: ReactNode;
-  foot?: string;
   onClose: () => void;
   /** Where focus lands on open, when it should be a field rather than Close. */
   initialFocus?: RefObject<HTMLElement | null>;
@@ -65,11 +64,6 @@ export function CeremonySheet({
           </button>
         </div>
         <div className="sheet__body">{children}</div>
-        {foot ? (
-          <div className="sheet__foot">
-            <p className="hint">{foot}</p>
-          </div>
-        ) : null}
       </div>
     </div>
   );

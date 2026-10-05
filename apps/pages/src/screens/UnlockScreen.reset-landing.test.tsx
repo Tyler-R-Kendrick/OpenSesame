@@ -84,9 +84,7 @@ describe("the tab that resets", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Reset this browser?" }),
     );
-    fireEvent.click(
-      screen.getByRole("button", { name: "Erase everything in this browser" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Erase this browser" }));
 
     const status = await screen.findByRole("status", {
       name: "Resetting this browser",

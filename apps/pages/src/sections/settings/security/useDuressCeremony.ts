@@ -8,7 +8,9 @@ import {
   type DuressModeId,
   MODES,
   getMode,
+  inputReady,
 } from "@opensesame/app-core/lib/duress/settings/modes/index.js";
+import { starterText } from "@opensesame/app-core/lib/duress/settings/modes/inputs.js";
 import { activeProject } from "@opensesame/app-core/lib/projects.js";
 import { type FormEvent, useState } from "react";
 import type { Run } from "./run.js";
@@ -29,8 +31,9 @@ function modeOf(id: DuressModeId): DuressMode {
 /**
  * The duress sheet's form: the chosen mode, the code typed twice, the one
  * acknowledgement and what arming said back. A pick that changes the mode
- * takes the acknowledgement and the mode's input back, because the sentence
- * ticked names one mode and a yes to it is not a yes to another.
+ * takes the acknowledgement back and offers the new mode's starter lines (or
+ * nothing), because the sentence ticked names one mode and a yes to it is not
+ * a yes to another.
  */
 export function useDuressCeremony({ armed, busy, run, onDone, arm }: Inputs) {
   const [modeId, setModeId] = useState<DuressModeId>(MODES[0].id);
@@ -41,7 +44,8 @@ export function useDuressCeremony({ armed, busy, run, onDone, arm }: Inputs) {
   const [understoodFor, setUnderstoodFor] = useState<DuressModeId | null>(null);
   const [refusal, setRefusal] = useState<DuressRefusal | null>(null);
   const understood = understoodFor === modeId;
-  const inputOk = mode.input.kind === "none" || extra.trim().length > 0;
+  const extras = mode.input.kind === "none" ? {} : { [mode.input.id]: extra };
+  const inputOk = inputReady(mode, extras);
   const ready =
     isAcceptableDuressCode(first) && first === second && understood && inputOk;
 
@@ -53,7 +57,7 @@ export function useDuressCeremony({ armed, busy, run, onDone, arm }: Inputs) {
       const result = await arm({
         code: first,
         mode: modeId,
-        extras: mode.input.kind === "none" ? {} : { [mode.input.id]: extra },
+        extras,
         vaultRef: activeProject().id,
       });
       if (!result.ok) {
@@ -80,7 +84,7 @@ export function useDuressCeremony({ armed, busy, run, onDone, arm }: Inputs) {
     setExtra,
     pick(next: DuressModeId) {
       setModeId(next);
-      setExtra("");
+      setExtra(starterText(modeOf(next)));
       setUnderstoodFor(null);
     },
     typeFirst(next: string) {

@@ -1,6 +1,6 @@
 /**
  * Reading an account's password where a person can be asked for something
- * first (ADR 0168 §4). The command bar, a live session and the like call
+ * first (ADR 0171 §4). The command bar, a live session and the like call
  * `readAccountPassword`; a consumer that cannot prompt (health, SOPS, a list)
  * reads `accountPlainPassword` and treats a peppered password as absent.
  *

@@ -30,7 +30,7 @@ import {
  *
  * One item can hold several credentials, which is how an account with a second
  * factor is expressed: a `basic-auth` and a `totp` under one item. An account
- * (ADR 0168) maps each credential to a login method: `basic-auth` to a
+ * (ADR 0171) maps each credential to a login method: `basic-auth` to a
  * password, `totp` to an authenticator, `api-key` to an API-key method. The mapping
  * below therefore reads an item as a whole and decides its kind from the set
  * of credentials it carries, rather than emitting one draft per credential.

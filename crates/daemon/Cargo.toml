@@ -21,6 +21,9 @@ opensesame-uds-authn = { path = "../../crates/uds-authn" }
 # (`pnpm audit:plugin-boundary`).
 opensesame-plugin-settings = { path = "../../crates/plugin-settings" }
 opensesame-tailscale-authn = { path = "../../crates/tailscale-authn", optional = true }
+# Tailnet device management (ADR 0169): the credential, role pairings, the
+# Tailscale client and the audit trail. Everything it links is already here.
+opensesame-tailnet-admin = { path = "../../crates/tailnet-admin" }
 anyhow = { workspace = true }
 axum = { workspace = true }
 base64 = { workspace = true }
@@ -44,6 +47,9 @@ zeroize = { workspace = true }
 [features]
 default = []
 tailscale = ["dep:opensesame-tailscale-authn"]
+# End-to-end harness only: let `OPENSESAME_TAILSCALE_API_BASE` name a
+# loopback stub for api.tailscale.com. No release enables it.
+tailnet-admin-test-upstream = ["opensesame-tailnet-admin/upstream-override"]
 
 # Platform keychain backends for connector discovery (ADR 0048 §3c, §5).
 # Budgeted additions only: labels are enumerated, values are never read.
@@ -59,6 +65,7 @@ security-framework = "3.2.0"
 windows-sys = { version = "0.59.0", features = ["Win32_Security_Credentials"] }
 
 [dev-dependencies]
+opensesame-tailnet-admin = { path = "../../crates/tailnet-admin", features = ["upstream-override"] }
 insta = { workspace = true, features = ["redactions"] }
 tempfile = { workspace = true }
 tower = { workspace = true }

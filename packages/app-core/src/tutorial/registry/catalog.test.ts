@@ -80,6 +80,7 @@ const GOALS_SOURCES = [
   "access-goals.ts",
   "authority-help.ts",
   "identity-goals.ts",
+  "tailnet-devices-catalog.ts",
 ].map((file) => readFileSync(join(import.meta.dirname, file), "utf8"));
 
 const CAPABILITY_IDS = new Set(CAPABILITIES.map((capability) => capability.id));

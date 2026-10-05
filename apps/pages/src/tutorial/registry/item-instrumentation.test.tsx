@@ -46,7 +46,9 @@ function login(overrides: Partial<AccountItem> = {}): AccountItem {
   return makeAccount({ id: "itm_login", ...overrides });
 }
 
-const state: { items: VaultItem[] } = { items: [] };
+/** The vault the stubbed store hands the panes. */
+type StubVault = { items: VaultItem[] };
+const state: StubVault = { items: [] };
 const store = {
   toggleFavorite: () => undefined,
   trashItem: () => undefined,

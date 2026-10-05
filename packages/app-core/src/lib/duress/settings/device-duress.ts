@@ -22,7 +22,13 @@ import {
 } from "../keys/pin-floors.js";
 import { duressSessionFence } from "../session/fence.js";
 import { loadEnrollmentStateForUnlock } from "../store/unlock-enrollment.js";
-import { type DuressMode, type DuressModeId, getMode } from "./modes/index.js";
+import {
+  type DuressMode,
+  type DuressModeId,
+  encodePlan,
+  getMode,
+  inputReady,
+} from "./modes/index.js";
 import {
   armPersistedUnlockEnrollment,
   disarmPersistedUnlockEnrollment,
@@ -77,11 +83,6 @@ export function duressStatus(): DuressStatus {
   };
 }
 
-/** Whether every input the mode declares came with a value. */
-function hasInputs(mode: DuressMode, extras: Readonly<Record<string, string>>) {
-  return mode.input.kind === "none" || Boolean(extras[mode.input.id]?.trim());
-}
-
 type Checked =
   | { readonly ok: true; readonly mode: DuressMode }
   | { readonly ok: false; readonly code: DuressRefusal };
@@ -100,7 +101,7 @@ function checkRequest(input: {
     return { ok: false, code: "code_format" };
   }
   const mode = getMode(input.mode ?? input.outcome ?? "");
-  if (!mode || !hasInputs(mode, input.extras ?? {})) {
+  if (!mode || !inputReady(mode, input.extras ?? {})) {
     return { ok: false, code: "failed" };
   }
   return { ok: true, mode };
@@ -124,7 +125,7 @@ export async function enableDuressCode(input: {
   mode?: string;
   /** The name `mode` had before the registry; read when `mode` is absent. */
   outcome?: string;
-  /** Values for the inputs the mode declares; no mode declares one yet. */
+  /** Values for the inputs the mode declares, by the input's id. */
   extras?: Readonly<Record<string, string>>;
   /** The vault the owner is in, so the enrollment names a real one. */
   vaultRef: string;
@@ -143,7 +144,7 @@ export async function enableDuressCode(input: {
     // id, so an older code under another profile would keep firing. The
     // revisions carry over so nothing sealed against them goes stale.
     const before = loadEnrollmentStateForUnlock();
-    const sealed = await sealUnlockTriggerFromCeremony({
+    const ceremony = {
       code: input.code,
       profileId: DEVICE_DURESS_PROFILE,
       vaultRef: input.vaultRef,
@@ -154,7 +155,16 @@ export async function enableDuressCode(input: {
       keyEpoch: before?.keyEpoch ?? 1,
       ownerConsent: true,
       capabilities: { durableLocalStorage: true, offlineReady: true },
-    });
+    };
+    // A mode with a plan seals it beside the presentation; one without seals none.
+    const sealed = await sealUnlockTriggerFromCeremony(
+      mode.plan
+        ? {
+            ...ceremony,
+            payload: encodePlan(mode.plan(input.extras ?? {})),
+          }
+        : ceremony,
+    );
     const armed = await armPersistedUnlockEnrollment(sealed, {
       requireDurable: input.requireDurable ?? true,
     });

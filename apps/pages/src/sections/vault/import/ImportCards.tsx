@@ -10,7 +10,7 @@ import { overlapCast } from "@opensesame/os-domain";
 import { type ReactNode, useId, useState } from "react";
 import { CeremonyShell } from "../../../components/CeremonyShell.js";
 import { FieldShell } from "../../../components/FieldShell.js";
-import { IconLock } from "../../../components/Icons.js";
+import { IconLock, IconPasskey } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 
 /** A failure is a mark beside what failed, never a box (DESIGN.md). */
@@ -258,6 +258,7 @@ export function SealedCard(props: {
         facts={facts}
         primary={{
           label: "Restore with passkey",
+          icon: <IconPasskey size={18} />,
           busy: props.busy,
           onClick: () => props.onPasskey(props.canTakeIdentity && take),
         }}

@@ -1,6 +1,12 @@
 import { Fragment, type ReactNode, type RefObject, useState } from "react";
 
-import { IconAlert, IconCheck, IconChevronRight } from "./Icons.js";
+import {
+  IconAlert,
+  IconCheck,
+  IconChevronRight,
+  IconTrash,
+  IconX,
+} from "./Icons.js";
 
 /**
  * The one shape every connection ceremony wears.
@@ -35,13 +41,28 @@ export type CeremonyAlt = {
 };
 
 export type CeremonyPrimary = {
+  /**
+   * The verb. It is the key's accessible name and tooltip, and, for the
+   * primary, the words set beside the `.go` square in the margin voice —
+   * never paint on a button face (DESIGN.md § Actions are symbols).
+   */
   label: string;
+  /** The glyph on the key; a check, or a bin for `danger`, when left out. */
+  icon?: ReactNode;
+  /**
+   * The words are the thing chosen — a sign-in method, the guest road, one
+   * of two kinds of key — not a verb, so the control stays text
+   * (`choice`), as `design-lint` accepts it.
+   */
+  choice?: boolean;
   onClick: () => void;
   busy?: boolean;
   disabled?: boolean;
   /**
    * `danger` for the one irreversible act a ceremony can hold — removing a
-   * key or a second step — drawn in the error ink beside a plain "Keep it".
+   * key or a second step — drawn as the `.go` square in the error ink beside
+   * a Keep key. A card that asks has not failed: it drops the wash and the
+   * kicker, and the danger key carries the weight.
    */
   tone?: "danger";
   /** Submit a surrounding form instead of clicking, so Enter in a field commits. */
@@ -55,7 +76,7 @@ export type CeremonyPrimary = {
 };
 
 export function CeremonyShell({
-  ok,
+  ok = true,
   top,
   name,
   facts,
@@ -65,7 +86,7 @@ export function CeremonyShell({
   children,
 }: {
   /** Drives the tick-vs-alert mark and the card's wash. */
-  ok: boolean;
+  ok?: boolean;
   /**
    * The top line is a fact — "Enrolled 28 Aug", "Code sent", "7 of 10 left"
    * — or nothing. A card for something that has not happened yet leaves it
@@ -86,9 +107,11 @@ export function CeremonyShell({
   /** Extra content inside the card, below the facts and above the action. */
   children?: ReactNode;
 }) {
+  const asks = primary?.tone === "danger";
+  const wash = asks ? " found--ask" : ok ? "" : " found--attn";
   return (
     <>
-      <div className={`found${ok ? "" : " found--attn"}`}>
+      <div className={`found${wash}`}>
         {top ? (
           <p className="found__top">
             {ok ? <IconCheck size={15} /> : <IconAlert size={15} />}
@@ -111,41 +134,98 @@ export function CeremonyShell({
         ) : null}
         {children}
         {primary || secondary ? (
-          <div className="found__do">
-            {primary ? (
-              <button
-                ref={primary.keyRef}
-                type={primary.submit ? "submit" : "button"}
-                className={
-                  primary.tone === "danger"
-                    ? "btn btn--danger"
-                    : "btn btn--primary"
-                }
-                disabled={primary.disabled || primary.busy}
-                aria-busy={primary.busy}
-                onClick={primary.submit ? undefined : primary.onClick}
-              >
-                {primary.label}
-              </button>
-            ) : null}
-            {secondary ? (
-              <button
-                ref={secondary.keyRef}
-                type="button"
-                className="btn"
-                disabled={secondary.disabled || secondary.busy}
-                aria-busy={secondary.busy}
-                onClick={secondary.onClick}
-              >
-                {secondary.label}
-              </button>
-            ) : null}
-          </div>
+          <CeremonyKeys primary={primary} secondary={secondary} />
         ) : null}
       </div>
 
       <CeremonyAlts alts={alts} />
     </>
+  );
+}
+
+/**
+ * A ceremony's keys, on one row: the primary is the `.go` square with its
+ * verb beside it — the same object at the foot of every form (`FormCommit`)
+ * — and the secondary (keep, dismiss, download) is an icon key on the same
+ * row. A key whose words are the thing chosen stays text (`choice`).
+ */
+function CeremonyKeys({
+  primary,
+  secondary,
+}: {
+  primary?: CeremonyPrimary;
+  secondary?: CeremonyPrimary;
+}) {
+  return (
+    <div className="go-row found__do">
+      {primary ? <PrimaryKey primary={primary} /> : null}
+      {secondary ? <SecondaryKey secondary={secondary} /> : null}
+    </div>
+  );
+}
+
+function PrimaryKey({ primary }: { primary: CeremonyPrimary }) {
+  if (primary.choice) return <ChoiceKey entry={primary} primary />;
+  const danger = primary.tone === "danger";
+  return (
+    <>
+      <button
+        ref={primary.keyRef}
+        type={primary.submit ? "submit" : "button"}
+        className={danger ? "go go--danger" : "go"}
+        disabled={primary.disabled || primary.busy}
+        aria-busy={primary.busy || undefined}
+        aria-label={primary.label}
+        title={primary.label}
+        onClick={primary.submit ? undefined : primary.onClick}
+      >
+        {primary.icon ??
+          (danger ? <IconTrash size={18} /> : <IconCheck size={18} />)}
+      </button>
+      <span className="go-verb" aria-hidden="true">
+        {primary.label}
+      </span>
+    </>
+  );
+}
+
+function SecondaryKey({ secondary }: { secondary: CeremonyPrimary }) {
+  if (secondary.choice) return <ChoiceKey entry={secondary} />;
+  return (
+    <button
+      ref={secondary.keyRef}
+      type="button"
+      className="icon-btn"
+      disabled={secondary.disabled || secondary.busy}
+      aria-busy={secondary.busy || undefined}
+      aria-label={secondary.label}
+      title={secondary.label}
+      onClick={secondary.onClick}
+    >
+      {secondary.icon ?? <IconX size={18} />}
+    </button>
+  );
+}
+
+/** A key whose words are the thing chosen: a method, a road. */
+function ChoiceKey({
+  entry,
+  primary = false,
+}: {
+  entry: CeremonyPrimary;
+  primary?: boolean;
+}) {
+  return (
+    <button
+      ref={entry.keyRef}
+      type={entry.submit ? "submit" : "button"}
+      className={primary ? "btn btn--primary choice" : "btn choice"}
+      disabled={entry.disabled || entry.busy}
+      aria-busy={entry.busy || undefined}
+      onClick={entry.submit ? undefined : entry.onClick}
+    >
+      {entry.label}
+    </button>
   );
 }
 

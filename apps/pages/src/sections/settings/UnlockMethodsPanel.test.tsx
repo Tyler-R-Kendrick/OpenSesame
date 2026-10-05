@@ -184,7 +184,7 @@ describe("UnlockMethodsPanel", () => {
     await userEvent.click(
       dialog.getByRole("button", { name: "Remove this password" }),
     );
-    expect(dialog.getByText("Remove this password?")).toBeTruthy();
+    expect(document.querySelector(".found--ask .go--danger")).toBeTruthy();
     expect(
       dialog.getByRole("button", { name: "Remove password" }),
     ).toHaveProperty("disabled", true);
@@ -348,7 +348,7 @@ describe("UnlockMethodsPanel", () => {
       row("Authenticator app").getByRole("button", { name: "Remove" }),
     );
     const dialog = sheet();
-    expect(dialog.getByText("Remove the authenticator?")).toBeTruthy();
+    expect(document.querySelector(".found--ask .go--danger")).toBeTruthy();
     expect(store.removeTotp).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(dialog.getByText(/1 unused codes are discarded/)).toBeTruthy(),

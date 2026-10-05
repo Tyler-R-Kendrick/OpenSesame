@@ -12,6 +12,7 @@
  */
 
 import { createAccount, createOperator, createUser } from "@nats-io/nkeys";
+import type { NatsCredential } from "./nats-credentials.js";
 import {
   encodeAccountJwt,
   encodeOperatorJwt,
@@ -40,7 +41,7 @@ export type LiveNatsOperator = Readonly<{
   /** The operator's seed, to keep offline. */
   operatorSeed: string;
   /** With `watcher`: a `.creds`-style user on every subject (for a test). */
-  watcher?: Readonly<{ jwt: string; seed: string }>;
+  watcher?: NatsCredential;
 }>;
 
 const decoder = new TextDecoder();
@@ -57,7 +58,7 @@ function websocketBlock(input: LiveNatsOperatorInput): string {
 async function watcherFor(
   signer: ReturnType<typeof createAccount>,
   account: string,
-): Promise<{ jwt: string; seed: string }> {
+): Promise<NatsCredential> {
   const user = createUser();
   const jwt = await encodeUserJwt(
     signer,
@@ -111,12 +112,10 @@ export async function liveNatsOperator(
     "",
   ].join("\n");
   const mint = { account: account.getPublicKey(), signingKey: seedOf(signer) };
+  const issued = { config, mint, operatorSeed: seedOf(operator) };
+  if (!input.watcher) return issued;
   return {
-    config,
-    mint,
-    operatorSeed: seedOf(operator),
-    ...(input.watcher
-      ? { watcher: await watcherFor(signer, account.getPublicKey()) }
-      : {}),
+    ...issued,
+    watcher: await watcherFor(signer, account.getPublicKey()),
   };
 }

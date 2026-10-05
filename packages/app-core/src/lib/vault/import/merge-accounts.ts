@@ -1,5 +1,5 @@
 /**
- * Folding one account's login methods into another's (ADR 0168).
+ * Folding one account's login methods into another's (ADR 0171).
  *
  * `planMerge` still skips an incoming item the vault already holds. This is the
  * primitive for a caller that would rather keep what the second copy knows: it

@@ -1,5 +1,5 @@
 /**
- * The account draft a WebMCP agent may see and patch (ADR 0168). The tool and
+ * The account draft a WebMCP agent may see and patch (ADR 0171). The tool and
  * module keep their `login` names: they are the agent-facing contract. The view
  * carries metadata only (name, username, sites, folder, favorite); a password,
  * a pepper, a sealed envelope and an OPRF key have no field here and no path in.

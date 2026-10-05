@@ -154,7 +154,7 @@ export const navigationTool: WebMcpToolSpec = {
       ) {
         throw new Error("invalid_item_type_destination");
       }
-      // The retired `login` name resolves to the account type (ADR 0168).
+      // The retired `login` name resolves to the account type (ADR 0171).
       location += `/${encodeURIComponent(resolveTypeId(args.itemType))}`;
     }
     if (args.prefill !== undefined) {

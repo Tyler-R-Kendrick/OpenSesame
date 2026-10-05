@@ -9,6 +9,8 @@
  * ticked for one mode and never carried to another.
  */
 
+import type { JsonValue } from "@opensesame/os-domain";
+
 /**
  * What unlock reads out of the sealed slot. Existing enrollments hold exactly
  * these two strings, so the storage format and the unlock behaviour they drive
@@ -17,21 +19,58 @@
 export type DuressPresentation = "decoy" | "locked";
 
 /**
- * Work a mode runs beyond showing a presentation. Reserved: no mode has one,
- * and the unlock path runs none, so the type admits no value until a mode that
- * unlock can honour lands and widens it.
+ * Work a mode runs beyond showing a presentation. A name here is a promise
+ * that `effects.ts` has a runner for it and that the unlock path runs it, so a
+ * mode lands together with its runner or not at all.
  */
-export type DuressEffectName = never;
+export type DuressEffectName = "decoy_items" | "freeze" | "wipe";
 
-/** An extra thing the owner supplies for a mode; `none` for every mode today. */
+/** One choice among a few the owner picks for a mode. */
+export type DuressInputOption = Readonly<{ value: string; label: string }>;
+
+/**
+ * An extra thing the owner supplies for a mode. Every kind reaches
+ * `enableDuressCode`'s `extras` as a string under `id`: text as typed, a choice
+ * as its option's value, items as one per line, a confirmation as the word typed.
+ */
 export type DuressModeInput =
   | Readonly<{ kind: "none" }>
+  | Readonly<{ kind: "text"; id: string; label: string }>
   | Readonly<{
-      kind: "text";
-      /** Key under which the value reaches `enableDuressCode`'s `extras`. */
+      kind: "choice";
       id: string;
       label: string;
+      options: readonly DuressInputOption[];
+    }>
+  | Readonly<{
+      kind: "items";
+      id: string;
+      label: string;
+      min: number;
+      max: number;
+      /** Longest a single line may be. */
+      maxLength: number;
+      /**
+       * Lines the sheet offers when the mode is picked, so the owner edits a
+       * plausible list rather than facing a blank box. Authored with the mode,
+       * never read from the vault.
+       */
+      starter?: readonly string[];
+    }>
+  | Readonly<{
+      kind: "confirm";
+      id: string;
+      label: string;
+      /** The word that must be typed, compared without case or padding. */
+      word: string;
     }>;
+
+/** What a mode asks the unlock path to do once its code matches. */
+export type DuressPlan = Readonly<{
+  effect: DuressEffectName;
+  /** The effect's own parameters; its runner validates them. */
+  body: JsonValue;
+}>;
 
 export type DuressMode<Id extends string = string> = Readonly<{
   id: Id;
@@ -39,10 +78,19 @@ export type DuressMode<Id extends string = string> = Readonly<{
   label: string;
   /** One line: what typing the code does. */
   opens: string;
+  /**
+   * What happens to the vault, where the usual "stays sealed; this code never
+   * opens it" would not be true of the mode.
+   */
+  vault?: string;
   /** What the owner ticks for this mode, and for no other. */
   consent: string;
   /** The string sealed with the code, read at unlock. */
   presentation: DuressPresentation;
   input: DuressModeInput;
-  effect?: DuressEffectName;
+  /**
+   * Builds what is sealed with the code from the owner's inputs. A mode with an
+   * effect has one; the plan reaches the unlock path only through the slot.
+   */
+  plan?: (extras: Readonly<Record<string, string>>) => DuressPlan;
 }>;

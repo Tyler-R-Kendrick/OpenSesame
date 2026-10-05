@@ -10,6 +10,7 @@
  */
 
 import { type KeyPair, fromSeed } from "@nats-io/nkeys";
+import type { JsonObject, JsonValue } from "@opensesame/os-domain";
 import { toB64url } from "./b64.js";
 
 const HEADER = { typ: "JWT", alg: "ed25519-nkey" };
@@ -32,7 +33,7 @@ function base32(bytes: Uint8Array): string {
   return out;
 }
 
-function b64json(value: unknown): string {
+function b64json(value: JsonValue): string {
   return toB64url(encoder.encode(JSON.stringify(value)));
 }
 
@@ -50,15 +51,40 @@ export type ClaimsInput = Readonly<{
   name: string;
   /** Seconds since the epoch; omitted for a token that never expires. */
   exp?: number;
-  nats: Record<string, unknown>;
+  nats: JsonObject;
 }>;
+
+/** The claims as written, before the id is filled in. */
+type JwtBody = {
+  jti: string;
+  iat: number;
+  iss: string;
+  name: string;
+  sub: string;
+  nats: JsonObject;
+  exp?: number;
+};
+
+/** A user's `nats` claim; `resp` only for a credential that answers requests. */
+type UserNats = {
+  pub: { allow: string[] };
+  sub: { allow: string[] };
+  issuer_account: string;
+  allowed_connection_types: string[];
+  subs: number;
+  data: number;
+  payload: number;
+  type: "user";
+  version: number;
+  resp?: { max: number; ttl: number };
+};
 
 /** Sign `claims` as `issuer`: a complete JWT. */
 export async function encodeJwt(
   issuer: KeyPair,
   claims: ClaimsInput,
 ): Promise<string> {
-  const body: Record<string, unknown> = {
+  const body: JwtBody = {
     jti: "",
     iat: Math.floor(Date.now() / 1000),
     iss: issuer.getPublicKey(),
@@ -87,7 +113,7 @@ export function encodeUserJwt(
   permissions: SubjectPermissions,
   exp: number,
 ): Promise<string> {
-  const nats: Record<string, unknown> = {
+  const nats: UserNats = {
     pub: { allow: [...permissions.pub] },
     sub: { allow: [...permissions.sub] },
     issuer_account: account,

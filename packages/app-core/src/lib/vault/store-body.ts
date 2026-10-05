@@ -75,7 +75,7 @@ export async function loadVaultBody(
     // the sealed file, tombstoned so a device that still holds it cannot
     // bring it back.
     retireLegacySample(opened);
-    // A body written before ADR 0168 holds `login` items: they are accounts
+    // A body written before ADR 0171 holds `login` items: they are accounts
     // from here on, and the next write seals them as such.
     return normalizeVaultBody(opened);
   } catch (error) {

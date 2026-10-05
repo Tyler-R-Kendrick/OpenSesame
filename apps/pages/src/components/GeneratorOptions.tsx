@@ -209,7 +209,7 @@ function bitsOf(generator: PasswordGenerator): number | null {
 }
 
 /**
- * The chosen generator's own options, inline under its select (ADR 0168 §6).
+ * The chosen generator's own options, inline under its select (ADR 0171 §6).
  * `manual` has none. Entropy is the configuration's own, a data readout.
  */
 export function GeneratorOptions({

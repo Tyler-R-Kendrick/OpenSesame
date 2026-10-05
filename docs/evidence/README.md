@@ -47,10 +47,16 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-05-tailnet-devices/`](2026-10-05-tailnet-devices/README.md) | Identity › Devices manages the real tailnet (ADR 0169) |
+| [`2026-10-05-sops-gone-prompt-lines/`](2026-10-05-sops-gone-prompt-lines/README.md) | SOPS row removed from Security; the prompt's two identities on two lines |
 | [`2026-10-05-nats-live-route/`](2026-10-05-nats-live-route/README.md) | A NATS server as a live session's route — Settings › Live sessions › Routes |
 | [`2026-10-05-glyph-desktop-prompt/`](2026-10-05-glyph-desktop-prompt/README.md) | The glyph beside the name on desktop (ADR 0164) |
 | [`2026-10-05-gate-help-launcher/`](2026-10-05-gate-help-launcher/README.md) | A help key on the gates — before / after |
+| [`2026-10-05-duress-mode-wipe/`](2026-10-05-duress-mode-wipe/README.md) | Duress mode: wipe this device's copy — visual evidence |
+| [`2026-10-05-duress-mode-freeze/`](2026-10-05-duress-mode-freeze/README.md) | Duress mode: Freeze for a while — visual evidence |
+| [`2026-10-05-duress-mode-decoy-items/`](2026-10-05-duress-mode-decoy-items/README.md) | Decoy with everyday items — visual evidence |
 | [`2026-10-05-decoy-reads-like-unlock/`](2026-10-05-decoy-reads-like-unlock/README.md) | A duress-code unlock reads like an ordinary unlock — visual evidence |
+| [`2026-10-05-confirm-sheets/`](2026-10-05-confirm-sheets/README.md) | Confirmation sheets: the shape the design contract asks for, enforced |
 | [`2026-10-05-accounts/`](2026-10-05-accounts/README.md) | An account owns its login methods; a password is one of them |
 | [`2026-10-04-tutorial-mode/`](2026-10-04-tutorial-mode/README.md) | Tutorial mode — before / after |
 | [`2026-10-04-sops-document-panel/`](2026-10-04-sops-document-panel/README.md) | SOPS document key under Settings › Security — before and after |
@@ -63,6 +69,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-04-mobile-visual-polish/`](2026-10-04-mobile-visual-polish/README.md) | Mobile visual polish |
 | [`2026-10-04-item-type-switches/`](2026-10-04-item-type-switches/README.md) | Item types: a list of switches (ADR 0165) |
 | [`2026-10-04-glyph-identity/`](2026-10-04-glyph-identity/README.md) | Glyphs for vaults and people on a phone (ADR 0164) |
+| [`2026-10-04-gesture-loadout/`](2026-10-04-gesture-loadout/README.md) | The keymap has two loadouts, and a phone leads with gestures |
 | [`2026-10-04-device-inbox/`](2026-10-04-device-inbox/README.md) | Device-mode receipts, inbox and local notifications (ADR 0162) — before and after |
 | [`2026-10-04-device-identity-carry/`](2026-10-04-device-identity-carry/README.md) | The device identity key travels with the vault (ADR 0160 §5a) — before and after |
 | [`2026-10-04-device-identity/`](2026-10-04-device-identity/README.md) | The device is the Identity plane (ADR 0160) — before and after |

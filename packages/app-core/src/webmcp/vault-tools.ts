@@ -52,7 +52,7 @@ const ITEM_KINDS: readonly LegacyItemKind[] = [
 
 /** WebMCP writes only kinds that predate the item-type registry (ADR 0087). */
 function isItemKind(value: string): value is LegacyItemKind {
-  // `login` is the retired name of `account` and still resolves (ADR 0168).
+  // `login` is the retired name of `account` and still resolves (ADR 0171).
   const kind = resolveTypeId(value);
   return ITEM_KINDS.some((known) => known === kind);
 }
@@ -179,7 +179,7 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
       type: "object",
       properties: {
         query: { type: "string", description: "Free-text match." },
-        // `login` is the retired name of `account` and still answers (ADR 0168).
+        // `login` is the retired name of `account` and still answers (ADR 0171).
         kind: { type: "string", enum: [...ITEM_KINDS, "login"] },
         folderId: { type: "string" },
         favorites: { type: "boolean" },

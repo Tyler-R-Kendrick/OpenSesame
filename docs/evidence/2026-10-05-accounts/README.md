@@ -1,6 +1,6 @@
 # An account owns its login methods; a password is one of them
 
-Before/after for ADR [0168](../../adr/0168-accounts-and-login-methods.md).
+Before/after for ADR [0171](../../adr/0171-accounts-and-login-methods.md).
 
 Every pair is the same walk captured from two real builds — `origin/main`
 (built in its own worktree) and this branch — with the same steps, at phone and

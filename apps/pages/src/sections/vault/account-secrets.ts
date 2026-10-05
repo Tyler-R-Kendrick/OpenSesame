@@ -1,5 +1,5 @@
 /**
- * What the account editor does to a password method's secret (ADR 0168 §4).
+ * What the account editor does to a password method's secret (ADR 0171 §4).
  *
  * A password that is peppered is never in the draft item: the draft holds
  * `secret: ""` and the sealed envelope. The plaintext the person typed or

@@ -1,5 +1,5 @@
 /**
- * An account as one sealed-store entry (ADR 0168, ADR 0037 §6). Line one is
+ * An account as one sealed-store entry (ADR 0171, ADR 0037 §6). Line one is
  * the first password method's password when nothing has to be asked for it (a
  * pepper, a Sphinx key), as `pass show` reads it; a bare `otpauth://` line is
  * the first authenticator's seed, so `pass otp` works; everything else — every

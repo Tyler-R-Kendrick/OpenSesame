@@ -1,5 +1,5 @@
 /**
- * How the terminal reads and writes an account's password (ADR 0168 §4). A
+ * How the terminal reads and writes an account's password (ADR 0171 §4). A
  * password that is peppered or Sphinx-derived is absent here: the CLI never
  * reveals, accepts or logs a pepper, a sealed envelope or a method secret.
  */
@@ -15,7 +15,7 @@ import {
 
 /**
  * A password the terminal cannot ask a pepper for is absent here: the CLI
- * never reveals, accepts or logs a pepper or a sealed envelope (ADR 0168 §4).
+ * never reveals, accepts or logs a pepper or a sealed envelope (ADR 0171 §4).
  */
 export class NeedsPepperError extends Error {
   readonly code = "needs_pepper";

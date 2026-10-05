@@ -47,6 +47,11 @@ pub enum RateKey {
     /// process can make, so it must not spend the budget of the paired
     /// extension that origin names.
     UnpairedFill,
+    /// Every tailnet pairing exchange shares one bucket, whatever origin it
+    /// claims (ADR 0169 §3).
+    TailnetPairing,
+    /// One tailnet bearer's changes, keyed by its pairing id (ADR 0169 §4).
+    TailnetChange(String),
 }
 
 /// 429 with a `Retry-After` the caller can actually wait on.

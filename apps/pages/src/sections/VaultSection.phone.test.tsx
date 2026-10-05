@@ -60,6 +60,15 @@ function renderVault(path: string) {
   );
 }
 
+/** The one element `selector` names, narrowed by a check: absent fails the test. */
+function drawn(selector: string): HTMLElement {
+  const element = document.querySelector(selector);
+  if (!(element instanceof HTMLElement)) {
+    throw new Error(`nothing drawn at ${selector}`);
+  }
+  return element;
+}
+
 /** Says how the current entry was arrived at, for the tests to read. */
 function Arrival() {
   return <output data-testid="arrival">{useNavigationType()}</output>;
@@ -67,11 +76,6 @@ function Arrival() {
 
 const pane = () =>
   document.querySelector<HTMLElement>(".vault")?.getAttribute("data-pane");
-const found = (selector: string): HTMLElement => {
-  const element = document.querySelector<HTMLElement>(selector);
-  if (!element) throw new Error(`nothing matches ${selector}`);
-  return element;
-};
 const trees = () => screen.queryAllByRole("tree", { name: "Sections" });
 
 describe("the vault on a phone", () => {
@@ -132,7 +136,7 @@ describe("the vault on a phone", () => {
 
   it("Add is one button: the default + with an attached ellipsis", () => {
     renderVault("/vault");
-    const add = found(".vault > .fab");
+    const add = drawn(".vault > .fab");
     const plus = within(add).getByRole("link", {
       name: "New item",
     });
@@ -221,7 +225,7 @@ describe("the vault on a phone", () => {
 
   it("the list's header is back and the view it shows, named; nothing else is a key", () => {
     renderVault("/vault?f=all");
-    const bar = found(".vault__list .vtree__pathbar");
+    const bar = drawn(".vault__list .vtree__pathbar");
     const view = within(bar).getByRole("button", {
       name: /^Filter — /,
     });
@@ -276,7 +280,7 @@ describe("the vault on a phone", () => {
     expect(screen.getByTestId("arrival").textContent).toBe("POP");
     fireEvent.click(screen.getByRole("treeitem", { name: "all" }));
     await waitFor(() => expect(pane()).toBe("list"));
-    fireEvent.click(found('.vault__list [role="treeitem"]'));
+    fireEvent.click(drawn('.vault__list [role="treeitem"]'));
     await waitFor(() => expect(pane()).toBe("detail"));
     fireEvent.click(screen.getByRole("link", { name: "Back to all items" }));
     await waitFor(() => expect(pane()).toBe("list"));
@@ -300,10 +304,8 @@ describe("the vault on a phone", () => {
       showHelp: vi.fn(),
     });
     act(() => handler(new KeyboardEvent("keydown", { key: "/" })));
-    const prompt = screen.getByRole<HTMLInputElement>("combobox", {
-      name: "Command",
-    });
-    await waitFor(() => expect(prompt.value).toBe("/? "));
+    const prompt = screen.getByRole("combobox", { name: "Command" });
+    await waitFor(() => expect(prompt).toHaveProperty("value", "/? "));
     expect(document.activeElement).toBe(prompt);
     expect(screen.queryByLabelText("Search items")).toBeNull();
   });
@@ -315,9 +317,9 @@ describe("the vault on a phone", () => {
       showHelp: vi.fn(),
     });
     act(() => handler(new KeyboardEvent("keydown", { key: "/" })));
-    const prompt = screen.getByRole<HTMLInputElement>("combobox", {
-      name: "Command",
-    });
+    const prompt = screen.getByRole("combobox", { name: "Command" });
+    if (!(prompt instanceof HTMLInputElement))
+      throw new Error("the command prompt is not a text field");
     await waitFor(() => expect(prompt.value).toBe("/? "));
     fireEvent.change(prompt, { target: { value: `/? ${words}` } });
     return prompt;

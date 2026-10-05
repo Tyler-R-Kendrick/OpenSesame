@@ -10,8 +10,9 @@ import {
 } from "@opensesame/app-core/lib/local-rbac.js";
 import type { OrganizationRole } from "@opensesame/os-domain";
 import { useId, useRef, useState } from "react";
+import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
-import { IconTrash, IconX } from "../../components/Icons.js";
+import { IconPlus, IconTrash, IconX } from "../../components/Icons.js";
 
 type MembershipProps = {
   directory: LocalDirectory;
@@ -229,13 +230,11 @@ function MembershipForm(props: MembershipProps) {
           )}
         </select>
       </div>
-      <button
-        type="submit"
-        className="btn btn--sm btn--primary"
+      <FormCommit
+        label={submitLabel}
+        icon={alreadyMember ? undefined : <IconPlus size={18} />}
         disabled={disabled || !principalId}
-      >
-        {submitLabel}
-      </button>
+      />
     </form>
   );
 }

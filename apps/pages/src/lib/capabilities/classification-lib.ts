@@ -30,12 +30,15 @@ const CORE_INFRA = [
   "focus",
   "use-focus-after",
   "gestures",
+  "gesture-runtime",
+  "gesture-motion",
+  "use-gestures",
   "use-claimed-drags",
   "gesture-help",
   "pane-trail",
   "use-narrow",
   "vault-list-path",
-  // `?f=login` is the retired name of `?f=account` (ADR 0168): the vault list and rail read it.
+  // `?f=login` is the retired name of `?f=account` (ADR 0171): the vault list and rail read it.
   "vault-filter-slug",
   "modal-focus",
   "strip",
@@ -261,6 +264,11 @@ export const LIB_RULES = [
     `${L}tailnet-sync/`,
     "networking.tailnet",
     "tailnet vault sync: drive client, merge pass, adoption (ADR 0144)",
+  ),
+  optional(
+    `${L}tailnet-admin/`,
+    "networking.tailnet-devices",
+    "tailnet device management: daemon client, sealed pairing, device model (ADR 0169)",
   ),
   core(
     `${L}join/`,

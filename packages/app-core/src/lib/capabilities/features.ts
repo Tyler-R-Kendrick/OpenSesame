@@ -168,7 +168,12 @@ export const FEATURES: readonly Feature[] = [
     ["agents.surrogate-credentials"],
     [],
   ),
-  section("networking", "Networking", ["networking.tailnet"], ["networking"]),
+  section(
+    "networking",
+    "Networking",
+    ["networking.tailnet", "networking.tailnet-devices"],
+    ["networking"],
+  ),
   // Told on this device, with no service: its own section, because it needs
   // none of the Identity API the section below is for (ADR 0162).
   section(

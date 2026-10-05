@@ -23,6 +23,8 @@ import { commitKeyOf, stagingKeyOf } from "./boot-keys.js";
 
 export const journalSeams = {
   durability: (): ReturnType<typeof kvDurability> => kvDurability(),
+  /** Every key the journal writes passes here or through `setDurable`. */
+  set: kvSet,
   setDurable: kvSetDurable,
   deleteDurable: kvDeleteDurable,
 };
@@ -76,7 +78,7 @@ export function recoverJournal<T>(key: string): JournalRecord<T> | null {
       staging.revision >= primary.revision &&
       commit === String(staging.revision)
     ) {
-      kvSet(key, JSON.stringify(staging));
+      journalSeams.set(key, JSON.stringify(staging));
       kvDelete(stagingKey(key));
       kvDelete(commitKey(key));
       return staging;
@@ -84,7 +86,7 @@ export function recoverJournal<T>(key: string): JournalRecord<T> | null {
     return primary;
   }
   if (!primary && staging && commit === String(staging.revision)) {
-    kvSet(key, JSON.stringify(staging));
+    journalSeams.set(key, JSON.stringify(staging));
     kvDelete(stagingKey(key));
     kvDelete(commitKey(key));
     return staging;
@@ -158,8 +160,8 @@ async function commitJournalWrite(
   nextRevision: number,
   durability: ReturnType<typeof kvDurability>,
 ): Promise<JournalWriteResult> {
-  kvSet(stagingKey(key), body);
-  kvSet(commitKey(key), String(nextRevision));
+  journalSeams.set(stagingKey(key), body);
+  journalSeams.set(commitKey(key), String(nextRevision));
   if (durability === "persistent") {
     const durableFailure = await persistJournalPrimary(key, body);
     if (durableFailure) {
@@ -170,7 +172,7 @@ async function commitJournalWrite(
       return durableFailure;
     }
   } else {
-    kvSet(key, body);
+    journalSeams.set(key, body);
   }
   kvDelete(stagingKey(key));
   kvDelete(commitKey(key));

@@ -1,0 +1,250 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "vault/new/secret"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Real bank login"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "pressIn": ["#duress-profiles", "Add"]
+        },
+        {
+          "chooseOptional": "Decoy with everyday items"
+        },
+        {
+          "fillOptional": {
+            "label": "Everyday items",
+            "text": "Netflix\nWi-Fi at home\nLibrary card\nGym club\nWater bill",
+            "selector": "[role=dialog] textarea"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=0"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Confirm duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=1"
+          }
+        },
+        {
+          "checkOptional": "I understand this code opens a decoy, never my vault.",
+          "only": "before"
+        },
+        {
+          "checkOptional": "I understand this code opens a decoy holding only the items I typed here, never my vault, and it looks only as plausible as those items are.",
+          "only": "after"
+        },
+        {
+          "count": ["[role=dialog] input[type=radio]", "[role=dialog] textarea"]
+        },
+        {
+          "measure": "[role=dialog] .duress__choice"
+        },
+        {
+          "measure": "[role=dialog] textarea"
+        },
+        {
+          "measure": "[role=dialog] button"
+        },
+        {
+          "shot": "390-sheet"
+        },
+        {
+          "pressOptional": "Turn on duress code"
+        },
+        {
+          "pressOptional": "Lock vault"
+        },
+        {
+          "fillOptional": {
+            "label": "Password",
+            "text": "246813579",
+            "selector": "input[type=password]"
+          }
+        },
+        {
+          "pressOptional": "Unlock"
+        },
+        {
+          "visit": "vault"
+        },
+        {
+          "count": [".vtree [role=treeitem]", ".duress-presentation-overlay"]
+        },
+        {
+          "report": ".vtree"
+        },
+        {
+          "report": ".rail__prompt"
+        },
+        {
+          "shot": "390-decoy"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "vault/new/secret"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Real bank login"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "pressIn": ["#duress-profiles", "Add"]
+        },
+        {
+          "chooseOptional": "Decoy with everyday items"
+        },
+        {
+          "fillOptional": {
+            "label": "Everyday items",
+            "text": "Netflix\nWi-Fi at home\nLibrary card\nGym club\nWater bill",
+            "selector": "[role=dialog] textarea"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=0"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Confirm duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=1"
+          }
+        },
+        {
+          "checkOptional": "I understand this code opens a decoy, never my vault.",
+          "only": "before"
+        },
+        {
+          "checkOptional": "I understand this code opens a decoy holding only the items I typed here, never my vault, and it looks only as plausible as those items are.",
+          "only": "after"
+        },
+        {
+          "count": ["[role=dialog] input[type=radio]", "[role=dialog] textarea"]
+        },
+        {
+          "measure": "[role=dialog] .duress__choice"
+        },
+        {
+          "measure": "[role=dialog] textarea"
+        },
+        {
+          "measure": "[role=dialog] button"
+        },
+        {
+          "shot": "1280-sheet"
+        },
+        {
+          "pressOptional": "Turn on duress code"
+        },
+        {
+          "pressOptional": "Lock vault"
+        },
+        {
+          "fillOptional": {
+            "label": "Password",
+            "text": "246813579",
+            "selector": "input[type=password]"
+          }
+        },
+        {
+          "pressOptional": "Unlock"
+        },
+        {
+          "visit": "vault"
+        },
+        {
+          "count": [".vtree [role=treeitem]", ".duress-presentation-overlay"]
+        },
+        {
+          "report": ".vtree"
+        },
+        {
+          "report": ".rail__prompt"
+        },
+        {
+          "shot": "1280-decoy"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-sheet",
+      "width": 390,
+      "title": "The duress sheet with a mode's items filled in \u2014 390 \u00d7 844",
+      "caption": "Settings \u203a Security \u203a Duress \u203a Add, the same journey on both builds: pick the everyday-items mode if it is offered, edit its list, type the code twice, tick the consent. The base build has no such mode, so its picture is the plain decoy with the code typed.",
+      "before": "2 mode radios, 0 list boxes; consent 'I understand this code opens a decoy, never my vault.'",
+      "after": "3 mode radios (44px rows), 1 list box 322x195 holding the 5 typed lines; the consent names the items and its limit; key and rows 44px"
+    },
+    {
+      "shot": "390-decoy",
+      "width": 390,
+      "title": "The decoy after typing the code, vault list \u2014 390 \u00d7 844",
+      "caption": "The vault is sealed with one real item, the code is armed, the vault is locked and the code typed at the password prompt. The base build opens an empty decoy, which is itself a tell; the branch opens the same decoy holding the five items typed in the sheet and nothing of the real vault.",
+      "before": "all: \u2013, logins row absent (0 items); 0 presentation overlays",
+      "after": "all: 5, logins: 5 (the phone draws the categories first; the five titles are listed at 1280); 0 overlays"
+    },
+    {
+      "shot": "1280-sheet",
+      "width": 1280,
+      "title": "The duress sheet with a mode's items filled in \u2014 1280 \u00d7 800",
+      "caption": "Settings \u203a Security \u203a Duress \u203a Add, the same journey on both builds: pick the everyday-items mode if it is offered, edit its list, type the code twice, tick the consent. The base build has no such mode, so its picture is the plain decoy with the code typed.",
+      "before": "2 mode radios, 0 list boxes; consent 'I understand this code opens a decoy, never my vault.'",
+      "after": "3 mode radios, 1 list box 355x184 holding the 5 typed lines; the consent names the items and its limit"
+    },
+    {
+      "shot": "1280-decoy",
+      "width": 1280,
+      "title": "The decoy after typing the code, vault list \u2014 1280 \u00d7 800",
+      "caption": "The vault is sealed with one real item, the code is armed, the vault is locked and the code typed at the password prompt. The base build opens an empty decoy, which is itself a tell; the branch opens the same decoy holding the five items typed in the sheet and nothing of the real vault.",
+      "before": "0 rows in the vault list; 0 presentation overlays",
+      "after": "5 rows: Gym club, Library card, Netflix, Water bill, Wi-Fi at home (all .login); the real item is absent; 0 overlays"
+    }
+  ]
+}

@@ -50,11 +50,13 @@ import {
 } from "@opensesame/app-core/screens/setup/ways-in-patch.js";
 import { useReducer, useState } from "react";
 import { FieldShell } from "../../components/FieldShell.js";
+import { FormCommit } from "../../components/FormCommit.js";
 import {
   IconAuthority,
   IconCheck,
   IconCopy,
   IconLogin,
+  IconPlus,
   IconSecret,
   IconSite,
   IconTrash,
@@ -353,21 +355,17 @@ export function WaysIn() {
               onValueChange={setClientIdInput}
             />
 
-            <div className="actions">
-              <button
-                type="button"
-                className="btn btn--primary"
-                disabled={
-                  busy ||
-                  !clientIdInput.trim() ||
-                  (Boolean(preset.field) && !issuerInput.trim())
-                }
-                aria-busy={busy}
-                onClick={addProvider}
-              >
-                {busy ? "Checking…" : `Add ${preset.label}`}
-              </button>
-            </div>
+            <FormCommit
+              label={busy ? "Checking…" : `Add ${preset.label}`}
+              icon={<IconPlus size={18} />}
+              busy={busy}
+              disabled={
+                busy ||
+                !clientIdInput.trim() ||
+                (Boolean(preset.field) && !issuerInput.trim())
+              }
+              onClick={addProvider}
+            />
           </>
         ) : null}
 

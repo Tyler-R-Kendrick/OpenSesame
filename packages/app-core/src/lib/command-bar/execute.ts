@@ -22,7 +22,7 @@ export type CommandPorts = {
   items: () => readonly VaultItem[];
   vaultLocked: () => boolean;
   /**
-   * Ask for a pepper (ADR 0168 §4). Without it a peppered or Sphinx password
+   * Ask for a pepper (ADR 0171 §4). Without it a peppered or Sphinx password
    * has nothing to copy; with it the question is asked once per command.
    */
   askPepper?: AskPepper;

@@ -10,11 +10,6 @@ export function stubMatchMedia(holds: (query: string) => boolean): void {
   );
 }
 
-/** A device whose only pointer is a finger, or one with a mouse attached. */
-export function stubPointer(fine: boolean): void {
-  stubMatchMedia((query) => query.includes("any-pointer: fine") && fine);
-}
-
 /**
  * A screen by the two questions the shell asks of it: is it narrow
  * (`max-width: 900px`), and is its pointer a finger (`pointer: coarse`).

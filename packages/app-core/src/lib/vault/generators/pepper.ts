@@ -1,5 +1,5 @@
 /**
- * The pepper-aware password API (ADR 0168 §4, §5). A password with *Include
+ * The pepper-aware password API (ADR 0171 §4, §5). A password with *Include
  * pepper* is sealed under a pepper the person types each time it is used; a
  * Sphinx password is never stored at all. The pepper, the master input and the
  * password never appear in an error message.

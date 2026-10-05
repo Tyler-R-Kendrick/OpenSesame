@@ -52,7 +52,11 @@ import {
   NAV_IDENTITY_GOALS,
   NAV_WALLET_GOALS,
 } from "./section-nav-goals.js";
-import { SOPS_GOALS } from "./settings-goals.js";
+import {
+  TAILNET_DEVICES_GOALS,
+  TAILNET_DEVICES_HELP,
+  TAILNET_DEVICES_TARGETS,
+} from "./tailnet-devices-catalog.js";
 import type { GuideTargetDescriptor } from "./targets.js";
 import { WALLET_ROUTES, WALLET_TARGETS } from "./wallet-catalog.js";
 
@@ -119,14 +123,6 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     routes: LIVE_ROUTES,
   },
   {
-    capability: "backup.cloud-secrets",
-    files: { targets: "catalog.ts", goals: "settings-goals.ts" },
-    targets: [],
-    goals: SOPS_GOALS,
-    help: [],
-    routes: [],
-  },
-  {
     capability: "notifications.routing",
     files: {
       targets: "notifications-catalog.ts",
@@ -170,6 +166,17 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     targets: DROPS_TARGETS,
     goals: DROPS_GOALS,
     help: [],
+    routes: [],
+  },
+  {
+    capability: "networking.tailnet-devices",
+    files: {
+      targets: "tailnet-devices-catalog.ts",
+      goals: "tailnet-devices-catalog.ts",
+    },
+    targets: TAILNET_DEVICES_TARGETS,
+    goals: TAILNET_DEVICES_GOALS,
+    help: TAILNET_DEVICES_HELP,
     routes: [],
   },
 ];

@@ -54,7 +54,7 @@ pub struct OpenedVaultFile {
 /// The built-in extensions of the legacy kinds (`KIND_EXT`), the reader's
 /// default when no item-type registry is at hand.
 ///
-/// `account` is the kind Pages writes since ADR 0168 and lists as `.account`.
+/// `account` is the kind Pages writes since ADR 0171 and lists as `.account`.
 /// A vault Pages has not opened since then still holds `login` items, which
 /// Pages normalizes to accounts on open; this reader never writes, so it lists
 /// them as they are, `.login`. Both rows are spelled here, not derived: this

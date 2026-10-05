@@ -20,6 +20,7 @@ import {
 } from "./config.js";
 import { KEYMAP_CONTEXTS } from "./context.js";
 import { defaultBindings } from "./effective.js";
+import { gestureLayer } from "./gesture-bindings.js";
 import { MACRO_LIMITS, readMacros } from "./macros.js";
 
 type Pair = readonly [string, BoundaryValue];
@@ -78,6 +79,17 @@ function keepContexts(
   return kept;
 }
 
+/** The stored gestures that still pass, each judged alone. */
+function keepGestures(
+  raw: BoundaryValue | undefined,
+  macros: BoundaryValue,
+  judge: Judge,
+): Pair[] {
+  return pairsOf(raw).filter(([name, target]) =>
+    passes({ macros, gestures: { [name]: target } }, judge),
+  );
+}
+
 /**
  * The stored keymap with every entry that still passes: the whole of it when
  * nothing is refused, and otherwise what is left after the offenders go.
@@ -95,10 +107,14 @@ export function salvageKeymap(candidate: BoundaryValue): KeymapConfig {
   const contexts = Object.fromEntries(
     keepContexts(candidate.contexts, macros, bindings, judge),
   );
+  const gestures = Object.fromEntries(
+    keepGestures(candidate.gestures, macros, judge),
+  );
   const flag = candidate.singleKeys;
   const singleKeys = flag !== undefined && isBoolean(flag) ? flag : true;
+  const motion = isBoolean(candidate.motion) ? candidate.motion : true;
   const kept = readKeymap(
-    { macros, bindings, contexts, singleKeys },
+    { macros, bindings, contexts, gestures, singleKeys, motion },
     commands,
     judge.defaults,
   );
@@ -121,5 +137,7 @@ export function keymapFingerprint(config: KeymapConfig): string {
       context,
       sortedPairs(config.contexts?.[context] ?? {}),
     ]),
+    sortedPairs(gestureLayer(config)),
+    config.motion !== false,
   ]);
 }

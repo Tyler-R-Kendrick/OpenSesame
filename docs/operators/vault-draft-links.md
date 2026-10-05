@@ -9,7 +9,7 @@ https://your-vault.example/vault/new/account?name=Example&username=public_alias&
 
 For a path-hosted deployment, retain its base path before `vault/new/account`. `/vault/new/login` and `.login`
 still resolve to the account type, so links already handed out keep working
-([ADR 0168](../adr/0168-accounts-and-login-methods.md)).
+([ADR 0171](../adr/0171-accounts-and-login-methods.md)).
 Supported query parameters are `name`, `username`, `uri`, `folder` (existing
 folder ID), and `ref` (connection reference). Values are at most 120 characters;
 typed items also accept `field.<id>` for declared scalar text, URL, number,

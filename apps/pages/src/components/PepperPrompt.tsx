@@ -1,5 +1,5 @@
 /**
- * Asking the person for a pepper (ADR 0168 §4, §6).
+ * Asking the person for a pepper (ADR 0171 §4, §6).
  *
  * One modal is the only place a pepper (or a Sphinx master input) is typed. It
  * is a `CeremonySheet`, so focus is trapped, Escape closes and the key that
