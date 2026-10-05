@@ -1,0 +1,56 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "settings/capabilities" },
+        { "measure": ".capsections .toggle" },
+        { "shot": "390-capabilities" },
+        { "visit": "vault/new/login" },
+        { "fill": { "label": "Name", "text": "Polish check" } },
+        { "pressOptional": "^Save item$" },
+        { "measure": ".frow .icon-btn" },
+        { "shot": "390-password" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        { "guest": null },
+        { "visit": "settings/capabilities" },
+        { "shot": "1280-capabilities" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-capabilities",
+      "width": 390,
+      "title": "Capabilities — 390 × 844",
+      "caption": "Every switch is one 44px key with its track at the centre, on one right edge.",
+      "before": "switch keys carried a 6px side padding: tracks sat 5px off their knobs and a section's switch off its tiles' edge",
+      "after": "zero padding on every switch; one right edge per panel"
+    },
+    {
+      "shot": "390-password",
+      "width": 390,
+      "title": "Saved login — 390 × 844",
+      "caption": "Reveal, copy and update read as one cluster of keys at the row's edge.",
+      "before": "the update key dropped onto a line of its own, left-aligned under the dots",
+      "after": "three keys share one line (tops equal), label over dots beside them"
+    },
+    {
+      "shot": "1280-capabilities",
+      "width": 1280,
+      "title": "Desktop — 1280 × 800",
+      "caption": "Unchanged: every rule is scoped to the phone.",
+      "before": "capabilities panel",
+      "after": "identical"
+    }
+  ]
+}

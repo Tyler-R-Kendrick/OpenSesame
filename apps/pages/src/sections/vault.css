@@ -343,38 +343,6 @@
   bottom: 100%;
 }
 
-.vtree__cmd {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.75rem;
-  border-top: 1px solid var(--line);
-  background: var(--surface-2);
-}
-
-.vtree__prompt {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.vtree__cmd input {
-  flex: 1;
-  min-width: 0;
-  max-width: none;
-  min-height: 0;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  caret-color: var(--accent);
-}
-
-.vtree__cmd input:focus {
-  outline: none;
-}
-
 .vault__status {
   flex: none;
   display: flex;
@@ -423,10 +391,6 @@
 }
 
 .detail .detail__backbtn {
-  display: none;
-}
-
-.vtree__key-touch {
   display: none;
 }
 
@@ -726,18 +690,19 @@
     display: none;
   }
 
-  /* `/` is a typed character; a finger looks for the thing it does. */
-  .vtree__key-glyph {
-    display: none;
-  }
-
-  .vtree__key-touch {
-    display: block;
-  }
-
   .vtree__key:not(.vtree__key--help) {
     display: inline-grid;
     place-items: center;
+    /* Drawn as the bare icon key it sits beside (refresh, add, export): the
+       keycap box was the one bordered square in a row of keys. */
+    border-color: transparent;
+    background: transparent;
+    color: var(--ink-2);
+  }
+
+  .vtree__key:not(.vtree__key--help):hover {
+    color: var(--ink-2);
+    border-color: transparent;
   }
 
   /* A row swiped left asks for its actions (lib/gestures.ts): the browser
@@ -746,12 +711,6 @@
   .vtree [role="treeitem"],
   .railtree [role="treeitem"] {
     touch-action: pan-y;
-  }
-
-  /* A field under 16px makes iOS zoom the page on focus and never zoom back. */
-  .vtree__cmd input {
-    min-height: 2.75rem;
-    font-size: 16px;
   }
 }
 
@@ -1132,21 +1091,53 @@ select.editor__ext:hover {
     display: inline-grid;
   }
 
-  /* The list's command row, at the head of the tree: full-bleed over the
-     pane's padding and pinned, so the verbs stay in reach while the tree
-     scrolls under them. The tree's own colours, not the list's. */
-  .vault__tree > .vtree__pathbar {
+  /* What the tree asks of a thumb (PhoneAdd.tsx): the corner Add key and its
+     action sheet. Finding is the status-line prompt, so the pane draws no
+     search field. */
+
+  /* The tree's rows fill the pane so the corner key rests at its foot, and
+     stays there (sticky) once the tree is taller than the screen. */
+  .vault[data-pane="tree"] .vault__tree {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .vault__tree > .railtree {
+    flex: 1 0 auto;
+  }
+
+  .vadd__key {
     position: sticky;
-    top: -0.25rem;
-    z-index: 1;
-    justify-content: flex-start;
-    gap: 0.25rem;
-    margin: -0.25rem calc(-0.6rem - env(safe-area-inset-right)) 0.25rem
-      calc(-0.6rem - env(safe-area-inset-left));
-    padding: 0.15rem calc(0.6rem + env(safe-area-inset-right)) 0.15rem
-      calc(0.6rem + env(safe-area-inset-left));
-    background: var(--rail);
-    border-bottom: 1px solid var(--rail-line, var(--line));
+    bottom: calc(0.9rem + env(safe-area-inset-bottom, 0px));
+    z-index: 2;
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 3.75rem;
+    height: 3.75rem;
+    margin: 0.75rem 0.15rem 0 auto;
+    border: 0;
+    border-radius: 2px;
+    background: var(--ink);
+    color: var(--canvas);
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .vadd__key:active {
+    background: var(--ink-2);
+  }
+
+  /* Import and Export stay mounted, because each owns the sheet or picker it
+     opens, but their keys are rows of the Add sheet here, not keys. */
+  .vadd__host {
+    display: contents;
+  }
+
+  .vadd__host > button,
+  .vadd__host > a {
+    display: none;
   }
 
   .detail {
@@ -1269,4 +1260,58 @@ select.editor__ext:hover {
   display: flex;
   gap: 0.35rem;
   margin: 0.4rem 0 0;
+}
+
+/* —— Phone polish ———————————————————————————————————————————— */
+
+@media (max-width: 900px) {
+  /* A password's own keys (reveal, copy) sit in the row's key column; its
+     "update" key lives in the text column, where a one-column grid dropped it
+     onto a line of its own, left-aligned under the dots. The text column is a
+     label over a value, and the key joins the value's line, so the three keys
+     read as one cluster at the row's edge. */
+  .frow__text:has(> .icon-btn) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 0.15rem;
+  }
+
+  .frow__text:has(> .icon-btn) > .frow__label {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .frow__text:has(> .icon-btn) > :is(.conceal, .frow__value) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .frow__text:has(> .icon-btn) > .icon-btn {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+
+  /* An add-a-field chip beside its field is a chip below it once the pair
+     collapses to a column; it kept the column's whole width, a bar among the
+     chips that sit at their own width one row down. */
+  .editor__row > .editor__optional {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 560px) {
+  /* A finding's marks are glyphs, not chips: the explanation reads beside its
+     glyph instead of under a glyph standing alone on a line, and the fix key
+     sits at the row's edge instead of alone on the left. */
+  .health__issues li {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 0.5rem;
+  }
+
+  .health__finding .actions {
+    justify-content: flex-end;
+    margin-top: 0;
+  }
 }

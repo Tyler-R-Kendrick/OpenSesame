@@ -1,0 +1,47 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "shot": "390-landing" },
+        { "pressOptional": "^Add$" },
+        { "shot": "390-sheet" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [{ "guest": null }, { "shot": "1280-vault" }]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-landing",
+      "width": 390,
+      "title": "Landing — 390 × 844",
+      "caption": "Search is the field the tree opens on; adding is one filled key at the thumb.",
+      "before": "four 44px keys in the top-left, 74px down and ending 198px in; none primary",
+      "after": "search field 390 × 52 at 71px; one 60 × 60 Add key at 702–762px, 12px from the right edge"
+    },
+    {
+      "shot": "390-sheet",
+      "width": 390,
+      "title": "Add sheet — 390 × 844",
+      "caption": "New item, Import items and Export items are rows of the action sheet the key opens.",
+      "before": "no Add key to press; the same four keys",
+      "after": "action sheet on the bottom edge with three full-width rows, each at least 44px"
+    },
+    {
+      "shot": "1280-vault",
+      "width": 1280,
+      "title": "Desktop — 1280 × 800",
+      "caption": "Unchanged: the rail carries the tree and the list keeps its own command row.",
+      "before": "rail + list + buffer",
+      "after": "identical; the phone's search field and Add key are not mounted"
+    }
+  ]
+}

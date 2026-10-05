@@ -25,6 +25,7 @@ import {
   type SupportChain,
   createSupportChain,
   guideSource,
+  walkToEnd,
 } from "./harness.js";
 
 let chain: SupportChain | null = null;
@@ -63,7 +64,9 @@ async function drive(
     { signal: controller.signal },
   );
   if (outcome.program === null) return false;
-  await active.runtime.start(outcome.program);
+  // The app's run edge: a model's program is a tour, held on its first step
+  // until the person presses Next, so it is walked rather than awaited.
+  await walkToEnd(active, active.runGuide(outcome.program, "model"));
   return true;
 }
 
@@ -163,7 +166,7 @@ describe("a model that answers with hostile GuideLang", () => {
    * The control. Without it every assertion above would also pass against a
    * harness that had simply been wired wrong.
    */
-  it("still draws and navigates for a guide the application authored", async () => {
+  it("still draws, and navigates once advanced, for a guide the model wrote and the app compiled", async () => {
     const active = open();
     const agent = fakeAgentAnswering(
       "Here.",
@@ -177,7 +180,11 @@ describe("a model that answers with hostile GuideLang", () => {
     const ran = await drive(active, agent);
 
     expect(ran).toBe(true);
-    expect(active.renderer.sequence()).toEqual(["focus", "clear"]);
+    expect(active.renderer.renderCalls().map((call) => call.kind)).toEqual([
+      "scroll",
+      "focus",
+    ]);
+    expect(active.renderer.sequence().at(-1)).toBe("clear");
     expect(active.routes.navigations()).toEqual(["/vault/health"]);
   });
 });

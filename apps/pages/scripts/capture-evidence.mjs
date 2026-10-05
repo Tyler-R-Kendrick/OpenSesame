@@ -47,6 +47,7 @@ import { prepareScreen, tabStep } from "./lib/capture-tab-step.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
+import { tapStep } from "./lib/tap-step.mjs";
 import { composeSheet } from "./lib/visual-evidence.mjs";
 
 const [mode, ...rest] = process.argv.slice(2);
@@ -189,6 +190,7 @@ const STEPS = {
     }
   },
   ...extraSteps({ press }),
+  ...tapStep({ press }),
   ...fieldSteps({ press }),
   ...readSteps(),
   ...inboxSteps({ origin, base }),
@@ -347,6 +349,7 @@ async function capture(browser, into) {
     if (journey.clock)
       await page.clock.install({ time: new Date(journey.clock) });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
+    await harness.settleFirstLoad?.(page);
     // The wordmark reels settle in 2.31-4.62s (DESIGN.md). Both captures wait
     // them out, or the pair differs in ciphertext that means nothing.
     await page.waitForTimeout(5200);

@@ -9,10 +9,20 @@ import {
   fakeAgentAnswering,
   supportVocabulary,
 } from "@opensesame/support-agent";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
-import { afterEach, describe, expect, it } from "vitest";
+import { Link, MemoryRouter, useLocation } from "react-router";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  liveSearch,
+  registerSearchConsumer,
+} from "../lib/command-bar/search.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import {
   type SupportEngine,
@@ -63,6 +73,9 @@ function installEngine(agent: FakeSupportAgent): void {
     compile: () => null,
     compileAuthored: () => null,
     runGuide: async () => ({ kind: "cancelled", goal: "none", reason: "user" }),
+    nextStep() {},
+    backStep() {},
+    restartGuide() {},
     pauseGuide() {},
     cancelGuide() {},
     subscribeGuide: () => () => {},
@@ -94,6 +107,22 @@ function renderBar(withSupport: boolean) {
       ) : (
         bar
       )}
+    </MemoryRouter>,
+  );
+}
+
+/** The bar beside the address it navigates, and a way out of the section. */
+function Where() {
+  const { pathname, search } = useLocation();
+  return <output data-testid="where">{`${pathname}${search}`}</output>;
+}
+
+function renderBarAt(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <CommandBar />
+      <Where />
+      <Link to="/settings">elsewhere</Link>
     </MemoryRouter>,
   );
 }
@@ -168,6 +197,115 @@ describe("CommandBar — command or ask", () => {
     );
   });
 
+  it("searches in the field: the words stay, nothing opens over it, Esc empties it", async () => {
+    const user = userEvent.setup();
+    renderBar(false);
+    const field = screen.getByRole("combobox", {
+      name: "Command",
+    }) as HTMLInputElement;
+    await user.type(field, "/? bank");
+    expect(liveSearch()).toBe("bank");
+    await user.keyboard("{Enter}");
+    // Enter commits; it never empties the field or opens a notice over it.
+    expect(field.value).toBe("/? bank");
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(liveSearch()).toBe("bank");
+    await user.click(field);
+    await user.keyboard("{Escape}");
+    expect(field.value).toBe("");
+    expect(liveSearch()).toBeNull();
+  });
+
+  it("Enter hands the words to the listing on screen, or brings up the vault's list", async () => {
+    const user = userEvent.setup();
+    const focus = vi.fn(() => true);
+    const stop = registerSearchConsumer({ visible: () => true, focus });
+    renderBarAt("/start");
+    const field = screen.getByRole("combobox", { name: "Command" });
+    await user.type(field, "/? bank{Enter}");
+    expect(focus).toHaveBeenCalledOnce();
+    expect(screen.getByTestId("where").textContent).toBe("/start");
+    stop();
+    // With nothing searching on screen the words open the list that will.
+    await user.clear(field);
+    await user.type(field, "/? bank{Enter}");
+    expect(screen.getByTestId("where").textContent).toBe("/vault?f=all");
+    expect((field as HTMLInputElement).value).toBe("/? bank");
+  });
+
+  it("a listing with nothing to land on leaves the caret in the field", async () => {
+    const user = userEvent.setup();
+    // An empty result: the listing is on screen but takes no focus.
+    const stop = registerSearchConsumer({
+      visible: () => true,
+      focus: () => false,
+    });
+    renderBarAt("/start");
+    const field = screen.getByRole("combobox", { name: "Command" });
+    await user.type(field, "/? zzzz{Enter}");
+    expect(document.activeElement).toBe(field);
+    expect(screen.getByTestId("where").textContent).toBe("/start");
+    expect((field as HTMLInputElement).value).toBe("/? zzzz");
+    stop();
+  });
+
+  it("a commit that stays in its section does not carry the words into the next", async () => {
+    const user = userEvent.setup();
+    renderBarAt("/vault");
+    const field = screen.getByRole("combobox", {
+      name: "Command",
+    }) as HTMLInputElement;
+    await user.type(field, "/? bank{Enter}");
+    expect(screen.getByTestId("where").textContent).toBe("/vault?f=all");
+    await user.click(screen.getByRole("link", { name: "elsewhere" }));
+    expect(field.value).toBe("");
+    expect(liveSearch()).toBeNull();
+  });
+
+  it("Escape during an IME composition cancels the composition, not the search", async () => {
+    const user = userEvent.setup();
+    renderBarAt("/vault");
+    const field = screen.getByRole("combobox", {
+      name: "Command",
+    }) as HTMLInputElement;
+    await user.type(field, "/? ba");
+    fireEvent.keyDown(field, { key: "Escape", isComposing: true });
+    expect(field.value).toBe("/? ba");
+    expect(liveSearch()).toBe("ba");
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect(field.value).toBe("");
+  });
+
+  it("Run is not offered for a search with no words yet", async () => {
+    const user = userEvent.setup();
+    renderBarAt("/vault");
+    const run = screen.getByRole("button", { name: "Run command" });
+    await user.type(screen.getByRole("combobox", { name: "Command" }), "/? ");
+    expect((run as HTMLButtonElement).disabled).toBe(true);
+    await user.keyboard("a");
+    expect((run as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("words typed for one section do not follow a person into another", async () => {
+    const user = userEvent.setup();
+    renderBarAt("/vault");
+    const field = screen.getByRole("combobox", {
+      name: "Command",
+    }) as HTMLInputElement;
+    await user.type(field, "/? bank");
+    await user.click(screen.getByRole("link", { name: "elsewhere" }));
+    expect(field.value).toBe("");
+    expect(liveSearch()).toBeNull();
+  });
+
+  it("a bare /? is still help, and is not a search", async () => {
+    const user = userEvent.setup();
+    renderBar(false);
+    const field = screen.getByRole("combobox", { name: "Command" });
+    await user.type(field, "/?");
+    expect(liveSearch()).toBeNull();
+  });
+
   it("completes slash commands and item names from the status field", async () => {
     Object.assign(vaultHooksSeams, {
       useVault: () => ({
@@ -186,16 +324,10 @@ describe("CommandBar — command or ask", () => {
     await waitFor(() =>
       expect(screen.getByRole("status").textContent).toContain("Opened /vault"),
     );
-    await user.type(field, "/search gi");
-    const names = screen.getByRole("listbox", { name: "Commands" });
-    expect(names.textContent).toContain("GitHub");
-    expect(names.textContent).not.toContain("s3cret-value");
-    await user.keyboard("{Enter}");
-    await waitFor(() =>
-      expect(screen.getByRole("status").textContent).toContain(
-        "Searching for “GitHub”",
-      ),
-    );
+    // Search has no list of names to pick: the listing narrows as it is typed.
+    await user.type(field, "/? gi");
+    expect(screen.queryByRole("listbox", { name: "Commands" })).toBeNull();
+    expect(liveSearch()).toBe("gi");
   });
 
   it("still runs commands, and still shrugs, with no Support mounted", async () => {

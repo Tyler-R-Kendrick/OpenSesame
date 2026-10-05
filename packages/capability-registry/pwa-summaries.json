@@ -688,14 +688,6 @@
     }
   },
   {
-    "id": "vault.store_manifest.export",
-    "title": "Save the vault as a store path manifest for opensesame pass seal (plain text)",
-    "plane": "client_local",
-    "surfaces": {
-      "pwa": "lib/vault/store-sync.ts:vaultItemToEntry"
-    }
-  },
-  {
     "id": "vault.store_manifest.import",
     "title": "Merge a store path manifest into the vault by store path",
     "plane": "client_local",

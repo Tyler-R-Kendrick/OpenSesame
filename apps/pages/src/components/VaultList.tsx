@@ -16,7 +16,8 @@ import {
   describeSealedAt,
 } from "@opensesame/app-core/lib/vaults.js";
 import type { ReactNode } from "react";
-import { IconChevronRight, IconFolder, IconUser, IconVault } from "./Icons.js";
+import { GlyphMark } from "./GlyphMark.js";
+import { IconChevronRight } from "./Icons.js";
 import { StatusMark } from "./StatusMark.js";
 
 type Props = {
@@ -42,13 +43,6 @@ export function describeVaultRow(vault: DeviceVault): string {
   else if (vault.sharedKey) parts.push("opens without a prompt");
   else if (!vault.named) parts.push("name is inside the vault");
   return parts.join(" · ");
-}
-
-function Mark({ vault }: { vault: DeviceVault }) {
-  const size = 18;
-  if (vault.kind === "guest") return <IconUser size={size} />;
-  if (vault.kind === "personal") return <IconVault size={size} />;
-  return <IconFolder size={size} />;
 }
 
 function StateChip({ vault }: { vault: DeviceVault }) {
@@ -81,7 +75,7 @@ export function VaultList({
               }`}
               aria-hidden="true"
             >
-              <Mark vault={vault} />
+              <GlyphMark kind="vault" id={vault.id} />
             </span>
             <span className="vault-row__text">
               <span className="vault-row__name">{vault.label}</span>

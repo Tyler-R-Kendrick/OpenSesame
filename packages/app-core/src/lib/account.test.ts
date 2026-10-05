@@ -5,7 +5,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { describeAccount } from "./account.js";
+import { describeAccount, personGlyphId } from "./account.js";
 import { type UpstreamIdentity, federationSeams } from "./federation.js";
 import { type IdentitySession, identitySeams } from "./identity.js";
 
@@ -120,5 +120,36 @@ describe("describeAccount", () => {
     };
     expect(describeAccount()?.name).toBe("OpenSesame account");
     expect(describeAccount()?.detail).toBe("via 127.0.0.1:18788");
+  });
+});
+
+describe("personGlyphId — one person, one face (ADR 0164)", () => {
+  const PRINCIPAL: IdentitySession = {
+    principalId: "prn_00008f3c",
+    accessToken: "pst",
+    issuerOrigin: "http://127.0.0.1:18788",
+  };
+
+  it("is the federated subject, whether or not an Identity session is up", () => {
+    identity = { ...SHOO };
+    const without = personGlyphId(null);
+    session = PRINCIPAL;
+    const withSession = personGlyphId(session);
+    expect(without).toBe("ps_FpbWr3dA8kM_opaque");
+    expect(withSession).toBe(without);
+  });
+
+  it("does not move when the assertion gains or loses a name or an address", () => {
+    identity = { ...SHOO };
+    const bare = personGlyphId(null);
+    identity = { ...SHOO, name: "Ada Lovelace", email: "ada@example.test" };
+    expect(personGlyphId(null)).toBe(bare);
+  });
+
+  it("is the guest principal while nobody vouches, and `guest` with nothing at all", () => {
+    session = PRINCIPAL;
+    expect(personGlyphId(session)).toBe("prn_00008f3c");
+    session = null;
+    expect(personGlyphId(null)).toBe("guest");
   });
 });

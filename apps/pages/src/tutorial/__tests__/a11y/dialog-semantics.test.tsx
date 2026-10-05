@@ -17,10 +17,12 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  TOURING,
   disposeSupport,
   launcher,
   mountSupport,
   openPanel,
+  tutorialCard,
   walkthrough,
 } from "./harness.js";
 
@@ -121,7 +123,7 @@ describe("support dialog semantics", () => {
     expect(ordered).toEqual([]);
   });
 
-  it("says a walkthrough is live in the launcher's name, not only its colour", async () => {
+  it("says a tutorial is live in the launcher's name, not only its colour", async () => {
     const user = userEvent.setup();
     mountSupport({
       agent: fakeAgentAlwaysUnavailable("no_local_model"),
@@ -131,22 +133,28 @@ describe("support dialog semantics", () => {
     await openPanel(user);
     await user.click(walkthrough("Lock the vault"));
 
-    const live = await screen.findByRole("button", {
-      name: "Support — walkthrough in progress",
-    });
-    expect(live.getAttribute("title")).toBe(
-      "Support — walkthrough in progress",
-    );
+    const live = await screen.findByRole("button", { name: TOURING });
+    expect(live.getAttribute("title")).toBe(TOURING);
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Support" })).toBeNull(),
     );
 
-    // Reopening finds the walkthrough's own controls under a named region.
+    // The tutorial's card is a named, described dialog that does not make the
+    // page inert: a tutorial is a guide beside the app, never a cage around it.
+    const card = await tutorialCard();
+    expect(card.getAttribute("aria-modal")).toBe("false");
+    expect(card.getAttribute("aria-labelledby")).toBeTruthy();
+    expect(card.getAttribute("aria-describedby")).toBeTruthy();
+    const title = document.getElementById(
+      card.getAttribute("aria-labelledby") ?? "",
+    );
+    expect(title?.textContent).toBe("Tutorial: Lock the vault");
+
+    // Reopening support finds its own controls, with no strip about the tutorial.
     await user.click(live);
     const sheet = await screen.findByRole("dialog", { name: "Support" });
-    const status = within(sheet).getByRole("region", {
-      name: "Walkthrough in progress",
-    });
-    expect(within(status).getByRole("button", { name: "Stop" })).toBeTruthy();
+    expect(
+      within(sheet).queryByRole("region", { name: "Walkthrough in progress" }),
+    ).toBeNull();
   });
 });

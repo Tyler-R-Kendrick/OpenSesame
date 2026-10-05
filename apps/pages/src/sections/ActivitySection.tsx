@@ -12,11 +12,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { Link, Navigate, useLocation, useParams } from "react-router";
 import { IconKey } from "../components/IconKey.js";
 import { IconPlus, IconRefresh, IconX } from "../components/Icons.js";
-import {
-  SlashSearchField,
-  SlashSearchKey,
-  useListingSearch,
-} from "../components/SlashSearch.js";
+import { useListingSearch } from "../components/SlashSearch.js";
 import { useHashTarget } from "../lib/hash-target.js";
 import { nextPageCount } from "../lib/listing-page.js";
 import { ActivityDetail } from "./activity/ActivityDetail.js";
@@ -41,6 +37,15 @@ function formatWhen(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
   return date.toLocaleString();
+}
+
+/** Enter in the prompt lands on the first event, when the search left one. */
+function focusFirstRow(): boolean {
+  const row = document.querySelector<HTMLElement>(
+    ".activity-log__list .identity-row__main",
+  );
+  row?.focus();
+  return row !== null && document.activeElement === row;
 }
 
 function EventRow({
@@ -96,7 +101,7 @@ function useActivitySearch(
   matches: readonly ActivityEvent[],
   events: readonly ActivityEvent[] | null,
 ) {
-  const search = useListingSearch();
+  const search = useListingSearch(focusFirstRow);
   const { hash } = useLocation();
   const { eventId } = useParams();
   const hashId = activityIdFromHash(hash);
@@ -170,7 +175,6 @@ export function ActivitySection() {
                 <h2 id="activity-log">Log</h2>
               </div>
               <fieldset className="vtree__keys" aria-label="Activity commands">
-                <SlashSearchKey onOpen={search.open} label="Search activity" />
                 <IconKey
                   label="Refresh activity"
                   small
@@ -211,15 +215,6 @@ export function ActivitySection() {
                 </>
               )}
             </div>
-            {search.query !== null ? (
-              <SlashSearchField
-                query={search.query}
-                onChange={search.setQuery}
-                onClose={search.close}
-                inputRef={search.inputRef}
-                label="Search the activity log"
-              />
-            ) : null}
           </section>
         </div>
         {openId && events ? (

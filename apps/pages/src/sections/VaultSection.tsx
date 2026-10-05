@@ -21,22 +21,18 @@ import {
 import { EmptyTip } from "../components/EmptyTip.js";
 import { IconChevronLeft } from "../components/Icons.js";
 import { NavTree } from "../components/NavTree.js";
+import { clearCommandBarSearch } from "../lib/command-bar/focus.js";
 import { swipeBack } from "../lib/gestures.js";
 import { useNarrow } from "../lib/use-narrow.js";
-import {
-  PHONE_ALL_ITEMS,
-  vaultListPath,
-  vaultPane,
-} from "../lib/vault-list-path.js";
+import { vaultListPath, vaultPane } from "../lib/vault-list-path.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { PhoneAdd } from "./vault/PhoneAdd.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultActions } from "./vault/VaultActions.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
-import { VaultPathbar } from "./vault/VaultPathbar.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import { WelcomeKeys } from "./vault/WelcomeKeys.js";
-import { askForSearch } from "./vault/use-search-handoff.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
 import "./vault.css";
 import {
@@ -182,8 +178,24 @@ export function VaultSection() {
   const newItemRef = useRef<HTMLAnchorElement>(null);
   const createRef = useGuideTarget<HTMLAnchorElement>("vault.create");
   const listRef = useGuideTarget<HTMLDivElement>("vault.list");
+  // A phone opens on the section tree, where the list pane is not drawn: the
+  // tree answers to the list's target, and PhoneAdd's Add key to the create
+  // one, and the registry points at whichever copy is on screen.
+  const treeListRef = useGuideTarget<HTMLDivElement>("vault.list");
   const listPath = vaultListPath(location.search, narrow);
 
+  // The list stays mounted behind the tree on a phone, and the prompt's words
+  // are the shell's, not the pane's: a search typed on the list came back,
+  // filter and all, the next time a tree entry opened it ("all" drew no rows
+  // beside a count of three). Arriving at the tree ends it. An item is another
+  // pane too, but Back from it returns to the same search, so only the tree
+  // does.
+  const wasShowing = useRef(showing);
+  useEffect(() => {
+    if (narrow && showing === "tree" && wasShowing.current !== "tree")
+      clearCommandBarSearch();
+    wasShowing.current = showing;
+  }, [narrow, showing]);
   useVaultFocus({
     tree: treePaneRef,
     list: listPaneRef,
@@ -210,20 +222,21 @@ export function VaultSection() {
       {/* The section tree: the rail's own tree, drawn where a phone looks.
           It is mounted only below the breakpoint, so the rail and this pane
           never hold two trees at once. */}
-      <div className="vault__tree" ref={treePaneRef}>
+      <div
+        className="vault__tree"
+        ref={(element) => {
+          treePaneRef.current = element;
+          if (narrow) treeListRef(element);
+          else treeListRef(null);
+        }}
+      >
         {narrow ? (
           <>
-            {/* The list's own command row, so adding, importing and backing
-                up are on the screen a phone opens on. Search jumps to the
-                list of everything with its prompt open. */}
-            <VaultPathbar
-              verbs={<VaultActions createPath={createPath} />}
-              search={() => {
-                askForSearch();
-                navigate(PHONE_ALL_ITEMS);
-              }}
-            />
+            {/* A phone's first pane is for finding and adding. Finding is the
+                status-line prompt (`/? words`), so the pane draws no field
+                of its own; adding is the corner key's Add sheet. */}
             <NavTree />
+            <PhoneAdd createPath={createPath} />
           </>
         ) : null}
       </div>
@@ -242,7 +255,6 @@ export function VaultSection() {
           title={title}
           total={total}
           emptyMessage={filter === "trash" ? "Trash is empty" : "Nothing here"}
-          active={!narrow || showing !== "tree"}
           verbs={
             <>
               <Link

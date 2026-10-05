@@ -71,11 +71,6 @@ export const PACKAGE_RULES = [
     "Nostr carrier, loaded when a session names one (modules/sharing.live/carriers/nostr.ts)",
   ),
   optional(
-    `${NM}driver.js`,
-    "support.guided-help",
-    "guide renderer (tutorial/rendering/driver-renderer.ts)",
-  ),
-  optional(
     `${NM}@opensesame/support-agent`,
     "support.guided-help",
     "support port and system-instruction builder",

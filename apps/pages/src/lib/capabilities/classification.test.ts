@@ -124,7 +124,6 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
       "node_modules/@ag-ui/client": "support.remote-ai",
       "node_modules/ai": "support.local-ai",
       "node_modules/@ai-sdk/provider": "support.local-ai",
-      "node_modules/driver.js/hints": "support.guided-help",
       "node_modules/kdbxweb": "vault.interop-formats",
       "node_modules/simple-icons": "connectors.external",
       "node_modules/@opensesame/wallet-consent/verify": "wallet.spending",

@@ -14,12 +14,24 @@ const EXPLICIT_HUMAN_IMPORT: CapabilityExclusion = {
 };
 
 /**
+ * The Sealed store key (Settings › Vaults) was removed with the Formats panel
+ * (#618, ADR 0158: a row that is not drawn is not listed), and the Export key
+ * writes the encrypted backup only, never plain text. Pages no longer saves a
+ * store path manifest; the Import key still reads one back.
+ */
+const MANIFEST_EXPORT_REMOVED: CapabilityExclusion = {
+  reason:
+    "Pages no longer saves a store path manifest: the Sealed store key was removed from Settings, and the Export key writes the encrypted backup only, never plain text; the Import key still reads a manifest back",
+  adr: "0158-settings-rows-act-or-are-absent.md",
+};
+
+/**
  * Moving items into and out of the vault as files: the vault path strip's
  * Import key (`vault.interop-formats`) and Export key (`backup.local-
- * encrypted`), and the sealed-store bridge's path manifest (ADR 0037 §6) —
- * saved from Settings › Vaults and read back through the Import key. Each is
- * the person's own act on this device; none has an agent surface. The
- * manifest is plain text, so its export is excluded as a raw secret is.
+ * encrypted`), and the sealed-store bridge's path manifest (ADR 0037 §6),
+ * which the Import key reads back. Each is the person's own act on this
+ * device; none has an agent surface. The manifest is plain text, so its
+ * export is excluded as a raw secret is; Pages no longer offers that export.
  */
 export const vaultInteropCapabilities: readonly Capability[] = [
   {
@@ -67,12 +79,13 @@ export const vaultInteropCapabilities: readonly Capability[] = [
     kind: "ceremony",
     surfaces: {
       cli: null,
-      pwa: "lib/vault/store-sync.ts:vaultItemToEntry",
+      pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      pwa: MANIFEST_EXPORT_REMOVED,
       mcp_host: NEVER_AGENT_SECRET,
       mcp_client: NEVER_AGENT_SECRET,
       webmcp: NEVER_AGENT_SECRET,
