@@ -12,7 +12,7 @@ import {
 } from "./gesture-runtime.js";
 
 /**
- * The gesture loadout, live while the shell is (ADR 0165). Two fingers are
+ * The gesture loadout, live while the shell is (ADR 0166). Two fingers are
  * listened for on the document; the motion sensor only while a shake is bound
  * and motion is on, so a phone that never shakes never runs the sensor.
  */

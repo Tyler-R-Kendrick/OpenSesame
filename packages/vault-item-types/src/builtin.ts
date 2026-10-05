@@ -9,18 +9,31 @@
  */
 
 import { BUILTIN_DEFINITION_JSON } from "./definitions.generated.js";
+import { PACK_INDEX } from "./packs.generated.js";
+import { loadedPacks } from "./packs.js";
 import { ItemTypeRegistry } from "./registry.js";
 import type { ItemTypeDefinition } from "./schema.js";
 import { describeErrors, parseDefinition } from "./validate.js";
 
-/** Every built-in definition as `[id, JSON]`, in a stable order. */
+/** The embedded (core) definitions as `[id, JSON]`, in a stable order. */
 const BUILTIN_ENTRIES: readonly (readonly [string, string])[] = Object.entries(
   BUILTIN_DEFINITION_JSON,
 ).sort(([left], [right]) => left.localeCompare(right));
 
-export const BUILTIN_TYPE_IDS: readonly string[] = BUILTIN_ENTRIES.map(
+/** The ids that are always embedded: the entry bundle carries their text. */
+export const CORE_TYPE_IDS: readonly string[] = BUILTIN_ENTRIES.map(
   ([id]) => id,
 );
+
+/**
+ * Every built-in id, core and pack alike, in a stable order. Ids are known
+ * without the packs being loaded — the index is metadata — so a screen can
+ * gate on "is this a built-in kind" before any definition has arrived.
+ */
+export const BUILTIN_TYPE_IDS: readonly string[] = [
+  ...CORE_TYPE_IDS,
+  ...PACK_INDEX.map((entry) => entry.id),
+].sort((left, right) => left.localeCompare(right));
 
 /**
  * The seven ids that predate ADR 0087 and are still spelled out in
@@ -37,6 +50,10 @@ export const LEGACY_TYPE_IDS: readonly string[] = [
   "drop",
 ];
 
+/**
+ * The built-ins this document holds: the embedded core and whichever packs
+ * have been loaded. A pack that has not been switched on is not here.
+ */
 export function builtinDefinitions(): readonly ItemTypeDefinition[] {
   const out: ItemTypeDefinition[] = [];
   for (const [id, text] of BUILTIN_ENTRIES) {
@@ -55,10 +72,11 @@ export function builtinDefinitions(): readonly ItemTypeDefinition[] {
     }
     out.push(parsed.definition);
   }
+  for (const definition of loadedPacks().values()) out.push(definition);
   return out;
 }
 
-/** A registry holding the built-in corpus and nothing else. */
+/** A registry holding the built-ins this document has, and nothing else. */
 export function builtinRegistry(): ItemTypeRegistry {
   const registry = new ItemTypeRegistry();
   for (const definition of builtinDefinitions()) {

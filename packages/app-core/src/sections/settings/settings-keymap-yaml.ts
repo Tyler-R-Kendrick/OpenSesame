@@ -23,7 +23,7 @@ export type ContextsDoc = Record<string, BindingsDoc>;
 
 export type KeymapParts = Readonly<{
   keybindings: Readonly<Record<string, string>>;
-  /** The touch loadout (ADR 0165): gesture → action. */
+  /** The touch loadout (ADR 0166): gesture → action. */
   gestures?: Readonly<BindingsDoc>;
   contexts?: Readonly<ContextsDoc>;
   macros?: Readonly<Record<string, MacroDoc>>;

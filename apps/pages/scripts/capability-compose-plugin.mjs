@@ -33,6 +33,7 @@ import { publicPathTarget } from "./lib/capability-distribution.mjs";
 import { VIRTUAL_MODULES, canonicalJson } from "./lib/capability-graph.mjs";
 import { formatViolations, violations } from "./lib/capability-invariants.mjs";
 import { lazyLeafChunk } from "./lib/capability-lazy-leaves.mjs";
+import { itemTypePackChunk } from "./lib/item-type-pack-chunks.mjs";
 import { walk } from "./lib/verify-dist-checks.mjs";
 
 export { loadInventory } from "./lib/capability-compose-state.mjs";
@@ -116,6 +117,9 @@ function installManualChunks(build, state) {
     // statically reachable from the first page load.
     output.onlyExplicitManualChunks = true;
     output.manualChunks = (id, api) => {
+      // A built-in item type is a pack, a download of its own (ADR 0165).
+      const pack = itemTypePackChunk(id);
+      if (pack) return pack;
       // A lazy leaf first: a carrier inside a module directory would
       // otherwise join the module's chunk and load with it.
       if (!id.startsWith("\0")) {

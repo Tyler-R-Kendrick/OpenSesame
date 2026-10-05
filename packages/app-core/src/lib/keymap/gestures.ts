@@ -1,5 +1,5 @@
 /**
- * The gesture loadout (ADR 0165): the keymap's touch half. A keyboard binds
+ * The gesture loadout (ADR 0166): the keymap's touch half. A keyboard binds
  * sequences to commands; a hand binds a short, closed set of gestures to the
  * same commands. Nothing here is a second authority model: a gesture runs
  * what a key could, through the same `runTarget`, under the same guardrails.

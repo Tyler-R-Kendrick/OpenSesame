@@ -149,7 +149,7 @@ function Shell({ children }: { children?: ReactNode }) {
     return () => window.removeEventListener("keydown", keymap, true);
   }, [keymap]);
 
-  // The touch half of the same keymap: two fingers, and a shake (ADR 0165).
+  // The touch half of the same keymap: two fingers, and a shake (ADR 0166).
   useGestures({ navigate, showHelp: showKeymap, chord: SHELL_CHORD });
 
   // The loader builds a module's context before any component renders, so a

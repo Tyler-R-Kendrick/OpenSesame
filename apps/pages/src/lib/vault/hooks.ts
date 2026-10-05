@@ -6,6 +6,7 @@ import {
   type VaultState,
   vaultStore,
 } from "@opensesame/app-core/lib/vault/store.js";
+import { packsVersion, subscribePacks } from "@opensesame/vault-item-types";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import {
   applyTheme,
@@ -16,6 +17,11 @@ import {
 } from "../theme.js";
 
 function useVaultDefault(): VaultState {
+  // A built-in type switched on or off changes how every item draws, and the
+  // registry is module state no vault snapshot moves with (ADR 0165): hearing
+  // it here re-renders whatever reads the vault, so an item of a type that has
+  // just arrived stops reading "type not installed" without a reload.
+  useSyncExternalStore(subscribePacks, packsVersion);
   return useSyncExternalStore(vaultStore.subscribe, vaultStore.getSnapshot);
 }
 

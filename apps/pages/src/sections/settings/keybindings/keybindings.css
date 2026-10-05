@@ -500,7 +500,7 @@
   }
 }
 
-/* —— Loadouts (ADR 0165) ——————————————————————————————————————————
+/* —— Loadouts (ADR 0166) ——————————————————————————————————————————
    Keyboard and Gestures are two halves of one keymap, so they are tabs over a
    hairline, as Installed and Marketplace are: text, with a 2px ink rule under
    the chosen one. */
