@@ -13,6 +13,7 @@
  * would destroy them on every other device.
  */
 
+import { PACK_INDEX, type PackEntry } from "./packs.generated.js";
 import type { ItemTypeDefinition } from "./schema.js";
 import {
   type DefinitionError,
@@ -73,11 +74,19 @@ export const RESERVED_TYPE_IDS: readonly string[] = [
  * already a segment.
  */
 export function directoryName(definition: ItemTypeDefinition): string {
-  const slug = definition.spec.plural
+  return directoryOf(definition.spec.plural, definition.metadata.id);
+}
+
+/**
+ * The directory a type of this plural and id would take, for a caller that has
+ * the pack's index entry and not yet its definition (ADR 0165).
+ */
+export function directoryOf(plural: string, id: string): string {
+  const slug = plural
     .replaceAll(/[A-Z]/g, (letter) => letter.toLowerCase())
     .replaceAll(/[^a-z0-9]+/g, "-")
     .replaceAll(/^-+|-+$/g, "");
-  return slug === "" ? definition.metadata.id : slug;
+  return slug === "" ? id : slug;
 }
 
 /**
@@ -152,7 +161,7 @@ export class ItemTypeRegistry {
         `\`${id}\` is a vault filter and cannot name a type`,
       );
     }
-    if (this.#builtin.has(id)) {
+    if (this.#builtin.has(id) || PACK_INDEX.some((pack) => pack.id === id)) {
       return refusal(
         "id",
         "metadata.id",
@@ -217,24 +226,45 @@ export class ItemTypeRegistry {
       );
     }
     const title = titleKey(definition.spec.title);
-    for (const other of this.#definitions()) {
-      if (other.metadata.id === self) continue;
-      if (titleKey(other.spec.title) === title) {
+    for (const other of this.#names()) {
+      if (other.id === self) continue;
+      if (titleKey(other.title) === title) {
         return refusal(
           "name",
           "spec.title",
-          `\`${definition.spec.title}\` is already the title of \`${other.metadata.id}\``,
+          `\`${definition.spec.title}\` is already the title of \`${other.id}\``,
         );
       }
-      if (directoryName(other) === directory) {
+      if (directoryOf(other.plural, other.id) === directory) {
         return refusal(
           "name",
           "spec.plural",
-          `\`${directory}\` is already the directory of \`${other.metadata.id}\``,
+          `\`${directory}\` is already the directory of \`${other.id}\``,
         );
       }
     }
     return undefined;
+  }
+
+  /**
+   * Every name a type already holds: the registered types, and the built-in
+   * packs that are not loaded. A pack that is off still owns its id, title,
+   * directory and extension — switching it on later must never find them
+   * taken (ADR 0165).
+   */
+  *#names(): Iterable<{ id: string; title: string; plural: string }> {
+    for (const definition of this.#definitions()) {
+      yield {
+        id: definition.metadata.id,
+        title: definition.spec.title,
+        plural: definition.spec.plural,
+      };
+    }
+    for (const pack of this.#unloadedPacks()) yield pack;
+  }
+
+  #unloadedPacks(): readonly PackEntry[] {
+    return PACK_INDEX.filter((pack) => !this.#builtin.has(pack.id));
   }
 
   *#definitions(): Iterable<ItemTypeDefinition> {
@@ -251,6 +281,9 @@ export class ItemTypeRegistry {
       if (id !== self && entry.definition.spec.extension === extension) {
         return id;
       }
+    }
+    for (const pack of this.#unloadedPacks()) {
+      if (pack.id !== self && pack.extension === extension) return pack.id;
     }
     return undefined;
   }
@@ -273,8 +306,9 @@ export class ItemTypeRegistry {
     return this.#installed.get(id)?.source;
   }
 
+  /** A built-in, loaded or not: a pack that is off still owns its id. */
   isBuiltin(id: string): boolean {
-    return this.#builtin.has(id);
+    return this.#builtin.has(id) || PACK_INDEX.some((pack) => pack.id === id);
   }
 
   /** Every registered type, builtins first, each group by title. */

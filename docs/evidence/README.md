@@ -55,6 +55,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-04-phone-tree-actions/`](2026-10-04-phone-tree-actions/README.md) | The phone's section tree carries the vault's command row |
 | [`2026-10-04-phone-add/`](2026-10-04-phone-add/README.md) | The phone's section tree opens on a search field and one Add key |
 | [`2026-10-04-mobile-visual-polish/`](2026-10-04-mobile-visual-polish/README.md) | Mobile visual polish |
+| [`2026-10-04-item-type-switches/`](2026-10-04-item-type-switches/README.md) | Item types: a list of switches (ADR 0165) |
 | [`2026-10-04-glyph-identity/`](2026-10-04-glyph-identity/README.md) | Glyphs for vaults and people on a phone (ADR 0164) |
 | [`2026-10-04-device-inbox/`](2026-10-04-device-inbox/README.md) | Device-mode receipts, inbox and local notifications (ADR 0162) — before and after |
 | [`2026-10-04-device-identity-carry/`](2026-10-04-device-identity-carry/README.md) | The device identity key travels with the vault (ADR 0160 §5a) — before and after |

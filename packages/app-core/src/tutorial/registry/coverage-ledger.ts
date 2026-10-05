@@ -10,7 +10,7 @@
  * A reason says what is missing. It is never a way to leave a control out:
  * "not worth a tutorial" is not a reason.
  */
-export const COVERAGE_EXEMPT: Readonly<Record<string, string>> = {
+export const COVERAGE_EXEMPT = {
   "target:nav.menu": "no tutorial points at it yet",
   "target:nav.vault": "no tutorial points at it yet",
   "target:nav.settings": "no tutorial points at it yet",
@@ -63,14 +63,8 @@ export const COVERAGE_EXEMPT: Readonly<Record<string, string>> = {
     "a gate screen: its tour needs the gate help launcher (ADR 0165)",
   "target:settings.live-session": "no tutorial points at it yet",
   "target:settings.live-routes": "no tutorial points at it yet",
-  "target:connections.bindings":
-    "declared but drawn nowhere: Pages binds a connector with a local share, taught on Access › Connectors (ADR 0115), and the Host road that had this panel is gone",
-  "target:connections.renew":
-    "declared but drawn nowhere: Renew needs the Host's rotation (connections.rotate has no PWA surface)",
-  "target:identity.claim-access":
-    "declared but drawn nowhere on Identity: a claim is opened by its /claim link (ADR 0140), never from a key",
   "target:identity.org-signin":
-    "inside the Organizations tab, which a URL selects and a guide cannot navigate to, and drawn only for an owner with a session on a remote Identity API",
+    "sits in the Organizations tab, which a URL query selects, so a guide cannot navigate there; it also needs an owner with a session on a remote Identity API, so it cannot be reached with Next alone",
   "target:nav.access": "no tutorial points at it yet",
   "target:nav.activity": "no tutorial points at it yet",
   "target:nav.connections": "no tutorial points at it yet",
@@ -108,4 +102,4 @@ export const COVERAGE_EXEMPT: Readonly<Record<string, string>> = {
   "key:register.replay": "no tutorial teaches this key yet",
   "key:section.vault": "no tutorial teaches this key yet",
   "key:section.settings": "no tutorial teaches this key yet",
-};
+} as const satisfies Readonly<Record<string, string>>;

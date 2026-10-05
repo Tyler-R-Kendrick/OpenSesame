@@ -17,6 +17,8 @@ import { installedDefinitions } from "@opensesame/vault-core";
 import {
   BUILTIN_DEFINITION_JSON,
   describeErrors,
+  loadedPackText,
+  packEntries,
   parseDefinition,
 } from "@opensesame/vault-item-types";
 import {
@@ -57,7 +59,18 @@ function idOf(path: string, directory: string): string | null {
   return name.endsWith(".json") ? name.slice(0, -".json".length) : null;
 }
 
-const BUILTIN_TEXT: Readonly<Record<string, string>> = BUILTIN_DEFINITION_JSON;
+/**
+ * The built-ins this document has: the embedded core, and the packs that have
+ * been switched on (ADR 0165). A pack that is off has no file to show.
+ */
+function builtinText(): ReadonlyMap<string, string> {
+  const text = new Map(Object.entries(BUILTIN_DEFINITION_JSON));
+  for (const { id } of packEntries()) {
+    const pack = loadedPackText(id);
+    if (pack !== undefined) text.set(id, pack);
+  }
+  return text;
+}
 
 const TEMPLATE = `${JSON.stringify(
   {
@@ -155,7 +168,7 @@ export function itemTypeFiles(ports: ItemTypeFilePorts): VirtualFileProvider {
       ...Object.keys(installedDefinitions())
         .sort()
         .map((id) => file(installedPath(id), false, true)),
-      ...Object.keys(BUILTIN_TEXT)
+      ...[...builtinText().keys()]
         .sort()
         .map((id) => file(`${BUILTIN_DIR}/${id}.json`, true, false)),
     ],
@@ -169,10 +182,7 @@ export function itemTypeFiles(ports: ItemTypeFilePorts): VirtualFileProvider {
           : "";
       }
       const builtin = idOf(path, BUILTIN_DIR);
-      if (builtin !== null)
-        return Object.hasOwn(BUILTIN_TEXT, builtin)
-          ? BUILTIN_TEXT[builtin]
-          : "";
+      if (builtin !== null) return builtinText().get(builtin) ?? "";
       return "";
     },
     check,
