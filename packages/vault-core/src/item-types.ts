@@ -29,6 +29,7 @@ import {
   definitionFields,
   describeErrors,
   emptyValues,
+  packsVersion,
   searchTextFor,
   subtitleFor,
 } from "@opensesame/vault-item-types";
@@ -36,10 +37,33 @@ import type { InstalledItemTypes, VaultItem } from "./model.js";
 
 let registry: ItemTypeRegistry = builtinRegistry();
 
+/** The pack set `registry` was built against (ADR 0165). */
+let builtAgainst = packsVersion();
+
 /** Definitions installed into this vault, keyed by type id, as authored JSON. */
 let installedSource: InstalledItemTypes = {};
 
+/**
+ * Rebuild the registry from the built-ins this document holds and the
+ * installed definitions. Installs go in by id, so that when two devices each
+ * installed a type under the same name before they synced, every device keeps
+ * the same one. The other stays in the body untouched; its items render
+ * through the unknown-type fallback.
+ */
+function rebuild(): void {
+  registry = builtinRegistry();
+  builtAgainst = packsVersion();
+  for (const id of Object.keys(installedSource).sort()) {
+    const text = installedSource[id];
+    if (text === undefined) continue;
+    registry.install(text, "vault");
+  }
+}
+
 export function itemTypeRegistry(): ItemTypeRegistry {
+  // A pack switched on or off since the registry was built changes what the
+  // built-ins are; the next reader sees it without anyone being told.
+  if (builtAgainst !== packsVersion()) rebuild();
   return registry;
 }
 
@@ -54,17 +78,8 @@ export function itemTypeRegistry(): ItemTypeRegistry {
 export function syncInstalledTypes(
   installed: InstalledItemTypes | undefined,
 ): void {
-  registry = builtinRegistry();
   installedSource = installed ?? {};
-  // By id, so that when two devices each installed a type under the same
-  // name before they synced, every device keeps the same one. The other stays
-  // in the body untouched; its items render through the unknown-type fallback.
-  const ids = Object.keys(installedSource).sort();
-  for (const id of ids) {
-    const text = installedSource[id];
-    if (text === undefined) continue;
-    registry.install(text, "vault");
-  }
+  rebuild();
 }
 
 export type InstallResult =
@@ -76,7 +91,7 @@ export type InstallResult =
  * `installedDefinitions()` into the vault body; nothing here writes.
  */
 export function installItemType(text: string): InstallResult {
-  const outcome = registry.install(text, "vault");
+  const outcome = itemTypeRegistry().install(text, "vault");
   if (!outcome.ok)
     return { ok: false, message: describeErrors(outcome.errors) };
   installedSource = {
@@ -88,7 +103,7 @@ export function installItemType(text: string): InstallResult {
 
 /** Remove a definition. Items of that type keep every value they hold. */
 export function uninstallItemType(id: string): boolean {
-  if (!registry.uninstall(id)) return false;
+  if (!itemTypeRegistry().uninstall(id)) return false;
   const next: Record<string, string> = {};
   for (const [key, value] of Object.entries(installedSource)) {
     if (key !== id && value !== undefined) next[key] = value;
@@ -107,7 +122,7 @@ export function itemTypeId(item: VaultItem): string {
 }
 
 export function definitionFor(item: VaultItem): ItemTypeDefinition | undefined {
-  return registry.get(itemTypeId(item));
+  return itemTypeRegistry().get(itemTypeId(item));
 }
 
 /**
@@ -169,17 +184,18 @@ export function newValues(definition: ItemTypeDefinition): FieldValues {
 
 /** The label for a type id, including one this device has never seen. */
 export function typeLabel(id: string): string {
-  return registry.get(id)?.spec.title ?? id;
+  return itemTypeRegistry().get(id)?.spec.title ?? id;
 }
 
 export function typePlural(id: string): string {
-  return registry.get(id)?.spec.plural ?? id;
+  return itemTypeRegistry().get(id)?.spec.plural ?? id;
 }
 
 /** The VFS extension for a type, or a slug fallback for an unknown one. */
 export function typeExtension(id: string): string {
   return (
-    registry.get(id)?.spec.extension ?? `.${id.replaceAll(/[^a-z0-9]/g, "")}`
+    itemTypeRegistry().get(id)?.spec.extension ??
+    `.${id.replaceAll(/[^a-z0-9]/g, "")}`
   );
 }
 

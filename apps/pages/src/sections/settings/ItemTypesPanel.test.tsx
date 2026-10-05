@@ -24,7 +24,6 @@ import {
 import {
   installItemType,
   installedDefinitions,
-  itemTypeRegistry,
   mintVaultKey,
   syncInstalledTypes,
   uninstallItemType,
@@ -149,7 +148,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const tab = (name: string) => screen.getByRole("tab", { name });
+/** The key that swaps the switches for the marketplaces. */
+const openMarketplace = () =>
+  fireEvent.click(screen.getByRole("button", { name: "Find more item types" }));
 
 async function marketplaces(): Promise<readonly string[]> {
   const parsed = parseMarketplacesFile(await readFile(MARKETPLACES_PATH));
@@ -157,24 +158,6 @@ async function marketplaces(): Promise<readonly string[]> {
 }
 
 describe("ItemTypesPanel", () => {
-  it("draws Installed from installed/ and builtin/, and has no source tab", () => {
-    renderPanel();
-    expect(screen.getAllByRole("tab").map((node) => node.textContent)).toEqual([
-      "Installed",
-      "Marketplace",
-    ]);
-    const builtins = screen.getByRole("list", { name: "Built-in types" });
-    expect(within(builtins).getAllByRole("listitem").length).toBe(
-      itemTypeRegistry().list().length,
-    );
-    expect(screen.queryByRole("button", { name: /^Remove / })).toBeNull();
-    // Nothing installed says nothing: one key to write a type, no sentence.
-    expect(screen.queryByText(/No installed types yet/)).toBeNull();
-    expect(
-      screen.getByRole("button", { name: "Write a new item type" }),
-    ).toBeTruthy();
-  });
-
   it("opens the file a row is drawn from, and a new file from the empty state", () => {
     installItemType(manifest("vehicle", "Vehicle"));
     renderPanel();
@@ -191,19 +174,10 @@ describe("ItemTypesPanel", () => {
     );
   });
 
-  it("moves between tabs with the arrow keys", () => {
-    renderPanel();
-    fireEvent.keyDown(tab("Installed"), { key: "ArrowRight" });
-    expect(tab("Marketplace").getAttribute("aria-selected")).toBe("true");
-    expect(document.activeElement).toBe(tab("Marketplace"));
-    fireEvent.keyDown(tab("Marketplace"), { key: "ArrowRight" });
-    expect(tab("Installed").getAttribute("aria-selected")).toBe("true");
-  });
-
   it("reads the listed marketplaces only once the Marketplace tab opens", async () => {
     renderPanel();
     expect(marketplaceDependencies.loadMarketplace).not.toHaveBeenCalled();
-    fireEvent.click(tab("Marketplace"));
+    openMarketplace();
     await screen.findByRole("list", { name: "Offered by OpenSesame" });
     expect(marketplaceDependencies.loadMarketplace).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("img", { name: "Built in" })).toBeTruthy();
@@ -217,7 +191,7 @@ describe("ItemTypesPanel", () => {
 
   it("installs an offer by writing installed/<id>.json, after its fields are shown", async () => {
     renderPanel();
-    fireEvent.click(tab("Marketplace"));
+    openMarketplace();
     fireEvent.click(
       await screen.findByRole("button", { name: "Inspect Vehicle's fields" }),
     );
@@ -245,7 +219,7 @@ describe("ItemTypesPanel", () => {
 
   it("adds an external repository as a line in marketplaces.json", async () => {
     renderPanel();
-    fireEvent.click(tab("Marketplace"));
+    openMarketplace();
     await screen.findByText("github.com/tyler-r-kendrick/OpenSesame@main");
     const field = screen.getByLabelText("Add a marketplace");
     fireEvent.change(field, { target: { value: "nope" } });
@@ -268,7 +242,7 @@ describe("ItemTypesPanel", () => {
 
   it("offers ours back once it has been removed from the file", async () => {
     renderPanel();
-    fireEvent.click(tab("Marketplace"));
+    openMarketplace();
     fireEvent.click(
       await screen.findByRole("button", {
         name: "Stop reading github.com/tyler-r-kendrick/OpenSesame@main",
@@ -308,7 +282,7 @@ describe("ItemTypesPanel", () => {
       useVaultStore: () => switching,
     });
     const view = renderPanel();
-    fireEvent.click(tab("Marketplace"));
+    openMarketplace();
     await screen.findByText("github.com/octo/first");
     open = second;
     view.rerender(
@@ -323,7 +297,7 @@ describe("ItemTypesPanel", () => {
 
   it("offers no edit of marketplaces.json before it has been read", () => {
     renderPanel();
-    fireEvent.click(tab("Marketplace"));
+    openMarketplace();
     fireEvent.change(screen.getByLabelText("Add a marketplace"), {
       target: { value: "octo/types" },
     });

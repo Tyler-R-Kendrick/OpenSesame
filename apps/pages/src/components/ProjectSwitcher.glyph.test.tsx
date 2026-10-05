@@ -88,12 +88,23 @@ function pointer(type: string, pointerType = "touch"): Event {
   return event;
 }
 
+/** The phone's top bar draws the glyph alone: `glyph.css` hides the name. */
+function hideNames(): () => void {
+  const style = document.createElement("style");
+  style.textContent = ".prompt__name { display: none; }";
+  document.head.append(style);
+  return () => style.remove();
+}
+
 describe("ProjectSwitcher — the glyph a phone draws for the name", () => {
+  let showNames = () => {};
   beforeEach(() => {
     proj.state.activeId = "personal";
     proj.unlocked = false;
+    showNames = hideNames();
   });
   afterEach(() => {
+    showNames();
     cleanup();
     vi.useRealTimers();
     vi.unstubAllGlobals();
@@ -211,24 +222,25 @@ describe("ProjectSwitcher — the glyph a phone draws for the name", () => {
   });
 });
 
-describe("ProjectSwitcher — where the name is drawn, nothing changes", () => {
-  /** The rail draws the name: `glyph.css` hides the glyph there. */
-  function drawNames() {
-    const style = document.createElement("style");
-    style.textContent = ".prompt__glyph { display: none; }";
-    document.head.append(style);
-    return () => style.remove();
-  }
-  let undo = () => {};
+describe("ProjectSwitcher — where the name is drawn beside its glyph, nothing changes", () => {
   beforeEach(() => {
     proj.state.activeId = "personal";
-    undo = drawNames();
   });
   afterEach(() => {
-    undo();
     cleanup();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it("draws the glyph and the name together, the mark first", () => {
+    renderSwitcher();
+    const toggle = screen.getByRole("button", { name: "personal" });
+    const children = [...toggle.children].map((el) => el.getAttribute("class"));
+    expect(children[0]).toContain("prompt__glyph");
+    expect(toggle.querySelector("svg.prompt__glyph")).not.toBeNull();
+    const name = toggle.querySelector(".prompt__name");
+    if (!name) throw new Error("no name");
+    expect(getComputedStyle(name).display).not.toBe("none");
   });
 
   it("leaves a touch long-press's contextmenu to the session menu, as before", () => {
