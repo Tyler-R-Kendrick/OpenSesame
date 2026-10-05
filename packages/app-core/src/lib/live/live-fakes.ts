@@ -9,7 +9,8 @@
 
 import { overlapCast } from "@opensesame/os-domain";
 import type { PeerFactory } from "./peer.js";
-import type { CarrierFactory } from "./rendezvous.js";
+import type { Carrier, CarrierFactory } from "./rendezvous.js";
+import type { CarrierSpec } from "./routes.js";
 
 /**
  * The smallest description a data-channel peer sends (`sdp.ts` reads it):
@@ -175,27 +176,41 @@ export class FakePeer extends EventTarget {
 export class FakeBus {
   down = false;
   readonly seen: { topic: string; frame: string }[] = [];
+  /** Every spec a carrier was opened with, in order. */
+  readonly specs: CarrierSpec[] = [];
   readonly #topics = new Map<string, Set<(text: string) => void>>();
 
   factory(): CarrierFactory {
-    return async (_spec, topic) => {
+    return async (spec, topic) => {
       if (this.down) throw new Error("unreachable");
-      const listeners = new Set<(text: string) => void>();
-      return {
-        post: async (frame) => {
-          this.inject(topic, frame);
-        },
-        listen: (onText) => {
-          listeners.add(onText);
-          const all = this.#topic(topic);
-          all.add(onText);
-          return () => all.delete(onText);
-        },
-        close: () => {
-          for (const listener of listeners) this.#topic(topic).delete(listener);
-        },
-      };
+      this.specs.push(spec);
+      return this.#carrier(topic, spec.kind === "nats");
     };
+  }
+
+  /** A carrier on `topic`; NATS ones open channels below it, as the real one does. */
+  #carrier(topic: string, channels: boolean): Carrier {
+    const listeners = new Set<(text: string) => void>();
+    const carrier: Carrier = {
+      post: async (frame) => {
+        this.inject(topic, frame);
+      },
+      listen: (onText) => {
+        listeners.add(onText);
+        const all = this.#topic(topic);
+        all.add(onText);
+        return () => all.delete(onText);
+      },
+      close: () => {
+        for (const listener of listeners) this.#topic(topic).delete(listener);
+      },
+    };
+    return channels
+      ? {
+          ...carrier,
+          channel: (name) => this.#carrier(`${topic}.${name}`, false),
+        }
+      : carrier;
   }
 
   /** Put a frame on a topic as anyone on the service could. */

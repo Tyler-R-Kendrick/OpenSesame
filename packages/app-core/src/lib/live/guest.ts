@@ -8,7 +8,9 @@
  * the secret this request shares with the owner key, and that answers this
  * very request — anything else is ignored and the request stays open. With
  * the reply, the two browsers connect: directly, through a tunnel the owner
- * named, or through the owner's TURN server.
+ * named, or through the owner's TURN server — or, when the owner offers it
+ * and no peer route opens, over the owner's NATS server, sealed end to end
+ * (ADR 0166).
  *
  * Everything it receives lives in memory. When the channel closes — the
  * owner ended it, the time ran out, the owner's tab went away, or this
@@ -23,25 +25,34 @@ import {
   characters,
   cleanText,
 } from "./messages.js";
+import type { NatsSession } from "./nats-route.js";
 import { makeRequestCode, openReplyCode } from "./pairing.js";
 import {
   type IceSettings,
   type OfferSide,
-  type PeerChannel,
   type PeerFactory,
   makeOffer,
   takeAnswer,
 } from "./peer.js";
+import type { Carrier } from "./rendezvous.js";
 import { type Keypair, newKeypair, newRequestId } from "./seal.js";
+import { type LiveChannel, SeatChannel, seatName } from "./seat-channel.js";
 
 /** How often an unanswered request is posted again on the carriers. */
 const REPOST_MS = 20_000;
 const REPOSTS = 30;
 
+/** How long a relayed seat gives the peer route before moving to the relay. */
+export const FALLBACK_MS = 8000;
+
 /** The carriers a joiner posts on, when the link names any. */
 export type GuestCarriers = Readonly<{
   post(code: string): Promise<void>;
   close(): void;
+  /** A seat's channel on a carrier that may carry the session, if any. */
+  seat?: (name: string) => Carrier | null;
+  /** How the link's NATS carrier carries the session; `off` without one. */
+  session?: NatsSession;
 }>;
 
 export type GuestStatus =
@@ -72,7 +83,10 @@ export class LiveGuest {
   readonly #id = newRequestId();
   #status: GuestStatus = { at: "preparing" };
   #side: OfferSide | null = null;
-  #channel: PeerChannel | null = null;
+  #channel: LiveChannel | null = null;
+  /** The owner offered a relay: the carriers stay open with the seat. */
+  #relayed = false;
+  #fallback: ReturnType<typeof setTimeout> | null = null;
   #keys: Keypair | null = null;
   #repost: ReturnType<typeof setInterval> | null = null;
   #next = 0;
@@ -112,7 +126,9 @@ export class LiveGuest {
     this.#side = side;
     side.channel.then(
       (channel) => this.#connected(channel),
-      () => this.#finish(),
+      () => {
+        if (!this.#relayed) this.#finish();
+      },
     );
     // The owner reads these cleaned (`readJoinRequest`); say the same here.
     const request = await makeRequestCode(link, code, keys, {
@@ -149,10 +165,13 @@ export class LiveGuest {
     this.#repost = null;
   }
 
-  /** Done with the carriers: a reply arrived, or the ask is over. */
+  /**
+   * Done asking: a reply arrived, or the ask is over. The carriers close —
+   * unless the seat may move to one of them, when they close with the seat.
+   */
   #release(): void {
     this.#stopReposts();
-    this.options.carriers?.close();
+    if (!this.#relayed) this.options.carriers?.close();
   }
 
   /** The owner's reply code; false (and nothing changes) if it is not one. */
@@ -162,13 +181,23 @@ export class LiveGuest {
     const { link, code } = this.options;
     const reply = await openReplyCode(link, code, keys, this.#id, text);
     if (!reply || this.#status.at !== "request") return false;
+    const session = this.options.carriers?.session ?? "off";
+    this.#relayed = reply.relay === "nats" && session !== "off";
     this.#release();
     this.#to({ at: "connecting" });
+    if (this.#relayed && session === "always") {
+      void this.#toRelay();
+      return true;
+    }
     const { pc } = this.#side;
     pc.addEventListener("connectionstatechange", () => {
-      if (pc.connectionState === "failed" && this.#status.at === "connecting")
-        this.#finish({ at: "unreachable" });
+      if (pc.connectionState !== "failed" || this.#status.at !== "connecting")
+        return;
+      if (this.#relayed) void this.#toRelay();
+      else this.#finish({ at: "unreachable" });
     });
+    if (this.#relayed)
+      this.#fallback = setTimeout(() => void this.#toRelay(), FALLBACK_MS);
     try {
       await takeAnswer(pc, reply.answer);
       return true;
@@ -178,11 +207,50 @@ export class LiveGuest {
     }
   }
 
-  #connected(channel: PeerChannel): void {
-    if (this.#over()) {
+  /**
+   * Carry the seat over the relay: the peer route, if it is still trying,
+   * is dropped, and the owner hears the first sealed frame and answers it.
+   */
+  async #toRelay(): Promise<void> {
+    if (this.#fallback) clearTimeout(this.#fallback);
+    this.#fallback = null;
+    const keys = this.#keys;
+    if (this.#over() || this.#channel || !keys) return;
+    const carrier = this.options.carriers?.seat?.(seatName(this.#id)) ?? null;
+    const shared = await keys.shared(this.options.link.owner);
+    if (!carrier || !shared) {
+      carrier?.close();
+      this.#finish({ at: "unreachable" });
+      return;
+    }
+    if (this.#over() || this.#channel) {
+      carrier.close();
+      return;
+    }
+    this.#side?.pc.close();
+    const channel = new SeatChannel(
+      carrier,
+      {
+        link: this.options.link,
+        code: this.options.code,
+        joiner: keys.pub,
+        id: this.#id,
+        shared,
+      },
+      "joiner",
+    );
+    this.#connected(channel);
+    channel.send({ t: "hello" });
+  }
+
+  #connected(channel: LiveChannel): void {
+    // Over already, or the seat is carried another way: not this channel.
+    if (this.#over() || this.#channel) {
       channel.close();
       return;
     }
+    if (this.#fallback) clearTimeout(this.#fallback);
+    this.#fallback = null;
     this.#channel = channel;
     channel.onMessage((message) => this.#onMessage(message));
     channel.onClose(() => this.#finish());
@@ -234,6 +302,9 @@ export class LiveGuest {
 
   #finish(end: GuestStatus = { at: "ended" }): void {
     if (this.#over()) return;
+    if (this.#fallback) clearTimeout(this.#fallback);
+    this.#fallback = null;
+    this.#relayed = false;
     this.#release();
     for (const pending of this.#pending.values()) pending.resolve(null);
     this.#pending.clear();

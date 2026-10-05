@@ -36,8 +36,10 @@ import type { LiveLink } from "./link.js";
 import type { Catalog } from "./messages.js";
 import { makeReplyCode, openRequestCode } from "./pairing.js";
 import { type IceSettings, PAIRING_MS, type PeerFactory } from "./peer.js";
+import type { Carrier } from "./rendezvous.js";
 import { type LiveRoutes, NO_ROUTES, routesSegment } from "./routes.js";
 import { type Keypair, newCode, newKeypair, newLinkSecret } from "./seal.js";
+import { seatName } from "./seat-channel.js";
 
 export const MAX_MISSES = 5;
 export const MAX_GUESTS = 8;
@@ -99,6 +101,13 @@ export type HostOptions = Readonly<{
   routes?: LiveRoutes;
   /** Where a reply code goes besides the owner's screen (a carrier). */
   post?: (code: string) => void;
+  /**
+   * A seat's channel on a carrier that may carry the session (NATS), or
+   * null when none can; asked at each admission (ADR 0166).
+   */
+  relay?: (name: string) => Carrier | null;
+  /** The link secret, when the caller minted credentials for its topic. */
+  secret?: string;
   now?: () => number;
 }>;
 
@@ -145,7 +154,7 @@ export class LiveHost {
     this.link = {
       admission: options.admission,
       owner: owner.pub,
-      secret: newLinkSecret(),
+      secret: options.secret ?? newLinkSecret(),
       routes: routesSegment(options.routes ?? NO_ROUTES),
     };
     this.code = options.admission === "invite" ? newCode() : null;
@@ -281,7 +290,9 @@ export class LiveHost {
     // `peer.open` waits on the browser: a second admit must not start beside it.
     if (seat.admitting) return;
     seat.admitting = true;
+    const relay = this.options.relay?.(seatName(key)) ?? null;
     const peer = new HostPeer({
+      relayed: relay !== null,
       guest: key,
       ice: this.options.ice,
       peers: this.options.peers,
@@ -306,12 +317,19 @@ export class LiveHost {
     seat.peer = peer;
     try {
       const answer = await peer.open(seat.offer);
+      if (relay)
+        await peer.relayVia(relay, this.#owner, {
+          link: this.link,
+          code: this.code,
+          joiner: seat.joiner,
+          id: key,
+        });
       const reply = await makeReplyCode(
         this.link,
         this.code,
         this.#owner,
         seat.joiner,
-        { id: key, answer },
+        relay ? { id: key, answer, relay: "nats" } : { id: key, answer },
       );
       if (seat.peer !== peer) {
         // Refused, ended or replaced while it was answering: nobody owns it.

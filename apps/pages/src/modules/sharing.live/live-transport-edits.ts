@@ -5,8 +5,9 @@
  * place in a list that may have moved on.
  */
 
+import type { NatsSession } from "@opensesame/app-core/lib/live/nats-route.js";
 import {
-  type CarrierSpec,
+  type CarrierSetting,
   type IceServerSetting,
   type LiveTransport,
   carrierKey,
@@ -54,7 +55,7 @@ export function withoutServer(
 
 export function withCarrier(
   transport: LiveTransport,
-  carrier: CarrierSpec,
+  carrier: CarrierSetting,
 ): LiveTransport {
   if (
     transport.carriers.some(
@@ -67,12 +68,28 @@ export function withCarrier(
 
 export function withoutCarrier(
   transport: LiveTransport,
-  carrier: CarrierSpec,
+  carrier: CarrierSetting,
 ): LiveTransport {
   return {
     ...transport,
     carriers: transport.carriers.filter(
       (entry) => carrierKey(entry) !== carrierKey(carrier),
     ),
+  };
+}
+
+/** The NATS carrier with its session route changed; `fallback` is unwritten. */
+export function withCarrierSession(
+  transport: LiveTransport,
+  carrier: CarrierSetting,
+  session: NatsSession,
+): LiveTransport {
+  return {
+    ...transport,
+    carriers: transport.carriers.map((entry) => {
+      if (carrierKey(entry) !== carrierKey(carrier)) return entry;
+      const { session: _was, ...rest } = entry;
+      return session === "fallback" ? rest : { ...rest, session };
+    }),
   };
 }

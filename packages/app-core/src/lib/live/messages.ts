@@ -50,6 +50,12 @@ export type JoinReply = Readonly<{
   id: string;
   /** The owner's WebRTC answer. */
   answer: string;
+  /**
+   * The owner also listens for this seat on a NATS carrier the link names:
+   * the joiner may carry the session there, sealed, when no peer route opens
+   * (ADR 0166).
+   */
+  relay?: "nats";
 }>;
 
 export type SharePolicy = "read" | "use" | "edit";
@@ -82,6 +88,8 @@ export type ChannelMessage =
   | Readonly<{ t: "value"; req: string; value: string }>
   | Readonly<{ t: "denied"; req: string }>
   | Readonly<{ t: "end" }>
+  /** The joiner's first frame on a relayed seat: the owner answers it. */
+  | Readonly<{ t: "hello" }>
   | Readonly<{
       t: "reveal" | "copy";
       req: string;
@@ -169,7 +177,9 @@ export function readJoinReply(raw: string): JoinReply | null {
   const { id } = body;
   if (!isString(id) || !REQUEST_ID.test(id)) return null;
   const answer = readSdp(body, "answer");
-  return answer ? { id, answer } : null;
+  if (!answer) return null;
+  if (body.relay === undefined) return { id, answer };
+  return body.relay === "nats" ? { id, answer, relay: "nats" } : null;
 }
 
 function readField(value: BoundaryValue): SharedField | null {
@@ -253,6 +263,7 @@ export function readChannelMessage(raw: string): ChannelMessage | null {
     case "denied":
       return isReq(req) ? { t, req } : null;
     case "end":
+    case "hello":
       return { t };
     case "reveal":
     case "copy":

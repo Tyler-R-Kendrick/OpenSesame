@@ -64,6 +64,8 @@ pnpm dev:pwa             # Pages vite on :5180, no backend
 pnpm dev:cli             # native opensesame CLI; verb after --
 pnpm dev:host            # host on 127.0.0.1:8787
 pnpm dev:daemon          # daemon on 127.0.0.1:18790
+pnpm dev:live-nats       # nats-server config in operator mode for live sessions
+                          #   (minted per-session credentials, ADR 0166)
 pnpm build               # turbo run build
 pnpm typecheck           # turbo run typecheck
 pnpm lint                # Biome gate for files changed from origin/main

@@ -1,0 +1,212 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": true
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "revealSelector": "#live-carrier-kind"
+        },
+        {
+          "selectOptional": {
+            "label": "Code carrier",
+            "value": "nats"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Server (wss://)",
+            "text": "wss://nats.example.com"
+          }
+        },
+        {
+          "selectOptional": {
+            "label": "Sign-in",
+            "value": "mint"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Account public key",
+            "text": "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Account signing key",
+            "text": "SAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        },
+        {
+          "revealSelector": "#live-carrier-kind"
+        },
+        {
+          "count": [
+            "#live-nats-sign-in",
+            "#live-nats-session",
+            "#live-nats-account",
+            "#live-nats-signing-key"
+          ]
+        },
+        {
+          "measure": "#live-routes"
+        },
+        {
+          "shot": "1280-nats-add"
+        },
+        {
+          "press": "Add the carrier"
+        },
+        {
+          "revealSelector": "#live-routes .frow"
+        },
+        {
+          "count": [
+            "#live-routes .frow",
+            "[id^=live-nats-session-]"
+          ]
+        },
+        {
+          "report": "#live-routes .frow"
+        },
+        {
+          "shot": "1280-nats-row"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": true
+        },
+        {
+          "enable": "Live sessions"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "open": "Live sessions"
+        },
+        {
+          "revealSelector": "#live-carrier-kind"
+        },
+        {
+          "selectOptional": {
+            "label": "Code carrier",
+            "value": "nats"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Server (wss://)",
+            "text": "wss://nats.example.com"
+          }
+        },
+        {
+          "selectOptional": {
+            "label": "Sign-in",
+            "value": "mint"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Account public key",
+            "text": "ABBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Account signing key",
+            "text": "SAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          }
+        },
+        {
+          "revealSelector": "#live-carrier-kind"
+        },
+        {
+          "count": [
+            "#live-nats-sign-in",
+            "#live-nats-session",
+            "#live-nats-account",
+            "#live-nats-signing-key"
+          ]
+        },
+        {
+          "measure": "#live-routes"
+        },
+        {
+          "shot": "390-nats-add"
+        },
+        {
+          "press": "Add the carrier"
+        },
+        {
+          "revealSelector": "#live-routes .frow"
+        },
+        {
+          "count": [
+            "#live-routes .frow",
+            "[id^=live-nats-session-]"
+          ]
+        },
+        {
+          "report": "#live-routes .frow"
+        },
+        {
+          "shot": "390-nats-row"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-nats-add",
+      "width": 1280,
+      "title": "Adding a NATS server \u2014 1280 \u00d7 900",
+      "caption": "Routes asks how a NATS server signs in and whether the session may cross it. A minted sign-in takes the account and its signing key, which stays in this vault.",
+      "before": "URL only",
+      "after": "Sign-in, account key, signing key, session route"
+    },
+    {
+      "shot": "390-nats-add",
+      "width": 390,
+      "title": "Adding a NATS server \u2014 390 \u00d7 844",
+      "caption": "The same fields at phone width.",
+      "before": "URL only",
+      "after": "Sign-in, account key, signing key, session route"
+    },
+    {
+      "shot": "1280-nats-row",
+      "width": 1280,
+      "title": "A NATS server's row \u2014 1280 \u00d7 900",
+      "caption": "Each NATS row carries its session route as a choice that changes in place.",
+      "before": "URL",
+      "after": "URL + session route"
+    },
+    {
+      "shot": "390-nats-row",
+      "width": 390,
+      "title": "A NATS server's row \u2014 390 \u00d7 844",
+      "caption": "The same row at phone width.",
+      "before": "URL",
+      "after": "URL + session route"
+    }
+  ]
+}

@@ -29,6 +29,16 @@ export function readSteps() {
       await page.waitForTimeout(300);
     },
     /**
+     * Choose an option of a labelled select (exact label) when this build
+     * draws it: a choice the base does not offer is a legitimate difference.
+     */
+    async selectOptional(page, { label, value }) {
+      const field = page.getByLabel(label, { exact: true }).first();
+      if (!(await field.count())) return;
+      await field.selectOption(value);
+      await page.waitForTimeout(300);
+    },
+    /**
      * Print each matched field's name and whether it holds text — never the
      * text itself, since a field may be a secret. What a form kept or wiped
      * is then read from the browser.

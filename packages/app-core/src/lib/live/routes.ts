@@ -15,6 +15,13 @@ import {
 } from "@opensesame/os-domain";
 import { fromB64url, toB64url } from "./b64.js";
 import type { LiveLink } from "./link.js";
+import {
+  NATS_LINK_KEYS,
+  NATS_SETTING_KEYS,
+  type NatsMint,
+  type NatsSession,
+  readNatsFields,
+} from "./nats-route.js";
 
 export const CARRIER_KINDS = [
   "nostr",
@@ -33,7 +40,15 @@ export type CarrierSpec = Readonly<{
   password?: string;
   /** A bearer token (ntfy access token, NATS token). */
   token?: string;
+  /** NATS: a user credential, minted for the session or the owner's own. */
+  jwt?: string;
+  seed?: string;
+  /** NATS: whether the session itself may run over it (ADR 0166). */
+  session?: NatsSession;
 }>;
+
+/** A carrier as the owner keeps it: a NATS signing key mints credentials. */
+export type CarrierSetting = CarrierSpec & Readonly<{ mint?: NatsMint }>;
 
 export type IceServerSpec = Readonly<{
   urls: readonly string[];
@@ -64,6 +79,10 @@ type CarrierDraft = {
   username?: string;
   password?: string;
   token?: string;
+  jwt?: string;
+  seed?: string;
+  session?: NatsSession;
+  mint?: NatsMint;
 };
 
 export const NO_ROUTES: LiveRoutes = { ice: [], relay: false, carriers: [] };
@@ -226,22 +245,24 @@ function checkCredentials(
     errors.push(`${at} is TURN: give username and credential, or a secret.`);
 }
 
+const CARRIER_KEYS = ["kind", "url", "username", "password", "token"];
+
+/**
+ * A carrier, strictly. `settings` is the owner's profile, which alone may
+ * name a NATS signing key; a link carries only what a joiner may hold.
+ */
 export function readCarrier(
   value: BoundaryValue,
   at: string,
   errors: Errors,
-): CarrierSpec | null {
+  settings = false,
+): CarrierSetting | null {
   if (!isJsonObject(value)) {
     errors.push(`${at} must be an object.`);
     return null;
   }
-  refuseUnknown(
-    value,
-    ["kind", "url", "username", "password", "token"],
-    at,
-    errors,
-  );
   const kind = CARRIER_KINDS.find((entry) => entry === value.kind);
+  refuseUnknown(value, carrierKeys(kind, settings), at, errors);
   if (!kind) {
     errors.push(`${at}.kind must be one of ${CARRIER_KINDS.join(", ")}.`);
     return null;
@@ -262,7 +283,29 @@ export function readCarrier(
   if (username) carrier.username = username;
   if (password) carrier.password = password;
   if (token) carrier.token = token;
+  if (kind === "nats")
+    Object.assign(carrier, readNats(value, at, errors, settings));
   return carrier;
+}
+
+/** What a carrier may name: a NATS one also its credential and mode. */
+function carrierKeys(
+  kind: CarrierKind | undefined,
+  settings: boolean,
+): readonly string[] {
+  if (kind !== "nats") return CARRIER_KEYS;
+  return [...CARRIER_KEYS, ...(settings ? NATS_SETTING_KEYS : NATS_LINK_KEYS)];
+}
+
+function readNats(
+  value: Readonly<Record<string, BoundaryValue>>,
+  at: string,
+  errors: Errors,
+  settings: boolean,
+) {
+  const { username, password, token } = value;
+  const login = [username, password, token].some((part) => part !== undefined);
+  return readNatsFields({ value, at, errors, settings, login });
 }
 
 export function list(
