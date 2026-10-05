@@ -3,17 +3,22 @@
 //! When, which pairing (id, label, origin), the action, the device or key id,
 //! and the status that came back. Never a value: no key, no token, no name a
 //! person typed. The file keeps its newest [`AUDIT_KEEP`] lines; a reader is
-//! handed the newest [`AUDIT_READ`].
+//! handed the newest [`AUDIT_READ`]. Each line rests sealed (`osl1.`, the
+//! sealed-log format) under a key in its own 0600 file beside the trail, and
+//! every write holds the lock the CLI's device verbs share (ADR 0157).
 
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::paths::{create_private, ensure_private_dir, read_optional, write_private};
+use opensesame_sealed_log::{open_line, seal_line, LogKey};
+
+use crate::paths::{create_private, ensure_private_dir, read_optional, write_private, FileLock};
 use crate::{AdminError, Paired};
 
 const AUDIT_FILE: &str = "tailnet-admin-audit.jsonl";
+const AUDIT_KEY_FILE: &str = "tailnet-admin-audit.key";
 /// Lines the file keeps.
 pub const AUDIT_KEEP: usize = 2000;
 /// Lines a reader is handed.
@@ -53,6 +58,7 @@ impl AuditEntry {
 #[derive(Clone, Debug)]
 pub struct AuditLog {
     path: PathBuf,
+    key: PathBuf,
 }
 
 impl AuditLog {
@@ -60,6 +66,7 @@ impl AuditLog {
     pub fn at(dir: &Path) -> Self {
         Self {
             path: dir.join(AUDIT_FILE),
+            key: dir.join(AUDIT_KEY_FILE),
         }
     }
 
@@ -70,23 +77,26 @@ impl AuditLog {
     ///
     /// A file error.
     pub fn append(&self, entry: &AuditEntry) -> Result<(), AdminError> {
-        let mut line =
-            serde_json::to_vec(entry).map_err(|error| AdminError::Unreadable(error.to_string()))?;
-        line.push(b'\n');
+        let json = serde_json::to_string(entry)
+            .map_err(|error| AdminError::Unreadable(error.to_string()))?;
         if let Some(dir) = self.path.parent() {
             ensure_private_dir(dir)?;
         }
+        let _lock = FileLock::acquire(&self.path)?;
+        let key = LogKey::load_or_create(&self.key)?;
+        let line = format!("{}\n", seal_line(&key, &json));
         let exists = self.path.exists();
         let mut file = if exists {
             std::fs::OpenOptions::new().append(true).open(&self.path)?
         } else {
             create_private(&self.path)?
         };
-        file.write_all(&line)?;
+        file.write_all(line.as_bytes())?;
         drop(file);
         self.trim()
     }
 
+    /// The sealed lines as they rest, oldest first.
     fn lines(&self) -> Result<Vec<String>, AdminError> {
         let Some(bytes) = read_optional(&self.path)? else {
             return Ok(Vec::new());
@@ -116,11 +126,18 @@ impl AuditLog {
     /// A file error.
     pub fn recent(&self, limit: usize) -> Result<Vec<AuditEntry>, AdminError> {
         let limit = limit.clamp(1, AUDIT_READ);
+        let key = match LogKey::load(&self.key) {
+            Ok(key) => key,
+            // Nothing was ever sealed: there is no trail yet.
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => return Err(error.into()),
+        };
         Ok(self
             .lines()?
             .iter()
             .rev()
-            .filter_map(|line| serde_json::from_str(line).ok())
+            .filter_map(|line| open_line(&key, line))
+            .filter_map(|line| serde_json::from_str(&line).ok())
             .take(limit)
             .collect())
     }
@@ -190,5 +207,35 @@ mod tests {
             .unwrap();
         file.write_all(b"not json\n").unwrap();
         assert_eq!(log.recent(10).unwrap().len(), 1);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_trail_rests_sealed_under_a_private_key_beside_it() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = tempfile::tempdir().unwrap();
+        let log = AuditLog::at(tmp.path());
+        log.append(&AuditEntry::new(
+            7,
+            &by(),
+            "device.rename",
+            "nSECRETID",
+            200,
+        ))
+        .unwrap();
+        let rest = std::fs::read_to_string(tmp.path().join(AUDIT_FILE)).unwrap();
+        assert!(rest.starts_with("osl1."), "{rest}");
+        for plain in ["device.rename", "nSECRETID", "ops.example.com", "tp_1"] {
+            assert!(!rest.contains(plain), "{plain} rests in the clear");
+        }
+        let key = tmp.path().join(AUDIT_KEY_FILE);
+        assert_eq!(
+            std::fs::metadata(&key).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+        assert_eq!(log.recent(1).unwrap()[0].target, "nSECRETID");
+        // Without its key the trail reads as nothing, never as an error.
+        std::fs::remove_file(&key).unwrap();
+        assert!(log.recent(10).unwrap().is_empty());
     }
 }

@@ -11,7 +11,9 @@
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
-use opensesame_invoke_through::{AuthStyle, EgressRule, InvokeError, InvokeRequest, Invoker};
+use opensesame_invoke_through::{
+    AuthStyle, EgressRule, InvokeError, InvokeRequest, Invoker, DEFAULT_REQUEST_BODY_CAP,
+};
 use secrecy::{ExposeSecret as _, SecretString};
 use serde_json::Value;
 
@@ -35,6 +37,11 @@ pub const EGRESS_RULE: EgressRule = EgressRule {
 /// `upstream-override` build only.
 #[cfg(feature = "upstream-override")]
 pub const API_BASE_ENV: &str = "OPENSESAME_TAILSCALE_API_BASE";
+
+/// The largest answer read from Tailscale: `devices?fields=all` costs a few
+/// KiB a machine, so the broker's 1 MiB default would refuse a tailnet of a
+/// few hundred. 32 MiB holds about ten thousand.
+const RESPONSE_BODY_CAP: usize = 32 * 1024 * 1024;
 
 const MINT_TIMEOUT: Duration = Duration::from_secs(15);
 const MINT_BODY_CAP: u64 = 64 * 1024;
@@ -83,7 +90,8 @@ impl Upstream {
     pub fn production() -> Self {
         Self {
             base: API_BASE.to_string(),
-            invoker: Invoker::with_rules(vec![EGRESS_RULE]),
+            invoker: Invoker::with_rules(vec![EGRESS_RULE])
+                .with_caps(DEFAULT_REQUEST_BODY_CAP, RESPONSE_BODY_CAP),
             mint: mint_client(true),
             cached: tokio::sync::Mutex::new(None),
         }
@@ -107,14 +115,20 @@ impl Upstream {
         };
         Some(Self {
             base: base.trim_end_matches('/').to_string(),
-            invoker: Invoker::with_rules(vec![rule]).allow_http_for_tests(),
+            invoker: Invoker::with_rules(vec![rule])
+                .with_caps(DEFAULT_REQUEST_BODY_CAP, RESPONSE_BODY_CAP)
+                .allow_http_for_tests(),
             mint: mint_client(false),
             cached: tokio::sync::Mutex::new(None),
         })
     }
 
-    /// [`Self::production`], or the stub [`API_BASE_ENV`] names.
-    #[cfg(feature = "upstream-override")]
+    /// [`Self::production`], or the stub [`API_BASE_ENV`] names — only in a
+    /// debug build with the feature. Cargo unifies features across a
+    /// workspace build, so the daemon's test dependency can switch the
+    /// feature on for a binary built in the same run; a release build still
+    /// never reads the variable.
+    #[cfg(all(feature = "upstream-override", debug_assertions))]
     #[must_use]
     pub fn from_env() -> Self {
         std::env::var(API_BASE_ENV)
@@ -124,7 +138,7 @@ impl Upstream {
     }
 
     /// [`Self::production`]: a shipped build reads no base from anywhere.
-    #[cfg(not(feature = "upstream-override"))]
+    #[cfg(not(all(feature = "upstream-override", debug_assertions)))]
     #[must_use]
     pub fn from_env() -> Self {
         Self::production()

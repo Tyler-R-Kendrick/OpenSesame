@@ -14,7 +14,7 @@ use opensesame_plugin_settings::{is_pairable_origin, is_secret_shaped};
 use serde::{Deserialize, Serialize};
 
 use crate::pairing_code::{clean_label, digest_hex, pairing_id, same, secret, Role, CODE_TTL_SECS};
-use crate::paths::{read_optional, write_private};
+use crate::paths::{read_optional, write_private, FileLock};
 use crate::AdminError;
 
 const PAIRINGS_FILE: &str = "tailnet-pairings.json";
@@ -157,6 +157,20 @@ impl RolePairings {
         Ok(())
     }
 
+    /// Load, change and save under the lock the daemon and the CLI share, so
+    /// neither undoes the other. What `change` did is saved whether it
+    /// succeeded or refused: a refused exchange still spends its code.
+    fn update<T>(
+        &self,
+        change: impl FnOnce(&mut PairingFile) -> Result<T, AdminError>,
+    ) -> Result<T, AdminError> {
+        let _lock = FileLock::acquire(&self.path)?;
+        let mut file = self.load()?;
+        let outcome = change(&mut file);
+        self.save(&file)?;
+        outcome
+    }
+
     /// Record a one-time code for `origin` and `role`; returned once.
     ///
     /// # Errors
@@ -173,22 +187,22 @@ impl RolePairings {
         if !is_pairable_origin(origin) {
             return Err(AdminError::Invalid("invalid_origin"));
         }
-        let mut file = self.load()?;
-        file.pending.retain(|p| p.expires_at > now);
-        if file.pending.len() >= MAX_PENDING {
-            return Err(AdminError::Full);
-        }
-        let code = secret();
-        let expires_at = now + CODE_TTL_SECS;
-        file.pending.push(Pending {
-            code_sha256: digest_hex(&code),
-            origin: origin.to_string(),
-            role,
-            label: clean_label(label),
-            expires_at,
-        });
-        self.save(&file)?;
-        Ok((code, expires_at))
+        self.update(|file| {
+            file.pending.retain(|p| p.expires_at > now);
+            if file.pending.len() >= MAX_PENDING {
+                return Err(AdminError::Full);
+            }
+            let code = secret();
+            let expires_at = now + CODE_TTL_SECS;
+            file.pending.push(Pending {
+                code_sha256: digest_hex(&code),
+                origin: origin.to_string(),
+                role,
+                label: clean_label(label),
+                expires_at,
+            });
+            Ok((code, expires_at))
+        })
     }
 
     /// Trade `code`, presented from `origin`, for a bearer. The code is spent
@@ -204,42 +218,41 @@ impl RolePairings {
         origin: &str,
         now: u64,
     ) -> Result<(Paired, String), AdminError> {
-        let mut file = self.load()?;
-        let digest = digest_hex(code);
-        let index = file
-            .pending
-            .iter()
-            .position(|p| same(&p.code_sha256, &digest))
-            .filter(|_| is_secret_shaped(code))
-            .ok_or(AdminError::PairingRefused)?;
-        let live = file.pending[index].expires_at > now && file.pending[index].origin == origin;
-        if live && file.paired.len() >= MAX_PAIRED {
-            return Err(AdminError::Full);
-        }
-        let pending = file.pending.remove(index);
-        file.pending.retain(|p| p.expires_at > now);
-        let outcome = if live {
-            let paired = Paired {
-                id: pairing_id(),
-                origin: pending.origin,
-                role: pending.role,
-                label: pending.label,
-            };
-            let token = secret();
-            file.paired.push(PairedPage {
-                id: paired.id.clone(),
-                token_sha256: digest_hex(&token),
-                origin: paired.origin.clone(),
-                role: paired.role,
-                label: paired.label.clone(),
-                paired_at: now,
-            });
-            Ok((paired, token))
-        } else {
-            Err(AdminError::PairingRefused)
-        };
-        self.save(&file)?;
-        outcome
+        self.update(|file| {
+            let digest = digest_hex(code);
+            let index = file
+                .pending
+                .iter()
+                .position(|p| same(&p.code_sha256, &digest))
+                .filter(|_| is_secret_shaped(code))
+                .ok_or(AdminError::PairingRefused)?;
+            let live = file.pending[index].expires_at > now && file.pending[index].origin == origin;
+            if live && file.paired.len() >= MAX_PAIRED {
+                return Err(AdminError::Full);
+            }
+            let pending = file.pending.remove(index);
+            file.pending.retain(|p| p.expires_at > now);
+            if live {
+                let paired = Paired {
+                    id: pairing_id(),
+                    origin: pending.origin,
+                    role: pending.role,
+                    label: pending.label,
+                };
+                let token = secret();
+                file.paired.push(PairedPage {
+                    id: paired.id.clone(),
+                    token_sha256: digest_hex(&token),
+                    origin: paired.origin.clone(),
+                    role: paired.role,
+                    label: paired.label.clone(),
+                    paired_at: now,
+                });
+                Ok((paired, token))
+            } else {
+                Err(AdminError::PairingRefused)
+            }
+        })
     }
 
     /// Who `token`, presented from `origin`, is; `None` when it is nobody.
@@ -295,10 +308,10 @@ impl RolePairings {
         let Some(paired) = self.authorize(token, origin) else {
             return Ok(false);
         };
-        let mut file = self.load()?;
-        file.paired.retain(|p| p.id != paired.id);
-        self.save(&file)?;
-        Ok(true)
+        self.update(|file| {
+            file.paired.retain(|p| p.id != paired.id);
+            Ok(true)
+        })
     }
 
     /// Remove every bearer and code for `origin`, for the pairing `id`, or
@@ -313,22 +326,22 @@ impl RolePairings {
         id: Option<&str>,
         now: u64,
     ) -> Result<usize, AdminError> {
-        let mut file = self.load()?;
         let everyone = origin.is_none() && id.is_none();
         let goes = |page_origin: &str, page_id: Option<&str>| {
             everyone
                 || origin.is_some_and(|o| o == page_origin)
                 || id.is_some_and(|wanted| page_id == Some(wanted))
         };
-        let (gone, kept): (Vec<_>, Vec<_>) = std::mem::take(&mut file.paired)
-            .into_iter()
-            .partition(|p| goes(&p.origin, Some(&p.id)));
-        file.paired = kept;
-        file.pending.retain(|p| !goes(&p.origin, None));
-        let removed = gone.len();
-        file.remember_former(gone.into_iter().map(|p| p.origin).collect(), now);
-        self.save(&file)?;
-        Ok(removed)
+        self.update(|file| {
+            let (gone, kept): (Vec<_>, Vec<_>) = std::mem::take(&mut file.paired)
+                .into_iter()
+                .partition(|p| goes(&p.origin, Some(&p.id)));
+            file.paired = kept;
+            file.pending.retain(|p| !goes(&p.origin, None));
+            let removed = gone.len();
+            file.remember_former(gone.into_iter().map(|p| p.origin).collect(), now);
+            Ok(removed)
+        })
     }
 
     /// Paired pages and waiting codes, for the operator.

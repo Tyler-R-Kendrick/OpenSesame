@@ -12,6 +12,9 @@ opensesame-invoke-through = { path = "../invoke-through" }
 # `is_pairable_origin`, `is_secret_shaped`, `unix_now`: one origin rule for
 # every pairing the daemon issues.
 opensesame-plugin-settings = { path = "../plugin-settings" }
+# The audit trail rests sealed, one line at a time, under a key kept beside it
+# (ADR 0157 items 7–9).
+opensesame-sealed-log = { path = "../sealed-log" }
 base64 = { workspace = true }
 bytes = { workspace = true }
 directories = "6.0.0"

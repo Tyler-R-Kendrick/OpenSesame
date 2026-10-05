@@ -4683,6 +4683,7 @@ dependencies = [
  "hex",
  "opensesame-invoke-through",
  "opensesame-plugin-settings",
+ "opensesame-sealed-log",
  "rand_core 0.6.4",
  "reqwest",
  "secrecy",

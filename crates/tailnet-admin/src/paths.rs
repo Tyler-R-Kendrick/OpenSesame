@@ -86,6 +86,73 @@ pub(crate) fn create_private(path: &Path) -> std::io::Result<std::fs::File> {
     opts.open(path)
 }
 
+/// How long a writer waits for another to finish before giving up.
+const LOCK_WAIT: std::time::Duration = std::time::Duration::from_secs(3);
+/// A lock older than this was left by a process that died holding it.
+const LOCK_STALE: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// A lock on `path` shared by every process that writes it — the daemon and
+/// the CLI beside it — so one's load-modify-save never undoes another's. It
+/// is a sibling file created exclusively; dropping the guard removes it.
+pub(crate) struct FileLock {
+    path: PathBuf,
+}
+
+impl FileLock {
+    pub(crate) fn acquire(path: &Path) -> std::io::Result<Self> {
+        if let Some(dir) = path.parent() {
+            ensure_private_dir(dir)?;
+        }
+        let lock = path.with_extension("lock");
+        let started = std::time::Instant::now();
+        loop {
+            match create_exclusive(&lock) {
+                Ok(()) => return Ok(Self { path: lock }),
+                Err(error) if error.kind() != std::io::ErrorKind::AlreadyExists => {
+                    return Err(error)
+                }
+                Err(_) if is_stale(&lock) => {
+                    let _ = std::fs::remove_file(&lock);
+                }
+                Err(_) if started.elapsed() > LOCK_WAIT => {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::WouldBlock,
+                        "another writer holds the tailnet state",
+                    ));
+                }
+                Err(_) => std::thread::sleep(std::time::Duration::from_millis(10)),
+            }
+        }
+    }
+}
+
+/// Create `path` at `0600`, failing if it already exists.
+fn create_exclusive(path: &Path) -> std::io::Result<()> {
+    let mut opts = std::fs::OpenOptions::new();
+    opts.write(true).create_new(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        opts.mode(0o600);
+    }
+    opts.open(path).map(drop)
+}
+
+/// A lock left by a process that died holding it.
+fn is_stale(lock: &Path) -> bool {
+    std::fs::metadata(lock)
+        .and_then(|meta| meta.modified())
+        .ok()
+        .and_then(|at| at.elapsed().ok())
+        .is_some_and(|age| age > LOCK_STALE)
+}
+
+impl Drop for FileLock {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+    }
+}
+
 /// Read `path`, or `None` when it does not exist.
 pub(crate) fn read_optional(path: &Path) -> std::io::Result<Option<Vec<u8>>> {
     match std::fs::read(path) {
@@ -123,5 +190,16 @@ mod tests {
         let leftovers = std::fs::read_dir(&dir).unwrap().count();
         assert_eq!(leftovers, 1, "no temp file left behind");
         assert_eq!(read_optional(&dir.join("missing")).unwrap(), None);
+    }
+
+    #[test]
+    fn a_lock_is_held_once_and_released_on_drop() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("state.json");
+        let held = FileLock::acquire(&path).unwrap();
+        assert!(create_exclusive(&path.with_extension("lock")).is_err());
+        drop(held);
+        assert!(!path.with_extension("lock").exists());
+        drop(FileLock::acquire(&path).unwrap());
     }
 }
