@@ -1,12 +1,7 @@
 import type { MouseEvent, ReactNode } from "react";
 import { useRef } from "react";
 import { useNavigate } from "react-router";
-import {
-  IconDownload,
-  IconPlus,
-  IconSearch,
-  IconUpload,
-} from "../../components/Icons.js";
+import { IconDownload, IconPlus, IconUpload } from "../../components/Icons.js";
 import {
   type MenuGroup,
   openContextMenu,
@@ -15,29 +10,12 @@ import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { VaultCommands } from "./VaultActions.js";
 
 /**
- * What the section tree asks of a thumb: find something, or add something.
- *
- * Search is the field the tree opens on, the full width of the screen, because
- * finding is what a phone opens a vault for. Adding is one filled key in the
- * bottom corner a right thumb already rests on. Neither is the desktop's row of
- * small keys: import and export are not as common as New, so they are rows of
- * the action sheet the key opens instead of keys of their own.
+ * What the section tree asks of a thumb: add something. Adding is one filled
+ * key in the bottom corner a right thumb already rests on. Finding is the
+ * status-line prompt (`/? words`), so the pane draws no search field of its
+ * own; import and export are not as common as New, so they are rows of the
+ * action sheet the key opens instead of keys of their own.
  */
-export function PhoneFind({ onOpen }: { onOpen: () => void }) {
-  return (
-    <button
-      type="button"
-      className="vadd__find"
-      aria-label="Search the vault"
-      onClick={onOpen}
-    >
-      <IconSearch size={18} />
-      <span className="vadd__prompt" aria-hidden="true">
-        Search the vault
-      </span>
-    </button>
-  );
-}
 
 /** A glyph for the commands the vault is known to carry; others have none. */
 const ICONS: Record<string, ReactNode> = {

@@ -366,12 +366,6 @@
   overflow: auto;
 }
 
-.conn-catalog__tools {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
 .conn-marketplace-empty {
   padding-block: 2rem;
 }

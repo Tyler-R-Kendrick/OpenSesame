@@ -170,8 +170,11 @@ describe("instrumented screens", () => {
     ).toBe("/vault/new");
   });
 
-  it("binds the connector catalog and its search field", () => {
-    const { container } = render(
+  it("binds the connector catalog and the prompt it is searched in", () => {
+    const prompt = document.createElement("input");
+    prompt.id = "command-bar-input";
+    document.body.append(prompt);
+    const { unmount } = render(
       <MemoryRouter>
         <CatalogPanel providers={[provider()]} />
       </MemoryRouter>,
@@ -181,8 +184,11 @@ describe("instrumented screens", () => {
     expect(isMountedGuideTarget("connections.provider-picker")).toBe(true);
 
     expect(resolveGuideTargetElement("connections.provider-picker")).toBe(
-      container.querySelector('button[title="Search (/)"]'),
+      prompt,
     );
+    unmount();
+    expect(isMountedGuideTarget("connections.provider-picker")).toBe(false);
+    prompt.remove();
     // A custom connector was a form a Host took; with no Host there is no
     // key to point at and no page behind it (ADR 0151).
     expect(screen.queryByRole("link", { name: "Custom connector" })).toBeNull();

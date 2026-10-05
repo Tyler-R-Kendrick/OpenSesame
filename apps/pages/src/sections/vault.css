@@ -343,38 +343,6 @@
   bottom: 100%;
 }
 
-.vtree__cmd {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.75rem;
-  border-top: 1px solid var(--line);
-  background: var(--surface-2);
-}
-
-.vtree__prompt {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.vtree__cmd input {
-  flex: 1;
-  min-width: 0;
-  max-width: none;
-  min-height: 0;
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  caret-color: var(--accent);
-}
-
-.vtree__cmd input:focus {
-  outline: none;
-}
-
 .vault__status {
   flex: none;
   display: flex;
@@ -423,10 +391,6 @@
 }
 
 .detail .detail__backbtn {
-  display: none;
-}
-
-.vtree__key-touch {
   display: none;
 }
 
@@ -726,15 +690,6 @@
     display: none;
   }
 
-  /* `/` is a typed character; a finger looks for the thing it does. */
-  .vtree__key-glyph {
-    display: none;
-  }
-
-  .vtree__key-touch {
-    display: block;
-  }
-
   .vtree__key:not(.vtree__key--help) {
     display: inline-grid;
     place-items: center;
@@ -756,12 +711,6 @@
   .vtree [role="treeitem"],
   .railtree [role="treeitem"] {
     touch-action: pan-y;
-  }
-
-  /* A field under 16px makes iOS zoom the page on focus and never zoom back. */
-  .vtree__cmd input {
-    min-height: 2.75rem;
-    font-size: 16px;
   }
 }
 
@@ -1142,48 +1091,9 @@ select.editor__ext:hover {
     display: inline-grid;
   }
 
-  /* What the tree asks of a thumb (PhoneAdd.tsx). Search is the field the pane
-     opens on, pinned full-bleed over the pane's padding so it stays in reach
-     while the tree scrolls under it. */
-  .vault__tree > .vadd__find {
-    position: sticky;
-    top: -0.25rem;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    box-sizing: border-box;
-    width: calc(
-      100% +
-      1.2rem +
-      env(safe-area-inset-left) +
-      env(safe-area-inset-right)
-    );
-    min-height: 3.25rem;
-    margin: -0.25rem calc(-0.6rem - env(safe-area-inset-right)) 0.25rem
-      calc(-0.6rem - env(safe-area-inset-left));
-    padding: 0 calc(1rem + env(safe-area-inset-right)) 0
-      calc(1rem + env(safe-area-inset-left));
-    border: 0;
-    border-bottom: 1px solid var(--rail-line, var(--line));
-    border-radius: 0;
-    background: var(--rail);
-    color: var(--ink-3);
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .vadd__find:active {
-    background: var(--surface-3);
-  }
-
-  .vadd__find svg {
-    flex: none;
-    color: var(--ink-2);
-  }
+  /* What the tree asks of a thumb (PhoneAdd.tsx): the corner Add key and its
+     action sheet. Finding is the status-line prompt, so the pane draws no
+     search field. */
 
   /* The tree's rows fill the pane so the corner key rests at its foot, and
      stays there (sticky) once the tree is taller than the screen. */

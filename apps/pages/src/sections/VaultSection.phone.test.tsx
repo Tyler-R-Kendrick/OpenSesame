@@ -15,6 +15,7 @@ import {
   vault,
 } from "../components/app-shell.test-harness.js";
 import { ContextMenuLayer } from "../components/context-menu/ContextMenuLayer.js";
+import { createKeymapHandler } from "../lib/keymap.js";
 import { stubScreen } from "../lib/use-narrow.test-support.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { VaultSection } from "./VaultSection.js";
@@ -96,10 +97,11 @@ describe("the vault on a phone", () => {
     ).toBe("/vault?f=all");
   });
 
-  it("the tree opens on a search field and one Add key; the keys of the desktop's row are not drawn", () => {
+  it("the tree opens on the sections and one Add key; the keys of the desktop's row and any search field are not drawn", () => {
     renderVault("/vault");
     const tree = document.querySelector<HTMLElement>(".vault__tree");
-    expect(tree?.querySelector(".vadd__find")).not.toBeNull();
+    // Finding is the status-line prompt: the pane draws no field of its own.
+    expect(tree?.querySelector(".vadd__find")).toBeNull();
     expect(tree?.querySelectorAll(".vadd__key")).toHaveLength(1);
     expect(tree?.querySelector(".vtree__keys")).toBeNull();
     // Import and Export stay mounted for the sheets they own, but as no key.
@@ -135,17 +137,34 @@ describe("the vault on a phone", () => {
     expect(screen.queryByRole("menu", { name: "Add to the vault" })).toBeNull();
   });
 
-  it("the tree's search field opens the list of everything with its prompt ready", async () => {
-    renderVault("/vault");
+  it("the / key writes the search verb into the real prompt rather than opening a box", async () => {
+    renderVault("/vault?f=all");
     // The list focuses its rows once the saved collapse state has loaded.
     await act(async () => undefined);
-    fireEvent.click(screen.getByRole("button", { name: "Search the vault" }));
-    await waitFor(() => expect(pane()).toBe("list"));
-    await waitFor(() =>
-      expect(document.activeElement).toBe(
-        screen.getByRole("textbox", { name: /search/i }),
-      ),
-    );
+    const handler = createKeymapHandler({
+      navigate: vi.fn(),
+      showHelp: vi.fn(),
+    });
+    act(() => handler(new KeyboardEvent("keydown", { key: "/" })));
+    const prompt = screen.getByRole("combobox", { name: "Command" });
+    await waitFor(() => expect((prompt as HTMLInputElement).value).toBe("/? "));
+    expect(document.activeElement).toBe(prompt);
+    expect(screen.queryByLabelText("Search items")).toBeNull();
+  });
+
+  it("a search left in the address narrows the list and rides back from an item", () => {
+    renderVault("/vault?f=all&q=git");
+    expect(pane()).toBe("list");
+    expect(screen.queryByRole("textbox", { name: /search/i })).toBeNull();
+    expect(
+      document.querySelector(".vault__status-meta")?.textContent,
+    ).toContain("/git");
+    cleanup();
+    renderVault("/vault/itm_1?q=git");
+    // A narrowed list is not "all items", so the key says "list".
+    expect(
+      screen.getByRole("link", { name: "Back to list" }).getAttribute("href"),
+    ).toBe("/vault?q=git&f=all");
   });
 
   it("the tree's all entry names the list, so tapping it leaves the tree", () => {
