@@ -53,7 +53,7 @@ pnpm --filter @opensesame/control-plane start   # :8788
 ./target/debug/opensesame daemon approve-device --user-code ABCD-EFGH
 OPENSESAME_CLAIM_TOKEN=osc_clm_… ./target/debug/opensesame daemon approve-claim --claim-id clm_…
 
-# Tailnet device management (ADR 0166; docs/operators/tailnet-devices.md).
+# Tailnet device management (ADR 0167; docs/operators/tailnet-devices.md).
 # The secret comes from a file or stdin, never an argument; a minted auth key prints once.
 ./target/debug/opensesame daemon tailnet connect --tailnet example.com --api-token --secret-file ./token
 ./target/debug/opensesame daemon tailnet pair --origin https://vault.example.com --role read --no-qr

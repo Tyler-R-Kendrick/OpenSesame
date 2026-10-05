@@ -48,9 +48,9 @@ pub enum RateKey {
     /// extension that origin names.
     UnpairedFill,
     /// Every tailnet pairing exchange shares one bucket, whatever origin it
-    /// claims (ADR 0166 §3).
+    /// claims (ADR 0167 §3).
     TailnetPairing,
-    /// One tailnet bearer's changes, keyed by its pairing id (ADR 0166 §4).
+    /// One tailnet bearer's changes, keyed by its pairing id (ADR 0167 §4).
     TailnetChange(String),
 }
 

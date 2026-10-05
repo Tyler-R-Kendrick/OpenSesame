@@ -1,4 +1,4 @@
-# Identity › Devices manages the real tailnet (ADR 0166)
+# Identity › Devices manages the real tailnet (ADR 0167)
 
 These images come from real builds walked the same way:
 

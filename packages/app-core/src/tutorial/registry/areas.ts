@@ -26,6 +26,25 @@ export type TutorialArea = {
 
 export const TUTORIAL_AREAS: readonly TutorialArea[] = [
   {
+    id: "gates",
+    title: "Getting in",
+    goals: [
+      "gate.front-door",
+      "gate.join",
+      "gate.sign-in",
+      "gate.unlock",
+      "gate.unlock.passkey",
+      "gate.unlock.account",
+      "gate.setup.choose",
+      "gate.setup",
+      "gate.setup.ways",
+      "gate.setup.connectors",
+      "gate.setup.keep",
+      "gate.broker.consent",
+      "gate.federation.return",
+    ],
+  },
+  {
     id: "start",
     title: "Getting started",
     goals: ["client.support", "client.command-bar", "app.install"],
@@ -231,14 +250,19 @@ export type TutorialGroup = {
  * Whether a walkthrough can be started from `route`.
  *
  * Tours navigate where they are going, so from the shell they start from
- * anywhere. A goal that names only screens with no shell (the gates, which a
- * guide may wait on but never navigate to) is not offered: the Support sheet
- * is never mounted there, so nothing could start it (ADR 0090, ADR 0163 §4).
+ * anywhere, except a goal that names only gates — screens a guide may wait on
+ * and never navigate to, so a tour for one cannot be walked from another
+ * screen. A gate is the opposite: it cannot navigate anywhere, so it offers
+ * exactly the tutorials written for it and none of the shell's, whose
+ * controls it does not draw (ADR 0166, amending ADR 0163 §4).
  */
 export function tutorialStartsFrom(
   goal: GuideGoalDescriptor,
   route: GuideRouteId,
 ): boolean {
+  if (GUIDE_OVERLAY_ROUTES.has(route)) {
+    return goal.routes.some((scope) => guideRouteWithin(route, scope));
+  }
   if (goal.routes.length === 0) return true;
   return goal.routes.some(
     (scope) =>

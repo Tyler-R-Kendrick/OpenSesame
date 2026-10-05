@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-// What the security review of ADR 0166 found, each pinned: a link names the
+// What the security review of ADR 0167 found, each pinned: a link names the
 // daemon it would re-point the page at, a narrow credential still lists the
 // devices, and a refused change never leaves a device admitted.
 import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";

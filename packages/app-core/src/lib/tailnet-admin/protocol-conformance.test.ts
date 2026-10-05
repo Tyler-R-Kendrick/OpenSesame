@@ -1,6 +1,6 @@
 /**
  * The Pages client against `spec/conformance/tailnet-admin-protocol.json`
- * (ADR 0166): every exchange driven through the real client and a fake
+ * (ADR 0167): every exchange driven through the real client and a fake
  * egress port. The client must build exactly the request the spec records
  * and read exactly the answer the daemon gives — which the daemon is held to
  * by the same file (`crates/daemon/src/tailnet_admin_conformance_tests.rs`).

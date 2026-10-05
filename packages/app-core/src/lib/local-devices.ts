@@ -7,7 +7,7 @@
  *
  * A browser lists itself when it opens the vault; nothing here invents a
  * device. The tailnet's real machines — approved, re-keyed and removed
- * through the paired daemon — are `tailnet-admin/` (ADR 0166). A record here
+ * through the paired daemon — are `tailnet-admin/` (ADR 0167). A record here
  * is inventory: it grants nothing, and removing one does not revoke the vault
  * key a browser holds.
  */
@@ -53,7 +53,7 @@ export function isDeviceListFull(devices: readonly LocalDevice[]): boolean {
 /**
  * A record typed in by hand by an earlier build, which no browser has opened
  * the vault as. Such records are still shown, and may be removed; nothing
- * makes new ones (ADR 0166).
+ * makes new ones (ADR 0167).
  */
 export function isPendingDevice(device: LocalDevice): boolean {
   return device.lastSeenAt === "";

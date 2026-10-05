@@ -1,5 +1,5 @@
 //! Pairing one browser origin with the tailnet device routes, for one role
-//! (ADR 0166 §3), as `PluginPairings` pairs one with the plugin routes.
+//! (ADR 0167 §3), as `PluginPairings` pairs one with the plugin routes.
 //!
 //! `opensesame tailnet pair --origin <o> --role <r>` records a one-time code
 //! for exactly that origin and role; the page at that origin trades it, once,
@@ -24,7 +24,7 @@ const MAX_PENDING: usize = 8;
 /// Paired pages at once.
 const MAX_PAIRED: usize = 32;
 /// How long an origin whose pairing an operator removed is still answered,
-/// so the page reads "unpaired" instead of the daemon vanishing (ADR 0166 §4).
+/// so the page reads "unpaired" instead of the daemon vanishing (ADR 0167 §4).
 const FORMER_TTL_SECS: u64 = 30 * 86_400;
 /// Former origins remembered at once; the oldest goes first.
 const MAX_FORMER: usize = 64;

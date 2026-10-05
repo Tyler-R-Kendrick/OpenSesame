@@ -21,10 +21,24 @@ export type GuideRouteDescriptor = {
 
 const SECTION_ROUTES: readonly GuideRouteDescriptor[] = [
   { id: "/unlock", title: "Unlock — open the vault or sign in" },
+  // The screens behind `/unlock` and `/setup`, each its own place a tutorial
+  // can be scoped to (ADR 0166). `/unlock` and `/setup` stay the parents: a
+  // control or a written answer scoped to one still applies in every child.
+  { id: "/unlock/door", title: "Front door — set up, join, or skip" },
+  { id: "/unlock/form", title: "Unlock — open this device's vault" },
+  {
+    id: "/unlock/passkey",
+    title: "Unlock with a passkey — open this device's vault",
+  },
+  { id: "/unlock/signin", title: "Sign in — a provider, or seal this device" },
   {
     id: "/setup",
     title: "Setup — connectors, sign-in and backups for this deployment",
   },
+  { id: "/setup/choose", title: "Setup — choose a configuration" },
+  { id: "/setup/capabilities", title: "Setup — what this installation runs" },
+  { id: "/setup/identity", title: "Setup — who can sign in" },
+  { id: "/setup/connectors", title: "Setup — the connector directory" },
   {
     id: "/broker/authorize",
     title: "Broker — approve a static site sign-in",
@@ -103,14 +117,40 @@ export function mergedGuideRoutes(): readonly GuideRouteDescriptor[] {
   return GUIDE_ROUTES;
 }
 
-/** Named by `useSupportRoute`; a guide may wait on them, never navigate to them. */
+/**
+ * The gates: screens in front of the shell, named by `useSupportRoute`. A
+ * guide may wait on them and never navigate to them, and a tutorial scoped to
+ * one is started from the help key that screen draws (ADR 0166).
+ */
 export const GUIDE_OVERLAY_ROUTES: ReadonlySet<GuideRouteId> = new Set([
   "/unlock",
+  "/unlock/door",
+  "/unlock/form",
+  "/unlock/passkey",
+  "/unlock/signin",
   "/setup",
+  "/setup/choose",
+  "/setup/capabilities",
+  "/setup/identity",
+  "/setup/connectors",
   "/broker/authorize",
   "/federation",
   "/identity/authorize",
 ]);
+
+/**
+ * Whether something scoped to `scopes` applies on `route`. Named scopes apply
+ * where the route lies within one; no scope means the shell — every section,
+ * and no gate, because a control or a tutorial about the shell points at
+ * nothing on a screen in front of it (ADR 0166).
+ */
+export function scopeApplies(
+  scopes: readonly GuideRouteId[],
+  route: GuideRouteId,
+): boolean {
+  if (scopes.length === 0) return !GUIDE_OVERLAY_ROUTES.has(route);
+  return scopes.some((scope) => guideRouteWithin(route, scope));
+}
 
 reindex(CORE_GUIDE_ROUTES);
 

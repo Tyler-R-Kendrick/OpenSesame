@@ -184,7 +184,7 @@ cargo build -p opensesame-cli
 # backup auth for GitHub HTTPS remotes: GITHUB_TOKEN → GitHub App
 # (GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY_PATH) → `gh auth token`
 
-# Tailnet device management (ADR 0166): the daemon holds the Tailscale credential
+# Tailnet device management (ADR 0167): the daemon holds the Tailscale credential
 ./target/debug/opensesame daemon tailnet connect --tailnet example.com \
   --oauth-client-id k123CNTRL --secret-file ./oauth-secret   # or --api-token
 ./target/debug/opensesame daemon tailnet pair --origin https://vault.example.com \
@@ -259,7 +259,12 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # Same harness, every tutorial (ADR 0163): the Support sheet's Tutorials tab
 # lists them, each is started from its row and walked with Next alone — the
 # mouse on one step, Enter on the next — on the shell with every optional
-# capability switched on, at desktop and phone width. Every step's card must sit inside the screen with
+# capability switched on, and on the gates (ADR 0166: the front door, setup,
+# sign-in, unlock, the broker popup and the federation return each draw a help
+# key and offer the tutorials written for them), at desktop and phone width.
+# Each gate's key is held to the ADR: one icon key in the screen's chrome, 44px
+# on a phone, resting on no control, reachable by Tab, never holding the focus
+# on arrival. Every step's card must sit inside the screen with
 # Next present, and a step that points at a control must light it, leave it
 # uncovered and reachable through the aperture. Then Back, Replay, Done, and
 # where focus went. A control that is missing is a failure here although a
@@ -385,7 +390,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `crates/a2h` | A2H (Agent-to-Human) v1.0 client — envelope, intent mapping, callback verification; a reply may only narrow authority (ADR 0081 §10) |
 | `crates/rotation-web` | Web-login rotation: the step IR, the tool boundary (no method returns a credential value), and the ordering that must not be rearranged (ADR 0076); plus the same boundary read backwards — `CeremonyTransport`'s capture verbs, which seal what a page produced and answer with a digest (ADR 0082 §3); `src/hooks` is the agent-hooks/0.1 **host** (every verb bracketed, authority pinned, no lock across an approval, `Refused` vs `Withheld`; CTK claims A and B in `docs/validation/agent-hooks-conformance.md`) and `src/recipe_doc` the signed recipe document (ADR 0159) |
 | `crates/vault-item-types` | Host-plane item type parser, registry, and native-secret projection; embeds the shared definition corpus (ADR 0087) |
-| `crates/tailnet-admin` | Tailnet device management, daemon side (ADR 0166): the Tailscale credential (0600, never sent to a page), origin- and role-bound page pairings, value-blind audit, validation, and the Tailscale API v2 client through `invoke-through`; `/v1/tailnet/*` routes in `crates/daemon/src/tailnet_admin_*.rs`, CLI `opensesame daemon tailnet`, replayed by both planes against `spec/conformance/tailnet-admin-protocol.json` |
+| `crates/tailnet-admin` | Tailnet device management, daemon side (ADR 0167): the Tailscale credential (0600, never sent to a page), origin- and role-bound page pairings, value-blind audit, validation, and the Tailscale API v2 client through `invoke-through`; `/v1/tailnet/*` routes in `crates/daemon/src/tailnet_admin_*.rs`, CLI `opensesame daemon tailnet`, replayed by both planes against `spec/conformance/tailnet-admin-protocol.json` |
 | `packages/app-core/src/lib/tailnet-admin/`, `apps/pages/src/modules/networking.tailnet-devices/` | Identity › Devices for the tailnet's real machines (optional `networking.tailnet-devices`, needs `networking.tailnet` + `identity.local-iam`): sealed pairing, the daemon client, approve/rename/tag/routes/exit node/expire/remove, Add a device (auth key shown once), auth keys, activity. Refused on the shared-origin demo. End to end: `pnpm --filter @opensesame/pages verify:tailnet-devices` (real daemon + Tailscale stub + dedicated build) |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
@@ -566,7 +571,12 @@ Do not add new top-level directories or loose root files — find the group.
   a shared link opens join by itself. Once setup is answered or skipped the
   sign-in screen — the compiled-in Google-via-Shoo road, guest, the
   local-only seal — is the first screen, and setup lives behind unlock
-  (Settings), not as quiet foot links. `setupRequired` does not
+  (Settings), not as quiet foot links. The one thing a gate may draw beside
+  its own chrome is a **help key** (`tutorial/gate-seat.tsx`,
+  [ADR 0166](docs/adr/0166-gate-help-launcher.md)): a single icon key in the
+  screen's chrome row, never in front of its content, its roads or the guest
+  Skip, offline, opening the same Support sheet with only the tutorials written
+  for that screen. `setupRequired` does not
   exist and must not come back. No
   default may point at a local host: `packages/app-core/src/lib/settings.ts` defaults are empty on
   every origin, and `127.0.0.1` addresses are suggestions a loopback tab may
@@ -873,7 +883,11 @@ Do not add new top-level directories or loose root files — find the group.
   (`focus "feature.<id>"`, `requires`) and the library hides it where it
   cannot work. A control a guide can point at, and every key the keymap binds,
   is taught by a tutorial or named in `coverage-ledger.ts` with a reason
-  (`coverage.test.ts`; the ledger only falls). Changes to a tutorial, the Support sheet, the tutorial card or
+  (`coverage.test.ts`; the ledger only falls). A gate (the front door, unlock,
+  setup, the broker popup, the federation return) draws a help key and starts
+  tutorials scoped to its own route (`gate-goals.ts`, `useSupportRoute`'s
+  `/unlock/door`, `/setup/identity` and the rest; ADR 0166), and is offered
+  none of the shell's. Changes to a tutorial, the Support sheet, the tutorial card or
   the target registry require `pnpm --filter @opensesame/pages verify:tutorials`
   against a fresh Pages build (every tutorial, desktop and phone, Next and
   Back and Replay and Done, keyboard and mouse, focus handed back), and keep it

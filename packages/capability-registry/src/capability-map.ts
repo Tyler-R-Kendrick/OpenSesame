@@ -139,7 +139,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "plugins.pair": "networking.tailnet",
     "plugins.unpair": "networking.tailnet",
 
-    // --- optional: tailnet device management (ADR 0166) -----------------
+    // --- optional: tailnet device management (ADR 0167) -----------------
     // The tailnet's machines, managed through the paired daemon, which
     // holds the Tailscale credential.
     "tailnet.devices.pair": "networking.tailnet-devices",

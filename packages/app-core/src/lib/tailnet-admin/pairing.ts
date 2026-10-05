@@ -1,5 +1,5 @@
 /**
- * The pairing code `opensesame daemon tailnet pair` prints (ADR 0166 §3,
+ * The pairing code `opensesame daemon tailnet pair` prints (ADR 0167 §3,
  * `spec/conformance/tailnet-admin-protocol.json`), and where the bearer it
  * is traded for is kept.
  *

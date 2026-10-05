@@ -12,7 +12,7 @@ import { tailnetDeviceCapabilities } from "./tailnet-devices.js";
  * Getting a vault off one device: the server-side backup posture (ADR 0039)
  * and tailnet vault sync (ADR 0144), where the daemon keeps one sealed
  * snapshot per slot and each device merges it under its own key. The same
- * daemon's tailnet device management (ADR 0166) rides at the end.
+ * daemon's tailnet device management (ADR 0167) rides at the end.
  */
 
 /** Opening a slot mints its only key; the daemon refuses any browser request. */

@@ -1,4 +1,4 @@
-//! The printed tailnet pairing code (ADR 0166 §3) and the role it carries.
+//! The printed tailnet pairing code (ADR 0167 §3) and the role it carries.
 //!
 //! `opensesame-tailnet:v1:` + base64url of
 //! `{"url","code","origin","role","label"}`: where the daemon is, a one-time
@@ -19,7 +19,7 @@ pub const CODE_TTL_SECS: u64 = 300;
 /// Longest label a code carries.
 pub(crate) const MAX_LABEL_CHARS: usize = 80;
 
-/// What a bearer may do (ADR 0166 §3).
+/// What a bearer may do (ADR 0167 §3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Role {

@@ -1,4 +1,4 @@
-// The stack the tailnet device walks run on (ADR 0166): a real `opensesame`
+// The stack the tailnet device walks run on (ADR 0167): a real `opensesame`
 // daemon connected to a stand-in for api.tailscale.com, the CLI a person runs
 // beside it, and a dedicated-origin build of the page served under its
 // production address. Shared by `verify-tailnet-devices.mjs` and

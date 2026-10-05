@@ -1,5 +1,5 @@
 //! `opensesame daemon tailnet …`: the terminal side of tailnet device
-//! management (ADR 0166).
+//! management (ADR 0167).
 //!
 //! `connect` records which tailnet the daemon manages and the credential that
 //! manages it, read from a file or stdin, never the command line. `pair`

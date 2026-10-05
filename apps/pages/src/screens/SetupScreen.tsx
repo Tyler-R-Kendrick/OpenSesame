@@ -32,7 +32,6 @@ import {
   IconSkipAll,
   IconX,
 } from "../components/Icons.js";
-import { Wordmark } from "../components/Wordmark.js";
 
 import {
   loadSettings,
@@ -41,17 +40,19 @@ import {
 import { completeSetup } from "@opensesame/app-core/lib/setup.js";
 import { landFocus } from "../lib/focus.js";
 import { GuideTarget, useGuideTarget } from "../tutorial/registry/react.jsx";
-import { useSupportRoute } from "../tutorial/session.js";
 import { CapabilitySetup } from "./capabilities/CapabilitySetup.js";
 import { KeepIt } from "./setup/KeepIt.js";
+import { SetupBrand } from "./setup/SetupBrand.js";
 import {
   type ConfigurationChoice,
   SetupConfiguration,
 } from "./setup/SetupConfiguration.js";
+import { SetupTabList } from "./setup/SetupTabList.js";
 import {
   type AppliedConfiguration,
   applySetupConfiguration,
 } from "./setup/apply-configuration.js";
+import { useSetupRoute } from "./setup/use-setup-route.js";
 import { useRovingTabs } from "./use-roving-tabs.js";
 import "./setup.css";
 import "./setup/steps/steps.css";
@@ -105,7 +106,6 @@ export function SetupScreen({
   /** Arrive on the join road: a managed instance's required roots to accept. */
   join?: boolean;
 }) {
-  useSupportRoute("/setup");
   const finishRef = useGuideTarget<HTMLButtonElement>("setup.finish");
   const [finishing, setFinishing] = useState(false);
   const contributed = setupScreenDependencies.useSetupPanels();
@@ -214,13 +214,14 @@ export function SetupScreen({
   const atStart = index <= 0;
   const atEnd = index + 1 >= STEPS.length;
   const busy = pending !== null || finishing;
+  useSetupRoute(phase, current?.id);
 
   if (phase === "choose") {
     return (
       <div className="setup">
         <div className="setup__frame" ref={frameRef}>
           <div className="setup__bar">
-            <Wordmark className="setup__wordmark" />
+            <SetupBrand />
             <button
               type="button"
               className="icon-btn setup__back"
@@ -259,7 +260,7 @@ export function SetupScreen({
     <div className="setup">
       <div className="setup__frame" ref={frameRef}>
         <div className="setup__bar">
-          <Wordmark className="setup__wordmark" />
+          <SetupBrand />
           {/* Backing out changes nothing: every step writes to settings as it
               is answered, and nothing here was ever required. */}
           <button
@@ -301,23 +302,12 @@ export function SetupScreen({
             ))}
           </div>
 
-          <div className="setup__tabs" role="tablist" aria-label="Setup step">
-            {STEPS.map((entry, at) => (
-              <button
-                key={entry.id}
-                {...tabProps(at)}
-                type="button"
-                role="tab"
-                aria-selected={at === index}
-                className={`setup__tab${
-                  at === index ? " setup__tab--active" : ""
-                }`}
-                onClick={() => setIndex(at)}
-              >
-                {entry.tab}
-              </button>
-            ))}
-          </div>
+          <SetupTabList
+            tabs={STEPS}
+            index={index}
+            tabProps={tabProps}
+            select={setIndex}
+          />
         </div>
 
         <main className="setup__body" id="main">

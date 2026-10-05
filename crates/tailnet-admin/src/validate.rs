@@ -1,4 +1,4 @@
-//! What the daemon checks before it sends anything to Tailscale (ADR 0166 §4).
+//! What the daemon checks before it sends anything to Tailscale (ADR 0167 §4).
 //! Each check returns the stable code a page shows, so a bad request never
 //! costs an upstream call or reaches the audit trail as a change.
 

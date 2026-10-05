@@ -1,4 +1,4 @@
-// Tailnet device management, end to end (ADR 0166): a real `opensesame`
+// Tailnet device management, end to end (ADR 0167): a real `opensesame`
 // daemon holding the tailnet credential, a stand-in for api.tailscale.com
 // (`lib/tailscale-stub.mjs`), and the built page, which never sees the
 // credential.
