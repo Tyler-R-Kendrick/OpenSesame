@@ -5,6 +5,7 @@
  */
 import { loadPack, packEntries } from "@opensesame/vault-item-types";
 import { afterEach } from "vitest";
+import { installWipeGuard } from "./lib/duress/wipe/test-guard.js";
 import { configureHost } from "./host.js";
 import { assertOwnedStorageWrites } from "./test-host-storage-writes.js";
 import { createTestHost, repairInertWebStorage } from "./test-host.js";
@@ -19,3 +20,7 @@ configureHost(createTestHost());
 // A test that wrote a Web Storage key the app does not own fails here, even
 // when the code under test swallowed the write's outcome.
 afterEach(assertOwnedStorageWrites);
+
+// The duress wipe removes every vault in the origin's storage: a test that
+// reaches the real runner fails when it ends, unless it opted in by name.
+installWipeGuard();

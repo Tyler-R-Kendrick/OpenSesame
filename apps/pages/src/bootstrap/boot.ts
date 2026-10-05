@@ -31,6 +31,7 @@ import {
   captureInviteFromPage,
   watchInviteArrivals,
 } from "@opensesame/app-core/lib/join/invite.js";
+import { resumeWipeAtBoot } from "@opensesame/app-core/lib/duress/wipe/real.js";
 import { kvHydrate } from "@opensesame/app-core/lib/kv.js";
 import { lastVaultIsGuest } from "@opensesame/app-core/lib/last-vault.js";
 import {
@@ -114,6 +115,10 @@ export async function bootCore(): Promise<CoreBoot> {
   // with no request, before anything draws a type (ADR 0165).
   await restorePacks();
   rehydrateProjects();
+  // A duress wipe the page died in finishes before any header is read, so a
+  // vault it had already unlisted is never offered at the unlock screen
+  // (ADR 0167). Nothing happens when none began.
+  await resumeWipeAtBoot();
   // The active project's plaintext boundary is what legacy storage migrates
   // into. But the tomb the unlock screen will ask about is the guest tomb
   // when that was the last authorized account (AGENTS.md §5), so its header
