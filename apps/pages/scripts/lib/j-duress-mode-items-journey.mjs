@@ -1,5 +1,5 @@
 /**
- * J-DURESS-ITEMS: "Decoy with everyday items" (ADR 0167), set from Settings and
+ * J-DURESS-ITEMS: "Decoy with everyday items" (ADR 0168), set from Settings and
  * used where a vault unlocks — in the built app, with nothing mocked.
  *
  * The owner keeps one real item, picks the mode, finds a starter list in the

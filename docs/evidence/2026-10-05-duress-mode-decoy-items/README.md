@@ -1,7 +1,7 @@
 # Decoy with everyday items — visual evidence
 
 Change: a third duress mode, **Decoy with everyday items**
-([ADR 0167](../../adr/0167-duress-modes-from-scenarios.md)). An empty decoy is
+([ADR 0168](../../adr/0168-duress-modes-from-scenarios.md)). An empty decoy is
 itself a tell. This mode opens the same decoy, holding a short list of ordinary
 items the owner typed in the sheet, each with a random password drawn when the
 code was armed.
