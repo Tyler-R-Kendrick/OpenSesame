@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Product-experience contract suite. Drives shipped modules for Visual/Source,
+ * Product-experience contract suite. Drives shipped modules for prefs,
  * navigation, recipes, OIDC claims/workload, SCIM groups, replica enrollment,
  * and optional Pages browser gates when dist + Chromium are present.
  */

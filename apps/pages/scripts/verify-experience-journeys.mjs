@@ -1,6 +1,6 @@
 // Playwright journeys for product-experience paths the built Pages app
-// can drive without Host/Identity. Starts with J-CONFIG (Visual/Source
-// prefs save surviving lock/unlock/reload).
+// can drive without Host/Identity. Starts with J-CONFIG (prefs save
+// surviving lock/unlock/reload).
 //
 //   VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build
 //   PLAYWRIGHT_CHROMIUM=... node apps/pages/scripts/verify-experience-journeys.mjs

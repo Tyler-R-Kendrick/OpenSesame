@@ -162,11 +162,6 @@ export const SHELL_RULES = [
 
   // --- components: the shell by default ------------------------------------
   core("src/components/", SHELL, "rail, chrome, controls, status"),
-  core(
-    "src/components/configuration/",
-    "settings.core",
-    "Visual/Source editor chrome",
-  ),
   ...each("src/components/", ["InstallMark", "InstallOffer"], (p) =>
     core(p, "install.pwa", "install offer surface"),
   ),

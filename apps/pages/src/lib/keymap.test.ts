@@ -383,9 +383,8 @@ describe("application keymap", () => {
 });
 
 describe("typing", () => {
-  it("ADV-12: a configuration source editor counts as typing", () => {
+  it("ADV-12: a textarea counts as typing", () => {
     const area = document.createElement("textarea");
-    area.setAttribute("data-config-source", "true");
     document.body.appendChild(area);
     expect(typing(area)).toBe(true);
     area.remove();

@@ -1,8 +1,3 @@
-import type { EditorMode } from "@opensesame/app-core/lib/configuration/draft.js";
-import {
-  hostedClientToYaml,
-  parseHostedApplicationSource,
-} from "@opensesame/app-core/lib/configuration/hosted-application.js";
 import type { OAuthClient } from "@opensesame/app-core/lib/directory.js";
 import {
   previewHostedClaims,
@@ -11,8 +6,6 @@ import {
 import { useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconX } from "../../components/Icons.js";
-import { ModeToggle } from "../../components/configuration/ModeToggle.js";
-import { SourceEditor } from "../../components/configuration/SourceEditor.js";
 
 type HostedDraftSave = {
   displayName: string;
@@ -30,7 +23,7 @@ async function saveHostedDraft(clientId: string, draft: HostedDraftSave) {
   });
 }
 
-function VisualApplicationFields(props: {
+function ApplicationFields(props: {
   name: string;
   redirects: string;
   workload: boolean;
@@ -90,17 +83,14 @@ export function EditApplication({
   onSaved: () => void;
   onCancel: () => void;
 }) {
-  const [mode, setMode] = useState<EditorMode>("visual");
   const [name, setName] = useState(client.displayName);
   const [redirects, setRedirects] = useState(client.redirectUris.join("\n"));
   const [workload, setWorkload] = useState(
     (client.grantTypes ?? []).includes("client_credentials"),
   );
-  const [source, setSource] = useState(hostedClientToYaml(client));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState("");
-  const parsed = parseHostedApplicationSource(source, client.id);
 
   async function run(task: () => Promise<void>) {
     setBusy(true);
@@ -118,14 +108,6 @@ export function EditApplication({
   }
 
   function submit() {
-    if (mode === "source") {
-      if (!parsed.ok) {
-        setError(parsed.diagnostics[0]?.message ?? "Invalid source.");
-        return;
-      }
-      void run(() => saveHostedDraft(client.id, parsed.value));
-      return;
-    }
     const draft = {
       displayName: name.trim(),
       redirectUris: redirects
@@ -144,20 +126,15 @@ export function EditApplication({
     <HostedApplicationForm
       client={client}
       online={online}
-      mode={mode}
       name={name}
       redirects={redirects}
       workload={workload}
-      source={source}
       busy={busy}
       error={error}
       preview={preview}
-      parsed={parsed}
-      onMode={setMode}
       onName={setName}
       onRedirects={setRedirects}
       onWorkload={setWorkload}
-      onSource={setSource}
       onPreview={setPreview}
       onError={setError}
       onCancel={onCancel}
@@ -169,20 +146,15 @@ export function EditApplication({
 function HostedApplicationForm(props: {
   client: OAuthClient;
   online: boolean;
-  mode: EditorMode;
   name: string;
   redirects: string;
   workload: boolean;
-  source: string;
   busy: boolean;
   error: string;
   preview: string;
-  parsed: ReturnType<typeof parseHostedApplicationSource>;
-  onMode: (mode: EditorMode) => void;
   onName: (value: string) => void;
   onRedirects: (value: string) => void;
   onWorkload: (value: boolean) => void;
-  onSource: (value: string) => void;
   onPreview: (value: string) => void;
   onError: (value: string) => void;
   onCancel: () => void;
@@ -196,30 +168,19 @@ function HostedApplicationForm(props: {
       }}
     >
       <h3>Edit application</h3>
-      <ModeToggle mode={props.mode} onMode={props.onMode} />
       <p className="hint">
         This is a hosted OIDC client on your sign-in service. Registration is
         not consent. Pages is not a SAML IdP or LDAP server.
       </p>
-      {props.mode === "visual" ? (
-        <VisualApplicationFields
-          name={props.name}
-          redirects={props.redirects}
-          workload={props.workload}
-          busy={props.busy}
-          onName={props.onName}
-          onRedirects={props.onRedirects}
-          onWorkload={props.onWorkload}
-        />
-      ) : (
-        <SourceEditor
-          id={`hosted-app-source-${props.client.id}`}
-          value={props.source}
-          diagnostics={props.parsed.ok ? [] : props.parsed.diagnostics}
-          onChange={props.onSource}
-          disabled={props.busy}
-        />
-      )}
+      <ApplicationFields
+        name={props.name}
+        redirects={props.redirects}
+        workload={props.workload}
+        busy={props.busy}
+        onName={props.onName}
+        onRedirects={props.onRedirects}
+        onWorkload={props.onWorkload}
+      />
       <p className="hint">
         Authorization code with PKCE S256; exact redirects remain enforced.
         Public clients cannot use client_credentials.
@@ -230,7 +191,7 @@ function HostedApplicationForm(props: {
         </p>
       ) : null}
       {props.preview ? (
-        <pre className="cfg-source__input" aria-label="Claim preview">
+        <pre className="cfg-pre" aria-label="Claim preview">
           {props.preview}
         </pre>
       ) : null}
@@ -242,24 +203,18 @@ function HostedApplicationForm(props: {
 function HostedApplicationActions(props: {
   client: OAuthClient;
   online: boolean;
-  mode: EditorMode;
   name: string;
   redirects: string;
   busy: boolean;
-  parsed: ReturnType<typeof parseHostedApplicationSource>;
   onPreview: (value: string) => void;
   onError: (value: string) => void;
   onCancel: () => void;
 }) {
-  const visualReady = Boolean(props.name.trim() && props.redirects.trim());
+  const ready = Boolean(props.name.trim() && props.redirects.trim());
   return (
     <FormCommit
       label="Save application"
-      disabled={
-        props.busy ||
-        !props.online ||
-        (props.mode === "visual" ? !visualReady : !props.parsed.ok)
-      }
+      disabled={props.busy || !props.online || !ready}
     >
       <button
         type="button"

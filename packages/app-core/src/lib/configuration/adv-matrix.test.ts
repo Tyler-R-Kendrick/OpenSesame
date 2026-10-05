@@ -16,7 +16,6 @@ import { authorizationForDestination } from "./endpoint-rebinding.js";
 import { evaluateDecision, localPrefsEvaluator } from "./evaluate.js";
 import { DEFAULT_KEYBINDINGS, importKeybindings } from "./keybindings.js";
 import { MAX_DOCUMENT_BYTES } from "./limits.js";
-import { commitLocalApplicationSource } from "./local-application-source.js";
 import { searchPalette } from "./palette.js";
 import {
   parsePrefsSource,
@@ -63,28 +62,12 @@ describe("ADV-01..17 against shipped functions", () => {
     expect(parseConfigYaml("a: !exec foo\n").ok).toBe(false);
   });
 
-  it("ADV-04: visual field patch keeps comments; comment-only skips mutation", () => {
+  it("ADV-04: a field patch keeps comments; a comment-only change is presentation-only", () => {
     const patched = patchYamlTopLevel(COMMENTED, "theme", "dark");
     expect(patched).toContain("# keep");
     expect(isPresentationOnlyChange(COMMENTED, `${COMMENTED}# extra\n`)).toBe(
       true,
     );
-    let calls = 0;
-    const result = commitLocalApplicationSource(
-      {
-        revision: () => 1,
-        configure: () => {
-          calls += 1;
-        },
-      },
-      {
-        previousSource: COMMENTED,
-        source: `${COMMENTED}# extra\n`,
-        expectedRevision: 1,
-      },
-    );
-    expect(result.message).toContain("not invalidated");
-    expect(calls).toBe(0);
   });
 
   it("ADV-05: autoLockMinutes 7 is exact, not coerced to 5 or 15", () => {
