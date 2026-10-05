@@ -14,11 +14,12 @@ export function revealInStrip(item: HTMLElement, gutter = 16): void {
   if (!strip || strip.scrollWidth <= strip.clientWidth) return;
   const box = strip.getBoundingClientRect();
   const own = item.getBoundingClientRect();
-  if (own.left < box.left + gutter) {
-    strip.scrollLeft -= box.left + gutter - own.left;
-  } else if (own.right > box.right - gutter) {
-    strip.scrollLeft += own.right - (box.right - gutter);
-  }
+  if (own.left >= box.left + gutter && own.right <= box.right - gutter) return;
+  // Line the item up with the strip's start, not just inside its edge: the
+  // strip snaps (proximity) to each tab's start, and a scroll that stops a few
+  // pixels short of one is pulled back to the tab before it, which leaves the
+  // selected tab where it was. Past the end of the strip the browser clamps.
+  strip.scrollLeft += own.left - (box.left + gutter);
 }
 
 /**

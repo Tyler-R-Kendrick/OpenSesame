@@ -45,7 +45,8 @@ import { useComposition } from "../../bindings/capabilities.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { useSettingsEpoch } from "../../lib/use-settings.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
-import { Status, WriteButton, paint } from "./SettingsRawEditorParts.js";
+import { Status, WriteButton } from "./SettingsRawEditorParts.js";
+import { PaintedText } from "./files/PaintedText.js";
 
 /** Everything the settings pages show, read live so the file follows them. */
 function useSettingsState(): SettingsState {
@@ -291,34 +292,28 @@ function FileInput({
   onSave: () => void;
 }) {
   return (
-    <div className="set-raw__stage">
-      <pre className="set-raw__paint" aria-hidden="true">
-        {paint(source)}
-      </pre>
-      <textarea
-        ref={tab.input}
-        className="set-raw__input"
-        aria-label={path}
-        aria-invalid={invalid ? true : undefined}
-        spellCheck={false}
-        value={source}
-        onFocus={() => {
-          tab.edited.current = false;
-        }}
-        onChange={(event) => {
-          tab.edited.current = true;
-          onEdit(event.target.value);
-          onCaret(event.target.selectionStart);
-        }}
-        onKeyUp={(event) => onCaret(event.currentTarget.selectionStart)}
-        onKeyDown={(event) => {
-          if ((event.metaKey || event.ctrlKey) && event.key === "s") {
-            event.preventDefault();
-            onSave();
-          }
-          if (event.key === "Tab") tab.onTab(event);
-        }}
-      />
-    </div>
+    <PaintedText
+      language="yaml"
+      path={path}
+      source={source}
+      invalid={invalid}
+      inputRef={tab.input}
+      onFocus={() => {
+        tab.edited.current = false;
+      }}
+      onChange={(text, caret) => {
+        tab.edited.current = true;
+        onEdit(text);
+        onCaret(caret);
+      }}
+      onKeyUp={onCaret}
+      onKeyDown={(event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key === "s") {
+          event.preventDefault();
+          onSave();
+        }
+        if (event.key === "Tab") tab.onTab(event);
+      }}
+    />
   );
 }
