@@ -53,7 +53,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-05-security-rows-for-guests/`](2026-10-05-security-rows-for-guests/README.md) | Security › Duress and Travel for a guest with no key yet |
 | [`2026-10-05-nats-live-route/`](2026-10-05-nats-live-route/README.md) | A NATS server as a live session's route — Settings › Live sessions › Routes |
 | [`2026-10-05-glyph-desktop-prompt/`](2026-10-05-glyph-desktop-prompt/README.md) | The glyph beside the name on desktop (ADR 0164) |
-| [`2026-10-05-generator-form/`](2026-10-05-generator-form/README.md) | The password generator form, closed by default |
+| [`2026-10-05-generator-form/`](2026-10-05-generator-form/README.md) | The password form: one field and one Options line |
 | [`2026-10-05-gate-help-launcher/`](2026-10-05-gate-help-launcher/README.md) | A help key on the gates — before / after |
 | [`2026-10-05-file-viewer-painted/`](2026-10-05-file-viewer-painted/README.md) | The file viewer paints its files, and the open key is the settings icon |
 | [`2026-10-05-duress-mode-wipe/`](2026-10-05-duress-mode-wipe/README.md) | Duress mode: wipe this device's copy — visual evidence |
