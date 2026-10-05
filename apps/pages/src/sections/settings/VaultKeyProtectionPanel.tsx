@@ -10,7 +10,6 @@ import {
 } from "./VaultKeyProtectionCeremonies.js";
 import { ProtectorRow } from "./VaultProtectorRow.js";
 import { useVaultKeyProtectionActions } from "./useVaultKeyProtectionActions.js";
-import "./vault-key-protection.css";
 
 /**
  * Settings › Security › Vault key protection — the protectors enrolled on an

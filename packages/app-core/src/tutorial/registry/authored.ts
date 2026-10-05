@@ -52,7 +52,6 @@ import {
   NAV_IDENTITY_GOALS,
   NAV_WALLET_GOALS,
 } from "./section-nav-goals.js";
-import { SOPS_GOALS } from "./settings-goals.js";
 import {
   TAILNET_DEVICES_GOALS,
   TAILNET_DEVICES_HELP,
@@ -122,14 +121,6 @@ export const OPTIONAL_TUTORIALS: readonly TutorialPartition[] = [
     goals: LIVE_GOALS,
     help: [],
     routes: LIVE_ROUTES,
-  },
-  {
-    capability: "backup.cloud-secrets",
-    files: { targets: "catalog.ts", goals: "settings-goals.ts" },
-    targets: [],
-    goals: SOPS_GOALS,
-    help: [],
-    routes: [],
   },
   {
     capability: "notifications.routing",

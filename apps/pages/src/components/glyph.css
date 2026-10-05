@@ -46,13 +46,44 @@
    and the name is read in the switcher it opens. The name stays in the DOM and
    in `aria-label` either way, so what a control is called never changes with
    the width it is drawn at. */
+/* The account and the vault are two lines of the prompt, each its own flex row
+   on the rail. Everywhere else — the phone's top bar — the lines are not boxes
+   and the segments lay out in the one row they always did. */
+.prompt__line {
+  display: contents;
+}
+
 /* The rail only: the phone's top bar prompt is a `.rail__prompt` too, and a
    flex container there would let the coarse-pointer `justify-content: center`
    move its glyph inside the key. */
+.rail .rail__prompt {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6rem;
+  padding-block: 0.4rem 0.75rem;
+}
+
+.rail .rail__prompt .prompt__line {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
 .rail .rail__prompt .prompt__seg--glyph {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.75rem;
+}
+
+/* The separator sits a little off the name before it, and the lock key a
+   little off the separator; the lock stays within 24px of the vault switcher
+   (statusline-contract). */
+.rail .rail__prompt .prompt__line--account .prompt__dim {
+  margin-inline-start: 0.15rem;
+}
+
+.rail .rail__prompt .prompt__line--vault .icon-btn {
+  margin-inline-start: 0.35rem;
 }
 
 .rail .rail__prompt .prompt__seg--glyph .prompt__glyph {
