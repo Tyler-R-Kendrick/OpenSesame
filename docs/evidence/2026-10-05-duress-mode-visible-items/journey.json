@@ -1,0 +1,328 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "vault/new/secret"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Netflix"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "visit": "vault/new/secret"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Gym locker"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "visit": "vault/new/secret"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Hidden Bank"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "visit": "vault/new/secret"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Hidden Passport"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "pressIn": ["#duress-profiles", "Add"]
+        },
+        {
+          "chooseOptional": "Show my vault without the items I hide"
+        },
+        {
+          "switchOptional": "Hide Netflix"
+        },
+        {
+          "switchOptional": "Hide Gym locker"
+        },
+        {
+          "fillOptional": {
+            "label": "Duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=0"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Confirm duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=1"
+          }
+        },
+        {
+          "checkOptional": "I understand this code opens a decoy, never my vault.",
+          "only": "before"
+        },
+        {
+          "checkOptional": "I understand this code opens a decoy holding copies, taken now, of only the items I leave shown, never my vault; items I add later stay hidden, and edits show their old content until I turn this on again. The copies are sealed under this short code, so anyone with this browser's storage and enough effort can read them: I choose only items I could afford to show. Passkeys, certificates, drops, files, one-time-code seeds, history, folders and deleted items are never copied.",
+          "only": "after"
+        },
+        {
+          "count": [
+            "[role=dialog] input[type=radio]",
+            "[role=dialog] [role=switch]",
+            "[role=dialog] [role=switch][aria-checked=false]"
+          ]
+        },
+        {
+          "measure": "[role=dialog] .duress__hide"
+        },
+        {
+          "measure": "[role=dialog] .duress__choice"
+        },
+        {
+          "measure": "[role=dialog] button[type=submit]"
+        },
+        {
+          "bringIntoViewOptional": "[role=dialog] fieldset:has(.duress__picks)"
+        },
+        {
+          "shot": "390-sheet"
+        },
+        {
+          "pressOptional": "Turn on duress code"
+        },
+        {
+          "pressOptional": "Lock vault"
+        },
+        {
+          "fillOptional": {
+            "label": "Password",
+            "text": "246813579",
+            "selector": "input[type=password]"
+          }
+        },
+        {
+          "pressOptional": "Unlock"
+        },
+        {
+          "visit": "vault"
+        },
+        {
+          "count": [".vtree [role=treeitem]", ".duress-presentation-overlay"]
+        },
+        {
+          "report": ".vtree"
+        },
+        {
+          "shot": "390-decoy"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "vault/new/secret"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Netflix"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "visit": "vault/new/secret"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Gym locker"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "visit": "vault/new/secret"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Hidden Bank"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "visit": "vault/new/secret"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Hidden Passport"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "pressIn": ["#duress-profiles", "Add"]
+        },
+        {
+          "chooseOptional": "Show my vault without the items I hide"
+        },
+        {
+          "switchOptional": "Hide Netflix"
+        },
+        {
+          "switchOptional": "Hide Gym locker"
+        },
+        {
+          "fillOptional": {
+            "label": "Duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=0"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Confirm duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=1"
+          }
+        },
+        {
+          "checkOptional": "I understand this code opens a decoy, never my vault.",
+          "only": "before"
+        },
+        {
+          "checkOptional": "I understand this code opens a decoy holding copies, taken now, of only the items I leave shown, never my vault; items I add later stay hidden, and edits show their old content until I turn this on again. The copies are sealed under this short code, so anyone with this browser's storage and enough effort can read them: I choose only items I could afford to show. Passkeys, certificates, drops, files, one-time-code seeds, history, folders and deleted items are never copied.",
+          "only": "after"
+        },
+        {
+          "count": [
+            "[role=dialog] input[type=radio]",
+            "[role=dialog] [role=switch]",
+            "[role=dialog] [role=switch][aria-checked=false]"
+          ]
+        },
+        {
+          "measure": "[role=dialog] .duress__hide"
+        },
+        {
+          "measure": "[role=dialog] .duress__choice"
+        },
+        {
+          "measure": "[role=dialog] button[type=submit]"
+        },
+        {
+          "bringIntoViewOptional": "[role=dialog] fieldset:has(.duress__picks)"
+        },
+        {
+          "shot": "1280-sheet"
+        },
+        {
+          "pressOptional": "Turn on duress code"
+        },
+        {
+          "pressOptional": "Lock vault"
+        },
+        {
+          "fillOptional": {
+            "label": "Password",
+            "text": "246813579",
+            "selector": "input[type=password]"
+          }
+        },
+        {
+          "pressOptional": "Unlock"
+        },
+        {
+          "visit": "vault"
+        },
+        {
+          "count": [".vtree [role=treeitem]", ".duress-presentation-overlay"]
+        },
+        {
+          "report": ".vtree"
+        },
+        {
+          "shot": "1280-decoy"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-sheet",
+      "width": 390,
+      "title": "The duress sheet with the new mode picked \u2014 390 \u00d7 844",
+      "caption": "Settings \u203a Security \u203a Duress \u203a Add on a vault holding four items, the same walk on both builds: pick the new mode where it is offered, leave Netflix and Gym locker shown, type the code twice, tick the consent. The base build has no such mode, so its picture is the plain decoy with the code typed; the sheet is scrolled to the part the change is about where the branch has it.",
+      "before": "5 mode radios, 0 switches; consent 'I understand this code opens a decoy, never my vault.'",
+      "after": "6 mode radios, 4 item switches each 322x44, 2 shown and 2 hidden; consent names the snapshot, the short code and what is never copied"
+    },
+    {
+      "shot": "390-decoy",
+      "width": 390,
+      "title": "The decoy after typing the code, vault list \u2014 390 \u00d7 844",
+      "caption": "The code is armed, the vault locked, and the code typed at the password prompt. The base build, with no such mode, arms the plain decoy and opens an empty vault; the branch opens the decoy holding copies of the two items left shown and nothing of the two hidden.",
+      "before": "all: -, secrets: - (0 items); 0 presentation overlays",
+      "after": "all: 2, secrets: 2 (the phone draws the categories first; the two titles are listed at 1280); 0 overlays"
+    },
+    {
+      "shot": "1280-sheet",
+      "width": 1280,
+      "title": "The duress sheet with the new mode picked \u2014 1280 \u00d7 800",
+      "caption": "The same walk on a desktop with a mouse. The new mode's radio sits after the plain decoy and before every refusal.",
+      "before": "5 mode radios, 0 switches",
+      "after": "6 mode radios, 4 item switches each 355x44, 2 shown and 2 hidden"
+    },
+    {
+      "shot": "1280-decoy",
+      "width": 1280,
+      "title": "The decoy after typing the code, vault list \u2014 1280 \u00d7 800",
+      "caption": "The same decoy walk on a desktop.",
+      "before": "0 items; 0 presentation overlays",
+      "after": "2 items: Gym locker, Netflix; the two hidden items absent; 0 overlays"
+    }
+  ]
+}

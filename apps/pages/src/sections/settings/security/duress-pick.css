@@ -1,0 +1,101 @@
+/* Items to hide (ADR 0168): one switch per item of the open vault. The whole
+   row is the switch, the way the item-type list is drawn (ADR 0165). On means
+   hidden, so the track is lit for every item that will not be shown, and a
+   shown row's name is the one at full ink. */
+.duress__picks {
+  max-height: 16rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+.duress__picks > li {
+  border-bottom: 1px solid var(--line);
+}
+
+.duress__hide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.25rem 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: max(1rem, var(--field-min));
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.duress__hide[aria-checked="false"] {
+  color: var(--ink);
+}
+
+.duress__hide:active {
+  background: var(--surface-3);
+}
+
+.duress__hide:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.duress__hide-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.duress__hide-kind {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+}
+
+.duress__track {
+  position: relative;
+  flex: none;
+  width: 2.4rem;
+  height: 1.4rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+.duress__track::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform 160ms var(--ease);
+}
+
+.duress__hide[aria-checked="true"] .duress__track {
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.duress__hide[aria-checked="true"] .duress__track::after {
+  transform: translateX(1rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .duress__track,
+  .duress__track::after {
+    transition: none;
+  }
+}

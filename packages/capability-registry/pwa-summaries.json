@@ -752,6 +752,14 @@
     }
   },
   {
+    "id": "vaults.travel_items",
+    "title": "Travel mode: leave chosen items of the open vault at home in a bundle under a return code, and bring them back",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/travel/index.ts:packTravelItemDeparture"
+    }
+  },
+  {
     "id": "vaults.duress_code",
     "title": "Duress code: a second unlock code that shows a decoy or a refusal, set and cleared by the owner",
     "plane": "client_local",
