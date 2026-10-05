@@ -33,6 +33,8 @@ const SAY = new Map<string, string>(
     hidden: HIDDEN_FIELD,
     off_screen: HIDDEN_FIELD,
     zero_size: HIDDEN_FIELD,
+    needs_pepper:
+      "This password needs a pepper. Open it in the vault to use it",
     store_locked: "The store on this computer is locked",
     daemon_unreachable: "Nothing answers on this computer",
     rate_limited: "Too many fills. Wait a moment",

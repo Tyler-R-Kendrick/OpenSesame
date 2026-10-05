@@ -55,10 +55,10 @@ approves `vault.passwords`, `activity.log` and `settings.core` and no
 optional capability. `~/connections`, `~/access` and `~/identity` load only
 after their Settings › Capabilities switch is on (`capability.<id>` is the
 OpenFeature flag). The minimal vault's only creatable kind is `secret`.
-Login, note, card, passkey, certificate and the other built-in types
+Account, note, card, passkey, certificate and the other built-in types
 project onto that secret and stay out until Item types is on. Password reset
 (`ai.password-reset`) is its own section, off until chosen, and it depends on
-the login item type (`vault.derived-records`).
+the account item type (`vault.derived-records`).
 
 **Withdrawing an always-on capability.** A verified instance policy may list
 an always-on capability in `prohibited`. The capability is then withdrawn: it

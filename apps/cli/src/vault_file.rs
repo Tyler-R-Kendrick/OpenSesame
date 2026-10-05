@@ -31,7 +31,7 @@ pub enum VaultCmd {
     Verify { file: PathBuf },
     /// List its items: path and kind, never values
     Ls { file: PathBuf },
-    /// Create a login, secret, note, or card in the local vault.
+    /// Create an account, secret, note, or card in the local vault (`login` is accepted as `account`).
     New {
         kind: String,
         #[arg(long)]

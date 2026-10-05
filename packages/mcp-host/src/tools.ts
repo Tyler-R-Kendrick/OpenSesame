@@ -30,7 +30,7 @@ export const hostTools = [
 export function assertsNoSecretTools(names: readonly string[]): void {
   if (
     names.some((n) =>
-      /secret|materialize|pass_show|sealed_store_show|password_store_read|^show$/i.test(
+      /secret|materialize|pass_show|sealed_store_show|password_store_read|pepper|oprf|^show$/i.test(
         n,
       ),
     )

@@ -65,8 +65,16 @@ describe("opensesame-id vault item commands", () => {
       "vault-set",
     );
     expect(() => parseArgs(["vault", "new", "drop", "--name", "x"])).toThrow(
-      /login, secret, note, or card/,
+      /account, secret, note, or card/,
     );
+  });
+
+  it("accepts the legacy login kind as an account", () => {
+    for (const word of ["login", "account"]) {
+      expect(parseArgs(["vault", "new", word, "--name", "Mail"])).toMatchObject(
+        { name: "vault-new", kind: "account" },
+      );
+    }
   });
 
   // Five KDFs; the 5s default loses on a loaded runner.
@@ -132,6 +140,36 @@ describe("opensesame-id vault item commands", () => {
       expect(shared.out).toContain("https://example.test/claim#fragment");
       expect(shared.out).toContain("ABCD-EFGH");
       expect(shared.out).not.toContain(ROTATED);
+    },
+  );
+
+  it(
+    "creates an account from the legacy login kind and lists it as account",
+    { timeout: 60_000 },
+    async () => {
+      stateDir = await mkdtemp(join(tmpdir(), "os-vault-cli-"));
+      const created = await run(
+        ["vault", "new", "login", "--name", "Mail", "--username", "alice"],
+        stateDir,
+        { readPassword: prompts([PASSWORD, PASSWORD, CANARY]) },
+      );
+      expect(created.code).toBe(0);
+      expect(created.out).toContain("Created account Mail.");
+      expect(created.out).not.toContain(CANARY);
+      const listed = await run(["vault", "list"], stateDir, {
+        readPassword: prompts([PASSWORD]),
+      });
+      expect(listed.out).toContain("account\tMail");
+      expect(listed.out).not.toContain(CANARY);
+      let copied = "";
+      const copy = await run(["vault", "copy", "Mail"], stateDir, {
+        readPassword: prompts([PASSWORD]),
+        writeClipboard: async (text) => {
+          copied = text;
+        },
+      });
+      expect(copy.code).toBe(0);
+      expect(copied).toBe(CANARY);
     },
   );
 

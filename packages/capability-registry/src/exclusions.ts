@@ -25,11 +25,23 @@ export const ADR_DEVICE_VAULTS = "0089-device-vault-switching.md";
 export const ADR_PAGES_WITHOUT_HOST = "0128-pages-without-host.md";
 export const ADR_PAGES_CEREMONIES = "0140-pages-hosts-every-ceremony.md";
 export const ADR_TAILNET_SYNC = "0144-tailnet-vault-sync.md";
+export const ADR_ACCOUNTS = "0166-accounts-and-login-methods.md";
 
 export const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
     "raw secret material must never transit agent context; agents hold ConnectionRefs only",
   adr: ADR_AUTHORITY_HANDLE,
+};
+
+/**
+ * A pepper is typed by the person each time a peppered or Sphinx password is
+ * used and is never stored (ADR 0166 §4). No agent surface may carry, accept or
+ * log one, and none may prompt for one.
+ */
+export const PEPPER_IS_HUMAN: CapabilityExclusion = {
+  reason:
+    "a pepper (or Sphinx master input) is typed by the person at each use and never stored; an agent surface must not carry, accept, log or ask for one",
+  adr: ADR_ACCOUNTS,
 };
 
 export const AUTH_CEREMONY: CapabilityExclusion = {

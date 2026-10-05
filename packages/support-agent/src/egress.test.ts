@@ -428,6 +428,12 @@ describe("assertNoStructuralLeak", () => {
       "authorization",
       "Authorization",
       "userToken",
+      "pepper",
+      "sealed",
+      "oprfKeyB64",
+      "apiKey",
+      "clientSecret",
+      "refreshToken",
     ];
     for (const key of denied) {
       expect(() => assertNoStructuralLeak({ [key]: "x" })).toThrow(

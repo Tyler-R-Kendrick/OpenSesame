@@ -11,15 +11,13 @@ import {
   createNodeHost,
   defaultStateDir,
 } from "@opensesame/app-core/node/host.js";
-import {
-  shareText,
-  username,
-} from "@opensesame/app-core/sections/vault-section-model.js";
+import { username } from "@opensesame/app-core/sections/vault-section-model.js";
 import {
   type VaultItem,
   activeItems,
   createItem,
 } from "@opensesame/vault-core";
+import { secretText, withPassword } from "./account-secret.js";
 import { emit } from "./output.js";
 import type { ParsedCommand } from "./parse.js";
 import { readPasswordFromTty } from "./tty-password.js";
@@ -110,15 +108,16 @@ function findItem(items: readonly VaultItem[], query: string): VaultItem {
 }
 
 function blankItem(kind: string, name: string): VaultItem {
+  if (kind === "login") return createItem("account", name);
   if (
-    kind === "login" ||
+    kind === "account" ||
     kind === "secret" ||
     kind === "note" ||
     kind === "card"
   ) {
     return createItem(kind, name);
   }
-  throw new Error("vault new kind must be login, secret, note, or card");
+  throw new Error("vault new kind must be account, secret, note, or card");
 }
 
 async function fillNewItem(
@@ -128,10 +127,10 @@ async function fillNewItem(
 ): Promise<VaultItem> {
   const readPassword = deps.readPassword ?? readPasswordFromTty;
   const readLine = deps.readLine ?? readPassword;
-  if (item.kind === "login") {
+  if (item.kind === "account") {
     const loginName = usernameValue ?? (await readLine("Username: "));
     const password = await readPassword(SECRET);
-    return { ...item, username: loginName, password };
+    return withPassword({ ...item, username: loginName }, password);
   }
   if (item.kind === "secret") {
     return { ...item, value: await readPassword(SECRET) };
@@ -143,7 +142,7 @@ async function fillNewItem(
 }
 
 function withSecret(item: VaultItem, value: string): VaultItem {
-  if (item.kind === "login") return { ...item, password: value };
+  if (item.kind === "account") return withPassword(item, value);
   if (item.kind === "secret") return { ...item, value };
   if (item.kind === "note") return { ...item, notes: value };
   throw new Error(`A ${item.kind} has no secret to set.`);
@@ -192,7 +191,7 @@ async function runSet(
   if (command.itemName !== undefined)
     item = { ...item, name: command.itemName };
   if (command.username !== undefined) {
-    if (item.kind !== "login" && item.kind !== "passkey") {
+    if (item.kind !== "account" && item.kind !== "passkey") {
       throw new Error(`A ${item.kind} has no username.`);
     }
     item = { ...item, username: command.username };
@@ -217,7 +216,7 @@ async function runCopy(
   deps: VaultItemDependencies,
 ): Promise<number> {
   const item = findItem(store.getSnapshot().items, command.query);
-  const text = command.field === "username" ? username(item) : shareText(item);
+  const text = command.field === "username" ? username(item) : secretText(item);
   if (!text) throw new Error(`Nothing to copy from ${item.name}.`);
   await (deps.writeClipboard ?? writeClipboard)(text);
   emit(command.flags, "Copied.", {

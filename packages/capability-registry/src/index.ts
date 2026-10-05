@@ -1440,7 +1440,8 @@ export const CAPABILITIES: readonly Capability[] = [
   },
   {
     id: "vault.totp.code",
-    title: "Read a current TOTP code (never the seed)",
+    title:
+      "Read a current TOTP code from an account's authenticator method (never the seed)",
     plane: "client_local",
     kind: "read",
     surfaces: {
