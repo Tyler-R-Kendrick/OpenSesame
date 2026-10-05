@@ -277,43 +277,6 @@ jobs:
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:device-inbox
 
-  sops-static:
-    name: Browser-local SOPS on the static build
-    needs: changes
-    if: needs.changes.outputs.bundle == 'true'
-    runs-on: ubuntu-latest
-    # Its own job, so the bundle job's 20 minutes are not spent on it: a build
-    # (about a minute) and the walk (about a minute). It was run by no job at
-    # all, only by `verify:sops-browser` on a developer's machine, and the
-    # Settings rework broke it unseen. It is required through the Bundle
-    # budgets check below.
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
-      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
-        with:
-          node-version: 22
-          cache: pnpm
-      - name: Install
-        run: pnpm install --frozen-lockfile
-      - name: Build the static front end
-        env:
-          VITE_BASE: /OpenSesame/
-        run: pnpm exec turbo run build --filter=@opensesame/pages
-      - name: Open, edit and save a SOPS document with no backend
-        # ADR 0130: a guest opens upstream's age-encrypted file from Settings ›
-        # Security with a typed identity, edits it and saves ciphertext, and
-        # encrypts a new document; then the same on an installed app with the
-        # network off. Nothing leaves the origin and the bundle names no
-        # native SOPS runtime.
-        env:
-          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-          VITE_BASE: /OpenSesame/
-        run: pnpm --filter @opensesame/pages verify:sops-static
-
   push-e2e:
     # Its own job: the Bundle budget job's twenty minutes are spent, and this
     # needs a second Pages build (stamped for its own origin), the control-plane
@@ -549,7 +512,7 @@ jobs:
 
   bundle-check:
     name: Bundle budgets
-    needs: [changes, bundle, push-e2e, device-identity-e2e, device-inbox, sops-static, tutorials-e2e]
+    needs: [changes, bundle, push-e2e, device-identity-e2e, device-inbox, tutorials-e2e]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -560,7 +523,6 @@ jobs:
           heavy="${{ needs.bundle.result }}"
           tutorials="${{ needs.tutorials-e2e.result }}"
           inbox="${{ needs.device-inbox.result }}"
-          sops="${{ needs.sops-static.result }}"
           push="${{ needs.push-e2e.result }}"
           identity="${{ needs.device-identity-e2e.result }}"
           if [ "$changes" != "success" ]; then
@@ -578,10 +540,6 @@ jobs:
           case "$inbox" in
             success|skipped) ;;
             *) echo "device inbox result: $inbox"; exit 1 ;;
-          esac
-          case "$sops" in
-            success|skipped) ;;
-            *) echo "browser-local SOPS result: $sops"; exit 1 ;;
           esac
           case "$push" in
             success|skipped) ;;

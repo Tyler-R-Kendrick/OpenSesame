@@ -18,27 +18,20 @@ describe("backup.cloud-secrets runtime", () => {
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
   });
 
-  it("registers the SOPS document panel and disposes it (LOAD-09)", async () => {
+  it("registers nothing and disposes cleanly (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "backup.cloud-secrets",
-      kinds: ["settings-panel"],
-      count: 1,
+      kinds: [],
+      count: 0,
     });
   });
 
-  it("draws the SOPS document row under Security, reachable by a guest", async () => {
+  it("draws no SOPS row under Security", async () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
-    const record = t.registered.find(
-      (entry) => entry.kind === "settings-panel",
-    );
-    expect(record?.entry).toBe(runtime.SOPS_DOCUMENT_PANEL);
-    expect(runtime.SOPS_DOCUMENT_PANEL).toMatchObject({
-      id: "sops-document",
-      category: "security",
-    });
-    await handle.dispose();
     expect(t.liveKinds()).not.toContain("settings-panel");
+    expect(runtime).not.toHaveProperty("SOPS_DOCUMENT_PANEL");
+    await handle.dispose();
   });
 
   it("touches no KMS protector and reaches no network", async () => {

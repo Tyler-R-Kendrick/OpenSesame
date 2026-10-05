@@ -3695,10 +3695,4 @@ details[open] > summary::before {
   .topbar .rail__prompt {
     padding-inline: 0;
   }
-
-  /* The root marker ":/" is the one piece of the prompt that says nothing the
-     tomb name does not; two 44px names and the lock key do not fit beside it. */
-  .topbar .rail__prompt > .prompt__dim:nth-of-type(2) {
-    display: none;
-  }
 }

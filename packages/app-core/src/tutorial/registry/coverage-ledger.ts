@@ -26,7 +26,6 @@ export const COVERAGE_EXEMPT: Readonly<Record<string, string>> = {
   "target:settings.general": "no tutorial points at it yet",
   "target:settings.keybindings": "no tutorial points at it yet",
   "target:settings.connectivity": "no tutorial points at it yet",
-  "target:settings.sops-document": "no tutorial points at it yet",
   "target:settings.recovery": "no tutorial points at it yet",
   "target:settings.capabilities": "no tutorial points at it yet",
   "target:settings.vaults": "no tutorial points at it yet",
