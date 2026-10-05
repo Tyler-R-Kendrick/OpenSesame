@@ -1,37 +1,21 @@
 {
   "schemaVersion": 1,
-  "outcome": "passed_with_blockers",
-  "testedCommit": "424bc48cfb74e3c69f4f1f6b44cbe5b2fb979716",
+  "outcome": "passed",
+  "testedCommit": "15aea84a23e15d9ec63f5919c304509b654ae703",
   "chromium": {
-    "path": "/home/codex/.cache/ms-playwright/chromium-1228/chrome-linux/chrome",
-    "source": "ms-playwright-cache",
+    "path": "/opt/pw-browsers/chromium",
+    "source": "env:PLAYWRIGHT_CHROMIUM",
     "probed": [
-      "env:PLAYWRIGHT_CHROMIUM=(unset)",
-      "env:CHROMIUM_PATH=(unset)",
-      "env:CHROME_PATH=(unset)",
-      "/opt/pw-browsers/chromium",
-      "/usr/bin/chromium",
-      "/usr/bin/chromium-browser",
-      "/usr/bin/google-chrome",
-      "/usr/bin/google-chrome-stable",
-      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-linux-arm64/chrome",
-      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-linux/chrome",
-      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-linux64/chrome",
-      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-mac/Chromium.app/Contents/MacOS/Chromium",
-      "/home/codex/.cache/ms-playwright/chromium_headless_shell-1228/chrome-win/chrome.exe",
-      "/home/codex/.cache/ms-playwright/chromium-1228/chrome-linux-arm64/chrome",
-      "/home/codex/.cache/ms-playwright/chromium-1228/chrome-linux/chrome"
+      "/opt/pw-browsers/chromium"
     ],
-    "version": "Chromium 149.0.7827.0"
+    "version": "Chromium 141.0.7390.37"
   },
-  "blockers": [
-    "DuressSettingsPanel exists but is not imported in SettingsSection \u2014 production entry missing"
-  ],
+  "blockers": [],
   "journeys": [
     {
       "name": "J-CAPABILITIES",
       "outcome": "passed",
-      "ms": 10,
+      "ms": 17,
       "detail": {
         "webcrypto": {
           "crypto": true,
@@ -45,15 +29,15 @@
         },
         "virtualAuthenticator": {
           "supported": true,
-          "authenticatorId": "87a13edf-a735-4764-a393-b067d6c29f92",
-          "note": "virtual authenticator only \u2014 not physical biometrics/PRF hardware"
+          "authenticatorId": "d00c503c-a0fc-4afe-9a25-a7b4c697d884",
+          "note": "virtual authenticator only — not physical biometrics/PRF hardware"
         }
       }
     },
     {
       "name": "J-CRYPTO-SLOT",
       "outcome": "passed",
-      "ms": 428,
+      "ms": 771,
       "detail": {
         "iterations": 1200000,
         "openedPresentation": "restricted",
@@ -66,19 +50,19 @@
     {
       "name": "J-PRF-AND-CODE",
       "outcome": "passed",
-      "ms": 280,
+      "ms": 470,
       "detail": {
         "bothLen": 32,
         "prfOnlyNull": true,
         "codeOnlyNull": true,
         "wrongPrfNull": true,
-        "note": "PRF bytes are simulated \u2014 not hardware authenticator PRF"
+        "note": "PRF bytes are simulated — not hardware authenticator PRF"
       }
     },
     {
       "name": "J-TRIGGER",
       "outcome": "passed",
-      "ms": 716,
+      "ms": 1229,
       "detail": {
         "matchedStatus": "matched",
         "matchedProfile": "SC-DECOY",
@@ -91,7 +75,7 @@
     {
       "name": "J-PEER-ENVELOPE",
       "outcome": "passed",
-      "ms": 4,
+      "ms": 5,
       "detail": {
         "ok": {
           "ok": true
@@ -119,7 +103,7 @@
     {
       "name": "J-RESTART",
       "outcome": "passed",
-      "ms": 840,
+      "ms": 1092,
       "detail": {
         "missing": false,
         "presentation": "locked"
@@ -128,7 +112,7 @@
     {
       "name": "J-SCENARIO-MATRIX",
       "outcome": "passed",
-      "ms": 2,
+      "ms": 5,
       "detail": {
         "SC-ALERT-ONLY": {
           "status": "exercised_fixture",
@@ -138,12 +122,12 @@
         "SC-RESTRICTED": {
           "status": "production_entry_wired",
           "entryPoint": "unlock-*-duress|unlock-duress-continue|unlock-passkey-duress|DuressEnrollmentPanel|PresentationShell",
-          "note": "application_code / passkey-then-code match \u2192 activate \u2192 presentation runtime + guest continue"
+          "note": "application_code / passkey-then-code match → activate → presentation runtime + guest continue"
         },
         "SC-DECOY": {
           "status": "production_entry_wired",
           "entryPoint": "unlock-*-duress|unlock-duress-continue|unlock-passkey-duress|DuressEnrollmentPanel|PresentationShell",
-          "note": "application_code / passkey-then-code match \u2192 activate \u2192 presentation runtime + guest continue"
+          "note": "application_code / passkey-then-code match → activate → presentation runtime + guest continue"
         },
         "SC-LOCAL-HOLD": {
           "status": "exercised_fixture",
@@ -200,7 +184,7 @@
     {
       "name": "J-MULTI-CONTEXT",
       "outcome": "passed",
-      "ms": 1669,
+      "ms": 1822,
       "detail": {
         "activated": 1,
         "hints": [],
@@ -210,13 +194,11 @@
     {
       "name": "J-UI-SETTINGS",
       "outcome": "passed",
-      "ms": 4528,
+      "ms": 4893,
       "detail": {
-        "status": "blocked",
-        "blockers": [
-          "DuressSettingsPanel exists but is not imported in SettingsSection \u2014 production entry missing"
-        ],
-        "panelWired": false
+        "status": "passed",
+        "blockers": [],
+        "panelWired": true
       }
     }
   ],
