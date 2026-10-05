@@ -1,0 +1,109 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Directory"
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "facts": "1280-capabilities"
+        },
+        {
+          "shot": "1280-capabilities"
+        },
+        {
+          "pressOptional": "^Source$"
+        },
+        {
+          "pressOptional": "Open installation-selection.yaml"
+        },
+        {
+          "facts": "1280-selection"
+        },
+        {
+          "shot": "1280-selection"
+        },
+        {
+          "visit": "settings/vaults?file=settings%2Fitem-types%2Fbuiltin%2Fapi-credential.json"
+        },
+        {
+          "facts": "1280-json"
+        },
+        {
+          "shot": "1280-json"
+        },
+        {
+          "openSettingsFile": "general"
+        },
+        {
+          "facts": "1280-config"
+        },
+        {
+          "shot": "1280-config"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Directory"
+        },
+        {
+          "visit": "settings/capabilities"
+        },
+        {
+          "facts": "390-capabilities"
+        },
+        {
+          "shot": "390-capabilities"
+        },
+        {
+          "pressOptional": "^Source$"
+        },
+        {
+          "pressOptional": "Open installation-selection.yaml"
+        },
+        {
+          "facts": "390-selection"
+        },
+        {
+          "shot": "390-selection"
+        },
+        {
+          "visit": "settings/vaults?file=settings%2Fitem-types%2Fbuiltin%2Fapi-credential.json"
+        },
+        {
+          "facts": "390-json"
+        },
+        {
+          "shot": "390-json"
+        },
+        {
+          "openSettingsFile": "general"
+        },
+        {
+          "facts": "390-config"
+        },
+        {
+          "shot": "390-config"
+        }
+      ]
+    }
+  ],
+  "sheets": []
+}

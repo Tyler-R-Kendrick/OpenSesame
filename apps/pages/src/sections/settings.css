@@ -267,17 +267,22 @@
   color: var(--ink-2);
 }
 
+/* The painted copy and the textarea share one grid cell and one block of
+   metrics, so the caret sits on the text drawn under it. `--cols` is the
+   longest line in characters: both widen to it, and the stage scrolls
+   sideways rather than the textarea scrolling by itself. */
 .set-raw__stage {
-  position: relative;
+  display: grid;
   min-height: 16rem;
+  overflow-x: auto;
 }
 
 .set-raw__paint,
 .set-raw__input {
+  grid-area: 1 / 1;
   margin: 0;
-  width: 100%;
-  /* The textarea is a transparent overlay on the painted source; capped
-     alone, the caret would stop matching the text drawn under it. */
+  box-sizing: border-box;
+  width: max(100%, calc(var(--cols, 0) * 1ch + 1rem));
   max-width: none;
   min-height: 16rem;
   padding: 0.75rem 0;
@@ -295,12 +300,17 @@
 }
 
 .set-raw__input {
-  position: absolute;
-  inset: 0;
+  height: 100%;
+  overflow: hidden;
   resize: none;
   color: transparent;
   caret-color: var(--ink);
   background: transparent;
+}
+
+/* A read-only file is still painted, in the quieter ink. */
+.set-raw__stage--ro .set-raw__paint {
+  color: var(--ink-2);
 }
 
 .set-raw__key {

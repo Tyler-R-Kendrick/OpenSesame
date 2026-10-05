@@ -152,6 +152,14 @@ async function facts(page, name) {
       marks: [...document.querySelectorAll(".section__inner .status-mark")].map(
         (mark) => mark.getAttribute("aria-label") ?? mark.getAttribute("title"),
       ),
+      // The painted copy under a file's textarea: how many coloured tokens,
+      // and whether a long line scrolls the stage sideways.
+      paintedSpans: document.querySelectorAll(".set-raw__paint span[class]")
+        .length,
+      stageScrolls: (() => {
+        const stage = document.querySelector(".set-raw__stage");
+        return stage ? stage.scrollWidth > stage.clientWidth : null;
+      })(),
       completions: [...document.querySelectorAll(".set-raw__option")].map(
         (option) => option.textContent?.trim(),
       ),
