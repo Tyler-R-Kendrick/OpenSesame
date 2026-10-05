@@ -1,9 +1,15 @@
 // A drive reached the way Tailscale Serve exposes it (ADR 0144): HTTPS at
 // `https://<machine>.<tailnet>.ts.net`, terminated in front of the daemon,
 // which listens on loopback. Serve's certificate is publicly trusted; this
-// one is minted here and trusted by the test browser alone. Chromium is told
-// to resolve the tailnet name to this proxy, so the page, its CORS and its
-// Local Network Access gate all see the address a real tailnet would give.
+// one is minted here and trusted by the test browser alone.
+//
+// Two ways to reach it. By default Chromium resolves the tailnet name to this
+// proxy itself. With `tailnet` (scripts/test/tailnet-sync-real-tailnet.sh),
+// the name is a real tailnet's MagicDNS name: the drive node's
+// `tailscale serve --tcp=443` forwards to this proxy, and Chromium — on a
+// node with a kernel TUN — resolves the name to the drive node's 100.x
+// address, so every request crosses WireGuard and Chrome classes the address
+// itself, as on a person's device.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import https from "node:https";
@@ -13,7 +19,7 @@ import path from "node:path";
 
 export const SERVE_HOST = "desk.tail4c2e.ts.net";
 
-function mintCertificate(dir) {
+function mintCertificate(dir, host) {
   const key = path.join(dir, "serve.key");
   const cert = path.join(dir, "serve.crt");
   execFileSync(
@@ -29,9 +35,9 @@ function mintCertificate(dir) {
       "-days",
       "1",
       "-subj",
-      `/CN=${SERVE_HOST}`,
+      `/CN=${host}`,
       "-addext",
-      `subjectAltName=DNS:${SERVE_HOST}`,
+      `subjectAltName=DNS:${host}`,
       "-keyout",
       key,
       "-out",
@@ -59,14 +65,18 @@ async function freePort() {
 }
 
 /**
- * Terminate TLS for `SERVE_HOST` and forward every request, untouched, to
- * the daemon at `upstream` (`http://127.0.0.1:<port>`).
+ * Terminate TLS for the drive's name and forward every request, untouched, to
+ * the daemon at `upstream` (`http://127.0.0.1:<port>`). `tailnet`, when set:
+ * `{ host, tlsPort, address }` — the MagicDNS name, the port the drive node's
+ * Serve forwards 443 to, and the drive node's tailnet address.
  */
-export async function serveShapedDrive(upstream) {
+export async function serveShapedDrive(upstream, tailnet = null) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "serve-shaped-"));
-  const port = await freePort();
+  const host = tailnet?.host ?? SERVE_HOST;
+  const port = tailnet ? Number(tailnet.tlsPort) : await freePort();
   const target = new URL(upstream);
-  const server = https.createServer(mintCertificate(dir), (request, reply) => {
+  const certificate = mintCertificate(dir, host);
+  const server = https.createServer(certificate, (request, reply) => {
     const forward = new URL(request.url, upstream);
     const outbound = import("node:http").then(({ request: send }) =>
       send(
@@ -93,9 +103,10 @@ export async function serveShapedDrive(upstream) {
   });
   await new Promise((resolve) => server.listen(port, "127.0.0.1", resolve));
   const url =
-    port === 443 ? `https://${SERVE_HOST}` : `https://${SERVE_HOST}:${port}`;
+    tailnet || port === 443 ? `https://${host}` : `https://${host}:${port}`;
   return {
     url,
+    through: tailnet ? "tailnet" : "loopback",
     /**
      * Chromium flags that send the tailnet name to this proxy, directly: a
      * tailnet name is never reached through an outbound proxy, and a sandbox
@@ -104,11 +115,17 @@ export async function serveShapedDrive(upstream) {
      * so the page's `targetAddressSpace: "local"` hint matches as it would on
      * a real tailnet (a mismatch is a network error).
      */
-    browserArgs: [
-      `--host-resolver-rules=MAP ${SERVE_HOST} 127.0.0.1`,
-      `--ip-address-space-overrides=127.0.0.1:${port}=local`,
-      "--no-proxy-server",
-    ],
+    browserArgs: tailnet
+      ? [
+          // What MagicDNS answers, for a node that did not take over DNS.
+          `--host-resolver-rules=MAP ${host} ${tailnet.address}`,
+          "--no-proxy-server",
+        ]
+      : [
+          `--host-resolver-rules=MAP ${SERVE_HOST} 127.0.0.1`,
+          `--ip-address-space-overrides=127.0.0.1:${port}=local`,
+          "--no-proxy-server",
+        ],
     close() {
       server.close();
       fs.rmSync(dir, { recursive: true, force: true });

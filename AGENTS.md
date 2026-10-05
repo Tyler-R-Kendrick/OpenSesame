@@ -98,6 +98,10 @@ pnpm test:live-stack     # scripts/test/live-stack-test.sh (live OpenFGA/OpenBao
 pnpm test:bitwarden-oracle # scripts/test/bitwarden-oracle-test.sh — pinned official bw CLI and the
                           #   SignalR client Bitwarden's apps pin, against the bitwarden-compat surface
                           #   (ADR 0141, ADR 0148); fails, never skips
+pnpm test:tailnet-sync:real # scripts/test/tailnet-sync-real-tailnet.sh — verify:tailnet-sync over a real
+                          #   tailnet: pinned headscale + two tailscaled nodes (one on a kernel TUN), the drive
+                          #   behind `tailscale serve`, Chrome's own Local Network Access gate; needs
+                          #   /dev/net/tun + CAP_NET_ADMIN, fails, never skips (ADR 0144)
 pnpm test:mtls           # scripts/mtls/mtls-test.sh — native transport-security + TS contract suites, no fixtures
 pnpm test:mtls:integration # scripts/mtls/mtls-integration-test.sh — pinned nats-server / OpenBao / SPIRE / Caddy
                           #   fixtures (scripts/mtls/mtls-fixtures.sh); fails, never skips, when a fixture is absent

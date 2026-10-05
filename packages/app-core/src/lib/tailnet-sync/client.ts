@@ -45,13 +45,29 @@ export class DriveError extends Error {
 /** How long a drive request may take before it is given up as unanswered. */
 export const DRIVE_TIMEOUT_MS = 15_000;
 
+/**
+ * How a drive request goes out. An `https:` drive (Tailscale Serve) carries no
+ * `targetAddressSpace` hint: the hint only exempts a plain-`http:` request from
+ * mixed-content blocking, and a hint Chrome cannot confirm — a browser behind
+ * a proxy sees the proxy's address, not the tailnet's — fails the request
+ * outright. Without it Chrome still asks for local network access wherever the
+ * name resolves to a private address.
+ */
+export function driveRequest(
+  url: string,
+  init: LocalNetworkFetchInit,
+): LocalNetworkFetchInit {
+  return {
+    timeoutMs: DRIVE_TIMEOUT_MS,
+    ...init,
+    ciphertextDrive: true,
+    skipAddressSpace: url.startsWith("https:"),
+  };
+}
+
 export const driveClientSeams = {
   fetch: (url: string, init: LocalNetworkFetchInit) =>
-    localNetworkFetch(url, {
-      timeoutMs: DRIVE_TIMEOUT_MS,
-      ...init,
-      ciphertextDrive: true,
-    }),
+    localNetworkFetch(url, driveRequest(url, init)),
 };
 
 function slotUrl(pairing: DrivePairing): string {

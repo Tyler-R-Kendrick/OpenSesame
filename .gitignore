@@ -116,4 +116,5 @@ apps/pages/scripts/duress/.ui-artifacts/
 # verify:live-join servers built from source (scripts/test/live-fixtures.sh)
 .cache/live-fixtures/
 .cache/bitwarden-oracle/
+.cache/tailnet-fixtures/
 artifacts/mtls/

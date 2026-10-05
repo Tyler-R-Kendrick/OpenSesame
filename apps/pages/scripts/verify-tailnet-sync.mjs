@@ -18,6 +18,9 @@
 // waits on the permission prompt until it is answered. Headless Chrome shows
 // no prompt, so each device's answer is set through the DevTools protocol.
 //
+// TAILNET_SYNC_TAILNET=<name>,<tls port>,<100.x address> runs the same walk
+// over a real tailnet instead (scripts/test/tailnet-sync-real-tailnet.sh).
+//
 //   TS-PAIR    device A seals a vault with a password, saves an item, turns
 //              Networking on and pairs (the row's key opens the pairing
 //              sheet, the code goes in the sheet, its commit pairs): the panel
@@ -157,11 +160,6 @@ async function device(browser, options, answer = "granted") {
   pages.push(page);
   const errors = [];
   page.on("pageerror", (error) => errors.push(String(error)));
-  page.on("requestfailed", (request) =>
-    console.error(
-      `  request failed: ${request.method()} ${request.url()} ${request.failure()?.errorText}`,
-    ),
-  );
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await page.waitForTimeout(3000);
   return { page, context, errors };
@@ -210,8 +208,22 @@ async function shot(page, name) {
   console.log(`  ${file}`);
 }
 
+/** `<MagicDNS name>,<port Serve forwards 443 to>,<the drive node's address>` */
+function tailnetFromEnv() {
+  const raw = process.env.TAILNET_SYNC_TAILNET;
+  if (!raw) return null;
+  const [host, tlsPort, address] = raw.split(",");
+  return { host, tlsPort, address };
+}
+
 const daemon = startDrive();
-const serve = await serveShapedDrive(drive);
+const tailnet = tailnetFromEnv();
+const serve = await serveShapedDrive(drive, tailnet);
+console.log(
+  tailnet
+    ? `drive ${serve.url}: over the tailnet to ${tailnet.address}, Serve → 127.0.0.1:${tailnet.tlsPort}`
+    : `drive ${serve.url}: resolved to the TLS proxy on loopback`,
+);
 const browser = await chromium.launch({
   executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
   headless: true,
