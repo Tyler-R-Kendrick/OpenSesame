@@ -12,13 +12,13 @@ import { holdsAnyHistoryEntry } from "../history-backup-idb.js";
 import { loadHistorySelections } from "../history-backups.js";
 import { listLocalShares } from "../local-share-grants.js";
 import { listVaultSessions } from "../local-vault-sessions.js";
-import { readDriveConfig } from "../tailnet-sync/config.js";
 import {
   dropCachedCiphertextSnapshot,
   listOfflineMutations,
 } from "../vault/offline-backup.js";
 import { forgetRetiredPasswords } from "../vault/password-history.js";
 import { vaultStore } from "../vault/store.js";
+import { VfsError, readFile } from "../vfs.js";
 import { duressActive } from "./duress-gate.js";
 import type { ItemsCopy, ItemsDeps } from "./items-depart.js";
 import { originTravelStorage } from "./storage.js";
@@ -26,6 +26,23 @@ import { originTravelStorage } from "./storage.js";
 /** The personal vault's offline records are kept under no project id. */
 function projectIdOf(tomb: string): string | null {
   return tomb === "personal" ? null : tomb;
+}
+
+/**
+ * Where a vault keeps its drive pairing (`tailnet-sync/config.ts`; a test holds
+ * the two equal). Read by path, not through that module: the drive's code is
+ * an optional capability and the entry may not reach it (ADR 0130).
+ */
+export const DRIVE_PAIRING_PATH = "config/tailnet-drive";
+
+async function pairedWithDrive(tomb: string): Promise<boolean> {
+  try {
+    await readFile(tomb, DRIVE_PAIRING_PATH);
+    return true;
+  } catch (error) {
+    if (error instanceof VfsError && error.code === "not-found") return false;
+    throw error;
+  }
 }
 
 async function holdsHistorySnapshot(): Promise<boolean> {
@@ -41,7 +58,7 @@ async function copiesInPlay(tomb: string): Promise<readonly ItemsCopy[]> {
     copies.push("backup_target");
   }
   if (await holdsHistorySnapshot()) copies.push("history_snapshot");
-  if ((await readDriveConfig(tomb)) !== null) copies.push("paired_drive");
+  if (await pairedWithDrive(tomb)) copies.push("paired_drive");
   const project = projectIdOf(tomb);
   if (listOfflineMutations().some((entry) => entry.projectId === project)) {
     copies.push("offline_queue");

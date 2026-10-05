@@ -17,15 +17,16 @@ import {
 import { beforeEach, describe, expect, it } from "vitest";
 import { flushActivityLog, listActivityEvents } from "../activity-log.js";
 import { appendHistoryEntry } from "../history-backup-idb.js";
+import { DRIVE_CONFIG_PATH } from "../tailnet-sync/config.js";
 import { passwordPreviouslyUsed } from "../vault/password-history.js";
 import { vaultStore } from "../vault/store.js";
-import { BODY_PATH, readSealedFile } from "../vfs.js";
+import { BODY_PATH, deleteFile, readSealedFile, writeFile } from "../vfs.js";
 import {
   openTravelItemsReturn,
   packTravelItemDeparture,
   returnItemsFromTravel,
 } from "./index.js";
-import { travelItemSeams } from "./items-deps.js";
+import { DRIVE_PAIRING_PATH, travelItemSeams } from "./items-deps.js";
 import {
   KEEP,
   PASSWORD,
@@ -151,6 +152,20 @@ describe("hiding items leaves nothing of them behind", () => {
 });
 
 describe("what the hide cannot reach, it refuses to run beside", () => {
+  it("refuses while the vault is paired with a drive, whose next merge would bring them back", async () => {
+    const s = await seedVault();
+    const tomb = vaultStore.getSnapshot().tomb;
+    expect(DRIVE_PAIRING_PATH).toBe(DRIVE_CONFIG_PATH);
+    await writeFile(tomb, DRIVE_PAIRING_PATH, new TextEncoder().encode("{}"));
+    expect(await packTravelItemDeparture(s.hide)).toMatchObject({
+      ok: false,
+      code: "copies_in_play",
+      copies: ["paired_drive"],
+    });
+    await deleteFile(tomb, DRIVE_PAIRING_PATH);
+    expect(await packTravelItemDeparture(s.hide)).toMatchObject({ ok: true });
+  });
+
   it("refuses while a history snapshot holds an older revision with them in it", async () => {
     const s = await seedVault();
     const tomb = vaultStore.getSnapshot().tomb;
