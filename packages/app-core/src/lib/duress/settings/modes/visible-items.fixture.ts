@@ -17,10 +17,11 @@ type AccountOver = Partial<AccountItem> & {
 
 export function account(name: string, over: AccountOver = {}): AccountItem {
   const { password = `pw-${name}`, totp, passwordChangedAt, ...rest } = over;
-  const item = plainAccount(name, password, {
-    username: `${name.toLowerCase()}@example.test`,
-    ...(totp === undefined ? {} : { totp }),
-  });
+  const username = `${name.toLowerCase()}@example.test`;
+  const item =
+    totp === undefined
+      ? plainAccount(name, password, { username })
+      : plainAccount(name, password, { username, totp });
   const method = passwordMethod(item);
   if (method && passwordChangedAt !== undefined) {
     method.changedAt = passwordChangedAt;

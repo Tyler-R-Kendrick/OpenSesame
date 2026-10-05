@@ -13,7 +13,7 @@ import {
   safeStoredReturnTo,
 } from "./origin.js";
 import { createPkcePair } from "./pkce.js";
-import { SESSION_KEY, createSessionStore } from "./session-store.js";
+import { SESSION_KEY, createConfiguredSessionStore } from "./session-store.js";
 import type {
   ClaimDecision,
   ClaimPresentation,
@@ -188,7 +188,7 @@ export function createOpenSesame(
       : `${pageOrigin}/callback`);
   const defaultScopes = originProfile ? ["openid"] : ["openid", "profile"];
   const scopes = (config.scopes ?? defaultScopes).join(" ");
-  const store = createSessionStore(config.storage);
+  const store = createConfiguredSessionStore(config.storage, issuer, clientId);
   const fetchImpl = config.fetchImpl ?? fetch;
   const apiBase = assertSecureUrl(
     trimSlash(config.apiBase ?? issuer),

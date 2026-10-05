@@ -18,7 +18,7 @@
   "totals": {
     "files": 427,
     "violations": 668,
-    "oversizedLines": 218016
+    "oversizedLines": 218001
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -764,7 +764,7 @@
       "max-lines-per-function": 1
     },
     "packages/cli/src/commands.test.ts": {
-      "max-lines": 728
+      "max-lines": 725
     },
     "packages/cli/src/parse.ts": {
       "complexity": 1,
@@ -1262,7 +1262,7 @@
       "max-lines": 491
     },
     "packages/sdk-browser/src/client.test.ts": {
-      "max-lines": 552
+      "max-lines": 546
     },
     "packages/sdk-browser/src/client.ts": {
       "complexity": 1,
@@ -1270,7 +1270,7 @@
       "max-lines-per-function": 1
     },
     "packages/sdk-browser/src/edge-cases.test.ts": {
-      "max-lines": 860
+      "max-lines": 854
     },
     "packages/sdk-browser/src/webauthn.ts": {
       "complexity": 1

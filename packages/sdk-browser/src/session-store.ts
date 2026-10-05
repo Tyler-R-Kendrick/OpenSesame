@@ -8,6 +8,7 @@
  */
 
 import {
+  CLIENT_AT_REST_PREFIX,
   type SealedStorage,
   type StorageLike,
   sealedStorage,
@@ -83,8 +84,11 @@ export type SessionStore = {
   takePkce(): Promise<string | null>;
 };
 
-export function createSessionStore(storage?: StorageLike): SessionStore {
-  const sealed = sealedStorage(resolveStorage(storage), SCOPE);
+export function createSessionStore(
+  storage?: StorageLike,
+  ownerScope = SCOPE,
+): SessionStore {
+  const sealed = sealedStorage(resolveStorage(storage), ownerScope, SCOPE);
   /** In-tab refresh token; never written to the store. */
   let refreshTokenMemory: string | undefined;
   let returnTo: string | null = null;
@@ -137,4 +141,30 @@ export function createSessionStore(storage?: StorageLike): SessionStore {
       else await sealed.set(RETURN_TO_KEY, value);
     },
   };
+}
+
+/** Legacy SDK credentials lack a proven issuer/client owner and require sign-in again. */
+export function createConfiguredSessionStore(
+  storage: StorageLike | undefined,
+  issuer: string,
+  clientId: string,
+): SessionStore {
+  const raw = resolveStorage(storage);
+  const owned: StorageLike = {
+    getItem(key) {
+      const value = raw.getItem(key);
+      if (
+        (key === SESSION_KEY || key === PKCE_KEY) &&
+        value !== null &&
+        !value.startsWith(CLIENT_AT_REST_PREFIX)
+      ) {
+        raw.removeItem(key);
+        return null;
+      }
+      return value;
+    },
+    setItem: (key, value) => raw.setItem(key, value),
+    removeItem: (key) => raw.removeItem(key),
+  };
+  return createSessionStore(owned, JSON.stringify([SCOPE, issuer, clientId]));
 }

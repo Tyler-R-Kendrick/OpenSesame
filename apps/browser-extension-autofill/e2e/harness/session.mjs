@@ -102,6 +102,9 @@ export async function startSession({ standing = true, entries } = {}) {
         `--disable-extensions-except=${extension}`,
         `--load-extension=${extension}`,
         "--host-resolver-rules=MAP *.test 127.0.0.1",
+        // These synthetic origins are loopback fixtures, resolved by Chromium.
+        // An upstream proxy cannot resolve them to the local test listener.
+        "--no-proxy-server",
         "--remote-debugging-port=0",
       ],
     });

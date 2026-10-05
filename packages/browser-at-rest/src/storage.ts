@@ -15,7 +15,12 @@
  * cancels a seal still in flight, so a removed value never comes back.
  */
 
-import { isSealedForRest, openFromRest, sealForRest } from "./seal.js";
+import {
+  LEGACY_CLIENT_AT_REST_PREFIX,
+  isSealedForRest,
+  openFromRest,
+  sealForRest,
+} from "./seal.js";
 
 /** The slice of Web Storage an SDK is handed. */
 export interface StorageLike {
@@ -46,6 +51,7 @@ export interface SealedStorage {
 export function sealedStorage(
   storage: StorageLike,
   scope: string,
+  legacyScope = scope,
 ): SealedStorage {
   const held = new Map<string, string>();
   /** Bumped by every write; a seal lands only if no newer write came since. */
@@ -85,7 +91,11 @@ export function sealedStorage(
   function open(key: string, raw: string | null): Promise<string | null> {
     if (raw === null) return Promise.resolve(null);
     if (!isSealedForRest(raw)) return Promise.resolve(raw);
-    return openFromRest(scope, key, raw);
+    return openFromRest(
+      raw.startsWith(LEGACY_CLIENT_AT_REST_PREFIX) ? legacyScope : scope,
+      key,
+      raw,
+    );
   }
 
   return {

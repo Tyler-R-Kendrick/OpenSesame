@@ -104,7 +104,20 @@ async function completeFirstRunSeal(page: Page): Promise<void> {
   await page.getByLabel("I understand this vault cannot be recovered.").check();
   await page.getByRole("button", { name: "Seal this device" }).click();
 
-  await page.locator(".vault").waitFor({ state: "visible" });
+  const vault = page.locator(".vault");
+  await vault.waitFor({ state: "visible" });
+  // Phones enter the section tree; the baseline names the list reached from it.
+  if (
+    (await vault.getAttribute("data-pane")) === "tree" &&
+    !(await page
+      .getByRole("heading", { name: "Nothing here", exact: true })
+      .isVisible())
+  ) {
+    await page.getByRole("treeitem", { name: /^all\b/i }).click();
+    await page
+      .locator(".vault[data-pane='list']")
+      .waitFor({ state: "visible" });
+  }
   // The pane has no heading; a fresh vault lands on the empty state
   // (apps/pages/src/sections/VaultSection.tsx).
   await page

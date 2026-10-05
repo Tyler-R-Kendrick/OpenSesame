@@ -200,6 +200,22 @@ nothing else moved. Re-seeded again the same day: the release notes now list
 live sessions under Works (directly, or through a tunnel address, TURN server
 or code carrier the owner names) rather than under In progress.
 
+**2026-10-05.** Four baselines were deliberately regenerated and reviewed against
+latest main after the customer-envelope integration: `pages-desktop.png`,
+`pages-mobile.png`, `vault-unlock-mobile.png`, and `vault-list-mobile.png`.
+The existing September 28 images predated the reset removal on the front door
+(`2716fa064`, #618), the help key on gate screens (`bf096cb53`, #709), and the
+phone pane, touch copy, and floating Add button changes (`f2c35f05f`, #632;
+`4ba0d48d9`, #660; `db3e7a784`, #698). Those UI changes were already on main;
+this encryption change does not introduce them. The desktop seal and list
+baselines already passed and were retained. Every changed PNG was opened and
+checked against the production UI before a fresh normal comparison run passed
+all six screens (27.5 seconds, `VISUAL_UPDATE` unset).
+Pixel and content thresholds, font handling, dimensions, and screenshot
+comparison logic were not changed. The harness now binds its preview to the
+same IPv4 address it probes, and opens the phone's All items list from its
+section tree before capturing that list.
+
 ## What the orchestrator should do next
 
 If `apps/pages` changes in a way that's expected to alter its rendering,

@@ -22,7 +22,7 @@ describe("everything the runner keeps rests sealed (ADR 0149)", () => {
     expect(r.store.rows.size).toBeGreaterThan(4);
     for (const [key, value] of r.store.rows) {
       expect(key.startsWith("runner."), key).toBe(true);
-      expect(value.startsWith("osc1."), key).toBe(true);
+      expect(value.startsWith("osc2."), key).toBe(true);
       for (const secret of secrets) expect(value).not.toContain(secret);
       expect(key).not.toContain("rp.example");
     }

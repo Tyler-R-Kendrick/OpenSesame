@@ -10,6 +10,7 @@
  */
 
 import {
+  AT_REST_OVERHEAD_BYTES,
   AT_REST_PREFIX,
   atRestBinding,
   isSealedAtRest,
@@ -46,5 +47,9 @@ export async function openOriginFile(
 
 /** The largest sealed file a plaintext of `maxBytes` bytes can become. */
 export function sealedFileBound(maxBytes: number): number {
-  return AT_REST_PREFIX.length + Math.ceil(((maxBytes + 40) * 4) / 3) + 4;
+  return (
+    AT_REST_PREFIX.length +
+    Math.ceil(((maxBytes + AT_REST_OVERHEAD_BYTES) * 4) / 3) +
+    4
+  );
 }

@@ -7,6 +7,7 @@
  */
 import fs from "node:fs";
 import { expect } from "@playwright/test";
+import { isClientRestEnvelope } from "./at-rest-envelope-format.mjs";
 import {
   answer,
   expectRefused,
@@ -88,7 +89,10 @@ export async function spaRpJourney(env) {
   const sent = watched.asked.at(-1);
   expect(writes.length).toBeGreaterThan(0);
   for (const { value } of writes) {
-    expect(value.startsWith("osc1.")).toBe(true);
+    expect(
+      isClientRestEnvelope(value),
+      "SPA writes a complete current wrapped-DEK envelope",
+    ).toBe(true);
     for (const secret of [
       sent.searchParams.get("state"),
       sent.searchParams.get("nonce"),
@@ -98,7 +102,7 @@ export async function spaRpJourney(env) {
     }
   }
   console.log(
-    `PASS spa at rest: ${writes.length} sessionStorage writes, every one an osc1. seal with the state, nonce and application id unreadable in it`,
+    `PASS spa at rest: ${writes.length} sessionStorage writes, every one a complete osc2. wrapped-DEK envelope with the state, nonce and application id unreadable in it`,
   );
 
   // The same response again, in the same tab: the state was taken once.
