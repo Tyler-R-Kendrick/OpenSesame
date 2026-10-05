@@ -31,7 +31,11 @@ export type WipeDeps = Readonly<{
   settle: () => Promise<void>;
   /** Run `work` while no other tab moves vaults. */
   exclusive: <T>(work: () => Promise<T>) => Promise<T>;
-  /** Make the app's own memory match storage: locks, lists, the open store. */
+  /**
+   * Quietly make the app's memory and boot pointer agree with storage: keys
+   * forgotten, the active vault no longer one that is gone. Nothing here may
+   * redraw a screen; the view is brought up to date by the caller (`real.ts`).
+   */
   afterRemoval: (gone: readonly string[]) => Promise<void>;
   now: () => Date;
 }>;

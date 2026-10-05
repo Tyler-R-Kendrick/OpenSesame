@@ -10,6 +10,7 @@
  */
 
 import { DECOY_ITEMS_RUNNER } from "./decoy-items-effect.js";
+import { runWipeEffect } from "../../wipe/real.js";
 import type { DuressPlan } from "./mode.js";
 
 export type EffectPhase = "on_match" | "after_session";
@@ -29,7 +30,10 @@ export type EffectRunner = Readonly<{
 const RUNNERS: ReadonlyMap<string, EffectRunner> = new Map<
   string,
   EffectRunner
->([["decoy_items", DECOY_ITEMS_RUNNER]]);
+>([
+  ["decoy_items", DECOY_ITEMS_RUNNER],
+  ["wipe", { phase: "on_match", run: runWipeEffect }],
+]);
 
 /** Whether unlock can run `effect`: a mode may only seal one that it can. */
 export function hasEffectRunner(effect: string): boolean {

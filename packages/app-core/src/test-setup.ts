@@ -5,8 +5,8 @@
  */
 import { loadPack, packEntries } from "@opensesame/vault-item-types";
 import { afterEach } from "vitest";
-import { installWipeGuard } from "./lib/duress/wipe/test-guard.js";
 import { configureHost } from "./host.js";
+import { installWipeGuard } from "./lib/duress/wipe/test-guard.js";
 import { assertOwnedStorageWrites } from "./test-host-storage-writes.js";
 import { createTestHost, repairInertWebStorage } from "./test-host.js";
 

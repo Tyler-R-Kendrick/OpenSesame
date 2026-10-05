@@ -25,13 +25,13 @@ import {
   captureClaimArrivalFromPage,
 } from "@opensesame/app-core/lib/claims/arrival.js";
 import { captureDeviceLinkFromPage } from "@opensesame/app-core/lib/device-link.js";
+import { resumeWipeAtBoot } from "@opensesame/app-core/lib/duress/wipe/real.js";
 import { captureInteractionArrivalFromPage } from "@opensesame/app-core/lib/interactions-link.js";
 import { captureInvocationArrivalFromPage } from "@opensesame/app-core/lib/invoke-link.js";
 import {
   captureInviteFromPage,
   watchInviteArrivals,
 } from "@opensesame/app-core/lib/join/invite.js";
-import { resumeWipeAtBoot } from "@opensesame/app-core/lib/duress/wipe/real.js";
 import { kvHydrate } from "@opensesame/app-core/lib/kv.js";
 import { lastVaultIsGuest } from "@opensesame/app-core/lib/last-vault.js";
 import {

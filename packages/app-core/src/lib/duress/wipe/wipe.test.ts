@@ -7,8 +7,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { headerOf } from "../../travel/storage.js";
 import { WIPE_INTENT_KEY } from "../store/boot-keys.js";
 import { clearJournal } from "../store/journal.js";
-import { readWipeIntent, wipeIntentPending, writeWipeIntent } from "./intent.js";
+import {
+  readWipeIntent,
+  wipeIntentPending,
+  writeWipeIntent,
+} from "./intent.js";
 import { isProtectedFile } from "./targets.js";
+import { resumeWipe, wipeDevice } from "./wipe.js";
 import {
   KEPT_FILES,
   PRJ_TRIP,
@@ -16,7 +21,6 @@ import {
   deviceWithVaults,
   vaultFiles,
 } from "./wipe.test-support.js";
-import { resumeWipe, wipeDevice } from "./wipe.js";
 
 beforeEach(() => {
   clearJournal(WIPE_INTENT_KEY);
@@ -32,9 +36,9 @@ describe("wipe: what goes and what stays", () => {
 
     expect(vaultFiles(device)).toEqual([]);
     // The lockout counters named for a vault go with it.
-    expect([...device.files.keys()].filter((f) => f.includes("attempts"))).toEqual(
-      [],
-    );
+    expect(
+      [...device.files.keys()].filter((f) => f.includes("attempts")),
+    ).toEqual([]);
     for (const file of KEPT_FILES) {
       expect(device.files.get(file), file).toBe(before.get(file));
     }
@@ -127,7 +131,9 @@ describe("wipe: a page that dies between the phases", () => {
     }
     expect(vaultFiles(device).length).toBeGreaterThan(0);
     expect(wipeIntentPending()).toBe(true);
-    expect(readWipeIntent()?.ids).toEqual(["personal", PRJ_TRIP, PRJ_WORK].sort());
+    expect(readWipeIntent()?.ids).toEqual(
+      ["personal", PRJ_TRIP, PRJ_WORK].sort(),
+    );
 
     // A new page: healthy storage, the intent read back from the journal.
     heal();
@@ -135,7 +141,8 @@ describe("wipe: a page that dies between the phases", () => {
 
     expect(receipt?.completion).toBe("applied_local");
     expect(vaultFiles(device)).toEqual([]);
-    for (const file of KEPT_FILES) expect(device.files.has(file), file).toBe(true);
+    for (const file of KEPT_FILES)
+      expect(device.files.has(file), file).toBe(true);
     expect(wipeIntentPending()).toBe(false);
   });
 
@@ -159,9 +166,13 @@ describe("wipe: a page that dies between the phases", () => {
 
   it("never follows an intent that names a guest tomb or a path", async () => {
     const device = deviceWithVaults();
-    await writeWipeIntent(["guest", "guest-scratch", "../x", "personal"], new Date());
+    await writeWipeIntent(
+      ["guest", "guest-scratch", "../x", "personal"],
+      new Date(),
+    );
     await resumeWipe(device.wipeDeps);
-    for (const file of KEPT_FILES) expect(device.files.has(file), file).toBe(true);
+    for (const file of KEPT_FILES)
+      expect(device.files.has(file), file).toBe(true);
     expect(device.files.has(headerOf("personal"))).toBe(false);
     expect(device.files.has(headerOf(PRJ_WORK))).toBe(true);
   });
@@ -171,7 +182,12 @@ describe("wipe: a page that dies between the phases", () => {
     const { kvSet } = await import("../../kv.js");
     kvSet(
       WIPE_INTENT_KEY,
-      JSON.stringify({ schemaVersion: 1, revision: 1, updatedAt: "", payload: { v: 2, ids: ["personal"], startedAt: "" } }),
+      JSON.stringify({
+        schemaVersion: 1,
+        revision: 1,
+        updatedAt: "",
+        payload: { v: 2, ids: ["personal"], startedAt: "" },
+      }),
     );
     expect(wipeIntentPending()).toBe(true);
     expect(await resumeWipe(device.wipeDeps)).toBeNull();

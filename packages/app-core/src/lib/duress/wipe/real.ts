@@ -10,11 +10,12 @@
  * Both refuse when the test guard forbids the real removal (`guard.ts`).
  */
 
-import { lockManager } from "../../../ports.js";
-import { kvFlush } from "../../kv.js";
+import { lockManager, maybePage } from "../../../ports.js";
+import { kvFlush, kvSetDurable } from "../../kv.js";
+import type { BootRecord } from "../../projects-state.js";
 import {
   PERSONAL_PROJECT_ID,
-  forgetDepartedProjects,
+  PROJECTS_KEY,
   listProjects,
   rehydrateProjects,
 } from "../../projects.js";
@@ -38,12 +39,10 @@ export const wipeSeams: { deps: WipeDeps } = {
     async afterRemoval(gone) {
       // A vault opened earlier in the session keeps its key in memory.
       for (const id of gone) lockTomb(id);
-      // The list and the active pointer forget them; the personal vault is
-      // the one the device always has, so it stays the default.
-      const departed = gone.filter((id) => id !== PERSONAL_PROJECT_ID);
-      if (departed.length > 0) await forgetDepartedProjects(departed);
-      rehydrateProjects();
-      vaultStore.rehydrate();
+      // The boot pointer never names a vault that is gone; the personal vault
+      // is the one the device always has. Written, not announced.
+      const boot: BootRecord = { v: 1, activeId: PERSONAL_PROJECT_ID };
+      await kvSetDurable(PROJECTS_KEY, JSON.stringify(boot));
     },
     now: () => new Date(),
   },
@@ -58,11 +57,43 @@ export function isWipeBody(body: unknown): boolean {
   return keys.length === 1 && (body as { v?: unknown }).v === 1;
 }
 
+/** Bring the lists and the store up to what storage now holds. */
+function syncView(): void {
+  rehydrateProjects();
+  vaultStore.rehydrate();
+}
+
+/**
+ * The refusal is on screen, the unlock form among it. Bringing the store up to
+ * date at once would replace that screen with the one a device with no vault
+ * gets, and the person would never see the refusal. So the view waits for the
+ * next touch of the page: nothing can be submitted before it, and the first
+ * thing a submit meets is the vault that is no longer there. A reload gets
+ * there on its own.
+ */
+function syncAtNextTouch(): void {
+  const target = maybePage();
+  if (!target) {
+    syncView();
+    return;
+  }
+  const touches = ["pointerdown", "keydown", "touchstart"] as const;
+  const once = (): void => {
+    for (const touch of touches) target.removeEventListener(touch, once, true);
+    syncView();
+  };
+  for (const touch of touches) target.addEventListener(touch, once, true);
+}
+
 /** The mode's runner. A body it does not understand does nothing at all. */
 export async function runWipeEffect(body: unknown): Promise<void> {
   if (!isWipeBody(body)) return;
   if (!wipeGuard.permits("runWipeEffect")) return;
-  await wipeDevice(wipeSeams.deps);
+  try {
+    await wipeDevice(wipeSeams.deps);
+  } finally {
+    syncAtNextTouch();
+  }
 }
 
 /** Boot: finish a wipe the page died in. Does nothing when none began. */
@@ -71,6 +102,8 @@ export async function resumeWipeAtBoot(): Promise<void> {
   if (!wipeGuard.permits("resumeWipeAtBoot")) return;
   try {
     await resumeWipe(wipeSeams.deps);
+    // Nothing is on screen yet: boot reads the device as it now is.
+    rehydrateProjects();
   } catch {
     // Boot goes on; the intent is still there for the next one.
   }

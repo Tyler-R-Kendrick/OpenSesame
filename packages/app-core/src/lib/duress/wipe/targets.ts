@@ -15,11 +15,7 @@
 import { kvFileName } from "../../kv.js";
 import { LEGACY_VAULT_KEYS } from "../../projects-state.js";
 import { scopedKey } from "../../projects.js";
-import {
-  SESSION_TOMBS,
-  filesOfVault,
-  headerOf,
-} from "../../travel/storage.js";
+import { SESSION_TOMBS, filesOfVault, headerOf } from "../../travel/storage.js";
 import { PERSONAL_TOMB } from "../../vfs.js";
 import { DURESS_BOOT_KEYS } from "../store/boot-keys.js";
 
