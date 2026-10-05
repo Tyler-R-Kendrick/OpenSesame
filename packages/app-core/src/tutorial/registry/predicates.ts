@@ -123,6 +123,20 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
       vaultStore.getSnapshot().items.every((item) => item.deletedAt !== null),
   },
   {
+    id: "vault.has-items",
+    description:
+      "The open vault holds at least one item outside the trash. False while it is locked.",
+    read: () =>
+      vaultStore.getSnapshot().items.some((item) => item.deletedAt === null),
+  },
+  {
+    id: "vault.has-trash",
+    description:
+      "The open vault has at least one item in the trash. False while it is locked.",
+    read: () =>
+      vaultStore.getSnapshot().items.some((item) => item.deletedAt !== null),
+  },
+  {
     id: "route.vault",
     description: "The person is somewhere in the Vault section.",
     read: () => onRoute("/vault"),

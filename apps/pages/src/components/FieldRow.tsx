@@ -1,5 +1,6 @@
 import {
   type ReactNode,
+  type Ref,
   useCallback,
   useEffect,
   useRef,
@@ -71,6 +72,7 @@ export function CopyButton({
   copied,
   failed,
   onCopy,
+  guideRef,
 }: {
   value: string;
   label: string;
@@ -78,11 +80,14 @@ export function CopyButton({
   copied: string | null;
   failed: string | null;
   onCopy: (key: string, value: string) => Promise<void>;
+  /** Set by the one copy key a tutorial points at (`item.copy-password`). */
+  guideRef?: Ref<HTMLButtonElement>;
 }) {
   const isCopied = copied === fieldKey;
   const isFailed = failed === fieldKey;
   return (
     <button
+      ref={guideRef}
       type="button"
       className={`icon-btn${isCopied ? " is-on" : ""}`}
       onClick={() => void onCopy(fieldKey, value)}
