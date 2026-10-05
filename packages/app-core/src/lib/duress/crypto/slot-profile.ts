@@ -19,10 +19,15 @@ import {
 export const MAX_SLOTS = 8;
 
 /**
- * Most bytes a slot may carry beyond its keys and presentation. A mode's plan
- * is a few lines of JSON; the cap keeps a slot from becoming a store.
+ * Most bytes a slot may carry beyond its keys and presentation: 64 KiB. Most
+ * plans are a few lines of JSON, and the freeze, wipe and decoy-items plans
+ * stay under 1 KiB. "Show my vault without the items I hide" (ADR 0168) seals
+ * copies of up to 50 items taken at arming, which is what the cap is for;
+ * it was 8 KiB until that mode. The cap still keeps a slot from becoming a
+ * store: the slot sits in the enrollment journal, which is read and written
+ * whole, and a payload is sealed under a short code whatever its size.
  */
-export const MAX_SLOT_PAYLOAD_BYTES = 8192;
+export const MAX_SLOT_PAYLOAD_BYTES = 65_536;
 
 export type SealedSlot = Readonly<{
   version: 1;

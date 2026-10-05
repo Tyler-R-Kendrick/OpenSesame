@@ -10,6 +10,7 @@
  */
 
 import type { JsonValue } from "@opensesame/os-domain";
+import type { VaultItem } from "@opensesame/vault-core";
 
 /**
  * What unlock reads out of the sealed slot. Existing enrollments hold exactly
@@ -23,7 +24,11 @@ export type DuressPresentation = "decoy" | "locked";
  * that `effects.ts` has a runner for it and that the unlock path runs it, so a
  * mode lands together with its runner or not at all.
  */
-export type DuressEffectName = "decoy_items" | "freeze" | "wipe";
+export type DuressEffectName =
+  | "decoy_items"
+  | "visible_items"
+  | "freeze"
+  | "wipe";
 
 /** One choice among a few the owner picks for a mode. */
 export type DuressInputOption = Readonly<{ value: string; label: string }>;
@@ -31,7 +36,8 @@ export type DuressInputOption = Readonly<{ value: string; label: string }>;
 /**
  * An extra thing the owner supplies for a mode. Every kind reaches
  * `enableDuressCode`'s `extras` as a string under `id`: text as typed, a choice
- * as its option's value, items as one per line, a confirmation as the word typed.
+ * as its option's value, items as one per line, a picked set as the ids of the
+ * picked rows one per line, a confirmation as the word typed.
  */
 export type DuressModeInput =
   | Readonly<{ kind: "none" }>
@@ -58,6 +64,15 @@ export type DuressModeInput =
       starter?: readonly string[];
     }>
   | Readonly<{
+      kind: "pick";
+      id: string;
+      label: string;
+      /** Rows that must be picked before the mode can be armed. */
+      min: number;
+      /** Most rows that may be picked. */
+      max: number;
+    }>
+  | Readonly<{
       kind: "confirm";
       id: string;
       label: string;
@@ -70,6 +85,20 @@ export type DuressPlan = Readonly<{
   effect: DuressEffectName;
   /** The effect's own parameters; its runner validates them. */
   body: JsonValue;
+}>;
+
+/**
+ * What the sheet knows about the device when it draws a mode: the items of the
+ * vault the owner has open. A plan is a pure function of its extras and this,
+ * so a mode never reaches for the vault store, and a test hands it a list.
+ */
+export type DuressContext = Readonly<{ items: readonly VaultItem[] }>;
+
+/** One row of a `pick` input: an opaque id, its name, and what kind it is. */
+export type DuressPickRow = Readonly<{
+  id: string;
+  label: string;
+  detail: string;
 }>;
 
 export type DuressMode<Id extends string = string> = Readonly<{
@@ -92,5 +121,13 @@ export type DuressMode<Id extends string = string> = Readonly<{
    * Builds what is sealed with the code from the owner's inputs. A mode with an
    * effect has one; the plan reaches the unlock path only through the slot.
    */
-  plan?: (extras: Readonly<Record<string, string>>) => DuressPlan;
+  plan?: (
+    extras: Readonly<Record<string, string>>,
+    context: DuressContext,
+  ) => DuressPlan;
+  /**
+   * The rows a `pick` input offers. A mode with a `pick` input is offered only
+   * where it has rows to offer: it is absent, not disabled (ADR 0158).
+   */
+  rows?: (context: DuressContext) => readonly DuressPickRow[];
 }>;

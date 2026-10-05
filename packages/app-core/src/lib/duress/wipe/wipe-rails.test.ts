@@ -99,7 +99,9 @@ describe("wipe runner: only a plan it understands", () => {
     const device = observed();
     const mode = getMode("wipe");
     if (!mode?.plan) throw new Error("no wipe mode");
-    const plan = decodePlan(encodePlan(mode.plan({ confirm: "WIPE" })));
+    const plan = decodePlan(
+      encodePlan(mode.plan({ confirm: "WIPE" }, { items: [] })),
+    );
     await runDuressEffects(plan, "after_session", host);
     expect(device.removals).toEqual([]);
     await runDuressEffects(plan, "on_match", host);

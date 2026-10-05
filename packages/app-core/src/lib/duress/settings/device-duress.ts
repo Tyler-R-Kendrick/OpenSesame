@@ -14,6 +14,7 @@
  * neither, rather than a switch that promises what unlock does not do.
  */
 
+import type { VaultItem } from "@opensesame/vault-core";
 import { clearIncidentJournalsDurable } from "../incident/intent-journal.js";
 import {
   DURESS_PIN_MAX,
@@ -28,6 +29,7 @@ import {
   encodePlan,
   getMode,
   inputReady,
+  isOffered,
 } from "./modes/index.js";
 import {
   armPersistedUnlockEnrollment,
@@ -69,6 +71,8 @@ export type DuressRefusal =
   | "collides"
   /** The browser would not keep it. */
   | "not_durable"
+  /** What the owner picked to show is more than a code can hold. */
+  | "too_large"
   /** A duress response holds this device. */
   | "incident_active"
   | "failed";
@@ -93,6 +97,7 @@ function checkRequest(input: {
   mode?: string;
   outcome?: string;
   extras?: Readonly<Record<string, string>>;
+  items?: readonly VaultItem[];
 }): Checked {
   if (duressSessionFence.readFence().activeIncidentIds.length > 0) {
     return { ok: false, code: "incident_active" };
@@ -101,7 +106,11 @@ function checkRequest(input: {
     return { ok: false, code: "code_format" };
   }
   const mode = getMode(input.mode ?? input.outcome ?? "");
-  if (!mode || !inputReady(mode, input.extras ?? {})) {
+  if (
+    !mode ||
+    !inputReady(mode, input.extras ?? {}) ||
+    !isOffered(mode, { items: input.items ?? [] })
+  ) {
     return { ok: false, code: "failed" };
   }
   return { ok: true, mode };
@@ -109,6 +118,7 @@ function checkRequest(input: {
 
 function refusalFor(message: string): DuressRefusal {
   if (message.startsWith("code ")) return "code_format";
+  if (message.includes("too large")) return "too_large";
   if (message.includes("ambiguous_trigger") || message.includes("collide")) {
     return "collides";
   }
@@ -127,6 +137,12 @@ export async function enableDuressCode(input: {
   outcome?: string;
   /** Values for the inputs the mode declares, by the input's id. */
   extras?: Readonly<Record<string, string>>;
+  /**
+   * The items of the vault the owner has open. A mode that shows some of them
+   * copies them now, while that vault is open, and seals the copies with the
+   * code; no mode reads the vault at unlock. Never stored beyond that.
+   */
+  items?: readonly VaultItem[];
   /** The vault the owner is in, so the enrollment names a real one. */
   vaultRef: string;
   /**
@@ -161,7 +177,9 @@ export async function enableDuressCode(input: {
       mode.plan
         ? {
             ...ceremony,
-            payload: encodePlan(mode.plan(input.extras ?? {})),
+            payload: encodePlan(
+              mode.plan(input.extras ?? {}, { items: input.items ?? [] }),
+            ),
           }
         : ceremony,
     );

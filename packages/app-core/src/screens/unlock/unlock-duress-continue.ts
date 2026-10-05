@@ -4,7 +4,7 @@
  * session for open presentations, or like a wrong secret for locked ones.
  */
 
-import { type LoginItem, WrongPasswordError } from "@opensesame/vault-core";
+import { type VaultItem, WrongPasswordError } from "@opensesame/vault-core";
 import type { PresentationClass } from "../../lib/duress/access/context.js";
 import {
   clearActivePresentation,
@@ -34,7 +34,7 @@ export type DuressContinueStore = Readonly<{
   }) => Promise<void>;
   cancelTotpChallenge?: () => void;
   /** The open session's items; a plan's runner adds to it (`modes/effects.ts`). */
-  addItems?: (items: LoginItem[]) => Promise<void>;
+  addItems?: (items: VaultItem[]) => Promise<void>;
 }>;
 
 export type DuressContinueMatch = Readonly<{

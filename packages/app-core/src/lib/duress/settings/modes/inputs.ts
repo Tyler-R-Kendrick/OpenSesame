@@ -4,7 +4,7 @@
  * the two cannot disagree about what is enough.
  */
 
-import type { DuressMode } from "./mode.js";
+import type { DuressContext, DuressMode } from "./mode.js";
 
 export type ModeExtras = Readonly<Record<string, string>>;
 
@@ -33,6 +33,14 @@ export function inputReady(mode: DuressMode, extras: ModeExtras): boolean {
         lines.every((line) => line.length <= input.maxLength)
       );
     }
+    case "pick": {
+      const ids = itemLines(extras[input.id] ?? "");
+      return (
+        new Set(ids).size === ids.length &&
+        ids.length >= input.min &&
+        ids.length <= input.max
+      );
+    }
     case "confirm":
       return (
         (extras[input.id] ?? "").trim().toLowerCase() ===
@@ -48,4 +56,22 @@ export function inputReady(mode: DuressMode, extras: ModeExtras): boolean {
 export function starterText(mode: DuressMode): string {
   const { input } = mode;
   return input.kind === "items" ? (input.starter ?? []).join("\n") : "";
+}
+
+/**
+ * Whether the sheet draws `mode` at all. A mode that picks among rows is
+ * offered only when the open vault gives it rows to pick; one that does not
+ * pick is always offered. Absent when it cannot act, never drawn disabled.
+ */
+export function isOffered(mode: DuressMode, context: DuressContext): boolean {
+  if (mode.input.kind !== "pick") return true;
+  return (mode.rows?.(context).length ?? 0) >= mode.input.min;
+}
+
+/** The modes of `modes` the sheet draws for this device, in their order. */
+export function offeredModes<Mode extends DuressMode>(
+  modes: readonly Mode[],
+  context: DuressContext,
+): Mode[] {
+  return modes.filter((mode) => isOffered(mode, context));
 }

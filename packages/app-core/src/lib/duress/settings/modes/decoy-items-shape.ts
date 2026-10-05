@@ -7,12 +7,10 @@
  * range, any non-string, and the whole body is no plan.
  */
 
-import {
-  type BoundaryValue,
-  type JsonObject,
-  isJsonObject,
-  isString,
-} from "@opensesame/os-domain";
+import { type BoundaryValue, isString } from "@opensesame/os-domain";
+import { cleanTitle, hasExactKeys, plainObject } from "./shape-kit.js";
+
+export { cleanTitle } from "./shape-kit.js";
 
 /** Items the decoy holds, and how long a title may be. */
 export const DECOY_ITEM_LIMITS = {
@@ -28,24 +26,6 @@ export type DecoyItem = Readonly<{ title: string; secret: string }>;
 export type DecoyItemsBody = Readonly<{ items: readonly DecoyItem[] }>;
 
 const CONTROL = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
-const CONTROLS = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu;
-
-/** A title as it will be shown: one line of plain text, spaces collapsed. */
-export function cleanTitle(line: string): string {
-  return line.replace(CONTROLS, " ").replace(/\s+/gu, " ").trim();
-}
-
-/** A plain JSON object, or nothing: a class instance or a dressed prototype is not one. */
-function plainObject(value: BoundaryValue): JsonObject | null {
-  if (!isJsonObject(value)) return null;
-  const proto: object | null = Object.getPrototypeOf(value);
-  return proto === Object.prototype || proto === null ? value : null;
-}
-
-function hasExactKeys(value: JsonObject, keys: readonly string[]): boolean {
-  const own = Object.keys(value);
-  return own.length === keys.length && keys.every((key) => own.includes(key));
-}
 
 function readItem(value: BoundaryValue): DecoyItem | null {
   const object = plainObject(value);
