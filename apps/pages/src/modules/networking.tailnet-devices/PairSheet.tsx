@@ -12,22 +12,24 @@ import { CeremonySheet } from "../../components/CeremonySheet.js";
 import { CeremonyShell } from "../../components/CeremonyShell.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import { IconConnection } from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
+import { ErrorMark } from "./SwitchRow.js";
 
 export function PairSheet({
   initialCode,
-  canPair,
+  blocked,
   onPair,
   onClose,
 }: {
   initialCode: string;
-  canPair: boolean;
+  /** Why this page cannot pair, in words; empty when it can. */
+  blocked: string;
   onPair: (code: string) => Promise<void>;
   onClose: () => void;
 }) {
   const [code, setCode] = useState(initialCode);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const canPair = blocked === "";
   const ready = canPair && code.trim().length > 0 && !busy;
 
   const pair = () => {
@@ -68,9 +70,7 @@ export function PairSheet({
             { key: "Code from", value: "opensesame daemon tailnet pair" },
             {
               key: "Kept",
-              value: canPair
-                ? "sealed in this vault"
-                : "nowhere: unlock a vault you own",
+              value: canPair ? "sealed in this vault" : "nowhere",
             },
           ]}
           primary={{
@@ -95,11 +95,7 @@ export function PairSheet({
               setError("");
             }}
           />
-          {error ? (
-            <p className="vexport__marks" role="alert">
-              <StatusMark tone="err" label={error} />
-            </p>
-          ) : null}
+          <ErrorMark error={error || blocked} />
         </CeremonyShell>
       </form>
     </CeremonySheet>

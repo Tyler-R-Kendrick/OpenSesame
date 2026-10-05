@@ -65,8 +65,10 @@ export const tailnetAdminSeams = {
   pairing: currentTailnetPairing,
   revision: tailnetPairingRevision,
   subscribe: subscribeTailnetPairing,
-  possible: (): boolean =>
-    tailnetPairingPossible() && localNetworkFetchSeams.eligible(),
+  /** An owner's vault is open: somewhere to seal what pairing returns. */
+  vaultReady: tailnetPairingPossible,
+  /** This deployment may reach local authority at all (not a shared origin). */
+  eligible: (): boolean => localNetworkFetchSeams.eligible(),
   bind: bindTailnetPairing,
   keep: keepTailnetPairing,
   drop: dropTailnetPairing,
@@ -80,6 +82,14 @@ export type TailnetTarget = Readonly<{
   role: TailnetAdminPairing["role"];
   revision: number;
 }>;
+
+/** Why this page cannot pair right now; `null` when it can. */
+export type PairBlocker = "shared-origin" | "locked";
+
+function pairBlocker(): PairBlocker | null {
+  if (!tailnetAdminSeams.eligible()) return "shared-origin";
+  return tailnetAdminSeams.vaultReady() ? null : "locked";
+}
 
 /** What a page asks for when it adds a device. */
 export type KeyRequest = Readonly<{
@@ -200,7 +210,8 @@ async function pair(
   if (!code) throw new TailnetAdminError("not-a-code");
   if (code.origin !== tailnetAdminSeams.pageOrigin())
     throw new TailnetAdminError("other-origin");
-  if (!tailnetAdminSeams.possible()) throw new TailnetAdminError("locked");
+  const blocked = pairBlocker();
+  if (blocked) throw new TailnetAdminError(blocked);
   const began = tailnetAdminSeams.bind();
   const response = await wire
     .send(code.url, TAILNET_PAIRING_PATH, {
@@ -308,7 +319,8 @@ export function tailnetAdmin(egress: EgressPort, capability: CapabilityId) {
   const wire = transport(egress, capability);
   return {
     subscribe: (listener: () => void) => tailnetAdminSeams.subscribe(listener),
-    canPair: () => tailnetAdminSeams.possible(),
+    canPair: () => pairBlocker() === null,
+    pairBlocker,
     target: currentTarget,
     pair: (raw: string, signal?: AbortSignal) => pair(wire, raw, signal),
     forget: (signal?: AbortSignal) => forget(wire, signal),

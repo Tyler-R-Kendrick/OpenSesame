@@ -7,6 +7,10 @@
 
 import type { TailnetAdmin } from "@opensesame/app-core/lib/tailnet-admin/client.js";
 import {
+  TailnetAdminError,
+  tailnetErrorText,
+} from "@opensesame/app-core/lib/tailnet-admin/errors.js";
+import {
   DEVICE_FILTERS,
   type DeviceFilter,
   needsAttention,
@@ -50,6 +54,22 @@ function count(
   return devices.length;
 }
 
+/** Why this page cannot pair, in words; empty when it can. */
+function blockedText(admin: TailnetAdmin): string {
+  const blocked = admin.pairBlocker();
+  return blocked ? tailnetErrorText(new TailnetAdminError(blocked)) : "";
+}
+
+/** With nothing paired: whether pairing is possible here, and if not, why. */
+function Unpaired({ admin }: { admin: TailnetAdmin }) {
+  return (
+    <StatusMark
+      tone="idle"
+      label={blockedText(admin) || "No daemon paired for device management."}
+    />
+  );
+}
+
 function Marks({ model }: { model: TailnetModel }) {
   const { target, loaded, error, admin } = model;
   return (
@@ -62,16 +82,7 @@ function Marks({ model }: { model: TailnetModel }) {
           </span>
         </>
       ) : null}
-      {target ? null : (
-        <StatusMark
-          tone="idle"
-          label={
-            admin.canPair()
-              ? "No daemon paired for device management."
-              : "Unlock a vault you own to pair a daemon."
-          }
-        />
-      )}
+      {target ? null : <Unpaired admin={admin} />}
       {target && !loaded && !error ? (
         <StatusMark tone="idle" label="Reading the tailnet…" />
       ) : null}
@@ -275,7 +286,7 @@ export function TailnetDevices({ admin }: { admin: TailnetAdmin }) {
       {pairCode !== null ? (
         <PairSheet
           initialCode={pairCode}
-          canPair={admin.canPair()}
+          blocked={blockedText(admin)}
           onPair={(code) => admin.pair(code)}
           onClose={() => setPairCode(null)}
         />

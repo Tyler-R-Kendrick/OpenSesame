@@ -60,7 +60,8 @@ describe("Tailnet devices", () => {
   it("offers pairing and nothing else with no daemon paired", async () => {
     tailnetAdminSeams.pairing = () => null;
     tailnetAdminSeams.subscribe = () => () => undefined;
-    tailnetAdminSeams.possible = () => true;
+    tailnetAdminSeams.vaultReady = () => true;
+    tailnetAdminSeams.eligible = () => true;
     const admin = pairedClient(fakeDaemon([]));
     tailnetAdminSeams.pairing = () => null;
     render(<TailnetDevices admin={admin} />);
@@ -77,6 +78,22 @@ describe("Tailnet devices", () => {
       screen.getByRole("dialog", { name: "Pair with the tailnet daemon" }),
     ).toBeTruthy();
     expect(document.activeElement?.closest("[role=dialog]")).toBeTruthy();
+  });
+
+  it("on a shared-origin demo says why it cannot pair, and pairs nothing", () => {
+    const admin = pairedClient(fakeDaemon([]));
+    tailnetAdminSeams.pairing = () => null;
+    tailnetAdminSeams.vaultReady = () => true;
+    tailnetAdminSeams.eligible = () => false;
+    render(<TailnetDevices admin={admin} />);
+    expect(
+      screen.getByRole("img", {
+        name: "This shared-origin demo cannot manage tailnet devices. Use a dedicated or loopback deployment.",
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Pair with the tailnet daemon" }),
+    ).toHaveProperty("disabled", true);
   });
 
   it("lists the tailnet's real devices, waiting ones first, with what needs someone", async () => {

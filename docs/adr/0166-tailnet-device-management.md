@@ -101,6 +101,11 @@ The roles are the whole permission model:
 All under `/v1/tailnet/`, answered only to a bearer presented from its bound
 origin. CORS echoes exactly that origin, never `*`, never with credentials,
 and varies on `Origin`; every other daemon route still refuses a browser.
+An origin whose pairing an operator removed (`opensesame daemon tailnet
+unpair`) is still echoed for 30 days, at most 64 of them, newest kept: its
+next request then reads `tailnet_pairing_required` and the page says it was
+unpaired, where a CORS failure would read as the daemon having vanished.
+Being answered grants nothing; every route still wants a bearer.
 
 | Route | Role |
 | --- | --- |

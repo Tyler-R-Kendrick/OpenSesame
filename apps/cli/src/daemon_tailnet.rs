@@ -235,9 +235,10 @@ pub async fn run(cmd: TailnetCmd) -> anyhow::Result<()> {
             })
         }
         TailnetCmd::Unpair { origin, id, all: _ } => {
-            let revoked = store()?
-                .pairings()
-                .unpair(origin.as_deref(), id.as_deref())?;
+            let revoked =
+                store()?
+                    .pairings()
+                    .unpair(origin.as_deref(), id.as_deref(), unix_now())?;
             json!({ "revoked": revoked })
         }
         TailnetCmd::Device(verb) => devices::run(&store()?, verb).await?,

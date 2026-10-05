@@ -52,7 +52,8 @@ function egress(answer: () => Response): EgressPort & { calls: number } {
 
 function pairable(kept: TailnetAdminPairing[] = []) {
   tailnetAdminSeams.pageOrigin = () => ORIGIN;
-  tailnetAdminSeams.possible = () => true;
+  tailnetAdminSeams.vaultReady = () => true;
+  tailnetAdminSeams.eligible = () => true;
   tailnetAdminSeams.bind = () => ({ tomb: "personal", revision: 1 });
   tailnetAdminSeams.keep = async (next) => {
     kept.push(next);
@@ -102,8 +103,13 @@ describe("pairing", () => {
     ).rejects.toMatchObject({
       code: "other-origin",
     });
-    tailnetAdminSeams.possible = () => false;
+    tailnetAdminSeams.vaultReady = () => false;
     await expect(client.pair(code())).rejects.toMatchObject({ code: "locked" });
+    // A shared origin is refused before the vault is even asked.
+    tailnetAdminSeams.eligible = () => false;
+    await expect(client.pair(code())).rejects.toMatchObject({
+      code: "shared-origin",
+    });
     expect(port.calls).toBe(0);
   });
 

@@ -23,6 +23,11 @@ const FILE_VERSION: u32 = 1;
 const MAX_PENDING: usize = 8;
 /// Paired pages at once.
 const MAX_PAIRED: usize = 32;
+/// How long an origin whose pairing an operator removed is still answered,
+/// so the page reads "unpaired" instead of the daemon vanishing (ADR 0166 §4).
+const FORMER_TTL_SECS: u64 = 30 * 86_400;
+/// Former origins remembered at once; the oldest goes first.
+const MAX_FORMER: usize = 64;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct Pending {
@@ -43,6 +48,14 @@ struct PairedPage {
     paired_at: u64,
 }
 
+/// An origin that held a bearer an operator removed: no authority, only the
+/// right to read the refusal.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct FormerOrigin {
+    origin: String,
+    until: u64,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct PairingFile {
     v: u32,
@@ -50,6 +63,8 @@ struct PairingFile {
     pending: Vec<Pending>,
     #[serde(default)]
     paired: Vec<PairedPage>,
+    #[serde(default)]
+    former: Vec<FormerOrigin>,
 }
 
 impl Default for PairingFile {
@@ -58,7 +73,26 @@ impl Default for PairingFile {
             v: FILE_VERSION,
             pending: Vec::new(),
             paired: Vec::new(),
+            former: Vec::new(),
         }
+    }
+}
+
+impl PairingFile {
+    /// Remember `origins` as former until `now` plus the window, newest kept.
+    fn remember_former(&mut self, mut origins: Vec<String>, now: u64) {
+        origins.sort();
+        origins.dedup();
+        self.former
+            .retain(|f| f.until > now && !origins.contains(&f.origin));
+        let until = now.saturating_add(FORMER_TTL_SECS);
+        self.former.extend(
+            origins
+                .into_iter()
+                .map(|origin| FormerOrigin { origin, until }),
+        );
+        self.former.sort_by(|a, b| b.until.cmp(&a.until));
+        self.former.truncate(MAX_FORMER);
     }
 }
 
@@ -233,7 +267,10 @@ impl RolePairings {
     }
 
     /// Whether a browser at `origin` may be answered at all: it holds a
-    /// bearer, or a code for it is still waiting.
+    /// bearer, a code for it is still waiting, or an operator removed its
+    /// pairing within the window — so its next request reads the refusal
+    /// rather than failing as if the daemon were gone. Answering admits
+    /// nothing: every route still wants a bearer.
     #[must_use]
     pub fn admits_origin(&self, origin: &str, now: u64) -> bool {
         self.load().is_ok_and(|file| {
@@ -242,6 +279,10 @@ impl RolePairings {
                     .pending
                     .iter()
                     .any(|p| p.origin == origin && p.expires_at > now)
+                || file
+                    .former
+                    .iter()
+                    .any(|f| f.origin == origin && f.until > now)
         })
     }
 
@@ -261,23 +302,31 @@ impl RolePairings {
     }
 
     /// Remove every bearer and code for `origin`, for the pairing `id`, or
-    /// for everyone with neither. Returns how many bearers went.
+    /// for everyone with neither, at `now`. Returns how many bearers went.
     ///
     /// # Errors
     ///
     /// A file error.
-    pub fn unpair(&self, origin: Option<&str>, id: Option<&str>) -> Result<usize, AdminError> {
+    pub fn unpair(
+        &self,
+        origin: Option<&str>,
+        id: Option<&str>,
+        now: u64,
+    ) -> Result<usize, AdminError> {
         let mut file = self.load()?;
-        let before = file.paired.len();
         let everyone = origin.is_none() && id.is_none();
         let goes = |page_origin: &str, page_id: Option<&str>| {
             everyone
                 || origin.is_some_and(|o| o == page_origin)
                 || id.is_some_and(|wanted| page_id == Some(wanted))
         };
-        file.paired.retain(|p| !goes(&p.origin, Some(&p.id)));
+        let (gone, kept): (Vec<_>, Vec<_>) = std::mem::take(&mut file.paired)
+            .into_iter()
+            .partition(|p| goes(&p.origin, Some(&p.id)));
+        file.paired = kept;
         file.pending.retain(|p| !goes(&p.origin, None));
-        let removed = before - file.paired.len();
+        let removed = gone.len();
+        file.remember_former(gone.into_iter().map(|p| p.origin).collect(), now);
         self.save(&file)?;
         Ok(removed)
     }

@@ -10,6 +10,7 @@ export type TailnetLocalCode =
   | "not-a-code"
   | "other-origin"
   | "locked"
+  | "shared-origin"
   | "unreachable"
   | "pairing-refused"
   | "malformed"
@@ -34,6 +35,8 @@ const SAID = {
   "other-origin":
     "This code was printed for another web address. Pair again with --origin set to this page's address.",
   locked: "Unlock a vault you own to pair; a guest cannot hold the key.",
+  "shared-origin":
+    "This shared-origin demo cannot manage tailnet devices. Use a dedicated or loopback deployment.",
   unreachable:
     "The daemon did not answer. Check that it runs and that Tailscale Serve reaches it.",
   "pairing-refused":

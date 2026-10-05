@@ -118,13 +118,44 @@ fn revoke_and_unpair_remove_bearers() {
     assert_eq!(pairings.authorize(&first, ORIGIN), None);
     let (listed, _) = pairings.list(2).unwrap();
     assert_eq!(listed.len(), 1);
-    assert_eq!(pairings.unpair(None, Some(&second.id)).unwrap(), 1);
+    assert_eq!(pairings.unpair(None, Some(&second.id), 2).unwrap(), 1);
     assert_eq!(pairings.authorize(&second_token, ORIGIN), None);
     pair(Role::Read);
     pair(Role::Read);
-    assert_eq!(pairings.unpair(Some(ORIGIN), None).unwrap(), 2);
+    assert_eq!(pairings.unpair(Some(ORIGIN), None, 2).unwrap(), 2);
     pair(Role::Read);
-    assert_eq!(pairings.unpair(None, None).unwrap(), 1);
+    assert_eq!(pairings.unpair(None, None, 2).unwrap(), 1);
+}
+
+#[test]
+fn an_unpaired_origin_reads_its_refusal_for_a_while_and_holds_nothing() {
+    let (_tmp, pairings) = store();
+    let (code, _) = pairings.issue(ORIGIN, Role::Manage, "", 0).unwrap();
+    let (_, token) = pairings.exchange(&code, ORIGIN, 1).unwrap();
+    assert_eq!(pairings.unpair(None, None, 10).unwrap(), 1);
+    // Still answered, so the page learns it was unpaired …
+    assert!(pairings.admits_origin(ORIGIN, 11));
+    assert!(pairings.admits_origin(ORIGIN, 10 + FORMER_TTL_SECS - 1));
+    // … but its bearer opens nothing, and the window closes.
+    assert_eq!(pairings.authorize(&token, ORIGIN), None);
+    assert!(!pairings.admits_origin(ORIGIN, 10 + FORMER_TTL_SECS));
+    assert!(!pairings.admits_origin("https://other.example", 11));
+}
+
+#[test]
+fn former_origins_are_bounded_newest_first() {
+    let (_tmp, pairings) = store();
+    let last = u64::try_from(MAX_FORMER).unwrap();
+    for at in 0..=last {
+        let origin = format!("https://p{at}.example");
+        let (code, _) = pairings.issue(&origin, Role::Read, "", at).unwrap();
+        pairings.exchange(&code, &origin, at).unwrap();
+        pairings.unpair(Some(&origin), None, at).unwrap();
+    }
+    let now = last;
+    assert!(!pairings.admits_origin("https://p0.example", now));
+    assert!(pairings.admits_origin("https://p1.example", now));
+    assert!(pairings.admits_origin(&format!("https://p{MAX_FORMER}.example"), now));
 }
 
 #[test]

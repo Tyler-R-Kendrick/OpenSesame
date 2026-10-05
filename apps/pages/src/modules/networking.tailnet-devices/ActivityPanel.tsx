@@ -4,7 +4,10 @@
  * §5). The daemon keeps it; no value is in it.
  */
 
-import { relativeTo } from "@opensesame/app-core/lib/tailnet-admin/model.js";
+import {
+  relativeTo,
+  shortName,
+} from "@opensesame/app-core/lib/tailnet-admin/model.js";
 import type { TailnetAuditEntry } from "@opensesame/app-core/lib/tailnet-admin/wire.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import type { TailnetModel } from "./use-tailnet-admin.js";
@@ -22,10 +25,18 @@ const SAID: ReadonlyArray<[string, string]> = [
   ["key.delete", "Revoked the auth key"],
 ];
 
-function line(entry: TailnetAuditEntry): string {
+/** A device or key still on the tailnet by its name; one that is gone by its id. */
+function targetName(model: TailnetModel, target: string): string {
+  const device = model.loaded?.devices.find((d) => d.id === target);
+  if (device) return shortName(device);
+  const key = model.loaded?.keys.find((k) => k.id === target);
+  return key?.description || target;
+}
+
+function line(model: TailnetModel, entry: TailnetAuditEntry): string {
   const verb =
     SAID.find(([action]) => action === entry.action)?.[1] ?? entry.action;
-  return `${verb} ${entry.target}`.trim();
+  return `${verb} ${targetName(model, entry.target)}`.trim();
 }
 
 /** The newest entries shown; the daemon keeps more. */
@@ -56,7 +67,7 @@ export function ActivityPanel({ model }: { model: TailnetModel }) {
             >
               <div className="identity-row__id">
                 <div className="identity-row__title">
-                  <span>{line(entry)}</span>
+                  <span>{line(model, entry)}</span>
                   <StatusMark
                     tone={entry.status < 300 ? "ok" : "err"}
                     label={
