@@ -60,6 +60,15 @@ function renderVault(path: string) {
   );
 }
 
+/** The one element `selector` names, narrowed by a check: absent fails the test. */
+function drawn(selector: string): HTMLElement {
+  const element = document.querySelector(selector);
+  if (!(element instanceof HTMLElement)) {
+    throw new Error(`nothing drawn at ${selector}`);
+  }
+  return element;
+}
+
 /** Says how the current entry was arrived at, for the tests to read. */
 function Arrival() {
   return <output data-testid="arrival">{useNavigationType()}</output>;
@@ -127,12 +136,12 @@ describe("the vault on a phone", () => {
 
   it("Add is one button: the default + with an attached ellipsis", () => {
     renderVault("/vault");
-    const add = document.querySelector<HTMLAnchorElement>(".vault > .fab");
-    const plus = within(add as HTMLElement).getByRole("link", {
+    const add = drawn(".vault > .fab");
+    const plus = within(add).getByRole("link", {
       name: "New item",
     });
     expect(plus.getAttribute("href")).toMatch(/^\/vault\/new/);
-    const more = within(add as HTMLElement).getByRole("button", {
+    const more = within(add).getByRole("button", {
       name: "More ways to add",
     });
     expect(more.getAttribute("aria-haspopup")).toBe("menu");
@@ -216,28 +225,22 @@ describe("the vault on a phone", () => {
 
   it("the list's header is back and the view it shows, named; nothing else is a key", () => {
     renderVault("/vault?f=all");
-    const bar = document.querySelector<HTMLElement>(
-      ".vault__list .vtree__pathbar",
-    );
-    const view = within(bar as HTMLElement).getByRole("button", {
+    const bar = drawn(".vault__list .vtree__pathbar");
+    const view = within(bar).getByRole("button", {
       name: /^Filter — /,
     });
     expect(view.textContent).toBe("All items");
     expect(
-      within(bar as HTMLElement).getByRole("link", {
+      within(bar).getByRole("link", {
         name: "Back to sections",
       }),
     ).toBeTruthy();
     // New is the corner button; Import and Export are on the landing; search
     // is the prompt. None is repeated in the header.
     for (const name of ["New item", "Import items", "Export items"]) {
-      expect(
-        (bar as HTMLElement).querySelector(`[aria-label="${name}"]`),
-      ).toBeNull();
+      expect(bar.querySelector(`[aria-label="${name}"]`)).toBeNull();
     }
-    expect(
-      (bar as HTMLElement).querySelector('[title="Search (/)"]'),
-    ).toBeNull();
+    expect(bar.querySelector('[title="Search (/)"]')).toBeNull();
   });
 
   it("the corner button follows the tree and the list, and leaves the item and the trash alone", () => {
@@ -277,9 +280,7 @@ describe("the vault on a phone", () => {
     expect(screen.getByTestId("arrival").textContent).toBe("POP");
     fireEvent.click(screen.getByRole("treeitem", { name: "all" }));
     await waitFor(() => expect(pane()).toBe("list"));
-    fireEvent.click(
-      document.querySelector('.vault__list [role="treeitem"]') as HTMLElement,
-    );
+    fireEvent.click(drawn('.vault__list [role="treeitem"]'));
     await waitFor(() => expect(pane()).toBe("detail"));
     fireEvent.click(screen.getByRole("link", { name: "Back to all items" }));
     await waitFor(() => expect(pane()).toBe("list"));
@@ -304,7 +305,7 @@ describe("the vault on a phone", () => {
     });
     act(() => handler(new KeyboardEvent("keydown", { key: "/" })));
     const prompt = screen.getByRole("combobox", { name: "Command" });
-    await waitFor(() => expect((prompt as HTMLInputElement).value).toBe("/? "));
+    await waitFor(() => expect(prompt).toHaveProperty("value", "/? "));
     expect(document.activeElement).toBe(prompt);
     expect(screen.queryByLabelText("Search items")).toBeNull();
   });
@@ -316,9 +317,9 @@ describe("the vault on a phone", () => {
       showHelp: vi.fn(),
     });
     act(() => handler(new KeyboardEvent("keydown", { key: "/" })));
-    const prompt = screen.getByRole("combobox", {
-      name: "Command",
-    }) as HTMLInputElement;
+    const prompt = screen.getByRole("combobox", { name: "Command" });
+    if (!(prompt instanceof HTMLInputElement))
+      throw new Error("the command prompt is not a text field");
     await waitFor(() => expect(prompt.value).toBe("/? "));
     fireEvent.change(prompt, { target: { value: `/? ${words}` } });
     return prompt;

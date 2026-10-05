@@ -5,6 +5,7 @@
  * it in verify:live-join.
  */
 import { fromPublic } from "@nats-io/nkeys";
+import { type JsonObject, readJsonObject } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { fromB64url } from "./b64.js";
 import { keyFromSeed } from "./nats-jwt.js";
@@ -14,10 +15,21 @@ import { isAccountKey, isAccountSeed } from "./nats-route.js";
 const decoder = new TextDecoder();
 const encoder = new TextEncoder();
 
-function claims(jwt: string): Record<string, unknown> {
-  return JSON.parse(
-    decoder.decode(fromB64url(jwt.split(".")[1] ?? "") ?? new Uint8Array()),
+function claims(jwt: string): JsonObject {
+  const parsed = readJsonObject(
+    JSON.parse(
+      decoder.decode(fromB64url(jwt.split(".")[1] ?? "") ?? new Uint8Array()),
+    ),
   );
+  if (!parsed) throw new Error("the claims are not an object");
+  return parsed;
+}
+
+/** The `nats` claim of a token. */
+function natsClaim(jwt: string): JsonObject {
+  const nats = readJsonObject(claims(jwt).nats);
+  if (!nats) throw new Error("no nats claim");
+  return nats;
 }
 
 function verified(jwt: string, issuer: string): boolean {
@@ -45,7 +57,7 @@ describe("the live-session server configuration", () => {
         made.config,
       )?.[1] ?? "";
     expect(verified(accountJwt, operator)).toBe(true);
-    const nats = claims(accountJwt).nats as Record<string, unknown>;
+    const nats = natsClaim(accountJwt);
     expect(nats.signing_keys).toEqual([
       keyFromSeed(made.mint.signingKey).getPublicKey(),
     ]);

@@ -19,12 +19,16 @@ import {
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
 
+/** What a wrong passkey says, and what a held device repeats for a right one. */
+const PASSKEY_MISS = "That passkey did not unlock the vault.";
+
 export type PasskeyUnlockSessionHost = Readonly<{
   header: () => VaultHeader | null;
   assertNotLockedOut: () => void;
   recordFailedUnlock: () => void;
   stashRaw: (raw: Uint8Array) => void;
-  afterPrimaryUnwrap: (vaultKey: CryptoKey) => Promise<void>;
+  /** `miss` is the text this method gives a wrong secret, for a held device to repeat. */
+  afterPrimaryUnwrap: (vaultKey: CryptoKey, miss?: string) => Promise<void>;
 }>;
 
 /** Wrap the raw vault key under the PRF output a create ceremony returned. */
@@ -93,7 +97,7 @@ export async function probePasskeyCeremony(
     // A restriction that left nothing to offer guessed nothing, so it does not
     // count against the lockout; a vault with no passkey at all does.
     if (all.length === 0) host.recordFailedUnlock();
-    throw new WrongPasswordError("That passkey did not unlock the vault.");
+    throw new WrongPasswordError(PASSKEY_MISS);
   }
   try {
     if (records.length === 1) {
@@ -144,11 +148,11 @@ export async function unlockVaultWithHeldPrf(
   }
   if (!raw) {
     host.recordFailedUnlock();
-    throw new WrongPasswordError("That passkey did not unlock the vault.");
+    throw new WrongPasswordError(PASSKEY_MISS);
   }
   host.stashRaw(raw);
   const vaultKey = await importVaultKey(raw);
-  await host.afterPrimaryUnwrap(vaultKey);
+  await host.afterPrimaryUnwrap(vaultKey, PASSKEY_MISS);
 }
 
 export async function unlockVaultWithPasskey(

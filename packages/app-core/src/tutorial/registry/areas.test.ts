@@ -228,12 +228,12 @@ describe("what a tutorial needs before it is offered", () => {
   it("offers the Keybindings, recovery and plugin tours only where their row is drawn", () => {
     const without = (missing: string) => (predicate: string) =>
       predicate !== missing;
-    const needs: Record<string, string> = {
+    const needs = {
       "settings.keybindings.review": "shell.keys",
       "vault.recovery.view": "vault.recovery-made",
       "settings.browser-autofill": "plugin.browser-autofill.panel",
       "settings.surrogate-credentials": "plugin.surrogate-proxy.panel",
-    };
+    } as const;
     for (const [id, predicate] of Object.entries(needs)) {
       expect(ids({ holds: without(predicate) })).not.toContain(id);
       expect(ids({ holds: () => true })).toContain(id);
