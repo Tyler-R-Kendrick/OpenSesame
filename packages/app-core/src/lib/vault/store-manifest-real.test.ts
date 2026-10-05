@@ -9,6 +9,7 @@ import {
   readStoreManifest,
   storeManifestFile,
 } from "../../sections/vault/import/store-manifest.js";
+import { typePassword } from "../account.test-support.js";
 import { kvDelete } from "../kv.js";
 import {
   BODY_PATH,
@@ -52,7 +53,7 @@ describe("the store path manifest in a real vault", () => {
     const login = createItem("account", "GitHub");
     login.username = "octo";
     const method = passwordMethod(login);
-    if (method) method.secret = "hunter2-but-longer"; // gitleaks:allow -- fixture
+    if (method) typePassword(method, "hunter2-but-longer"); // gitleaks:allow -- fixture
     await source.saveItem({ ...login, folderId: dev.id });
     const secret = createItem("secret", "Deploy hook");
     secret.value = "whsec_fixture"; // gitleaks:allow -- fixture

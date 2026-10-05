@@ -3,6 +3,7 @@
 import {
   type AccountItem,
   DEFAULT_RULES,
+  type PasswordMethod,
   createItem,
   manualPassword,
   mintRootSecret,
@@ -100,4 +101,10 @@ export async function pepperedDerivedAccount(
     },
   ];
   return item;
+}
+
+/** Type a password into a method, which makes it a manual one: a new account's is derived. */
+export function typePassword(method: PasswordMethod, password: string): void {
+  method.generator = { id: "manual" };
+  method.secret = password;
 }

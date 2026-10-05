@@ -105,13 +105,13 @@ describe("normalizeLegacyItems", () => {
 });
 
 describe("a new account", () => {
-  it("starts with one empty password method that is not peppered", () => {
+  it("starts with one derived password method, with no root yet, that is not peppered", () => {
     const account = createItem("account", "Site");
     if (account.kind !== "account") throw new Error("expected account");
     expect(account.methods).toHaveLength(1);
     expect(account.methods[0]).toMatchObject({
       type: "password",
-      generator: { id: "rules" },
+      generator: { id: "derived", counter: 0 },
       pepper: false,
       secret: "",
       changedAt: account.createdAt,
@@ -125,6 +125,7 @@ describe("password helpers", () => {
     if (account.kind !== "account") throw new Error("expected account");
     const method = passwordMethod(account);
     if (!method) throw new Error("expected a password method");
+    method.generator = { id: "manual" };
     method.secret = "s3cret";
     expect(plainPassword(method)).toBe("s3cret");
     expect(needsPepper(method)).toBe(false);

@@ -350,3 +350,22 @@ export function normalizeLegacyItems<T>(
     isLegacyLogin(item) ? migrateLegacyLogin(item) : item,
   );
 }
+
+/**
+ * A new account's password (ADR 0173): derived, under the default rules, with no
+ * root yet. The root is minted where a draft is made, never here, so an item
+ * built for a test or an import holds no secret it was not given.
+ */
+export function newPasswordMethod(
+  accountId: string,
+  createdAt: string,
+): PasswordMethod {
+  return {
+    id: `${accountId}:password`,
+    type: "password",
+    generator: { id: "derived", rules: { ...DEFAULT_RULES }, counter: 0 },
+    pepper: false,
+    secret: "",
+    changedAt: createdAt,
+  };
+}

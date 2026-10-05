@@ -18,10 +18,10 @@ describe("GENERATORS", () => {
       "manual",
     ]);
     expect(GENERATORS.map((g) => g.label)).toEqual([
-      "Derived",
-      "Rules",
-      "Passphrase",
-      "Manual",
+      "Computed",
+      "Random characters",
+      "Random words",
+      "My own",
     ]);
   });
 

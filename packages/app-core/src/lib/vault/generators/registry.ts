@@ -33,18 +33,23 @@ export type GeneratorDescriptor = {
 export const GENERATORS: readonly GeneratorDescriptor[] = [
   {
     id: "derived",
-    label: "Derived",
+    label: "Computed",
     produces: "derived",
     offersPepperFlag: true,
   },
-  { id: "rules", label: "Rules", produces: "stored", offersPepperFlag: true },
   {
-    id: "passphrase",
-    label: "Passphrase",
+    id: "rules",
+    label: "Random characters",
     produces: "stored",
     offersPepperFlag: true,
   },
-  { id: "manual", label: "Manual", produces: "typed", offersPepperFlag: true },
+  {
+    id: "passphrase",
+    label: "Random words",
+    produces: "stored",
+    offersPepperFlag: true,
+  },
+  { id: "manual", label: "My own", produces: "typed", offersPepperFlag: true },
 ];
 
 /** The row for a method that already uses the earlier Sphinx generator. */

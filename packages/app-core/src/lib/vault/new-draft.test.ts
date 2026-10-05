@@ -254,7 +254,7 @@ describe("public link prefills", () => {
     if (item.kind !== "account") throw new Error("fixture");
     expect(accountPlainPassword(item)).toHaveLength(20);
   });
-  it("puts the generated password in the first password method, under its rules", () => {
+  it("keeps a fresh root in the first password method, which computes a password under the rules", () => {
     const item = newItemDraft("account");
     if (item.kind !== "account") throw new Error("fixture");
     const [first, ...rest] = item.methods;
@@ -262,9 +262,10 @@ describe("public link prefills", () => {
     expect(first).toMatchObject({
       type: "password",
       pepper: false,
-      generator: { id: "rules", length: 20 },
+      generator: { id: "derived", counter: 0, rules: { length: 20 } },
     });
-    expect(first?.type === "password" ? first.secret : "").toHaveLength(20);
+    // A root is 32 bytes, base64; what the person sees is what it computes.
+    expect(first?.type === "password" ? first.secret : "").toHaveLength(44);
     expect(first?.type === "password" ? first.sealed : "x").toBeUndefined();
   });
   it("still opens an account draft for the retired login name", () => {

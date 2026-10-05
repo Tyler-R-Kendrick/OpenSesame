@@ -8,6 +8,7 @@ import {
   passwordMethod,
 } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
+import { typePassword } from "../account.test-support.js";
 import {
   entryToVaultItem,
   filterEntriesForProject,
@@ -22,7 +23,7 @@ import {
 function account(name: string, password: string, totp = ""): AccountItem {
   const item = createItem("account", name);
   const method = passwordMethod(item);
-  if (method) method.secret = password;
+  if (method) typePassword(method, password);
   if (totp) {
     item.methods.push({
       id: `${item.id}:authenticator`,
