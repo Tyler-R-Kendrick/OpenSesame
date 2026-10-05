@@ -22,12 +22,24 @@ export async function openVaultList(page) {
  */
 export async function toTheList(page) {
   const create = page.getByRole("link", { name: "New item", exact: true });
-  if (await create.isVisible()) return;
   const back = page
     .getByRole("link", { name: /^Back to (all items|list)$/ })
     .first();
-  if (await back.isVisible()) await back.click();
   const all = page.getByRole("treeitem", { name: /^all\b/i }).first();
+  // A viewport change re-renders the shell a frame or more later, and a busy
+  // main thread (a runner, packs installing) stretches that. Reading three
+  // `isVisible()`s the instant it changes sees none of the panes and acts on
+  // nothing, so wait for whichever pane the shell settles on.
+  await create
+    .or(back)
+    .or(all)
+    .first()
+    .waitFor({ state: "visible", timeout: 15000 });
+  if (await create.isVisible()) return;
+  if (await back.isVisible()) {
+    await back.click();
+    await create.or(all).first().waitFor({ state: "visible", timeout: 15000 });
+  }
   if (!(await create.isVisible()) && (await all.isVisible())) await all.click();
 }
 
