@@ -48,21 +48,49 @@
   }
 }
 
-.vfilter__open {
-  position: relative;
+/* The view the list is showing, as a choice a thumb can hit: the header's
+   whole width, 48px tall, set in the interface face. Narrowed is said in the
+   accent colour, not a dot to be decoded. */
+.vfilter {
+  flex: 1;
+  min-width: 0;
 }
 
-/* The dot says the list in front of you is narrower than the vault. "All
-   items" is the resting state and earns none. */
-.vfilter__open.is-narrowed::after {
-  content: "";
-  position: absolute;
-  top: 20%;
-  right: 20%;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
+.vfilter__open {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 3rem;
+  margin: 0;
+  padding: 0 0.85rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--ui);
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: left;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vfilter__open:active {
+  background: var(--surface-3);
+}
+
+.vfilter__open.is-narrowed {
+  color: var(--accent);
+}
+
+.vfilter__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .vfilter__roads {
@@ -1091,53 +1119,21 @@ select.editor__ext:hover {
     display: inline-grid;
   }
 
-  /* What the tree asks of a thumb (PhoneAdd.tsx): the corner Add key and its
-     action sheet. Finding is the status-line prompt, so the pane draws no
-     search field. */
+  /* The list's header on a phone: back, then the view it is showing as one
+     choice the width of the rest, both at a thumb's height. */
+  .vault__list .vtree__pathbar {
+    justify-content: flex-start;
+    gap: 0.25rem;
+    padding: 0.25rem calc(0.35rem + env(safe-area-inset-right)) 0.25rem
+      calc(0.35rem + env(safe-area-inset-left));
+  }
 
-  /* The tree's rows fill the pane so the corner key rests at its foot, and
-     stays there (sticky) once the tree is taller than the screen. */
-  .vault[data-pane="tree"] .vault__tree {
+  .vault__list .vtree__pathbar > .vtree__keys {
+    flex: 1;
     display: flex;
-    flex-direction: column;
-  }
-
-  .vault__tree > .railtree {
-    flex: 1 0 auto;
-  }
-
-  .vadd__key {
-    position: sticky;
-    bottom: calc(0.9rem + env(safe-area-inset-bottom, 0px));
-    z-index: 2;
-    flex: none;
-    display: grid;
-    place-items: center;
-    width: 3.75rem;
-    height: 3.75rem;
-    margin: 0.75rem 0.15rem 0 auto;
-    border: 0;
-    border-radius: 2px;
-    background: var(--ink);
-    color: var(--canvas);
-    cursor: pointer;
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  .vadd__key:active {
-    background: var(--ink-2);
-  }
-
-  /* Import and Export stay mounted, because each owns the sheet or picker it
-     opens, but their keys are rows of the Add sheet here, not keys. */
-  .vadd__host {
-    display: contents;
-  }
-
-  .vadd__host > button,
-  .vadd__host > a {
-    display: none;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 0;
   }
 
   .detail {
