@@ -114,37 +114,49 @@ describe("opensesame-id vault sync", () => {
     );
   });
 
-  it("sets a second machine up, then keeps both in step", async () => {
-    const drive = memoryDrive();
-    const t = drive.transport;
-    await run(["vault", "new", "note", "--name", "bank"], laptop, t);
+  // Eleven runs, each deriving the vault key from the password: as
+  // vault-items.test.ts, the KDF needs room on a loaded CI runner.
+  it(
+    "sets a second machine up, then keeps both in step",
+    {
+      timeout: 60_000,
+    },
+    async () => {
+      const drive = memoryDrive();
+      const t = drive.transport;
+      await run(["vault", "new", "note", "--name", "bank"], laptop, t);
 
-    const first = await run(["vault", "sync", "--pair", CODE], laptop, t);
-    expect(first.code).toBe(0);
-    expect(first.out).toContain("sent changes");
-    expect(drive.generation).toBe(1);
+      const first = await run(["vault", "sync", "--pair", CODE], laptop, t);
+      expect(first.code).toBe(0);
+      expect(first.out).toContain("sent changes");
+      expect(drive.generation).toBe(1);
 
-    const adopted = await run(["vault", "sync", "--pair", CODE], server, t);
-    expect(adopted.out).toContain("set up from the drive");
-    expect((await run(["vault", "list"], server, t)).out).toContain("bank");
+      const adopted = await run(["vault", "sync", "--pair", CODE], server, t);
+      expect(adopted.out).toContain("set up from the drive");
+      expect((await run(["vault", "list"], server, t)).out).toContain("bank");
 
-    // The code was kept: no --pair from now on.
-    await run(["vault", "new", "note", "--name", "from the server"], server, t);
-    expect((await run(["vault", "sync"], server, t)).out).toContain(
-      "sent changes",
-    );
-    expect((await run(["vault", "sync"], laptop, t)).out).toContain(
-      "took in changes",
-    );
-    const listed = (await run(["vault", "list"], laptop, t)).out;
-    expect(listed).toContain("bank");
-    expect(listed).toContain("from the server");
+      // The code was kept: no --pair from now on.
+      await run(
+        ["vault", "new", "note", "--name", "from the server"],
+        server,
+        t,
+      );
+      expect((await run(["vault", "sync"], server, t)).out).toContain(
+        "sent changes",
+      );
+      expect((await run(["vault", "sync"], laptop, t)).out).toContain(
+        "took in changes",
+      );
+      const listed = (await run(["vault", "list"], laptop, t)).out;
+      expect(listed).toContain("bank");
+      expect(listed).toContain("from the server");
 
-    // Settled, and silent about contents.
-    const settled = await run(["vault", "sync"], laptop, t);
-    expect(settled.out).toContain("in step");
-    expect(settled.out).not.toContain("bank");
-  });
+      // Settled, and silent about contents.
+      const settled = await run(["vault", "sync"], laptop, t);
+      expect(settled.out).toContain("in step");
+      expect(settled.out).not.toContain("bank");
+    },
+  );
 
   it("asks for a code where there is no vault and no pairing", async () => {
     const drive = memoryDrive();
