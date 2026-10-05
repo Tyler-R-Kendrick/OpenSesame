@@ -45,7 +45,7 @@ export function readHold(): HoldRecord | null {
 }
 
 /** Whether `hours` is one of the offered durations. */
-export function isFreezeHours(hours: unknown): hours is 1 | 24 | 72 {
+export function isFreezeHours(hours: BoundaryValue): hours is 1 | 24 | 72 {
   return FREEZE_HOURS.some((choice) => choice === hours);
 }
 
@@ -56,7 +56,7 @@ export function isFreezeHours(hours: unknown): hours is 1 | 24 | 72 {
  * nothing to tell anyone. Returns whether a record was written.
  */
 export async function extendHold(
-  hours: unknown,
+  hours: BoundaryValue,
   now: () => number = Date.now,
 ): Promise<boolean> {
   if (!isFreezeHours(hours)) return false;

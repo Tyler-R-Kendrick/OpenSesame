@@ -22,8 +22,13 @@ function turnOn(): HTMLButtonElement {
   return button;
 }
 
-const consent = () => screen.getByRole("checkbox") as HTMLInputElement;
-const word = () => screen.getByLabelText(WORD) as HTMLInputElement;
+function input(element: HTMLElement): HTMLInputElement {
+  if (!(element instanceof HTMLInputElement)) throw new Error("not an input");
+  return element;
+}
+
+const consent = () => input(screen.getByRole("checkbox"));
+const word = () => input(screen.getByLabelText(WORD));
 
 /** The sheet open on the wipe mode, the code typed twice, nothing else done. */
 async function openWipeSheet(arm = vi.fn(async () => ({ ok: true as const }))) {

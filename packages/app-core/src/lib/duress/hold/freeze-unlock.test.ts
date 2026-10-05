@@ -16,6 +16,7 @@ import {
   enableDuressCode,
   removeDuressCode,
 } from "../settings/device-duress.js";
+import type { ModeExtras } from "../settings/modes/inputs.js";
 import { HOLD_KEY } from "../store/boot-keys.js";
 import { clearJournal } from "../store/journal.js";
 import { HOUR_MS, readHold } from "./record.js";
@@ -39,7 +40,7 @@ async function lockedStore(): Promise<VaultStore> {
   return store;
 }
 
-async function armed(mode: string, extras: Record<string, string>) {
+async function armed(mode: string, extras: ModeExtras) {
   const result = await enableDuressCode({
     code: CODE,
     mode,
@@ -59,8 +60,8 @@ async function shown(
     await unlockWithPasswordAfterDuressGate(store, secret, gate);
     return null;
   } catch (error) {
-    expect(error).toBeInstanceOf(WrongPasswordError);
-    return (error as Error).message;
+    if (error instanceof WrongPasswordError) return error.message;
+    throw error;
   }
 }
 
