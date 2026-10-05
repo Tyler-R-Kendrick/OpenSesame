@@ -15,7 +15,7 @@ export const WIPE = {
     "nothing; it reads as a wrong password, after removing the vaults stored in this browser",
   vault: "removed from this browser; restorable only from a backup",
   consent:
-    "I understand this removes the vaults stored in this browser. They can be restored only from a backup I made. It removes what this browser stores, not what the disk may still hold, and how long the refusal takes may differ from a wrong password's.",
+    "I understand this removes the vaults stored in this browser. They can be restored only from a backup I made. It removes what this browser stores, not what the disk may still hold, and how long the refusal takes may differ from a wrong password's. The code itself is refused, which leaves me with nothing to show, and a refused unlock may be read as refusing to comply and can escalate the situation.",
   presentation: "locked",
   input: {
     kind: "confirm",
