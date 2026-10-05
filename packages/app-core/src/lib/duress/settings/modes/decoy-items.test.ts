@@ -1,3 +1,10 @@
+import {
+  type BoundaryValue,
+  type JsonValue,
+  readJsonObject,
+  readString,
+} from "@opensesame/os-domain";
+import type { LoginItem } from "@opensesame/vault-core";
 import { describe, expect, it, vi } from "vitest";
 import { MAX_SLOT_PAYLOAD_BYTES } from "../../crypto/slot-profile.js";
 import { DECOY_ITEMS_RUNNER } from "./decoy-items-effect.js";
@@ -13,8 +20,26 @@ import { decodePlan, encodePlan } from "./payload.js";
 
 const plan = (items: string) => {
   const built = DECOY_ITEMS.plan({ items });
-  return built.body as { items: DecoyItem[] };
+  return { items: itemsOf(built.body) };
 };
+
+/** The items a sealed body carries, read here apart from the reader under test. */
+function itemsOf(body: JsonValue): DecoyItem[] {
+  const items = readJsonObject(body)?.items;
+  if (!Array.isArray(items)) throw new Error("the body carries no items");
+  return items.map((entry) => {
+    const item = readJsonObject(entry);
+    const title = readString(item?.title);
+    const secret = readString(item?.secret);
+    if (title === undefined || secret === undefined) {
+      throw new Error("an item is not a title and a secret");
+    }
+    return { title, secret };
+  });
+}
+
+/** A body the test may break in place. */
+type WritableBody = { items: DecoyItem[] };
 
 describe("decoy items plan", () => {
   it("makes one item per line, trimmed, blanks dropped, in the owner's order", () => {
@@ -111,7 +136,7 @@ describe("decoy items plan", () => {
   });
 });
 
-const good = (n = 3): { items: DecoyItem[] } => ({
+const good = (n = 3): WritableBody => ({
   items: Array.from({ length: n }, (_, i) => ({
     title: `Item ${i}`,
     secret: `s3cret-value-${i}-xyz`,
@@ -132,7 +157,7 @@ describe("decoy items body reader", () => {
     };
     const shortSecret = good();
     shortSecret.items[1] = { title: "ok", secret: "short" };
-    const bad: unknown[] = [
+    const bad = [
       null,
       undefined,
       "items",
@@ -189,6 +214,7 @@ describe("decoy items body reader", () => {
 
   it("refuses a body that is not a plain object, however it is dressed", () => {
     class Dressed {
+      [key: string]: BoundaryValue;
       items = good().items;
     }
     expect(readDecoyItemsBody(new Dressed())).toBeNull();
@@ -199,21 +225,17 @@ describe("decoy items body reader", () => {
 });
 
 describe("decoy items runner", () => {
-  const host = (addItems: ReturnType<typeof vi.fn>) => ({
+  const host = (addItems: (items: LoginItem[]) => Promise<void>) => ({
     store: { addItems },
   });
+  const adder = () => vi.fn(async (_items: LoginItem[]) => undefined);
 
   it("adds a login per item, titled and holding its secret, to the store it is given", async () => {
-    const addItems = vi.fn(async () => undefined);
+    const addItems = adder();
     const body = plan("Netflix\nGym\nSpotify");
     await DECOY_ITEMS_RUNNER.run(body, host(addItems));
     expect(addItems).toHaveBeenCalledOnce();
-    const added = (addItems.mock.calls[0] as unknown[])[0] as {
-      kind: string;
-      name: string;
-      password: string;
-      deletedAt: null;
-    }[];
+    const added = addItems.mock.calls[0]?.[0] ?? [];
     expect(added.map((item) => item.name)).toEqual([
       "Netflix",
       "Gym",
@@ -226,13 +248,11 @@ describe("decoy items runner", () => {
       expect(item.kind).toBe("login");
       expect(item.deletedAt).toBeNull();
     }
-    expect(
-      new Set(added.map((item) => (item as { id?: string }).id)).size,
-    ).toBe(3);
+    expect(new Set(added.map((item) => item.id)).size).toBe(3);
   });
 
   it("does nothing for a body that is not exactly ours", async () => {
-    const addItems = vi.fn(async () => undefined);
+    const addItems = adder();
     for (const body of [
       null,
       {},

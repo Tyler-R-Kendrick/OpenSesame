@@ -9,6 +9,8 @@
  * ticked for one mode and never carried to another.
  */
 
+import type { JsonValue } from "@opensesame/os-domain";
+
 /**
  * What unlock reads out of the sealed slot. Existing enrollments hold exactly
  * these two strings, so the storage format and the unlock behaviour they drive
@@ -67,7 +69,7 @@ export type DuressModeInput =
 export type DuressPlan = Readonly<{
   effect: DuressEffectName;
   /** The effect's own parameters; its runner validates them. */
-  body: unknown;
+  body: JsonValue;
 }>;
 
 export type DuressMode<Id extends string = string> = Readonly<{

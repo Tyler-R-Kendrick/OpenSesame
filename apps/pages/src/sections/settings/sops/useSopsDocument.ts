@@ -48,16 +48,16 @@ export type DocumentActionsInput = {
   scope: string | null;
 };
 
+/** What a refusal says when the error carries no words of its own. */
+const BAD_IDENTITY = "That identity is not supported.";
+const BAD_RECIPIENTS = "Those recipients are not usable.";
+
 export type DocumentActions = {
   onOpen: () => void;
   onSave: () => void;
   onEncryptNew: () => void;
   onRotate: () => void;
 };
-
-function message(caught: unknown, fallback: string): string {
-  return caught instanceof Error ? caught.message : fallback;
-}
 
 export function useSopsDocumentActions(
   input: DocumentActionsInput,
@@ -92,7 +92,7 @@ export function useSopsDocumentActions(
     try {
       list = identityList({ ephemeral: identity, vault: vaultIdentities });
     } catch (caught) {
-      notice("err", message(caught, "That identity is not supported."));
+      notice("err", caught instanceof Error ? caught.message : BAD_IDENTITY);
       return;
     }
     if (list.length === 0) {
@@ -135,7 +135,7 @@ export function useSopsDocumentActions(
           notice("info", "Document encrypted.");
         });
     } catch (caught) {
-      notice("err", message(caught, "Those recipients are not usable."));
+      notice("err", caught instanceof Error ? caught.message : BAD_RECIPIENTS);
     }
   }, [buildPlan, scope, state.fileName, state.format, workflow]);
 
@@ -152,7 +152,7 @@ export function useSopsDocumentActions(
         notice("info", "New data key, every selected recipient re-wrapped.");
       });
     } catch (caught) {
-      notice("err", message(caught, "Those recipients are not usable."));
+      notice("err", caught instanceof Error ? caught.message : BAD_RECIPIENTS);
     }
   }, [buildPlan, scope, state.fileName, state.format, workflow]);
 
