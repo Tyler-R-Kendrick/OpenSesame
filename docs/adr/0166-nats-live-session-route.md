@@ -69,6 +69,8 @@ owner's reply says `relay: "nats"` and the owner listens on
 - under `always`, it moves at once and makes no peer connection;
 - the joiner opens with `hello`, and the owner adopts the seat on the first
   frame that opens, closing its own peer connection.
+- a seat offered over the relay that has connected neither way after a
+  minute is let go, as a failed peer route lets one go without a relay.
 
 Every frame is sealed (`seat-channel.ts`, purpose `channel`) with the key
 material the pairing already established: the ECDH secret the owner and that

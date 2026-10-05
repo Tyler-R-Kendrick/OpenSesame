@@ -64,6 +64,13 @@ export type HostPeerOptions = Readonly<{
   relayed?: boolean;
 }>;
 
+/**
+ * How long a seat offered over a relay has to connect, one way or the other:
+ * a peer route that never opens does not always say it failed, and a joiner
+ * who cannot reach the relay either never sends a frame there.
+ */
+export const RELAY_GRACE_MS = 60_000;
+
 type Request = Extract<ChannelMessage, { t: "reveal" | "copy" }>;
 type EditRequest = Extract<ChannelMessage, { t: "edit" }>;
 
@@ -72,6 +79,7 @@ export class HostPeer {
   #channel: LiveChannel | null = null;
   /** The seat's relay, listening until the joiner's first frame. */
   #relay: LiveChannel | null = null;
+  #grace: ReturnType<typeof setTimeout> | null = null;
   #closed = false;
 
   constructor(private readonly options: HostPeerOptions) {}
@@ -90,10 +98,8 @@ export class HostPeer {
       throw new Error("closed");
     }
     this.#pc = side.pc;
-    const relayed = this.options.relayed === true;
     side.pc.addEventListener("connectionstatechange", () => {
-      if (side.pc.connectionState === "failed" && !relayed)
-        this.#closedByPeer();
+      if (side.pc.connectionState === "failed") this.#peerFailed();
     });
     side.channel.then(
       (channel) => {
@@ -102,11 +108,14 @@ export class HostPeer {
         if (this.#channel !== null) channel.close();
         else this.#connected(channel);
       },
-      () => {
-        if (!relayed) this.#closedByPeer();
-      },
+      () => this.#peerFailed(),
     );
     return side.answer;
+  }
+
+  /** The peer route failed: the seat ends, unless a relay may still carry it. */
+  #peerFailed(): void {
+    if (this.options.relayed !== true) this.#closedByPeer();
   }
 
   /** Seal the seat's relay with the pairing's keys and listen on it. */
@@ -133,6 +142,11 @@ export class HostPeer {
       return;
     }
     this.#relay = channel;
+    if (!this.#channel && !this.#grace)
+      this.#grace = setTimeout(() => {
+        this.#grace = null;
+        if (!this.#channel) this.#closedByPeer();
+      }, RELAY_GRACE_MS);
     channel.onMessage(() => this.#adopt(channel));
     channel.onClose(() => {
       if (this.#relay === channel) this.#relay = null;
@@ -155,6 +169,8 @@ export class HostPeer {
       channel.close();
       return;
     }
+    if (this.#grace) clearTimeout(this.#grace);
+    this.#grace = null;
     this.#channel = channel;
     channel.onClose(() => {
       if (this.#channel === channel) this.#closedByPeer();
@@ -245,6 +261,8 @@ export class HostPeer {
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
+    if (this.#grace) clearTimeout(this.#grace);
+    this.#grace = null;
     this.#channel?.send({ t: "end" });
     this.#channel?.close();
     this.#relay?.close();

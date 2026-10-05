@@ -5,8 +5,10 @@
  * carrier that may carry codes only does not.
  */
 import { createItem } from "@opensesame/vault-core";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { settle } from "./live-clock.fixture.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { FALLBACK_MS } from "./guest.js";
+import { RELAY_GRACE_MS } from "./host-peer.js";
+import { FAKE_CLOCK, settle } from "./live-clock.fixture.js";
 import { FakeBus, FakeNet } from "./live-fakes.js";
 import type { NatsSession } from "./nats-route.js";
 import type { Carrier } from "./rendezvous.js";
@@ -31,6 +33,7 @@ beforeEach(() => {
   liveSeams.onLock = () => () => undefined;
 });
 afterEach(() => {
+  vi.useRealTimers();
   endHosting();
   leaveLive();
   liveSeams.items = original.items;
@@ -123,6 +126,23 @@ describe("a NATS carrier that may carry the session", () => {
     const { guest } = await session(net, bus, profile("always"));
     expect(guest.status.at).toBe("joined");
     expect(seatFrames(bus).length).toBeGreaterThan(0);
+  });
+
+  it("lets a seat go when the joiner never reaches the relay either", async () => {
+    vi.useFakeTimers(FAKE_CLOCK);
+    const net = new FakeNet();
+    net.unreachable = true;
+    const bus = new FakeBus();
+    bus.blockSeats = true;
+    const { owner, guest } = await session(net, bus, profile());
+    expect(guest.status.at).not.toBe("joined");
+    await vi.advanceTimersByTimeAsync(FALLBACK_MS);
+    await settle();
+    // No peer route and nothing heard on the relay: the seat waits a while.
+    expect(owner.state.guests[0]?.state).toBe("replied");
+    await vi.advanceTimersByTimeAsync(RELAY_GRACE_MS - FALLBACK_MS);
+    await settle();
+    expect(owner.state.guests[0]?.state ?? "gone").toBe("gone");
   });
 
   it("carries codes only when the owner says off: no route is no session", async () => {

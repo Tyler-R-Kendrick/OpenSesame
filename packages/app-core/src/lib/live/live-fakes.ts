@@ -175,6 +175,8 @@ export class FakePeer extends EventTarget {
  */
 export class FakeBus {
   down = false;
+  /** Drop every frame on a seat's channel: a relay the joiner cannot reach. */
+  blockSeats = false;
   readonly seen: { topic: string; frame: string }[] = [];
   /** Every spec a carrier was opened with, in order. */
   readonly specs: CarrierSpec[] = [];
@@ -193,6 +195,7 @@ export class FakeBus {
     const listeners = new Set<(text: string) => void>();
     const carrier: Carrier = {
       post: async (frame) => {
+        if (this.blockSeats && topic.includes(".seat.")) return;
         this.inject(topic, frame);
       },
       listen: (onText) => {
