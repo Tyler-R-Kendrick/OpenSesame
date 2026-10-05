@@ -145,9 +145,9 @@ describe("account editor: methods and generators", () => {
     const password = block("Password");
     const select = password.getByLabelText("Password generator");
     expect(password.getByLabelText("Length")).toBeTruthy();
-    expect(password.getByLabelText("Minimum digits")).toBeTruthy();
-    expect(password.getByLabelText("Minimum symbols")).toBeTruthy();
-    expect(password.getByLabelText("Avoid l1IO0")).toBeTruthy();
+    expect(password.getByLabelText("Fewest numbers")).toBeTruthy();
+    expect(password.getByLabelText("Fewest symbols")).toBeTruthy();
+    expect(password.getByLabelText("Avoid look-alike characters")).toBeTruthy();
 
     await userEvent.selectOptions(select, "passphrase");
     expect(password.getByLabelText("Word count")).toBeTruthy();
