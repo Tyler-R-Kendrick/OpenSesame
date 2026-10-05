@@ -1,5 +1,5 @@
 /**
- * The safety rails around the wipe runner (ADR 0167): it runs only for a plan
+ * The safety rails around the wipe runner (ADR 0168): it runs only for a plan
  * this build understands, only when nothing forbids the real removal, only
  * through the unlock seam, and never from arming or removing a code.
  */

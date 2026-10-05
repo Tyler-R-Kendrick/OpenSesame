@@ -1,5 +1,5 @@
 /**
- * J-DURESS-MODE-WIPE: the duress code that wipes this device's copy (ADR 0167),
+ * J-DURESS-MODE-WIPE: the duress code that wipes this device's copy (ADR 0168),
  * in the built app, real crypto, real origin files, nothing mocked.
  *
  * Two walks on one device, because a wipe leaves nothing to wipe a second time:

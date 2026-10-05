@@ -2,7 +2,7 @@ import type { DuressMode } from "./mode.js";
 
 /**
  * Refused like a wrong password, and this browser's copy of the vaults is
- * removed first. The sentences say what the removal is and is not (ADR 0167):
+ * removed first. The sentences say what the removal is and is not (ADR 0168):
  * the browser's storage, not the disk; restorable only from a backup; and a
  * refusal whose timing may differ from an ordinary one's, in either direction.
  * The typed word is the one act in this sheet that

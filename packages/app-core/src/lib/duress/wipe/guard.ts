@@ -1,5 +1,5 @@
 /**
- * The one switch between a test and a real wipe (ADR 0167).
+ * The one switch between a test and a real wipe (ADR 0168).
  *
  * The wipe runner removes every vault in this browser's storage. A unit test
  * that reaches it by accident, through an unmocked unlock path, would delete

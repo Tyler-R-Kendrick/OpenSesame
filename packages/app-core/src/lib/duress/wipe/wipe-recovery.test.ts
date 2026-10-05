@@ -1,5 +1,5 @@
 /**
- * After a wipe, the owner can recover (ADR 0167). The unlock match still fences
+ * After a wipe, the owner can recover (ADR 0168). The unlock match still fences
  * the device, and the fence is only cleared from the Duress row of an open,
  * non-guest vault. So the walk is: wipe, seal a new vault, restore the backup
  * made before the wipe, see the code marked used, clear it, arm a new code. Every

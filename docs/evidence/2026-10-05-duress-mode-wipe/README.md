@@ -1,7 +1,7 @@
 # Duress mode: wipe this device's copy — visual evidence
 
 Change: the duress code can now be set to remove this browser's copy of the
-vaults ([ADR 0167](../../adr/0167-duress-modes-from-scenarios.md)). The sheet
+vaults ([ADR 0168](../../adr/0168-duress-modes-from-scenarios.md)). The sheet
 gains a third mode, a typed word and its own consent sentence; typing the code
 at the unlock screen removes the vaults, and a cold load then shows a device
 with no vault.

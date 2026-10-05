@@ -1,6 +1,6 @@
 /**
  * Remove this browser's copy of the vaults, in two phases that survive a page
- * dying between them (ADR 0167).
+ * dying between them (ADR 0168).
  *
  * Intent first: the vaults to remove are journaled before a file is touched.
  * Then headers, then the rest. A vault with no header cannot be unlocked even
