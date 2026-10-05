@@ -825,6 +825,17 @@ Do not add new top-level directories or loose root files — find the group.
   editing `marketplace/item-types/builtin/*.json`, re-run
   `pnpm --filter @opensesame/vault-item-types generate`. A suite that assumes
   the whole corpus loads every pack in its setup.
+- **A password is produced by one facade, and a pepper is never asked for or
+  stored** ([ADR 0174](docs/adr/0174-the-pepper-is-the-persons-and-passwords-are-produced-by-one-facade.md)).
+  Copy, fill, the terminal, the daemon, health and export all call
+  `producePassword` (`@opensesame/vault-core`; `produce_entry` in
+  `crates/sealed-store`) and none knows how a password is made; `produce-facade.test.ts`
+  fails on any other reader of an algorithm or a pepper position. *Include
+  pepper* means the produced password has a slot for a secret of the person's
+  own, at a Python-style `pepperAt`; the product holds no pepper, no envelope under
+  one and no verifier for one. A file holds the parameters an algorithm computes
+  from (generator, rules, counter, root) and an empty line one, never the generated
+  password. A generator's label names a kind (*Algorithmic*), never a technique.
 - A vault item type is a manifest, never a code path. Adding one is a JSON
   file in `marketplace/item-types/builtin/` (embedded by both planes),
   and a user can install one at runtime with no build. Fields name types from
