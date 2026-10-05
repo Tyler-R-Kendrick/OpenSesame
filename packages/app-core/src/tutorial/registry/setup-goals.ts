@@ -1,11 +1,12 @@
+import { GATE_GOALS } from "./gate-goals.js";
 import type { GuideGoalDescriptor, HelpTopic } from "./goals.js";
 
 /**
- * Goals for the account menu and the sign-in rows it leads to. The gates
- * themselves have none: the Support sheet is never mounted there (ADR 0090,
- * ADR 0163 §4), so a walkthrough written for one could not be started.
+ * Goals for the gates (`gate-goals.ts`, started from the help key each screen
+ * draws, ADR 0166) and for the account menu and the sign-in rows it leads to.
  */
 export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
+  ...GATE_GOALS,
   // Core: the account's rows are always-on `identity.federation` (ADR 0140 D10).
   {
     id: "identity.account-factors",
@@ -90,8 +91,8 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
 ];
 
 /**
- * What the unlock screen and setup answer to a question about them: written
- * help only, since a gate has no Support sheet to start a walkthrough from.
+ * What the unlock screen and setup answer to a question about them, beside
+ * the tour each one has where its screen can start it (ADR 0166).
  */
 export const SETUP_HELP: readonly HelpTopic[] = [
   {
@@ -100,7 +101,7 @@ export const SETUP_HELP: readonly HelpTopic[] = [
     answer:
       "The unlock screen is the passkey, PIN or master password challenge for this device. Signing in with an identity provider is a separate tab and does not unwrap the vault key.",
     routes: ["/unlock"],
-    goal: null,
+    goal: "gate.unlock",
     keywords: [
       "unlock",
       "open",
@@ -118,7 +119,7 @@ export const SETUP_HELP: readonly HelpTopic[] = [
     answer:
       "An empty device offers two roads: set it up as the operator, or join a session you were invited to. The operator road is the allowlist of sign-in providers; finish records it and returns to sign-in. An empty list is a local-only vault.",
     routes: ["/setup"],
-    goal: null,
+    goal: "gate.setup.choose",
     keywords: [
       "setup",
       "set up",

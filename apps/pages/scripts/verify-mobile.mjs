@@ -30,6 +30,7 @@ import {
   phoneContext,
   recordStop,
 } from "./lib/mobile-contract.mjs";
+import { doorRoads, helpKey, setupCeremony } from "./lib/mobile-gates.mjs";
 import { auditKeybindingsAbsent } from "./lib/mobile-keybindings-absent.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
 import { phonePolish } from "./lib/phone-polish.mjs";
@@ -129,17 +130,9 @@ async function openOverflowRow(page, pattern, label) {
 
 /** The front door: its two roads, and the guest road in the corner (ADR 0150 §1). */
 async function frontDoor(page, stop) {
+  await helpKey(page, stop("front-door"), harness);
   await audit(page, stop("front-door"));
-  for (const name of [
-    "Set up your own",
-    "Join a session",
-    "Skip sign-in and continue as guest",
-  ]) {
-    harness.check(
-      (await page.getByRole("button", { name }).count()) > 0,
-      `${stop("front-door")}: "${name}" is offered`,
-    );
-  }
+  await doorRoads(page, stop, harness);
   // The other road off the front door, and the one a person takes on a phone
   // when they are standing up a deployment.
   const setup = page.getByRole("button", { name: "Set up your own" }).first();
@@ -147,6 +140,7 @@ async function frontDoor(page, stop) {
     await setup.tap();
     await page.waitForTimeout(900);
     await audit(page, stop("setup"));
+    await setupCeremony(page, stop, { audit, harness });
     await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
     await page.waitForTimeout(700);
   }
