@@ -72,6 +72,7 @@ const GOAL_CONTEXT_ROUTES = new Map(
     "authority.portal.templates.manage": ["/access"],
     "authority.portal.templates.read": ["/access"],
     "identity.local.siop.authorize": ["/identity"],
+    "identity.tailnet.devices.manage": ["/identity"],
   }),
 );
 

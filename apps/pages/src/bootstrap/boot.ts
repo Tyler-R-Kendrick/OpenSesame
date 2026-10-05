@@ -25,6 +25,7 @@ import {
   captureClaimArrivalFromPage,
 } from "@opensesame/app-core/lib/claims/arrival.js";
 import { captureDeviceLinkFromPage } from "@opensesame/app-core/lib/device-link.js";
+import { resumeWipeAtBoot } from "@opensesame/app-core/lib/duress/wipe/real.js";
 import { captureInteractionArrivalFromPage } from "@opensesame/app-core/lib/interactions-link.js";
 import { captureInvocationArrivalFromPage } from "@opensesame/app-core/lib/invoke-link.js";
 import {
@@ -114,6 +115,10 @@ export async function bootCore(): Promise<CoreBoot> {
   // with no request, before anything draws a type (ADR 0165).
   await restorePacks();
   rehydrateProjects();
+  // A duress wipe the page died in finishes before any header is read, so a
+  // vault it had already unlisted is never offered at the unlock screen
+  // (ADR 0168). Nothing happens when none began.
+  await resumeWipeAtBoot();
   // The active project's plaintext boundary is what legacy storage migrates
   // into. But the tomb the unlock screen will ask about is the guest tomb
   // when that was the last authorized account (AGENTS.md §5), so its header

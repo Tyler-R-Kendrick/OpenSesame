@@ -3743,6 +3743,7 @@ dependencies = [
  "opensesame-sealed-store",
  "opensesame-session-observe",
  "opensesame-storage",
+ "opensesame-tailnet-admin",
  "opensesame-vault-item-types",
  "opensesame-worker",
  "qr2term",
@@ -3927,6 +3928,7 @@ dependencies = [
  "opensesame-invoke-through",
  "opensesame-plugin-settings",
  "opensesame-sealed-store",
+ "opensesame-tailnet-admin",
  "opensesame-tailscale-authn",
  "opensesame-uds-authn",
  "p256",
@@ -4667,6 +4669,30 @@ dependencies = [
  "time",
  "tokio",
  "tokio-rustls",
+ "zeroize",
+]
+
+[[package]]
+name = "opensesame-tailnet-admin"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "bytes",
+ "directories",
+ "hex",
+ "opensesame-invoke-through",
+ "opensesame-plugin-settings",
+ "opensesame-sealed-log",
+ "rand_core 0.6.4",
+ "reqwest",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.19",
+ "tokio",
  "zeroize",
 ]
 

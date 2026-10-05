@@ -18,6 +18,13 @@ import {
 export const WEB_PUSH_ENROLMENT_PURPOSE =
   "the configured Identity API's push enrolment";
 
+/**
+ * What `networking.tailnet-devices` declares for the daemon it manages the
+ * tailnet through; the client imports it so the two can never drift.
+ */
+export const TAILNET_DEVICES_PURPOSE =
+  "the daemon a person paired for tailnet device management, which holds the Tailscale credential";
+
 export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "agents.webmcp",
@@ -185,6 +192,31 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       requiresService: true,
       offlineLimits:
         "A tailnet peer is reachable only while the tailnet is up; edits made offline sync on the next pass.",
+    },
+  ),
+  optional(
+    "networking.tailnet-devices",
+    "Tailnet devices",
+    "Manage the tailnet's real machines from Identity › Devices: approve, rename, tag, re-key, route and remove them, and add one with an auth key. The paired daemon holds the Tailscale credential and makes every call (ADR 0169).",
+    {
+      dependencies: ["networking.tailnet", "identity.local-iam"],
+      operationIds: [
+        "tailnet.devices.pair",
+        "tailnet.devices.read",
+        "tailnet.devices.manage",
+        "tailnet.keys.manage",
+        "tailnet.audit.read",
+      ],
+      egress: [
+        {
+          class: "peer-or-local-network",
+          purpose: TAILNET_DEVICES_PURPOSE,
+          automatic: false,
+        },
+      ],
+      requiresService: true,
+      offlineLimits:
+        "Devices are read from the paired daemon; offline the list is not shown and nothing can be changed.",
     },
   ),
 ];

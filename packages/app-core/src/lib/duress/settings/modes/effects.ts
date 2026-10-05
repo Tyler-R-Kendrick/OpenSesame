@@ -11,6 +11,7 @@
 
 import type { JsonValue } from "@opensesame/os-domain";
 import type { LoginItem } from "@opensesame/vault-core";
+import { runWipeEffect } from "../../wipe/real.js";
 import { DECOY_ITEMS_RUNNER } from "./decoy-items-effect.js";
 import { FREEZE_RUNNER } from "./freeze.js";
 import type { DuressPlan } from "./mode.js";
@@ -39,6 +40,7 @@ const RUNNERS: ReadonlyMap<string, EffectRunner> = new Map<
   EffectRunner
 >([
   ["decoy_items", DECOY_ITEMS_RUNNER],
+  ["wipe", { phase: "on_match", run: runWipeEffect }],
   ["freeze", FREEZE_RUNNER],
 ]);
 

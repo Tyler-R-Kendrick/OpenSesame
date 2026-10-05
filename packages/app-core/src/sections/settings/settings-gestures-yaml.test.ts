@@ -11,7 +11,7 @@ import { reconcileSource } from "./settings-config.js";
 import { decodeSettings, encodeSettings } from "./settings-files.js";
 import { keymapData, keymapDoc } from "./settings-raw-editor-model.js";
 
-describe("gestures in the Keybindings config.yaml (ADR 0169)", () => {
+describe("gestures in the Keybindings config.yaml (ADR 0170)", () => {
   const base = {
     values: { singleKeys: true },
     keybindings: {},

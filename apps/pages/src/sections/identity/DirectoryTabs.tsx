@@ -8,8 +8,12 @@ import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { LocalDevicesPanel } from "./LocalDevicesPanel.js";
 import { useDirectoryPanels } from "./directory-panel-slot.js";
+import { useTailnetDevices } from "./tailnet-devices-slot.js";
 
-/** Devices: this vault's browsers, then the directory's approval if it runs. */
+/**
+ * Devices: the tailnet's machines when device management is on (ADR 0169),
+ * this vault's browsers, then the directory's approval if it runs.
+ */
 export function DevicesTab({
   online,
   session,
@@ -18,9 +22,11 @@ export function DevicesTab({
   session: IdentitySession | null;
 }) {
   const directory = useDirectoryPanels();
+  const Tailnet = useTailnetDevices();
   const { tomb } = useVault();
   return (
     <>
+      {Tailnet ? <Tailnet /> : null}
       <LocalDevicesPanel key={tomb} tomb={tomb} />
       {directory ? (
         <directory.Devices online={online} session={session} />

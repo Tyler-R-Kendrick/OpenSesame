@@ -256,6 +256,46 @@
     }
   },
   {
+    "id": "tailnet.devices.pair",
+    "title": "Pair a page with the daemon for tailnet device management",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/tailnet-admin/client.ts:tailnetAdmin"
+    }
+  },
+  {
+    "id": "tailnet.devices.read",
+    "title": "List the tailnet's devices and what about each needs someone",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/tailnet-admin/client.ts:tailnetAdmin"
+    }
+  },
+  {
+    "id": "tailnet.devices.manage",
+    "title": "Approve, rename, tag, re-key, route and remove the tailnet's devices",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/tailnet-admin/client.ts:tailnetAdmin"
+    }
+  },
+  {
+    "id": "tailnet.keys.manage",
+    "title": "Add a device with a Tailscale auth key, list and revoke keys",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/tailnet-admin/client.ts:tailnetAdmin"
+    }
+  },
+  {
+    "id": "tailnet.audit.read",
+    "title": "Read what was changed on the tailnet through the daemon",
+    "plane": "host",
+    "surfaces": {
+      "pwa": "lib/tailnet-admin/client.ts:tailnetAdmin"
+    }
+  },
+  {
     "id": "identity.interaction.approve",
     "title": "Approve a cross-device interaction",
     "plane": "identity",

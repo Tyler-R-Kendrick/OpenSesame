@@ -1,4 +1,4 @@
-# ADR 0169 — The keymap has two loadouts, and a phone leads with gestures
+# ADR 0170 — The keymap has two loadouts, and a phone leads with gestures
 
 - Status: Accepted
 - Date: 2026-10-04

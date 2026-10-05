@@ -1,5 +1,5 @@
 /**
- * View-model for Settings › Keybindings › Gestures (ADR 0169): what a gesture
+ * View-model for Settings › Keybindings › Gestures (ADR 0170): what a gesture
  * may be bound to, as the choices its row offers. No React, no DOM.
  */
 import {

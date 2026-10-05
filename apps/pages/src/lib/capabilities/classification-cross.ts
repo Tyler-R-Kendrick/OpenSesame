@@ -86,6 +86,8 @@ const IDENTITY_PIECES = [
   // The registry every capability contributes an Identity tab through.
   "directory-panel-slot",
   "identity-views",
+  // Where networking.tailnet-devices puts the tailnet's machines (ADR 0169).
+  "tailnet-devices-slot",
 ];
 
 /** The connector catalogue Access, setup and device connectors read. */

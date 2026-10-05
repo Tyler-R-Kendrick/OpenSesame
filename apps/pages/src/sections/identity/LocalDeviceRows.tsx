@@ -1,27 +1,23 @@
 /**
- * The Devices list's rows and its one form, drawn with the same keys as the
- * rest of Identity (DESIGN.md § Actions are symbols): edit is the pencil,
- * removal is an armed trash key with a keep beside it, and a registration
- * this browser is the device for is claimed with the check — armed the same
- * way, because a claim folds this browser's own record away for good.
+ * The browsers that opened this vault, drawn with the same keys as the rest
+ * of Identity (DESIGN.md § Actions are symbols): rename is the pencil, and
+ * removal is an armed trash key with a keep beside it. A browser lists itself
+ * when it opens the vault; nothing here invents a device (ADR 0169 — the
+ * tailnet's real machines are managed in the panel above).
  */
 
 import {
-  DEVICE_PLATFORMS,
   type LocalDevice,
-  claimLocalDevice,
   isPendingDevice,
-  registerLocalDevice,
   removeLocalDevice,
   thisDeviceId,
   updateLocalDevice,
 } from "@opensesame/app-core/lib/local-devices.js";
 import { formatTime } from "@opensesame/app-core/sections/identity-section-model.js";
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, type RefObject, useEffect, useRef } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
 import {
-  IconCheck,
   IconEdit,
   IconMonitor,
   IconPhone,
@@ -29,18 +25,13 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import type { FocusTarget } from "../../lib/use-focus-after.js";
 
 /** A key one more press will fire: which action, on which device. */
-export type ArmedKey = { action: "remove" | "claim"; id: string };
+export type ArmedKey = { action: "remove"; id: string };
 
-/** `id` is empty for a device being registered. */
-export type DeviceDraft = {
-  id: string;
-  name: string;
-  platform: string;
-  /** Whether the platform may still be chosen: a new or unseen device. */
-  pending: boolean;
-};
+/** A browser being renamed. */
+export type DeviceDraft = { id: string; name: string };
 
 export type DevicesModel = {
   tomb: string;
@@ -53,33 +44,19 @@ export type DevicesModel = {
   busy: boolean;
   error: string;
   /**
-   * Run a change; on success focus lands on the element with `focusId`,
-   * since the key that was pressed may be gone with its row.
+   * Run a change; on success focus lands on `focus`, since the key that was
+   * pressed may be gone with its row.
    */
   run: (
     action: () => Promise<LocalDevice[]>,
-    focusId?: string,
+    focus?: FocusTarget,
   ) => Promise<void>;
+  /** The panel head's reload, where focus goes when a row it was on leaves. */
+  reloadKey: RefObject<HTMLButtonElement | null>;
 };
-
-/** The panel head's add key, where focus goes when a row it was on leaves. */
-export const NEW_DEVICE_KEY_ID = "local-device-new";
 
 export function editKeyId(id: string): string {
   return `local-device-edit-${id}`;
-}
-
-export function newDeviceDraft(): DeviceDraft {
-  return { id: "", name: "", platform: "", pending: true };
-}
-
-function editDraft(device: LocalDevice): DeviceDraft {
-  return {
-    id: device.id,
-    name: device.name,
-    platform: device.platform,
-    pending: isPendingDevice(device),
-  };
 }
 
 function isHandheld(platform: string): boolean {
@@ -90,8 +67,8 @@ function deviceState(device: LocalDevice, mine: string) {
   if (device.id === mine) return { tone: "ok", label: "This device" } as const;
   if (isPendingDevice(device))
     return {
-      tone: "warn",
-      label: "Registered, not yet opened on that device",
+      tone: "idle",
+      label: "Typed in by hand; no browser opened the vault as it",
     } as const;
   return { tone: "ok", label: "Has opened this vault" } as const;
 }
@@ -146,29 +123,12 @@ function DeviceRow({
           <span className="identity-row__when">{deviceWhen(device)}</span>
         </div>
         <div className="actions">
-          {isPendingDevice(device) ? (
-            <ArmedKeys
-              model={model}
-              armKey={{ action: "claim", id: device.id }}
-              label={`Claim ${device.name} as this device`}
-              confirmLabel={`Confirm claiming ${device.name} as this device`}
-              keepLabel={`Leave ${device.name} unclaimed`}
-              onConfirm={() =>
-                model.run(
-                  () => claimLocalDevice(tomb, device.id),
-                  editKeyId(mine),
-                )
-              }
-            >
-              <IconCheck size={16} />
-            </ArmedKeys>
-          ) : null}
           <IconKey
             id={editKeyId(device.id)}
             label={`Edit ${device.name}`}
             small
             disabled={locked}
-            onClick={() => setDraft(editDraft(device))}
+            onClick={() => setDraft({ id: device.id, name: device.name })}
           >
             <IconEdit size={16} />
           </IconKey>
@@ -183,7 +143,7 @@ function DeviceRow({
               onConfirm={() =>
                 model.run(
                   () => removeLocalDevice(tomb, device.id),
-                  NEW_DEVICE_KEY_ID,
+                  () => model.reloadKey.current,
                 )
               }
             >
@@ -283,26 +243,13 @@ export function DeviceForm({ model }: { model: DevicesModel }) {
   const { tomb, draft, setDraft, busy, error, run } = model;
   const input = useDraftFocus(draft?.id, error, busy);
   if (!draft) return null;
-  const creating = draft.id === "";
-  // A seen device's platform is not edited, so only a pending one needs it.
-  const ready =
-    draft.name.trim() !== "" && (!draft.pending || draft.platform !== "");
+  const ready = draft.name.trim() !== "";
   return (
     <form
-      aria-label={creating ? "New device" : `Edit ${draft.name || "device"}`}
+      aria-label={`Rename ${draft.name || "browser"}`}
       onSubmit={(event) => {
         event.preventDefault();
-        void run(() => {
-          if (creating) return registerLocalDevice(tomb, draft);
-          // A device that has been seen reported its own platform; only a
-          // registration's is still the person's to change.
-          if (!draft.pending)
-            return updateLocalDevice(tomb, draft.id, { name: draft.name });
-          return updateLocalDevice(tomb, draft.id, {
-            name: draft.name,
-            platform: draft.platform,
-          });
-        });
+        void run(() => updateLocalDevice(tomb, draft.id, { name: draft.name }));
       }}
     >
       <div className="field">
@@ -320,33 +267,7 @@ export function DeviceForm({ model }: { model: DevicesModel }) {
           onChange={(event) => setDraft({ ...draft, name: event.target.value })}
         />
       </div>
-      {draft.pending ? (
-        <div className="field">
-          <label className="label" htmlFor="local-device-platform">
-            Platform
-          </label>
-          <select
-            id="local-device-platform"
-            required
-            disabled={busy}
-            value={draft.platform}
-            onChange={(event) =>
-              setDraft({ ...draft, platform: event.target.value })
-            }
-          >
-            <option value="">Select a platform</option>
-            {DEVICE_PLATFORMS.map((platform) => (
-              <option key={platform} value={platform}>
-                {platform === "Unknown" ? "Other" : platform}
-              </option>
-            ))}
-          </select>
-        </div>
-      ) : null}
-      <FormCommit
-        label={creating ? "Register device" : "Save changes"}
-        disabled={busy || !ready}
-      >
+      <FormCommit label="Save changes" disabled={busy || !ready}>
         <IconKey label="Cancel" disabled={busy} onClick={() => setDraft(null)}>
           <IconX size={16} />
         </IconKey>

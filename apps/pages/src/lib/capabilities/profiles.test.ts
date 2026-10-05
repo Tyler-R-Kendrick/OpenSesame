@@ -227,6 +227,27 @@ describe("capability profiles", () => {
     }
   });
 
+  it("minimal-local proves tailnet device management absent: no module, no operation", () => {
+    const plan = resolve("minimal-local");
+    const id = "networking.tailnet-devices";
+    expect(plan.capabilities[id]?.tier).toBe("optional");
+    expect(plan.capabilities[id]?.approved).toBe(false);
+    expect(plan.approvedModules).not.toContain(`${id}/runtime`);
+    for (const op of [
+      "tailnet.devices.pair",
+      "tailnet.devices.read",
+      "tailnet.devices.manage",
+      "tailnet.keys.manage",
+      "tailnet.audit.read",
+    ])
+      expect(plan.approvedOperations).not.toContain(op);
+    // Selected with consent, it resolves its module and pulls the tailnet
+    // capability it depends on.
+    const rich = resolve("rich-explicit");
+    expect(rich.approvedModules).toContain(`${id}/runtime`);
+    expect(rich.capabilities["networking.tailnet"]?.dependencyOf).toContain(id);
+  });
+
   it("family profiles keep enterprise, agents, remote AI and telemetry unapproved", () => {
     for (const name of ["family-local", "family-sharing-selected"]) {
       const plan = resolve(name);
