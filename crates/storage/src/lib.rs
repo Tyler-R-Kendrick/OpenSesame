@@ -1564,7 +1564,7 @@ mod grants;
 mod host_kv;
 mod invocations;
 mod outbox;
-pub use outbox::append_outbox_tx;
+pub use outbox::{append_outbox_event_in, append_outbox_tx};
 mod renewal;
 mod revocation;
 mod sealed;

@@ -22,6 +22,7 @@ import {
   type JsonObject,
   isBoolean,
   isString,
+  overlapCast,
 } from "@opensesame/os-domain";
 import type { UriMatch } from "@opensesame/vault-core";
 import { cleanTitle, hasExactKeys, plainObject } from "./shape-kit.js";
@@ -114,13 +115,13 @@ const COMMON = [
   "updatedAt",
 ] as const;
 
-const EXTRA: Readonly<Record<SharedItem["kind"], readonly string[]>> = {
+const EXTRA = {
   login: ["username", "password", "passwordChangedAt", "uris"],
   note: [],
   secret: ["value"],
   card: ["cardholder", "brand", "number", "expMonth", "expYear", "code"],
   typed: ["typeId", "values"],
-};
+} satisfies Readonly<Record<SharedItem["kind"], readonly string[]>>;
 
 /** A value that is text no longer than `max`. */
 function text(value: BoundaryValue | undefined, max: number): string | null {
@@ -248,18 +249,20 @@ function readBase(object: JsonObject): Base | null {
 }
 
 /** A set of named strings, each within the text limit; null when one is not. */
+type CheckedStrings<K extends string> = Record<K, string>;
+
 function strings<K extends string>(
   object: JsonObject,
   keys: readonly K[],
-): Record<K, string> | null {
+): CheckedStrings<K> | null {
   const out: Partial<Record<K, string>> = {};
   for (const key of keys) {
     const read = text(object[key], VISIBLE_LIMITS.text);
     if (read === null) return null;
     out[key] = read;
   }
-  // SAFETY: every key in `keys` was assigned above, or the loop returned.
-  return out as Record<K, string>;
+  // SAFETY: the loop validates each requested key as a bounded string and assigns it to out before reaching this return.
+  return overlapCast(out);
 }
 
 function readKind(
@@ -306,9 +309,8 @@ function readKind(
 function readItem(value: BoundaryValue): SharedItem | null {
   const object = plainObject(value);
   if (!object) return null;
-  const kind = (Object.keys(EXTRA) as SharedItem["kind"][]).find(
-    (known) => known === object.kind,
-  );
+  const kinds = ["login", "note", "secret", "card", "typed"] as const;
+  const kind = kinds.find((known) => known === object.kind);
   if (kind === undefined) return null;
   if (!hasExactKeys(object, [...COMMON, ...EXTRA[kind]])) return null;
   const base = readBase(object);

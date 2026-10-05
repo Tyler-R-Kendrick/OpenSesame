@@ -2,6 +2,10 @@ import { overlapCast } from "@opensesame/os-domain";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { magicLink } from "better-auth/plugins/magic-link";
+import {
+  type AccountSecretCodec,
+  sealedAccountAdapter,
+} from "./account-secret-adapter.js";
 import { type EmailLinkPolicy, noEmailAutoLinkPolicy } from "./email-link.js";
 import type { PrincipalMappingStore } from "./mapping.js";
 import type { UpstreamOidcProviderRegistry } from "./oidc-registry.js";
@@ -50,6 +54,8 @@ export interface UpstreamMagicLinkOptions {
  */
 export interface UpstreamAuthDatabase {
   drizzle: unknown;
+  /** Required for durable storage; construction fails closed if absent. */
+  accountSecrets?: AccountSecretCodec;
   /**
    * The four tables Better Auth requires, keyed by ITS model names rather than
    * their SQL names — its Drizzle adapter looks each one up by the model name,
@@ -204,6 +210,25 @@ export interface UpstreamAuthBundle {
 /** Better Auth's own default is 5 minutes; a link that travels by email needs longer. */
 const DEFAULT_MAGIC_LINK_TTL_SECONDS = 600;
 
+/** Durable Better Auth storage always seals account and session credentials. */
+function durableAuthAdapter(
+  database: UpstreamAuthDatabase,
+): ReturnType<typeof drizzleAdapter> {
+  const codec = database.accountSecrets;
+  if (!codec?.lookup) {
+    throw new Error(
+      "Durable Better Auth storage requires account secret encryption",
+    );
+  }
+  // SAFETY: the adapter's DB dictionary cannot express the caller's concrete
+  // Drizzle connection; this package delegates all access to the adapter.
+  const adapter = drizzleAdapter(overlapCast(database.drizzle), {
+    provider: "pg",
+    schema: database.schema,
+  });
+  return sealedAccountAdapter(adapter, codec);
+}
+
 /**
  * Better Auth instance wired for OpenSesame upstream human auth (ADR 0057).
  *
@@ -227,29 +252,19 @@ export function createUpstreamAuth(
     baseURL: options.baseURL,
     basePath: options.basePath,
     secret: options.secret,
-    /*
-     * Without `database` this falls through to Better Auth's in-memory
-     * adapter, which is a real implementation and the right one for a dev run
-     * with no database — but only for that.
-     *
-     * The model names stay Better Auth's own (`user`, `session`, `account`,
-     * `verification`); the SQL tables they map to are named `better_auth_*` by
-     * the Drizzle definitions the caller passes, so the database still says
-     * plainly whose rows these are. Renaming the models instead does not work:
-     * the in-memory adapter seeds its tables from the default names and would
-     * be left with none of them.
-     */
     ...(options.database
-      ? {
-          // SAFETY: the adapter's `DB` is `{ [key: string]: any }` — a shape
-          // no Drizzle instance is assignable to. The caller owns the real
-          // connection and this package never inspects it.
-          database: drizzleAdapter(overlapCast(options.database.drizzle), {
-            provider: "pg",
-            schema: options.database.schema,
-          }),
-        }
+      ? { database: durableAuthAdapter(options.database) }
       : undefined),
+    session: {
+      additionalFields: {
+        sealedToken: {
+          type: "string",
+          required: false,
+          input: false,
+          returned: false,
+        },
+      },
+    },
     emailAndPassword: {
       enabled: false,
     },

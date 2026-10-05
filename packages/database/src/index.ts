@@ -140,3 +140,14 @@ export {
   createMemoryAuthenticationServiceStores,
   createPostgresAuthenticationServiceStores,
 } from "./authentication-service-store.js";
+
+export { sealSecretText, openSecretText } from "./secret-seal.js";
+export { withSealedSecrets } from "./repos/sealed-secrets.js";
+
+export { sealLegacySecrets } from "./repos/sealed-secrets-sweep.js";
+
+export { sealLegacyOidc } from "./repos/sealed-oidc-sweep.js";
+
+export { oidcLookup, sealOidcRow, openOidcRow } from "./oidc-seal.js";
+
+export { internalSecurityPrincipal } from "./oidc-internal-scope.js";

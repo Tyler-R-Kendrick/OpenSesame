@@ -1,23 +1,9 @@
 /** @vitest-environment jsdom */
 import { render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { PaintedText } from "./PaintedText.js";
 import { longestLine } from "./lines.js";
 import { paintSource, traceLinePaints } from "./paint.js";
-
-// A person's file is never 200k lines, and 200k painted lines is 200k DOM
-// nodes in jsdom: seconds of work that say nothing about the editor. The
-// huge-file case below draws no lines, so it times what the editor itself
-// does with that many (find the widest, hold the text), in milliseconds.
-const unpainted = vi.hoisted(() => ({ on: false }));
-vi.mock("./paint.js", async (original) => {
-  const real = await original<typeof import("./paint.js")>();
-  return {
-    ...real,
-    paintSource: (...args: Parameters<typeof real.paintSource>) =>
-      unpainted.on ? [] : real.paintSource(...args),
-  };
-});
 
 /** The classes a painter put on each token, with the token's text. */
 function painted(language: "yaml" | "json" | "toml", source: string) {
@@ -168,18 +154,18 @@ describe("painting a long or hostile line", () => {
   });
 
   it("sizes the editor over 200k lines", () => {
-    unpainted.on = true;
-    try {
-      const text = "a\n".repeat(200_000);
-      const { container } = render(
-        <PaintedText language="toml" path="a.toml" source={text} />,
-      );
-      const stage = container.querySelector<HTMLElement>(".set-raw__stage");
-      expect(stage?.style.getPropertyValue("--cols")).toBe("1");
-      expect(container.querySelector("textarea")?.value).toBe(text);
-    } finally {
-      unpainted.on = false;
-    }
+    const text = "a\n".repeat(200_000);
+    const { container } = render(
+      <PaintedText
+        language="toml"
+        path="a.toml"
+        source={text}
+        painter={() => []}
+      />,
+    );
+    const stage = container.querySelector<HTMLElement>(".set-raw__stage");
+    expect(stage?.style.getPropertyValue("--cols")).toBe("1");
+    expect(container.querySelector("textarea")?.value).toBe(text);
   });
 });
 

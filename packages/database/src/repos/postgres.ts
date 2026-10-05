@@ -43,6 +43,7 @@ import {
 } from "drizzle-orm";
 import type { PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import type postgres from "postgres";
+import type { EventSealer } from "../event-seal.js";
 import * as schema from "../schema/index.js";
 import { createPostgresAgentAuthRepository } from "./agent-auth-repo.js";
 import {
@@ -88,10 +89,10 @@ import {
   type WebhookEndpointRepository,
   buildPersonalProject,
   normalizeIssuer,
-  normalizeOrganizationRow,
   outboxClaimToken,
   outboxHoldActive,
 } from "./interfaces.js";
+import { mapOrganization, organizationRowValues } from "./organization-row.js";
 import { mapAuditEvent } from "./postgres-map-audit.js";
 import { createPostgresPushSubscriptions } from "./push-subscriptions-postgres.js";
 import { createPostgresWalletInteractionRepos } from "./wallet-interaction-postgres.js";
@@ -2494,52 +2495,6 @@ export function createPostgresProjectStores(db: Database): ProjectStores {
   };
 }
 
-function mapOrganization(
-  row: typeof schema.organizations.$inferSelect,
-): Organization {
-  return normalizeOrganizationRow({
-    id: row.id,
-    slug: row.slug,
-    displayName: row.displayName,
-    state: overlapCast(row.state),
-    createdBy: row.createdBy,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    ...(row.ssoIssuer ? { ssoIssuer: row.ssoIssuer } : undefined),
-    ...(row.ssoClientId ? { ssoClientId: row.ssoClientId } : undefined),
-    ...(row.ssoClientSecret
-      ? { ssoClientSecret: row.ssoClientSecret }
-      : undefined),
-    ...(row.samlIssuer ? { samlIssuer: row.samlIssuer } : undefined),
-    ...(row.samlMetadataUrl
-      ? { samlMetadataUrl: row.samlMetadataUrl }
-      : undefined),
-    ...(row.samlMetadataXml
-      ? { samlMetadataXml: row.samlMetadataXml }
-      : undefined),
-    ...(row.provisioningEnabled ? { provisioningEnabled: true } : undefined),
-  });
-}
-
-function organizationRowValues(organization: Organization) {
-  return {
-    id: organization.id,
-    slug: organization.slug,
-    displayName: organization.displayName,
-    state: organization.state,
-    createdBy: organization.createdBy,
-    ssoIssuer: organization.ssoIssuer ?? null,
-    ssoClientId: organization.ssoClientId ?? null,
-    ssoClientSecret: organization.ssoClientSecret ?? null,
-    samlIssuer: organization.samlIssuer ?? null,
-    samlMetadataUrl: organization.samlMetadataUrl ?? null,
-    samlMetadataXml: organization.samlMetadataXml ?? null,
-    provisioningEnabled: organization.provisioningEnabled ?? false,
-    createdAt: organization.createdAt,
-    updatedAt: organization.updatedAt,
-  };
-}
-
 /** `rtrim(col, '/')` — the SQL half of {@link normalizeIssuer}. */
 function normalizedIssuerColumn(column: Column) {
   return sql<string>`rtrim(${column}, '/')`;
@@ -2559,7 +2514,10 @@ function mapOrganizationMembership(
 
 /** Postgres organization rows behind the `OrganizationStore` interface. */
 export class PostgresOrganizationStore implements OrganizationStore {
-  constructor(private readonly db: Database) {}
+  constructor(
+    private readonly db: Database,
+    private readonly sealer?: EventSealer,
+  ) {}
 
   async get(id: string): Promise<Organization | undefined> {
     const [row] = await this.db
@@ -2567,12 +2525,12 @@ export class PostgresOrganizationStore implements OrganizationStore {
       .from(schema.organizations)
       .where(eq(schema.organizations.id, id))
       .limit(1);
-    return row ? mapOrganization(row) : undefined;
+    return row ? mapOrganization(row, this.sealer) : undefined;
   }
 
   /** Full-row upsert — the durable equivalent of the former Map `set`. */
   async set(id: string, organization: Organization): Promise<void> {
-    const values = organizationRowValues({ ...organization, id });
+    const values = organizationRowValues({ ...organization, id }, this.sealer);
     const { id: _id, ...update } = values;
     await this.db
       .insert(schema.organizations)
@@ -2586,7 +2544,7 @@ export class PostgresOrganizationStore implements OrganizationStore {
       .from(schema.organizations)
       .where(eq(schema.organizations.slug, slug))
       .limit(1);
-    return row ? mapOrganization(row) : undefined;
+    return row ? mapOrganization(row, this.sealer) : undefined;
   }
 
   async findByIssuer(issuer: string): Promise<Organization | undefined> {
@@ -2608,7 +2566,7 @@ export class PostgresOrganizationStore implements OrganizationStore {
         asc(schema.organizations.id),
       )
       .limit(1);
-    return row ? mapOrganization(row) : undefined;
+    return row ? mapOrganization(row, this.sealer) : undefined;
   }
 
   async listByCreator(principalId: string): Promise<Organization[]> {
@@ -2616,7 +2574,7 @@ export class PostgresOrganizationStore implements OrganizationStore {
       .select()
       .from(schema.organizations)
       .where(eq(schema.organizations.createdBy, principalId));
-    return rows.map(mapOrganization);
+    return rows.map((row) => mapOrganization(row, this.sealer));
   }
 }
 
@@ -2722,9 +2680,10 @@ export class PostgresOrganizationMembershipStore
 
 export function createPostgresOrganizationStores(
   db: Database,
+  sealer?: EventSealer,
 ): OrganizationStores {
   return {
-    organizations: new PostgresOrganizationStore(db),
+    organizations: new PostgresOrganizationStore(db, sealer),
     organizationMemberships: new PostgresOrganizationMembershipStore(db),
   };
 }

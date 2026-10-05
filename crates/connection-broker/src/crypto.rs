@@ -1,11 +1,14 @@
 //! Credential sealing (ADR 0032 §7).
 //!
-//! XChaCha20-Poly1305 with the connection and organization ids as associated
-//! data, so a ciphertext lifted into another tenant's row does not open.
+//! Fresh XChaCha20-Poly1305 data keys wrapped by context-derived authority
+//! keys. Length-prefixed context binds customer, purpose and record identities.
+//! Legacy direct seals remain readable; all writes use versioned envelopes.
+
+mod envelope;
 
 use chacha20poly1305::{
-    aead::{Aead, KeyInit, OsRng, Payload},
-    AeadCore, XChaCha20Poly1305, XNonce,
+    aead::{Aead, KeyInit, Payload},
+    XChaCha20Poly1305, XNonce,
 };
 use sha2::{Digest, Sha256};
 
@@ -21,7 +24,7 @@ pub struct SealedBlob {
 }
 
 fn associated_data(scope: &str, record_id: &str, organization_id: &str) -> Vec<u8> {
-    format!("opensesame:{scope}:v1:{record_id}:{organization_id}").into_bytes()
+    context(&["scoped", scope, record_id, organization_id])
 }
 
 /// Associated data for a project-config secret value (ADR 0052). Binds the
@@ -37,10 +40,48 @@ pub fn config_value_ad(
     key_name: &str,
     version: u64,
 ) -> Vec<u8> {
-    format!(
-        "org|{organization_id}|project|{project_id}|config|{config_id}|key|{key_name}|v|{version}"
-    )
-    .into_bytes()
+    context(&[
+        "config",
+        organization_id,
+        project_id,
+        config_id,
+        key_name,
+        &version.to_string(),
+    ])
+}
+
+const CONTEXT_MAGIC: &[u8] = b"opensesame-context-v2\0";
+
+fn context(fields: &[&str]) -> Vec<u8> {
+    let mut bytes = CONTEXT_MAGIC.to_vec();
+    for field in fields {
+        bytes.extend_from_slice(&(field.len() as u64).to_be_bytes());
+        bytes.extend_from_slice(field.as_bytes());
+    }
+    bytes
+}
+
+// Only used for pre-envelope reads; new writes never authenticate ambiguous delimiters.
+fn legacy_context(aad: &[u8]) -> Option<Vec<u8>> {
+    let mut rest = aad.strip_prefix(CONTEXT_MAGIC)?;
+    let mut fields = Vec::new();
+    while !rest.is_empty() {
+        let length = u64::from_be_bytes(rest.get(..8)?.try_into().ok()?);
+        rest = rest.get(8..)?;
+        let length = usize::try_from(length).ok()?;
+        fields.push(std::str::from_utf8(rest.get(..length)?).ok()?);
+        rest = rest.get(length..)?;
+    }
+    match fields.as_slice() {
+        ["scoped", scope, record, org] => {
+            Some(format!("opensesame:{scope}:v1:{record}:{org}").into_bytes())
+        }
+        ["config", org, project, config, name, version] => Some(
+            format!("org|{org}|project|{project}|config|{config}|key|{name}|v|{version}")
+                .into_bytes(),
+        ),
+        _ => None,
+    }
 }
 
 fn digest(aad: &[u8]) -> String {
@@ -108,38 +149,26 @@ pub fn open(
 ///
 /// Returns an error when credential sealing fails.
 pub fn seal_with_ad(key: &[u8; 32], aad: &[u8], plaintext: &[u8]) -> Result<SealedBlob> {
-    let cipher = XChaCha20Poly1305::new(key.into());
-    let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
-    let ciphertext = cipher
-        .encrypt(
-            &nonce,
-            Payload {
-                msg: plaintext,
-                aad,
-            },
-        )
-        .map_err(|_| BrokerError::SealUnavailable("sealing failed".into()))?;
-    Ok(SealedBlob {
-        ciphertext,
-        nonce: nonce.to_vec(),
-        aad_digest: digest(aad),
-    })
+    envelope::seal(key, aad, plaintext)
 }
 
 /// # Errors
 ///
 /// Returns an error when the nonce is invalid or authentication fails.
 pub fn open_with_ad(key: &[u8; 32], aad: &[u8], blob: &SealedBlob) -> Result<Vec<u8>> {
+    if envelope::is_envelope(blob) {
+        return envelope::open(key, aad, blob);
+    }
     if blob.nonce.len() != 24 {
         return Err(BrokerError::SealUnavailable("nonce length".into()));
     }
-    let cipher = XChaCha20Poly1305::new(key.into());
-    cipher
+    let legacy = legacy_context(aad).unwrap_or_else(|| aad.to_vec());
+    XChaCha20Poly1305::new(key.into())
         .decrypt(
             XNonce::from_slice(&blob.nonce),
             Payload {
                 msg: &blob.ciphertext,
-                aad,
+                aad: &legacy,
             },
         )
         .map_err(|_| BrokerError::SealUnavailable("credential could not be opened".into()))
@@ -171,6 +200,66 @@ mod tests {
     const KEY: [u8; 32] = [9u8; 32];
     const CID: &str = "connection:1";
     const ORG: &str = "org:1";
+
+    #[test]
+    fn legacy_direct_seals_remain_readable() {
+        for aad in [
+            associated_data("connection", CID, ORG),
+            config_value_ad(ORG, "p", "c", "K", 1),
+        ] {
+            let legacy = legacy_context(&aad).unwrap();
+            let nonce = [3u8; 24];
+            let ciphertext = XChaCha20Poly1305::new((&KEY).into())
+                .encrypt(
+                    XNonce::from_slice(&nonce),
+                    Payload {
+                        msg: b"legacy",
+                        aad: &legacy,
+                    },
+                )
+                .unwrap();
+            let blob = SealedBlob {
+                ciphertext,
+                nonce: nonce.to_vec(),
+                aad_digest: digest(&legacy),
+            };
+            assert_eq!(open_with_ad(&KEY, &aad, &blob).unwrap(), b"legacy");
+        }
+    }
+
+    #[test]
+    fn canonical_context_rejects_delimiter_collisions() {
+        assert_ne!(
+            associated_data("connection", "a:b", "c"),
+            associated_data("connection", "a", "b:c")
+        );
+        assert_ne!(
+            config_value_ad("a|project|b", "c", "d", "e", 1),
+            config_value_ad("a", "b|project|c", "d", "e", 1)
+        );
+    }
+
+    #[test]
+    fn envelope_rejects_malformed_tampered_and_downgraded_frames() {
+        let original = seal(&KEY, CID, ORG, b"material").unwrap();
+        for index in 0..original.ciphertext.len() {
+            let mut changed = original.clone();
+            changed.ciphertext[index] ^= 1;
+            assert!(open(&KEY, CID, ORG, &changed).is_err(), "byte {index}");
+        }
+        for length in 0..original.ciphertext.len() {
+            let mut changed = original.clone();
+            changed.ciphertext.truncate(length);
+            assert!(open(&KEY, CID, ORG, &changed).is_err());
+        }
+        let mut stripped = original.clone();
+        let header_length = stripped.ciphertext.len() - b"material".len() - 16;
+        stripped.ciphertext.drain(..header_length);
+        assert!(open(&KEY, CID, ORG, &stripped).is_err());
+        let mut changed = original;
+        changed.aad_digest = "0".repeat(64);
+        assert!(open(&KEY, CID, ORG, &changed).is_err());
+    }
 
     #[test]
     fn roundtrip() {

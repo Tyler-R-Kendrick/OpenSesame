@@ -41,15 +41,26 @@ pub struct StoredRunnerStep {
 
 fn step_from_row(row: &SqliteRow) -> anyhow::Result<StoredRunnerStep> {
     let request: String = row.get("request_json");
+    let customer: String = row.get("organization_id");
+    let resource = format!(
+        "{}:{}",
+        row.get::<String, _>("run_id"),
+        row.get::<i64, _>("seq")
+    );
     Ok(StoredRunnerStep {
         run_id: row.get("run_id"),
         organization_id: row.get("organization_id"),
         seq: row.get("seq"),
-        request_json: sealed::open("runner_steps.request_json", &request)?,
+        request_json: sealed::open_in(&customer, "runner_steps.request_json", &resource, &request)?,
         state: row.get("state"),
         claimed_by: row.get("claimed_by"),
         claim_expires_at: row.get("claim_expires_at"),
-        outcome_json: sealed::open_opt("runner_steps.outcome_json", row.get("outcome_json"))?,
+        outcome_json: sealed::open_opt_in(
+            &customer,
+            "runner_steps.outcome_json",
+            &resource,
+            row.get("outcome_json"),
+        )?,
         created_at: row.get("created_at"),
         updated_at: row.get("updated_at"),
     })
@@ -128,7 +139,12 @@ impl Db {
         .bind(run_id)
         .bind(organization_id)
         .bind(seq)
-        .bind(sealed::seal("runner_steps.request_json", request_json))
+        .bind(sealed::seal_in(
+            organization_id,
+            "runner_steps.request_json",
+            &format!("{run_id}:{seq}"),
+            request_json,
+        ))
         .bind(now)
         .bind(now)
         .execute(&mut *tx)
@@ -272,7 +288,7 @@ impl Db {
                AND observation_runs.organization_id = runner_steps.organization_id \
                AND closed_at IS NULL)",
         )
-        .bind(sealed::seal("runner_steps.outcome_json", outcome_json))
+        .bind(sealed::seal_in(organization_id, "runner_steps.outcome_json", &format!("{run_id}:{seq}"), outcome_json))
         .bind(now)
         .bind(organization_id)
         .bind(run_id)
@@ -311,7 +327,12 @@ impl Db {
             "UPDATE runner_steps SET outcome_json = ? \
              WHERE organization_id = ? AND run_id = ? AND seq = ? AND state = 'settled'",
         )
-        .bind(sealed::seal("runner_steps.outcome_json", outcome_json))
+        .bind(sealed::seal_in(
+            organization_id,
+            "runner_steps.outcome_json",
+            &format!("{run_id}:{seq}"),
+            outcome_json,
+        ))
         .bind(organization_id)
         .bind(run_id)
         .bind(seq)

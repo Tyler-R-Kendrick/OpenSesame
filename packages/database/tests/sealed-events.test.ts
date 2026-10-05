@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createCipheriv, hkdfSync, randomBytes, randomUUID } from "node:crypto";
 import type { JsonObject } from "@opensesame/os-domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -158,7 +158,13 @@ describe("Postgres event rows are sealed", () => {
         .where(eq(schema.outboxEvents.id, event.id));
       expect(rawText(row?.payload)).not.toContain(PLAINTEXT);
       // Sealed exactly once: one layer opens to the original, not to a seal.
-      expect(sealer.open("outbox_events.payload", row?.payload ?? {})).toEqual({
+      expect(
+        sealer.open(
+          `outbox_events.payload:${event.id}`,
+          row?.payload ?? {},
+          JSON.stringify([event.aggregateType, event.aggregateId]),
+        ),
+      ).toEqual({
         secret: PLAINTEXT,
       });
     }
@@ -230,7 +236,13 @@ describe("legacy rows are sealed in place", () => {
       .from(schema.auditEvents)
       .where(eq(schema.auditEvents.id, legacy.id));
     expect(rawText(row?.metadata)).not.toContain(PLAINTEXT);
-    expect(sealer.open("audit_events.metadata", row?.metadata ?? {})).toEqual({
+    expect(
+      sealer.open(
+        `audit_events.metadata:${legacy.id}`,
+        row?.metadata ?? {},
+        legacy.organizationId ?? legacy.principalId ?? "deployment",
+      ),
+    ).toEqual({
       reason: PLAINTEXT,
     });
 
@@ -242,4 +254,91 @@ describe("legacy rows are sealed in place", () => {
       notification: 0,
     });
   });
+});
+
+it("upgrades actual v1 events to record and customer bound envelopes", async () => {
+  const principal = await ctx.repos.principals.create(makePrincipal());
+  const legacy = makeAuditEvent({
+    principalId: principal.id,
+    metadata: { sensitive: PLAINTEXT },
+  });
+  const key = Buffer.from(
+    hkdfSync("sha256", SECRET, "", "opensesame:event-seal:v1", 32),
+  );
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  cipher.setAAD(Buffer.from("audit_events.metadata"));
+  const packed = Buffer.concat([
+    iv,
+    cipher.update(JSON.stringify(legacy.metadata)),
+    cipher.final(),
+    cipher.getAuthTag(),
+  ]);
+  await ctx.db.insert(schema.auditEvents).values({
+    ...legacy,
+    metadata: { $sealed: `osev1.${packed.toString("base64url")}` },
+  });
+  const result = await sealLegacyEvents(ctx.db, sealer);
+  expect(result.audit).toBeGreaterThanOrEqual(1);
+  const [stored] = await ctx.db
+    .select()
+    .from(schema.auditEvents)
+    .where(eq(schema.auditEvents.id, legacy.id));
+  expect(stored?.metadata.$sealed).toMatch(/^osev2\./);
+  expect(
+    sealer.open(
+      `audit_events.metadata:${legacy.id}`,
+      stored?.metadata ?? {},
+      principal.id,
+    ),
+  ).toEqual(legacy.metadata);
+  expect(() =>
+    sealer.open(
+      `audit_events.metadata:${legacy.id}`,
+      stored?.metadata ?? {},
+      "customer-other",
+    ),
+  ).toThrow(EventSealError);
+  expect((await sealLegacyEvents(ctx.db, sealer)).audit).toBe(0);
+});
+
+it("refuses an unknown event envelope marker at startup", async () => {
+  const event = makeAuditEvent({ metadata: { $sealed: "unknown-format" } });
+  await ctx.db.insert(schema.auditEvents).values(event);
+  try {
+    await expect(sealLegacyEvents(ctx.db, sealer)).rejects.toThrow(
+      EventSealError,
+    );
+  } finally {
+    await ctx.db
+      .delete(schema.auditEvents)
+      .where(eq(schema.auditEvents.id, event.id));
+  }
+});
+
+it("preserves a concurrent event rewrite during the migration", async () => {
+  const event = makeAuditEvent({ metadata: { original: true } });
+  await ctx.db.insert(schema.auditEvents).values(event);
+  let rotation: Promise<void> | undefined;
+  const migrating = {
+    ...sealer,
+    seal(purpose: string, value: JsonObject, scope?: string) {
+      if (purpose === `audit_events.metadata:${event.id}`) {
+        rotation = ctx.db
+          .update(schema.auditEvents)
+          .set({ metadata: { concurrent: true } })
+          .where(eq(schema.auditEvents.id, event.id))
+          .then(() => undefined);
+      }
+      return sealer.seal(purpose, value, scope);
+    },
+  };
+  await sealLegacyEvents(ctx.db, migrating);
+  await rotation;
+  const [stored] = await ctx.db
+    .select()
+    .from(schema.auditEvents)
+    .where(eq(schema.auditEvents.id, event.id));
+  expect(stored?.metadata).toEqual({ concurrent: true });
+  await sealLegacyEvents(ctx.db, sealer);
 });

@@ -275,3 +275,50 @@ async fn backup_cursor_keeps_organization_namespaces_distinct() {
     assert_eq!(page[0].0, "org:a");
     assert_eq!(page[1].0, "org:b");
 }
+
+#[tokio::test]
+async fn concurrent_customer_writes_wait_for_the_writer_and_preserve_each_quota() {
+    let path = std::env::temp_dir().join(format!(
+        "opensesame-customers-{}.sqlite",
+        uuid::Uuid::new_v4()
+    ));
+    let url = format!("sqlite:{}?mode=rwc", path.display());
+    let db = std::sync::Arc::new(Db::connect_sqlite(&url).await.unwrap());
+    let gate = std::sync::Arc::new(tokio::sync::Barrier::new(8));
+    let mut writers = Vec::new();
+    for customer in 0..8 {
+        let db = db.clone();
+        let gate = gate.clone();
+        writers.push(tokio::spawn(async move {
+            let organization = format!("org:{customer}");
+            gate.wait().await;
+            let outcomes = db
+                .write_sync_blobs_scoped(
+                    "principal:shared",
+                    &organization,
+                    &[StoredSyncBlob {
+                        id: "same-item".into(),
+                        epoch: 1,
+                        ciphertext: vec![customer; 32],
+                    }],
+                    8,
+                    1,
+                )
+                .await
+                .unwrap();
+            assert_eq!(outcomes, vec![SyncWriteOutcome::Accepted]);
+            let page = db
+                .list_sync_blobs_page("principal:shared", &organization, (0, ""), 2, false)
+                .await
+                .unwrap()
+                .0;
+            assert_eq!(page.len(), 1);
+            assert_eq!(page[0].blob.ciphertext, vec![customer; 32]);
+        }));
+    }
+    for writer in writers {
+        writer.await.unwrap();
+    }
+    db.pool().close().await;
+    std::fs::remove_file(path).unwrap();
+}

@@ -56,7 +56,7 @@ async fn the_outbox_rests_sealed_and_reads_back_whole() {
     let id = db.append_outbox("test.event", &payload).await.unwrap();
 
     let stored = raw(&db, "SELECT payload_json FROM outbox_events").await;
-    assert!(stored.starts_with("osev1.") && !stored.contains(SENTINEL));
+    assert!(stored.starts_with("osev2.") && !stored.contains(SENTINEL));
 
     let claimed = db.claim_outbox_batch(10, 30).await.unwrap();
     assert_eq!(claimed.len(), 1);
@@ -84,7 +84,7 @@ async fn a_security_delivery_rests_sealed_and_its_failure_is_scrubbed() {
         .unwrap();
 
     let stored = raw(&db, "SELECT payload_json FROM security_deliveries").await;
-    assert!(stored.starts_with("osev1.") && !stored.contains(SENTINEL));
+    assert!(stored.starts_with("osev2.") && !stored.contains(SENTINEL));
     let listed = db.list_security_deliveries("org-1", 10).await.unwrap();
     assert_eq!(listed[0].payload_json, payload);
 
@@ -119,7 +119,7 @@ async fn a_runner_step_rests_sealed_and_settles() {
         .await
         .unwrap();
     let stored = raw(&db, "SELECT request_json FROM runner_steps").await;
-    assert!(stored.starts_with("osev1.") && !stored.contains(SENTINEL));
+    assert!(stored.starts_with("osev2.") && !stored.contains(SENTINEL));
 
     let claimed = db
         .claim_runner_step(
@@ -149,7 +149,7 @@ async fn a_runner_step_rests_sealed_and_settles() {
         .await
         .unwrap());
     let stored = raw(&db, "SELECT outcome_json FROM runner_steps").await;
-    assert!(stored.starts_with("osev1.") && !stored.contains(SENTINEL));
+    assert!(stored.starts_with("osev2.") && !stored.contains(SENTINEL));
     let step = db
         .get_runner_step("org-1", "run-1", 1)
         .await
@@ -165,7 +165,7 @@ async fn a_runner_step_rests_sealed_and_settles() {
         .await
         .unwrap());
     let stored = raw(&db, "SELECT outcome_json FROM runner_steps").await;
-    assert!(stored.starts_with("osev1.") && !stored.contains(SENTINEL));
+    assert!(stored.starts_with("osev2.") && !stored.contains(SENTINEL));
     let step = db
         .get_runner_step("org-1", "run-1", 1)
         .await
@@ -208,7 +208,7 @@ async fn rows_an_older_build_left_in_the_clear_are_sealed_once() {
     ] {
         let stored = raw(&db, sql).await;
         assert!(
-            stored.starts_with("osev1.") && !stored.contains(SENTINEL),
+            stored.starts_with("osev2.") && !stored.contains(SENTINEL),
             "{sql}"
         );
     }
@@ -257,7 +257,7 @@ async fn an_unreadable_outbox_row_is_quarantined_and_the_queue_moves_on() {
     )
     .await;
     assert!(
-        kept.starts_with("osev1."),
+        kept.starts_with("osev2."),
         "the sealed value is left as it was"
     );
     assert!(
@@ -310,7 +310,7 @@ async fn legacy_plaintext_in_any_case_of_the_prefix_is_sealed() {
     opensesame_event_seal::install(&KEY);
     assert_eq!(db.seal_legacy_events().await.unwrap(), 1);
     let stored = raw(&db, "SELECT payload_json FROM outbox_events").await;
-    assert!(stored.starts_with("osev1.") && !stored.contains("looks-sealed"));
+    assert!(stored.starts_with("osev2.") && !stored.contains("looks-sealed"));
     assert_eq!(
         db.claim_outbox_batch(10, 30).await.unwrap()[0].payload_json,
         upper

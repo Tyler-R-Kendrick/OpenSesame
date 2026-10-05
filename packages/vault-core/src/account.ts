@@ -85,11 +85,11 @@ export type PasswordGenerator =
 
 /**
  * A password sealed under a pepper: PBKDF2-SHA256 over the pepper, AES-GCM
- * over the password, bound to the account and method ids so a seal cannot be
+ * wrapping a per-password key (v2; v1 reads remain supported), bound to the account and method ids so a seal cannot be
  * moved to another method. The pepper itself is never stored anywhere.
  */
 export type PepperSeal = {
-  v: 1;
+  v: 1 | 2;
   kdf: {
     alg: "PBKDF2-SHA256";
     saltB64: string;

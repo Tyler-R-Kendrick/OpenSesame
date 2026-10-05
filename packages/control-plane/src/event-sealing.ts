@@ -16,7 +16,9 @@ import {
   createEventSealer,
   eventSealSecret,
   sealLegacyEvents,
+  sealLegacySecrets,
   withSealedEvents,
+  withSealedSecrets,
 } from "@opensesame/database";
 
 export function resolveEventSealer(
@@ -46,7 +48,7 @@ export function sealPostgresEvents(
   sealer: EventSealer,
 ): Repositories {
   return repos instanceof PostgresRepositories
-    ? withSealedEvents(repos, sealer)
+    ? withSealedEvents(withSealedSecrets(repos, sealer), sealer)
     : repos;
 }
 
@@ -56,4 +58,5 @@ export async function sealExistingEvents(
   sealer: EventSealer,
 ): Promise<void> {
   await sealLegacyEvents(db, sealer);
+  await sealLegacySecrets(db, sealer);
 }

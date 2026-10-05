@@ -82,7 +82,7 @@ describe("storePassword", () => {
   it("seals under the pepper and leaves secret empty", async () => {
     const out = await sealed();
     expect(out.secret).toBe("");
-    expect(out.sealed?.v).toBe(1);
+    expect(out.sealed?.v).toBe(2);
     expect(JSON.stringify(out)).not.toContain(PASSWORD);
     expect(JSON.stringify(out)).not.toContain(PEPPER);
     expect(out.changedAt).toBe(NOW.toISOString());
