@@ -42,37 +42,37 @@ function objectAt(value: JsonValue | undefined): JsonObject | null {
   return value !== undefined && isJsonObject(value) ? value : null;
 }
 
-function rulesOf(value: JsonObject): CharacterRules | null {
-  const length = count(value.length);
+function classFlags(
+  value: JsonObject,
+): Pick<
+  CharacterRules,
+  "lower" | "upper" | "digits" | "symbols" | "avoidAmbiguous"
+> | null {
   const lower = flag(value.lower);
   const upper = flag(value.upper);
   const digits = flag(value.digits);
   const symbols = flag(value.symbols);
   const avoidAmbiguous = flag(value.avoidAmbiguous);
-  const minDigits = count(value.minDigits);
-  const minSymbols = count(value.minSymbols);
-  if (
-    length === null ||
-    lower === null ||
+  return lower === null ||
     upper === null ||
     digits === null ||
     symbols === null ||
-    avoidAmbiguous === null ||
+    avoidAmbiguous === null
+    ? null
+    : { lower, upper, digits, symbols, avoidAmbiguous };
+}
+
+function rulesOf(value: JsonObject): CharacterRules | null {
+  const length = count(value.length);
+  const minDigits = count(value.minDigits);
+  const minSymbols = count(value.minSymbols);
+  const flags = classFlags(value);
+  return length === null ||
     minDigits === null ||
-    minSymbols === null
-  ) {
-    return null;
-  }
-  return {
-    length,
-    lower,
-    upper,
-    digits,
-    symbols,
-    avoidAmbiguous,
-    minDigits,
-    minSymbols,
-  };
+    minSymbols === null ||
+    flags === null
+    ? null
+    : { length, minDigits, minSymbols, ...flags };
 }
 
 /** A generator that is not whole is `manual`, which keeps the typed secret. */

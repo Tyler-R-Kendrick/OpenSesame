@@ -60,7 +60,12 @@ describe("generateRules", () => {
       expect(
         count(generateRules(rules({ avoidAmbiguous: true })), policy.ambiguous),
       ).toBe(0);
-      if (count(generateRules(rules({ length: 64 })), policy.ambiguous) > 0) {
+      if (
+        count(
+          generateRules(rules({ length: 64, avoidAmbiguous: false })),
+          policy.ambiguous,
+        ) > 0
+      ) {
         seen = true;
       }
     }

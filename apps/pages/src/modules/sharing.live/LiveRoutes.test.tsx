@@ -23,6 +23,7 @@ import {
 } from "@opensesame/app-core/lib/live/transport.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem } from "@opensesame/vault-core";
+import { withPassword } from "../../sections/vault/account.test-support.js";
 import {
   cleanup,
   fireEvent,
@@ -38,8 +39,8 @@ import { LiveRoutesPanel } from "./LiveRoutesPanel.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
-const github = createItem("login", "GitHub");
-github.password = "correct horse battery staple";
+const github = createItem("account", "GitHub");
+withPassword(github, "correct horse battery staple");
 
 const originalHooks = { ...vaultHooksSeams };
 const originalLive = { ...liveSeams };

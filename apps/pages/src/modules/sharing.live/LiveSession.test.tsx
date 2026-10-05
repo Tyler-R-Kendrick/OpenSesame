@@ -18,6 +18,7 @@ import {
 import { DIRECT_TRANSPORT } from "@opensesame/app-core/lib/live/transport.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem } from "@opensesame/vault-core";
+import { withPassword } from "../../sections/vault/account.test-support.js";
 import {
   cleanup,
   fireEvent,
@@ -34,11 +35,11 @@ import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
 const SECRET = "correct horse battery staple";
-const github = createItem("login", "GitHub");
+const github = createItem("account", "GitHub");
 github.username = "octo";
-github.password = SECRET;
-const bank = createItem("login", "Bank");
-bank.password = "not shared";
+withPassword(github, SECRET);
+const bank = createItem("account", "Bank");
+withPassword(bank, "not shared");
 
 const originalHooks = { ...vaultHooksSeams };
 const originalLive = { ...liveSeams };

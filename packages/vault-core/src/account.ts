@@ -9,8 +9,8 @@
  * password is stored as nothing but its OPRF key.
  */
 
-import type { LoginUri } from "./login-uri.js";
 import type { SealedBlob } from "./crypto.js";
+import type { LoginUri } from "./login-uri.js";
 import type { BaseItem, ReenrollState } from "./model.js";
 
 export const LOGIN_METHOD_TYPES = [
@@ -298,7 +298,9 @@ export function isLegacyLogin(value: unknown): value is LegacyLoginItem {
  * through untouched. Idempotent, so a body that is read, written and read again
  * (or merged from a device that already migrated) is stable.
  */
-export function normalizeLegacyItems<T>(items: readonly T[]): (T | AccountItem)[] {
+export function normalizeLegacyItems<T>(
+  items: readonly T[],
+): (T | AccountItem)[] {
   return items.map((item) =>
     isLegacyLogin(item) ? migrateLegacyLogin(item) : item,
   );

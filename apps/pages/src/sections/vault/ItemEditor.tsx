@@ -23,15 +23,20 @@ import { useWebMcpLoginDraft } from "../../bindings/webmcp-login-draft.js";
 import { EmptyTip } from "../../components/EmptyTip.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconEye, IconEyeOff } from "../../components/Icons.js";
+import {
+  isPepperCancelled,
+  usePepperPrompt,
+} from "../../components/PepperPrompt.js";
 import { useVaultAllTo } from "../../lib/vault-list-path.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
+import { AccountFields } from "./AccountFields.js";
 import { EditorActions } from "./EditorActions.js";
 import { EditorExtras } from "./EditorExtras.js";
 import { EditorTitle } from "./EditorTitle.js";
 import { UnknownItemType } from "./EditorType.js";
-import { LoginFields } from "./LoginFields.js";
 import { NativeItemFields } from "./NativeItemFields.js";
 import { TypedFieldInputs } from "./TypedFields.js";
+import { type PlainMap, sealForSave } from "./account-secrets.js";
 import { useEditorContributions } from "./item-contributions.js";
 import { seedDraft } from "./seed-draft.js";
 import { useEditorPath } from "./useEditorPath.js";
@@ -60,8 +65,9 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   );
 
   const [draft, setDraft] = useState<VaultItem | null>(initial.item);
-  const [showGenerator, setShowGenerator] = useState(false);
   const [reveal, setReveal] = useState(false);
+  const [plain, setPlain] = useState<PlainMap>({});
+  const pepper = usePepperPrompt();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(initial.error);
   const [pendingDeliveryId, setPendingDeliveryId] = useState<string>();
@@ -70,8 +76,8 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   useEffect(() => {
     setDraft(initial.item);
     setError(initial.error);
-    setShowGenerator(false);
     setReveal(false);
+    setPlain({});
     setPendingDeliveryId(undefined);
     setIssuanceKey(crypto.randomUUID());
   }, [initial]);
@@ -126,8 +132,8 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
       notes: draft.notes,
     });
     setError(null);
-    setShowGenerator(false);
     setReveal(false);
+    setPlain({});
   };
   const onTypeChange =
     mode === "new" && kindParam === undefined ? changeType : undefined;
@@ -159,6 +165,11 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   const typedDefinition =
     draft.kind === "typed" ? definitionFor(draft) : undefined;
 
+  const setPlainEntry = (id: string, entry: PlainMap[string] | null) =>
+    setPlain((current) => {
+      const { [id]: _dropped, ...rest } = current;
+      return entry === null ? rest : { ...rest, [id]: entry };
+    });
   const patchValue = (fieldId: string, value: FieldValue) =>
     setDraft((current) =>
       current === null || current.kind !== "typed"
@@ -197,7 +208,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
     let deliveryId = pendingDeliveryId;
     try {
       const location = path.resolve();
-      if (draft.kind === "login") await validateWebsitePatterns(draft.uris);
+      if (draft.kind === "account") await validateWebsitePatterns(draft.uris);
       let next = { ...draft, name: location.name, folderId: location.folderId };
       if (next.kind === "certificate" && !next.certificatePem) {
         const issued = await issueCertificate({
@@ -230,23 +241,31 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         // saves this exact issuance instead of minting another certificate.
         setDraft(next);
       }
-      if (
-        next.kind === "login" &&
-        existing?.kind === "login" &&
-        existing.password !== next.password
-      ) {
-        next = { ...next, passwordChangedAt: new Date().toISOString() };
+      if (next.kind === "account") {
+        // Peppered passwords are sealed here, after the pepper is asked for
+        // once; the plaintext never reaches the item the store is handed.
+        next = await sealForSave(
+          next,
+          existing?.kind === "account" ? existing : undefined,
+          plain,
+          pepper.ask,
+        );
       }
       await store.saveItem(next, location.folder);
       if (deliveryId) {
         await acknowledgeCertificateDelivery(deliveryId);
         setPendingDeliveryId(undefined);
       }
+      setPlain({});
       navigate(`/vault/${next.id}`);
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Could not save this item.",
-      );
+      // Closing the pepper prompt is a decision, not a failure: nothing is saved.
+      if (!isPepperCancelled(caught))
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "Could not save this item.",
+        );
     } finally {
       setSaving(false);
     }
@@ -265,6 +284,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
 
   return (
     <div className="detail">
+      {pepper.element}
       <form className="editor" onSubmit={(event) => void onSubmit(event)}>
         <EditorTitle
           value={draft}
@@ -279,26 +299,26 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         />
         {mode === "new" && Suggestions ? (
           <Suggestions
-            key={`${draftTypeId}:${draft.kind === "login" ? draft.uris[0]?.uri : ""}`}
+            key={`${draftTypeId}:${draft.kind === "account" ? draft.uris[0]?.uri : ""}`}
             typeId={draftTypeId}
-            website={draft.kind === "login" ? draft.uris[0]?.uri : undefined}
+            website={draft.kind === "account" ? draft.uris[0]?.uri : undefined}
             onApply={(labels) => {
               patch({ name: labels.name });
-              if (draft.kind === "login" || draft.kind === "passkey")
+              if (draft.kind === "account" || draft.kind === "passkey")
                 patch({ username: labels.username });
               if (draft.kind === "typed" && acceptsDraftUsername(draftTypeId))
                 patchValue("username", labels.username);
             }}
           />
         ) : null}
-        {draft.kind === "login" ? (
-          <LoginFields
+        {draft.kind === "account" ? (
+          <AccountFields
             draft={draft}
-            reveal={reveal}
-            showGenerator={showGenerator}
+            plain={plain}
+            ask={pepper.ask}
+            liveRoll={mode === "new"}
             onPatch={patch}
-            onReveal={setReveal}
-            onShowGenerator={setShowGenerator}
+            onPlain={setPlainEntry}
           />
         ) : null}
 

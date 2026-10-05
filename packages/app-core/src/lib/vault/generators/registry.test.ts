@@ -95,6 +95,7 @@ describe("generatorEntropyBits", () => {
     const rules = {
       id: "rules" as const,
       ...DEFAULT_RULES,
+      avoidAmbiguous: false,
       length: 10,
       upper: false,
       digits: false,

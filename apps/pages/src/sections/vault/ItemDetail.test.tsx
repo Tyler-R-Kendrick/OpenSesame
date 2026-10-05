@@ -73,7 +73,7 @@ function base<K extends VaultItem["kind"]>(kind: K, id: string, name: string) {
   };
 }
 
-function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
+function makeAccount(overrides: Partial<LoginItem> = {}): LoginItem {
   return {
     ...base("login", "itm_login", "Webmail"),
     username: "me@example.com",
@@ -125,7 +125,7 @@ describe("ItemDetail", () => {
   });
 
   it("renders a login with concealed password and reveals it on demand", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login");
     expect(screen.getByRole("heading", { name: "Webmail" })).toBeTruthy();
     expect(screen.getByText("me@example.com")).toBeTruthy();
@@ -146,7 +146,7 @@ describe("ItemDetail", () => {
   });
 
   it("copies fields through the clipboard feedback", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login");
     await userEvent.click(
       screen.getByRole("button", { name: /Copy username/i }),
@@ -159,7 +159,7 @@ describe("ItemDetail", () => {
 
   it("surfaces clipboard failures", async () => {
     copySecret.mockResolvedValue("unavailable");
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login");
     await userEvent.click(
       screen.getByRole("button", { name: /Copy username/i }),
@@ -171,7 +171,7 @@ describe("ItemDetail", () => {
 
   it("shows folder membership and update time", () => {
     vault.current = {
-      items: [makeLogin({ folderId: "fld_1" })],
+      items: [makeAccount({ folderId: "fld_1" })],
       folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
     };
     renderAt("itm_login");
@@ -184,7 +184,7 @@ describe("ItemDetail", () => {
   it("lists websites with external links only for browsable URLs", () => {
     vault.current = {
       items: [
-        makeLogin({
+        makeAccount({
           uris: [
             { id: "u1", uri: "https://mail.example.com", match: "domain" },
             { id: "u2", uri: "chrome-extension://abc", match: "never" },
@@ -205,7 +205,7 @@ describe("ItemDetail", () => {
 
   it("shows the authenticator section and QR reveal for TOTP logins", async () => {
     vault.current = {
-      items: [makeLogin({ totp: "JBSWY3DPEHPK3PXP" })],
+      items: [makeAccount({ totp: "JBSWY3DPEHPK3PXP" })],
       folders: [],
     };
     renderAt("itm_login");
@@ -231,7 +231,7 @@ describe("ItemDetail", () => {
   });
 
   it("generates a replacement password through the update panel", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login");
     await userEvent.click(
       screen.getByRole("button", { name: /Update password/i }),
@@ -248,7 +248,7 @@ describe("ItemDetail", () => {
   });
 
   it("requires a value in provide mode and saves what is typed", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login");
     await userEvent.click(
       screen.getByRole("button", { name: /Update password/i }),
@@ -273,7 +273,7 @@ describe("ItemDetail", () => {
   });
 
   it("cancels the update panel without saving", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login");
     await userEvent.click(
       screen.getByRole("button", { name: /Update password/i }),
@@ -289,7 +289,7 @@ describe("ItemDetail", () => {
   it("renders custom fields with conceal and copy controls", async () => {
     vault.current = {
       items: [
-        makeLogin({
+        makeAccount({
           fields: [
             { id: "f1", name: "API key", value: "ak_123", hidden: true },
             { id: "f2", name: "Region", value: "eu-1", hidden: false },
@@ -310,7 +310,7 @@ describe("ItemDetail", () => {
 
   it("shows notes for non-note items", () => {
     vault.current = {
-      items: [makeLogin({ notes: "recovery codes in the safe" })],
+      items: [makeAccount({ notes: "recovery codes in the safe" })],
       folders: [],
     };
     renderAt("itm_login");
@@ -318,7 +318,7 @@ describe("ItemDetail", () => {
   });
 
   it("toggles favorites", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login");
     await userEvent.click(
       screen.getByRole("button", { name: /Add to favorites/i }),
@@ -327,7 +327,7 @@ describe("ItemDetail", () => {
   });
 
   it("moves an item to trash", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login");
     await userEvent.click(
       screen.getByRole("button", { name: /Move to trash/i }),
@@ -337,7 +337,7 @@ describe("ItemDetail", () => {
 
   it("restores or purges a trashed item with confirmation", async () => {
     vault.current = {
-      items: [makeLogin({ deletedAt: "2026-08-10T00:00:00Z" })],
+      items: [makeAccount({ deletedAt: "2026-08-10T00:00:00Z" })],
       folders: [],
     };
     renderAt("itm_login");
@@ -524,7 +524,7 @@ describe("ItemDetail", () => {
   });
 
   it("keeps the list filter when navigating back", () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login", "?f=trash");
     const back = screen.getByRole("link", { name: /Back to list/i });
     expect(back.getAttribute("href")).toBe("/vault?f=trash");
@@ -548,8 +548,8 @@ describe("ItemDetail edge branches", () => {
   it("renders an untitled login without username or password", () => {
     vault.current = {
       items: [
-        makeLogin({ name: "", username: "", password: "", totp: "" }),
-        makeLogin({ id: "itm_other", name: "Other" }),
+        makeAccount({ name: "", username: "", password: "", totp: "" }),
+        makeAccount({ id: "itm_other", name: "Other" }),
       ],
       folders: [],
     };
@@ -565,7 +565,7 @@ describe("ItemDetail edge branches", () => {
 
   it("copies the current TOTP code", async () => {
     vault.current = {
-      items: [makeLogin({ totp: "JBSWY3DPEHPK3PXP" })],
+      items: [makeAccount({ totp: "JBSWY3DPEHPK3PXP" })],
       folders: [],
     };
     renderAt("itm_login");

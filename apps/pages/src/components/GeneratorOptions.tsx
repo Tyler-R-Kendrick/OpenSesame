@@ -76,7 +76,9 @@ function Count({
         value={value}
         onChange={(event) => {
           const next = Math.floor(Number(event.target.value));
-          onChange(Number.isFinite(next) ? Math.min(max, Math.max(0, next)) : 0);
+          onChange(
+            Number.isFinite(next) ? Math.min(max, Math.max(0, next)) : 0,
+          );
         }}
       />
     </label>

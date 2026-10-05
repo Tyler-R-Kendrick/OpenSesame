@@ -75,7 +75,7 @@ function renderEditor(path = "/vault/new/login") {
   );
 }
 
-function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
+function makeAccount(overrides: Partial<LoginItem> = {}): LoginItem {
   return {
     ...createItem("login", "Webmail"),
     id: "itm_1",
@@ -439,7 +439,7 @@ describe("ItemEditor", () => {
   });
 
   it("edits an existing login and bumps passwordChangedAt on password change", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     render(
       <MemoryRouter initialEntries={["/vault/itm_1/edit"]}>
         <Routes>
@@ -464,7 +464,7 @@ describe("ItemEditor", () => {
   });
 
   it("keeps passwordChangedAt when the password is untouched", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     render(
       <MemoryRouter initialEntries={["/vault/itm_1/edit"]}>
         <Routes>

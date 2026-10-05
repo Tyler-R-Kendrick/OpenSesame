@@ -39,6 +39,7 @@ import {
 } from "@opensesame/app-core/lib/vfs.js";
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { KIND_LABEL, createItem, randomBytes } from "@opensesame/vault-core";
+import { withPassword } from "../../../sections/vault/account.test-support.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { approved, profilePlan, profileSelection } from "./vault-profiles.js";
 
@@ -112,9 +113,9 @@ describe("VAULT-01 — the vault works with every optional service blocked", () 
 
     const store = new VaultStore();
     await store.create(PASSWORD);
-    const login = createItem("login", "Library card");
+    const login = createItem("account", "Library card");
     login.username = "ada";
-    login.password = "hunter2-but-longer";
+    withPassword(login, "hunter2-but-longer");
     await store.saveItem(login);
     await store.flushPendingWrites();
     store.lock();

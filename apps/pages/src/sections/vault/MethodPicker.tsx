@@ -68,15 +68,14 @@ export function MethodPicker({
   onPick: (type: LoginMethodType) => void;
   onClose: () => void;
 }) {
-  const group = useRef<HTMLDivElement>(null);
+  const group = useRef<HTMLFieldSetElement>(null);
   useEffect(() => {
     group.current?.querySelector<HTMLElement>("button")?.focus();
   }, []);
   return (
-    <div
+    <fieldset
       ref={group}
       className="method__picker"
-      role="group"
       aria-label="Login method type"
       onKeyDown={(event) => {
         if (event.key !== "Escape") return;
@@ -96,6 +95,6 @@ export function MethodPicker({
           {METHOD_LABELS[type]}
         </button>
       ))}
-    </div>
+    </fieldset>
   );
 }

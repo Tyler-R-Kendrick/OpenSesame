@@ -27,7 +27,7 @@ import { VaultSection } from "./VaultSection.js";
 import { ItemDetail } from "./vault/ItemDetail.js";
 import "./vault/commands.test-support.js";
 import { vaultTreeSeams } from "./vault/VaultTree.js";
-import { makeLogin } from "./vault/section-items.test-support.js";
+import { makeAccount } from "./vault/section-items.test-support.js";
 
 Object.assign(vaultHooksSeams, { useCopySecret: () => vi.fn() });
 Object.assign(vaultTreeSeams, {
@@ -73,7 +73,7 @@ describe("the vault on a phone", () => {
   let revoke: readonly (() => void)[] = [];
   beforeEach(() => {
     revoke = registerContributedShell();
-    vault.items = [makeLogin({ id: "itm_1", name: "GitHub" })];
+    vault.items = [makeAccount({ id: "itm_1", name: "GitHub" })];
     vault.folders = [];
     stubScreen({ narrow: true, coarse: true });
   });
@@ -321,7 +321,7 @@ describe("the vault on a desktop", () => {
   let revoke: readonly (() => void)[] = [];
   beforeEach(() => {
     revoke = registerContributedShell();
-    vault.items = [makeLogin({ id: "itm_1", name: "GitHub" })];
+    vault.items = [makeAccount({ id: "itm_1", name: "GitHub" })];
     vault.folders = [];
     stubScreen({ narrow: false, coarse: false });
   });

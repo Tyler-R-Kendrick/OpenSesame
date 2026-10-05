@@ -28,9 +28,9 @@ describe("pepper seal", () => {
 
   it("refuses a wrong pepper", async () => {
     const sealed = await sealWithPepper("secret", "right", binding);
-    await expect(openWithPepper(sealed, "wrong", binding)).rejects.toBeInstanceOf(
-      WrongPepperError,
-    );
+    await expect(
+      openWithPepper(sealed, "wrong", binding),
+    ).rejects.toBeInstanceOf(WrongPepperError);
   });
 
   it("treats the pepper as NFKC, like the vault's password", async () => {

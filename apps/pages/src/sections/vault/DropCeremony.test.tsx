@@ -111,7 +111,7 @@ function makeDrop(overrides: Partial<DropItem> = {}): DropItem {
   };
 }
 
-function makeLogin(): LoginItem {
+function makeAccount(): LoginItem {
   return {
     id: "itm_login",
     kind: "login",
@@ -256,7 +256,7 @@ describe("share ceremony on an item", () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
-        <ShareSecretDrop item={makeLogin()} />
+        <ShareSecretDrop item={makeAccount()} />
       </MemoryRouter>,
     );
     await user.click(screen.getByRole("button", { name: /Share once/i }));

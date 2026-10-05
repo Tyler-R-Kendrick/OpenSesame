@@ -186,7 +186,15 @@ describe("the portable core in a bare V8 context", () => {
         ...("concealed" in vector.expect
           ? { concealed: opened.concealed }
           : undefined),
-      }).toEqual(vector.expect);
+      }).toEqual({
+        ...vector.expect,
+        // The golden files hold legacy logins; the core reads them as accounts
+        // (ADR 0166), where the Rust reader still lists them as written.
+        items: vector.expect.items.map((item) => ({
+          ...item,
+          kind: item.kind === "login" ? "account" : item.kind,
+        })),
+      });
     },
     120_000,
   );

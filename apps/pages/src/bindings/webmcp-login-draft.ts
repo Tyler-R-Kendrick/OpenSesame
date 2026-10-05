@@ -22,7 +22,7 @@ export function useWebMcpLoginDraft(
 
   useEffect(() => {
     setWebMcpEditorKind(draft?.kind ?? null);
-    if (draft?.kind !== "login") {
+    if (draft?.kind !== "account") {
       return () => setWebMcpEditorKind(null);
     }
     const unbind = bindLoginDraft({

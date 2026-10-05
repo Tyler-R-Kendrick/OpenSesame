@@ -107,6 +107,21 @@ describe("normalizeLegacyItems", () => {
   });
 });
 
+describe("a new account", () => {
+  it("starts with one empty password method that is not peppered", () => {
+    const account = createItem("account", "Site");
+    if (account.kind !== "account") throw new Error("expected account");
+    expect(account.methods).toHaveLength(1);
+    expect(account.methods[0]).toMatchObject({
+      type: "password",
+      generator: { id: "rules" },
+      pepper: false,
+      secret: "",
+      changedAt: account.createdAt,
+    });
+  });
+});
+
 describe("password helpers", () => {
   it("hands out a plain password only when nothing needs asking", () => {
     const account = createItem("account", "A");

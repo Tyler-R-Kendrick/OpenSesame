@@ -13,11 +13,7 @@ import {
 import { useRef, useState } from "react";
 import { GeneratorOptions } from "../../components/GeneratorOptions.js";
 import { IconKey } from "../../components/IconKey.js";
-import {
-  IconEye,
-  IconEyeOff,
-  IconRefresh,
-} from "../../components/Icons.js";
+import { IconEye, IconEyeOff, IconRefresh } from "../../components/Icons.js";
 import {
   type PepperAskFn,
   isPepperCancelled,
@@ -141,8 +137,7 @@ export function PasswordMethodEditor({
             <IconKey
               label="Rotate password"
               onClick={() => {
-                if (generator.id === "sphinx")
-                  retune(rotateSphinx(generator));
+                if (generator.id === "sphinx") retune(rotateSphinx(generator));
               }}
             >
               <IconRefresh size={17} />
@@ -158,7 +153,9 @@ export function PasswordMethodEditor({
               type={reveal && !sealedUnknown ? "text" : "password"}
               autoComplete="new-password"
               spellCheck={false}
-              placeholder={sealedUnknown && method.sealed ? "••••••••" : undefined}
+              placeholder={
+                sealedUnknown && method.sealed ? "••••••••" : undefined
+              }
               value={value}
               onChange={(event) => {
                 const typed = event.target.value;

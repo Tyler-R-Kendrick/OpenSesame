@@ -102,7 +102,9 @@ export function switchGenerator(
     return next.pepper
       ? {
           method: { ...next, secret: "" },
-          plain: plain[method.id] ?? (kept === "" ? null : { value: kept, dirty: false }),
+          plain:
+            plain[method.id] ??
+            (kept === "" ? null : { value: kept, dirty: false }),
         }
       : { method: { ...withoutSeal(next), secret: kept }, plain: null };
   }
@@ -150,7 +152,10 @@ export async function pepperOff(
     };
   }
   const pepper = await ask("enter", "Remove pepper");
-  return { method: await disablePepper(account.id, method, pepper), plain: null };
+  return {
+    method: await disablePepper(account.id, method, pepper),
+    plain: null,
+  };
 }
 
 /**

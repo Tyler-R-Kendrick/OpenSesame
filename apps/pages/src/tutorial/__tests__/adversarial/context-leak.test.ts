@@ -38,6 +38,7 @@ import {
   sanitizeSupportRequest,
 } from "@opensesame/support-agent";
 import { createItem, newUri } from "@opensesame/vault-core";
+import { withPassword } from "../../../sections/vault/account.test-support.js";
 import { beforeAll, describe, expect, it } from "vitest";
 import {
   OVERLAY_SELECTOR,
@@ -95,19 +96,23 @@ beforeAll(async () => {
 
   const folder = await vaultStore.addFolder(AUTHORED.folderName);
 
-  const login = createItem("login", AUTHORED.itemName);
+  const login = createItem("account", AUTHORED.itemName);
   login.folderId = folder.id;
   login.username = AUTHORED.username;
-  login.password = SECRETS.password;
-  login.totp = SECRETS.totpSeed;
+  withPassword(login, SECRETS.password);
+  login.methods.push({
+    id: `${login.id}:authenticator`,
+    type: "authenticator",
+    secret: SECRETS.totpSeed,
+  });
   login.uris = [newUri(AUTHORED.uri)];
   login.notes = SECRETS.noteBody;
   login.fields = [
     { id: "f1", name: "recovery", value: SECRETS.recoveryCode, hidden: true },
   ];
 
-  const imported = createItem("login", AUTHORED.kdbxEntry);
-  imported.password = SECRETS.password;
+  const imported = createItem("account", AUTHORED.kdbxEntry);
+  withPassword(imported, SECRETS.password);
 
   const card = createItem("card", AUTHORED.itemName);
   card.number = SECRETS.cardNumber;

@@ -24,6 +24,7 @@ import {
 import { DIRECT_TRANSPORT } from "@opensesame/app-core/lib/live/transport.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem } from "@opensesame/vault-core";
+import { withPassword } from "../../sections/vault/account.test-support.js";
 import {
   act,
   cleanup,
@@ -40,9 +41,9 @@ import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
-const github = createItem("login", "GitHub");
+const github = createItem("account", "GitHub");
 github.username = "octo";
-github.password = "correct horse battery staple";
+withPassword(github, "correct horse battery staple");
 
 const originalHooks = { ...vaultHooksSeams };
 const originalLive = { ...liveSeams };

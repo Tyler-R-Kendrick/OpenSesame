@@ -30,7 +30,7 @@ import { HealthPanel } from "./HealthPanel.js";
 
 let seq = 0;
 
-function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
+function makeAccount(overrides: Partial<LoginItem> = {}): LoginItem {
   seq += 1;
   return {
     id: `itm_${seq}`,
@@ -81,8 +81,8 @@ describe("HealthPanel", () => {
   it("ignores trashed and password-less logins", () => {
     vault.current = {
       items: [
-        makeLogin({ deletedAt: "2026-08-10T00:00:00Z" }),
-        makeLogin({ password: "" }),
+        makeAccount({ deletedAt: "2026-08-10T00:00:00Z" }),
+        makeAccount({ password: "" }),
       ],
     };
     renderPanel();
@@ -90,7 +90,7 @@ describe("HealthPanel", () => {
   });
 
   it("reports a fully clean vault", () => {
-    vault.current = { items: [makeLogin()] };
+    vault.current = { items: [makeAccount()] };
     renderPanel();
     expect(screen.getByText(/1 reviewed · 1 clean/)).toBeTruthy();
     expect(
@@ -102,14 +102,14 @@ describe("HealthPanel", () => {
     const old = new Date(Date.now() - 400 * 86_400_000).toISOString();
     vault.current = {
       items: [
-        makeLogin({
+        makeAccount({
           id: "itm_a",
           name: "Webmail",
           password: "letmein",
           totp: "",
           passwordChangedAt: old,
         }),
-        makeLogin({
+        makeAccount({
           id: "itm_b",
           name: "Forum",
           password: "letmein",

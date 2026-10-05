@@ -1,7 +1,14 @@
 import { executeCommand } from "@opensesame/app-core/lib/command-bar/execute.js";
 import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
 import type { SlashSuggestion } from "@opensesame/app-core/lib/command-bar/slash.js";
-import { type FormEvent, useCallback, useMemo, useState } from "react";
+import {
+  type FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router";
 import { useContributions } from "../bindings/contributions.js";
 import { useFieldSearch } from "../lib/command-bar/use-field-search.js";
@@ -15,6 +22,7 @@ import {
   useCommandSuggestions,
 } from "./CommandSuggestions.js";
 import { IconArrowRight } from "./Icons.js";
+import { isPepperCancelled, usePepperPrompt } from "./PepperPrompt.js";
 import { useCoarsePointer } from "./use-coarse-pointer.js";
 import "./command-bar.css";
 
@@ -27,6 +35,8 @@ function useCommandRunner() {
   const [value, setValue] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const pepper = usePepperPrompt();
+  const { ask } = pepper;
   // A model capability registers command-assist. Without one, the bar
   // parses commands only: navigate, search, copy. With one, a sentence no
   // verb claims is a question. Support learns whether that model can answer
@@ -47,14 +57,27 @@ function useCommandRunner() {
     [items],
   );
 
+  // The pepper is asked for by the one prompt; closing it is a cancel (null).
+  const asked = useRef(false);
+  const askPepper = useCallback(async (): Promise<string | null> => {
+    asked.current = true;
+    try {
+      return await ask("enter", "Use pepper");
+    } catch (caught) {
+      if (isPepperCancelled(caught)) return null;
+      throw caught;
+    }
+  }, [ask]);
+
   const ports = useMemo(
     () => ({
       navigate: (path: string) => navigate(path),
       copy,
       items: () => items,
       vaultLocked: () => vaultStatus !== "unlocked",
+      askPepper,
     }),
-    [copy, items, navigate, vaultStatus],
+    [askPepper, copy, items, navigate, vaultStatus],
   );
 
   const run = useCallback(
@@ -96,6 +119,8 @@ function useCommandRunner() {
     busy,
     run,
     names,
+    asked,
+    pepperElement: pepper.element,
     Voice: assist?.Voice,
     asks: assist != null,
   };
@@ -133,8 +158,27 @@ function RunKey({ off }: { off: boolean }) {
  * copy. A model adds interpretation, the mic, and the ask road.
  */
 export function CommandBar() {
-  const { value, setValue, notice, setNotice, busy, run, names, Voice, asks } =
-    useCommandRunner();
+  const {
+    value,
+    setValue,
+    notice,
+    setNotice,
+    busy,
+    run,
+    names,
+    asked,
+    pepperElement,
+    Voice,
+    asks,
+  } = useCommandRunner();
+  const input = useRef<HTMLInputElement>(null);
+  // The field is disabled while a command runs, so the focus the pepper prompt
+  // hands back lands on nothing; put it back once the field is live again.
+  useEffect(() => {
+    if (busy || !asked.current) return;
+    asked.current = false;
+    input.current?.focus();
+  }, [busy, asked]);
   const touch = useCoarsePointer();
   const barRef = useGuideTarget<HTMLElement>("shell.command-bar");
   const suggestions = useCommandSuggestions(value, names);
@@ -175,6 +219,7 @@ export function CommandBar() {
           Command
         </label>
         <input
+          ref={input}
           id="command-bar-input"
           className="command-bar__input"
           type="text"
@@ -224,6 +269,7 @@ export function CommandBar() {
       {notice !== null && !suggestions.open ? (
         <output className="command-bar__status">{notice}</output>
       ) : null}
+      {pepperElement}
     </search>
   );
 }

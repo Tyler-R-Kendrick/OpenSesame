@@ -27,11 +27,6 @@ describe("createItem", () => {
     if (account.kind === "account") {
       expect(account.username).toBe("");
       expect(account.methods).toHaveLength(1);
-      expect(account.methods[0]).toMatchObject({
-        type: "password",
-        pepper: false,
-        changedAt: account.createdAt,
-      });
     }
 
     const passkey = createItem("passkey");

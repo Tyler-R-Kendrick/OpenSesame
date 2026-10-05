@@ -18,6 +18,8 @@ use opensesame_human_vault::pages_vault::{
 use serde_json::Value;
 use sha2::Sha256;
 
+mod support;
+
 const VECTORS: &str = include_str!("../../../spec/conformance/vault-vectors.json");
 
 /// The vectors written before ADR 0166: their items are `login`, and stay so.
@@ -177,39 +179,6 @@ fn assert_listing(name: &str, opened: &OpenedVaultFile) {
     assert_eq!(listed, expected, "{name}");
 }
 
-/// The account vectors hold every way to keep a login (ADR 0166 section 2): a
-/// plain manual password, a peppered one with its sealed envelope, a sphinx
-/// one with its OPRF key, an authenticator, and api-key, token and oauth.
-fn assert_account_methods(name: &str, body: &Value) {
-    let methods: Vec<&Value> = body["items"]
-        .as_array()
-        .expect("items")
-        .iter()
-        .filter(|item| item["kind"] == "account")
-        .flat_map(|item| item["methods"].as_array().expect("methods"))
-        .collect();
-    let has = |ty: &str| methods.iter().any(|method| method["type"] == ty);
-    assert!(has("password") && has("authenticator"), "{name}");
-    assert!(has("api-key") && has("token") && has("oauth"), "{name}");
-    let password = |pred: &dyn Fn(&Value) -> bool| {
-        methods
-            .iter()
-            .any(|method| method["type"] == "password" && pred(method))
-    };
-    assert!(
-        password(&|m| m["generator"]["id"] == "manual" && m["pepper"] == false),
-        "{name}: a plain manual password"
-    );
-    assert!(
-        password(&|m| m["pepper"] == true && m["sealed"].is_object() && m["secret"] == ""),
-        "{name}: a peppered password with its sealed envelope"
-    );
-    assert!(
-        password(&|m| m["generator"]["id"] == "sphinx" && m["generator"]["oprfKeyB64"].is_string()),
-        "{name}: a sphinx password"
-    );
-}
-
 #[test]
 fn every_vector_opens_to_its_recorded_summary_and_lists_no_value() {
     let vectors = vectors();
@@ -249,7 +218,7 @@ fn every_vector_opens_to_its_recorded_summary_and_lists_no_value() {
         if ACCOUNT_VECTORS.contains(&name.as_str()) {
             // The pepper that opens a sealed password is never listed either.
             values.push(text(&fixture(), "accountPepper"));
-            assert_account_methods(&name, &body);
+            support::assert_account_methods(&name, &body);
         }
         values.retain(|value| value.chars().count() >= 6);
         assert!(!values.is_empty(), "{name}: the vector holds values");

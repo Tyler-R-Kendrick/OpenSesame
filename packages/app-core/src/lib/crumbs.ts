@@ -110,8 +110,7 @@ const VAULT_FILTER_LABEL = new Map([
 export function vaultFilterLabel(slug: string): string | undefined {
   const fixed = VAULT_FILTER_LABEL.get(slug);
   if (fixed !== undefined) return fixed;
-  // A link written before accounts (`?f=logins`) still names its type.
-  const filter = resolveFilterSlug(slug);
+  const filter = resolveFilterSlug(slug); // `?f=logins` predates accounts
   return itemTypeRegistry().has(filter) ? typePlural(filter) : undefined;
 }
 
@@ -304,11 +303,9 @@ function vaultCrumbs(
     crumbs.push({ label: "Password health" });
     return crumbs;
   }
-  // `/vault/new/login` still names the account type (ADR 0166).
-  const newKind = resolveTypeId(rest[1] ?? "");
+  const newKind = resolveTypeId(rest[1] ?? ""); // `/vault/new/login` is an account
   if (rest[0] === "new" && isItemKind(newKind)) {
-    const kind = newKind;
-    crumbs.push({ label: `New ${KIND_LABEL[kind].toLowerCase()}` });
+    crumbs.push({ label: `New ${KIND_LABEL[newKind].toLowerCase()}` });
     return crumbs;
   }
   if (rest[0] && rest[0] !== "new") {

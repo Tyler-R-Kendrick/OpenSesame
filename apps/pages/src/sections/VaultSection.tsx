@@ -10,6 +10,7 @@ import {
 
 import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
+import { resolveFilterSlug } from "@opensesame/app-core/lib/vault-filter-slug.js";
 import { itemCreatePath } from "@opensesame/app-core/lib/vault/item-path.js";
 import {
   type VaultItem,
@@ -51,7 +52,7 @@ export function VaultSection() {
   const copySecret = useCopySecret();
   const navigate = useNavigate();
 
-  const filter = params.get("f") ?? "all";
+  const filter = resolveFilterSlug(params.get("f") ?? "all");
   const inTrash = filter === "trash";
   const [armedPurgeId, setArmedPurgeId] = useState<string | null>(null);
   const folderId = params.get("folder");
@@ -314,7 +315,7 @@ export function VaultSection() {
 export function VaultWelcome() {
   const { items } = useVault();
   const [params] = useSearchParams();
-  const filter = params.get("f") ?? "all";
+  const filter = resolveFilterSlug(params.get("f") ?? "all");
   const inTrash = filter === "trash";
   const shown = items.filter((item) => {
     if (inTrash) return item.deletedAt !== null;

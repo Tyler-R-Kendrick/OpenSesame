@@ -12,7 +12,13 @@
  */
 
 import type { PepperAsk } from "@opensesame/app-core/lib/vault/generators/index.js";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { CeremonySheet } from "./CeremonySheet.js";
 import { FieldShell } from "./FieldShell.js";
 import { FormCommit } from "./FormCommit.js";
@@ -70,7 +76,9 @@ export function PepperPrompt({
   const setting = mode === "set";
   const matches = value !== "" && value === confirm;
   const ready = setting ? matches : value !== "";
-  const commit = setting ? `Set ${label.toLowerCase()}` : `Use ${label.toLowerCase()}`;
+  const commit = setting
+    ? `Set ${label.toLowerCase()}`
+    : `Use ${label.toLowerCase()}`;
   const type = reveal ? "text" : "password";
 
   return (
@@ -99,7 +107,11 @@ export function PepperPrompt({
           tail={
             <IconKey
               small
-              label={reveal ? `Hide ${label.toLowerCase()}` : `Show ${label.toLowerCase()}`}
+              label={
+                reveal
+                  ? `Hide ${label.toLowerCase()}`
+                  : `Show ${label.toLowerCase()}`
+              }
               aria-pressed={reveal}
               onClick={() => setReveal((on) => !on)}
             >
