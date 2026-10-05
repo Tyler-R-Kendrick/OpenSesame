@@ -1,0 +1,931 @@
+{
+  "$comment": "Tailnet device management's wire protocol (ADR 0165), as literal exchanges. Each names the page's request, every call the daemon must make upstream in order (path under the stub's base), Tailscale's answer to each, and the daemon's answer to the page. The daemon replays them against its real router and a stub Tailscale (crates/daemon/src/tailnet_admin_conformance_tests.rs); the Pages client builds every request and reads every answer through its real client (packages/app-core/src/lib/tailnet-admin/protocol-conformance.test.ts). 'bearer' is the role whose bearer the request carries, or null for none. The daemon is connected to tailnet 'example.com' with an API access token at connected_at 1790000000. Change a case here and both sides must follow.",
+  "version": 1,
+  "tailnet": "example.com",
+  "connectedAt": 1790000000,
+  "pairing": {
+    "prefix": "opensesame-tailnet:v1:",
+    "printed": "opensesame-tailnet:v1:eyJjb2RlIjoiVkdGcGJHNWxkQzF3WVdseWFXNW5MV052WkdVdGJtOTBMV0V0Y21WaGJDMXYiLCJsYWJlbCI6Ik9wcyBsYXB0b3AiLCJvcmlnaW4iOiJodHRwczovL29wcy5leGFtcGxlLmNvbSIsInJvbGUiOiJtYW5hZ2UiLCJ1cmwiOiJodHRwczovL2Rlc2sudGFpbDRjMmUudHMubmV0In0",
+    "url": "https://desk.tail4c2e.ts.net",
+    "code": "VGFpbG5ldC1wYWlyaW5nLWNvZGUtbm90LWEtcmVhbC1v",
+    "origin": "https://ops.example.com",
+    "role": "manage",
+    "label": "Ops laptop",
+    "exchange": {
+      "path": "/v1/tailnet/pairing",
+      "request": {
+        "code": "VGFpbG5ldC1wYWlyaW5nLWNvZGUtbm90LWEtcmVhbC1v"
+      },
+      "responseKeys": [
+        "id",
+        "label",
+        "origin",
+        "role",
+        "token"
+      ]
+    }
+  },
+  "exchanges": [
+    {
+      "name": "status",
+      "operation": "status",
+      "bearer": "read",
+      "request": {
+        "method": "GET",
+        "path": "/v1/tailnet/status",
+        "body": null
+      },
+      "upstream": [],
+      "response": {
+        "status": 200,
+        "body": {
+          "connected": true,
+          "tailnet": "example.com",
+          "credential": "api_key",
+          "connected_at": 1790000000,
+          "role": "read",
+          "label": "Ops laptop"
+        }
+      }
+    },
+    {
+      "name": "list devices",
+      "operation": "listDevices",
+      "bearer": "read",
+      "request": {
+        "method": "GET",
+        "path": "/v1/tailnet/devices",
+        "body": null
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/api/v2/tailnet/example.com/devices?fields=all",
+          "body": null,
+          "status": 200,
+          "response": {
+            "devices": [
+              {
+                "addresses": [
+                  "100.101.102.103",
+                  "fd7a:115c:a1e0::1"
+                ],
+                "id": "92960230385",
+                "nodeId": "n292kg92CNTRL",
+                "user": "amelie@example.com",
+                "name": "pangolin.tail4c2e.ts.net",
+                "hostname": "pangolin",
+                "clientVersion": "1.80.2",
+                "updateAvailable": true,
+                "os": "linux",
+                "created": "2026-09-01T05:23:30Z",
+                "connectedToControl": true,
+                "lastSeen": "2026-10-05T09:00:00Z",
+                "keyExpiryDisabled": false,
+                "expires": "2027-03-01T05:23:30Z",
+                "authorized": true,
+                "isExternal": false,
+                "machineKey": "mkey:not-forwarded",
+                "nodeKey": "nodekey:not-forwarded",
+                "blocksIncomingConnections": false,
+                "enabledRoutes": [
+                  "10.0.0.0/16"
+                ],
+                "advertisedRoutes": [
+                  "10.0.0.0/16",
+                  "0.0.0.0/0",
+                  "::/0"
+                ],
+                "tags": [
+                  "tag:web"
+                ],
+                "tailnetLockError": "",
+                "sshEnabled": true,
+                "isEphemeral": false,
+                "multipleConnections": false
+              },
+              {
+                "addresses": [
+                  "100.88.1.2"
+                ],
+                "id": "51234",
+                "nodeId": "nNEWPHONECNTRL",
+                "user": "sam@example.com",
+                "name": "sams-phone.tail4c2e.ts.net",
+                "hostname": "Sam's Phone",
+                "clientVersion": "1.82.0",
+                "updateAvailable": false,
+                "os": "iOS",
+                "created": "2026-10-05T08:58:00Z",
+                "connectedToControl": false,
+                "keyExpiryDisabled": false,
+                "expires": "2027-04-03T08:58:00Z",
+                "authorized": false,
+                "isExternal": false,
+                "blocksIncomingConnections": false,
+                "enabledRoutes": [],
+                "advertisedRoutes": [],
+                "tags": [],
+                "sshEnabled": false,
+                "isEphemeral": false,
+                "multipleConnections": false
+              }
+            ]
+          }
+        }
+      ],
+      "response": {
+        "status": 200,
+        "body": {
+          "devices": [
+            {
+              "id": "n292kg92CNTRL",
+              "name": "pangolin.tail4c2e.ts.net",
+              "hostname": "pangolin",
+              "os": "linux",
+              "client_version": "1.80.2",
+              "update_available": true,
+              "user": "amelie@example.com",
+              "addresses": [
+                "100.101.102.103",
+                "fd7a:115c:a1e0::1"
+              ],
+              "tags": [
+                "tag:web"
+              ],
+              "authorized": true,
+              "external": false,
+              "ephemeral": false,
+              "key_expiry_disabled": false,
+              "expires": "2027-03-01T05:23:30Z",
+              "created": "2026-09-01T05:23:30Z",
+              "last_seen": "2026-10-05T09:00:00Z",
+              "connected": true,
+              "blocks_incoming": false,
+              "ssh_enabled": true,
+              "multiple_connections": false,
+              "advertised_routes": [
+                "10.0.0.0/16",
+                "0.0.0.0/0",
+                "::/0"
+              ],
+              "enabled_routes": [
+                "10.0.0.0/16"
+              ],
+              "tailnet_lock_error": null
+            },
+            {
+              "id": "nNEWPHONECNTRL",
+              "name": "sams-phone.tail4c2e.ts.net",
+              "hostname": "Sam's Phone",
+              "os": "iOS",
+              "client_version": "1.82.0",
+              "update_available": false,
+              "user": "sam@example.com",
+              "addresses": [
+                "100.88.1.2"
+              ],
+              "tags": [],
+              "authorized": false,
+              "external": false,
+              "ephemeral": false,
+              "key_expiry_disabled": false,
+              "expires": "2027-04-03T08:58:00Z",
+              "created": "2026-10-05T08:58:00Z",
+              "last_seen": null,
+              "connected": false,
+              "blocks_incoming": false,
+              "ssh_enabled": false,
+              "multiple_connections": false,
+              "advertised_routes": [],
+              "enabled_routes": [],
+              "tailnet_lock_error": null
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "one device",
+      "operation": "getDevice",
+      "bearer": "read",
+      "request": {
+        "method": "GET",
+        "path": "/v1/tailnet/devices/n292kg92CNTRL",
+        "body": null
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/api/v2/device/n292kg92CNTRL?fields=all",
+          "body": null,
+          "status": 200,
+          "response": {
+            "addresses": [
+              "100.101.102.103",
+              "fd7a:115c:a1e0::1"
+            ],
+            "id": "92960230385",
+            "nodeId": "n292kg92CNTRL",
+            "user": "amelie@example.com",
+            "name": "pangolin.tail4c2e.ts.net",
+            "hostname": "pangolin",
+            "clientVersion": "1.80.2",
+            "updateAvailable": true,
+            "os": "linux",
+            "created": "2026-09-01T05:23:30Z",
+            "connectedToControl": true,
+            "lastSeen": "2026-10-05T09:00:00Z",
+            "keyExpiryDisabled": false,
+            "expires": "2027-03-01T05:23:30Z",
+            "authorized": true,
+            "isExternal": false,
+            "machineKey": "mkey:not-forwarded",
+            "nodeKey": "nodekey:not-forwarded",
+            "blocksIncomingConnections": false,
+            "enabledRoutes": [
+              "10.0.0.0/16"
+            ],
+            "advertisedRoutes": [
+              "10.0.0.0/16",
+              "0.0.0.0/0",
+              "::/0"
+            ],
+            "tags": [
+              "tag:web"
+            ],
+            "tailnetLockError": "",
+            "sshEnabled": true,
+            "isEphemeral": false,
+            "multipleConnections": false
+          }
+        }
+      ],
+      "response": {
+        "status": 200,
+        "body": {
+          "id": "n292kg92CNTRL",
+          "name": "pangolin.tail4c2e.ts.net",
+          "hostname": "pangolin",
+          "os": "linux",
+          "client_version": "1.80.2",
+          "update_available": true,
+          "user": "amelie@example.com",
+          "addresses": [
+            "100.101.102.103",
+            "fd7a:115c:a1e0::1"
+          ],
+          "tags": [
+            "tag:web"
+          ],
+          "authorized": true,
+          "external": false,
+          "ephemeral": false,
+          "key_expiry_disabled": false,
+          "expires": "2027-03-01T05:23:30Z",
+          "created": "2026-09-01T05:23:30Z",
+          "last_seen": "2026-10-05T09:00:00Z",
+          "connected": true,
+          "blocks_incoming": false,
+          "ssh_enabled": true,
+          "multiple_connections": false,
+          "advertised_routes": [
+            "10.0.0.0/16",
+            "0.0.0.0/0",
+            "::/0"
+          ],
+          "enabled_routes": [
+            "10.0.0.0/16"
+          ],
+          "tailnet_lock_error": null
+        }
+      }
+    },
+    {
+      "name": "approve a device",
+      "operation": "setAuthorized",
+      "bearer": "manage",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tailnet/devices/nNEWPHONECNTRL/authorized",
+        "body": {
+          "authorized": true
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/api/v2/device/nNEWPHONECNTRL/authorized",
+          "body": {
+            "authorized": true
+          },
+          "status": 200,
+          "response": null
+        }
+      ],
+      "response": {
+        "status": 204,
+        "body": null
+      },
+      "audit": {
+        "action": "device.authorize",
+        "target": "nNEWPHONECNTRL"
+      }
+    },
+    {
+      "name": "deauthorize a device",
+      "operation": "setAuthorized",
+      "bearer": "manage",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tailnet/devices/n292kg92CNTRL/authorized",
+        "body": {
+          "authorized": false
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/api/v2/device/n292kg92CNTRL/authorized",
+          "body": {
+            "authorized": false
+          },
+          "status": 200,
+          "response": null
+        }
+      ],
+      "response": {
+        "status": 204,
+        "body": null
+      },
+      "audit": {
+        "action": "device.deauthorize",
+        "target": "n292kg92CNTRL"
+      }
+    },
+    {
+      "name": "rename a device",
+      "operation": "rename",
+      "bearer": "manage",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tailnet/devices/n292kg92CNTRL/name",
+        "body": {
+          "name": "web-01"
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/api/v2/device/n292kg92CNTRL/name",
+          "body": {
+            "name": "web-01"
+          },
+          "status": 200,
+          "response": null
+        }
+      ],
+      "response": {
+        "status": 204,
+        "body": null
+      },
+      "audit": {
+        "action": "device.rename",
+        "target": "n292kg92CNTRL"
+      }
+    },
+    {
+      "name": "tag a device",
+      "operation": "setTags",
+      "bearer": "manage",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tailnet/devices/n292kg92CNTRL/tags",
+        "body": {
+          "tags": [
+            "tag:web",
+            "tag:ci"
+          ]
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/api/v2/device/n292kg92CNTRL/tags",
+          "body": {
+            "tags": [
+              "tag:ci",
+              "tag:web"
+            ]
+          },
+          "status": 200,
+          "response": null
+        }
+      ],
+      "response": {
+        "status": 204,
+        "body": null
+      },
+      "audit": {
+        "action": "device.tags",
+        "target": "n292kg92CNTRL"
+      }
+    },
+    {
+      "name": "disable key expiry",
+      "operation": "setKeyExpiryDisabled",
+      "bearer": "manage",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tailnet/devices/n292kg92CNTRL/key-expiry",
+        "body": {
+          "disabled": true
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/api/v2/device/n292kg92CNTRL/key",
+          "body": {
+            "keyExpiryDisabled": true
+          },
+          "status": 200,
+          "response": null
+        }
+      ],
+      "response": {
+        "status": 204,
+        "body": null
+      },
+      "audit": {
+        "action": "device.key_expiry",
+        "target": "n292kg92CNTRL"
+      }
+    },
+    {
+      "name": "expire a key",
+      "operation": "expire",
+      "bearer": "manage",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tailnet/devices/n292kg92CNTRL/expire",
+        "body": null
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/api/v2/device/n292kg92CNTRL/expire",
+          "body": null,
+          "status": 200,
+          "response": null
+        }
+      ],
+      "response": {
+        "status": 204,
+        "body": null
+      },
+      "audit": {
+        "action": "device.expire",
+        "target": "n292kg92CNTRL"
+      }
+    },
+    {
+      "name": "approve routes and an exit node",
+      "operation": "setRoutes",
+      "bearer": "manage",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tailnet/devices/n292kg92CNTRL/routes",
+        "body": {
+          "enabled_routes": [
+            "10.0.0.0/16",
+            "0.0.0.0/0",
+            "::/0"
+          ]
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/api/v2/device/n292kg92CNTRL/routes",
+          "body": {
+            "routes": [
+              "10.0.0.0/16",
+              "0.0.0.0/0",
+              "::/0"
+            ]
+          },
+          "status": 200,
+          "response": {
+            "advertisedRoutes": [
+              "10.0.0.0/16",
+              "0.0.0.0/0",
+              "::/0"
+            ],
+            "enabledRoutes": [
+              "10.0.0.0/16",
+              "0.0.0.0/0",
+              "::/0"
+            ]
+          }
+        }
+      ],
+      "response": {
+        "status": 200,
+        "body": {
+          "advertised_routes": [
+            "10.0.0.0/16",
+            "0.0.0.0/0",
+            "::/0"
+          ],
+          "enabled_routes": [
+            "10.0.0.0/16",
+            "0.0.0.0/0",
+            "::/0"
+          ]
+        }
+      },
+      "audit": {
+        "action": "device.routes",
+        "target": "n292kg92CNTRL"
+      }
+    },
+    {
+      "name": "remove a device",
+      "operation": "deleteDevice",
+      "bearer": "manage",
+      "request": {
+        "method": "DELETE",
+        "path": "/v1/tailnet/devices/n292kg92CNTRL",
+        "body": null
+      },
+      "upstream": [
+        {
+          "method": "DELETE",
+          "path": "/api/v2/device/n292kg92CNTRL",
+          "body": null,
+          "status": 200,
+          "response": null
+        }
+      ],
+      "response": {
+        "status": 204,
+        "body": null
+      },
+      "audit": {
+        "action": "device.delete",
+        "target": "n292kg92CNTRL"
+      }
+    },
+    {
+      "name": "list auth keys",
+      "operation": "listKeys",
+      "bearer": "read",
+      "request": {
+        "method": "GET",
+        "path": "/v1/tailnet/keys",
+        "body": null
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/api/v2/tailnet/example.com/keys",
+          "body": null,
+          "status": 200,
+          "response": {
+            "keys": [
+              {
+                "id": "kBARE1CNTRL"
+              },
+              {
+                "id": "kAPI3CNTRL",
+                "keyType": "api"
+              }
+            ]
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/v2/tailnet/example.com/keys/kBARE1CNTRL",
+          "body": null,
+          "status": 200,
+          "response": {
+            "id": "kBARE1CNTRL",
+            "keyType": "auth",
+            "description": "lab runners",
+            "created": "2026-10-01T00:00:00Z",
+            "expires": "2026-12-30T00:00:00Z",
+            "invalid": false,
+            "capabilities": {
+              "devices": {
+                "create": {
+                  "reusable": true,
+                  "ephemeral": false,
+                  "preauthorized": true,
+                  "tags": [
+                    "tag:ci"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ],
+      "response": {
+        "status": 200,
+        "body": {
+          "keys": [
+            {
+              "id": "kBARE1CNTRL",
+              "description": "lab runners",
+              "created": "2026-10-01T00:00:00Z",
+              "expires": "2026-12-30T00:00:00Z",
+              "revoked": null,
+              "invalid": false,
+              "reusable": true,
+              "ephemeral": false,
+              "preauthorized": true,
+              "tags": [
+                "tag:ci"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "add a device: mint an auth key",
+      "operation": "createKey",
+      "bearer": "manage",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tailnet/keys",
+        "body": {
+          "description": "sams phone",
+          "reusable": false,
+          "ephemeral": false,
+          "preauthorized": true,
+          "tags": [],
+          "expiry_seconds": 86400
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/api/v2/tailnet/example.com/keys",
+          "body": {
+            "keyType": "auth",
+            "description": "sams phone",
+            "expirySeconds": 86400,
+            "capabilities": {
+              "devices": {
+                "create": {
+                  "reusable": false,
+                  "ephemeral": false,
+                  "preauthorized": true
+                }
+              }
+            }
+          },
+          "status": 200,
+          "response": {
+            "id": "kNEW9CNTRL",
+            "key": "tskey-auth-kNEW9CNTRL-Example0Secret1Value",
+            "keyType": "auth",
+            "description": "sams phone",
+            "created": "2026-10-05T09:01:00Z",
+            "expires": "2026-10-06T09:01:00Z",
+            "capabilities": {
+              "devices": {
+                "create": {
+                  "reusable": false,
+                  "ephemeral": false,
+                  "preauthorized": true
+                }
+              }
+            }
+          }
+        }
+      ],
+      "response": {
+        "status": 201,
+        "body": {
+          "id": "kNEW9CNTRL",
+          "description": "sams phone",
+          "created": "2026-10-05T09:01:00Z",
+          "expires": "2026-10-06T09:01:00Z",
+          "revoked": null,
+          "invalid": false,
+          "reusable": false,
+          "ephemeral": false,
+          "preauthorized": true,
+          "tags": [],
+          "key": "tskey-auth-kNEW9CNTRL-Example0Secret1Value"
+        }
+      },
+      "audit": {
+        "action": "key.create",
+        "target": "kNEW9CNTRL"
+      }
+    },
+    {
+      "name": "revoke an auth key",
+      "operation": "deleteKey",
+      "bearer": "manage",
+      "request": {
+        "method": "DELETE",
+        "path": "/v1/tailnet/keys/kBARE1CNTRL",
+        "body": null
+      },
+      "upstream": [
+        {
+          "method": "DELETE",
+          "path": "/api/v2/tailnet/example.com/keys/kBARE1CNTRL",
+          "body": null,
+          "status": 200,
+          "response": null
+        }
+      ],
+      "response": {
+        "status": 204,
+        "body": null
+      },
+      "audit": {
+        "action": "key.delete",
+        "target": "kBARE1CNTRL"
+      }
+    },
+    {
+      "name": "a read bearer changes nothing",
+      "operation": "setAuthorized",
+      "bearer": "read",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tailnet/devices/nNEWPHONECNTRL/authorized",
+        "body": {
+          "authorized": true
+        }
+      },
+      "upstream": [],
+      "response": {
+        "status": 403,
+        "body": {
+          "error": "role_forbidden"
+        }
+      }
+    },
+    {
+      "name": "no bearer reads nothing",
+      "operation": "listDevices",
+      "bearer": null,
+      "request": {
+        "method": "GET",
+        "path": "/v1/tailnet/devices",
+        "body": null
+      },
+      "upstream": [],
+      "response": {
+        "status": 401,
+        "body": {
+          "error": "tailnet_pairing_required"
+        }
+      }
+    },
+    {
+      "name": "a bad tag never leaves the daemon",
+      "operation": "setTags",
+      "bearer": "manage",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tailnet/devices/n292kg92CNTRL/tags",
+        "body": {
+          "tags": [
+            "Web"
+          ]
+        }
+      },
+      "upstream": [],
+      "response": {
+        "status": 400,
+        "body": {
+          "error": "invalid_tags"
+        }
+      }
+    },
+    {
+      "name": "a bad route never leaves the daemon",
+      "operation": "setRoutes",
+      "bearer": "manage",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tailnet/devices/n292kg92CNTRL/routes",
+        "body": {
+          "enabled_routes": [
+            "10.0.0.1/16"
+          ]
+        }
+      },
+      "upstream": [],
+      "response": {
+        "status": 400,
+        "body": {
+          "error": "invalid_routes"
+        }
+      }
+    },
+    {
+      "name": "a device that is gone",
+      "operation": "getDevice",
+      "bearer": "read",
+      "request": {
+        "method": "GET",
+        "path": "/v1/tailnet/devices/nGONECNTRL",
+        "body": null
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/api/v2/device/nGONECNTRL?fields=all",
+          "body": null,
+          "status": 404,
+          "response": {
+            "message": "not found"
+          }
+        }
+      ],
+      "response": {
+        "status": 404,
+        "body": {
+          "error": "not_found"
+        }
+      }
+    },
+    {
+      "name": "Tailscale refuses a request",
+      "operation": "setTags",
+      "bearer": "manage",
+      "request": {
+        "method": "POST",
+        "path": "/v1/tailnet/devices/n292kg92CNTRL/tags",
+        "body": {
+          "tags": [
+            "tag:nobody"
+          ]
+        }
+      },
+      "upstream": [
+        {
+          "method": "POST",
+          "path": "/api/v2/device/n292kg92CNTRL/tags",
+          "body": {
+            "tags": [
+              "tag:nobody"
+            ]
+          },
+          "status": 400,
+          "response": {
+            "message": "tag:nobody is not a valid tag"
+          }
+        }
+      ],
+      "response": {
+        "status": 422,
+        "body": {
+          "error": "tailscale_rejected",
+          "detail": "tag:nobody is not a valid tag"
+        }
+      },
+      "audit": {
+        "action": "device.tags",
+        "target": "n292kg92CNTRL"
+      }
+    },
+    {
+      "name": "Tailscale refuses the credential",
+      "operation": "listDevices",
+      "bearer": "read",
+      "request": {
+        "method": "GET",
+        "path": "/v1/tailnet/devices",
+        "body": null
+      },
+      "upstream": [
+        {
+          "method": "GET",
+          "path": "/api/v2/tailnet/example.com/devices?fields=all",
+          "body": null,
+          "status": 403,
+          "response": {
+            "message": "insufficient scope"
+          }
+        }
+      ],
+      "response": {
+        "status": 502,
+        "body": {
+          "error": "tailscale_credential_refused"
+        }
+      }
+    }
+  ]
+}
