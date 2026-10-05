@@ -9,8 +9,8 @@
  * to avoid. A runner that cannot finish leaves its own record of that.
  */
 
-import { DECOY_ITEMS_RUNNER } from "./decoy-items-effect.js";
 import { runWipeEffect } from "../../wipe/real.js";
+import { DECOY_ITEMS_RUNNER } from "./decoy-items-effect.js";
 import type { DuressPlan } from "./mode.js";
 
 export type EffectPhase = "on_match" | "after_session";
