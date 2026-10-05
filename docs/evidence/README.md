@@ -55,6 +55,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-05-glyph-desktop-prompt/`](2026-10-05-glyph-desktop-prompt/README.md) | The glyph beside the name on desktop (ADR 0164) |
 | [`2026-10-05-gate-help-launcher/`](2026-10-05-gate-help-launcher/README.md) | A help key on the gates — before / after |
 | [`2026-10-05-file-viewer-painted/`](2026-10-05-file-viewer-painted/README.md) | The file viewer paints its files, and the open key is the settings icon |
+| [`2026-10-05-encrypted-search/`](2026-10-05-encrypted-search/README.md) | Encrypted search: Settings › Capabilities |
 | [`2026-10-05-duress-mode-wipe/`](2026-10-05-duress-mode-wipe/README.md) | Duress mode: wipe this device's copy — visual evidence |
 | [`2026-10-05-duress-mode-visible-items/`](2026-10-05-duress-mode-visible-items/README.md) | Show my vault without the items I hide — visual evidence |
 | [`2026-10-05-duress-mode-freeze/`](2026-10-05-duress-mode-freeze/README.md) | Duress mode: Freeze for a while — visual evidence |
