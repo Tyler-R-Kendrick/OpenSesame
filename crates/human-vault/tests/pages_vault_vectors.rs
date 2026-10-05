@@ -38,6 +38,9 @@ const ACCOUNT_VECTORS: [&str; 3] = [
     "backup-project-accounts",
 ];
 
+/// The vector added by ADR 0173: derived passwords, in the clear and under the OPAQUE seal.
+const DERIVED_VECTORS: [&str; 1] = ["backup-personal-derived"];
+
 fn fixture() -> Value {
     serde_json::from_str(VECTORS).expect("the vectors parse")
 }
@@ -153,6 +156,28 @@ fn assert_listing(name: &str, opened: &OpenedVaultFile) {
         );
         return;
     }
+    if DERIVED_VECTORS.contains(&name) {
+        let expected = [
+            ("Personal computed account", "account", ".account"),
+            ("Personal computed peppered account", "account", ".account"),
+        ];
+        let want: Vec<(String, String, String)> = expected
+            .iter()
+            .map(|(item, kind, ext)| {
+                (
+                    (*item).to_owned(),
+                    (*kind).to_owned(),
+                    format!("{item}{ext}"),
+                )
+            })
+            .collect();
+        let got: Vec<(String, String, String)> = listed
+            .iter()
+            .map(|(a, b, c)| ((*a).to_owned(), (*b).to_owned(), (*c).to_owned()))
+            .collect();
+        assert_eq!(got, want, "{name}");
+        return;
+    }
     let label = if name.contains("project") {
         "Project"
     } else {
@@ -184,8 +209,8 @@ fn every_vector_opens_to_its_recorded_summary_and_lists_no_value() {
     let vectors = vectors();
     assert_eq!(
         vectors.len(),
-        LEGACY_VECTORS.len() + ACCOUNT_VECTORS.len(),
-        "the five legacy `login` vectors and the three `account` vectors"
+        LEGACY_VECTORS.len() + ACCOUNT_VECTORS.len() + DERIVED_VECTORS.len(),
+        "the five legacy `login` vectors, the three `account` vectors and the derived one"
     );
     for (name, file, expect) in vectors {
         let opened = open_vault_file(&file, &password()).unwrap_or_else(|e| panic!("{name}: {e}"));
@@ -219,6 +244,10 @@ fn every_vector_opens_to_its_recorded_summary_and_lists_no_value() {
             // The pepper that opens a sealed password is never listed either.
             values.push(text(&fixture(), "accountPepper"));
             support::assert_account_methods(&name, &body);
+        }
+        if DERIVED_VECTORS.contains(&name.as_str()) {
+            values.push(text(&fixture(), "accountPepper"));
+            support::assert_derived_methods(&name, &body);
         }
         values.retain(|value| value.chars().count() >= 6);
         assert!(!values.is_empty(), "{name}: the vector holds values");

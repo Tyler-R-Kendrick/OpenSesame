@@ -148,3 +148,19 @@ wasmtime = { version = "36.0.7", default-features = false, features = [
 ] }
 oauth2 = "5.0.0"
 openidconnect = "4.0.0"
+
+# Key derivation is the one thing a debug build runs a thousand times slower:
+# a vault vector opens through 600,000 PBKDF2 rounds. The primitives are
+# generic, so they are compiled into the crate that names them: optimising those
+# and the one crate that opens vault files keeps every other crate fast to build
+# and debuggable.
+[profile.dev.package.opensesame-human-vault]
+opt-level = 3
+[profile.dev.package.pbkdf2]
+opt-level = 3
+[profile.dev.package.hmac]
+opt-level = 3
+[profile.dev.package.sha2]
+opt-level = 3
+[profile.dev.package.digest]
+opt-level = 3

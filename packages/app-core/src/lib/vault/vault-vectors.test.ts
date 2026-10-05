@@ -5,6 +5,7 @@
  */
 import { overlapCast } from "@opensesame/os-domain";
 import {
+  type AccountItem,
   DEVICE_IDENTITY_KEY_PATH,
   type SealedVaultFile,
   type VaultBody,
@@ -13,6 +14,8 @@ import {
   WrongPasswordError,
   b64ToBytes,
   openVaultBody,
+  passwordMethod,
+  plainPassword,
   readDeviceIdentityKeyRecord,
   readVaultFile,
   unwrapRawVaultKeyFromPassword,
@@ -22,6 +25,7 @@ import fixture from "../../../../../spec/conformance/vault-vectors.json" with {
   type: "json",
 };
 import { webLocksDouble } from "../__tests__/web-locks-double.js";
+import { readMethodPassword } from "../account-password.js";
 import { deviceKeyCarrier } from "../device-identity-carrier.js";
 import { ensureDeviceIdentityKey } from "../device-identity-key.js";
 import { kvDelete } from "../kv.js";
@@ -121,6 +125,36 @@ describe("golden vault vectors", () => {
       expect(kinds, name).not.toContain("login");
       expect(JSON.stringify(body), name).not.toContain('"kind":"login"');
     }
+  });
+
+  it("opens the derived vector: a clear root computes a password, a sealed root opens only under the pepper", async () => {
+    const opened = openEnvelope(
+      fixture.vectors["backup-personal-derived"].file,
+    );
+    const raw = await unwrapRawVaultKeyFromPassword(
+      opened.header,
+      fixture.password,
+    );
+    const { body } = await openBody(raw, opened);
+    const accounts = body.items.filter(
+      (item): item is AccountItem => item.kind === "account",
+    );
+    const [clear, kept] = accounts.map((account) => {
+      const method = passwordMethod(account);
+      if (method === undefined)
+        throw new Error("a derived account has a password");
+      return { account, method };
+    });
+    if (clear === undefined || kept === undefined)
+      throw new Error("two accounts");
+    expect(clear.method.generator).toMatchObject({ id: "derived", counter: 2 });
+    expect(plainPassword(clear.method)).toHaveLength(20);
+    expect(plainPassword(kept.method)).toBeNull();
+    expect(kept.method.sealed?.v).toBe(2);
+    const opens = (pepper: string) =>
+      readMethodPassword(kept.account, kept.method, async () => pepper);
+    expect((await opens(fixture.accountPepper)).status).toBe("ok");
+    expect((await opens("not the vector pepper")).status).toBe("wrong");
   });
 
   it("normalizes the password with NFKC before deriving", async () => {
