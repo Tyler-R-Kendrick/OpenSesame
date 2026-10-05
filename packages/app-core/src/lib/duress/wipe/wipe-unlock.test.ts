@@ -26,6 +26,7 @@ import {
   registerTomb,
   tombFileKey,
 } from "../../vfs.js";
+import { rejectionOf } from "../rejection.test-support.js";
 import { duressSessionFence } from "../session/fence.js";
 import { duressStatus, enableDuressCode } from "../settings/device-duress.js";
 import { DURESS_BOOT_KEYS } from "../store/boot-keys.js";
@@ -88,12 +89,11 @@ async function arm(): Promise<void> {
 
 /** The message an ordinary wrong password gets, through the same gate. */
 async function ordinaryRefusal(): Promise<string> {
-  const refused = await unlockWithPinAfterDuressGate(
-    vaultStore,
-    "13572468",
-  ).catch((error: unknown) => error);
+  const refused = await rejectionOf(
+    unlockWithPinAfterDuressGate(vaultStore, "13572468"),
+  );
   expect(refused).toBeInstanceOf(WrongPasswordError);
-  return (refused as Error).message;
+  return refused.message;
 }
 
 beforeEach(freshDevice);
@@ -118,13 +118,13 @@ describe("wipe through the real unlock path", () => {
     );
     expect(guestBefore.size).toBeGreaterThan(0);
 
-    const typed = await unlockWithPinAfterDuressGate(vaultStore, CODE).catch(
-      (error: unknown) => error,
+    const typed = await rejectionOf(
+      unlockWithPinAfterDuressGate(vaultStore, CODE),
     );
 
     expect(typed).toBeInstanceOf(WrongPasswordError);
-    expect((typed as Error).message).toBe(ordinary);
-    expect((typed as Error).message).toBe(UNLOCK_PIN_MISS);
+    expect(typed.message).toBe(ordinary);
+    expect(typed.message).toBe(UNLOCK_PIN_MISS);
     expect(wipeGuard.takeReached()).toEqual([]);
 
     // The vault is gone from storage and from the app's view of it.
@@ -160,8 +160,8 @@ describe("wipe through the real unlock path", () => {
     // records that it was reached. Everything else is the test above.
     wipeGuard.forbid();
     await arm();
-    const typed = await unlockWithPinAfterDuressGate(vaultStore, CODE).catch(
-      (error: unknown) => error,
+    const typed = await rejectionOf(
+      unlockWithPinAfterDuressGate(vaultStore, CODE),
     );
     expect(typed).toBeInstanceOf(WrongPasswordError);
     expect(wipeGuard.takeReached()).toEqual(["runWipeEffect"]);
