@@ -67,13 +67,10 @@ export const COVERAGE_EXEMPT: Readonly<Record<string, string>> = {
   "target:access.policies": "no tutorial points at it yet",
   "target:access.relay": "no tutorial points at it yet",
   "target:access.resources": "no tutorial points at it yet",
-  "target:connections.attention": "no tutorial points at it yet",
-  "target:connections.back": "no tutorial points at it yet",
-  "target:connections.bindings": "no tutorial points at it yet",
-  "target:connections.catalog": "no tutorial points at it yet",
-  "target:connections.reload": "no tutorial points at it yet",
-  "target:connections.renew": "no tutorial points at it yet",
-  "target:connections.revoke": "no tutorial points at it yet",
+  "target:connections.bindings":
+    "declared but drawn nowhere: Pages binds a connector with a local share, taught on Access › Connectors (ADR 0115), and the Host road that had this panel is gone",
+  "target:connections.renew":
+    "declared but drawn nowhere: Renew needs the Host's rotation (connections.rotate has no PWA surface)",
   "target:identity.claim-access": "no tutorial points at it yet",
   "target:identity.org-signin": "no tutorial points at it yet",
   "target:identity.organization": "no tutorial points at it yet",

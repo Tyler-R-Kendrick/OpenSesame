@@ -112,4 +112,8 @@ export const CONNECTIONS_ROUTES: readonly GuideRouteDescriptor[] = [
     id: "/connections",
     title: "Connections — provider connections and their state",
   },
+  {
+    id: "/connections/git",
+    title: "Connections — the generic git remote's own page",
+  },
 ];

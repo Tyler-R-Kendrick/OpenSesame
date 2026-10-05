@@ -76,6 +76,8 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
     goals: [
       "connection.create",
       "connection.repair",
+      "connection.review",
+      "connection.revoke",
       "browser.pair",
       "browser.authenticate",
       "feature.connections",
