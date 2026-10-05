@@ -25,8 +25,8 @@ import {
   type LoginMethod,
   type PasswordGenerator,
   type PepperSeal,
-  type PepperSealV1,
-  type PepperSealV2,
+  type PepperSealOpaque,
+  type PepperSealPbkdf2,
 } from "@opensesame/vault-core";
 
 type Read<T> = (value: JsonObject) => T | null;
@@ -138,7 +138,7 @@ function generatorOf(value: JsonObject | null): PasswordGenerator | null {
   }
 }
 
-function kdfOf(value: JsonObject | null): PepperSealV1["kdf"] | null {
+function kdfOf(value: JsonObject | null): PepperSealPbkdf2["kdf"] | null {
   const saltB64 = text(value?.saltB64);
   const iterations = count(value?.iterations);
   return value?.alg !== "PBKDF2-SHA256" ||
@@ -148,11 +148,11 @@ function kdfOf(value: JsonObject | null): PepperSealV1["kdf"] | null {
     : { alg: "PBKDF2-SHA256", saltB64, iterations };
 }
 
-function sealV2Of(
+function sealOpaqueOf(
   seal: JsonObject,
   ivB64: string,
   ctB64: string,
-): PepperSealV2 | null {
+): PepperSealOpaque | null {
   const serverSetup = text(seal.serverSetup);
   const registrationRecord = text(seal.registrationRecord);
   const ksf = seal.ksf === "standard" || seal.ksf === "fast" ? seal.ksf : null;
@@ -162,7 +162,7 @@ function sealV2Of(
     registrationRecord === null
     ? null
     : {
-        v: 2,
+        v: 3,
         suite: "rfc9807-ristretto255-argon2id",
         ksf,
         serverSetup,
@@ -179,11 +179,11 @@ function sealOf(value: JsonValue | undefined): PepperSeal | null | undefined {
   const ivB64 = text(blob?.ivB64);
   const ctB64 = text(blob?.ctB64);
   if (seal === null || ivB64 === null || ctB64 === null) return null;
-  if (seal.v === 2) return sealV2Of(seal, ivB64, ctB64);
+  if (seal.v === 3) return sealOpaqueOf(seal, ivB64, ctB64);
   const kdf = kdfOf(objectAt(seal.kdf));
-  return seal.v !== 1 || kdf === null
+  return (seal.v !== 1 && seal.v !== 2) || kdf === null
     ? null
-    : { v: 1, kdf, seal: { ivB64, ctB64 } };
+    : { v: seal.v, kdf, seal: { ivB64, ctB64 } };
 }
 
 const password: Read<LoginMethod> = (m) => {

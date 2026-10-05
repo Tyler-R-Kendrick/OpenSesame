@@ -245,7 +245,7 @@ describe("account editor: methods and generators", () => {
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     const method = passwordOf(saved());
     expect(method).toMatchObject({ pepper: true, secret: "" });
-    expect(method.sealed?.v).toBe(2);
+    expect(method.sealed?.v).toBe(3);
     expect(method.generator).toMatchObject({ id: "derived", counter: 0 });
   });
 });

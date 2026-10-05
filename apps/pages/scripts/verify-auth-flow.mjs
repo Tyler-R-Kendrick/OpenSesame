@@ -35,7 +35,7 @@ import { observeHttpFailures } from "./lib/http-failures.mjs";
 import { totp } from "./lib/totp.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const DIST = path.resolve(here, "..", "dist");
+const DIST = process.env.PAGES_VERIFY_DIST ?? path.resolve(here, "..", "dist");
 const ORIGIN = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const OUT = path.resolve(

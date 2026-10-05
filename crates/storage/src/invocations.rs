@@ -23,7 +23,7 @@ impl Db {
         )
         .bind(intent.id.to_string())
         .bind(intent.organization_id.to_string())
-        .bind(sealed::seal("intents.body_json", &serde_json::to_string(intent)?))
+        .bind(sealed::seal_in(&intent.organization_id.to_string(), "intents.body_json", &intent.id.to_string(), &serde_json::to_string(intent)?))
         .bind(&intent.idempotency_key)
         .bind(intent.issued_at.to_rfc3339())
         .execute(&self.pool)
@@ -37,6 +37,11 @@ impl Db {
     ///
     /// Returns an error when serialization or insertion fails.
     pub async fn insert_invocation(&self, inv: &Invocation) -> anyhow::Result<()> {
+        let organization: String =
+            sqlx::query_scalar("SELECT organization_id FROM intents WHERE id = ?")
+                .bind(inv.intent_id.to_string())
+                .fetch_one(&self.pool)
+                .await?;
         sqlx::query(
             "INSERT INTO invocations (id, intent_id, state, attempt, lease_owner, lease_expires_at, body_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
@@ -46,7 +51,7 @@ impl Db {
         .bind(i64::from(inv.attempt))
         .bind(&inv.lease_owner)
         .bind(inv.lease_expires_at.map(|t| t.to_rfc3339()))
-        .bind(sealed::seal("invocations.body_json", &serde_json::to_string(inv)?))
+        .bind(sealed::seal_in(&organization, "invocations.body_json", &inv.id.to_string(), &serde_json::to_string(inv)?))
         .bind(inv.created_at.to_rfc3339())
         .bind(inv.updated_at.to_rfc3339())
         .execute(&self.pool)
@@ -60,12 +65,14 @@ impl Db {
     ///
     /// Returns an error when serialization or insertion fails.
     pub async fn insert_receipt(&self, receipt: &InvocationReceipt) -> anyhow::Result<()> {
+        let organization: String = sqlx::query_scalar("SELECT i.organization_id FROM invocations inv JOIN intents i ON i.id = inv.intent_id WHERE inv.id = ?")
+            .bind(receipt.invocation_id.to_string()).fetch_one(&self.pool).await?;
         sqlx::query(
             "INSERT INTO receipts (id, invocation_id, body_json, signature, created_at) VALUES (?, ?, ?, ?, ?)",
         )
         .bind(receipt.id.to_string())
         .bind(receipt.invocation_id.to_string())
-        .bind(sealed::seal("receipts.body_json", &serde_json::to_string(receipt)?))
+        .bind(sealed::seal_in(&organization, "receipts.body_json", &receipt.id.to_string(), &serde_json::to_string(receipt)?))
         .bind(&receipt.signature)
         .bind(receipt.completed_at.to_rfc3339())
         .execute(&self.pool)
@@ -87,7 +94,7 @@ impl Db {
         let bare = id.as_uuid().to_string();
         let row = sqlx::query(
             r"
-            SELECT r.body_json, i.organization_id AS authoritative_organization_id
+            SELECT r.id, r.body_json, i.organization_id AS authoritative_organization_id
             FROM receipts r
             JOIN invocations inv ON inv.id = r.invocation_id
             JOIN intents i ON i.id = inv.intent_id
@@ -100,7 +107,12 @@ impl Db {
         .await?;
         Ok(match row {
             Some(r) => {
-                let body = sealed::open("receipts.body_json", &r.get::<String, _>("body_json"))?;
+                let body = sealed::open_in(
+                    &r.get::<String, _>("authoritative_organization_id"),
+                    "receipts.body_json",
+                    &r.get::<String, _>("id"),
+                    &r.get::<String, _>("body_json"),
+                )?;
                 let organization_id: String = r.get("authoritative_organization_id");
                 Some(decode_receipt_for_organization(&body, &organization_id)?)
             }
@@ -149,7 +161,7 @@ impl Db {
     ) -> anyhow::Result<Option<InvocationReceipt>> {
         let row = sqlx::query(
             r"
-            SELECT r.body_json, i.organization_id AS authoritative_organization_id
+            SELECT r.id, r.body_json, i.organization_id AS authoritative_organization_id
             FROM receipts r
             JOIN invocations inv ON inv.id = r.invocation_id
             JOIN intents i ON i.id = inv.intent_id
@@ -164,7 +176,12 @@ impl Db {
         .await?;
         Ok(match row {
             Some(r) => {
-                let body = sealed::open("receipts.body_json", &r.get::<String, _>("body_json"))?;
+                let body = sealed::open_in(
+                    &r.get::<String, _>("authoritative_organization_id"),
+                    "receipts.body_json",
+                    &r.get::<String, _>("id"),
+                    &r.get::<String, _>("body_json"),
+                )?;
                 let organization_id: String = r.get("authoritative_organization_id");
                 Some(decode_receipt_for_organization(&body, &organization_id)?.receipt)
             }
@@ -183,7 +200,7 @@ impl Db {
         key: &str,
     ) -> anyhow::Result<Option<Intent>> {
         let row = sqlx::query(
-            "SELECT body_json FROM intents WHERE organization_id = ? AND idempotency_key = ?",
+            "SELECT id, body_json FROM intents WHERE organization_id = ? AND idempotency_key = ?",
         )
         .bind(org.to_string())
         .bind(key)
@@ -191,7 +208,12 @@ impl Db {
         .await?;
         Ok(match row {
             Some(r) => {
-                let body = sealed::open("intents.body_json", &r.get::<String, _>("body_json"))?;
+                let body = sealed::open_in(
+                    &org.to_string(),
+                    "intents.body_json",
+                    &r.get::<String, _>("id"),
+                    &r.get::<String, _>("body_json"),
+                )?;
                 Some(serde_json::from_str(&body)?)
             }
             None => None,

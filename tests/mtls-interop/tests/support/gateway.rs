@@ -25,7 +25,19 @@ use opensesame_mtls_interop::repo_root;
 ///
 /// The build failed or produced nothing.
 pub fn binary() -> Result<PathBuf> {
-    let path = repo_root().join("target/debug/opensesame");
+    if let Some(configured) = std::env::var_os("OPENSESAME_BIN") {
+        let path = PathBuf::from(configured);
+        if !path.is_file() {
+            bail!(
+                "OPENSESAME_BIN does not name an existing binary: {}",
+                path.display()
+            );
+        }
+        return Ok(path);
+    }
+    let target = std::env::var_os("CARGO_TARGET_DIR")
+        .map_or_else(|| repo_root().join("target"), PathBuf::from);
+    let path = target.join("debug/opensesame");
     if path.is_file() {
         return Ok(path);
     }

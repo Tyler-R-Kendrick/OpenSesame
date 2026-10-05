@@ -14,7 +14,12 @@ pub(crate) fn delivery_from_row(row: &SqliteRow) -> anyhow::Result<StoredSecurit
         event_type: row.get("event_type"),
         subject_kind: row.get("subject_kind"),
         subject_id: row.get("subject_id"),
-        payload_json: sealed::open("security_deliveries.payload_json", &stored)?,
+        payload_json: sealed::open_in(
+            &row.get::<String, _>("organization_id"),
+            "security_deliveries.payload_json",
+            &row.get::<String, _>("id"),
+            &stored,
+        )?,
         state: row.get("state"),
         attempts: row.get("attempts"),
         available_at: row.get("available_at"),
@@ -41,7 +46,14 @@ pub(crate) async fn readable_deliveries(
     let (mut readable, mut unreadable) = (Vec::new(), Vec::new());
     for row in rows {
         let stored: String = row.get("payload_json");
-        if sealed::open_or_quarantine("security_deliveries.payload_json", &stored)?.is_some() {
+        if sealed::open_or_quarantine_in(
+            &row.get::<String, _>("organization_id"),
+            "security_deliveries.payload_json",
+            &row.get::<String, _>("id"),
+            &stored,
+        )?
+        .is_some()
+        {
             readable.push(delivery_from_row(row)?);
         } else {
             unreadable.push(row.get("id"));

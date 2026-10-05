@@ -28,7 +28,7 @@ use super::recipe_rows::{
     derive_canary, insert, read_recipe, record_from_row, update, RECIPE_COLUMNS, RUNNABLE_COLUMNS,
 };
 use super::REPLAYABLE_TRUST;
-use crate::{append_outbox_tx, Db};
+use crate::{append_outbox_event_in, Db};
 
 pub use super::recipe_rows::{
     RecipeAudit, RecipeDeleteOutcome, RecipeUse, RecipeVerification, RecipeWrite,
@@ -118,7 +118,13 @@ impl Db {
         let row = read_recipe(&mut *tx, write.organization_id, write.origin)
             .await?
             .ok_or_else(|| anyhow::anyhow!("written web-login recipe vanished"))?;
-        append_outbox_tx(&mut tx, audit.event_type, audit.payload_json).await?;
+        append_outbox_event_in(
+            &mut tx,
+            Some(write.organization_id),
+            audit.event_type,
+            audit.payload_json,
+        )
+        .await?;
         tx.commit().await?;
         Ok(RecipeWriteOutcome::Written(Box::new(row)))
     }
@@ -155,7 +161,13 @@ impl Db {
                 }
             }));
         }
-        append_outbox_tx(&mut tx, audit.event_type, audit.payload_json).await?;
+        append_outbox_event_in(
+            &mut tx,
+            Some(organization_id),
+            audit.event_type,
+            audit.payload_json,
+        )
+        .await?;
         tx.commit().await?;
         Ok(RecipeDeleteOutcome::Deleted)
     }

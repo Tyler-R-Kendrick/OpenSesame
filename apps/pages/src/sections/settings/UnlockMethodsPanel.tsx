@@ -32,6 +32,7 @@ import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { AccountFactorsPanel } from "./security/AccountFactorsPanel.js";
 import { CodeRows } from "./security/CodeRows.js";
+import { GuestAfterKeyRows } from "./security/GuestAfterKeyRows.js";
 import { KEY_TITLE, type KeyKind } from "./security/KeyCeremony.js";
 import { MethodRow } from "./security/MethodRow.js";
 import {
@@ -277,6 +278,16 @@ function UnlockMethodsBody() {
           ) : null}
         </div>
       </section>
+
+      {/* The two sections an owner has below, for a guest who has not made a
+          key yet: Add opens the key sheet, the same road the page's first
+          line points at. Never in a decoy, which is also a guest. */}
+      {guest && !decoy && enrolled.length === 0 ? (
+        <GuestAfterKeyRows
+          busy={busy}
+          onAddKey={open(webauthnHost.ok ? "passkey" : "pin", "add")}
+        />
+      ) : null}
 
       {hasRecovery ? (
         <section

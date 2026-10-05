@@ -12,7 +12,7 @@
 //! transaction as the row. `approver_ref` may be cleared (`None`): the row
 //! stays, so the version keeps rising and a stale editor still loses.
 
-use crate::{append_outbox_tx, Db, Row, Utc};
+use crate::{append_outbox_event_in, Db, Row, Utc};
 
 /// The stored approver of one organization.
 #[derive(Clone, PartialEq, Eq)]
@@ -157,7 +157,13 @@ impl Db {
             });
         }
         let row = row.ok_or_else(|| anyhow::anyhow!("written agent-hooks approver vanished"))?;
-        append_outbox_tx(&mut transaction, audit.event_type, audit.payload_json).await?;
+        append_outbox_event_in(
+            &mut transaction,
+            Some(write.organization_id),
+            audit.event_type,
+            audit.payload_json,
+        )
+        .await?;
         transaction.commit().await?;
         Ok(AgentHookApproverWriteOutcome::Written(row))
     }

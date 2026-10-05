@@ -18,11 +18,10 @@ type AccountOver = Partial<AccountItem> & {
 export function account(name: string, over: AccountOver = {}): AccountItem {
   const { password = `pw-${name}`, totp, passwordChangedAt, ...rest } = over;
   const username = `${name.toLowerCase()}@example.test`;
-  const item = plainAccount(
-    name,
-    password,
-    totp === undefined ? { username } : { username, totp },
-  );
+  const item =
+    totp === undefined
+      ? plainAccount(name, password, { username })
+      : plainAccount(name, password, { username, totp });
   const method = passwordMethod(item);
   if (method && passwordChangedAt !== undefined) {
     method.changedAt = passwordChangedAt;
@@ -46,10 +45,11 @@ export function dressed(): AccountItem {
     ],
   });
   // What the model does not name must not travel either.
-  return Object.assign(item, {
+  Object.assign(item, {
     history: [{ password: "old-history-password" }],
     attachments: [{ name: "scan.pdf", key: "file-part-key" }],
   });
+  return item;
 }
 
 export const secret = (name: string): VaultItem => ({

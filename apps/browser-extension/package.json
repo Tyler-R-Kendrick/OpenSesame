@@ -7,7 +7,7 @@
     "dev": "wxt",
     "build": "wxt build",
     "test": "vitest run && node --test tests/pact.test.mjs tests/capability-parity.test.mjs tests/runner-pact.test.mjs",
-    "test:e2e": "playwright test",
+    "test:e2e": "wxt build && playwright test",
     "test:install": "playwright install chromium",
     "typecheck": "wxt prepare && tsc --noEmit -p .wxt/tsconfig.json"
   },

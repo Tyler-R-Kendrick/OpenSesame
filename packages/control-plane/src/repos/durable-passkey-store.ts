@@ -4,17 +4,20 @@ import type {
   PasskeyCredential,
   PasskeyCredentialStore,
 } from "@opensesame/auth-upstream";
-import type { Database } from "@opensesame/database";
+import type { Database, EventSealer } from "@opensesame/database";
 import { DurableMap } from "./durable-map.js";
 
 export function durablePasskeyCredentials(
   db: Database,
+  sealer: EventSealer,
 ): PasskeyCredentialStore {
   const store = new DurableMap<PasskeyCredential>(
     db,
     "OpenSesame:PasskeyCredential",
     false,
     null,
+    10_000,
+    sealer,
   );
   return {
     get: (id) => store.get(id),
@@ -42,12 +45,17 @@ export function durablePasskeyCredentials(
   };
 }
 
-export function durablePasskeyChallenges(db: Database): PasskeyChallengeStore {
+export function durablePasskeyChallenges(
+  db: Database,
+  sealer: EventSealer,
+): PasskeyChallengeStore {
   const store = new DurableMap<ChallengeMeta>(
     db,
     "OpenSesame:PasskeyChallenge",
     true,
     300_000,
+    10_000,
+    sealer,
   );
   return {
     set: async (challenge, metadata) => {

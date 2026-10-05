@@ -214,7 +214,7 @@ pub(super) async fn the_run(f: &Fixture) -> (String, Vec<StoredAgentHookRecord>)
 
 /// The queue's rows for a run: `(request, outcome)`.
 pub(super) async fn queue(f: &Fixture, run_id: &str) -> Vec<(Value, Option<String>)> {
-    sqlx::query("SELECT request_json, outcome_json FROM runner_steps WHERE run_id = ? ORDER BY seq")
+    sqlx::query("SELECT organization_id, seq, request_json, outcome_json FROM runner_steps WHERE run_id = ? ORDER BY seq")
         .bind(run_id)
         .fetch_all(f.state.db.pool())
         .await
@@ -222,14 +222,14 @@ pub(super) async fn queue(f: &Fixture, run_id: &str) -> Vec<(Value, Option<Strin
         .iter()
         .map(|row| {
             // Sealed at rest once the process-wide sealer is installed (ADR 0157).
+            let organization: String = row.get("organization_id");
+            let record = format!("{run_id}:{}", row.get::<i64, _>("seq"));
             let request: String = row.get("request_json");
             let request =
-                opensesame_event_seal::open("runner_steps.request_json", &request).unwrap();
-            let outcome = opensesame_event_seal::open_opt(
-                "runner_steps.outcome_json",
-                row.get("outcome_json"),
-            )
-            .unwrap();
+                opensesame_event_seal::open_in(&organization, "runner_steps.request_json", &record, &request).unwrap();
+            let outcome = row.get::<Option<String>, _>("outcome_json")
+                .map(|outcome| opensesame_event_seal::open_in(&organization, "runner_steps.outcome_json", &record, &outcome))
+                .transpose().unwrap();
             (serde_json::from_str(&request).unwrap(), outcome)
         })
         .collect()

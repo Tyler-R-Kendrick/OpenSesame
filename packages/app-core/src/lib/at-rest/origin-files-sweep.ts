@@ -20,8 +20,8 @@ async function isLegacy(
 ): Promise<boolean> {
   try {
     const file = await (await root.getFileHandle(name)).getFile();
-    return (
-      (await file.slice(0, AT_REST_PREFIX.length).text()) !== AT_REST_PREFIX
+    return !/^osr[0-9]/u.test(
+      await file.slice(0, AT_REST_PREFIX.length).text(),
     );
   } catch {
     return false;

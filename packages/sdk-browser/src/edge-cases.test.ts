@@ -1,6 +1,7 @@
 import { SignJWT } from "jose";
 import { opened } from "./test/at-rest-key.js";
 import { createTestSigningKey } from "./test/jwt-fixtures.js";
+import { SdkFixtureStorage } from "./test/storage-fixture.js";
 const signingKeys = createTestSigningKey("ES256");
 import {
   type BoundaryValue,
@@ -18,16 +19,9 @@ import { ClaimRequestError } from "./errors.js";
 import * as sdk from "./index.js";
 import type { Session } from "./types.js";
 
-class MemStorage {
-  readonly #m = new Map<string, string>();
-  getItem(k: string) {
-    return this.#m.get(k) ?? null;
-  }
-  setItem(k: string, v: string) {
-    this.#m.set(k, v);
-  }
-  removeItem(k: string) {
-    this.#m.delete(k);
+class MemStorage extends SdkFixtureStorage {
+  constructor() {
+    super(ISSUER);
   }
 }
 
@@ -500,6 +494,7 @@ describe("handleRedirectCallback", () => {
     const fetchImpl = vi.fn(async () => discoveryResponse());
     const sesame = createOpenSesame({
       issuer: ISSUER,
+      clientId: "opensesame-browser",
       storage,
       fetchImpl: overlapCast(fetchImpl),
     });
@@ -600,12 +595,11 @@ describe("session persistence", () => {
     expect(stored.refreshToken).toBeUndefined();
     expect(stored.raw.refresh_token).toBeUndefined();
 
-    // Same client instance: refresh token survives via memory.
     expect((await sesame.getSession())?.refreshToken).toBe("rt-secret");
 
-    // New client instance over the same storage: refresh token is gone.
     const fresh = createOpenSesame({
       issuer: ISSUER,
+      clientId: "opensesame-browser",
       storage,
       fetchImpl: overlapCast(fetchImpl),
     });
