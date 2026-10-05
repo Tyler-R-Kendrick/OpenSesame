@@ -861,7 +861,9 @@ Do not add new top-level directories or loose root files — find the group.
   is offered (an authored tour may name up to 40 instructions; a model's stays
   at 8). A tutorial that points at a section or a signed-in-only row says so
   (`focus "feature.<id>"`, `requires`) and the library hides it where it
-  cannot work. Changes to a tutorial, the Support sheet, the tutorial card or
+  cannot work. A control a guide can point at, and every key the keymap binds,
+  is taught by a tutorial or named in `coverage-ledger.ts` with a reason
+  (`coverage.test.ts`; the ledger only falls). Changes to a tutorial, the Support sheet, the tutorial card or
   the target registry require `pnpm --filter @opensesame/pages verify:tutorials`
   against a fresh Pages build (every tutorial, desktop and phone, Next and
   Back and Replay and Done, keyboard and mouse, focus handed back), and keep it
