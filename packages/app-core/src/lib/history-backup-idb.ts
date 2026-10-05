@@ -308,6 +308,15 @@ export async function listHistoryEntries(
   return [...rows, ...memoryRows.filter((row) => !seen.has(row.id))];
 }
 
+/** Whether any sealed snapshot is held here, whichever account it belongs to. */
+export async function holdsAnyHistoryEntry(): Promise<boolean> {
+  const stored = await withDb(async (db) => {
+    const tx = db.transaction(ENTRIES, "readonly");
+    return (await idbReq(tx.objectStore(ENTRIES).count())) > 0;
+  });
+  return stored === true || memoryEntries.size > 0;
+}
+
 export async function appendHistoryEntry(
   accountId: string,
   ciphertext: Uint8Array,

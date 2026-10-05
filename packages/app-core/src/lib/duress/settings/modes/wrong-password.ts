@@ -8,7 +8,8 @@ export const WRONG_PASSWORD = {
   id: "refuse",
   label: "Wrong password",
   opens: "nothing; it reads as a wrong password",
-  consent: "I understand this code is refused like a wrong password.",
+  consent:
+    "I understand this code is refused like a wrong password, which leaves me with nothing to show; a refused unlock may be read as refusing to comply and can escalate the situation.",
   presentation: "locked",
   input: { kind: "none" },
 } as const satisfies DuressMode;

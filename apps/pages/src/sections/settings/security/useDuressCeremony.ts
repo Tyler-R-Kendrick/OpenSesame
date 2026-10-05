@@ -9,9 +9,11 @@ import {
   MODES,
   getMode,
   inputReady,
+  offeredModes,
 } from "@opensesame/app-core/lib/duress/settings/modes/index.js";
 import { starterText } from "@opensesame/app-core/lib/duress/settings/modes/inputs.js";
 import { activeProject } from "@opensesame/app-core/lib/projects.js";
+import type { VaultItem } from "@opensesame/vault-core";
 import { type FormEvent, useState } from "react";
 import type { Run } from "./run.js";
 
@@ -22,6 +24,8 @@ type Inputs = {
   /** Closes the sheet; `message` is what the panel says, or nothing. */
   onDone: (message: string) => void;
   arm: typeof enableDuressCode;
+  /** The open vault's items: what a mode that shows some of them offers, and copies. */
+  items: readonly VaultItem[];
 };
 
 function modeOf(id: DuressModeId): DuressMode {
@@ -35,8 +39,16 @@ function modeOf(id: DuressModeId): DuressMode {
  * nothing), because the sentence ticked names one mode and a yes to it is not
  * a yes to another.
  */
-export function useDuressCeremony({ armed, busy, run, onDone, arm }: Inputs) {
+export function useDuressCeremony({
+  armed,
+  busy,
+  run,
+  onDone,
+  arm,
+  items,
+}: Inputs) {
   const [modeId, setModeId] = useState<DuressModeId>(MODES[0].id);
+  const offered = offeredModes(MODES, { items });
   const mode = modeOf(modeId);
   const [first, setFirst] = useState("");
   const [second, setSecond] = useState("");
@@ -58,6 +70,7 @@ export function useDuressCeremony({ armed, busy, run, onDone, arm }: Inputs) {
         code: first,
         mode: modeId,
         extras,
+        items,
         vaultRef: activeProject().id,
       });
       if (!result.ok) {
@@ -74,6 +87,8 @@ export function useDuressCeremony({ armed, busy, run, onDone, arm }: Inputs) {
   return {
     mode,
     modeId,
+    offered,
+    rows: mode.rows?.({ items }) ?? [],
     extra,
     first,
     second,

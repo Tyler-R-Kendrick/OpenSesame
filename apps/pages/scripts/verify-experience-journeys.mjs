@@ -14,12 +14,14 @@ import { walkJConflict } from "./lib/j-conflict-journey.mjs";
 import { walkJDuress } from "./lib/j-duress-journey.mjs";
 import { walkJDuressFreeze } from "./lib/j-duress-mode-freeze-journey.mjs";
 import { walkJDuressItems } from "./lib/j-duress-mode-items-journey.mjs";
+import { walkJDuressVisible } from "./lib/j-duress-mode-visible-journey.mjs";
 import { walkJDuressModeWipe } from "./lib/j-duress-mode-wipe-journey.mjs";
 import { walkJExplain } from "./lib/j-explain-journey.mjs";
 import { walkJFile } from "./lib/j-file-journey.mjs";
 import { walkJNav } from "./lib/j-nav-journey.mjs";
 import { walkJRecovery } from "./lib/j-recovery-journey.mjs";
 import { walkJSupport } from "./lib/j-support-journey.mjs";
+import { walkJTravelItems } from "./lib/j-travel-items-journey.mjs";
 import { walkJTravel } from "./lib/j-travel-journey.mjs";
 import { walkJTypes } from "./lib/j-types-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -47,7 +49,15 @@ const { log, failures, check, setStep, launch, newPage, snap } = createHarness({
   out: OUT,
 });
 
+// EXPERIENCE_ONLY=J-TRAVEL-ITEMS,J-TRAVEL runs just those walks (a rebuilt
+// app with a step switched off is proved against the one walk it must fail).
+const ONLY = (process.env.EXPERIENCE_ONLY ?? "")
+  .split(",")
+  .map((name) => name.trim())
+  .filter(Boolean);
+
 async function runWalk(name, walk) {
+  if (ONLY.length > 0 && !ONLY.includes(name)) return;
   const { page, context } = await newPage(browser);
   setStep(name);
   try {
@@ -86,9 +96,11 @@ try {
   await runWalk("J-SUPPORT", walkJSupport);
   await runWalk("J-DURESS", walkJDuress);
   await runWalk("J-DURESS-ITEMS", walkJDuressItems);
+  await runWalk("J-DURESS-VISIBLE", walkJDuressVisible);
   await runWalk("J-DURESS-MODE-WIPE", walkJDuressModeWipe);
   await runWalk("J-DURESS-FREEZE", walkJDuressFreeze);
   await runWalk("J-TRAVEL", walkJTravel);
+  await runWalk("J-TRAVEL-ITEMS", walkJTravelItems);
 } finally {
   await browser.close();
 }

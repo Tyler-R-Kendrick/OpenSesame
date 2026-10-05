@@ -120,6 +120,7 @@ export function DuressPanel({
   arm?: typeof enableDuressCode;
 }) {
   const shown = useDuressPanelShown();
+  const { items } = useVault();
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState(duressStatus);
   const { armed } = status;
@@ -177,6 +178,7 @@ export function DuressPanel({
           <DuressCeremony
             arm={arm}
             armed={armed}
+            items={items}
             busy={busy}
             run={run}
             onDone={(text) => {

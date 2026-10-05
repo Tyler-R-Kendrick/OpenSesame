@@ -1,22 +1,30 @@
-import type { DuressMode } from "@opensesame/app-core/lib/duress/settings/modes/index.js";
+import type {
+  DuressMode,
+  DuressPickRow,
+} from "@opensesame/app-core/lib/duress/settings/modes/index.js";
 import { useId } from "react";
 import { FieldShell } from "../../../components/FieldShell.js";
+import { PickList } from "./DuressPickList.js";
 
 /**
  * The extra input a mode declares, drawn below the mode radios. Every kind
  * reaches arming as one string (see `DuressModeInput`): a text as typed, a
- * choice as its option's value, items one per line, a confirmation as the word.
+ * choice as its option's value, items one per line, a pick as the ids of the
+ * rows left shown one per line, a confirmation as the word.
  */
 export function ModeInput({
   mode,
   busy,
   value,
   onValue,
+  rows = [],
 }: {
   mode: DuressMode;
   busy: boolean;
   value: string;
   onValue: (next: string) => void;
+  /** What a `pick` input offers, from the vault that is open. */
+  rows?: readonly DuressPickRow[];
 }) {
   const { input } = mode;
   const lines = useId();
@@ -56,6 +64,16 @@ export function ModeInput({
             ))}
           </ul>
         </fieldset>
+      );
+    case "pick":
+      return (
+        <PickList
+          label={input.label}
+          rows={rows}
+          busy={busy}
+          value={value}
+          onValue={onValue}
+        />
       );
     case "items":
       return (

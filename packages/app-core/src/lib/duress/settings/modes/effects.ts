@@ -15,6 +15,7 @@ import { runWipeEffect } from "../../wipe/real.js";
 import { DECOY_ITEMS_RUNNER } from "./decoy-items-effect.js";
 import { FREEZE_RUNNER } from "./freeze.js";
 import type { DuressPlan } from "./mode.js";
+import { VISIBLE_ITEMS_RUNNER } from "./visible-items-effect.js";
 
 export type EffectPhase = "on_match" | "after_session";
 
@@ -40,6 +41,7 @@ const RUNNERS: ReadonlyMap<string, EffectRunner> = new Map<
   EffectRunner
 >([
   ["decoy_items", DECOY_ITEMS_RUNNER],
+  ["visible_items", VISIBLE_ITEMS_RUNNER],
   ["wipe", { phase: "on_match", run: runWipeEffect }],
   ["freeze", FREEZE_RUNNER],
 ]);

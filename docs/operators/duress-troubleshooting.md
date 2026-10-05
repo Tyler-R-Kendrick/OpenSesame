@@ -127,6 +127,19 @@ on the Duress row. The hold reads this device's clock: a clock moved forward end
 it, and a clock moved back by more than 72 hours and a minute makes the record
 unreliable, so it is ignored rather than lock you out for good.
 
+## The decoy shows old content, or is missing an item I added
+
+**Show my vault without the items I hide** shows copies taken when you armed it. An
+item you added afterwards is hidden by construction, and an item you edited
+afterwards shows its old content, because nothing reads the real vault when the code
+is typed. Open the real vault, then **Change** the duress code on the Duress row and
+choose the mode again to take a fresh snapshot. If the row says the items are too
+large to keep with a code, show fewer of them: the copies are sealed in a slot of at
+most 64 KiB. An item that is not in the list (a passkey, certificate, drop, file, an
+item in the trash, a typed item of a type this device does not know) is never
+offered, and the mode itself is not drawn when the open vault has no item it can
+show.
+
 ## The vaults are gone after a wipe code was used
 
 A **Wipe this device's copy** code removed this browser's copy of every vault

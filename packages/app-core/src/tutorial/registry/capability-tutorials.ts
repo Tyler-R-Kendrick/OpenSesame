@@ -9,6 +9,7 @@ export const CAPABILITY_TUTORIALS = {
   ...AUTHORITY_TUTORIALS,
   "vaults.switch": "vaults.switch",
   "vaults.travel": "vaults.travel",
+  "vaults.travel_items": "vaults.travel",
   "vaults.duress_code": "vaults.duress-code",
   "vault.protectors.manage": "settings.security.review",
   "vault.protectors.rotate": "settings.security.review",
