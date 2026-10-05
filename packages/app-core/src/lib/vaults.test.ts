@@ -17,6 +17,7 @@ import {
   describeSealedAt,
   enterActiveProjectScope,
   listDeviceVaults,
+  openVaultLabel,
   removeVault,
   switchVault,
   vaultLabel,
@@ -155,6 +156,29 @@ describe("listDeviceVaults", () => {
     expect(guest?.state).toBe("open");
     // Guests always unlock GUEST_TOMB — personal stays closed beside them.
     expect(vaults[0]?.state).not.toBe("open");
+  });
+});
+
+describe("a duress decoy in the list", () => {
+  it("is the open vault the unlock screen showed, never the guest row", async () => {
+    await vaultStore.createGuest({ decoy: true });
+    const snapshot = vaultStore.getSnapshot();
+    expect(snapshot.guest).toBe(true);
+    expect(snapshot.decoy).toBe(true);
+    const vaults = listDeviceVaults();
+    expect(vaults[0]?.id).toBe(PERSONAL_PROJECT_ID);
+    expect(vaults[0]?.state).toBe("open");
+    expect(vaults.at(-1)?.id).toBe(GUEST_TOMB);
+    expect(vaults.at(-1)?.state).not.toBe("open");
+    expect(openVaultLabel()).toBe("personal");
+    vaultStore.lock();
+  });
+
+  it("leaves an ordinary guest as the guest row", async () => {
+    await vaultStore.createGuest();
+    expect(vaultStore.getSnapshot().decoy).toBe(false);
+    expect(openVaultLabel()).toBe("guest");
+    vaultStore.lock();
   });
 });
 

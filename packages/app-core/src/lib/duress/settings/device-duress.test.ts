@@ -97,6 +97,47 @@ describe("this device's duress code (ADR 0155)", () => {
     }
   });
 
+  it("takes the mode by id, and the legacy outcome name the same way", async () => {
+    for (const [field, id, presentation] of [
+      ["mode", "decoy", "decoy"],
+      ["mode", "refuse", "locked"],
+      ["outcome", "refuse", "locked"],
+    ] as const) {
+      clearEnrollmentStateForUnlock();
+      resetFence();
+      expect(
+        await enableDuressCode({
+          code: CODE,
+          [field]: id,
+          vaultRef: "personal",
+          requireDurable: false,
+        }),
+      ).toEqual({ ok: true });
+      const result = await onCompleteUnlockCodeSubmission(CODE, {
+        requireDurable: false,
+      });
+      expect(result.kind).toBe("duress");
+      if (result.kind === "duress") {
+        expect(result.match.plaintext.presentation).toBe(presentation);
+        result.match.plaintext.compartmentKey.fill(0);
+      }
+    }
+  });
+
+  it("refuses an unknown or missing mode, and leaves no code behind", async () => {
+    for (const input of [{ mode: "wipe" }, { outcome: "wipe" }, {}]) {
+      expect(
+        await enableDuressCode({
+          code: CODE,
+          ...input,
+          vaultRef: "personal",
+          requireDurable: false,
+        }),
+      ).toEqual({ ok: false, code: "failed" });
+    }
+    expect(duressStatus().armed).toBe(false);
+  });
+
   it("leaves every other code alone", async () => {
     await enableDuressCode({
       code: CODE,
