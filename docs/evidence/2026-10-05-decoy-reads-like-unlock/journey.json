@@ -1,0 +1,156 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "pressIn": ["#duress-profiles", "Add"]
+        },
+        {
+          "fillOptional": {
+            "label": "Duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=0"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Confirm duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=1"
+          }
+        },
+        {
+          "checkOptional": "I understand this code opens a decoy, never my vault."
+        },
+        {
+          "pressOptional": "Turn on duress code"
+        },
+        {
+          "pressOptional": "Lock vault"
+        },
+        {
+          "fillOptional": {
+            "label": "Password",
+            "text": "246813579",
+            "selector": "input[type=password]"
+          }
+        },
+        {
+          "pressOptional": "Unlock"
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "count": [".duress-presentation-overlay", "[role=status]"]
+        },
+        {
+          "report": ".duress-presentation-overlay"
+        },
+        {
+          "report": ".rail__prompt"
+        },
+        {
+          "report": "main"
+        },
+        {
+          "shot": "390-decoy-security"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "pressIn": ["#duress-profiles", "Add"]
+        },
+        {
+          "fillOptional": {
+            "label": "Duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=0"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Confirm duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=1"
+          }
+        },
+        {
+          "checkOptional": "I understand this code opens a decoy, never my vault."
+        },
+        {
+          "pressOptional": "Turn on duress code"
+        },
+        {
+          "pressOptional": "Lock vault"
+        },
+        {
+          "fillOptional": {
+            "label": "Password",
+            "text": "246813579",
+            "selector": "input[type=password]"
+          }
+        },
+        {
+          "pressOptional": "Unlock"
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "count": [".duress-presentation-overlay", "[role=status]"]
+        },
+        {
+          "report": ".duress-presentation-overlay"
+        },
+        {
+          "report": ".rail__prompt"
+        },
+        {
+          "report": "main"
+        },
+        {
+          "shot": "1280-decoy-security"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-decoy-security",
+      "width": 390,
+      "title": "What a duress-code unlock shows, on Settings \u203a Security \u2014 390 \u00d7 844",
+      "caption": "A password vault is sealed, the duress code is turned on, the vault is locked, and the duress code is typed at the password prompt. Same journey on both builds. The base build puts an unstyled status banner over the page and labels the session guest@guest; the branch shows the page an ordinary unlock shows, under the vault's own label.",
+      "before": "status banner 'Unavailable (missing_decoy) Vault locked'; label guest@guest; page says 'You are a guest...'",
+      "after": "no banner (0 overlay elements); label guest@personal, as a real unlock; no guest copy"
+    },
+    {
+      "shot": "1280-decoy-security",
+      "width": 1280,
+      "title": "What a duress-code unlock shows, on Settings \u203a Security \u2014 1280 \u00d7 800",
+      "caption": "A password vault is sealed, the duress code is turned on, the vault is locked, and the duress code is typed at the password prompt. Same journey on both builds. The base build puts an unstyled status banner over the page and labels the session guest@guest; the branch shows the page an ordinary unlock shows, under the vault's own label.",
+      "before": "status banner 'Unavailable (missing_decoy) Vault locked'; label guest@guest; page says 'You are a guest...'",
+      "after": "no banner (0 overlay elements); label guest@personal, as a real unlock; no guest copy"
+    }
+  ]
+}

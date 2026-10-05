@@ -25,6 +25,7 @@ import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 export interface FixtureVault {
   header: JsonObject | null;
   guest?: boolean;
+  decoy?: boolean;
 }
 
 /** The vault the next render reads; a test replaces `current`. */
@@ -133,6 +134,12 @@ export function pinAndPasswordHeader() {
 
 export function guestHeader() {
   vault.current = { header: null, guest: true };
+  listAvailableUnlockMethods.mockReturnValue([]);
+}
+
+/** A duress decoy: a guest underneath, drawn as the vault it was typed at. */
+export function decoyHeader() {
+  vault.current = { header: null, guest: true, decoy: true };
   listAvailableUnlockMethods.mockReturnValue([]);
 }
 
