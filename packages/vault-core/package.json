@@ -19,6 +19,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@noble/hashes": "1.8.0",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/vault-item-types": "workspace:*"
   },

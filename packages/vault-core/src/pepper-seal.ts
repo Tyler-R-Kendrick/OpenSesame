@@ -1,7 +1,8 @@
 /**
- * A password sealed under a pepper (ADR 0172). The pepper is something the
- * person types each time a password is used; it is never stored, so the sealed
- * body alone cannot produce the password.
+ * The v1 pepper seal (ADR 0172), kept so a vault that holds one still opens.
+ * ADR 0173 writes v2 (OPAQUE, `app-core/.../opaque-seal.ts`). The pepper is
+ * something the person types each time a password is used; it is never stored,
+ * so the sealed body alone cannot produce the password.
  *
  * PBKDF2-SHA256 at the vault's own iteration floor stretches the pepper into an
  * AES-GCM key. The seal is bound to the account and method ids: moved to
@@ -9,7 +10,7 @@
  */
 
 import { overlapCast } from "@opensesame/os-domain";
-import type { PepperSeal } from "./account.js";
+import type { PepperSeal, PepperSealV1 } from "./account.js";
 import { b64ToBytes, bytesToB64 } from "./bytes.js";
 import {
   PBKDF2_ITERATIONS,
@@ -58,7 +59,7 @@ export async function sealWithPepper(
   password: string,
   pepper: string,
   binding: string,
-): Promise<PepperSeal> {
+): Promise<PepperSealV1> {
   if (pepper === "") throw new Error("A pepper cannot be empty.");
   const salt = randomBytes(SALT_BYTES);
   const key = await pepperKey(pepper, salt, PBKDF2_ITERATIONS);
@@ -82,13 +83,13 @@ export async function sealWithPepper(
   };
 }
 
-/** Throws `WrongPepperError` for a wrong pepper or a seal moved to another method. */
+/** Opens a v1 seal (ADR 0172). Throws `WrongPepperError` for a wrong pepper or a seal moved to another method. */
 export async function openWithPepper(
   sealed: PepperSeal,
   pepper: string,
   binding: string,
 ): Promise<string> {
-  if (sealed.v !== 1) throw new VaultCorruptError("unknown pepper seal");
+  if (sealed.v !== 1) throw new VaultCorruptError("not a v1 pepper seal");
   assertKdfParams(sealed.kdf);
   const key = await pepperKey(
     pepper,

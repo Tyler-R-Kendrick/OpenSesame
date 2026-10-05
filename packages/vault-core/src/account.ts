@@ -11,6 +11,7 @@
 
 import { isJsonObject, overlapCast } from "@opensesame/os-domain";
 import type { SealedBlob } from "./crypto.js";
+import { deriveCharacters } from "./derive.js";
 import type { LoginUri } from "./login-uri.js";
 import type { BaseItem, ReenrollState } from "./model.js";
 
@@ -24,16 +25,19 @@ export const LOGIN_METHOD_TYPES = [
 export type LoginMethodType = (typeof LOGIN_METHOD_TYPES)[number];
 
 /**
- * How a password is made. `manual` is typed by the person; every other
- * generator produces it. `sphinx` is the only one that is never stored: it is
- * recomputed at each use from a master input the person types and a key that
- * stays in the vault (RFC 9497 OPRF).
+ * How a password is made. `manual` is typed by the person. `rules` and
+ * `passphrase` make a password and store it. `derived` stores only a root
+ * secret and computes the password from it at every use (ADR 0173); with
+ * *Include pepper* the root is sealed under a pepper through OPAQUE (RFC 9807).
+ * `sphinx` is the generator ADR 0172 shipped: a master input and an OPRF key
+ * (RFC 9497). It is read, never offered: a vault that holds one still opens it.
  */
 export const PASSWORD_GENERATOR_IDS = [
+  "derived",
   "rules",
   "passphrase",
-  "sphinx",
   "manual",
+  "sphinx",
 ] as const;
 export type PasswordGeneratorId = (typeof PASSWORD_GENERATOR_IDS)[number];
 
@@ -59,6 +63,15 @@ export type PassphraseGenerator = {
   includeNumber: boolean;
 };
 
+export type DerivedGenerator = {
+  id: "derived";
+  /** The shape the computed password is encoded into. */
+  rules: CharacterRules;
+  /** Bumped to rotate the password without touching the root secret. */
+  counter: number;
+};
+
+/** The generator ADR 0172 shipped; opened and computed, never offered. */
 export type SphinxGenerator = {
   id: "sphinx";
   /** The shape of the password the OPRF output is encoded into. */
@@ -78,17 +91,27 @@ export type SphinxGenerator = {
 export type ManualGenerator = { id: "manual" };
 
 export type PasswordGenerator =
+  | DerivedGenerator
   | RulesGenerator
   | PassphraseGenerator
   | SphinxGenerator
   | ManualGenerator;
 
 /**
- * A password sealed under a pepper: PBKDF2-SHA256 over the pepper, AES-GCM
- * over the password, bound to the account and method ids so a seal cannot be
- * moved to another method. The pepper itself is never stored anywhere.
+ * A secret sealed under a pepper. The pepper is never stored, and the seal is
+ * bound to the account and method ids, so it cannot be moved to another method.
+ *
+ * `v: 2` is the seal ADR 0173 writes: OPAQUE (RFC 9807) with ristretto255 and
+ * Argon2id. The pepper is the OPAQUE password, `serverSetup` and
+ * `registrationRecord` are the two halves a server would hold, and the AES-GCM
+ * key that holds the secret comes from the OPAQUE export key. A wrong pepper
+ * fails the OPAQUE login, so it is detected before anything is decrypted.
+ * `ksf` names the Argon2id cost (`opaque-seal.ts`).
+ *
+ * `v: 1` is the seal ADR 0172 wrote (PBKDF2-SHA256 over the pepper, AES-GCM
+ * over the secret). It still opens; nothing writes it.
  */
-export type PepperSeal = {
+export type PepperSealV1 = {
   v: 1;
   kdf: {
     alg: "PBKDF2-SHA256";
@@ -98,6 +121,17 @@ export type PepperSeal = {
   seal: SealedBlob;
 };
 
+export type PepperSealV2 = {
+  v: 2;
+  suite: "rfc9807-ristretto255-argon2id";
+  ksf: "standard" | "fast";
+  serverSetup: string;
+  registrationRecord: string;
+  seal: SealedBlob;
+};
+
+export type PepperSeal = PepperSealV1 | PepperSealV2;
+
 export type PasswordMethod = {
   id: string;
   type: "password";
@@ -105,12 +139,15 @@ export type PasswordMethod = {
   /**
    * *Include pepper.* When set, the person is asked for the pepper each time
    * the password is used. For `sphinx` it is the master input and is always
-   * set. Otherwise `secret` is empty and `sealed` holds the password.
+   * set. Otherwise `secret` is empty and `sealed` holds the secret.
    */
   pepper: boolean;
-  /** The password, when it is kept in the clear (no pepper, not sphinx). */
+  /**
+   * What is kept in the clear (no pepper, not sphinx): the password itself, or
+   * for `derived` the root secret the password is computed from.
+   */
   secret: string;
-  /** The password, when `pepper` is set and the generator is not `sphinx`. */
+  /** `secret`, when `pepper` is set and the generator is not `sphinx`. */
   sealed?: PepperSeal | undefined;
   changedAt: string;
 };
@@ -217,9 +254,19 @@ export function authenticatorMethod(
   return methodsOfType(item, "authenticator")[0];
 }
 
-/** A password that can be shown or filled with no question asked. */
+/**
+ * A password that can be shown or filled with no question asked: a stored one,
+ * or a derived one whose root is in the clear. Null when a pepper or a master
+ * input stands in the way.
+ */
 export function plainPassword(method: PasswordMethod): string | null {
-  if (method.pepper || method.generator.id === "sphinx") return null;
+  const { generator } = method;
+  if (method.pepper || generator.id === "sphinx") return null;
+  if (generator.id === "derived") {
+    return method.secret === ""
+      ? ""
+      : deriveCharacters(method.secret, generator.counter, generator.rules);
+  }
   return method.secret;
 }
 

@@ -5,6 +5,8 @@
  */
 export * from "./account.js";
 export * from "./bytes.js";
+export * from "./character-rules.js";
+export * from "./derive.js";
 export * from "./crypto.js";
 export * from "./device-key.js";
 export * from "./drop-format.js";
