@@ -12,9 +12,6 @@ import { configureHost } from "../../../host.js";
 import type { PagePort } from "../../../ports.js";
 import { createTestHost } from "../../../test-host.js";
 import { vaultStore } from "../../vault/store.js";
-import { clearJournal } from "../store/journal.js";
-import { WIPE_INTENT_KEY } from "../store/boot-keys.js";
-import { clearEnrollmentStateForUnlock } from "../store/unlock-enrollment.js";
 import { duressSessionFence } from "../session/fence.js";
 import {
   enableDuressCode,
@@ -26,9 +23,12 @@ import {
   getMode,
   runDuressEffects,
 } from "../settings/modes/index.js";
+import { WIPE_INTENT_KEY } from "../store/boot-keys.js";
+import { clearJournal } from "../store/journal.js";
+import { clearEnrollmentStateForUnlock } from "../store/unlock-enrollment.js";
 import { wipeGuard } from "./guard.js";
-import { allowRealWipe } from "./test-guard.js";
 import { isWipeBody, runWipeEffect, wipeSeams } from "./real.js";
+import { allowRealWipe } from "./test-guard.js";
 import { deviceWithVaults, vaultFiles } from "./wipe.test-support.js";
 
 const realDeps = wipeSeams.deps;
@@ -236,8 +236,10 @@ const PAGES_SRC = join(APP_CORE_SRC, "../../../apps/pages/src");
 function sources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const path = join(dir, entry.name);
-    if (entry.isDirectory()) return entry.name === "node_modules" ? [] : sources(path);
-    return /\.(ts|tsx)$/.test(entry.name) && !/\.test(-support)?\./.test(entry.name)
+    if (entry.isDirectory())
+      return entry.name === "node_modules" ? [] : sources(path);
+    return /\.(ts|tsx)$/.test(entry.name) &&
+      !/\.test(-support)?\./.test(entry.name)
       ? [path]
       : [];
   });

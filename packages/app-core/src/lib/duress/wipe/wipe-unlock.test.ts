@@ -11,7 +11,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UNLOCK_PIN_MISS } from "../../../screens/unlock/unlock-duress-refuse.js";
 import { unlockWithPinAfterDuressGate } from "../../../screens/unlock/unlock-pin-duress.js";
 import { onCompleteUnlockCodeSubmission } from "../../../sections/settings/security/duress-unlock-bridge.js";
-import { kvFileName, kvFlush, kvForgetAll, kvHydrate, kvSetDurable } from "../../kv.js";
+import {
+  kvFileName,
+  kvFlush,
+  kvForgetAll,
+  kvHydrate,
+  kvSetDurable,
+} from "../../kv.js";
 import { vaultStore } from "../../vault/store.js";
 import { listDeviceVaults } from "../../vaults.js";
 import {
@@ -21,7 +27,7 @@ import {
   tombFileKey,
 } from "../../vfs.js";
 import { duressSessionFence } from "../session/fence.js";
-import { enableDuressCode, duressStatus } from "../settings/device-duress.js";
+import { duressStatus, enableDuressCode } from "../settings/device-duress.js";
 import { DURESS_BOOT_KEYS } from "../store/boot-keys.js";
 import { clearEnrollmentStateForUnlock } from "../store/unlock-enrollment.js";
 import {
@@ -53,7 +59,10 @@ async function freshDevice(): Promise<void> {
   vaultStore.lock();
   const { header } = await createVault("correct horse battery staple");
   await registerTomb(GUEST_TOMB);
-  await kvSetDurable(tombFileKey(GUEST_TOMB, HEADER_PATH), JSON.stringify(header));
+  await kvSetDurable(
+    tombFileKey(GUEST_TOMB, HEADER_PATH),
+    JSON.stringify(header),
+  );
   await kvFlush();
 }
 
@@ -109,10 +118,9 @@ describe("wipe through the real unlock path", () => {
     );
     expect(guestBefore.size).toBeGreaterThan(0);
 
-    const typed = await unlockWithPinAfterDuressGate(
-      vaultStore,
-      CODE,
-    ).catch((error: unknown) => error);
+    const typed = await unlockWithPinAfterDuressGate(vaultStore, CODE).catch(
+      (error: unknown) => error,
+    );
 
     expect(typed).toBeInstanceOf(WrongPasswordError);
     expect((typed as Error).message).toBe(ordinary);
@@ -130,7 +138,8 @@ describe("wipe through the real unlock path", () => {
     ).toEqual([]);
 
     // The guest tomb is byte for byte what it was, and the code is still armed.
-    for (const [name, text] of guestBefore) expect(opfs.files.get(name)).toBe(text);
+    for (const [name, text] of guestBefore)
+      expect(opfs.files.get(name)).toBe(text);
     expect(duressStatus().armed).toBe(true);
     expect(opfs.files.has(kvFileName("duress.enrollment-state.v1"))).toBe(true);
 
@@ -151,10 +160,9 @@ describe("wipe through the real unlock path", () => {
     // records that it was reached. Everything else is the test above.
     wipeGuard.forbid();
     await arm();
-    const typed = await unlockWithPinAfterDuressGate(
-      vaultStore,
-      CODE,
-    ).catch((error: unknown) => error);
+    const typed = await unlockWithPinAfterDuressGate(vaultStore, CODE).catch(
+      (error: unknown) => error,
+    );
     expect(typed).toBeInstanceOf(WrongPasswordError);
     expect(wipeGuard.takeReached()).toEqual(["runWipeEffect"]);
     expect(vaultFileNames().length).toBeGreaterThan(0);

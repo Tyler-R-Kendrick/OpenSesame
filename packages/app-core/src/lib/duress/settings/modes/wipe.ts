@@ -12,6 +12,7 @@ export const WIPE = {
   label: "Wipe this device's copy",
   opens:
     "nothing; it reads as a wrong password, after removing the vaults stored in this browser",
+  vault: "removed from this browser; restorable only from a backup",
   consent:
     "I understand this removes the vaults stored in this browser. They can be restored only from a backup I made. It removes what this browser stores, not what the disk may still hold, and it takes a moment before the refusal appears.",
   presentation: "locked",

@@ -58,7 +58,12 @@ describe("DuressPanel wipe mode", () => {
     expect(screen.queryByLabelText(WORD)).toBeNull();
     await userEvent.click(screen.getByRole("radio", { name: WIPE }));
     expect(word().value).toBe("");
-    const sentence = screen.getByText(/removes the vaults stored in this browser/);
+    // The sheet never says the vault stays sealed for the one mode that removes it.
+    expect(screen.queryByText(/stays sealed/)).toBeNull();
+    expect(screen.getByText(/removed from this browser/)).toBeTruthy();
+    const sentence = screen.getByText(
+      /removes the vaults stored in this browser/,
+    );
     for (const part of [
       "backup I made",
       "not what the disk may still hold",
@@ -111,7 +116,9 @@ describe("DuressPanel wipe mode", () => {
 
   it("is not armed by a ticked sentence carried over from another mode", async () => {
     await openWipeSheet();
-    await userEvent.click(screen.getByRole("radio", { name: "Wrong password" }));
+    await userEvent.click(
+      screen.getByRole("radio", { name: "Wrong password" }),
+    );
     await userEvent.click(consent());
     await userEvent.click(screen.getByRole("radio", { name: WIPE }));
     await userEvent.type(word(), "WIPE");

@@ -76,6 +76,11 @@ export type DuressMode<Id extends string = string> = Readonly<{
   label: string;
   /** One line: what typing the code does. */
   opens: string;
+  /**
+   * What happens to the vault, where the usual "stays sealed; this code never
+   * opens it" would not be true of the mode.
+   */
+  vault?: string;
   /** What the owner ticks for this mode, and for no other. */
   consent: string;
   /** The string sealed with the code, read at unlock. */

@@ -10,10 +10,7 @@ import { vi } from "vitest";
 
 export type FakeOpfs = {
   files: Map<string, string>;
-  getFileHandle(
-    name: string,
-    options?: { create?: boolean },
-  ): Promise<unknown>;
+  getFileHandle(name: string, options?: { create?: boolean }): Promise<unknown>;
   removeEntry(name: string): Promise<void>;
   keys(): AsyncGenerator<string>;
 };
