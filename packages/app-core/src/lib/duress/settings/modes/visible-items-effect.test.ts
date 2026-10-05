@@ -58,7 +58,7 @@ describe("visible items runner", () => {
     if (made.kind !== "login") throw new Error("not a login");
     expect(made.fields[0]?.id).not.toBe("f1");
     expect(made.uris[0]?.id).not.toBe("u1");
-    expect(made.fields[0]).toMatchObject({ name: "PIN", value: "4321" });
+    expect(made.fields[0]).toMatchObject({ name: "Branch", value: "Downtown" });
     expect(made.favorite).toBe(true);
     expect(made.createdAt).toBe(original.createdAt);
   });

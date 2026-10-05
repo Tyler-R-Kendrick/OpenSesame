@@ -7,7 +7,7 @@
  * decides it belongs here. Kept: name, the kind's own plain fields, notes,
  * custom fields, favourite, and the two dates that make an item look lived in.
  * Left out, always: passkeys, certificates, drops, files and every other kind
- * that is key material; one-time-code seeds; history; the links that tie an
+ * that is key material; one-time-code seeds; concealed custom fields; history; the links that tie an
  * item to a reset or a replacement; its folder; its grants to agents; anything
  * in the trash. A typed item is offered only when its definition is built in,
  * is loaded here, and declares no field that holds a seed, a key or a file.
@@ -155,11 +155,16 @@ export function shareItem(item: VaultItem): SharedItem | null {
     name: cut(cleanTitle(item.name), VISIBLE_LIMITS.name),
     favorite: item.favorite,
     notes: cut(item.notes, VISIBLE_LIMITS.notes),
-    fields: item.fields.slice(0, VISIBLE_LIMITS.fields).map((field) => ({
-      name: cut(field.name, VISIBLE_LIMITS.fieldName),
-      value: cutText(field.value),
-      hidden: field.hidden,
-    })),
+    // A concealed custom field is where people keep a PIN, a security answer
+    // or a one-time-code seed, so it is never copied; a plain one is.
+    fields: item.fields
+      .filter((field) => !field.hidden)
+      .slice(0, VISIBLE_LIMITS.fields)
+      .map((field) => ({
+        name: cut(field.name, VISIBLE_LIMITS.fieldName),
+        value: cutText(field.value),
+        hidden: false,
+      })),
     createdAt,
     updatedAt,
   };

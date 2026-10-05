@@ -43,7 +43,7 @@ export const VISIBLE_ITEMS = {
   label: "Show my vault without the items I hide",
   opens: "a decoy holding copies of the items you leave shown",
   consent:
-    "I understand this code opens a decoy holding copies, taken now, of only the items I leave shown, never my vault; items I add later stay hidden, and edits show their old content until I turn this on again. The copies are sealed under this short code, so anyone with this browser's storage and enough effort can read them: I choose only items I could afford to show. Passkeys, certificates, drops, files, one-time-code seeds, history, folders and deleted items are never copied.",
+    "I understand this code opens a decoy holding copies, taken now, of only the items I leave shown, never my vault; items I add later stay hidden, and edits show their old content until I turn this on again. The copies are sealed under this short code, so anyone with this browser's storage and enough effort can read them: I choose only items I could afford to show. Passkeys, certificates, drops, files, one-time-code seeds, concealed custom fields, history, folders and deleted items are never copied.",
   presentation: "decoy",
   input: {
     kind: "pick",

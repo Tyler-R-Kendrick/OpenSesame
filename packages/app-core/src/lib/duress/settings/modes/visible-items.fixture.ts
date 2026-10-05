@@ -27,7 +27,10 @@ export function dressed(): LoginItem {
     reenrollState: "old-retired",
     favorite: true,
     uris: [{ id: "u1", uri: "https://bank.example.test", match: "host" }],
-    fields: [{ id: "f1", name: "PIN", value: "4321", hidden: true }],
+    fields: [
+      { id: "f1", name: "PIN", value: "4321", hidden: true },
+      { id: "f2", name: "Branch", value: "Downtown", hidden: false },
+    ],
   });
   // What the model does not name must not travel either.
   const extra: Record<string, unknown> = item;

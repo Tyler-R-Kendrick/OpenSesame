@@ -96,8 +96,11 @@ describe("what is eligible, and what is never copied", () => {
       favorite: true,
       notes: "notes of Bank",
       uris: [{ uri: "https://bank.example.test", match: "host" }],
-      fields: [{ name: "PIN", value: "4321", hidden: true }],
+      fields: [{ name: "Branch", value: "Downtown", hidden: false }],
     });
+    // A concealed custom field (a PIN, a security answer, a seed) is left behind.
+    expect(JSON.stringify(copy)).not.toContain("4321");
+    expect(JSON.stringify(copy)).not.toContain("PIN");
   });
 
   it("leaves a secret's grants to agents behind", () => {

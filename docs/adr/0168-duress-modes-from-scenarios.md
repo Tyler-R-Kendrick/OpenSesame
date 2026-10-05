@@ -96,9 +96,10 @@ items.
   never by deleting from the item. Kinds: login, secure note, secret, card, and
   typed items of a built-in type that is loaded here and declares no field
   holding a seed, a key or a file. Kept: name, the kind's own plain fields
-  (username, password, addresses, notes, number, and so on), custom fields,
-  favourite, creation and update dates. **Never copied**: passkeys, certificates,
+  (username, password, addresses, notes, number, and so on), plain custom
+  fields, favourite, creation and update dates. **Never copied**: passkeys, certificates,
   drops and files (key material and attachments); one-time-code seeds (`totp`);
+  concealed custom fields (where a PIN, a security answer or a seed is kept);
   password history; the links that tie an item to a reset or a replacement; the
   item's folder (flattened to none); a secret's grants and grantees; anything in
   the trash; a typed item of a type this device does not know. Every copy gets a
