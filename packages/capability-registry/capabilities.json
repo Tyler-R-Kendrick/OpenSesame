@@ -6745,6 +6745,33 @@
     }
   },
   {
+    "id": "vaults.travel_items",
+    "title": "Travel mode: leave chosen items of the open vault at home in a bundle under a return code, and bring them back",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/travel/index.ts:packTravelItemDeparture",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "choosing which items leave an open vault for a trip, and bringing them back, is the traveller's own decision; an agent that could do either could strip a vault or undo the protection the traveller chose, and never holds a return code",
+        "adr": "0170-hide-items-while-traveling.md"
+      },
+      "mcp_client": {
+        "reason": "choosing which items leave an open vault for a trip, and bringing them back, is the traveller's own decision; an agent that could do either could strip a vault or undo the protection the traveller chose, and never holds a return code",
+        "adr": "0170-hide-items-while-traveling.md"
+      },
+      "webmcp": {
+        "reason": "choosing which items leave an open vault for a trip, and bringing them back, is the traveller's own decision; an agent that could do either could strip a vault or undo the protection the traveller chose, and never holds a return code",
+        "adr": "0170-hide-items-while-traveling.md"
+      }
+    }
+  },
+  {
     "id": "vaults.duress_code",
     "title": "Duress code: a second unlock code that shows a decoy or a refusal, set and cleared by the owner",
     "plane": "client_local",

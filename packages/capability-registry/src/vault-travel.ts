@@ -13,6 +13,12 @@ const TRAVELLER_ONLY: CapabilityExclusion = {
   adr: "0143-travel-mode.md",
 };
 
+const TRAVELLER_ITEMS_ONLY: CapabilityExclusion = {
+  reason:
+    "choosing which items leave an open vault for a trip, and bringing them back, is the traveller's own decision; an agent that could do either could strip a vault or undo the protection the traveller chose, and never holds a return code",
+  adr: "0170-hide-items-while-traveling.md",
+};
+
 export const vaultTravelCapabilities: readonly Capability[] = [
   {
     id: "vaults.travel",
@@ -31,6 +37,25 @@ export const vaultTravelCapabilities: readonly Capability[] = [
       mcp_host: TRAVELLER_ONLY,
       mcp_client: TRAVELLER_ONLY,
       webmcp: TRAVELLER_ONLY,
+    },
+  },
+  {
+    id: "vaults.travel_items",
+    title:
+      "Travel mode: leave chosen items of the open vault at home in a bundle under a return code, and bring them back",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "lib/travel/index.ts:packTravelItemDeparture",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      mcp_host: TRAVELLER_ITEMS_ONLY,
+      mcp_client: TRAVELLER_ITEMS_ONLY,
+      webmcp: TRAVELLER_ITEMS_ONLY,
     },
   },
 ];
