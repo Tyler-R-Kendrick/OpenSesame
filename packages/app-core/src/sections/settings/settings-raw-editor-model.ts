@@ -85,9 +85,13 @@ export function keymapDoc(config: KeymapConfig): SettingsDoc {
   for (const [name, layer] of Object.entries(config.contexts ?? {})) {
     if (Object.keys(layer).length > 0) contexts[name] = { ...layer };
   }
+  const values: SettingsDoc["values"] = { singleKeys: config.singleKeys };
+  // Sparse, like the bindings: `motion` is written only once it is off.
+  if (config.motion === false) values.motion = false;
   return {
-    values: { singleKeys: config.singleKeys },
+    values,
     keybindings: { ...config.bindings },
+    gestures: { ...config.gestures },
     contexts,
     macros,
   };
@@ -108,8 +112,10 @@ export function keymapData(doc: SettingsDoc) {
     contexts[name] = bindingData(layer);
   return {
     bindings: bindingData(doc.keybindings),
+    gestures: bindingData(doc.gestures ?? {}),
     macros: doc.macros ?? {},
     singleKeys: doc.values.singleKeys ?? true,
+    motion: doc.values.motion ?? true,
     contexts,
   };
 }

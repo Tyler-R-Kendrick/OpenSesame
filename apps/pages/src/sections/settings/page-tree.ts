@@ -43,11 +43,6 @@ export type SettingsRailSnapshot = {
    * connector with anything to do): unlisted, as the page leaves them out.
    */
   emptyFeatures?: readonly string[];
-  /**
-   * Keybindings draws (a fine pointer is attached); unlisted on a touch-only
-   * device, where there is no key to bind. Defaults to listed.
-   */
-  keybindings?: boolean;
 };
 
 export type ContributedPanel = Readonly<{
@@ -117,6 +112,7 @@ function sectionsFor(
     case "keybindings":
       return [
         panel("keybindings", "settings-keymap", "Keymap"),
+        panel("keybindings", "settings-gestures", "Gestures"),
         panel("keybindings", "settings-macros", "Macros"),
         ...contributed,
       ];
@@ -185,10 +181,7 @@ function sectionsFor(
 export function settingsPageSources(
   snapshot: SettingsRailSnapshot = {},
 ): PageTreeSource[] {
-  const tabs = settingsTabsSnapshot().filter(
-    (tab) => tab.id !== "keybindings" || snapshot.keybindings !== false,
-  );
-  return tabs.map((tab) => ({
+  return settingsTabsSnapshot().map((tab) => ({
     id: tab.id,
     label: tab.label,
     href: settingsPath(tab.id),

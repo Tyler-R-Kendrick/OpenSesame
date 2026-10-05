@@ -5,7 +5,11 @@ import {
 } from "@opensesame/app-core/lib/keymap/store.js";
 import { useRef, useSyncExternalStore } from "react";
 
-import { GESTURE_HELP } from "../lib/gesture-help.js";
+import { gestureHelpRows } from "../lib/gesture-help.js";
+import {
+  motionAccessSnapshot,
+  subscribeMotionAccess,
+} from "../lib/gesture-motion.js";
 import { isTouchPointer, keymapLabel } from "../lib/gestures.js";
 import { keymapHelp } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";
@@ -33,8 +37,13 @@ export function KeymapSheet({
   // Drawn from the keys in force (ADR 0156): a key moved onto another command
   // is on that command, and one taken away is gone, so the sheet never
   // promises a key the handler would not run.
+  const motion = useSyncExternalStore(
+    subscribeMotionAccess,
+    () => motionAccessSnapshot() !== "unsupported",
+    () => false,
+  );
   const rows = touch
-    ? GESTURE_HELP
+    ? gestureHelpRows({ config: keymap, motion })
     : keymapHelp({ config: keymap, commands: keymapCommands() });
 
   if (!open) return null;

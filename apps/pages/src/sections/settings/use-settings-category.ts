@@ -3,24 +3,13 @@ import {
   settingsCategoryFromLocation,
 } from "@opensesame/app-core/lib/crumbs.js";
 import { useLocation } from "react-router";
-import { useFinePointer } from "../../lib/use-narrow.js";
 
 /**
- * The category a settings address draws. Keybindings is General where no
- * fine pointer is attached: the page, the tab strip and the rail's cursor all
- * read this, so the key editor never renders for a frame before the address
- * is rewritten.
+ * The category a settings address draws. Keybindings is drawn on every device
+ * (ADR 0170): a phone's has a Gestures tab, and keys still work on a phone
+ * with a keyboard attached.
  */
-export function effectiveSettingsCategory(
-  pathname: string,
-  hash: string,
-  keys: boolean,
-): SettingsCategory {
-  const category = settingsCategoryFromLocation(pathname, hash);
-  return !keys && category === "keybindings" ? "general" : category;
-}
-
 export function useSettingsCategory(): SettingsCategory {
   const { pathname, hash } = useLocation();
-  return effectiveSettingsCategory(pathname, hash, useFinePointer());
+  return settingsCategoryFromLocation(pathname, hash);
 }
