@@ -298,6 +298,18 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # person would see it degrade to text. Run before touching a tutorial, the
 # tutorial card, the Support sheet or the target registry.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:encrypted-search
+# Same harness, Encrypted search (ADR 0173) in the built app, at desktop and
+# phone widths: with the capability off, retiring a password writes the sealed
+# `opensesame-password-history` and the item's id is readable in it (the
+# control); switching it on moves that database across and deletes it; a sweep
+# of every record of every database then finds no item id, store, index or
+# field name and none of the retired passwords' digests; each encrypted
+# database is one store `r` and one index `x`, every record `osr2.` plus its
+# entries; and a password retired before the switch is still refused as used
+# before, found through a blind index. Run before touching `lib/encrypted-db/`,
+# the history-backup or password-history stores, or `ports.keyRange`.
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:live-join
 # Same harness, live sessions (ADR 0150) in real browser contexts over real
 # WebRTC. Needs a second build first: `pnpm --filter @opensesame/pages

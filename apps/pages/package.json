@@ -46,7 +46,8 @@
     "verify:capability-graph": "node scripts/verify-capability-graph.mjs",
     "verify:mutations": "node scripts/verify-mutations.mjs",
     "verify:tailnet-sync": "node scripts/verify-tailnet-sync.mjs",
-    "verify:tailnet-devices": "node scripts/verify-tailnet-devices.mjs"
+    "verify:tailnet-devices": "node scripts/verify-tailnet-devices.mjs",
+    "verify:encrypted-search": "node scripts/verify-encrypted-search.mjs"
   },
   "dependencies": {
     "@azure/msal-browser": "5.22.0",

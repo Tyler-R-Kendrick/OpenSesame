@@ -276,6 +276,17 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:static
+      - name: Encrypted search in the built app
+        if: matrix.shard == 'static'
+        # ADR 0173: with the capability on, retiring a password writes only an
+        # encrypted database. A sweep of every record of every database finds
+        # no item id, no store, index or field name, and no digest; the sealed
+        # database the capability replaced was readable until it was switched
+        # on, and is gone; a password retired before the switch is still found.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:encrypted-search
       - name: Unlock methods and second steps
         if: matrix.shard == 'auth'
         # ADR 0091: key first, then scan, then a code; lock → PIN → code.
