@@ -41,12 +41,14 @@ if (Boolean(cert) !== Boolean(key)) {
   process.stderr.write("--tls-cert and --tls-key go together.\n");
   process.exit(2);
 }
-const made = await liveNatsOperator({
+const input: Parameters<typeof liveNatsOperator>[0] = {
   websocket: values.websocket,
-  ...(values.listen ? { listen: values.listen } : {}),
-  ...(cert && key ? { tls: { cert, key } } : {}),
   watcher: values.json,
-});
+};
+const listen = values.listen ? { ...input, listen: values.listen } : input;
+const made = await liveNatsOperator(
+  cert && key ? { ...listen, tls: { cert, key } } : listen,
+);
 const out = path.resolve(values.out);
 fs.mkdirSync(out, { recursive: true, mode: 0o700 });
 const config = path.join(out, "live-sessions.conf");
