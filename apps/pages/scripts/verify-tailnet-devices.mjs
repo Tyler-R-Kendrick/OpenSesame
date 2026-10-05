@@ -35,148 +35,34 @@
 //   TD-FORGET   the owner forgets the pairing; the panel offers pairing only
 //
 // Screenshots land in $TAILNET_DEVICES_OUT (default: the system temp dir).
-import { execFileSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { chromium, expect } from "@playwright/test";
-import { dedicatedSite } from "./lib/live-dedicated.mjs";
+import { expect } from "@playwright/test";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
-import { createHarness } from "./lib/static-origin-harness.mjs";
+import {
+  deviceManagementOn,
+  pairByLink,
+  startStack,
+  until,
+} from "./lib/tailnet-devices-stack.mjs";
 import {
   approve,
   editPangolin,
   mintAndJoin,
   removeAndRevoke,
 } from "./lib/tailnet-devices-steps.mjs";
-import {
-  API_TOKEN,
-  TAILNET,
-  startTailscaleStub,
-} from "./lib/tailscale-stub.mjs";
+import { API_TOKEN } from "./lib/tailscale-stub.mjs";
 
-const { origin, dist } = dedicatedSite();
-const base = process.env.VITE_BASE ?? "/OpenSesame/";
-const port = Number(process.env.TAILNET_DEVICES_PORT ?? 18792);
-const daemonUrl = `http://127.0.0.1:${port}`;
-const repo = fileURLToPath(new URL("../../..", import.meta.url));
-const binary = path.join(repo, "target/debug/opensesame");
 const out =
   process.env.TAILNET_DEVICES_OUT ??
   fs.mkdtempSync(path.join(os.tmpdir(), "tailnet-devices-"));
-const state = fs.mkdtempSync(path.join(os.tmpdir(), "tailnet-admin-"));
-const harness = createHarness({
-  dist,
-  origin,
-  base,
-  out: path.join(out, ".log"),
+const stack = await startStack({
+  out,
+  port: Number(process.env.TAILNET_DEVICES_PORT ?? 18792),
 });
-const stub = await startTailscaleStub();
-const env = {
-  ...process.env,
-  OPENSESAME_TAILNET_ADMIN_DIR: state,
-  OPENSESAME_TAILSCALE_API_BASE: stub.base,
-  OPENSESAME_OPERATOR_TOKEN: `verify-${crypto.randomUUID()}${crypto.randomUUID()}`,
-  OPENSESAME_DAEMON_NETWORK_BRIDGE: "0",
-  OPENSESAME_ENV: "development",
-};
-
-/** The CLI a person runs on the daemon's machine. */
-function cli(...args) {
-  return execFileSync(binary, ["daemon", "tailnet", ...args], {
-    env,
-    encoding: "utf8",
-    stdio: ["pipe", "pipe", "pipe"],
-  });
-}
-
-function pairLink(role, label) {
-  const printed = cli(
-    "pair",
-    "--origin",
-    origin,
-    "--role",
-    role,
-    "--url",
-    daemonUrl,
-    "--label",
-    label,
-    "--pages-url",
-    `${origin}${base}`,
-    "--no-qr",
-  );
-  const link = printed.match(/^link\s+(\S+)$/m)?.[1];
-  if (!link) throw new Error(`pair printed no link:\n${printed}`);
-  return link;
-}
-
-async function until(check, what, ms = 20_000) {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    if (await check().catch(() => false)) return;
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-  throw new Error(`timed out waiting for ${what}`);
-}
-
-const pages = [];
-async function browserPage(browser, options) {
-  const { page, context } = await harness.newPage(browser, options);
-  await context.route(`${daemonUrl}/**`, (route) => route.continue());
-  pages.push(page);
-  const errors = [];
-  page.on("pageerror", (error) => errors.push(String(error)));
-  await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await page.waitForTimeout(3000);
-  return { page, errors };
-}
-
-async function visit(page, route) {
-  await page.evaluate((href) => {
-    history.pushState(null, "", href);
-    dispatchEvent(new PopStateEvent("popstate"));
-  }, `${base}${route}`);
-  await page.waitForTimeout(1200);
-}
-
-/** Identity (the section the panel is in), then Networking (the panel). */
-async function deviceManagementOn(page) {
-  await visit(page, "settings/capabilities");
-  for (const name of ["Identity", "Networking"]) {
-    const toggle = page.getByRole("switch", { name, exact: true });
-    if ((await toggle.getAttribute("aria-checked")) === "true") continue;
-    await toggle.click();
-    await page
-      .getByTestId("capability-review")
-      .waitFor({ state: "detached", timeout: 20_000 });
-  }
-}
-
-/** Open the printed link and press the sheet's commit. */
-async function pairByLink(page, link) {
-  const fragment = new URL(link).hash;
-  await visit(page, `identity?view=devices${fragment}`);
-  const sheet = page.getByRole("dialog", {
-    name: "Pair with the tailnet daemon",
-  });
-  await expect(sheet.getByLabel("Pairing code", { exact: true })).toHaveValue(
-    /^opensesame-tailnet:v1:/,
-  );
-  if (page.url().includes("pair-tailnet"))
-    throw new Error("the code stayed in the address bar");
-  await sheet
-    .getByRole("button", { name: "Pair with this daemon", exact: true })
-    .click();
-  await sheet.waitFor({ state: "detached", timeout: 20_000 });
-}
-
-async function shot(page, name) {
-  const file = path.join(out, `${name}.png`);
-  await page.screenshot({ path: file, fullPage: true });
-  console.log(`  ${file}`);
-}
+const { base, state, stub, shot } = stack;
 
 /**
  * The daemon's state, but its credential file: the one file the API token may
@@ -196,41 +82,16 @@ function stateFiles() {
     .join("\n");
 }
 
-const secretFile = path.join(state, "..", `tailnet-token-${process.pid}`);
-fs.writeFileSync(secretFile, `${API_TOKEN}\n`, { mode: 0o600 });
-cli(
-  "connect",
-  "--tailnet",
-  TAILNET,
-  "--api-token",
-  "--secret-file",
-  secretFile,
-);
-fs.rmSync(secretFile);
-const daemon = spawn(
-  binary,
-  ["daemon", "run", "--listen", `127.0.0.1:${port}`],
-  { env, stdio: ["ignore", "ignore", "inherit"] },
-);
-const browser = await chromium.launch({
-  executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
-  headless: true,
-  args: [
-    "--disable-features=LocalNetworkAccessChecks,PrivateNetworkAccessSendPreflights,PrivateNetworkAccessRespectPreflightResults",
-  ],
-});
 let failed = false;
 try {
-  await until(async () => (await fetch(`${daemonUrl}/health`)).ok, "daemon");
-
   // TD-PAIR
-  const owner = await browserPage(browser, {
+  const owner = await stack.browserPage({
     device: { viewport: { width: 1280, height: 900 } },
   });
   const page = owner.page;
   await sealWithPassword(page);
-  await deviceManagementOn(page);
-  await pairByLink(page, pairLink("manage", "Ops laptop"));
+  await deviceManagementOn(page, base);
+  await pairByLink(page, base, stack.pairLink("manage", "Ops laptop"));
   const rows = page
     .getByRole("region", { name: "Tailnet devices" })
     .getByRole("heading", { level: 3 });
@@ -268,12 +129,12 @@ try {
   await shot(page, "1280-activity");
 
   // TD-READ
-  const phone = await browserPage(browser, {
+  const phone = await stack.browserPage({
     device: phoneContext({ width: 390, height: 844 }),
   });
   await sealWithPassword(phone.page);
-  await deviceManagementOn(phone.page);
-  await pairByLink(phone.page, pairLink("read", "Help desk phone"));
+  await deviceManagementOn(phone.page, base);
+  await pairByLink(phone.page, base, stack.pairLink("read", "Help desk phone"));
   const phoneRows = phone.page
     .getByRole("region", { name: "Tailnet devices" })
     .getByRole("heading", { level: 3 });
@@ -281,7 +142,7 @@ try {
   for (const name of [/^Add a device$/, /^Approve /, /^Remove /, /^Revoke /])
     await expect(phone.page.getByRole("button", { name })).toHaveCount(0);
   await shot(phone.page, "390-read-only");
-  cli("unpair", "--all");
+  stack.cli("unpair", "--all");
   await phone.page
     .getByRole("button", { name: "Reload tailnet devices" })
     .click();
@@ -311,7 +172,7 @@ try {
 } catch (error) {
   failed = true;
   console.error(`verify:tailnet-devices FAIL — ${error.stack ?? error}`);
-  for (const [n, page] of pages.entries()) {
+  for (const [n, page] of stack.pages.entries()) {
     await shot(page, `failure-${n}`).catch(() => undefined);
   }
   console.error(
@@ -319,9 +180,6 @@ try {
     stub.tailnet.calls.map((c) => `${c.method} ${c.path}`).join("\n  "),
   );
 } finally {
-  await browser.close();
-  daemon.kill();
-  await stub.close();
-  fs.rmSync(state, { recursive: true, force: true });
+  await stack.close();
 }
 process.exit(failed ? 1 : 0);

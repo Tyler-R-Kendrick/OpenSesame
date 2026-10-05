@@ -183,6 +183,14 @@ cargo build -p opensesame-cli
 ./target/debug/opensesame pass backup                      # commit + push to origin
 # backup auth for GitHub HTTPS remotes: GITHUB_TOKEN → GitHub App
 # (GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY_PATH) → `gh auth token`
+
+# Tailnet device management (ADR 0166): the daemon holds the Tailscale credential
+./target/debug/opensesame daemon tailnet connect --tailnet example.com \
+  --oauth-client-id k123CNTRL --secret-file ./oauth-secret   # or --api-token
+./target/debug/opensesame daemon tailnet pair --origin https://vault.example.com \
+  --role manage --url https://desk.tail4c2e.ts.net           # prints code + link
+./target/debug/opensesame daemon tailnet devices             # approve/rename/tag/routes/expire/remove/mint/revoke/audit
+./target/debug/opensesame daemon tailnet unpair --all
 ```
 
 **Pages (offline PWA) — local debug (attached HMR):**
@@ -377,6 +385,8 @@ Do not add new top-level directories or loose root files — find the group.
 | `crates/a2h` | A2H (Agent-to-Human) v1.0 client — envelope, intent mapping, callback verification; a reply may only narrow authority (ADR 0081 §10) |
 | `crates/rotation-web` | Web-login rotation: the step IR, the tool boundary (no method returns a credential value), and the ordering that must not be rearranged (ADR 0076); plus the same boundary read backwards — `CeremonyTransport`'s capture verbs, which seal what a page produced and answer with a digest (ADR 0082 §3); `src/hooks` is the agent-hooks/0.1 **host** (every verb bracketed, authority pinned, no lock across an approval, `Refused` vs `Withheld`; CTK claims A and B in `docs/validation/agent-hooks-conformance.md`) and `src/recipe_doc` the signed recipe document (ADR 0159) |
 | `crates/vault-item-types` | Host-plane item type parser, registry, and native-secret projection; embeds the shared definition corpus (ADR 0087) |
+| `crates/tailnet-admin` | Tailnet device management, daemon side (ADR 0166): the Tailscale credential (0600, never sent to a page), origin- and role-bound page pairings, value-blind audit, validation, and the Tailscale API v2 client through `invoke-through`; `/v1/tailnet/*` routes in `crates/daemon/src/tailnet_admin_*.rs`, CLI `opensesame daemon tailnet`, replayed by both planes against `spec/conformance/tailnet-admin-protocol.json` |
+| `packages/app-core/src/lib/tailnet-admin/`, `apps/pages/src/modules/networking.tailnet-devices/` | Identity › Devices for the tailnet's real machines (optional `networking.tailnet-devices`, needs `networking.tailnet` + `identity.local-iam`): sealed pairing, the daemon client, approve/rename/tag/routes/exit node/expire/remove, Add a device (auth key shown once), auth keys, activity. Refused on the shared-origin demo. End to end: `pnpm --filter @opensesame/pages verify:tailnet-devices` (real daemon + Tailscale stub + dedicated build) |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
 | `crates/tailscale-authn` | Tailnet caller identity via tailscaled LocalAPI whois (ADR 0048 §8) |
