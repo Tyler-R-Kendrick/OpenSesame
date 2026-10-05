@@ -29,7 +29,9 @@ export function PasswordFieldRow({
   const { generator } = method;
   return (
     <div className="field">
-      <label htmlFor={`${method.id}-password`}>Password</label>
+      <label className="visually-hidden" htmlFor={`${method.id}-password`}>
+        Password
+      </label>
       <div className="editor__inline editor__inline--adorned">
         <input
           id={`${method.id}-password`}
