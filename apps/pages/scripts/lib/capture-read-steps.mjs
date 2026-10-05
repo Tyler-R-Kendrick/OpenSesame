@@ -8,6 +8,16 @@ import { TOUCH_COPY } from "./touch-copy-contract.mjs";
 export function readSteps() {
   return {
     /**
+     * Print how many elements match each selector, so a sheet's before/after
+     * numbers are read from the browser rather than from the diff.
+     */
+    async count(page, selectors) {
+      for (const selector of [selectors].flat()) {
+        const n = await page.locator(selector).count();
+        console.log(`  count ${selector}: ${n}`);
+      }
+    },
+    /**
      * `fill`, for a field only one of the two builds draws: a form the base
      * still offers and the branch has rightly withdrawn. Matches the label as
      * a substring and takes the first, so "API key" finds the required one.

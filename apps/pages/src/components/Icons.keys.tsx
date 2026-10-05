@@ -35,3 +35,14 @@ export function IconSwap(props: IconProps) {
     </Svg>
   );
 }
+
+/** The context menu's key: the same three dots, stood on end. */
+export function IconDotsVertical(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="5.5" r="0.6" fill="currentColor" />
+      <circle cx="12" cy="12" r="0.6" fill="currentColor" />
+      <circle cx="12" cy="18.5" r="0.6" fill="currentColor" />
+    </Svg>
+  );
+}
