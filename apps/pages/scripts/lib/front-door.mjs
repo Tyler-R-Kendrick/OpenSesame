@@ -17,6 +17,13 @@ export function doorGuest(page) {
  */
 export async function passTheDoor(page) {
   const setUp = page.getByRole("button", { name: "Set up your own" });
+  // A cold load is still booting (the worker may reload it once): a count taken
+  // before the first screen draws would read "no door" and walk past it.
+  await setUp
+    .or(page.getByRole("heading", { level: 1, name: "Sign in" }))
+    .first()
+    .waitFor({ timeout: 5000 })
+    .catch(() => undefined);
   if ((await setUp.count()) === 0) return;
   await setUp.click();
   await page.getByRole("button", { name: "Skip all" }).click();

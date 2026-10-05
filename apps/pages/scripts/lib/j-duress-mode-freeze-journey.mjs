@@ -18,6 +18,7 @@ import {
   sealWithPassword,
   waitOpen,
 } from "./pages-journey.mjs";
+import { takeRefusal } from "./tray-contract.mjs";
 
 const CODE = "246813579";
 const DAY_MS = 24 * 3_600_000;
@@ -44,9 +45,8 @@ function installClockShim() {
 async function attempt(page, secret) {
   await page.getByLabel("Password", { exact: true }).fill(secret);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
-  const alert = page.getByRole("alert").locator("visible=true").first();
-  await alert.waitFor({ timeout: 20000 });
-  return (await alert.innerText()).replace(/\s+/g, " ").trim();
+  // The refusal is a notice in the tray, never a box in the page.
+  return takeRefusal(page);
 }
 
 async function opened(page) {

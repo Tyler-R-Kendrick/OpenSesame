@@ -55,3 +55,38 @@ export async function readTray(page) {
   await expect(sheet).toBeHidden();
   return text;
 }
+
+/** The bell now announces something pending, wherever this screen draws it. */
+export async function waitForTray(page, timeout = 20000) {
+  await page
+    .getByRole("button", { name: /^Notifications — [1-9]\d* pending/ })
+    .locator("visible=true")
+    .first()
+    .waitFor({ timeout });
+}
+
+/**
+ * Take the refusal out of the tray: open the bell, read the sentence of the
+ * error notice, dismiss every notice and close the sheet, so the next attempt
+ * raises its own instead of finding this one still there. For a journey that
+ * compares one refusal's words with another's.
+ */
+export async function takeRefusal(page, timeout = 20000) {
+  await waitForTray(page, timeout);
+  await page
+    .getByRole("button", { name: /^Notifications — / })
+    .locator("visible=true")
+    .first()
+    .click();
+  const sheet = page.getByRole("dialog", { name: "Notifications" });
+  const body = sheet.locator("article.notice-card--err p").first();
+  await body.waitFor({ timeout });
+  const text = (await body.innerText()).replace(/\s+/g, " ").trim();
+  const dismiss = sheet.getByRole("button", { name: "Dismiss" });
+  while ((await dismiss.count()) > 0) await dismiss.first().click();
+  if (await sheet.isVisible()) {
+    await sheet.getByRole("button", { name: "Close", exact: true }).click();
+  }
+  await expect(sheet).toBeHidden();
+  return text;
+}

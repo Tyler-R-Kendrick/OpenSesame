@@ -22,6 +22,7 @@ import {
   sealWithPin,
   waitOpen,
 } from "./pages-journey.mjs";
+import { takeRefusal, waitForTray } from "./tray-contract.mjs";
 
 const PIN = "48291037";
 const CODE = "246813579";
@@ -150,16 +151,14 @@ async function typeAtUnlock(page, secret) {
   await (await reachPin(page)).fill(secret);
   const started = Date.now();
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
-  const refusal = page.getByText(/did not unlock the vault/).first();
-  await refusal.waitFor({ timeout: 40000 }).catch(async (error) => {
+  // The refusal is a notice in the tray, never a box in the page.
+  await waitForTray(page, 40000).catch(async (error) => {
     throw new Error(
       `no refusal after typing ${secret.slice(0, 2)}…: ${(await bodyText(page)).slice(0, 400)} (${error.message})`,
     );
   });
-  return {
-    text: (await refusal.innerText()).replace(/\s+/g, " ").trim(),
-    ms: Date.now() - started,
-  };
+  const ms = Date.now() - started;
+  return { text: await takeRefusal(page), ms };
 }
 
 async function reloadToUnlock(page) {
