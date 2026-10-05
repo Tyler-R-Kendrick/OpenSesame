@@ -5,8 +5,9 @@ import {
 import {
   LOCAL_DEVICES_PATH,
   readLocalDevices,
-  registerLocalDevice,
   thisDeviceId,
+  touchThisDevice,
+  updateLocalDevice,
 } from "@opensesame/app-core/lib/local-devices.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
 import { currentLocalIdentitySession } from "@opensesame/app-core/lib/local-sessions.js";
@@ -178,34 +179,51 @@ it("lists this browser as a device, not people or passkeys", async () => {
   ).toBeTruthy();
 });
 
-it("registers a new device from the panel's add key, then removes it behind an armed key", async () => {
+/** A record an earlier build let a person type in by hand: never seen. */
+async function writeHandTyped(name: string): Promise<void> {
+  const devices = [
+    ...(await touchThisDevice(fixture.tomb)),
+    {
+      id: "typed-by-hand",
+      name,
+      platform: "Windows",
+      createdAt: new Date().toISOString(),
+      lastSeenAt: "",
+    },
+  ];
+  await writeFile(
+    fixture.tomb,
+    LOCAL_DEVICES_PATH,
+    new TextEncoder().encode(
+      JSON.stringify({ version: 1, revision: 9, devices }),
+    ),
+  );
+}
+
+it("offers no way to invent a device: the list is the browsers that opened the vault", async () => {
   openDevices();
   await screen.findByRole("img", { name: "This device" });
-  const add = screen.getByRole("button", { name: "New device" });
-  await userEvent.click(add);
-  expect(document.activeElement).toBe(screen.getByLabelText("Name"));
-  expect(add).toHaveProperty("disabled", true);
-  await userEvent.type(screen.getByLabelText("Name"), "Work laptop");
-  const commit = screen.getByRole("button", { name: "Register device" });
-  expect(commit).toHaveProperty("disabled", true);
-  await userEvent.selectOptions(screen.getByLabelText("Platform"), "Windows");
-  await userEvent.click(commit);
+  expect(
+    screen.getByRole("region", { name: "This vault's browsers" }),
+  ).toBeTruthy();
+  expect(
+    screen.queryByRole("button", { name: /New device|Register/ }),
+  ).toBeNull();
+  expect(screen.queryByLabelText("Platform")).toBeNull();
+});
 
+it("shows a hand-typed record for what it is, and removes it behind an armed key", async () => {
+  await writeHandTyped("Work laptop");
+  openDevices();
   const heading = await screen.findByRole("heading", { name: "Work laptop" });
   const row = heading.closest("li");
-  if (!row) throw new Error("expected the registered row");
+  if (!row) throw new Error("expected the hand-typed row");
   expect(
     within(row).getByRole("img", {
-      name: "Registered, not yet opened on that device",
+      name: "Typed in by hand; no browser opened the vault as it",
     }),
   ).toBeTruthy();
-  expect(within(row).getByText(/Windows · added .* · never seen/)).toBeTruthy();
-  const stored = await readLocalDevices(fixture.tomb);
-  expect(stored.find((device) => device.name === "Work laptop")).toMatchObject({
-    platform: "Windows",
-    lastSeenAt: "",
-  });
-
+  expect(within(row).queryByRole("button", { name: /^Claim / })).toBeNull();
   const remove = within(row).getByRole("button", {
     name: "Remove Work laptop",
   });
@@ -214,7 +232,7 @@ it("registers a new device from the panel's add key, then removes it behind an a
     within(row).getByRole("button", { name: "Keep Work laptop" }),
   );
   expect(document.activeElement).toBe(remove);
-  expect(await readLocalDevices(fixture.tomb)).toHaveLength(stored.length);
+  expect(await readLocalDevices(fixture.tomb)).toHaveLength(2);
   await userEvent.click(remove);
   await userEvent.click(
     within(row).getByRole("button", { name: "Confirm removing Work laptop" }),
@@ -222,70 +240,14 @@ it("registers a new device from the panel's add key, then removes it behind an a
   await waitFor(() =>
     expect(screen.queryByRole("heading", { name: "Work laptop" })).toBeNull(),
   );
-  expect(await readLocalDevices(fixture.tomb)).toHaveLength(stored.length - 1);
-  // The row left with the key that had focus; focus lands on the add key.
-  await waitFor(() =>
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "New device" }),
-    ),
-  );
-});
-
-it("claims a registration behind an armed key, and lands focus on the claimed row", async () => {
-  await registerLocalDevice(fixture.tomb, {
-    name: "Kitchen tablet",
-    platform: "Android",
-  });
-  openDevices();
-  await screen.findByRole("img", { name: "This device" });
-  const claim = await screen.findByRole("button", {
-    name: "Claim Kitchen tablet as this device",
-  });
-  // The first press only arms it, and keep disarms it with focus handed back.
-  await userEvent.click(claim);
-  await userEvent.click(
-    screen.getByRole("button", { name: "Leave Kitchen tablet unclaimed" }),
-  );
-  expect(document.activeElement).toBe(claim);
-  expect(
-    (await readLocalDevices(fixture.tomb)).some(
-      (device) => device.name === "Kitchen tablet" && device.lastSeenAt === "",
-    ),
-  ).toBe(true);
-
-  await userEvent.click(claim);
-  await userEvent.click(
-    screen.getByRole("button", {
-      name: "Confirm claiming Kitchen tablet as this device",
-    }),
-  );
-  // The claimed record takes this browser's id, so its row is a new
-  // element: read it again rather than hold the registration's.
-  const claimedRow = () => {
-    const row = screen
-      .getByRole("heading", { name: "Kitchen tablet" })
-      .closest("li");
-    if (!(row instanceof HTMLElement)) throw new Error("no Kitchen tablet row");
-    return row;
-  };
-  await waitFor(() =>
-    expect(
-      within(claimedRow()).getByRole("img", {
-        name: "This device",
-      }),
-    ).toBeTruthy(),
-  );
-  await waitFor(() =>
-    expect(document.activeElement).toBe(
-      within(claimedRow()).getByRole("button", {
-        name: "Edit Kitchen tablet",
-      }),
-    ),
-  );
   const stored = await readLocalDevices(fixture.tomb);
-  expect(stored.filter((device) => device.id === thisDeviceId())).toEqual([
-    expect.objectContaining({ name: "Kitchen tablet" }),
-  ]);
+  expect(stored.map((device) => device.id)).toEqual([thisDeviceId()]);
+  // The row left with the key that had focus; focus lands on the reload key.
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Reload browsers" }),
+    ),
+  );
 });
 
 it("renames a seen device whose stored platform is empty", async () => {
@@ -332,14 +294,13 @@ it("follows a change made on another surface and reloads on demand", async () =>
   openDevices();
   await screen.findByRole("img", { name: "This device" });
   await act(() =>
-    registerLocalDevice(fixture.tomb, {
-      name: "Studio Mac",
-      platform: "macOS",
-    }),
+    updateLocalDevice(fixture.tomb, thisDeviceId(), { name: "Studio Mac" }),
   );
   expect(
     await screen.findByRole("heading", { name: "Studio Mac" }),
   ).toBeTruthy();
-  await userEvent.click(screen.getByRole("button", { name: "Reload devices" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Reload browsers" }),
+  );
   expect(screen.getByRole("heading", { name: "Studio Mac" })).toBeTruthy();
 });

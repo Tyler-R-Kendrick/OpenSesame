@@ -1,0 +1,246 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "pressIn": ["#duress-profiles", "Add"]
+        },
+        {
+          "count": ["[role=dialog] input[type=radio]"]
+        },
+        {
+          "chooseOptional": "Wipe this device's copy"
+        },
+        {
+          "fillOptional": {
+            "label": "Duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=0"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Confirm duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=1"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Type WIPE to confirm",
+            "text": "WIPE",
+            "selector": "[role=dialog] input.f__input:not([type=password])"
+          }
+        },
+        {
+          "checkOptional": "I understand this removes the vaults stored in this browser. They can be restored only from a backup I made. It removes what this browser stores, not what the disk may still hold, and how long the refusal takes may differ from a wrong password's."
+        },
+        {
+          "count": ["[role=dialog] input.f__input:not([type=password])"]
+        },
+        {
+          "metrics": "[role=dialog] input.f__input:not([type=password])"
+        },
+        {
+          "metrics": "[role=dialog] .duress__ack input"
+        },
+        {
+          "metrics": "[role=dialog] .duress__choice input"
+        },
+        {
+          "shot": "390-arm"
+        },
+        {
+          "pressOptional": "Turn on duress code"
+        },
+        {
+          "report": "#duress-profiles"
+        },
+        {
+          "escape": null
+        },
+        {
+          "pressOptional": "Lock vault"
+        },
+        {
+          "count": ["input[type=password]"]
+        },
+        {
+          "fillOptional": {
+            "label": "Password",
+            "text": "246813579",
+            "selector": "input[type=password]"
+          }
+        },
+        {
+          "pressOptional": "Unlock"
+        },
+        {
+          "report": "[role=alert], .f__hint, .note"
+        },
+        {
+          "shot": "390-refused"
+        },
+        {
+          "coldLoad": null
+        },
+        {
+          "count": ["input[type=password]"]
+        },
+        {
+          "report": "h1"
+        },
+        {
+          "shot": "390-after"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "pressIn": ["#duress-profiles", "Add"]
+        },
+        {
+          "count": ["[role=dialog] input[type=radio]"]
+        },
+        {
+          "chooseOptional": "Wipe this device's copy"
+        },
+        {
+          "fillOptional": {
+            "label": "Duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=0"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Confirm duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=1"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Type WIPE to confirm",
+            "text": "WIPE",
+            "selector": "[role=dialog] input.f__input:not([type=password])"
+          }
+        },
+        {
+          "checkOptional": "I understand this removes the vaults stored in this browser. They can be restored only from a backup I made. It removes what this browser stores, not what the disk may still hold, and how long the refusal takes may differ from a wrong password's."
+        },
+        {
+          "count": ["[role=dialog] input.f__input:not([type=password])"]
+        },
+        {
+          "metrics": "[role=dialog] input.f__input:not([type=password])"
+        },
+        {
+          "metrics": "[role=dialog] .duress__ack input"
+        },
+        {
+          "metrics": "[role=dialog] .duress__choice input"
+        },
+        {
+          "shot": "1280-arm"
+        },
+        {
+          "pressOptional": "Turn on duress code"
+        },
+        {
+          "report": "#duress-profiles"
+        },
+        {
+          "escape": null
+        },
+        {
+          "pressOptional": "Lock vault"
+        },
+        {
+          "count": ["input[type=password]"]
+        },
+        {
+          "fillOptional": {
+            "label": "Password",
+            "text": "246813579",
+            "selector": "input[type=password]"
+          }
+        },
+        {
+          "pressOptional": "Unlock"
+        },
+        {
+          "report": "[role=alert], .f__hint, .note"
+        },
+        {
+          "shot": "1280-refused"
+        },
+        {
+          "coldLoad": null
+        },
+        {
+          "count": ["input[type=password]"]
+        },
+        {
+          "report": "h1"
+        },
+        {
+          "shot": "1280-after"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-arm",
+      "width": 390,
+      "title": "Arming the wipe mode, Settings > Security > Duress code - 390 x 844",
+      "caption": "A password vault is sealed on an empty device and Settings > Security > Duress code > Add is opened. The journey picks the Wipe mode where the build has it, types the code twice, the word WIPE and ticks the mode's sentence. Same journey on both builds; the base build has no third mode, no word field and no wipe sentence.",
+      "before": "2 modes; no typed-word field",
+      "after": "3 modes; word field 322x44 at 16px, sentence box 44x44, no sideways scroll"
+    },
+    {
+      "shot": "390-after",
+      "width": 390,
+      "title": "The unlock side after typing the code, cold load - 390 x 844",
+      "caption": "The same device after the code is armed, the vault is locked, the code is typed at the password prompt and the page is loaded cold. The base build never armed a wipe, so the code is just a wrong guess and the vault is still asked for; the branch has removed it, and the first screen is the one a device with no vault gets.",
+      "before": "1 password field: the vault is still asked for",
+      "after": "0 password fields: Sign in, no vault offered"
+    },
+    {
+      "shot": "1280-arm",
+      "width": 1280,
+      "title": "Arming the wipe mode, Settings > Security > Duress code - 1280 x 800",
+      "caption": "A password vault is sealed on an empty device and Settings > Security > Duress code > Add is opened. The journey picks the Wipe mode where the build has it, types the code twice, the word WIPE and ticks the mode's sentence. Same journey on both builds; the base build has no third mode, no word field and no wipe sentence.",
+      "before": "2 modes; no typed-word field",
+      "after": "3 modes; word field 355x34 at 14px, desktop sizes, no sideways scroll"
+    },
+    {
+      "shot": "1280-after",
+      "width": 1280,
+      "title": "The unlock side after typing the code, cold load - 1280 x 800",
+      "caption": "The same device after the code is armed, the vault is locked, the code is typed at the password prompt and the page is loaded cold. The base build never armed a wipe, so the code is just a wrong guess and the vault is still asked for; the branch has removed it, and the first screen is the one a device with no vault gets.",
+      "before": "1 password field: the vault is still asked for",
+      "after": "0 password fields: Sign in, no vault offered"
+    }
+  ]
+}

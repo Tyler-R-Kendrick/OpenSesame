@@ -240,7 +240,11 @@ export function DuressCeremony({
           facts={[
             { key: "Opens", value: form.mode.opens },
             { key: "Asked", value: "where you unlock, as the whole code" },
-            { key: "Vault", value: "stays sealed; this code never opens it" },
+            {
+              key: "Vault",
+              value:
+                form.mode.vault ?? "stays sealed; this code never opens it",
+            },
           ]}
           primary={{
             label: armed ? "Change duress code" : "Turn on duress code",

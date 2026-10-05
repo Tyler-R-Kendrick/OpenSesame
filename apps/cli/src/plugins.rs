@@ -197,7 +197,7 @@ pub(crate) fn status(path: &std::path::Path, id: &str) -> anyhow::Result<Value> 
 }
 
 #[path = "plugins_pair.rs"]
-mod plugins_pair;
+pub(crate) mod plugins_pair;
 
 #[cfg(test)]
 #[path = "plugins_tests.rs"]

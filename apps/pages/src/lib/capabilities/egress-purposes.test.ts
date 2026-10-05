@@ -19,7 +19,10 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PLUGIN_DAEMON_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-plugins.js";
-import { WEB_PUSH_ENROLMENT_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-services.js";
+import {
+  TAILNET_DEVICES_PURPOSE,
+  WEB_PUSH_ENROLMENT_PURPOSE,
+} from "@opensesame/app-core/lib/capabilities/catalog-optional-services.js";
 import {
   LIVE_CARRIER_PURPOSE,
   PWNED_PURPOSE,
@@ -51,6 +54,7 @@ const catalogConstants: ReadonlyMap<string, string> = new Map(
     LIVE_CARRIER_PURPOSE,
     PLUGIN_DAEMON_PURPOSE,
     PWNED_PURPOSE,
+    TAILNET_DEVICES_PURPOSE,
     TWO_FACTOR_PURPOSE,
     WEB_PUSH_ENROLMENT_PURPOSE,
   }),

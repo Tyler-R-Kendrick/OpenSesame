@@ -91,6 +91,26 @@ Moved from the deleted Authority screen. The browser-reachable device act:
 - One-line note: connected devices are enumerated by the operator, not here
   (no browser-reachable list route exists — honest, not faked).
 
+### The tailnet's machines (ADR 0169)
+
+With `networking.tailnet-devices` in the plan, Devices leads with the
+**Tailnet devices** panel: every machine Tailscale reports, read through the
+daemon the page is paired with, waiting ones first. A row is the machine's
+short name, first address, OS · client version · owner · tags, and
+`StatusMark`s for what needs someone (waiting, key expired or expiring,
+routes waiting, update, tailnet lock). Its keys: ✓ approve (waiting only),
+✎ settings (a sheet: name, tags, approved, key expires, one switch per
+advertised subnet route, exit node; saves only the diff), ⏱ expire key and
+🗑 remove, both armed by the first press with a keep beside them. The head
+carries + Add a device (a sheet that mints an auth key and shows it and its
+`tailscale up` command once), reload, and forget the pairing. Under it, the
+Auth keys panel (revoke, armed) and Activity (what changed, by which
+pairing, accepted or refused). A `read` pairing draws the same lists with no
+change keys. Unpaired, the panel's only key pairs; on the shared-origin demo
+there is no key and the mark says why (ADR 0158), and Add is drawn only once
+the daemon has a tailnet. Under it all, the browsers that opened this vault
+(rename, remove); nothing is typed in by hand.
+
 ## Service accounts — identities that aren't people
 
 OAuth clients (`GET /v1/oauth/clients`): name, client id, mode, state,

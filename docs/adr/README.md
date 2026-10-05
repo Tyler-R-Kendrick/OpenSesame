@@ -209,3 +209,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0166](0166-gate-help-launcher.md) | A help key on the screens in front of the shell | Accepted |
 | [0167](0167-nats-live-session-route.md) | A NATS server as a live session's route, served from the owner's tab | Accepted |
 | [0168](0168-duress-modes-from-scenarios.md) | Duress modes, derived from the scenarios people meet | Accepted |
+| [0169](0169-tailnet-device-management.md) | Tailnet device management through the paired daemon | Accepted |
