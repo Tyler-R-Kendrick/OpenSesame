@@ -1,13 +1,15 @@
 import {
   DURESS_CODE_DIGITS,
-  type DuressOutcome,
   type DuressRefusal,
   enableDuressCode,
   isAcceptableDuressCode,
   removeDuressCode,
 } from "@opensesame/app-core/lib/duress/settings/device-duress.js";
-import { activeProject } from "@opensesame/app-core/lib/projects.js";
-import { type FormEvent, useState } from "react";
+import {
+  type DuressMode,
+  type DuressModeId,
+  MODES,
+} from "@opensesame/app-core/lib/duress/settings/modes/index.js";
 import {
   type CeremonyAlt,
   CeremonyAlts,
@@ -17,6 +19,7 @@ import { FieldShell } from "../../../components/FieldShell.js";
 import { IconShield, IconTrash } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import type { Run } from "./run.js";
+import { useDuressCeremony } from "./useDuressCeremony.js";
 import "./duress-sheet.css";
 
 /** What a refusal means, in the sheet's words. */
@@ -34,21 +37,6 @@ const REFUSAL = new Map<DuressRefusal, string>([
 export function duressRefusalText(code: DuressRefusal): string {
   return REFUSAL.get(code) ?? "The code could not be set.";
 }
-
-const OUTCOMES = [
-  { id: "decoy", label: "Decoy vault" },
-  { id: "refuse", label: "Wrong password" },
-] as const satisfies readonly { id: DuressOutcome; label: string }[];
-
-const OPENS = {
-  decoy: "an empty decoy vault, like a normal unlock",
-  refuse: "nothing; it reads as a wrong password",
-} satisfies Record<DuressOutcome, string>;
-
-const CONSENT = {
-  decoy: "I understand this code opens a decoy, never my vault.",
-  refuse: "I understand this code is refused like a wrong password.",
-} satisfies Record<DuressOutcome, string>;
 
 function RemoveCard({
   busy,
@@ -88,39 +76,66 @@ function RemoveCard({
   );
 }
 
-function OutcomePick({
-  outcome,
+function ModePick({
+  mode,
   busy,
   onPick,
 }: {
-  outcome: DuressOutcome;
+  mode: DuressModeId;
   busy: boolean;
-  onPick: (next: DuressOutcome) => void;
+  onPick: (next: DuressModeId) => void;
 }) {
   return (
     <fieldset className="duress__pick" disabled={busy}>
       <legend className="duress__legend">Entering it shows</legend>
-      <div className="duress__choices">
-        {OUTCOMES.map((item) => (
-          <label key={item.id} className="duress__choice">
-            <input
-              type="radio"
-              name="duress-outcome"
-              value={item.id}
-              checked={outcome === item.id}
-              onChange={() => onPick(item.id)}
-            />
-            <span>{item.label}</span>
-          </label>
+      <ul className="duress__choices">
+        {MODES.map((item) => (
+          <li key={item.id}>
+            <label className="duress__choice">
+              <input
+                type="radio"
+                name="duress-mode"
+                value={item.id}
+                checked={mode === item.id}
+                onChange={() => onPick(item.id)}
+              />
+              <span>{item.label}</span>
+            </label>
+          </li>
         ))}
-      </div>
+      </ul>
     </fieldset>
+  );
+}
+
+/** The extra input a mode declares, below the radios; none does yet. */
+function ModeInput({
+  mode,
+  busy,
+  value,
+  onValue,
+}: {
+  mode: DuressMode;
+  busy: boolean;
+  value: string;
+  onValue: (next: string) => void;
+}) {
+  const { input } = mode;
+  if (input.kind === "none") return null;
+  return (
+    <FieldShell
+      label={input.label}
+      value={value}
+      onValueChange={onValue}
+      autoComplete="off"
+      disabled={busy}
+    />
   );
 }
 
 function CodeFields({
   busy,
-  outcome,
+  mode,
   first,
   second,
   understood,
@@ -130,7 +145,7 @@ function CodeFields({
   onUnderstood,
 }: {
   busy: boolean;
-  outcome: DuressOutcome;
+  mode: DuressMode;
   first: string;
   second: string;
   understood: boolean;
@@ -193,7 +208,7 @@ function CodeFields({
           disabled={busy}
           onChange={(event) => onUnderstood(event.target.checked)}
         />
-        <span>{CONSENT[outcome]}</span>
+        <span>{mode.consent}</span>
       </label>
     </>
   );
@@ -238,83 +253,46 @@ export function DuressCeremony({
   /** Closes the sheet; `message` is what the panel says, or nothing. */
   onDone: (message: string) => void;
 }) {
-  const [outcome, setOutcome] = useState<DuressOutcome>("decoy");
-  const [first, setFirst] = useState("");
-  const [second, setSecond] = useState("");
-  // Which outcome the person said they understood, never a bare yes: the
-  // sentence they ticked names one, so a yes to "a decoy" is not a yes to
-  // "a wrong password", and a pick that changes it takes the tick back.
-  const [understoodFor, setUnderstoodFor] = useState<DuressOutcome | null>(
-    null,
-  );
-  const understood = understoodFor === outcome;
-  const [refusal, setRefusal] = useState<DuressRefusal | null>(null);
-  const ready = isAcceptableDuressCode(first) && first === second && understood;
-
-  function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!ready || busy) return;
-    setRefusal(null);
-    void run(async () => {
-      const result = await arm({
-        code: first,
-        outcome,
-        vaultRef: activeProject().id,
-      });
-      if (!result.ok) {
-        // Kept, so the person can fix it; the reason shows in the card.
-        setRefusal(result.code);
-        return;
-      }
-      setFirst("");
-      setSecond("");
-      onDone(armed ? "Duress code changed." : "Duress code is on.");
-    }, null);
-  }
-
+  const form = useDuressCeremony({ armed, busy, run, onDone, arm });
   const alts = removeAlts(armed, busy, run, onDone);
 
   return (
     <>
-      <form onSubmit={submit} aria-label="Duress code form">
+      <form onSubmit={form.submit} aria-label="Duress code form">
         <CeremonyShell
           ok
           top={armed ? "On" : undefined}
           name="Duress code · this device"
           facts={[
-            { key: "Opens", value: OPENS[outcome] },
+            { key: "Opens", value: form.mode.opens },
             { key: "Asked", value: "where you unlock, as the whole code" },
             { key: "Vault", value: "stays sealed; this code never opens it" },
           ]}
           primary={{
             label: armed ? "Change duress code" : "Turn on duress code",
             submit: true,
-            disabled: !ready,
+            disabled: !form.ready,
             busy,
             onClick: () => {},
           }}
         >
-          <OutcomePick
-            outcome={outcome}
+          <ModePick mode={form.modeId} busy={busy} onPick={form.pick} />
+          <ModeInput
+            mode={form.mode}
             busy={busy}
-            onPick={(next) => {
-              setOutcome(next);
-              setUnderstoodFor(null);
-            }}
+            value={form.extra}
+            onValue={form.setExtra}
           />
           <CodeFields
             busy={busy}
-            outcome={outcome}
-            first={first}
-            second={second}
-            understood={understood}
-            refusal={refusal}
-            onFirst={(next) => {
-              setFirst(next.trim());
-              setRefusal(null);
-            }}
-            onSecond={(next) => setSecond(next.trim())}
-            onUnderstood={(on) => setUnderstoodFor(on ? outcome : null)}
+            mode={form.mode}
+            first={form.first}
+            second={form.second}
+            understood={form.understood}
+            refusal={form.refusal}
+            onFirst={form.typeFirst}
+            onSecond={form.typeSecond}
+            onUnderstood={form.understand}
           />
         </CeremonyShell>
       </form>

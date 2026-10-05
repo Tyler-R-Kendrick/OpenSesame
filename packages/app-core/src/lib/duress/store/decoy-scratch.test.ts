@@ -8,7 +8,7 @@ import { createItem, createVault } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { unlockWithPinAfterDuressGate } from "../../../screens/unlock/unlock-pin-duress.js";
 import { kvDelete, kvGet, kvSet } from "../../kv.js";
-import { readLastVaultId } from "../../last-vault.js";
+import { readLastVaultId, writeLastVaultId } from "../../last-vault.js";
 import { VaultStore } from "../../vault/store.js";
 import {
   BODY_PATH,
@@ -150,9 +150,48 @@ describe("duress decoy beside a sealed guest", () => {
 
     store.lock();
     clearEnrollmentStateForUnlock();
+    writeLastVaultId(GUEST_TOMB);
+    store.rehydrate();
     await store.unlockWithPin(GUEST_PIN);
     expect(store.getSnapshot().items).toHaveLength(1);
     expect(kvGet(PERSONAL_HEADER)).toBe(JSON.stringify(header));
+  });
+
+  it("is drawn as the vault it was typed at, and locks back to it", async () => {
+    const { header } = await createVault("correct horse battery staple");
+    kvSet(PERSONAL_HEADER, JSON.stringify(header));
+    const store = new VaultStore();
+    await sealedGuest(store);
+    await armDecoyTrigger();
+    store.loadActiveProjectScope();
+    expect(readLastVaultId()).toBe(PERSONAL_TOMB);
+
+    await unlockWithPinAfterDuressGate(store, DURESS_CODE, {
+      requireDurable: false,
+    });
+    // Isolated like a guest, but the device still points at the personal vault:
+    // a reload or a lock lands where a real unlock would.
+    const open = store.getSnapshot();
+    expect(open.guest).toBe(true);
+    expect(open.decoy).toBe(true);
+    expect(readLastVaultId()).toBe(PERSONAL_TOMB);
+
+    store.lock();
+    const locked = store.getSnapshot();
+    expect(locked.status).toBe("locked");
+    expect(locked.tomb).toBe(PERSONAL_TOMB);
+    expect(locked.decoy).toBe(false);
+    expect(locked.header?.wrap).toBeTruthy();
+    expect(readLastVaultId()).toBe(PERSONAL_TOMB);
+    expect(kvGet(PERSONAL_HEADER)).toBe(JSON.stringify(header));
+  });
+
+  it("is not claimed by an ordinary guest", async () => {
+    const store = new VaultStore();
+    await store.createGuest();
+    expect(store.getSnapshot().guest).toBe(true);
+    expect(store.getSnapshot().decoy).toBe(false);
+    store.lock();
   });
 
   it("still runs a keyless guest decoy in the guest tomb", async () => {

@@ -88,9 +88,14 @@ describe("REDTEAM-F honest gaps (must not force-pass)", () => {
     expect(panel).toMatch(/!guest && status === "unlocked"/);
     // It arms through the runtime the unlock path reads, and names a real
     // vault rather than a fixture id.
+    // The sheet defaults to the real arming runtime; `useDuressCeremony` is
+    // what calls it, against the open vault.
     const ceremony = readFileSync(security("DuressCeremony.tsx"), "utf8");
-    expect(ceremony).toMatch(/enableDuressCode/);
-    expect(ceremony).toMatch(/activeProject\(\)\.id/);
+    expect(ceremony).toMatch(/arm = enableDuressCode/);
+    expect(ceremony).toMatch(/useDuressCeremony/);
+    const arming = readFileSync(security("useDuressCeremony.ts"), "utf8");
+    expect(arming).toMatch(/await arm\(/);
+    expect(arming).toMatch(/activeProject\(\)\.id/);
 
     // Mode remains off by default (INV-01) even when UI lands.
     expect(resolveDuressMode({})).toBe("off");
