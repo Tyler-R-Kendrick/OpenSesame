@@ -16,7 +16,6 @@ import {
   rewrapVaultKey,
   syncInstalledTypes,
   uninstallItemType,
-  withTombstone,
   wrapVaultKeyWithPassword,
 } from "@opensesame/vault-core";
 import {
@@ -57,12 +56,22 @@ import {
 import {
   applyManifestPlan,
   bodyBeforeWrite,
+  deleteFolder,
+  emptyTrash,
+  purgeItem,
   recordItemTypes,
   renameFolder,
   restoreItem,
   toggleFavorite,
+  trashItem,
 } from "./body-edits.js";
 import { headerCarriesGate } from "./header-gate.js";
+import {
+  type ItemReturn,
+  type ItemWithdrawal,
+  restoreIntoBody,
+  withdrawFromBody,
+} from "./item-departure.js";
 import { type ItemWriteHost, writeSavedItems } from "./item-writes.js";
 import { emitVaultLock } from "./lock-events.js";
 import {
@@ -1349,13 +1358,7 @@ export class VaultStore {
   }
 
   async trashItem(id: string): Promise<void> {
-    await this.#mutate((body) => {
-      body.items = body.items.map((item) =>
-        item.id === id
-          ? { ...item, deletedAt: new Date().toISOString() }
-          : item,
-      );
-    });
+    await this.#mutate((body) => trashItem(body, id));
   }
 
   async restoreItem(id: string): Promise<void> {
@@ -1363,22 +1366,21 @@ export class VaultStore {
   }
 
   async purgeItem(id: string): Promise<void> {
-    await this.#mutate((body) => {
-      body.items = body.items.filter((item) => item.id !== id);
-      body.tombstones = withTombstone(body.tombstones, "items", [id]);
-    });
+    await this.#mutate((body) => purgeItem(body, id));
   }
 
   async emptyTrash(): Promise<void> {
-    await this.#mutate((body) => {
-      const gone = body.items.filter((item) => item.deletedAt !== null);
-      body.items = body.items.filter((item) => item.deletedAt === null);
-      body.tombstones = withTombstone(
-        body.tombstones,
-        "items",
-        gone.map((item) => item.id),
-      );
-    });
+    await this.#mutate((body) => emptyTrash(body));
+  }
+
+  /** Take items out of the body without a trace: no tombstone, trash or note (ADR 0170). */
+  async withdrawItems(plan: ItemWithdrawal): Promise<void> {
+    await this.#mutate((body) => withdrawFromBody(body, plan));
+  }
+
+  /** Put withdrawn items back as they were, ids and times intact (ADR 0170). */
+  async restoreWithdrawn(back: ItemReturn): Promise<void> {
+    await this.#mutate((body) => restoreIntoBody(body, back));
   }
 
   async toggleFavorite(id: string): Promise<void> {
@@ -1448,13 +1450,7 @@ export class VaultStore {
   }
 
   async deleteFolder(id: string): Promise<void> {
-    await this.#mutate((body) => {
-      body.folders = body.folders.filter((folder) => folder.id !== id);
-      body.tombstones = withTombstone(body.tombstones, "folders", [id]);
-      body.items = body.items.map((item) =>
-        item.folderId === id ? { ...item, folderId: null } : item,
-      );
-    });
+    await this.#mutate((body) => deleteFolder(body, id));
   }
 
   // —— export / import ——————————————————————————————————————

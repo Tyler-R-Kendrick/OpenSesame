@@ -171,7 +171,9 @@ function kindOf(vault: TravelVaultInfo): "personal" | "project" {
 }
 
 export async function travelGate(
-  deps: TravelDeps,
+  deps: Pick<TravelDeps, "ownerPresent" | "duressActive"> & {
+    storage: Pick<TravelDeps["storage"], "durable">;
+  },
 ): Promise<TravelGateRefusal | null> {
   if (!deps.ownerPresent()) return "owner_not_present";
   if (await deps.duressActive()) return "duress_active";

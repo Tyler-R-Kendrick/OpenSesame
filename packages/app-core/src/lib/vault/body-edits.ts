@@ -15,6 +15,35 @@ function now(): string {
   return new Date().toISOString();
 }
 
+export function trashItem(body: VaultBody, id: string): void {
+  body.items = body.items.map((item) =>
+    item.id === id ? { ...item, deletedAt: now() } : item,
+  );
+}
+
+export function purgeItem(body: VaultBody, id: string): void {
+  body.items = body.items.filter((item) => item.id !== id);
+  body.tombstones = withTombstone(body.tombstones, "items", [id]);
+}
+
+export function emptyTrash(body: VaultBody): void {
+  const gone = body.items.filter((item) => item.deletedAt !== null);
+  body.items = body.items.filter((item) => item.deletedAt === null);
+  body.tombstones = withTombstone(
+    body.tombstones,
+    "items",
+    gone.map((item) => item.id),
+  );
+}
+
+export function deleteFolder(body: VaultBody, id: string): void {
+  body.folders = body.folders.filter((folder) => folder.id !== id);
+  body.tombstones = withTombstone(body.tombstones, "folders", [id]);
+  body.items = body.items.map((item) =>
+    item.folderId === id ? { ...item, folderId: null } : item,
+  );
+}
+
 export function restoreItem(body: VaultBody, id: string): void {
   const at = now();
   body.items = body.items.map((item) =>
