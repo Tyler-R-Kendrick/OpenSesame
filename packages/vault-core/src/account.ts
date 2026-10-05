@@ -24,16 +24,19 @@ export const LOGIN_METHOD_TYPES = [
 export type LoginMethodType = (typeof LOGIN_METHOD_TYPES)[number];
 
 /**
- * How a password is made. `manual` is typed by the person; every other
- * generator produces it. `sphinx` is the only one that is never stored: it is
- * recomputed at each use from a master input the person types and a key that
- * stays in the vault (RFC 9497 OPRF).
+ * How a password is made. `manual` is typed by the person. `rules` and
+ * `passphrase` make a password and store it. `derived` stores only a root
+ * secret and computes the password from it at every use (ADR 0173); with
+ * *Include pepper* the root is sealed under a pepper through OPAQUE (RFC 9807).
+ * `sphinx` is the generator ADR 0172 shipped: a master input and an OPRF key
+ * (RFC 9497). It is read, never offered: a vault that holds one still opens it.
  */
 export const PASSWORD_GENERATOR_IDS = [
+  "derived",
   "rules",
   "passphrase",
-  "sphinx",
   "manual",
+  "sphinx",
 ] as const;
 export type PasswordGeneratorId = (typeof PASSWORD_GENERATOR_IDS)[number];
 
@@ -59,6 +62,15 @@ export type PassphraseGenerator = {
   includeNumber: boolean;
 };
 
+export type DerivedGenerator = {
+  id: "derived";
+  /** The shape the computed password is encoded into. */
+  rules: CharacterRules;
+  /** Bumped to rotate the password without touching the root secret. */
+  counter: number;
+};
+
+/** The generator ADR 0172 shipped; opened and computed, never offered. */
 export type SphinxGenerator = {
   id: "sphinx";
   /** The shape of the password the OPRF output is encoded into. */
@@ -78,15 +90,18 @@ export type SphinxGenerator = {
 export type ManualGenerator = { id: "manual" };
 
 export type PasswordGenerator =
+  | DerivedGenerator
   | RulesGenerator
   | PassphraseGenerator
   | SphinxGenerator
   | ManualGenerator;
 
 /**
- * A password sealed under a pepper: PBKDF2-SHA256 over the pepper, AES-GCM
- * wrapping a per-password key (v2; v1 reads remain supported), bound to the account and method ids so a seal cannot be
- * moved to another method. The pepper itself is never stored anywhere.
+ * What an older version sealed under a pepper the person typed (ADR 0172): the
+ * password, PBKDF2-SHA256 over the pepper, AES-GCM over the secret (v2 wraps a
+ * per-password key). Nothing writes one now (ADR 0174); one a vault still holds
+ * can be opened once, with the pepper the person chose then, to turn it into an
+ * ordinary stored password.
  */
 export type PepperSeal = {
   v: 1 | 2;
@@ -103,14 +118,26 @@ export type PasswordMethod = {
   type: "password";
   generator: PasswordGenerator;
   /**
-   * *Include pepper.* When set, the person is asked for the pepper each time
-   * the password is used. For `sphinx` it is the master input and is always
-   * set. Otherwise `secret` is empty and `sealed` holds the password.
+   * *Include pepper.* The password the product produces is incomplete: the
+   * person adds a secret of their own, which is not asked for and not stored
+   * (ADR 0174). `pepperAt` says where it goes.
    */
   pepper: boolean;
-  /** The password, when it is kept in the clear (no pepper, not sphinx). */
+  /**
+   * Where the pepper goes in the produced password, as a Python-style index
+   * expression (`pepper-position.ts`). Absent or empty: after the last
+   * character.
+   */
+  pepperAt?: string | undefined;
+  /**
+   * What is kept: the password itself, or for `derived` the root secret the
+   * password is computed from. Never a pepper.
+   */
   secret: string;
-  /** The password, when `pepper` is set and the generator is not `sphinx`. */
+  /**
+   * Only on a method an older version sealed under a pepper (`secret` is then
+   * empty). It can be opened once and converted; nothing writes it.
+   */
   sealed?: PepperSeal | undefined;
   changedAt: string;
 };
@@ -217,30 +244,9 @@ export function authenticatorMethod(
   return methodsOfType(item, "authenticator")[0];
 }
 
-/** A password that can be shown or filled with no question asked. */
-export function plainPassword(method: PasswordMethod): string | null {
-  if (method.pepper || method.generator.id === "sphinx") return null;
-  return method.secret;
-}
-
-/** True when using the password means asking the person for something first. */
-export function needsPepper(method: PasswordMethod): boolean {
-  return method.pepper || method.generator.id === "sphinx";
-}
-
 /** The TOTP seed of the account's first authenticator method, else empty. */
 export function accountTotp(item: AccountItem): string {
   return authenticatorMethod(item)?.secret ?? "";
-}
-
-/**
- * The account's password when nothing needs asking, else `""`. Callers that
- * cannot prompt (health, export, a list) read this and treat a peppered
- * password as absent rather than guessing.
- */
-export function accountPlainPassword(item: AccountItem): string {
-  const method = passwordMethod(item);
-  return method ? (plainPassword(method) ?? "") : "";
 }
 
 export function newMethodId(accountId: string, type: LoginMethodType): string {
@@ -302,4 +308,23 @@ export function normalizeLegacyItems<T>(
   return items.map((item) =>
     isLegacyLogin(item) ? migrateLegacyLogin(item) : item,
   );
+}
+
+/**
+ * A new account's password (ADR 0173): derived, under the default rules, with no
+ * root yet. The root is minted where a draft is made, never here, so an item
+ * built for a test or an import holds no secret it was not given.
+ */
+export function newPasswordMethod(
+  accountId: string,
+  createdAt: string,
+): PasswordMethod {
+  return {
+    id: `${accountId}:password`,
+    type: "password",
+    generator: { id: "derived", rules: { ...DEFAULT_RULES }, counter: 0 },
+    pepper: false,
+    secret: "",
+    changedAt: createdAt,
+  };
 }
