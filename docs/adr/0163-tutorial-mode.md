@@ -134,6 +134,17 @@ optional capability on, and sits in the required Bundle budgets check as one
 job per width (`tutorials-e2e`, folded into `bundle-check`) so the walk does not
 share the bundle job's time.
 
+### 6. A control with no tutorial is a debt the build counts
+
+"Every feature has a tutorial" is a claim that rots unless a build checks it,
+and it did rot: sixty-one of the hundred and fifteen controls a guide can point
+at had no tutorial pointing at them, the item pane had no target at all, and
+the keymap had none. `coverage.test.ts` now fails on a declared control that no
+tutorial points at, and on a keymap command that no tutorial says, unless
+`coverage-ledger.ts` names it with the reason it is not taught yet. The ledger
+only falls: a line for a control that is now taught, or that is gone, also
+fails. `KEYMAP_TUTORIALS` names the tutorial and the words it says each key in.
+
 ## Consequences
 
 - A tutorial is something a person can finish. The cost is that a step which
