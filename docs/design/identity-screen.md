@@ -107,8 +107,9 @@ carries + Add a device (a sheet that mints an auth key and shows it and its
 Auth keys panel (revoke, armed) and Activity (what changed, by which
 pairing, accepted or refused). A `read` pairing draws the same lists with no
 change keys. Unpaired, the panel's only key pairs; on the shared-origin demo
-it is disabled and its mark says why. Under it all, the browsers that opened
-this vault (rename, remove); nothing is typed in by hand.
+there is no key and the mark says why (ADR 0158), and Add is drawn only once
+the daemon has a tailnet. Under it all, the browsers that opened this vault
+(rename, remove); nothing is typed in by hand.
 
 ## Service accounts — identities that aren't people
 

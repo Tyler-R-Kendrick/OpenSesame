@@ -92,8 +92,8 @@ describe("Tailnet devices", () => {
       }),
     ).toBeTruthy();
     expect(
-      screen.getByRole("button", { name: "Pair with the tailnet daemon" }),
-    ).toHaveProperty("disabled", true);
+      screen.queryByRole("button", { name: "Pair with the tailnet daemon" }),
+    ).toBeNull();
   });
 
   it("lists the tailnet's real devices, waiting ones first, with what needs someone", async () => {

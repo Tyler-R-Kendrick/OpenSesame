@@ -115,29 +115,29 @@ function HeadKeys({
   onPair: () => void;
 }) {
   const { target, loaded, busy, canManage } = model;
+  // A key whose precondition is unmet is absent, and the mark says why (ADR 0158).
   if (!target)
-    return (
+    return model.admin.canPair() ? (
       <fieldset className="vtree__keys" aria-label="Tailnet device commands">
         <IconKey
           id={PAIR_KEY_ID}
           label="Pair with the tailnet daemon"
           small
-          disabled={!model.admin.canPair()}
           onClick={onPair}
         >
           <IconConnection size={15} />
         </IconKey>
       </fieldset>
-    );
+    ) : null;
   return (
     <fieldset className="vtree__keys" aria-label="Tailnet device commands">
-      {canManage ? (
+      {canManage && loaded?.status.connected ? (
         <GuideTarget id="identity.tailnet-devices.add">
           <IconKey
             id={ADD_DEVICE_KEY_ID}
             label="Add a device"
             small
-            disabled={busy || !loaded?.status.connected}
+            disabled={busy}
             onClick={onAdd}
           >
             <IconPlus size={15} />
