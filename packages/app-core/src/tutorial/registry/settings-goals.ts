@@ -154,28 +154,3 @@ export const SETTINGS_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
 ];
-
-/**
- * The SOPS tour. The SOPS row is drawn by the `backup.cloud-secrets`
- * capability, so the tour arrives with it as a `tutorial-goal` contribution.
- */
-export const SOPS_GOALS: readonly GuideGoalDescriptor[] = [
-  {
-    id: "settings.sops-document.open",
-    title: "Open a SOPS document",
-    routes: ["/settings/security"],
-    libraryOnly: true,
-    guide: [
-      "guide/1",
-      'goal "settings.sops-document.open"',
-      'say "SOPS keeps a secrets file encrypted in place. Here a SOPS YAML or JSON file can be opened, unlocked with an age identity you hold, edited and saved back as ciphertext, all in this browser."',
-      'navigate "/settings/security"',
-      'wait route "/settings/security" timeout=15000',
-      'scroll "settings.sops-document"',
-      'focus "settings.sops-document" "The SOPS document key opens the sheet where you choose the file. It needs no account and no network." side=top',
-      'wait target "settings.sops-document" event=activate timeout=60000',
-      'success "Choose a file in the sheet, unlock it with your age identity, and save when you are done."',
-      "end",
-    ].join("\n"),
-  },
-];

@@ -4,10 +4,8 @@
  * Manager, HashiCorp Vault, …). Always on: that family's binding tiles are
  * drawn by Settings › Capabilities among the always-on provider groups.
  *
- * It also draws the SOPS document panel under Settings › Security (ADR 0130
- * §1): a person with no account opens, edits and saves an upstream SOPS file
- * in this browser. It is a `settings-panel`, so Security lists it without
- * importing the sheet.
+ * It draws nothing under Settings › Security: the SOPS document row was
+ * removed on purpose, and `runtime.test.tsx` fails if a panel comes back.
  *
  * What deliberately stays core: the AWS KMS and Google Cloud KMS connection
  * configuration under Settings › Security. It configures vault key
@@ -31,11 +29,8 @@ import {
 } from "@opensesame/app-core/lib/feature-request-send.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 
-import { SOPS_GOALS } from "@opensesame/app-core/tutorial/registry/settings-goals.js";
 import { applySavedConnectors } from "../../lib/apply-saved-connectors.js";
-import { SopsDocumentPanel } from "../../sections/settings/sops/SopsDocumentPanel.js";
 import { createActivation } from "../activation.js";
-import { registerTutorial } from "../tutorial-contributions.js";
 
 export const CAPABILITY = "backup.cloud-secrets";
 
@@ -68,15 +63,6 @@ export function runSavedStorageConnectors(): FeatureRequest[] {
   return startStorageConnectors();
 }
 
-/** Security's SOPS row: one key that opens the document sheet. */
-export const SOPS_DOCUMENT_PANEL = {
-  id: "sops-document",
-  label: "SOPS",
-  category: "security",
-  Panel: SopsDocumentPanel,
-  order: 40,
-};
-
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
@@ -92,9 +78,6 @@ export const capabilityRuntime: CapabilityRuntime = {
     );
     activation.onDispose(releaseStorage);
     activation.onDispose(releaseEncryption);
-    activation.register("settings-panel", SOPS_DOCUMENT_PANEL);
-    // The SOPS row is drawn by this capability, so its tour arrives with it.
-    registerTutorial(activation, { goals: SOPS_GOALS });
     return activation.handle();
   },
 };
