@@ -8,6 +8,7 @@ import {
   type DuressModeId,
   MODES,
   getMode,
+  inputReady,
 } from "@opensesame/app-core/lib/duress/settings/modes/index.js";
 import { activeProject } from "@opensesame/app-core/lib/projects.js";
 import { type FormEvent, useState } from "react";
@@ -41,7 +42,8 @@ export function useDuressCeremony({ armed, busy, run, onDone, arm }: Inputs) {
   const [understoodFor, setUnderstoodFor] = useState<DuressModeId | null>(null);
   const [refusal, setRefusal] = useState<DuressRefusal | null>(null);
   const understood = understoodFor === modeId;
-  const inputOk = mode.input.kind === "none" || extra.trim().length > 0;
+  const extras = mode.input.kind === "none" ? {} : { [mode.input.id]: extra };
+  const inputOk = inputReady(mode, extras);
   const ready =
     isAcceptableDuressCode(first) && first === second && understood && inputOk;
 
@@ -53,7 +55,7 @@ export function useDuressCeremony({ armed, busy, run, onDone, arm }: Inputs) {
       const result = await arm({
         code: first,
         mode: modeId,
-        extras: mode.input.kind === "none" ? {} : { [mode.input.id]: extra },
+        extras,
         vaultRef: activeProject().id,
       });
       if (!result.ok) {
