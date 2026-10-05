@@ -72,15 +72,16 @@ export async function exportVaultSecrets(input: {
   return input.runner.encryptNew(plaintext, input.plan, input.permit);
 }
 
+type PepperFiltered = { items: VaultItem[]; omitted: number };
+
 /**
  * A document cannot ask for a pepper, so a password that needs one (sealed
  * under it, or a Sphinx key) is left out whole: never its sealed form, never
  * an OPRF key (ADR 0166 §4). The rest of the account goes as it is.
  */
-function withoutPepperedPasswords(items: readonly VaultItem[]): {
-  items: VaultItem[];
-  omitted: number;
-} {
+function withoutPepperedPasswords(
+  items: readonly VaultItem[],
+): PepperFiltered {
   let omitted = 0;
   const kept = items.map((item) => {
     if (item.kind !== "account") return item;

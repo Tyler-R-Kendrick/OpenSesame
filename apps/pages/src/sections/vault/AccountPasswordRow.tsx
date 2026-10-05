@@ -1,25 +1,20 @@
-import { readMethodPassword } from "@opensesame/app-core/lib/account-password.js";
-import { setStatusNotice } from "@opensesame/app-core/lib/notices.js";
 import { storePassword } from "@opensesame/app-core/lib/vault/generators/index.js";
 import {
   type AccountItem,
   type PasswordMethod,
   needsPepper,
 } from "@opensesame/vault-core";
-import { useEffect, useState } from "react";
 import {
   ConcealedValue,
   CopyButton,
   FieldRow,
   RevealButton,
 } from "../../components/FieldRow.js";
-import {
-  type PepperAskFn,
-  isPepperCancelled,
-} from "../../components/PepperPrompt.js";
+import type { PepperAskFn } from "../../components/PepperPrompt.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { UpdateSecretPanel } from "./SecretUpdate.js";
 import { StrengthBar } from "./StrengthBar.js";
+import { usePasswordReading } from "./use-password-reading.js";
 
 type Copying = {
   copied: string | null;
@@ -48,45 +43,14 @@ export function AccountPasswordRow({
   copying: Copying;
   onSave: (method: PasswordMethod) => Promise<void>;
 }) {
-  const [shown, setShown] = useState<string | null>(null);
-  const [wrong, setWrong] = useState(false);
+  const { shown, setShown, wrong, read } = usePasswordReading(
+    item,
+    method,
+    ask,
+  );
   const sphinx = method.generator.id === "sphinx";
   const asks = needsPepper(method);
   const key = `password:${method.id}`;
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: the method is the trigger — a value read from an earlier version must not outlive it
-  useEffect(() => {
-    setShown(null);
-    setWrong(false);
-  }, [method]);
-
-  async function read(): Promise<string | null> {
-    const reading = await readMethodPassword(item, method, async () => {
-      try {
-        return await ask(
-          "enter",
-          sphinx ? "Use master input" : "Use pepper",
-          sphinx ? "Master input" : "Pepper",
-        );
-      } catch (caught) {
-        if (isPepperCancelled(caught)) return null;
-        throw caught;
-      }
-    });
-    if (reading.status === "wrong") {
-      setWrong(true);
-      setStatusNotice({
-        id: `pepper:${method.id}`,
-        tone: "err",
-        title: "Pepper",
-        body: "That pepper did not open this password.",
-      });
-      return null;
-    }
-    if (reading.status !== "ok") return null;
-    setWrong(false);
-    return reading.password;
-  }
 
   const empty = !asks && method.secret === "";
   const update = sphinx ? null : (

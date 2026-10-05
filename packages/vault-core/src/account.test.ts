@@ -97,10 +97,7 @@ describe("normalizeLegacyItems", () => {
   it("migrates logins, leaves other kinds alone, and is idempotent", () => {
     const note = createItem("note", "N");
     const once = normalizeLegacyItems([legacy(), note]);
-    expect(once.map((item) => (item as { kind: string }).kind)).toEqual([
-      "account",
-      "note",
-    ]);
+    expect(once.map((item) => item.kind)).toEqual(["account", "note"]);
     expect(once[1]).toBe(note);
     expect(normalizeLegacyItems(once)).toEqual(once);
     expect(isLegacyLogin(once[0])).toBe(false);

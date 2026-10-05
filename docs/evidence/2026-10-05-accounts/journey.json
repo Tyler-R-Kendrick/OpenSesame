@@ -1,0 +1,211 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Login",
+          "only": "before"
+        },
+        {
+          "switchOptional": "Account",
+          "only": "after"
+        },
+        {
+          "visit": "vault/new/login"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Bank"
+          }
+        },
+        {
+          "shot": "390-editor"
+        },
+        {
+          "pressNamedOptional": "Password generator",
+          "only": "before"
+        },
+        {
+          "report": ".gen__mode",
+          "only": "before"
+        },
+        {
+          "selectOptional": {
+            "label": "Password generator",
+            "value": "sphinx"
+          },
+          "only": "after"
+        },
+        {
+          "report": "select[aria-label='Password generator'] option",
+          "only": "after"
+        },
+        {
+          "shot": "390-generator"
+        },
+        {
+          "pressNamedOptional": "Close generator",
+          "only": "before"
+        },
+        {
+          "selectOptional": {
+            "label": "Password generator",
+            "value": "rules"
+          },
+          "only": "after"
+        },
+        {
+          "checkOptional": "Include pepper",
+          "only": "after"
+        },
+        {
+          "shot": "390-pepper"
+        },
+        {
+          "fill": {
+            "label": "Pepper",
+            "text": "peppercorn"
+          },
+          "only": "after"
+        },
+        {
+          "fill": {
+            "label": "Confirm pepper",
+            "text": "peppercorn"
+          },
+          "only": "after"
+        },
+        {
+          "pressNamedOptional": "Set pepper",
+          "only": "after"
+        },
+        {
+          "press": "^Save item$"
+        },
+        {
+          "wait": 1.2
+        },
+        {
+          "press": "^(Reveal|Show) password$"
+        },
+        {
+          "shot": "390-reveal"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Login",
+          "only": "before"
+        },
+        {
+          "switchOptional": "Account",
+          "only": "after"
+        },
+        {
+          "visit": "vault/new/login"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Bank"
+          }
+        },
+        {
+          "shot": "1280-editor"
+        },
+        {
+          "pressNamedOptional": "Password generator",
+          "only": "before"
+        },
+        {
+          "report": ".gen__mode",
+          "only": "before"
+        },
+        {
+          "selectOptional": {
+            "label": "Password generator",
+            "value": "sphinx"
+          },
+          "only": "after"
+        },
+        {
+          "report": "select[aria-label='Password generator'] option",
+          "only": "after"
+        },
+        {
+          "shot": "1280-generator"
+        },
+        {
+          "pressNamedOptional": "Close generator",
+          "only": "before"
+        },
+        {
+          "selectOptional": {
+            "label": "Password generator",
+            "value": "rules"
+          },
+          "only": "after"
+        },
+        {
+          "checkOptional": "Include pepper",
+          "only": "after"
+        },
+        {
+          "shot": "1280-pepper"
+        },
+        {
+          "fill": {
+            "label": "Pepper",
+            "text": "peppercorn"
+          },
+          "only": "after"
+        },
+        {
+          "fill": {
+            "label": "Confirm pepper",
+            "text": "peppercorn"
+          },
+          "only": "after"
+        },
+        {
+          "pressNamedOptional": "Set pepper",
+          "only": "after"
+        },
+        {
+          "press": "^Save item$"
+        },
+        {
+          "wait": 1.2
+        },
+        {
+          "press": "^(Reveal|Show) password$"
+        },
+        {
+          "shot": "1280-reveal"
+        }
+      ],
+      "desktop": true
+    }
+  ],
+  "sheets": []
+}

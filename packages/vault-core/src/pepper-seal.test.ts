@@ -59,7 +59,7 @@ describe("pepper seal", () => {
       ),
     ).rejects.toBeInstanceOf(VaultCorruptError);
     await expect(
-      openWithPepper({ ...sealed, v: 2 as 1 }, "pepper", binding),
+      openWithPepper(Object.assign({}, sealed, { v: 2 }), "pepper", binding),
     ).rejects.toBeInstanceOf(VaultCorruptError);
   });
 

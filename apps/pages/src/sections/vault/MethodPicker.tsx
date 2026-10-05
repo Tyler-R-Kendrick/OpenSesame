@@ -9,13 +9,13 @@ import {
 } from "@opensesame/vault-core";
 import { type RefObject, useEffect, useRef } from "react";
 
-export const METHOD_LABELS: Record<LoginMethodType, string> = {
+export const METHOD_LABELS = {
   password: "Password",
   "api-key": "API key",
   token: "Token",
   oauth: "OAuth",
   authenticator: "Authenticator",
-};
+} as const satisfies Record<LoginMethodType, string>;
 
 /** The type's label, numbered when the account holds more than one of it. */
 export function methodTitle(

@@ -1,7 +1,5 @@
 import { registerLegacyItemKinds } from "@opensesame/app-core/lib/contributions.test-support.js";
-import { enablePepper } from "@opensesame/app-core/lib/vault/generators/index.js";
 import type { JsonObject } from "@opensesame/os-domain";
-import { passwordMethod } from "@opensesame/vault-core";
 import {
   act,
   cleanup,
@@ -423,53 +421,18 @@ describe("VaultSection", () => {
     expect(screen.queryByText("detail pane")).toBeNull();
   });
 
-  it("routes focused-item keys through the existing vault actions", async () => {
-    const item = makeAccount({ password: "hunter2hunter2hunter2" });
+  it("routes focused-item keys through the existing vault actions", () => {
+    const item = makeAccount();
     vault.current = { items: [item], folders: [], header: null };
     renderSection();
     const handler = keymap();
 
-    press(handler, "y");
     press(handler, ".");
     press(handler, "x");
 
-    await waitFor(() =>
-      expect(copySecret).toHaveBeenCalledWith("hunter2hunter2hunter2"),
-    );
     expect(store.toggleFavorite).toHaveBeenCalledWith(item.id);
     expect(store.trashItem).toHaveBeenCalledWith(item.id);
   });
-
-  it("asks for the pepper before copying a peppered password, and copies nothing on cancel", async () => {
-    const plain = makeAccount({ password: "pepper-me-please" });
-    const method = passwordMethod(plain);
-    if (!method) throw new Error("fixture");
-    const sealed = await enablePepper(
-      plain.id,
-      method,
-      "pepper-me-please",
-      "right",
-    );
-    vault.current = {
-      items: [{ ...plain, methods: [sealed] }],
-      folders: [],
-      header: null,
-    };
-    renderSection();
-    const handler = keymap();
-    press(handler, "y");
-    await screen.findByRole("dialog", { name: "Use pepper" });
-    fireEvent.keyDown(window, { key: "Escape" });
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(copySecret).not.toHaveBeenCalled();
-    press(handler, "y");
-    const field = await screen.findByLabelText("Pepper");
-    fireEvent.change(field, { target: { value: "right" } });
-    fireEvent.click(screen.getByRole("button", { name: "Use pepper" }));
-    await waitFor(() =>
-      expect(copySecret).toHaveBeenCalledWith("pepper-me-please"),
-    );
-  }, 20_000);
 
   it("offers the row actions menu as a pointer twin of the verbs", () => {
     const item = makeAccount();

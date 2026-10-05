@@ -89,6 +89,14 @@ async function answer(pepper: string, label = "Pepper") {
   await userEvent.type(await screen.findByLabelText(label), `${pepper}{Enter}`);
 }
 
+function savedPassword() {
+  const item = store.saveItem.mock.calls[0]?.[0];
+  if (item?.kind !== "account") throw new Error("expected a saved account");
+  const method = passwordMethod(item);
+  if (!method) throw new Error("expected a password method");
+  return method;
+}
+
 describe("account detail", () => {
   beforeEach(() => {
     vault.current = { items: [], folders: [] };
@@ -98,6 +106,62 @@ describe("account detail", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+  });
+
+  it("generates a replacement password through the update panel", async () => {
+    vault.current = {
+      items: [makeAccount({ id: "itm_login", password: "hunter2hunter2" })],
+      folders: [],
+    };
+    renderAt("itm_login");
+    await userEvent.click(
+      screen.getByRole("button", { name: /Update password/i }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Save new value/i }),
+    );
+    await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
+    const method = savedPassword();
+    expect(method.secret).not.toBe("hunter2hunter2");
+    expect(method.secret).toHaveLength(32);
+    expect(method.changedAt).not.toBe("2026-08-01T00:00:00Z");
+  });
+
+  it("requires a value in provide mode and saves what is typed", async () => {
+    vault.current = { items: [makeAccount({ id: "itm_login" })], folders: [] };
+    renderAt("itm_login");
+    await userEvent.click(
+      screen.getByRole("button", { name: /Update password/i }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /^Enter$/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /Save new value/i }),
+    );
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(store.saveItem).not.toHaveBeenCalled();
+    await userEvent.type(
+      screen.getByPlaceholderText("New password"),
+      "typed-secret-value",
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /Save new value/i }),
+    );
+    await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
+    expect(savedPassword().secret).toBe("typed-secret-value");
+  });
+
+  it("cancels the update panel without saving", async () => {
+    vault.current = { items: [makeAccount({ id: "itm_login" })], folders: [] };
+    renderAt("itm_login");
+    await userEvent.click(
+      screen.getByRole("button", { name: /Update password/i }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Cancel/i }));
+    expect(store.saveItem).not.toHaveBeenCalled();
+    // Panel collapses back to the trigger button.
+    expect(
+      screen.getByRole("button", { name: /Update password/i }),
+    ).toBeTruthy();
   });
 
   it("gives every method its own rows", () => {

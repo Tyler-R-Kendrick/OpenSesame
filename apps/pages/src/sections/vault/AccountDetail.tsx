@@ -1,8 +1,4 @@
-import type {
-  AccountItem,
-  LoginMethod,
-  PasswordMethod,
-} from "@opensesame/vault-core";
+import type { AccountItem, PasswordMethod } from "@opensesame/vault-core";
 import { CopyButton, FieldRow } from "../../components/FieldRow.js";
 import {
   type PepperAskFn,
@@ -125,7 +121,12 @@ export function AccountDetail({
             <span className="frow__value">{item.username}</span>
           </FieldRow>
         ) : null}
-        <MethodRows item={item} ports={ports} ask={pepper.ask} onSave={saveMethod} />
+        <MethodRows
+          item={item}
+          ports={ports}
+          ask={pepper.ask}
+          onSave={saveMethod}
+        />
       </section>
 
       <AccountWebsiteRows item={item} copying={{ copied, failed, copy }} />

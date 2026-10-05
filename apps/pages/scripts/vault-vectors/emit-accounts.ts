@@ -64,6 +64,20 @@ type Expectation = {
 };
 type Vector = { file: string; expect: Expectation };
 
+type PersonalVectors = { export: Vector; backup: Vector };
+
+type SealedPersonal = {
+  header: VaultHeader;
+  sealed: SealedBlob;
+  body: VaultBody;
+};
+
+type AccountVectors = {
+  vectors: Record<string, Vector>;
+  accountPepper: string;
+  accountPepperAbout: string;
+};
+
 function account(label: string): AccountItem {
   const item = createItem("account", label);
   item.username = "vector-user";
@@ -168,11 +182,7 @@ function expectationFor(
   };
 }
 
-async function sealedPersonal(): Promise<{
-  header: VaultHeader;
-  sealed: SealedBlob;
-  body: VaultBody;
-}> {
+async function sealedPersonal(): Promise<SealedPersonal> {
   const { header, vaultKey, rawVaultKey } = await createVault(
     VECTOR_ACCOUNT_PASSWORD,
     "vector hint",
@@ -193,7 +203,7 @@ async function sealedPersonal(): Promise<{
 }
 
 /** The personal tomb as an encrypted export, and as an offline backup. */
-async function personalVectors(): Promise<{ export: Vector; backup: Vector }> {
+async function personalVectors(): Promise<PersonalVectors> {
   const { header, sealed, body } = await sealedPersonal();
   const expect = expectationFor("personal", true, body);
   const file = JSON.stringify(
@@ -253,11 +263,7 @@ async function projectBackup(): Promise<Vector> {
  * The new vectors, keyed by name, and the fixture-level fields they need.
  * Nothing here is added to an existing key.
  */
-export async function emitAccountVectors(): Promise<{
-  vectors: Record<string, Vector>;
-  accountPepper: string;
-  accountPepperAbout: string;
-}> {
+export async function emitAccountVectors(): Promise<AccountVectors> {
   const personal = await personalVectors();
   return {
     vectors: {

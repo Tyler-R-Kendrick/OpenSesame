@@ -57,6 +57,59 @@ function MethodFields({
   }
 }
 
+/** One login method: its title with a remove key, then its own fields. */
+function MethodBlock({
+  account,
+  method,
+  plain,
+  ask,
+  liveRoll,
+  onReplace,
+  onRemove,
+  onPlain,
+}: {
+  account: AccountItem;
+  method: LoginMethod;
+  plain: PlainMap;
+  ask: PepperAskFn;
+  liveRoll: boolean;
+  onReplace: (next: LoginMethod) => void;
+  onRemove: (method: LoginMethod) => void;
+  onPlain: (id: string, entry: MethodEdit["plain"]) => void;
+}) {
+  const title = methodTitle(account.methods, method);
+  return (
+    <fieldset
+      className="method"
+      aria-label={`${title} method`}
+      data-method={method.id}
+    >
+      <span className="label editor__grouplabel">
+        {title}
+        <IconKey
+          small
+          label={`Remove ${title.toLowerCase()}`}
+          onClick={() => onRemove(method)}
+        >
+          <IconX size={15} />
+        </IconKey>
+      </span>
+      <MethodFields
+        account={account}
+        method={method}
+        plain={plain}
+        ask={ask}
+        liveRoll={liveRoll}
+        onEdit={(edit) => {
+          onReplace(edit.method);
+          onPlain(method.id, edit.plain);
+        }}
+        onChange={onReplace}
+      />
+    </fieldset>
+  );
+}
+
 /**
  * The account's login methods: one block each, in order, under a heading whose
  * `+` opens the type choice. An account may hold none, so every block can go.
@@ -129,40 +182,19 @@ export function AccountMethods({
         />
       ) : null}
       <div ref={list} className="method__list">
-        {methods.map((method) => {
-          const title = methodTitle(methods, method);
-          return (
-            <fieldset
-              key={method.id}
-              className="method"
-              aria-label={`${title} method`}
-              data-method={method.id}
-            >
-              <span className="label editor__grouplabel">
-                {title}
-                <IconKey
-                  small
-                  label={`Remove ${title.toLowerCase()}`}
-                  onClick={() => remove(method)}
-                >
-                  <IconX size={15} />
-                </IconKey>
-              </span>
-              <MethodFields
-                account={account}
-                method={method}
-                plain={plain}
-                ask={ask}
-                liveRoll={liveRoll}
-                onEdit={(edit) => {
-                  replace(edit.method);
-                  onPlain(method.id, edit.plain);
-                }}
-                onChange={replace}
-              />
-            </fieldset>
-          );
-        })}
+        {methods.map((method) => (
+          <MethodBlock
+            key={method.id}
+            account={account}
+            method={method}
+            plain={plain}
+            ask={ask}
+            liveRoll={liveRoll}
+            onReplace={replace}
+            onRemove={remove}
+            onPlain={onPlain}
+          />
+        ))}
       </div>
     </div>
   );

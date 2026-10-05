@@ -9,6 +9,7 @@
  * password is stored as nothing but its OPRF key.
  */
 
+import { isJsonObject, overlapCast } from "@opensesame/os-domain";
 import type { SealedBlob } from "./crypto.js";
 import type { LoginUri } from "./login-uri.js";
 import type { BaseItem, ReenrollState } from "./model.js";
@@ -285,12 +286,9 @@ export function migrateLegacyLogin(legacy: LegacyLoginItem): AccountItem {
   return { ...rest, kind: "account", methods };
 }
 
-export function isLegacyLogin(value: unknown): value is LegacyLoginItem {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as { kind?: unknown }).kind === "login"
-  );
+export function isLegacyLogin<T>(value: T): value is T & LegacyLoginItem {
+  const record = overlapCast(value);
+  return isJsonObject(record) && record.kind === "login";
 }
 
 /**

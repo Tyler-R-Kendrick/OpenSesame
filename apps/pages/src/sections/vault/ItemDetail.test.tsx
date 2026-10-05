@@ -19,11 +19,10 @@ import type {
   Folder,
   NoteItem,
   PasskeyItem,
-  PasswordMethod,
   SecretItem,
   VaultItem,
 } from "@opensesame/vault-core";
-import { manualPassword, passwordMethod } from "@opensesame/vault-core";
+import { manualPassword } from "@opensesame/vault-core";
 
 type VaultFixture = { current: { items: VaultItem[]; folders: Folder[] } };
 
@@ -85,13 +84,6 @@ function makeAccount(overrides: AccountSeed = {}): AccountItem {
     password: "hunter2hunter2",
     ...overrides,
   });
-}
-
-function passwordOf(item: VaultItem): PasswordMethod {
-  if (item.kind !== "account") throw new Error("expected a saved account");
-  const method = passwordMethod(item);
-  if (!method) throw new Error("expected a password method");
-  return method;
 }
 
 function savedItem(): VaultItem {
@@ -236,61 +228,6 @@ describe("ItemDetail", () => {
     );
     expect(
       screen.getByText(/Hidden — shows the otpauth enrollment QR/),
-    ).toBeTruthy();
-  });
-
-  it("generates a replacement password through the update panel", async () => {
-    vault.current = { items: [makeAccount()], folders: [] };
-    renderAt("itm_login");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Update password/i }),
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: /Save new value/i }),
-    );
-    await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
-    const saved = savedItem();
-    const method = passwordOf(saved);
-    expect(method.secret).not.toBe("hunter2hunter2");
-    expect(method.secret).toHaveLength(32);
-    expect(method.changedAt).not.toBe("2026-08-01T00:00:00Z");
-  });
-
-  it("requires a value in provide mode and saves what is typed", async () => {
-    vault.current = { items: [makeAccount()], folders: [] };
-    renderAt("itm_login");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Update password/i }),
-    );
-    await userEvent.click(screen.getByRole("button", { name: /^Enter$/i }));
-    await userEvent.click(
-      screen.getByRole("button", { name: /Save new value/i }),
-    );
-    expect(await screen.findByRole("alert")).toBeTruthy();
-    expect(store.saveItem).not.toHaveBeenCalled();
-    await userEvent.type(
-      screen.getByPlaceholderText("New password"),
-      "typed-secret-value",
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: /Save new value/i }),
-    );
-    await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
-    const saved = savedItem();
-    expect(passwordOf(saved).secret).toBe("typed-secret-value");
-  });
-
-  it("cancels the update panel without saving", async () => {
-    vault.current = { items: [makeAccount()], folders: [] };
-    renderAt("itm_login");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Update password/i }),
-    );
-    await userEvent.click(screen.getByRole("button", { name: /Cancel/i }));
-    expect(store.saveItem).not.toHaveBeenCalled();
-    // Panel collapses back to the trigger button.
-    expect(
-      screen.getByRole("button", { name: /Update password/i }),
     ).toBeTruthy();
   });
 

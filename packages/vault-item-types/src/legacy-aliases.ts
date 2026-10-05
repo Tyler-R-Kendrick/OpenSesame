@@ -13,30 +13,34 @@
  */
 
 /** Old type id → the type id that replaced it. */
-export const LEGACY_TYPE_ALIASES: Readonly<Record<string, string>> = {
+export const LEGACY_TYPE_ALIASES = {
   login: "account",
-};
+} as const satisfies Readonly<Record<string, string>>;
 
 /** Old VFS extension → the extension that replaced it. */
-export const LEGACY_EXTENSION_ALIASES: Readonly<Record<string, string>> = {
+export const LEGACY_EXTENSION_ALIASES = {
   ".login": ".account",
-};
+} as const satisfies Readonly<Record<string, string>>;
+
+/** The replacement `table` names for `key`, never one inherited from a prototype. */
+function aliasOf(
+  table: Readonly<Record<string, string>>,
+  key: string,
+): string | undefined {
+  return Object.hasOwn(table, key) ? table[key] : undefined;
+}
 
 /** The current type id for `id`, which may be a legacy name. */
 export function resolveTypeId(id: string): string {
-  return Object.hasOwn(LEGACY_TYPE_ALIASES, id)
-    ? (LEGACY_TYPE_ALIASES[id] ?? id)
-    : id;
+  return aliasOf(LEGACY_TYPE_ALIASES, id) ?? id;
 }
 
 /** The current extension for `extension`, which may be a legacy one. */
 export function resolveExtension(extension: string): string {
-  return Object.hasOwn(LEGACY_EXTENSION_ALIASES, extension)
-    ? (LEGACY_EXTENSION_ALIASES[extension] ?? extension)
-    : extension;
+  return aliasOf(LEGACY_EXTENSION_ALIASES, extension) ?? extension;
 }
 
 /** True when `id` is a retired name rather than a type's own id. */
 export function isLegacyTypeAlias(id: string): boolean {
-  return Object.hasOwn(LEGACY_TYPE_ALIASES, id);
+  return aliasOf(LEGACY_TYPE_ALIASES, id) !== undefined;
 }
