@@ -7,7 +7,7 @@ import {
   CeremonyAlts,
   CeremonyShell,
 } from "../../../components/CeremonyShell.js";
-import { IconTrash } from "../../../components/Icons.js";
+import { IconPasskey, IconTrash } from "../../../components/Icons.js";
 import { useVaultStore } from "../../../lib/vault/hooks.js";
 import { SecretKeyCard } from "./SecretKeyCard.js";
 import {
@@ -21,7 +21,6 @@ import type { Run } from "./run.js";
 
 export {
   KEY_NOUN,
-  KEY_SUBTITLE,
   KEY_TITLE,
   type KeyKind,
   type KeyView,
@@ -68,8 +67,6 @@ export function KeyCard({
       : `unlock with the ${others.map((id) => KEY_NOUN[id]).join(" or ")} only`;
     return (
       <CeremonyShell
-        ok={false}
-        top={`Remove this ${noun}?`}
         name={removeName(kind)}
         facts={[
           { key: "After", value: after },
@@ -155,6 +152,7 @@ export function KeyCard({
         ]}
         primary={{
           label: "Create passkey",
+          icon: <IconPasskey size={18} />,
           busy,
           onClick: () =>
             void run(async () => {

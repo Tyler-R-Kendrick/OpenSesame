@@ -196,7 +196,7 @@ export function ByoProviderSheet({ disabled, onContinue }: Props) {
           </div>
           <button
             type="button"
-            className="btn btn--primary btn--block"
+            className="btn btn--primary btn--block choice"
             disabled={disabled || busy}
             onClick={() => onContinue(registration)}
           >

@@ -194,7 +194,6 @@ function MoreSheet({
         <div className="sheet__head">
           <div className="sheet__grow">
             <h2>More</h2>
-            <p>{summarize(connectors)}</p>
           </div>
           <button
             type="button"
