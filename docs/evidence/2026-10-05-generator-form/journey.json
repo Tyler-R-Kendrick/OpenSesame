@@ -3,10 +3,16 @@
   "screens": [
     {
       "width": 390,
-      "height": 844,
+      "height": 1500,
       "steps": [
         {
           "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
         },
         {
           "visit": "vault/new/account"
@@ -18,16 +24,22 @@
           }
         },
         {
+          "measure": "[aria-label='Password generator']"
+        },
+        {
+          "measure": ".gen__opts"
+        },
+        {
           "shot": "390-default"
         },
         {
           "openDisclosureOptional": "characters"
         },
         {
-          "report": ".method"
+          "report": ".gen__opts"
         },
         {
-          "measure": ".method"
+          "measure": ".gen__opts"
         },
         {
           "shot": "390-options"
@@ -48,10 +60,16 @@
     },
     {
       "width": 1280,
-      "height": 900,
+      "height": 1100,
       "steps": [
         {
           "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
         },
         {
           "visit": "vault/new/account"
@@ -63,16 +81,22 @@
           }
         },
         {
+          "measure": "[aria-label='Password generator']"
+        },
+        {
+          "measure": ".gen__opts"
+        },
+        {
           "shot": "1280-default"
         },
         {
           "openDisclosureOptional": "characters"
         },
         {
-          "report": ".method"
+          "report": ".gen__opts"
         },
         {
-          "measure": ".method"
+          "measure": ".gen__opts"
         },
         {
           "shot": "1280-options"
@@ -91,6 +115,56 @@
         }
       ],
       "desktop": true
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-default",
+      "width": 390,
+      "title": "A new account's password \u2014 390 wide",
+      "caption": "A new password is computed, and the form shows what a person needs: how it is made, the password, and Include pepper. The options sit behind one line that says what it will make.",
+      "before": "Rules, options always open",
+      "after": "Computed, one line of options"
+    },
+    {
+      "shot": "390-options",
+      "width": 390,
+      "title": "The options, opened \u2014 390 wide",
+      "caption": "Opened from that line: length, the kinds of character, the fewest numbers or symbols, and a plain-language look-alike option, with a strength word instead of a bit count.",
+      "before": "A\u2013Z \u00b7 a\u2013z \u00b7 0\u20139 \u00b7 Avoid l1IO0 \u00b7 \u2248126 bits",
+      "after": "Capital letters \u00b7 Lowercase letters \u00b7 Numbers \u00b7 Avoid look-alike characters \u00b7 Excellent"
+    },
+    {
+      "shot": "390-words",
+      "width": 390,
+      "title": "Random words \u2014 390 wide",
+      "caption": "The same line and the same disclosure for a passphrase.",
+      "before": "Word count and separator always open",
+      "after": "One line, options on request"
+    },
+    {
+      "shot": "1280-default",
+      "width": 1280,
+      "title": "A new account's password \u2014 1280 wide",
+      "caption": "A new password is computed, and the form shows what a person needs: how it is made, the password, and Include pepper. The options sit behind one line that says what it will make.",
+      "before": "Rules, options always open",
+      "after": "Computed, one line of options"
+    },
+    {
+      "shot": "1280-options",
+      "width": 1280,
+      "title": "The options, opened \u2014 1280 wide",
+      "caption": "Opened from that line: length, the kinds of character, the fewest numbers or symbols, and a plain-language look-alike option, with a strength word instead of a bit count.",
+      "before": "A\u2013Z \u00b7 a\u2013z \u00b7 0\u20139 \u00b7 Avoid l1IO0 \u00b7 \u2248126 bits",
+      "after": "Capital letters \u00b7 Lowercase letters \u00b7 Numbers \u00b7 Avoid look-alike characters \u00b7 Excellent"
+    },
+    {
+      "shot": "1280-words",
+      "width": 1280,
+      "title": "Random words \u2014 1280 wide",
+      "caption": "The same line and the same disclosure for a passphrase.",
+      "before": "Word count and separator always open",
+      "after": "One line, options on request"
     }
   ]
 }
