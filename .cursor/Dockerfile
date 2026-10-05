@@ -3,6 +3,8 @@
 # tag that is not published on MCR). Do not COPY the repo — Cursor checks out separately.
 FROM rust:1.88.0-bookworm
 
+ENV PATH=/usr/local/cargo/bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
