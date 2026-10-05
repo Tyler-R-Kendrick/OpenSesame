@@ -8,21 +8,14 @@
  * in the plan is derived from it.
  */
 
-import { type LoginItem, createItem } from "@opensesame/vault-core";
+import type { JsonValue } from "@opensesame/os-domain";
+import { createItem } from "@opensesame/vault-core";
 import { readDecoyItemsBody } from "./decoy-items-shape.js";
 import type { EffectHost, EffectRunner } from "./effects.js";
 
-type ItemStore = Readonly<{
-  addItems: (items: LoginItem[]) => Promise<void>;
-}>;
-
-function canAddItems(store: object): store is ItemStore {
-  return typeof (store as Partial<ItemStore>).addItems === "function";
-}
-
-async function run(body: unknown, host: EffectHost): Promise<void> {
+async function run(body: JsonValue, host: EffectHost): Promise<void> {
   const items = readDecoyItemsBody(body);
-  if (!items || !canAddItems(host.store)) return;
+  if (!items || !host.store.addItems) return;
   const logins = items.map(({ title, secret }) => {
     const login = createItem("login", title);
     login.password = secret;

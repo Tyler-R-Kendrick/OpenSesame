@@ -7,10 +7,14 @@ import {
   hasEffectRunner,
   inputReady,
 } from "./index.js";
+import type { ModeExtras } from "./inputs.js";
 import type { DuressMode } from "./mode.js";
 
+/** Every mode, read through the contract a caller sees. */
+const ALL: readonly DuressMode[] = MODES;
+
 /** A value that satisfies whatever input the mode declares. */
-function sampleExtras(mode: DuressMode): Record<string, string> {
+function sampleExtras(mode: DuressMode): ModeExtras {
   const { input } = mode;
   switch (input.kind) {
     case "none":
@@ -40,7 +44,7 @@ describe("duress mode registry", () => {
   it("has unique ids, in a stable order", () => {
     const ids = MODES.map((mode) => mode.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toEqual(["decoy", "decoy_items", "refuse", "wipe"]);
+    expect(ids).toEqual(["decoy", "decoy_items", "refuse", "freeze", "wipe"]);
   });
 
   it("seals only the strings existing enrollments hold", () => {
@@ -49,13 +53,14 @@ describe("duress mode registry", () => {
       "decoy",
       "locked",
       "locked",
+      "locked",
     ]);
   });
 
   it("never promises an effect unlock cannot run", () => {
     // A mode's plan names the effect sealed with the code. If unlock has no
     // runner for it, arming would offer a switch that does nothing.
-    for (const mode of MODES as readonly DuressMode[]) {
+    for (const mode of ALL) {
       if (!mode.plan) continue;
       const extras = sampleExtras(mode);
       expect(inputReady(mode, extras)).toBe(true);
@@ -66,7 +71,7 @@ describe("duress mode registry", () => {
   });
 
   it("gives every input its own id across modes, so extras never collide", () => {
-    const ids = (MODES as readonly DuressMode[]).flatMap((mode) =>
+    const ids = ALL.flatMap((mode) =>
       mode.input.kind === "none" ? [] : [mode.input.id],
     );
     expect(new Set(ids).size).toBe(ids.length);

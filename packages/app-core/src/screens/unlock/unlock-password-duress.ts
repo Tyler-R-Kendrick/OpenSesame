@@ -41,7 +41,15 @@ export async function unlockWithPasswordAfterDuressGate(
     );
   }
   if (duressOutcome.kind === "inactive" || duressOutcome.kind === "normal") {
-    await store.unlock(password);
+    try {
+      await store.unlock(password);
+    } catch (error) {
+      // One text for a miss, whichever road made it: the duress refusal below
+      // says this, and an ordinary wrong password must say the same.
+      throw error instanceof WrongPasswordError
+        ? new WrongPasswordError(UNLOCK_PASSWORD_MISS)
+        : error;
+    }
     return "vault_opened";
   }
   throw new WrongPasswordError(UNLOCK_PASSWORD_MISS);

@@ -65,7 +65,9 @@ describe("ModeInput", () => {
     );
     expect(screen.getAllByRole("radio")).toHaveLength(2);
     expect(
-      screen.getAllByRole("radio").some((r) => (r as HTMLInputElement).checked),
+      screen
+        .getAllByRole("radio")
+        .some((r) => r instanceof HTMLInputElement && r.checked),
     ).toBe(false);
     await user.click(screen.getByLabelText("A day"));
     expect(screen.getByTestId("value").textContent).toBe("24");
