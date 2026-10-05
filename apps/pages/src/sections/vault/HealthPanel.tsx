@@ -70,7 +70,7 @@ export function HealthPanel() {
           </p>
 
           {report.findings.length === 0 ? (
-            <div className="note note--ok">
+            <div className="note note--ok" ref={findingsRef}>
               <span>
                 Every password here is strong, unique, and under a year old.
                 Nothing to do.
