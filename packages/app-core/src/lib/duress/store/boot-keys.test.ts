@@ -1,18 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
-
-const written = vi.hoisted(() => new Set<string>());
-
-vi.mock("../../kv.js", async (importOriginal) => {
-  const real = await importOriginal<typeof import("../../kv.js")>();
-  return {
-    ...real,
-    kvSet: (key: string, value: string) => {
-      written.add(key);
-      return real.kvSet(key, value);
-    },
-  };
-});
-
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   DURESS_BOOT_KEYS,
   ENROLLMENT_STATE_KEY,
@@ -23,7 +9,22 @@ import {
   journalKeysOf,
   stagingKeyOf,
 } from "./boot-keys.js";
-import { clearJournal, writeJournal } from "./journal.js";
+import { clearJournal, journalSeams, writeJournal } from "./journal.js";
+
+// Every key the journal writes, recorded at its own seam and passed through.
+const written = new Set<string>();
+const real = { ...journalSeams };
+beforeEach(() => {
+  journalSeams.set = (key, value) => {
+    written.add(key);
+    real.set(key, value);
+  };
+  journalSeams.setDurable = async (key, value) => {
+    written.add(key);
+    await real.setDurable(key, value);
+  };
+});
+afterEach(() => Object.assign(journalSeams, real));
 
 describe("duress boot keys", () => {
   it("name every key a journal can be read from, for each journal", () => {

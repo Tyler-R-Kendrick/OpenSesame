@@ -185,16 +185,9 @@ export async function natsSession(browser, owner, binary, mode) {
     return;
   }
   try {
-    await setRoutes(owner.page, {
-      carriers: [
-        {
-          kind: "nats",
-          url: server.url,
-          mint: server.mint,
-          ...(mode === "always" ? { session: "always" } : {}),
-        },
-      ],
-    });
+    const carrier = { kind: "nats", url: server.url, mint: server.mint };
+    if (mode === "always") carrier.session = "always";
+    await setRoutes(owner.page, { carriers: [carrier] });
     const { panel, code, link } = await startSession(owner.page);
     await panel
       .getByRole("img", { name: /^Carrying codes: / })

@@ -7,16 +7,19 @@
  * plan, and the code then does only what its presentation says.
  */
 
+import {
+  type JsonValue,
+  isString,
+  readJsonObject,
+} from "@opensesame/os-domain";
 import { MAX_SLOT_PAYLOAD_BYTES } from "../../crypto/slot-profile.js";
 import type { DuressEffectName, DuressPlan } from "./mode.js";
 
-const EFFECTS: ReadonlySet<string> = new Set<DuressEffectName>([
-  "decoy_items",
-  "freeze",
-  "wipe",
-]);
+const EFFECTS: ReadonlyMap<string, DuressEffectName> = new Map(
+  (["decoy_items", "freeze", "wipe"] as const).map((name) => [name, name]),
+);
 
-type Envelope = Readonly<{ e: string; v: 1; b: unknown }>;
+type Envelope = Readonly<{ e: string; v: 1; b: JsonValue }>;
 
 export function encodePlan(plan: DuressPlan): Uint8Array {
   const envelope: Envelope = { e: plan.effect, v: 1, b: plan.body };
@@ -32,11 +35,11 @@ export function decodePlan(
 ): DuressPlan | null {
   if (!bytes || bytes.length === 0) return null;
   try {
-    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
-    if (typeof parsed !== "object" || parsed === null) return null;
-    const { e, v, b } = parsed as Partial<Envelope>;
-    if (v !== 1 || typeof e !== "string" || !EFFECTS.has(e)) return null;
-    return { effect: e as DuressEffectName, body: b };
+    const parsed = readJsonObject(JSON.parse(new TextDecoder().decode(bytes)));
+    if (!parsed || parsed.v !== 1 || !isString(parsed.e)) return null;
+    const effect = EFFECTS.get(parsed.e);
+    if (!effect) return null;
+    return { effect, body: parsed.b ?? null };
   } catch {
     return null;
   }

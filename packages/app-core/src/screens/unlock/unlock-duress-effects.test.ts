@@ -4,40 +4,38 @@
  */
 
 import { WrongPasswordError } from "@opensesame/vault-core";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { encodePlan } from "../../lib/duress/settings/modes/payload.js";
+import {
+  continueAfterDuressMatch,
+  duressContinueSeams,
+} from "./unlock-duress-continue.js";
 import { UNLOCK_PIN_MISS } from "./unlock-duress-refuse.js";
 
 const calls: string[] = [];
-vi.mock("../../lib/duress/settings/modes/effects.js", async (original) => {
-  const real =
-    await original<
-      typeof import("../../lib/duress/settings/modes/effects.js")
-    >();
-  return {
-    ...real,
-    runDuressEffects: vi.fn(async (plan, phase) => {
-      calls.push(`${phase}:${plan?.effect ?? "none"}`);
-    }),
-  };
-});
-
-import { continueAfterDuressMatch } from "./unlock-duress-continue.js";
+const shipped = duressContinueSeams.runEffects;
 
 function match(presentation: string, payload?: Uint8Array) {
+  const slot = {
+    compartmentKey: crypto.getRandomValues(new Uint8Array(32)),
+    actionCapability: null,
+    presentation,
+  };
   return {
     profileId: "p",
-    plaintext: {
-      compartmentKey: crypto.getRandomValues(new Uint8Array(32)),
-      actionCapability: null,
-      presentation,
-      ...(payload ? { payload } : {}),
-    },
+    plaintext: payload ? { ...slot, payload } : slot,
   };
 }
 
 beforeEach(() => {
   calls.length = 0;
+  duressContinueSeams.runEffects = async (plan, phase) => {
+    calls.push(`${phase}:${plan?.effect ?? "none"}`);
+  };
+});
+
+afterEach(() => {
+  duressContinueSeams.runEffects = shipped;
 });
 
 describe("continueAfterDuressMatch effects", () => {

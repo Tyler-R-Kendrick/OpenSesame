@@ -10,7 +10,8 @@ import {
   itemSubtitle,
   searchMatches,
 } from "@opensesame/vault-core";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { duressContinueSeams } from "../../../screens/unlock/unlock-duress-continue.js";
 import { unlockWithPasswordAfterDuressGate } from "../../../screens/unlock/unlock-password-duress.js";
 import { forgetDeviceIdentityKeyInFlightForTests } from "../../device-identity-key.js";
 import { kvDelete, kvGet } from "../../kv.js";
@@ -32,18 +33,8 @@ import { enableDuressCode } from "../settings/device-duress.js";
 import { DECOY_SCRATCH_TOMB } from "../store/decoy-scratch.js";
 import { clearEnrollmentStateForUnlock } from "../store/unlock-enrollment.js";
 
-/** Lets a test run the real seam, or the seam with its runners taken away. */
-const seam = vi.hoisted(() => ({ runners: true }));
-vi.mock("../settings/modes/effects.js", async (original) => {
-  const real = await original<typeof import("../settings/modes/effects.js")>();
-  return {
-    ...real,
-    runDuressEffects: vi.fn(
-      (...args: Parameters<typeof real.runDuressEffects>) =>
-        seam.runners ? real.runDuressEffects(...args) : Promise.resolve(),
-    ),
-  };
-});
+/** The shipped effects seam; a test that takes the runners away puts it back. */
+const shipped = duressContinueSeams.runEffects;
 
 const PASSWORD = "correct horse battery staple";
 const CODE = "739104628";
@@ -88,7 +79,7 @@ const typeCode = (store: VaultStore) =>
   unlockWithPasswordAfterDuressGate(store, CODE, { requireDurable: false });
 
 beforeEach(async () => {
-  seam.runners = true;
+  duressContinueSeams.runEffects = shipped;
   await vfsFlush();
   for (const tomb of tombs) {
     for (const path of [
@@ -108,6 +99,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  duressContinueSeams.runEffects = shipped;
   await vfsFlush();
   clearEnrollmentStateForUnlock();
   clearActivePresentation();
@@ -262,7 +254,7 @@ describe("decoy with everyday items, through unlock", () => {
   });
 
   it("is proven to notice nothing happening: with the runner gone the decoy is empty", async () => {
-    seam.runners = false;
+    duressContinueSeams.runEffects = async () => undefined;
     const store = await armedVault(ITEMS.join("\n"));
     await expect(typeCode(store)).resolves.toBe("duress_session");
     expect(store.getSnapshot().decoy).toBe(true);
