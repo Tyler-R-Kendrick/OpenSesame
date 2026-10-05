@@ -22,8 +22,8 @@ import {
   type AccountItem,
   type LoginMethod,
   type PasswordMethod,
-  needsPepper,
   newMethodId,
+  plainPassword,
 } from "@opensesame/vault-core";
 
 export type AccountMerge = {
@@ -39,7 +39,7 @@ export type AccountMerge = {
 function secretOf(method: LoginMethod): string | null {
   switch (method.type) {
     case "password":
-      return needsPepper(method) ? null : method.secret;
+      return plainPassword(method);
     case "authenticator":
       return method.secret;
     case "api-key":

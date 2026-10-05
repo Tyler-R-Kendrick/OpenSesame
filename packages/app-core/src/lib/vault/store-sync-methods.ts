@@ -25,6 +25,8 @@ import {
   type LoginMethod,
   type PasswordGenerator,
   type PepperSeal,
+  type PepperSealV1,
+  type PepperSealV2,
 } from "@opensesame/vault-core";
 
 type Read<T> = (value: JsonObject) => T | null;
@@ -75,43 +77,68 @@ function rulesOf(value: JsonObject): CharacterRules | null {
     : { length, minDigits, minSymbols, ...flags };
 }
 
-/** A generator that is not whole is `manual`, which keeps the typed secret. */
-function generatorOf(value: JsonObject | null): PasswordGenerator | null {
-  const manual: PasswordGenerator = { id: "manual" };
-  if (value === null) return manual;
-  if (value.id === "rules") {
-    const rules = rulesOf(value);
-    return rules === null ? manual : { id: "rules", ...rules };
-  }
-  if (value.id === "passphrase") {
-    const words = count(value.words);
-    const separator = text(value.separator);
-    const capitalize = flag(value.capitalize);
-    const includeNumber = flag(value.includeNumber);
-    return words === null ||
-      separator === null ||
-      capitalize === null ||
-      includeNumber === null
-      ? manual
-      : { id: "passphrase", words, separator, capitalize, includeNumber };
-  }
-  if (value.id === "sphinx") {
-    // Without its key a Sphinx password is nothing: the method is not kept.
-    const rules = rulesOf(objectAt(value.rules) ?? {});
-    const realm = text(value.realm);
-    const counter = count(value.counter);
-    const oprfKeyB64 = text(value.oprfKeyB64);
-    return rules === null ||
-      realm === null ||
-      counter === null ||
-      oprfKeyB64 === null
-      ? null
-      : { id: "sphinx", rules, realm, counter, oprfKeyB64 };
-  }
-  return manual;
+const MANUAL: PasswordGenerator = { id: "manual" };
+
+function passphraseOf(value: JsonObject): PasswordGenerator {
+  const words = count(value.words);
+  const separator = text(value.separator);
+  const capitalize = flag(value.capitalize);
+  const includeNumber = flag(value.includeNumber);
+  return words === null ||
+    separator === null ||
+    capitalize === null ||
+    includeNumber === null
+    ? MANUAL
+    : { id: "passphrase", words, separator, capitalize, includeNumber };
 }
 
-function kdfOf(value: JsonObject | null): PepperSeal["kdf"] | null {
+/**
+ * Without its rules or counter the password a derived method computes is
+ * unknown: the method is not kept, and its root secret is never read back as a
+ * typed one.
+ */
+function derivedOf(value: JsonObject): PasswordGenerator | null {
+  const rules = rulesOf(objectAt(value.rules) ?? {});
+  const counter = count(value.counter);
+  return rules === null || counter === null
+    ? null
+    : { id: "derived", rules, counter };
+}
+
+/** Without its key a Sphinx password is nothing: the method is not kept. */
+function sphinxOf(value: JsonObject): PasswordGenerator | null {
+  const rules = rulesOf(objectAt(value.rules) ?? {});
+  const realm = text(value.realm);
+  const counter = count(value.counter);
+  const oprfKeyB64 = text(value.oprfKeyB64);
+  return rules === null ||
+    realm === null ||
+    counter === null ||
+    oprfKeyB64 === null
+    ? null
+    : { id: "sphinx", rules, realm, counter, oprfKeyB64 };
+}
+
+/** A generator that is not whole is `manual`, which keeps the typed secret. */
+function generatorOf(value: JsonObject | null): PasswordGenerator | null {
+  if (value === null) return MANUAL;
+  switch (value.id) {
+    case "rules": {
+      const rules = rulesOf(value);
+      return rules === null ? MANUAL : { id: "rules", ...rules };
+    }
+    case "passphrase":
+      return passphraseOf(value);
+    case "derived":
+      return derivedOf(value);
+    case "sphinx":
+      return sphinxOf(value);
+    default:
+      return MANUAL;
+  }
+}
+
+function kdfOf(value: JsonObject | null): PepperSealV1["kdf"] | null {
   const saltB64 = text(value?.saltB64);
   const iterations = count(value?.iterations);
   return value?.alg !== "PBKDF2-SHA256" ||
@@ -121,15 +148,40 @@ function kdfOf(value: JsonObject | null): PepperSeal["kdf"] | null {
     : { alg: "PBKDF2-SHA256", saltB64, iterations };
 }
 
+function sealV2Of(
+  seal: JsonObject,
+  ivB64: string,
+  ctB64: string,
+): PepperSealV2 | null {
+  const serverSetup = text(seal.serverSetup);
+  const registrationRecord = text(seal.registrationRecord);
+  const ksf = seal.ksf === "standard" || seal.ksf === "fast" ? seal.ksf : null;
+  return seal.suite !== "rfc9807-ristretto255-argon2id" ||
+    ksf === null ||
+    serverSetup === null ||
+    registrationRecord === null
+    ? null
+    : {
+        v: 2,
+        suite: "rfc9807-ristretto255-argon2id",
+        ksf,
+        serverSetup,
+        registrationRecord,
+        seal: { ivB64, ctB64 },
+      };
+}
+
 /** `undefined` for no seal, `null` for one that is not whole. */
 function sealOf(value: JsonValue | undefined): PepperSeal | null | undefined {
   if (value === undefined) return undefined;
   const seal = objectAt(value);
   const blob = objectAt(seal?.seal);
-  const kdf = kdfOf(objectAt(seal?.kdf));
   const ivB64 = text(blob?.ivB64);
   const ctB64 = text(blob?.ctB64);
-  return seal?.v !== 1 || kdf === null || ivB64 === null || ctB64 === null
+  if (seal === null || ivB64 === null || ctB64 === null) return null;
+  if (seal.v === 2) return sealV2Of(seal, ivB64, ctB64);
+  const kdf = kdfOf(objectAt(seal.kdf));
+  return seal.v !== 1 || kdf === null
     ? null
     : { v: 1, kdf, seal: { ivB64, ctB64 } };
 }

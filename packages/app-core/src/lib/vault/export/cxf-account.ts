@@ -17,6 +17,7 @@ import {
   type AccountItem,
   type LoginMethod,
   needsPepper,
+  plainPassword,
 } from "@opensesame/vault-core";
 import {
   CXF_EXTENSION,
@@ -163,7 +164,9 @@ export function accountCredentials(item: AccountItem): AccountCredentials {
       credentials.push({
         type: CXF_TYPES.basicAuth,
         username: field(item.username, "string"),
-        password: field(method.secret, "concealed-string"),
+        // What the method gives with nothing to ask: a stored password, or the
+        // password a derived method computes. Never the root it computes from.
+        password: field(plainPassword(method) ?? "", "concealed-string"),
       });
     } else if (method.type === "authenticator") {
       const totp = totpCredential(method.secret, item.username);

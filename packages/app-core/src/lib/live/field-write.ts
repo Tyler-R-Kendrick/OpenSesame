@@ -9,8 +9,9 @@
  * A password goes through `storePassword` (ADR 0172 §4), never into a method
  * field by hand. A method that keeps its password under a pepper is written
  * only when the person can be asked for that pepper; with no way to ask, or for
- * a Sphinx password that is computed and never stored, the write is refused
- * with `PasswordWriteRefused` and nothing is saved, least of all in the clear.
+ * a derived or Sphinx password that is computed and never stored, the write is
+ * refused with `PasswordWriteRefused` and nothing is saved, least of all in the
+ * clear.
  */
 
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
@@ -93,7 +94,7 @@ async function writePassword(
 ): Promise<VaultItem> {
   const method = passwordMethod(item);
   if (method === undefined) throw new PasswordWriteRefused("no_password");
-  if (method.generator.id === "sphinx")
+  if (method.generator.id === "sphinx" || method.generator.id === "derived")
     throw new PasswordWriteRefused("computed");
   let pepper: string | null = null;
   if (method.pepper) {

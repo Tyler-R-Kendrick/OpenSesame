@@ -14,6 +14,7 @@ import {
   WrongPepperError,
   needsPepper,
   passwordMethod,
+  plainPassword,
 } from "@opensesame/vault-core";
 import { usePassword } from "./vault/generators/index.js";
 
@@ -40,9 +41,9 @@ export async function readMethodPassword(
   askPepper?: AskPepper,
 ): Promise<PasswordReading> {
   if (!needsPepper(method)) {
-    return method.secret === ""
-      ? { status: "absent" }
-      : { status: "ok", password: method.secret };
+    // A stored password, or a derived one whose root is in the clear.
+    const password = plainPassword(method) ?? "";
+    return password === "" ? { status: "absent" } : { status: "ok", password };
   }
   // No prompt available: never guess, never read the sealed form.
   if (askPepper === undefined) return { status: "absent" };

@@ -1,7 +1,9 @@
 /**
  * How the terminal reads and writes an account's password (ADR 0172 §4). A
  * password that is peppered or Sphinx-derived is absent here: the CLI never
- * reveals, accepts or logs a pepper, a sealed envelope or a method secret.
+ * reveals, accepts or logs a pepper, a sealed envelope or a method secret. A
+ * derived password with no pepper is computed from its root, which stays in the
+ * vault (ADR 0173), and typing one over it replaces the method with a typed one.
  */
 import { shareText } from "@opensesame/app-core/sections/vault-section-model.js";
 import {

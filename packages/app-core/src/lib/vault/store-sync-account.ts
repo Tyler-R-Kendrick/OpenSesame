@@ -111,6 +111,7 @@ function withLineOne(methods: LoginMethod[], entry: StorePlainEntry) {
     if (
       method === firstPassword &&
       method.type === "password" &&
+      method.generator.id !== "derived" &&
       method.secret === "" &&
       plainPassword(method) !== null
     ) {
@@ -212,9 +213,13 @@ function graftSecret(
   if (index === -1) return [...current, incoming];
   const held = current[index];
   const secret = "secret" in incoming ? incoming.secret : "";
+  // A line of text cannot say a pepper, a Sphinx master input or the root a
+  // derived password is computed from, so it leaves those methods as they were.
   const askedFor =
     held?.type === "password" &&
-    (held.pepper || held.generator.id === "sphinx");
+    (held.pepper ||
+      held.generator.id === "sphinx" ||
+      held.generator.id === "derived");
   if (held === undefined || askedFor || !("secret" in held)) return current;
   return current.map((method, i) =>
     i === index ? { ...held, secret } : method,
@@ -225,7 +230,7 @@ function graftSecret(
  * A first-format entry said a username, sites, notes, one password and one
  * seed, and nothing else. Laid over an account it changes those, and leaves
  * every other method, the ids of the ones it touched and any password kept
- * behind a pepper or a Sphinx key as they were.
+ * behind a pepper, a Sphinx key or a derived root as they were.
  */
 export function graftAccountFormatOne(
   current: AccountItem,
