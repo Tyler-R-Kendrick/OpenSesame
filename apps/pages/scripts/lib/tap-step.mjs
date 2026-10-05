@@ -10,7 +10,7 @@ export function tapStep({ press }) {
     async tap(page, target) {
       const [selector, x, y] = [target].flat();
       const el = page.locator(selector).first();
-      await (x === undefined ? press(el) : el.tap({ position: { x, y } }));
+      await (x === undefined ? press(el) : el.click({ position: { x, y } }));
       await page.waitForTimeout(700);
     },
   };
