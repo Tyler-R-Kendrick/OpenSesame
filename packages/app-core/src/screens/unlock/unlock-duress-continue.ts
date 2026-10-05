@@ -50,7 +50,10 @@ export function resolveDuressPresentation(value: string): PresentationClass {
  * project a scoped view for PresentationShell, then open a fresh guest-road
  * session so the app shell unlocks without the protected root (INV-03 /
  * INV-05). The session is a decoy: it never wipes a guest tomb that holds a
- * sealed vault of its own.
+ * sealed vault of its own, and the store draws it as the vault the unlock
+ * screen was showing (`VaultState.decoy`). The minted outcome is locked (no
+ * published decoy), so the overlay draws nothing for it: a decoy that says
+ * "unavailable" is not read as an ordinary unlock.
  */
 export async function continueAfterDuressMatch(
   store: DuressContinueStore,
