@@ -104,3 +104,13 @@ OpenSesame Pages has no server to hold the vaults that stay home
 place they go is the answer to lesson 1: a **bundle** sealed under a
 **return code**, both kept off the carried device. The design is in
 [ADR 0143](../adr/0143-travel-mode.md).
+
+## 6. Duress modes
+
+The same research gives the situations a duress code is for, and what comparable
+products do about each: show a plausible vault, show nothing, lock the sensitive
+things for a while, remove this device's copy, or tell a contact
+([ADR 0168](../adr/0168-duress-modes-from-scenarios.md)). OpenSesame offers five
+modes from that list (decoy, decoy with everyday items, wrong password, freeze
+for a while, wipe this device's copy). It does not offer alert-a-contact: a static
+app has no delivery path and no independent receiver for it.

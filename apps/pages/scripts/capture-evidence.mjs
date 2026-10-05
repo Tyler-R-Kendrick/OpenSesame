@@ -39,6 +39,7 @@ import { inboxSteps } from "./lib/capture-inbox-steps.mjs";
 import { liveJoinSteps, viewOf } from "./lib/capture-live-join-steps.mjs";
 import { livePolicySteps } from "./lib/capture-live-policy-steps.mjs";
 import { liveSteps } from "./lib/capture-live-steps.mjs";
+import { metricsSteps } from "./lib/capture-metrics-steps.mjs";
 import { stubJourneyDaemon } from "./lib/capture-plugin-steps.mjs";
 import { pushSteps } from "./lib/capture-push-steps.mjs";
 import { readSteps } from "./lib/capture-read-steps.mjs";
@@ -196,6 +197,7 @@ const STEPS = {
   ...tapStep({ press }),
   ...fieldSteps({ press }),
   ...readSteps(),
+  ...metricsSteps(),
   ...vaultSteps({ press, visit: (page, route) => STEPS.visit(page, route) }),
   ...inboxSteps({ origin, base }),
   ...liveSteps({ harness }),

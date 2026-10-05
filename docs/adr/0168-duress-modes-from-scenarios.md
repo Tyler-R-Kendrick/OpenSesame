@@ -33,7 +33,7 @@ that promises more than unlock performs.
 ## Decision
 
 **A code has a mode, chosen from a registry, and a mode may be added only if
-unlock really does what its sentence says.** The set, once its three effects land, is:
+unlock really does what its sentence says.** The set, with all three effects landed (#716, #717, #718), is:
 
 1. **Decoy vault** (exists) — an empty vault that reads as a normal unlock.
 2. **Decoy with everyday items** — the same decoy, holding a short list of
@@ -78,16 +78,37 @@ device and belong to the profile model of ADR 0130, not this sheet.
 
 These are stated on the sheet and in the operator guide, not left to be found:
 
-- **Freeze trusts this device's clock.** A changed clock changes the hold
-  (INV-19), and clearing site data ends it. It stops someone using the app as
-  it is; it does not stop someone who controls the browser's storage.
+- **Freeze trusts this device's clock.** A clock moved forward, or cleared site
+  data, ends the hold; a clock moved back modestly lengthens it, and one moved
+  back by more than 72 h and a minute makes the record read as unreliable, so
+  it **fails open** rather than lock the owner out for good (INV-19). It stops
+  someone using the app as it is; it does not stop someone who controls the
+  browser's storage.
+- **A freeze also holds the owner.** While it runs the vault's real credentials
+  are refused, so the owner cannot open the vault to press **Clear** on the
+  duress row until the hold ends. The guest road and a decoy are not held (the
+  guest road is never removed). A session already open in another tab keeps
+  working: the hold gates new unlocks and mid-session scope switches. A parked
+  second step refused at activation says "That credential did not unlock the
+  vault." rather than the authenticator-code text.
 - **Wipe removes this browser's copy, not what the disk may still hold**
   (INV-22..24). It is restorable only from a backup the owner made, and the
   sheet says so before the owner ticks the box and types the word. It never
   touches the device's at-rest key, the guest vault, or the duress record
   itself, so the code still works afterwards.
-- **A wipe takes visible time.** Removal runs before the refusal is shown, so
-  an observer who times the unlock may see it take longer than a wrong password.
+- **A wipe's timing differs from a wrong password's.** Removal runs before the
+  refusal is shown, but an ordinary wrong PIN pays a key derivation against the
+  real vault that the wipe does not: in the journey the wipe refusal took about
+  0.92 s and a wrong PIN about 1.4 s. The sheet's consent sentence says the
+  time may differ, in either direction, and does not promise it will match.
+  An earlier draft of this ADR claimed a wipe is visibly slower; the
+  measurement says otherwise and the claim is withdrawn.
+- **A wipe leaves some things behind.** Encrypted file parts (they cannot be
+  tied to a vault, and their per-file keys lived in the removed vaults), the
+  history-backup IndexedDB, settings and setup records, and the Identity
+  session. It removes every non-guest vault on the device, project vaults
+  included, and an interrupted wipe finishes silently at the next boot, showing
+  the sign-in screen of a device with no vault.
 - **A decoy is only as plausible as its author makes it.** The owner chooses
   its items; we cannot know what looks ordinary to the person asking. Its
   Security page still lists unenrolled unlock methods, because it is a scratch
@@ -100,8 +121,16 @@ These are stated on the sheet and in the operator guide, not left to be found:
 - The sheet offers five modes where it offered two, each with its own consent
   sentence ticked for that mode only, and the wipe additionally asks for a typed
   word.
-- Three effects (`decoy_items`, `freeze`, `wipe`) land as three pull requests on
+- Three effects (`decoy_items`, `freeze`, `wipe`) landed as three pull requests on
   this seam, each with a test that fails against doing nothing and a real-browser
-  journey that types the code at the unlock screen after a reload.
+  journey that types the code at the unlock screen after a reload (J-DURESS-ITEMS,
+  J-DURESS-FREEZE, J-DURESS-MODE-WIPE).
+- Every locked mode now refuses with the same text as an ordinary wrong
+  password on the password tab ("That password did not unlock the vault."); the
+  two used to differ, which was itself a tell.
+- A wiped device recovers without a bypass: the match still fences the device,
+  and the owner seals a new vault on it, restores a backup they made, clears the
+  fence and arms a new code. While a real vault exists the fence still refuses
+  arming and removal (`incident_active`).
 - The enrollment format gains an optional payload; older builds that do not know
   an effect do nothing for it, so a plan is never half-run.

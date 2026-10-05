@@ -2,7 +2,7 @@ import { kvSet } from "@opensesame/app-core/lib/kv.js";
 import * as localDevices from "@opensesame/app-core/lib/local-devices.js";
 import { notifyLocalIamChange } from "@opensesame/app-core/lib/local-iam-events.js";
 import { localRequestFixture } from "@opensesame/app-core/lib/local-request.fixture.js";
-import { lockAllTombs } from "@opensesame/app-core/lib/vfs.js";
+import { lockAllTombs, writeFile } from "@opensesame/app-core/lib/vfs.js";
 /** @vitest-environment jsdom */
 import {
   act,
@@ -18,7 +18,7 @@ import { afterEach, beforeEach, expect, it, onTestFinished, vi } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { LocalDevicesPanel } from "./LocalDevicesPanel.js";
 
-const { readLocalDevices, registerLocalDevice, thisDeviceId, touchThisDevice } =
+const { LOCAL_DEVICES_PATH, readLocalDevices, thisDeviceId, touchThisDevice } =
   localDevices;
 const originalVault = { ...vaultHooksSeams };
 const FULL = /this browser is not among them/;
@@ -58,16 +58,29 @@ function becomeAnotherBrowser() {
   onTestFinished(() => kvSet("opensesame.this-device-id", previous));
 }
 
+/** Browsers that opened the vault before, as their records stand. */
+async function writeBrowsers(names: readonly string[]) {
+  const now = new Date().toISOString();
+  const devices = names.map((name, index) => ({
+    id: `browser-${index}`,
+    name,
+    platform: "Linux",
+    createdAt: now,
+    lastSeenAt: now,
+  }));
+  await writeFile(
+    fixture.tomb,
+    LOCAL_DEVICES_PATH,
+    new TextEncoder().encode(
+      JSON.stringify({ version: 1, revision: 1, devices }),
+    ),
+  );
+}
+
 async function fillTheList() {
-  for (
-    let index = (await readLocalDevices(fixture.tomb)).length;
-    index < 63;
-    index += 1
-  )
-    await registerLocalDevice(fixture.tomb, {
-      name: `Device ${index}`,
-      platform: "Linux",
-    });
+  await writeBrowsers(
+    Array.from({ length: 63 }, (_, index) => `Device ${index}`),
+  );
   await touchThisDevice(fixture.tomb);
 }
 
@@ -92,16 +105,15 @@ it("says so when a full list leaves this browser unlisted, and lists it once a s
     expect(screen.queryByRole("heading", { name: "Device 5" })).toBeNull(),
   );
   // Reload touches again: the freed slot lists this browser.
-  await userEvent.click(screen.getByRole("button", { name: "Reload devices" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Reload browsers" }),
+  );
   expect(await screen.findByRole("img", { name: "This device" })).toBeTruthy();
   expect(screen.queryByRole("img", { name: FULL })).toBeNull();
 });
 
 it("does not call a list full when this browser is merely missing from it", async () => {
-  await registerLocalDevice(fixture.tomb, {
-    name: "Studio Mac",
-    platform: "macOS",
-  });
+  await writeBrowsers(["Studio Mac"]);
   // A read that lands before this browser's touch shows a list without it.
   vi.spyOn(localDevices, "touchThisDevice").mockImplementation((tomb) =>
     localDevices.readLocalDevices(tomb),
@@ -128,5 +140,5 @@ it("clears a read error once a later read lands", async () => {
     expect(screen.queryByRole("img", { name: readError })).toBeNull(),
   );
   // The read's own result is on screen, not a loading state.
-  expect(screen.queryByRole("img", { name: "Loading devices…" })).toBeNull();
+  expect(screen.queryByRole("img", { name: "Loading browsers…" })).toBeNull();
 });
