@@ -17,7 +17,7 @@ import { CONNECTIONS_HELP } from "./connections-goals.js";
 import { FEATURE_GOALS } from "./feature-goals.js";
 import type { GuideGoalDescriptor, HelpTopic } from "./goal-types.js";
 import { IDENTITY_HELP } from "./identity-goals.js";
-import { type GuideRouteId, guideRouteWithin } from "./routes.js";
+import { type GuideRouteId, scopeApplies } from "./routes.js";
 import { SETUP_GOALS, SETUP_HELP, SHELL_GOALS } from "./setup-goals.js";
 import { SHELL_HELP } from "./shell-goals.js";
 import { isKnownGuidePredicate, readGuidePredicate } from "./state.js";
@@ -373,11 +373,7 @@ export function describeGuideGoals(
   return mergedGuideGoals()
     .filter((goal) => goal.libraryOnly !== true)
     .filter((goal) => (goal.requires ?? []).every(guidePredicateHolds))
-    .filter(
-      (goal) =>
-        goal.routes.length === 0 ||
-        goal.routes.some((candidate) => guideRouteWithin(route, candidate)),
-    )
+    .filter((goal) => scopeApplies(goal.routes, route))
     .map((goal) => ({ id: goal.id, title: goal.title }));
 }
 
@@ -391,9 +387,7 @@ export function guideGoal(id: GuideGoalId): GuideGoalDescriptor | null {
 
 /** Authored topics relevant to where the person currently is. */
 export function helpTopicsForRoute(route: GuideRouteId): readonly HelpTopic[] {
-  return mergedHelpTopics().filter(
-    (topic) =>
-      topic.routes.length === 0 ||
-      topic.routes.some((candidate) => guideRouteWithin(route, candidate)),
+  return mergedHelpTopics().filter((topic) =>
+    scopeApplies(topic.routes, route),
   );
 }

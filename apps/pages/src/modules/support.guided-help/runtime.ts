@@ -32,6 +32,7 @@
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { SUPPORT_TOOLS } from "@opensesame/app-core/webmcp/support-tools.js";
+import { SupportGate } from "../../tutorial/ui/SupportGate.js";
 import { createActivation } from "../activation.js";
 import { type ContextWithPorts, tagWebMcpTool } from "../ports-b.js";
 import { SupportShell } from "./SupportShell.js";
@@ -47,9 +48,12 @@ export const capabilityRuntime: CapabilityRuntime = {
 
     // Without the port the panel is not mounted (ports-b.ts); the tools
     // still register and stay harmless — their seam defaults are no-ops.
+    // `Gate` is the same help key on the screens in front of the shell,
+    // drawn beside them and offline (ADR 0165).
     activation.register("shell-wrapper", {
       id: "support",
       Wrapper: SupportShell,
+      Gate: SupportGate,
       order: 10,
     });
 

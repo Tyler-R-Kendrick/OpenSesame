@@ -34,33 +34,7 @@ export const COVERAGE_EXEMPT: Readonly<Record<string, string>> = {
   "target:settings.danger": "no tutorial points at it yet",
   "target:settings.auto-lock": "no tutorial points at it yet",
   "target:notifications.health": "no tutorial points at it yet",
-  "target:unlock.submit":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:unlock.secret":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:unlock.passkey":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:unlock.account":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:unlock.signin":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
   "target:vaults.list": "no tutorial points at it yet",
-  "target:unlock.setup":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:setup.join":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:setup.ways":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:setup.connectors":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:setup.keep":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:setup.finish":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:broker.consent":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
-  "target:federation.return":
-    "a gate screen: its tour needs the gate help launcher (ADR 0165)",
   "target:settings.live-session": "no tutorial points at it yet",
   "target:settings.live-routes": "no tutorial points at it yet",
   "target:access.grants": "no tutorial points at it yet",

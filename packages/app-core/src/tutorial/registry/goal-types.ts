@@ -39,9 +39,10 @@ export type HelpTopic = {
   readonly answer: string;
   readonly routes: readonly GuideRouteId[];
   /**
-   * Authored walkthrough that answers this question in tutorial mode. A topic
-   * for a screen the Support sheet is never mounted on (the gates, ADR 0090)
-   * has none: it is written help only.
+   * Authored walkthrough that answers this question in tutorial mode, or
+   * null for written help only. A gate draws a help key of its own (ADR 0165),
+   * so a topic for a gate names the tour that screen can start; one whose
+   * tour belongs to another screen shows its answer and no Show me there.
    */
   readonly goal: GuideGoalId | null;
   /**

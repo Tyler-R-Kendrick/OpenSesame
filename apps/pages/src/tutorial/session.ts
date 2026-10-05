@@ -581,7 +581,7 @@ export const supportSessionSeams: SupportSessionDependencies = {
   clearTargets: clearMountedGuideTargets,
 };
 
-const SupportRouteOverrideContext = createContext<
+export const SupportRouteOverrideContext = createContext<
   (route: GuideRouteId | null) => void
 >(() => {});
 

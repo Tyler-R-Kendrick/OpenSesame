@@ -22,9 +22,10 @@ import {
   takeGuestArrival,
 } from "@opensesame/app-core/lib/ceremony-aliases.js";
 import { continueAsGuest } from "@opensesame/app-core/lib/guest-auth.js";
-import { type RefObject, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useGuestsAllowed } from "../../bindings/guest-access.js";
 import { landFocus } from "../../lib/focus.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
 /**
  * A `/guest` link (ADR 0140 D12) lands the keyboard on the guest road the
@@ -35,8 +36,17 @@ import { landFocus } from "../../lib/focus.js";
  */
 function useGuestArrivalFocus(
   lands = true,
-): RefObject<HTMLButtonElement | null> {
+): (node: HTMLButtonElement | null) => void {
   const ref = useRef<HTMLButtonElement | null>(null);
+  // The same button is what a tutorial points at (`unlock.guest`, ADR 0165).
+  const target = useGuideTarget<HTMLButtonElement>("unlock.guest");
+  const bind = useCallback(
+    (node: HTMLButtonElement | null) => {
+      ref.current = node;
+      target(node);
+    },
+    [target],
+  );
   useEffect(() => {
     if (!lands || !peekGuestArrival()) return;
     const frame = requestAnimationFrame(() => {
@@ -44,7 +54,7 @@ function useGuestArrivalFocus(
     });
     return () => cancelAnimationFrame(frame);
   }, [lands]);
-  return ref;
+  return bind;
 }
 
 /**

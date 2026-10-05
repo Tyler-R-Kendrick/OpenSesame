@@ -27,7 +27,7 @@ import type {
   SupportErrorCode,
   SupportSession,
 } from "@opensesame/support-agent";
-import { supportAgentLoaders } from "./agent-seams.js";
+import { ABSENT_AGENT_LOADERS, supportAgentLoaders } from "./agent-seams.js";
 import { chooseSupportAgent } from "./choose-agent.js";
 import { tourRunner } from "./tour-runner.js";
 
@@ -100,8 +100,16 @@ export type SupportHost = {
   ) => Promise<void>;
 };
 
+/**
+ * How the engine is built. `offline` is a gate (ADR 0165): no agent loader is
+ * asked for anything, so nothing can answer from a model and nothing can leave
+ * the device — the written help and the authored tours are all it has.
+ */
+export type EngineOptions = { readonly offline?: boolean };
+
 /** Everything the engine is made of, imported together on first open. */
-async function loadModules() {
+async function loadModules(offline: boolean) {
+  const loaders = offline ? ABSENT_AGENT_LOADERS : supportAgentLoaders;
   const [
     { SupportError, createSupportSession, redactionWarning },
     { compileGuide, AUTHORED_GUIDE_LIMITS },
@@ -140,8 +148,8 @@ async function loadModules() {
     import("@opensesame/app-core/tutorial/registry/routes.js"),
     import("@opensesame/app-core/tutorial/registry/state.js"),
     import("./coach/scroll-renderer.js"),
-    supportAgentLoaders.promptApi(),
-    supportAgentLoaders.agUi(),
+    loaders.promptApi(),
+    loaders.agUi(),
     import("@opensesame/app-core/tutorial/registry/predicates.js"),
     import("@opensesame/app-core/lib/connectivity-monitor.js"),
   ]);
@@ -178,7 +186,7 @@ async function localAvailability(
 }
 
 /** Whichever agent this browser can actually reach, and where it answers from. */
-async function chooseAgent(mods: Modules) {
+async function chooseAgent(mods: Modules, offline: boolean) {
   /** Stands in when this browser has neither, so the panel still opens. */
   const absent = {
     availability: (): Promise<SupportAgentAvailability> =>
@@ -192,6 +200,7 @@ async function chooseAgent(mods: Modules) {
       ),
     destroy: () => {},
   };
+  if (offline) return { port: absent, transport: "none" as const };
   const local = mods.promptApi.createPromptApiAgent();
   const providerMod = await supportAgentLoaders.provider();
   const provider = providerMod.createProviderAgent();
@@ -242,11 +251,13 @@ function buildRuntime(mods: Modules, host: SupportHost) {
 
 export async function loadBrowserEngine(
   host: SupportHost,
+  options: EngineOptions = {},
 ): Promise<SupportEngine> {
-  const mods = await loadModules();
+  const offline = options.offline === true;
+  const mods = await loadModules(offline);
   const { SupportError, compileGuide, AUTHORED_GUIDE_LIMITS, context } = mods;
   mods.predicates.registerGuidePredicates();
-  const { port, transport } = await chooseAgent(mods);
+  const { port, transport } = await chooseAgent(mods, offline);
 
   function readContext(question?: string) {
     const planes = mods.connectivity.connectivitySnapshot();
