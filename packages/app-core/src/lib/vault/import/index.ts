@@ -17,6 +17,7 @@ import {
   genericCsv,
 } from "./formats/browsers.js";
 import { fidoCxf } from "./formats/cxf.js";
+import { enpassJson } from "./formats/enpass.js";
 import { envFile } from "./formats/env.js";
 import { keepassKdbx } from "./formats/kdbx.js";
 import {
@@ -68,6 +69,7 @@ export const ADAPTERS: ImportAdapter[] = [
   bitwardenJson,
   fidoCxf,
   protonpassJson,
+  enpassJson,
   onepasswordPux,
   keepassKdbx,
   bitwardenCsv,
