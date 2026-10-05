@@ -48,6 +48,7 @@ import { vaultSteps } from "./lib/capture-vault-steps.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
+import { switchSteps } from "./lib/switch-steps.mjs";
 import { tapStep } from "./lib/tap-step.mjs";
 import { composeSheet } from "./lib/visual-evidence.mjs";
 
@@ -124,6 +125,7 @@ const STEPS = {
     await page.waitForTimeout(1400);
   },
   ...tabStep({ press, visit: (page, route) => STEPS.visit(page, route) }),
+  ...switchSteps({ press }),
   async press(page, name) {
     const target = page
       .getByRole("button", { name: new RegExp(name, "i") })

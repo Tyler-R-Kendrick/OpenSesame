@@ -39,7 +39,7 @@ import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { GlyphMark } from "./GlyphMark.js";
 import { IconPlus } from "./Icons.js";
 import { VaultList } from "./VaultList.js";
-import { glyphIsDrawn } from "./prompt-glyph.js";
+import { glyphStandsForName } from "./prompt-glyph.js";
 import { useHold } from "./use-hold.js";
 
 import { useDeviceVaults } from "../bindings/vaults.js";
@@ -67,7 +67,7 @@ function ProjectSwitcherDefault() {
   // Held, the segment does what pressing it does: the list of vaults, by name.
   const hold = useHold(
     useCallback(() => setOpen(true), []),
-    glyphIsDrawn,
+    glyphStandsForName,
   );
   const bindSegment = useCallback(
     (element: HTMLButtonElement | null) => {
@@ -137,18 +137,19 @@ function ProjectSwitcherDefault() {
         onContextMenu={(event) => {
           // A finger held here is asking for the vaults, not for the
           // session menu the prompt answers a right-click with.
-          if (!isTouchPointer() || !glyphIsDrawn(event.currentTarget)) return;
+          if (!isTouchPointer() || !glyphStandsForName(event.currentTarget))
+            return;
           event.preventDefault();
           event.stopPropagation();
           setOpen(true);
         }}
       >
-        <span className="prompt__name">{name}</span>
         <GlyphMark
           className="prompt__glyph"
           kind="vault"
           id={guestShown ? GUEST_TOMB : (active?.id ?? "personal")}
         />
+        <span className="prompt__name">{name}</span>
       </button>
 
       {open ? (

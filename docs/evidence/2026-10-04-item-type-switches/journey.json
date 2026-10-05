@@ -1,0 +1,71 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "seal": null },
+        { "tab": "Settings" },
+        { "open": "Vaults" },
+        { "scrollTo": "Item types" },
+        { "shot": "390-types" },
+        { "measure": ".itype__row, .pack__hit" },
+        { "switchOn": "Login" },
+        { "switchOn": "Wi-Fi network" },
+        { "scrollTo": "Item types" },
+        { "shot": "390-types-on" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        { "seal": null },
+        { "tab": "Settings" },
+        { "open": "Vaults" },
+        { "scrollTo": "Item types" },
+        { "shot": "1280-types" },
+        { "switchOn": "Login" },
+        { "switchOn": "Wi-Fi network" },
+        { "scrollTo": "Item types" },
+        { "shot": "1280-types-on" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-types",
+      "width": 390,
+      "title": "Item types on a phone — 390 × 844",
+      "caption": "The panel was a file browser: Installed and Marketplace tabs, an unlabelled +, a folded builtin/ directory. It is now a list of switches grouped by what the types are for, with a search field; the whole row is the switch.",
+      "before": "tabs + `builtin/ 23` fold, no way to choose a type",
+      "after": "one 58px switch row per type, measured, `0 of 18 on` in the head"
+    },
+    {
+      "shot": "390-types-on",
+      "width": 390,
+      "title": "Two types switched on — 390 × 844",
+      "caption": "Switching a type on downloads and installs it: nothing of it was in the app until then. The head counts what is on and the bell carries the progress.",
+      "before": "no switch to press",
+      "after": "Login and Wi-Fi network on, `2 of 18 on`"
+    },
+    {
+      "shot": "1280-types",
+      "width": 1280,
+      "title": "Item types on a desktop — 1280 × 900",
+      "caption": "Same list at desktop width: the definition's own summary fits on a line beside each switch.",
+      "before": "tabs + `builtin/ 23` fold",
+      "after": "grouped switch rows with summaries"
+    },
+    {
+      "shot": "1280-types-on",
+      "width": 1280,
+      "title": "Two types switched on — 1280 × 900",
+      "caption": "On: the switch moves at once, shows busy while its pack arrives, and stays on after a reload from a sealed copy.",
+      "before": "no switch to press",
+      "after": "Login and Wi-Fi network on, `2 of 18 on`"
+    }
+  ]
+}

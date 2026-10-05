@@ -1,6 +1,10 @@
 import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
 import type { JsonObject } from "@opensesame/os-domain";
-import type { Folder } from "@opensesame/vault-core";
+import {
+  type Folder,
+  installItemType,
+  syncInstalledTypes,
+} from "@opensesame/vault-core";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
@@ -14,6 +18,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { VEHICLE_TYPE } from "./settings/vehicle-type.test-support.js";
 import { PURGE_CONFIRM } from "./vault/vault-menu.js";
 
 type TestItem = { id: string; name?: string; deletedAt?: string | null };
@@ -107,6 +112,7 @@ beforeEach(() => {
   revokeTutorials = registerOptionalTutorials();
 });
 afterEach(() => {
+  syncInstalledTypes({});
   revokeTutorials?.();
   revokeTutorials = null;
 });
@@ -217,9 +223,10 @@ describe("SettingsSection", () => {
   // Settings is files. A row in the Form opens the file it is drawn from in
   // the source view, and the source view lists the category's files.
   it("opens an item type's file from its row in the file viewer", async () => {
+    installItemType(VEHICLE_TYPE);
     renderSettings("/settings/vaults");
     await userEvent.click(
-      screen.getByRole("button", { name: "Open wifi.json" }),
+      screen.getByRole("button", { name: "Open vehicle.json" }),
     );
     // No representation switch: the file is addressed like a page.
     expect(screen.queryByRole("button", { name: "YAML" })).toBeNull();
@@ -228,7 +235,7 @@ describe("SettingsSection", () => {
     expect(files.textContent).toContain("marketplaces.json");
     expect(
       screen.getByRole("textbox", {
-        name: "settings/item-types/builtin/wifi.json",
+        name: "settings/item-types/installed/vehicle.json",
       }),
     ).toBeTruthy();
     // The directory's own tab is the road back to the form.

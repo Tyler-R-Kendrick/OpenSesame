@@ -10,6 +10,7 @@ import {
 } from "./builtin.js";
 import { FIELD_TYPES } from "./catalogue.js";
 import { BUILTIN_DEFINITION_JSON } from "./definitions.generated.js";
+import { importPackText, packEntries } from "./packs.js";
 import { ItemTypeRegistry } from "./registry.js";
 import { subtitleFor } from "./values.js";
 
@@ -62,7 +63,7 @@ describe("the built-in corpus", () => {
     }
   });
 
-  it("keeps the generated module in step with the JSON corpus", () => {
+  it("keeps the generated modules in step with the JSON corpus", async () => {
     // The JSON files are the corpus `crates/vault-item-types` embeds too, so
     // editing one without re-running `pnpm --filter @opensesame/vault-item-types
     // generate` would leave the two planes disagreeing (ADR 0087 §8).
@@ -86,9 +87,27 @@ describe("the built-in corpus", () => {
     const embedded = new Map<string, string>(
       Object.entries(BUILTIN_DEFINITION_JSON),
     );
-    expect([...embedded.keys()].sort()).toEqual([...onDisk.keys()].sort());
-    for (const [id, text] of onDisk) {
-      expect(embedded.get(id)).toBe(text);
+    const packIds = packEntries().map((entry) => entry.id);
+    // Core and packs partition the corpus: nothing twice, nothing lost.
+    expect([...embedded.keys(), ...packIds].sort()).toEqual(
+      [...onDisk.keys()].sort(),
+    );
+    expect(packIds.filter((id) => embedded.has(id))).toEqual([]);
+    for (const [id, text] of embedded) expect(text).toBe(onDisk.get(id));
+    for (const entry of packEntries()) {
+      const text = await importPackText(entry.id);
+      expect(text).toBe(onDisk.get(entry.id));
+      expect(entry.bytes).toBe(new TextEncoder().encode(text).byteLength);
+    }
+  });
+
+  it("regenerates byte for byte", async () => {
+    const script = new URL("../scripts/emit-definitions.mjs", import.meta.url);
+    const generator: { renderAll(): [string, string][] } = await import(
+      /* @vite-ignore */ script.href
+    );
+    for (const [path, contents] of generator.renderAll()) {
+      expect(readFileSync(path, "utf8")).toBe(contents);
     }
   });
 });
