@@ -80,7 +80,8 @@ function useDeniedRouteFallback(sections: readonly SectionRowModel[]) {
  * width. The prompt is also the home of the two session-level
  * directories the rail leaves out — settings and the activity log —
  * so a right-click (or the menu key) on it roots the tree in either
- * one, the way a shell's `cd` does.
+ * one, the way a shell's `cd` does. The rail stacks the account over the vault;
+ * the phone's top bar keeps them in one row (`.prompt__line` in glyph.css).
  */
 function SessionPrompt() {
   const store = useVaultStore();
@@ -103,24 +104,28 @@ function SessionPrompt() {
         ]);
       }}
     >
-      <AccountSwitcher />
-      <span className="prompt__dim" aria-hidden="true">
-        @
-      </span>
-      <ProjectSwitcher />
-      <span className="prompt__dim prompt__dim--path" aria-hidden="true">
-        :/
-      </span>
-      <button
-        ref={lockRef}
-        type="button"
-        className="icon-btn"
-        onClick={() => store.lock()}
-        aria-label="Lock vault"
-        title="Lock vault"
-      >
-        <IconLock size={17} />
-      </button>
+      <div className="prompt__line prompt__line--account">
+        <AccountSwitcher />
+        <span className="prompt__dim" aria-hidden="true">
+          @
+        </span>
+      </div>
+      <div className="prompt__line prompt__line--vault">
+        <ProjectSwitcher />
+        <span className="prompt__dim prompt__dim--path" aria-hidden="true">
+          :/
+        </span>
+        <button
+          ref={lockRef}
+          type="button"
+          className="icon-btn"
+          onClick={() => store.lock()}
+          aria-label="Lock vault"
+          title="Lock vault"
+        >
+          <IconLock size={17} />
+        </button>
+      </div>
     </div>
   );
 }

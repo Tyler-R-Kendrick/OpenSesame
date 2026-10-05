@@ -1,0 +1,90 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Security"
+        },
+        {
+          "count": [
+            "button[aria-label=\"SOPS document\"]",
+            "main section.panel"
+          ]
+        },
+        {
+          "report": "main section.panel h2"
+        },
+        {
+          "measure": ".rail .rail__prompt"
+        },
+        {
+          "measure": ".rail .prompt__line"
+        },
+        {
+          "measure": ".rail .prompt__glyph"
+        },
+        {
+          "measure": ".rail .prompt__seg"
+        },
+        {
+          "measure": ".rail [aria-label=\"Lock vault\"]"
+        },
+        {
+          "report": ".rail .rail__prompt"
+        },
+        {
+          "shot": "1280-security"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "measure": ".topbar .prompt__seg"
+        },
+        {
+          "measure": ".topbar .prompt__glyph"
+        },
+        {
+          "measure": ".topbar [aria-label=\"Lock vault\"]"
+        },
+        {
+          "shot": "390-prompt"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-security",
+      "width": 1280,
+      "title": "Settings › Security and the prompt — 1280 × 900",
+      "caption": "The SOPS row is gone from Security, and the account and the vault are two lines of the prompt with more room around each glyph.",
+      "before": "3 panels (Unlock methods, Second step, SOPS), 1 SOPS key; prompt one row 247×42, glyph 5.6px from its name",
+      "after": "2 panels, 0 SOPS keys; prompt two lines 247×81: account line 215×21 at y=42, vault line 215×32 at y=72; glyph-to-name gap 5.6px → 12px (91×21 segments), lock 32×32 beside the vault"
+    },
+    {
+      "shot": "390-prompt",
+      "width": 390,
+      "title": "The phone's top bar is unchanged — 390 × 844",
+      "caption": "On a phone the glyphs are still drawn alone, in one row.",
+      "before": "two 44×44 segments at x=62 and x=113; 28×24 glyphs; lock 44×44 at x=157",
+      "after": "identical: 44×44 segments at x=62 and x=113; 28×24 glyphs; lock 44×44 at x=157"
+    }
+  ]
+}
