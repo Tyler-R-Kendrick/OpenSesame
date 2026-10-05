@@ -6,6 +6,7 @@ import { contextMenuKeyboardContract } from "./lib/context-menu-keyboard-contrac
 import { liveKeyboardContract } from "./lib/live-keyboard-contract.mjs";
 import { localDirectoryContract } from "./lib/local-directory-contract.mjs";
 import { navigationTreeContract } from "./lib/navigation-tree-contract.mjs";
+import { settingsFileKeyboardContract } from "./lib/settings-file-keyboard-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
@@ -322,6 +323,14 @@ try {
     // Live sessions (ADR 0150): every swap between the form, the request code,
     // the joined view and the ended one leaves the keyboard on a control.
     await liveKeyboardContract({ harness, origin, base, width, tabTo });
+    // Settings' files: the stage draws the one focus cue a painted textarea has.
+    await settingsFileKeyboardContract({
+      harness,
+      browser,
+      origin,
+      base,
+      width,
+    });
   }
 } finally {
   await browser.close();

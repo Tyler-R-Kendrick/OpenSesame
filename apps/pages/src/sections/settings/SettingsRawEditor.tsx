@@ -31,7 +31,6 @@ import {
   mergePrefs,
   readDoc,
   tabSuggestion,
-  valueClass,
 } from "@opensesame/app-core/sections/settings/settings-raw-editor-model.js";
 import { overlapCast } from "@opensesame/os-domain";
 import {
@@ -47,6 +46,7 @@ import { IconCheck } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useSettingsEpoch } from "../../lib/use-settings.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
+import { PaintedText } from "./files/PaintedText.js";
 
 /** Everything the settings pages show, read live so the file follows them. */
 function useSettingsState(): SettingsState {
@@ -261,35 +261,29 @@ function FileInput({
   onSave: () => void;
 }) {
   return (
-    <div className="set-raw__stage">
-      <pre className="set-raw__paint" aria-hidden="true">
-        {paint(source)}
-      </pre>
-      <textarea
-        ref={tab.input}
-        className="set-raw__input"
-        aria-label={path}
-        aria-invalid={invalid ? true : undefined}
-        spellCheck={false}
-        value={source}
-        onFocus={() => {
-          tab.edited.current = false;
-        }}
-        onChange={(event) => {
-          tab.edited.current = true;
-          onEdit(event.target.value);
-          onCaret(event.target.selectionStart);
-        }}
-        onKeyUp={(event) => onCaret(event.currentTarget.selectionStart)}
-        onKeyDown={(event) => {
-          if ((event.metaKey || event.ctrlKey) && event.key === "s") {
-            event.preventDefault();
-            onSave();
-          }
-          if (event.key === "Tab") tab.onTab(event);
-        }}
-      />
-    </div>
+    <PaintedText
+      language="yaml"
+      path={path}
+      source={source}
+      invalid={invalid}
+      inputRef={tab.input}
+      onFocus={() => {
+        tab.edited.current = false;
+      }}
+      onChange={(text, caret) => {
+        tab.edited.current = true;
+        onEdit(text);
+        onCaret(caret);
+      }}
+      onKeyUp={onCaret}
+      onKeyDown={(event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key === "s") {
+          event.preventDefault();
+          onSave();
+        }
+        if (event.key === "Tab") tab.onTab(event);
+      }}
+    />
   );
 }
 
@@ -339,32 +333,5 @@ function WriteButton({
     >
       <IconCheck size={14} />
     </button>
-  );
-}
-
-function paint(source: string) {
-  return source.split("\n").map((line, index) => (
-    <span key={`${index}-${line}`}>
-      {paintLine(line)}
-      {"\n"}
-    </span>
-  ));
-}
-
-function paintLine(line: string) {
-  if (line.trimStart().startsWith("#"))
-    return <span className="set-raw__comment">{line}</span>;
-  const at = line.indexOf(":");
-  if (at < 0) return <span>{line}</span>;
-  const rest = line.slice(at + 1);
-  const hash = rest.search(/\s#/);
-  const value = hash < 0 ? rest : rest.slice(0, hash);
-  const comment = hash < 0 ? "" : rest.slice(hash);
-  return (
-    <>
-      <span className="set-raw__key">{line.slice(0, at)}</span>:
-      <span className={valueClass(value)}>{value}</span>
-      {comment ? <span className="set-raw__comment">{comment}</span> : null}
-    </>
   );
 }
