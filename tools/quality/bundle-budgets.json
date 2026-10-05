@@ -137,7 +137,12 @@
       "(item-merge.ts, merge.ts), and the master-password record the store",
       "writes on every password change (vault/master-wrap.ts). None of it",
       "can be loaded on demand: the store's one write path calls the stamp",
-      "synchronously. Four kibibytes over the measurement, as before."
+      "synchronously. Four kibibytes over the measurement, as before.",
+      "2026-10-05: largestAsset 805 -> 808 for both hardened profiles after",
+      "merging main at e53d2a2c (#729, customer encryption verified across",
+      "every transport), which grew main's own entry to 797.2 KiB. This",
+      "branch measures 803.7 on that merge, the same 6.5 KiB of sync write",
+      "path as above; four kibibytes over the measurement, as before."
     ],
     "builds": {
       "minimal-local-hardened": {
@@ -147,7 +152,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 805
+          "largestAsset": 808
         }
       },
       "family-local-hardened": {
@@ -157,7 +162,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 805
+          "largestAsset": 808
         }
       }
     }

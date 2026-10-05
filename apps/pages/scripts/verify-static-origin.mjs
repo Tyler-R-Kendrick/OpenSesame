@@ -1,16 +1,13 @@
 // Prove the built Pages bundle works as a static front end with NO backend,
 // under the real production origin (ADR 0090).
-//
 //   pnpm --filter @opensesame/pages build   (VITE_BASE=/OpenSesame/)
 //   node apps/pages/scripts/verify-static-origin.mjs
-//
 // Every request to the production origin is served from `dist/` (unknown
 // paths fall back to index.html with a 404 status, exactly as GitHub Pages
 // does); every other origin is refused — except a mocked shoo.dev for the
 // Google return leg. The run fails on any page error, any console error
 // other than the SPA-fallback 404, any request to a loopback address, any
 // missing asset, or any failed check below.
-//
 //   A. first screen: the front door — the two roads, the compiled broker +
 //      guest, no setup wall (ADR 0115)
 //   B. guest → inside the app → every section, and every tab within Access,
@@ -43,7 +40,7 @@ import { checkVaultPane } from "./lib/vault-pane-contract.mjs";
 import { checkWordmark } from "./lib/wordmark-contract.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const DIST = path.resolve(here, "..", "dist");
+const DIST = process.env.PAGES_VERIFY_DIST ?? path.resolve(here, "..", "dist");
 const ORIGIN = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const OUT = path.resolve(
@@ -70,6 +67,11 @@ const browser = await launch();
 {
   const { page, context } = await newPage(browser);
   await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
+  // Network idle does not include asynchronous local-store initialization.
+  // Wait for the front door to render before capturing its first-screen contract.
+  await page
+    .getByRole("button", { name: "Set up your own", exact: true })
+    .waitFor({ state: "visible", timeout: 15_000 });
   const text = await snap(page, "A-first-screen");
   await checkFrontDoor(page, check, text, BASE);
   await checkWordmark(page, check);

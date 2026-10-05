@@ -97,6 +97,7 @@
     "verify:key-protection": "node scripts/test/verify-key-protection.mjs",
     "verify:duress": "pnpm --filter @opensesame/pages verify:duress",
     "verify:duress:offline": "pnpm --filter @opensesame/pages verify:duress:offline",
+    "verify:customer-vault-browser": "node scripts/test/verify-customer-vault-browser.mjs",
     "verify:sops-browser": "node scripts/test/verify-sops-browser.mjs",
     "verify:sops-conformance": "node scripts/test/verify-sops-conformance.mjs",
     "verify:sops-cloud-live": "node scripts/test/verify-sops-cloud-live.mjs",

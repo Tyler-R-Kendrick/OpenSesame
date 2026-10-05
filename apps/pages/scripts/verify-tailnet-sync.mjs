@@ -50,27 +50,36 @@ import { chromium, expect } from "@playwright/test";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword, unlockWithPassword } from "./lib/pages-journey.mjs";
-import { toTheList } from "./lib/phone-vault.mjs";
+import { openVaultList, toTheList } from "./lib/phone-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import {
   attachmentCrosses,
   readSlot as readSlotWith,
 } from "./lib/tailnet-sync-file.mjs";
+import { syncSteps } from "./lib/tailnet-sync-steps.mjs";
 import { tailscaleServeDrive } from "./lib/tailscale-serve-drive.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
-const base = "/OpenSesame/";
+const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const port = Number(process.env.TAILNET_SYNC_PORT ?? 18791);
 const drive = `http://127.0.0.1:${port}`;
 const repo = fileURLToPath(new URL("../../..", import.meta.url));
-const binary = path.join(repo, "target/debug/opensesame");
+const binary =
+  process.env.OPENSESAME_BIN ??
+  path.join(
+    process.env.CARGO_TARGET_DIR ?? path.join(repo, "target"),
+    "debug/opensesame",
+  );
 const out =
   process.env.TAILNET_SYNC_OUT ??
   fs.mkdtempSync(path.join(os.tmpdir(), "tailnet-sync-"));
 const slots = fs.mkdtempSync(path.join(os.tmpdir(), "vault-drive-"));
 const operator = `verify-${crypto.randomUUID()}${crypto.randomUUID()}`;
+const { visit, networkingOn, saveItem, inStep } = syncSteps(base);
 const harness = createHarness({
-  dist: fileURLToPath(new URL("../dist", import.meta.url)),
+  dist:
+    process.env.PAGES_VERIFY_DIST ??
+    fileURLToPath(new URL("../dist", import.meta.url)),
   origin,
   base,
   out: path.join(out, ".log"),
@@ -164,43 +173,6 @@ async function device(browser, options, answer = "granted") {
   return { page, context, errors };
 }
 
-async function visit(page, route) {
-  await page.evaluate((href) => {
-    history.pushState(null, "", href);
-    dispatchEvent(new PopStateEvent("popstate"));
-  }, `${base}${route}`);
-  await page.waitForTimeout(1200);
-}
-
-async function networkingOn(page) {
-  await visit(page, "settings/capabilities");
-  await page.getByRole("switch", { name: "Networking", exact: true }).click();
-  await page
-    .getByTestId("capability-review")
-    .waitFor({ state: "detached", timeout: 20_000 });
-}
-
-async function saveItem(page, name) {
-  await visit(page, "vault");
-  await toTheList(page);
-  await page
-    .getByRole("link", { name: "New item", exact: true })
-    .first()
-    .click();
-  await page.getByLabel("Name", { exact: true }).fill(name);
-  const save = page.getByRole("button", { name: "Save item", exact: true });
-  await save.first().scrollIntoViewIfNeeded();
-  await save.first().click();
-  await page.waitForTimeout(900);
-}
-
-async function inStep(page) {
-  const mark = page.locator("#tailnet-sync .status-mark");
-  await expect(mark).toHaveAttribute("aria-label", /^In step at /, {
-    timeout: 20_000,
-  });
-}
-
 async function shot(page, name) {
   const file = path.join(out, `${name}.png`);
   await page.screenshot({ path: file });
@@ -257,8 +229,15 @@ try {
   await inStep(a.page);
   const stored = await readSlot(code);
   if (!(stored.generation >= 1)) throw new Error("TS-PAIR: drive is empty");
-  if (JSON.stringify(stored).includes("Bank of Example"))
-    throw new Error("TS-PAIR: the drive can read an item name");
+  const encoded = JSON.stringify(stored);
+  if (
+    [
+      "Bank of Example",
+      "sync-account@example.test",
+      "sync-account-secret",
+    ].some((value) => encoded.includes(value))
+  )
+    throw new Error("TS-PAIR: the drive can read account fields");
   console.log(`TS-PAIR ok (generation ${stored.generation})`);
   await shot(a.page, "1280-device-a-paired");
 
@@ -293,8 +272,10 @@ try {
   await unlockWithPassword(b.page);
   await visit(b.page, "vault");
   // A phone opens the vault on the section tree; the item is two panes in.
-  await toTheList(b.page);
-  await expect(b.page.getByText("Bank of Example").first()).toBeVisible({
+  await openVaultList(b.page);
+  await expect(
+    b.page.getByText("Bank of Example").filter({ visible: true }).first(),
+  ).toBeVisible({
     timeout: 20_000,
   });
   console.log("TS-ADOPT ok");
@@ -309,7 +290,9 @@ try {
   await a.page.getByRole("button", { name: "Sync now" }).click();
   await inStep(a.page);
   await visit(a.page, "vault");
-  await expect(a.page.getByText("Saved on the phone").first()).toBeVisible({
+  await expect(
+    a.page.getByText("Saved on the phone").filter({ visible: true }).first(),
+  ).toBeVisible({
     timeout: 20_000,
   });
   console.log("TS-BACK ok");

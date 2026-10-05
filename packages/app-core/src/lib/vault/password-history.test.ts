@@ -102,7 +102,7 @@ describe("retired password digests", () => {
       "sealed",
     ]);
     expect(JSON.stringify(rows)).not.toContain(SECRET);
-    expect(String(rows[0]?.sealed)).toMatch(/^osr1\./);
+    expect(String(rows[0]?.sealed)).toMatch(/^osr2\./);
 
     resetPasswordHistoryForTest();
     expect(await passwordPreviouslyUsed(SCOPE, SECRET)).toBe(true);

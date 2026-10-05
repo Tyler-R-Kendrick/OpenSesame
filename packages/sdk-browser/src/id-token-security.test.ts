@@ -3,6 +3,7 @@ import { SignJWT } from "jose";
 import { describe, expect, it, vi } from "vitest";
 import { createOpenSesame } from "./client.js";
 import { createTestSigningKey } from "./test/jwt-fixtures.js";
+import { fixtureValue } from "./test/storage-fixture.js";
 const signingKeys = createTestSigningKey("ES256");
 class MemStorage {
   readonly #m = new Map<string, string>();
@@ -10,7 +11,7 @@ class MemStorage {
     return this.#m.get(k) ?? null;
   }
   setItem(k: string, v: string) {
-    this.#m.set(k, v);
+    this.#m.set(k, fixtureValue(k, v, ISSUER, "opensesame-browser"));
   }
   removeItem(k: string) {
     this.#m.delete(k);
