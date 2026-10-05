@@ -11,7 +11,7 @@ import type { DraftAccount, DraftItem } from "../types.js";
 import { fidoCxf } from "./cxf.js";
 
 /**
- * An account holds several login methods (ADR 0166), and CXF expresses them as
+ * An account holds several login methods (ADR 0168), and CXF expresses them as
  * several credentials under one item. These read documents written elsewhere
  * where every credential is present, absent or repeated.
  */

@@ -1,5 +1,5 @@
 /**
- * An account's login methods as CXF credentials (ADR 0166).
+ * An account's login methods as CXF credentials (ADR 0168).
  *
  * - `password` -> `basic-auth`. One per password method, each carrying the
  *   username so a reader that takes the first one still learns it.

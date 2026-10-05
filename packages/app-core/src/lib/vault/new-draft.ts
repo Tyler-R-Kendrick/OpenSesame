@@ -87,7 +87,7 @@ export function isGeneratedDraftName(name: string, typeId: string): boolean {
 /** Only new user/agent creation calls this. Imports and edits retain their values. */
 export function newItemDraft(rawTypeId: string, name?: string): VaultItem {
   // `login` is the retired name of `account`; a link that still carries it
-  // opens an account draft (ADR 0166 §1).
+  // opens an account draft (ADR 0168 §1).
   const typeId = resolveTypeId(rawTypeId);
   const definition = itemTypeRegistry().get(typeId);
   if (!definition) throw new Error("Unknown vault item type");

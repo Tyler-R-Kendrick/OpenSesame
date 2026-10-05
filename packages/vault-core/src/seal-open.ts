@@ -4,7 +4,7 @@
  * (`seal-rebind.ts`). Pure: the key and the blob are all it needs.
  *
  * Also home to `normalizeVaultBody`, the one place an opened body is brought
- * up to the current item model (ADR 0166 §1): every reader of a body — the
+ * up to the current item model (ADR 0168 §1): every reader of a body — the
  * store, a sync snapshot, a backup, an export — passes what it opened through
  * it, so no `login` item outlives the read.
  */
@@ -56,7 +56,7 @@ function wholeLegacyLogin(legacy: LegacyLoginItem): LegacyLoginItem {
 }
 
 /**
- * Every legacy login in `items` becomes an account (ADR 0166 §1). Idempotent,
+ * Every legacy login in `items` becomes an account (ADR 0168 §1). Idempotent,
  * and the method ids derive from the item id, so two devices that normalize
  * the same login produce the same account.
  */
@@ -68,7 +68,7 @@ export function normalizeItems(
   );
 }
 
-/** True when `body` still holds an item from before ADR 0166. */
+/** True when `body` still holds an item from before ADR 0168. */
 export function hasLegacyItems(body: Pick<VaultBody, "items">): boolean {
   // An export is whatever its author wrote: a body with no list has none.
   return Array.isArray(body.items) && body.items.some(isLegacyLogin);

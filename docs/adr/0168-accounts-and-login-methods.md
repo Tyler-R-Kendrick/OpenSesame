@@ -1,4 +1,4 @@
-# ADR 0166 — Accounts own login methods; a password is one of them
+# ADR 0168 — Accounts own login methods; a password is one of them
 
 - **Status:** Accepted — implementing
 - **Date:** 2026-10-05

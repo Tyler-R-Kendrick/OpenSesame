@@ -170,7 +170,7 @@ pub fn open(
             .map(|definition| definition.spec.extension.clone())
     };
     let mut opened = summarize(file, &body, &extension_of);
-    // A vault written before ADR 0166 holds `login` items; the TS reader lists
+    // A vault written before ADR 0168 holds `login` items; the TS reader lists
     // them as accounts, and the CLI says what `opensesame-id vault` says.
     for item in &mut opened.items {
         item.kind = resolve_type_id(&item.kind).to_owned();

@@ -27,7 +27,7 @@ corpus itself, embedded from
 | `native.ts` | `toNativeEntry`, `renderNativeEntry`, `fromNativeEntry` — the projection onto a native secret and trailer |
 | `values.ts` | `emptyValues`, `displayText`, `subtitleFor`, `searchTextFor`, `missingRequired`, `pruneValues` |
 | `builtin.ts` | `builtinRegistry`, `builtinDefinitions`, `BUILTIN_TYPE_IDS`, `LEGACY_TYPE_IDS` |
-| `legacy-aliases.ts` | `LEGACY_TYPE_ALIASES` / `LEGACY_EXTENSION_ALIASES` (`login` → `account`, `.login` → `.account`, ADR 0166), `resolveTypeId`, `resolveExtension`; the registry resolves them in `get`/`has`/`sourceOf`/`isBuiltin` and refuses an install that takes either. Same table as `crates/vault-item-types/src/legacy.rs`, read back from `spec/conformance/item-type-cases.json` |
+| `legacy-aliases.ts` | `LEGACY_TYPE_ALIASES` / `LEGACY_EXTENSION_ALIASES` (`login` → `account`, `.login` → `.account`, ADR 0168), `resolveTypeId`, `resolveExtension`; the registry resolves them in `get`/`has`/`sourceOf`/`isBuiltin` and refuses an install that takes either. Same table as `crates/vault-item-types/src/legacy.rs`, read back from `spec/conformance/item-type-cases.json` |
 | `definitions.generated.ts` | `BUILTIN_DEFINITION_JSON` — generated, do not edit |
 
 ## Develop

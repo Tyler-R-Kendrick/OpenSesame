@@ -1,6 +1,6 @@
 /**
  * The `rules` generator: random characters under length, classes, avoid
- * ambiguous, and Bitwarden-style minimum digits and symbols (ADR 0166 §3).
+ * ambiguous, and Bitwarden-style minimum digits and symbols (ADR 0168 §3).
  * Randomness is `crypto.getRandomValues` with rejection sampling, as in
  * `password.ts`.
  */

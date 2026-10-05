@@ -26,7 +26,7 @@ export type AccountSecrets = {
 
 /**
  * What the account editor holds beside the draft: the plaintext of passwords it
- * is about to seal, and the one pepper prompt (ADR 0166 §4). Closing the prompt
+ * is about to seal, and the one pepper prompt (ADR 0168 §4). Closing the prompt
  * at Save hands focus to Save while Save is still disabled for the save in
  * flight; it is taken back once the save has settled.
  */

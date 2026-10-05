@@ -6427,19 +6427,19 @@
     "excluded": {
       "cli": {
         "reason": "a pepper (or Sphinx master input) is typed by the person at each use and never stored; an agent surface must not carry, accept, log or ask for one",
-        "adr": "0166-accounts-and-login-methods.md"
+        "adr": "0168-accounts-and-login-methods.md"
       },
       "mcp_host": {
         "reason": "a pepper (or Sphinx master input) is typed by the person at each use and never stored; an agent surface must not carry, accept, log or ask for one",
-        "adr": "0166-accounts-and-login-methods.md"
+        "adr": "0168-accounts-and-login-methods.md"
       },
       "mcp_client": {
         "reason": "a pepper (or Sphinx master input) is typed by the person at each use and never stored; an agent surface must not carry, accept, log or ask for one",
-        "adr": "0166-accounts-and-login-methods.md"
+        "adr": "0168-accounts-and-login-methods.md"
       },
       "webmcp": {
         "reason": "a pepper (or Sphinx master input) is typed by the person at each use and never stored; an agent surface must not carry, accept, log or ask for one",
-        "adr": "0166-accounts-and-login-methods.md"
+        "adr": "0168-accounts-and-login-methods.md"
       }
     }
   },

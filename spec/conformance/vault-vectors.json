@@ -280,5 +280,5 @@
   ],
   "concealedBodiesAbout": "Which plaintext body shapes list config/device-identity-key (ADR 0160 §5a); null is absent. Read by vault-core and crates/human-vault.",
   "accountPepper": "vector pepper not a credential",
-  "accountPepperAbout": "The pepper that opens the sealed password of each `peppered account` item in the *-accounts vectors (ADR 0166 section 4). Synthetic; the pepper is never stored in a vault."
+  "accountPepperAbout": "The pepper that opens the sealed password of each `peppered account` item in the *-accounts vectors (ADR 0168 section 4). Synthetic; the pepper is never stored in a vault."
 }

@@ -131,7 +131,7 @@ export const daemonMatch = z.object({
 
 /**
  * `needsPepper` is set when the entry's password is peppered or Sphinx-derived
- * (ADR 0166): the daemon cannot ask the person, and a page has no way to, so the
+ * (ADR 0168): the daemon cannot ask the person, and a page has no way to, so the
  * client refuses with `needs_pepper` and never reads `value`.
  */
 export const daemonValue = z.object({

@@ -1,5 +1,5 @@
 /**
- * Legacy `login` items are accounts everywhere a body is read (ADR 0166 §1):
+ * Legacy `login` items are accounts everywhere a body is read (ADR 0168 §1):
  * a vault file, a merge, a re-save. Nothing writes `login` again, and a
  * peppered or Sphinx method crosses all of it untouched.
  */
@@ -52,7 +52,7 @@ function legacy(id: string, updatedAt = T0): LegacyLoginItem {
   };
 }
 
-/** A body as a pre-ADR-0166 writer left it: `login` items inside. */
+/** A body as a pre-ADR-0168 writer left it: `login` items inside. */
 function legacyBody(...logins: LegacyLoginItem[]): VaultBody {
   return Object.assign(emptyBody(), { items: logins, rev: 1 });
 }

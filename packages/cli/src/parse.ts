@@ -185,7 +185,7 @@ export function parseArgs(argv: string[]): ParsedCommand {
   throw new Error(`Unknown command: ${cmd}`);
 }
 
-/** `login` is the pre-ADR 0166 name of `account`; it is still accepted as input. */
+/** `login` is the pre-ADR 0168 name of `account`; it is still accepted as input. */
 const ITEM_KINDS = new Set(["account", "login", "secret", "note", "card"]);
 
 function leftover(args: readonly string[], verb: string): void {

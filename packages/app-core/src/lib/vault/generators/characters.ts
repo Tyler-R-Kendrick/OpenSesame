@@ -1,5 +1,5 @@
 /**
- * The one character-password builder (ADR 0166). It is parameterised by where
+ * The one character-password builder (ADR 0168). It is parameterised by where
  * its uniform draws come from: `rules` draws them from `crypto.getRandomValues`,
  * `sphinx` from a stream expanded out of the OPRF output. The pools are the
  * ones every target shares (`spec/conformance/password-policy.json`, via

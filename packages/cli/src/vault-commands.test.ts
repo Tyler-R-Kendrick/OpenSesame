@@ -73,7 +73,7 @@ async function vectorFile(name: string): Promise<string> {
 
 /**
  * The TypeScript readers normalize a legacy `login` to an `account` on open
- * (ADR 0166 §1); the golden vectors keep their `login` bytes untouched, so the
+ * (ADR 0168 §1); the golden vectors keep their `login` bytes untouched, so the
  * listing names the account kind for them.
  */
 const normalizedKind = <T extends { kind: string }>(item: T): T => ({
@@ -83,7 +83,7 @@ const normalizedKind = <T extends { kind: string }>(item: T): T => ({
 
 /**
  * Closed vocabulary an account body names its methods and generators with
- * (ADR 0166 §2-3). These are field *kinds*, not values: "sphinx" is also a word
+ * (ADR 0168 §2-3). These are field *kinds*, not values: "sphinx" is also a word
  * in an item's own name, which the listing may show. Every secret an account
  * holds (a method's secret, sealed envelope, OPRF key, token, client secret)
  * stays in the scan.

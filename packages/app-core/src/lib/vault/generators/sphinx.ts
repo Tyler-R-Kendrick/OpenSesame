@@ -1,5 +1,5 @@
 /**
- * The `sphinx` generator (ADR 0166 §5): a password recomputed at every use from
+ * The `sphinx` generator (ADR 0168 §5): a password recomputed at every use from
  * a master input the person types and an OPRF key that stays in the vault.
  *
  * The protocol is RFC 9497 (`ristretto255-SHA512`, base OPRF mode) as

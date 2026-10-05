@@ -29,7 +29,7 @@ function generatorId(value: string): PasswordGeneratorId | undefined {
 
 /**
  * One password method: its generator, that generator's options, the password
- * (typed, generated, or computed on use) and *Include pepper* (ADR 0166 §6).
+ * (typed, generated, or computed on use) and *Include pepper* (ADR 0168 §6).
  * Nothing is drawn for a precondition that is unmet: Sphinx has no password
  * field and no pepper flag; a sealed password has no eye until it is new.
  */

@@ -1,5 +1,5 @@
 /**
- * A password sealed under a pepper (ADR 0166). The pepper is something the
+ * A password sealed under a pepper (ADR 0168). The pepper is something the
  * person types each time a password is used; it is never stored, so the sealed
  * body alone cannot produce the password.
  *

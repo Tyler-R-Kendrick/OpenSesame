@@ -60,7 +60,7 @@ export function persistenceProvided(): boolean {
 /**
  * Where a password's history lives. A password method's history is its own;
  * the first method of an account keeps the item's scope (`<tomb>\0<item>`), so
- * a login migrated to an account (ADR 0166) keeps the digests it already had.
+ * a login migrated to an account (ADR 0168) keeps the digests it already had.
  */
 function methodScope(tomb: string, itemId: string, methodId: string): string {
   const item = `${tomb}\u0000${itemId}`;
@@ -69,7 +69,7 @@ function methodScope(tomb: string, itemId: string, methodId: string): string {
 
 /**
  * The passwords an item holds in the clear, by history scope. A peppered or
- * Sphinx password has none: it records no plaintext history at all (ADR 0166
+ * Sphinx password has none: it records no plaintext history at all (ADR 0168
  * §4), so its digest is neither checked nor stored.
  */
 function heldSecrets(

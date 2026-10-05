@@ -1,5 +1,5 @@
 /**
- * Names that were renamed and still resolve (ADR 0166 §1).
+ * Names that were renamed and still resolve (ADR 0168 §1).
  *
  * The `login` item type became `account`. Links (`/vault/new/login`, `?f=login`)
  * and paths (`name.login`) that were already handed out keep working: the

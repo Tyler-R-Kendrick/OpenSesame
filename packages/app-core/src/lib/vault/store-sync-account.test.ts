@@ -1,5 +1,5 @@
 /**
- * An account crosses the sealed-store bridge whole (ADR 0166): every method,
+ * An account crosses the sealed-store bridge whole (ADR 0168): every method,
  * the pepper seal and the Sphinx key untouched, a login written before the
  * account read as the same account every time, and a hostile manifest unable
  * to put anything on an item but a whole method.

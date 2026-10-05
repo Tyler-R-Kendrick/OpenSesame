@@ -36,7 +36,7 @@ function stringLeaves(value: JsonValue): string[] {
 describe("openVaultFile over the golden vectors", () => {
   it.each(vectors)("%s opens to its recorded summary", async (_n, v) => {
     const opened = await openVaultFile(v.file, fixture.password);
-    // A vault written before ADR 0166 holds `login` items; they open as accounts.
+    // A vault written before ADR 0168 holds `login` items; they open as accounts.
     expect(
       opened.items.map(({ id, name, kind }) => ({ id, name, kind })),
     ).toEqual(

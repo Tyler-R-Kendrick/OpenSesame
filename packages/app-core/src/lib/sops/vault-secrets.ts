@@ -25,7 +25,7 @@ import type { EncryptionPlan, ExecutionPermit } from "./plan.js";
 import type { SopsRunner } from "./runner.js";
 
 /**
- * `login` is read, never written: a document exported before ADR 0166 still
+ * `login` is read, never written: a document exported before ADR 0168 still
  * opens, and its logins become accounts (`normalizeLegacyItems`).
  */
 type DocKind = string;
@@ -77,7 +77,7 @@ type PepperFiltered = { items: VaultItem[]; omitted: number };
 /**
  * A document cannot ask for a pepper, so a password that needs one (sealed
  * under it, or a Sphinx key) is left out whole: never its sealed form, never
- * an OPRF key (ADR 0166 §4). The rest of the account goes as it is.
+ * an OPRF key (ADR 0168 §4). The rest of the account goes as it is.
  */
 function withoutPepperedPasswords(items: readonly VaultItem[]): PepperFiltered {
   let omitted = 0;
@@ -99,7 +99,7 @@ function readItem(node: SopsNode): VaultItem {
   assertVaultItem(parsed);
   // SAFETY: assertVaultItem checked the vault item contract before this cast.
   const item: VaultItem = overlapCast(parsed);
-  // A legacy login in an older document becomes an account (ADR 0166 §1).
+  // A legacy login in an older document becomes an account (ADR 0168 §1).
   const [normalized] = normalizeLegacyItems([item]);
   return normalized ?? item;
 }

@@ -1,5 +1,5 @@
 /**
- * The account item (ADR 0166). An account is a username or id at one or more
+ * The account item (ADR 0168). An account is a username or id at one or more
  * sites, plus the login methods that open it. A password is one method among
  * several; it is never the item.
  *
@@ -169,7 +169,7 @@ export type AccountItem = BaseItem & {
 };
 
 /**
- * The shape a vault carried before ADR 0166. It is read, never written: a body
+ * The shape a vault carried before ADR 0168. It is read, never written: a body
  * is normalized to accounts on open (`normalizeLegacyItems`).
  */
 export type LegacyLoginItem = Omit<BaseItem, "kind"> & {

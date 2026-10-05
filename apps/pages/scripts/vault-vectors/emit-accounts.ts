@@ -1,5 +1,5 @@
 /**
- * Golden vectors that hold `account` items (ADR 0166 §1, ADR 0133 §7).
+ * Golden vectors that hold `account` items (ADR 0168 §1, ADR 0133 §7).
  *
  * The first five vectors hold legacy `login` items and stay byte for byte as
  * emitted: a vault Pages has not opened since the account change still reads.
@@ -273,6 +273,6 @@ export async function emitAccountVectors(): Promise<AccountVectors> {
     },
     accountPepper: VECTOR_PEPPER,
     accountPepperAbout:
-      "The pepper that opens the sealed password of each `peppered account` item in the *-accounts vectors (ADR 0166 section 4). Synthetic; the pepper is never stored in a vault.",
+      "The pepper that opens the sealed password of each `peppered account` item in the *-accounts vectors (ADR 0168 section 4). Synthetic; the pepper is never stored in a vault.",
   };
 }

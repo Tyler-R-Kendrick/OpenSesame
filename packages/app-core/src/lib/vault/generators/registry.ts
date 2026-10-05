@@ -1,5 +1,5 @@
 /**
- * The generator registry (ADR 0166 §3): one module per id behind one
+ * The generator registry (ADR 0168 §3): one module per id behind one
  * descriptor row, so a later generator adds a module and a row, not a branch.
  */
 

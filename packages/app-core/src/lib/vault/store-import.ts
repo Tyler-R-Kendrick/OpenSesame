@@ -123,7 +123,7 @@ export async function importSealedInto(
     parsed.body,
     vaultSealBinding(tomb, BODY_PATH),
   );
-  // An export from before ADR 0166 carries `login` items; they land as accounts.
+  // An export from before ADR 0168 carries `login` items; they land as accounts.
   const incoming = normalizeVaultBody(opened.value);
   if (!port.open()) throw new Error("Unlock this vault before importing.");
 

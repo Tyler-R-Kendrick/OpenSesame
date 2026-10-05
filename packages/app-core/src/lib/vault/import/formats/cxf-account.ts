@@ -109,7 +109,7 @@ function applyKeys(item: DraftAccount, keys: BoundaryObject[]): void {
 }
 
 /**
- * An account's login methods (ADR 0166). The first `basic-auth` and the first
+ * An account's login methods (ADR 0168). The first `basic-auth` and the first
  * `totp` fill the draft's own password and seed; every further credential, and
  * every `api-key`, becomes a method beside them.
  */

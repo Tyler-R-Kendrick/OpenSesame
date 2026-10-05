@@ -77,7 +77,7 @@ export async function openSnapshotBody(
       "that snapshot's revision does not match its body",
     );
   }
-  // Another device may not have opened its vault since ADR 0166.
+  // Another device may not have opened its vault since ADR 0168.
   return normalizeVaultBody(body);
 }
 

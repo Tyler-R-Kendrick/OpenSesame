@@ -45,7 +45,7 @@ export async function suggestItemMetadata(args: JsonObject) {
 async function suggestOnDevice(typeId: string, website: string | undefined) {
   const [assist] = contributionsSnapshot("item-draft-assist");
   if (!assist) throw new Error("on_device_model_not_enabled");
-  // The retired `login` name suggests for an account (ADR 0166).
+  // The retired `login` name suggests for an account (ADR 0168).
   return assist.suggest(
     { typeId: resolveTypeId(typeId), website },
     AbortSignal.timeout(30_000),
