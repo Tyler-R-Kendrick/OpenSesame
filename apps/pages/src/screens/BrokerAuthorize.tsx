@@ -36,6 +36,7 @@ import { FailureNotice } from "../components/FailureNotice.js";
 import { FormCommit } from "../components/FormCommit.js";
 import { IconKey } from "../components/IconKey.js";
 import { IconX } from "../components/Icons.js";
+import { StatusMark } from "../components/StatusMark.js";
 
 type Phase =
   | { kind: "invalid"; error: string; detail: string; state?: string }
@@ -219,6 +220,16 @@ export function BrokerAuthorize() {
       <main ref={mainRef} className="broker__main">
         {phase.kind === "loading" ? (
           <p className="broker__status">Checking request…</p>
+        ) : null}
+
+        {/* The failure is a mark on the card that stands for the request; its
+            sentence is the mark's label and a notice in the tray. */}
+        {failure ? (
+          <div className="broker__card">
+            <h2>
+              {failure.title} <StatusMark tone="err" label={failure.message} />
+            </h2>
+          </div>
         ) : null}
 
         {phase.kind === "busy" ? (
