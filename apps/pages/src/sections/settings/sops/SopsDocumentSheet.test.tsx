@@ -95,11 +95,10 @@ describe("SB-035/076 the SOPS document sheet runs the real engine in the browser
     fireEvent.click(screen.getByRole("button", { name: "Open" }));
 
     const editor = await screen.findByLabelText("Decrypted document");
-    // SAFETY: the sheet renders the decrypted document in a <textarea>, so
-    // the element this label resolves to has a `value`.
-    expect((editor as HTMLTextAreaElement).value).toBe(
-      "hello: world\ncount: 2\n",
-    );
+    if (!(editor instanceof HTMLTextAreaElement)) {
+      throw new Error("the decrypted document is not a textarea");
+    }
+    expect(editor.value).toBe("hello: world\ncount: 2\n");
 
     fireEvent.change(editor, {
       target: { value: "hello: edited\ncount: 3\n" },

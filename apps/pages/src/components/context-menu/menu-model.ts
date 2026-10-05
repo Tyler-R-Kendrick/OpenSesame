@@ -36,6 +36,16 @@ export type MenuGroup = readonly MenuItem[];
 /** A viewport point a menu opens at. */
 export type MenuPoint = { x: number; y: number };
 
+/**
+ * What opens a menu: a pointer event, or a point an opener names for itself
+ * (a tapped key's corner) with the event it stands in for.
+ */
+export type MenuOpening = {
+  clientX: number;
+  clientY: number;
+  preventDefault: () => void;
+};
+
 /** Where a measured menu is drawn, kept inside the viewport. */
 export type MenuPlacement = { left: number; top: number };
 
@@ -84,7 +94,7 @@ export function openedByKeyboard(now = Date.now()): boolean {
  * the pointer.
  */
 export function openContextMenu(
-  event: { clientX: number; clientY: number; preventDefault: () => void },
+  event: MenuOpening,
   anchor: Element | null,
   label: string,
   groups: readonly MenuGroup[],

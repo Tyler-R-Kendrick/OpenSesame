@@ -22,7 +22,7 @@ const bar = (says: string): KeymapTutorial => ({
 });
 const item = (goal: string, says: string): KeymapTutorial => ({ goal, says });
 
-export const KEYMAP_TUTORIALS: Readonly<Record<string, KeymapTutorial>> = {
+export const KEYMAP_TUTORIALS = {
   "section.vault": { goal: "shell.sections", says: "Press g then v" },
   "section.settings": { goal: "shell.sections", says: "opened with g then s" },
   "listing.next": move("j or the down arrow moves to the next row"),
@@ -74,4 +74,4 @@ export const KEYMAP_TUTORIALS: Readonly<Record<string, KeymapTutorial>> = {
     "Press q and then a letter, a through z, to start recording",
   ),
   "register.replay": macro("@ and the letter replays it"),
-};
+} satisfies Readonly<Record<string, KeymapTutorial>>;

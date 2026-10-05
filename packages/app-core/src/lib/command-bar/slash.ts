@@ -45,7 +45,7 @@ const VERBS: readonly SlashSuggestion[] = [
 ];
 
 /** A short name a verb answers to, typed after the slash: `/?` for search. */
-const ALIASES: Readonly<Record<string, string>> = { search: "/?" };
+const ALIASES: ReadonlyMap<string, string> = new Map([["search", "/?"]]);
 
 const LEAD_VERBS = new Set(["help", "search", "open", "copy-password"]);
 
@@ -155,7 +155,7 @@ function destination(section: SlashSection): SlashSuggestion {
 function matchesCommand(row: SlashSuggestion, lower: string): boolean {
   const insert = row.insert.trim().toLowerCase();
   const label = row.label.toLowerCase();
-  const alias = ALIASES[row.id];
+  const alias = ALIASES.get(row.id);
   return (
     insert.startsWith(lower) ||
     alias?.startsWith(lower) ||

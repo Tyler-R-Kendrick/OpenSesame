@@ -1,3 +1,4 @@
+import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import {
   type ReactNode,
   createContext,
@@ -11,7 +12,10 @@ import type { VaultPane } from "./vault-list-path.js";
 
 type Entry = { key: string; pane: VaultPane };
 
-const DEPTH: Record<VaultPane, number> = { tree: 0, list: 1, detail: 2 };
+const DEPTH = { tree: 0, list: 1, detail: 2 } as const satisfies Record<
+  VaultPane,
+  number
+>;
 
 /** Goes up to a pane: back to its entry in the history, or onto `fallback`. */
 export type Ascend = (pane: VaultPane, fallback: string) => void;
@@ -91,8 +95,8 @@ export function usePaneTrail(pane: VaultPane): Ascend {
       if (DEPTH[showing.current] <= DEPTH[to]) return;
       // `history.state.key` is the router's own current entry (a browser
       // router writes it; a memory router has no such state to compare).
-      const current: unknown = window.history.state?.key;
-      if (typeof current === "string" && current !== drawn.current) return;
+      const current: BoundaryValue = window.history.state?.key;
+      if (isString(current) && current !== drawn.current) return;
       for (let i = at.current - 1; i >= 0; i--) {
         if (trail.current[i]?.pane === to) {
           navigate(i - at.current);
