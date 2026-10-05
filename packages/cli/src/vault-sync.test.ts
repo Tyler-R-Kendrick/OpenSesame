@@ -33,7 +33,7 @@ type MemoryDrive = {
 function memoryDrive(): MemoryDrive {
   const drive: MemoryDrive = {
     generation: 0,
-    snapshot: null as DriveSnapshot | null,
+    snapshot: null,
     transport: {
       read: async () => {
         return {
