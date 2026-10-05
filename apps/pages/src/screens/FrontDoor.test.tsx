@@ -18,6 +18,7 @@ import {
   defaultSignInMethods,
   settingsSeams,
 } from "@opensesame/app-core/lib/settings.js";
+import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registry/targets.js";
 import { isFunction } from "@opensesame/os-domain";
 
 /**
@@ -202,5 +203,33 @@ describe("the front door", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.queryByText(/No way in/)).toBeNull();
     expect(screen.queryByText(/Deployment setup/)).toBeNull();
+  });
+
+  it("keeps a seat for the help key beside the theme key, in the card's corner (ADR 0166)", () => {
+    renderDoor();
+    const corner = document.querySelector(".door__theme");
+    expect(corner).not.toBeNull();
+    // The seat is empty here (no support capability in this suite) and takes
+    // no room; with the capability the key is portalled into it.
+    expect(corner?.querySelector(".gate-seat")).not.toBeNull();
+    expect(
+      screen.getAllByRole("button", {
+        name: "Skip sign-in and continue as guest",
+      }),
+    ).toHaveLength(1);
+  });
+
+  it("is the guest Skip a tutorial can point at, and the road stays one press away", () => {
+    renderDoor();
+    const skip = screen.getByRole("button", {
+      name: "Skip sign-in and continue as guest",
+    });
+    expect(resolveGuideTargetElement("unlock.guest")).toBe(skip);
+    expect(resolveGuideTargetElement("unlock.setup")).toBe(
+      screen.getByRole("button", { name: "Set up your own" }),
+    );
+    expect(resolveGuideTargetElement("setup.join")).toBe(
+      screen.getByRole("button", { name: "Join a session" }),
+    );
   });
 });

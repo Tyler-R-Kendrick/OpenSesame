@@ -16,6 +16,24 @@
   margin: 0 auto 1.5rem;
 }
 
+/* The corner row: the brand on the left, the help key's seat on the right
+   (ADR 0166). The seat is a flex item, so the key can never rest on the card. */
+.broker__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 0 0 0.5rem;
+}
+
+.broker__bar .gate-seat {
+  margin-left: auto;
+}
+
+.broker__bar .broker__brand {
+  margin: 0;
+}
+
 .broker__brand {
   margin: 0 0 0.5rem;
   font-size: 0.8125rem;

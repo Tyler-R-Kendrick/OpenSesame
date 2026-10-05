@@ -16,6 +16,7 @@ import {
   IconLayers,
   IconSettings,
 } from "../../components/Icons.js";
+import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import "../door.css";
 
 export type ConfigurationChoice = "minimal" | "default" | "full" | "custom";
@@ -62,6 +63,7 @@ export function SetupConfiguration({
   onChoose: (id: ConfigurationChoice) => void;
 }) {
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const targetRef = useGuideTarget<HTMLFieldSetElement>("setup.configurations");
   const move = (event: KeyboardEvent, at: number) => {
     const step =
       event.key === "ArrowRight" ? 1 : event.key === "ArrowLeft" ? -1 : 0;
@@ -79,7 +81,11 @@ export function SetupConfiguration({
     refs.current[next]?.focus();
   };
   return (
-    <fieldset className="capset__roads" aria-label="Setup configuration">
+    <fieldset
+      ref={targetRef}
+      className="capset__roads"
+      aria-label="Setup configuration"
+    >
       {CHOICES.map((choice, at) => (
         <button
           key={choice.id}
