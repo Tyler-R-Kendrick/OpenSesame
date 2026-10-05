@@ -18,6 +18,7 @@ keys. Sharing a root key or copying a vault header is sharing key custody.
 | Identity OIDC authorization codes, refresh tokens and grants | Fresh data key per payload | Account and client scope; model and token digest are authenticated. Bearer identifiers and secondary lookup fields use keyed digests. |
 | Identity TOTP, MFA and provisional-session security state | Fresh data key per internal record | Owner context where available, plus namespace and indexed record identity. Credential lookup keys are keyed digests; single-use consumption stays atomic across replicas. |
 | Identity BYO upstream registry | Fresh data key per client secret | Deployment scope and upstream record. This registry has no customer ownership field. |
+| Client CLI human-authentication cache | Random-DEK envelopes with issuer/client-bound HKDF wrapping keys | Owner-only local root file (`0600`); legacy plaintext migrates on load. Issuer matching prevents reuse or refresh against another issuer. No OS-keyring integration. |
 
 Vault item definitions do not select an encryption algorithm. Passwords, API
 tokens, authenticator seeds, private keys, notes, custom item fields and file
@@ -53,6 +54,13 @@ They are not customer vault records. Their existing secret-file or runtime
 custody remains the operator's responsibility; assigning one to a customer
 requires moving it into an owned secret record rather than copying its value
 into deployment configuration.
+
+The Client CLI's `identity-session.json` is separate from its encrypted vault
+records. Its access and refresh tokens use a random data key wrapped by an issuer/client-bound
+key derived from `identity-session.key`. Both files are owner-only (`0600`).
+A process or backup with access to both files can recover the tokens; the local
+root is not held in an OS keyring. Customer vault initialization does not change
+this local authentication cache's root custody.
 
 ## Upgrade and recovery
 
