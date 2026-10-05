@@ -5,6 +5,7 @@ import type { Repositories } from "./repos/interfaces.js";
 import { MemoryRepositories } from "./repos/memory.js";
 import { PostgresRepositories } from "./repos/postgres.js";
 import { withSealedEvents } from "./repos/sealed-events.js";
+import { withSealedSecrets } from "./repos/sealed-secrets.js";
 import * as schema from "./schema/index.js";
 
 export function createSqlClient(databaseUrl: string) {
@@ -38,7 +39,10 @@ export function createRepositories(options?: {
       );
     }
     return withSealedEvents(
-      new PostgresRepositories(db),
+      withSealedSecrets(
+        new PostgresRepositories(db),
+        createEventSealer(secret),
+      ),
       createEventSealer(secret),
     );
   }

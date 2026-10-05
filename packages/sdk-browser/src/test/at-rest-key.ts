@@ -6,7 +6,8 @@
  */
 import { openFromRest, useClientAtRestKeys } from "@opensesame/browser-at-rest";
 
-const key = crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
+import { FIXTURE_ROOT } from "./storage-fixture.js";
+const key = crypto.subtle.importKey("raw", FIXTURE_ROOT, "AES-GCM", false, [
   "encrypt",
   "decrypt",
 ]);
@@ -16,7 +17,12 @@ useClientAtRestKeys(() => key);
 export async function opened(
   storage: { getItem(key: string): string | null },
   key: string,
+  scope = JSON.stringify([
+    "sdk-browser",
+    "http://127.0.0.1:8788",
+    "opensesame-browser",
+  ]),
 ): Promise<string | null> {
   const raw = storage.getItem(key);
-  return raw === null ? null : openFromRest("sdk-browser", key, raw);
+  return raw === null ? null : openFromRest(scope, key, raw);
 }

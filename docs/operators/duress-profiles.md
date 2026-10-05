@@ -9,8 +9,10 @@ Evidence: `docs/evidence/2026-09-21-duress/`.
 ## Turning it on in Pages
 
 **Settings › Security › Duress** (ADR 0155). There is no switch to find first:
-the row is there for the owner of an open vault, and it is not drawn in a guest
-session — which is what a decoy is.
+the row is there for the owner of an open vault, and it is not drawn in a decoy.
+A guest who has not made a key yet sees a Duress and a Travel section marked
+"After a key"; **Add** there opens the key sheet, and once a key exists the real
+rows appear.
 
 1. Press **Add**. Choose what the code does (the six modes below).
 2. Type a code of 8 to 12 digits twice. It may not be a PIN that opens a vault on

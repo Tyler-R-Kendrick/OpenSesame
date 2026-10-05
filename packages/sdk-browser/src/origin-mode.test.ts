@@ -5,6 +5,7 @@ import { BrowserOriginError } from "./origin.js";
 import { createPkcePair } from "./pkce.js";
 import { opened } from "./test/at-rest-key.js";
 import { createTestSigningKey, mintTestIdToken } from "./test/jwt-fixtures.js";
+import { fixtureValue } from "./test/storage-fixture.js";
 import type { Session } from "./types.js";
 
 class MemStorage {
@@ -13,7 +14,7 @@ class MemStorage {
     return this.#m.get(k) ?? null;
   }
   setItem(k: string, v: string) {
-    this.#m.set(k, v);
+    this.#m.set(k, fixtureValue(k, v, ISSUER, "origin:http://127.0.0.1:5174"));
   }
   removeItem(k: string) {
     this.#m.delete(k);
@@ -188,7 +189,13 @@ describe("zero-config origin mode", () => {
     expect(session.sub).toBe("pairwise-origin");
     expect(session.refreshToken).toBe("rt-must-not-persist");
     const stored: Session = overlapCast(
-      JSON.parse((await opened(storage, "opensesame:session")) ?? "{}"),
+      JSON.parse(
+        (await opened(
+          storage,
+          "opensesame:session",
+          JSON.stringify(["sdk-browser", ISSUER, ORIGIN_CLIENT]),
+        )) ?? "{}",
+      ),
     );
     expect(stored.refreshToken).toBeUndefined();
     expect(stored.raw?.refresh_token).toBeUndefined();

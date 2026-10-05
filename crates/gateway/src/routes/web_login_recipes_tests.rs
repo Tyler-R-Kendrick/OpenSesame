@@ -127,8 +127,8 @@ pub(super) fn recipe_uri() -> String {
 }
 
 pub(super) async fn audit_payloads(st: &AppState, event: &str) -> Vec<String> {
-    let stored: Vec<String> = sqlx::query_scalar(
-        "SELECT payload_json FROM outbox_events WHERE event_type = ? ORDER BY created_at",
+    let stored: Vec<(String, String, String)> = sqlx::query_as(
+        "SELECT id, organization_id, payload_json FROM outbox_events WHERE event_type = ? ORDER BY created_at",
     )
     .bind(event)
     .fetch_all(st.db.pool())
@@ -137,7 +137,10 @@ pub(super) async fn audit_payloads(st: &AppState, event: &str) -> Vec<String> {
     // Sealed at rest once the process-wide sealer is installed (ADR 0157).
     stored
         .iter()
-        .map(|payload| opensesame_event_seal::open("outbox_events.payload_json", payload).unwrap())
+        .map(|(id, organization, payload)| {
+            opensesame_event_seal::open_in(organization, "outbox_events.payload_json", id, payload)
+                .unwrap()
+        })
         .collect()
 }
 

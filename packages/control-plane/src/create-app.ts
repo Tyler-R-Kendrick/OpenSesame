@@ -42,6 +42,7 @@ import {
 import { createLogger } from "@opensesame/observability";
 import type { Clock } from "@opensesame/os-domain";
 import { ProvisionalPolicy } from "@opensesame/policy";
+import { withAccountSecretCodec } from "./account-secret-codec.js";
 import { createHonoApp } from "./app.js";
 import { withChainedAudit } from "./chained-audit.js";
 import type { AppContext } from "./context.js";
@@ -157,7 +158,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   // in-memory adapter every restart silently invalidates live sessions and a
   // consumed authorization code stops being remembered as consumed.
   const oidcStore = drizzleBundle
-    ? createPostgresOidcStore(drizzleBundle.db)
+    ? createPostgresOidcStore(drizzleBundle.db, eventSealer)
     : undefined;
   const pairwiseStore = drizzleBundle
     ? createPostgresPairwiseStore(drizzleBundle.db)
@@ -202,7 +203,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const organizationStores =
     options.organizationStores ??
     (drizzleBundle
-      ? createPostgresOrganizationStores(drizzleBundle.db)
+      ? createPostgresOrganizationStores(drizzleBundle.db, eventSealer)
       : undefined);
   const scimStores =
     options.scimStores ??
@@ -210,7 +211,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
   const orgFederationStores =
     options.orgFederationStores ??
     (drizzleBundle
-      ? createPostgresOrgFederationStores(drizzleBundle.db)
+      ? createPostgresOrgFederationStores(drizzleBundle.db, eventSealer)
       : undefined);
   const samlStores =
     options.samlStores ??
@@ -247,7 +248,12 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     clientStore,
     systemOwnerPrincipalId: SYSTEM_OWNER_PRINCIPAL_ID,
     ...(drizzleBundle
-      ? { replayCache: createDurableJwtReplayCache(drizzleBundle.db) }
+      ? {
+          replayCache: createDurableJwtReplayCache(
+            drizzleBundle.db,
+            eventSealer,
+          ),
+        }
       : undefined),
     clients: [agentAuthOAuthClient(config.issuer)],
     // Its own error, device and logout pages, in the hosted pages' skin.
@@ -272,7 +278,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       : undefined),
   });
   const mappings = drizzleBundle
-    ? new DurablePrincipalMappingStore(drizzleBundle.db)
+    ? new DurablePrincipalMappingStore(drizzleBundle.db, eventSealer)
     : new MemoryPrincipalMappingStore();
   const policy = new ProvisionalPolicy();
   const stores = createAppStores({
@@ -296,24 +302,31 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       stores,
       drizzleBundle.db,
       config.provisionalTtlMs,
+      eventSealer,
     );
-  const passkeyComponents = createPasskeys(config, drizzleBundle?.db);
+  const passkeyComponents = createPasskeys(
+    config,
+    eventSealer,
+    drizzleBundle?.db,
+  );
 
-  const betterAuthDatabase =
+  const betterAuthDatabase = withAccountSecretCodec(
     options.betterAuthDatabase ??
-    (drizzleBundle
-      ? {
-          drizzle: drizzleBundle.db,
-          schema: {
-            // Keyed by Better Auth's own model names; the SQL tables they
-            // resolve to are the `better_auth_*` ones.
-            user: betterAuthUsers,
-            session: betterAuthSessions,
-            account: betterAuthAccounts,
-            verification: betterAuthVerifications,
-          },
-        }
-      : undefined);
+      (drizzleBundle
+        ? {
+            drizzle: drizzleBundle.db,
+            schema: {
+              // Keyed by Better Auth's own model names; the SQL tables they
+              // resolve to are the `better_auth_*` ones.
+              user: betterAuthUsers,
+              session: betterAuthSessions,
+              account: betterAuthAccounts,
+              verification: betterAuthVerifications,
+            },
+          }
+        : undefined),
+    eventSealer,
+  );
 
   const ctx: AppContext = {
     hostAuthorizationAudiences: hostAudiences,
@@ -358,6 +371,7 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
     ctx,
     resolveWalletNativeMounts({
       config,
+      sealer: eventSealer,
       processEnv,
       clock,
       ...(drizzleBundle ? { database: drizzleBundle.db } : undefined),

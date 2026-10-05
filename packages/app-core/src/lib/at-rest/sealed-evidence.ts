@@ -50,7 +50,7 @@ async function listHoldsSeals(
     }
     const file = await root.getFileHandle(name).then((h) => h.getFile());
     const head = await file.slice(0, AT_REST_PREFIX.length).text();
-    if (head === AT_REST_PREFIX) return true;
+    if (/^osr[0-9]/u.test(head)) return true;
   }
   return false;
 }

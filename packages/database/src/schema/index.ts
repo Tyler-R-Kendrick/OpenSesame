@@ -143,7 +143,6 @@ export const betterAuthUsers = pgTable("better_auth_users", {
   image: text("image"),
   ...timestamps,
 });
-
 export const betterAuthSessions = pgTable(
   "better_auth_sessions",
   {
@@ -153,6 +152,7 @@ export const betterAuthSessions = pgTable(
       mode: "date",
     }).notNull(),
     token: text("token").notNull(),
+    sealedToken: text("sealed_token"),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
     userId: text("user_id")
@@ -1466,13 +1466,13 @@ export const schema = {
  * The provider's own models — sessions, authorization codes, refresh tokens,
  * device flows, grants — held where they survive a restart. Running the issuer on
  * the in-memory adapter means every deploy silently invalidates live sessions and
- * consumed codes stop being remembered as consumed.
  */
 export const oidcPayloads = pgTable(
   "oidc_payloads",
   {
     model: text("model").notNull(),
     id: text("id").notNull(),
+    sealScope: text("seal_scope"),
     payload: jsonb("payload").$type<JsonObject>().notNull(),
     /** Null for models the provider stores without a TTL. */
     expiresAt: timestamp("expires_at", { withTimezone: true, mode: "date" }),

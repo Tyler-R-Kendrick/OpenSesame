@@ -3,6 +3,7 @@
  * against the issuer that minted it.
  */
 import {
+  access,
   chmod,
   mkdir,
   readFile,
@@ -13,12 +14,19 @@ import {
 } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import { loadAtRestKeyFile } from "@opensesame/app-core/node/at-rest-key-file.js";
+import {
+  openLocalEnvelope,
+  sealLocalEnvelope,
+} from "@opensesame/app-core/node/local-envelope.js";
 import {
   type BoundaryValue,
+  isJsonObject,
   isNumber,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { z } from "zod";
 import { errorLine } from "./output.js";
 import { type SessionFile, SessionFileSchema } from "./parse.js";
 
@@ -61,6 +69,29 @@ async function assertPrivateFile(path: string): Promise<void> {
   }
 }
 
+const EnvelopeSchema = z.object({
+  version: z.literal(1),
+  issuer: z.string(),
+  clientId: z.string(),
+  sealed: z.string(),
+});
+function binding(issuer: string, clientId: string): string {
+  return JSON.stringify(["cli_identity_session", trimSlash(issuer), clientId]);
+}
+async function sessionRoot(path: string, create = true): Promise<Uint8Array> {
+  const keyPath = join(dirname(path), "identity-session.key");
+  let exists = false;
+  try {
+    await access(keyPath);
+    exists = true;
+  } catch {
+    /* New installation. */
+  }
+  if (!exists && !create) throw new Error("Session envelope root is missing");
+  if (exists) await assertPrivateFile(keyPath);
+  return loadAtRestKeyFile(keyPath);
+}
+
 export async function loadSession(): Promise<SessionFile | null> {
   const path = sessionPath();
   try {
@@ -72,7 +103,35 @@ export async function loadSession(): Promise<SessionFile | null> {
   }
   try {
     const raw = await readFile(path, "utf8");
-    return SessionFileSchema.parse(JSON.parse(raw));
+    const parsed = overlapCast(JSON.parse(raw));
+    const envelope = EnvelopeSchema.safeParse(parsed);
+    if (!envelope.success) {
+      if (isJsonObject(parsed) && ("version" in parsed || "sealed" in parsed))
+        return null;
+      const legacy = SessionFileSchema.parse(parsed);
+      await saveSession(legacy);
+      return legacy;
+    }
+    const outer = envelope.data;
+    const root = await sessionRoot(path, false);
+    let plaintext: string | null;
+    try {
+      plaintext = openLocalEnvelope(
+        root,
+        binding(outer.issuer, outer.clientId),
+        outer.sealed,
+      );
+    } finally {
+      root.fill(0);
+    }
+    if (plaintext === null) return null;
+    const session = SessionFileSchema.parse(JSON.parse(plaintext));
+    if (
+      binding(session.issuer, session.clientId) !==
+      binding(outer.issuer, outer.clientId)
+    )
+      return null;
+    return session;
   } catch {
     return null;
   }
@@ -155,7 +214,24 @@ export async function saveSession(session: SessionFile): Promise<void> {
   // behind at 0644 by an earlier version would keep those bits forever.
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   const temp = `${path}.${process.pid}.tmp`;
-  await writeFile(temp, JSON.stringify(session), { mode: 0o600 });
+  const root = await sessionRoot(path);
+  let sealed: string;
+  try {
+    sealed = sealLocalEnvelope(
+      root,
+      binding(session.issuer, session.clientId),
+      JSON.stringify(session),
+    );
+  } finally {
+    root.fill(0);
+  }
+  const envelope = {
+    version: 1,
+    issuer: session.issuer,
+    clientId: session.clientId,
+    sealed,
+  };
+  await writeFile(temp, JSON.stringify(envelope), { mode: 0o600 });
   await chmod(temp, 0o600);
   await rename(temp, path);
 }

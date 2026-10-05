@@ -1,4 +1,4 @@
-import type { BoundaryValue } from "@opensesame/os-domain";
+import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { type VaultItem, createItem } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import { MAX_SLOT_PAYLOAD_BYTES } from "../../crypto/slot-profile.js";
@@ -199,8 +199,7 @@ describe("visible items body reader", () => {
       // A mutation that happens to leave a valid body would hide a gap.
       expect(readVisibleItemsBody(mutated)).toBeNull();
     }
-    const notObjects: BoundaryValue[] = [null, undefined, "items", 42, []];
-    for (const body of notObjects) {
+    for (const body of [null, undefined, "items", 42, []]) {
       expect(readVisibleItemsBody(body)).toBeNull();
     }
   });
@@ -231,12 +230,11 @@ describe("visible items body reader", () => {
         ),
       ),
     ).toBeNull();
-    class Dressed {}
-    expect(
-      readVisibleItemsBody(
-        Object.assign(Object.create(Dressed.prototype), { v: 1, items: [] }),
-      ),
-    ).toBeNull();
+    class Dressed {
+      v = 1;
+      items = [];
+    }
+    expect(readVisibleItemsBody(overlapCast(new Dressed()))).toBeNull();
     expect(
       readVisibleItemsBody(Object.create({ v: 1, items: good() })),
     ).toBeNull();

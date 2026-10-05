@@ -50,6 +50,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-05-travel-hidden-items/`](2026-10-05-travel-hidden-items/README.md) | Leave items at home — before and after |
 | [`2026-10-05-tailnet-devices/`](2026-10-05-tailnet-devices/README.md) | Identity › Devices manages the real tailnet (ADR 0169) |
 | [`2026-10-05-sops-gone-prompt-lines/`](2026-10-05-sops-gone-prompt-lines/README.md) | SOPS row removed from Security; the prompt's two identities on two lines |
+| [`2026-10-05-security-rows-for-guests/`](2026-10-05-security-rows-for-guests/README.md) | Security › Duress and Travel for a guest with no key yet |
 | [`2026-10-05-nats-live-route/`](2026-10-05-nats-live-route/README.md) | A NATS server as a live session's route — Settings › Live sessions › Routes |
 | [`2026-10-05-glyph-desktop-prompt/`](2026-10-05-glyph-desktop-prompt/README.md) | The glyph beside the name on desktop (ADR 0164) |
 | [`2026-10-05-gate-help-launcher/`](2026-10-05-gate-help-launcher/README.md) | A help key on the gates — before / after |
@@ -59,6 +60,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-05-duress-mode-freeze/`](2026-10-05-duress-mode-freeze/README.md) | Duress mode: Freeze for a while — visual evidence |
 | [`2026-10-05-duress-mode-decoy-items/`](2026-10-05-duress-mode-decoy-items/README.md) | Decoy with everyday items — visual evidence |
 | [`2026-10-05-decoy-reads-like-unlock/`](2026-10-05-decoy-reads-like-unlock/README.md) | A duress-code unlock reads like an ordinary unlock — visual evidence |
+| [`2026-10-05-customer-envelope/`](2026-10-05-customer-envelope/README.md) | Customer envelope encryption validation, 2026-10-05 |
 | [`2026-10-05-confirm-sheets/`](2026-10-05-confirm-sheets/README.md) | Confirmation sheets: the shape the design contract asks for, enforced |
 | [`2026-10-05-accounts/`](2026-10-05-accounts/README.md) | An account owns its login methods; a password is one of them |
 | [`2026-10-04-tutorial-mode/`](2026-10-04-tutorial-mode/README.md) | Tutorial mode — before / after |
