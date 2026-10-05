@@ -19,6 +19,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkCopy } from "./design-lint-copy.mjs";
+import { checkCorners } from "./design-lint-corners.mjs";
 import { checkCommitKeys, checkFieldWidths } from "./design-lint-layout.mjs";
 import { checkSheets } from "./design-lint-sheets.mjs";
 import { wordVerbHits } from "./design-lint-verbs.mjs";
@@ -180,6 +181,7 @@ function checkTsx(file, source) {
   checkCommitKeys(file, source, report, lineOf);
   checkSheets(file, source, report, lineOf);
   checkWordVerbs(file, source);
+  checkCorners(path, source, report, lineOf, file);
 }
 
 const BUTTON_BASELINE = join(
@@ -268,6 +270,8 @@ function entranceKeyframes() {
 
 function checkCss(file, source) {
   checkDropdowns(file, source);
+  const path = relative(root, file).replaceAll("\\", "/");
+  checkCorners(path, blankComments(source), report, lineOf, file);
   // Comments blanked to the same number of lines, so a reported line
   // number still points at the rule.
   checkFieldWidths(file, blankComments(source), report, lineOf);

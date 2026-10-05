@@ -220,8 +220,8 @@ export type VaultCommandContribution = Readonly<{
   Command: ComponentType;
   /**
    * The same flow as a way to add, for a phone: mounted beside the corner Add
-   * button, it registers a menu entry (the long-press and ellipsis menu on that
-   * button) and draws its own sheet, and draws nothing else.
+   * button, it registers an entry (chosen by holding that button and sliding up
+   * or down) and draws its own sheet, and draws nothing else.
    */
   Entry?: ComponentType;
 }>;

@@ -216,13 +216,16 @@ phone's actions are redrawn for a thumb:
   items ▾`, one choice the width of the rest and 48px tall
   (`VaultFilterMenu`), in the accent colour while it narrows the vault.
 - **Adding is one button, in the bottom corner** (`NewItemFab`): the `+`, a
-  56px target, is the default and one tap; attached to it is a vertical
-  ellipsis (44px wide), and **a long press on the `+` is the same ask as the
-  ellipsis** — the platform's context-menu road. Both open one menu, `Add
-  actions`, of the alternatives to a new item: Import and Export, and whatever
-  a capability adds. It is the app's own context menu, so on a phone it is an
-  action sheet at the bottom edge; the hold does not follow the `+` link. The
-  button is drawn in the vault's box, which never scrolls (its rows do), so it
+  56px sharp square, is the default and one tap. It has no ellipsis and opens
+  no sheet. **Holding it draws a drag area** (`AddSlide`): a square zone above
+  the button and one below, each named beside it — slide up to Import, slide
+  down to Export — and the zone under the finger is inked. Letting go on a
+  zone runs it; letting go anywhere else, or a cancelled touch, chooses
+  nothing, and the lift that ends a hold never follows the `+` link. A
+  keyboard, a mouse or a screen reader, which cannot slide, still gets `Add
+  actions`, the app's own context menu of the same entries; a held finger never
+  opens it. The drag area is drawn on the body in fixed coordinates, because
+  the vault's box clips. The button is drawn in the vault's box, which never scrolls (its rows do), so it
   is always under the thumb, above the pane's status line and clear of the
   prompt; the last row pads past it. The item's screen and the trash draw
   none. Rows pass beneath it as they scroll, as in any phone app.
@@ -383,8 +386,8 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   two-finger swipes, the two-finger tap and the shake in force — and what
   the vault's first pane asks of a thumb is drawn for one: search is the
   status-line prompt (`/? words`), the one text input on the screen, and adding
-  is one button in the bottom corner — a `+` with an attached ellipsis whose
-  menu carries Import and Export — not the desktop's row of small keys. A row never lists a
+  is one button in the bottom corner — a `+`, with Import and Export a hold and
+  a slide away — not the desktop's row of small keys. A row never lists a
   gesture with no recogniser behind it. Gestures are twins, never the only
   road, and a command that asks before it acts (trash, share) is still never a
   gesture of its own — it is an entry in the actions a hold or swipe opens.
@@ -472,8 +475,15 @@ flat with hairline separators.
 ## Shapes
 
 All-sharp, one documented scale: 2px on every control, chip, badge, and menu
-(just enough to keep focus rings clean). Pills survive only where the
-mechanic is genuinely round — switch tracks and meter segments. The mark is
+(just enough to keep focus rings clean). **There are no round corners:** no
+pill, no circle, no percentage and no radius past 2px, on a button, a field, a
+chip, a panel or a menu. A button that stands alone (the phone's Add) is a
+square with sharp edges, not a disc. This is a design violation, not a taste:
+`pnpm lint:design` (`no-round-corners`) resolves every `border-radius` to
+pixels and fails any past 2px, or any it cannot prove sharp. Corners that were
+round before the rule are pinned per file in
+`tools/quality/design-radius-baseline.json`, which only falls; a file that
+loses one must lower its record, and a new file starts at none. The mark is
 bare in the chrome; only the OS app icon keeps a tile and its platform
 mask.
 

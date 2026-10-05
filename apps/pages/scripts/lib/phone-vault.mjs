@@ -2,6 +2,8 @@
 // on, the list a tree entry opens, and the item a list row opens — each with a
 // key back to the one before it (DESIGN.md § Layout).
 
+import { addSlide, fabIsPinned } from "./phone-add-button.mjs";
+
 /**
  * Open the list of everything from the tree. A no-op where the list is already
  * showing, so a walk can call it whichever pane it finds itself on.
@@ -67,7 +69,7 @@ export async function backOutStops(page, stop, { harness, audit }) {
 /**
  * The phone's vault actions, measured. The tree is the sections and nothing
  * else: no strip of keys, no tool rows. Add is one button in the bottom corner
- * — the `+`, one tap, with a vertical ellipsis attached — and the ellipsis and
+ * — the `+`, one tap, and a hold that slides to Import or Export — and the ellipsis and
  * a real long press on the `+` open the same menu of the alternatives (Import,
  * Export), without navigating. The list's header is back and the view it
  * shows, named, as one choice the width of the rest. Search is the status-line
@@ -85,7 +87,7 @@ export async function treeActions(page, stop, { harness, audit }) {
     `${stop("tree-actions")}: the tree carries no strip of keys and no tool rows`,
   );
   await fabIsPinned(page, stop("tree-actions"), harness);
-  await addMenu(page, stop("tree-actions"), harness, { stop, audit });
+  await addSlide(page, stop("tree-actions"), harness, { stop, audit });
   await audit(page, stop("tree-actions"));
 
   await page
@@ -200,116 +202,6 @@ export async function backKeysPop(page, stop, { harness }) {
     backToTree === tree,
     `${label}: Back to sections returns to the tree's entry (${backToTree}, expected ${tree})`,
   );
-}
-
-/** The Add button: `+` 56px and an attached ellipsis, bottom right, above the prompt. */
-async function fabIsPinned(page, label, harness) {
-  const fab = await page.evaluate(() => {
-    const node = document.querySelector(".fab");
-    const add = node?.querySelector(".fab__add");
-    const more = node?.querySelector(".fab__more");
-    if (!node || !add || !more) return null;
-    const box = node.getBoundingClientRect();
-    const plus = add.getBoundingClientRect();
-    const dots = more.getBoundingClientRect();
-    const strip = document
-      .querySelector(".statusline")
-      ?.getBoundingClientRect();
-    return {
-      plus: `${Math.round(plus.width)}x${Math.round(plus.height)}`,
-      plusOk: plus.width >= 56 && plus.height >= 56,
-      dots: `${Math.round(dots.width)}x${Math.round(dots.height)}`,
-      dotsOk: dots.width >= 44 && dots.height >= 44,
-      attached: Math.abs(dots.left - plus.right) <= 1,
-      right: Math.round(window.innerWidth - box.right),
-      clearOfStrip: strip ? box.bottom <= strip.top + 1 : false,
-      inRightHalf: box.left > window.innerWidth / 2,
-      lowerHalf: box.top > window.innerHeight / 2,
-      label: add.getAttribute("aria-label"),
-      more: more.getAttribute("aria-label"),
-    };
-  });
-  harness.check(
-    fab !== null &&
-      fab.label === "New item" &&
-      fab.more === "More ways to add" &&
-      fab.plusOk &&
-      fab.dotsOk &&
-      fab.attached &&
-      fab.inRightHalf &&
-      fab.lowerHalf &&
-      fab.right >= 8 &&
-      fab.right <= 24 &&
-      fab.clearOfStrip,
-    `${label}: Add is a + (56px) with an attached ellipsis (44px+), bottom right, above the prompt (${JSON.stringify(fab)})`,
-  );
-}
-
-/** The menu behind the Add button: by the ellipsis, by a real long press, and what it starts. */
-async function addMenu(page, label, harness, { stop, audit }) {
-  const entries = () =>
-    page.locator('[role="menuitem"]').evaluateAll((nodes) =>
-      nodes.map((node) => ({
-        name: node.textContent?.trim(),
-        height: Math.round(node.getBoundingClientRect().height),
-      })),
-    );
-  const where = () => page.evaluate(() => location.pathname);
-  const before = await where();
-  await page.locator(".fab__more").tap();
-  await page.waitForTimeout(400);
-  const byEllipsis = await entries();
-  harness.check(
-    byEllipsis.map((e) => e.name).join("|") === "Import items|Export items" &&
-      byEllipsis.every((e) => e.height >= 44),
-    `${label}: the ellipsis lists Import and Export at 44px+ (${JSON.stringify(byEllipsis)})`,
-  );
-  await audit(page, stop("add-menu"));
-  const [chooser] = await Promise.all([
-    page.waitForEvent("filechooser", { timeout: 4000 }).catch(() => null),
-    page.getByRole("menuitem", { name: "Import items" }).tap(),
-  ]);
-  harness.check(
-    chooser !== null,
-    `${label}: Import starts the OS file picker from the menu tap`,
-  );
-  await page.waitForTimeout(300);
-  // A real hold, as raw touch events: the app's own recognizer must see it,
-  // and the lift that ends it must not follow the \`+\` link.
-  const box = await page.locator(".fab__add").boundingBox();
-  const cdp = await page.context().newCDPSession(page);
-  const at = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-  await cdp.send("Input.dispatchTouchEvent", {
-    type: "touchStart",
-    touchPoints: [at],
-  });
-  await page.waitForTimeout(900);
-  await cdp.send("Input.dispatchTouchEvent", {
-    type: "touchEnd",
-    touchPoints: [],
-  });
-  await page.waitForTimeout(500);
-  const byHold = await entries();
-  harness.check(
-    byHold.map((e) => e.name).join("|") === "Import items|Export items" &&
-      (await where()) === before,
-    `${label}: a long press on the + opens the same menu and does not navigate (${JSON.stringify(byHold)})`,
-  );
-  await page.keyboard.press("Escape");
-  await page.waitForTimeout(300);
-  harness.check(
-    (await page.locator('[role="menu"]').count()) === 0,
-    `${label}: Escape closes the Add menu`,
-  );
-  // The default is still one tap: the + goes to the editor.
-  await page.locator(".fab__add").tap();
-  await page.waitForTimeout(600);
-  harness.check(
-    (await where()).endsWith("/vault/new"),
-    `${label}: a tap on the + opens the editor (${await where()})`,
-  );
-  await page.goBack();
-  await page.waitForTimeout(500);
 }
 
 /**

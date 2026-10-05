@@ -1,0 +1,98 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault?f=all" },
+        { "corners": ".fab, .fab__add, .fab__more" },
+        { "shot": "390-add-at-rest" },
+        { "hold": { "link": "New item", "ms": 700 } },
+        { "measure": ".add-slide__zone" },
+        { "corners": ".add-slide__zone, .add-slide__label" },
+        { "shot": "390-add-held" },
+        { "slide": -70 },
+        { "shot": "390-add-slid-up" },
+        { "slide": 70 },
+        { "shot": "390-add-slid-down" },
+        { "release": null }
+      ]
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "steps": [
+        { "guest": null },
+        { "visit": "vault?f=all" },
+        { "corners": ".fab, .fab__add, .fab__more" },
+        { "shot": "320-add-at-rest" },
+        { "hold": { "link": "New item", "ms": 700 } },
+        { "measure": ".add-slide__zone" },
+        { "shot": "320-add-held" },
+        { "slide": 70 },
+        { "shot": "320-add-slid-down" },
+        { "release": null }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-add-at-rest",
+      "width": 390,
+      "title": "The Add button at rest — 390 × 844",
+      "caption": "One sharp square with a plus. The ellipsis beside it is gone.",
+      "before": "pill 56 + 44px ellipsis, radius 28px, two targets",
+      "after": "56 × 56 square, radius 0, one target"
+    },
+    {
+      "shot": "390-add-held",
+      "width": 390,
+      "title": "Holding the Add button — 390 × 844",
+      "caption": "A hold used to raise the menu as a sheet from the bottom edge. It now draws the drag area around the button: Import above, Export below, each named beside its square.",
+      "before": "Add actions sheet rising from the bottom edge",
+      "after": "drag area: two 44px sharp zones, labelled, on screen"
+    },
+    {
+      "shot": "390-add-slid-up",
+      "width": 390,
+      "title": "Sliding up — 390 × 844",
+      "caption": "The zone under the finger is inked. Letting go on it starts the file picker.",
+      "before": "the sheet is still a sheet",
+      "after": "Import inked"
+    },
+    {
+      "shot": "390-add-slid-down",
+      "width": 390,
+      "title": "Sliding down — 390 × 844",
+      "caption": "Letting go on Export opens the export sheet; letting go anywhere else chooses nothing.",
+      "before": "the sheet is still a sheet",
+      "after": "Export inked, lower zone inside the viewport"
+    },
+    {
+      "shot": "320-add-at-rest",
+      "width": 320,
+      "title": "The Add button at rest — 320 × 568",
+      "caption": "The same at the narrowest phone.",
+      "before": "pill with ellipsis",
+      "after": "56 × 56 sharp square"
+    },
+    {
+      "shot": "320-add-held",
+      "width": 320,
+      "title": "Holding the Add button — 320 × 568",
+      "caption": "The drag area at the narrowest phone.",
+      "before": "Add actions sheet",
+      "after": "drag area on screen"
+    },
+    {
+      "shot": "320-add-slid-down",
+      "width": 320,
+      "title": "Sliding down — 320 × 568",
+      "caption": "The lower zone clears the viewport at the shortest phone.",
+      "before": "the sheet is still a sheet",
+      "after": "Export inked, inside the viewport"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+/* The drag area of a held Add button (`AddSlide`): two sharp squares in the
+   button's own column, one above it and one below, each named by a label
+   beside it. The finger's zone is inked. Fixed to the viewport, so no pane's
+   clip can cut the lower one, and never a target itself. */
+.add-slide {
+  position: fixed;
+  z-index: 55;
+  pointer-events: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.add-slide__zone {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--add-slide-cell);
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.add-slide__zone--up {
+  top: 0;
+}
+
+.add-slide__zone--down {
+  bottom: 0;
+}
+
+.add-slide__label {
+  position: absolute;
+  right: 100%;
+  top: -1px;
+  bottom: -1px;
+  display: flex;
+  align-items: center;
+  margin-right: 0.5rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: inherit;
+  color: inherit;
+  box-shadow: var(--shadow);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.add-slide__zone[data-active="true"] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--canvas);
+}
+
+.add-slide__zone[data-active="true"] .add-slide__label {
+  border-color: var(--ink);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .add-slide {
+    animation: add-slide-in 120ms var(--ease) backwards;
+  }
+  .add-slide__zone,
+  .add-slide__zone .add-slide__label {
+    transition: background 100ms var(--ease), color 100ms var(--ease);
+  }
+}
+
+@keyframes add-slide-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

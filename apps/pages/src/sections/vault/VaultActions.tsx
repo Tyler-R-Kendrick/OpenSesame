@@ -10,7 +10,7 @@ import { ExportKey } from "./ExportKey.js";
  *
  * A desktop's list carries the cluster in its command row. A phone does not
  * draw it: Add is `NewItemFab` — the `+` for a new item, with Import and
- * Export behind its ellipsis and its long press.
+ * Export chosen by holding it and sliding up or down.
  */
 export function VaultActions({
   createPath,

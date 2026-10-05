@@ -7,7 +7,10 @@
  * `disappear` without anybody polling the DOM.
  */
 
-import { mountGuideTarget } from "@opensesame/app-core/tutorial/registry/targets.js";
+import {
+  type MountOptions,
+  mountGuideTarget,
+} from "@opensesame/app-core/tutorial/registry/targets.js";
 import type { GuideTargetId } from "@opensesame/guide-lang";
 import { type ReactNode, useCallback, useRef } from "react";
 
@@ -27,8 +30,9 @@ import { type ReactNode, useCallback, useRef } from "react";
  */
 export function useGuideTarget<E extends HTMLElement = HTMLElement>(
   id: GuideTargetId,
+  options?: MountOptions,
 ): (element: E | null) => void {
-  return useOptionalGuideTarget<E>(id);
+  return useOptionalGuideTarget<E>(id, options);
 }
 
 /**
@@ -38,15 +42,19 @@ export function useGuideTarget<E extends HTMLElement = HTMLElement>(
  */
 export function useOptionalGuideTarget<E extends HTMLElement = HTMLElement>(
   id: GuideTargetId | undefined,
+  options?: MountOptions,
 ): (element: E | null) => void {
   const bound = useRef<(() => void) | null>(null);
+  const activation = options?.activation;
   return useCallback(
     (element: E | null) => {
       bound.current?.();
       bound.current =
-        element && id !== undefined ? mountGuideTarget(id, element) : null;
+        element && id !== undefined
+          ? mountGuideTarget(id, element, { activation })
+          : null;
     },
-    [id],
+    [id, activation],
   );
 }
 

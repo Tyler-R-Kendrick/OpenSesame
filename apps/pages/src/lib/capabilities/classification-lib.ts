@@ -34,6 +34,8 @@ const CORE_INFRA = [
   "gesture-motion",
   "use-gestures",
   "use-claimed-drags",
+  "tab-swipe",
+  "use-tab-swipe",
   "gesture-help",
   "pane-trail",
   "use-narrow",

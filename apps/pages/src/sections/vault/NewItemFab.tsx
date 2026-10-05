@@ -1,17 +1,23 @@
-import { type Ref, useCallback } from "react";
+import { reportGuideActivation } from "@opensesame/app-core/tutorial/registry/targets.js";
+import { useCallback } from "react";
 import { Link } from "react-router";
 import { useContributions } from "../../bindings/contributions.js";
-import { IconDotsVertical, IconPlus } from "../../components/Icons.js";
+import { IconPlus } from "../../components/Icons.js";
 import {
   type MenuOpening,
   openContextMenu,
 } from "../../components/context-menu/menu-model.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { AddSlide } from "./AddSlide.js";
 import { ExportEntry } from "./ExportKey.js";
-import { addEntries } from "./add-menu.js";
+import { type AddEntry, addEntries } from "./add-menu.js";
+import { useAddSlide } from "./add-slide.js";
 import "./new-item-fab.css";
 
-/** The menu of the other ways to add, as the context menu draws it. */
+/**
+ * The other ways to add as a menu: the road for a keyboard, a screen reader
+ * or a mouse, none of which can hold and slide. A held finger never opens it.
+ */
 function openAddMenu(event: MenuOpening, anchor: Element | null): void {
   const entries = addEntries().map(({ id, label, run }) => ({
     id,
@@ -29,10 +35,10 @@ function openAddMenu(event: MenuOpening, anchor: Element | null): void {
  * above the pane's status line and clear of the statusline's prompt. The list
  * pads its last row past it so nothing is ever stranded underneath.
  *
- * The `+` is the default and one tap. Beside it, attached, is a vertical
- * ellipsis, and a long press on the `+` is the same ask (the context menu's
- * own road): both open one menu of the alternatives to a new item — Import,
- * Export, whatever a capability adds — so every way to add is one button.
+ * The `+` is one tap. Holding it draws a drag area around it, with the other
+ * ways to add named on it: slide up to Import, down to Export, and let go
+ * there (`AddSlide`). Letting go anywhere else chooses nothing. It is a sharp
+ * square, like every control (DESIGN.md § Shapes).
  */
 export function NewItemFab({
   to,
@@ -40,7 +46,8 @@ export function NewItemFab({
   shown,
 }: {
   to: string;
-  fabRef?: Ref<HTMLAnchorElement>;
+  /** The shell's record of where New item is, for focus and the guide. */
+  fabRef?: (element: HTMLAnchorElement | null) => void;
   /** Where the button is drawn: a phone's tree and list, never an item or the trash. */
   shown: boolean;
 }) {
@@ -53,60 +60,58 @@ function AddButton({
   fabRef,
 }: {
   to: string;
-  fabRef?: Ref<HTMLAnchorElement>;
+  fabRef?: (element: HTMLAnchorElement | null) => void;
 }) {
   const flows = useContributions("vault-command");
-  // On a phone the guide's Import and Export keys are this button's menu.
-  const importGuide = useGuideTarget<HTMLButtonElement>("vault.import");
-  const exportGuide = useGuideTarget<HTMLButtonElement>("vault.export");
-  const moreRef = useCallback(
-    (element: HTMLButtonElement | null) => {
+  // On a phone the guide's Import and Export keys are this button's slide. The
+  // button is not clicked to reach them, so the guide is told when one is
+  // chosen rather than when the `+` is tapped.
+  const importGuide = useGuideTarget<HTMLAnchorElement>("vault.import", {
+    activation: "manual",
+  });
+  const exportGuide = useGuideTarget<HTMLAnchorElement>("vault.export", {
+    activation: "manual",
+  });
+  const choose = useCallback((entry: AddEntry) => {
+    entry.run();
+    if (entry.id === "import") reportGuideActivation("vault.import");
+    if (entry.id === "export") reportGuideActivation("vault.export");
+  }, []);
+  const slide = useAddSlide(choose);
+  const plusRef = useCallback(
+    (element: HTMLAnchorElement | null) => {
       importGuide(element);
       exportGuide(element);
+      fabRef?.(element);
     },
-    [importGuide, exportGuide],
+    [importGuide, exportGuide, fabRef],
   );
   return (
     <>
       <div
         className="fab"
-        onContextMenu={(event) => openAddMenu(event, event.currentTarget)}
+        data-own-hold=""
+        onContextMenu={(event) => {
+          // Never the link's own menu; and a held finger's is the slide's.
+          event.preventDefault();
+          if (slide.holding()) return;
+          openAddMenu(event, event.currentTarget);
+        }}
       >
         <Link
-          ref={fabRef}
+          ref={plusRef}
           className="fab__add"
           aria-label="New item"
           title="New item (n)"
           to={to}
+          draggable={false}
+          {...slide.bind}
         >
           <IconPlus size={24} />
         </Link>
-        <button
-          ref={moreRef}
-          type="button"
-          className="fab__more"
-          aria-label="More ways to add"
-          title="Import or export"
-          aria-haspopup="menu"
-          onClick={(event) => {
-            // iOS Safari does not focus a tapped button: take focus first, so
-            // closing the menu (or the sheet an entry opens) returns here.
-            event.currentTarget.focus();
-            const box = event.currentTarget.getBoundingClientRect();
-            openAddMenu(
-              {
-                clientX: box.left,
-                clientY: box.top,
-                preventDefault: () => event.preventDefault(),
-              },
-              event.currentTarget,
-            );
-          }}
-        >
-          <IconDotsVertical size={22} />
-        </button>
       </div>
-      {/* The flows the menu starts: they draw nothing but their sheets. */}
+      {slide.state ? <AddSlide slide={slide.state} /> : null}
+      {/* The flows the slide starts: they draw nothing but their sheets. */}
       {flows.map(({ id, Entry }) => (Entry ? <Entry key={id} /> : null))}
       <ExportEntry />
     </>
