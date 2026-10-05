@@ -70,18 +70,28 @@ export const driveClientSeams = {
     localNetworkFetch(url, driveRequest(url, init)),
 };
 
+/** The slot's address on its drive; its snapshot and parts hang off it. */
+export function slotBase(pairing: DrivePairing): string {
+  return `${pairing.url}/v1/vault-drive/slots/${encodeURIComponent(pairing.slot)}`;
+}
+
 function slotUrl(pairing: DrivePairing): string {
-  return `${pairing.url}/v1/vault-drive/slots/${encodeURIComponent(pairing.slot)}/snapshot`;
+  return `${slotBase(pairing)}/snapshot`;
+}
+
+/** The slot key as a bearer, and the saved tailnet connector's headers. */
+export function driveHeaders(
+  pairing: DrivePairing,
+  contentType = "application/json",
+): HeadersInit {
+  return tailnetSyncHeaders(
+    { Authorization: `Bearer ${pairing.key}`, "Content-Type": contentType },
+    currentTailnet(),
+  );
 }
 
 function headers(pairing: DrivePairing): HeadersInit {
-  return tailnetSyncHeaders(
-    {
-      Authorization: `Bearer ${pairing.key}`,
-      "Content-Type": "application/json",
-    },
-    currentTailnet(),
-  );
+  return driveHeaders(pairing);
 }
 
 function generationOf(json: BoundaryValue): number {
@@ -91,7 +101,7 @@ function generationOf(json: BoundaryValue): number {
   return json.generation;
 }
 
-async function readJson(response: Response): Promise<BoundaryValue> {
+export async function readJson(response: Response): Promise<BoundaryValue> {
   try {
     return await response.json();
   } catch {
@@ -99,7 +109,7 @@ async function readJson(response: Response): Promise<BoundaryValue> {
   }
 }
 
-function refused(response: Response): DriveError {
+export function refused(response: Response): DriveError {
   if (response.status === 401 || response.status === 404) {
     return new DriveError(
       "The drive no longer knows this device's key. Pair again.",

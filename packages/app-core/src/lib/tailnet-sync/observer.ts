@@ -10,7 +10,9 @@
  * prompt; they wait, `blocked`, until a person syncs (`network-access.ts`).
  */
 import { isString } from "@opensesame/os-domain";
+import type { ObjectStore } from "@opensesame/vault-core";
 import { maybeEnvironment, maybePage } from "../../ports.js";
+import { addFileStoreSource, localFileStore } from "../file-parts-store.js";
 import { refreshProjectsView } from "../projects.js";
 import { GUEST_TOMB, vaultStore } from "../vault/store.js";
 import { switchVault } from "../vaults.js";
@@ -25,6 +27,7 @@ import {
 import { type DriveTransport, defaultTransport, syncOnce } from "./engine.js";
 import { explainNetworkFailure, networkGate } from "./network-access.js";
 import { type DrivePairing, parsePairingCode } from "./pairing.js";
+import { driveFileStore, putMissingParts } from "./parts.js";
 
 /** `blocked`: waiting on the browser's local network permission (`error` says what to do). */
 export type TailnetSyncPhase = "off" | "idle" | "syncing" | "blocked" | "error";
@@ -52,6 +55,10 @@ export type TailnetSyncSeams = {
   debounceMs: number;
   intervalMs: number;
   now: () => string;
+  /** This device's own file parts; rejects where it keeps none (`parts.ts`). */
+  localFiles: () => Promise<ObjectStore>;
+  /** Put the parts the drive lacks; how many went up. */
+  putParts: typeof putMissingParts;
 };
 
 export const tailnetSyncSeams: TailnetSyncSeams = {
@@ -60,6 +67,8 @@ export const tailnetSyncSeams: TailnetSyncSeams = {
   debounceMs: 1_500,
   intervalMs: 60_000,
   now: () => new Date().toISOString(),
+  localFiles: localFileStore,
+  putParts: putMissingParts,
 };
 
 let state: TailnetSyncState = OFF;
@@ -75,6 +84,7 @@ let unsubscribe: (() => void) | null = null;
 let debounce: ReturnType<typeof setTimeout> | null = null;
 let interval: ReturnType<typeof setInterval> | null = null;
 let stopWaking: (() => void) | null = null;
+let stopFiles: (() => void) | null = null;
 let seenKey = "";
 
 function set(next: Partial<TailnetSyncState>): void {
@@ -130,6 +140,13 @@ async function openTheWay(
   return null;
 }
 
+/** The parts this vault's files name that the drive still lacks, put. */
+async function putParts(drive: DrivePairing): Promise<void> {
+  const local = await tailnetSyncSeams.localFiles().catch(() => null);
+  if (!local) return;
+  await tailnetSyncSeams.putParts(drive, vaultStore.getSnapshot().items, local);
+}
+
 async function pass(interactive: boolean): Promise<void> {
   const drive = pairing;
   if (!drive || !syncable() || vaultStore.activeTomb() !== pairedTomb) return;
@@ -141,6 +158,7 @@ async function pass(interactive: boolean): Promise<void> {
       return;
     }
     await syncOnce(vaultStore, drive, tailnetSyncSeams.transport);
+    await putParts(drive);
     set({ phase: "idle", lastSyncedAt: tailnetSyncSeams.now(), error: null });
   } catch (error) {
     set({
@@ -320,6 +338,11 @@ export function startTailnetSync(): () => void {
     tailnetSyncSeams.intervalMs,
   );
   stopWaking = watchForWaking();
+  // Files read from, and sealed to, the drive this vault is paired with.
+  stopFiles = addFileStoreSource((local) => {
+    const drive = pairedDrive();
+    return drive ? [driveFileStore(drive, local)] : [];
+  });
   void loadPairing();
   return stopTailnetSync;
 }
@@ -330,6 +353,8 @@ export function stopTailnetSync(): void {
   unsubscribe = null;
   stopWaking?.();
   stopWaking = null;
+  stopFiles?.();
+  stopFiles = null;
   if (debounce) clearTimeout(debounce);
   if (interval) clearInterval(interval);
   debounce = null;

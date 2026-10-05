@@ -31,6 +31,8 @@
 //              bar, pressing the sheet's commit hands over to an unlock
 //              screen, and A's master password opens A's item
 //   TS-BACK    B saves an item; A, syncing, shows it
+//   TS-FILE    A seals a file in a File item; B downloads the same bytes, its
+//              parts carried by the drive (lib/tailnet-sync-file.mjs)
 //   LNA-WAIT   A's permission back at "ask": a change on A does not go out by
 //              itself and the panel says sync waits on the browser; once
 //              allowed, Sync now lands it
@@ -50,6 +52,10 @@ import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword, unlockWithPassword } from "./lib/pages-journey.mjs";
 import { toTheList } from "./lib/phone-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import {
+  attachmentCrosses,
+  readSlot as readSlotWith,
+} from "./lib/tailnet-sync-file.mjs";
 import { tailscaleServeDrive } from "./lib/tailscale-serve-drive.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
@@ -111,15 +117,8 @@ async function openSlot() {
   return (await response.json()).pairing_code;
 }
 
-async function readSlot(code) {
-  const pairing = JSON.parse(
-    Buffer.from(code.split(":").at(-1), "base64url").toString(),
-  );
-  const response = await fetch(
-    `${drive}/v1/vault-drive/slots/${pairing.slot}/snapshot`,
-    { headers: { authorization: `Bearer ${pairing.key}` } },
-  );
-  return response.json();
+function readSlot(code) {
+  return readSlotWith(drive, code);
 }
 
 /** How a person answered Chrome's local-network prompt for this device. */
@@ -315,6 +314,10 @@ try {
   });
   console.log("TS-BACK ok");
   await shot(a.page, "1280-device-a-received");
+
+  // TS-FILE
+  const steps = { visit, inStep, toTheList, shot };
+  await attachmentCrosses({ a, b, drive, code, steps });
 
   // LNA-WAIT
   await answerPrompt(a.page, "prompt");

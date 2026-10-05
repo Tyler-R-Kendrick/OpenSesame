@@ -270,3 +270,76 @@ async fn a_public_page_may_reach_a_private_drive() {
         .get("access-control-allow-origin")
         .is_none());
 }
+
+fn part_request(method: &str, slot: &str, key: &str, part: &str, body: &[u8]) -> Request<Body> {
+    Request::builder()
+        .method(method)
+        .uri(format!("/v1/vault-drive/slots/{slot}/parts/{part}"))
+        .header("authorization", format!("Bearer {key}"))
+        .header("content-type", "application/octet-stream")
+        .body(Body::from(body.to_vec()))
+        .unwrap()
+}
+
+#[tokio::test]
+async fn a_device_puts_reads_and_lists_file_parts() {
+    let (app, dir) = app("parts");
+    let (slot, key) = open_slot(&app).await;
+    let part = "AbCdEfGhIjKl-_09";
+    let put = app
+        .clone()
+        .oneshot(part_request("PUT", &slot, &key, part, b"sealed bytes"))
+        .await
+        .unwrap();
+    assert_eq!(put.status(), StatusCode::NO_CONTENT);
+
+    let got = app
+        .clone()
+        .oneshot(part_request("GET", &slot, &key, part, b""))
+        .await
+        .unwrap();
+    assert_eq!(got.status(), StatusCode::OK);
+    assert_eq!(got.headers()["content-type"], "application/octet-stream");
+    assert_eq!(
+        &to_bytes(got.into_body(), 1 << 20).await.unwrap()[..],
+        b"sealed bytes"
+    );
+
+    let listed = Request::builder()
+        .uri(format!("/v1/vault-drive/slots/{slot}/parts"))
+        .header("authorization", format!("Bearer {key}"))
+        .body(Body::empty())
+        .unwrap();
+    let (status, body) = call(&app, listed).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["parts"], json!([part]));
+
+    let (status, body) = call(
+        &app,
+        part_request("GET", &slot, &key, "ZZZZZZZZZZZZZZZZ", b""),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    assert_eq!(body["error"], "no_such_part");
+    let (status, _) = call(
+        &app,
+        part_request("GET", &slot, "x".repeat(43).as_str(), part, b""),
+    )
+    .await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[tokio::test]
+async fn a_part_past_the_limit_is_refused_before_it_is_read() {
+    let (app, dir) = app("part-limit");
+    let (slot, key) = open_slot(&app).await;
+    let big = vec![0u8; crate::vault_drive::parts::MAX_PART_BYTES + 1];
+    let response = app
+        .clone()
+        .oneshot(part_request("PUT", &slot, &key, "AbCdEfGhIjKl-_09", &big))
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::PAYLOAD_TOO_LARGE);
+    let _ = std::fs::remove_dir_all(dir);
+}
