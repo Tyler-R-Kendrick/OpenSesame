@@ -140,7 +140,7 @@ describe("visible items body reader", () => {
   });
 
   it("is nothing for a body that is not exactly ours", () => {
-    const mutations: ((body: ReturnType<typeof clone>) => unknown)[] = [
+    const mutations: ((body: ReturnType<typeof clone>) => BoundaryValue)[] = [
       (b) => ({ ...b, extra: 1 }),
       (b) => ({ ...b, v: 2 }),
       (b) => ({ v: 1 }),
@@ -197,10 +197,11 @@ describe("visible items body reader", () => {
     for (const mutate of mutations) {
       const mutated = mutate(clone());
       // A mutation that happens to leave a valid body would hide a gap.
-      expect(readVisibleItemsBody(mutated as BoundaryValue)).toBeNull();
+      expect(readVisibleItemsBody(mutated)).toBeNull();
     }
-    for (const body of [null, undefined, "items", 42, []]) {
-      expect(readVisibleItemsBody(body as BoundaryValue)).toBeNull();
+    const notObjects: BoundaryValue[] = [null, undefined, "items", 42, []];
+    for (const body of notObjects) {
+      expect(readVisibleItemsBody(body)).toBeNull();
     }
   });
 
@@ -230,12 +231,11 @@ describe("visible items body reader", () => {
         ),
       ),
     ).toBeNull();
-    class Dressed {
-      v = 1;
-      items = [];
-    }
+    class Dressed {}
     expect(
-      readVisibleItemsBody(new Dressed() as unknown as BoundaryValue),
+      readVisibleItemsBody(
+        Object.assign(Object.create(Dressed.prototype), { v: 1, items: [] }),
+      ),
     ).toBeNull();
     expect(
       readVisibleItemsBody(Object.create({ v: 1, items: good() })),
