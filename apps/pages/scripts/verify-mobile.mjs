@@ -35,6 +35,8 @@ import {
   treeActions,
   treeWalks,
 } from "./lib/phone-vault.mjs";
+import { checkSafeAreas } from "./lib/safe-area-contract.mjs";
+import { settingsFileStops } from "./lib/settings-file-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { touchCopyStop } from "./lib/touch-copy-contract.mjs";
 
@@ -44,34 +46,6 @@ const dist = fileURLToPath(new URL("../dist", import.meta.url));
 const out = "/tmp/opensesame-mobile-verification";
 const harness = createHarness({ dist, origin, base, out });
 fs.mkdirSync(out, { recursive: true });
-
-/**
- * The bottom chrome has to clear the home indicator, and headless Chromium
- * reports every safe-area inset as zero — so the insets are asserted in the
- * stylesheet rather than in the layout. Reading the built CSS keeps the claim
- * honest: it is the shipped file, not the source we hoped got shipped.
- */
-function checkSafeAreas() {
-  const assets = path.join(dist, "assets");
-  const css = fs
-    .readdirSync(assets)
-    .filter((file) => file.endsWith(".css"))
-    .map((file) => fs.readFileSync(path.join(assets, file), "utf8"))
-    .join("\n");
-  for (const [what, pattern] of [
-    [
-      "the drawer clears the home indicator",
-      /\.drawer\{[^}]*safe-area-inset-bottom/,
-    ],
-    ["the top bar clears the notch", /\.topbar\{[^}]*safe-area-inset-top/],
-    ["side gutters clear a landscape notch", /safe-area-inset-left/],
-  ]) {
-    harness.check(
-      pattern.test(css.replace(/\s+/g, "")) || pattern.test(css),
-      what,
-    );
-  }
-}
 
 async function audit(page, label) {
   await page.waitForTimeout(350);
@@ -243,6 +217,7 @@ async function walk(browser, phone) {
   await phonePolish.topbarPromptFits(page, stop, { harness });
 
   await sections(page, stop);
+  await settingsFileStops({ page, harness, audit, stop, base });
 
   // The overflow the top bar carries holds what the statusline would: help,
   // notifications and the connector glyphs. Those belong to capabilities,
@@ -356,6 +331,7 @@ async function tablet(browser, size) {
   }
   await audit(page, stop("vault"));
   await auditSettings(page, (label) => audit(page, label), stop);
+  await settingsFileStops({ page, harness, audit, stop, base });
   await context.close();
 }
 
@@ -366,7 +342,7 @@ try {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(2);
 }
-checkSafeAreas();
+checkSafeAreas({ dist, harness });
 const browser = await harness.launch();
 try {
   for (const phone of walked.phones) {

@@ -455,7 +455,9 @@ verify:mobile` walks the phone journey at 320, 390, 430 and landscape in a real
 coarse-pointer context and measures every rule above — and, at every stop and on
 the tablets' Settings, that no key stands alone on a row
 (`KEY-ALONE-ON-A-ROW`) and no field outgrows its measure
-(`FIELD-WIDER-THAN-ITS-MEASURE`, `scripts/lib/layout-contract.mjs`). It
+(`FIELD-WIDER-THAN-ITS-MEASURE`, `scripts/lib/layout-contract.mjs`); it also opens
+the Settings files (`scripts/lib/settings-file-contract.mjs`) and holds the
+list above the open file, 44px rows and a 16px editor. It
 refuses to report a pass from a context that lost its touch emulation, because a check that
 measures the mouse stylesheet passes for free.
 
