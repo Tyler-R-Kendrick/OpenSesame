@@ -47,6 +47,8 @@ export const LOCAL_NOTIFICATIONS_GOALS: readonly GuideGoalDescriptor[] = [
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/settings/capabilities"',
       'wait route "/settings/capabilities" timeout=15000',
+      'scroll "feature.local-notifications"',
+      'focus "feature.local-notifications" "The Local notifications section. Its switch adds this device\'s own requests list, bell and system notifications." side=bottom',
       'focus "settings.local-notifications" "The browser asks for permission only when you press the key for system notifications. The bell and the Requests list always show what is waiting." side=bottom',
       "end",
     ].join("\n"),

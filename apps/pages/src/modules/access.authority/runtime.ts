@@ -31,6 +31,7 @@ import {
 import { ACCESS_GOALS } from "@opensesame/app-core/tutorial/registry/access-goals.js";
 import { AUTHORITY_GOALS } from "@opensesame/app-core/tutorial/registry/authority-help.js";
 import { IDENTITY_GOALS } from "@opensesame/app-core/tutorial/registry/identity-goals.js";
+import { NAV_ACCESS_GOALS } from "@opensesame/app-core/tutorial/registry/section-nav-goals.js";
 import { AccessSection } from "../../sections/AccessSection.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
@@ -56,6 +57,7 @@ export const TUTORIAL = {
   goals: [
     ...ACCESS_GOALS,
     ...AUTHORITY_GOALS,
+    ...NAV_ACCESS_GOALS,
     ...pickById(IDENTITY_GOALS, [
       "identity.local.requests.manage",
       "identity.local.policy.manage",
