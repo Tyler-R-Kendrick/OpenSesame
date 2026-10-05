@@ -17,12 +17,14 @@ import {
   VALUE_MAX,
   characters,
 } from "./messages.js";
+import { type IceSettings, type PeerFactory, answerOffer } from "./peer.js";
+import type { Carrier } from "./rendezvous.js";
+import type { Keypair } from "./seal.js";
 import {
-  type IceSettings,
-  type PeerChannel,
-  type PeerFactory,
-  answerOffer,
-} from "./peer.js";
+  type LiveChannel,
+  SeatChannel,
+  type SeatKeys,
+} from "./seat-channel.js";
 
 /** One answer to a guest's request, as the owner's log shows it. */
 export type LogEntry = Readonly<{
@@ -55,14 +57,29 @@ export type HostPeerOptions = Readonly<{
   onJoined: () => void;
   onClosed: () => void;
   onLog: (entry: LogEntry) => void;
+  /**
+   * The seat is also offered over a NATS carrier (ADR 0167): a peer route
+   * that fails does not end it, since the joiner may still arrive there.
+   */
+  relayed?: boolean;
 }>;
+
+/**
+ * How long a seat offered over a relay has to connect, one way or the other:
+ * a peer route that never opens does not always say it failed, and a joiner
+ * who cannot reach the relay either never sends a frame there.
+ */
+export const RELAY_GRACE_MS = 60_000;
 
 type Request = Extract<ChannelMessage, { t: "reveal" | "copy" }>;
 type EditRequest = Extract<ChannelMessage, { t: "edit" }>;
 
 export class HostPeer {
   #pc: RTCPeerConnection | null = null;
-  #channel: PeerChannel | null = null;
+  #channel: LiveChannel | null = null;
+  /** The seat's relay, listening until the joiner's first frame. */
+  #relay: LiveChannel | null = null;
+  #grace: ReturnType<typeof setTimeout> | null = null;
   #closed = false;
 
   constructor(private readonly options: HostPeerOptions) {}
@@ -82,22 +99,82 @@ export class HostPeer {
     }
     this.#pc = side.pc;
     side.pc.addEventListener("connectionstatechange", () => {
-      if (side.pc.connectionState === "failed") this.#closedByPeer();
+      if (side.pc.connectionState === "failed") this.#peerFailed();
     });
     side.channel.then(
-      (channel) => this.#connected(channel),
-      () => this.#closedByPeer(),
+      (channel) => {
+        // The joiner already moved the seat to the relay: the late peer
+        // route is not the session.
+        if (this.#channel !== null) channel.close();
+        else this.#connected(channel);
+      },
+      () => this.#peerFailed(),
     );
     return side.answer;
   }
 
-  #connected(channel: PeerChannel): void {
+  /** The peer route failed: the seat ends, unless a relay may still carry it. */
+  #peerFailed(): void {
+    if (this.options.relayed !== true) this.#closedByPeer();
+  }
+
+  /** Seal the seat's relay with the pairing's keys and listen on it. */
+  async relayVia(
+    relay: Carrier,
+    owner: Keypair,
+    seat: Omit<SeatKeys, "shared">,
+  ): Promise<void> {
+    const shared = await owner.shared(seat.joiner);
+    if (!shared) {
+      relay.close();
+      throw new Error("bad_joiner_key");
+    }
+    this.offerRelay(new SeatChannel(relay, { ...seat, shared }, "owner"));
+  }
+
+  /**
+   * Listen for this seat on its relay. The joiner's first frame there moves
+   * the session onto it: the peer route, if it opened, is closed.
+   */
+  offerRelay(channel: LiveChannel): void {
     if (this.#closed) {
       channel.close();
       return;
     }
+    this.#relay = channel;
+    if (!this.#channel && !this.#grace)
+      this.#grace = setTimeout(() => {
+        this.#grace = null;
+        if (!this.#channel) this.#closedByPeer();
+      }, RELAY_GRACE_MS);
+    channel.onMessage(() => this.#adopt(channel));
+    channel.onClose(() => {
+      if (this.#relay === channel) this.#relay = null;
+    });
+  }
+
+  #adopt(channel: LiveChannel): void {
+    if (this.#closed || this.#channel === channel) return;
+    this.#relay = null;
+    const previous = this.#channel;
+    this.#channel = null;
+    previous?.close();
+    this.#pc?.close();
+    this.#pc = null;
+    this.#connected(channel);
+  }
+
+  #connected(channel: LiveChannel): void {
+    if (this.#closed) {
+      channel.close();
+      return;
+    }
+    if (this.#grace) clearTimeout(this.#grace);
+    this.#grace = null;
     this.#channel = channel;
-    channel.onClose(() => this.#closedByPeer());
+    channel.onClose(() => {
+      if (this.#channel === channel) this.#closedByPeer();
+    });
     channel.onMessage((message) => void this.#handle(message));
     // A guest that never receives the catalog is not in the session: say so
     // by ending it, not by counting them joined.
@@ -184,8 +261,12 @@ export class HostPeer {
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
+    if (this.#grace) clearTimeout(this.#grace);
+    this.#grace = null;
     this.#channel?.send({ t: "end" });
     this.#channel?.close();
+    this.#relay?.close();
+    this.#relay = null;
     this.#pc?.close();
   }
 }
