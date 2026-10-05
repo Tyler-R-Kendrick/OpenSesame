@@ -159,9 +159,25 @@ export async function setRoutes(page, wanted) {
       continue;
     }
     await routes.getByLabel(/^Server \(/).fill(carrier.url);
+    if (carrier.kind === "nats") await natsChoices(routes, carrier);
     await routes.getByRole("button", { name: "Add the carrier" }).click();
     await routes.getByText(carrier.url, { exact: true }).waitFor();
   }
+}
+
+/** A NATS server's sign-in and session route, as the Form asks them (ADR 0167). */
+async function natsChoices(routes, carrier) {
+  if (carrier.mint) {
+    await routes.getByLabel("Sign-in", { exact: true }).selectOption("mint");
+    await routes.getByLabel("Account public key").fill(carrier.mint.account);
+    await routes
+      .getByLabel("Account signing key")
+      .fill(carrier.mint.signingKey);
+  }
+  if (carrier.session)
+    await routes
+      .getByLabel("Session over this server")
+      .selectOption(carrier.session);
 }
 
 export async function startSession(

@@ -19,6 +19,7 @@ import {
   type Carrier,
   CarrierBlocked,
   type CarrierFactory,
+  type CarrierRole,
 } from "@opensesame/app-core/lib/live/rendezvous.js";
 import type { CarrierSpec } from "@opensesame/app-core/lib/live/transport.js";
 import { type CarrierGate, carrierRefusal } from "./allowed.js";
@@ -60,6 +61,7 @@ export function withinConnect<T extends Readonly<{ close(): void }>>(
 async function open(
   spec: CarrierSpec,
   topic: string,
+  role: CarrierRole,
   egress: EgressPort,
   signal: AbortSignal,
 ): Promise<Carrier> {
@@ -78,16 +80,18 @@ async function open(
     case "mqtt":
       return (await import("./mqtt.js")).mqttCarrier(spec, topic);
     case "nats":
-      return (await import("./nats.js")).natsCarrier(spec, topic);
+      return (await import("./nats.js")).natsCarrier(spec, topic, role);
   }
 }
 
 /** The carrier factory for one activation of the capability. */
 export function carrierFactory(gate: CarrierGate): CarrierFactory {
-  return async (spec, topic) => {
+  return async (spec, topic, role = "joiner") => {
     const refusal = carrierRefusal(spec, gate);
     if (refusal !== null) throw new CarrierBlocked(refusal);
-    return withinConnect((signal) => open(spec, topic, gate.egress, signal));
+    return withinConnect((signal) =>
+      open(spec, topic, role, gate.egress, signal),
+    );
   };
 }
 

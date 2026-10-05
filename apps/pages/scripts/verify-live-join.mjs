@@ -36,6 +36,11 @@
  *    carries the minted `<expiry>:osl` credential and never the secret.
  *    **relayed-rest-wrong** is its negative control: the server holds another
  *    secret, refuses every authentication, and the browsers never meet.
+ * 5. **nats-always**, **nats-fallback** — a real nats-server in operator
+ *    mode (`pnpm dev:live-nats`), named in Routes with an account signing
+ *    key: each session mints its credentials, and the session itself crosses
+ *    the server sealed — always, or once the browsers find no route
+ *    (`lib/live-join-nats.mjs`, ADR 0167).
  *
  * The carrier, declined and relayed walks (each passes its codes through a
  * carrier on loopback) run on `dist-live-dedicated`
@@ -45,7 +50,7 @@
  * binaries; a missing one fails the walk unless `LIVE_CARRIERS` (or
  * `LIVE_SCENARIOS`) leaves its kind out. `LIVE_SCENARIOS` narrows the walks:
  * direct, carriers, declined, relayed, relayed-tcp, relayed-tls,
- * relayed-rest, relayed-rest-wrong, tunnel.
+ * relayed-rest, relayed-rest-wrong, nats-always, nats-fallback, tunnel.
  */
 
 import fs from "node:fs";
@@ -53,6 +58,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { dedicatedSite } from "./lib/live-dedicated.mjs";
+import { bindNats, natsSession } from "./lib/live-join-nats.mjs";
 import {
   bindRelayed,
   relayed,
@@ -89,7 +95,7 @@ const KINDS = (
 const SCENARIOS = new Set(
   (
     process.env.LIVE_SCENARIOS ??
-    "direct,carriers,declined,relayed,relayed-tcp,relayed-tls,relayed-rest,relayed-rest-wrong,tunnel"
+    "direct,carriers,declined,relayed,relayed-tcp,relayed-tls,relayed-rest,relayed-rest-wrong,nats-always,nats-fallback,tunnel"
   ).split(","),
 );
 const LOCAL_CARRIER_WALKS = [
@@ -100,6 +106,8 @@ const LOCAL_CARRIER_WALKS = [
   "relayed-tls",
   "relayed-rest",
   "relayed-rest-wrong",
+  "nats-always",
+  "nats-fallback",
 ];
 const NATS =
   process.env.LIVE_NATS_SERVER ??
@@ -231,6 +239,7 @@ bindWalk({
   NTFY,
 });
 bindRelayed({ check, setStep, failures, device, shot, configs, joined, PHONE });
+bindNats({ check, setStep, failures, device, shot, joined, SECRET, PHONE });
 
 // A throwaway certificate for the TLS TURN walk, and the one flag that lets
 // Chromium's WebRTC trust its public key: no blanket certificate override.
@@ -275,6 +284,9 @@ try {
       await relayedRest(browser, own, turnFixture);
     if (SCENARIOS.has("relayed-rest-wrong"))
       await relayedRest(browser, own, { ...turnFixture, wrong: true });
+    for (const mode of ["always", "fallback"])
+      if (SCENARIOS.has(`nats-${mode}`))
+        await natsSession(browser, own, NATS, mode);
   }
 } catch (error) {
   failures.push(

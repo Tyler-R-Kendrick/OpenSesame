@@ -13,6 +13,7 @@
     "dev:host": "bash scripts/dev/dev-host.sh",
     "dev:pwa": "pnpm --filter @opensesame/pages dev:web",
     "dev:daemon": "bash scripts/dev/dev-daemon.sh",
+    "dev:live-nats": "pnpm --filter @opensesame/cli exec tsx ../../scripts/dev/live-nats-operator.ts",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "lint": "pnpm lint:artifacts && node scripts/quality/lint-changed.mjs",
