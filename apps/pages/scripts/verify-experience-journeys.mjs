@@ -13,6 +13,7 @@ import { walkJConfig } from "./lib/j-config-journey.mjs";
 import { walkJConflict } from "./lib/j-conflict-journey.mjs";
 import { walkJDuress } from "./lib/j-duress-journey.mjs";
 import { walkJDuressItems } from "./lib/j-duress-mode-items-journey.mjs";
+import { walkJDuressModeWipe } from "./lib/j-duress-mode-wipe-journey.mjs";
 import { walkJExplain } from "./lib/j-explain-journey.mjs";
 import { walkJFile } from "./lib/j-file-journey.mjs";
 import { walkJNav } from "./lib/j-nav-journey.mjs";
@@ -84,6 +85,7 @@ try {
   await runWalk("J-SUPPORT", walkJSupport);
   await runWalk("J-DURESS", walkJDuress);
   await runWalk("J-DURESS-ITEMS", walkJDuressItems);
+  await runWalk("J-DURESS-MODE-WIPE", walkJDuressModeWipe);
   await runWalk("J-TRAVEL", walkJTravel);
 } finally {
   await browser.close();
