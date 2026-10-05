@@ -45,6 +45,8 @@ export const CONNECTIONS_GOALS: readonly GuideGoalDescriptor[] = [
       'wait state "vault.unlocked" is=true timeout=60000',
       'navigate "/settings/capabilities"',
       'wait route "/settings/capabilities" timeout=15000',
+      'scroll "feature.backups"',
+      'focus "feature.backups" "The Backups section. It is built in, so it has no switch of its own." side=bottom',
       'focus "settings.backup" "Choose the git provider the vault backs up to under Backups, and switch it on." side=bottom',
       "end",
     ].join("\n"),

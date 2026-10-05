@@ -138,17 +138,9 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
   {
-    id: "settings.data",
-    description:
-      "There is no Vault data settings category. Folders, backup, and the build record live with the surfaces that own them.",
-    role: "navigation",
-    routes: ["/settings"],
-    capabilityId: "vault.export",
-  },
-  {
     id: "settings.danger",
     description:
-      "The Danger settings category, which holds the irreversible action of deleting this vault from this browser.",
+      "The Danger settings category, which holds the irreversible actions: deleting this vault from this browser, and the trash, where an item is restored, deleted for good, or the whole trash emptied.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: null,

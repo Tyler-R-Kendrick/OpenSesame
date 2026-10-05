@@ -21,8 +21,8 @@ describe("backup.cloud-secrets runtime", () => {
   it("registers the SOPS document panel and disposes it (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "backup.cloud-secrets",
-      kinds: ["settings-panel"],
-      count: 1,
+      kinds: ["settings-panel", "tutorial-goal"],
+      count: 2,
     });
   });
 
