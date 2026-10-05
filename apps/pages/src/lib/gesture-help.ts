@@ -22,7 +22,8 @@ export const GESTURE_HELP: readonly GestureHelpRow[] = [
   ["Hold a row", "Its actions"],
   ["Swipe a row left", "Its actions"],
   ["Swipe right", "Back"],
-  ["Tap the + key", "Add an item"],
+  ["Tap the + button", "Add an item"],
+  ["Hold the + button", "Import or export"],
 ];
 
 /** What the sheet needs to know of the device beyond the keymap. */

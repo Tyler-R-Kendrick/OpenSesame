@@ -56,10 +56,10 @@ export const LAYOUT_AUDIT =
 
   // 9. A key is never alone on a row. The chrome is exempt by name: its
   //    strips are rows of keys by design (statusline, top bar, drawer, the
-  //    vault's path strip and tree keys, the rail). The tree's Add key rests
-  //    alone in the thumb's corner by design.
+  //    vault's path strip and tree keys, the rail). The Add button rests alone
+  //    in the thumb's corner by design.
   const CHROME = ".statusline, .topbar, .drawer, .railtree, .vtree__keys, "
-    + ".vadd__key, .vault-pathbar, .sheet__head, .keymap, nav";
+    + ".fab, .vault-pathbar, .sheet__head, .keymap, nav";
   const keys = [...document.querySelectorAll("main button, main a")]
     .filter((el) => drawn(el) && iconOnly(el) && !el.closest(CHROME));
   // Only a stop with a key pays for the row-mates, and each is measured once.

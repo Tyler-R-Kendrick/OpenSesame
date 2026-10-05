@@ -204,9 +204,32 @@ buffer where a finger can reach it, and the screen the vault opens on), the
 mounted in exactly one place at a time — the rail above the breakpoint, the
 vault's first pane below it — so two `role="tree"` never share a page. Because
 the tree carries the vault's filters, nothing in the rail may become
-unreachable, and the list keeps its funnel key for switching without going
-back. The funnel and the back key stay on the list, where there is something
-to filter and somewhere to go back from.
+unreachable, and the list keeps a way to switch without going back.
+
+**A phone does not get a desktop's strip of icon keys.** Four thin glyphs in a
+row at the top (a funnel, a down arrow, an up arrow) are a guess nobody can
+read, and the top of a tall screen is the hardest place to reach. The section
+tree stays the sections and nothing else — no key strip, no tool rows. The
+phone's actions are redrawn for a thumb:
+
+- **The list's header** is back and the view it is showing, *named* — `All
+  items ▾`, one choice the width of the rest and 48px tall
+  (`VaultFilterMenu`), in the accent colour while it narrows the vault.
+- **Adding is one button, in the bottom corner** (`NewItemFab`): the `+`, a
+  56px target, is the default and one tap; attached to it is a vertical
+  ellipsis (44px wide), and **a long press on the `+` is the same ask as the
+  ellipsis** — the platform's context-menu road. Both open one menu, `Add
+  actions`, of the alternatives to a new item: Import and Export, and whatever
+  a capability adds. It is the app's own context menu, so on a phone it is an
+  action sheet at the bottom edge; the hold does not follow the `+` link. The
+  button is drawn in the vault's box, which never scrolls (its rows do), so it
+  is always under the thumb, above the pane's status line and clear of the
+  prompt; the last row pads past it. The item's screen and the trash draw
+  none. Rows pass beneath it as they scroll, as in any phone app.
+- **A flow behind that menu is a `vault-command`'s `Entry`**: mounted beside
+  the button, it registers its menu entry (`add-menu.ts`) and draws its own
+  sheet and nothing else; its `Command` is the icon key a desktop's list
+  shows. Import and Export are the same flows either way.
 
 **Search is a verb of the one text input, never a second box.** The
 statusline's prompt lists `search` in its hint, and `/? words` (or `/search
@@ -217,10 +240,9 @@ status line. Enter keeps the words in the field, hands the keyboard to the
 listing (or brings up the vault's list when nothing on screen is searching),
 and opens no notice over the prompt; Esc, in the field or the list, empties it.
 Words typed for one section are dropped when a person goes to another by any
-other road. There is no search key and no search field in any pane, the
-section tree's first row included; the `/` key writes `/? ` into the prompt and
-focuses it. A bare `/?` is still help. `verify:mobile` counts the text inputs
-on the screen and fails on a second.
+other road. There is no search key and no search field in any pane; the `/`
+key writes `/? ` into the prompt and focuses it. A bare `/?` is still help.
+`verify:mobile` counts the text inputs on the screen and fails on a second.
 
 Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
 
@@ -360,8 +382,8 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   two-finger swipes, the two-finger tap and the shake in force — and what
   the vault's first pane asks of a thumb is drawn for one: search is the
   status-line prompt (`/? words`), the one text input on the screen, and adding
-  is a single filled 60px key in the bottom corner whose action sheet carries
-  New item, Import and Export as rows — not the desktop's row of small keys. A row never lists a
+  is one button in the bottom corner — a `+` with an attached ellipsis whose
+  menu carries Import and Export — not the desktop's row of small keys. A row never lists a
   gesture with no recogniser behind it. Gestures are twins, never the only
   road, and a command that asks before it acts (trash, share) is still never a
   gesture of its own — it is an entry in the actions a hold or swipe opens.
