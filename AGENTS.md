@@ -418,6 +418,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `crates/rotation-web` | Web-login rotation: the step IR, the tool boundary (no method returns a credential value), and the ordering that must not be rearranged (ADR 0076); plus the same boundary read backwards — `CeremonyTransport`'s capture verbs, which seal what a page produced and answer with a digest (ADR 0082 §3); `src/hooks` is the agent-hooks/0.1 **host** (every verb bracketed, authority pinned, no lock across an approval, `Refused` vs `Withheld`; CTK claims A and B in `docs/validation/agent-hooks-conformance.md`) and `src/recipe_doc` the signed recipe document (ADR 0159) |
 | `crates/vault-item-types` | Host-plane item type parser, registry, and native-secret projection; embeds the shared definition corpus (ADR 0087) |
 | `crates/tailnet-admin` | Tailnet device management, daemon side (ADR 0169): the Tailscale credential (0600, never sent to a page), origin- and role-bound page pairings, value-blind audit, validation, and the Tailscale API v2 client through `invoke-through`; `/v1/tailnet/*` routes in `crates/daemon/src/tailnet_admin_*.rs`, CLI `opensesame daemon tailnet`, replayed by both planes against `spec/conformance/tailnet-admin-protocol.json` |
+| `packages/app-core/src/lib/encrypted-db/`, `apps/pages/src/modules/storage.encrypted-search/` | Searchable encryption over IndexedDB (ADR 0173, optional `storage.encrypted-search`): one object store and one multi-entry index hold every table, so no table, column, index or key name is on disk; rows are sealed, padded and keyed by a hash; CryptDB's layers run as blind indexes built on the first query that needs them (`eq`/join group, Boldyreva-style `order`, `keyword`/prefix) and dropped completely. `history-backup-*` and `vault/password-history-*` answer through a store seam the module points here, moving what the device-sealed databases held and deleting them. `names.ts` is core: Reset this browser derives the hashed database names from it |
 | `packages/app-core/src/lib/tailnet-admin/`, `apps/pages/src/modules/networking.tailnet-devices/` | Identity › Devices for the tailnet's real machines (optional `networking.tailnet-devices`, needs `networking.tailnet` + `identity.local-iam`): sealed pairing, the daemon client, approve/rename/tag/routes/exit node/expire/remove, Add a device (auth key shown once), auth keys, activity. Refused on the shared-origin demo. End to end: `pnpm --filter @opensesame/pages verify:tailnet-devices` (real daemon + Tailscale stub + dedicated build) |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
@@ -632,6 +633,20 @@ Do not add new top-level directories or loose root files — find the group.
   relying party's origin — values seal through `@opensesame/browser-at-rest`.
   `verify:static` reads the origin raw and fails on any app-owned value that
   is not `osr1.`.
+- **A database that holds identifiers hides its shape too**
+  ([ADR 0173](docs/adr/0173-searchable-encryption-over-indexeddb.md)). A
+  readable index field, store name or record id is a name, whatever is sealed
+  beside it. A new IndexedDB store of ids, names or principals is an encrypted
+  database (`packages/app-core/src/lib/encrypted-db/`): one store `r`, one
+  multi-entry index `x`, rows sealed under keys derived from the device key,
+  searchable only through the layers its schema declares and built on the first
+  query that needs them. Never add a store or index whose name says what it
+  keeps, never index a digest or a secret-derived value (a shared entry shows
+  reuse), and add the logical name to `EDB_LOGICAL_NAMES` so Reset derives it.
+  The two existing stores answer through `HistoryRowStore` and
+  `PasswordDigestStore`, which the optional `storage.encrypted-search`
+  capability points at encrypted databases; the capability's module is the
+  only importer of the library.
 - **Logs and events carry no secrets, by key or by shape**
   ([ADR 0157](docs/adr/0157-logs-and-events-carry-no-secrets.md)). Redaction
   by key name alone misses a bearer in an error message, a `#token=` in a URL,

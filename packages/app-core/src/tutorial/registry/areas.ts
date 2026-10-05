@@ -127,6 +127,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "settings.backup",
       "settings.tailnet-sync",
       "feature.local-storage",
+      "feature.encrypted-search",
       "feature.cloud-secret-storage",
       "feature.password-managers",
     ],

@@ -116,6 +116,49 @@ type Bounds = Readonly<{
   lte?: number | string;
 }>;
 
+type Span = Readonly<{ low?: bigint; high?: bigint }>;
+
+function isEmpty(
+  low: bigint | undefined,
+  high: bigint | undefined,
+  last: bigint,
+): boolean {
+  if (low !== undefined && (low > last || (high !== undefined && low > high))) {
+    return true;
+  }
+  return high !== undefined && high < 0n;
+}
+
+/**
+ * The inclusive offsets a set of bounds comes to, or null when no value of
+ * the domain can meet them. A bound beyond the domain on its open side is no
+ * bound at all.
+ */
+function spanOf(
+  plan: LayerPlan,
+  bounds: Bounds,
+  offsetOf: (value: number | string, round: (n: number) => number) => bigint,
+): Span | null {
+  let low: bigint | undefined;
+  let high: bigint | undefined;
+  const raise = (to: bigint) => {
+    low = low === undefined || to > low ? to : low;
+  };
+  const lower = (to: bigint) => {
+    high = high === undefined || to < high ? to : high;
+  };
+  if (bounds.gte !== undefined) raise(offsetOf(bounds.gte, Math.ceil));
+  if (bounds.gt !== undefined) raise(offsetOf(bounds.gt, Math.floor) + 1n);
+  if (bounds.lte !== undefined) lower(offsetOf(bounds.lte, Math.floor));
+  if (bounds.lt !== undefined) lower(offsetOf(bounds.lt, Math.ceil) - 1n);
+  const last = plan.domain - 1n;
+  if (isEmpty(low, high, last)) return null;
+  return {
+    low: low !== undefined && low > 0n ? low : undefined,
+    high: high !== undefined && high < last ? high : undefined,
+  };
+}
+
 function between(
   keys: EdbKeys,
   schema: Schema,
@@ -138,28 +181,11 @@ function between(
     );
     return BigInt(safe) - plan.origin;
   };
-  let low: bigint | undefined;
-  let high: bigint | undefined;
-  const raise = (to: bigint) => {
-    low = low === undefined || to > low ? to : low;
-  };
-  const lower = (to: bigint) => {
-    high = high === undefined || to < high ? to : high;
-  };
-  if (bounds.gte !== undefined) raise(offsetOf(bounds.gte, Math.ceil));
-  if (bounds.gt !== undefined) raise(offsetOf(bounds.gt, Math.floor) + 1n);
-  if (bounds.lte !== undefined) lower(offsetOf(bounds.lte, Math.floor));
-  if (bounds.lt !== undefined) lower(offsetOf(bounds.lt, Math.ceil) - 1n);
-  // A bound beyond the domain on its open side is no bound at all.
-  if (low !== undefined && low <= 0n) low = undefined;
-  if (high !== undefined && high >= plan.domain - 1n) high = undefined;
-  if (
-    (low !== undefined && low >= plan.domain) ||
-    (high !== undefined && high < 0n) ||
-    (low !== undefined && high !== undefined && low > high)
-  ) {
+  const span = spanOf(plan, bounds, offsetOf);
+  if (span === null) {
     return { plan, range: null, exact: true, matches: () => false };
   }
+  const { low, high } = span;
   const [from, to] = orderRange(keys, plan, low, high);
   return {
     plan,

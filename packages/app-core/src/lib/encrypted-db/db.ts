@@ -10,41 +10,23 @@
  * predicate again on what was opened.
  */
 
-import {
-  type BoundaryValue,
-  isJsonObject,
-  isString,
-} from "@opensesame/os-domain";
+import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import { atRestReady } from "../at-rest/key.js";
+import { assertInDomain, rowEntries } from "./entries.js";
 import {
-  assertInDomain,
-  orderOffset,
-  orderRange,
-  rowEntries,
-} from "./entries.js";
-import {
-  INDEX,
   STORE,
-  betweenEntries,
   deleteDatabase,
   finished,
   openDatabase,
   request,
-  slotOf,
-  walk,
 } from "./idb.js";
 import { deriveEdbKeys } from "./keys.js";
 import { type Context, dropLayer, ensureReady, readMeta } from "./layers.js";
 import { MetaStore, layerKey, livePlans } from "./meta.js";
-import {
-  type Compiled,
-  EdbQueryError,
-  type FindOptions,
-  type Where,
-  compileWhere,
-} from "./query.js";
-import { type OpenedRow, openRow, sealRow } from "./rows.js";
+import { EdbQueryError, type FindOptions, type Where } from "./query.js";
+import { openRow, sealRow } from "./rows.js";
 import type { EdbRow, Layer, LayerPlan, Schema } from "./schema.js";
+import { countRows, findRows, scanTable, storedSeal } from "./search.js";
 
 export class EncryptedDbUnavailable extends Error {
   constructor(reason: string) {
@@ -85,31 +67,6 @@ export type EncryptedDb = Readonly<{
   /** Close and delete the database. */
   destroy: () => Promise<void>;
 }>;
-
-function storedSeal(stored: BoundaryValue): string | undefined {
-  return isJsonObject(stored) && isString(stored.c) ? stored.c : undefined;
-}
-
-function compareOffsets(plan: LayerPlan, a: EdbRow, b: EdbRow): number {
-  const offsetOf = (row: EdbRow): bigint | undefined => {
-    const value = row[plan.column];
-    const list = Array.isArray(value) ? value : [value];
-    const offsets = list
-      .map((element) =>
-        element === undefined ? undefined : orderOffset(plan, element),
-      )
-      .filter((offset): offset is bigint => offset !== undefined);
-    return offsets.length === 0
-      ? undefined
-      : offsets.reduce((low, next) => (next < low ? next : low));
-  };
-  const left = offsetOf(a);
-  const right = offsetOf(b);
-  if (left === undefined || right === undefined) {
-    return left === right ? 0 : left === undefined ? 1 : -1;
-  }
-  return left < right ? -1 : left > right ? 1 : 0;
-}
 
 class Database {
   constructor(private readonly ctx: Context) {}
@@ -163,137 +120,17 @@ class Database {
     await done;
   }
 
-  /** Rows of `table` met by a cursor, each opened and tested. */
-  private async collect(
-    req: IDBRequest<IDBCursorWithValue | null>,
-    table: string,
-    tests: readonly Compiled[],
-    limit: number,
-  ): Promise<OpenedRow[]> {
-    const { keys } = this.ctx;
-    const seen = new Set<string>();
-    const out: OpenedRow[] = [];
-    await walk(req, (cursor) => {
-      const slot = slotOf(cursor.primaryKey);
-      if (slot === undefined || slot === keys.metaId) return true;
-      if (seen.has(slot)) return true;
-      seen.add(slot);
-      const sealed = storedSeal(cursor.value);
-      const opened = sealed === undefined ? null : openRow(keys, slot, sealed);
-      if (
-        opened !== null &&
-        opened.table === table &&
-        tests.every((test) => test.matches(opened.row))
-      ) {
-        out.push(opened);
-      }
-      return out.length < limit;
-    });
-    return out;
-  }
-
   async all(table: string): Promise<EdbRow[]> {
     this.ctx.schema.keyOf(table);
-    const store = this.ctx.db.transaction(STORE, "readonly").objectStore(STORE);
-    const rows = await this.collect(
-      store.openCursor(),
-      table,
-      [],
-      Number.POSITIVE_INFINITY,
-    );
-    return rows.map((opened) => opened.row);
+    return (await scanTable(this.ctx, table)).map((opened) => opened.row);
   }
 
-  async find(
-    table: string,
-    where: Where = {},
-    options: FindOptions = {},
-  ): Promise<EdbRow[]> {
-    const { db, keys, schema } = this.ctx;
-    const tests = compileWhere(keys, schema, table, where);
-    const order = options.order;
-    let orderPlan: LayerPlan | undefined;
-    if (order) {
-      orderPlan = schema.layer(table, order.column, "order");
-      if (!orderPlan) {
-        throw new EdbQueryError(`${table}.${order.column} has no order layer`);
-      }
-    }
-    await ensureReady(this.ctx, [
-      ...tests.map((test) => test.plan),
-      ...(orderPlan ? [orderPlan] : []),
-    ]);
-    if (tests.some((test) => test.range === null)) return [];
-    const limit = options.limit ?? Number.POSITIVE_INFINITY;
-    const index = db
-      .transaction(STORE, "readonly")
-      .objectStore(STORE)
-      .index(INDEX);
-    const direction = order?.direction === "desc" ? "prev" : "next";
-
-    // Streaming: walk the order column's own range, so a page of the latest
-    // rows opens that many rows and no more.
-    if (orderPlan) {
-      const driver = tests.find((test) => test.plan === orderPlan);
-      if (driver !== undefined || tests.length === 0) {
-        const [from, to] = orderRange(keys, orderPlan, undefined, undefined);
-        const range = driver?.range ?? betweenEntries(from, to);
-        const rows = await this.collect(
-          index.openCursor(range, direction),
-          table,
-          tests,
-          limit,
-        );
-        return rows.map((opened) => opened.row);
-      }
-    }
-
-    let rows: OpenedRow[];
-    if (tests.length === 0) {
-      const store = db.transaction(STORE, "readonly").objectStore(STORE);
-      rows = await this.collect(
-        store.openCursor(),
-        table,
-        [],
-        orderPlan ? Number.POSITIVE_INFINITY : limit,
-      );
-    } else {
-      const counts = await Promise.all(
-        tests.map((test) => request(index.count(test.range ?? undefined))),
-      );
-      const best = counts.indexOf(Math.min(...counts));
-      const driver = tests[best];
-      if (counts[best] === 0 || driver === undefined) return [];
-      rows = await this.collect(
-        index.openCursor(driver.range ?? undefined),
-        table,
-        tests,
-        orderPlan ? Number.POSITIVE_INFINITY : limit,
-      );
-    }
-    const found = rows.map((opened) => opened.row);
-    if (orderPlan && order) {
-      const plan = orderPlan;
-      const sign = order.direction === "desc" ? -1 : 1;
-      found.sort((a, b) => sign * compareOffsets(plan, a, b));
-    }
-    return found.slice(0, limit);
+  find(table: string, where?: Where, options?: FindOptions): Promise<EdbRow[]> {
+    return findRows(this.ctx, table, where, options);
   }
 
-  async count(table: string, where: Where = {}): Promise<number> {
-    const { db, keys, schema } = this.ctx;
-    const tests = compileWhere(keys, schema, table, where);
-    const [only] = tests;
-    if (tests.length === 1 && only?.exact === true) {
-      await ensureReady(this.ctx, [only.plan]);
-      if (only.range === null) return 0;
-      const index = db
-        .transaction(STORE, "readonly")
-        .objectStore(STORE)
-        .index(INDEX);
-      return request(index.count(only.range));
-    }
-    return (await this.find(table, where)).length;
+  count(table: string, where?: Where): Promise<number> {
+    return countRows(this.ctx, table, where);
   }
 
   async size(): Promise<number> {

@@ -30,6 +30,7 @@
       "notifications.web-push",
       "sharing.household",
       "sharing.live",
+      "storage.encrypted-search",
       "support.local-ai",
       "support.remote-ai",
       "telemetry.external",

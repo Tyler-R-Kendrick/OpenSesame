@@ -25,8 +25,8 @@ import {
   passwordPreviouslyUsed,
   resetPasswordHistoryForTest,
 } from "../vault/password-history.js";
+import { freshIndexedDb, rawDisk } from "./edb.test-support.js";
 import { type EncryptedStores, installEncryptedStores } from "./install.js";
-import { freshIndexedDb, rawDisk } from "./test-support.js";
 
 let factory: IDBFactory;
 let installed: EncryptedStores | undefined;

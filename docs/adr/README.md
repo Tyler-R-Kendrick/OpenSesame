@@ -213,3 +213,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0170](0170-gesture-loadout.md) | The keymap has two loadouts, and a phone leads with gestures | Accepted |
 | [0171](0171-hide-items-while-traveling.md) | Hide items while traveling | Accepted |
 | [0172](0172-accounts-and-login-methods.md) | Accounts own login methods; a password is one of them | Accepted |
+| [0173](0173-searchable-encryption-over-indexeddb.md) | Searchable encryption over IndexedDB | Accepted |

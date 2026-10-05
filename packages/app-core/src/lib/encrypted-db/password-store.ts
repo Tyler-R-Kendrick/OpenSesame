@@ -28,7 +28,10 @@ export function createPasswordDigestStore(
   return {
     add: (scope, digest) =>
       run(async (db) => {
-        await db.put("digests", { id: crypto.randomUUID(), scope, digest });
+        // Keyed by both, so a digest moved twice (two tabs switching the
+        // capability on at once) is one row.
+        const id = `${scope}\u0000${digest}`;
+        await db.put("digests", { id, scope, digest });
         return true as const;
       }),
     digestsFor: (scope) =>

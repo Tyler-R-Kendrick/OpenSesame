@@ -116,6 +116,7 @@ export async function ensureReady(
   ctx: Context,
   plans: readonly LayerPlan[],
 ): Promise<void> {
+  if (plans.length === 0) return;
   const meta = await readMeta(ctx);
   const missing = plans.filter((plan) => !isReady(meta, plan));
   const byTable = new Map<string, LayerPlan[]>();

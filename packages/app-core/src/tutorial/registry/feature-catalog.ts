@@ -92,6 +92,14 @@ export const FEATURE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
   {
+    id: "feature.encrypted-search",
+    description:
+      "The Encrypted search section of Settings › Capabilities: its switch keeps the history-backup and retired-password databases encrypted with no readable name, id or field, and searchable by blind index.",
+    role: "surface",
+    routes: ["/settings"],
+    capabilityId: null,
+  },
+  {
     id: "feature.item-types",
     description:
       "The Item types section of Settings › Capabilities: its switch adds the built-in kinds beyond a secret and a file, and the passkey and certificate kinds.",

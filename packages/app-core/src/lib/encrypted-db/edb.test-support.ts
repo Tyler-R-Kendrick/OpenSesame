@@ -6,6 +6,7 @@ import { IDBFactory, IDBKeyRange } from "fake-indexeddb";
 import { configureHost } from "../../host.js";
 import { createTestHost } from "../../test-host.js";
 import { forgetAtRestKeyForTest } from "../at-rest/key.js";
+import type { EncryptedDb } from "./db.js";
 import { defineSchema } from "./schema.js";
 
 export function freshIndexedDb(): IDBFactory {
@@ -82,3 +83,59 @@ export async function rawDisk(factory: IDBFactory): Promise<RawDisk> {
   }
   return { names, layouts, records };
 }
+
+type ReceiptExtras = Partial<{
+  action: string;
+  note: string;
+  amount: number;
+  tags: string[];
+}>;
+
+export const receipt = (
+  id: string,
+  userId: string,
+  at: string,
+  extra: ReceiptExtras = {},
+) => ({
+  id,
+  userId,
+  action: "approve",
+  at,
+  amount: 10,
+  note: "",
+  tags: [],
+  ...extra,
+});
+
+/** Three receipts and two sessions: two users, one with a note to search. */
+export async function seed(db: EncryptedDb): Promise<void> {
+  await db.put(
+    "receipts",
+    receipt("r1", "user-alice", "2026-01-01T00:00:00Z", {
+      note: "Quarterly vault review for Alice",
+      tags: ["vault", "review"],
+      amount: 100,
+    }),
+  );
+  await db.put(
+    "receipts",
+    receipt("r2", "user-bob", "2026-02-01T00:00:00Z", {
+      action: "deny",
+      note: "Denied: unknown device",
+      amount: 5,
+    }),
+  );
+  await db.put(
+    "receipts",
+    receipt("r3", "user-alice", "2026-03-01T00:00:00Z", {
+      note: "Vault key rotation",
+      tags: ["vault"],
+      amount: 50,
+    }),
+  );
+  await db.put("sessions", { id: "s1", userId: "user-alice" });
+  await db.put("sessions", { id: "s2", userId: "user-carol" });
+}
+
+export const ids = (rows: readonly { id?: unknown }[]) =>
+  rows.map((row) => row.id).sort();

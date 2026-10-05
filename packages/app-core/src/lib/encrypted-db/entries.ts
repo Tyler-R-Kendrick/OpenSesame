@@ -85,39 +85,58 @@ export function orderEntry(
   ];
 }
 
+function orderEntries(
+  keys: EdbKeys,
+  plan: LayerPlan,
+  element: EdbValue,
+): IndexKey[] {
+  // An absent value has no place in an order, and is found by no range.
+  if (element === null) return [];
+  const offset = orderOffset(plan, element);
+  if (offset === undefined) {
+    throw new RangeError(
+      `${plan.table}.${plan.column} holds a value outside its order domain`,
+    );
+  }
+  return [orderEntry(keys, plan, offset)];
+}
+
+function keywordEntries(
+  keys: EdbKeys,
+  plan: LayerPlan,
+  element: EdbValue,
+): IndexKey[] {
+  if (!isString(element)) return [];
+  return wordsOf(element).flatMap((word) => [
+    wordToken(keys, plan, word),
+    ...(plan.prefix > 0 ? prefixesOf(word, plan.prefix) : []).map((prefix) =>
+      prefixToken(keys, plan, prefix),
+    ),
+  ]);
+}
+
+function equalityEntries(
+  keys: EdbKeys,
+  plan: LayerPlan,
+  element: EdbValue,
+): IndexKey[] {
+  const form = canonical(element);
+  return form === undefined ? [] : [keys.token("eq", plan.scope, form)];
+}
+
 /** The entries one column of a row has under one layer. */
 export function columnEntries(
   keys: EdbKeys,
   plan: LayerPlan,
   value: EdbValue | undefined,
 ): IndexKey[] {
-  const out: IndexKey[] = [];
-  for (const element of elementsOf(value)) {
-    if (plan.layer === "eq") {
-      const form = canonical(element);
-      if (form !== undefined) out.push(keys.token("eq", plan.scope, form));
-    } else if (plan.layer === "order") {
-      // An absent value has no place in an order, and is found by no range.
-      if (element === null) continue;
-      const offset = orderOffset(plan, element);
-      if (offset === undefined) {
-        throw new RangeError(
-          `${plan.table}.${plan.column} holds a value outside its order domain`,
-        );
-      }
-      out.push(orderEntry(keys, plan, offset));
-    } else if (isString(element)) {
-      for (const word of wordsOf(element)) {
-        out.push(wordToken(keys, plan, word));
-        if (plan.prefix > 0) {
-          for (const prefix of prefixesOf(word, plan.prefix)) {
-            out.push(prefixToken(keys, plan, prefix));
-          }
-        }
-      }
-    }
-  }
-  return out;
+  const make =
+    plan.layer === "eq"
+      ? equalityEntries
+      : plan.layer === "order"
+        ? orderEntries
+        : keywordEntries;
+  return elementsOf(value).flatMap((element) => make(keys, plan, element));
 }
 
 const scopeOf = (plan: LayerPlan): string =>
