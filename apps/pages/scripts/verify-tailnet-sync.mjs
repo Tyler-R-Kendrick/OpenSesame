@@ -8,7 +8,7 @@
 //
 // The daemon listens on loopback with a throwaway slot directory, and is
 // reached the way Tailscale Serve exposes it: HTTPS at a `*.ts.net` name,
-// through a TLS proxy in front of it (`lib/serve-shaped-drive.mjs`). Each
+// through a TLS proxy in front of it (`lib/tailscale-serve-drive.mjs`). Each
 // device is its own browser context — its own storage, as separate as two
 // phones — served `dist/` under the production origin; the only other address
 // either may reach is the drive.
@@ -49,8 +49,8 @@ import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword, unlockWithPassword } from "./lib/pages-journey.mjs";
 import { toTheList } from "./lib/phone-vault.mjs";
-import { serveShapedDrive } from "./lib/serve-shaped-drive.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import { tailscaleServeDrive } from "./lib/tailscale-serve-drive.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
 const base = "/OpenSesame/";
@@ -218,7 +218,7 @@ function tailnetFromEnv() {
 
 const daemon = startDrive();
 const tailnet = tailnetFromEnv();
-const serve = await serveShapedDrive(drive, tailnet);
+const serve = await tailscaleServeDrive(drive, tailnet);
 console.log(
   tailnet
     ? `drive ${serve.url}: over the tailnet to ${tailnet.address}, Serve → 127.0.0.1:${tailnet.tlsPort}`

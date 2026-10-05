@@ -8,8 +8,25 @@ import {
   type Folder,
   type VaultBody,
   type VaultItem,
+  captureBefore,
+  restampEdits,
   withTombstone,
 } from "@opensesame/vault-core";
+
+/**
+ * A local edit, stamped after everything the body had already seen, with the
+ * item fields it changed recorded (`stamps.ts`): a device whose clock runs
+ * behind still wins over the copy it edited. Merges never go through this.
+ */
+export function stampedEdit(
+  change: (body: VaultBody) => void,
+): (body: VaultBody) => void {
+  return (body) => {
+    const before = captureBefore(body);
+    change(body);
+    restampEdits(before, body);
+  };
+}
 
 function now(): string {
   return new Date().toISOString();

@@ -14,3 +14,9 @@ export type VaultTombstones = {
 
 /** Item type id → ISO time it was last installed; an install after an uninstall wins. */
 export type ItemTypeInstallTimes = Readonly<Record<string, string>>;
+
+/** Item field key → ISO time it last changed (`stamps.ts`, `item-merge.ts`). */
+export type FieldTimes = Readonly<Record<string, string>>;
+
+/** Field times while a stamp or a merge builds them. */
+export type FieldTimesDraft = Record<string, string>;

@@ -1,5 +1,4 @@
 /** Vault item model. Everything here lives inside the sealed body — never in plaintext storage. */
-
 import type { JsonObject } from "@opensesame/os-domain";
 import type {
   FieldValues,
@@ -7,7 +6,6 @@ import type {
 } from "@opensesame/vault-item-types";
 // Type-only in the other direction, so this stays a leaf at runtime.
 import { typedSearchText, typedSubtitle } from "./item-types.js";
-
 import type { LoginUri, UriMatch } from "./login-uri.js";
 import type { ItemTypeInstallTimes, VaultTombstones } from "./sync-model.js";
 export type { LoginUri, UriMatch } from "./login-uri.js";
@@ -47,6 +45,8 @@ type BaseItem = {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  /** Field key → when it last changed, so a merge keeps both devices' edits (`stamps.ts`). */
+  fieldTimes?: Readonly<Record<string, string>>;
 };
 
 export type LoginItem = BaseItem & {

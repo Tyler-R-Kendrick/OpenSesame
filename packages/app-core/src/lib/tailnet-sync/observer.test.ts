@@ -41,7 +41,7 @@ import {
   tailnetSyncSeams,
   tailnetSyncState,
 } from "./observer.js";
-import { formatPairingCode } from "./pairing.js";
+import { type DrivePairing, formatPairingCode } from "./pairing.js";
 
 const PASSWORD = "correct horse battery staple";
 const CODE = formatPairingCode(PAIRING);
@@ -103,7 +103,7 @@ beforeEach(async () => {
   networkAccessSeams.query = async () => access;
   Object.assign(tailnetSyncSeams, {
     transport: drive,
-    reach: async (_pairing: unknown, waitMs: number) => {
+    reach: async (_pairing: DrivePairing, waitMs: number) => {
       reached.push(waitMs);
     },
     debounceMs: 1,

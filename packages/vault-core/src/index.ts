@@ -12,6 +12,7 @@ export * from "./item-types.js";
 export * from "./login-uri.js";
 export * from "./merge.js";
 export * from "./model.js";
+export * from "./stamps.js";
 export * from "./offline-backup-format.js";
 export * from "./paths.js";
 export * from "./protection-limits.js";

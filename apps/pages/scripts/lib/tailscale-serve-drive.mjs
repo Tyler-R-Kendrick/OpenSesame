@@ -61,7 +61,7 @@ async function freePort() {
     });
     if (found !== null) return found;
   }
-  throw new Error("serve-shaped drive: no port to listen on");
+  throw new Error("tailscale-serve drive: no port to listen on");
 }
 
 /**
@@ -70,8 +70,8 @@ async function freePort() {
  * `{ host, tlsPort, address }` — the MagicDNS name, the port the drive node's
  * Serve forwards 443 to, and the drive node's tailnet address.
  */
-export async function serveShapedDrive(upstream, tailnet = null) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "serve-shaped-"));
+export async function tailscaleServeDrive(upstream, tailnet = null) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tailscale-serve-"));
   const host = tailnet?.host ?? SERVE_HOST;
   const port = tailnet ? Number(tailnet.tlsPort) : await freePort();
   const target = new URL(upstream);

@@ -58,6 +58,7 @@ import {
   recordItemTypes,
   renameFolder,
   restoreItem,
+  stampedEdit,
   toggleFavorite,
 } from "./body-edits.js";
 import { headerCarriesGate } from "./header-gate.js";
@@ -1259,7 +1260,7 @@ export class VaultStore {
 
   /** Apply a mutation and seal it, in the order requested (a rename per keystroke). */
   #mutate(change: (body: VaultBody) => void): Promise<void> {
-    return this.#exclusive((apply) => apply(change));
+    return this.#exclusive((apply) => apply(stampedEdit(change)));
   }
 
   /**
@@ -1524,8 +1525,7 @@ export class VaultStore {
     // unlock screen back to the personal vault — destroy leaves guest, it
     // does not lock guest for re-entry.
     const scope = this.#scope;
-    // Deleting is at least as final as locking, so it runs the same teardown:
-    // clipboard, Identity session, staged claims.
+    // As final as locking: the same teardown (clipboard, Identity, claims).
     this.lock();
     if (isGuestSessionTomb(scope.tomb)) {
       this.#scope = scopedVaultScope();
