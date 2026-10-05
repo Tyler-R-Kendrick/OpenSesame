@@ -3,7 +3,7 @@ import type {
   UnlockMethodId,
   WebauthnHostCheck,
 } from "@opensesame/app-core/lib/vault/unlock-methods.js";
-import { type ReactNode, useState } from "react";
+import type { ReactNode } from "react";
 import {
   IconConnection,
   IconMail,
@@ -13,16 +13,13 @@ import {
   IconShield,
 } from "../../../components/Icons.js";
 import {
-  ACCOUNT_SUBTITLE,
   ACCOUNT_TITLE,
   AccountFactorCeremony,
   type AccountMethodKind,
-  accountFoot,
   isAccountMethod,
 } from "./AccountFactorCeremony.js";
 import type { RemovalFactor } from "./AccountFactorRemoval.js";
 import {
-  KEY_SUBTITLE,
   KEY_TITLE,
   KeyCeremony,
   type KeyKind,
@@ -69,16 +66,6 @@ const TITLE = {
   ...ACCOUNT_TITLE,
 } satisfies Record<MethodKind, string>;
 
-const SUBTITLE = {
-  ...KEY_SUBTITLE,
-  totp: "Codes from an app on your phone. The seed is sealed under the vault key.",
-  email: "For a lost phone. Sent by your sign-in service.",
-  sms: "For a lost phone. Sent by your sign-in service.",
-  recovery: "Each stands in for the second step once.",
-  service: "Where email and text codes are requested from.",
-  ...ACCOUNT_SUBTITLE,
-} satisfies Record<MethodKind, string>;
-
 export function methodIcon(kind: RowKind, size = 16): ReactNode {
   switch (kind) {
     case "totp":
@@ -105,8 +92,8 @@ export function methodIcon(kind: RowKind, size = 16): ReactNode {
 /**
  * The one sheet every method is added, changed or removed in — the side
  * sheet the Connectivity bar already opens, with a CeremonyShell card
- * inside. A row's action names what the sheet will do; the sheet's foot
- * says what is and is not written yet (docs/design/canvases/auth-flow).
+ * inside. A row's action names what the sheet will do, and the card's facts
+ * and keys say the rest (docs/design/canvases/auth-flow).
  */
 export function MethodSheet({
   request,
@@ -126,7 +113,6 @@ export function MethodSheet({
   accountEmail: string | null;
   onClose: () => void;
 }) {
-  const [foot, setFoot] = useState<string | null>(null);
   const { kind, view } = request;
 
   let body: ReactNode;
@@ -139,7 +125,6 @@ export function MethodSheet({
         busy={busy}
         run={run}
         onDone={onClose}
-        setFoot={setFoot}
       />
     );
   } else if (kind === "passkey" || kind === "pin" || kind === "password") {
@@ -163,7 +148,6 @@ export function MethodSheet({
         busy={busy}
         run={run}
         onDone={onClose}
-        setFoot={setFoot}
       />
     );
   } else if (kind === "service") {
@@ -171,7 +155,7 @@ export function MethodSheet({
       <ServiceCeremony view={view} busy={busy} run={run} onDone={onClose} />
     );
   } else if (kind === "recovery") {
-    body = <RecoveryCeremony busy={busy} run={run} setFoot={setFoot} />;
+    body = <RecoveryCeremony busy={busy} run={run} />;
   } else {
     body = (
       <CodeCeremony
@@ -181,7 +165,6 @@ export function MethodSheet({
         run={run}
         accountEmail={accountEmail}
         onDone={onClose}
-        setFoot={setFoot}
       />
     );
   }
@@ -189,37 +172,10 @@ export function MethodSheet({
   return (
     <SheetFrame
       title={TITLE[kind]}
-      subtitle={SUBTITLE[kind]}
       mark={methodIcon(kind, 20)}
-      foot={foot ?? footFor(kind, view)}
       onClose={onClose}
     >
       {body}
     </SheetFrame>
   );
-}
-
-function footFor(kind: MethodKind, view: MethodView): string {
-  if (isAccountMethod(kind)) return accountFoot(view);
-  if (view === "remove") {
-    return kind === "passkey" || kind === "pin" || kind === "password"
-      ? "Removing a key does not touch the vault; it only stops opening it. The other keys keep working."
-      : "Nothing else changes. Your keys keep working.";
-  }
-  if (view === "change") {
-    return "The old one stops working the moment the new one is set.";
-  }
-  switch (kind) {
-    case "totp":
-      return "The seed lives only in memory until a code matches.";
-    case "service":
-      return "Saved on this device. Nothing is sent until you add an email or text code.";
-    case "email":
-    case "sms":
-      return "Your sign-in service sends the code. The vault key never leaves this device.";
-    case "recovery":
-      return "Sealed under the vault key. A used code is crossed out here and refused at unlock.";
-    default:
-      return "Nothing changes until you press the button in the card. The vault stays unlocked while you do this.";
-  }
 }

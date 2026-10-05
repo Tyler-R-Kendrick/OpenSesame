@@ -11,6 +11,7 @@ import {
   IconAlert,
   IconPasskey,
   IconPlus,
+  IconRefresh,
   IconSecret,
   IconShield,
   IconX,
@@ -66,6 +67,7 @@ export function AddKeyProtection({
       name="Add key protection"
       primary={{
         label: "Recovery key",
+        choice: true,
         busy,
         disabled: busy,
         onClick: () =>
@@ -80,6 +82,7 @@ export function AddKeyProtection({
       }}
       secondary={{
         label: "Passkey / security key",
+        choice: true,
         disabled: busy,
         onClick: () =>
           enroll(
@@ -157,6 +160,7 @@ function RotateCeremony({ onDone }: { onDone: () => void }): ReactNode {
       ]}
       primary={{
         label: "Rotate",
+        icon: <IconRefresh size={18} />,
         busy,
         disabled: busy || password.length === 0,
         tone: "danger",

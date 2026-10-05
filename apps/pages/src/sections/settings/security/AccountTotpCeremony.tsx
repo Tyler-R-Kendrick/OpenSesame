@@ -29,23 +29,14 @@ import type { Run } from "./run.js";
 
 type Stage = "scan" | "confirm" | "done";
 
-const FOOTS = {
-  scan: "Until a code matches, closing this sheet removes the setup.",
-  confirm:
-    "A bad scan cannot lock you out: nothing is kept until a code matches.",
-  done: "Your sign-in service asks for this code; the vault does not.",
-} satisfies Record<Stage, string>;
-
 export function AccountTotpCeremony({
   busy,
   run,
   onDone,
-  setFoot,
 }: {
   busy: boolean;
   run: Run;
   onDone: () => void;
-  setFoot: (foot: string | null) => void;
 }) {
   const [stage, setStage] = useState<Stage>("scan");
   const [uri, setUri] = useState<string | null>(null);
@@ -77,10 +68,6 @@ export function AccountTotpCeremony({
       }
     };
   }, []);
-
-  useEffect(() => {
-    setFoot(FOOTS[stage]);
-  }, [stage, setFoot]);
 
   const rail = (
     <Rail steps={["Scan", "Confirm"]} now={stage === "scan" ? 0 : 1} />

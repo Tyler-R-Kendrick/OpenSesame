@@ -239,7 +239,6 @@ export function DeviceSheet({
     <CeremonySheet
       title={title}
       mark={<IconMonitor size={20} />}
-      foot="Changes go to the tailnet through the paired daemon."
       onClose={onClose}
     >
       <form

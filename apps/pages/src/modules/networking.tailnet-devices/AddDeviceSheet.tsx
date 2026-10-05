@@ -248,7 +248,6 @@ export function AddDeviceSheet({
     <CeremonySheet
       title="Add a device"
       mark={<IconPlus size={20} />}
-      foot="The key is shown once and is not kept here or on the daemon."
       onClose={close}
     >
       <form

@@ -81,7 +81,6 @@ export function PairSheet({
     <CeremonySheet
       title="Pair with the tailnet daemon"
       mark={<IconConnection size={20} />}
-      foot="The code is used once and is not kept."
       onClose={onClose}
     >
       <form

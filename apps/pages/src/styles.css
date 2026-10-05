@@ -394,17 +394,15 @@ kbd {
 }
 
 /* ——— The commit control ————————————————————————————————————
-   A screen's one terminal action — the thing that ends the ceremony you came
-   for — is an ink square carrying the glyph of what it does, with its sentence
-   beside it in the margin voice. Not a wide text button: at the bottom of a
-   phone a full-width slab of prose reads as a banner, and the verb it carries
-   is the one piece of text a person has already decided to act on.
-
-   This is deliberately NOT the pattern for an action *inside* a card — those
-   stay `.btn--primary` with a text label, beside the facts that justify them
-   (`.found__do`). Two patterns, one each for "end this screen" and "do this
-   thing here". `docs/design/controls.md` names both; `scripts/quality/design-lint.mjs`
-   holds new commit bars to this one. */
+   The action that ends a ceremony or a form — a screen's terminal commit, a
+   card's one primary (`CeremonyShell`), a form of several fields
+   (`FormCommit`) — is an ink square carrying the glyph of what it does, with
+   its sentence beside it in the margin voice. Never a text slab: at the bottom
+   of a phone a full-width slab of prose reads as a banner, and the verb it
+   carries is the one piece of text a person has already decided to act on. A
+   second action on the row (keep, dismiss, download) is an icon key beside
+   it. `docs/design/controls.md` § 1; `scripts/quality/design-lint.mjs` holds
+   new code to it, including a verb passed in through a prop (`word-slot`). */
 .go-row {
   display: flex;
   align-items: center;
@@ -437,6 +435,16 @@ kbd {
 
 .go[aria-busy="true"] {
   cursor: progress;
+}
+
+/* The one irreversible act: the same square in the error ink. */
+.go--danger {
+  background: var(--err);
+  color: var(--err-ink);
+}
+
+.go--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--err) 85%, var(--ink));
 }
 
 /* The verb, in the margin voice. `aria-hidden`: the square already carries it
@@ -2755,12 +2763,6 @@ body {
   gap: 0.2rem;
 }
 
-.sheet__head p {
-  font-size: 0.8438rem;
-  color: var(--ink-2);
-  line-height: 1.45;
-}
-
 .sheet__body {
   flex: 1;
   min-height: 0;
@@ -2860,19 +2862,23 @@ body {
   color: var(--warn);
 }
 
-/* The primary action lives inside the card, beside the facts that justify it,
-   rather than in a row of peers at the bottom. */
+/* A card that asks before an irreversible act has not failed, and it is not
+   a discovery: no wash, no kicker. The danger key on its row carries it. */
+.found--ask {
+  border-color: var(--line);
+  background: transparent;
+}
+
+/* The keys live inside the card, beside the facts that justify them, rather
+   than in a row of peers at the bottom: the `.go` square and its verb, then
+   the secondary key. */
 .found__do {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 0.6rem;
   justify-self: start;
   margin-top: 0.35rem;
-}
-
-.found__do .btn {
-  margin: 0.15rem 0 0.1rem;
-  padding-inline: 1.2rem;
 }
 
 /* ——— The install offer ——— */
@@ -3067,15 +3073,12 @@ fieldset.picker {
   color: var(--canvas);
 }
 
-/* One standing sentence per ceremony, pinned below the scroll. */
+/* A sheet's docked foot: the support composer, never a caption line
+   (`design-lint` `sheet-caption`). */
 .sheet__foot {
   border-top: 1px solid var(--line);
   padding: 0.85rem 1.15rem;
   background: var(--surface-2);
-}
-
-.sheet__foot .hint {
-  margin: 0;
 }
 
 .wrote {

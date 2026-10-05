@@ -44,7 +44,7 @@
   gap: 0.875rem;
   padding: 1.125rem 1.25rem 1.25rem;
   border-top: 1px solid var(--line);
-  animation: settle 0.18s var(--ease) both;
+  animation: settle 0.18s var(--ease) backwards;
 }
 
 .conn-list > .conn-card:first-child {
@@ -511,7 +511,7 @@ button.conn-tile__link {
   gap: 1rem;
   padding: 0.25rem 0.875rem 1rem;
   border-top: 1px solid var(--line);
-  animation: rise 0.16s var(--ease) both;
+  animation: rise 0.16s var(--ease) backwards;
 }
 
 .conn-tile__body > .hint {

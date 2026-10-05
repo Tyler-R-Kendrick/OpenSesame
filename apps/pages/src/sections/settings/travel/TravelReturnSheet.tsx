@@ -15,9 +15,6 @@ import type { useTravelFlow } from "./useTravelFlow.js";
 
 type Flow = ReturnType<typeof useTravelFlow>;
 
-const FOOT =
-  "Nothing is written to this device until you bring the vaults home. A vault already here is left alone.";
-
 function BundleCard({ flow }: { flow: Flow }) {
   const { busy, bundle, code, notice } = flow;
   return (
@@ -33,6 +30,7 @@ function BundleCard({ flow }: { flow: Flow }) {
         name="Open a travel bundle"
         primary={{
           label: "Open the bundle",
+          icon: <IconUpload size={18} />,
           submit: true,
           busy,
           disabled: !bundle || code.trim().length === 0,
@@ -133,7 +131,6 @@ export function TravelReturnSheet({
     <CeremonySheet
       title="Turn off travel mode"
       mark={<IconDownload size={20} />}
-      foot={FOOT}
       onClose={onClose}
     >
       {mode.kind === "preview" ? (

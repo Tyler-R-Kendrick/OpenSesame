@@ -22,12 +22,6 @@ export const KEY_TITLE = {
   password: "Password",
 } satisfies Record<KeyKind, string>;
 
-export const KEY_SUBTITLE = {
-  passkey: "Face, fingerprint or the device PIN, through this browser.",
-  pin: "Four to twelve digits, held on this device.",
-  password: "Twelve characters or more. The reminder you save shows at unlock.",
-} satisfies Record<KeyKind, string>;
-
 export function keyIcon(kind: KeyKind, size = 16): ReactNode {
   return kind === "passkey" ? (
     <IconPasskey size={size} />
