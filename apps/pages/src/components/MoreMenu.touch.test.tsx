@@ -50,3 +50,26 @@ describe("the ⋯ menu's rows", () => {
     expect(touchTips.keymap).not.toMatch(/^Help\b/);
   });
 });
+
+describe("the More key as a tutorial target", () => {
+  it("is where the connections' state is read, before and after it opens", () => {
+    pointer(true);
+    render(
+      <MemoryRouter>
+        <SupportProvider>
+          <MoreMenu />
+        </SupportProvider>
+      </MemoryRouter>,
+    );
+    const key = screen.getByRole("button", { name: /^More/ });
+    expect(key.getAttribute("data-guide-targets")).toContain(
+      "shell.connectivity",
+    );
+    fireEvent.click(key);
+    // The rows carry the id too; the key is still the first one pointed at.
+    expect(
+      document.querySelectorAll('[data-guide-targets~="shell.connectivity"]')
+        .length,
+    ).toBe(2);
+  });
+});

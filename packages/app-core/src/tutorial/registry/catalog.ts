@@ -60,7 +60,7 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.connectivity",
     description:
-      "The sections of Settings › Capabilities: each a subheader with its providers, and a switch on it where the section has something optional to turn on.",
+      "The first section of Settings › Capabilities, standing for all of them: each is a subheader with its providers under it, and a switch on it where the section has something optional to turn on.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: "host.health.pages",
@@ -138,17 +138,9 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
   {
-    id: "settings.data",
-    description:
-      "There is no Vault data settings category. Folders, backup, and the build record live with the surfaces that own them.",
-    role: "navigation",
-    routes: ["/settings"],
-    capabilityId: "vault.export",
-  },
-  {
     id: "settings.danger",
     description:
-      "The Danger settings category, which holds the irreversible action of deleting this vault from this browser.",
+      "The Danger settings category, which holds the irreversible actions: deleting this vault from this browser, and the trash, where an item is restored, deleted for good, or the whole trash emptied.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: null,
