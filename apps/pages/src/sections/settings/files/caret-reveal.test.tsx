@@ -156,4 +156,46 @@ describe("revealing the caret after the painted copy grows", () => {
     // with two lines (40px) kept clear, so the page moves forward by 20.
     expect(document.documentElement.scrollTop).toBe(20);
   });
+
+  it("finds the caret at the end of a long last line, where a collapsed range has no box", () => {
+    const { view, textarea } = mount("a");
+    textarea.focus();
+    // A browser draws no box for a collapsed range at the start of the node
+    // that holds only the final line break, but does for the character before.
+    // Its box is a DOMRect, whose fields are getters, not own properties.
+    class DomRectLike {
+      constructor(private readonly at: ReturnType<typeof rect>) {}
+      get left() {
+        return this.at.left;
+      }
+      get right() {
+        return this.at.right;
+      }
+      get top() {
+        return this.at.top;
+      }
+      get bottom() {
+        return this.at.bottom;
+      }
+    }
+    Object.defineProperty(Range.prototype, "getBoundingClientRect", {
+      value(this: Range) {
+        return new DomRectLike(
+          this.collapsed ? rect(0, 0, 0, 0) : rect(480, 5000, 8, 20),
+        );
+      },
+      configurable: true,
+    });
+    const stage = view.container.querySelector<HTMLElement>(".set-raw__stage");
+    if (!stage) throw new Error("no stage");
+    place(stage, rect(0, 0, 100, 400));
+    Object.defineProperty(stage, "clientWidth", { value: 100 });
+    viewport(800);
+    view.rerender(
+      <PaintedText language="json" path="a.json" source={"x".repeat(200)} />,
+    );
+    // The caret sits at the right edge of the last character, 488.
+    expect(stage.scrollLeft).toBe(488 - (100 - 16));
+    expect(document.documentElement.scrollTop).toBe(5020 - (800 - 40));
+  });
 });

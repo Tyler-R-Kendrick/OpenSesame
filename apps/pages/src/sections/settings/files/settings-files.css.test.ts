@@ -1,11 +1,12 @@
 /**
- * The file viewer's layout rules are not covered by a browser gate
- * (`verify:mobile` does not open a settings file), and a stylesheet edit once
- * dropped them: on a phone the file list and the open file sat side by side,
- * and the rows fell under the 44px touch floor. A stylesheet cannot be run in
- * a unit test, so this parses it — comments stripped, rules matched by their
- * exact selector list inside the exact `@media` query — and a negative control
- * shows the matcher fails on a rule that is commented out or has moved.
+ * The file viewer's layout rules. `verify:mobile` opens settings files and
+ * measures them in a real browser; this runs in every unit pass, where a
+ * stylesheet edit once dropped them: on a phone the file list and the open
+ * file sat side by side, and the rows fell under the 44px touch floor. A
+ * stylesheet cannot be run in a unit test, so this parses it — comments
+ * stripped, rules matched by their exact selector list inside the exact
+ * `@media` query — and a negative control shows the matcher fails on a rule
+ * that is commented out or has moved.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";

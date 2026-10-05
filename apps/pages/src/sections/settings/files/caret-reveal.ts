@@ -63,21 +63,65 @@ function textPosition(
   return last;
 }
 
-/** Where the caret at `offset` of the source is drawn in the painted copy. */
-export function caretRect(pre: HTMLElement, offset: number): Box | undefined {
+/** A caret at `x` on the line `box` is on. A `DOMRect` has no own fields, so
+ * a spread of one is empty: name each. */
+function edge(box: Box, x: number): Box {
+  return { left: x, right: x, top: box.top, bottom: box.bottom };
+}
+
+/** What a range is drawn as, or undefined where it has no box. Not every DOM
+ * (a test's, an old engine's) can measure a range. */
+function boxOf(range: Range): Box | undefined {
+  const whole = range.getBoundingClientRect?.();
+  if (hasHeight(whole)) return whole;
+  const first = range.getClientRects?.()?.[0];
+  return hasHeight(first) ? first : undefined;
+}
+
+/** The box of one drawn character, or undefined where there is none. */
+function charBox(pre: HTMLElement, offset: number): Box | undefined {
   const position = textPosition(pre, offset);
-  if (position) {
-    const range = document.createRange();
-    range.setStart(position.node, position.at);
-    range.collapse(true);
-    // Not every DOM (a test's, an old engine's) can measure a range.
-    const whole = range.getBoundingClientRect?.();
-    if (hasHeight(whole)) return whole;
-    const first = range.getClientRects?.()?.[0];
-    if (hasHeight(first)) return first;
-  }
-  // A collapsed range on an empty line has no box; place it by its line.
-  const text = pre.textContent ?? "";
+  if (!position || position.at >= (position.node.textContent?.length ?? 0))
+    return undefined;
+  const range = document.createRange();
+  range.setStart(position.node, position.at);
+  range.setEnd(position.node, position.at + 1);
+  return boxOf(range);
+}
+
+/** The box of a collapsed range at `offset`, where the browser draws one. */
+function collapsedBox(pre: HTMLElement, offset: number): Box | undefined {
+  const position = textPosition(pre, offset);
+  if (!position) return undefined;
+  const range = document.createRange();
+  range.setStart(position.node, position.at);
+  range.collapse(true);
+  return boxOf(range);
+}
+
+/** A collapsed range has no box at the start of a node that holds only a
+ * line break (the end of the last line, as someone types at the end of a
+ * file), so take it from a neighbour on the same line: the right edge of the
+ * character before, else the left edge of the one after. */
+function neighbourBox(
+  pre: HTMLElement,
+  text: string,
+  offset: number,
+): Box | undefined {
+  const before = offset > 0 && text[offset - 1] !== "\n";
+  const box = before ? charBox(pre, offset - 1) : undefined;
+  if (box) return edge(box, box.right);
+  const after = offset < text.length && text[offset] !== "\n";
+  const next = after ? charBox(pre, offset) : undefined;
+  return next ? edge(next, next.left) : undefined;
+}
+
+/** An empty line has no character to measure; place it by its line. */
+function lineBox(
+  pre: HTMLElement,
+  text: string,
+  offset: number,
+): Box | undefined {
   const line = text.slice(0, offset).split("\n").length - 1;
   const style = getComputedStyle(pre);
   const height = Number.parseFloat(style.lineHeight);
@@ -86,6 +130,16 @@ export function caretRect(pre: HTMLElement, offset: number): Box | undefined {
   const top =
     origin.top + (Number.parseFloat(style.paddingTop) || 0) + line * height;
   return { left: origin.left, right: origin.left, top, bottom: top + height };
+}
+
+/** Where the caret at `offset` of the source is drawn in the painted copy. */
+export function caretRect(pre: HTMLElement, offset: number): Box | undefined {
+  const text = pre.textContent ?? "";
+  return (
+    collapsedBox(pre, offset) ??
+    neighbourBox(pre, text, offset) ??
+    lineBox(pre, text, offset)
+  );
 }
 
 function scrollsDown(element: Element): boolean {

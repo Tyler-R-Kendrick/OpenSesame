@@ -38,6 +38,7 @@ import {
   openVaultList,
   treeActions,
 } from "./lib/phone-vault.mjs";
+import { settingsFileStops } from "./lib/settings-file-contract.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { touchCopyStop } from "./lib/touch-copy-contract.mjs";
 
@@ -251,6 +252,7 @@ async function walk(browser, phone) {
   await phonePolish.topbarPromptFits(page, stop, { harness });
 
   await sections(page, stop);
+  await settingsFileStops({ page, harness, audit, stop, base });
 
   // The overflow the top bar carries holds what the statusline would: help,
   // notifications and the connector glyphs. Those belong to capabilities,
@@ -364,6 +366,7 @@ async function tablet(browser, size) {
   }
   await audit(page, stop("vault"));
   await auditSettings(page, (label) => audit(page, label), stop);
+  await settingsFileStops({ page, harness, audit, stop, base });
   await context.close();
 }
 
