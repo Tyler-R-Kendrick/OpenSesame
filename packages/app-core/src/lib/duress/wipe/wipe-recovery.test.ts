@@ -11,7 +11,10 @@ import { WrongPasswordError, createItem } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { unlockWithPinAfterDuressGate } from "../../../screens/unlock/unlock-pin-duress.js";
 import { kvFlush, kvForgetAll, kvHydrate } from "../../kv.js";
-import { offlineBackupFile, sealedVaultText } from "../../vault/offline-backup-file.js";
+import {
+  offlineBackupFile,
+  sealedVaultText,
+} from "../../vault/offline-backup-file.js";
 import { vaultStore } from "../../vault/store.js";
 import { loadIncidentIntent } from "../incident/intent-journal.js";
 import { duressSessionFence } from "../session/fence.js";
