@@ -36,11 +36,11 @@ export const LIVE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "settings.live.host"',
-      'say "A live session shares the whole vault, or items you choose, with people who open a link. It runs browser to browser for as long as this tab stays open, with no server of its own."',
+      'say "A live session shares the whole vault, or items you choose, with people who open a link. It runs browser to browser for as long as this tab stays open, with no server of its own. Values cross one at a time, on request, and you can end it for everyone."',
       'navigate "/settings/live"',
       'wait route "/settings/live" timeout=15000',
       'focus "settings.live" "Live sessions is its own category. It holds the panel that hosts a session and the routes a session may use." side=bottom',
-      'focus "settings.live-session" "Choose what to share, what each person may do, how they are admitted and for how long, up to eight hours. Each person sends you a request code, you let them in, and a reply code goes back. Values cross one at a time, on request, and you can end the session for everyone." side=right',
+      'focus "settings.live-session" "Choose what to share, what each person may do, how they get in and for how long. Each person sends you a request code, you let them in, and a reply code goes back." side=right',
       'scroll "settings.live-routes"',
       'focus "settings.live-routes" "Routes are optional ways to reach people off this network: a tunnel address, STUN and TURN servers, relay only, and carriers that pass the pairing codes. With none, sessions are direct only and contact nothing." side=top',
       'success "That is hosting a live session. Someone with a link opens it to join."',

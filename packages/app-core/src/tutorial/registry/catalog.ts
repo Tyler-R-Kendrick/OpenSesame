@@ -60,7 +60,7 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "settings.connectivity",
     description:
-      "The sections of Settings › Capabilities: each a subheader with its providers, and a switch on it where the section has something optional to turn on.",
+      "The first section of Settings › Capabilities, standing for all of them: each is a subheader with its providers under it, and a switch on it where the section has something optional to turn on.",
     role: "navigation",
     routes: ["/settings"],
     capabilityId: "host.health.pages",
