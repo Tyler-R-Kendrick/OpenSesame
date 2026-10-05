@@ -12,14 +12,21 @@ import { vaultPane } from "./vault-list-path.js";
 
 type Handle = {
   ascend: Ascend;
-  go: (to: string | number) => void;
+  go: (to: string) => void;
+  back: () => void;
   at: () => string;
   type: () => string;
 };
 
 /** Mounts the hook where a phone's vault would, and hands back its controls. */
 function mount(entries: string[], index = entries.length - 1): Handle {
-  const handle = {} as Handle;
+  const handle: Handle = {
+    ascend: () => undefined,
+    go: () => undefined,
+    back: () => undefined,
+    at: () => "",
+    type: () => "",
+  };
   function Probe() {
     const { pathname, search } = useLocation();
     const navigate = useNavigate();
@@ -28,7 +35,8 @@ function mount(entries: string[], index = entries.length - 1): Handle {
       vaultPane(pathname, new URLSearchParams(search)),
     );
     handle.ascend = ascend;
-    handle.go = (to) => (typeof to === "number" ? navigate(to) : navigate(to));
+    handle.go = (to) => navigate(to);
+    handle.back = () => navigate(-1);
     handle.at = () => pathname + search;
     handle.type = () => type;
     return null;
@@ -52,7 +60,7 @@ describe("usePaneTrail", () => {
     await run(() => vault.ascend("tree", "/vault"));
     expect(vault.at()).toBe("/vault");
     expect(vault.type()).toBe("POP");
-    await run(() => vault.go(-1));
+    await run(() => vault.back());
     expect(vault.at()).toBe("/");
   });
 
@@ -63,7 +71,7 @@ describe("usePaneTrail", () => {
     await run(() => vault.go("/vault?f=secret"));
     await run(() => vault.ascend("tree", "/vault"));
     expect(vault.at()).toBe("/vault");
-    await run(() => vault.go(-1));
+    await run(() => vault.back());
     expect(vault.at()).toBe("/");
   });
 
@@ -88,7 +96,7 @@ describe("usePaneTrail", () => {
     const vault = mount(["/vault"]);
     await run(() => vault.go("/vault?f=all"));
     await run(() => vault.go("/vault/a?f=all"));
-    await run(() => vault.go(-1));
+    await run(() => vault.back());
     expect(vault.at()).toBe("/vault?f=all");
     await run(() => vault.ascend("tree", "/vault"));
     expect(vault.at()).toBe("/vault");

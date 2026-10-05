@@ -1,0 +1,186 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "scrollToOptional": "Duress"
+        },
+        {
+          "pressIn": ["#duress-profiles", "Add"]
+        },
+        {
+          "measure": "[role=dialog] input[type=radio]"
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "shot": "390-sheet-fresh"
+        },
+        {
+          "fillOptional": {
+            "label": "Duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=0"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Confirm duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=1"
+          }
+        },
+        {
+          "chooseOptional": "Freeze for a while"
+        },
+        {
+          "measure": "[role=dialog] .duress__choice"
+        },
+        {
+          "measure": "[role=dialog] input[type=radio], [role=dialog] input[type=checkbox]"
+        },
+        {
+          "shot": "390-sheet-freeze"
+        },
+        {
+          "chooseOptional": "24 hours"
+        },
+        {
+          "checkOptional": "I understand that after this code is typed this device refuses my real password and other real credentials for the time I chose, that I cannot shorten it from this device, and that it relies on this device's clock."
+        },
+        {
+          "measure": "[role=dialog] input[type=radio], [role=dialog] input[type=checkbox]"
+        },
+        {
+          "shot": "390-sheet-filled"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "scrollToOptional": "Duress"
+        },
+        {
+          "pressIn": ["#duress-profiles", "Add"]
+        },
+        {
+          "measure": "[role=dialog] input[type=radio]"
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "shot": "1280-sheet-fresh"
+        },
+        {
+          "fillOptional": {
+            "label": "Duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=0"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "Confirm duress code",
+            "text": "246813579",
+            "selector": "[role=dialog] input[type=password] >> nth=1"
+          }
+        },
+        {
+          "chooseOptional": "Freeze for a while"
+        },
+        {
+          "measure": "[role=dialog] .duress__choice"
+        },
+        {
+          "measure": "[role=dialog] input[type=radio], [role=dialog] input[type=checkbox]"
+        },
+        {
+          "shot": "1280-sheet-freeze"
+        },
+        {
+          "chooseOptional": "24 hours"
+        },
+        {
+          "checkOptional": "I understand that after this code is typed this device refuses my real password and other real credentials for the time I chose, that I cannot shorten it from this device, and that it relies on this device's clock."
+        },
+        {
+          "measure": "[role=dialog] input[type=radio], [role=dialog] input[type=checkbox]"
+        },
+        {
+          "shot": "1280-sheet-filled"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-sheet-fresh",
+      "width": 390,
+      "title": "The duress sheet, as opened \u2014 390 \u00d7 844",
+      "caption": "Settings \u203a Security \u203a Duress \u203a Add, the same journey on both builds. The branch offers a third mode, Freeze for a while, beside the two the base has.",
+      "before": "2 mode radios, each 44x44 (rows 322x44 at y 408 and 456); sheet 390x743",
+      "after": "3 mode radios, each 44x44 (rows 322x44 at y 427, 475, 523); sheet 390x743, inside the 390px viewport"
+    },
+    {
+      "shot": "390-sheet-freeze",
+      "width": 390,
+      "title": "Freeze for a while, picked \u2014 390 \u00d7 844",
+      "caption": "The mode's own input appears below the radios, with no duration chosen. The base has no such mode, so its picture is the sheet with the code typed.",
+      "before": "no Freeze mode: 2 mode radios, no duration choices",
+      "after": "6 radios, all 44x44: 3 modes and 3 durations (1 hour, 24 hours, 72 hours), none checked"
+    },
+    {
+      "shot": "390-sheet-filled",
+      "width": 390,
+      "title": "Duration chosen and consent ticked \u2014 390 \u00d7 844",
+      "caption": "24 hours and the mode's own consent sentence. The base has neither, so its picture is the sheet with the code typed.",
+      "before": "no duration and no freeze consent: the sheet with the code typed",
+      "after": "24 hours checked and the freeze consent box, 44x44, ticked; every control 44x44"
+    },
+    {
+      "shot": "1280-sheet-fresh",
+      "width": 1280,
+      "title": "The duress sheet, as opened \u2014 1280 \u00d7 800",
+      "caption": "Settings \u203a Security \u203a Duress \u203a Add, the same journey on both builds. The branch offers a third mode, Freeze for a while, beside the two the base has.",
+      "before": "2 mode radios, 13x13 in 23px rows; sheet 424x800",
+      "after": "3 mode radios, 13x13 in 23px rows (y 305, 332, 358); sheet 424x800"
+    },
+    {
+      "shot": "1280-sheet-freeze",
+      "width": 1280,
+      "title": "Freeze for a while, picked \u2014 1280 \u00d7 800",
+      "caption": "The mode's own input appears below the radios, with no duration chosen. The base has no such mode, so its picture is the sheet with the code typed.",
+      "before": "no Freeze mode: 2 mode radios, no duration choices",
+      "after": "6 radios, 13x13 in 23px rows: 3 modes and 3 durations, none checked"
+    },
+    {
+      "shot": "1280-sheet-filled",
+      "width": 1280,
+      "title": "Duration chosen and consent ticked \u2014 1280 \u00d7 800",
+      "caption": "24 hours and the mode's own consent sentence. The base has neither, so its picture is the sheet with the code typed.",
+      "before": "no duration and no freeze consent",
+      "after": "24 hours checked and the freeze consent ticked"
+    }
+  ]
+}

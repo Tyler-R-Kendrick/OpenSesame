@@ -4,6 +4,7 @@
  * expiring with it, and the signing key never in a link.
  */
 import { createAccount, fromPublic } from "@nats-io/nkeys";
+import { type JsonObject, readJsonObject } from "@opensesame/os-domain";
 import { describe, expect, it } from "vitest";
 import { fromB64url } from "./b64.js";
 import { mintNatsCredential, permissionsFor } from "./nats-credentials.js";
@@ -28,10 +29,19 @@ function account() {
   };
 }
 
-function claims(jwt: string): Record<string, unknown> {
+function claims(jwt: string): JsonObject {
   const body = fromB64url(jwt.split(".")[1] ?? "");
   if (!body) throw new Error("not a jwt");
-  return JSON.parse(decoder.decode(body));
+  const parsed = readJsonObject(JSON.parse(decoder.decode(body)));
+  if (!parsed) throw new Error("the claims are not an object");
+  return parsed;
+}
+
+/** The `nats` claim of a token. */
+function natsClaim(jwt: string): JsonObject {
+  const nats = readJsonObject(claims(jwt).nats);
+  if (!nats) throw new Error("no nats claim");
+  return nats;
 }
 
 const URL_ = "wss://nats.example.test";
@@ -112,7 +122,7 @@ describe("credentials a session mints", () => {
       expiresAt,
     );
     const body = claims(jwt);
-    const nats = body.nats as Record<string, unknown>;
+    const nats = natsClaim(jwt);
     expect(body.iss).toBe(mint.signer);
     expect(body.exp).toBe(Math.ceil(expiresAt / 1000));
     expect(nats.issuer_account).toBe(mint.account);
@@ -164,7 +174,7 @@ describe("credentials a session mints", () => {
     expect(mine?.jwt).toBeTruthy();
     expect(linked?.jwt).not.toBe(mine?.jwt);
     expect(JSON.stringify({ link, own })).not.toContain(mint.signingKey);
-    const nats = claims(linked?.jwt ?? "").nats as Record<string, unknown>;
+    const nats = natsClaim(linked?.jwt ?? "");
     expect(nats.resp).toBeUndefined();
     expect(
       readRoutes({ carriers: link.carriers.map((c) => ({ ...c })) }),

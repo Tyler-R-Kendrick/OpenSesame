@@ -33,6 +33,7 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { toB64url } from "./b64.js";
+import type { NatsCredential } from "./nats-credentials.js";
 import {
   type CarrierSetting,
   type CarrierSpec,
@@ -126,10 +127,10 @@ export function carrierKey(carrier: CarrierSpec): string {
 }
 
 /** About what a minted joiner credential weighs in a link. */
-const MINTED_PREVIEW: Readonly<{ jwt: string; seed: string }> = {
+const MINTED_PREVIEW = {
   jwt: `${"a".repeat(60)}.${"b".repeat(900)}.${"c".repeat(86)}`,
   seed: `SU${"A".repeat(56)}`,
-};
+} satisfies NatsCredential;
 
 /** A carrier as a link carries it: a signing key becomes a credential. */
 function linkCarrier(
@@ -292,6 +293,12 @@ export async function iceServersFor(
   );
 }
 
+/** A session's routes: what its link carries, and what the owner's tab opens. */
+export type SessionRoutes = Readonly<{
+  link: LiveRoutes;
+  own: readonly CarrierSpec[];
+}>;
+
 /**
  * What a session's link carries of the owner's profile (`link`), and the
  * carriers the owner's own tab opens (`own`). A NATS signing key mints two
@@ -303,7 +310,7 @@ export async function sessionRoutes(
   transport: LiveTransport,
   expiresAt: number,
   topic: string,
-): Promise<Readonly<{ link: LiveRoutes; own: readonly CarrierSpec[] }>> {
+): Promise<SessionRoutes> {
   const minting = transport.carriers.some((carrier) => carrier.mint);
   const mint = minting
     ? (await import("./nats-credentials.js")).mintNatsCredential

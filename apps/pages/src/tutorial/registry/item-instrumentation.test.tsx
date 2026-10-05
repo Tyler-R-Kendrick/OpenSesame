@@ -55,7 +55,9 @@ function login(overrides: Partial<LoginItem> = {}): LoginItem {
   };
 }
 
-const state = { items: [] as VaultItem[] };
+/** The vault the stubbed store hands the panes. */
+type StubVault = { items: VaultItem[] };
+const state: StubVault = { items: [] };
 const store = {
   toggleFavorite: () => undefined,
   trashItem: () => undefined,

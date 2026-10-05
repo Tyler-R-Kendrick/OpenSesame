@@ -61,7 +61,11 @@ describe("DuressPanel, decoy with everyday items", () => {
     const names = screen
       .getAllByRole("radio")
       .map((radio) => radio.closest("label")?.textContent);
-    expect(names).toEqual(["Decoy vault", MODE, "Wrong password"]);
+    // Its place relative to its neighbours, not the whole list, so another
+    // mode landing elsewhere does not break this.
+    const at = names.indexOf(MODE);
+    expect(names[at - 1]).toBe("Decoy vault");
+    expect(names.indexOf("Wrong password")).toBeGreaterThan(at);
     expect(screen.queryByRole("textbox", { name: LIST })).toBeNull();
   });
 
