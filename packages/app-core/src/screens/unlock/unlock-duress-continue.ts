@@ -21,6 +21,11 @@ import {
   runDuressEffects,
 } from "../../lib/duress/settings/modes/index.js";
 
+/** Where the unlock path runs a plan's effects; a test records the calls here. */
+export const duressContinueSeams = {
+  runEffects: runDuressEffects,
+};
+
 export type DuressContinueStore = Readonly<{
   /** `decoy: true` — a sealed guest tomb is never wiped (VaultStore.createGuest). */
   createGuest: (options?: {
@@ -70,7 +75,7 @@ export async function continueAfterDuressMatch(
   // first phase runs before anything is shown — or refused — so a locked
   // presentation still does what its mode says.
   const plan = decodePlan(match.plaintext.payload);
-  await runDuressEffects(plan, "on_match", { store });
+  await duressContinueSeams.runEffects(plan, "on_match", { store });
   if (presentation === "locked" || presentation === "unchanged") {
     clearActivePresentation();
     match.plaintext.compartmentKey.fill(0);
@@ -105,6 +110,6 @@ export async function continueAfterDuressMatch(
   }
 
   await store.createGuest({ decoy: true });
-  await runDuressEffects(plan, "after_session", { store });
+  await duressContinueSeams.runEffects(plan, "after_session", { store });
   return "duress_session";
 }

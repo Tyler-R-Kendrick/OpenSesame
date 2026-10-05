@@ -108,17 +108,17 @@ export async function sealUnlockTriggerFromCeremony(
     keyEpoch: input.keyEpoch ?? base.keyEpoch,
   };
 
+  const slot = {
+    compartmentKey: createIndependentCompartmentKey(),
+    actionCapability: null,
+    presentation: asPresentation(String(input.presentation)),
+  };
   const enrolled = await enrollTrigger({
     state: consented,
     code: input.code,
     profileId: input.profileId,
     triggerKind: "application_code",
-    plaintext: {
-      compartmentKey: createIndependentCompartmentKey(),
-      actionCapability: null,
-      presentation: asPresentation(String(input.presentation)),
-      ...(input.payload ? { payload: input.payload } : {}),
-    },
+    plaintext: input.payload ? { ...slot, payload: input.payload } : slot,
     replace: true,
     autoRehearse: true,
   });

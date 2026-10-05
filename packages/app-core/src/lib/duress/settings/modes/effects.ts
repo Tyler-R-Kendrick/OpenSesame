@@ -9,6 +9,7 @@
  * to avoid. A runner that cannot finish leaves its own record of that.
  */
 
+import type { JsonValue } from "@opensesame/os-domain";
 import type { DuressPlan } from "./mode.js";
 
 export type EffectPhase = "on_match" | "after_session";
@@ -18,7 +19,7 @@ export type EffectHost = Readonly<{ store: object }>;
 
 export type EffectRunner = Readonly<{
   phase: EffectPhase;
-  run: (body: unknown, host: EffectHost) => Promise<void>;
+  run: (body: JsonValue, host: EffectHost) => Promise<void>;
 }>;
 
 /**

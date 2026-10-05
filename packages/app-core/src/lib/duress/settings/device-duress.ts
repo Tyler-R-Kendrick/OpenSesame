@@ -144,21 +144,27 @@ export async function enableDuressCode(input: {
     // id, so an older code under another profile would keep firing. The
     // revisions carry over so nothing sealed against them goes stale.
     const before = loadEnrollmentStateForUnlock();
-    const sealed = await sealUnlockTriggerFromCeremony({
+    const ceremony = {
       code: input.code,
       profileId: DEVICE_DURESS_PROFILE,
       vaultRef: input.vaultRef,
       deviceBindingRef: DEVICE_BINDING,
       presentation: mode.presentation,
-      ...(mode.plan
-        ? { payload: encodePlan(mode.plan(input.extras ?? {})) }
-        : {}),
       previous: null,
       policyRevision: before?.policyRevision ?? 1,
       keyEpoch: before?.keyEpoch ?? 1,
       ownerConsent: true,
       capabilities: { durableLocalStorage: true, offlineReady: true },
-    });
+    };
+    // A mode with a plan seals it beside the presentation; one without seals none.
+    const sealed = await sealUnlockTriggerFromCeremony(
+      mode.plan
+        ? {
+            ...ceremony,
+            payload: encodePlan(mode.plan(input.extras ?? {})),
+          }
+        : ceremony,
+    );
     const armed = await armPersistedUnlockEnrollment(sealed, {
       requireDurable: input.requireDurable ?? true,
     });
