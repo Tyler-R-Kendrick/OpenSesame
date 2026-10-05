@@ -16,6 +16,10 @@ import {
   openPresentation,
 } from "../../lib/duress/compartment/session.js";
 import type { SlotPlaintext } from "../../lib/duress/crypto/slots.js";
+import {
+  decodePlan,
+  runDuressEffects,
+} from "../../lib/duress/settings/modes/index.js";
 
 export type DuressContinueStore = Readonly<{
   /** `decoy: true` — a sealed guest tomb is never wiped (VaultStore.createGuest). */
@@ -62,6 +66,11 @@ export async function continueAfterDuressMatch(
 ): Promise<"duress_session"> {
   store.cancelTotpChallenge?.();
   const presentation = resolveDuressPresentation(match.plaintext.presentation);
+  // The mode's plan is read before the slot's bytes are cleared, and its
+  // first phase runs before anything is shown — or refused — so a locked
+  // presentation still does what its mode says.
+  const plan = decodePlan(match.plaintext.payload);
+  await runDuressEffects(plan, "on_match", { store });
   if (presentation === "locked" || presentation === "unchanged") {
     clearActivePresentation();
     match.plaintext.compartmentKey.fill(0);
@@ -96,5 +105,6 @@ export async function continueAfterDuressMatch(
   }
 
   await store.createGuest({ decoy: true });
+  await runDuressEffects(plan, "after_session", { store });
   return "duress_session";
 }
