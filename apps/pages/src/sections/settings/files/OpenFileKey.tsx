@@ -1,5 +1,5 @@
 /** The key on a Form row that opens the file the row is drawn from. */
-import { IconTerminal } from "../../../components/Icons.js";
+import { IconSettings } from "../../../components/Icons.js";
 import { useOpenSettingsFile } from "./context.js";
 
 export function OpenFileKey({ path, name }: { path: string; name: string }) {
@@ -13,7 +13,7 @@ export function OpenFileKey({ path, name }: { path: string; name: string }) {
       title={`Open ${path}`}
       onClick={() => openFile(path)}
     >
-      <IconTerminal size={16} />
+      <IconSettings size={16} />
     </button>
   );
 }

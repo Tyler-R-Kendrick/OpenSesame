@@ -230,8 +230,11 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # 44px, no form control is under 16px (iOS zooms a smaller one on focus and
 # never zooms back), nothing floating rests on a control, the statusline is
 # one row, the sections sit in a drawer, the chrome stays under a third
-# of the screen, and no strip hides its own selected item. Run before touching
-# layout, chrome, controls or any of the CSS under `(pointer: coarse)`.
+# of the screen, and no strip hides its own selected item; a settings file
+# opens at every width (list above the file, 44px rows, one size for the
+# painted copy and its textarea, a long line scrolls the stage not the page).
+# Run before touching layout, chrome, controls or any of the CSS under
+# `(pointer: coarse)`.
 # `MOBILE_SIZES=320,390` (names from `lib/mobile-contract.mjs`) walks only those
 # sizes, which is how CI shards it; an unknown name fails, unset walks them all.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
@@ -514,15 +517,17 @@ Do not add new top-level directories or loose root files — find the group.
   events or mocked keymap registrations. Handler spies and snapshots alone
   are not regression proof. Include saved-vault reload/unlock and immediate
   movement from empty and populated vaults; guest entry alone is insufficient.
-  Keep this gate in the required Bundle budgets
+  It also Tabs onto a settings file's textarea and asserts the stage's focus
+  cue shows (`scripts/lib/settings-file-keyboard-contract.mjs`). Keep this gate in the required Bundle budgets
   job; demonstrate failure before fixing a regression and success afterward.
 - **A phone is not a narrow desktop, and the touch rules are gated on width as
   well as pointer.** The 44px floor, the 16px field floor that keeps iOS from
   zooming a focused field and never zooming back, the single-row statusline,
   the safe-area insets and the landscape arrangement are all measured by
   `pnpm --filter @opensesame/pages verify:mobile` against a fresh Pages build,
-  at 320, 390, 430 and landscape. Changes to the shell, the chrome, any shared
-  control, or any block under `(pointer: coarse)` require it. A screenshot is
+  at 320, 390, 430 and landscape, with a settings file open at each. Changes to
+  the shell, the chrome, any shared control, or any block under
+  `(pointer: coarse)` require it. A screenshot is
   not evidence: the gate measures computed geometry in a real touch context
   and fails closed if that context is lost. Keep it in the required Bundle
   budgets job. Never satisfy it by clipping a control, hiding a road, or

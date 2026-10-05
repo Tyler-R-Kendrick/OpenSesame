@@ -159,6 +159,12 @@ export const AUDIT =
     if (style.overflowX === "auto" || style.overflowX === "scroll") continue;
     const rect = el.getBoundingClientRect();
     if (rect.width > vw + 1) {
+      // A child that is wider than the phone inside a scroller that fits it
+      // is what the scroller is for (a file's long line, a tab strip's
+      // far tab): it cannot widen the page. A scroller that is itself wider
+      // than the phone does not qualify, so its children are still faulted.
+      const holder = scroller(el);
+      if (holder && holder.getBoundingClientRect().right <= vw + 1) continue;
       fail("ELEMENT-WIDER-THAN-PHONE", name(el) + " w=" + Math.round(rect.width), el);
     }
   }
