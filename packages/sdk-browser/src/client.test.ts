@@ -1,21 +1,15 @@
 import { SignJWT } from "jose";
 import { createTestSigningKey } from "./test/jwt-fixtures.js";
+import { SdkFixtureStorage } from "./test/storage-fixture.js";
 const signingKeys = createTestSigningKey("ES256");
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOpenSesame } from "./client.js";
 import { createPkcePair, sha256Base64Url } from "./pkce.js";
 
-class MemStorage {
-  readonly #m = new Map<string, string>();
-  getItem(k: string) {
-    return this.#m.get(k) ?? null;
-  }
-  setItem(k: string, v: string) {
-    this.#m.set(k, v);
-  }
-  removeItem(k: string) {
-    this.#m.delete(k);
+class MemStorage extends SdkFixtureStorage {
+  constructor() {
+    super(ISSUER);
   }
 }
 
@@ -98,7 +92,7 @@ describe("createOpenSesame", () => {
     const authUrl = new URL(overlapCast(assigned[0]));
     expect(authUrl.searchParams.get("code_challenge_method")).toBe("S256");
     expect(authUrl.searchParams.get("client_id")).toBe("rp-alpha");
-    expect(storage.getItem("opensesame:pkce")).toMatch(/^osc1\./);
+    expect(storage.getItem("opensesame:pkce")).toMatch(/^osc2\./);
   });
 
   // The control plane mounts /v1/principals/provisional and answers in the
@@ -356,7 +350,7 @@ describe("createOpenSesame", () => {
     await sesame.continueAnonymously();
     expect(local.getItem("opensesame:session")).toBeNull();
     const stored = sessionStore.getItem("opensesame:session");
-    expect(stored).toMatch(/^osc1\./);
+    expect(stored).toMatch(/^osc2\./);
   });
 
   it("refuses an id_token that answers a different ceremony", async () => {

@@ -59,11 +59,17 @@ describe("the browser client at rest", () => {
     await sesame.signIn({ returnTo: "/after" });
     const state = new URL(assign.mock.calls[0]?.[0]).searchParams.get("state");
     for (const raw of storage.map.values()) {
-      expect(raw).toMatch(/^osc1\./);
+      expect(raw).toMatch(/^osc2\./);
       expect(raw).not.toContain(`${state}`);
       expect(raw).not.toContain("/after");
     }
-    expect(await opened(storage, "opensesame:pkce")).toContain(`${state}`);
+    expect(
+      await opened(
+        storage,
+        "opensesame:pkce",
+        JSON.stringify(["sdk-browser", ISSUER, "rp"]),
+      ),
+    ).toContain(`${state}`);
     // The page after the redirect reads the return path back.
     const next = client(storage).sesame;
     await expect(

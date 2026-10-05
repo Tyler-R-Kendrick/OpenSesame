@@ -59,7 +59,7 @@ describe("sealed storage", () => {
     const store = memory();
     const view = sealedStorage(store, "sdk");
     await view.set("opensesame:pkce", '{"codeVerifier":"v"}');
-    expect(store.getItem("opensesame:pkce")).toMatch(/^osc1\./);
+    expect(store.getItem("opensesame:pkce")).toMatch(/^osc2\./);
     expect(store.getItem("opensesame:pkce")).not.toContain("codeVerifier");
     // A new page over the same store opens it.
     const next = sealedStorage(store, "sdk");
@@ -75,7 +75,7 @@ describe("sealed storage", () => {
     store.setItem("opensesame:session", '{"accessToken":"at"}');
     const view = sealedStorage(store, "sdk");
     expect(await view.get("opensesame:session")).toBe('{"accessToken":"at"}');
-    expect(store.getItem("opensesame:session")).toMatch(/^osc1\./);
+    expect(store.getItem("opensesame:session")).toMatch(/^osc2\./);
   });
 
   it("keeps values in memory, never in the clear, when no key can be kept", async () => {
