@@ -227,6 +227,21 @@ const STEPS = {
       await page.waitForTimeout(400);
     }
   },
+  /**
+   * `scrollToOptional`, with the heading in the middle of the viewport: a
+   * sticky strip above the list hides a heading brought to the top, and a
+   * phone's strip is tall.
+   */
+  async centerOptional(page, name) {
+    const heading = page
+      .getByRole("heading", { name: new RegExp(name, "i") })
+      .first();
+    if (!(await heading.count())) return;
+    await heading.evaluate((node) => {
+      node.scrollIntoView({ block: "center", behavior: "instant" });
+    });
+    await page.waitForTimeout(600);
+  },
   /** `scrollTo`, for a heading only one of the two builds has. */
   async scrollToOptional(page, name) {
     const heading = page

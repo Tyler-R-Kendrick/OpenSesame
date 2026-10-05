@@ -247,6 +247,13 @@ clear.
   ideal-OPF security and is documented as such.
 - **Not synced.** The databases are this browser's. A second device builds its
   own.
+- **Not built from CryptDB.** Multi-principal key chaining (a row readable only
+  while its owner is signed in; CryptDB §4) - here there is one key per device,
+  and giving a person's rows to another principal would be its own decision
+  about whose key opens them. A SQL proxy and query rewriter - the schema is
+  data and the query is the `where` above. `ADJ-JOIN`, the re-keying of one
+  column to another's key - a group names the shared key up front, since a
+  client that holds both keys never needs to re-key a server's copy.
 - **Mixed windows.** While the capability is off, new rows rest in the
   device-sealed stores; they are moved the next time it is on. Rows written
   while it was on are not visible while it is off.
