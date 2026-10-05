@@ -14,7 +14,7 @@
  */
 
 const DRAFT = "settings/item-types/installed/new.json";
-const BUILTIN = "settings/item-types/builtin/api-credential.json";
+const BUILTIN = "settings/item-types/builtin/secret.json";
 
 /** An in-app navigation, the way a shared deep link lands; a reload would
  * lock the guest's vault and end the walk. */
@@ -180,10 +180,7 @@ async function openBuiltin(ctx) {
     if (!open) await dir.first().tap();
     await page.waitForTimeout(400);
   }
-  await page
-    .locator(".vfiles__file", { hasText: "api-credential.json" })
-    .first()
-    .tap();
+  await page.locator(".vfiles__file", { hasText: "secret.json" }).first().tap();
   await page.waitForTimeout(900);
 }
 

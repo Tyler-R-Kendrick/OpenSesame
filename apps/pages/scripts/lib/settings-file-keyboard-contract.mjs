@@ -7,18 +7,16 @@
  * this walks to the textarea with Tab and compares the stage's computed
  * border and shadow focused against unfocused.
  *
- * Two arrivals, neither with a click, injected focus or synthetic key:
- *   - the read-only built-in, from a cold load: guest entry from the front
- *     door, the `g s` chord to Settings, Tab to Vaults, Tab to the row's
- *     "Open api-credential.json" key (past the built-ins' directory, opened with
- *     Enter), Enter, Tab to the file;
- *   - `settings?file=config.yaml`, cold, which is itself a keyboard arrival:
- *     the front door's guest road, then Tab to the file.
+ * Two arrivals, neither with a click, injected focus or synthetic key — a cold
+ *     load of the file's own address, which is what a link or a bookmark
+ *     leaves, then the front door's guest road, then Tab to the file:
+ *   - the read-only built-in, `settings/vaults?file=…/builtin/secret.json`;
+ *   - `settings?file=config.yaml`.
  * Shift+Tab then leaves the file and the cue goes back to the unfocused one.
  */
 import { expect } from "@playwright/test";
 
-const BUILTIN = "settings/item-types/builtin/api-credential.json";
+const BUILTIN = "settings/item-types/builtin/secret.json";
 
 /** What the stage paints under its text: the only visible cue. */
 function cueOf(page) {
@@ -107,29 +105,13 @@ export async function settingsFileKeyboardContract({
   {
     const { page, context } = await harness.newPage(browser);
     await page.setViewportSize({ width, height: 900 });
-    await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-    await enterAsGuest(page);
-    await expect(page).toHaveURL(/\/vault/);
-    // The vault's landing claims the keyboard before a chord can be heard.
-    await expect(page.locator(":focus")).not.toHaveJSProperty(
-      "tagName",
-      "BODY",
+    // The built-ins are not listed on the Form any more, so the arrival is the
+    // address a link or a bookmark leaves: a cold load of the file itself.
+    await page.goto(
+      `${origin}${base}settings/vaults?file=${encodeURIComponent(BUILTIN)}`,
+      { waitUntil: "networkidle" },
     );
-    // The chord is the shell's own: `g` then `s`, as the section walk uses it.
-    await page.keyboard.press("Escape");
-    await page.keyboard.press("g");
-    await page.keyboard.press("s");
-    await expect(page).toHaveURL(/\/settings\/?(\?|$)/);
-    await reach(page, page.getByRole("link", { name: "Vaults", exact: true }));
-    await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/\/settings\/vaults/);
-    // The built-ins sit in a closed directory: Enter on its summary opens it.
-    const builtins = page.locator("summary", { hasText: "builtin/" });
-    await reach(page, builtins);
-    await page.keyboard.press("Enter");
-    const open = page.getByRole("button", { name: "Open api-credential.json" });
-    await reach(page, open);
-    await page.keyboard.press("Enter");
+    await enterAsGuest(page);
     await expect(page).toHaveURL(/file=settings%2Fitem-types%2Fbuiltin/);
     await cueFollowsFocus(harness, page, BUILTIN, `${width}px built-in`, {
       readOnly: true,

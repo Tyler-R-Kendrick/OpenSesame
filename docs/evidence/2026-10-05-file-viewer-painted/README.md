@@ -47,3 +47,7 @@ browser gate opens a settings file.
 `0 → 138 painted tokens`
 
 ![390 json](390-json.png)
+
+`api-credential.json` was a built-in when these were captured; it has since become an optional
+pack (off by default, so it has no file until switched on). A re-run of the journey would open
+`secret.json`, which is part of the embedded core, and the gates do.
