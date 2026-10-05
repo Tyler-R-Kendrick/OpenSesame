@@ -13,6 +13,7 @@ import {
   ACTIVITY_ROUTES,
   ACTIVITY_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/activity-catalog.js";
+import { NAV_ACTIVITY_GOALS } from "@opensesame/app-core/tutorial/registry/section-nav-goals.js";
 import { ActivitySection } from "../../sections/ActivitySection.js";
 import { createActivation } from "../activation.js";
 import { registerTutorial } from "../tutorial-contributions.js";
@@ -23,6 +24,7 @@ export const CAPABILITY = "activity.log";
 
 export const TUTORIAL = {
   targets: ACTIVITY_TARGETS,
+  goals: NAV_ACTIVITY_GOALS,
   routes: ACTIVITY_ROUTES,
 } as const;
 

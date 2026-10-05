@@ -34,6 +34,7 @@ import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js
 import { watchSpendingLeaseScope } from "@opensesame/app-core/lib/spending-leases.js";
 import { watchSpendingLedgerScope } from "@opensesame/app-core/lib/spending-ledger.js";
 import { watchWalletAssignmentScope } from "@opensesame/app-core/lib/wallet-assignments.js";
+import { NAV_WALLET_GOALS } from "@opensesame/app-core/tutorial/registry/section-nav-goals.js";
 import {
   WALLET_ROUTES,
   WALLET_TARGETS,
@@ -77,6 +78,7 @@ export function runSavedWalletConnectors(): FeatureRequest[] {
 
 export const TUTORIAL = {
   targets: WALLET_TARGETS,
+  goals: NAV_WALLET_GOALS,
   routes: WALLET_ROUTES,
 } as const;
 

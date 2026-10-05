@@ -141,6 +141,40 @@ describe("what a tutorial needs before it is offered", () => {
     expect(ids({ holds: () => true })).toContain("identity.switch-account");
   });
 
+  it("offers the rail and statusline tours only on a wide shell, the phone's only on a narrow one", () => {
+    const wide = (predicate: string) => predicate !== "shell.narrow";
+    const narrow = (predicate: string) => predicate !== "shell.wide";
+    const rail = [
+      "shell.sections",
+      "shell.statusline",
+      "shell.sections.access",
+    ];
+    const phone = ["shell.sections.phone", "shell.more"];
+    for (const id of rail) {
+      expect(ids({ holds: wide })).toContain(id);
+      expect(ids({ holds: narrow })).not.toContain(id);
+    }
+    for (const id of phone) {
+      expect(ids({ holds: narrow })).toContain(id);
+      expect(ids({ holds: wide })).not.toContain(id);
+    }
+  });
+
+  it("offers the Keybindings, recovery and plugin tours only where their row is drawn", () => {
+    const without = (missing: string) => (predicate: string) =>
+      predicate !== missing;
+    const needs: Record<string, string> = {
+      "settings.keybindings.review": "shell.keys",
+      "vault.recovery.view": "vault.recovery-made",
+      "settings.browser-autofill": "plugin.browser-autofill.panel",
+      "settings.surrogate-credentials": "plugin.surrogate-proxy.panel",
+    };
+    for (const [id, predicate] of Object.entries(needs)) {
+      expect(ids({ holds: without(predicate) })).not.toContain(id);
+      expect(ids({ holds: () => true })).toContain(id);
+    }
+  });
+
   it("offers the install tour only where Settings draws the install panel", () => {
     const holds = (predicate: string) => predicate !== "install.offered";
     expect(ids({ holds })).not.toContain("app.install");

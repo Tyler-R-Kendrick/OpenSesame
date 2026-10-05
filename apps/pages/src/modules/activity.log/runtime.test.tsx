@@ -26,10 +26,11 @@ describe("activity.log runtime", () => {
         "keymap-jump",
         "route",
         "section",
+        "tutorial-goal",
         "tutorial-route",
         "tutorial-target",
       ],
-      count: 1 + 1 + 3 + 1 + 1 + 1,
+      count: 1 + 1 + 3 + 1 + 1 + 1 + 1,
     });
   });
 
@@ -50,6 +51,9 @@ describe("activity.log runtime", () => {
     expect(t.entries("keymap-jump")).toEqual([{ key: "y", path: "/activity" }]);
     expect(t.entries("tutorial-target").map((d) => d.id)).toEqual([
       "nav.activity",
+    ]);
+    expect(t.entries("tutorial-goal").map((d) => d.id)).toEqual([
+      "shell.sections.activity",
     ]);
     expect(t.entries("tutorial-route").map((d) => d.id)).toEqual(["/activity"]);
     await handle.dispose();
