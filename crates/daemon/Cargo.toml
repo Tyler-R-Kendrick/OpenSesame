@@ -21,7 +21,7 @@ opensesame-uds-authn = { path = "../../crates/uds-authn" }
 # (`pnpm audit:plugin-boundary`).
 opensesame-plugin-settings = { path = "../../crates/plugin-settings" }
 opensesame-tailscale-authn = { path = "../../crates/tailscale-authn", optional = true }
-# Tailnet device management (ADR 0167): the credential, role pairings, the
+# Tailnet device management (ADR 0168): the credential, role pairings, the
 # Tailscale client and the audit trail. Everything it links is already here.
 opensesame-tailnet-admin = { path = "../../crates/tailnet-admin" }
 anyhow = { workspace = true }

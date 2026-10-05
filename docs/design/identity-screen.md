@@ -91,7 +91,7 @@ Moved from the deleted Authority screen. The browser-reachable device act:
 - One-line note: connected devices are enumerated by the operator, not here
   (no browser-reachable list route exists — honest, not faked).
 
-### The tailnet's machines (ADR 0167)
+### The tailnet's machines (ADR 0168)
 
 With `networking.tailnet-devices` in the plan, Devices leads with the
 **Tailnet devices** panel: every machine Tailscale reports, read through the

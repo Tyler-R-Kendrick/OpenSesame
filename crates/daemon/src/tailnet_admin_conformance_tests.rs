@@ -1,5 +1,5 @@
 //! The tailnet routes against `spec/conformance/tailnet-admin-protocol.json`
-//! (ADR 0167): every exchange replayed, in order, through the real router, a
+//! (ADR 0168): every exchange replayed, in order, through the real router, a
 //! real pairing store and a stub standing in for api.tailscale.com. The stub
 //! holds the calls the spec says the daemon must make and answers each as
 //! Tailscale did; a call it did not expect, a call missing, or an answer that

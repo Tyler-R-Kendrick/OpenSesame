@@ -1,4 +1,4 @@
-/* Tailnet devices (ADR 0167): rows reuse the Identity list's own classes;
+/* Tailnet devices (ADR 0168): rows reuse the Identity list's own classes;
    these add the marks line, the choices and the switches inside a sheet. */
 
 .tailnet-row__marks {

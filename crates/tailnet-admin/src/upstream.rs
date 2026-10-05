@@ -1,4 +1,4 @@
-//! The one road to Tailscale (ADR 0167 §2).
+//! The one road to Tailscale (ADR 0168 §2).
 //!
 //! Device and key calls go through invoke-through with a one-row allowlist,
 //! `https://api.tailscale.com` exactly: no redirect is followed, the token is

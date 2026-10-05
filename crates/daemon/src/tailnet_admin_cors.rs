@@ -1,4 +1,4 @@
-//! CORS for the tailnet routes alone (ADR 0167 §4), answered from the
+//! CORS for the tailnet routes alone (ADR 0168 §4), answered from the
 //! pairings file as the plugin routes' is: only an origin that holds a bearer
 //! or a code still waiting is echoed, exactly (never `*`), credentials are
 //! never allowed, and every answer varies on `Origin`.

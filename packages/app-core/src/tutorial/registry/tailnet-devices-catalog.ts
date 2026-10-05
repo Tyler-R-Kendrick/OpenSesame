@@ -1,6 +1,6 @@
 /**
  * Targets, the walkthrough and the help `networking.tailnet-devices`
- * contributes (ADR 0167): the tailnet's machines under Identity › Devices,
+ * contributes (ADR 0168): the tailnet's machines under Identity › Devices,
  * live only while that capability is in the plan.
  */
 

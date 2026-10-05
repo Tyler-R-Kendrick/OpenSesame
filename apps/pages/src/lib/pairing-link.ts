@@ -1,7 +1,7 @@
 /**
  * A pairing link carries a secret in its fragment: a drive's slot key
  * (`…/settings/vaults#pair-drive=<code>`, ADR 0144) or a tailnet device
- * management code (`…/identity?view=devices#pair-tailnet=<code>`, ADR 0167).
+ * management code (`…/identity?view=devices#pair-tailnet=<code>`, ADR 0168).
  * The fragment never reaches a server, but it stays in the address bar and in
  * history — which some browsers sync to other devices — until something
  * removes it. Boot removes it at once, and again on every in-page arrival (a

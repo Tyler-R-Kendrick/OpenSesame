@@ -1,5 +1,5 @@
 /**
- * Pairing this page with the daemon that manages the tailnet (ADR 0167 §3),
+ * Pairing this page with the daemon that manages the tailnet (ADR 0168 §3),
  * as a ceremony in a sheet. A pairing link fills the code in. The code works
  * once, from this page's address only, within five minutes; what it is
  * traded for is sealed in the open vault. Before anything is pressed the sheet

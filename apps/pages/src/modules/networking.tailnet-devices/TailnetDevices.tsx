@@ -1,5 +1,5 @@
 /**
- * Identity › Devices, for the tailnet's machines (ADR 0167): the device list
+ * Identity › Devices, for the tailnet's machines (ADR 0168): the device list
  * the paired daemon reads from Tailscale, its auth keys and what was changed,
  * with the keys a pairing's role allows. With no daemon paired the panel
  * offers pairing and nothing else.

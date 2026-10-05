@@ -1,4 +1,4 @@
-//! The tailnet routes that change something (ADR 0167 §4), each a `manage`
+//! The tailnet routes that change something (ADR 0168 §4), each a `manage`
 //! bearer's call that the parent module audits.
 
 use axum::{

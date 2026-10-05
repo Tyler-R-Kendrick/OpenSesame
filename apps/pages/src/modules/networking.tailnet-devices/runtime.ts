@@ -1,6 +1,6 @@
 /**
  * `networking.tailnet-devices` — managing the tailnet's real machines from
- * Identity › Devices (ADR 0167). Optional, default off, a dependency of
+ * Identity › Devices (ADR 0168). Optional, default off, a dependency of
  * nothing and dependent on `networking.tailnet`: nothing of it reaches the
  * page before the plan approved it and a consent receipt covered it.
  *

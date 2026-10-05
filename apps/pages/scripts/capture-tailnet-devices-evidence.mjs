@@ -1,4 +1,4 @@
-// Before/after evidence for Identity › Devices (ADR 0167), from two real
+// Before/after evidence for Identity › Devices (ADR 0168), from two real
 // dedicated-origin builds walked the same way on the stack
 // `verify:tailnet-devices` runs: an owner seals a vault, turns Identity and
 // Networking on, opens Identity › Devices, then presses the panel's add key.

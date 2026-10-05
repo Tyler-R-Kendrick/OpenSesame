@@ -1,6 +1,6 @@
 /**
  * Add a device to the tailnet: mint a Tailscale auth key with the options a
- * person chose, through the daemon (ADR 0167), and show it once with the
+ * person chose, through the daemon (ADR 0168), and show it once with the
  * command that joins a machine with it. The key is in this sheet's memory
  * only; closing the sheet forgets it, and the daemon never stored it.
  */
