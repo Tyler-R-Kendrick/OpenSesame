@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Database } from "@opensesame/database";
+import type { Database, EventSealer } from "@opensesame/database";
 import type { JwtReplayCache } from "@opensesame/oauth-provider";
 import { DurableMap, type SecurityMap } from "./durable-map.js";
 
@@ -19,9 +19,17 @@ function replayKey(issuer: string, jti: string): string {
  */
 export function createDurableJwtReplayCache(
   db: Database,
+  sealer: EventSealer,
 ): DurableJwtReplayCache {
   return new DurableJwtReplayCache(
-    new DurableMap(db, "OpenSesame:JwtReplay", false, 86_400_000),
+    new DurableMap(
+      db,
+      "OpenSesame:JwtReplay",
+      false,
+      86_400_000,
+      10_000,
+      sealer,
+    ),
   );
 }
 

@@ -41,7 +41,7 @@ impl Db {
         let now = Utc::now();
         let mut transaction = self.pool.begin().await?;
         let rows = sqlx::query(
-            "SELECT id, event_type, payload_json, created_at, attempts FROM outbox_events \
+            "SELECT id, organization_id, event_type, payload_json, created_at, attempts FROM outbox_events \
              WHERE published_at IS NULL AND (available_at IS NULL OR available_at <= ?) \
              ORDER BY created_at, id LIMIT ?",
         )
@@ -54,7 +54,17 @@ impl Db {
         for row in rows {
             let stored: String = row.get("payload_json");
             let id: String = row.get("id");
-            match sealed::open_or_quarantine("outbox_events.payload_json", &stored)? {
+            let customer: Option<String> = row.get("organization_id");
+            let opened = match customer {
+                Some(customer) => sealed::open_or_quarantine_in(
+                    &customer,
+                    "outbox_events.payload_json",
+                    &id,
+                    &stored,
+                )?,
+                None => sealed::open_or_quarantine("outbox_events.payload_json", &stored)?,
+            };
+            match opened {
                 Some(payload_json) => events.push(OutboxEvent {
                     id,
                     event_type: row.get("event_type"),
@@ -182,14 +192,57 @@ pub async fn append_outbox_tx(
     event_type: &str,
     payload_json: &str,
 ) -> anyhow::Result<String> {
+    let payload = serde_json::from_str::<serde_json::Value>(payload_json).ok();
+    let customer = payload
+        .as_ref()
+        .and_then(|payload| payload.get("organization_id"))
+        .and_then(serde_json::Value::as_str)
+        .map(str::to_owned);
+    let customer = match customer {
+        Some(customer) => Some(customer),
+        None => match payload
+            .as_ref()
+            .and_then(|payload| payload.get("vault_id"))
+            .and_then(serde_json::Value::as_str)
+        {
+            Some(vault) => {
+                sqlx::query_scalar::<_, String>("SELECT organization_id FROM vaults WHERE id = ?")
+                    .bind(vault)
+                    .fetch_optional(&mut **transaction)
+                    .await?
+            }
+            None => None,
+        },
+    };
+    append_outbox_event_in(transaction, customer.as_deref(), event_type, payload_json).await
+}
+
+/// Append an event using the caller's authoritative customer binding.
+/// `None` is reserved for deployment-wide operator events.
+///
+/// # Errors
+/// Returns an error when insertion fails.
+pub async fn append_outbox_event_in(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    customer: Option<&str>,
+    event_type: &str,
+    payload_json: &str,
+) -> anyhow::Result<String> {
     let id = uuid::Uuid::now_v7().to_string();
+    let sealed = match customer {
+        Some(customer) => {
+            sealed::seal_in(customer, "outbox_events.payload_json", &id, payload_json)
+        }
+        None => sealed::seal("outbox_events.payload_json", payload_json),
+    };
     sqlx::query(
-        "INSERT INTO outbox_events (id, event_type, payload_json, created_at) VALUES (?, ?, ?, ?)",
+        "INSERT INTO outbox_events (id, event_type, payload_json, created_at, organization_id) VALUES (?, ?, ?, ?, ?)",
     )
     .bind(&id)
     .bind(event_type)
-    .bind(sealed::seal("outbox_events.payload_json", payload_json))
+    .bind(sealed)
     .bind(Utc::now().to_rfc3339())
+    .bind(customer)
     .execute(&mut **transaction)
     .await?;
     Ok(id)

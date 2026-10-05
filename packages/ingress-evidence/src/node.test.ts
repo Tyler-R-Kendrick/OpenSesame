@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { X509Certificate } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -127,7 +128,7 @@ function headers(leafName: string, ...chain: string[]): HeaderPair[] {
     pairs.push(["client-cert-chain", chain.map(b64).join(", ")]);
   return pairs;
 }
-function codeOf(fn: () => unknown): string {
+function codeOf(fn: () => ReturnType<typeof verifyOriginatingChain>): string {
   try {
     fn();
   } catch (err) {
@@ -144,7 +145,7 @@ beforeAll(() => {
   ca("other-root");
   leaf("alice", "inter", "clientAuth", "30");
   leaf("server-only", "inter", "serverAuth", "30");
-  leaf("expired", "inter", "clientAuth", "-1");
+  leaf("expired", "inter", "clientAuth", "1");
   leaf("stranger", "other-root", "clientAuth", "30");
 });
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -194,12 +195,16 @@ describe("verifyOriginatingChain", () => {
   });
 
   it("refuses an expired leaf and a leaf checked before its window", () => {
+    // Positive validity is portable across OpenSSL versions; verify just after expiry.
+    const afterExpiry = new Date(
+      Date.parse(new X509Certificate(pem("expired")).validTo) + 1000,
+    );
     expect(
       codeOf(() =>
         verifyOriginatingChain(
           parseClientCertFields(headers("expired", "inter")),
           pem("root"),
-          now(),
+          afterExpiry,
         ),
       ),
     ).toBe("evidence_expired");

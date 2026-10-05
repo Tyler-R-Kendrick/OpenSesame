@@ -30,8 +30,10 @@ Certificate-plane keys are Host-plane authority keys. They never enter the human
 E2EE plane above, and no agent surface reaches any of them.
 
 ```
-Host sealing key (operator-provided; no generated production fallback)
-  └── seal_scoped(key, SCOPE, id, organization, plaintext)      XChaCha20-Poly1305
+Host sealing root (operator-provided; no generated production fallback)
+  └── HKDF(context: organization, purpose, record) → wrapping key
+        └── wrapped random data key → XChaCha20-Poly1305 ciphertext
+              seal_scoped(key, SCOPE, id, organization, plaintext)
         ├── certificate_authority   CA root / intermediate private keys
         ├── managed_leaf_key        managed-mode leaf keys held for renewal + sync
         ├── certificate_delivery    one-time leaf delivery ciphertext (ADR 0052-cert)
@@ -50,6 +52,14 @@ Associated data binds organization, record id, record kind, and format version,
 exactly as ADR 0052-cert requires. Every sealed carrier is non-`Clone`,
 non-`Serialize`, with a redacting `Debug` — the `SealedCertificateMaterial`
 pattern in `crates/storage/src/lib.rs`.
+
+New authority values use a fresh random data key per write. The root-derived
+wrapping key and both encryption layers authenticate a canonical length-framed
+context. Legacy direct seals remain readable. These wrapping keys separate
+customers while retaining one operator root; they do not establish independent
+customer KMS custody. Human vaults retain independent random roots. See
+[customer key segmentation](../operators/customer-key-segmentation.md) for the
+storage coverage and upgrade contract.
 
 ### CA root and intermediate keys
 

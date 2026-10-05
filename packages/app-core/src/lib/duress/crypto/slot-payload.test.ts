@@ -122,7 +122,7 @@ describe("slot payload", () => {
         compartmentKey: new Uint8Array(32),
         actionCapability: null,
         presentation: "decoy",
-        ...(payload ? { payload } : {}),
+        payload,
       });
       return fromB64(slot.ciphertextB64).length;
     };

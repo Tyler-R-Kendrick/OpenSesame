@@ -1,4 +1,5 @@
 import { PGlite } from "@electric-sql/pglite";
+import { createEventSealer } from "@opensesame/database";
 import * as schema from "@opensesame/database/schema";
 import { isString, overlapCast } from "@opensesame/os-domain";
 import { drizzle } from "drizzle-orm/pglite";
@@ -147,6 +148,8 @@ describe("ADV-18 durable jwt replay", { timeout: 60_000 }, () => {
         "OpenSesame:JwtReplay",
         false,
         86_400_000,
+        undefined,
+        createEventSealer("durable-security-fixture-key"),
       ),
     );
     const second = new DurableJwtReplayCache(
@@ -155,6 +158,8 @@ describe("ADV-18 durable jwt replay", { timeout: 60_000 }, () => {
         "OpenSesame:JwtReplay",
         false,
         86_400_000,
+        undefined,
+        createEventSealer("durable-security-fixture-key"),
       ),
     );
     const exp = Date.now() + 60_000;
@@ -166,6 +171,8 @@ describe("ADV-18 durable jwt replay", { timeout: 60_000 }, () => {
         "OpenSesame:JwtReplay",
         false,
         86_400_000,
+        undefined,
+        createEventSealer("durable-security-fixture-key"),
       ),
     );
     expect(await restarted.remember("iss-a", "jti-1", exp)).toBe(false);

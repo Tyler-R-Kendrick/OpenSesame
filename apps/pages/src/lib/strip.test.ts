@@ -11,8 +11,9 @@ function stripWith(tab: Box, scrollWidth = 540): [HTMLElement, HTMLElement] {
   strip.append(item);
   Object.defineProperty(strip, "scrollWidth", { value: scrollWidth });
   Object.defineProperty(strip, "clientWidth", { value: 320 });
-  strip.getBoundingClientRect = () => ({ left: 0, right: 320 }) as DOMRect;
-  item.getBoundingClientRect = () => tab as DOMRect;
+  strip.getBoundingClientRect = () => new DOMRect(0, 0, 320, 0);
+  item.getBoundingClientRect = () =>
+    new DOMRect(tab.left, 0, tab.right - tab.left, 0);
   return [strip, item];
 }
 

@@ -129,9 +129,12 @@ function sealOf(value: JsonValue | undefined): PepperSeal | null | undefined {
   const kdf = kdfOf(objectAt(seal?.kdf));
   const ivB64 = text(blob?.ivB64);
   const ctB64 = text(blob?.ctB64);
-  return seal?.v !== 1 || kdf === null || ivB64 === null || ctB64 === null
+  return (seal?.v !== 1 && seal?.v !== 2) ||
+    kdf === null ||
+    ivB64 === null ||
+    ctB64 === null
     ? null
-    : { v: 1, kdf, seal: { ivB64, ctB64 } };
+    : { v: seal.v, kdf, seal: { ivB64, ctB64 } };
 }
 
 const password: Read<LoginMethod> = (m) => {

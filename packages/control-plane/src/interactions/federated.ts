@@ -14,7 +14,6 @@ import { type TrustResolution, resolveTrustedIssuer } from "./trust.js";
 
 /**
  * Server-side OIDC relying-party leg for the hosted login page (ADR 0033 §4).
- *
  * The Pages PWA federates in the browser, but the hosted `/interaction/:uid`
  * login page is server-rendered under a CSP that forbids inline script, so it
  * cannot run the browser flow. This module is the equivalent leg for that
@@ -775,7 +774,8 @@ export async function revokeSessionsForIdentity(
   const now = ctx.clock();
   let revoked = 0;
   const sessions = await ctx.stores.provisionalSessions.entries();
-  for (const [sessionId, session] of sessions) {
+  for (const [, session] of sessions) {
+    const sessionId = session.id;
     if (!principalIds.has(session.principalId)) continue;
     if (session.revokedAt) continue;
     await ctx.stores.provisionalSessions.set(sessionId, {
