@@ -1,5 +1,6 @@
 import { DECOY_ITEMS } from "./decoy-items.js";
 import { DECOY } from "./decoy.js";
+import { FREEZE } from "./freeze.js";
 import type { DuressMode } from "./mode.js";
 import { WRONG_PASSWORD } from "./wrong-password.js";
 
@@ -21,7 +22,7 @@ export {
 } from "./effects.js";
 
 /** Every mode the sheet offers, in the order it draws them. */
-export const MODES = [DECOY, DECOY_ITEMS, WRONG_PASSWORD] as const;
+export const MODES = [DECOY, DECOY_ITEMS, WRONG_PASSWORD, FREEZE] as const;
 
 export type DuressModeId = (typeof MODES)[number]["id"];
 
