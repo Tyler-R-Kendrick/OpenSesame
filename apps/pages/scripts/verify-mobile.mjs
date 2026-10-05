@@ -23,16 +23,11 @@ import { contextMenuTouchContract } from "./lib/context-menu-touch-contract.mjs"
 import { doorGuest } from "./lib/front-door.mjs";
 import { auditSettings } from "./lib/layout-contract.mjs";
 import { chooseCapabilitiesHere } from "./lib/mobile-capabilities.mjs";
-import {
-  AUDIT,
-  PHONES,
-  TABLETS,
-  phoneContext,
-  recordStop,
-} from "./lib/mobile-contract.mjs";
+import { AUDIT, phoneContext, recordStop } from "./lib/mobile-contract.mjs";
 import { doorRoads, helpKey, setupCeremony } from "./lib/mobile-gates.mjs";
 import { auditGestures } from "./lib/mobile-gestures.mjs";
 import { protectorUnlockStops } from "./lib/mobile-protector-unlock.mjs";
+import { sizesToWalk } from "./lib/mobile-sizes.mjs";
 import { phonePolish } from "./lib/phone-polish.mjs";
 import {
   backOutStops,
@@ -340,14 +335,21 @@ async function tablet(browser, size) {
   await context.close();
 }
 
+let walked;
+try {
+  walked = sizesToWalk(process.env.MOBILE_SIZES);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(2);
+}
 checkSafeAreas({ dist, harness });
 const browser = await harness.launch();
 try {
-  for (const phone of PHONES) {
+  for (const phone of walked.phones) {
     await walk(browser, phone);
     await protectorUnlock(browser, phone);
   }
-  for (const size of TABLETS) await tablet(browser, size);
+  for (const size of walked.tablets) await tablet(browser, size);
 } finally {
   await browser.close();
 }
@@ -364,7 +366,7 @@ if (harness.failures.length > 0) {
   process.exit(1);
 }
 console.log(
-  `\nPASS: the touch contract holds at ${[...PHONES, ...TABLETS]
+  `\nPASS: the touch contract holds at ${[...walked.phones, ...walked.tablets]
     .map((size) => size.width)
     .join(", ")}px.`,
 );
