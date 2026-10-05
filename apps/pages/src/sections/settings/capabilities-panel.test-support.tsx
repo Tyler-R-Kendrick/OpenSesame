@@ -3,7 +3,8 @@
  * installation that selected WebMCP (and a now-core id, ignored), a receipt
  * covering it, and a vault the test may change through `panelVault`.
  *
- * Each test file still declares its own `vi.mock` of the capability ports.
+ * The capability ports are injected through `capabilitiesPanelSeams` and
+ * restored after each test; no test file mocks a module.
  */
 
 import {
