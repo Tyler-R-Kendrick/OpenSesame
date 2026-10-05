@@ -248,6 +248,27 @@ async function appendActivityEvent(
   return next;
 }
 
+/**
+ * Drop every line about `ids` (a hidden item's creation line names it). Reads
+ * the settled file, so a line still on its way is written first and then
+ * dropped; returns how many lines went.
+ */
+export async function forgetActivityAbout(
+  tomb: string,
+  ids: ReadonlySet<string>,
+): Promise<number> {
+  await flushActivityLog();
+  let dropped = 0;
+  await withActivityLogLock(tomb, async () => {
+    const current = await readAll(tomb);
+    const kept = current.filter((event) => !ids.has(event.targetId ?? ""));
+    dropped = current.length - kept.length;
+    if (dropped > 0) await writeAll(tomb, kept);
+  });
+  if (dropped > 0) notify();
+  return dropped;
+}
+
 /** Settle notes already fired. A note that starts afterwards is a new call. */
 export async function flushActivityLog(): Promise<void> {
   const pending = [...chains.values(), ...activityWrites.values()];

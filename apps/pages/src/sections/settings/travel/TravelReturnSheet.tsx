@@ -10,6 +10,7 @@ import { FieldShell } from "../../../components/FieldShell.js";
 import { IconDownload, IconUpload } from "../../../components/Icons.js";
 import { TravelNoticeMark } from "./TravelNoticeMark.js";
 import { TravelRow } from "./TravelViews.js";
+import { anyItemReturns, itemsPreviewFacts } from "./items-text.js";
 import { anyComesHome, previewFacts, sitesComing } from "./return-text.js";
 import type { useTravelFlow } from "./useTravelFlow.js";
 
@@ -119,6 +120,34 @@ function PreviewCard({
   );
 }
 
+function ItemsPreviewCard({
+  flow,
+  opened,
+}: {
+  flow: Flow;
+  opened: Extract<Flow["mode"], { kind: "items_preview" }>["opened"];
+}) {
+  const { busy, notice } = flow;
+  const blocked = opened.preview.items.some((i) => i.status === "occupied");
+  return (
+    <CeremonyShell
+      ok={notice?.tone !== "err" && !blocked}
+      top="Bundle opened"
+      name="Ready to come back"
+      facts={itemsPreviewFacts(opened.preview)}
+      primary={{
+        label: "Bring them back",
+        busy,
+        disabled: !anyItemReturns(opened.preview),
+        onClick: () => flow.bringItemsBack(opened),
+      }}
+      secondary={{ label: "Not now", onClick: () => flow.reset() }}
+    >
+      <TravelNoticeMark notice={notice} />
+    </CeremonyShell>
+  );
+}
+
 export function TravelReturnSheet({
   flow,
   onClose,
@@ -133,7 +162,9 @@ export function TravelReturnSheet({
       mark={<IconDownload size={20} />}
       onClose={onClose}
     >
-      {mode.kind === "preview" ? (
+      {mode.kind === "items_preview" ? (
+        <ItemsPreviewCard flow={flow} opened={mode.opened} />
+      ) : mode.kind === "preview" ? (
         <PreviewCard flow={flow} opened={mode.opened} />
       ) : (
         <BundleCard flow={flow} />

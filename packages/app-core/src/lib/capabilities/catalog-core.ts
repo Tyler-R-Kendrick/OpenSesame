@@ -66,6 +66,7 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "vaults.duress_code",
         "vaults.switch",
         "vaults.travel",
+        "vaults.travel_items",
       ],
       egress: [
         {

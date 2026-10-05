@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-05-travel-hidden-items/`](2026-10-05-travel-hidden-items/README.md) | Leave items at home — before and after |
 | [`2026-10-05-tailnet-devices/`](2026-10-05-tailnet-devices/README.md) | Identity › Devices manages the real tailnet (ADR 0169) |
 | [`2026-10-05-sops-gone-prompt-lines/`](2026-10-05-sops-gone-prompt-lines/README.md) | SOPS row removed from Security; the prompt's two identities on two lines |
 | [`2026-10-05-nats-live-route/`](2026-10-05-nats-live-route/README.md) | A NATS server as a live session's route — Settings › Live sessions › Routes |

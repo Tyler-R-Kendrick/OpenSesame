@@ -8,12 +8,19 @@
 import { MAX_TRAVEL_BUNDLE_BYTES } from "@opensesame/app-core/lib/travel/bundle-format.js";
 import {
   type DeparturePackage,
+  type ItemsPackage,
+  type OpenedItemsReturn,
   type OpenedReturn,
   clearTravelRemnants,
   departForTravel,
+  hideItemsForTravel,
+  isItemsBundle,
+  openTravelItemsReturn,
   openTravelReturn,
   packTravelDeparture,
+  packTravelItemDeparture,
   returnFromTravel,
+  returnItemsFromTravel,
 } from "@opensesame/app-core/lib/travel/index.js";
 import {
   readSafeFlags,
@@ -27,17 +34,27 @@ import {
   departedNotice,
   travelRefusalText,
 } from "./TravelViews.js";
+import {
+  hiddenNotice,
+  itemsRefusalText,
+  itemsReturnRefusalText,
+  itemsReturnedNotice,
+} from "./items-text.js";
 import { remnantsNotice, returnedNotice } from "./return-text.js";
 
 export type TravelMode =
   | { kind: "plan" }
   | { kind: "packed"; pkg: DeparturePackage }
   | { kind: "return" }
-  | { kind: "preview"; opened: OpenedReturn };
+  | { kind: "preview"; opened: OpenedReturn }
+  | { kind: "items" }
+  | { kind: "items_packed"; pkg: ItemsPackage }
+  | { kind: "items_preview"; opened: OpenedItemsReturn };
 
 type Notice = TravelNotice | null;
 
 const NO_ACK = { bundleSaved: false, codeRecorded: false };
+const NONE: ReadonlySet<string> = new Set();
 
 function useTravelState() {
   const { status, guest } = useVault();
@@ -59,6 +76,10 @@ function useTravelState() {
     void writeSafeFlags(next).catch(() => {});
   };
   const [ack, setAck] = useState(NO_ACK);
+  // What to leave home is chosen for this ceremony only: nothing remembers it,
+  // because a remembered list would be the device saying what is hidden.
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(NONE);
+  const [copiesKnown, setCopiesKnown] = useState(false);
   const [bundle, setBundle] = useState<{ name: string; json: string } | null>(
     null,
   );
@@ -87,6 +108,8 @@ function useTravelState() {
   function reset(next: Notice = null): void {
     setMode({ kind: "plan" });
     setAck(NO_ACK);
+    setChosen(NONE);
+    setCopiesKnown(false);
     setBundle(null);
     setCode("");
     setGrants(false);
@@ -102,6 +125,8 @@ function useTravelState() {
     mode,
     safe,
     ack,
+    chosen,
+    copiesKnown,
     bundle,
     code,
     grants,
@@ -110,6 +135,8 @@ function useTravelState() {
     setMode,
     setSafe,
     setAck,
+    setChosen,
+    setCopiesKnown,
     setBundle,
     setCode,
     setGrants,
@@ -160,10 +187,69 @@ function departureSteps(
   return { pack, depart, toggleSafe };
 }
 
+function failure(text: string): TravelNotice {
+  return { tone: "err", text };
+}
+
+function itemsSteps(state: TravelState, onDone: () => void) {
+  const toggleItem = (id: string) => {
+    state.setNotice(null);
+    const next = new Set(state.chosen);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    state.setChosen(next);
+  };
+
+  const packItems = () =>
+    state.run(async () => {
+      const outcome = await packTravelItemDeparture([...state.chosen]);
+      if (!outcome.ok)
+        return state.setNotice(failure(itemsRefusalText(outcome)));
+      state.setAck(NO_ACK);
+      state.setCopiesKnown(false);
+      state.setMode({ kind: "items_packed", pkg: outcome.pkg });
+    });
+
+  const hideItems = (pkg: ItemsPackage) =>
+    state.run(async () => {
+      const outcome = await hideItemsForTravel(pkg, state.ack);
+      if (!outcome.ok)
+        return state.setNotice(failure(itemsRefusalText(outcome)));
+      // A trace that would not clear keeps the package: the same press finishes it.
+      if (outcome.receipt.completion === "incomplete") {
+        return state.setNotice(hiddenNotice(outcome.receipt));
+      }
+      state.reset(hiddenNotice(outcome.receipt));
+      onDone();
+    });
+
+  return { toggleItem, packItems, hideItems };
+}
+
 function returnSteps(state: TravelState, onDone: () => void) {
+  const openItems = async (bundleJson: string) => {
+    const outcome = await openTravelItemsReturn({
+      bundleJson,
+      returnCode: state.code,
+    });
+    if (!outcome.ok)
+      return state.setNotice(failure(itemsReturnRefusalText(outcome.code)));
+    state.setMode({ kind: "items_preview", opened: outcome.opened });
+  };
+
+  const bringItemsBack = (opened: OpenedItemsReturn) =>
+    state.run(async () => {
+      const outcome = await returnItemsFromTravel(opened);
+      if (!outcome.ok)
+        return state.setNotice(failure(itemsReturnRefusalText(outcome.code)));
+      state.reset(itemsReturnedNotice(outcome.receipt));
+      onDone();
+    });
+
   const open = () =>
     state.run(async () => {
       if (!state.bundle) return;
+      if (isItemsBundle(state.bundle.json)) return openItems(state.bundle.json);
       const outcome = await openTravelReturn({
         bundleJson: state.bundle.json,
         returnCode: state.code,
@@ -210,6 +296,7 @@ function returnSteps(state: TravelState, onDone: () => void) {
 
   return {
     open,
+    bringItemsBack,
     bringHome,
     chooseBundle,
     typeCode,
@@ -229,6 +316,7 @@ export function useTravelFlow(onDone: () => void) {
   return {
     ...state,
     ...departureSteps(state, openId, onDone),
+    ...itemsSteps(state, onDone),
     ...returnSteps(state, onDone),
   };
 }
