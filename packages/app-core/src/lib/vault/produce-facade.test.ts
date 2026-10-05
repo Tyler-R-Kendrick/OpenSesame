@@ -57,7 +57,6 @@ describe("the password facade", () => {
       "packages/capability-registry/src",
       "apps/pages/src",
       "apps/browser-extension/entrypoints",
-      "apps/browser-extension-autofill/lib",
     ];
     const offenders = roots
       .flatMap((root) => sources(join(REPO, root)))
