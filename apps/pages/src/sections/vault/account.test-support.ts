@@ -45,7 +45,11 @@ export function makeAccount(seed: AccountSeed = {}): AccountItem {
         ),
       );
     if (totp)
-      built.push({ id: `${id}:authenticator`, type: "authenticator", secret: totp });
+      built.push({
+        id: `${id}:authenticator`,
+        type: "authenticator",
+        secret: totp,
+      });
   }
   return {
     ...createItem("account", "Webmail"),

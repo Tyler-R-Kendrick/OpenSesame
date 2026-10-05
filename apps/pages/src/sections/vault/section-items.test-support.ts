@@ -6,11 +6,7 @@
  * module-size budget (ADR 0093).
  */
 
-import type {
-  DropItem,
-  NoteItem,
-  SecretItem,
-} from "@opensesame/vault-core";
+import type { DropItem, NoteItem, SecretItem } from "@opensesame/vault-core";
 
 export { makeAccount } from "./account.test-support.js";
 

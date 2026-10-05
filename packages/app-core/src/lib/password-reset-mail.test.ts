@@ -10,7 +10,7 @@ import {
   removeResetEmail,
   resetPasswordResetMailForTest,
 } from "./password-reset-mail.js";
-import { applyNamedValues, namedValues } from "./vault/store-sync-values.js";
+import { entryToVaultItem, vaultItemToEntry } from "./vault/store-sync.js";
 
 afterEach(() => {
   resetPasswordResetMailForTest();
@@ -147,15 +147,13 @@ describe("matchResetMail", () => {
 });
 
 describe("account resetEmailId", () => {
-  it("round-trips through named values and stays off a fresh account", () => {
+  it("round-trips through a sealed-store entry and stays off a fresh account", () => {
     const fresh = createItem("account", "Example");
     expect(fresh.resetEmailId).toBeUndefined();
-    expect(namedValues(fresh)?.resetEmailId).toBeUndefined();
+    const plain = entryToVaultItem(vaultItemToEntry(fresh, []));
+    expect(plain.kind === "account" && plain.resetEmailId).toBeFalsy();
     fresh.resetEmailId = "mail-1";
-    const values = namedValues(fresh);
-    expect(values?.resetEmailId).toBe("mail-1");
-    const loaded = createItem("account", "Example");
-    applyNamedValues(loaded, values);
-    expect(loaded.resetEmailId).toBe("mail-1");
+    const loaded = entryToVaultItem(vaultItemToEntry(fresh, []));
+    expect(loaded.kind === "account" && loaded.resetEmailId).toBe("mail-1");
   });
 });

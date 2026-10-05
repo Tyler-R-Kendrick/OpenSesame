@@ -16,6 +16,7 @@ import { connectionCeremonyDependencies } from "../../components/ConnectionCerem
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { IMPORT_COMMAND } from "../../modules/vault.interop-formats/runtime.js";
 import { vaultTreeSeams } from "../../sections/vault/VaultTree.js";
+import { makeAccount } from "../../sections/vault/account.test-support.js";
 
 // The connector surfaces bind targets the connectors capability declares,
 // and Import is the formats capability's key in the vault path strip.

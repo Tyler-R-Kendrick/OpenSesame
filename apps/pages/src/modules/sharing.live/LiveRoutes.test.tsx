@@ -23,7 +23,6 @@ import {
 } from "@opensesame/app-core/lib/live/transport.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem } from "@opensesame/vault-core";
-import { withPassword } from "../../sections/vault/account.test-support.js";
 import {
   cleanup,
   fireEvent,
@@ -34,6 +33,7 @@ import {
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import { withPassword } from "../../sections/vault/account.test-support.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { LiveRoutesPanel } from "./LiveRoutesPanel.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";

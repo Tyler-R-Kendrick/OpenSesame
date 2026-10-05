@@ -20,22 +20,22 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectVaultCommands } from "./vault/commands.test-support.js";
 import {
-  makeDrop,
   makeAccount,
+  makeDrop,
   makeNote,
 } from "./vault/section-items.test-support.js";
 
 import type {
+  AccountItem,
   DropItem,
   Folder,
-  LoginItem,
   NoteItem,
 } from "@opensesame/vault-core";
 import { createKeymapHandler } from "../lib/keymap.js";
 
 type VaultHarness = {
   current: {
-    items: Array<LoginItem | NoteItem | DropItem>;
+    items: Array<AccountItem | NoteItem | DropItem>;
     folders: Folder[];
     header: JsonObject | null;
   };
@@ -159,7 +159,7 @@ describe("VaultSection", () => {
     const rows = screen.getAllByRole("treeitem");
     expect(rows.map((row) => row.textContent)).toEqual([
       "Scratch pad.note",
-      "Webmail.login",
+      "Webmail.account",
     ]);
     expect(screen.getByText(/2\/2 · All items/)).toBeTruthy();
   });
@@ -175,13 +175,13 @@ describe("VaultSection", () => {
     // The cursor lands on the first row without any input.
     expect(cursorRow().textContent).toBe("Scratch pad.note");
     press(handler, "j");
-    expect(cursorRow().textContent).toBe("Webmail.login");
+    expect(cursorRow().textContent).toBe("Webmail.account");
     // The status line follows the cursor with the tomb-rooted path.
-    expect(screen.getByText("personal:/Webmail.login")).toBeTruthy();
+    expect(screen.getByText("personal:/Webmail.account")).toBeTruthy();
     press(handler, "k");
     expect(cursorRow().textContent).toBe("Scratch pad.note");
     press(handler, "G");
-    expect(cursorRow().textContent).toBe("Webmail.login");
+    expect(cursorRow().textContent).toBe("Webmail.account");
     press(handler, "g");
     press(handler, "g");
     expect(cursorRow().textContent).toBe("Scratch pad.note");
@@ -204,7 +204,7 @@ describe("VaultSection", () => {
     expect(cursorRow().textContent).toBe("A note.note");
     press(handler, "3");
     press(handler, "j");
-    expect(cursorRow().textContent).toBe("D web.login");
+    expect(cursorRow().textContent).toBe("D web.account");
     press(handler, "G");
     expect(cursorRow().textContent).toBe("E scratch.note");
     press(handler, "1");
@@ -237,12 +237,12 @@ describe("VaultSection", () => {
     expect(screen.queryByLabelText("Search items")).toBeNull();
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
-    ).toEqual(["Webmail.login"]);
+    ).toEqual(["Webmail.account"]);
     expect(screen.getByText(/1\/2 · \/web/)).toBeTruthy();
     press(keymap(), "Escape");
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
-    ).toEqual(["Scratch pad.note", "Webmail.login"]);
+    ).toEqual(["Scratch pad.note", "Webmail.account"]);
   });
 
   it("matches a folder by name and keeps its whole directory", () => {
@@ -259,7 +259,7 @@ describe("VaultSection", () => {
     // of its children rather than vanishing from the tree.
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
-    ).toEqual(["Work/2", "Scratch pad.note", "Webmail.login"]);
+    ).toEqual(["Work/2", "Scratch pad.note", "Webmail.account"]);
   });
 
   it("returns no rows for a fruitless search", () => {
@@ -279,7 +279,7 @@ describe("VaultSection", () => {
     const rows = screen.getAllByRole("treeitem");
     expect(rows).toHaveLength(1);
     expect(rows[0]?.querySelector(".vtree__name")?.textContent).toBe(
-      "Webmail.login",
+      "Webmail.account",
     );
     expect(screen.getByText(/1\/2 · Favorites/)).toBeTruthy();
   });
@@ -306,7 +306,7 @@ describe("VaultSection", () => {
     expect(screen.getByText(/1\/1 · Trash/)).toBeTruthy();
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
-    ).toEqual(["Webmail.login"]);
+    ).toEqual(["Webmail.account"]);
   });
 
   it("shows the trash empty state", () => {
@@ -325,7 +325,7 @@ describe("VaultSection", () => {
     expect(screen.getByText(/1\/2 · Folder/)).toBeTruthy();
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
-    ).toEqual(["Webmail.login"]);
+    ).toEqual(["Webmail.account"]);
   });
 
   it("puts the cursor on the open item", () => {
@@ -337,7 +337,7 @@ describe("VaultSection", () => {
     renderSection("/vault/itm_1?f=favorites");
     expect(screen.getByText("detail pane")).toBeTruthy();
     expect(cursorRow().id).toBe("vtree-row-itm_1");
-    expect(screen.getByText("personal:/Webmail.login")).toBeTruthy();
+    expect(screen.getByText("personal:/Webmail.account")).toBeTruthy();
   });
 
   it("moves browser focus into the tree after collapse state is restored", async () => {
@@ -497,7 +497,7 @@ describe("VaultSection", () => {
     await waitFor(() => expect(cursorRow().textContent).toContain("Work"));
     // l on an expanded directory steps onto its first child.
     press(handler, "l");
-    expect(cursorRow().textContent).toBe("Webmail.login");
+    expect(cursorRow().textContent).toBe("Webmail.account");
     // h climbs back to the directory row.
     press(handler, "h");
     expect(cursorRow().textContent).toContain("Work");

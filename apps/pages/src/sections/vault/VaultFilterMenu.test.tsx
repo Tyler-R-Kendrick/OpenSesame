@@ -99,7 +99,13 @@ describe("the vault filter key", () => {
     renderSection();
     fireEvent.click(filterKey());
     const sheet = screen.getByRole("dialog", { name: "Filter items" });
-    for (const road of ["All items", "Favorites", "Accounts", "Work", "Trash"]) {
+    for (const road of [
+      "All items",
+      "Favorites",
+      "Accounts",
+      "Work",
+      "Trash",
+    ]) {
       expect(sheet.textContent).toContain(road);
     }
     // A type this vault holds no items of earns no road, exactly as before.

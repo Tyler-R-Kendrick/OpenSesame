@@ -4,11 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  DropItem,
-  SecretItem,
-  VaultItem,
-} from "@opensesame/vault-core";
+import type { DropItem, SecretItem, VaultItem } from "@opensesame/vault-core";
 
 const store = vi.hoisted(() => ({
   saveItem: vi.fn<(item: VaultItem) => Promise<void>>(),
@@ -236,7 +232,14 @@ describe("share ceremony on an item", () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
-        <ShareSecretDrop item={makeAccount({ id: "itm_login", name: "GitHub", username: "octocat", password: "hunter2-login" })} />
+        <ShareSecretDrop
+          item={makeAccount({
+            id: "itm_login",
+            name: "GitHub",
+            username: "octocat",
+            password: "hunter2-login",
+          })}
+        />
       </MemoryRouter>,
     );
     await user.click(screen.getByRole("button", { name: /Share once/i }));

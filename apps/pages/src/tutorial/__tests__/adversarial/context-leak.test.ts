@@ -38,8 +38,8 @@ import {
   sanitizeSupportRequest,
 } from "@opensesame/support-agent";
 import { createItem, newUri } from "@opensesame/vault-core";
-import { withPassword } from "../../../sections/vault/account.test-support.js";
 import { beforeAll, describe, expect, it } from "vitest";
+import { withPassword } from "../../../sections/vault/account.test-support.js";
 import {
   OVERLAY_SELECTOR,
   createDeferredSupportAgent,

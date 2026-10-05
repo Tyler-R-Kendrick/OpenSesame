@@ -39,8 +39,8 @@ import {
 } from "@opensesame/app-core/lib/vfs.js";
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { KIND_LABEL, createItem, randomBytes } from "@opensesame/vault-core";
-import { withPassword } from "../../../sections/vault/account.test-support.js";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { withPassword } from "../../../sections/vault/account.test-support.js";
 import { approved, profilePlan, profileSelection } from "./vault-profiles.js";
 
 const PASSWORD = "correct horse battery staple";
