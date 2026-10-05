@@ -177,7 +177,7 @@ export const SHELL_RULES = [
   ),
   ...each(
     "src/components/",
-    ["PasswordGenerator", "TotpCode", "VaultRail"],
+    ["GeneratorOptions", "PepperPrompt", "TotpCode", "VaultRail"],
     (p) => core(p, "vault.passwords", "vault item controls"),
   ),
   shared(

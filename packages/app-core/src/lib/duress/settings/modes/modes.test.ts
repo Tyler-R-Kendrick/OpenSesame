@@ -19,7 +19,7 @@ const ALL: readonly DuressMode[] = MODES;
 
 /** A vault with a few items worth showing, so a mode that picks among them has rows. */
 const CONTEXT: DuressContext = {
-  items: [createItem("login", "Netflix"), createItem("note", "Gym code")],
+  items: [createItem("account", "Netflix"), createItem("note", "Gym code")],
 };
 
 const position = (id: string) => MODES.findIndex((mode) => mode.id === id);

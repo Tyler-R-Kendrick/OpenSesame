@@ -2,7 +2,7 @@
  * Which item kinds a person may *create* here (SURFACE-08).
  *
  * The minimal vault owns the base secret. Every other built-in kind —
- * logins, cards, notes, passkeys, certificates, and the typed
+ * accounts, cards, notes, passkeys, certificates, and the typed
  * projections onto that secret — is an `item-kind` contribution from the
  * capability that owns it, so its creation surfaces (the rail filter, the
  * type picker, the filtered "+ new") exist only while that capability is in
@@ -38,7 +38,7 @@ export type ItemKindRow = Readonly<{
 
 /**
  * The kinds the minimal vault ships: the base secret, and the file that
- * projects onto it. Contributed kinds fill the other orders (logins 0,
+ * projects onto it. Contributed kinds fill the other orders (accounts 0,
  * passkeys 20, cards 30, notes 60, certificates 70).
  */
 export const CORE_ITEM_KINDS: readonly ItemKindRow[] = [
@@ -188,7 +188,7 @@ export function isCreatableItemKind(kind: string): boolean {
  * The kind a creation surface opens on when nothing named one.
  *
  * The first kind this installation may create, in the rail's own order — so a
- * device without the login capability opens on the first type it does have,
+ * device without the account capability opens on the first type it does have,
  * rather than on a type it cannot create and a name generated for it. Falls
  * back to `secret` only if the registry somehow offers nothing at all.
  */

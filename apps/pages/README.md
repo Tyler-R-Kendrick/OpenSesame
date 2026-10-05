@@ -18,7 +18,7 @@ primary unlock. Credentials are not stored. A reload or a cold link asks again.
 
 | Section | Who | What it does |
 | --- | --- | --- |
-| **Vault** | humans | Logins, passkeys, cards, notes. Generator, TOTP, folders, import. Not the Host. |
+| **Vault** | humans | Accounts and their login methods, passkeys, cards, notes. Generator, TOTP, folders, import. Not the Host. |
 | **Connections** | operators | Authorize a service on the Host. Bind who can use it. Identity graph of Host + vault doors. |
 | **Agents** | agents | Authorize → invoke → receipt. Grants bounded by a ceiling. Never plaintext. |
 | **Authority** | operators | Principal session, device/CLI authorization, ownership claims, protocol honesty. |

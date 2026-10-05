@@ -12,6 +12,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::{fs, io};
 
+use crate::legacy::{is_legacy_type_alias, resolve_extension, resolve_type_id};
 use crate::schema::ItemTypeDefinition;
 use crate::validate::{parse_definition, DefinitionError, DefinitionErrors, ErrorCode, Trust};
 
@@ -181,7 +182,7 @@ impl ItemTypeRegistry {
                 format!("`{id}` is a vault filter and cannot name a type"),
             ));
         }
-        if self.builtin.contains_key(&id) {
+        if self.builtin.contains_key(&id) || is_legacy_type_alias(&id) {
             return Err(refusal(
                 ErrorCode::Id,
                 "metadata.id",
@@ -190,7 +191,8 @@ impl ItemTypeRegistry {
         }
         // The VFS tree renders an item as `name.ext`, so the extension is the
         // second thing that identifies a type on screen. Letting an install
-        // claim `.login` would let it dress its items as logins.
+        // claim `.account` (or the legacy `.login`) would let it dress its items as
+        // accounts.
         if let Some(clash) = self.extension_owner(&definition.spec.extension, &id) {
             return Err(refusal(
                 ErrorCode::Extension,
@@ -324,6 +326,11 @@ impl ItemTypeRegistry {
 
     /// The type already rendering this extension, if it is not `self_id`.
     fn extension_owner(&self, extension: &str, self_id: &str) -> Option<String> {
+        // A retired extension still belongs to the type that replaced it.
+        let current = resolve_extension(extension);
+        if current != extension {
+            return self.extension_owner(current, self_id);
+        }
         self.builtin
             .iter()
             .map(|(id, definition)| (id, &definition.spec.extension))
@@ -343,6 +350,7 @@ impl ItemTypeRegistry {
 
     #[must_use]
     pub fn get(&self, id: &str) -> Option<&ItemTypeDefinition> {
+        let id = resolve_type_id(id);
         self.builtin
             .get(id)
             .or_else(|| self.installed.get(id).map(|entry| &entry.definition))
@@ -355,11 +363,12 @@ impl ItemTypeRegistry {
 
     #[must_use]
     pub fn is_builtin(&self, id: &str) -> bool {
-        self.builtin.contains_key(id)
+        self.builtin.contains_key(resolve_type_id(id))
     }
 
     #[must_use]
     pub fn source_of(&self, id: &str) -> Option<Source> {
+        let id = resolve_type_id(id);
         if self.builtin.contains_key(id) {
             return Some(Source::Builtin);
         }

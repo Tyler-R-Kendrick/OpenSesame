@@ -27,7 +27,7 @@ export const SHELL_TOUR_GOALS: readonly GuideGoalDescriptor[] = [
       'say "OpenSesame is a few sections. Each is a row in the rail on the left, and a key that begins with g jumps to it from anywhere."',
       'navigate "/vault"',
       'wait route "/vault" timeout=15000',
-      'focus "nav.vault" "Vault holds every login, passkey, card, secret and note. Press g then v from anywhere to come back to it." side=right',
+      'focus "nav.vault" "Vault holds every account, passkey, card, secret and note. Press g then v from anywhere to come back to it." side=right',
       'navigate "/settings"',
       'wait route "/settings" timeout=15000',
       'focus "nav.settings" "Settings is a row too, opened with g then s. While you are in it the rail shows Settings alone, with a row at the top that goes back to the vault." side=right',

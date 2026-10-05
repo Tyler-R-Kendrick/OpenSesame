@@ -5,11 +5,11 @@ import { MemoryRouter } from "react-router";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { VaultWelcome } from "./VaultSection.js";
-import { makeLogin } from "./vault/section-items.test-support.js";
+import { makeAccount } from "./vault/section-items.test-support.js";
 
 registerLegacyItemKinds();
 
-const items: ReturnType<typeof makeLogin>[] = [];
+const items: ReturnType<typeof makeAccount>[] = [];
 const vault = { current: { items } };
 const original = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, { useVault: () => vault.current });
@@ -34,14 +34,14 @@ function welcome(path: string) {
  */
 describe("the buffer states what the list beside it holds", () => {
   it("names the filter the list is showing", () => {
-    vault.current = { items: [makeLogin()] };
+    vault.current = { items: [makeAccount()] };
     expect(welcome("/vault?f=certificate")).toBe("no certificates yet");
     cleanup();
-    expect(welcome("/vault?f=login")).toBe("1 item · logins");
+    expect(welcome("/vault?f=login")).toBe("1 item · accounts");
   });
 
   it("says the trash is empty rather than that nothing is sealed", () => {
-    vault.current = { items: [makeLogin()] };
+    vault.current = { items: [makeAccount()] };
     expect(welcome("/vault?f=trash")).toBe("trash is empty");
     expect(screen.queryByText("nothing sealed yet")).toBeNull();
     expect(document.querySelector(".buffer__keys")?.textContent).toBe(
@@ -51,7 +51,7 @@ describe("the buffer states what the list beside it holds", () => {
 
   it("hands a populated trash restore and delete", () => {
     vault.current = {
-      items: [makeLogin({ deletedAt: "2026-08-10T00:00:00Z" })],
+      items: [makeAccount({ deletedAt: "2026-08-10T00:00:00Z" })],
     };
     expect(welcome("/vault?f=trash")).toBe("1 item · trash");
     expect(document.querySelector(".buffer__keys-keys")?.textContent).toBe(

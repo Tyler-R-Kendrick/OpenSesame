@@ -3,7 +3,7 @@ import { type Folder, createItem } from "./model.js";
 import { buildRows } from "./tree-rows.js";
 
 function login(name: string, folderId?: string) {
-  const item = createItem("login", name);
+  const item = createItem("account", name);
   return folderId ? { ...item, folderId } : item;
 }
 
@@ -21,8 +21,8 @@ describe("buildRows", () => {
     );
     expect(rows.map((row) => [row.type, row.path])).toEqual([
       ["dir", "Work/"],
-      ["item", "Work/mail.login"],
-      ["item", "bank.login"],
+      ["item", "Work/mail.account"],
+      ["item", "bank.account"],
     ]);
   });
 
@@ -49,7 +49,7 @@ describe("buildRows", () => {
       new Set(["Work/"]),
       "mail",
     );
-    expect(rows.map((row) => row.path)).toEqual(["Work/", "Work/mail.login"]);
+    expect(rows.map((row) => row.path)).toEqual(["Work/", "Work/mail.account"]);
   });
 
   it("a search that names a folder keeps the folder whole", () => {
@@ -61,8 +61,8 @@ describe("buildRows", () => {
     );
     expect(rows.map((row) => row.path)).toEqual([
       "Work/",
-      "Work/mail.login",
-      "Work/chat.login",
+      "Work/mail.account",
+      "Work/chat.account",
     ]);
   });
 });

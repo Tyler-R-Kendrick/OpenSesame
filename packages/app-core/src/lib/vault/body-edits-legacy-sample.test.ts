@@ -12,7 +12,11 @@ const folder = (id: string, name: string): Folder => ({
 /** An item as the retired sample-data feature wrote it: flagged, untyped. */
 function legacy(name: string, folderId: string | null): VaultItem {
   // SAFETY: sample is the retired flag this fixture preserves on an otherwise checked login item.
-  return { ...createItem("login", name), folderId, sample: true } as VaultItem;
+  return {
+    ...createItem("account", name),
+    folderId,
+    sample: true,
+  } as VaultItem;
 }
 
 function bodyWith(items: VaultItem[], folders: Folder[]): VaultBody {
@@ -21,7 +25,7 @@ function bodyWith(items: VaultItem[], folders: Folder[]): VaultBody {
 
 describe("retireLegacySample", () => {
   it("removes every flagged item and the folder only they sat in, and tombstones both", () => {
-    const real = { ...createItem("login", "Payroll"), folderId: "work" };
+    const real = { ...createItem("account", "Payroll"), folderId: "work" };
     const body = bodyWith(
       [real, legacy("GitHub", "demo"), legacy("Bank", "demo")],
       [folder("work", "Work"), folder("demo", "Sample data")],
@@ -47,7 +51,7 @@ describe("retireLegacySample", () => {
   });
 
   it("keeps a folder a real item also sits in, and moves nothing", () => {
-    const real = { ...createItem("login", "Mine"), folderId: "shared" };
+    const real = { ...createItem("account", "Mine"), folderId: "shared" };
     const body = bodyWith(
       [real, legacy("Demo", "shared")],
       [folder("shared", "Shared")],
@@ -58,7 +62,7 @@ describe("retireLegacySample", () => {
   });
 
   it("changes nothing when the vault holds none", () => {
-    const real = createItem("login", "Mine");
+    const real = createItem("account", "Mine");
     const body = bodyWith([real], []);
     const before = JSON.stringify(body);
     retireLegacySample(body);

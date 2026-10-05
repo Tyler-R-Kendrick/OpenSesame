@@ -25,8 +25,8 @@ import {
   addField,
   addUri,
   asString,
+  draftAccount,
   draftCard,
-  draftLogin,
   draftNote,
   normaliseTotp,
   toIso,
@@ -186,12 +186,12 @@ export const onepasswordPux: TextImportAdapter = {
             category === CATEGORY.login ||
             category === CATEGORY.password
           ) {
-            item = draftLogin(name);
+            item = draftAccount(name);
           } else {
             item = draftNote(name);
           }
 
-          if (item.kind === "login") {
+          if (item.kind === "account") {
             for (const rawField of Array.isArray(details.loginFields)
               ? details.loginFields
               : []) {
@@ -253,7 +253,7 @@ function applySections(item: DraftItem, sections: BoundaryValue): void {
       const { text, concealed, totp } = readValue(field.value);
       if (text === "") continue;
 
-      if (totp && item.kind === "login" && item.totp === "") {
+      if (totp && item.kind === "account" && item.totp === "") {
         item.totp = normaliseTotp(text);
         continue;
       }
@@ -328,9 +328,9 @@ export const onepasswordCsv: TextImportAdapter = {
       const url = pick(row, "url", "website");
 
       const item: DraftItem =
-        password || username || url ? draftLogin(name) : draftNote(name);
+        password || username || url ? draftAccount(name) : draftNote(name);
 
-      if (item.kind === "login") {
+      if (item.kind === "account") {
         item.username = username;
         item.password = password;
         item.totp = normaliseTotp(pick(row, "otpauth", "one-time password"));

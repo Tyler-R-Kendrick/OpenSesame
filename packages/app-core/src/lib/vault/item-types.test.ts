@@ -1,4 +1,5 @@
 import {
+  type AccountItem,
   createItem,
   createTypedItem,
   definitionFor,
@@ -9,6 +10,7 @@ import {
   itemTypeRegistry,
   itemValues,
   newValues,
+  passwordMethod,
   searchMatches,
   syncInstalledTypes,
   typeExtension,
@@ -81,14 +83,15 @@ describe("the device registry", () => {
     syncInstalledTypes({});
   });
 
-  it("ships every built-in type as a definition, logins included", () => {
+  it("ships every built-in type as a definition, accounts included", () => {
     const ids = itemTypeRegistry()
       .list()
       .map(({ definition }) => definition.metadata.id);
-    for (const legacy of ["login", "passkey", "card", "secret", "note"]) {
-      expect(ids).toContain(legacy);
+    for (const kind of ["account", "passkey", "card", "secret", "note"]) {
+      expect(ids).toContain(kind);
     }
-    expect(typeLabel("login")).toBe("Login");
+    // A link or path that still says `login` resolves to the account type.
+    expect(typeLabel("login")).toBe(typeLabel("account"));
     expect(typeExtension("card")).toBe(".card");
   });
 
@@ -166,15 +169,21 @@ describe("previews", () => {
   });
 });
 
+function setPassword(account: AccountItem, secret: string): void {
+  const method = passwordMethod(account);
+  if (!method) throw new Error("expected a password method");
+  method.secret = secret;
+}
+
 describe("the legacy seam", () => {
   beforeEach(() => {
     syncInstalledTypes({});
   });
 
   it("reads a built-in item's named properties through its definition", () => {
-    const login = createItem("login", "Example");
+    const login = createItem("account", "Example");
     login.username = "ada";
-    login.password = "correct horse";
+    setPassword(login, "correct horse");
     login.uris = [{ id: "u1", uri: "https://example.test", match: "domain" }];
     const definition = definitionFor(login);
     expect(definition).toBeDefined();
@@ -185,10 +194,20 @@ describe("the legacy seam", () => {
     expect(values.uris).toEqual(["https://example.test"]);
   });
 
-  it("projects a built-in login onto a pass entry through its definition", () => {
-    const login = createItem("login", "Example");
+  it("reads a peppered password as absent, never guessing", () => {
+    const account = createItem("account", "Peppered");
+    const method = passwordMethod(account);
+    if (!method) throw new Error("expected a password method");
+    method.pepper = true;
+    const definition = definitionFor(account);
+    if (definition === undefined) throw new Error("account is not registered");
+    expect(itemValues(account, definition).password).toBeUndefined();
+  });
+
+  it("projects a built-in account onto a pass entry through its definition", () => {
+    const login = createItem("account", "Example");
     login.username = "ada";
-    login.password = "correct horse";
+    setPassword(login, "correct horse");
     const definition = definitionFor(login);
     if (definition === undefined) throw new Error("login is not registered");
     const entry = toNativeEntry(definition, itemValues(login, definition));

@@ -16,7 +16,7 @@ import {
   type TextImportAdapter,
   addField,
   addUri,
-  draftLogin,
+  draftAccount,
   draftNote,
   normaliseTotp,
   toIso,
@@ -47,7 +47,7 @@ export const chromiumCsv: TextImportAdapter = {
     for (const row of rows) {
       const url = pick(row, "url");
       const name = pick(row, "name") || hostOf(url) || "Untitled";
-      const item = draftLogin(name);
+      const item = draftAccount(name);
       item.username = pick(row, "username");
       item.password = pick(row, "password");
       item.notes = pick(row, "note", "notes");
@@ -88,7 +88,7 @@ export const appleCsv: TextImportAdapter = {
     for (const row of rows) {
       const url = pick(row, "url");
       const name = pick(row, "title") || hostOf(url) || "Untitled";
-      const item = draftLogin(name);
+      const item = draftAccount(name);
       item.username = pick(row, "username");
       item.password = pick(row, "password");
       item.totp = normaliseTotp(pick(row, "otpauth"));
@@ -121,7 +121,7 @@ export const firefoxCsv: TextImportAdapter = {
     for (const row of rows) {
       const url = pick(row, "url");
       // Firefox stores no title, so the host is the only name available.
-      const item = draftLogin(hostOf(url) || url || "Untitled");
+      const item = draftAccount(hostOf(url) || url || "Untitled");
       item.username = pick(row, "username");
       item.password = pick(row, "password");
       item.createdAt = toIso(Number(pick(row, "timecreated")) || null);
@@ -188,9 +188,9 @@ export const genericCsv: TextImportAdapter = {
       const username = userKey ? pick(row, userKey) : "";
 
       const item: DraftItem =
-        password || username || url ? draftLogin(name) : draftNote(name);
+        password || username || url ? draftAccount(name) : draftNote(name);
 
-      if (item.kind === "login") {
+      if (item.kind === "account") {
         item.username = username;
         item.password = password;
         if (totpKey) item.totp = normaliseTotp(pick(row, totpKey));

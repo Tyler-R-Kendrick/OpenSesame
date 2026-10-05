@@ -3,14 +3,18 @@ import { describe, expect, it } from "vitest";
 import { completeItemDeparture, packItemDeparture } from "./items-depart.js";
 import type { ItemsPackage } from "./items-depart.js";
 import { completeItemsReturn, openItemsReturn } from "./items-return.js";
-import { fakeItemsVault, folder, login } from "./travel-items.test-support.js";
+import {
+  account,
+  fakeItemsVault,
+  folder,
+} from "./travel-items.test-support.js";
 
 const ACK = { bundleSaved: true, codeRecorded: true };
 
 function seeded() {
-  const bank = login("Bank", { folderId: "f-money", notes: "private" });
-  const mail = login("Mail", { folderId: "f-money" });
-  const wiki = login("Wiki", { folderId: "f-misc" });
+  const bank = account("Bank", { folderId: "f-money", notes: "private" });
+  const mail = account("Mail", { folderId: "f-money" });
+  const wiki = account("Wiki", { folderId: "f-misc" });
   const vault = fakeItemsVault(
     [bank, mail, wiki],
     [
@@ -65,7 +69,7 @@ describe("packItemDeparture", () => {
   it("refuses an empty choice, an unknown id, a drop and a file", async () => {
     const { vault, bank } = seeded();
     const drop = createItem("drop", "Claim");
-    const file = login("Scan", {});
+    const file = account("Scan", {});
     Object.assign(file, {
       kind: "typed",
       typeId: "file",

@@ -49,7 +49,7 @@ afterEach(() => {
 function open(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <Link to="/vault/new/login">New login</Link>
+      <Link to="/vault/new/account">New account</Link>
       <Link to="/vault/new/card">New card</Link>
       <Link to="/vault/new/drop">New drop</Link>
       <Link to="/vault/new">New any type</Link>
@@ -104,7 +104,7 @@ describe("vault editor route types", () => {
     },
   );
 
-  it("adds optional login fields on command, focuses them and saves their values", async () => {
+  it("adds optional account fields on command, focuses them and saves their values", async () => {
     open("/vault/new/login");
     expect(screen.queryByLabelText("Authenticator secret")).toBeNull();
     expect(screen.queryByLabelText("Notes")).toBeNull();
@@ -115,7 +115,10 @@ describe("vault editor route types", () => {
         .getAttribute("aria-pressed"),
     ).toBe("false");
     await userEvent.click(
-      screen.getByRole("button", { name: "Add authenticator secret" }),
+      screen.getByRole("button", { name: "Add login method" }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Authenticator" }),
     );
     expect(document.activeElement).toBe(
       screen.getByLabelText("Authenticator secret"),
@@ -140,7 +143,12 @@ describe("vault editor route types", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));
     await waitFor(() => expect(saveItem).toHaveBeenCalledOnce());
     expect(saveItem.mock.calls[0][0]).toMatchObject({
-      totp: "JBSWY3DPEHPK3PXP",
+      methods: expect.arrayContaining([
+        expect.objectContaining({
+          type: "authenticator",
+          secret: "JBSWY3DPEHPK3PXP",
+        }),
+      ]),
       notes: "Recovery instructions",
       fields: [
         expect.objectContaining({ name: "Account ID", value: "example-id" }),
@@ -149,9 +157,13 @@ describe("vault editor route types", () => {
   });
 
   it("shows existing optional values without a command and keeps cleared fields editable", async () => {
-    const login = createItem("login", "Saved login");
-    if (login.kind !== "login") throw new Error("Wrong fixture");
-    login.totp = "JBSWY3DPEHPK3PXP";
+    const login = createItem("account", "Saved account");
+    if (login.kind !== "account") throw new Error("Wrong fixture");
+    const seed = "JBSWY3DPEHPK3PXP";
+    login.methods = [
+      ...login.methods,
+      { id: `${login.id}:authenticator`, type: "authenticator", secret: seed },
+    ];
     login.notes = "Saved notes";
     login.fields = [
       { id: "custom", name: "Account", value: "123", hidden: false },
@@ -162,7 +174,7 @@ describe("vault editor route types", () => {
     open(`/vault/${login.id}/edit`);
     expect(
       screen.getByLabelText<HTMLInputElement>("Authenticator secret").value,
-    ).toBe(login.totp);
+    ).toBe(seed);
     expect(screen.getByLabelText<HTMLTextAreaElement>("Notes").value).toBe(
       login.notes,
     );
@@ -176,7 +188,7 @@ describe("vault editor route types", () => {
     await waitFor(() => expect(saveItem).toHaveBeenCalledOnce());
     expect(saveItem.mock.calls[0][0]).toMatchObject({
       notes: "",
-      totp: login.totp,
+      methods: login.methods,
       fields: login.fields,
       favorite: true,
     });
@@ -187,7 +199,7 @@ describe("vault editor route types", () => {
     await userEvent.click(screen.getByRole("button", { name: "Add notes" }));
     await userEvent.click(screen.getByRole("link", { name: "New card" }));
     expect(screen.queryByLabelText("Notes")).toBeNull();
-    await userEvent.click(screen.getByRole("link", { name: "New login" }));
+    await userEvent.click(screen.getByRole("link", { name: "New account" }));
     expect(screen.queryByLabelText("Notes")).toBeNull();
     expect(screen.getByRole("button", { name: "Add notes" })).toBeTruthy();
   });
@@ -196,7 +208,7 @@ describe("vault editor route types", () => {
     await userEvent.click(screen.getByRole("button", { name: "Add address" }));
     const address = screen.getByLabelText("Address 1");
     expect(
-      address.compareDocumentPosition(screen.getByLabelText("Username")) &
+      address.compareDocumentPosition(screen.getByLabelText("Username / ID")) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     await userEvent.selectOptions(
@@ -288,15 +300,20 @@ describe("vault editor route types", () => {
     );
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe("entry");
   });
-  it.each(["login", "card", "note", "secret", "passkey", "certificate"])(
-    "locks the explicit %s route to its type",
-    (kind) => {
-      const { container } = open(`/vault/new/${kind}`);
-      expect(screen.queryByRole("combobox", { name: "Type" })).toBeNull();
-      expect(container.querySelector(".editor__ext")?.tagName).toBe("SPAN");
-      expect(screen.getByLabelText("Name")).toBeTruthy();
-    },
-  );
+  it.each([
+    "account",
+    "login",
+    "card",
+    "note",
+    "secret",
+    "passkey",
+    "certificate",
+  ])("locks the explicit %s route to its type", (kind) => {
+    const { container } = open(`/vault/new/${kind}`);
+    expect(screen.queryByRole("combobox", { name: "Type" })).toBeNull();
+    expect(container.querySelector(".editor__ext")?.tagName).toBe("SPAN");
+    expect(screen.getByLabelText("Name")).toBeTruthy();
+  });
 
   it.each(["widget", "Login", "%20", "login%2Fcard"])(
     "refuses invalid type %s without a saveable draft",
@@ -331,8 +348,8 @@ describe("vault editor route types", () => {
   });
 
   it("resets the draft when navigation supplies a different type", async () => {
-    open("/vault/new/login");
-    await userEvent.type(screen.getByLabelText("Name"), "Login draft");
+    open("/vault/new/account");
+    await userEvent.type(screen.getByLabelText("Name"), "Account draft");
     await userEvent.click(screen.getByRole("link", { name: "New card" }));
     expect(screen.queryByLabelText("Username")).toBeNull();
     expect(screen.getByLabelText("Cardholder")).toBeTruthy();

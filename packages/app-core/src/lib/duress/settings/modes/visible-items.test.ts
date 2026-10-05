@@ -8,10 +8,10 @@ import { decodePlan, encodePlan } from "./payload.js";
 import { VISIBLE_LIMITS, readVisibleItemsBody } from "./visible-items-shape.js";
 import {
   HIDDEN,
+  account,
   ctx,
   extrasFor,
   items,
-  login,
 } from "./visible-items.fixture.js";
 import { VISIBLE_ITEMS } from "./visible-items.js";
 
@@ -105,7 +105,7 @@ describe("visible items plan", () => {
   it("fits the slot at its worst case, and says too large rather than truncating a plan", () => {
     const big = (n: number): VaultItem[] =>
       Array.from({ length: n }, (_, i) =>
-        login(`Item ${i}`, {
+        account(`Item ${i}`, {
           username: "€".repeat(VISIBLE_LIMITS.text),
           password: "€".repeat(VISIBLE_LIMITS.text),
           notes: "€".repeat(VISIBLE_LIMITS.notes),

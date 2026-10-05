@@ -66,7 +66,7 @@ describe("AppShell rail navigation", () => {
     expect(all.textContent).toContain("2");
     const favorites = filterLink(container, "/vault?f=favorites", "favorites");
     expect(favorites.textContent).toContain("1");
-    const logins = filterLink(container, "/vault?f=login", "logins");
+    const logins = filterLink(container, "/vault?f=account", "accounts");
     expect(logins.textContent).toContain("2");
     const cards = filterLink(container, "/vault?f=card", "cards");
     expect(cards.textContent).toContain("-");
@@ -75,11 +75,11 @@ describe("AppShell rail navigation", () => {
   });
   it("lists folders with their live item counts", () => {
     const { container } = renderShell("/vault");
-    fireEvent.click(screen.getByRole("treeitem", { name: "logins" }));
-    const folder = filterLink(container, "/vault?f=login&folder=f1", "Work");
-    // Only the live login counts; the deleted card does not.
+    fireEvent.click(screen.getByRole("treeitem", { name: "accounts" }));
+    const folder = filterLink(container, "/vault?f=account&folder=f1", "Work");
+    // Only the live account counts; the deleted card does not.
     expect(folder.textContent).toContain("1");
-    expect(folder.closest("#login-tree")).toBeTruthy();
+    expect(folder.closest("#account-tree")).toBeTruthy();
   });
   it("marks the active filter from the query string", () => {
     const { container } = renderShell("/vault?f=favorites");
@@ -92,9 +92,9 @@ describe("AppShell rail navigation", () => {
   });
   it("marks the active folder and deactivates 'all'", () => {
     const { container } = renderShell("/vault?folder=f1");
-    fireEvent.click(screen.getByRole("treeitem", { name: "logins" }));
+    fireEvent.click(screen.getByRole("treeitem", { name: "accounts" }));
     expect(
-      container.querySelector('a[href="/vault?f=login&folder=f1"]'),
+      container.querySelector('a[href="/vault?f=account&folder=f1"]'),
     ).toBeTruthy();
     expect(filterLink(container, "/vault", "all").className).not.toContain(
       "is-active",
@@ -160,7 +160,7 @@ describe("AppShell rail navigation", () => {
     ).toContain("is-active");
     fireEvent.keyDown(tree, { key: "j" });
     expect(
-      filterLink(container, "/vault?f=login", "logins").className,
+      filterLink(container, "/vault?f=account", "accounts").className,
     ).toContain("is-active");
     fireEvent.keyDown(tree, { key: "ArrowUp" });
     expect(
@@ -196,13 +196,13 @@ describe("AppShell rail navigation", () => {
   });
   it("repeats a rail motion by a vim count", () => {
     const { container } = renderShell("/vault");
-    fireEvent.click(screen.getByRole("treeitem", { name: "logins" }));
+    fireEvent.click(screen.getByRole("treeitem", { name: "accounts" }));
     const tree = screen.getByRole("tree", { name: "Sections" });
     tree.focus();
     fireEvent.keyDown(tree, { key: "1" });
     fireEvent.keyDown(tree, { key: "j" });
     expect(
-      filterLink(container, "/vault?f=login&folder=f1", "Work").className,
+      filterLink(container, "/vault?f=account&folder=f1", "Work").className,
     ).toContain("is-active");
     fireEvent.keyDown(tree, { key: "1" });
     fireEvent.keyDown(tree, { key: "j" });

@@ -13,6 +13,7 @@
 
 pub mod catalogue;
 mod errors;
+pub mod legacy;
 pub mod native;
 pub mod registry;
 pub mod schema;
@@ -20,6 +21,10 @@ mod slugs;
 pub mod validate;
 
 pub use catalogue::{FieldPart, FieldShape, FieldTypeId, FIELD_TYPE_IDS};
+pub use legacy::{
+    is_legacy_type_alias, resolve_extension, resolve_type_id, LEGACY_EXTENSION_ALIASES,
+    LEGACY_TYPE_ALIASES,
+};
 pub use native::{
     decode_value, encode_value, from_entry, to_entry, FieldValue, FieldValues, Readback,
 };
@@ -38,6 +43,10 @@ pub use validate::{
 
 /// The shared corpus, keyed by type id. One source of truth for both planes.
 pub const BUILTIN_DEFINITIONS: &[(&str, &str)] = &[
+    (
+        "account",
+        include_str!("../../../marketplace/item-types/builtin/account.json"),
+    ),
     (
         "address",
         include_str!("../../../marketplace/item-types/builtin/address.json"),
@@ -91,10 +100,6 @@ pub const BUILTIN_DEFINITIONS: &[(&str, &str)] = &[
         include_str!("../../../marketplace/item-types/builtin/identity-document.json"),
     ),
     (
-        "login",
-        include_str!("../../../marketplace/item-types/builtin/login.json"),
-    ),
-    (
         "membership",
         include_str!("../../../marketplace/item-types/builtin/membership.json"),
     ),
@@ -136,9 +141,10 @@ pub const BUILTIN_DEFINITIONS: &[(&str, &str)] = &[
 pub const ITEM_TYPE_DIR_ENV: &str = "OPENSESAME_VAULT_ITEM_TYPE_DIR";
 
 /// The seven ids that predate ADR 0087 and are still spelled out in the
-/// client's storage. Kept here so the corpus cannot lose one silently.
+/// client's storage (`login` is `account` since ADR 0172; the old name resolves
+/// through [`legacy`]). Kept here so the corpus cannot lose one silently.
 pub const LEGACY_TYPE_IDS: &[&str] = &[
-    "login",
+    "account",
     "passkey",
     "card",
     "secret",

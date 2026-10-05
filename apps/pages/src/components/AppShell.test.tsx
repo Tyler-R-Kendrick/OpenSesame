@@ -178,7 +178,7 @@ describe("AppShell", () => {
     const { container } = renderShell("/access");
     expect(container.querySelector('a[href="/vault?f=trash"]')).toBeNull();
     expect(
-      container.querySelector('a[href="/vault?f=login&folder=f1"]'),
+      container.querySelector('a[href="/vault?f=account&folder=f1"]'),
     ).toBeNull();
     expect(screen.queryByText("all")).toBeNull();
     expect(screen.getAllByText("connections").length).toBe(1);

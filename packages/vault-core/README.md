@@ -24,6 +24,7 @@ Import from the root: `import { openVaultFile } from "@opensesame/vault-core"`.
 | `crypto.ts` | `createVault`, `unlockVaultKey`, `rewrapVaultKey`, `wrapVaultKeyWithPassword`, `sealJson` / `openJson`, `PBKDF2_ITERATIONS`, `WrongPasswordError`, `VaultCorruptError` |
 | `seal-open.ts` | `openJsonForRebind` — accepts a legacy unbound seal once so the caller can rewrite it bound |
 | `unlock-records.ts`, `protection-types.ts`, `protection-limits.ts` | Unlock and root-protection record types and their size limits |
+| `account.ts`, `pepper-seal.ts` | The account item and its login methods (ADR 0172): `AccountItem`, `LoginMethod`, `normalizeLegacyItems` (a legacy `login` becomes an account), `needsPepper`, and the pepper seal (`sealWithPepper`, `openWithPepper`) |
 | `model.ts`, `login-uri.ts`, `paths.ts`, `tree-rows.ts` | `VaultBody`, `VaultItem` kinds, `createItem`, `mergeVaultBodies`; item paths and `tombPath`; `buildRows`, the headless listing |
 | `item-types.ts` | This device's item-type registry: `installItemType`, `uninstallItemType`, `definitionFor`, `typedSubtitle` |
 | `totp.ts` | `parseTotp`, `totpCode`, `hotpCode`, `totpSetupUri` |

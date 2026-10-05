@@ -1,10 +1,10 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 /**
  * Sessions across time and across a lock (ADR 0150 §2, §6): a joiner who
  * waits for an owner keeps hearing the carriers, and a vault that locks while
  * a session is still being built never leaves it live.
  */
-import { createItem } from "@opensesame/vault-core";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { plainAccount } from "../account.test-support.js";
 import type { LiveHost } from "./host.js";
 import { FAKE_CLOCK, settle } from "./live-clock.fixture.js";
 import { FakeBus, FakeNet } from "./live-fakes.js";
@@ -22,8 +22,7 @@ import {
 } from "./session.js";
 import type { LiveTransport } from "./transport.js";
 
-const github = createItem("login", "GitHub");
-github.password = "correct horse battery staple";
+const github = plainAccount("GitHub", "correct horse battery staple");
 
 const PROFILE: LiveTransport = {
   addresses: [],

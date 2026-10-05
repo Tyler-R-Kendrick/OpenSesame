@@ -4,6 +4,7 @@ import {
   settingsConfigRoute,
 } from "@opensesame/app-core/lib/crumbs.js";
 import type { ItemKindRow } from "@opensesame/app-core/lib/item-kinds.js";
+import { resolveFilterSlug } from "@opensesame/app-core/lib/vault-filter-slug.js";
 import type { VaultItem } from "@opensesame/vault-core";
 import { useLocation, useSearchParams } from "react-router";
 import { treeCurrent } from "../lib/vault-list-path.js";
@@ -32,7 +33,7 @@ export function useSelectedRail(
           location.pathname,
           location.hash,
           params.get("view"),
-          params.get("f") ?? "all",
+          resolveFilterSlug(params.get("f") ?? "all"),
           folder,
           category,
           folder ? uniqueFolderKind(items, folder, kinds) : null,

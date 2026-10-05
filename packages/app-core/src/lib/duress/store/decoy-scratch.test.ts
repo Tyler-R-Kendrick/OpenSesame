@@ -60,7 +60,7 @@ async function armDecoyTrigger(): Promise<void> {
 async function sealedGuest(store: VaultStore): Promise<void> {
   await store.createGuest();
   await store.enrollPin(GUEST_PIN);
-  await store.saveItem(createItem("login", "Guest keeps this"));
+  await store.saveItem(createItem("account", "Guest keeps this"));
   await store.flushPendingWrites();
   store.lock();
   await vfsFlush();
@@ -105,7 +105,7 @@ describe("duress decoy beside a sealed guest", () => {
     expect(decoy.guest).toBe(true);
     expect(decoy.tomb).toBe(GUEST_TOMB);
     expect(decoy.items).toHaveLength(0);
-    await store.saveItem(createItem("login", "Written under duress"));
+    await store.saveItem(createItem("account", "Written under duress"));
     await store.flushPendingWrites();
     await vfsFlush();
     expect(kvGet(GUEST_HEADER)).toBe(headerBefore);

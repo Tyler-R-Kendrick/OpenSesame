@@ -7,9 +7,16 @@
  * anywhere this device keeps state (ADR 0168).
  */
 
-import { type LoginItem, createItem } from "@opensesame/vault-core";
+import {
+  type AccountItem,
+  accountPlainPassword,
+  accountTotp,
+  createItem,
+  manualPassword,
+} from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { duressContinueSeams } from "../../../screens/unlock/unlock-duress-continue.js";
+import { plainAccount } from "../../account.test-support.js";
 import { forgetDeviceIdentityKeyInFlightForTests } from "../../device-identity-key.js";
 import { kvDelete, kvGet } from "../../kv.js";
 import { ATTEMPTS_KEY, VaultStore } from "../../vault/store.js";
@@ -82,19 +89,19 @@ describe("visible items, through unlock", () => {
     ]);
 
     const [first, second] = open.items;
-    if (first?.kind !== "login" || second?.kind !== "login") {
-      throw new Error("expected two logins");
+    if (first?.kind !== "account" || second?.kind !== "account") {
+      throw new Error("expected two accounts");
     }
     // Content that makes it look lived in comes across, dates as the vault holds them.
     const stored = seeded.all.find((item) => item.id === netflix.id);
     expect(first).toMatchObject({
       username: "me@example.test",
-      password: "netflix-pw-4417",
       notes: "family plan",
       favorite: true,
       createdAt: stored?.createdAt,
       updatedAt: stored?.updatedAt,
     });
+    expect(accountPlainPassword(first)).toBe("netflix-pw-4417");
     expect(first.uris.map((u) => [u.uri, u.match])).toEqual([
       ["https://netflix.example.test", "host"],
     ]);
@@ -111,7 +118,7 @@ describe("visible items, through unlock", () => {
     expect(first.uris[0]?.id).not.toBe("uri-1");
     expect(first.fields[0]?.id).not.toBe("f-1");
     // The seed does not travel.
-    expect(second.totp).toBe("");
+    expect(accountTotp(second)).toBe("");
     expect(JSON.stringify(open)).not.toContain(SEED);
     store.lock();
   });
@@ -170,11 +177,17 @@ describe("visible items, through unlock", () => {
     const seeded = await openVault();
     const { store, netflix } = seeded;
     await arm(seeded, [netflix.id]);
+    await store.saveItem(plainAccount("Added later", "later-pw-1"));
     await store.saveItem({
-      ...createItem("login", "Added later"),
-      password: "later-pw-1",
+      ...netflix,
+      methods: [
+        manualPassword(
+          `${netflix.id}:password`,
+          "netflix-edited-pw",
+          new Date().toISOString(),
+        ),
+      ],
     });
-    await store.saveItem({ ...netflix, password: "netflix-edited-pw" });
     await store.flushPendingWrites();
     await lockIt(store);
 
@@ -195,7 +208,9 @@ describe("visible items, through unlock", () => {
     const view = () =>
       store
         .getSnapshot()
-        .items.map((item) => (item.kind === "login" ? item.password : ""));
+        .items.map((item) =>
+          item.kind === "account" ? accountPlainPassword(item) : "",
+        );
     await typeCode(store);
     const first = view();
     store.lock();
@@ -224,8 +239,8 @@ describe("visible items, through unlock", () => {
   it("says the picked items are too large rather than arming a code that would show nothing", async () => {
     const store = new VaultStore();
     await store.create(PASSWORD);
-    const heavy: LoginItem[] = Array.from({ length: 12 }, (_, i) => ({
-      ...createItem("login", `Heavy ${i}`),
+    const heavy: AccountItem[] = Array.from({ length: 12 }, (_, i) => ({
+      ...createItem("account", `Heavy ${i}`),
       notes: "€".repeat(4000),
     }));
     for (const item of heavy) await store.saveItem(item);

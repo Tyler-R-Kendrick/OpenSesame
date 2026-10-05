@@ -64,6 +64,9 @@ describe("mcp-host tools", () => {
       "sealed_store_show",
       "password_store_read",
       "get_secret",
+      "account_pepper",
+      "account_unseal_pepper",
+      "oprf_evaluate",
     ]) {
       expect(() => assertsNoSecretTools([...hostTools, name])).toThrow(
         /secret_tools_forbidden|forbidden/i,

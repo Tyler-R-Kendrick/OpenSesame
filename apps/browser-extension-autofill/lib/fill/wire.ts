@@ -129,7 +129,16 @@ export const daemonMatch = z.object({
     .check(z.maxLength(64)),
 });
 
-export const daemonValue = z.object({ field: fillField, value: z.string() });
+/**
+ * `needsPepper` is set when the entry's password is peppered or Sphinx-derived
+ * (ADR 0172): the daemon cannot ask the person, and a page has no way to, so the
+ * client refuses with `needs_pepper` and never reads `value`.
+ */
+export const daemonValue = z.object({
+  field: fillField,
+  value: z.string(),
+  needsPepper: z.optional(z.boolean()),
+});
 
 /** A stored string, or absent: anything else a key holds reads as absent. */
 export const storedString = z.catch(z.optional(z.string()), undefined);

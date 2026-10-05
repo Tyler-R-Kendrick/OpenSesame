@@ -31,7 +31,8 @@ CLI, `opensesame` in [`apps/cli`](../../apps/cli).
 | `claim poll <claimId> --token <osc_clm_…>` | Poll a claim |
 | `agent init --anonymous [--name <name>]` | Register an anonymous agent |
 | `host health [--host <url>]`, `host discover [--host <url>]` | Host API health and discovery |
-| `vault verify <file>`, `vault ls <file>` | Open a vault export or offline backup |
+| `vault verify <file>`, `vault ls <file>` | Open a vault export or offline backup; lists `account` items (a legacy `login` file lists as `account`) by name and path, never a method secret |
+| `vault new <account\|secret\|note\|card> --name <n>` | Create an item (`login` is accepted as `account`). An account's password is typed here as a `manual` method; a peppered or Sphinx password is never read, copied or set from the terminal (`needs_pepper`) |
 
 Global flags: `--json`, `--issuer <url>`, `--api <url>`, `--client-id <id>`.
 The library entry exports `runCli`, `parseArgs` and `helpText`.

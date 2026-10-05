@@ -14,6 +14,7 @@ export * from "./catalogue.js";
 export * from "./schema.js";
 export * from "./validate.js";
 export * from "./registry.js";
+export * from "./legacy-aliases.js";
 export * from "./native.js";
 export * from "./values.js";
 export * from "./builtin.js";

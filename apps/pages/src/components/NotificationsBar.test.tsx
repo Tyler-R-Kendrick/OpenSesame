@@ -10,6 +10,7 @@ import {
 } from "@opensesame/app-core/lib/notices.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem } from "@opensesame/vault-core";
+import { withPassword } from "../sections/vault/account.test-support.js";
 import {
   NotificationsBar,
   notificationsBarDependencies,
@@ -62,8 +63,7 @@ describe("NotificationsBar", () => {
   });
 
   it("keeps password-health findings in the global notifications panel", () => {
-    const login = createItem("login");
-    login.password = "letmein";
+    const login = withPassword(createItem("account"), "letmein");
     notificationsBarDependencies.useVault = () => ({
       ...vaultStore.getSnapshot(),
       items: [login],

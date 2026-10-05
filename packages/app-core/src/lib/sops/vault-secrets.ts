@@ -13,14 +13,24 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
-import type { ItemKind, VaultItem } from "@opensesame/vault-core";
+import {
+  type VaultItem,
+  needsPepper,
+  normalizeLegacyItems,
+} from "@opensesame/vault-core";
 import { SopsError } from "./errors.js";
 import { emitJsonTree, parseJsonTree } from "./json-codec.js";
 import { type SopsNode, entry } from "./model.js";
 import type { EncryptionPlan, ExecutionPermit } from "./plan.js";
 import type { SopsRunner } from "./runner.js";
 
-const KINDS: readonly ItemKind[] = [
+/**
+ * `login` is read, never written: a document exported before ADR 0172 still
+ * opens, and its logins become accounts (`normalizeLegacyItems`).
+ */
+type DocKind = string;
+const KINDS: readonly DocKind[] = [
+  "account",
   "login",
   "passkey",
   "card",
@@ -31,7 +41,7 @@ const KINDS: readonly ItemKind[] = [
   "typed",
 ];
 
-function isKind(value: string): value is ItemKind {
+function isKind(value: string): boolean {
   return KINDS.some((kind) => kind === value);
 }
 
@@ -41,6 +51,8 @@ export async function exportVaultSecrets(input: {
   items: readonly VaultItem[];
   plan: EncryptionPlan;
   permit: ExecutionPermit;
+  /** Told how many passwords were left out for needing a pepper. */
+  onOmitted?: (count: number) => void;
 }): Promise<string> {
   if (input.items.length === 0) {
     throw new SopsError(
@@ -54,8 +66,30 @@ export async function exportVaultSecrets(input: {
       "Vault exports are JSON documents.",
     );
   }
-  const plaintext = JSON.stringify({ items: input.items });
+  const { items, omitted } = withoutPepperedPasswords(input.items);
+  if (omitted > 0) input.onOmitted?.(omitted);
+  const plaintext = JSON.stringify({ items });
   return input.runner.encryptNew(plaintext, input.plan, input.permit);
+}
+
+type PepperFiltered = { items: VaultItem[]; omitted: number };
+
+/**
+ * A document cannot ask for a pepper, so a password that needs one (sealed
+ * under it, or a Sphinx key) is left out whole: never its sealed form, never
+ * an OPRF key (ADR 0172 §4). The rest of the account goes as it is.
+ */
+function withoutPepperedPasswords(items: readonly VaultItem[]): PepperFiltered {
+  let omitted = 0;
+  const kept = items.map((item) => {
+    if (item.kind !== "account") return item;
+    const methods = item.methods.filter(
+      (method) => method.type !== "password" || !needsPepper(method),
+    );
+    omitted += item.methods.length - methods.length;
+    return methods.length === item.methods.length ? item : { ...item, methods };
+  });
+  return { items: kept, omitted };
 }
 
 function readItem(node: SopsNode): VaultItem {
@@ -64,7 +98,10 @@ function readItem(node: SopsNode): VaultItem {
   const parsed: BoundaryValue = JSON.parse(emitJsonTree(node));
   assertVaultItem(parsed);
   // SAFETY: assertVaultItem checked the vault item contract before this cast.
-  return overlapCast(parsed);
+  const item: VaultItem = overlapCast(parsed);
+  // A legacy login in an older document becomes an account (ADR 0172 §1).
+  const [normalized] = normalizeLegacyItems([item]);
+  return normalized ?? item;
 }
 
 const BASE_FIELDS = [
@@ -83,8 +120,18 @@ const BASE_FIELDS = [
   "sample",
 ] as const;
 
-function extraFields(kind: ItemKind): readonly string[] {
+function extraFields(kind: DocKind): readonly string[] {
   switch (kind) {
+    case "account":
+      return [
+        "username",
+        "uris",
+        "methods",
+        "resetEmailId",
+        "supersededById",
+        "retiredAt",
+        "reenrollState",
+      ];
     case "login":
       return [
         "username",
@@ -92,6 +139,7 @@ function extraFields(kind: ItemKind): readonly string[] {
         "totp",
         "uris",
         "passwordChangedAt",
+        "resetEmailId",
         "supersededById",
         "retiredAt",
         "reenrollState",
@@ -161,7 +209,7 @@ function assertString(item: JsonObject, key: string): void {
   if (!isString(item[key])) throw fail(`A vault item's ${key} is not text.`);
 }
 
-function assertKnownItem(value: JsonObject, kind: ItemKind): void {
+function assertKnownItem(value: JsonObject, kind: DocKind): void {
   const id = value.id;
   if (!isString(id) || unsafeItemId(id))
     throw fail("A vault item id is not a vault record.");
@@ -188,9 +236,10 @@ function assertBase(value: JsonObject): void {
   assertFields(value.fields);
 }
 
-function assertKindPayload(value: JsonObject, kind: ItemKind): void {
+function assertKindPayload(value: JsonObject, kind: DocKind): void {
   if (kind === "secret") assertString(value, "value");
   if (kind === "login") assertString(value, "password");
+  if (kind === "account") assertMethods(value.methods);
   if (kind === "drop") assertString(value, "bearerToken");
   if (kind === "certificate") assertString(value, "privateKeyPem");
   if (kind === "passkey" && value.privateKeyPkcs8B64 !== undefined)
@@ -199,6 +248,29 @@ function assertKindPayload(value: JsonObject, kind: ItemKind): void {
     assertString(value, "typeId");
     if (!isJsonObject(value.values))
       throw fail("A vault item's values are not a mapping.");
+  }
+}
+
+const METHOD_TYPES: readonly string[] = [
+  "password",
+  "api-key",
+  "token",
+  "oauth",
+  "authenticator",
+];
+
+function assertMethods(value: BoundaryValue | undefined): void {
+  if (!Array.isArray(value))
+    throw fail("A vault item's login methods are not a list.");
+  for (const method of value) {
+    if (
+      !isJsonObject(method) ||
+      !isString(method.id) ||
+      !isString(method.type) ||
+      !METHOD_TYPES.includes(method.type)
+    ) {
+      throw fail("A vault item's login method is malformed.");
+    }
   }
 }
 

@@ -15,6 +15,7 @@ import type {
   VaultItem,
   VaultTombstones,
 } from "./model.js";
+import { normalizeVaultBody } from "./seal-open.js";
 
 /**
  * Tombstones kept per kind. Ids and times only, so this bounds the body at a
@@ -25,8 +26,19 @@ export const MAX_TOMBSTONES = 10_000;
 
 const TOMBSTONE_KINDS = ["items", "folders", "itemTypes"] as const;
 
-/** Deterministic, no-data-loss merge for two encrypted whole-vault snapshots. */
-export function mergeVaultBodies(left: VaultBody, right: VaultBody): VaultBody {
+/**
+ * Deterministic, no-data-loss merge for two encrypted whole-vault snapshots.
+ * Either side may still hold a legacy `login` (a device that has not opened
+ * its vault since ADR 0172); both are normalized first, so a login and the
+ * account another device made of it are one item with one set of methods and
+ * the newer copy of it wins as it always did.
+ */
+export function mergeVaultBodies(
+  leftBody: VaultBody,
+  rightBody: VaultBody,
+): VaultBody {
+  const left = normalizeVaultBody(leftBody);
+  const right = normalizeVaultBody(rightBody);
   const tombstones = mergeTombstones(left.tombstones, right.tombstones);
   const deadFolders = tombstones?.folders ?? {};
   const deadItems = tombstones?.items ?? {};
@@ -132,7 +144,10 @@ function rehomed(
 
 /** True when both bodies hold the same vault, whatever their write counters say. */
 export function sameVaultContent(left: VaultBody, right: VaultBody): boolean {
-  return contentKey(left) === contentKey(right);
+  return (
+    contentKey(normalizeVaultBody(left)) ===
+    contentKey(normalizeVaultBody(right))
+  );
 }
 
 /** Record a purge or delete in a body's tombstones, returning the new set. */

@@ -1,6 +1,6 @@
 # Item-type marketplace
 
-A vault item type — login, passport, Wi-Fi network, gift card — is a JSON
+A vault item type — account, passport, Wi-Fi network, gift card — is a JSON
 manifest, never code ([ADR 0087](../docs/adr/0087-vault-item-type-plugins.md)).
 This directory holds every definition this repository publishes:
 

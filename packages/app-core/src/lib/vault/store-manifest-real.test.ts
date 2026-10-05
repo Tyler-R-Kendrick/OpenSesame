@@ -2,7 +2,7 @@
  * The store path manifest against a real, unlocked vault store: the write
  * the Import sheet makes, end to end.
  */
-import { createItem } from "@opensesame/vault-core";
+import { createItem, passwordMethod } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   planStoreManifest,
@@ -49,9 +49,10 @@ describe("the store path manifest in a real vault", () => {
   it("exports, and importing it twice into another vault never duplicates", async () => {
     const source = await unlockedStore();
     const dev = await source.addFolder("Dev");
-    const login = createItem("login", "GitHub");
+    const login = createItem("account", "GitHub");
     login.username = "octo";
-    login.password = "hunter2-but-longer"; // gitleaks:allow -- fixture
+    const method = passwordMethod(login);
+    if (method) method.secret = "hunter2-but-longer"; // gitleaks:allow -- fixture
     await source.saveItem({ ...login, folderId: dev.id });
     const secret = createItem("secret", "Deploy hook");
     secret.value = "whsec_fixture"; // gitleaks:allow -- fixture
@@ -83,7 +84,7 @@ describe("the store path manifest in a real vault", () => {
     ]);
     expect(after.folders.map((folder) => folder.name)).toEqual(["Dev"]);
     const github = after.items.find((item) => item.name === "GitHub");
-    expect(github).toMatchObject({ kind: "login", username: "octo" });
+    expect(github).toMatchObject({ kind: "account", username: "octo" });
     expect(github?.folderId).toBe(after.folders[0]?.id);
   });
 });

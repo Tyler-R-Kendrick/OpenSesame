@@ -26,7 +26,7 @@ describe("packs", () => {
   it("are 18 built-ins beyond the embedded core, known without being loaded", () => {
     expect(packEntries()).toHaveLength(18);
     expect(loadedPacks().size).toBe(0);
-    expect(builtinRegistry().has("login")).toBe(false);
+    expect(builtinRegistry().has("account")).toBe(false);
     expect(builtinRegistry().has("secret")).toBe(true);
   });
 
@@ -36,24 +36,24 @@ describe("packs", () => {
       heard += 1;
     });
     const before = packsVersion();
-    const definition = await loadPack("login");
-    expect(definition.metadata.id).toBe("login");
-    expect(isPackLoaded("login")).toBe(true);
-    expect(loadedPackText("login")).toBe(await importPackText("login"));
-    expect(builtinRegistry().sourceOf("login")).toBe("builtin");
+    const definition = await loadPack("account");
+    expect(definition.metadata.id).toBe("account");
+    expect(isPackLoaded("account")).toBe(true);
+    expect(loadedPackText("account")).toBe(await importPackText("account"));
+    expect(builtinRegistry().sourceOf("account")).toBe("builtin");
     expect(heard).toBe(1);
     expect(packsVersion()).toBe(before + 1);
     // A second load answers from what is registered.
-    expect(await loadPack("login")).toBe(definition);
+    expect(await loadPack("account")).toBe(definition);
     expect(heard).toBe(1);
-    expect(dropPack("login")).toBe(true);
-    expect(dropPack("login")).toBe(false);
+    expect(dropPack("account")).toBe(true);
+    expect(dropPack("account")).toBe(false);
     stop();
   });
 
   it("refuse text that is not the one the build indexed", async () => {
-    const text = await importPackText("login");
-    await expect(verifyPackText("login", `${text} `)).rejects.toMatchObject({
+    const text = await importPackText("account");
+    await expect(verifyPackText("account", `${text} `)).rejects.toMatchObject({
       reason: "digest",
     });
     await expect(verifyPackText("nope", text)).rejects.toBeInstanceOf(
@@ -63,11 +63,11 @@ describe("packs", () => {
 
   it("refuse a fetch that fails, and register nothing", async () => {
     await expect(
-      loadPack("login", () =>
+      loadPack("account", () =>
         Promise.reject(new PackError("fetch", "Offline.")),
       ),
     ).rejects.toMatchObject({ reason: "fetch" });
-    expect(isPackLoaded("login")).toBe(false);
+    expect(isPackLoaded("account")).toBe(false);
   });
 
   it("keep their id, title, directory and extension while off", () => {

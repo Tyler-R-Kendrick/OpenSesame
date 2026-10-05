@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import type { VaultBody, VaultItem } from "@opensesame/vault-core";
+import {
+  type VaultBody,
+  type VaultItem,
+  manualPassword,
+} from "@opensesame/vault-core";
 import { fidoCxf } from "../import/formats/cxf.js";
 import type { DraftItem, ParseInput } from "../import/types.js";
 import {
@@ -35,8 +39,8 @@ function base(kind: VaultItem["kind"], id: string, name: string) {
 /** One item of every kind the vault has, with every field populated. */
 function fullVault(): VaultBody {
   const login: VaultItem = {
-    ...base("login", "item-login", "Example Mail"),
-    kind: "login",
+    ...base("account", "item-login", "Example Mail"),
+    kind: "account",
     folderId: "folder-work",
     favorite: true,
     notes: "First line\nSecond line",
@@ -45,13 +49,19 @@ function fullVault(): VaultBody {
       { id: "f2", name: "Support PIN", value: "9182", hidden: true },
     ],
     username: "ada@example.com",
-    password: "hunter2",
-    totp: "otpauth://totp/Example:ada?secret=JBSWY3DPEHPK3PXP&issuer=Example&digits=8&period=45&algorithm=SHA256",
     uris: [
       { id: "u1", uri: "https://mail.example.com", match: "domain" },
       { id: "u2", uri: "https://webmail.example.com", match: "domain" },
     ],
-    passwordChangedAt: NOW,
+    methods: [
+      manualPassword("item-login:password", "hunter2", NOW),
+      {
+        id: "item-login:authenticator",
+        type: "authenticator",
+        secret:
+          "otpauth://totp/Example:ada?secret=JBSWY3DPEHPK3PXP&issuer=Example&digits=8&period=45&algorithm=SHA256",
+      },
+    ],
   };
   const passkey: VaultItem = {
     ...base("passkey", "item-passkey", "example.org passkey"),
@@ -103,13 +113,11 @@ function fullVault(): VaultBody {
     notAfter: "2026-04-04T00:00:00.000Z",
   };
   const deleted: VaultItem = {
-    ...base("login", "item-deleted", "Old Account"),
-    kind: "login",
+    ...base("account", "item-deleted", "Old Account"),
+    kind: "account",
     username: "gone",
-    password: "gone",
-    totp: "",
     uris: [],
-    passwordChangedAt: NOW,
+    methods: [manualPassword("item-deleted:password", "gone", NOW)],
     deletedAt: NOW,
   };
 
@@ -282,8 +290,8 @@ describe("export then import", () => {
       "Safe combination",
     ]);
 
-    const login = items.find((item) => item.kind === "login");
-    if (login?.kind !== "login") throw new Error("no login");
+    const login = items.find((item) => item.kind === "account");
+    if (login?.kind !== "account") throw new Error("no account");
     expect(login).toMatchObject({
       name: "Example Mail",
       folder: "Work",

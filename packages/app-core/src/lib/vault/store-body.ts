@@ -11,6 +11,7 @@ import {
   VaultCorruptError,
   type VaultHeader,
   emptyBody,
+  normalizeVaultBody,
   openJson,
   vaultSealBinding,
 } from "@opensesame/vault-core";
@@ -74,7 +75,9 @@ export async function loadVaultBody(
     // the sealed file, tombstoned so a device that still holds it cannot
     // bring it back.
     retireLegacySample(opened);
-    return opened;
+    // A body written before ADR 0172 holds `login` items: they are accounts
+    // from here on, and the next write seals them as such.
+    return normalizeVaultBody(opened);
   } catch (error) {
     throw error instanceof VaultCorruptError
       ? error

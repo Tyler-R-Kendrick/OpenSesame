@@ -1,5 +1,6 @@
 import { type VaultItem, createItem } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
+import { pepperedAccount } from "../../../account.test-support.js";
 import { VISIBLE_LIMITS, readVisibleItemsBody } from "./visible-items-shape.js";
 import {
   isShareable,
@@ -9,14 +10,14 @@ import {
 } from "./visible-items-share.js";
 import {
   HIDDEN,
+  account,
   dressed,
   items,
-  login,
   secret,
 } from "./visible-items.fixture.js";
 
 describe("what is eligible, and what is never copied", () => {
-  it("offers logins, notes, secrets and cards, by name and kind, never a secret", () => {
+  it("offers accounts, notes, secrets and cards, by name and kind, never a secret", () => {
     const rows = pickRows(items());
     expect(rows.map((row) => row.label)).toEqual([
       "Netflix",
@@ -26,8 +27,8 @@ describe("what is eligible, and what is never copied", () => {
       "Visa",
     ]);
     expect(rows.map((row) => row.detail)).toEqual([
-      "Login",
-      "Login",
+      "Account",
+      "Account",
       "Secure note",
       "Secret",
       "Card",
@@ -38,17 +39,17 @@ describe("what is eligible, and what is never copied", () => {
 
   it("never offers passkeys, certificates, drops, trashed or retired items", () => {
     const trashed = {
-      ...login("Trashed"),
+      ...account("Trashed"),
       deletedAt: new Date().toISOString(),
     };
-    const retired = login("Retired", { retiredAt: new Date().toISOString() });
+    const retired = account("Retired", { retiredAt: new Date().toISOString() });
     const list: VaultItem[] = [
       createItem("passkey", "Passkey"),
       createItem("certificate", "Cert"),
       createItem("drop", "Drop"),
       trashed,
       retired,
-      login("Kept"),
+      account("Kept"),
     ];
     expect(shareableItems(list).map((item) => item.name)).toEqual(["Kept"]);
     for (const item of list.slice(0, 5)) {
@@ -103,6 +104,24 @@ describe("what is eligible, and what is never copied", () => {
     expect(JSON.stringify(copy)).not.toContain("PIN");
   });
 
+  it("copies a peppered account without its password, and nothing sealed", async () => {
+    const peppered = await pepperedAccount(
+      "Vault Bank",
+      "sealed-pw-77",
+      "pep-9",
+    );
+    const copy = shareItem(peppered);
+    expect(copy).toMatchObject({
+      kind: "login",
+      name: "Vault Bank",
+      password: "",
+    });
+    const text = JSON.stringify(copy);
+    for (const left of ["sealed-pw-77", "pep-9", "ciphertext", "kdf"]) {
+      expect(text).not.toContain(left);
+    }
+  });
+
   it("leaves a secret's grants to agents behind", () => {
     const copy = shareItem(secret("Wi-Fi"));
     expect(copy).toMatchObject({ kind: "secret", value: "s-value" });
@@ -130,7 +149,7 @@ describe("what is eligible, and what is never copied", () => {
   });
 
   it("collapses a name to one line and cuts what is too long, so a copy always reads back", () => {
-    const long = login("x".repeat(300), {
+    const long = account("x".repeat(300), {
       notes: "n".repeat(10_000),
       password: "p".repeat(2000),
       createdAt: "not a date",

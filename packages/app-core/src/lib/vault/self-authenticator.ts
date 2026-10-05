@@ -10,17 +10,18 @@
  * typed code takes: never rendered, never on the clipboard, never through
  * an intent or any other IPC.
  *
- * The entry is an ordinary login item titled "OpenSesame (this vault)", so
+ * The entry is an ordinary account titled "OpenSesame (this vault)", so
  * it works as an authenticator entry in the item list too. Trashing it
  * withdraws the registration — the next unlock asks for the code again —
  * and restoring it reinstates the supply.
  */
 
 import {
-  type LoginItem,
+  type AccountItem,
   type VaultBody,
   type VaultHeader,
   WrongPasswordError,
+  accountTotp,
   createItem,
   parseTotp,
   totpCode,
@@ -43,12 +44,12 @@ export type TotpEnrollmentStart = {
 
 export type SelfAuthenticatorRegistrationResult = {
   gate: TotpGateRecord;
-  item: LoginItem | null;
+  item: AccountItem | null;
 };
 
 export type SelfAuthenticatorHeaderResult = {
   header: VaultHeader;
-  item: LoginItem | null;
+  item: AccountItem | null;
 };
 
 const UNGUARDED =
@@ -117,19 +118,23 @@ export async function selfAuthenticatorRegistration(
   const canon = (value: string) =>
     value.normalize("NFKC").replace(/\s+/g, "").toUpperCase();
   const existing = body.items.find(
-    (item): item is LoginItem =>
-      item.kind === "login" &&
+    (item): item is AccountItem =>
+      item.kind === "account" &&
       item.deletedAt === null &&
       item.name === SELF_AUTHENTICATOR_TITLE &&
-      item.totp.length > 0 &&
-      canon(item.totp) === canon(secret),
+      accountTotp(item).length > 0 &&
+      canon(accountTotp(item)) === canon(secret),
   );
   if (existing) {
     return { gate: { ...gate, selfItemId: existing.id }, item: null };
   }
-  const item: LoginItem = {
-    ...createItem("login", SELF_AUTHENTICATOR_TITLE),
-    totp: secret,
+  // An authenticator method and nothing else: no password to keep or lose.
+  const fresh = createItem("account", SELF_AUTHENTICATOR_TITLE);
+  const item: AccountItem = {
+    ...fresh,
+    methods: [
+      { id: `${fresh.id}:authenticator`, type: "authenticator", secret },
+    ],
   };
   return { gate: { ...gate, selfItemId: item.id }, item };
 }
@@ -167,9 +172,10 @@ export async function heldTotpCode(
     (candidate) =>
       candidate.id === gate.selfItemId && candidate.deletedAt === null,
   );
-  if (!item || item.kind !== "login" || !item.totp) return null;
+  const seed = item?.kind === "account" ? accountTotp(item) : "";
+  if (seed === "") return null;
   try {
-    return await totpCode(parseTotp(item.totp));
+    return await totpCode(parseTotp(seed));
   } catch {
     return null;
   }
