@@ -296,7 +296,7 @@ export async function iceServersFor(
  * What a session's link carries of the owner's profile (`link`), and the
  * carriers the owner's own tab opens (`own`). A NATS signing key mints two
  * credentials scoped to the session's `topic` and expiring with it: the
- * joiner's goes in the link, the owner's stays here (ADR 0166). The minting
+ * joiner's goes in the link, the owner's stays here (ADR 0167). The minting
  * code loads only for a profile that names a signing key.
  */
 export async function sessionRoutes(

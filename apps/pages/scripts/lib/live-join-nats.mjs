@@ -1,5 +1,5 @@
 /**
- * verify:live-join's NATS walks (ADR 0166): a real nats-server in operator
+ * verify:live-join's NATS walks (ADR 0167): a real nats-server in operator
  * mode, configured by `pnpm dev:live-nats`, and an owner who names it in
  * Routes with the account signing key — through the Form, as a person does.
  * Each session mints its own credentials; the link carries the joiner's and

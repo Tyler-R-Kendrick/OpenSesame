@@ -103,7 +103,7 @@ export type HostOptions = Readonly<{
   post?: (code: string) => void;
   /**
    * A seat's channel on a carrier that may carry the session (NATS), or
-   * null when none can; asked at each admission (ADR 0166).
+   * null when none can; asked at each admission (ADR 0167).
    */
   relay?: (name: string) => Carrier | null;
   /** The link secret, when the caller minted credentials for its topic. */

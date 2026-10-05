@@ -1,5 +1,5 @@
 /**
- * A session carried over a NATS carrier (ADR 0166): when the browsers find
+ * A session carried over a NATS carrier (ADR 0167): when the browsers find
  * no route to each other — or always, if the owner said so — the seat moves
  * onto the carrier, sealed end to end, and works as it does over WebRTC. A
  * carrier that may carry codes only does not.

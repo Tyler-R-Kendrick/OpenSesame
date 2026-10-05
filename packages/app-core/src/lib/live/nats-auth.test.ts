@@ -1,6 +1,6 @@
 /**
  * A NATS carrier's own fields and the credentials a session mints from an
- * account signing key (ADR 0166): read strictly, scoped to one session,
+ * account signing key (ADR 0167): read strictly, scoped to one session,
  * expiring with it, and the signing key never in a link.
  */
 import { createAccount, fromPublic } from "@nats-io/nkeys";

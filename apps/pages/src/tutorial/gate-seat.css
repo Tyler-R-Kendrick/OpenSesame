@@ -1,0 +1,41 @@
+/* The help key's seat in a gate screen's chrome row (ADR 0166). It is a
+   flex item beside the keys the screen already has, never a layer over the
+   screen, so it cannot rest on a control. Empty — no capability drew a key —
+   it takes no room at all. */
+.gate-seat {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+}
+
+.gate-seat:empty {
+  display: none;
+}
+
+/* The key in the seat is the shell's Support mark, drawn as the corner keys
+   beside it are: a plain icon key (`.icon-btn`'s size, its 44px floor on a
+   phone or a narrow window — styles.css), not the floating square the launcher
+   falls back to. support.css loads with the lazy panel, so this rule is
+   anchored on the seat to win by specificity, not by order. */
+.gate-seat .support-launch {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+@media (hover: hover) {
+  .gate-seat .support-launch:hover {
+    background: var(--surface-3);
+    color: var(--ink);
+    border-color: transparent;
+  }
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  .gate-seat .support-launch {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}

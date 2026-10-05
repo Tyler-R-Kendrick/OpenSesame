@@ -10,7 +10,7 @@
  * the reply, the two browsers connect: directly, through a tunnel the owner
  * named, or through the owner's TURN server — or, when the owner offers it
  * and no peer route opens, over the owner's NATS server, sealed end to end
- * (ADR 0166).
+ * (ADR 0167).
  *
  * Everything it receives lives in memory. When the channel closes — the
  * owner ended it, the time ran out, the owner's tab went away, or this

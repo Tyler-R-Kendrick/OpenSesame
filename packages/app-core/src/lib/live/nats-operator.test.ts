@@ -1,5 +1,5 @@
 /**
- * The reference server a live session mints for (ADR 0166): operator mode,
+ * The reference server a live session mints for (ADR 0167): operator mode,
  * the accounts preloaded, the live account trusting the signing key it hands
  * back — and that key nowhere in the configuration. A real nats-server reads
  * it in verify:live-join.

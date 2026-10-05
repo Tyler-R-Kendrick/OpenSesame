@@ -1,5 +1,5 @@
 /**
- * What a NATS carrier may say beyond its address (ADR 0166): how it signs in,
+ * What a NATS carrier may say beyond its address (ADR 0167): how it signs in,
  * and whether the session itself may cross it.
  *
  * - **mint** — the owner's account public key and an account signing key

@@ -43,7 +43,7 @@ export type CarrierSpec = Readonly<{
   /** NATS: a user credential, minted for the session or the owner's own. */
   jwt?: string;
   seed?: string;
-  /** NATS: whether the session itself may run over it (ADR 0166). */
+  /** NATS: whether the session itself may run over it (ADR 0167). */
   session?: NatsSession;
 }>;
 

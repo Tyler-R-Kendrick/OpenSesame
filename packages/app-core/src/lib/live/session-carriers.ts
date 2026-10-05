@@ -58,7 +58,7 @@ export function poster(
 /**
  * What a joiner holds of the link's carriers: post the request, close them,
  * and — when a NATS carrier may carry the session — open a seat's channel
- * there (ADR 0166).
+ * there (ADR 0167).
  */
 export function guestCarriersFor(rendezvous: Rendezvous): GuestCarriers {
   const relaying = rendezvous.states
@@ -75,7 +75,7 @@ export function guestCarriersFor(rendezvous: Rendezvous): GuestCarriers {
 /**
  * A new session's link secret, the routes its link carries, the carriers the
  * owner keeps, and its ICE settings. The secret comes first: a NATS
- * credential is minted for its topic (ADR 0166).
+ * credential is minted for its topic (ADR 0167).
  */
 export async function hostRoutes(transport: LiveTransport, expiresAt: number) {
   const secret = newLinkSecret();

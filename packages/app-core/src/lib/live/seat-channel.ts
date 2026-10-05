@@ -1,6 +1,6 @@
 /**
  * One admitted seat's session carried over a NATS carrier instead of a
- * WebRTC data channel (ADR 0166), for when the two browsers find no route
+ * WebRTC data channel (ADR 0167), for when the two browsers find no route
  * to each other — or always, if the owner said so.
  *
  * The carrier is a subject only the session's credential holders can reach,

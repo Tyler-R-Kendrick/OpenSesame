@@ -4,7 +4,7 @@
  * base64url without padding. Only what a live session and its reference
  * server need is written: user claims with subject permissions and an
  * expiry, and the operator and account claims that let a server trust an
- * account signing key (ADR 0166). The nkeys are `@nats-io/nkeys`; the
+ * account signing key (ADR 0167). The nkeys are `@nats-io/nkeys`; the
  * encoding is this file's, and a real nats-server is its oracle
  * (`verify:live-join`).
  */

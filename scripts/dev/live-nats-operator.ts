@@ -1,6 +1,6 @@
 /**
  * pnpm dev:live-nats — a nats-server that live sessions mint credentials for
- * (ADR 0166). Writes, into `--out` (default `.cache/live-nats`):
+ * (ADR 0167). Writes, into `--out` (default `.cache/live-nats`):
  *
  * - `live-sessions.conf` — nats-server in operator mode, the WebSocket
  *   listener at `--websocket` (default 127.0.0.1:4223), `wss://` when

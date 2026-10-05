@@ -1,5 +1,5 @@
 /**
- * A NATS server's own choices in the Routes Form (ADR 0166): how a session
+ * A NATS server's own choices in the Routes Form (ADR 0167): how a session
  * signs in there, and whether the session itself may cross it. A signing key
  * stays in this vault's sealed profile; what a link carries is minted from it
  * per session (`lib/live/nats-credentials.ts`).

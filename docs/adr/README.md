@@ -206,4 +206,5 @@ looks arbitrary, the ADR it cites explains it.
 | [0163](0163-tutorial-mode.md) | Tutorial mode: a tour you walk, one step at a time | Accepted |
 | [0164](0164-glyphs-for-identity-where-a-name-will-not-fit.md) | Glyphs: a dotted mark for identity where a name will not fit | Accepted |
 | [0165](0165-item-type-packs-on-demand.md) | Built-in item types are packs: switched on, then downloaded | Accepted |
-| [0166](0166-nats-live-session-route.md) | A NATS server as a live session's route, served from the owner's tab | Accepted |
+| [0166](0166-gate-help-launcher.md) | A help key on the screens in front of the shell | Accepted |
+| [0167](0167-nats-live-session-route.md) | A NATS server as a live session's route, served from the owner's tab | Accepted |

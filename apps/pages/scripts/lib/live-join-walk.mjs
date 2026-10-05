@@ -165,7 +165,7 @@ export async function setRoutes(page, wanted) {
   }
 }
 
-/** A NATS server's sign-in and session route, as the Form asks them (ADR 0166). */
+/** A NATS server's sign-in and session route, as the Form asks them (ADR 0167). */
 async function natsChoices(routes, carrier) {
   if (carrier.mint) {
     await routes.getByLabel("Sign-in", { exact: true }).selectOption("mint");

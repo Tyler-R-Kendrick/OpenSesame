@@ -98,7 +98,7 @@ behaviour) and `shuttle` (concurrency). Each writes its report under
 | `start-native-deps.sh` | User-space OpenFGA and OpenBao for `test:live-stack`, no root. |
 | `connect-dev-proxy.mjs` | Local HTTPS front door for Connect OAuth callbacks ([the app's relay](../apps/pages/server/README.md)). |
 | `validate-tailscale-pairing.sh` | Checks a running daemon's health report for Tailscale Serve pairing prerequisites. |
-| `live-nats-operator.ts` | `pnpm dev:live-nats`: a nats-server configuration in operator mode whose credentials live sessions mint, and the account signing key for Routes ([ADR 0166](../docs/adr/0166-nats-live-session-route.md)). |
+| `live-nats-operator.ts` | `pnpm dev:live-nats`: a nats-server configuration in operator mode whose credentials live sessions mint, and the account signing key for Routes ([ADR 0167](../docs/adr/0167-nats-live-session-route.md)). |
 
 ## Adding a script
 

@@ -1,5 +1,5 @@
 /**
- * The NATS credentials a live session mints for itself (ADR 0166), from the
+ * The NATS credentials a live session mints for itself (ADR 0167), from the
  * account signing key the owner keeps in their sealed profile. No server of
  * ours issues them: the owner's tab does, as it mints TURN REST credentials.
  *

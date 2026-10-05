@@ -160,7 +160,7 @@ nothing else.
 ### NATS: a credential per session, and the session itself
 
 A NATS server can do two things the other carriers cannot
-([ADR 0166](../adr/0166-nats-live-session-route.md)):
+([ADR 0167](../adr/0167-nats-live-session-route.md)):
 
 - **Mint a credential per session.** In operator mode the server trusts any
   user an account signing key issues. Give Routes that key and each session

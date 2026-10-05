@@ -1,4 +1,4 @@
-# ADR 0166 — A NATS server as a live session's route, served from the owner's tab
+# ADR 0167 — A NATS server as a live session's route, served from the owner's tab
 
 - Status: Accepted
 - Date: 2026-10-05

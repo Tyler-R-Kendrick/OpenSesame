@@ -58,7 +58,7 @@ export type HostPeerOptions = Readonly<{
   onClosed: () => void;
   onLog: (entry: LogEntry) => void;
   /**
-   * The seat is also offered over a NATS carrier (ADR 0166): a peer route
+   * The seat is also offered over a NATS carrier (ADR 0167): a peer route
    * that fails does not end it, since the joiner may still arrive there.
    */
   relayed?: boolean;

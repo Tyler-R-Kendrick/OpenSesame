@@ -65,7 +65,7 @@ pnpm dev:cli             # native opensesame CLI; verb after --
 pnpm dev:host            # host on 127.0.0.1:8787
 pnpm dev:daemon          # daemon on 127.0.0.1:18790
 pnpm dev:live-nats       # nats-server config in operator mode for live sessions
-                          #   (minted per-session credentials, ADR 0166)
+                          #   (minted per-session credentials, ADR 0167)
 pnpm build               # turbo run build
 pnpm typecheck           # turbo run typecheck
 pnpm lint                # Biome gate for files changed from origin/main
@@ -253,7 +253,12 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # Same harness, every tutorial (ADR 0163): the Support sheet's Tutorials tab
 # lists them, each is started from its row and walked with Next alone — the
 # mouse on one step, Enter on the next — on the shell with every optional
-# capability switched on, at desktop and phone width. Every step's card must sit inside the screen with
+# capability switched on, and on the gates (ADR 0166: the front door, setup,
+# sign-in, unlock, the broker popup and the federation return each draw a help
+# key and offer the tutorials written for them), at desktop and phone width.
+# Each gate's key is held to the ADR: one icon key in the screen's chrome, 44px
+# on a phone, resting on no control, reachable by Tab, never holding the focus
+# on arrival. Every step's card must sit inside the screen with
 # Next present, and a step that points at a control must light it, leave it
 # uncovered and reachable through the aperture. Then Back, Replay, Done, and
 # where focus went. A control that is missing is a failure here although a
@@ -558,7 +563,12 @@ Do not add new top-level directories or loose root files — find the group.
   a shared link opens join by itself. Once setup is answered or skipped the
   sign-in screen — the compiled-in Google-via-Shoo road, guest, the
   local-only seal — is the first screen, and setup lives behind unlock
-  (Settings), not as quiet foot links. `setupRequired` does not
+  (Settings), not as quiet foot links. The one thing a gate may draw beside
+  its own chrome is a **help key** (`tutorial/gate-seat.tsx`,
+  [ADR 0166](docs/adr/0166-gate-help-launcher.md)): a single icon key in the
+  screen's chrome row, never in front of its content, its roads or the guest
+  Skip, offline, opening the same Support sheet with only the tutorials written
+  for that screen. `setupRequired` does not
   exist and must not come back. No
   default may point at a local host: `packages/app-core/src/lib/settings.ts` defaults are empty on
   every origin, and `127.0.0.1` addresses are suggestions a loopback tab may
@@ -865,7 +875,11 @@ Do not add new top-level directories or loose root files — find the group.
   (`focus "feature.<id>"`, `requires`) and the library hides it where it
   cannot work. A control a guide can point at, and every key the keymap binds,
   is taught by a tutorial or named in `coverage-ledger.ts` with a reason
-  (`coverage.test.ts`; the ledger only falls). Changes to a tutorial, the Support sheet, the tutorial card or
+  (`coverage.test.ts`; the ledger only falls). A gate (the front door, unlock,
+  setup, the broker popup, the federation return) draws a help key and starts
+  tutorials scoped to its own route (`gate-goals.ts`, `useSupportRoute`'s
+  `/unlock/door`, `/setup/identity` and the rest; ADR 0166), and is offered
+  none of the shell's. Changes to a tutorial, the Support sheet, the tutorial card or
   the target registry require `pnpm --filter @opensesame/pages verify:tutorials`
   against a fresh Pages build (every tutorial, desktop and phone, Next and
   Back and Replay and Done, keyboard and mouse, focus handed back), and keep it

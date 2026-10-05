@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 /**
- * A NATS server in the Routes panel (ADR 0166): it signs in with a credential
+ * A NATS server in the Routes panel (ADR 0167): it signs in with a credential
  * minted per session or a user credential, says whether the session may cross
  * it, and a malformed key is never written. The store is a fake; the panel is
  * not.

@@ -53,7 +53,7 @@ export type JoinReply = Readonly<{
   /**
    * The owner also listens for this seat on a NATS carrier the link names:
    * the joiner may carry the session there, sealed, when no peer route opens
-   * (ADR 0166).
+   * (ADR 0167).
    */
   relay?: "nats";
 }>;

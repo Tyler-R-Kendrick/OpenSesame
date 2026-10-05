@@ -5,7 +5,7 @@ this branch, walked the same way by `journey.json` (guest, Live sessions on,
 Routes, Code carrier → NATS server, `wss://nats.example.com`, Sign-in → Per
 session, an account key and a signing key, then Add the carrier). Numbers are
 read from the browser (`capture-evidence.mjs` `count` / `measure`).
-[ADR 0166](../../adr/0166-nats-live-session-route.md).
+[ADR 0167](../../adr/0167-nats-live-session-route.md).
 
 ## Adding a NATS server — 1280 × 900
 

@@ -65,6 +65,7 @@ Object.assign(federationSeams, {
   loadSession: () => null,
 });
 
+import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registry/targets.js";
 import { SignInPanel } from "./SignInPanel.js";
 
 function idp(overrides: Partial<OperatorIdp> = {}): OperatorIdp {
@@ -194,6 +195,13 @@ describe("what the sign-in screen offers", () => {
     expect(
       screen.getByRole("button", { name: "Use without an account" }),
     ).toBeDefined();
+  });
+
+  it("is the local-only seal a tutorial points at (unlock.local-only, ADR 0166)", () => {
+    renderPanel();
+    expect(resolveGuideTargetElement("unlock.local-only")).toBe(
+      screen.getByRole("button", { name: "Use without an account" }),
+    );
   });
 
   it("brings the service roads back the moment one is configured", () => {

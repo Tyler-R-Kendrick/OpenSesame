@@ -5,7 +5,7 @@
  *
  * - the pairing codes, on the subject itself (ADR 0150 §6);
  * - each relayed seat's sealed session, on a subject below it
- *   (`channel`, `seat-channel.ts`, ADR 0166);
+ *   (`channel`, `seat-channel.ts`, ADR 0167);
  * - on the owner's side, the session as a NATS service (`opensesame-live`,
  *   discoverable over `$SRV`), whose `info` endpoint says the tab is up.
  *

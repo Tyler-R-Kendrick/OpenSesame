@@ -29,7 +29,7 @@ const LAZY_LEAVES = [
   ["/node_modules/mqtt/", "sharing.live", "live-mqtt"],
   ["/src/modules/sharing.live/carriers/nats", "sharing.live", "live-nats"],
   ["/node_modules/@nats-io/", "sharing.live", "live-nats"],
-  // A session's minted NATS credential (ADR 0166), reached only through
+  // A session's minted NATS credential (ADR 0167), reached only through
   // transport.ts's import() when a profile mints: it loads with the client.
   [
     "/packages/app-core/src/lib/live/nats-credentials",
