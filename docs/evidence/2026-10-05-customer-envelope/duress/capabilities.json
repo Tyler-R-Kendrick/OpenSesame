@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "testedCommit": "17a171d78755f37665286bc6e20fe4fb8c492030",
+  "discoveredAt": "2026-10-05T14:53:15.436Z",
+  "chromium": {
+    "path": "/workspace/work/playwright/chromium-1193/chrome-linux/chrome",
+    "source": "env:PLAYWRIGHT_CHROMIUM",
+    "probed": ["/workspace/work/playwright/chromium-1193/chrome-linux/chrome"],
+    "version": "Chromium 140.0.7339.186"
+  },
+  "webcrypto": {
+    "crypto": true,
+    "subtle": true,
+    "pbkdf2": true,
+    "aesGcm": true,
+    "hkdf": true,
+    "ecdsa": true,
+    "digest": true,
+    "getRandomValues": true
+  },
+  "virtualAuthenticator": {
+    "supported": true,
+    "authenticatorId": "2c4c3bf6-621a-43c7-96db-92c657496656",
+    "note": "virtual authenticator only — not physical biometrics/PRF hardware"
+  },
+  "claims": {
+    "physicalBiometrics": false,
+    "hardwarePrf": false,
+    "note": "Virtual authenticator ≠ physical UV; simulated PRF bytes ≠ hardware PRF"
+  }
+}

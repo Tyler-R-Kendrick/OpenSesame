@@ -10,6 +10,7 @@ import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
+import { deleteSecurityMapEntry } from "../repos/durable-map.js";
 import {
   type SecurityMap,
   incrementSecurityCounter,
@@ -120,7 +121,6 @@ function shouldAuditAnonymousDenial(
 
 /**
  * Record a refused factor.
- *
  * Almost every audit event in this service is a success, which is the one shape
  * of trail that cannot show an attack: five failed codes followed by one success
  * reads as a single login. A denial is the event worth keeping.
@@ -462,7 +462,7 @@ async function pruneCodes(
   now: number,
 ): Promise<void> {
   for (const [id, challenge] of await map.entries()) {
-    if (challenge.expiresAt <= now) await map.delete(id);
+    if (challenge.expiresAt <= now) await deleteSecurityMapEntry(map, id);
   }
 }
 

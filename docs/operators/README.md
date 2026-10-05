@@ -61,6 +61,7 @@ see [architecture](../architecture/README.md); for every environment variable,
 | Guide | When you need it |
 |---|---|
 | [Vault key protection](vault-key-protection.md) | Unlock methods, recovery keys, age recipients and cloud KMS for a vault. |
+| [Customer key segmentation](customer-key-segmentation.md) | Separate customer vaults, envelope encryption across secret stores, and deployment-root custody. |
 | [Duress profiles](duress-profiles.md) | Presets, consent, delays and rehearsal for coerced unlocks. |
 | [Duress inventory and recovery](duress-inventory-recovery.md) | Inventorying unlock paths, migrating, recovering and retiring duress setups. |
 | [Duress troubleshooting](duress-troubleshooting.md) | PRF support, RP-ID changes and other failure modes. |

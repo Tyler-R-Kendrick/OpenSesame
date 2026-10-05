@@ -51,7 +51,16 @@ export function createHostedClient(
 ) {
   const profile = checkedProfile(config, browser.location.origin);
   const storageKey = `opensesame:static-auth:${profile.clientId}:${profile.redirectUri}`;
-  const sealed = sealedStorage(storage, "static-auth");
+  const sealed = sealedStorage(
+    storage,
+    JSON.stringify([
+      "static-auth",
+      profile.issuer,
+      profile.clientId,
+      profile.redirectUri,
+    ]),
+    "static-auth",
+  );
   async function begin() {
     const pkce = await createPkcePair();
     const kept = await sealed.set(

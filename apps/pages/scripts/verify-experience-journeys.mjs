@@ -11,6 +11,7 @@ import { walkJAppRecipe } from "./lib/j-app-recipe-journey.mjs";
 import { walkJApproval } from "./lib/j-approval-journey.mjs";
 import { walkJConfig } from "./lib/j-config-journey.mjs";
 import { walkJConflict } from "./lib/j-conflict-journey.mjs";
+import { walkJDuressGuest } from "./lib/j-duress-guest-journey.mjs";
 import { walkJDuress } from "./lib/j-duress-journey.mjs";
 import { walkJDuressFreeze } from "./lib/j-duress-mode-freeze-journey.mjs";
 import { walkJDuressItems } from "./lib/j-duress-mode-items-journey.mjs";
@@ -27,7 +28,7 @@ import { walkJTypes } from "./lib/j-types-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const DIST = path.resolve(here, "..", "dist");
+const DIST = process.env.PAGES_VERIFY_DIST ?? path.resolve(here, "..", "dist");
 const ORIGIN = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const OUT = path.resolve(
@@ -95,6 +96,7 @@ try {
   await runWalk("J-RECOVERY", walkJRecovery);
   await runWalk("J-SUPPORT", walkJSupport);
   await runWalk("J-DURESS", walkJDuress);
+  await runWalk("J-DURESS-GUEST", walkJDuressGuest);
   await runWalk("J-DURESS-ITEMS", walkJDuressItems);
   await runWalk("J-DURESS-VISIBLE", walkJDuressVisible);
   await runWalk("J-DURESS-MODE-WIPE", walkJDuressModeWipe);

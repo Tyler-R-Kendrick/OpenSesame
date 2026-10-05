@@ -231,15 +231,18 @@ async fn the_audit_event_commits_with_the_row_and_never_carries_the_handle() {
     let app = crate::routes::router(st.clone());
     let reply = put(&app, &operator(&st), "\"0\"", body(Some(HANDLE))).await;
     assert_eq!(reply.status, StatusCode::OK, "{}", reply.body);
-    let payload: String =
-        sqlx::query_scalar("SELECT payload_json FROM outbox_events WHERE event_type = ?")
-            .bind(crate::agent_hook_approver::EVENT_APPROVER_UPDATED)
-            .fetch_one(st.db.pool())
-            .await
-            .unwrap();
+    let (id, organization, payload): (String, String, String) = sqlx::query_as(
+        "SELECT id, organization_id, payload_json FROM outbox_events WHERE event_type = ?",
+    )
+    .bind(crate::agent_hook_approver::EVENT_APPROVER_UPDATED)
+    .fetch_one(st.db.pool())
+    .await
+    .unwrap();
     // Sealed at rest once the process-wide sealer is installed (ADR 0157); the
     // assertion below means something only on the opened text.
-    let payload = opensesame_event_seal::open("outbox_events.payload_json", &payload).unwrap();
+    let payload =
+        opensesame_event_seal::open_in(&organization, "outbox_events.payload_json", &id, &payload)
+            .unwrap();
     assert!(!payload.contains(HANDLE), "{payload}");
     let audit: Value = serde_json::from_str(&payload).unwrap();
     assert_eq!(audit["updated_by"], "operator");

@@ -5,22 +5,25 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { createEventSealer } from "../src/event-seal.js";
 import {
   type OidcStore,
   type PairwiseSubjectStore,
   createPostgresOidcStore,
   createPostgresPairwiseStore,
 } from "../src/index.js";
+import { oidcLookup } from "../src/oidc-seal.js";
 import { makePrincipal } from "./factories.js";
 import { type PgTestContext, createPgTestContext } from "./pg-harness-full.js";
 
+const sealer = createEventSealer("oidc-persistence-test-deployment-key");
 let ctx: PgTestContext;
 let oidc: OidcStore;
 let pairwise: PairwiseSubjectStore;
 
 beforeAll(async () => {
   ctx = await createPgTestContext();
-  oidc = createPostgresOidcStore(ctx.db);
+  oidc = createPostgresOidcStore(ctx.db, sealer);
   pairwise = createPostgresPairwiseStore(ctx.db);
 }, 60_000);
 
@@ -144,8 +147,8 @@ describe("createPostgresOidcStore", () => {
     const rows = await ctx.db.query.oidcPayloads.findMany();
     const ids = rows.map((r) => r.id);
     expect(ids).not.toContain(expired);
-    expect(ids).toContain(live);
-    expect(ids).toContain(immortal);
+    expect(ids).toContain(oidcLookup(sealer, "AccessToken", "id", live));
+    expect(ids).toContain(oidcLookup(sealer, "Session", "id", immortal));
   });
 });
 

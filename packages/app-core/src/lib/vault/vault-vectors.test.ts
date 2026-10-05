@@ -150,7 +150,7 @@ describe("golden vault vectors", () => {
     expect(clear.method.generator).toMatchObject({ id: "derived", counter: 2 });
     expect(plainPassword(clear.method)).toHaveLength(20);
     expect(plainPassword(kept.method)).toBeNull();
-    expect(kept.method.sealed?.v).toBe(2);
+    expect(kept.method.sealed?.v).toBe(3);
     const opens = (pepper: string) =>
       readMethodPassword(kept.account, kept.method, async () => pepper);
     expect((await opens(fixture.accountPepper)).status).toBe("ok");

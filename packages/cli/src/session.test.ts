@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { loadSession } from "./identity-session.js";
 import { runCli } from "./run.js";
 
 const ISSUER = "http://127.0.0.1:8788";
@@ -110,9 +111,7 @@ describe("cli session file", () => {
     expect(code).toBe(0);
     const info = await stat(sessionFile());
     expect(info.mode & 0o777).toBe(0o600);
-    expect(JSON.parse(await readFile(sessionFile(), "utf8")).accessToken).toBe(
-      "at-1",
-    );
+    expect((await loadSession())?.accessToken).toBe("at-1");
   });
 
   it("takes the private bits back from a file left open by an earlier version", async () => {
@@ -183,10 +182,10 @@ describe("cli session file", () => {
       fetchImpl: idpFetch(),
     });
     expect(code).toBe(0);
-    const saved = JSON.parse(await readFile(sessionFile(), "utf8"));
-    expect(saved.accessToken).toBe("pst_guest");
-    expect(saved.anonymous).toBe(true);
-    expect(saved.principalId).toBe("prn_guest");
+    const saved = await loadSession();
+    expect(saved?.accessToken).toBe("pst_guest");
+    expect(saved?.anonymous).toBe(true);
+    expect(saved?.principalId).toBe("prn_guest");
     expect((await stat(sessionFile())).mode & 0o777).toBe(0o600);
     expect(out).toMatch(/guest/i);
   });
@@ -252,8 +251,8 @@ describe("cli session file", () => {
     });
     expect(code).toBe(1);
     expect(out).toMatch(/Not authenticated/);
-    const saved = JSON.parse(await readFile(sessionFile(), "utf8"));
-    expect(saved.accessToken).toBe("at-keep");
-    expect(saved.refreshToken).toBe("rt-keep");
+    const saved = await loadSession();
+    expect(saved?.accessToken).toBe("at-keep");
+    expect(saved?.refreshToken).toBe("rt-keep");
   });
 });

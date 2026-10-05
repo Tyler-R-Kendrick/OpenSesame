@@ -136,7 +136,10 @@ impl Db {
             .iter()
             .map(|blob| i64::try_from(blob.epoch).context("sync epoch exceeds SQLite range"))
             .collect::<anyhow::Result<Vec<_>>>()?;
-        let mut transaction = self.pool.begin().await?;
+        // Reserve the writer before quota reads: a deferred transaction cannot
+        // upgrade its snapshot while another Host worker commits event writes.
+        // BEGIN IMMEDIATE waits for that writer instead of failing sync with BUSY.
+        let mut transaction = self.pool.begin_with("BEGIN IMMEDIATE").await?;
         let store_count: i64 = sqlx::query("SELECT COUNT(*) AS count FROM encrypted_sync_blobs")
             .fetch_one(&mut *transaction)
             .await?

@@ -78,7 +78,7 @@ root is sealed, the clear copy is dropped, and the counter and rules stay in
 the body. Turning it off asks for the pepper once and writes the root back in
 the clear. A pepper is typed at each use of the password and never stored.
 
-### 3. The pepper seal is OPAQUE (`PepperSealV2`)
+### 3. The pepper seal is OPAQUE (`PepperSealOpaque`, `v: 3`)
 
 A secret held under a pepper is registered with OPAQUE (RFC 9807, ristretto255,
 **Argon2id** as the key-stretching function at 64 MiB, three passes, one lane;
@@ -91,12 +91,13 @@ that holds the secret. Opening runs the OPAQUE login, so:
 - a wrong pepper is **detected before any decryption** (`WrongPepperError`),
   not by a failed tag;
 - the pepper is stretched with a memory-hard function instead of PBKDF2
-  (v1), which makes an offline guess against a copied vault cost memory as well
+  (v1 and v2), which makes an offline guess against a copied vault cost memory as well
   as time;
 - a seal moved to another account or method does not open.
 
-Version 1 seals (ADR 0172) still open and are read as before; **every write is
-version 2**. A v1 seal is replaced the next time that method is stored.
+The PBKDF2 seals (ADR 0172's v1, and v2, which wraps a per-password key) still
+open and are read as before; **every write is version 3**. An older seal is
+replaced the next time that method is stored.
 
 **What this does and does not give.** The OPAQUE "server" half
 (`serverSetup`, `registrationRecord`) sits beside the ciphertext in the vault
@@ -120,7 +121,7 @@ OPRF key stays in the sealed body, and the support agent's egress terms refuse
 
 ## Consequences
 
-- `vault-core` gains `derive.ts`, `character-rules.ts` and `PepperSealV2` in
+- `vault-core` gains `derive.ts`, `character-rules.ts` and `PepperSealOpaque` in
   `account.ts`; `app-core` gains `generators/opaque-seal.ts`, which loads the
   WebAssembly library with a dynamic `import()` on first use.
 - The bootstrap does not load OPAQUE. The age-encryption adapters moved to a
@@ -140,7 +141,7 @@ OPRF key stays in the sealed body, and the support agent's egress terms refuse
   (`writeSealsWith("fast")` in the shared test setup); the app never does, and a
   test asserts that a cheap seal does not open as a standard one.
 - The Rust reader lists `derived` vault bodies unchanged; its vectors check the
-  clear root, the counter and rules, and the v2 seal's shape, and print none
+  clear root, the counter and rules, and the v3 seal's shape, and print none
   of it.
 
 ## Tests
@@ -148,7 +149,7 @@ OPRF key stays in the sealed body, and the support agent's egress terms refuse
 `derive.test.ts` (determinism, counter and root dependence, rule obedience,
 uniformity, range errors); `opaque-seal.test.ts` (round trip, wrong pepper,
 binding, tamper, key stretching applied); `pepper.test.ts` and
-`registry.test.ts` (v1 and v2 open, toggling the pepper keeps a derived
+`registry.test.ts` (v1, v2 and v3 open, toggling the pepper keeps a derived
 password, Sphinx still reads); `derived-accounts.test.ts` (health, export,
 merge, field write, graft, the prompted reader); the editor's component tests
 (Include pepper under every offered generator, rotate by counter); the golden

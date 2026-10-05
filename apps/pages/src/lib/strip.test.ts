@@ -4,9 +4,6 @@ import { revealInStrip } from "./strip.js";
 
 type Box = { left: number; right: number };
 
-const rectOf = (box: Box): DOMRect =>
-  new DOMRect(box.left, 0, box.right - box.left, 0);
-
 /** A strip 320 wide holding one tab, laid out by hand: jsdom has no layout. */
 function stripWith(tab: Box, scrollWidth = 540): [HTMLElement, HTMLElement] {
   const strip = document.createElement("nav");
@@ -14,8 +11,9 @@ function stripWith(tab: Box, scrollWidth = 540): [HTMLElement, HTMLElement] {
   strip.append(item);
   Object.defineProperty(strip, "scrollWidth", { value: scrollWidth });
   Object.defineProperty(strip, "clientWidth", { value: 320 });
-  strip.getBoundingClientRect = () => rectOf({ left: 0, right: 320 });
-  item.getBoundingClientRect = () => rectOf(tab);
+  strip.getBoundingClientRect = () => new DOMRect(0, 0, 320, 0);
+  item.getBoundingClientRect = () =>
+    new DOMRect(tab.left, 0, tab.right - tab.left, 0);
   return [strip, item];
 }
 

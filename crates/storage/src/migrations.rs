@@ -218,4 +218,8 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         "0055_agent_hook_approvers",
         include_str!("../migrations/0055_agent_hook_approvers.sql"),
     ),
+    (
+        "0056_outbox_customer_binding",
+        include_str!("../migrations/0056_outbox_customer_binding.sql"),
+    ),
 ];

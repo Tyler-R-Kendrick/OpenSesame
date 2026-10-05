@@ -1,6 +1,14 @@
 import { createHash } from "node:crypto";
 import { deserialize, serialize } from "node:v8";
-import { type Database, oidcPayloads } from "@opensesame/database";
+import {
+  type Database,
+  type EventSealer,
+  internalSecurityPrincipal,
+  oidcLookup,
+  oidcPayloads,
+  openOidcRow,
+  sealOidcRow,
+} from "@opensesame/database";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -13,23 +21,31 @@ import { and, eq, gt, isNull, lte, or, sql } from "drizzle-orm";
 
 /** Internal server-owned records only; never deserialize client-supplied bytes. */
 export class DurableMap<T> {
+  private readonly sealer: EventSealer;
   constructor(
     private readonly db: Database,
     private readonly model: string,
     private readonly secretKeys = false,
     private readonly ttlMs: number | null = 86_400_000,
     private readonly capacity = 10_000,
+    sealer?: EventSealer,
   ) {
+    if (!sealer)
+      throw new Error("A durable sealing key is required for security state");
+    this.sealer = sealer;
     if (!model.startsWith("OpenSesame:"))
       throw new Error("Invalid internal state namespace");
     if (!Number.isSafeInteger(capacity) || capacity < 1 || capacity > 10_000)
       throw new Error("Invalid security store capacity");
   }
 
-  private id(key: string) {
+  private legacyId(key: string) {
     return this.secretKeys
       ? createHash("sha256").update(key).digest("hex")
       : key;
+  }
+  private id(key: string) {
+    return oidcLookup(this.sealer, this.model, "id", this.legacyId(key));
   }
   private condition(key: string) {
     return and(
@@ -48,19 +64,23 @@ export class DurableMap<T> {
       throw new Error("Invalid durable security record");
     return deserialize(Buffer.from(payload.value, "base64"));
   }
-  private encode(value: T) {
+  private encode(key: string, value: T) {
     const bytes = serialize(value);
     if (bytes.length > 2_000_000)
       throw new Error("Security record exceeds capacity");
-    return { value: bytes.toString("base64") };
+    const record: BoundaryValue = overlapCast(value);
+    const principalId = internalSecurityPrincipal(this.model, key, record);
+    const payload: JsonObject = { value: bytes.toString("base64") };
+    if (principalId) payload.accountId = principalId;
+    return payload;
   }
   async get(key: string): Promise<T | undefined> {
     const [row] = await this.db
-      .select({ payload: oidcPayloads.payload })
+      .select()
       .from(oidcPayloads)
       .where(and(this.condition(key), this.live()))
       .limit(1);
-    return row ? this.decode(row.payload) : undefined;
+    return row ? this.decode(openOidcRow(this.sealer, row)) : undefined;
   }
   async has(key: string): Promise<boolean> {
     return (await this.get(key)) !== undefined;
@@ -81,7 +101,12 @@ export class DurableMap<T> {
     value: T,
     onlyIfAbsent: boolean,
   ): Promise<boolean> {
-    const payload = this.encode(value);
+    const sealed = sealOidcRow(
+      this.sealer,
+      this.model,
+      this.legacyId(key),
+      this.encode(key, value),
+    );
     return this.db.transaction(async (tx) => {
       await tx.execute(
         sql`SELECT pg_advisory_xact_lock(hashtext('OpenSesame:Capacity'), hashtext(${this.model}))`,
@@ -111,10 +136,17 @@ export class DurableMap<T> {
       const expiresAt = this.expiry(value);
       await tx
         .insert(oidcPayloads)
-        .values({ model: this.model, id: this.id(key), payload, expiresAt })
+        .values({ ...sealed, expiresAt })
         .onConflictDoUpdate({
           target: [oidcPayloads.model, oidcPayloads.id],
-          set: { payload, expiresAt },
+          set: {
+            payload: sealed.payload,
+            sealScope: sealed.sealScope,
+            uid: sealed.uid,
+            userCode: sealed.userCode,
+            grantId: sealed.grantId,
+            expiresAt,
+          },
         });
       return true;
     });
@@ -156,8 +188,8 @@ export class DurableMap<T> {
       const [row] = await tx
         .delete(oidcPayloads)
         .where(and(this.condition(key), this.live()))
-        .returning({ payload: oidcPayloads.payload });
-      return row ? this.decode(row.payload) : undefined;
+        .returning();
+      return row ? this.decode(openOidcRow(this.sealer, row)) : undefined;
     });
   }
   get size(): Promise<number> {
@@ -169,13 +201,16 @@ export class DurableMap<T> {
   }
   async entries(): Promise<[string, T][]> {
     const rows = await this.db
-      .select({ id: oidcPayloads.id, payload: oidcPayloads.payload })
+      .select()
       .from(oidcPayloads)
       .where(and(eq(oidcPayloads.model, this.model), this.live()))
       .limit(10_001);
     if (rows.length > 10_000)
       throw new Error("Security store capacity exceeded");
-    return rows.map((row) => [row.id, this.decode(row.payload)]);
+    return rows.map((row) => [
+      row.id,
+      this.decode(openOidcRow(this.sealer, row)),
+    ]);
   }
   async values(): Promise<T[]> {
     return (await this.entries()).map(([, value]) => value);
@@ -194,6 +229,7 @@ export class DurableMap<T> {
         this.secretKeys,
         this.ttlMs,
         this.capacity,
+        this.sealer,
       );
       const next = change(await store.get(key));
       if (next === undefined) await store.delete(key);
@@ -236,4 +272,13 @@ export async function incrementSecurityCounter(
   );
   if (count === undefined) throw new Error("Security counter unavailable");
   return count;
+}
+
+export async function deleteSecurityMapEntry<T>(
+  store: SecurityMap<T>,
+  key: string,
+): Promise<boolean> {
+  return store instanceof DurableMap
+    ? store.deleteEntry(key)
+    : store.delete(key);
 }

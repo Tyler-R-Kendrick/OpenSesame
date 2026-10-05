@@ -8,7 +8,7 @@
 //! The audit event for a replacement commits in the same transaction as the
 //! row, so a policy change is never in force without its record.
 
-use super::{append_outbox_tx, Db, Row, Utc};
+use super::{append_outbox_event_in, Db, Row, Utc};
 
 /// Who an organization's escalated actions are put to, beside the policy
 /// (migration 0055).
@@ -146,7 +146,13 @@ impl Db {
             });
         }
         let row = row.ok_or_else(|| anyhow::anyhow!("written agent-hooks policy vanished"))?;
-        append_outbox_tx(&mut transaction, audit.event_type, audit.payload_json).await?;
+        append_outbox_event_in(
+            &mut transaction,
+            Some(write.organization_id),
+            audit.event_type,
+            audit.payload_json,
+        )
+        .await?;
         transaction.commit().await?;
         Ok(AgentHookPolicyWriteOutcome::Written(row))
     }

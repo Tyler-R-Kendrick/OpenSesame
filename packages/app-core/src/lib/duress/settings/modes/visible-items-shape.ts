@@ -22,6 +22,7 @@ import {
   type JsonObject,
   isBoolean,
   isString,
+  overlapCast,
 } from "@opensesame/os-domain";
 import type { UriMatch } from "@opensesame/vault-core";
 import { cleanTitle, hasExactKeys, plainObject } from "./shape-kit.js";
@@ -120,15 +121,7 @@ const EXTRA = {
   secret: ["value"],
   card: ["cardholder", "brand", "number", "expMonth", "expYear", "code"],
   typed: ["typeId", "values"],
-} as const satisfies Readonly<Record<SharedItem["kind"], readonly string[]>>;
-
-const KINDS = [
-  "login",
-  "note",
-  "secret",
-  "card",
-  "typed",
-] as const satisfies readonly SharedItem["kind"][];
+} satisfies Readonly<Record<SharedItem["kind"], readonly string[]>>;
 
 /** A value that is text no longer than `max`. */
 function text(value: BoundaryValue | undefined, max: number): string | null {
@@ -255,77 +248,21 @@ function readBase(object: JsonObject): Base | null {
   };
 }
 
-/** The named strings, in key order, each within the text limit; null when one is not. */
-function texts(object: JsonObject, keys: readonly string[]): string[] | null {
-  const out: string[] = [];
+/** A set of named strings, each within the text limit; null when one is not. */
+type CheckedStrings<K extends string> = Record<K, string>;
+
+function strings<K extends string>(
+  object: JsonObject,
+  keys: readonly K[],
+): CheckedStrings<K> | null {
+  const out: Partial<Record<K, string>> = {};
   for (const key of keys) {
     const read = text(object[key], VISIBLE_LIMITS.text);
     if (read === null) return null;
-    out.push(read);
+    out[key] = read;
   }
-  return out;
-}
-
-type ItemOf<K extends SharedItem["kind"]> = Extract<SharedItem, { kind: K }>;
-
-function readSecret(object: JsonObject, base: Base): ItemOf<"secret"> | null {
-  const own = texts(object, ["value"]);
-  if (!own) return null;
-  const [value = ""] = own;
-  return { ...base, kind: "secret", value };
-}
-
-function readCard(object: JsonObject, base: Base): ItemOf<"card"> | null {
-  const own = texts(object, [
-    "cardholder",
-    "brand",
-    "number",
-    "expMonth",
-    "expYear",
-    "code",
-  ]);
-  if (!own) return null;
-  const [
-    cardholder = "",
-    brand = "",
-    number = "",
-    month = "",
-    year = "",
-    code = "",
-  ] = own;
-  return {
-    ...base,
-    kind: "card",
-    cardholder,
-    brand,
-    number,
-    expMonth: month,
-    expYear: year,
-    code,
-  };
-}
-
-function readLogin(object: JsonObject, base: Base): ItemOf<"login"> | null {
-  const own = texts(object, ["username", "password"]);
-  const uris = listOf(object.uris, VISIBLE_LIMITS.uris, readUri);
-  const changed = date(object.passwordChangedAt);
-  if (!own || !uris || changed === null) return null;
-  const [username = "", password = ""] = own;
-  return {
-    ...base,
-    kind: "login",
-    username,
-    password,
-    passwordChangedAt: changed,
-    uris,
-  };
-}
-
-function readTyped(object: JsonObject, base: Base): ItemOf<"typed"> | null {
-  const typeId = text(object.typeId, VISIBLE_LIMITS.typeId);
-  const values = readValues(object.values);
-  if (typeId === null || typeId.length === 0 || values === null) return null;
-  return { ...base, kind: "typed", typeId, values };
+  // SAFETY: the loop validates each requested key as a bounded string and assigns it to out before reaching this return.
+  return overlapCast(out);
 }
 
 function readKind(
@@ -336,21 +273,44 @@ function readKind(
   switch (kind) {
     case "note":
       return { ...base, kind };
-    case "secret":
-      return readSecret(object, base);
-    case "card":
-      return readCard(object, base);
-    case "login":
-      return readLogin(object, base);
-    case "typed":
-      return readTyped(object, base);
+    case "secret": {
+      const own = strings(object, ["value"]);
+      return own && { ...base, kind, ...own };
+    }
+    case "card": {
+      const own = strings(object, [
+        "cardholder",
+        "brand",
+        "number",
+        "expMonth",
+        "expYear",
+        "code",
+      ]);
+      return own && { ...base, kind, ...own };
+    }
+    case "login": {
+      const own = strings(object, ["username", "password"]);
+      const uris = listOf(object.uris, VISIBLE_LIMITS.uris, readUri);
+      const changed = date(object.passwordChangedAt);
+      if (!own || !uris || changed === null) return null;
+      return { ...base, kind, ...own, passwordChangedAt: changed, uris };
+    }
+    case "typed": {
+      const typeId = text(object.typeId, VISIBLE_LIMITS.typeId);
+      const values = readValues(object.values);
+      if (typeId === null || typeId.length === 0 || values === null) {
+        return null;
+      }
+      return { ...base, kind, typeId, values };
+    }
   }
 }
 
 function readItem(value: BoundaryValue): SharedItem | null {
   const object = plainObject(value);
   if (!object) return null;
-  const kind = KINDS.find((known) => known === object.kind);
+  const kinds = ["login", "note", "secret", "card", "typed"] as const;
+  const kind = kinds.find((known) => known === object.kind);
   if (kind === undefined) return null;
   if (!hasExactKeys(object, [...COMMON, ...EXTRA[kind]])) return null;
   const base = readBase(object);

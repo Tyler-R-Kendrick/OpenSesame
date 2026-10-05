@@ -31,6 +31,10 @@ async function fixture(options: CreateControlPlaneOptions = {}) {
     config: { ...options.config, publicUrl: "http://localhost:8788" },
     processEnv: {
       ...process.env,
+      // Replicas sharing this database must retain the same sealing root.
+      OPENSESAME_EVENT_KEY: "host-authorization-shared-database-sealing-root",
+      OPENSESAME_CLAIM_PEPPER:
+        "host-authorization-shared-database-claim-pepper",
       OPENSESAME_HOST_AUTHORIZATION_AUDIENCES: "http://127.0.0.1:8787",
       OPENSESAME_JWKS_JSON: JSON.stringify({
         keys: [

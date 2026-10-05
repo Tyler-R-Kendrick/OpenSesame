@@ -283,7 +283,7 @@ export async function emitAccountVectors(): Promise<AccountVectors> {
 /**
  * The derived password (ADR 0173) kept both ways, added once beside the others
  * under its own key: a root in the clear, and a root sealed under the same
- * pepper through OPAQUE (a `PepperSealV2`). The names avoid `derived`, which is
+ * pepper through OPAQUE (a `PepperSealOpaque`). The names avoid `derived`, which is
  * now a value a method stores.
  */
 async function derivedItems(): Promise<VaultBody["items"]> {

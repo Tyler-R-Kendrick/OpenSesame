@@ -139,7 +139,14 @@ fn assert_listing(name: &str, opened: &OpenedVaultFile) {
             .filter(|(_, kind, _)| *kind == "login")
             .collect();
         assert_eq!(logins.len(), 1, "{name}: one legacy login");
-        assert!(logins[0].2.ends_with(".login"), "{name}: {}", logins[0].2);
+        assert_eq!(
+            std::path::Path::new(logins[0].2)
+                .extension()
+                .and_then(std::ffi::OsStr::to_str),
+            Some("login"),
+            "{name}: {}",
+            logins[0].2
+        );
         assert!(
             listed.iter().all(|(_, kind, _)| *kind != "account"),
             "{name}"

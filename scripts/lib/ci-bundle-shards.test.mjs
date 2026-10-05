@@ -46,6 +46,7 @@ const GATES = [
   "verify:siop",
   "verify:static",
   "verify:auth",
+  "verify:customer-vault-browser",
   "verify-experience-journeys.mjs",
 ];
 

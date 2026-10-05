@@ -2,7 +2,7 @@ import type {
   PrincipalMapping,
   PrincipalMappingStore,
 } from "@opensesame/auth-upstream";
-import type { Database } from "@opensesame/database";
+import type { Database, EventSealer } from "@opensesame/database";
 import { overlapCast } from "@opensesame/os-domain";
 import { sql } from "drizzle-orm";
 import { DurableMap } from "./durable-map.js";
@@ -10,18 +10,25 @@ import { DurableMap } from "./durable-map.js";
 export class DurablePrincipalMappingStore implements PrincipalMappingStore {
   private readonly mappings: DurableMap<PrincipalMapping>;
   private readonly indexes: DurableMap<string>;
-  constructor(private readonly db: Database) {
+  constructor(
+    private readonly db: Database,
+    private readonly sealer: EventSealer,
+  ) {
     this.mappings = new DurableMap(
       db,
       "OpenSesame:PrincipalMapping",
       false,
       null,
+      10_000,
+      sealer,
     );
     this.indexes = new DurableMap(
       db,
       "OpenSesame:PrincipalMappingIndex",
       false,
       null,
+      10_000,
+      sealer,
     );
   }
   findByPrincipalId(id: string) {
@@ -45,7 +52,10 @@ export class DurablePrincipalMappingStore implements PrincipalMappingStore {
       await tx.execute(
         sql`SELECT pg_advisory_xact_lock(hashtext('OpenSesame:PrincipalMapping'), hashtext(${mapping.principalId}))`,
       );
-      const store = new DurablePrincipalMappingStore(overlapCast(tx));
+      const store = new DurablePrincipalMappingStore(
+        overlapCast(tx),
+        this.sealer,
+      );
       const keys = [JSON.stringify(["better_auth", mapping.betterAuthUserId])];
       if (mapping.upstreamProviderId && mapping.upstreamSubject)
         keys.push(
@@ -74,7 +84,10 @@ export class DurablePrincipalMappingStore implements PrincipalMappingStore {
       await tx.execute(
         sql`SELECT pg_advisory_xact_lock(hashtext('OpenSesame:PrincipalMapping'), hashtext(${principalId}))`,
       );
-      const store = new DurablePrincipalMappingStore(overlapCast(tx));
+      const store = new DurablePrincipalMappingStore(
+        overlapCast(tx),
+        this.sealer,
+      );
       const mapping = await store.findByPrincipalId(principalId);
       if (!mapping?.provisional) return false;
       await store.mappings.delete(principalId);
