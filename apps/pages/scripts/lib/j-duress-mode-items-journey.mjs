@@ -40,7 +40,7 @@ async function toTheVault(page, base) {
   await page.waitForTimeout(1200);
 }
 
-/** A list row: the item's name and its type, as the list draws them (`Gym club.login`). */
+/** A list row: the item's name and its type, as the list draws them (`Gym club.account`). */
 const row = (page, name) =>
   page
     .getByText(

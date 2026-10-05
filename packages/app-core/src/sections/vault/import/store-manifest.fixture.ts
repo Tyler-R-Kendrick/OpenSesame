@@ -4,6 +4,7 @@ import {
   type VaultItem,
   createItem,
   createTypedItem,
+  manualPassword,
   newGrant,
   newUri,
 } from "@opensesame/vault-core";
@@ -50,15 +51,26 @@ function extras(label: string): CustomField[] {
 }
 
 function login(): VaultItem {
-  const item = createItem("login", "GitHub");
+  const item = createItem("account", "GitHub");
   item.folderId = "fld_work";
   item.favorite = true;
   item.username = "octo";
-  item.password = "correct-horse-7"; // gitleaks:allow -- fixture
-  item.totp =
-    "otpauth://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP&issuer=GitHub";
+  item.methods = [
+    manualPassword(`${item.id}:password`, "correct-horse-7", AT), // gitleaks:allow -- fixture
+    {
+      id: `${item.id}:authenticator`,
+      type: "authenticator",
+      secret:
+        "otpauth://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP&issuer=GitHub",
+    },
+    {
+      id: `${item.id}:api-key`,
+      type: "api-key",
+      key: "ghp-fixture",
+      header: "",
+    }, // gitleaks:allow -- fixture
+  ];
   item.uris = [newUri("https://github.com"), newUri("*.github.io", "wildcard")];
-  item.passwordChangedAt = AT;
   item.notes = "Line one\nLine two";
   item.fields = extras("login");
   return item;

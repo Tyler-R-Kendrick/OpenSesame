@@ -29,7 +29,7 @@ import { LiveRoutesPanel } from "./LiveRoutesPanel.js";
 import { liveUiSeams } from "./live-hooks.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
-const github = createItem("login", "GitHub");
+const github = createItem("account", "GitHub");
 const original = {
   hooks: { ...vaultHooksSeams },
   live: { ...liveSeams },

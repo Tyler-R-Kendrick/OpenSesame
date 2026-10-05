@@ -183,7 +183,7 @@ export function previewRows(plan: MergePlan, folders: Folder[]): PreviewRows {
     id: item.id,
     name: item.name,
     detail:
-      item.kind === "login"
+      item.kind === "account"
         ? item.username || "—"
         : item.kind === "secret"
           ? "secret"

@@ -20,14 +20,14 @@ const OWNED_ELSEWHERE: ReadonlySet<string> = new Set([
 
 /** Legacy rail orders. Later derived types follow, in id order. */
 const LEGACY_ORDER: ReadonlyMap<string, number> = new Map([
-  ["login", 0],
+  ["account", 0],
   ["card", 30],
   ["note", 60],
 ]);
 
 /** Directory names the rail already used for the kinds that used to be core. */
 const LEGACY_SEGMENT: ReadonlyMap<string, string> = new Map([
-  ["login", "logins"],
+  ["account", "accounts"],
   ["card", "cards"],
   ["note", "notes"],
 ]);

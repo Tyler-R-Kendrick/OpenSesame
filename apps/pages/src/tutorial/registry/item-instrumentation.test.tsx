@@ -12,16 +12,13 @@ import {
   isMountedGuideTarget,
   resolveGuideTargetElement,
 } from "@opensesame/app-core/tutorial/registry/targets.js";
-import {
-  type LoginItem,
-  type VaultItem,
-  createItem,
-} from "@opensesame/vault-core";
+import type { AccountItem, VaultItem } from "@opensesame/vault-core";
 import { VaultRail } from "../../components/VaultRail.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { ShareSecretDrop } from "../../sections/vault/DropCeremony.js";
 import { ItemDetail } from "../../sections/vault/ItemDetail.js";
 import { TrashCommands } from "../../sections/vault/TrashCommands.js";
+import { makeAccount } from "../../sections/vault/account.test-support.js";
 
 /**
  * The controls the item tutorials point at are bound where a person finds
@@ -45,14 +42,8 @@ afterAll(() => {
   revokeShare();
 });
 
-function login(overrides: Partial<LoginItem> = {}): LoginItem {
-  return {
-    ...createItem("login", "Webmail"),
-    id: "itm_login",
-    username: "me@example.com",
-    password: "hunter2hunter2",
-    ...overrides,
-  };
+function login(overrides: Partial<AccountItem> = {}): AccountItem {
+  return makeAccount({ id: "itm_login", ...overrides });
 }
 
 /** The vault the stubbed store hands the panes. */
@@ -87,7 +78,7 @@ function renderPane(item: VaultItem) {
 }
 
 describe("the pane of an open item", () => {
-  it("binds the keys of a live login, and the copy keys of what it holds", () => {
+  it("binds the keys of a live account, and the copy keys of what it holds", () => {
     renderPane(login());
     for (const id of [
       "item.favorite",
@@ -107,7 +98,7 @@ describe("the pane of an open item", () => {
     ).toBe("Move to trash");
   });
 
-  it("draws no copy key for a field the login does not have", () => {
+  it("draws no copy key for a field the account does not have", () => {
     renderPane(login({ username: "" }));
     expect(isMountedGuideTarget("item.copy-username")).toBe(false);
     expect(isMountedGuideTarget("item.copy-password")).toBe(true);
@@ -152,7 +143,7 @@ describe("the vault rail", () => {
     all: 1,
     favorites: 0,
     trash: 0,
-    byKind: new Map([["login", 1]]),
+    byKind: new Map([["account", 1]]),
     byFolder: new Map<string, number>(),
   };
 
@@ -171,13 +162,15 @@ describe("the vault rail", () => {
   }
 
   it("binds the filters, favorites, and logins once the vault holds one", () => {
-    renderRail([{ id: "login", segment: "logins", label: "Login", order: 0 }]);
+    renderRail([
+      { id: "account", segment: "accounts", label: "Account", order: 0 },
+    ]);
     expect(isMountedGuideTarget("vault.filter")).toBe(true);
     expect(isMountedGuideTarget("vault.filter.favorites")).toBe(true);
     expect(isMountedGuideTarget("vault.filter.logins")).toBe(true);
     expect(
       resolveGuideTargetElement("vault.filter.logins")?.getAttribute("href"),
-    ).toBe("/vault?f=login");
+    ).toBe("/vault?f=account");
   });
 
   it("binds no logins row while the vault holds no login type", () => {

@@ -4,10 +4,12 @@ A link opens a reviewable draft; it does not create an account or save an item.
 Use the installed item type as the final path segment:
 
 ```text
-https://your-vault.example/vault/new/login?name=Example&username=public_alias&uri=https%3A%2F%2Fexample.com
+https://your-vault.example/vault/new/account?name=Example&username=public_alias&uri=https%3A%2F%2Fexample.com
 ```
 
-For a path-hosted deployment, retain its base path before `vault/new/login`.
+For a path-hosted deployment, retain its base path before `vault/new/account`. `/vault/new/login` and `.login`
+still resolve to the account type, so links already handed out keep working
+([ADR 0172](../adr/0172-accounts-and-login-methods.md)).
 Supported query parameters are `name`, `username`, `uri`, `folder` (existing
 folder ID), and `ref` (connection reference). Values are at most 120 characters;
 typed items also accept `field.<id>` for declared scalar text, URL, number,
@@ -23,7 +25,9 @@ authenticator seed, private key, confidential username or secret-bearing URL in 
 link. Invalid secret parameters are not imported, but cannot be erased from
 hosting logs or browser history after a caller has already sent them.
 
-Missing names and aliases are generated locally. Passwords/custom secrets use
+A link never carries a login method: the draft opens with a password method that
+the person fills or generates, and a pepper, an API key, a token or an OAuth
+client is added in the editor. Missing names and aliases are generated locally. Passwords/custom secrets use
 the existing 20-character cryptographic generator; manifest PIN fields use six
 random digits. These remain concealed and editable. Generated credentials are
 not provisioned at an external service. Keys, certificates, existing account
@@ -40,10 +44,10 @@ Agent calls require an already-ready model and cannot start a download.
 Chrome WebMCP clients can call:
 
 ```json
-{"name":"opensesame_vault_item_write","arguments":{"action":"suggest","kind":"login","source":"browser","url":"https://example.com"}}
+{"name":"opensesame_vault_item_write","arguments":{"action":"suggest","kind":"account","source":"browser","url":"https://example.com"}}
 ```
 
 Use `source: "random"` for offline aliases without inference. Both return only
 `name`, `username`, `status` and `source`, never generated credentials. To open a
 prefilled form, call `opensesame_navigate` with `section: "/vault/new"`,
-`itemType: "login"` and a `prefill` object using the query vocabulary above.
+`itemType: "account"` and a `prefill` object using the query vocabulary above.

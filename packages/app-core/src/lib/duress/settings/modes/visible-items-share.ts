@@ -7,7 +7,9 @@
  * decides it belongs here. Kept: name, the kind's own plain fields, notes,
  * custom fields, favourite, and the two dates that make an item look lived in.
  * Left out, always: passkeys, certificates, drops, files and every other kind
- * that is key material; one-time-code seeds; concealed custom fields; history; the links that tie an
+ * that is key material; one-time-code seeds; an account's other login methods
+ * and any password kept under a pepper or computed by Sphinx (the copy holds
+ * only a password that is in the clear in the vault already, else none); concealed custom fields; history; the links that tie an
  * item to a reset or a replacement; its folder; its grants to agents; anything
  * in the trash. A typed item is offered only when its definition is built in,
  * is loaded here, and declares no field that holds a seed, a key or a file.
@@ -18,8 +20,10 @@
 import {
   KIND_LABEL,
   type VaultItem,
+  accountPlainPassword,
   isRetired,
   itemTypeRegistry,
+  passwordMethod,
   typeLabel,
 } from "@opensesame/vault-core";
 import {
@@ -83,7 +87,7 @@ export function isShareable(item: VaultItem): boolean {
   if (item.deletedAt !== null || isRetired(item)) return false;
   if (cleanTitle(item.name).length === 0) return false;
   switch (item.kind) {
-    case "login":
+    case "account":
     case "note":
     case "secret":
     case "card":
@@ -169,13 +173,17 @@ export function shareItem(item: VaultItem): SharedItem | null {
     updatedAt,
   };
   switch (item.kind) {
-    case "login":
+    case "account":
+      // The copy's wire kind stays `login`: plans armed before accounts hold it.
       return {
         ...base,
         kind: "login",
         username: cutText(item.username),
-        password: cutText(item.password),
-        passwordChangedAt: when(item.passwordChangedAt, updatedAt),
+        password: cutText(accountPlainPassword(item)),
+        passwordChangedAt: when(
+          passwordMethod(item)?.changedAt ?? "",
+          updatedAt,
+        ),
         uris: item.uris.slice(0, VISIBLE_LIMITS.uris).map((entry) => ({
           uri: cutText(entry.uri),
           match: entry.match,

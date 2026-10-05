@@ -33,6 +33,11 @@ import {
   searchTextFor,
   subtitleFor,
 } from "@opensesame/vault-item-types";
+import {
+  type AccountItem,
+  accountPlainPassword,
+  accountTotp,
+} from "./account.js";
 import type { InstalledItemTypes, VaultItem } from "./model.js";
 
 let registry: ItemTypeRegistry = builtinRegistry();
@@ -137,8 +142,24 @@ export function readItemField(
   field: FieldDefinition,
 ): FieldValue | undefined {
   if (item.kind === "typed") return item.values[field.id];
+  if (item.kind === "account") {
+    const derived = accountField(item, field.id);
+    if (derived !== undefined) return derived === "" ? undefined : derived;
+  }
   const record: JsonObject = overlapCast(item);
   return coerceLegacy(record[field.id]);
+}
+
+/**
+ * An account keeps its secrets in its login methods, not in named properties.
+ * The two a definition names, a password and an authenticator seed, read as
+ * the first method's value, and a password that has to be asked for (a pepper,
+ * a Sphinx key) reads as absent: nothing that cannot prompt may guess.
+ */
+function accountField(item: AccountItem, id: string): string | undefined {
+  if (id === "password") return accountPlainPassword(item);
+  if (id === "totp") return accountTotp(item);
+  return undefined;
 }
 
 /**

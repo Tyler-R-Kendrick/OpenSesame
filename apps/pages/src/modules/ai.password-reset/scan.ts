@@ -67,7 +67,7 @@ export async function scanPasswordResetMail(source?: {
 
 function loginRefs(items: readonly VaultItem[]): ResetLoginRef[] {
   return items.flatMap((item) =>
-    item.kind === "login"
+    item.kind === "account"
       ? [
           {
             id: item.id,

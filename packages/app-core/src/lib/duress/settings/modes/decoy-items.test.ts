@@ -4,7 +4,7 @@ import {
   readJsonObject,
   readString,
 } from "@opensesame/os-domain";
-import type { VaultItem } from "@opensesame/vault-core";
+import { type VaultItem, accountPlainPassword } from "@opensesame/vault-core";
 import { describe, expect, it, vi } from "vitest";
 import { MAX_SLOT_PAYLOAD_BYTES } from "../../crypto/slot-profile.js";
 import { DECOY_ITEMS_RUNNER } from "./decoy-items-effect.js";
@@ -230,7 +230,7 @@ describe("decoy items runner", () => {
   });
   const adder = () => vi.fn(async (_items: VaultItem[]) => undefined);
 
-  it("adds a login per item, titled and holding its secret, to the store it is given", async () => {
+  it("adds an account per item, titled and holding its secret, to the store it is given", async () => {
     const addItems = adder();
     const body = plan("Netflix\nGym\nSpotify");
     await DECOY_ITEMS_RUNNER.run(body, host(addItems));
@@ -242,10 +242,12 @@ describe("decoy items runner", () => {
       "Spotify",
     ]);
     expect(
-      added.map((item) => (item.kind === "login" ? item.password : null)),
+      added.map((item) =>
+        item.kind === "account" ? accountPlainPassword(item) : null,
+      ),
     ).toEqual(body.items.map((item) => item.secret));
     for (const item of added) {
-      expect(item.kind).toBe("login");
+      expect(item.kind).toBe("account");
       expect(item.deletedAt).toBeNull();
     }
     expect(new Set(added.map((item) => item.id)).size).toBe(3);

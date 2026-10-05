@@ -6371,7 +6371,7 @@
   },
   {
     "id": "vault.login_draft",
-    "title": "Read and fill the on-screen login editor (metadata only)",
+    "title": "Read and fill the on-screen account editor (metadata only: name, username, sites, method types; never a password, pepper or method secret)",
     "plane": "client_local",
     "kind": "act",
     "surfaces": {
@@ -6383,11 +6383,11 @@
     },
     "excluded": {
       "mcp_host": {
-        "reason": "the login editor is a browser form; headless MCP cannot fill it",
+        "reason": "the account editor is a browser form; headless MCP cannot fill it",
         "adr": "0065-agent-surface-parity.md"
       },
       "mcp_client": {
-        "reason": "the login editor is a browser form; headless MCP cannot fill it",
+        "reason": "the account editor is a browser form; headless MCP cannot fill it",
         "adr": "0065-agent-surface-parity.md"
       }
     }
@@ -6526,7 +6526,7 @@
   },
   {
     "id": "vault.item.create",
-    "title": "Create a vault item",
+    "title": "Create a vault item (an account, secret, note or card)",
     "plane": "client_local",
     "kind": "act",
     "surfaces": {
@@ -6553,7 +6553,7 @@
   },
   {
     "id": "vault.item.set",
-    "title": "Edit a vault item's name, username, or secret",
+    "title": "Edit a vault item's name, username, or secret (an account's login methods are edited in the Pages editor)",
     "plane": "client_local",
     "kind": "act",
     "surfaces": {
@@ -6575,6 +6575,37 @@
       "webmcp": {
         "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
         "adr": "0005-authority-handle-connectionref.md"
+      }
+    }
+  },
+  {
+    "id": "vault.account.pepper",
+    "title": "Type the pepper that unseals a peppered account password, or the Sphinx master input that recomputes one",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/vault",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "a pepper (or Sphinx master input) is typed by the person at each use and never stored; an agent surface must not carry, accept, log or ask for one",
+        "adr": "0172-accounts-and-login-methods.md"
+      },
+      "mcp_host": {
+        "reason": "a pepper (or Sphinx master input) is typed by the person at each use and never stored; an agent surface must not carry, accept, log or ask for one",
+        "adr": "0172-accounts-and-login-methods.md"
+      },
+      "mcp_client": {
+        "reason": "a pepper (or Sphinx master input) is typed by the person at each use and never stored; an agent surface must not carry, accept, log or ask for one",
+        "adr": "0172-accounts-and-login-methods.md"
+      },
+      "webmcp": {
+        "reason": "a pepper (or Sphinx master input) is typed by the person at each use and never stored; an agent surface must not carry, accept, log or ask for one",
+        "adr": "0172-accounts-and-login-methods.md"
       }
     }
   },
@@ -7109,7 +7140,7 @@
   },
   {
     "id": "vault.totp.code",
-    "title": "Read a current TOTP code (never the seed)",
+    "title": "Read a current TOTP code from an account (never the seed)",
     "plane": "client_local",
     "kind": "read",
     "surfaces": {

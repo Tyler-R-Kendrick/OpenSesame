@@ -16,7 +16,7 @@ import { showKeymapHelp } from "../../lib/keymap.js";
  * prompt that lists search in its hint rather than a second box that opened
  * above the first.
  *
- * What it opens with instead is where the page is — `Vault › Logins`,
+ * What it opens with instead is where the page is — `Vault › Accounts`,
  * `Vault › Work › Webmail`. Left to the shell, that path was a row over both
  * panes that came and went with the route, moving the list and the editor
  * 24px each time, and this strip held three keys and nothing they belonged to.

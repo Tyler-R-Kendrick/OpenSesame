@@ -60,6 +60,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-05-duress-mode-decoy-items/`](2026-10-05-duress-mode-decoy-items/README.md) | Decoy with everyday items — visual evidence |
 | [`2026-10-05-decoy-reads-like-unlock/`](2026-10-05-decoy-reads-like-unlock/README.md) | A duress-code unlock reads like an ordinary unlock — visual evidence |
 | [`2026-10-05-confirm-sheets/`](2026-10-05-confirm-sheets/README.md) | Confirmation sheets: the shape the design contract asks for, enforced |
+| [`2026-10-05-accounts/`](2026-10-05-accounts/README.md) | An account owns its login methods; a password is one of them |
 | [`2026-10-04-tutorial-mode/`](2026-10-04-tutorial-mode/README.md) | Tutorial mode — before / after |
 | [`2026-10-04-sops-document-panel/`](2026-10-04-sops-document-panel/README.md) | SOPS document key under Settings › Security — before and after |
 | [`2026-10-04-siop-op/`](2026-10-04-siop-op/README.md) | The Self-issued OpenID card is unchanged (ADR 0161) |

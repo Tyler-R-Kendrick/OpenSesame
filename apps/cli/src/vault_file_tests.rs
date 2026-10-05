@@ -43,7 +43,7 @@ fn verify_and_ls_print_the_ts_cli_shape() {
     assert_eq!(
         render_ls(&opened, "text"),
         "opensesame-vault-export: bound to personal, revision 2, 2 items\n\
-         Personal login.login\tlogin\n\
+         Personal login.account\taccount\n\
          Personal note.note\tnote"
     );
     let verify: Value = serde_json::from_str(&render_verify(&opened, "json")).unwrap();

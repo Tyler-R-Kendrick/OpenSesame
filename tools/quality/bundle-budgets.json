@@ -113,7 +113,20 @@
       "793, which is main's own measurement and not keybindings'. A hardened",
       "build on this branch measures 2807 total, 2390 javascript, 749 gzip and",
       "783 largestAsset, so nothing in the keybindings code needs to be cut",
-      "to fit; the ceilings are a ceiling to fall from, never to raise."
+      "to fit; the ceilings are a ceiling to fall from, never to raise.",
+      "2026-10-05: largestAsset 793 -> 798 for both hardened profiles (ADR",
+      "0172, accounts). The entry chunk measured 794.2 KiB here and in CI;",
+      "main's own is 780.6, so the accounts branch adds 13.5. Attributed to",
+      "source by sourcemap, about 10 of those are the RFC 9497 OPRF that",
+      "Sphinx uses (noble's abstract/oprf, the ristretto255 half of ed25519,",
+      "hash-to-curve, edwards) and 1.7 are the account model and its",
+      "migration. Making the OPRF a dynamic import changes nothing: the",
+      "ed25519 module is also imported statically by age-encryption (the age",
+      "unlock adapters), so Rollup keeps it, all of its exports, in `main`.",
+      "Four kibibytes over the measurement, as before. The way back under is",
+      "to load the age adapters on demand, which moves the whole noble",
+      "ed25519 module (about 55 KiB) out of the entry; that touches the",
+      "unlock path and is a change of its own, not this one's."
     ],
     "builds": {
       "minimal-local-hardened": {
@@ -123,7 +136,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 793
+          "largestAsset": 798
         }
       },
       "family-local-hardened": {
@@ -133,7 +146,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 793
+          "largestAsset": 798
         }
       }
     }

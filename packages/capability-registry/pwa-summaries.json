@@ -681,7 +681,7 @@
   },
   {
     "id": "vault.login_draft",
-    "title": "Read and fill the on-screen login editor (metadata only)",
+    "title": "Read and fill the on-screen account editor (metadata only: name, username, sites, method types; never a password, pepper or method secret)",
     "plane": "client_local",
     "surfaces": {
       "pwa": "lib/vault/login-draft.ts:bindLoginDraft"
@@ -689,7 +689,7 @@
   },
   {
     "id": "vault.item.create",
-    "title": "Create a vault item",
+    "title": "Create a vault item (an account, secret, note or card)",
     "plane": "client_local",
     "surfaces": {
       "pwa": "route:/vault"
@@ -697,7 +697,15 @@
   },
   {
     "id": "vault.item.set",
-    "title": "Edit a vault item's name, username, or secret",
+    "title": "Edit a vault item's name, username, or secret (an account's login methods are edited in the Pages editor)",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "route:/vault"
+    }
+  },
+  {
+    "id": "vault.account.pepper",
+    "title": "Type the pepper that unseals a peppered account password, or the Sphinx master input that recomputes one",
     "plane": "client_local",
     "surfaces": {
       "pwa": "route:/vault"
@@ -793,7 +801,7 @@
   },
   {
     "id": "vault.totp.code",
-    "title": "Read a current TOTP code (never the seed)",
+    "title": "Read a current TOTP code from an account (never the seed)",
     "plane": "client_local",
     "surfaces": {
       "pwa": "route:/vault"

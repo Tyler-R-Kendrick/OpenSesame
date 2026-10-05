@@ -8,6 +8,9 @@ import {
   itemTypeId,
   typePlural,
 } from "@opensesame/vault-core";
+import { resolveFilterSlug } from "../../lib/vault-filter-slug.js";
+
+export { resolveFilterSlug };
 
 /** One road out of the sheet: where it goes, what it is called, how many. */
 export type Road = {
@@ -27,6 +30,7 @@ export function buildRoads(
   folderId: string | null,
 ): Road[] {
   const live = items.filter((item) => item.deletedAt === null);
+  const current = resolveFilterSlug(filter);
   const roads: Road[] = [
     {
       key: "all",
@@ -50,8 +54,8 @@ export function buildRoads(
       to: `/vault?f=${typeId}`,
       label: typePlural(typeId),
       count: live.filter((item) => itemTypeId(item) === typeId).length,
-      active: filter === typeId,
-      guideId: typeId === "login" ? "vault.filter.logins" : undefined,
+      active: current === typeId,
+      guideId: typeId === "account" ? "vault.filter.logins" : undefined,
     });
   }
   for (const folder of folders) {

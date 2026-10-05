@@ -5,6 +5,7 @@ import { isString } from "@opensesame/os-domain";
  */
 import {
   type VaultItem,
+  accountPlainPassword,
   definitionFor,
   itemTypeId,
   itemTypeRegistry,
@@ -41,7 +42,9 @@ export function chipTypeIds(live: readonly VaultItem[]): readonly string[] {
 
 /** Any registered type may be the one a filtered "+ new" creates. */
 export function concealedValue(item: VaultItem): string | null {
-  if (item.kind === "login") return item.password;
+  // A peppered or Sphinx password reads as "" here and so as absent: this is a
+  // sync read that cannot ask the person for anything (ADR 0172 §4).
+  if (item.kind === "account") return accountPlainPassword(item) || null;
   if (item.kind === "secret") return item.value;
   if (item.kind === "card") return item.number;
   if (item.kind === "certificate") return item.privateKeyPem;
@@ -85,7 +88,7 @@ export function shareText(item: VaultItem): string | null {
 }
 
 export function username(item: VaultItem): string | null {
-  return item.kind === "login" || item.kind === "passkey"
+  return item.kind === "account" || item.kind === "passkey"
     ? item.username
     : null;
 }

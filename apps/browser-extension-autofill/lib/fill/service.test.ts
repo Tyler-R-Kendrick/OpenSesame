@@ -37,6 +37,27 @@ describe("the background fill flow", () => {
     expect(JSON.stringify(result)).not.toContain(VALUE);
   });
 
+  it("answers the guard needs_pepper, with no value, for a peppered password", async () => {
+    const h = harness({
+      value: async () => {
+        throw new FillError("needs_pepper");
+      },
+    });
+    const service = createFillService(h.ports);
+    let valueReply: unknown;
+    h.guard = async (message) => {
+      valueReply = await service.handle(
+        ask({ op: "value", nonce: message.nonce, field: "password" }),
+        guardSender(),
+      );
+      return { outcome: "needs_pepper" };
+    };
+    const reply = await service.handle(ask({ op: "trigger" }), popup);
+    expect(valueReply).toEqual({ refusal: "needs_pepper" });
+    expect(JSON.stringify(valueReply)).not.toContain("value");
+    expect(reply).toEqual({ outcome: "needs_pepper" });
+  });
+
   it("refuses a value request nobody armed: a page cannot trigger a fill", async () => {
     const h = harness();
     const service = createFillService(h.ports);

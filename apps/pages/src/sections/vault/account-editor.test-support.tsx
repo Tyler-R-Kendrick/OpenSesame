@@ -1,0 +1,91 @@
+import { registerLegacyItemKinds } from "@opensesame/app-core/lib/contributions.test-support.js";
+import {
+  type AccountItem,
+  type Folder,
+  type PasswordMethod,
+  type VaultItem,
+  passwordMethod,
+} from "@opensesame/vault-core";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes } from "react-router";
+import { afterAll, afterEach, beforeAll, beforeEach, vi } from "vitest";
+
+export type VaultFixture = {
+  current: { items: VaultItem[]; folders: Folder[] };
+};
+
+export const vault: VaultFixture = { current: { items: [], folders: [] } };
+export const saveItem = vi.fn<(item: VaultItem) => Promise<void>>();
+
+import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+const originalVaultHooksSeams = { ...vaultHooksSeams };
+Object.assign(vaultHooksSeams, {
+  useVault: () => vault.current,
+  useVaultStore: () => ({ saveItem }),
+  useCopySecret: () => vi.fn().mockResolvedValue("copied"),
+});
+afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
+
+import { ItemEditor } from "./ItemEditor.js";
+
+export function open(path: string) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/vault/new/:kind?" element={<ItemEditor mode="new" />} />
+        <Route
+          path="/vault/:itemId/edit"
+          element={<ItemEditor mode="edit" />}
+        />
+        <Route path="*" element={<div>navigated away</div>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+export function input(label: string | RegExp): HTMLInputElement {
+  const element = screen.getByLabelText(label, { selector: "input" });
+  if (!(element instanceof HTMLInputElement))
+    throw new Error(`expected an input for ${String(label)}`);
+  return element;
+}
+
+export function block(name: string) {
+  return within(screen.getByRole("group", { name: `${name} method` }));
+}
+
+export function saved(): AccountItem {
+  const item = saveItem.mock.calls[0]?.[0];
+  if (item?.kind !== "account") throw new Error("expected a saved account");
+  return item;
+}
+
+export function passwordOf(item: AccountItem): PasswordMethod {
+  const method = passwordMethod(item);
+  if (!method) throw new Error("expected a password method");
+  return method;
+}
+
+export async function typeInPrompt(pepper: string, confirm = false) {
+  await userEvent.type(screen.getByLabelText("Pepper"), pepper);
+  if (confirm)
+    await userEvent.type(screen.getByLabelText("Confirm pepper"), pepper);
+}
+
+/** The editor's seams and per-test reset, installed by the suite that calls it. */
+export function installEditorHarness(): void {
+  let revokeKinds: () => void = () => undefined;
+  beforeAll(() => {
+    revokeKinds = registerLegacyItemKinds();
+  });
+  afterAll(() => revokeKinds());
+  beforeEach(() => {
+    vault.current = { items: [], folders: [] };
+    saveItem.mockResolvedValue(undefined);
+  });
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+  });
+}

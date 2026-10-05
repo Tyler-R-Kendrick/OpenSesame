@@ -1,5 +1,6 @@
-import { type VaultItem, createItem } from "@opensesame/vault-core";
+import type { VaultItem } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
+import { pepperedAccount, plainAccount } from "../account.test-support.js";
 import { registerLegacyShellData } from "../contributions.test-support.js";
 import {
   type CommandPorts,
@@ -150,8 +151,7 @@ describe("parseCommand", () => {
 
 describe("executeCommand copy_field", () => {
   it("copies the password without returning the secret in the message", async () => {
-    const login = createItem("login", "GitHub");
-    login.password = "s3cret-value";
+    const login = plainAccount("GitHub", "s3cret-value");
     const copied: string[] = [];
     const navigated: string[] = [];
     const outcome = await executeCommand(
@@ -176,6 +176,111 @@ describe("executeCommand copy_field", () => {
     expect(copied).toEqual(["s3cret-value"]);
     expect(matchItem([login], "git")?.name).toBe("GitHub");
     expect(navigated).toEqual([]);
+  });
+
+  const portsFor = (
+    items: readonly VaultItem[],
+    copied: string[],
+    askPepper?: CommandPorts["askPepper"],
+  ): CommandPorts => {
+    const ports: CommandPorts = {
+      navigate: () => undefined,
+      copy: async (value) => {
+        copied.push(value);
+        return "copied";
+      },
+      items: () => items,
+      vaultLocked: () => false,
+    };
+    if (askPepper !== undefined) ports.askPepper = askPepper;
+    return ports;
+  };
+
+  it("asks for the pepper exactly once and copies the opened password", async () => {
+    const account = await pepperedAccount(
+      "GitHub",
+      "peppered-secret",
+      "pepper",
+    );
+    const copied: string[] = [];
+    let asked = 0;
+    const outcome = await executeCommand(
+      { action: "copy_field", field: "password", query: "git" },
+      portsFor([account], copied, async () => {
+        asked += 1;
+        return "pepper";
+      }),
+    );
+    expect(outcome).toEqual({
+      ok: true,
+      message: "Copied password for GitHub",
+    });
+    expect(asked).toBe(1);
+    expect(copied).toEqual(["peppered-secret"]);
+  });
+
+  it("copies nothing when the pepper prompt is cancelled", async () => {
+    const account = await pepperedAccount(
+      "GitHub",
+      "peppered-secret",
+      "pepper",
+    );
+    const copied: string[] = [];
+    const outcome = await executeCommand(
+      { action: "copy_field", field: "password", query: "git" },
+      portsFor([account], copied, async () => null),
+    );
+    expect(outcome.ok).toBe(false);
+    expect(copied).toEqual([]);
+  });
+
+  it("copies nothing and says so when the pepper is wrong", async () => {
+    const account = await pepperedAccount(
+      "GitHub",
+      "peppered-secret",
+      "pepper",
+    );
+    const copied: string[] = [];
+    const outcome = await executeCommand(
+      { action: "copy_field", field: "password", query: "git" },
+      portsFor([account], copied, async () => "nope"),
+    );
+    expect(outcome.ok).toBe(false);
+    expect(copied).toEqual([]);
+  });
+
+  it("has no password to copy for a peppered account when nothing can ask", async () => {
+    const account = await pepperedAccount(
+      "GitHub",
+      "peppered-secret",
+      "pepper",
+    );
+    const copied: string[] = [];
+    const outcome = await executeCommand(
+      { action: "copy_field", field: "password", query: "git" },
+      portsFor([account], copied),
+    );
+    expect(outcome).toEqual({
+      ok: false,
+      message: "GitHub has no password to copy.",
+    });
+    expect(copied).toEqual([]);
+  });
+
+  it("copies an account's username, authenticator seed and first site", async () => {
+    const account = plainAccount("GitHub", "pw", {
+      username: "octo",
+      totp: "JBSWY3DPEHPK3PXP",
+    });
+    account.uris = [{ id: "u1", uri: "https://github.com", match: "domain" }];
+    const copied: string[] = [];
+    for (const field of ["username", "otp", "url"] as const) {
+      await executeCommand(
+        { action: "copy_field", field, query: "git" },
+        portsFor([account], copied),
+      );
+    }
+    expect(copied).toEqual(["octo", "JBSWY3DPEHPK3PXP", "https://github.com"]);
   });
 
   it("refuses when the vault is locked", async () => {

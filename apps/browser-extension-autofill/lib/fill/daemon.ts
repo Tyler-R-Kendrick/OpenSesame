@@ -20,6 +20,9 @@ import {
 /** The pairing token's key in `storage.local`. It admits fill, not values. */
 export const TOKEN_KEY = "fillPairingToken";
 
+/** The refusal for a password that needs a pepper the person must type. */
+export const NEEDS_PEPPER = "needs_pepper";
+
 /** A refusal from the daemon, by its stable code. Never carries a value. */
 export class FillError extends Error {
   readonly code: string;
@@ -145,6 +148,11 @@ export function createDaemonClient(options: DaemonClientOptions): DaemonClient {
         daemonValue,
       );
       if (body.field !== field) throw new FillError("unexpected_response");
+      // A peppered or Sphinx password is skipped, never filled in its sealed
+      // form (ADR 0172 §4): refuse before the value is handed anywhere.
+      if (field === "password" && body.needsPepper === true) {
+        throw new FillError(NEEDS_PEPPER);
+      }
       return body.value;
     },
   };

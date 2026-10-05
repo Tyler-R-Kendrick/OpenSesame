@@ -133,7 +133,7 @@ try {
     );
   }
   for (const kind of [
-    "login",
+    "account",
     "secret",
     "note",
     "card",
@@ -150,12 +150,12 @@ try {
       0,
     );
     assert.ok(await page.getByLabel("Name", { exact: true }).inputValue());
-    if (kind === "login") {
+    if (kind === "account") {
       const password = page.getByLabel("Password", { exact: true });
       assert.equal((await password.inputValue()).length, 20);
       assert.equal(await password.getAttribute("type"), "password");
       assert.match(
-        await page.getByLabel("Username", { exact: true }).inputValue(),
+        await page.getByLabel("Username / ID", { exact: true }).inputValue(),
         /^user_/,
       );
     }
@@ -196,7 +196,7 @@ try {
       document.querySelector('[aria-label="Name"]')?.value === "Link fixture",
   );
   assert.equal(
-    await page.getByLabel("Username", { exact: true }).inputValue(),
+    await page.getByLabel("Username / ID", { exact: true }).inputValue(),
     "public_alias",
   );
   await native.refuse("opensesame_navigate", {

@@ -14,7 +14,7 @@ import { ContextMenuLayer } from "../../components/context-menu/ContextMenuLayer
 import { closeContextMenu } from "../../components/context-menu/menu-model.js";
 import { gestureLimits } from "../../lib/gestures.js";
 import { VaultTree, vaultTreeSeams } from "./VaultTree.js";
-import { makeLogin, makeNote } from "./section-items.test-support.js";
+import { makeAccount, makeNote } from "./section-items.test-support.js";
 import { type VaultTreeActions, vaultRowMenu } from "./vault-menu.js";
 
 Object.assign(vaultTreeSeams, {
@@ -69,7 +69,7 @@ afterEach(() => {
   cleanup();
 });
 
-function draw(items: VaultItem[] = [makeLogin(), makeNote()]) {
+function draw(items: VaultItem[] = [makeAccount(), makeNote()]) {
   render(
     <MemoryRouter>
       <VaultTree
@@ -135,7 +135,7 @@ describe("the vault listing's context menu", () => {
   });
 
   it("offers a trashed item restore, and asks before deleting it for good", () => {
-    draw([makeLogin({ deletedAt: "2026-08-03T00:00:00Z" })]);
+    draw([makeAccount({ deletedAt: "2026-08-03T00:00:00Z" })]);
     fireEvent.contextMenu(screen.getByText("Webmail"));
     const menu = screen.getByRole("menu");
     expect(within(menu).queryByRole("menuitem", { name: "Edit" })).toBeNull();
@@ -174,7 +174,7 @@ describe("the vault listing's context menu", () => {
       }),
     ).toEqual(["Collapse"]);
     actions = trashed;
-    draw([makeLogin({ deletedAt: "2026-08-03T00:00:00Z" })]);
+    draw([makeAccount({ deletedAt: "2026-08-03T00:00:00Z" })]);
     fireEvent.contextMenu(screen.getByRole("tree"));
     const menu = screen.getByRole("menu", { name: "Vault items" });
     expect(within(menu).getByRole("menuitem", { name: "Search" })).toBeTruthy();

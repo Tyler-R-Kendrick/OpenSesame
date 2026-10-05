@@ -285,7 +285,7 @@ describe("browser CSV extras", () => {
     expect(result.items[0]?.folder).toBe("Misc");
     expect(result.items[0]?.notes).toBe("remember this");
     const login = result.items[1];
-    if (login?.kind !== "login") throw new Error("expected login");
+    if (login?.kind !== "account") throw new Error("expected an account");
     expect(login.totp).toBe("JBSWY3DPEHPK3PXP");
   });
 });
@@ -346,7 +346,7 @@ describe("Bitwarden JSON extras", () => {
     });
     const item = result.items[0];
     expect(item?.folder).toBeNull();
-    if (item?.kind !== "login") throw new Error("expected login");
+    if (item?.kind !== "account") throw new Error("expected an account");
     expect(item.uris.map((u) => u.match)).toEqual(["domain", "domain"]);
   });
 
@@ -424,7 +424,7 @@ describe("1Password 1PUX extras", () => {
       ]),
     );
     const item = result.items[0];
-    if (item?.kind !== "login") throw new Error("expected login");
+    if (item?.kind !== "account") throw new Error("expected an account");
     expect(item.password).toBe("hunter2");
   });
 
@@ -644,7 +644,7 @@ describe("Proton Pass extras", () => {
       ]),
     );
     const login = result.items[0];
-    if (login?.kind !== "login") throw new Error("expected login");
+    if (login?.kind !== "account") throw new Error("expected an account");
     expect(login.totp).toBe("otpauth://totp/x?secret=JBSWY3DPEHPK3PXP");
     expect(login.username).toBe("a@b.example");
     expect(login.fields).toEqual([

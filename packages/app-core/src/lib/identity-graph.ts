@@ -125,7 +125,7 @@ export function itemMatchesProvider(
   const hosts = providerHosts(provider);
   const haystack = [item.name, itemSubtitle(item)].join(" ").toLowerCase();
   if (haystack.includes(id) || haystack.includes(name)) return true;
-  if (item.kind === "login") {
+  if (item.kind === "account") {
     return item.uris.some((uri) => {
       const host = hostOf(uri.uri)
         .replace(/^www\./, "")
@@ -227,7 +227,7 @@ export function firstRunProviders(providers: Provider[]): Provider[] {
   return [...preferred, ...extra].slice(0, 3);
 }
 
-export type GraphDoorKind = "host" | "login" | "passkey" | "reminder";
+export type GraphDoorKind = "host" | "account" | "passkey" | "reminder";
 
 export type GraphDoor = {
   kind: GraphDoorKind;
@@ -239,7 +239,7 @@ export type GraphDoor = {
 };
 
 export function vaultCreateHref(
-  kind: "login" | "passkey" | "secret",
+  kind: "account" | "passkey" | "secret",
   provider: Provider,
 ): string {
   const params = new URLSearchParams();
@@ -289,7 +289,7 @@ export function graphDoors(
   );
   const liveItems = vaultItemsForProvider(items, provider);
   const connection = liveConnections[0] ?? null;
-  const logins = liveItems.filter((item) => item.kind === "login");
+  const accounts = liveItems.filter((item) => item.kind === "account");
   const passkeys = liveItems.filter((item) => item.kind === "passkey");
   const reminders = liveItems.filter((item) => item.kind === "secret");
   const unfinished = liveConnections.find((row) => isUnfinished(row));
@@ -327,17 +327,17 @@ export function graphDoors(
             : "Open",
     },
     {
-      kind: "login",
-      title: "Vault login",
+      kind: "account",
+      title: "Vault account",
       detail:
-        summarizeItems(logins) ??
+        summarizeItems(accounts) ??
         `None saved. A ${provider.displayName} password lives here, not in a remote connection.`,
-      verb: logins.length > 0 ? "connected" : "idle",
+      verb: accounts.length > 0 ? "connected" : "idle",
       href:
-        logins[0] !== undefined
-          ? `/vault/${logins[0].id}`
-          : vaultCreateHref("login", provider),
-      action: logins.length > 0 ? "Open" : "Save a login",
+        accounts[0] !== undefined
+          ? `/vault/${accounts[0].id}`
+          : vaultCreateHref("account", provider),
+      action: accounts.length > 0 ? "Open" : "Save an account",
     },
     {
       kind: "passkey",

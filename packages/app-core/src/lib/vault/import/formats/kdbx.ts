@@ -39,14 +39,14 @@
 
 import {
   type BinaryImportAdapter,
+  type DraftAccount,
   type DraftItem,
-  type DraftLogin,
   type ParseResult,
   type SkippedRecord,
   addField,
   addUri,
   base64UrlToBase64,
-  draftLogin,
+  draftAccount,
   draftPasskey,
   normaliseTotp,
   passwordRequired,
@@ -237,14 +237,14 @@ function mapEntry(name: string, fields: Map<string, FieldValue>): MappedEntry {
   );
   const mapped: MappedEntry = isPasskey
     ? mapPasskey(name, fields)
-    : { item: draftLogin(name), skipped: null };
+    : { item: draftAccount(name), skipped: null };
   const item = mapped.item;
   if (item === null) return mapped;
 
   item.notes = fields.get("Notes")?.text ?? "";
 
-  if (item.kind === "login") {
-    const login: DraftLogin = item;
+  if (item.kind === "account") {
+    const login: DraftAccount = item;
     login.username = fields.get("UserName")?.text ?? "";
     login.password = fields.get("Password")?.text ?? "";
     addUri(login, fields.get("URL")?.text ?? "");

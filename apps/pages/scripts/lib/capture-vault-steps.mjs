@@ -6,12 +6,12 @@
 export function vaultSteps({ press, visit }) {
   return {
     /**
-     * Add logins through the editor, one per name, the way a person fills a
+     * Add accounts through the editor, one per name, the way a person fills a
      * vault: the lists in a sheet are then long enough to scroll and search.
      */
     async seed(page, names) {
       for (const name of names) {
-        await visit(page, "vault/new/login");
+        await visit(page, "vault/new/account");
         await page.getByLabel("Name", { exact: true }).first().fill(name);
         await press(page.getByRole("button", { name: "Save item" }).first());
         await page.waitForTimeout(900);

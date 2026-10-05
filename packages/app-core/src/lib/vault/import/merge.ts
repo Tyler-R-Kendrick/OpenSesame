@@ -8,12 +8,15 @@
 import {
   type CustomField,
   type Folder,
+  type LoginMethod,
   type LoginUri,
   type VaultItem,
+  manualPassword,
   newId,
+  newMethodId,
 } from "@opensesame/vault-core";
 import { duplicateKey } from "./index.js";
-import type { DraftItem } from "./types.js";
+import type { DraftAccount, DraftItem } from "./types.js";
 
 export type MergeOptions = {
   /**
@@ -41,6 +44,53 @@ export const defaultMergeOptions: MergeOptions = {
   keepFolders: true,
   skipDuplicates: true,
 };
+
+/**
+ * The login methods an imported account lands with. The password goes into a
+ * manual method (an import carries a typed password, never a generator), the
+ * seed into an authenticator method, and whatever else the export held after
+ * them. An account with neither a password nor a seed still gets one empty
+ * password method, as `createItem("account")` does.
+ */
+export function methodsFor(
+  accountId: string,
+  draft: DraftAccount,
+  now: string,
+): LoginMethod[] {
+  // Health scoring reads `changedAt`. Without a real date from the export, the
+  // import date is the only claim we can honestly make.
+  const changedAt =
+    draft.passwordChangedAt ?? draft.updatedAt ?? draft.createdAt ?? now;
+  const methods: LoginMethod[] = [];
+  if (draft.password !== "" || draft.totp === "") {
+    methods.push(
+      manualPassword(`${accountId}:password`, draft.password, changedAt),
+    );
+  }
+  if (draft.totp !== "") {
+    methods.push({
+      id: `${accountId}:authenticator`,
+      type: "authenticator",
+      secret: draft.totp,
+    });
+  }
+  for (const extra of draft.methods) {
+    const id = newMethodId(accountId, extra.type);
+    if (extra.type === "password") {
+      methods.push(manualPassword(id, extra.secret, changedAt));
+    } else if (extra.type === "authenticator") {
+      methods.push({ id, type: "authenticator", secret: extra.secret });
+    } else {
+      methods.push({
+        id,
+        type: "api-key",
+        key: extra.key,
+        header: extra.header,
+      });
+    }
+  }
+  return methods;
+}
 
 export function planMerge(
   drafts: DraftItem[],
@@ -92,7 +142,7 @@ export function planMerge(
       kind: draft.kind,
       name: draft.name,
       username:
-        draft.kind === "login" || draft.kind === "passkey"
+        draft.kind === "account" || draft.kind === "passkey"
           ? draft.username
           : "",
     });
@@ -140,7 +190,7 @@ export function planMerge(
     };
 
     switch (draft.kind) {
-      case "login": {
+      case "account": {
         const uris: LoginUri[] = draft.uris.map((uri) => ({
           id: newId(),
           uri: uri.uri,
@@ -148,18 +198,10 @@ export function planMerge(
         }));
         items.push({
           ...base,
-          kind: "login",
+          kind: "account",
           username: draft.username,
-          password: draft.password,
-          totp: draft.totp,
           uris,
-          // Health scoring reads this. Without a real date from the export,
-          // the import date is the only claim we can honestly make.
-          passwordChangedAt:
-            draft.passwordChangedAt ??
-            draft.updatedAt ??
-            draft.createdAt ??
-            now,
+          methods: methodsFor(base.id, draft, now),
         });
         break;
       }

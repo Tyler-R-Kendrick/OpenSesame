@@ -264,7 +264,7 @@ installation, hydrated by the core boot.
 
 Core (`tier: "core"`, always present), 7: `shell.navigation` (the rail,
 routes, crumbs, command bar, keymap and statusline every other capability
-contributes into), `vault.passwords` (items, editor, login/note/card/secret
+contributes into), `vault.passwords` (items, editor, account/note/card/secret
 kinds, health), `vault.local-unlock` (password, PIN, passkey-PRF protectors
 and the second-step ceremony), `backup.local-encrypted` (encrypted file
 export/import/recovery), `identity.brokered-signin` (compiled-in broker +

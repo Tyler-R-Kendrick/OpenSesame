@@ -11,7 +11,10 @@ const SECTION_ALIASES: ReadonlyArray<{
   path: Extract<AppCommand, { action: "navigate" }>["path"];
   words: readonly string[];
 }> = [
-  { path: "/vault", words: ["vault", "passwords", "logins", "items"] },
+  {
+    path: "/vault",
+    words: ["vault", "passwords", "logins", "accounts", "items"],
+  },
   {
     path: "/connections",
     words: ["connections", "connectors", "services"],

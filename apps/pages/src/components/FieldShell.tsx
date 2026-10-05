@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { useId } from "react";
 
 /**
@@ -20,6 +20,7 @@ export type FieldFill = {
 
 export function FieldShell({
   id,
+  inputRef,
   label,
   value,
   onValueChange,
@@ -39,6 +40,7 @@ export function FieldShell({
   readOnly = false,
 }: {
   id?: string;
+  inputRef?: Ref<HTMLInputElement>;
   label: string;
   value: string;
   onValueChange?: (next: string) => void;
@@ -86,6 +88,7 @@ export function FieldShell({
           </span>
         ) : null}
         <input
+          ref={inputRef}
           id={inputId}
           type={type}
           className={mono ? "f__input f__input--mono" : "f__input"}

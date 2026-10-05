@@ -6,7 +6,12 @@ import {
   syncInstalledTypes,
 } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it } from "vitest";
-import { chipTypeIds, shareText } from "./vault-section-model.js";
+import { pepperedAccount, plainAccount } from "../lib/account.test-support.js";
+import {
+  chipTypeIds,
+  concealedValue,
+  shareText,
+} from "./vault-section-model.js";
 
 const BOAT = JSON.stringify({
   apiVersion: "opensesame.dev/v1alpha1",
@@ -42,10 +47,10 @@ describe("chipTypeIds", () => {
   it("offers built-in types only once the vault holds one", () => {
     const wifi = itemTypeRegistry().get("wifi");
     if (wifi === undefined) throw new Error("wifi is a built-in type");
-    expect(chipTypeIds([createItem("login")])).toEqual(["login"]);
+    expect(chipTypeIds([createItem("account")])).toEqual(["account"]);
     expect(
-      chipTypeIds([createItem("login"), createTypedItem(wifi, {})]),
-    ).toEqual(["login", "wifi"]);
+      chipTypeIds([createItem("account"), createTypedItem(wifi, {})]),
+    ).toEqual(["account", "wifi"]);
   });
 
   it("offers no chip for a filter id, which would open the filter", () => {
@@ -58,7 +63,7 @@ describe("chipTypeIds", () => {
 
   it("offers an installed type before it holds an item", () => {
     installItemType(BOAT);
-    expect(chipTypeIds([createItem("login")])).toEqual(["login", "boat"]);
+    expect(chipTypeIds([createItem("account")])).toEqual(["account", "boat"]);
   });
 });
 
@@ -69,9 +74,7 @@ describe("shareText", () => {
     expect(shareText({ ...createItem("secret", "API"), value: "s3cr3t" })).toBe(
       "s3cr3t",
     );
-    expect(
-      shareText({ ...createItem("login", "GitHub"), password: "hunter2" }),
-    ).toBe("hunter2");
+    expect(shareText(plainAccount("GitHub", "hunter2"))).toBe("hunter2");
     expect(
       shareText({ ...createItem("card", "Visa"), number: "4242424242424242" }),
     ).toBe("4242424242424242");
@@ -90,6 +93,13 @@ describe("shareText", () => {
     expect(
       shareText(createTypedItem(wifi, { passphrase: "network-secret" })),
     ).toBe("network-secret");
+  });
+
+  it("shares nothing of a peppered password, and falls back to notes", async () => {
+    const account = await pepperedAccount("GitHub", "hunter2", "pepper");
+    expect(concealedValue(account)).toBeNull();
+    expect(shareText(account)).toBeNull();
+    expect(shareText({ ...account, notes: "fallback" })).toBe("fallback");
   });
 
   it("sends a note's text, and notes when an item has no concealed value", () => {

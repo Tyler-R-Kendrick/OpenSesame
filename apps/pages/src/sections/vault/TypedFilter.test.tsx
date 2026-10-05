@@ -115,7 +115,7 @@ function renderSection(initial = "/vault") {
 
 beforeEach(() => {
   syncInstalledTypes({ "safe-deposit": SAFE_DEPOSIT });
-  const login = createItem("login", "Webmail");
+  const login = createItem("account", "Webmail");
   login.id = "itm_login";
   vault.current = {
     items: [login, boxItem("itm_box", "High Street")],
@@ -140,7 +140,7 @@ describe("the vault list for a type installed at runtime", () => {
     expect(
       screen.getByRole("link", { name: /Safe deposit boxes/ }),
     ).toBeTruthy();
-    expect(screen.getByRole("link", { name: /Logins/ })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Accounts/ })).toBeTruthy();
   });
 
   it("filters on the type id, not on the storage discriminant", () => {
@@ -150,7 +150,7 @@ describe("the vault list for a type installed at runtime", () => {
   });
 
   it("leaves a built-in filter selecting only its own items", () => {
-    renderSection("/vault?f=login");
+    renderSection("/vault?f=account");
     expect(screen.getByText("Webmail")).toBeTruthy();
     expect(screen.queryByText("Box High Street")).toBeNull();
   });

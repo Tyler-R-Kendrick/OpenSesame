@@ -1,4 +1,8 @@
-import { type VaultItem, createItem } from "@opensesame/vault-core";
+import {
+  type VaultItem,
+  createItem,
+  passwordMethod,
+} from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ACTIVITY_LOG_PATH,
@@ -115,22 +119,24 @@ describe("item activity", () => {
     expect(JSON.stringify(await eventsOf(tomb))).not.toContain(CANARY);
   });
 
-  it("names a created and updated login", async () => {
+  it("names a created and updated account", async () => {
     await vaultStore.create(PASSWORD);
     const tomb = openTomb();
-    const login = createItem("login", "Work");
-    login.password = "login-canary-password";
-    await vaultStore.saveItem(login);
-    login.password = "login-canary-password-2";
-    await vaultStore.saveItem(login);
+    const account = createItem("account", "Work");
+    const method = passwordMethod(account);
+    if (!method) throw new Error("expected a password method");
+    method.secret = "login-canary-password";
+    await vaultStore.saveItem(account);
+    method.secret = "login-canary-password-2";
+    await vaultStore.saveItem(account);
     await vi.waitFor(async () => {
       const types = (await eventsOf(tomb)).map((event) => event.type);
-      expect(types).toContain("vault.login.created");
-      expect(types).toContain("vault.login.updated");
+      expect(types).toContain("vault.account.created");
+      expect(types).toContain("vault.account.updated");
     });
     const summaries = (await eventsOf(tomb)).map((event) => event.summary);
-    expect(summaries).toContain("A new login was created: Work");
-    expect(summaries).toContain("A login was updated: Work");
+    expect(summaries).toContain("A new account was created: Work");
+    expect(summaries).toContain("An account was updated: Work");
     const wire = JSON.stringify(await eventsOf(tomb));
     expect(wire).not.toContain("login-canary-password");
   });

@@ -106,7 +106,7 @@ describe("fidoCxf.parse of a foreign document", () => {
   it("maps a basic-auth item to a login with its URLs", () => {
     const result = parse(document([BASIC]));
     const item = result.items[0];
-    if (item?.kind !== "login") throw new Error("expected a login");
+    if (item?.kind !== "account") throw new Error("expected an account");
     expect(item.username).toBe("ada@example.com");
     expect(item.password).toBe("hunter2");
     expect(item.uris.map((uri) => uri.uri)).toEqual(["https://example.com"]);
@@ -135,7 +135,7 @@ describe("fidoCxf.parse of a foreign document", () => {
     );
     expect(result.items).toHaveLength(1);
     const item = result.items[0];
-    if (item?.kind !== "login") throw new Error("expected a login");
+    if (item?.kind !== "account") throw new Error("expected an account");
     // Defaults throughout, so the bare seed says everything the URI would.
     expect(item.totp).toBe("JBSWY3DPEHPK3PXP");
   });
@@ -161,7 +161,7 @@ describe("fidoCxf.parse of a foreign document", () => {
       ]),
     );
     const item = result.items[0];
-    if (item?.kind !== "login") throw new Error("expected a login");
+    if (item?.kind !== "account") throw new Error("expected an account");
     expect(item.totp).toBe(
       "otpauth://totp/Bank%3Aada?secret=JBSWY3DPEHPK3PXP&issuer=Bank+plc&period=60&digits=8&algorithm=SHA512",
     );
@@ -183,7 +183,7 @@ describe("fidoCxf.parse of a foreign document", () => {
         },
       ]),
     );
-    expect(result.items[0]?.kind).toBe("login");
+    expect(result.items[0]?.kind).toBe("account");
   });
 
   it("takes a bare string where an exporter skipped the EditableField", () => {
@@ -199,7 +199,7 @@ describe("fidoCxf.parse of a foreign document", () => {
       ]),
     );
     const item = result.items[0];
-    if (item?.kind !== "login") throw new Error("expected a login");
+    if (item?.kind !== "account") throw new Error("expected an account");
     expect(item.username).toBe("ada");
     expect(item.password).toBe("hunter2");
   });

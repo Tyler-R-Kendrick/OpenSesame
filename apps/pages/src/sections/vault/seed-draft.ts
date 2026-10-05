@@ -21,8 +21,8 @@ export type SeededDraft = {
 /**
  * `existing` is the record being edited, or null when creating. A creation
  * route names its own kind; a bare `/vault/new` does not, and must not invent
- * one: a device whose plan excludes login would otherwise open on a login
- * draft wearing a login draft's generated name.
+ * one: a device whose plan excludes account would otherwise open on an account
+ * draft wearing an account draft's generated name.
  */
 export function seedDraft(
   mode: "new" | "edit",

@@ -30,7 +30,7 @@ const RELEASES: readonly ReleaseNote[] = [
     works: [
       "Continue as guest, or sign in with Google — you can start without an account",
       "Unlock with a password, PIN, or passkey; optional authenticator code as step 2",
-      "Store logins, cards, notes, and secrets on this device",
+      "Store accounts, cards, notes, and secrets on this device",
       "Create certificates in the vault without leaving the app",
       "Open on the front door: set up your own vault, or join somebody's live session",
       "Live sessions pair browsers directly, or through a tunnel address, TURN server or code carrier the owner names",

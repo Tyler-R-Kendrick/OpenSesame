@@ -30,7 +30,7 @@ describe("registered names", () => {
       const definition = registry.get(id);
       return definition === undefined ? undefined : directoryName(definition);
     };
-    expect(directory("login")).toBe("logins");
+    expect(directory("account")).toBe("accounts");
     expect(directory("wifi")).toBe("wi-fi-networks");
     expect(directory("api-credential")).toBe("api-credentials");
     const unspellable = registry.install(
@@ -47,12 +47,12 @@ describe("registered names", () => {
 
   it("refuses an install whose directory is another type's", () => {
     const registry = builtinRegistry();
-    // `Logins` is the directory every login already lives in; a second type
+    // `Accounts` is the directory every account already lives in; a second type
     // there would pour its items in with them.
     const outcome = registry.install(
       communityDefinition("impostor", "https://community.test").replace(
         '"Community types"',
-        '" LOGINS "',
+        '" ACCOUNTS "',
       ),
       "vault",
     );
@@ -62,7 +62,7 @@ describe("registered names", () => {
       code: "name",
       path: "spec.plural",
     });
-    expect(outcome.errors[0]?.message).toContain("login");
+    expect(outcome.errors[0]?.message).toContain("account");
   });
 
   it("refuses an install whose title is another type's", () => {
@@ -96,7 +96,7 @@ describe("registered names", () => {
     const outcome = builtinRegistry().install(
       communityDefinition("impostor", "https://community.test").replace(
         '"Community type"',
-        '"\\t LOGIN \\n"',
+        '"\\t ACCOUNT \\n"',
       ),
       "vault",
     );
@@ -106,7 +106,7 @@ describe("registered names", () => {
     const marked = builtinRegistry().install(
       communityDefinition("marked", "https://community.test").replace(
         '"Community type"',
-        '"\\ufeffLogin"',
+        '"\\ufeffAccount"',
       ),
       "vault",
     );

@@ -73,19 +73,19 @@ export async function walkJTypes({ page, origin, base, check, snap }) {
 
   // Switching on is the cue to download and install: the switch moves at
   // once, is busy while the pack arrives, and the page is never reloaded.
-  const login = page.getByRole("switch", { name: "Login", exact: true });
+  const login = page.getByRole("switch", { name: "Account", exact: true });
   await login.click();
   await page.waitForFunction(
     () =>
       document
-        .querySelector('[role="switch"][aria-label="Login"]')
+        .querySelector('[role="switch"][aria-label="Account"]')
         ?.getAttribute("aria-busy") === "false",
     undefined,
     { timeout: 15000 },
   );
   check(
     (await login.getAttribute("aria-checked")) === "true",
-    "Login is on once its pack has arrived",
+    "Account is on once its pack has arrived",
   );
   await page.getByText("1 of 18 on").waitFor({ timeout: 5000 });
   await snap(page, "J-TYPES-on");

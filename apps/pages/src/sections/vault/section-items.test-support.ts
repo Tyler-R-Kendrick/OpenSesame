@@ -1,38 +1,14 @@
 /**
- * The vault records `VaultSection`'s suites build on — one login, one note, one
+ * The vault records `VaultSection`'s suites build on — one account, one note, one
  * secret, one drop — each with every field the model requires and an override
  * hook for the one a test cares about. Test support: never imported by the
  * app. Lifted out of `VaultSection.test.tsx` to keep that file inside the
  * module-size budget (ADR 0093).
  */
 
-import type {
-  DropItem,
-  LoginItem,
-  NoteItem,
-  SecretItem,
-} from "@opensesame/vault-core";
+import type { DropItem, NoteItem, SecretItem } from "@opensesame/vault-core";
 
-export function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
-  return {
-    id: "itm_1",
-    kind: "login",
-    name: "Webmail",
-    folderId: null,
-    favorite: false,
-    notes: "",
-    fields: [],
-    createdAt: "2026-08-01T00:00:00Z",
-    updatedAt: "2026-08-02T00:00:00Z",
-    deletedAt: null,
-    username: "me@example.com",
-    password: "hunter2hunter2hunter2",
-    totp: "",
-    uris: [],
-    passwordChangedAt: "2026-08-01T00:00:00Z",
-    ...overrides,
-  };
-}
+export { makeAccount } from "./account.test-support.js";
 
 export function makeNote(overrides: Partial<NoteItem> = {}): NoteItem {
   return {

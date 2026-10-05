@@ -11,11 +11,12 @@ import type {
 import type { ConnectorStatus } from "@opensesame/app-core/lib/connectors.js";
 import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
-import type { Folder, LoginItem, VaultItem } from "@opensesame/vault-core";
+import type { AccountItem, Folder, VaultItem } from "@opensesame/vault-core";
 import { connectionCeremonyDependencies } from "../../components/ConnectionCeremony.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { IMPORT_COMMAND } from "../../modules/vault.interop-formats/runtime.js";
 import { vaultTreeSeams } from "../../sections/vault/VaultTree.js";
+import { makeAccount } from "../../sections/vault/account.test-support.js";
 
 // The connector surfaces bind targets the connectors capability declares,
 // and Import is the formats capability's key in the vault path strip.
@@ -98,24 +99,12 @@ function provider(): Provider {
   };
 }
 
-function weakLogin(): LoginItem {
-  return {
-    id: "itm_1",
-    kind: "login",
+function weakLogin(): AccountItem {
+  return makeAccount({
     name: "Somewhere",
-    folderId: null,
-    favorite: false,
-    notes: "",
-    fields: [],
-    createdAt: "2026-08-01T00:00:00Z",
-    updatedAt: "2026-08-01T00:00:00Z",
-    deletedAt: null,
     username: "me@example.invalid",
     password: "abc",
-    totp: "",
-    uris: [],
-    passwordChangedAt: "2026-08-01T00:00:00Z",
-  };
+  });
 }
 
 function renderVault() {

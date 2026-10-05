@@ -29,7 +29,7 @@ const catalog: Catalog = {
     {
       id: "item-1",
       name: "GitHub",
-      type: "login",
+      type: "account",
       fields: [
         { key: "password", label: "Password", concealed: true, value: null },
       ],

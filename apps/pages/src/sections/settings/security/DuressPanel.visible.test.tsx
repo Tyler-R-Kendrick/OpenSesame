@@ -6,6 +6,7 @@ import { createItem } from "@opensesame/vault-core";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { withPassword } from "../../vault/account.test-support.js";
 import { DuressPanel } from "./DuressPanel.js";
 import {
   SEALING,
@@ -31,15 +32,15 @@ const switches = () => screen.queryAllByRole("switch");
 async function seed() {
   await vaultStore.createWithPin("48291037");
   await vaultStore.addItems([
-    { ...createItem("login", "Netflix"), password: "netflix-pw-4417" },
-    { ...createItem("login", "Hidden Bank"), password: "hidden-pw-Zq91-xk" },
+    withPassword(createItem("account", "Netflix"), "netflix-pw-4417"),
+    withPassword(createItem("account", "Hidden Bank"), "hidden-pw-Zq91-xk"),
     {
       ...createItem("note", "Gym code"),
       notes: "locker combination 5520",
     },
     createItem("passkey", "A passkey"),
     {
-      ...createItem("login", "Old trashed"),
+      ...createItem("account", "Old trashed"),
       deletedAt: new Date().toISOString(),
     },
   ]);

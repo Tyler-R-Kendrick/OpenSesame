@@ -4,8 +4,8 @@
  * onto the carrier, sealed end to end, and works as it does over WebRTC. A
  * carrier that may carry codes only does not.
  */
-import { createItem } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { plainAccount } from "../account.test-support.js";
 import { FALLBACK_MS } from "./guest.js";
 import { RELAY_GRACE_MS } from "./host-peer.js";
 import { FAKE_CLOCK, settle } from "./live-clock.fixture.js";
@@ -24,8 +24,7 @@ import {
 import type { LiveTransport } from "./transport.js";
 
 const SECRET_VALUE = "correct horse battery staple";
-const github = createItem("login", "GitHub");
-github.password = SECRET_VALUE;
+const github = plainAccount("GitHub", SECRET_VALUE);
 
 const original = { items: liveSeams.items, onLock: liveSeams.onLock };
 beforeEach(() => {

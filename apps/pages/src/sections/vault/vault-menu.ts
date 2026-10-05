@@ -1,13 +1,11 @@
 import { isCommandSection } from "@opensesame/app-core/lib/command-bar/types.js";
-import {
-  concealedValue,
-  username,
-} from "@opensesame/app-core/sections/vault-section-model.js";
+import { username } from "@opensesame/app-core/sections/vault-section-model.js";
 import type { TreeRow, VaultItem } from "@opensesame/vault-core";
 import type {
   MenuGroup,
   MenuItem,
 } from "../../components/context-menu/menu-model.js";
+import { canCopySecret } from "./account-copy.js";
 
 export type VaultTreeActions = {
   open: (item: VaultItem) => void;
@@ -100,7 +98,7 @@ function trashedItemMenu(
 
 /**
  * Copy rows for one item. A secret has a single value, so the menu offers
- * one clipboard action. A login still copies its secret and its username,
+ * one clipboard action. An account still copies its secret and its username,
  * and a row the item cannot answer stays visible and disabled.
  */
 function copyRows(
@@ -117,13 +115,13 @@ function copyRows(
   if (item.kind === "secret") {
     return [
       verb("copy-secret", "Copy to Clipboard", "y", actions.copySecret, {
-        disabled: !concealedValue(item),
+        disabled: !canCopySecret(item),
       }),
     ];
   }
   return [
     verb("copy-secret", "Copy secret", "y", actions.copySecret, {
-      disabled: !concealedValue(item),
+      disabled: !canCopySecret(item),
     }),
     verb("copy-username", "Copy username", "u", actions.copyUsername, {
       disabled: !username(item),

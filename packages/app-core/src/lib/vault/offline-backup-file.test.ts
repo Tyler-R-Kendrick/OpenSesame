@@ -111,7 +111,7 @@ describe("offline backup file", () => {
   it("round-trips a PIN vault through the backup the Export key writes", async () => {
     const source = new VaultStore();
     await source.createWithPin("48291037");
-    await source.saveItem(createItem("login", "Export Me"));
+    await source.saveItem(createItem("account", "Export Me"));
     const file = offlineBackupFile(source.getSnapshot());
     expect(file.text).not.toContain("Export Me");
     const sealed = sealedVaultText(file.text);
