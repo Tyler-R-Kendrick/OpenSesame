@@ -193,12 +193,13 @@
         "2026-10-04: javascript 5482->5488 and javascriptGzip 1684->1688 because the phone's prompt draws a dotted glyph in place of a vault or account name (ADR 0164): the glyph generator, GlyphMark, the hold hook and AddOrganization (split out of AccountSwitcher to keep it under the module cap) join the Pages graph as core, not an optional capability. CI on a1d8a096 measured 5483 KiB javascript and 1684 KiB gzip against 5482/1684 on main. The ceilings keep 4-5 KiB of headroom.",
         "2026-10-04: javascript 5488->5507 and javascriptGzip 1688->1701 because built-in item types are packs (ADR 0165). Eighteen definitions leave the entry (main 831 -> 810 KiB, the 44 KB embedded corpus is now 8 KB of core) and become 18 lazy chunks (36 KB, fetched only when a type is switched on, none preloaded); the shipped total still grows by the 8 KB metadata index the list is drawn from, the switch list and its search, and the pack installer (queue, digest check, sealed copy, notices): this change adds about 20/14 KiB (5500/1696 against 5480/1682 on main at 0d975968) and measures 5503/1697 on the tree merged with the glyph change. The ceilings keep 4 KiB of headroom.",
         "2026-10-05: javascript 5507->5513 because the Access, Connections and Identity tutorials teach every control those sections draw (ADR 0163 section 6): the authored tours and their routes, with their copy, ride the Pages graph beside the sections they point at. Measured 5509/1698 KiB against 5507/1698 on main at a23dcb2c. The ceiling keeps 4 KiB of headroom.",
-        "2026-10-05: javascript 5513->5537 and javascriptGzip 1701->1710 because the shell, section-navigation and Settings tutorials (ADR 0163 section 6) ride the Pages graph: the authored tours, their copy, and the predicates and targets they point at. Measured 5533/1706 KiB on the tree merged with the Access, Connections and Identity tours (5509/1698 before). The ceilings keep 4 KiB of headroom."
+        "2026-10-05: javascript 5513->5537 and javascriptGzip 1701->1710 because the shell, section-navigation and Settings tutorials (ADR 0163 section 6) ride the Pages graph: the authored tours, their copy, and the predicates and targets they point at. Measured 5533/1706 KiB on the tree merged with the Access, Connections and Identity tours (5509/1698 before). The ceilings keep 4 KiB of headroom.",
+        "2026-10-05: javascript 5537->5549 and javascriptGzip 1710->1714 because the vault item and keyboard tutorials (ADR 0163 section 6) ride the Pages graph: the item tours, the two named tour places (/vault/item, /vault/trash), the keymap-to-tutorial table and the ItemTools split. Measured 5545/1710 KiB on the tree merged with the shell and Settings tours (5533/1706 before). The ceilings keep 4 KiB of headroom."
       ],
       "budgets": {
         "total": 17900,
-        "javascript": 5537,
-        "javascriptGzip": 1710,
+        "javascript": 5549,
+        "javascriptGzip": 1714,
         "_cssReason": [
           "Raised 147 -> 153 for the capability selection surface: the setup",
           "tab and the Settings panel a person chooses capabilities in add",

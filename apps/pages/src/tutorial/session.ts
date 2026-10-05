@@ -6,11 +6,7 @@ import {
   type HelpTopic,
   guideGoal,
 } from "@opensesame/app-core/tutorial/registry/goals.js";
-import {
-  GUIDE_OVERLAY_ROUTES,
-  type GuideRouteId,
-  guideRouteForPath,
-} from "@opensesame/app-core/tutorial/registry/routes.js";
+import type { GuideRouteId } from "@opensesame/app-core/tutorial/registry/routes.js";
 import { clearMountedGuideTargets } from "@opensesame/app-core/tutorial/registry/targets.js";
 import { webmcpSupportSeam } from "@opensesame/app-core/webmcp/tool-shared.js";
 /**
@@ -50,7 +46,6 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { useLocation, useNavigate } from "react-router";
 import { useVault } from "../lib/vault/hooks.js";
 import { gateSupportAsk } from "./ask-guard.js";
 import {
@@ -71,6 +66,7 @@ import {
   citedHelpText,
   writtenHelpSaysText,
 } from "./ui/messages.js";
+import { useSupportRouteSync } from "./use-support-route.js";
 export type {
   GuideOrigin,
   SupportAcquireResult,
@@ -608,8 +604,6 @@ export function SupportProvider({
   const [controller] = useState(() =>
     createSupportController(supportSessionSeams),
   );
-  const location = useLocation();
-  const navigate = useNavigate();
   const [override, setOverride] = useState<GuideRouteId | null>(null);
   const setRouteOverride = useCallback((route: GuideRouteId | null) => {
     setOverride(route);
@@ -625,16 +619,7 @@ export function SupportProvider({
     [controller],
   );
 
-  useEffect(() => {
-    controller.setRoute(override ?? guideRouteForPath(location.pathname));
-  }, [controller, location.pathname, override]);
-
-  useEffect(() => {
-    controller.setNavigator((route) => {
-      if (GUIDE_OVERLAY_ROUTES.has(route)) return;
-      navigate(route);
-    });
-  }, [controller, navigate]);
+  useSupportRouteSync(controller, override);
 
   // WebMCP guidance tools bind only while unlocked (no help on title/unlock).
   const { status: vaultStatus } = useVault();
