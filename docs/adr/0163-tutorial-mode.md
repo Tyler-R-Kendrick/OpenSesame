@@ -5,6 +5,8 @@
 - Amends: [ADR 0088](0088-ai-native-contextual-support.md) §1 and §4 (the
   authored budget, and what draws a step) and §5 (Driver.js is no longer the
   rendering primitive). It does not widen the language.
+- Amended by: [ADR 0166](0166-gate-help-launcher.md) §1–§3 and §6 (the gates draw
+  a help key, so gate tutorials exist and `verify:tutorials` walks them)
 - Builds on: [ADR 0065](0065-agent-surface-parity.md) (ceremonies stay human),
   [ADR 0130](0130-operator-controlled-capability-composition.md) (every
   feature is a capability), [ADR 0149](0149-nothing-stored-in-the-clear.md)
@@ -102,10 +104,11 @@ to the screen edge the lit control is *not* on, and its keys are 44px.
 
 The Support sheet gains a **Tutorials** tab beside Ask: every live tutorial,
 grouped by what a person wants to do (`areas.ts`), each row a title, a step
-count and a start key. Starting one is replaying it. There is no tutorial for
-a gate — unlock, setup, the broker popup, join: the Support sheet is not
-mounted there (ADR 0090), so nothing could start one. Written help for those
-screens stays, as help topics with no walkthrough. The Ask tab and the library
+count and a start key. Starting one is replaying it. There was no
+tutorial for a gate — unlock, setup, the broker popup, join — while the Support
+sheet was not mounted there (ADR 0090). ADR 0166 gives each gate a help key of
+its own that opens this sheet offline, so gates have tutorials, offered only
+where they can be walked, and written help for them names its tour. The Ask tab and the library
 share one gate (`goalOffered`, read through `useTutorialGate`): a goal that
 points at a section of Settings › Capabilities is offered only where that
 section is drawn, and one that `requires` a state predicate (`account.signed-in`,
@@ -133,6 +136,16 @@ waits on conditions, not sleeps, runs at desktop and phone width with every
 optional capability on, and sits in the required Bundle budgets check as one
 job per width (`tutorials-e2e`, folded into `bundle-check`) so the walk does not
 share the bundle job's time.
+
+A tour that points at an item's own controls (favorite, edit, copy, trash,
+share, the logins filter) needs an item to open, so the library offers it only
+where the vault holds one (`vault.has-items`) and the walk makes a second pass:
+it adds a login and a trashed login through the editor, as a person does, then
+walks whatever the library offers that it did not before. Such a tour names the
+pane of an item (`/vault/item`) or the trash (`/vault/trash`), two places no
+path spells; the shell resolves them (`vault-routes.ts`) and reads the vault
+only for the id of the first item outside the trash. A locked key (trash,
+share, delete) is only ever pointed at: no tour waits for it to be pressed.
 
 ### 6. A control with no tutorial is a debt the build counts
 

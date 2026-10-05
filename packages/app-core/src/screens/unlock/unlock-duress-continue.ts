@@ -16,6 +16,10 @@ import {
   openPresentation,
 } from "../../lib/duress/compartment/session.js";
 import type { SlotPlaintext } from "../../lib/duress/crypto/slots.js";
+import {
+  decodePlan,
+  runDuressEffects,
+} from "../../lib/duress/settings/modes/index.js";
 
 export type DuressContinueStore = Readonly<{
   /** `decoy: true` — a sealed guest tomb is never wiped (VaultStore.createGuest). */
@@ -50,7 +54,10 @@ export function resolveDuressPresentation(value: string): PresentationClass {
  * project a scoped view for PresentationShell, then open a fresh guest-road
  * session so the app shell unlocks without the protected root (INV-03 /
  * INV-05). The session is a decoy: it never wipes a guest tomb that holds a
- * sealed vault of its own.
+ * sealed vault of its own, and the store draws it as the vault the unlock
+ * screen was showing (`VaultState.decoy`). The minted outcome is locked (no
+ * published decoy), so the overlay draws nothing for it: a decoy that says
+ * "unavailable" is not read as an ordinary unlock.
  */
 export async function continueAfterDuressMatch(
   store: DuressContinueStore,
@@ -59,6 +66,11 @@ export async function continueAfterDuressMatch(
 ): Promise<"duress_session"> {
   store.cancelTotpChallenge?.();
   const presentation = resolveDuressPresentation(match.plaintext.presentation);
+  // The mode's plan is read before the slot's bytes are cleared, and its
+  // first phase runs before anything is shown — or refused — so a locked
+  // presentation still does what its mode says.
+  const plan = decodePlan(match.plaintext.payload);
+  await runDuressEffects(plan, "on_match", { store });
   if (presentation === "locked" || presentation === "unchanged") {
     clearActivePresentation();
     match.plaintext.compartmentKey.fill(0);
@@ -93,5 +105,6 @@ export async function continueAfterDuressMatch(
   }
 
   await store.createGuest({ decoy: true });
+  await runDuressEffects(plan, "after_session", { store });
   return "duress_session";
 }

@@ -36,6 +36,16 @@ export function useMediaQuery(media: string, absent: boolean): boolean {
   );
 }
 
+/** Whether the shell is below the one-pane breakpoint right now, off any render. */
+export function narrowNow(): boolean {
+  return list(NARROW_QUERY)?.matches ?? false;
+}
+
+/** Whether a precise pointer is attached right now, off any render. */
+export function finePointerNow(): boolean {
+  return list(FINE_POINTER_QUERY)?.matches ?? true;
+}
+
 /**
  * True while the shell is below the one-pane breakpoint. A browser with no
  * `matchMedia` is drawn as a desktop: the rail is the frame that is always

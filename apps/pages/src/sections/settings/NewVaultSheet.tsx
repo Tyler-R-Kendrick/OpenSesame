@@ -37,7 +37,6 @@ export function NewVaultSheet({
     <CeremonySheet
       title="Seal a new vault"
       mark={<IconVault size={20} />}
-      foot="The vault is written sealed. Nothing else on this device changes."
       onClose={onClose}
     >
       <form

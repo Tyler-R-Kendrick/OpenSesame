@@ -1,11 +1,16 @@
 import { isGuideRouteId } from "@opensesame/guide-lang";
+import { SUPPORT_LIMITS } from "@opensesame/support-agent";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { registerTutorialRealm } from "./optional-tutorials.test-support.js";
 import {
   CORE_GUIDE_ROUTES,
+  GUIDE_OVERLAY_ROUTES,
+  guideRouteForLocation,
   guideRouteForPath,
+  guideRouteWithin,
   isKnownGuideRoute,
   mergedGuideRoutes,
+  scopeApplies,
 } from "./routes.js";
 
 // A route belongs to the capability that owns the screen. The realm is the
@@ -45,5 +50,76 @@ describe("a core-only plan", () => {
     expect(isKnownGuideRoute("/identity/authorize")).toBe(false);
     expect(isKnownGuideRoute("/vault")).toBe(true);
     expect(isKnownGuideRoute("/settings/security")).toBe(true);
+  });
+});
+
+describe("where the person stands, to the precision a tour needs", () => {
+  it("tells the list, an item's pane and the trash apart", () => {
+    expect(guideRouteForLocation("/vault")).toBe("/vault");
+    expect(guideRouteForLocation("/vault", "?f=favorites")).toBe("/vault");
+    expect(guideRouteForLocation("/vault", "?f=trash")).toBe("/vault/trash");
+    expect(guideRouteForLocation("/vault/itm_1")).toBe("/vault/item");
+    expect(guideRouteForLocation("/vault/itm_1/")).toBe("/vault/item");
+    expect(guideRouteForLocation("/vault/itm_1", "?f=trash")).toBe(
+      "/vault/item",
+    );
+  });
+
+  it("keeps the screens that are not an item's pane where they were", () => {
+    expect(guideRouteForLocation("/vault/health")).toBe("/vault/health");
+    expect(guideRouteForLocation("/vault/new/login")).toBe("/vault");
+    expect(guideRouteForLocation("/vault/new")).toBe("/vault");
+    expect(guideRouteForLocation("/vault/itm_1/edit")).toBe("/vault");
+    expect(guideRouteForLocation("/settings/security")).toBe(
+      "/settings/security",
+    );
+  });
+
+  it("names both places as routes a tour may go to, inside the vault", () => {
+    for (const route of ["/vault/item", "/vault/trash"]) {
+      expect(isKnownGuideRoute(route)).toBe(true);
+      expect(guideRouteWithin(route, "/vault")).toBe(true);
+    }
+  });
+});
+
+describe("the gates are routes (ADR 0166)", () => {
+  it("declares every gate it names, so page context never falls back to the vault", () => {
+    for (const gate of [
+      "/unlock/door",
+      "/unlock/form",
+      "/unlock/passkey",
+      "/unlock/signin",
+      "/setup/choose",
+      "/setup/capabilities",
+      "/setup/identity",
+      "/setup/connectors",
+    ]) {
+      expect(isKnownGuideRoute(gate), gate).toBe(true);
+      expect(GUIDE_OVERLAY_ROUTES.has(gate), gate).toBe(true);
+    }
+  });
+
+  it("keeps the authored routes inside the budget a model is told, with room to spare", () => {
+    expect(mergedGuideRoutes().length).toBeLessThanOrEqual(
+      SUPPORT_LIMITS.maxRoutes - 4,
+    );
+  });
+});
+
+describe("what applies where", () => {
+  it("applies a named scope to its own screen and to every screen within it", () => {
+    expect(scopeApplies(["/unlock"], "/unlock/door")).toBe(true);
+    expect(scopeApplies(["/unlock/door"], "/unlock/door")).toBe(true);
+    expect(scopeApplies(["/unlock/door"], "/unlock/form")).toBe(false);
+    expect(scopeApplies(["/setup/identity"], "/setup")).toBe(false);
+  });
+
+  it("applies no scope to the shell, and to no gate", () => {
+    expect(scopeApplies([], "/vault")).toBe(true);
+    expect(scopeApplies([], "/settings/security")).toBe(true);
+    for (const gate of GUIDE_OVERLAY_ROUTES) {
+      expect(scopeApplies([], gate), gate).toBe(false);
+    }
   });
 });

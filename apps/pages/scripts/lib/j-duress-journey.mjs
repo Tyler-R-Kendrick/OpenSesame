@@ -9,7 +9,6 @@
  */
 import {
   PASSWORD,
-  lockVault,
   openSettingsCategory,
   sealWithPassword,
   waitOpen,
@@ -56,12 +55,59 @@ async function turnOn({ page, check, snap }) {
   await snap(page, "J-DURESS-on");
 }
 
-/** Typed where the vault unlocks, the code opens a decoy, never the vault. */
+const promptLabel = async (page) =>
+  (await page.locator(".rail__prompt:visible").first().innerText())
+    .replace(/\s+/g, " ")
+    .trim();
+
+const pageText = async (page) =>
+  (await page.locator("body").innerText()).replace(/\s+/g, " ");
+
+/** What a decoy must never say: it is read as an ordinary unlock. */
+export const TELLS = [
+  /Unavailable/,
+  /missing_decoy/,
+  /Vault locked/,
+  /You are a guest/,
+  /decoy/i,
+  /duress/i,
+];
+
+/**
+ * Typed where the vault unlocks, the code opens a decoy, never the vault.
+ * The page is reloaded first: an armed code lives in the origin's files, and
+ * a code that only worked in the tab that set it is no code at all.
+ */
 async function useCode({ page, check, snap }) {
-  await lockVault(page);
+  const real = await promptLabel(page);
+  await page.waitForTimeout(1500);
+  await page.reload({ waitUntil: "networkidle" });
+  await page
+    .getByLabel("Password", { exact: true })
+    .waitFor({ timeout: 15000 });
   await page.getByLabel("Password", { exact: true }).fill(CODE);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
-  await waitOpen(page);
+  await waitOpen(page).catch(async (error) => {
+    const body = await page.evaluate(() => document.body.innerText);
+    throw new Error(
+      `the code did not open the decoy after a reload: ${body.slice(0, 300)} (${error.message})`,
+    );
+  });
+  await page.waitForTimeout(1000);
+  const seen = await pageText(page);
+  check(
+    !/Unavailable|missing_decoy|Vault locked/.test(seen),
+    "the decoy page carries no 'Unavailable', 'missing_decoy' or 'Vault locked'",
+  );
+  check(
+    (await page.locator(".duress-presentation-overlay").count()) === 0,
+    "the decoy draws no presentation overlay",
+  );
+  const label = await promptLabel(page);
+  check(
+    label === real,
+    `the decoy's identity label equals the real unlock's (${label} vs ${real})`,
+  );
   await openSettingsCategory(page, "Security");
   await page
     .getByRole("heading", { name: "Unlock methods" })
@@ -69,6 +115,19 @@ async function useCode({ page, check, snap }) {
   check(
     (await page.locator("#duress-profiles").count()) === 0,
     "a decoy session is drawn no Duress row",
+  );
+  const security = await pageText(page);
+  check(
+    TELLS.every((tell) => !tell.test(security)),
+    "Settings › Security in the decoy never says guest, decoy or duress",
+  );
+  await openSettingsCategory(page, "Vaults");
+  await page
+    .getByRole("heading", { name: "Vaults on this device" })
+    .waitFor({ timeout: 15000 });
+  check(
+    /personal\s+sealed/.test(await pageText(page)),
+    "Settings › Vaults shows the personal vault, open and sealed, as a real unlock does",
   );
   await snap(page, "J-DURESS-decoy");
 }
@@ -80,8 +139,14 @@ async function comeBack({ page, check, snap }) {
     .locator("visible=true")
     .first()
     .click();
-  await page.getByRole("button", { name: /guest/ }).first().click();
-  await page.getByRole("menuitem", { name: "personal" }).click();
+  // Locking the decoy lands where a real lock does: the vault's own password.
+  await page
+    .getByLabel("Password", { exact: true })
+    .waitFor({ timeout: 15000 });
+  check(
+    (await page.getByLabel("Password", { exact: true }).count()) === 1,
+    "locking the decoy returns to the vault's own password, not the guest road",
+  );
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page);

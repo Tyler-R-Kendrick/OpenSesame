@@ -42,6 +42,20 @@ export function isGuestSessionTomb(tomb: string | null): boolean {
   return tomb === GUEST_TOMB || tomb === DECOY_SCRATCH_TOMB;
 }
 
+let decoySession = false;
+
+/** True while the open session is a duress decoy (guest in isolation, drawn as the vault). */
+export function isDecoySession(): boolean {
+  return decoySession;
+}
+
+/** Mark or end the decoy session; answers what it was, so a lock can hand back. */
+export function markDecoySession(on: boolean): boolean {
+  const was = decoySession;
+  decoySession = on;
+  return was;
+}
+
 /** What the snapshot reports: the scratch tomb presents as the guest road. */
 export function presentedTomb(tomb: string): string {
   return tomb === DECOY_SCRATCH_TOMB ? GUEST_TOMB : tomb;

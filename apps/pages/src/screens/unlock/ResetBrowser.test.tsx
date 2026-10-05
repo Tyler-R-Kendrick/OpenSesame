@@ -26,9 +26,26 @@ function openPanel(): void {
 }
 
 const eraseKey = () =>
-  screen.getByRole("button", { name: "Erase everything in this browser" });
+  screen.getByRole("button", { name: "Erase this browser" });
 
 describe("ResetBrowser", () => {
+  it("states the place and the facts, and wears no wash, kicker or caption", () => {
+    render(<ResetBrowser />);
+    openPanel();
+    const dialog = screen.getByRole("dialog", { name: "Reset this browser" });
+    // The title is said once; the card names what it erases instead.
+    expect(screen.getAllByText(/Reset this browser/)).toHaveLength(2);
+    expect(dialog.querySelector(".found--ask")).toBeTruthy();
+    expect(dialog.querySelector(".found--attn, .found__top")).toBeNull();
+    expect(dialog.querySelector(".sheet__foot, .sheet__head p")).toBeNull();
+    const facts = [...dialog.querySelectorAll("dt")].map(
+      (dt) => dt.textContent,
+    );
+    expect(facts).toEqual(["Vaults", "With them", "After", "Untouched"]);
+    expect(eraseKey().className).toBe("go go--danger");
+    expect(eraseKey().textContent).toBe("");
+  });
+
   it("opens on the safe key and closes back onto the question", () => {
     render(<ResetBrowser />);
     openPanel();

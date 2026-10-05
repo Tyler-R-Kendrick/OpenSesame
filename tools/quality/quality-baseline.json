@@ -16,9 +16,9 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 429,
-    "violations": 674,
-    "oversizedLines": 219540
+    "files": 428,
+    "violations": 672,
+    "oversizedLines": 219401
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -59,9 +59,6 @@
     "apps/pages/src/components/AccountSwitcher.tsx": {
       "complexity": 1,
       "max-lines-per-function": 1
-    },
-    "apps/pages/src/components/CeremonyShell.tsx": {
-      "complexity": 1
     },
     "apps/pages/src/components/Crumbs.tsx": {
       "complexity": 1
@@ -120,7 +117,7 @@
     },
     "apps/pages/src/screens/setup/WaysIn.tsx": {
       "complexity": 1,
-      "max-lines": 405,
+      "max-lines": 403,
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/unlock/ByoProviderSheet.tsx": {
@@ -204,7 +201,7 @@
     },
     "apps/pages/src/sections/settings/security/SecondStepCeremonies.tsx": {
       "complexity": 2,
-      "max-lines": 909,
+      "max-lines": 877,
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/HealthPanel.tsx": {
@@ -214,8 +211,8 @@
       "max-lines": 645
     },
     "apps/pages/src/sections/vault/ItemDetail.tsx": {
-      "complexity": 2,
-      "max-lines": 796,
+      "complexity": 1,
+      "max-lines": 706,
       "max-lines-per-function": 2
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
@@ -239,7 +236,7 @@
     },
     "apps/pages/src/tutorial/session.ts": {
       "complexity": 1,
-      "max-lines": 679,
+      "max-lines": 664,
       "max-lines-per-function": 1
     },
     "apps/pages/src/tutorial/ui/SupportPanel.tsx": {
@@ -716,7 +713,7 @@
       "max-lines": 498
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1624
+      "max-lines": 1621
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
       "max-lines": 577

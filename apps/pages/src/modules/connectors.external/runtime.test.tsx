@@ -5,6 +5,7 @@ import {
   CONNECTIONS_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/connections-catalog.js";
 import { CONNECTIONS_GOALS } from "@opensesame/app-core/tutorial/registry/connections-goals.js";
+import { NAV_CONNECTIONS_GOALS } from "@opensesame/app-core/tutorial/registry/section-nav-goals.js";
 import type { PagesWebMcpTool } from "@opensesame/app-core/webmcp/tool-shared.js";
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -48,6 +49,7 @@ const COUNT =
   1 +
   CONNECTIONS_TARGETS.length +
   CONNECTIONS_GOALS.length +
+  NAV_CONNECTIONS_GOALS.length +
   CONNECTIONS_ROUTES.length +
   2 +
   2;
@@ -105,10 +107,13 @@ describe("connectors.external runtime", () => {
     // The Settings › Capabilities targets are core now, not contributed.
     expect(targetIds).not.toContain("settings.backup");
     const goalIds = t.entries("tutorial-goal").map((d) => d.id);
-    expect(goalIds).toEqual(CONNECTIONS_GOALS.map((d) => d.id));
+    expect(goalIds).toEqual(
+      [...CONNECTIONS_GOALS, ...NAV_CONNECTIONS_GOALS].map((d) => d.id),
+    );
     expect(goalIds).toContain("connection.create");
     expect(t.entries("tutorial-route").map((d) => d.id)).toEqual([
       "/connections",
+      "/connections/git",
     ]);
     expect(t.entries("unlock-effect").map((e) => e.id)).toEqual([
       "seal-connector-directory",

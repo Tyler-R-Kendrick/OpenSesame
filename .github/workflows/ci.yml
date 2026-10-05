@@ -359,10 +359,13 @@ jobs:
         run: pnpm --filter @opensesame/pages verify:device-identity
 
   tutorials-e2e:
-    # Its own job, one per width: every tutorial is walked end to end (59 of
-    # them, each started, walked, gone back through, replayed and walked
-    # again). Measured locally that is about four minutes a width with the
-    # fixed sleeps gone, twice that on a hosted runner, which does not fit in
+    # Its own job, one per width: every tutorial is walked end to end (the
+    # shell's, each started, walked, gone back through, replayed and walked
+    # again, and the gates', ADR 0166, each started from the help key its
+    # screen draws). Measured locally that is about four minutes a width for
+    # the shell with the fixed sleeps gone, twice that on a hosted runner,
+    # and the gate pass adds a minute or two on top of it, which still sits
+    # inside the twenty-five minutes below; it does not fit in
     # the Bundle budget job's twenty minutes beside its builds and gates. `bundle-check` below folds the
     # result into the required "Bundle budgets" check, so it gates merges
     # without another required name.
@@ -394,7 +397,9 @@ jobs:
       - name: Every tutorial, walked end to end
         # ADR 0163: the Support sheet's Tutorials tab lists them, each is
         # started from its row and walked with Next alone at this width, on
-        # the shell with every capability on. Escape from the card and from
+        # the shell with every capability on, and on the gates (ADR 0166: the
+        # front door, setup, sign-in, unlock, the broker popup and the
+        # federation return), whose help key is held to the ADR as well. Escape from
         # the lit control ends a tour, and the move a step waits for, made
         # through the aperture, advances it. A step whose control (found by its
         # registry id) is missing or covered, a skipped step, a card outside

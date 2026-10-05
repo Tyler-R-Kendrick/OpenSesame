@@ -84,6 +84,7 @@ describe("enterprise.directory-provisioning runtime", () => {
       "identity.org-signin",
     ]);
     expect(t.entries("tutorial-goal").map((d) => d.id)).toEqual([
+      "identity.organizations.review",
       "identity.users.manage",
       "identity.agents.manage",
       "identity.device.approve",

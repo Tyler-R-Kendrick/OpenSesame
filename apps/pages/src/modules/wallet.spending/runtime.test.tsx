@@ -29,11 +29,12 @@ describe("wallet.spending runtime", () => {
         "keymap-jump",
         "route",
         "section",
+        "tutorial-goal",
         "tutorial-route",
         "tutorial-target",
         "webmcp-tool",
       ],
-      count: 1 + 1 + 1 + 1 + 1 + 1 + WALLET_TOOLS.length,
+      count: 1 + 1 + 1 + 1 + 1 + 1 + 1 + WALLET_TOOLS.length,
     });
   });
 
@@ -53,6 +54,9 @@ describe("wallet.spending runtime", () => {
     expect(t.entries("keymap-jump")).toEqual([{ key: "w", path: "/wallet" }]);
     expect(t.entries("tutorial-target").map((d) => d.id)).toEqual([
       "nav.wallet",
+    ]);
+    expect(t.entries("tutorial-goal").map((d) => d.id)).toEqual([
+      "shell.sections.wallet",
     ]);
     expect(t.entries("tutorial-route").map((d) => d.id)).toEqual(["/wallet"]);
     const tools = t.entries("webmcp-tool").map((tool) => tool.name);

@@ -85,6 +85,10 @@ export function MoreMenu() {
   const [ceremony, setCeremony] = useState<ConnectorId | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
+  // The key is where the connections' state is read at a glance on a phone:
+  // its dot is the strip's pips, summed. The rows behind it carry the id too,
+  // and the registry resolves to whichever can be pointed at.
+  const keyRef = useGuideTarget<HTMLButtonElement>("shell.connectivity");
   const tone = aggregateTone(connectors);
   // The dot is the strip's pips, summed: anything inside that wants a person.
   const waiting = useNoticeCount();
@@ -110,6 +114,7 @@ export function MoreMenu() {
   return (
     <>
       <button
+        ref={keyRef}
         type="button"
         className={`icon-btn topbar__more${attention ? " is-attn" : ""}`}
         aria-label={label}
@@ -189,7 +194,6 @@ function MoreSheet({
         <div className="sheet__head">
           <div className="sheet__grow">
             <h2>More</h2>
-            <p>{summarize(connectors)}</p>
           </div>
           <button
             type="button"

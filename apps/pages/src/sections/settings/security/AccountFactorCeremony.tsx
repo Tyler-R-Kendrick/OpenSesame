@@ -6,6 +6,7 @@ import {
 } from "@opensesame/app-core/lib/account-factors.js";
 import { useEffect, useRef, useState } from "react";
 import { CeremonyShell } from "../../../components/CeremonyShell.js";
+import { IconPasskey } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { firstControl, landFocus } from "../../../lib/focus.js";
 import {
@@ -25,7 +26,6 @@ import type { Run } from "./run.js";
 
 export type AccountMethodKind = "account-passkey" | "account-totp";
 type View = "add" | "change" | "remove";
-type Setter = (foot: string | null) => void;
 
 export function isAccountMethod(kind: string): kind is AccountMethodKind {
   return kind === "account-passkey" || kind === "account-totp";
@@ -36,19 +36,6 @@ export const ACCOUNT_TITLE = {
   "account-totp": "Account authenticator app",
 } satisfies Record<AccountMethodKind, string>;
 
-export const ACCOUNT_SUBTITLE = {
-  "account-passkey":
-    "Proves it is you to your sign-in service. It does not open this vault.",
-  "account-totp":
-    "Codes your sign-in service asks for. It does not open this vault.",
-} satisfies Record<AccountMethodKind, string>;
-
-export function accountFoot(view: View): string {
-  return view === "remove"
-    ? "Only your account changes. The vault and its keys are untouched."
-    : "Your sign-in service keeps this factor. The vault key never leaves this device.";
-}
-
 export function AccountFactorCeremony({
   kind,
   view,
@@ -56,7 +43,6 @@ export function AccountFactorCeremony({
   busy,
   run,
   onDone,
-  setFoot,
 }: {
   kind: AccountMethodKind;
   view: View;
@@ -64,7 +50,6 @@ export function AccountFactorCeremony({
   busy: boolean;
   run: Run;
   onDone: () => void;
-  setFoot: Setter;
 }) {
   if (view === "remove" && factor) {
     return (
@@ -80,14 +65,7 @@ export function AccountFactorCeremony({
   if (kind === "account-passkey") {
     return <AccountPasskeyCard busy={busy} run={run} onDone={onDone} />;
   }
-  return (
-    <AccountTotpCeremony
-      busy={busy}
-      run={run}
-      onDone={onDone}
-      setFoot={setFoot}
-    />
-  );
+  return <AccountTotpCeremony busy={busy} run={run} onDone={onDone} />;
 }
 
 function AccountPasskeyCard({
@@ -126,6 +104,7 @@ function AccountPasskeyCard({
       ]}
       primary={{
         label: "Create passkey",
+        icon: <IconPasskey size={18} />,
         busy,
         onClick: () =>
           void run(async () => {

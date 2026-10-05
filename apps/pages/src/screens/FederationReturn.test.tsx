@@ -47,6 +47,7 @@ guestAuthSeams.adoptFederatedIdentity = fed.adoptFederatedIdentity;
 guestAuthSeams.openVaultAfterSignIn = fed.openVaultAfterSignIn;
 
 import { readAuthOutcome } from "@opensesame/app-core/lib/auth-outcome.js";
+import { resolveGuideTargetElement } from "@opensesame/app-core/tutorial/registry/targets.js";
 
 import { FederationError } from "@opensesame/app-core/lib/federation.js";
 import { resetFederationReturnCeremony } from "@opensesame/app-core/screens/federation-return-model.js";
@@ -98,6 +99,24 @@ describe("FederationReturn", () => {
     fed.completeSignIn.mockReturnValue(new Promise(() => {}));
     renderReturn();
     expect(screen.getByText("Finishing sign-in…")).toBeTruthy();
+  });
+
+  it("keeps a seat for the help key in its corner row, and a tutorial points at what it says (ADR 0166)", async () => {
+    fed.completeSignIn.mockReturnValue(new Promise(() => {}));
+    const { container } = renderReturn();
+    expect(container.querySelector(".broker__bar .gate-seat")).not.toBeNull();
+    // Working: the sentence it says is what the tour lights, not the page.
+    expect(resolveGuideTargetElement("federation.return")).toBe(
+      screen.getByText("Finishing sign-in…"),
+    );
+  });
+
+  it("points the same tutorial at the failure card, which keeps its seat", async () => {
+    fed.completeSignIn.mockRejectedValue(new Error("nope"));
+    const { container } = renderReturn();
+    const alert = await screen.findByRole("alert");
+    expect(resolveGuideTargetElement("federation.return")).toBe(alert);
+    expect(container.querySelector(".broker__bar .gate-seat")).not.toBeNull();
   });
 
   it("returns to the page that started sign-in", async () => {

@@ -117,7 +117,6 @@ export function VaultFilterMenu({
       {open ? (
         <FilterSheet
           roads={roads}
-          heading={active?.label ?? "All items"}
           sheetRef={sheetRef}
           closeRef={closeRef}
           close={close}
@@ -130,13 +129,11 @@ export function VaultFilterMenu({
 /** The sheet itself: the scrim, the head, and one row per road. */
 function FilterSheet({
   roads,
-  heading,
   sheetRef,
   closeRef,
   close,
 }: {
   roads: Road[];
-  heading: string;
   sheetRef: RefObject<HTMLDivElement | null>;
   closeRef: RefObject<HTMLButtonElement | null>;
   close: () => void;
@@ -160,7 +157,6 @@ function FilterSheet({
         <div className="sheet__head">
           <div className="sheet__grow">
             <h2>Filter</h2>
-            <p>{heading}</p>
           </div>
           <button
             type="button"

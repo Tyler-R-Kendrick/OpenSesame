@@ -34,12 +34,17 @@ import type { SharePolicy } from "./messages.js";
 import { DIRECT_ONLY, type IceSettings, type PeerFactory } from "./peer.js";
 import type { CarrierFactory, Rendezvous } from "./rendezvous.js";
 import { NO_ROUTES, linkRoutes } from "./routes.js";
-import { openCarriers, poster, rtcServers } from "./session-carriers.js";
+import {
+  guestCarriersFor,
+  hostRoutes,
+  openCarriers,
+  poster,
+  rtcServers,
+} from "./session-carriers.js";
 import {
   type CarrierSpec,
   DIRECT_TRANSPORT,
   type LiveTransport,
-  routesFor,
 } from "./transport.js";
 import { type ShareScope, vaultCatalog, vaultField } from "./vault-share.js";
 
@@ -128,8 +133,15 @@ export type HostInput = Readonly<{
   carriers?: CarrierFactory;
 }>;
 
+/** Where an admission asks for a seat's relay, once the carriers are open. */
+type RelaySource = { carriers: Rendezvous | null };
+
 /** The session's host and the routes its link carries, built but not yet live. */
-async function buildHost(input: HostInput, post: (code: string) => void) {
+async function buildHost(
+  input: HostInput,
+  post: (code: string) => void,
+  source: RelaySource,
+) {
   // The host clamps the lifetime; the catalog states the clamped one.
   const expiresAt = Math.min(
     Date.now() + input.minutes * 60_000,
@@ -137,16 +149,13 @@ async function buildHost(input: HostInput, post: (code: string) => void) {
   );
   const items = liveSeams.items;
   const transport = input.transport ?? DIRECT_TRANSPORT;
-  const routes = await routesFor(transport, expiresAt);
-  const ice: IceSettings = {
-    iceServers: rtcServers(routes.ice),
-    relay: transport.relay,
-    addresses: transport.addresses,
-  };
+  const { secret, routes, own, ice } = await hostRoutes(transport, expiresAt);
   const next = await LiveHost.start({
     admission: input.admission,
     ice,
     routes,
+    secret,
+    relay: (name) => source.carriers?.seat(name) ?? null,
     post,
     expiresAt,
     catalog: () =>
@@ -163,7 +172,7 @@ async function buildHost(input: HostInput, post: (code: string) => void) {
     ),
     peers: input.peers,
   });
-  return { next, routes };
+  return { next, routes, own };
 }
 
 function authorityStands(): boolean {
@@ -210,8 +219,9 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
     if (started && host === started) endHosting();
   });
   let post: ((code: string) => Promise<void>) | null = null;
+  const source: RelaySource = { carriers: null };
   try {
-    const built = await buildHost(input, (code) => void post?.(code));
+    const built = await buildHost(input, (code) => void post?.(code), source);
     const made = built.next;
     started = made;
     // A session another start installed while this one was building ends.
@@ -226,12 +236,16 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
     watchPlan();
     // The plan may already have withdrawn Live sessions while this was built.
     if (host !== made) return made;
+    // The owner's own carriers: a minted credential here is the owner's, not
+    // the one the link hands every joiner.
     carriers = openCarriers(
-      built.routes.carriers,
+      built.own,
       made.link.secret,
       input.carriers,
       (code) => void made.receive(code),
+      "owner",
     );
+    source.carriers = carriers;
     hostCarriers = carriers;
     if (carriers) {
       const opened = carriers;
@@ -339,9 +353,7 @@ export async function joinLive(input: JoinInput): Promise<LiveGuest> {
     note: input.note,
     ice,
     peers: input.peers,
-    carriers: carriers
-      ? { post: poster(carriers), close: () => carriers.close() }
-      : null,
+    carriers: carriers ? guestCarriersFor(carriers) : null,
   });
   guest = next;
   watchPlan();
