@@ -189,6 +189,9 @@ importers:
       '@nats-io/nats-core':
         specifier: 3.4.0
         version: 3.4.0
+      '@nats-io/services':
+        specifier: 3.4.0
+        version: 3.4.0
       '@openfeature/core':
         specifier: 1.12.0
         version: 1.12.0
@@ -604,6 +607,9 @@ importers:
       '@azure/msal-browser':
         specifier: 5.22.0
         version: 5.22.0
+      '@nats-io/nkeys':
+        specifier: 2.0.3
+        version: 2.0.3
       '@noble/ciphers':
         specifier: 1.3.0
         version: 1.3.0
@@ -4103,6 +4109,9 @@ packages:
   '@nats-io/nuid@3.0.0':
     resolution: {integrity: sha512-QbXZDrxmYlrn5AD06gYcUTmEHwxn96HBQMIk7XTjDlEcx6FPzVBBPjp4AMRh1lEv6B4iJ6Xb/Uz61JugPXFRQg==}
     engines: {node: '>= 22.x'}
+
+  '@nats-io/services@3.4.0':
+    resolution: {integrity: sha512-hS9l4F5VCbdg4u7/qgEUU9gtQ+ZOLJxtj+lJj0oSw7Okkm0fLkYq6odbobFa50IGkghfLrzag95dWHSF8F8+CA==}
 
   '@neon-rs/load@0.0.4':
     resolution: {integrity: sha512-kTPhdZyTQxB+2wpiRcFWrDcejc4JI6tkPuS7UZCG4l6Zvc5kU/gGQ/ozvHTh1XR5tS+UlfAfGuPajjzQjCiHCw==}
@@ -7720,7 +7729,6 @@ packages:
 
   libsql@0.5.29:
     resolution: {integrity: sha512-8lMP8iMgiBzzoNbAPQ59qdVcj6UaE/Vnm+fiwX4doX4Narook0a4GPKWBEv+CR8a1OwbfkgL18uBfBjWdF0Fzg==}
-    cpu: [x64, arm64, wasm32, arm]
     os: [darwin, linux, win32]
 
   lie@3.3.0:
@@ -12486,6 +12494,10 @@ snapshots:
 
   '@nats-io/nuid@3.0.0': {}
 
+  '@nats-io/services@3.4.0':
+    dependencies:
+      '@nats-io/nats-core': 3.4.0
+
   '@neon-rs/load@0.0.4': {}
 
   '@noble/ciphers@1.3.0': {}
@@ -15687,7 +15699,7 @@ snapshots:
       jsonwebtoken: 9.0.3
       load-esm: 1.0.3
       mime-types: 2.1.35
-      retry-axios: 2.6.0(axios@1.20.0(debug@4.4.3))
+      retry-axios: 2.6.0(axios@1.20.0)
       tough-cookie: 4.1.4
     transitivePeerDependencies:
       - supports-color
@@ -17606,7 +17618,7 @@ snapshots:
       onetime: 7.0.0
       signal-exit: 4.1.0
 
-  retry-axios@2.6.0(axios@1.20.0(debug@4.4.3)):
+  retry-axios@2.6.0(axios@1.20.0):
     dependencies:
       axios: 1.20.0(debug@4.4.3)
     optional: true

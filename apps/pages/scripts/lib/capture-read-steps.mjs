@@ -5,6 +5,17 @@
  */
 import { TOUCH_COPY } from "./touch-copy-contract.mjs";
 
+/**
+ * Choose an option of a labelled select (exact label) when this build draws
+ * it: a choice the base does not offer is a legitimate difference.
+ */
+async function selectOptional(page, { label, value }) {
+  const field = page.getByLabel(label, { exact: true }).first();
+  if (!(await field.count())) return;
+  await field.selectOption(value);
+  await page.waitForTimeout(300);
+}
+
 export function readSteps() {
   return {
     /**
@@ -28,6 +39,7 @@ export function readSteps() {
       await field.fill(text);
       await page.waitForTimeout(300);
     },
+    selectOptional,
     /**
      * Print each matched field's name and whether it holds text — never the
      * text itself, since a field may be a secret. What a form kept or wiped
