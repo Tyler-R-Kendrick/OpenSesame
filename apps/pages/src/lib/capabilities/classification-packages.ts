@@ -58,7 +58,12 @@ export const PACKAGE_RULES = [
   optional(
     `${NM}@nats-io/nkeys`,
     "sharing.live",
-    "reached only through @nats-io/nats-core",
+    "nats-core's signer, and a session's minted credential (lib/live/nats-credentials.ts)",
+  ),
+  optional(
+    `${NM}@nats-io/services`,
+    "sharing.live",
+    "the owner's session as a NATS service (modules/sharing.live/carriers/nats.ts)",
   ),
   optional(
     `${NM}@nats-io/nuid`,

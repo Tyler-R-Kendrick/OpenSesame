@@ -1,4 +1,4 @@
-# ADR 0167 — Duress modes, derived from the scenarios people meet
+# ADR 0168 — Duress modes, derived from the scenarios people meet
 
 - Status: Accepted
 - Date: 2026-10-05
