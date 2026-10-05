@@ -11,17 +11,11 @@ const root = repoRootFromHere();
 const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
 const bundle = ci.split("  bundle:")[1]?.split("  device-inbox:")[0] ?? "";
 
-/** The matrix legs, in order: `{ shard, sizes? }`. */
+/** The matrix legs, in order: `{ shard, sizes?, deep? }`, from the one list. */
 function legs() {
-  const matrix =
-    bundle.split("        include:")[1]?.split("    steps:")[0] ?? "";
-  return matrix
-    .split(/\n\s+- shard: /)
-    .slice(1)
-    .map((leg) => ({
-      shard: leg.split("\n")[0].trim(),
-      sizes: /sizes: "([^"]*)"/.exec(leg)?.[1],
-    }));
+  return JSON.parse(
+    readFileSync(join(root, "scripts/lib/ci-bundle-shards.json"), "utf8"),
+  );
 }
 
 /** The job's steps with the `if:` each carries. */
@@ -76,6 +70,13 @@ function shardsOf(when, shards) {
 
 describe("the bundle job's shards", () => {
   const shards = legs().map((leg) => leg.shard);
+
+  it("takes its legs from the classifier's matrix, so a diff can leave the deep ones out", () => {
+    expect(bundle).toContain(
+      "matrix: ${{ fromJSON(needs.changes.outputs.bundle_matrix) }}",
+    );
+    expect(bundle).not.toContain("include:");
+  });
 
   it("is a matrix of parallel shards that the required check reads across", () => {
     expect(shards.length).toBeGreaterThan(1);

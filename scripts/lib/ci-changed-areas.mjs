@@ -4,16 +4,29 @@
 // report. A suite runs only when a changed path can affect it. Docs do
 // not run a suite. A path this file does not recognize runs every suite:
 // a wrong skip is worse than one extra run.
+//
+// It also decides whether the diff is `deep` (ci-deep-gates.mjs), which says
+// whether the identity, sign-in and storage browser gates start at all.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { bundleMatrix, deepForPaths } from "./ci-deep-gates.mjs";
+import {
+  anyUnder,
+  baseName,
+  isDoc,
+  normalizePath,
+  repoRootFromHere,
+  under,
+} from "./ci-paths.mjs";
 import { isString } from "./json-boundary.mjs";
+
+export { bundleMatrix, deepForPaths, normalizePath, repoRootFromHere };
 
 export const AREAS = ["typescript", "bundle", "rust", "mtls", "push"];
 
-const DOC_ROOTS = ["docs", "skills", ".agents", ".claude"];
 const RUST_ROOTS = [
   "crates",
   "apps/cli",
@@ -97,29 +110,6 @@ function blank() {
     mtls: false,
     push: false,
   };
-}
-
-export function normalizePath(path) {
-  return path.replaceAll("\\", "/").replace(/^\.\//, "").replace(/^\/+/, "");
-}
-
-function under(path, prefix) {
-  const root = prefix.endsWith("/") ? prefix.slice(0, -1) : prefix;
-  return path === root || path.startsWith(`${root}/`);
-}
-
-function anyUnder(path, prefixes) {
-  return prefixes.some((prefix) => under(path, prefix));
-}
-
-function baseName(path) {
-  return path.slice(path.lastIndexOf("/") + 1);
-}
-
-function isDoc(path) {
-  if (path.endsWith(".md")) return true;
-  if (anyUnder(path, DOC_ROOTS)) return true;
-  return baseName(path) === "LICENSE";
 }
 
 function isRust(path) {
@@ -310,14 +300,12 @@ export const pushPackageDirs = (root) =>
     "@opensesame/database",
   ]);
 
-export function repoRootFromHere() {
-  return join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-}
-
-function emit(areas) {
-  const lines = AREAS.map(
-    (name) => `${name}=${areas[name] ? "true" : "false"}`,
-  );
+function emit(areas, deep = true) {
+  const lines = [
+    ...AREAS.map((name) => `${name}=${areas[name] ? "true" : "false"}`),
+    `deep=${deep ? "true" : "false"}`,
+    `bundle_matrix=${JSON.stringify(bundleMatrix(deep))}`,
+  ];
   const output = process.env.GITHUB_OUTPUT;
   if (output) writeFileSync(output, `${lines.join("\n")}\n`, { flag: "a" });
   for (const line of lines) console.log(line);
@@ -371,10 +359,13 @@ function main() {
     return;
   }
   const areas = areasForPaths(paths, dirs, pushDirs);
+  const deep = deepForPaths(paths);
   const ran = AREAS.filter((name) => areas[name]);
   const which = ran.length > 0 ? ran.join(" ") : "no heavy suite";
-  console.error(`changed ${paths.length} path(s); ${which}`);
-  emit(areas);
+  console.error(
+    `changed ${paths.length} path(s); ${which}; ${deep ? "deep" : "UI-local"}`,
+  );
+  emit(areas, deep);
 }
 
 const invoked =

@@ -1214,7 +1214,13 @@ CI lives in `.github/workflows/`:
   TypeScript, Bundle budgets, and Rust, and each name reports on every
   pull request (a skipped required check does not satisfy the ruleset).
   The suite behind a check runs only when the diff touches that area
-  (`scripts/lib/ci-changed-areas.mjs`). Inside a suite,
+  (`scripts/lib/ci-changed-areas.mjs`). The browser gates for identity, sign-in
+  and storage (the `sign-in`, `auth` and `customer-crypto` legs, Web Push,
+  device identity, device inbox) start only for a **deep** diff: any non-doc path
+  outside the UI-local regions listed in `scripts/lib/ci-deep-gates.mjs` (a
+  control, a style, a tutorial, the keymap, the quality tooling, a test). A path
+  nobody classified is deep, and so is a change to the workflow, a gate's own
+  script or the boot path. Inside a suite,
   `scripts/lib/ci-affected-tests.mjs` tests the changed packages or crates
   and the ones that depend on them: TypeScript runs `turbo run typecheck test`
   for that set, and Rust runs `cargo test --all-targets -p` for that set on

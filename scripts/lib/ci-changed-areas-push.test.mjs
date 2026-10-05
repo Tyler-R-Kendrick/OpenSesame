@@ -85,10 +85,11 @@ describe("the Web Push walk's area", () => {
 describe("the Bundle budgets aggregate", () => {
   it("gates the Web Push job on bundle or push, and Bundle budgets still reports it", () => {
     const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
-    // The Web Push job runs for the Pages build (bundle) or the server code it
-    // exercises (push), and `Bundle budgets` still reports it.
+    // The Web Push job runs for a deep Pages build (bundle) or the server code
+    // it exercises (push), and `Bundle budgets` still reports it. A UI-local
+    // diff cannot reach it, so the Pages build alone does not start it.
     expect(ci).toMatch(
-      /push-e2e:[\s\S]*?if: needs\.changes\.outputs\.bundle == 'true' \|\| needs\.changes\.outputs\.push == 'true'/,
+      /push-e2e:[\s\S]*?if: \(needs\.changes\.outputs\.bundle == 'true' && needs\.changes\.outputs\.deep == 'true'\) \|\| needs\.changes\.outputs\.push == 'true'/,
     );
     // `Bundle budgets` reports every job the bundle or push area gates: derive
     // the list from the workflow so adding a job cannot leave it unreported.
@@ -101,7 +102,7 @@ describe("the Bundle budgets aggregate", () => {
     ];
     const gated = jobs
       .filter(([, , body]) =>
-        /\n {4}if: needs\.changes\.outputs\.(bundle|push) == 'true'/.test(
+        /\n {4}if: \(?needs\.changes\.outputs\.(bundle|push) == 'true'/.test(
           `\n${body}`,
         ),
       )

@@ -25,6 +25,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useTabSwipe } from "../lib/use-tab-swipe.js";
 import { SupportRouteOverrideContext } from "./session.js";
 import "./gate-seat.css";
 
@@ -64,6 +65,9 @@ export function GateHost({
   wrappers: readonly ShellWrapperContribution[];
   children: ReactNode;
 }): ReactElement {
+  // Every gate screen (the door, setup, unlock, the federation return) turns
+  // its tabs on a sideways swipe; the shell does the same from `AppShell`.
+  useTabSwipe();
   const [node, place] = useState<HTMLElement | null>(null);
   const [route, setRoute] = useState<GuideRouteId | null>(null);
   const seat = useMemo(() => ({ node, place }), [node]);
