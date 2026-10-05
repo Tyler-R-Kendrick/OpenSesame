@@ -9,8 +9,13 @@ import {
 } from "../../lib/command-bar/search.js";
 import { useVaultSearch } from "./use-vault-search.js";
 
-/** jsdom lays nothing out: say whether the pane is on screen. */
-function Pane({ shown, empty }: { shown: boolean; empty?: boolean }) {
+type PaneProps = { shown: boolean; empty?: boolean };
+
+/**
+ * jsdom lays nothing out: say whether the pane is on screen. The hook reads
+ * only the length of the pane's client rects, so that is all the stub gives.
+ */
+function Pane({ shown, empty }: PaneProps) {
   const pane = useRef<HTMLDivElement>(null);
   const rows = useRef<HTMLDivElement>(null);
   const { query, close } = useVaultSearch(pane, rows);
@@ -19,7 +24,12 @@ function Pane({ shown, empty }: { shown: boolean; empty?: boolean }) {
     <div
       ref={(node) => {
         pane.current = node;
-        if (node) node.getClientRects = () => (shown ? [{}] : []) as never;
+        if (node) {
+          Object.defineProperty(node, "getClientRects", {
+            configurable: true,
+            value: () => ({ length: shown ? 1 : 0 }),
+          });
+        }
       }}
     >
       <div ref={rows} tabIndex={empty ? undefined : 0} hidden={empty}>
@@ -34,10 +44,7 @@ function Pane({ shown, empty }: { shown: boolean; empty?: boolean }) {
   );
 }
 
-const renderPane = (
-  props: { shown: boolean; empty?: boolean },
-  at = "/vault",
-) =>
+const renderPane = (props: PaneProps, at = "/vault") =>
   render(
     <MemoryRouter initialEntries={[at]}>
       <Pane {...props} />

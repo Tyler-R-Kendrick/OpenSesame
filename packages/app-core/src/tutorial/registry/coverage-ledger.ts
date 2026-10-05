@@ -10,7 +10,7 @@
  * A reason says what is missing. It is never a way to leave a control out:
  * "not worth a tutorial" is not a reason.
  */
-export const COVERAGE_EXEMPT: Readonly<Record<string, string>> = {
+export const COVERAGE_EXEMPT = {
   "target:nav.menu": "no tutorial points at it yet",
   "target:nav.vault": "no tutorial points at it yet",
   "target:nav.settings": "no tutorial points at it yet",
@@ -115,4 +115,4 @@ export const COVERAGE_EXEMPT: Readonly<Record<string, string>> = {
   "key:register.replay": "no tutorial teaches this key yet",
   "key:section.vault": "no tutorial teaches this key yet",
   "key:section.settings": "no tutorial teaches this key yet",
-};
+} as const satisfies Readonly<Record<string, string>>;
