@@ -387,7 +387,7 @@
   padding: 1.5rem 1.75rem 4rem;
   display: grid;
   gap: 1.15rem;
-  animation: rise 260ms var(--ease) both;
+  animation: rise 260ms var(--ease) backwards;
 }
 
 .detail .detail__backbtn {

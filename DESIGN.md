@@ -468,8 +468,17 @@ beside it), and an icon-only menu would be mystery meat.
 Text on a control is only the object of a choice: a provider, a mode, a
 navigation target, or the guest road. Never a text verb stretched across a
 row, a card foot, or an empty state. A form or ceremony that ends in an
-action ends in the `.go` square with its verb beside it (`FormCommit`), and a
-second action on that row — deny, keep, close — is a key beside it. A button
+action ends in the `.go` square with its verb beside it (`FormCommit`, and
+`CeremonyShell` for every ceremony card), and a second action on that row —
+deny, keep, close — is a key beside it. A verb handed to a component in a
+prop is still a verb on a button: `pnpm lint:design` fails a text button
+whose face is a prop (`word-slot`).
+
+A confirmation sheet is its mark, its name and its close key, then one card:
+the object the act touches, the facts that justify it ("After", "Untouched"),
+and the danger square beside Keep. It wears no warning wash and no kicker —
+an ask has not failed — and no caption under the title or in a foot
+(`docs/design/controls.md` rules 10–13). A button
 whose words are its choice says so by its role (tab, radio, switch, menu
 entry, pressed toggle) or its class (`road`, `unlock__switch`, `choice`).
 `pnpm lint:design` rejects a word-verb `<button>` that is not an icon key —

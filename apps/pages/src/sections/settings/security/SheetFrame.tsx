@@ -4,8 +4,8 @@ import { useModalFocus } from "../../../lib/modal-focus.js";
 
 /**
  * The side sheet every Security ceremony opens in: a head with the method's
- * mark, name and one line, the ceremony as its body, and a foot that says
- * what is and is not written yet. Focus is held inside while it is open and
+ * mark, its name and the close key, and the ceremony as its body — no line
+ * under the name and no caption in a foot (`design-lint` `sheet-caption`). Focus is held inside while it is open and
  * Escape or the scrim closes it (docs/design/canvases/auth-flow).
  *
  * `busy` is a write in flight. The sheet does not close under it — not on
@@ -15,17 +15,13 @@ import { useModalFocus } from "../../../lib/modal-focus.js";
  */
 export function SheetFrame({
   title,
-  subtitle,
   mark,
-  foot,
   busy = false,
   onClose,
   children,
 }: {
   title: string;
-  subtitle: string;
   mark: ReactNode;
-  foot: string;
   /** A write is in flight: every road that closes the sheet is held. */
   busy?: boolean;
   onClose: () => void;
@@ -61,7 +57,6 @@ export function SheetFrame({
           </span>
           <div className="sheet__grow">
             <h2>{title}</h2>
-            <p>{subtitle}</p>
           </div>
           <button
             type="button"
@@ -75,9 +70,6 @@ export function SheetFrame({
           </button>
         </div>
         <div className="sheet__body">{children}</div>
-        <div className="sheet__foot">
-          <p className="hint">{foot}</p>
-        </div>
       </div>
     </div>
   );

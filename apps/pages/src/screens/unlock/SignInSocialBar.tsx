@@ -61,7 +61,7 @@ function SocialButton({
   return (
     <button
       type="button"
-      className={`btn signin__social${brandClass ? ` ${brandClass}` : ""}${last ? " is-last" : ""}`}
+      className={`btn choice signin__social${brandClass ? ` ${brandClass}` : ""}${last ? " is-last" : ""}`}
       aria-label={named(label, last)}
       title={named(label, last)}
       aria-current={last ? "true" : undefined}

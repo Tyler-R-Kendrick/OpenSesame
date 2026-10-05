@@ -181,8 +181,8 @@ export function IdentifierField({
                     type="button"
                     className={
                       index === 0
-                        ? "btn btn--primary btn--block"
-                        : "btn btn--block"
+                        ? "btn btn--primary btn--block choice"
+                        : "btn btn--block choice"
                     }
                     disabled={disabled || busy}
                     onClick={() => onStartOrgMethod(tenant, method)}

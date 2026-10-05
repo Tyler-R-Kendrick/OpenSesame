@@ -167,9 +167,7 @@ export function DuressPanel({
       {open ? (
         <SheetFrame
           title="Duress code"
-          subtitle="A second code. Typed where you unlock, it opens something else."
           mark={<IconShield size={20} />}
-          foot="Nothing changes until you press the button in the card. Your vault is never opened by this code."
           busy={busy}
           onClose={() => {
             setOpen(false);

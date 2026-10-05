@@ -1,0 +1,155 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "arrive": "vault"
+        },
+        {
+          "press": "Reset this browser"
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "measure": "[role=dialog] .found"
+        },
+        {
+          "measure": "[role=dialog] .found button, [role=dialog] .sheet__head button"
+        },
+        {
+          "report": "[role=dialog]"
+        },
+        {
+          "shot": "1280-reset"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "arrive": "vault"
+        },
+        {
+          "press": "Reset this browser"
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "measure": "[role=dialog] .found"
+        },
+        {
+          "measure": "[role=dialog] .found button, [role=dialog] .sheet__head button"
+        },
+        {
+          "report": "[role=dialog]"
+        },
+        {
+          "shot": "390-reset"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "pressIn": ["#unlock-methods", "Change"]
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "measure": "[role=dialog] .found button"
+        },
+        {
+          "report": "[role=dialog]"
+        },
+        {
+          "shot": "1280-password"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "visit": "settings/security"
+        },
+        {
+          "pressIn": ["#unlock-methods", "Change"]
+        },
+        {
+          "measure": "[role=dialog]"
+        },
+        {
+          "measure": "[role=dialog] .found button"
+        },
+        {
+          "report": "[role=dialog]"
+        },
+        {
+          "shot": "390-password"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-reset",
+      "width": 1280,
+      "title": "Unlock › Reset this browser — 1280 × 900, mouse",
+      "caption": "Before, the sheet was trapped inside the unlock card (its entrance animation held a transform) and repeated its question three times inside an amber card, with the verb painted across a red slab and a caption in the foot. After, it is the app's side sheet: the place being erased, four facts, and the red erase square beside a Keep key.",
+      "before": "dialog 424×396 @165,252 inside the card, body scrolls; amber wash; \"Reset this browser?\" ×3; slab 317×36; foot caption",
+      "after": "side sheet 424×900 @856,0; plain card 386×220; erase .go 40×40 + verb, Keep 32×32; no wash, kicker or caption"
+    },
+    {
+      "shot": "390-reset",
+      "width": 390,
+      "title": "Unlock › Reset this browser — 390 × 844, touch",
+      "caption": "On a phone the sheet is a bottom sheet over the whole screen, not a box under the release notes. The keys share one row.",
+      "before": "dialog 361×447 @14,127, release notes painted over its lower edge; slab 317×44 and Keep 101×44 on two rows",
+      "after": "bottom sheet 390×336 @0,508; erase 44×44 @34,769 and Keep 44×44 @237,769 on one row"
+    },
+    {
+      "shot": "1280-password",
+      "width": 1280,
+      "title": "Settings › Security › Password — 1280 × 900, mouse",
+      "caption": "Every ceremony card is drawn by the same component. Its commit is now the .go square with its verb beside it, and the line under the title and the caption in the foot are gone.",
+      "before": "subtitle \"Twelve characters or more…\"; \"Change password\" slab 170×36; foot \"The old one stops working…\"",
+      "after": "title only; \"Change password\" .go 40×40 @891,434 + verb; no foot"
+    },
+    {
+      "shot": "390-password",
+      "width": 390,
+      "title": "Settings › Security › Password — 390 × 844, touch",
+      "caption": "The same sheet on a phone.",
+      "before": "subtitle + foot caption; slab 170×44 @34,597",
+      "after": "title only; .go 44×44 @34,571; no foot"
+    }
+  ]
+}

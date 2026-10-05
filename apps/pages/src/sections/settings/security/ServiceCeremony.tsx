@@ -40,8 +40,6 @@ function ForgetCard({ busy, run, onDone }: CardProps) {
   );
   return (
     <CeremonyShell
-      ok={false}
-      top="Forget the sign-in service?"
       name={readSignInService()}
       facts={[
         inUse
