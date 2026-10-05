@@ -2,7 +2,7 @@
  * The browsers that opened this vault, drawn with the same keys as the rest
  * of Identity (DESIGN.md § Actions are symbols): rename is the pencil, and
  * removal is an armed trash key with a keep beside it. A browser lists itself
- * when it opens the vault; nothing here invents a device (ADR 0165 — the
+ * when it opens the vault; nothing here invents a device (ADR 0166 — the
  * tailnet's real machines are managed in the panel above).
  */
 

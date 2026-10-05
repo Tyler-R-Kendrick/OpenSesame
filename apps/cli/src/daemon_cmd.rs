@@ -72,7 +72,7 @@ enum DaemonCmd {
     /// (the optional `browser-autofill` plugin, ADR 0150 §7).
     #[command(subcommand)]
     Fill(daemon_fill::FillCmd),
-    /// Manage the tailnet's devices from this machine (ADR 0165).
+    /// Manage the tailnet's devices from this machine (ADR 0166).
     #[command(subcommand)]
     Tailnet(daemon_tailnet::TailnetCmd),
     #[command(flatten)]

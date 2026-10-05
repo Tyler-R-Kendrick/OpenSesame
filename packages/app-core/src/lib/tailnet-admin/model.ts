@@ -1,6 +1,6 @@
 /**
  * What the device panel says about a tailnet device, and the checks a form
- * runs before anything is sent (ADR 0165). The checks mirror the daemon's
+ * runs before anything is sent (ADR 0166). The checks mirror the daemon's
  * (`crates/tailnet-admin/src/validate.rs`), which runs them again: these
  * only spare a round trip and say what is wrong where it was typed.
  */

@@ -205,4 +205,5 @@ looks arbitrary, the ADR it cites explains it.
 | [0162](0162-device-receipts-inbox-and-local-notifications.md) | Device-mode receipts, inbox and local notifications | Accepted |
 | [0163](0163-tutorial-mode.md) | Tutorial mode: a tour you walk, one step at a time | Accepted |
 | [0164](0164-glyphs-for-identity-where-a-name-will-not-fit.md) | Glyphs: a dotted mark for identity where a name will not fit | Accepted |
-| [0165](0165-tailnet-device-management.md) | Tailnet device management through the paired daemon | Accepted |
+| [0165](0165-item-type-packs-on-demand.md) | Built-in item types are packs: switched on, then downloaded | Accepted |
+| [0166](0166-tailnet-device-management.md) | Tailnet device management through the paired daemon | Accepted |

@@ -3,7 +3,7 @@ name = "opensesame-tailnet-admin"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Tailnet device management through the daemon (ADR 0165): the Tailscale credential, origin-bound role pairings, the upstream client and the audit trail"
+description = "Tailnet device management through the daemon (ADR 0166): the Tailscale credential, origin-bound role pairings, the upstream client and the audit trail"
 
 # Everything here is already in the daemon's tree (ADR 0048 §5): the daemon
 # serves these routes and the `opensesame` CLI configures them.

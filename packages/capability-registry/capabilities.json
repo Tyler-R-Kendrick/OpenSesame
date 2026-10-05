@@ -4808,19 +4808,19 @@
     "excluded": {
       "mcp_host": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       },
       "mcp_client": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       },
       "webmcp": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       },
       "pwa": {
         "reason": "the Tailscale credential is written into the daemon's own state from its terminal and never reaches a browser",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       }
     }
   },
@@ -4839,15 +4839,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       },
       "mcp_client": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       },
       "webmcp": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       }
     }
   },
@@ -4866,15 +4866,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       },
       "mcp_client": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       },
       "webmcp": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       }
     }
   },
@@ -4893,15 +4893,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       },
       "mcp_client": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       },
       "webmcp": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       }
     }
   },
@@ -4920,15 +4920,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       },
       "mcp_client": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       },
       "webmcp": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       }
     }
   },
@@ -4947,15 +4947,15 @@
     "excluded": {
       "mcp_host": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       },
       "mcp_client": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       },
       "webmcp": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
-        "adr": "0165-tailnet-device-management.md"
+        "adr": "0166-tailnet-device-management.md"
       }
     }
   },

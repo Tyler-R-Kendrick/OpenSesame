@@ -1,7 +1,7 @@
 /**
  * One device's settings, in a sheet: its name, tags, approval, key expiry,
  * subnet routes and exit node. Saving sends only what changed, each through
- * the daemon (ADR 0165), and reads the tailnet again; the sheet closes on the
+ * the daemon (ADR 0166), and reads the tailnet again; the sheet closes on the
  * row it came from.
  */
 

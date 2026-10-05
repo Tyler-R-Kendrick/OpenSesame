@@ -1,6 +1,6 @@
 /**
  * What was changed on the tailnet through the daemon, newest first: when,
- * by which pairing, to which device or key, and whether it took (ADR 0165
+ * by which pairing, to which device or key, and whether it took (ADR 0166
  * §5). The daemon keeps it; no value is in it.
  */
 

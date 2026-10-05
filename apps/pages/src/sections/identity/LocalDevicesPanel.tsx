@@ -26,7 +26,7 @@ const READ_ERROR =
  * The browsers that opened this vault (`local-devices.ts`): each lists
  * itself when it unlocks, and may be renamed or removed. The tailnet's real
  * machines are a separate panel, above, when device management is on
- * (ADR 0165).
+ * (ADR 0166).
  */
 export function LocalDevicesPanel({ tomb }: { tomb: string }) {
   const model = useDevices(tomb);

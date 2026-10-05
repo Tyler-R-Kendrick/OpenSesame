@@ -1,8 +1,9 @@
-/* Settings › Vaults › Item types (ADR 0087 §7, ADR 0134).
-   One registry read three ways, as flat underline tabs. Every type is one
-   hairline row: the extension it wears in the vault tree leads in mono, the
-   title and one line of facts follow, state and one action sit at the end.
-   No cards, no boxes — rows on the paper, like the vault list. */
+/* Settings › Vaults › Item types (ADR 0087 §7, ADR 0134, ADR 0165).
+   A list of switches. Every type is one hairline row: the extension it wears
+   in the vault tree leads in mono, the title and one line of facts follow,
+   state and the switch sit at the end. The whole row is the switch, so a
+   thumb anywhere on it changes the type. No cards, no boxes — rows on the
+   paper, like the vault list. */
 
 /* A grid item's floor is its min-content, and a nowrap facts line is long:
    without this the settings column grows past a phone's edge. */
@@ -33,39 +34,6 @@
   font-size: 0.75rem;
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
-}
-
-/* ——— Tabs: text over a hairline, a 2px ink rule under the chosen one ——— */
-.itype-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.1rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.itype-tab {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.3rem 0 0.55rem;
-  margin-bottom: -1px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: var(--ink-2);
-  font: inherit;
-  font-family: var(--mono);
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-
-.itype-tab:hover {
-  color: var(--ink);
-}
-
-.itype-tab.is-active {
-  border-bottom-color: var(--ink);
-  color: var(--ink);
-  font-weight: 600;
 }
 
 .itype-tabpanel {
@@ -201,26 +169,6 @@
   color: var(--ink-3);
 }
 
-/* ——— Built-ins folded under what was installed ————————————————————— */
-.itype-builtin > summary {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem 0;
-  font-family: var(--mono);
-  font-size: 0.8125rem;
-  color: var(--ink-2);
-  cursor: pointer;
-}
-
-.itype-builtin > summary:hover {
-  color: var(--ink);
-}
-
-.itype-builtin[open] > summary {
-  margin-bottom: 0.35rem;
-}
-
 /* ——— Marketplaces ———————————————————————————————————————————————————— */
 .itype-sources {
   display: grid;
@@ -313,9 +261,183 @@
   }
 }
 
-@media (pointer: coarse), (max-width: 900px) {
-  .itype-tab,
-  .itype-builtin > summary {
-    min-height: 2.75rem;
+/* ——— Packs: one switch per built-in type ——————————————————————————— */
+.pack-list {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.pack-group {
+  display: grid;
+  min-width: 0;
+}
+
+.pack-group__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.pack-group__label {
+  margin: 0 0 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.pack-group__head .pack-group__label {
+  margin: 0;
+}
+
+.pack {
+  border-bottom: 1px solid var(--line);
+}
+
+.pack__hit {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0.5rem 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pack--fixed .pack__hit {
+  cursor: default;
+}
+
+.pack__hit:active {
+  background: var(--surface-3);
+}
+
+.pack--fixed .pack__hit:active {
+  background: transparent;
+}
+
+/* The summary is the definition's own sentence: one line where there is room
+   for it, none on a phone, where the facts line is what a thumb needs. */
+.pack__summary {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pack__end {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.pack__track {
+  position: relative;
+  flex: none;
+  width: 2.4rem;
+  height: 1.4rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-3);
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+.pack__track::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform 160ms var(--ease);
+}
+
+.pack__hit[aria-checked="true"] .pack__track {
+  background: var(--accent);
+  border-color: transparent;
+}
+
+.pack__hit[aria-checked="true"] .pack__track::after {
+  transform: translateX(1rem);
+}
+
+/* On its way: the switch has moved, and is not yet true. */
+.pack__hit[aria-busy="true"] .pack__track {
+  opacity: 0.55;
+}
+
+.pack__spin {
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: pack-spin 0.8s linear infinite;
+}
+
+@keyframes pack-spin {
+  to {
+    transform: rotate(360deg);
   }
+}
+
+/* Motion is the only thing that says "working"; without it a dotted ring
+   does, and the row's aria-busy and the live region say the rest. */
+@media (prefers-reduced-motion: reduce) {
+  .pack__spin {
+    animation: none;
+    border-style: dotted;
+    border-top-color: var(--line-strong);
+  }
+
+  .pack__track,
+  .pack__track::after {
+    transition: none;
+  }
+}
+
+/* How many items of the type this vault holds: the reason it has no switch. */
+.pack__held {
+  min-width: 2.4rem;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--ink-2);
+}
+
+@media (max-width: 560px) {
+  .pack__hit {
+    grid-template-columns: 4rem minmax(0, 1fr) auto;
+    gap: 0.25rem 0.6rem;
+  }
+
+  .pack__summary {
+    display: none;
+  }
+}
+
+/* The field's label is its placeholder's twin: kept for assistive technology,
+   not drawn twice. */
+.pack-search .f__labelrow {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }

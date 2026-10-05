@@ -1,5 +1,5 @@
 //! Pairing one browser origin with the tailnet device routes, for one role
-//! (ADR 0165 §3), as `PluginPairings` pairs one with the plugin routes.
+//! (ADR 0166 §3), as `PluginPairings` pairs one with the plugin routes.
 //!
 //! `opensesame tailnet pair --origin <o> --role <r>` records a one-time code
 //! for exactly that origin and role; the page at that origin trades it, once,

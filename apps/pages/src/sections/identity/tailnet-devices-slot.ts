@@ -1,6 +1,6 @@
 /**
  * The tailnet device manager, as `networking.tailnet-devices` hands it to the
- * Identity section (ADR 0165).
+ * Identity section (ADR 0166).
  *
  * The section is always on; managing a tailnet's machines is optional and
  * consented to on its own (ADR 0130), so the section never imports that

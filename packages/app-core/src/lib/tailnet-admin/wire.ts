@@ -1,5 +1,5 @@
 /**
- * The daemon's answers (ADR 0165 §4), parsed into what the panels draw.
+ * The daemon's answers (ADR 0166 §4), parsed into what the panels draw.
  * Every field is read defensively: a missing string is "", a missing flag is
  * false, a list holds strings only and is capped, and an entry with no valid
  * id is dropped rather than drawn. A key's secret is read in exactly one

@@ -99,7 +99,7 @@ struct App {
     vault_drive: Option<Arc<vault_drive::DriveStore>>,
     /// Optional plugins' settings file (ADR 0150 §7); never a plugin itself.
     plugins: plugin_routes::PluginHost,
-    /// Tailnet device management (ADR 0165).
+    /// Tailnet device management (ADR 0166).
     tailnet: tailnet_admin_routes::TailnetAdminHost,
 }
 

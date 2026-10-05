@@ -1,4 +1,4 @@
-# ADR 0165 — Tailnet device management through the paired daemon
+# ADR 0166 — Tailnet device management through the paired daemon
 
 - Status: Accepted
 - Date: 2026-10-05
