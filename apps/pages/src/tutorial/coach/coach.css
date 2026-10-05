@@ -1,0 +1,369 @@
+/* Tutorial mode — the dim, the lit control, and the card that walks you to it.
+
+   Scoped entirely to `.coach*`; nothing here restyles a shared control. The
+   page is dimmed with the app's own scrim and one control is left lit inside
+   a 2px accent ring. The card is a hairline-bordered surface: a segmented
+   meter along its top edge (one segment per step, the same object as the
+   password-strength meter), the tutorial's name and "Step 2 of 5" in the mono
+   voice, the step's sentence in the reading face, and Back / Next at the foot.
+   Ink is the primary action, teal means "this is where you are".
+
+   Layers: above the sheets (60) and the launcher (70), below nothing. */
+
+.coach {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  /* The layer passes everything through; each child opts back in. */
+  pointer-events: none;
+  --coach-glide: 300ms;
+}
+
+/* ——— The dim and the aperture ————————————————————————————————— */
+
+.coach__dim {
+  position: fixed;
+  background: var(--scrim);
+  /* The dim catches stray clicks so a tour is not walked off by accident;
+     the aperture between the four panels is open, so the lit control works. */
+  pointer-events: auto;
+}
+
+.coach__dim.is-gliding,
+.coach__ring.is-gliding {
+  transition:
+    top var(--coach-glide) var(--ease),
+    left var(--coach-glide) var(--ease), width var(--coach-glide) var(--ease),
+    height var(--coach-glide) var(--ease), right var(--coach-glide) var(--ease),
+    bottom var(--coach-glide) var(--ease);
+}
+
+.coach__ring {
+  position: fixed;
+  box-sizing: border-box;
+  border: 2px solid var(--accent);
+  border-radius: calc(var(--radius) + 1px);
+  /* A hairline of paper outside the teal, so the ring still reads on an
+     inverse-video row. */
+  box-shadow: 0 0 0 1px var(--surface);
+  pointer-events: none;
+}
+
+/* "Your move": the ring breathes outward twice, then holds still. */
+.coach__ring.is-action::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--accent);
+  border-radius: calc(var(--radius) + 1px);
+  opacity: 0;
+  animation: coach-ping 1.5s var(--ease) 2 0.35s;
+}
+
+@keyframes coach-ping {
+  0% {
+    inset: -2px;
+    opacity: 0.8;
+  }
+  100% {
+    inset: -11px;
+    opacity: 0;
+  }
+}
+
+/* ——— The card ————————————————————————————————————————————— */
+
+.coach__card {
+  position: fixed;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  width: min(23rem, calc(100vw - 1.5rem));
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-lg);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.coach__card.is-placed {
+  opacity: 1;
+  transform: none;
+  transition: opacity 180ms var(--ease), transform 240ms var(--ease), left
+    var(--coach-glide) var(--ease), top var(--coach-glide) var(--ease);
+}
+
+/* Narration and the close have no control to be near: a little more room. */
+.coach__card--narrate,
+.coach__card--close {
+  width: min(26rem, calc(100vw - 1.5rem));
+}
+
+/* A phone: a sheet on the edge the lit control is not on. */
+.coach__card--dock-bottom,
+.coach__card--dock-top {
+  left: 0.5rem;
+  right: 0.5rem;
+  width: auto;
+}
+
+.coach__card--dock-bottom {
+  bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+}
+
+.coach__card--dock-top {
+  top: calc(0.5rem + env(safe-area-inset-top, 0px));
+}
+
+/* The notch ties the card to its control. One rotated square, two borders. */
+.coach__notch {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  background: var(--surface);
+  border: 0 solid var(--line-strong);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.coach__card[data-facing="top"] .coach__notch {
+  top: -6px;
+  left: calc(var(--coach-notch) - 5px);
+  border-width: 1px 0 0 1px;
+}
+
+.coach__card[data-facing="bottom"] .coach__notch {
+  bottom: -6px;
+  left: calc(var(--coach-notch) - 5px);
+  border-width: 0 1px 1px 0;
+}
+
+.coach__card[data-facing="left"] .coach__notch {
+  left: -6px;
+  top: calc(var(--coach-notch) - 5px);
+  border-width: 0 0 1px 1px;
+}
+
+.coach__card[data-facing="right"] .coach__notch {
+  right: -6px;
+  top: calc(var(--coach-notch) - 5px);
+  border-width: 1px 1px 0 0;
+}
+
+/* ——— The meter ———————————————————————————————————————————— */
+
+.coach__meter {
+  display: flex;
+  gap: 2px;
+  height: 3px;
+  border-radius: var(--radius) var(--radius) 0 0;
+  overflow: hidden;
+}
+
+.coach__seg {
+  flex: 1;
+  background: var(--line-strong);
+  transition: background 220ms var(--ease);
+}
+
+.coach__seg--done {
+  background: var(--ink);
+}
+
+.coach__seg--now {
+  background: var(--accent);
+}
+
+.coach__card--close .coach__seg--done {
+  background: var(--ok);
+}
+
+/* ——— Head, text, foot ————————————————————————————————————— */
+
+.coach__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.5rem 0 0.9rem;
+}
+
+.coach__mark {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--accent);
+}
+
+.coach__card--close .coach__mark {
+  color: var(--ok);
+}
+
+.coach__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coach__count {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.coach__text {
+  margin: 0;
+  padding: 0.5rem 0.9rem 0.9rem;
+  max-width: 46ch;
+  font-family: var(--font);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--ink);
+  /* Authored and model prose arrives as one text node: keep its newlines and
+     never let an unbroken token push the card off the screen. */
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.coach__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.coach__cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
+.coach__cue:has(> svg) {
+  color: var(--warn);
+}
+
+.coach__pulse {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  animation: coach-breathe 1.6s ease-in-out infinite;
+}
+
+@keyframes coach-breathe {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.coach__keys {
+  display: flex;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+/* A choice object, not a verb: where you are in a sequence. Next and Back
+   are navigation; Done and Replay say what the closing card offers. */
+.coach__btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: 2rem;
+  padding: 0 0.7rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  touch-action: manipulation;
+  transition: background 140ms var(--ease), border-color 140ms var(--ease);
+}
+
+.coach__btn > svg {
+  display: block;
+  flex: none;
+}
+
+@media (hover: hover) {
+  .coach__btn:hover:not(:disabled) {
+    background: var(--surface-3);
+    border-color: var(--ink-3);
+  }
+}
+
+.coach__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.coach__btn--go {
+  border-color: transparent;
+  background: var(--ink);
+  color: var(--canvas);
+}
+
+@media (hover: hover) {
+  .coach__btn--go:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--ink) 82%, var(--canvas));
+    border-color: transparent;
+  }
+}
+
+/* DESIGN.md § Touch: 44px under a coarse pointer or a narrow window. */
+@media (pointer: coarse), (max-width: 900px) {
+  .coach__btn {
+    min-height: 2.75rem;
+    padding: 0 0.95rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coach__card,
+  .coach__card.is-placed,
+  .coach__seg,
+  .coach__dim,
+  .coach__ring,
+  .coach__dim.is-gliding,
+  .coach__ring.is-gliding {
+    transition: none;
+  }
+
+  .coach__card {
+    transform: none;
+  }
+
+  .coach__ring.is-action::after,
+  .coach__pulse {
+    animation: none;
+  }
+
+  .coach__ring.is-action::after {
+    display: none;
+  }
+}

@@ -277,6 +277,43 @@ jobs:
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:device-inbox
 
+  sops-static:
+    name: Browser-local SOPS on the static build
+    needs: changes
+    if: needs.changes.outputs.bundle == 'true'
+    runs-on: ubuntu-latest
+    # Its own job, so the bundle job's 20 minutes are not spent on it: a build
+    # (about a minute) and the walk (about a minute). It was run by no job at
+    # all, only by `verify:sops-browser` on a developer's machine, and the
+    # Settings rework broke it unseen. It is required through the Bundle
+    # budgets check below.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build the static front end
+        env:
+          VITE_BASE: /OpenSesame/
+        run: pnpm exec turbo run build --filter=@opensesame/pages
+      - name: Open, edit and save a SOPS document with no backend
+        # ADR 0130: a guest opens upstream's age-encrypted file from Settings ›
+        # Security with a typed identity, edits it and saves ciphertext, and
+        # encrypts a new document; then the same on an installed app with the
+        # network off. Nothing leaves the origin and the bundle names no
+        # native SOPS runtime.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:sops-static
+
   push-e2e:
     # Its own job: the Bundle budget job's twenty minutes are spent, and this
     # needs a second Pages build (stamped for its own origin), the control-plane
@@ -357,6 +394,54 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:device-identity
+
+  tutorials-e2e:
+    # Its own job, one per width: every tutorial is walked end to end (59 of
+    # them, each started, walked, gone back through, replayed and walked
+    # again). Measured locally that is about four minutes a width with the
+    # fixed sleeps gone, twice that on a hosted runner, which does not fit in
+    # the Bundle budget job's twenty minutes beside its builds and gates. `bundle-check` below folds the
+    # result into the required "Bundle budgets" check, so it gates merges
+    # without another required name.
+    name: Every tutorial, walked (${{ matrix.width }}px)
+    needs: changes
+    # The Pages build, the app core and the guide runtime that build ships.
+    if: needs.changes.outputs.bundle == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        width: [1280, 390]
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build Pages
+        env:
+          VITE_BASE: /OpenSesame/
+        run: pnpm exec turbo run build --filter=@opensesame/pages
+      - name: Every tutorial, walked end to end
+        # ADR 0163: the Support sheet's Tutorials tab lists them, each is
+        # started from its row and walked with Next alone at this width, on
+        # the shell with every capability on. Escape from the card and from
+        # the lit control ends a tour, and the move a step waits for, made
+        # through the aperture, advances it. A step whose control (found by its
+        # registry id) is missing or covered, a skipped step, a card outside
+        # the screen, a Next that is not there, or focus dropped on the way out
+        # is a failure.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+          TUTORIALS_WIDTHS: ${{ matrix.width }}
+        run: pnpm --filter @opensesame/pages verify:tutorials
 
   rust:
     name: Rust tests
@@ -464,7 +549,7 @@ jobs:
 
   bundle-check:
     name: Bundle budgets
-    needs: [changes, bundle, push-e2e, device-identity-e2e, device-inbox]
+    needs: [changes, bundle, push-e2e, device-identity-e2e, device-inbox, sops-static, tutorials-e2e]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -473,7 +558,9 @@ jobs:
         run: |
           changes="${{ needs.changes.result }}"
           heavy="${{ needs.bundle.result }}"
+          tutorials="${{ needs.tutorials-e2e.result }}"
           inbox="${{ needs.device-inbox.result }}"
+          sops="${{ needs.sops-static.result }}"
           push="${{ needs.push-e2e.result }}"
           identity="${{ needs.device-identity-e2e.result }}"
           if [ "$changes" != "success" ]; then
@@ -484,9 +571,17 @@ jobs:
             success|skipped) ;;
             *) echo "bundle tests result: $heavy"; exit 1 ;;
           esac
+          case "$tutorials" in
+            success|skipped) ;;
+            *) echo "tutorials end to end result: $tutorials"; exit 1 ;;
+          esac
           case "$inbox" in
             success|skipped) ;;
             *) echo "device inbox result: $inbox"; exit 1 ;;
+          esac
+          case "$sops" in
+            success|skipped) ;;
+            *) echo "browser-local SOPS result: $sops"; exit 1 ;;
           esac
           case "$push" in
             success|skipped) ;;

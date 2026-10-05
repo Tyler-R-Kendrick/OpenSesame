@@ -17,24 +17,9 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
       'say "Import takes a .env, .csv, .json, .1pux, .zip or .kdbx export and merges it into this vault. Nothing leaves the device."',
       'navigate "/vault"',
       'wait route "/vault" timeout=15000',
-      'focus "vault.import" "This opens the file picker; the file is previewed in a sheet beside the list before anything is written." side=bottom',
+      'focus "vault.import" "Import opens the file picker; on a phone it is a row of the Add sheet. The file is previewed in a sheet before anything is written." side=bottom',
       'wait target "vault.import" event=activate timeout=60000',
       'success "Choose an export to import. The items land sealed in this vault."',
-      "end",
-    ].join("\n"),
-  },
-
-  {
-    id: "vault.store-manifest",
-    title: "Move items to and from the sealed store",
-    routes: [],
-    guide: [
-      "guide/1",
-      'goal "vault.store-manifest"',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'navigate "/settings/vaults"',
-      'wait route "/settings/vaults" timeout=15000',
-      'focus "vault.store-manifest" "This saves a plain-text manifest for opensesame pass seal to seal and shred. The vault\'s Import key merges one back by path." side=bottom',
       "end",
     ].join("\n"),
   },
@@ -46,6 +31,7 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "client.command-bar"',
+      'say "The command bar is the one typed field in the frame. A command runs; a sentence it cannot parse goes to Support as a question."',
       'wait state "vault.unlocked" is=true timeout=60000',
       'focus "shell.command-bar" "Type a command: go to a section, search, or copy a field. Enter runs it." side=bottom',
       "end",

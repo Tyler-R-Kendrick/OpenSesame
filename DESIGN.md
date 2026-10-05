@@ -205,12 +205,22 @@ mounted in exactly one place at a time — the rail above the breakpoint, the
 vault's first pane below it — so two `role="tree"` never share a page. Because
 the tree carries the vault's filters, nothing in the rail may become
 unreachable, and the list keeps its funnel key for switching without going
-back. The list's command row is not a pane away either: the same keys — new
-item, whatever a capability adds beside it (Import), Export, and search — are
-pinned above the tree (`VaultActions`, in the list's own `VaultPathbar`), each
-at the 44px floor. The funnel and the back key stay on the list, where there
-is something to filter and somewhere to go back from; the tree's search key
-opens the list of everything with its prompt focused.
+back. The funnel and the back key stay on the list, where there is something
+to filter and somewhere to go back from.
+
+**Search is a verb of the one text input, never a second box.** The
+statusline's prompt lists `search` in its hint, and `/? words` (or `/search
+words`) is typed into it. The words are published as they are typed
+(`lib/command-bar/search.ts`) and whichever listing is on screen — the vault,
+Activity, the connector catalog — narrows to them live, with the count in its
+status line. Enter keeps the words in the field, hands the keyboard to the
+listing (or brings up the vault's list when nothing on screen is searching),
+and opens no notice over the prompt; Esc, in the field or the list, empties it.
+Words typed for one section are dropped when a person goes to another by any
+other road. There is no search key and no search field in any pane, the
+section tree's first row included; the `/` key writes `/? ` into the prompt and
+focuses it. A bare `/?` is still help. `verify:mobile` counts the text inputs
+on the screen and fails on a second.
 
 Prose is measured (roughly 48–62ch). A paragraph is never as wide as a panel.
 
@@ -344,8 +354,11 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
 - **A finger gets gestures where the keyboard has keys.** The keymap is for a
   keyboard: under a coarse pointer the help row says *Gestures* and its sheet
   lists the ones the shell recognises (`lib/gesture-help.ts`) — tap opens, hold
-  or swipe a row left asks for its actions, swipe right goes back, and the
-  keys that matter (new, search) are visible 44px keys. A row never lists a
+  or swipe a row left asks for its actions, swipe right goes back, and what
+  the vault's first pane asks of a thumb is drawn for one: search is the
+  status-line prompt (`/? words`), the one text input on the screen, and adding
+  is a single filled 60px key in the bottom corner whose action sheet carries
+  New item, Import and Export as rows — not the desktop's row of small keys. A row never lists a
   gesture with no recogniser behind it. Gestures are twins, never the only
   road, and a command that asks before it acts (trash, share) is still never a
   gesture of its own — it is an entry in the actions a hold or swipe opens.

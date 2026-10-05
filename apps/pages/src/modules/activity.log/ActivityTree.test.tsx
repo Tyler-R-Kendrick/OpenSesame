@@ -4,6 +4,7 @@ import { defaultPrefs } from "@opensesame/app-core/lib/vault/prefs.js";
 import type { VaultState } from "@opensesame/app-core/lib/vault/store.js";
 /** @vitest-environment jsdom */
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -14,6 +15,8 @@ import {
 import { MemoryRouter, Route, Routes, useNavigate } from "react-router";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { setRailCursor } from "../../components/rail-cursor.js";
+import { commitToConsumer, liveSearch } from "../../lib/command-bar/search.js";
+import { standInPrompt } from "../../lib/command-bar/search.test-support.js";
 import { LISTING_PAGE_SIZE } from "../../lib/listing-page.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { ActivitySection } from "../../sections/ActivitySection.js";
@@ -54,13 +57,17 @@ const EVENTS: ActivityEvent[] = Array.from({ length: 30 }, (_, index) => {
   };
 });
 
+let prompt = standInPrompt();
+
 beforeEach(() => {
+  prompt = standInPrompt();
   vaultHooksSeams.useVault = unlocked;
   vi.spyOn(activityLog, "listActivityEvents").mockResolvedValue(EVENTS);
 });
 
 afterEach(() => {
   cleanup();
+  prompt.stop();
   vi.restoreAllMocks();
   vaultHooksSeams.useVault = originalVault;
   resetActivityListing();
@@ -130,11 +137,9 @@ it("searches the log with /, narrowing the rail with the page", async () => {
   renderActivity();
   await waitFor(() => expect(pageRows()).toHaveLength(LISTING_PAGE_SIZE));
 
-  fireEvent.click(screen.getByRole("button", { name: "Search activity" }));
-  const field = screen.getByRole("textbox", {
-    name: "Search the activity log",
-  });
-  fireEvent.change(field, { target: { value: "settings" } });
+  // Search is typed in the status-line prompt; the page has no field of its own.
+  expect(screen.queryByRole("button", { name: "Search activity" })).toBeNull();
+  act(() => prompt.type("/? settings"));
 
   await waitFor(() => expect(pageRows()).toHaveLength(10));
   expect(railLeaves()).toHaveLength(10);
@@ -142,7 +147,7 @@ it("searches the log with /, narrowing the rail with the page", async () => {
     true,
   );
 
-  fireEvent.change(field, { target: { value: "no such event" } });
+  act(() => prompt.type("/? no such event"));
   await waitFor(() =>
     expect(
       within(screen.getByRole("main")).getByText("No matching activity"),
@@ -159,6 +164,30 @@ it("searches the log with /, narrowing the rail with the page", async () => {
   expect(
     screen.queryByRole("textbox", { name: "Search the activity log" }),
   ).toBeNull();
+  expect(liveSearch()).toBeNull();
+});
+
+it("Enter in the prompt lands the keyboard on the first event, and stays in the field when none match", async () => {
+  renderActivity();
+  await waitFor(() => expect(pageRows()).toHaveLength(LISTING_PAGE_SIZE));
+  act(() => prompt.type("/? settings"));
+  await waitFor(() => expect(pageRows()).toHaveLength(10));
+  expect(commitToConsumer()).toBe("took");
+  expect(document.activeElement?.closest("li")?.textContent).toContain(
+    "Settings updated",
+  );
+  const field = document.createElement("input");
+  document.body.append(field);
+  field.focus();
+  act(() => prompt.type("/? no such event"));
+  await waitFor(() =>
+    expect(
+      within(screen.getByRole("main")).getByText("No matching activity"),
+    ).toBeTruthy(),
+  );
+  expect(commitToConsumer()).toBe("seen");
+  expect(document.activeElement).toBe(field);
+  field.remove();
 });
 
 it("a deep link past the first page grows the listing and opens the event", async () => {
@@ -189,37 +218,23 @@ it("a row opens that event's details", async () => {
   expect(screen.getByText("info")).toBeTruthy();
 });
 
-it("a search typed on a selected row narrows the list and keeps the prompt", async () => {
+it("a search typed on a selected row narrows the list and leaves the event open", async () => {
   renderActivity("/activity/event-1");
   await waitFor(() => expect(pageRows()).toHaveLength(LISTING_PAGE_SIZE));
-  fireEvent.click(screen.getByRole("button", { name: "Search activity" }));
-  const field = screen.getByRole("textbox", {
-    name: "Search the activity log",
-  });
   // event-1 is a vault event: "settings" hides it.
-  fireEvent.change(field, { target: { value: "settings" } });
+  act(() => prompt.type("/? settings"));
   await waitFor(() => expect(pageRows()).toHaveLength(10));
-  expect(screen.getByRole("textbox", { name: "Search the activity log" })).toBe(
-    field,
-  );
+  expect(liveSearch()).toBe("settings");
 });
 
 it("a link to a row the search hides clears the search", async () => {
   renderActivity();
   await waitFor(() => expect(pageRows()).toHaveLength(LISTING_PAGE_SIZE));
-  fireEvent.click(screen.getByRole("button", { name: "Search activity" }));
-  fireEvent.change(
-    screen.getByRole("textbox", { name: "Search the activity log" }),
-    { target: { value: "settings" } },
-  );
+  act(() => prompt.type("/? settings"));
   await waitFor(() => expect(pageRows()).toHaveLength(10));
   // A link to a vault event arrives while the search hides it.
   fireEvent.click(screen.getByRole("button", { name: "Follow link" }));
-  await waitFor(() =>
-    expect(
-      screen.queryByRole("textbox", { name: "Search the activity log" }),
-    ).toBeNull(),
-  );
+  await waitFor(() => expect(liveSearch()).toBeNull());
   expect(pageRows()).toHaveLength(LISTING_PAGE_SIZE);
   expect(document.getElementById("activity-event-1")).not.toBeNull();
 });

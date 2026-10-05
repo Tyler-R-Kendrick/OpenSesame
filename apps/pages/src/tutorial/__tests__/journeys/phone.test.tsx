@@ -23,9 +23,12 @@ import { screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   askSupport,
+  finishTutorial,
   openSupport,
   renderJourney,
   resetJourney,
+  stepOf,
+  tutorialCard,
 } from "./harness.jsx";
 
 const ANSWER = "Connections is behind the sections key at the top.";
@@ -92,8 +95,11 @@ describe("support at phone width", { timeout: 20_000 }, () => {
     await askSupport(user, "Where are connections on this phone?");
 
     // Step one points at the key, because that is all a shut drawer offers.
+    await tutorialCard();
     await waitFor(() => expect(journey.focused()).toEqual(["nav.menu"]));
-    expect(journey.drawn()[0]).toMatchObject({ target: "nav.menu" });
+    expect(journey.drawn().find((call) => call.kind === "focus")).toMatchObject(
+      { target: "nav.menu" },
+    );
     const menu = resolveGuideTargetElement("nav.menu");
     if (!menu) throw new Error("nothing pointable answers for nav.menu");
     await user.click(menu);
@@ -102,16 +108,22 @@ describe("support at phone width", { timeout: 20_000 }, () => {
     await waitFor(() =>
       expect(journey.focused()).toEqual(["nav.menu", "nav.connections"]),
     );
+    expect(await stepOf()).toBe("Step 2 of 2");
     const row = resolveGuideTargetElement("nav.connections");
     if (!row) throw new Error("nothing pointable answers for nav.connections");
     await user.click(row);
 
+    // Doing it moves the tutorial to its closing card; Done finishes it.
+    await waitFor(async () => expect(await stepOf()).toBe("Complete"));
+    await finishTutorial(user);
     await waitFor(() => expect(journey.outcomes()).toHaveLength(1));
     expect(journey.outcomes()[0]).toEqual({
       kind: "completed",
       goal: "connection.create",
     });
-    expect(await screen.findByLabelText("Search connectors")).toBeTruthy();
+    expect(
+      await screen.findByRole("combobox", { name: "Command" }),
+    ).toBeTruthy();
 
     // And the conversation is still readable afterwards.
     const reopened = await openSupport(user);

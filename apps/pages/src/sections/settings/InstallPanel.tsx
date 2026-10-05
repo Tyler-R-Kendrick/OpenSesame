@@ -14,6 +14,7 @@
  */
 
 import { InstallOffer } from "../../components/InstallOffer.js";
+import { installPanelDraws } from "../../lib/install-panel.js";
 import { useInstall } from "../../lib/use-install.js";
 
 /**
@@ -24,10 +25,10 @@ export function useInstallPanelShown(): boolean {
   // The same value the card below reads, from the same store: a panel that
   // disagreed with its own body about whether there is an install to make
   // would render a heading over nothing.
-  const { visible, state } = useInstall();
+  const { state } = useInstall();
   // Chromium's one-gesture dialog hangs off the wordmark. This panel keeps
   // the roads a page cannot open: iOS three-tap, and the spent-event fallback.
-  return visible && state !== "prompt";
+  return installPanelDraws(state);
 }
 
 export function InstallPanel() {

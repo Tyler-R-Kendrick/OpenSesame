@@ -95,3 +95,24 @@ describe("VaultList", () => {
     }
   });
 });
+
+describe("VaultList — a face for each vault", () => {
+  it("draws every row's glyph from its own id, so no two rows share one", () => {
+    render(
+      <VaultList vaults={[personal, work, unnamed, guest]} onPick={() => {}} />,
+    );
+    const faces = [...document.querySelectorAll(".vault-row")].map((row) =>
+      row.querySelector(".vault-row__mark .glyph__on")?.getAttribute("d"),
+    );
+    expect(faces).toHaveLength(4);
+    expect(faces.every(Boolean)).toBe(true);
+    expect(new Set(faces).size).toBe(4);
+  });
+
+  it("keeps the name beside the glyph, so a face is always introduced", () => {
+    render(<VaultList vaults={[work]} onPick={() => {}} />);
+    const row = document.querySelector(".vault-row__body");
+    expect(row?.querySelector(".glyph")).not.toBeNull();
+    expect(row?.querySelector(".vault-row__name")?.textContent).toBe("Work");
+  });
+});

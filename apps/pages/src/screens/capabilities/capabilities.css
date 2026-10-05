@@ -246,3 +246,22 @@
     min-height: 2.75rem;
   }
 }
+
+/* A review is a list of claims, each a label and what it says. Beside a long
+   label ("reload after enabling") the value had under half the width of a
+   phone and a sentence of egress wrapped into twenty lines; stacked, the label
+   sits over its value and the value takes the whole width. */
+@media (max-width: 900px) {
+  .caprev__delta {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .caprev__delta dd {
+    margin-bottom: 0.6rem;
+  }
+
+  .caprev__delta dd:last-of-type {
+    margin-bottom: 0;
+  }
+}

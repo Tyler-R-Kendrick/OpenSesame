@@ -44,6 +44,7 @@ import {
   createDeferredSupportAgent,
   createDomEngine,
   liveOverlayCount,
+  mountTour,
   waitUntil,
 } from "./harness.js";
 
@@ -246,15 +247,20 @@ describe("what an AG-UI endpoint would receive", () => {
 describe("what a walkthrough puts on screen over that vault", () => {
   it("draws only the authored prose, with no sentinel anywhere in the overlay", async () => {
     const engine = createDomEngine(createDeferredSupportAgent());
+    const tour = mountTour(engine);
     try {
       const lock = guideGoal("vault.lock");
       expect(lock).not.toBeNull();
-      const program = engine.compile(lock?.guide ?? "");
-      expect(program).not.toBeNull();
-      if (program === null) return;
 
-      void engine.runGuide(program);
+      void tour.controller.startGuide(lock?.guide ?? "", "authored");
       await waitUntil(() => liveOverlayCount() > 0);
+      // The tutorial opens on a sentence; the next step lights the lock.
+      tour.controller.nextStep();
+      await waitUntil(() =>
+        (document.querySelector(".coach__text")?.textContent ?? "").includes(
+          "This is the lock.",
+        ),
+      );
 
       const overlay = document.querySelectorAll(OVERLAY_SELECTOR);
       expect(overlay.length).toBeGreaterThan(0);
@@ -266,6 +272,7 @@ describe("what a walkthrough puts on screen over that vault", () => {
       }
       expect(drawn).toContain("This is the lock.");
     } finally {
+      tour.unmount();
       engine.cancelGuide("user");
       engine.destroy();
       engine.targets.unmountAll();

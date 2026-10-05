@@ -6500,12 +6500,16 @@
     "kind": "ceremony",
     "surfaces": {
       "cli": null,
-      "pwa": "lib/vault/store-sync.ts:vaultItemToEntry",
+      "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
+      "pwa": {
+        "reason": "Pages no longer saves a store path manifest: the Sealed store key was removed from Settings, and the Export key writes the encrypted backup only, never plain text; the Import key still reads a manifest back",
+        "adr": "0158-settings-rows-act-or-are-absent.md"
+      },
       "mcp_host": {
         "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
         "adr": "0005-authority-handle-connectionref.md"

@@ -65,7 +65,8 @@ describe("the duress code and travel mode walkthroughs", () => {
       "vaults.duress-code",
       "vaults.travel",
     ]);
-    for (const topic of DURESS_HELP) expect(goals.has(topic.goal)).toBe(true);
+    for (const topic of DURESS_HELP)
+      expect(goals.has(topic.goal ?? "")).toBe(true);
   });
 
   it("scope both capabilities to Settings → Security", () => {

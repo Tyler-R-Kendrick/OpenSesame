@@ -110,6 +110,17 @@ function parseOpenOrSearch(text: string): AppCommand | null {
 }
 
 /**
+ * The words after `/?` or `/search` while the field holds that verb, so a
+ * listing can narrow as they are typed instead of waiting for Enter. `""` is
+ * the verb with nothing after it yet; `null` is any other text, and a bare
+ * `/?` with no space after it, which is still help.
+ */
+export function liveSearchOf(raw: string): string | null {
+  const match = /^\s*\/(?:search|\?)\s(.*)$/i.exec(raw);
+  return match ? (match[1] ?? "").replace(/^\s+/, "") : null;
+}
+
+/**
  * Deterministic NL → command. Runs before any model so offline / no-Prompt-API
  * devices still get Discord-style voice control for the common verbs.
  */
@@ -132,7 +143,11 @@ export function parseCommand(raw: string): AppCommand | null {
 
 const SLASH_DESTINATION = /^\/[a-z0-9-]+(?:\?[a-z0-9._=&%-]+)?$/i;
 
-/** `/vault`, `/search …`, `/copy password …`. Sentences stay on the other parsers. */
+/**
+ * `/vault`, `/search …`, `/? …`, `/copy password …`. Sentences stay on the
+ * other parsers. A bare `/?` is help; with words after it, `?` is the short
+ * name for search, the one the `/` key writes into the field.
+ */
 function parseSlash(text: string): AppCommand | null {
   const body = text.slice(1).trim();
   if (body === "") return null;
@@ -146,7 +161,7 @@ function parseSlash(text: string): AppCommand | null {
 }
 
 function parseSlashSearch(body: string): AppCommand | null {
-  const query = /^search\s+(.+)$/i.exec(body)?.[1]?.trim() ?? "";
+  const query = /^(?:search|\?)\s+(.+)$/i.exec(body)?.[1]?.trim() ?? "";
   if (query === "") return null;
   return { action: "search", query };
 }

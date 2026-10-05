@@ -226,23 +226,20 @@ describe("VaultSection", () => {
     expect(screen.getAllByTitle(/^Expires /)).toHaveLength(1);
   });
 
-  it("opens a / command line that filters and never leaks keys", () => {
+  it("narrows to the query the command bar left in the address, and Esc clears it", () => {
     vault.current = {
       items: [makeLogin(), makeNote()],
       folders: [],
       header: null,
     };
-    renderSection();
-    const handler = keymap();
-    press(handler, "/");
-    const input = screen.getByLabelText("Search items");
-    fireEvent.change(input, { target: { value: "web" } });
+    renderSection("/vault?f=all&q=web");
+    // No second box: the prompt is the status bar's, not the pane's.
+    expect(screen.queryByLabelText("Search items")).toBeNull();
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
     ).toEqual(["Webmail.login"]);
     expect(screen.getByText(/1\/2 · \/web/)).toBeTruthy();
-    fireEvent.keyDown(input, { key: "Escape" });
-    expect(screen.queryByLabelText("Search items")).toBeNull();
+    press(keymap(), "Escape");
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
     ).toEqual(["Scratch pad.note", "Webmail.login"]);
@@ -257,12 +254,7 @@ describe("VaultSection", () => {
       folders: [{ id: "f1", name: "Work", createdAt: "2026-08-01T00:00:00Z" }],
       header: null,
     };
-    renderSection();
-    const handler = keymap();
-    press(handler, "/");
-    fireEvent.change(screen.getByLabelText("Search items"), {
-      target: { value: "work" },
-    });
+    renderSection("/vault?q=work");
     // No item is named "work", but the directory is: it survives with all
     // of its children rather than vanishing from the tree.
     expect(
@@ -272,12 +264,7 @@ describe("VaultSection", () => {
 
   it("returns no rows for a fruitless search", () => {
     vault.current = { items: [makeLogin()], folders: [], header: null };
-    renderSection();
-    const handler = keymap();
-    press(handler, "/");
-    fireEvent.change(screen.getByLabelText("Search items"), {
-      target: { value: "zzzzzz" },
-    });
+    renderSection("/vault?q=zzzzzz");
     expect(screen.queryAllByRole("treeitem")).toHaveLength(0);
     expect(screen.getByText(/-\/1 · \/zzzzzz/)).toBeTruthy();
   });

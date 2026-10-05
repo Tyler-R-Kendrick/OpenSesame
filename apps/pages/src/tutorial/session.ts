@@ -1,24 +1,17 @@
 import { setStatusNotice } from "@opensesame/app-core/lib/notices.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
-import type { PageContextInput } from "@opensesame/app-core/tutorial/registry/context.js";
 import { rankHelpTopics } from "@opensesame/app-core/tutorial/registry/goals-search.js";
 import {
   HELP_TOPICS,
   type HelpTopic,
   guideGoal,
-  guideGoalIds,
 } from "@opensesame/app-core/tutorial/registry/goals.js";
 import {
   GUIDE_OVERLAY_ROUTES,
-  GUIDE_ROUTES,
   type GuideRouteId,
   guideRouteForPath,
 } from "@opensesame/app-core/tutorial/registry/routes.js";
-import { guidePredicateIds } from "@opensesame/app-core/tutorial/registry/state.js";
-import {
-  clearMountedGuideTargets,
-  guideTargetIds,
-} from "@opensesame/app-core/tutorial/registry/targets.js";
+import { clearMountedGuideTargets } from "@opensesame/app-core/tutorial/registry/targets.js";
 import { webmcpSupportSeam } from "@opensesame/app-core/webmcp/tool-shared.js";
 /**
  * The composition root for in-product support.
@@ -40,17 +33,10 @@ import { webmcpSupportSeam } from "@opensesame/app-core/webmcp/tool-shared.js";
  * runtime, Driver.js and the capability registry all arrive on first open.
  */
 import type { GuideGoalId, GuideProgram } from "@opensesame/guide-lang";
-import type {
-  GuideCancelReason,
-  GuideOutcome,
-  GuideRuntimeSnapshot,
-} from "@opensesame/guide-runtime";
+import type { GuideRuntimeSnapshot } from "@opensesame/guide-runtime";
 import type {
   SupportAgentAvailability,
-  SupportAgentPort,
   SupportComputerStep,
-  SupportErrorCode,
-  SupportSession,
   SupportSessionSnapshot,
 } from "@opensesame/support-agent";
 import {
@@ -66,9 +52,14 @@ import {
 } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useVault } from "../lib/vault/hooks.js";
-import { supportAgentLoaders } from "./agent-seams.js";
 import { gateSupportAsk } from "./ask-guard.js";
-import { chooseSupportAgent } from "./choose-agent.js";
+import {
+  type GuideOrigin,
+  type SupportEngine,
+  type SupportHost,
+  type SupportTransport,
+  loadBrowserEngine,
+} from "./engine.js";
 import { SupportContext } from "./support-context.js";
 import {
   GUIDE_ERROR_TEXT,
@@ -80,13 +71,14 @@ import {
   citedHelpText,
   writtenHelpSaysText,
 } from "./ui/messages.js";
-/**
- * Who wrote the walkthrough. It selects the vocabulary it is checked against,
- * never whether it is checked.
- */
-export type GuideOrigin = "model" | "authored";
-/** Where an answer comes from. Only `remote` leaves the device. */
-export type SupportTransport = "none" | "on-device" | "remote";
+export type {
+  GuideOrigin,
+  SupportAcquireResult,
+  SupportEngine,
+  SupportHost,
+  SupportTransport,
+} from "./engine.js";
+export { loadBrowserEngine } from "./engine.js";
 export type SupportEntryKind = "question" | "answer" | "note";
 /** An authored walkthrough offered beside a line, by registry id only. */
 export type SupportWalkthrough = {
@@ -128,65 +120,6 @@ export type SupportView = {
   readonly route: GuideRouteId;
 };
 
-export type SupportAcquireResult =
-  | { readonly kind: "acquired" }
-  | { readonly kind: "failed"; readonly code: SupportErrorCode };
-
-/**
- * What the panel needs from whatever is answering, in this app's own terms.
- * The packages are adapted onto it in exactly one place — `loadBrowserEngine`
- * below — so a new transport or a new renderer never reaches the UI.
- */
-export interface SupportEngine {
-  readonly transport: SupportTransport;
-  readonly warning: string | null;
-  /** Owns the model conversation, and drops it on `destroy`. */
-  readonly session: SupportSession;
-  /**
-   * Compiles model-authored GuideLang against the vocabulary of the page as it
-   * is right now — the model may only name what it was actually shown.
-   */
-  compile(source: string): GuideProgram | null;
-  /**
-   * Compiles a checked-in walkthrough against the whole registry.
-   *
-   * Same parser, same validator, same budgets: the difference is the vocabulary
-   * these two are handed, and it differs because their provenance does. A
-   * walkthrough that says "go to Connections, then point at the picker" names a
-   * target that is by definition not on screen yet, and scoping it to the
-   * current route made five of the seven authored goals refuse to start from
-   * the screen that offered them. `catalog.test.ts` already compiles every one
-   * against this same full vocabulary, so nothing reaches here unreviewed.
-   */
-  compileAuthored(source: string): GuideProgram | null;
-  runGuide(program: GuideProgram): Promise<GuideOutcome>;
-  pauseGuide(): void;
-  cancelGuide(reason: GuideCancelReason): void;
-  subscribeGuide(
-    listener: (snapshot: GuideRuntimeSnapshot) => void,
-  ): () => void;
-  /** Acquires an on-device model. Only ever called from a user gesture. */
-  acquire(
-    onProgress: (fraction: number) => void,
-  ): Promise<SupportAcquireResult>;
-  /** Cancels the runtime, clears every overlay, drops the model session. */
-  destroy(): void;
-}
-
-/**
- * What the engine needs from the running app: in-app navigation, where we are,
- * and a way to be told when that changed. The router is a React concern, so it
- * is handed down rather than reached for.
- */
-export type SupportHost = {
-  readonly navigate: (route: GuideRouteId) => void;
-  readonly currentRoute: () => GuideRouteId;
-  readonly observeRoute: (
-    route: GuideRouteId,
-    signal: AbortSignal,
-  ) => Promise<void>;
-};
-
 export interface SupportController {
   subscribe(listener: () => void): () => void;
   view(): SupportView;
@@ -203,6 +136,11 @@ export interface SupportController {
   answerFromAuthoredHelp(question: string, answer: string): void;
   startGuide(source: string, origin?: GuideOrigin): Promise<void>;
   pauseGuide(): void;
+  /** Tour controls: each is a no-op when no tour is on a step. */
+  nextStep(): void;
+  backStep(): void;
+  replayGuide(): void;
+  /** Leaves the tour; Escape and the close key are this. */
   stopGuide(): void;
   /**
    * The vault locked. Drops the transcript, the model session and every
@@ -429,15 +367,18 @@ export function createSupportController(
     set({ availability });
   }
 
-  async function runProgram(program: GuideProgram): Promise<void> {
+  async function runProgram(
+    program: GuideProgram,
+    origin: GuideOrigin,
+  ): Promise<void> {
     const loaded = engine;
     if (!loaded) return;
-    // A walkthrough points at controls on the page, and this app's sheet
-    // covers a third of them — including the statusline the shell targets sit
-    // in. So the panel steps aside while one runs; the transcript is still
-    // there, and the statusline button says a walkthrough is live.
+    // A tour points at controls on the page, and this app's sheet covers a
+    // third of them — including the statusline the shell targets sit in. So
+    // the panel steps aside while one runs; the transcript is still there,
+    // and the tour's own card (`CoachHud`) carries the steps.
     set({ open: false });
-    const outcome = await loaded.runGuide(program);
+    const outcome = await loaded.runGuide(program, origin);
     if (engine !== loaded) return;
     if (outcome.kind === "failed") {
       notifyFailure(GUIDE_ERROR_TEXT[outcome.error.code]);
@@ -466,7 +407,7 @@ export function createSupportController(
       notifyFailure(GUIDE_ERROR_TEXT.GUIDE_VALIDATION_ERROR);
       return;
     }
-    await runProgram(program);
+    await runProgram(program, origin);
   }
 
   function teardown(): void {
@@ -572,7 +513,7 @@ export function createSupportController(
       if (last && last.role === "assistant") {
         noteGrounding(text, snapshot.grounding);
       }
-      if (snapshot.program) await runProgram(snapshot.program);
+      if (snapshot.program) await runProgram(snapshot.program, "model");
     },
     cancel() {
       if (!state.thinking) return;
@@ -610,6 +551,15 @@ export function createSupportController(
     pauseGuide() {
       engine?.pauseGuide();
     },
+    nextStep() {
+      engine?.nextStep();
+    },
+    backStep() {
+      engine?.backStep();
+    },
+    replayGuide() {
+      engine?.restartGuide();
+    },
     stopGuide() {
       engine?.cancelGuide("user");
     },
@@ -620,199 +570,6 @@ export function createSupportController(
       teardown();
       listeners.clear();
       routeListeners.clear();
-    },
-  };
-}
-
-export async function loadBrowserEngine(
-  host: SupportHost,
-): Promise<SupportEngine> {
-  const [
-    { SupportError, createSupportSession, redactionWarning },
-    { compileGuide },
-    { createGuideRuntime, systemGuideClock },
-    context,
-    targets,
-    routes,
-    predicateState,
-    rendering,
-    promptApi,
-    agUi,
-    predicates,
-    connectivity,
-  ] = await Promise.all([
-    import("@opensesame/support-agent").then(
-      ({ SupportError, createSupportSession, redactionWarning }) => ({
-        SupportError,
-        createSupportSession,
-        redactionWarning,
-      }),
-    ),
-    import("@opensesame/guide-lang").then(({ compileGuide }) => ({
-      compileGuide,
-    })),
-    import("@opensesame/guide-runtime").then(
-      ({ createGuideRuntime, systemGuideClock }) => ({
-        createGuideRuntime,
-        systemGuideClock,
-      }),
-    ),
-    import("@opensesame/app-core/tutorial/registry/context.js"),
-    import("@opensesame/app-core/tutorial/registry/targets.js"),
-    import("@opensesame/app-core/tutorial/registry/routes.js"),
-    import("@opensesame/app-core/tutorial/registry/state.js"),
-    import("./rendering/index.js"),
-    supportAgentLoaders.promptApi(),
-    supportAgentLoaders.agUi(),
-    import("@opensesame/app-core/tutorial/registry/predicates.js"),
-    import("@opensesame/app-core/lib/connectivity-monitor.js"),
-  ]);
-
-  predicates.registerGuidePredicates();
-
-  async function localAvailability(
-    port: SupportAgentPort,
-  ): Promise<SupportAgentAvailability> {
-    try {
-      return await port.availability();
-    } catch {
-      return { kind: "unavailable", reason: "platform_unsupported" };
-    }
-  }
-
-  /** Stands in when this browser has neither, so the panel still opens. */
-  const absent = {
-    availability: (): Promise<SupportAgentAvailability> =>
-      Promise.resolve({ kind: "unavailable", reason: "no_local_model" }),
-    run: () =>
-      Promise.reject(
-        new SupportError(
-          "AGENT_UNAVAILABLE",
-          "no support agent is available in this browser",
-        ),
-      ),
-    destroy: () => {},
-  };
-  const local = promptApi.createPromptApiAgent();
-  const providerMod = await supportAgentLoaders.provider();
-  const provider = providerMod.createProviderAgent();
-  const { port, transport } = chooseSupportAgent(
-    local,
-    local === null ? null : await localAvailability(local),
-    provider,
-    () => agUi.createAgUiAgent(),
-    absent,
-  );
-  // Keep unused planes from holding a second live session.
-  if (port !== local) local?.destroy();
-  if (port !== provider) provider?.destroy();
-
-  function readContext(question?: string) {
-    const planes = connectivity.connectivitySnapshot();
-    const input: PageContextInput = {
-      pageId: "pages",
-      route: host.currentRoute(),
-      hostReachable: false, // ADR 0090/0128: no Host
-      identityReachable: planes.identity.health === "reachable",
-    };
-    if (question === undefined) return context.buildSupportPageContext(input);
-    return context.buildSupportPageContext({ ...input, question });
-  }
-
-  // Authored walkthroughs can name controls on their next destination.
-  const authoredVocabulary = {
-    goals: guideGoalIds(),
-    targets: guideTargetIds(),
-    routes: GUIDE_ROUTES.map((route) => route.id),
-    predicates: guidePredicateIds(),
-  };
-
-  // Model vocabulary follows the current page on every compile, not a snapshot.
-  const vocabulary = {
-    get goals() {
-      return readContext().goals.map((goal) => goal.id);
-    },
-    get targets() {
-      return readContext().targets.map((target) => target.id);
-    },
-    get routes() {
-      return readContext().routes.map((route) => route.id);
-    },
-    get predicates() {
-      return readContext().state.map((fact) => fact.id);
-    },
-  };
-
-  const session = createSupportSession({ port, vocabulary, readContext });
-
-  const renderer = await rendering.loadDriverRenderer({
-    resolveElement: targets.resolveGuideTargetElement,
-    reducedMotion: () =>
-      globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ??
-      false,
-  });
-
-  const runtime = createGuideRuntime({
-    renderer,
-    targets: {
-      isMounted: targets.isMountedGuideTarget,
-      isKnown: targets.isKnownGuideTarget,
-      observe: targets.observeGuideTarget,
-    },
-    routes: {
-      current: host.currentRoute,
-      isKnown: routes.isKnownGuideRoute,
-      navigate: host.navigate,
-      observe: host.observeRoute,
-    },
-    state: {
-      isKnown: predicateState.isKnownGuidePredicate,
-      read: predicateState.readGuidePredicate,
-      observe: predicateState.observeGuidePredicate,
-    },
-    clock: systemGuideClock(),
-  });
-
-  return {
-    transport,
-    warning: transport === "remote" ? redactionWarning() : null,
-    session,
-    compile(source) {
-      const result = compileGuide(source, vocabulary);
-      return result.ok ? result.program : null;
-    },
-    compileAuthored(source) {
-      const result = compileGuide(source, authoredVocabulary);
-      return result.ok ? result.program : null;
-    },
-    runGuide(program) {
-      return runtime.start(program);
-    },
-    pauseGuide() {
-      runtime.pause();
-    },
-    cancelGuide(reason) {
-      runtime.cancel(reason);
-    },
-    subscribeGuide(listener) {
-      return runtime.subscribe({ onSnapshot: listener });
-    },
-    async acquire(onProgress) {
-      try {
-        await promptApi.acquirePromptApiModel(onProgress);
-        return { kind: "acquired" };
-      } catch (cause) {
-        if (cause instanceof SupportError) {
-          return { kind: "failed", code: cause.code };
-        }
-        return { kind: "failed", code: "AGENT_UNAVAILABLE" };
-      }
-    },
-    destroy() {
-      runtime.cancel("lock");
-      renderer.clear();
-      session.destroy();
-      promptApi.releaseLocalModelSession();
     },
   };
 }

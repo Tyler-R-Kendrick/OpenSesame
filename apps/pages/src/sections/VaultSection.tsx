@@ -24,20 +24,15 @@ import { UpLink } from "../components/UpLink.js";
 import { swipeBack } from "../lib/gestures.js";
 import { AscendProvider, usePaneTrail } from "../lib/pane-trail.js";
 import { useNarrow } from "../lib/use-narrow.js";
-import {
-  PHONE_ALL_ITEMS,
-  vaultListPath,
-  vaultPane,
-} from "../lib/vault-list-path.js";
+import { vaultListPath, vaultPane } from "../lib/vault-list-path.js";
 import { useCopySecret, useVault, useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
+import { PhoneAdd } from "./vault/PhoneAdd.js";
 import { TrashCommands, trashItemActions } from "./vault/TrashCommands.js";
 import { VaultActions } from "./vault/VaultActions.js";
 import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
-import { VaultPathbar } from "./vault/VaultPathbar.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import { WelcomeKeys } from "./vault/WelcomeKeys.js";
-import { askForSearch } from "./vault/use-search-handoff.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
 import "./vault.css";
 import {
@@ -183,6 +178,10 @@ export function VaultSection() {
   const newItemRef = useRef<HTMLAnchorElement>(null);
   const createRef = useGuideTarget<HTMLAnchorElement>("vault.create");
   const listRef = useGuideTarget<HTMLDivElement>("vault.list");
+  // A phone opens on the section tree, where the list pane is not drawn: the
+  // tree answers to the list's target, and PhoneAdd's Add key to the create
+  // one, and the registry points at whichever copy is on screen.
+  const treeListRef = useGuideTarget<HTMLDivElement>("vault.list");
   const listPath = vaultListPath(location.search, narrow);
 
   const ascend = usePaneTrail(showing);
@@ -213,20 +212,21 @@ export function VaultSection() {
         {/* The section tree: the rail's own tree, drawn where a phone looks.
           It is mounted only below the breakpoint, so the rail and this pane
           never hold two trees at once. */}
-        <div className="vault__tree" ref={treePaneRef}>
+        <div
+          className="vault__tree"
+          ref={(element) => {
+            treePaneRef.current = element;
+            if (narrow) treeListRef(element);
+            else treeListRef(null);
+          }}
+        >
           {narrow ? (
             <>
-              {/* The list's own command row, so adding, importing and backing
-                up are on the screen a phone opens on. Search jumps to the
-                list of everything with its prompt open. */}
-              <VaultPathbar
-                verbs={<VaultActions createPath={createPath} />}
-                search={() => {
-                  askForSearch();
-                  navigate(PHONE_ALL_ITEMS);
-                }}
-              />
+              {/* A phone's first pane is for finding and adding. Finding is the
+                status-line prompt (`/? words`), so the pane draws no field
+                of its own; adding is the corner key's Add sheet. */}
               <NavTree />
+              <PhoneAdd createPath={createPath} />
             </>
           ) : null}
         </div>

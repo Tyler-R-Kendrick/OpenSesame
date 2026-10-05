@@ -49,6 +49,10 @@ export function useVaultFocus(panes: Panes) {
     const list = panes.list.current;
     const detail = panes.detail.current;
     if (!list || !detail) return;
+    // A dialog already holds the caret — the tutorial card is one, and the
+    // step that navigated here is the reason this arrival happened. The page
+    // yields to it as it yields to an editor's first field.
+    if (document.activeElement?.closest('[role="dialog"]')) return;
     const treePane = panes.tree.current;
     const tree = treePane?.querySelector<HTMLElement>('[role="tree"]');
     if (tree && treePane && !hidden(treePane)) {

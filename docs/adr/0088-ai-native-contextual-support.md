@@ -2,6 +2,9 @@
 
 - Status: Accepted
 - Date: 2026-08-31
+- Amended by: [ADR 0163](0163-tutorial-mode.md) (§1 and §4, the authored
+  budget and what draws a step; and §5, Driver.js is no longer the rendering
+  primitive, a React card in `tutorial/coach/` is)
 - Supplements: [ADR 0005](0005-authority-handle-connectionref.md) (agents hold
   handles, never material), [ADR 0017](0017-host-client-product-topology.md)
   (client plane owns the PWA), [ADR 0065](0065-agent-surface-parity.md)

@@ -3348,6 +3348,12 @@ fieldset.picker {
     place-items: center;
     width: 2.75rem;
     height: 2.75rem;
+    /* A button's own side padding leaves the grid narrower than the track
+       drawn in it, and the overflowing column starts at the left, so the track
+       sat ~5px right of centre while the knob (placed from the centre) hung
+       out of its left edge. */
+    padding: 0;
+    justify-content: center;
     border-color: transparent;
     background: transparent;
   }
@@ -3659,4 +3665,40 @@ summary::before {
 
 details[open] > summary::before {
   transform: rotate(45deg);
+}
+
+/* The top bar's prompt (who@tomb:/ and the lock key) is the one flexible thing
+   in a bar of fixed keys. At 320px the names kept their full width, the prompt
+   clipped them mid-glyph and the lock key — the last item — went with them.
+   The names shrink and end in an ellipsis; the punctuation and the key stay. */
+@media (max-width: 900px) {
+  .topbar .account-switcher,
+  .topbar .project-switcher {
+    display: flex;
+    /* A name is a key, so it keeps the touch floor; shrunk past that two names
+       also stop being distinguishable and run into the punctuation. */
+    min-width: 2.75rem;
+    flex: 0 1 auto;
+  }
+
+  .topbar .prompt__seg {
+    display: block;
+    /* The touch floor (`.prompt__seg` is a key) wins over shrinking. */
+    min-width: 2.75rem;
+    flex: 1 1 auto;
+  }
+}
+
+/* At 320 the prompt's own side padding is the difference between the lock key
+   fitting and half of it being clipped. */
+@media (max-width: 360px) {
+  .topbar .rail__prompt {
+    padding-inline: 0;
+  }
+
+  /* The root marker ":/" is the one piece of the prompt that says nothing the
+     tomb name does not; two 44px names and the lock key do not fit beside it. */
+  .topbar .rail__prompt > .prompt__dim:nth-of-type(2) {
+    display: none;
+  }
 }

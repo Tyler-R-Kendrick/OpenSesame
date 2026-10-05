@@ -42,7 +42,7 @@ forbids putting a local host in front of a browser capability. A prompt for
    reachable.** SOPS YAML and JSON encrypt, decrypt, edit, import and export
    with local age identities are implemented in `apps/pages/src/lib/sops`
    and execute in the page, in a module Web Worker, on a static origin. A
-   person can open an arbitrary SOPS document from Settings → Formats, not
+   person can open an arbitrary SOPS document from Settings → Security → SOPS document, not
    only export the vault into one. No Host, no daemon, no browser extension,
    no installed `sops`, no environment variable, no Node service, no
    serverless function and no separately installed runtime takes part.
@@ -94,7 +94,7 @@ forbids putting a local host in front of a browser capability. A prompt for
 
 ## Consequences
 
-- Settings → Formats can open, decrypt, edit, encrypt and save a SOPS
+- Settings → Security → SOPS document can open, decrypt, edit, encrypt and save a SOPS
   document on `tyler-r-kendrick.github.io/OpenSesame/`, offline, with no
   backend of any kind — which is what ADR 0129 §7 promised.
 - `pnpm verify:sops-browser` (product gate, required) and
@@ -113,3 +113,9 @@ forbids putting a local host in front of a browser capability. A prompt for
 - Documents are bounded (8 MiB input, 64 levels, 100,000 nodes, 32
   documents, 32 groups, 128 recipient entries). A document above a bound is
   refused with a named limit rather than degraded.
+- Amended 2026-10-04: the Formats panel was removed from Settings (#618) and
+  took the SOPS document sheet with it, so the claim above was unreachable
+  while `verify:sops-static`, run only from `verify:sops-browser`, rotted in no
+  CI job. The sheet is back as the SOPS row under Settings › Security (a
+  `settings-panel` of `backup.cloud-secrets`), and `verify:sops-static` is a
+  CI step. Age armor, the protection manifest and Vault SOPS stay removed.

@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { CrumbTrail, useCrumbs } from "../../components/Crumbs.js";
-import { SlashSearchKey } from "../../components/SlashSearch.js";
 import { showKeymapHelp } from "../../lib/keymap.js";
 
 /**
@@ -12,18 +11,17 @@ import { showKeymapHelp } from "../../lib/keymap.js";
  * carries the count and the filter beside it. One tomb path per pane, in the
  * place that says the most about it.
  *
+ * It holds no search key either. Search is the status bar's own `/?` verb
+ * (and the `/` key, which writes it there), so a finger types into the one
+ * prompt that lists search in its hint rather than a second box that opened
+ * above the first.
+ *
  * What it opens with instead is where the page is — `Vault › Logins`,
  * `Vault › Work › Webmail`. Left to the shell, that path was a row over both
  * panes that came and went with the route, moving the list and the editor
  * 24px each time, and this strip held three keys and nothing they belonged to.
  */
-export function VaultPathbar({
-  verbs,
-  search,
-}: {
-  verbs: ReactNode;
-  search: () => void;
-}) {
+export function VaultPathbar({ verbs }: { verbs: ReactNode }) {
   const crumbs = useCrumbs();
   return (
     <div className="vtree__pathbar">
@@ -34,7 +32,6 @@ export function VaultPathbar({
       />
       <fieldset className="vtree__keys" aria-label="Vault commands">
         {verbs}
-        <SlashSearchKey onOpen={search} />
         <button
           type="button"
           className="vtree__key vtree__key--help"

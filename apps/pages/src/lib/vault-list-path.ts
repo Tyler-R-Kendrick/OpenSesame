@@ -18,11 +18,12 @@ export function vaultListPath(search: string, narrow: boolean): string {
   if (!narrow) return `/vault${search}`;
   const params = new URLSearchParams(search);
   const kept = new URLSearchParams();
-  for (const key of ["f", "folder"]) {
+  for (const key of ["f", "folder", "q"]) {
     const value = params.get(key);
     if (value !== null) kept.set(key, value);
   }
-  if (kept.size === 0) kept.set("f", "all");
+  // A search narrows a list; on its own it names none.
+  if (!kept.has("f") && !kept.has("folder")) kept.set("f", "all");
   return `/vault?${kept.toString()}`;
 }
 

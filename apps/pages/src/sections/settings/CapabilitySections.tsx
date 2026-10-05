@@ -252,6 +252,7 @@ function CapabilitySection({
 }: SectionProps) {
   const { plan } = useComposition();
   const roads = useConnectorRoads();
+  const headRef = useGuideTarget<HTMLDivElement>(`feature.${feature.id}`);
   const identityApi = useIdentityConfigured();
   const tiles = feature.capabilities.length > 1;
   const id = `feature-${feature.id}`;
@@ -276,7 +277,7 @@ function CapabilitySection({
       aria-labelledby={`${id}-title`}
       ref={sectionRef}
     >
-      <SectionHead id={`${id}-title`} title={feature.title}>
+      <SectionHead id={`${id}-title`} title={feature.title} headRef={headRef}>
         <WithdrawnMark feature={feature} />
         {isSwitchable(feature, plan, { identityApi }) ? (
           <SectionSwitch
