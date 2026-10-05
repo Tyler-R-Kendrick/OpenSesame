@@ -20,6 +20,9 @@ import {
 
 const vectors = Object.entries(fixture.vectors);
 
+/** The kind a recorded (possibly legacy) kind opens as. */
+const current = (kind: string): string => (kind === "login" ? "account" : kind);
+
 /** Every string anywhere in a JSON value. */
 function stringLeaves(value: JsonValue): string[] {
   const found: string[] = [];
@@ -33,9 +36,12 @@ function stringLeaves(value: JsonValue): string[] {
 describe("openVaultFile over the golden vectors", () => {
   it.each(vectors)("%s opens to its recorded summary", async (_n, v) => {
     const opened = await openVaultFile(v.file, fixture.password);
+    // A vault written before ADR 0166 holds `login` items; they open as accounts.
     expect(
       opened.items.map(({ id, name, kind }) => ({ id, name, kind })),
-    ).toEqual(v.expect.items);
+    ).toEqual(
+      v.expect.items.map((item) => ({ ...item, kind: current(item.kind) })),
+    );
     expect(opened).toMatchObject({
       tomb: v.expect.tomb,
       bound: v.expect.bound,
@@ -46,6 +52,26 @@ describe("openVaultFile over the golden vectors", () => {
       "concealed" in v.expect ? v.expect.concealed : [],
     );
     for (const item of opened.items) expect(item.path).toContain(item.name);
+  });
+
+  it("opens every legacy login vector as accounts, with none left", async () => {
+    const legacyVectors = vectors.filter(([, v]) =>
+      v.expect.items.some((item) => item.kind === "login"),
+    );
+    expect(legacyVectors.length).toBeGreaterThan(0);
+    for (const [, v] of legacyVectors) {
+      const sealed = readVaultFile(v.file);
+      const raw = await unwrapRawVaultKeyFromPassword(
+        sealed.header,
+        fixture.password,
+      );
+      const { body } = await openVaultBody(sealed, raw);
+      const kinds = body.items.map((item) => item.kind);
+      expect(kinds).not.toContain("login");
+      expect(kinds).toContain("account");
+      const opened = await openVaultFile(v.file, fixture.password);
+      expect(opened.items.map((item) => item.kind)).not.toContain("login");
+    }
   });
 
   it.each(vectors)("%s lists no field value", async (_n, v) => {

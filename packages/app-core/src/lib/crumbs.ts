@@ -9,8 +9,10 @@ import {
   itemTypeRegistry,
   typePlural,
 } from "@opensesame/vault-core";
+import { resolveTypeId } from "@opensesame/vault-item-types";
 import { accessPath, isAccessView } from "./access-routes.js";
 import { contributionsSnapshot } from "./contributions.js";
+import { resolveFilterSlug } from "./vault-filter-slug.js";
 
 export type Crumb = {
   label: string;
@@ -105,9 +107,11 @@ const VAULT_FILTER_LABEL = new Map([
  * A vault filter is a type id (ADR 0087), so its crumb comes from the type's
  * own definition. The two non-type filters above keep their fixed labels.
  */
-export function vaultFilterLabel(filter: string): string | undefined {
-  const fixed = VAULT_FILTER_LABEL.get(filter);
+export function vaultFilterLabel(slug: string): string | undefined {
+  const fixed = VAULT_FILTER_LABEL.get(slug);
   if (fixed !== undefined) return fixed;
+  // A link written before accounts (`?f=logins`) still names its type.
+  const filter = resolveFilterSlug(slug);
   return itemTypeRegistry().has(filter) ? typePlural(filter) : undefined;
 }
 
@@ -300,8 +304,10 @@ function vaultCrumbs(
     crumbs.push({ label: "Password health" });
     return crumbs;
   }
-  if (rest[0] === "new" && rest[1] && isItemKind(rest[1])) {
-    const kind = rest[1];
+  // `/vault/new/login` still names the account type (ADR 0166).
+  const newKind = resolveTypeId(rest[1] ?? "");
+  if (rest[0] === "new" && isItemKind(newKind)) {
+    const kind = newKind;
     crumbs.push({ label: `New ${KIND_LABEL[kind].toLowerCase()}` });
     return crumbs;
   }

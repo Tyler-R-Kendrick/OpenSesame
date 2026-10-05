@@ -116,15 +116,15 @@ describe("hostname patterns", () => {
   });
 
   it("preserves match modes through the sealed-store manifest", () => {
-    const item = createItem("login", "Example");
-    if (item.kind !== "login") throw new Error("Wrong fixture");
+    const item = createItem("account", "Example");
+    if (item.kind !== "account") throw new Error("Wrong fixture");
     item.uris = [
       newUri("", "never"),
       newUri("*.example.com", "wildcard"),
       newUri("example\\.com", "regex"),
     ];
     const restored = entryToVaultItem(vaultItemToEntry(item, []));
-    if (restored.kind !== "login") throw new Error("Wrong restored type");
+    if (restored.kind !== "account") throw new Error("Wrong restored type");
     expect(restored.uris.map(({ uri, match }) => ({ uri, match }))).toEqual([
       { uri: "*.example.com", match: "wildcard" },
       { uri: "example\\.com", match: "regex" },

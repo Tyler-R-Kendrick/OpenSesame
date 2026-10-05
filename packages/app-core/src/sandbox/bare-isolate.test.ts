@@ -230,7 +230,7 @@ describe("the portable core in a bare V8 context", () => {
     const result = await inside(
       context,
       `OpenSesameCore.configureHost(OpenSesameCore.createSandboxHost());
-       const item = OpenSesameCore.createItem("login", "Example Bank");
+       const item = OpenSesameCore.createItem("account", "Example Bank");
        return {
          found: OpenSesameCore.searchMatches(item, "bank"),
          missed: OpenSesameCore.searchMatches(item, "zzz"),

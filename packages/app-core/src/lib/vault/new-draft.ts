@@ -6,15 +6,18 @@ import {
   itemTypeRegistry,
   newUri,
   newValues,
+  passwordMethod,
 } from "@opensesame/vault-core";
 import {
   type FieldDefinition,
   definitionFields,
+  resolveTypeId,
 } from "@opensesame/vault-item-types";
+import { generateStored } from "./generators/index.js";
 import { defaultCharOptions, generateCharacters } from "./password.js";
 
 const LEGACY_KINDS: readonly LegacyItemKind[] = [
-  "login",
+  "account",
   "passkey",
   "card",
   "secret",
@@ -73,7 +76,7 @@ export function generateDraftLabels(typeId: string): DraftLabels {
  * is the smaller failure next to an item named after the type it is not.
  */
 export function isGeneratedDraftName(name: string, typeId: string): boolean {
-  const definition = itemTypeRegistry().get(typeId);
+  const definition = itemTypeRegistry().get(resolveTypeId(typeId));
   if (definition === undefined) return false;
   const prefix = `${definition.spec.title} `;
   return (
@@ -82,7 +85,10 @@ export function isGeneratedDraftName(name: string, typeId: string): boolean {
 }
 
 /** Only new user/agent creation calls this. Imports and edits retain their values. */
-export function newItemDraft(typeId: string, name?: string): VaultItem {
+export function newItemDraft(rawTypeId: string, name?: string): VaultItem {
+  // `login` is the retired name of `account`; a link that still carries it
+  // opens an account draft (ADR 0166 §1).
+  const typeId = resolveTypeId(rawTypeId);
   const definition = itemTypeRegistry().get(typeId);
   if (!definition) throw new Error("Unknown vault item type");
   const labels = generateDraftLabels(typeId);
@@ -114,13 +120,18 @@ export function newItemDraft(typeId: string, name?: string): VaultItem {
 
 function newNativeDraft(kind: LegacyItemKind, labels: DraftLabels): VaultItem {
   const item = createItem(kind, labels.name);
-  if (item.kind === "login") {
+  if (item.kind === "account") {
     // One empty address to fill in. A `*` wildcard here matched every site,
-    // so a login saved as drafted was offered on every page (and drew the
+    // so an account saved as drafted was offered on every page (and drew the
     // wildcard's help and tester under a pattern nobody had written).
     item.uris = [newUri()];
     item.username = labels.username;
-    item.password = generateCharacters(defaultCharOptions);
+    // The generated password goes in the first password method, under that
+    // method's own rules generator, in the clear: a draft has no pepper yet.
+    const method = passwordMethod(item);
+    if (method?.generator.id === "rules") {
+      method.secret = generateStored(method.generator);
+    }
   }
   if (item.kind === "secret")
     item.value = generateCharacters(defaultCharOptions);
@@ -205,8 +216,9 @@ export function draftWebsite(value: string): URL {
 /** Link data is an untrusted suggestion, never authority or an automatic save. */
 export function readDraftPrefill(
   search: URLSearchParams,
-  typeId = "login",
+  rawTypeId = "account",
 ): DraftPrefill {
+  const typeId = resolveTypeId(rawTypeId);
   const prefill: DraftPrefill = { fields: {} };
   if (search.toString().length > 2048) throw new Error("invalid_prefill");
   for (const key of search.keys()) {
@@ -241,19 +253,20 @@ function validateNamedPrefill(
 }
 
 export function prefillNewDraft(
-  typeId: string,
+  rawTypeId: string,
   search: URLSearchParams,
 ): VaultItem {
+  const typeId = resolveTypeId(rawTypeId);
   const prefill = readDraftPrefill(search, typeId);
   const draft = newItemDraft(typeId, prefill.name);
   draft.folderId = prefill.folder ?? null;
   if (draft.kind === "typed")
     draft.values = { ...draft.values, ...prefill.fields };
-  if (draft.kind === "login" || draft.kind === "passkey") {
+  if (draft.kind === "account" || draft.kind === "passkey") {
     if (prefill.username) draft.username = prefill.username;
     if (prefill.uri) {
       const url = draftWebsite(prefill.uri);
-      if (draft.kind === "login") draft.uris = [newUri(prefill.uri)];
+      if (draft.kind === "account") draft.uris = [newUri(prefill.uri)];
       else draft.rpId = url.hostname;
       if (!prefill.name) draft.name = url.hostname;
     }

@@ -2,15 +2,15 @@
   "apiVersion": "opensesame.dev/v1alpha1",
   "kind": "VaultItemType",
   "metadata": {
-    "id": "login",
+    "id": "account",
     "version": "1.0.0",
     "publisher": "https://opensesame.dev"
   },
   "spec": {
-    "title": "Login",
-    "plural": "Logins",
-    "extension": ".login",
-    "summary": "A username, a password, the sites it signs into, and its authenticator code.",
+    "title": "Account",
+    "plural": "Accounts",
+    "extension": ".account",
+    "summary": "A username or id, the sites it signs into, and the ways it logs in.",
     "categories": ["access"],
     "sections": [
       {
@@ -24,7 +24,7 @@
         "id": "credentials",
         "title": "Credentials",
         "fields": [
-          { "id": "username", "type": "string", "label": "Username" },
+          { "id": "username", "type": "string", "label": "Username / ID" },
           { "id": "password", "type": "password", "label": "Password" },
           { "id": "totp", "type": "totp", "label": "Authenticator code" }
         ]
@@ -41,6 +41,6 @@
     "cxf": { "credential": "basic-auth" },
     "subtitle": ["username"],
     "search": ["username", "uris"],
-    "handler": "login"
+    "handler": "account"
   }
 }

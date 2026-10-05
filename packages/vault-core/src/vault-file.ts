@@ -22,7 +22,7 @@ import {
   OFFLINE_BACKUP_FORMAT,
   parseOfflineBackupEnvelope as parseOfflineBackup,
 } from "./offline-backup-format.js";
-import { openJsonForRebind } from "./seal-open.js";
+import { normalizeVaultBody, openJsonForRebind } from "./seal-open.js";
 import { buildRows } from "./tree-rows.js";
 
 export const VAULT_EXPORT_FORMAT = "opensesame-vault-export";
@@ -115,7 +115,8 @@ export async function openVaultBody(
     file.body,
     vaultSealBinding(file.tomb, "body"),
   );
-  return { body: opened.value, bound: !opened.rebound };
+  // A body from before ADR 0166 holds `login` items; they leave here as accounts.
+  return { body: normalizeVaultBody(opened.value), bound: !opened.rebound };
 }
 
 /** Names, kinds and paths — never a field value. */
@@ -124,7 +125,8 @@ export function summarizeVaultBody(
   body: VaultBody,
   bound: boolean,
 ): OpenedVaultFile {
-  const rows = buildRows(body.items, body.folders ?? [], new Set(), "");
+  const items = normalizeVaultBody(body).items;
+  const rows = buildRows(items, body.folders ?? [], new Set(), "");
   const paths = new Map<string, string>();
   for (const row of rows)
     if (row.type === "item") paths.set(row.item.id, row.path);
@@ -133,7 +135,7 @@ export function summarizeVaultBody(
     tomb: file.tomb,
     bound,
     rev: body.rev ?? null,
-    items: body.items.map((item) => ({
+    items: items.map((item) => ({
       id: item.id,
       name: item.name,
       kind: item.kind,

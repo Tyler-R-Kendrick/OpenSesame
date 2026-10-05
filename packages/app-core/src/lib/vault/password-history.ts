@@ -12,7 +12,11 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import type { VaultItem } from "@opensesame/vault-core";
+import {
+  type VaultItem,
+  methodsOfType,
+  plainPassword,
+} from "@opensesame/vault-core";
 import { openOwnedDatabase } from "../../ports.js";
 import { atRestBinding, openAtRest, sealAtRest } from "../at-rest/cipher.js";
 import { type AtRestKey, atRestReady } from "../at-rest/key.js";
@@ -53,11 +57,38 @@ export function persistenceProvided(): boolean {
   }
 }
 
-function concealedSecret(item: VaultItem | undefined): string {
-  if (!item) return "";
-  if (item.kind === "login") return item.password;
-  if (item.kind === "secret") return item.value;
-  return "";
+/**
+ * Where a password's history lives. A password method's history is its own;
+ * the first method of an account keeps the item's scope (`<tomb>\0<item>`), so
+ * a login migrated to an account (ADR 0166) keeps the digests it already had.
+ */
+function methodScope(tomb: string, itemId: string, methodId: string): string {
+  const item = `${tomb}\u0000${itemId}`;
+  return methodId === `${itemId}:password` ? item : `${item}\u0000${methodId}`;
+}
+
+/**
+ * The passwords an item holds in the clear, by history scope. A peppered or
+ * Sphinx password has none: it records no plaintext history at all (ADR 0166
+ * §4), so its digest is neither checked nor stored.
+ */
+function heldSecrets(
+  tomb: string,
+  item: VaultItem | undefined,
+): Map<string, string> {
+  const held = new Map<string, string>();
+  if (item === undefined) return held;
+  if (item.kind === "account") {
+    for (const method of methodsOfType(item, "password")) {
+      held.set(
+        methodScope(tomb, item.id, method.id),
+        plainPassword(method) ?? "",
+      );
+    }
+  } else if (item.kind === "secret") {
+    held.set(`${tomb}\u0000${item.id}`, item.value);
+  }
+  return held;
 }
 
 type PasswordChange = {
@@ -74,14 +105,12 @@ function passwordChanges(
   const byId = new Map(current.map((item) => [item.id, item]));
   const changes: PasswordChange[] = [];
   for (const item of next) {
-    const previous = concealedSecret(byId.get(item.id));
-    const proposed = concealedSecret(item);
-    if (proposed === previous) continue;
-    changes.push({
-      scope: `${tomb}\u0000${item.id}`,
-      previous,
-      next: proposed,
-    });
+    const before = heldSecrets(tomb, byId.get(item.id));
+    for (const [scope, proposed] of heldSecrets(tomb, item)) {
+      const previous = before.get(scope) ?? "";
+      if (proposed === previous) continue;
+      changes.push({ scope, previous, next: proposed });
+    }
   }
   return changes;
 }

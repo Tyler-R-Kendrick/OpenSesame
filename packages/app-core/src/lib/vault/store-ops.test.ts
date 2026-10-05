@@ -106,7 +106,7 @@ describe("normalizeVaultPrefs edge cases", () => {
 describe("VaultStore item mutations", () => {
   it("adds, updates, trashes, restores, and purges items", async () => {
     const store = await unlockedStore();
-    const item = createItem("login", "Mail");
+    const item = createItem("account", "Mail");
     await store.saveItem(item);
     expect(store.getSnapshot().items).toHaveLength(1);
 
@@ -199,7 +199,7 @@ describe("VaultStore import plans", () => {
       createdAt: new Date().toISOString(),
     };
     const count = await store.applyImport({
-      items: [createItem("login", "One"), createItem("note", "Two")],
+      items: [createItem("account", "One"), createItem("note", "Two")],
       newFolders: [folder],
     });
     expect(count).toBe(2);
@@ -213,11 +213,11 @@ describe("VaultStore import plans", () => {
 
   it("applies a manifest merge with adds, updates, and new folders", async () => {
     const store = await unlockedStore();
-    const existing = createItem("login", "Existing");
+    const existing = createItem("account", "Existing");
     await store.saveItem(existing);
 
     const updated: VaultItem = { ...existing, notes: "from manifest" };
-    const added = createItem("login", "Added");
+    const added = createItem("account", "Added");
     const newFolder = {
       id: crypto.randomUUID(),
       name: "Manifest",
@@ -256,7 +256,7 @@ describe("VaultStore sealed export and import", () => {
 
   it("round-trips items through an encrypted export", async () => {
     const source = await unlockedStore();
-    const item = createItem("login", "Portable");
+    const item = createItem("account", "Portable");
     await source.saveItem(item);
     const exported = source.exportSealed();
 

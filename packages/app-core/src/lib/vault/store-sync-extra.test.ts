@@ -1,4 +1,4 @@
-import { createItem, newUri } from "@opensesame/vault-core";
+import { accountTotp, createItem, newUri } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import {
   entriesToVaultItems,
@@ -104,8 +104,8 @@ describe("entryToVaultItem kinds", () => {
       secret: "pw",
       trailer: `{"username":"ada"}\n${otp}`,
     });
-    if (item.kind !== "login") throw new Error("expected login");
-    expect(item.totp).toBe(otp);
+    if (item.kind !== "account") throw new Error("expected account");
+    expect(accountTotp(item)).toBe(otp);
     expect(item.username).toBe("ada");
   });
 });
@@ -163,26 +163,38 @@ describe("vaultItemToEntry kinds", () => {
     expect(entry.trailer).not.toContain("the body");
   });
 
-  it("writes a bare TOTP seed as metadata and an otpauth URI as a line", () => {
-    const seedLogin = createItem("login", "Seed");
-    if (seedLogin.kind !== "login") throw new Error("expected login");
-    seedLogin.totp = "JBSWY3DPEHPK3PXP";
-    expect(vaultItemToEntry(seedLogin, []).trailer).toContain(
-      '"totp":"JBSWY3DPEHPK3PXP"',
-    );
+  it("writes a bare TOTP seed as a method and an otpauth URI as a line", () => {
+    const seedAccount = createItem("account", "Seed");
+    seedAccount.methods = [
+      {
+        id: "s:authenticator",
+        type: "authenticator",
+        secret: "JBSWY3DPEHPK3PXP",
+      },
+    ];
+    const seedEntry = vaultItemToEntry(seedAccount, []);
+    expect(seedEntry.trailer).toContain('"secret":"JBSWY3DPEHPK3PXP"');
+    expect(seedEntry.trailer).not.toContain("otpauth://");
+    const seedBack = entryToVaultItem(seedEntry);
+    if (seedBack.kind !== "account") throw new Error("expected account");
+    expect(accountTotp(seedBack)).toBe("JBSWY3DPEHPK3PXP");
 
-    const uriLogin = createItem("login", "Uri");
-    if (uriLogin.kind !== "login") throw new Error("expected login");
-    uriLogin.totp = "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP";
-    const entry = vaultItemToEntry(uriLogin, []);
+    const uriAccount = createItem("account", "Uri");
+    const uri = "otpauth://totp/x?secret=JBSWY3DPEHPK3PXP";
+    uriAccount.methods = [
+      { id: "u:authenticator", type: "authenticator", secret: uri },
+    ];
+    const entry = vaultItemToEntry(uriAccount, []);
     expect(entry.trailer).toContain("otpauth://totp/x");
+    const back = entryToVaultItem(entry);
+    if (back.kind !== "account") throw new Error("expected account");
+    expect(accountTotp(back)).toBe(uri);
   });
 
-  it("drops empty URI slots from login metadata", () => {
-    const login = createItem("login", "Uris");
-    if (login.kind !== "login") throw new Error("expected login");
-    login.uris = [newUri("https://a.example"), newUri("")];
-    const entry = vaultItemToEntry(login, []);
+  it("drops empty URI slots from account metadata", () => {
+    const account = createItem("account", "Uris");
+    account.uris = [newUri("https://a.example"), newUri("")];
+    const entry = vaultItemToEntry(account, []);
     expect(entry.trailer).toContain('"uris":["https://a.example"]');
   });
 });

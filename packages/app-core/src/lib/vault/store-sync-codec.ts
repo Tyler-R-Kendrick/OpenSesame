@@ -7,7 +7,7 @@
  * Format 2 (`"v":2`) carries the whole item — every named property, custom
  * fields concealed or not, notes and the star — so any kind comes back as
  * itself. A first-format entry (no `v`, written before) still reads: a
- * login, a secret, a note or a typed item whole, and anything else as its own
+ * login (read as an account), a secret, a note or a typed item whole, and anything else as its own
  * kind with line one in place. Concealed values go nowhere but line one and
  * the trailer.
  */
@@ -19,13 +19,12 @@ import {
   type VaultItem,
   createItem,
   definitionFor,
-  newId,
 } from "@opensesame/vault-core";
+import { accountFromEntry, describeAccount } from "./store-sync-account.js";
 import {
   type OsMeta,
   type StorePlainEntry,
   TRAILER_FORMAT,
-  extractOtpauthFromTrailer,
   isWholeItemMeta,
   joinStorePath,
   mergeOtpauthIntoTrailer,
@@ -60,6 +59,7 @@ function builtInFromMeta(
   kind: LegacyItemKind,
   name: string,
 ): VaultItem {
+  if (kind === "account") return accountFromEntry(entry, meta, name);
   const item = createItem(kind, name);
   if (item.kind === "note") {
     item.notes = [entry.secret, meta.notes ?? ""].filter(Boolean).join("\n");
@@ -71,15 +71,6 @@ function builtInFromMeta(
     props[lineOne] = entry.secret;
   }
   item.notes = meta.notes ?? "";
-  if (item.kind === "login") {
-    item.username = meta.username ?? "";
-    item.totp = extractOtpauthFromTrailer(entry.trailer) ?? meta.totp ?? "";
-    item.uris = (meta.uris ?? []).map((uri, index) => ({
-      id: newId(),
-      uri,
-      match: meta.uriMatches?.[index] ?? "domain",
-    }));
-  }
   if (item.kind === "secret") item.connectionRef = meta.connectionRef ?? "";
   applyNamedValues(item, meta.values);
   return item;
@@ -121,15 +112,7 @@ function describeKind(item: VaultItem, meta: OsMeta): string | null {
     meta.values = item.values;
     return null;
   }
-  if (item.kind === "login") {
-    meta.username = item.username || undefined;
-    const totp = item.totp.trim();
-    const otpauth = /^otpauth:\/\//iu.test(totp) ? totp : null;
-    if (item.totp && otpauth === null) meta.totp = item.totp;
-    meta.uris = item.uris.map((u) => u.uri).filter(Boolean);
-    meta.uriMatches = item.uris.filter((u) => u.uri).map((u) => u.match);
-    return otpauth;
-  }
+  if (item.kind === "account") return describeAccount(item, meta);
   if (item.kind === "secret") {
     meta.connectionRef = item.connectionRef || undefined;
   }

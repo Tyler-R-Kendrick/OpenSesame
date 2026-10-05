@@ -1,6 +1,12 @@
+/**
+ * The account draft a WebMCP agent may see and patch (ADR 0166). The tool and
+ * module keep their `login` names: they are the agent-facing contract. The view
+ * carries metadata only (name, username, sites, folder, favorite); a password,
+ * a pepper, a sealed envelope and an OPRF key have no field here and no path in.
+ */
 import {
+  type AccountItem,
   type Folder,
-  type LoginItem,
   type VaultItem,
   newUri,
 } from "@opensesame/vault-core";
@@ -47,7 +53,7 @@ export function loginDraftView(
   draft: VaultItem,
   folders: Folder[],
 ): LoginDraftView {
-  if (draft.kind !== "login") throw new Error("not_a_login_draft");
+  if (draft.kind !== "account") throw new Error("not_an_account_draft");
   const folder = folders.find((entry) => entry.id === draft.folderId);
   return {
     name: draft.name,
@@ -64,9 +70,9 @@ export function loginDraftView(
 export function applyLoginDraftPatch(
   draft: VaultItem,
   changes: LoginDraftPatch,
-): LoginItem {
-  if (draft.kind !== "login") throw new Error("not_a_login_draft");
-  let next: LoginItem = draft;
+): AccountItem {
+  if (draft.kind !== "account") throw new Error("not_an_account_draft");
+  let next: AccountItem = draft;
   if (changes.name !== undefined) next = { ...next, name: changes.name };
   if (changes.username !== undefined)
     next = { ...next, username: changes.username };

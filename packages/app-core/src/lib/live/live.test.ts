@@ -28,7 +28,7 @@ function catalog(policy: SharePolicy = "read"): Catalog {
       {
         id: "item-1",
         name: "GitHub",
-        type: "login",
+        type: "account",
         fields: [
           {
             key: "username",

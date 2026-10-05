@@ -5,6 +5,7 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { itemTypeRegistry } from "@opensesame/vault-core";
+import { resolveTypeId } from "@opensesame/vault-item-types";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import {
   COMMAND_SECTIONS,
@@ -153,13 +154,14 @@ export const navigationTool: WebMcpToolSpec = {
       ) {
         throw new Error("invalid_item_type_destination");
       }
-      location += `/${encodeURIComponent(args.itemType)}`;
+      // The retired `login` name resolves to the account type (ADR 0166).
+      location += `/${encodeURIComponent(resolveTypeId(args.itemType))}`;
     }
     if (args.prefill !== undefined) {
       if (section !== "/vault/new") throw new Error("invalid_prefill");
       location += prefillQuery(
         args.prefill,
-        isString(args.itemType) ? args.itemType : "login",
+        isString(args.itemType) ? resolveTypeId(args.itemType) : "account",
       );
     }
     webmcpNavigationSeam.navigate(location);

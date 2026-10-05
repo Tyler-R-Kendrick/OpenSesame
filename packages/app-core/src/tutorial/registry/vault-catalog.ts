@@ -23,7 +23,7 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "vault.create",
     description:
-      "Starts a new vault item of the kind the current filter names, defaulting to a login. Opens the editor; nothing is stored until it is saved.",
+      "Starts a new vault item of the kind the current filter names, defaulting to an account. Opens the editor; nothing is stored until it is saved.",
     role: "action",
     routes: ["/vault"],
     capabilityId: "vault.items.write_meta",
@@ -54,7 +54,7 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "vault.filter.logins",
     description:
-      "Narrows the item list to logins. Present only while the vault holds at least one login.",
+      "Narrows the item list to accounts. Present only while the vault holds at least one account.",
     role: "filter",
     routes: ["/vault"],
     capabilityId: "vault.items.search",

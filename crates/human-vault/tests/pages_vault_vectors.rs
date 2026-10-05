@@ -20,6 +20,22 @@ use sha2::Sha256;
 
 const VECTORS: &str = include_str!("../../../spec/conformance/vault-vectors.json");
 
+/// The vectors written before ADR 0166: their items are `login`, and stay so.
+const LEGACY_VECTORS: [&str; 5] = [
+    "export-personal",
+    "backup-personal",
+    "backup-project",
+    "export-legacy-unbound",
+    "backup-device-identity",
+];
+
+/// The vectors added by ADR 0166, holding `account` items.
+const ACCOUNT_VECTORS: [&str; 3] = [
+    "export-personal-accounts",
+    "backup-personal-accounts",
+    "backup-project-accounts",
+];
+
 fn fixture() -> Value {
     serde_json::from_str(VECTORS).expect("the vectors parse")
 }
@@ -114,10 +130,94 @@ fn string_leaves(value: &Value, out: &mut Vec<String>) {
     }
 }
 
+/// Name, kind and path of every listed item: a legacy vector lists its login
+/// as `.login`, an account vector lists accounts as `.account` (ADR 0166).
+fn assert_listing(name: &str, opened: &OpenedVaultFile) {
+    let listed: Vec<(&str, &str, &str)> = opened
+        .items
+        .iter()
+        .map(|item| (item.name.as_str(), item.kind.as_str(), item.path.as_str()))
+        .collect();
+    if LEGACY_VECTORS.contains(&name) {
+        let logins: Vec<_> = listed
+            .iter()
+            .filter(|(_, kind, _)| *kind == "login")
+            .collect();
+        assert_eq!(logins.len(), 1, "{name}: one legacy login");
+        assert!(logins[0].2.ends_with(".login"), "{name}: {}", logins[0].2);
+        assert!(
+            listed.iter().all(|(_, kind, _)| *kind != "account"),
+            "{name}"
+        );
+        return;
+    }
+    let label = if name.contains("project") {
+        "Project"
+    } else {
+        "Personal"
+    };
+    let expected: Vec<(String, String, String)> = [
+        ("plain account", "account", ".account"),
+        ("peppered account", "account", ".account"),
+        ("derived account", "account", ".account"),
+        ("keyed account", "account", ".account"),
+        ("note", "note", ".note"),
+    ]
+    .iter()
+    .map(|(what, kind, ext)| {
+        let item = format!("{label} {what}");
+        let path = format!("{item}{ext}");
+        (item, (*kind).to_owned(), path)
+    })
+    .collect();
+    let listed: Vec<(String, String, String)> = listed
+        .iter()
+        .map(|(a, b, c)| ((*a).to_owned(), (*b).to_owned(), (*c).to_owned()))
+        .collect();
+    assert_eq!(listed, expected, "{name}");
+}
+
+/// The account vectors hold every way to keep a login (ADR 0166 section 2): a
+/// plain manual password, a peppered one with its sealed envelope, a sphinx
+/// one with its OPRF key, an authenticator, and api-key, token and oauth.
+fn assert_account_methods(name: &str, body: &Value) {
+    let methods: Vec<&Value> = body["items"]
+        .as_array()
+        .expect("items")
+        .iter()
+        .filter(|item| item["kind"] == "account")
+        .flat_map(|item| item["methods"].as_array().expect("methods"))
+        .collect();
+    let has = |ty: &str| methods.iter().any(|method| method["type"] == ty);
+    assert!(has("password") && has("authenticator"), "{name}");
+    assert!(has("api-key") && has("token") && has("oauth"), "{name}");
+    let password = |pred: &dyn Fn(&Value) -> bool| {
+        methods
+            .iter()
+            .any(|method| method["type"] == "password" && pred(method))
+    };
+    assert!(
+        password(&|m| m["generator"]["id"] == "manual" && m["pepper"] == false),
+        "{name}: a plain manual password"
+    );
+    assert!(
+        password(&|m| m["pepper"] == true && m["sealed"].is_object() && m["secret"] == ""),
+        "{name}: a peppered password with its sealed envelope"
+    );
+    assert!(
+        password(&|m| m["generator"]["id"] == "sphinx" && m["generator"]["oprfKeyB64"].is_string()),
+        "{name}: a sphinx password"
+    );
+}
+
 #[test]
 fn every_vector_opens_to_its_recorded_summary_and_lists_no_value() {
     let vectors = vectors();
-    assert_eq!(vectors.len(), 5, "the five golden vectors");
+    assert_eq!(
+        vectors.len(),
+        LEGACY_VECTORS.len() + ACCOUNT_VECTORS.len(),
+        "the five legacy `login` vectors and the three `account` vectors"
+    );
     for (name, file, expect) in vectors {
         let opened = open_vault_file(&file, &password()).unwrap_or_else(|e| panic!("{name}: {e}"));
         assert_eq!(as_listed(&opened), expect, "{name}");
@@ -127,6 +227,8 @@ fn every_vector_opens_to_its_recorded_summary_and_lists_no_value() {
             assert!(item.path.contains(&item.name), "{name}: {}", item.path);
             assert!(!item.path.contains('/'), "{name}: no vector has folders");
         }
+
+        assert_listing(&name, &opened);
 
         let body = independent_body(&file, &opened.tomb);
         let folders = body["folders"].as_array().map_or(0, Vec::len);
@@ -143,6 +245,11 @@ fn every_vector_opens_to_its_recorded_summary_and_lists_no_value() {
         // Nor any part of the device identity key a body carries (ADR 0160 §5).
         if let Some(key) = body.get("deviceIdentityKey") {
             string_leaves(key, &mut values);
+        }
+        if ACCOUNT_VECTORS.contains(&name.as_str()) {
+            // The pepper that opens a sealed password is never listed either.
+            values.push(text(&fixture(), "accountPepper"));
+            assert_account_methods(&name, &body);
         }
         values.retain(|value| value.chars().count() >= 6);
         assert!(!values.is_empty(), "{name}: the vector holds values");

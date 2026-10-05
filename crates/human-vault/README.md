@@ -64,7 +64,9 @@ snapshot in `src/snapshots/`. `tests/root_protection_vectors.rs` checks
 cross-language vectors in `tests/fixtures/root_protection_shared_vectors.json`.
 `tests/pages_vault_vectors.rs` opens the golden Pages vault vectors in
 [`spec/conformance/vault-vectors.json`](../../spec/conformance/vault-vectors.json)
-— the same file `packages/vault-core` reads — and
+— the same file `packages/vault-core` reads: five legacy `login` vectors
+(listed as `.login`, never regenerated) and three `account` vectors (ADR 0166,
+listed as `.account`; by name, kind and path only) — and
 `tests/pages_vault_envelopes.rs` holds the §7 envelope refusals.
 
 ## Related

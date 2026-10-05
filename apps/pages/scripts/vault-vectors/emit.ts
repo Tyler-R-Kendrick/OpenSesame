@@ -181,6 +181,13 @@ async function legacyUnboundExport(): Promise<Vector> {
   return { file, expect: expectationFor("personal", false, body) };
 }
 
+/**
+ * The `account` vectors (ADR 0166) live in `emit-accounts.ts`, which needs only
+ * `@opensesame/vault-core`; they are added beside the legacy `login` vectors
+ * with `--add accounts`, never by replacing them.
+ */
+export { emitAccountVectors } from "./emit-accounts.js";
+
 export async function emitVaultVectors(): Promise<string> {
   const prfOutput = new Uint8Array(
     await crypto.subtle.digest(

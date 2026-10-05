@@ -16,7 +16,7 @@ use super::{
 /// `packages/vault-core`.
 pub const DEVICE_IDENTITY_KEY_PATH: &str = "config/device-identity-key";
 
-/// Resolves an item type id to its extension (`.login`), when the caller has
+/// Resolves an item type id to its extension (`.account`), when the caller has
 /// a registry; `None` falls back as `typeExtension` does.
 pub type ExtensionOf<'a> = &'a dyn Fn(&str) -> Option<String>;
 
@@ -53,9 +53,17 @@ pub struct OpenedVaultFile {
 
 /// The built-in extensions of the legacy kinds (`KIND_EXT`), the reader's
 /// default when no item-type registry is at hand.
+///
+/// `account` is the kind Pages writes since ADR 0166 and lists as `.account`.
+/// A vault Pages has not opened since then still holds `login` items, which
+/// Pages normalizes to accounts on open; this reader never writes, so it lists
+/// them as they are, `.login`. Both rows are spelled here, not derived: this
+/// crate does not read the item-type corpus, and `login_is_listed_beside_account`
+/// pins them against `marketplace/item-types/builtin/account.json`.
 #[must_use]
 pub fn legacy_extension(type_id: &str) -> Option<String> {
     let extension = match type_id {
+        "account" => ".account",
         "login" => ".login",
         "passkey" => ".passkey",
         "card" => ".card",
@@ -191,5 +199,18 @@ mod tests {
         assert_eq!(path_segment("\u{85}x"), "\u{85}x");
         assert_eq!(legacy_extension("certificate").as_deref(), Some(".cert"));
         assert_eq!(legacy_extension("wifi"), None);
+    }
+
+    #[test]
+    fn login_is_listed_beside_account() {
+        assert_eq!(legacy_extension("account").as_deref(), Some(".account"));
+        assert_eq!(legacy_extension("login").as_deref(), Some(".login"));
+        // The `account` row is the item type definition's own extension.
+        let definition: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../marketplace/item-types/builtin/account.json"
+        ))
+        .expect("the account definition parses");
+        assert_eq!(definition["spec"]["extension"], ".account");
+        assert_eq!(definition["metadata"]["id"], "account");
     }
 }

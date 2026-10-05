@@ -13,6 +13,11 @@
  * would destroy them on every other device.
  */
 
+import {
+  isLegacyTypeAlias,
+  resolveExtension,
+  resolveTypeId,
+} from "./legacy-aliases.js";
 import { PACK_INDEX, type PackEntry } from "./packs.generated.js";
 import type { ItemTypeDefinition } from "./schema.js";
 import {
@@ -161,7 +166,11 @@ export class ItemTypeRegistry {
         `\`${id}\` is a vault filter and cannot name a type`,
       );
     }
-    if (this.#builtin.has(id) || PACK_INDEX.some((pack) => pack.id === id)) {
+    if (
+      this.#builtin.has(id) ||
+      PACK_INDEX.some((pack) => pack.id === id) ||
+      isLegacyTypeAlias(id)
+    ) {
       return refusal(
         "id",
         "metadata.id",
@@ -170,8 +179,9 @@ export class ItemTypeRegistry {
     }
     // The VFS tree renders an item as `name.ext` (ADR 0064/0073), so the
     // extension is the second thing that identifies a type on screen. Letting
-    // an install claim `.login` would let it dress its items as logins — the
-    // same impersonation the built-in id rule already refuses.
+    // an install claim `.account` (or the legacy `.login`) would let it dress
+    // its items as accounts — the same impersonation the built-in id rule
+    // already refuses.
     const clash = this.#extensionOwner(definition.spec.extension, id);
     if (clash !== undefined) {
       return refusal(
@@ -274,6 +284,9 @@ export class ItemTypeRegistry {
 
   /** The type already rendering this extension, if it is not `self`. */
   #extensionOwner(extension: string, self: string): string | undefined {
+    // A retired extension still belongs to the type that replaced it.
+    const current = resolveExtension(extension);
+    if (current !== extension) return this.#extensionOwner(current, self);
     for (const [id, definition] of this.#builtin) {
       if (id !== self && definition.spec.extension === extension) return id;
     }
@@ -293,8 +306,12 @@ export class ItemTypeRegistry {
     return this.#installed.delete(id);
   }
 
+  /** The definition for `id`; a legacy id (`login`) answers as its successor. */
   get(id: string): ItemTypeDefinition | undefined {
-    return this.#builtin.get(id) ?? this.#installed.get(id)?.definition;
+    const current = resolveTypeId(id);
+    return (
+      this.#builtin.get(current) ?? this.#installed.get(current)?.definition
+    );
   }
 
   has(id: string): boolean {
@@ -302,13 +319,18 @@ export class ItemTypeRegistry {
   }
 
   sourceOf(id: string): DefinitionSource | undefined {
-    if (this.#builtin.has(id)) return "builtin";
-    return this.#installed.get(id)?.source;
+    const current = resolveTypeId(id);
+    if (this.#builtin.has(current)) return "builtin";
+    return this.#installed.get(current)?.source;
   }
 
   /** A built-in, loaded or not: a pack that is off still owns its id. */
   isBuiltin(id: string): boolean {
-    return this.#builtin.has(id) || PACK_INDEX.some((pack) => pack.id === id);
+    const current = resolveTypeId(id);
+    return (
+      this.#builtin.has(current) ||
+      PACK_INDEX.some((pack) => pack.id === current)
+    );
   }
 
   /** Every registered type, builtins first, each group by title. */

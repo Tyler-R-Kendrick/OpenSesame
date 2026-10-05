@@ -30,6 +30,7 @@ import {
   deviceKeyField,
   deviceKeyTimeBounds,
   importVaultKey,
+  normalizeVaultBody,
   syncInstalledTypes,
   vaultSealBinding,
 } from "@opensesame/vault-core";
@@ -122,7 +123,8 @@ export async function importSealedInto(
     parsed.body,
     vaultSealBinding(tomb, BODY_PATH),
   );
-  const incoming = opened.value;
+  // An export from before ADR 0166 carries `login` items; they land as accounts.
+  const incoming = normalizeVaultBody(opened.value);
   if (!port.open()) throw new Error("Unlock this vault before importing.");
 
   // Whether to look at the backup's key at all is decided before anything is

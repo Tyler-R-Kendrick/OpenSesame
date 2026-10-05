@@ -1,4 +1,5 @@
 import { type JsonObject, isString } from "@opensesame/os-domain";
+import { resolveTypeId } from "@opensesame/vault-item-types";
 import { contributionsSnapshot } from "../lib/contributions.js";
 import { generateDraftLabels } from "../lib/vault/new-draft.js";
 
@@ -44,5 +45,9 @@ export async function suggestItemMetadata(args: JsonObject) {
 async function suggestOnDevice(typeId: string, website: string | undefined) {
   const [assist] = contributionsSnapshot("item-draft-assist");
   if (!assist) throw new Error("on_device_model_not_enabled");
-  return assist.suggest({ typeId, website }, AbortSignal.timeout(30_000));
+  // The retired `login` name suggests for an account (ADR 0166).
+  return assist.suggest(
+    { typeId: resolveTypeId(typeId), website },
+    AbortSignal.timeout(30_000),
+  );
 }

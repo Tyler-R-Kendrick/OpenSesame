@@ -17,7 +17,7 @@ import { CATALOG_BUDGET, vaultCatalog } from "./vault-share.js";
 function items(count: number, fields: number, text: string, label = "Field") {
   const made: VaultItem[] = [];
   for (let at = 0; at < count; at += 1) {
-    const item = createItem("login", `Item ${at}`);
+    const item = createItem("account", `Item ${at}`);
     item.fields = Array.from({ length: fields }, (_, field) => ({
       id: `f${field}`,
       name: label,
@@ -127,7 +127,7 @@ describe("a catalog frame the channel cannot carry", () => {
         {
           id: "a",
           name: "n".repeat(2 * 1024 * 1024),
-          type: "login",
+          type: "account",
           fields: [],
         },
       ],

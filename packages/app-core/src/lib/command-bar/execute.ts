@@ -1,9 +1,11 @@
 import { isString } from "@opensesame/os-domain";
 import {
   type VaultItem,
+  accountTotp,
   definitionFor,
   readItemField,
 } from "@opensesame/vault-core";
+import { type AskPepper, readAccountPassword } from "../account-password.js";
 import {
   type AppCommand,
   type CommandOutcome,
@@ -19,6 +21,11 @@ export type CommandPorts = {
   copy: (value: string) => Promise<"copied" | "unavailable">;
   items: () => readonly VaultItem[];
   vaultLocked: () => boolean;
+  /**
+   * Ask for a pepper (ADR 0166 §4). Without it a peppered or Sphinx password
+   * has nothing to copy; with it the question is asked once per command.
+   */
+  askPepper?: AskPepper;
 };
 
 function scoreName(name: string, query: string): number {
@@ -49,7 +56,6 @@ export function matchItem(
 }
 
 function concealedValue(item: VaultItem): string | null {
-  if (item.kind === "login") return item.password;
   if (item.kind === "secret") return item.value;
   if (item.kind === "card") return item.number;
   if (item.kind === "certificate") return item.privateKeyPem;
@@ -70,21 +76,54 @@ function concealedValue(item: VaultItem): string | null {
   return isString(value) && value !== "" ? value : null;
 }
 
-function fieldValue(
+/** What a copy reads: a value, or the reason there is none to copy. */
+type Read = { value: string | null } | { refusal: CommandOutcome };
+
+async function accountPassword(
+  item: Extract<VaultItem, { kind: "account" }>,
+  ports: CommandPorts,
+): Promise<Read> {
+  const reading = await readAccountPassword(item, ports.askPepper);
+  switch (reading.status) {
+    case "ok":
+      return { value: reading.password };
+    case "cancelled":
+      return { refusal: { ok: false, message: "Cancelled." } };
+    case "wrong":
+      return {
+        refusal: { ok: false, message: "That pepper did not open it." },
+      };
+    default:
+      return { value: null };
+  }
+}
+
+async function fieldValue(
+  item: VaultItem,
+  field: Extract<AppCommand, { action: "copy_field" }>["field"],
+  ports: CommandPorts,
+): Promise<Read> {
+  if (field === "password") {
+    if (item.kind === "account") return accountPassword(item, ports);
+    return { value: concealedValue(item) };
+  }
+  return { value: plainFieldValue(item, field) };
+}
+
+function plainFieldValue(
   item: VaultItem,
   field: Extract<AppCommand, { action: "copy_field" }>["field"],
 ): string | null {
-  if (field === "password") return concealedValue(item);
   if (field === "username") {
-    return item.kind === "login" || item.kind === "passkey"
+    return item.kind === "account" || item.kind === "passkey"
       ? item.username
       : null;
   }
   if (field === "otp") {
-    return item.kind === "login" ? item.totp : null;
+    return item.kind === "account" ? accountTotp(item) : null;
   }
   if (field === "url") {
-    if (item.kind === "login") {
+    if (item.kind === "account") {
       const uri = item.uris[0]?.uri;
       return uri !== undefined && uri !== "" ? uri : null;
     }
@@ -126,7 +165,9 @@ async function copyField(
   const subject = subjectOf(ports, command.query);
   if ("refusal" in subject) return subject.refusal;
   const { item } = subject;
-  const value = fieldValue(item, command.field);
+  const read = await fieldValue(item, command.field, ports);
+  if ("refusal" in read) return read.refusal;
+  const { value } = read;
   if (value === null || value === "") {
     return {
       ok: false,

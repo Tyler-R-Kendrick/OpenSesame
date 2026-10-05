@@ -15,6 +15,7 @@ import {
   type VaultHeader,
   deviceKeyTimeBounds,
   mergeVaultBodies,
+  normalizeVaultBody,
   openJson,
   sameVaultContent,
   syncInstalledTypes,
@@ -76,7 +77,8 @@ export async function openSnapshotBody(
       "that snapshot's revision does not match its body",
     );
   }
-  return body;
+  // Another device may not have opened its vault since ADR 0166.
+  return normalizeVaultBody(body);
 }
 
 /** `body` with `key` as its device identity key, or none. */

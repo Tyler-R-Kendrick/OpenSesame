@@ -146,15 +146,15 @@ describe("matchResetMail", () => {
   });
 });
 
-describe("login resetEmailId", () => {
-  it("round-trips through named values and stays off a fresh login", () => {
-    const fresh = createItem("login", "Example");
+describe("account resetEmailId", () => {
+  it("round-trips through named values and stays off a fresh account", () => {
+    const fresh = createItem("account", "Example");
     expect(fresh.resetEmailId).toBeUndefined();
     expect(namedValues(fresh)?.resetEmailId).toBeUndefined();
     fresh.resetEmailId = "mail-1";
     const values = namedValues(fresh);
     expect(values?.resetEmailId).toBe("mail-1");
-    const loaded = createItem("login", "Example");
+    const loaded = createItem("account", "Example");
     applyNamedValues(loaded, values);
     expect(loaded.resetEmailId).toBe("mail-1");
   });

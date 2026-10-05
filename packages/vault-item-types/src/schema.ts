@@ -28,7 +28,7 @@ export const MAX_LABEL_CHARS = 120;
  * platform-published definition may name one (ADR 0087 §6).
  */
 export const HANDLER_IDS = [
-  "login",
+  "account",
   "passkey",
   "secret",
   "certificate",

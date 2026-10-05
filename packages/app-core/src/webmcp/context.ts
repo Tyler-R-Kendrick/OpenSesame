@@ -66,9 +66,10 @@ export function webmcpContext(
   if (pathname.startsWith("/connections")) return "connections";
   if (pathname.startsWith("/identity")) return "identity";
   const path = pathname.split("?")[0] ?? pathname;
-  if (kind === "login" && vaultEditorPath(path)) return "login_form";
+  if (kind === "account" && vaultEditorPath(path)) return "login_form";
   if (kind && vaultEditorPath(path)) return "vault";
-  if (/\/vault\/new(?:\/login)?\/?$/.test(path)) return "login_form";
+  if (/\/vault\/new(?:\/(?:account|login))?\/?$/.test(path))
+    return "login_form";
   return "vault";
 }
 

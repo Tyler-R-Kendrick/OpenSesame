@@ -45,13 +45,13 @@ describe("a vault that loaded the retired sample data", () => {
   it("drops the flagged items on the next unlock and keeps the rest", async () => {
     const store = await unlockedStore();
     const demoFolder = await store.addFolder("Sample data");
-    const real = createItem("login", "Payroll");
+    const real = createItem("account", "Payroll");
     real.username = "ada";
     await store.saveItem(real);
     for (const name of ["GitHub", "Bank"]) {
       // SAFETY: sample is the retired flag this fixture preserves on an otherwise checked login item.
       const demo = {
-        ...createItem("login", name),
+        ...createItem("account", name),
         folderId: demoFolder.id,
         sample: true,
       } as VaultItem;

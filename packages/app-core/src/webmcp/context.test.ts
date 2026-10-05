@@ -19,15 +19,16 @@ describe("webmcpContext", () => {
     expect(webmcpContext("/identity", null)).toBe("identity");
   });
 
-  it("treats a login editor as its own surface, even on /vault/new", () => {
+  it("treats an account editor as its own surface, even on /vault/new", () => {
     expect(webmcpContext("/vault/new/login", null)).toBe("login_form");
+    expect(webmcpContext("/vault/new/account", null)).toBe("login_form");
     expect(webmcpContext("/vault/new", null)).toBe("login_form");
-    expect(webmcpContext("/vault/abc/edit", "login")).toBe("login_form");
+    expect(webmcpContext("/vault/abc/edit", "account")).toBe("login_form");
     expect(webmcpContext("/vault/new", "note")).toBe("vault");
     expect(webmcpContext("/vault", null)).toBe("vault");
-    expect(webmcpContext("/vault", "login")).toBe("vault");
-    expect(webmcpContext("/vault?f=trash", "login")).toBe("vault");
-    expect(webmcpContext("/settings", "login")).toBe("settings");
+    expect(webmcpContext("/vault", "account")).toBe("vault");
+    expect(webmcpContext("/vault?f=trash", "account")).toBe("vault");
+    expect(webmcpContext("/settings", "account")).toBe("settings");
   });
 });
 
@@ -56,9 +57,9 @@ describe("editor kind seam", () => {
     const stop = subscribeWebMcpEditorKind(() => {
       seen += 1;
     });
-    setWebMcpEditorKind("login");
-    expect(getWebMcpEditorKind()).toBe("login");
-    setWebMcpEditorKind("login");
+    setWebMcpEditorKind("account");
+    expect(getWebMcpEditorKind()).toBe("account");
+    setWebMcpEditorKind("account");
     expect(seen).toBe(1);
     stop();
   });

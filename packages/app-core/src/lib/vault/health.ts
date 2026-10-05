@@ -1,10 +1,18 @@
-import { type LoginItem, type VaultItem, hostOf } from "@opensesame/vault-core";
+import {
+  type AccountItem,
+  type VaultItem,
+  accountPlainPassword,
+  accountTotp,
+  hostOf,
+  needsPepper,
+  passwordMethod,
+} from "@opensesame/vault-core";
 import { estimateStrength } from "./password.js";
 
 export type HealthIssue = "weak" | "reused" | "old" | "no-2fa";
 
 export type HealthFinding = {
-  item: LoginItem;
+  item: AccountItem;
   issues: HealthIssue[];
   /** Other item names sharing this password, when reused. */
   sharedWith: string[];
@@ -15,6 +23,11 @@ export type HealthReport = {
   findings: HealthFinding[];
   scored: number;
   clean: number;
+  /**
+   * Accounts whose password needs a pepper (or is a Sphinx password): health
+   * cannot prompt, so it neither reads nor scores them (ADR 0166 §4).
+   */
+  unchecked: number;
   counts: Record<HealthIssue, number>;
 };
 
@@ -31,20 +44,28 @@ export const ISSUE_EXPLANATION = {
   weak: "Short or predictable enough to be guessed offline. Generate a replacement.",
   reused: "One breach elsewhere unlocks every account sharing this password.",
   old: "Rotate passwords you have held for more than a year.",
-  "no-2fa": "This login has no authenticator secret stored.",
+  "no-2fa": "This account has no authenticator secret stored.",
 };
 
 export function buildHealthReport(items: VaultItem[]): HealthReport {
-  const logins = items.filter(
-    (item): item is LoginItem =>
-      item.kind === "login" && item.deletedAt === null && item.password !== "",
+  const live = items.filter(
+    (item): item is AccountItem =>
+      item.kind === "account" && item.deletedAt === null,
   );
+  const accounts = live.filter(
+    (account) => accountPlainPassword(account) !== "",
+  );
+  const unchecked = live.filter((account) => {
+    const method = passwordMethod(account);
+    return method !== undefined && needsPepper(method);
+  }).length;
 
-  const byPassword = new Map<string, LoginItem[]>();
-  for (const login of logins) {
-    const bucket = byPassword.get(login.password);
-    if (bucket) bucket.push(login);
-    else byPassword.set(login.password, [login]);
+  const byPassword = new Map<string, AccountItem[]>();
+  for (const account of accounts) {
+    const password = accountPlainPassword(account);
+    const bucket = byPassword.get(password);
+    if (bucket) bucket.push(account);
+    else byPassword.set(password, [account]);
   }
 
   const cutoff = Date.now() - OLD_PASSWORD_DAYS * 86_400_000;
@@ -56,23 +77,25 @@ export function buildHealthReport(items: VaultItem[]): HealthReport {
   };
   const findings: HealthFinding[] = [];
 
-  for (const login of logins) {
+  for (const account of accounts) {
+    const password = accountPlainPassword(account);
     const issues: HealthIssue[] = [];
-    const strength = estimateStrength(login.password);
+    const strength = estimateStrength(password);
     if (strength.score <= 1) issues.push("weak");
 
-    const shared = (byPassword.get(login.password) ?? []).filter(
-      (other) => other.id !== login.id,
+    const shared = (byPassword.get(password) ?? []).filter(
+      (other) => other.id !== account.id,
     );
     if (shared.length > 0) issues.push("reused");
 
-    if (Date.parse(login.passwordChangedAt) < cutoff) issues.push("old");
-    if (!login.totp) issues.push("no-2fa");
+    const changedAt = passwordMethod(account)?.changedAt ?? "";
+    if (Date.parse(changedAt) < cutoff) issues.push("old");
+    if (!accountTotp(account)) issues.push("no-2fa");
 
     for (const issue of issues) counts[issue] += 1;
     if (issues.length > 0) {
       findings.push({
-        item: login,
+        item: account,
         issues,
         sharedWith: shared.map(
           (other) => other.name || hostOf(other.uris[0]?.uri),
@@ -86,8 +109,9 @@ export function buildHealthReport(items: VaultItem[]): HealthReport {
 
   return {
     findings,
-    scored: logins.length,
-    clean: logins.length - findings.length,
+    scored: accounts.length,
+    clean: accounts.length - findings.length,
+    unchecked,
     counts,
   };
 }

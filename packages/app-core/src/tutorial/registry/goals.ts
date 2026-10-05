@@ -86,7 +86,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
       'navigate "/vault"',
       'wait route "/vault" timeout=15000',
       'focus "vault.list" "Everything the vault holds is listed here, grouped by folder and narrowed by whichever filter is active." side=right',
-      'focus "vault.create" "New item opens the editor for the kind the current filter names — a login unless you narrowed the list. Nothing is stored until you save." side=bottom',
+      'focus "vault.create" "New item opens the editor for the kind the current filter names — an account unless you narrowed the list. Nothing is stored until you save." side=bottom',
       'wait target "vault.create" event=activate timeout=60000',
       'success "Name it, enter the secret and save. The item is sealed with the rest of the vault."',
       "end",
@@ -244,13 +244,14 @@ export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
   },
   {
     id: "help.vault.item.create",
-    title: "How do I add a login or a secret?",
+    title: "How do I add an account or a secret?",
     answer:
-      "Vault → New item. The kind follows whichever filter is active, so narrowing to Logins first gives you a login. Everything you enter — the name and the folder as much as the secret — is encrypted into the vault body on this device.",
+      "Vault → New item. The kind follows whichever filter is active, so narrowing to Accounts first gives you an account. Everything you enter — the name and the folder as much as the secret — is encrypted into the vault body on this device.",
     routes: [],
     goal: "vault.item.create",
     keywords: [
       "login",
+      "account",
       "secret",
       "password",
       "item",

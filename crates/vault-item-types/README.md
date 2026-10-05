@@ -33,7 +33,7 @@ what a type is.
 
 | Area | Items |
 |---|---|
-| Corpus | `BUILTIN_DEFINITIONS` (23 embedded JSON files), `LEGACY_TYPE_IDS` (the seven ids that predate ADR 0087) |
+| Corpus | `BUILTIN_DEFINITIONS` (23 embedded JSON files), `LEGACY_TYPE_IDS` (the seven ids that predate ADR 0087), `LEGACY_TYPE_ALIASES` / `LEGACY_EXTENSION_ALIASES` (`login` → `account`, `.login` → `.account`, ADR 0166; `registry.get("login")` answers the account type) |
 | Catalogue | `FieldTypeId`, `FieldShape`, `FieldPart`, `FIELD_TYPE_IDS` |
 | Schema | `ItemTypeDefinition`, `ItemTypeSpec`, `ItemTypeMetadata`, `FieldDefinition`, `SectionDefinition`, `NativeProjection`, `TrailerMapping`, `HandlerId`, `PLATFORM_PUBLISHER` |
 | Validation | `parse_definition`, `validate`, `Trust`, `DefinitionError`, `DefinitionErrors`, `ErrorCode` |

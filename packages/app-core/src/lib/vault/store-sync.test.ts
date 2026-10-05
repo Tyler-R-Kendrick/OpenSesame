@@ -1,4 +1,12 @@
-import { type Folder, createItem } from "@opensesame/vault-core";
+import {
+  type AccountItem,
+  type Folder,
+  accountPlainPassword,
+  accountTotp,
+  authenticatorMethod,
+  createItem,
+  passwordMethod,
+} from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import {
   entryToVaultItem,
@@ -10,6 +18,21 @@ import {
   vaultItemToEntry,
 } from "./store-sync.js";
 
+/** An account holding `password` as a typed password method, and an optional seed. */
+function account(name: string, password: string, totp = ""): AccountItem {
+  const item = createItem("account", name);
+  const method = passwordMethod(item);
+  if (method) method.secret = password;
+  if (totp) {
+    item.methods.push({
+      id: `${item.id}:authenticator`,
+      type: "authenticator",
+      secret: totp,
+    });
+  }
+  return item;
+}
+
 describe("store-sync mapping", () => {
   it("maps Folder/name to folder + name", () => {
     expect(splitStorePath("Email/github.com")).toEqual({
@@ -19,63 +42,70 @@ describe("store-sync mapping", () => {
     expect(joinStorePath("Email", "github.com")).toBe("Email/github.com");
   });
 
-  it("maps entry to login vault item", () => {
+  it("maps a first-format login entry to an account", () => {
     const item = entryToVaultItem({
       path: "Email/github.com",
       secret: "x",
       trailer: JSON.stringify({ kind: "login", username: "ada" }),
     });
     expect(item.name).toBe("github.com");
-    expect(item.kind).toBe("login");
-    if (item.kind === "login") {
-      expect(item.password).toBe("x");
+    expect(item.kind).toBe("account");
+    if (item.kind === "account") {
+      expect(accountPlainPassword(item)).toBe("x");
       expect(item.username).toBe("ada");
+      expect(item.methods.map((m) => m.id)).toEqual([`${item.id}:password`]);
     }
   });
 
-  it("round-trips a login through vaultItemToEntry", () => {
+  it("round-trips an account through vaultItemToEntry", () => {
     const folders: Folder[] = [
       { id: "f1", name: "Email", createdAt: new Date().toISOString() },
     ];
-    const item = createItem("login", "github.com");
+    const item = account("github.com", "hunter2");
     item.folderId = "f1";
-    if (item.kind === "login") {
-      item.password = "hunter2";
-      item.username = "ada";
-    }
+    item.username = "ada";
     const entry = vaultItemToEntry(item, folders);
     expect(entry.path).toBe("Email/github.com");
     expect(entry.secret).toBe("hunter2");
+    // Line one carries the password; the trailer does not repeat it.
+    expect(entry.trailer).not.toContain("hunter2");
     const back = entryToVaultItem(entry, "f1");
-    expect(back.kind).toBe("login");
-    if (back.kind === "login") {
-      expect(back.password).toBe("hunter2");
+    expect(back.kind).toBe("account");
+    if (back.kind === "account") {
+      expect(accountPlainPassword(back)).toBe("hunter2");
       expect(back.username).toBe("ada");
+      expect(back.methods).toEqual(item.methods);
     }
   });
 
-  it("maps pass-otp trailer otpauth into login.totp", () => {
+  it("maps pass-otp trailer otpauth into the first authenticator", () => {
     const item = entryToVaultItem({
       path: "Email/site",
       secret: "pw",
       trailer:
         'otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ\n{"kind":"login","username":"a"}\n', // gitleaks:allow -- RFC fixture
     });
-    expect(item.kind).toBe("login");
-    if (item.kind === "login") {
-      expect(item.totp).toMatch(/^otpauth:\/\//);
+    expect(item.kind).toBe("account");
+    if (item.kind === "account") {
+      expect(accountTotp(item)).toMatch(/^otpauth:\/\//);
       expect(item.username).toBe("a");
+      expect(authenticatorMethod(item)?.id).toBe(`${item.id}:authenticator`);
     }
   });
 
   it("writes otpauth into the trailer for store interop", () => {
-    const item = createItem("login", "site");
-    if (item.kind === "login") {
-      item.password = "pw";
-      item.totp = "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ"; // gitleaks:allow -- RFC fixture
-    }
+    const item = account(
+      "site",
+      "pw",
+      "otpauth://totp/Demo?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", // gitleaks:allow -- RFC fixture
+    );
     const entry = vaultItemToEntry(item, []);
     expect(entry.trailer).toMatch(/otpauth:\/\/totp\/Demo/);
+    // The bare line is the seed's one home in the entry.
+    expect(entry.trailer.match(/otpauth:\/\//gu)).toHaveLength(1);
+    const back = entryToVaultItem(entry);
+    if (back.kind !== "account") throw new Error("expected an account");
+    expect(back.methods).toEqual(item.methods);
   });
 
   it("filters store entries to a project folder", () => {
@@ -111,12 +141,9 @@ describe("planManifestMerge", () => {
   ];
 
   function existingLogin() {
-    const item = createItem("login", "github.com");
+    const item = account("github.com", "old");
     item.folderId = "f1";
-    if (item.kind === "login") {
-      item.password = "old";
-      item.username = "ada";
-    }
+    item.username = "ada";
     return item;
   }
 
@@ -143,8 +170,12 @@ describe("planManifestMerge", () => {
     const updated = plan.updates[0];
     expect(updated?.id).toBe(current.id);
     expect(updated?.createdAt).toBe(current.createdAt);
-    if (updated?.kind === "login") {
-      expect(updated.password).toBe("rotated");
+    if (updated?.kind === "account") {
+      expect(accountPlainPassword(updated)).toBe("rotated");
+      // The method keeps its id: it is the same password, rotated.
+      expect(updated.methods.map((m) => m.id)).toEqual(
+        current.methods.map((m) => m.id),
+      );
     }
   });
 

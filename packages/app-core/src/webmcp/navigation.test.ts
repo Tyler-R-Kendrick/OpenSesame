@@ -38,7 +38,7 @@ describe("WebMCP navigation", () => {
     webmcpNavigationSeam.navigate = navigate;
     await navigationTool.execute({
       section: "/vault/new",
-      itemType: "login",
+      itemType: "account",
       prefill: {
         name: "Example",
         username: "public_alias",
@@ -46,7 +46,7 @@ describe("WebMCP navigation", () => {
       },
     });
     expect(navigate).toHaveBeenCalledWith(
-      "/vault/new/login?name=Example&username=public_alias&uri=https%3A%2F%2Fexample.com",
+      "/vault/new/account?name=Example&username=public_alias&uri=https%3A%2F%2Fexample.com",
     );
     for (const prefill of [
       { password: "sentinel" },
@@ -90,8 +90,14 @@ describe("WebMCP navigation", () => {
   it("locks the ceremony to an installed type and refuses invalid types", async () => {
     const navigate = vi.fn();
     webmcpNavigationSeam.navigate = navigate;
+    await navigationTool.execute({
+      section: "/vault/new",
+      itemType: "account",
+    });
+    expect(navigate).toHaveBeenCalledWith("/vault/new/account");
+    // The retired name still opens the account ceremony.
     await navigationTool.execute({ section: "/vault/new", itemType: "login" });
-    expect(navigate).toHaveBeenCalledWith("/vault/new/login");
+    expect(navigate).toHaveBeenLastCalledWith("/vault/new/account");
     await expect(
       navigationTool.execute({
         section: "/vault/new",
@@ -117,7 +123,7 @@ describe("WebMCP navigation", () => {
   });
 
   describe("item routes honor share reach", () => {
-    const item = createItem("login", "Bank");
+    const item = createItem("account", "Bank");
 
     beforeEach(() => {
       const snapshot = vaultStore.getSnapshot();

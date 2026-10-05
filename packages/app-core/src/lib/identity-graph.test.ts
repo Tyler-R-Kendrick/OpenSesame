@@ -104,9 +104,9 @@ describe("identity graph", () => {
     expect(connectionVerb("error")).toBe("broken");
   });
 
-  it("matches vault logins and passkeys to a provider host", () => {
-    const login = createItem("login", "Work GitHub");
-    if (login.kind === "login") {
+  it("matches vault accounts and passkeys to a provider host", () => {
+    const login = createItem("account", "Work GitHub");
+    if (login.kind === "account") {
       login.uris = [newUri("https://github.com/login")];
     }
     const passkey = createItem("passkey", "GitHub");
@@ -156,14 +156,14 @@ describe("identity graph", () => {
   });
 
   it("gives each identity-graph door a status and one Fix", () => {
-    const login = createItem("login", "Work GitHub");
-    if (login.kind === "login") {
+    const login = createItem("account", "Work GitHub");
+    if (login.kind === "account") {
       login.uris = [newUri("https://github.com/login")];
     }
     const doors = graphDoors(provider(), [connection("pending")], [login]);
     expect(doors.map((door) => [door.kind, door.action, door.verb])).toEqual([
       ["host", "Fix", "needs_you"],
-      ["login", "Open", "connected"],
+      ["account", "Open", "connected"],
       ["passkey", "Record metadata", "idle"],
       ["reminder", "Remember", "idle"],
     ]);
@@ -174,9 +174,9 @@ describe("identity graph", () => {
     );
   });
 
-  it("prefills a vault login from the provider home", () => {
-    expect(vaultCreateHref("login", provider())).toBe(
-      "/vault/new/login?name=GitHub&uri=https%3A%2F%2Fgithub.com",
+  it("prefills a vault account from the provider home", () => {
+    expect(vaultCreateHref("account", provider())).toBe(
+      "/vault/new/account?name=GitHub&uri=https%3A%2F%2Fgithub.com",
     );
   });
 
@@ -222,12 +222,12 @@ describe("identity graph branches", () => {
   });
 
   it("ignores deleted items when matching a provider", () => {
-    const login = createItem("login", "GitHub");
+    const login = createItem("account", "GitHub");
     login.deletedAt = "2026-08-12T00:00:00Z";
     expect(itemMatchesProvider(login, provider())).toBe(false);
   });
 
-  it("matches logins by exact host, www-stripped host, and uri text", () => {
+  it("matches accounts by exact host, www-stripped host, and uri text", () => {
     const acme = provider({
       id: "acme",
       displayName: "Acme",
@@ -237,20 +237,20 @@ describe("identity graph branches", () => {
         pathPrefixes: [],
       },
     });
-    const byHost = createItem("login", "Work");
-    if (byHost.kind === "login") {
+    const byHost = createItem("account", "Work");
+    if (byHost.kind === "account") {
       byHost.uris = [newUri("https://api.acme.com/x")];
     }
-    const byWww = createItem("login", "Work");
-    if (byWww.kind === "login") {
+    const byWww = createItem("account", "Work");
+    if (byWww.kind === "account") {
       byWww.uris = [newUri("https://www.api.acme.com/x")];
     }
-    const byUriText = createItem("login", "Work");
-    if (byUriText.kind === "login") {
+    const byUriText = createItem("account", "Work");
+    if (byUriText.kind === "account") {
       byUriText.uris = [newUri("https://acme.com/signin")];
     }
-    const unrelated = createItem("login", "Work");
-    if (unrelated.kind === "login") {
+    const unrelated = createItem("account", "Work");
+    if (unrelated.kind === "account") {
       unrelated.uris = [newUri("https://unrelated.example/")];
     }
     expect(itemMatchesProvider(byHost, acme)).toBe(true);
@@ -305,7 +305,7 @@ describe("identity graph branches", () => {
   });
 
   it("leaves non-secret reminders and duplicate grants untouched", () => {
-    const login = createItem("login", "GitHub");
+    const login = createItem("account", "GitHub");
     expect(grantReminderToAgent(login, "agt_x")).toBe(login);
 
     const reminder = buildConnectorReminder(provider(), connection("active"));
@@ -323,15 +323,17 @@ describe("identity graph branches", () => {
         pathPrefixes: [],
       },
     });
-    expect(vaultCreateHref("login", acme)).toBe(
-      "/vault/new/login?name=Acme&uri=https%3A%2F%2Fapi.acme.com",
+    expect(vaultCreateHref("account", acme)).toBe(
+      "/vault/new/account?name=Acme&uri=https%3A%2F%2Fapi.acme.com",
     );
     const hostless = provider({
       id: "zz",
       displayName: "ZZ",
       egress: { scheme: "none", authorities: [], pathPrefixes: [] },
     });
-    expect(vaultCreateHref("login", hostless)).toBe("/vault/new/login?name=ZZ");
+    expect(vaultCreateHref("account", hostless)).toBe(
+      "/vault/new/account?name=ZZ",
+    );
   });
 });
 

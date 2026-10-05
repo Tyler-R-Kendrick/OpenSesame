@@ -90,7 +90,7 @@ describe("vault directories", () => {
 
   it("keeps a directory for every type the vault holds items of", () => {
     const rows = withTypeDirectories(kinds, [
-      "login",
+      "account",
       "wifi",
       "typed",
       "from-elsewhere",
@@ -100,7 +100,7 @@ describe("vault directories", () => {
       ["from-elsewhere", "from-elsewhere"],
     ]);
     // Built-in kinds a capability owns do not come back from stored items.
-    expect(rows.filter((row) => row.id === "login")).toHaveLength(0);
+    expect(rows.filter((row) => row.id === "account")).toHaveLength(0);
     expect(rows.filter((row) => row.id === "wifi")).toHaveLength(0);
   });
 

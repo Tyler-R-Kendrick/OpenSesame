@@ -9,6 +9,7 @@ import {
   type VaultBody,
   type VaultHeader,
   assertSealed,
+  normalizeVaultBody,
   sealJson,
   vaultSealBinding,
 } from "@opensesame/vault-core";
@@ -40,7 +41,9 @@ export async function writeBody(
   const rev = (body.rev ?? 0) + 1;
   const sealed = await sealJson(
     vaultKey,
-    { ...body, rev },
+    // The one door every write goes through: a `login` that reached memory by
+    // any route is sealed as the account it is (ADR 0166), never as a login.
+    normalizeVaultBody({ ...body, rev }),
     vaultSealBinding(tomb, BODY_PATH),
   );
   assertSealed(sealed);
