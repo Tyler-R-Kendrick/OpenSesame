@@ -12,6 +12,7 @@
 import type { JsonValue } from "@opensesame/os-domain";
 import type { LoginItem } from "@opensesame/vault-core";
 import { DECOY_ITEMS_RUNNER } from "./decoy-items-effect.js";
+import { FREEZE_RUNNER } from "./freeze.js";
 import type { DuressPlan } from "./mode.js";
 
 export type EffectPhase = "on_match" | "after_session";
@@ -36,7 +37,10 @@ export type EffectRunner = Readonly<{
 const RUNNERS: ReadonlyMap<string, EffectRunner> = new Map<
   string,
   EffectRunner
->([["decoy_items", DECOY_ITEMS_RUNNER]]);
+>([
+  ["decoy_items", DECOY_ITEMS_RUNNER],
+  ["freeze", FREEZE_RUNNER],
+]);
 
 /** Whether unlock can run `effect`: a mode may only seal one that it can. */
 export function hasEffectRunner(effect: string): boolean {

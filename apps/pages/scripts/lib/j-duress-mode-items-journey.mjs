@@ -70,9 +70,9 @@ async function turnOn({ page, check, snap }) {
   await page.getByRole("button", { name: "Add" }).last().click();
   const radios = page.getByRole("radio");
   check(
-    (await radios.count()) === 3 &&
+    (await radios.count()) >= 3 &&
       (await page.getByRole("radio", { name: MODE }).count()) === 1,
-    "the sheet offers three modes, with the everyday-items decoy among them",
+    "the sheet offers the everyday-items decoy among at least the three modes it was added to",
   );
   await page.getByRole("radio", { name: MODE }).check();
   const list = page.getByRole("textbox", { name: /Everyday items/ });

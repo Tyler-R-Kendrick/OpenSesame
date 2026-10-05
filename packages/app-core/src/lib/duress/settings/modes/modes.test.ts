@@ -44,13 +44,14 @@ describe("duress mode registry", () => {
   it("has unique ids, in a stable order", () => {
     const ids = MODES.map((mode) => mode.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toEqual(["decoy", "decoy_items", "refuse"]);
+    expect(ids).toEqual(["decoy", "decoy_items", "refuse", "freeze"]);
   });
 
   it("seals only the strings existing enrollments hold", () => {
     expect(MODES.map((mode) => mode.presentation)).toEqual([
       "decoy",
       "decoy",
+      "locked",
       "locked",
     ]);
   });
