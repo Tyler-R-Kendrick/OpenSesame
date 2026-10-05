@@ -18,6 +18,19 @@ export function vaultSteps({ press, visit }) {
       }
     },
     /**
+     * Bring the first match to the top of its scroller, when this build draws
+     * it: a sheet longer than the screen shows its foot, and the part a pair
+     * is about may be above it. A base build without it is skipped.
+     */
+    async bringIntoViewOptional(page, selector) {
+      const target = page.locator(selector).first();
+      if (!(await target.count())) return;
+      await target.evaluate((node) => {
+        node.scrollIntoView({ block: "start", behavior: "instant" });
+      });
+      await page.waitForTimeout(500);
+    },
+    /**
      * Add secrets through the editor, one per `{ name, secret }`: the default
      * kind of a new item. A vault with items in it is what a list, a trip's
      * choice of what stays home and a search all need.

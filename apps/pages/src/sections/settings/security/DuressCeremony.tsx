@@ -5,11 +5,12 @@ import {
   isAcceptableDuressCode,
   removeDuressCode,
 } from "@opensesame/app-core/lib/duress/settings/device-duress.js";
-import {
-  type DuressMode,
-  type DuressModeId,
+import type {
+  DuressMode,
+  DuressModeId,
   MODES,
 } from "@opensesame/app-core/lib/duress/settings/modes/index.js";
+import type { VaultItem } from "@opensesame/vault-core";
 import {
   type CeremonyAlt,
   CeremonyAlts,
@@ -31,6 +32,7 @@ const REFUSAL = new Map<DuressRefusal, string>([
     "That code opens a vault on this device. Pick one you never use to unlock.",
   ],
   ["not_durable", "This browser is not keeping files for this site."],
+  ["too_large", "Those items are too large to keep with a code. Show fewer."],
   ["incident_active", "A duress response holds this device."],
   ["failed", "The code could not be set."],
 ]);
@@ -77,10 +79,13 @@ function RemoveCard({
 
 function ModePick({
   mode,
+  modes,
   busy,
   onPick,
 }: {
   mode: DuressModeId;
+  /** The modes this device can act on; one that cannot is not drawn. */
+  modes: readonly (typeof MODES)[number][];
   busy: boolean;
   onPick: (next: DuressModeId) => void;
 }) {
@@ -88,7 +93,7 @@ function ModePick({
     <fieldset className="duress__pick" disabled={busy}>
       <legend className="duress__legend">Entering it shows</legend>
       <ul className="duress__choices">
-        {MODES.map((item) => (
+        {modes.map((item) => (
           <li key={item.id}>
             <label className="duress__choice">
               <input
@@ -218,16 +223,19 @@ export function DuressCeremony({
   run,
   onDone,
   arm = enableDuressCode,
+  items = [],
 }: {
   /** What seals and arms the code; a test that cannot keep files swaps it. */
   arm?: typeof enableDuressCode;
   armed: boolean;
   busy: boolean;
   run: Run;
+  /** The open vault's items, for a mode that shows some of them. */
+  items?: readonly VaultItem[];
   /** Closes the sheet; `message` is what the panel says, or nothing. */
   onDone: (message: string) => void;
 }) {
-  const form = useDuressCeremony({ armed, busy, run, onDone, arm });
+  const form = useDuressCeremony({ armed, busy, run, onDone, arm, items });
   const alts = removeAlts(armed, busy, run, onDone);
 
   return (
@@ -254,12 +262,18 @@ export function DuressCeremony({
             onClick: () => {},
           }}
         >
-          <ModePick mode={form.modeId} busy={busy} onPick={form.pick} />
+          <ModePick
+            mode={form.modeId}
+            modes={form.offered}
+            busy={busy}
+            onPick={form.pick}
+          />
           <ModeInput
             mode={form.mode}
             busy={busy}
             value={form.extra}
             onValue={form.setExtra}
+            rows={form.rows}
           />
           <CodeFields
             busy={busy}

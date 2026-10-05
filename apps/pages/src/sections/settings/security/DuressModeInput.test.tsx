@@ -16,7 +16,13 @@ const base = {
   presentation: "locked",
 } as const;
 
-function Harness({ input }: { input: DuressMode["input"] }) {
+function Harness({
+  input,
+  rows,
+}: {
+  input: DuressMode["input"];
+  rows?: readonly { id: string; label: string; detail: string }[];
+}) {
   const [value, setValue] = useState("");
   return (
     <>
@@ -25,6 +31,7 @@ function Harness({ input }: { input: DuressMode["input"] }) {
         busy={false}
         value={value}
         onValue={setValue}
+        rows={rows}
       />
       <output data-testid="value">{value}</output>
     </>
@@ -89,5 +96,40 @@ describe("ModeInput", () => {
     );
     await user.type(screen.getByLabelText("Items"), "one{Enter}two");
     expect(screen.getByTestId("value").textContent).toBe("one\ntwo");
+  });
+
+  it("takes a pick as one switch per row, every row hidden, and reports the ids left shown in order", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness
+        input={{ kind: "pick", id: "p", label: "Hidden items", min: 1, max: 3 }}
+        rows={[
+          { id: "a", label: "Alpha", detail: "Login" },
+          { id: "b", label: "Beta", detail: "Card" },
+          { id: "c", label: "Gamma", detail: "Secret" },
+        ]}
+      />,
+    );
+    const rows = screen.getAllByRole("switch");
+    expect(rows.map((row) => row.getAttribute("aria-checked"))).toEqual([
+      "true",
+      "true",
+      "true",
+    ]);
+    expect(screen.getByTestId("value").textContent).toBe("");
+    await user.click(screen.getByRole("switch", { name: "Hide Gamma" }));
+    await user.click(screen.getByRole("switch", { name: "Hide Alpha" }));
+    expect(screen.getByTestId("value").textContent).toBe("a\nc");
+    await user.click(screen.getByRole("switch", { name: "Hide Alpha" }));
+    expect(screen.getByTestId("value").textContent).toBe("c");
+  });
+
+  it("draws a pick with no rows as an empty list, never a form control that does nothing", () => {
+    render(
+      <Harness
+        input={{ kind: "pick", id: "p", label: "Hidden items", min: 1, max: 3 }}
+      />,
+    );
+    expect(screen.queryAllByRole("switch")).toHaveLength(0);
   });
 });
