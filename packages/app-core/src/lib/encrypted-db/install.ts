@@ -1,5 +1,5 @@
 /**
- * Turn encrypted search on for the stores that keep identifiers (ADR 0173):
+ * Turn encrypted search on for the stores that keep identifiers (ADR 0175):
  * route history backups and retired-password digests to encrypted databases,
  * move what the device-sealed databases hold across, and delete them - their
  * database, store and index names, and the ids and scopes they keep readable,

@@ -1,5 +1,5 @@
 /**
- * Building and dropping a layer (ADR 0173): CryptDB's onion, peeled on
+ * Building and dropping a layer (ADR 0175): CryptDB's onion, peeled on
  * demand, run where the keys already are.
  *
  * A layer is built the first time a query needs it: its state is recorded

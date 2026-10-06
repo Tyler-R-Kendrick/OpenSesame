@@ -106,7 +106,7 @@ function deleteDatabase(
 }
 
 /**
- * The encrypted databases (ADR 0173) this device holds. Their names are
+ * The encrypted databases (ADR 0175) this device holds. Their names are
  * keyed hashes, so they are found two ways: listed, where the browser can
  * (`indexedDB.databases()` is missing before Firefox 126), and derived from
  * the device key for every logical name the app opens. The key is read only

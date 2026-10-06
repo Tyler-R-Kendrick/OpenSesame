@@ -1,7 +1,8 @@
 import {
   type VaultItem,
+  completePassword,
   methodsOfType,
-  plainPassword,
+  producePassword,
 } from "@opensesame/vault-core";
 import { listLocalBackupTargets } from "../backup-target-local.js";
 import { loadHistorySelections } from "../history-backups.js";
@@ -95,7 +96,7 @@ function heldSecrets(
     for (const method of methodsOfType(item, "password")) {
       held.set(
         methodScope(tomb, item.id, method.id),
-        plainPassword(method) ?? "",
+        completePassword(producePassword(method)) ?? "",
       );
     }
   } else if (item.kind === "secret") {

@@ -1,21 +1,23 @@
-import { storePassword } from "@opensesame/app-core/lib/vault/generators/index.js";
 import {
   type AccountItem,
   type PasswordMethod,
-  needsPepper,
+  completePassword,
+  handoff,
+  isAlgorithmic,
+  producePassword,
 } from "@opensesame/vault-core";
+import { useState } from "react";
 import {
   ConcealedValue,
   CopyButton,
   FieldRow,
   RevealButton,
 } from "../../components/FieldRow.js";
-import type { PepperAskFn } from "../../components/PepperPrompt.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+import { LegacyConvert } from "./LegacyConvert.js";
 import { UpdateSecretPanel } from "./SecretUpdate.js";
 import { StrengthBar } from "./StrengthBar.js";
-import { usePasswordReading } from "./use-password-reading.js";
 
 type Copying = {
   copied: string | null;
@@ -23,17 +25,22 @@ type Copying = {
   copy: (key: string, value: string) => Promise<void>;
 };
 
+/** Where the person's own pepper goes, said plainly for a mark. */
+function slotSaid(at: string): string {
+  return at === "" ? "Your pepper goes after it" : `Your pepper goes at ${at}`;
+}
+
 /**
- * One password method on the detail page. Revealing or copying a password that
- * needs a pepper (or a Sphinx master input) asks for it first; what is read is
- * held in state only while it is shown, and goes when it is hidden, when the
- * method changes, or when the page does.
+ * One password method on the detail page, produced through the one facade
+ * (ADR 0174). With *Include pepper* the password is shown with the slot marked,
+ * a copy puts out what comes before the slot, and a second key copies what
+ * follows it; the pepper is never asked for and never kept. A password an older
+ * version made from a typed pepper is converted once, here.
  */
 export function AccountPasswordRow({
   item,
   method,
   title,
-  ask,
   copying,
   guide,
   onSave,
@@ -41,86 +48,82 @@ export function AccountPasswordRow({
   item: AccountItem;
   method: PasswordMethod;
   title: string;
-  ask: PepperAskFn;
   copying: Copying;
   /** This row holds the tutorials' `item.copy-password` target. */
   guide: boolean;
   onSave: (method: PasswordMethod) => Promise<void>;
 }) {
   const copyRef = useGuideTarget<HTMLButtonElement>("item.copy-password");
-  const { shown, setShown, wrong, read } = usePasswordReading(
-    item,
-    method,
-    ask,
-  );
-  const sphinx = method.generator.id === "sphinx";
-  const asks = needsPepper(method);
+  const [revealed, setRevealed] = useState(false);
+  const produced = producePassword(method);
   const key = `password:${method.id}`;
 
-  const empty = !asks && method.secret === "";
-  const update = sphinx ? null : (
+  // A computed password is rotated in the editor, never typed over here.
+  const update = isAlgorithmic(method) ? null : (
     <UpdateSecretPanel
       label="password"
-      onUpdate={async (next) => {
-        // A new peppered password is sealed under a pepper typed twice.
-        const pepper = method.pepper ? await ask("set", "Set pepper") : null;
-        await onSave(await storePassword(item.id, method, next, pepper));
-      }}
+      onUpdate={(next) =>
+        onSave({
+          ...method,
+          secret: next,
+          changedAt: new Date().toISOString(),
+        })
+      }
     />
   );
-  if (empty) return update;
 
+  if (produced.status === "legacy") {
+    return <LegacyConvert account={item} method={method} onConvert={onSave} />;
+  }
+  if (produced.status === "absent") return update;
+
+  const out = handoff(produced);
+  const whole = completePassword(produced);
+  const shown =
+    produced.status === "slotted"
+      ? `${produced.head}‹pepper›${produced.tail}`
+      : (whole ?? "");
   return (
     <FieldRow
       label={title}
       actions={
         <>
           <RevealButton
-            revealed={shown !== null}
+            revealed={revealed}
             label="password"
-            onToggle={() => {
-              if (shown !== null) {
-                setShown(null);
-                return;
-              }
-              void read().then((password) => {
-                if (password !== null) setShown(password);
-              });
-            }}
+            onToggle={() => setRevealed((on) => !on)}
           />
           <CopyButton
-            value=""
+            value={out?.now ?? ""}
             label="password"
             fieldKey={key}
             copied={copying.copied}
             failed={copying.failed}
             guideRef={guide ? copyRef : undefined}
-            onCopy={async (fieldKey) => {
-              const password = await read();
-              if (password !== null) await copying.copy(fieldKey, password);
-            }}
+            onCopy={copying.copy}
           />
+          {out !== null && out.later !== "" ? (
+            <CopyButton
+              value={out.later}
+              label="rest of password"
+              fieldKey={`${key}:rest`}
+              copied={copying.copied}
+              failed={copying.failed}
+              onCopy={copying.copy}
+            />
+          ) : null}
         </>
       }
     >
       <ConcealedValue
-        value={shown ?? ""}
+        value={revealed ? shown : ""}
         label="password"
-        revealed={shown !== null}
+        revealed={revealed}
       />
-      {asks ? (
-        <StatusMark
-          tone={wrong ? "err" : "idle"}
-          label={
-            wrong
-              ? "Wrong pepper"
-              : sphinx
-                ? "Computed on use, never stored"
-                : "Sealed under a pepper"
-          }
-        />
+      {produced.status === "slotted" ? (
+        <StatusMark tone="idle" label={slotSaid(produced.at)} />
       ) : null}
-      {shown !== null ? <StrengthBar password={shown} /> : null}
+      {revealed && whole !== null ? <StrengthBar password={whole} /> : null}
       {update}
     </FieldRow>
   );

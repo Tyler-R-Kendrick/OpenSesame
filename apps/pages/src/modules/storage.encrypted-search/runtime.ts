@@ -2,7 +2,7 @@
  * `storage.encrypted-search` — the databases this browser keeps for
  * identifiers (history backups, retired-password digests) become encrypted
  * databases in which no table, field, id or name is readable, and which can
- * still be searched by blind index (ADR 0173).
+ * still be searched by blind index (ADR 0175).
  *
  * The contribution is a routing, not a surface: the core stores answer
  * through a seam (`HistoryRowStore`, `PasswordDigestStore`) that this module

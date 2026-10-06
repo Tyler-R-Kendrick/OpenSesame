@@ -1,5 +1,5 @@
 /**
- * Searchable encryption over IndexedDB (ADR 0173). The opt-in capability
+ * Searchable encryption over IndexedDB (ADR 0175). The opt-in capability
  * `storage.encrypted-search` installs this for the stores that keep
  * identifiers and names; the library itself reads no setting.
  */

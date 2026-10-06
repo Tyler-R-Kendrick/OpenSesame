@@ -50,15 +50,16 @@ fn the_sealed_store_answers_one_field_for_its_exact_origin() {
         (names, truncated),
         (vec!["Web/example.com".to_string()], false)
     );
-    let value = state
+    let filled = state
         .resolve("Web/example.com", &origin, Field::Password)
         .unwrap();
-    assert_eq!(value.as_str(), "sealed-secret");
+    assert_eq!(filled.value.as_str(), "sealed-secret");
+    assert!(!filled.pepper);
     assert_eq!(
         state
             .resolve("Web/lookalike", &origin, Field::Password)
-            .unwrap_err(),
-        SourceError::Missing
+            .err(),
+        Some(SourceError::Missing)
     );
 }
 
@@ -69,4 +70,85 @@ fn a_keyed_store_without_its_passphrase_is_locked() {
     init_store_key(dir.path(), PASSPHRASE.as_bytes()).unwrap();
     let wrong = SealedSource::at(dir.path().to_path_buf(), "not the passphrase");
     assert_eq!(wrong.open().err(), Some(SourceError::Locked));
+}
+
+/// An account the vault wrote: sites and methods in the trailer's JSON, and no
+/// password in the file when an algorithm computes it (ADR 0174).
+fn account_entry(path: &str, secret: &str, method: &serde_json::Value) -> (String, Entry) {
+    let meta = serde_json::json!({
+        "kind": "account", "v": 2, "username": "alice",
+        "uris": ["https://bank.example"],
+        "values": { "methods": [method] },
+    });
+    (
+        path.to_owned(),
+        Entry {
+            secret: secret.to_owned(),
+            trailer: format!("{meta}\n"),
+            otp: None,
+        },
+    )
+}
+
+#[test]
+fn fill_produces_an_algorithmic_password_the_file_does_not_hold_and_stops_at_a_pepper_slot() {
+    let vectors: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../spec/conformance/produce-vectors.json"
+    ))
+    .unwrap();
+    let case = &vectors["derived"][0];
+    let expected = case["password"].as_str().unwrap();
+    let derived = serde_json::json!({
+        "id": "m", "type": "password", "pepper": false, "secret": case["root"],
+        "generator": { "id": "derived", "rules": case["rules"], "counter": case["counter"] },
+        "changedAt": "2026-01-01T00:00:00.000Z"
+    });
+    let slotted = serde_json::json!({
+        "id": "m", "type": "password", "pepper": true, "pepperAt": "-3", "secret": case["root"],
+        "generator": { "id": "derived", "rules": case["rules"], "counter": case["counter"] },
+        "changedAt": "2026-01-01T00:00:00.000Z"
+    });
+    let legacy = serde_json::json!({
+        "id": "m", "type": "password", "pepper": true, "secret": "",
+        "generator": { "id": "manual" }, "sealed": { "v": 1 }, "changedAt": "x"
+    });
+    let dir = tempfile::tempdir().unwrap();
+    init_store(dir.path(), &[]).unwrap();
+    let key = init_store_key(dir.path(), PASSPHRASE.as_bytes()).unwrap();
+    let store = StoreRoot::open(dir.path()).unwrap();
+    for (path, method) in [
+        ("A/derived", &derived),
+        ("A/slotted", &slotted),
+        ("A/legacy", &legacy),
+    ] {
+        let (name, entry) = account_entry(path, "", method);
+        assert!(
+            !entry.trailer.contains(expected),
+            "a file holds no generated password"
+        );
+        store.insert(&name, &entry, &key).unwrap();
+    }
+    let state = FillState::new(
+        Box::new(SealedSource::at(dir.path().to_path_buf(), PASSPHRASE)),
+        None,
+        Arc::new(gate::Fixed(true)),
+    );
+    let origin = WebOrigin::parse_request("https://bank.example").unwrap();
+    let whole = state
+        .resolve("A/derived", &origin, Field::Password)
+        .unwrap();
+    assert_eq!((whole.value.as_str(), whole.pepper), (expected, false));
+    let part = state
+        .resolve("A/slotted", &origin, Field::Password)
+        .unwrap();
+    assert!(part.pepper);
+    assert_eq!(part.value.as_str(), &expected[..expected.len() - 3]);
+    assert_eq!(
+        state.resolve("A/legacy", &origin, Field::Password).err(),
+        Some(SourceError::Legacy)
+    );
+    let user = state
+        .resolve("A/derived", &origin, Field::Username)
+        .unwrap();
+    assert_eq!(user.value.as_str(), "alice");
 }

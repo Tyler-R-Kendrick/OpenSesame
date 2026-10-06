@@ -23,7 +23,7 @@ export type {
  * at-rest key (ADR 0149). Where they rest in IndexedDB is one of two
  * stores behind `HistoryRowStore`: the device-sealed database, or, while
  * the encrypted-search capability has installed one, an encrypted database
- * in which not even a row's id is readable (ADR 0173).
+ * in which not even a row's id is readable (ADR 0175).
  */
 
 const memoryAccounts = new Map<string, ProvisionalHistoryAccount>();

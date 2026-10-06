@@ -1,5 +1,5 @@
 // Prove the Encrypted search capability in the built app, under the real
-// production origin, at desktop and phone widths (ADR 0173).
+// production origin, at desktop and phone widths (ADR 0175).
 //
 //   VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
 //   pnpm --filter @opensesame/pages verify:encrypted-search

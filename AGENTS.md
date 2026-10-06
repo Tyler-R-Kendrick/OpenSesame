@@ -299,7 +299,7 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # tutorial card, the Support sheet or the target registry.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:encrypted-search
-# Same harness, Encrypted search (ADR 0173) in the built app, at desktop and
+# Same harness, Encrypted search (ADR 0175) in the built app, at desktop and
 # phone widths: with the capability off, retiring a password writes the sealed
 # `opensesame-password-history` and the item's id is readable in it (the
 # control); switching it on moves that database across and deletes it; a sweep
@@ -430,7 +430,7 @@ Do not add new top-level directories or loose root files — find the group.
 | `crates/rotation-web` | Web-login rotation: the step IR, the tool boundary (no method returns a credential value), and the ordering that must not be rearranged (ADR 0076); plus the same boundary read backwards — `CeremonyTransport`'s capture verbs, which seal what a page produced and answer with a digest (ADR 0082 §3); `src/hooks` is the agent-hooks/0.1 **host** (every verb bracketed, authority pinned, no lock across an approval, `Refused` vs `Withheld`; CTK claims A and B in `docs/validation/agent-hooks-conformance.md`) and `src/recipe_doc` the signed recipe document (ADR 0159) |
 | `crates/vault-item-types` | Host-plane item type parser, registry, and native-secret projection; embeds the shared definition corpus (ADR 0087) |
 | `crates/tailnet-admin` | Tailnet device management, daemon side (ADR 0169): the Tailscale credential (0600, never sent to a page), origin- and role-bound page pairings, value-blind audit, validation, and the Tailscale API v2 client through `invoke-through`; `/v1/tailnet/*` routes in `crates/daemon/src/tailnet_admin_*.rs`, CLI `opensesame daemon tailnet`, replayed by both planes against `spec/conformance/tailnet-admin-protocol.json` |
-| `packages/app-core/src/lib/encrypted-db/`, `apps/pages/src/modules/storage.encrypted-search/` | Searchable encryption over IndexedDB (ADR 0173, optional `storage.encrypted-search`): one object store and one multi-entry index hold every table, so no table, column, index or key name is on disk; rows are sealed, padded and keyed by a hash; CryptDB's layers run as blind indexes built on the first query that needs them (`eq`/join group, Boldyreva-style `order`, `keyword`/prefix) and dropped completely. `history-backup-*` and `vault/password-history-*` answer through a store seam the module points here, moving what the device-sealed databases held and deleting them. `names.ts` is core: Reset this browser derives the hashed database names from it |
+| `packages/app-core/src/lib/encrypted-db/`, `apps/pages/src/modules/storage.encrypted-search/` | Searchable encryption over IndexedDB (ADR 0175, optional `storage.encrypted-search`): one object store and one multi-entry index hold every table, so no table, column, index or key name is on disk; rows are sealed, padded and keyed by a hash; CryptDB's layers run as blind indexes built on the first query that needs them (`eq`/join group, Boldyreva-style `order`, `keyword`/prefix) and dropped completely. `history-backup-*` and `vault/password-history-*` answer through a store seam the module points here, moving what the device-sealed databases held and deleting them. `names.ts` is core: Reset this browser derives the hashed database names from it |
 | `packages/app-core/src/lib/tailnet-admin/`, `apps/pages/src/modules/networking.tailnet-devices/` | Identity › Devices for the tailnet's real machines (optional `networking.tailnet-devices`, needs `networking.tailnet` + `identity.local-iam`): sealed pairing, the daemon client, approve/rename/tag/routes/exit node/expire/remove, Add a device (auth key shown once), auth keys, activity. Refused on the shared-origin demo. End to end: `pnpm --filter @opensesame/pages verify:tailnet-devices` (real daemon + Tailscale stub + dedicated build) |
 | `crates/connection-detect` | Value-blind, capability-moded credential discovery (ADR 0047/0048; serde+thiserror+std budget) |
 | `crates/uds-authn` | UDS peer-credential attestation, same-user allowlist (ADR 0048 §8) |
@@ -646,7 +646,7 @@ Do not add new top-level directories or loose root files — find the group.
   `verify:static` reads the origin raw and fails on any app-owned value that
   is not `osr1.`.
 - **A database that holds identifiers hides its shape too**
-  ([ADR 0173](docs/adr/0173-searchable-encryption-over-indexeddb.md)). A
+  ([ADR 0175](docs/adr/0175-searchable-encryption-over-indexeddb.md)). A
   readable index field, store name or record id is a name, whatever is sealed
   beside it. A new IndexedDB store of ids, names or principals is an encrypted
   database (`packages/app-core/src/lib/encrypted-db/`): one store `r`, one
@@ -852,6 +852,17 @@ Do not add new top-level directories or loose root files — find the group.
   editing `marketplace/item-types/builtin/*.json`, re-run
   `pnpm --filter @opensesame/vault-item-types generate`. A suite that assumes
   the whole corpus loads every pack in its setup.
+- **A password is produced by one facade, and a pepper is never asked for or
+  stored** ([ADR 0174](docs/adr/0174-the-pepper-is-the-persons-and-passwords-are-produced-by-one-facade.md)).
+  Copy, fill, the terminal, the daemon, health and export all call
+  `producePassword` (`@opensesame/vault-core`; `produce_entry` in
+  `crates/sealed-store`) and none knows how a password is made; `produce-facade.test.ts`
+  fails on any other reader of an algorithm or a pepper position. *Include
+  pepper* means the produced password has a slot for a secret of the person's
+  own, at a Python-style `pepperAt`; the product holds no pepper, no envelope under
+  one and no verifier for one. A file holds the parameters an algorithm computes
+  from (generator, rules, counter, root) and an empty line one, never the generated
+  password. A generator's label names a kind (*Algorithmic*), never a technique.
 - A vault item type is a manifest, never a code path. Adding one is a JSON
   file in `marketplace/item-types/builtin/` (embedded by both planes),
   and a user can install one at runtime with no build. Fields name types from

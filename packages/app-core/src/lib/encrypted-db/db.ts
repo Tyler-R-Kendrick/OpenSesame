@@ -1,5 +1,5 @@
 /**
- * An encrypted database (ADR 0173): rows that are never on disk in the
+ * An encrypted database (ADR 0175): rows that are never on disk in the
  * clear, found by what is in them without being opened.
  *
  * Everything the application's data model says - a table, a key, a field,

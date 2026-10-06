@@ -4,7 +4,7 @@
  * device's sealed IndexedDB database (`history-backup-legacy.ts`) and, when
  * the encrypted-search capability is on, an encrypted database that also
  * hides each row's id and its account (`encrypted-db/history-store.ts`,
- * ADR 0173).
+ * ADR 0175).
  */
 
 export type HistoryAccountClaimState = "provisional" | "claimed";

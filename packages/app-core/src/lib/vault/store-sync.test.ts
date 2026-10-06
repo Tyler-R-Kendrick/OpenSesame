@@ -1,13 +1,14 @@
 import {
   type AccountItem,
   type Folder,
-  accountPlainPassword,
   accountTotp,
   authenticatorMethod,
   createItem,
   passwordMethod,
 } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
+import { typePassword } from "../account.test-support.js";
+import { producedPassword } from "../account.test-support.js";
 import {
   entryToVaultItem,
   filterEntriesForProject,
@@ -22,7 +23,7 @@ import {
 function account(name: string, password: string, totp = ""): AccountItem {
   const item = createItem("account", name);
   const method = passwordMethod(item);
-  if (method) method.secret = password;
+  if (method) typePassword(method, password);
   if (totp) {
     item.methods.push({
       id: `${item.id}:authenticator`,
@@ -51,7 +52,7 @@ describe("store-sync mapping", () => {
     expect(item.name).toBe("github.com");
     expect(item.kind).toBe("account");
     if (item.kind === "account") {
-      expect(accountPlainPassword(item)).toBe("x");
+      expect(producedPassword(item)).toBe("x");
       expect(item.username).toBe("ada");
       expect(item.methods.map((m) => m.id)).toEqual([`${item.id}:password`]);
     }
@@ -72,7 +73,7 @@ describe("store-sync mapping", () => {
     const back = entryToVaultItem(entry, "f1");
     expect(back.kind).toBe("account");
     if (back.kind === "account") {
-      expect(accountPlainPassword(back)).toBe("hunter2");
+      expect(producedPassword(back)).toBe("hunter2");
       expect(back.username).toBe("ada");
       expect(back.methods).toEqual(item.methods);
     }
@@ -171,7 +172,7 @@ describe("planManifestMerge", () => {
     expect(updated?.id).toBe(current.id);
     expect(updated?.createdAt).toBe(current.createdAt);
     if (updated?.kind === "account") {
-      expect(accountPlainPassword(updated)).toBe("rotated");
+      expect(producedPassword(updated)).toBe("rotated");
       // The method keeps its id: it is the same password, rotated.
       expect(updated.methods.map((m) => m.id)).toEqual(
         current.methods.map((m) => m.id),

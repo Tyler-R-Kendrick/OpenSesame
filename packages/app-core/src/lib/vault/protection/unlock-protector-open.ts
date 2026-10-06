@@ -147,7 +147,7 @@ function openerFor(input: ProtectorUnlockInput): Opener {
     if (record.kind === "recovery-key" && secret) {
       return openWithRecoveryKey({ context, record, secretB64: secret });
     }
-    if (record.kind === "age-recipient" && isAgeIdentity(secret)) {
+    if (record.kind === "age-recipient" && (await isAgeIdentity(secret))) {
       return openAgeCapsule(record, context, secret);
     }
     if (record.kind === "age-webauthn") {

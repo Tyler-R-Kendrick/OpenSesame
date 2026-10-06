@@ -33,12 +33,9 @@ import {
   searchTextFor,
   subtitleFor,
 } from "@opensesame/vault-item-types";
-import {
-  type AccountItem,
-  accountPlainPassword,
-  accountTotp,
-} from "./account.js";
+import { type AccountItem, accountTotp } from "./account.js";
 import type { InstalledItemTypes, VaultItem } from "./model.js";
+import { accountFilePassword } from "./produce.js";
 
 let registry: ItemTypeRegistry = builtinRegistry();
 
@@ -153,11 +150,12 @@ export function readItemField(
 /**
  * An account keeps its secrets in its login methods, not in named properties.
  * The two a definition names, a password and an authenticator seed, read as
- * the first method's value, and a password that has to be asked for (a pepper,
- * a Sphinx key) reads as absent: nothing that cannot prompt may guess.
+ * the first method's value. A password an algorithm computes is not a value
+ * a file holds (ADR 0174): it reads as absent, and the method's parameters are
+ * what travels.
  */
 function accountField(item: AccountItem, id: string): string | undefined {
-  if (id === "password") return accountPlainPassword(item);
+  if (id === "password") return accountFilePassword(item);
   if (id === "totp") return accountTotp(item);
   return undefined;
 }

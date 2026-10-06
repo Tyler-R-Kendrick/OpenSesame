@@ -1,6 +1,6 @@
 /**
  * Provisional history accounts and sealed snapshots in an encrypted database
- * (ADR 0173): the row's id, its account, the provider and every timestamp
+ * (ADR 0175): the row's id, its account, the provider and every timestamp
  * are inside the seal. A snapshot is found by its account through a blind
  * index entry that exists only once someone has asked.
  */

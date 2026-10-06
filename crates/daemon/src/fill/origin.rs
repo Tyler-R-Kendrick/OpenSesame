@@ -69,16 +69,57 @@ fn trailer_values<'a>(trailer: &'a str, keys: &'a [&str]) -> impl Iterator<Item 
     })
 }
 
-/// Whether any `url:` line of `trailer` has exactly `origin`.
+/// The metadata object an OpenSesame account entry's trailer carries (the
+/// vault writes its sites and username there, ADR 0172), if it carries one: the
+/// first non-`otpauth://` text, when it is a JSON object.
+fn account_meta(trailer: &str) -> Option<serde_json::Value> {
+    let kept: Vec<&str> = trailer
+        .lines()
+        .filter(|line| {
+            !line
+                .trim_start()
+                .to_ascii_lowercase()
+                .starts_with("otpauth://")
+        })
+        .collect();
+    let text = kept.join("\n");
+    let text = text.trim();
+    text.starts_with('{')
+        .then(|| serde_json::from_str(text).ok())
+        .flatten()
+}
+
+/// Whether any site an entry declares has exactly `origin`: a `url:` line, or
+/// one of the `uris` of an account the vault wrote. Both are compared as
+/// origins, never as suffixes.
 pub(crate) fn entry_matches(trailer: &str, origin: &WebOrigin) -> bool {
-    trailer_values(trailer, &["url"])
-        .filter_map(WebOrigin::from_declared)
+    let from_lines = trailer_values(trailer, &["url"]).filter_map(WebOrigin::from_declared);
+    let sites: Vec<String> = account_meta(trailer)
+        .and_then(|meta| meta.get("uris").cloned())
+        .and_then(|uris| serde_json::from_value::<Vec<String>>(uris).ok())
+        .unwrap_or_default();
+    from_lines
+        .chain(
+            sites
+                .iter()
+                .filter_map(|site| WebOrigin::from_declared(site)),
+        )
         .any(|declared| declared == *origin)
 }
 
 /// The account name for an entry: an explicit `login:`/`username:`/`user:`
 /// line, else the last path segment (the `pass`/gopass convention).
 pub(crate) fn login_of(name: &str, trailer: &str) -> String {
+    let declared = account_meta(trailer)
+        .and_then(|meta| {
+            meta.get("username")
+                .and_then(|v| v.as_str())
+                .map(str::to_owned)
+        })
+        .filter(|username| !username.is_empty());
+    if let Some(username) = declared {
+        return username;
+    }
     trailer_values(trailer, &["login", "username", "user"])
         .find(|value| !value.is_empty())
         .map_or_else(

@@ -1,5 +1,5 @@
 /**
- * Order-preserving encryption for the `order` layer (ADR 0173), after
+ * Order-preserving encryption for the `order` layer (ADR 0175), after
  * Boldyreva, Chenette, Lee and O'Neill (2009).
  *
  * `opeEncrypt(m) < opeEncrypt(n)` exactly when `m < n`, so IndexedDB's own

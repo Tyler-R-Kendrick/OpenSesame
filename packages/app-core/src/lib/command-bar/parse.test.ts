@@ -1,6 +1,10 @@
 import type { VaultItem } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
-import { pepperedAccount, plainAccount } from "../account.test-support.js";
+import {
+  legacySealedAccount,
+  pepperedAccount,
+  plainAccount,
+} from "../account.test-support.js";
 import { registerLegacyShellData } from "../contributions.test-support.js";
 import {
   type CommandPorts,
@@ -181,89 +185,73 @@ describe("executeCommand copy_field", () => {
   const portsFor = (
     items: readonly VaultItem[],
     copied: string[],
-    askPepper?: CommandPorts["askPepper"],
-  ): CommandPorts => {
-    const ports: CommandPorts = {
-      navigate: () => undefined,
-      copy: async (value) => {
-        copied.push(value);
-        return "copied";
-      },
-      items: () => items,
-      vaultLocked: () => false,
-    };
-    if (askPepper !== undefined) ports.askPepper = askPepper;
-    return ports;
-  };
+  ): CommandPorts => ({
+    navigate: () => undefined,
+    copy: async (value) => {
+      copied.push(value);
+      return "copied";
+    },
+    items: () => items,
+    vaultLocked: () => false,
+  });
 
-  it("asks for the pepper exactly once and copies the opened password", async () => {
-    const account = await pepperedAccount(
-      "GitHub",
-      "peppered-secret",
-      "pepper",
-    );
+  it("copies what comes before a pepper's slot and never asks for the pepper", async () => {
+    const account = pepperedAccount("GitHub", "abcdefgh", "-2");
     const copied: string[] = [];
-    let asked = 0;
-    const outcome = await executeCommand(
+    const ports = portsFor([account], copied);
+    expect(Object.keys(ports).sort()).toEqual([
+      "copy",
+      "items",
+      "navigate",
+      "vaultLocked",
+    ]);
+    const first = await executeCommand(
       { action: "copy_field", field: "password", query: "git" },
-      portsFor([account], copied, async () => {
-        asked += 1;
-        return "pepper";
-      }),
+      ports,
     );
-    expect(outcome).toEqual({
+    expect(first).toEqual({
       ok: true,
-      message: "Copied password for GitHub",
+      message:
+        "Copied the start of the password for GitHub: add your pepper, then copy the rest",
     });
-    expect(asked).toBe(1);
-    expect(copied).toEqual(["peppered-secret"]);
+    const rest = await executeCommand(
+      { action: "copy_field", field: "rest", query: "git" },
+      ports,
+    );
+    expect(rest.ok).toBe(true);
+    expect(copied).toEqual(["abcdef", "gh"]);
   });
 
-  it("copies nothing when the pepper prompt is cancelled", async () => {
-    const account = await pepperedAccount(
-      "GitHub",
-      "peppered-secret",
-      "pepper",
-    );
-    const copied: string[] = [];
-    const outcome = await executeCommand(
-      { action: "copy_field", field: "password", query: "git" },
-      portsFor([account], copied, async () => null),
-    );
-    expect(outcome.ok).toBe(false);
-    expect(copied).toEqual([]);
-  });
-
-  it("copies nothing and says so when the pepper is wrong", async () => {
-    const account = await pepperedAccount(
-      "GitHub",
-      "peppered-secret",
-      "pepper",
-    );
-    const copied: string[] = [];
-    const outcome = await executeCommand(
-      { action: "copy_field", field: "password", query: "git" },
-      portsFor([account], copied, async () => "nope"),
-    );
-    expect(outcome.ok).toBe(false);
-    expect(copied).toEqual([]);
-  });
-
-  it("has no password to copy for a peppered account when nothing can ask", async () => {
-    const account = await pepperedAccount(
-      "GitHub",
-      "peppered-secret",
-      "pepper",
-    );
+  it("says to add the pepper after the password when it goes last", async () => {
+    const account = pepperedAccount("GitHub", "abcdefgh");
     const copied: string[] = [];
     const outcome = await executeCommand(
       { action: "copy_field", field: "password", query: "git" },
       portsFor([account], copied),
     );
     expect(outcome).toEqual({
-      ok: false,
-      message: "GitHub has no password to copy.",
+      ok: true,
+      message: "Copied password for GitHub: add your pepper after it",
     });
+    expect(copied).toEqual(["abcdefgh"]);
+    const rest = await executeCommand(
+      { action: "copy_field", field: "rest", query: "git" },
+      portsFor([account], copied),
+    );
+    expect(rest).toEqual({
+      ok: false,
+      message: "GitHub has no rest to copy.",
+    });
+  });
+
+  it("sends an account an older version sealed to be converted, copying nothing", async () => {
+    const account = await legacySealedAccount("GitHub", "old-secret", "pepper");
+    const copied: string[] = [];
+    const outcome = await executeCommand(
+      { action: "copy_field", field: "password", query: "git" },
+      portsFor([account], copied),
+    );
+    expect(outcome.ok).toBe(false);
     expect(copied).toEqual([]);
   });
 

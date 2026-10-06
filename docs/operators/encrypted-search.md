@@ -1,7 +1,7 @@
 # Encrypted search
 
 Settings › Capabilities › **Encrypted search** (`storage.encrypted-search`,
-[ADR 0173](../adr/0173-searchable-encryption-over-indexeddb.md)). Off by
+[ADR 0175](../adr/0175-searchable-encryption-over-indexeddb.md)). Off by
 default.
 
 With it on, the IndexedDB databases this browser keeps for identifiers - the
@@ -53,7 +53,7 @@ before any key is known, so its two fixed names stay.
 - The databases are this browser's. They do not sync.
 - What an index leaks once built: equality (which rows share a value),
   keyword (which share a word), order (the order of a column's values).
-  ADR 0173 §6 has the table.
+  ADR 0175 §6 has the table.
 
 ## For a developer: using the library
 

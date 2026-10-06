@@ -30,6 +30,9 @@ pub(crate) enum SourceError {
     Locked,
     /// No such entry.
     Missing,
+    /// The password was made by an older version from a pepper it asked for
+    /// (ADR 0174): it is converted in the app, never produced here.
+    Legacy,
     /// Anything else the store refused; the detail stays in the daemon.
     Failed,
 }

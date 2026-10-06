@@ -127,15 +127,21 @@
       "to load the age adapters on demand, which moves the whole noble",
       "ed25519 module (about 55 KiB) out of the entry; that touches the",
       "unlock path and is a change of its own, not this one's.",
-      "2026-10-05: largestAsset 798 -> 800 for both hardened profiles (ADR",
-      "0173, encrypted search). The entry chunk measures 798.7 KiB, 0.7 over. What",
-      "joined the core entry is authored text and seams, not a library: the",
-      "capability's descriptor and its Settings section, its tour and target",
-      "(about 1.5 KiB of copy the catalog carries for every optional",
-      "capability), the history and password-digest store seams, and the hashed",
-      "database names Reset derives. The searchable library, the migration and",
-      "the module load only when the capability is on and are in none of these",
-      "builds. The ceiling is about one kibibyte over the measurement."
+      "2026-10-05: largestAsset 798 -> 673 for both hardened profiles. That",
+      "change of its own is made: `age-encryption` and the noble curves it",
+      "carries no longer load with the app. `lib/age-lib.ts` is the one door and",
+      "imports the library on first use (an age protector at unlock, the SOPS",
+      "engine, the age keys panel); SOPS recipients and identities are checked",
+      "by their bech32 checksum (`sops/keys/bech32.ts`) without it. The entry",
+      "chunk measured 813.3 KiB before and 669.3 KiB after, so the ceiling is",
+      "the measurement plus four kibibytes, as before. The OPRF's 13.5 KiB that",
+      "raised it to 798 left the entry with the same module.",
+      "2026-10-05: largestAsset 673 -> 678 for both hardened profiles. The one",
+      "password facade (ADR 0174) is in the entry because every surface that",
+      "produces a password calls it: producePassword, the algorithmic generator's",
+      "HKDF and rejection sampler, and the pepper position parser, about five",
+      "kibibytes together. Measured 674.0 KiB, so the ceiling is that plus four,",
+      "as before."
     ],
     "builds": {
       "minimal-local-hardened": {
@@ -145,7 +151,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 800
+          "largestAsset": 678
         }
       },
       "family-local-hardened": {
@@ -155,7 +161,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 800
+          "largestAsset": 678
         }
       }
     }

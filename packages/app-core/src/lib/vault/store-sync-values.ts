@@ -23,7 +23,7 @@ import {
   type ItemKind,
   type LegacyItemKind,
   type VaultItem,
-  accountPlainPassword,
+  accountFilePassword,
   createItem,
   newGrant,
   newId,
@@ -192,7 +192,7 @@ function propsOf(item: VaultItem): JsonObject {
 /** The text an item promotes to line one, whatever its line breaks. */
 export function lineOneValue(item: VaultItem): string {
   if (item.kind === "typed") return "";
-  if (item.kind === "account") return accountPlainPassword(item);
+  if (item.kind === "account") return accountFilePassword(item);
   const key = LINE_ONE[item.kind];
   const value = key === null ? undefined : propsOf(item)[key];
   return isString(value) ? value : "";

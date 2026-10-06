@@ -71,7 +71,7 @@ export function harness(over: Partial<DaemonClient> = {}): Harness {
         },
         value: async (reference, origin, field) => {
           daemonCalls.push(`value ${reference} ${origin} ${field}`);
-          return VALUE;
+          return { value: VALUE, pepper: false };
         },
         ...over,
       },

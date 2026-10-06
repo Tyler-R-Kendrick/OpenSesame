@@ -1,5 +1,5 @@
 /**
- * Retired-password digests in an encrypted database (ADR 0173): the vault's
+ * Retired-password digests in an encrypted database (ADR 0175): the vault's
  * name and the item's id - the scope - are inside the seal, found by a blind
  * index entry that exists only once a password has been checked. Digests
  * are deliberately not indexed: a shared entry would show a password reused

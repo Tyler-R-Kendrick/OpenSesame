@@ -43,7 +43,7 @@ export const PASSWORD_HISTORY_DATABASE = "opensesame-password-history";
 export const FILE_PARTS_DIRECTORY = "opensesame-pages-file-parts";
 
 /**
- * Encrypted databases (`encrypted-db/`, ADR 0173) are named by a keyed hash,
+ * Encrypted databases (`encrypted-db/`, ADR 0175) are named by a keyed hash,
  * so they cannot be listed here: the prefix is the ownership rule, and the
  * 128 bits after it are the pseudonym.
  */

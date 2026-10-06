@@ -13,7 +13,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import * as age from "age-encryption";
+import { loadAge } from "./age-lib.js";
 import { newOpaqueId } from "./vault/protection/ids.js";
 import { VfsError, readFile, writeFile } from "./vfs.js";
 
@@ -67,9 +67,10 @@ const CUSTODY_VALUES = new Set<AgeIdentityCustody>([
  * True when `line` parses as a native age recipient via Encrypter.addRecipient
  * (X25519 / hybrid / tag — whatever the pinned library accepts).
  */
-export function isAgeRecipient(line: string): boolean {
+export async function isAgeRecipient(line: string): Promise<boolean> {
   const trimmed = line.trim();
   if (!trimmed) return false;
+  const age = await loadAge();
   try {
     new age.Encrypter().addRecipient(trimmed);
     return true;
@@ -81,9 +82,10 @@ export function isAgeRecipient(line: string): boolean {
 /**
  * True when `line` parses as a native age identity via Decrypter.addIdentity.
  */
-export function isAgeIdentity(line: string): boolean {
+export async function isAgeIdentity(line: string): Promise<boolean> {
   const trimmed = line.trim();
   if (!trimmed) return false;
+  const age = await loadAge();
   try {
     new age.Decrypter().addIdentity(trimmed);
     return true;
@@ -100,16 +102,29 @@ function parseCustody(value: BoundaryValue): AgeIdentityCustody | null {
   return null;
 }
 
-function parseIdentityEntry(row: BoundaryValue): AgeIdentityEntry | null {
+/** The lines of `lines` that are age recipients, trimmed, in order. */
+export async function ageRecipientsOf(
+  lines: readonly string[],
+): Promise<string[]> {
+  const trimmed = lines.map((line) => line.trim());
+  const valid = await Promise.all(trimmed.map(isAgeRecipient));
+  return trimmed.filter((_, at) => valid[at]);
+}
+
+async function parseIdentityEntry(
+  row: BoundaryValue,
+): Promise<AgeIdentityEntry | null> {
   if (!isJsonObject(row)) return null;
   if (!isString(row.id) || row.id.length === 0) return null;
-  if (!isString(row.recipient) || !isAgeRecipient(row.recipient)) return null;
+  if (!isString(row.recipient) || !(await isAgeRecipient(row.recipient))) {
+    return null;
+  }
   const custody = parseCustody(row.custody);
   if (!custody) return null;
   const identity =
     row.identity === null || row.identity === undefined
       ? null
-      : isString(row.identity) && isAgeIdentity(row.identity.trim())
+      : isString(row.identity) && (await isAgeIdentity(row.identity.trim()))
         ? row.identity.trim()
         : null;
   if (custody === "vault-sealed" && !identity) return null;
@@ -122,9 +137,10 @@ async function entryFromIdentitySecret(
   custody: AgeIdentityCustody = "vault-sealed",
 ): Promise<AgeIdentityEntry> {
   const identity = identitySecret.trim();
-  if (!isAgeIdentity(identity)) {
+  if (!(await isAgeIdentity(identity))) {
     throw new Error("Invalid age identity.");
   }
+  const age = await loadAge();
   const recipient = await age.identityToRecipient(identity);
   return {
     id: newOpaqueId("ageid"),
@@ -156,23 +172,28 @@ export async function upsertAgeIdentityEntry(
   return identities.map((row, i) => (i === idx ? merged : row));
 }
 
-function parseConfig(raw: string | null): AgeKeyConfig {
+async function parseConfig(raw: string | null): Promise<AgeKeyConfig> {
   if (!raw) return EMPTY;
   try {
     const body: BoundaryValue = JSON.parse(raw);
     if (!isJsonObject(body)) return EMPTY;
+    // The library loads only for a vault that holds age keys at all.
     const recipients = Array.isArray(body.recipients)
-      ? body.recipients.filter(
-          (row): row is string => isString(row) && isAgeRecipient(row.trim()),
-        )
+      ? (
+          await Promise.all(
+            body.recipients.map(async (row) =>
+              isString(row) && (await isAgeRecipient(row.trim())) ? row : null,
+            ),
+          )
+        ).filter((row): row is string => row !== null)
       : [];
     const fromArray = Array.isArray(body.identities)
-      ? body.identities
-          .map(parseIdentityEntry)
-          .filter((row): row is AgeIdentityEntry => row !== null)
+      ? (await Promise.all(body.identities.map(parseIdentityEntry))).filter(
+          (row): row is AgeIdentityEntry => row !== null,
+        )
       : [];
     const legacyIdentity =
-      isString(body.identity) && isAgeIdentity(body.identity.trim())
+      isString(body.identity) && (await isAgeIdentity(body.identity.trim()))
         ? body.identity.trim()
         : null;
     let identities = fromArray;
@@ -195,9 +216,13 @@ function parseConfig(raw: string | null): AgeKeyConfig {
       }
     }
     // Drop incomplete legacy placeholders that never gained a recipient.
-    identities = identities.filter(
-      (row) => row.recipient.length > 0 && isAgeRecipient(row.recipient),
+    const kept = await Promise.all(
+      identities.map(
+        async (row) =>
+          row.recipient.length > 0 && (await isAgeRecipient(row.recipient)),
+      ),
     );
+    identities = identities.filter((_, at) => kept[at]);
     const identity =
       legacyIdentity ??
       identities.find((row) => row.identity)?.identity ??
@@ -212,7 +237,7 @@ function parseConfig(raw: string | null): AgeKeyConfig {
 export async function readAgeKeyConfig(tomb: string): Promise<AgeKeyConfig> {
   try {
     const bytes = await readFile(tomb, AGE_KEYS_CONFIG_PATH);
-    return parseConfig(new TextDecoder().decode(bytes));
+    return await parseConfig(new TextDecoder().decode(bytes));
   } catch (caught) {
     if (caught instanceof VfsError && caught.code === "not-found") return EMPTY;
     throw caught;
@@ -229,17 +254,13 @@ export async function writeAgeKeyConfig(
   config: AgeKeyConfigWrite,
 ): Promise<AgeKeyConfig> {
   const existing = await readAgeKeyConfig(tomb);
-  const recipients = [
-    ...new Set(
-      config.recipients.map((line) => line.trim()).filter(isAgeRecipient),
-    ),
-  ];
+  const recipients = [...new Set(await ageRecipientsOf(config.recipients))];
 
   let identities: AgeIdentityEntry[];
   if (config.identities) {
     identities = [];
     for (const row of config.identities) {
-      const parsed = parseIdentityEntry(row);
+      const parsed = await parseIdentityEntry(row);
       if (parsed) identities.push(parsed);
     }
   } else {
@@ -254,7 +275,10 @@ export async function writeAgeKeyConfig(
   }
 
   for (const row of identities) {
-    if (!recipients.includes(row.recipient) && isAgeRecipient(row.recipient)) {
+    if (
+      !recipients.includes(row.recipient) &&
+      (await isAgeRecipient(row.recipient))
+    ) {
       recipients.push(row.recipient);
     }
   }
@@ -280,6 +304,7 @@ export type AgeKeyPair = {
 };
 
 export async function generateAgeKeyPair(): Promise<AgeKeyPair> {
+  const age = await loadAge();
   const identity = await age.generateX25519Identity();
   const recipient = await age.identityToRecipient(identity);
   return { identity, recipient } satisfies AgeKeyPair;
@@ -320,9 +345,10 @@ export async function encryptWithAge(
   if (recipients.length === 0) {
     throw new Error("No age recipients configured.");
   }
+  const age = await loadAge();
   const encrypter = new age.Encrypter();
   for (const recipient of recipients) {
-    if (!isAgeRecipient(recipient)) {
+    if (!(await isAgeRecipient(recipient))) {
       throw new Error("Invalid age recipient.");
     }
     encrypter.addRecipient(recipient.trim());
@@ -335,9 +361,10 @@ export async function decryptWithAge(
   ciphertext: Uint8Array,
   identity: string,
 ): Promise<Uint8Array> {
-  if (!isAgeIdentity(identity)) {
+  if (!(await isAgeIdentity(identity))) {
     throw new Error("No age identity configured.");
   }
+  const age = await loadAge();
   const decrypter = new age.Decrypter();
   decrypter.addIdentity(identity.trim());
   return decrypter.decrypt(ciphertext);

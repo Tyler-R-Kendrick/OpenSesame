@@ -1746,6 +1746,9 @@ importers:
 
   packages/vault-core:
     dependencies:
+      '@noble/hashes':
+        specifier: 1.8.0
+        version: 1.8.0
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../os-domain

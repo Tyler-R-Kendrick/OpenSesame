@@ -1,5 +1,5 @@
 /**
- * Answering a query (ADR 0173): pick the predicate with the fewest index
+ * Answering a query (ADR 0175): pick the predicate with the fewest index
  * entries, open only the rows it names, and test every predicate again on
  * what was opened. An ordered page walks the order column's own range.
  */

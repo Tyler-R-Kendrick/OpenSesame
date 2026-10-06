@@ -1,5 +1,5 @@
 /**
- * Which layers of which columns are built (ADR 0173).
+ * Which layers of which columns are built (ADR 0175).
  *
  * A layer is dormant until a query needs it: the column then sits sealed
  * with no entry for it on disk, and a reader of the disk learns nothing from

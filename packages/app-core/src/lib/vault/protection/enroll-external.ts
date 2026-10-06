@@ -84,13 +84,15 @@ export function rootsEqual(a: Uint8Array, b: Uint8Array): boolean {
 }
 
 /** Split pasted recipients on whitespace; a line that is not one is refused. */
-export function parseRecipients(input: readonly string[]): string[] {
+export async function parseRecipients(
+  input: readonly string[],
+): Promise<string[]> {
   const seen = new Set<string>();
   for (const raw of input) {
     for (const line of raw.split(/\s+/)) {
       const recipient = line.trim();
       if (recipient.length === 0) continue;
-      if (!isAgeRecipient(recipient)) {
+      if (!(await isAgeRecipient(recipient))) {
         throw new ProtectionError(
           "malformed_encoding",
           "That is not an age recipient (age1…).",
@@ -125,7 +127,7 @@ async function enrollAgeRecipient(
   input: ExternalEnrollmentInput,
   enrollment: AgeRecipientEnrollment,
 ): Promise<ExternalEnrollmentResult> {
-  let recipients = parseRecipients(enrollment.recipients ?? []);
+  let recipients = await parseRecipients(enrollment.recipients ?? []);
   let identity = enrollment.identity?.trim() ?? "";
   let ageIdentitySecret: string | undefined;
   if (recipients.length === 0) {
@@ -160,14 +162,14 @@ async function enrollAgeRecipient(
       });
     return { record };
   }
-  if (!isAgeIdentity(identity)) {
+  if (!(await isAgeIdentity(identity))) {
     throw new ProtectionError(
       "malformed_encoding",
       "That is not an age identity (AGE-SECRET-KEY-1…).",
     );
   }
   const vaultSealed = enrollment.vaultSealedIdentities?.includes(identity);
-  const adapter = createAgeRecipientAdapter({
+  const adapter = await createAgeRecipientAdapter({
     recipients,
     resolveIdentity: async () => identity,
     custody: vaultSealed ? "vault-sealed" : "external",

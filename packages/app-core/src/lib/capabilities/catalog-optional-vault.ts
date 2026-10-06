@@ -61,7 +61,7 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "storage.encrypted-search",
     "Encrypted search",
-    "Keep the stores that hold identifiers - history backups and retired-password digests - in encrypted databases where no table, field, id or name is readable on disk, and search them by blind index (equality, order, keywords) without opening the rest. A field is searchable only once a query has needed it, and stops being the moment it is dropped (ADR 0173).",
+    "Keep the stores that hold identifiers - history backups and retired-password digests - in encrypted databases where no table, field, id or name is readable on disk, and search them by blind index (equality, order, keywords) without opening the rest. A field is searchable only once a query has needed it, and stops being the moment it is dropped (ADR 0175).",
     {
       keyAccess: ["item-plaintext", "protector-wrap"],
       offlineLimits:

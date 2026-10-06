@@ -32,6 +32,7 @@ import {
   createItem,
   createVault,
   manualPassword,
+  mintRootSecret,
   pepperBinding,
   sealJson,
   sealWithPepper,
@@ -274,5 +275,71 @@ export async function emitAccountVectors(): Promise<AccountVectors> {
     accountPepper: VECTOR_PEPPER,
     accountPepperAbout:
       "The pepper that opens the sealed password of each `peppered account` item in the *-accounts vectors (ADR 0172 section 4). Synthetic; the pepper is never stored in a vault.",
+  };
+}
+
+/**
+ * The derived password (ADR 0173) kept both ways, added once beside the others
+ * under its own key: a root and the parameters it is computed from, and the same
+ * with *Include pepper* on, which keeps only where the pepper goes (ADR 0174).
+ * No password and no pepper is in either. The names avoid `derived`, which is
+ * now a value a method stores.
+ */
+function derivedItems(): VaultBody["items"] {
+  const clear = account("Personal computed account");
+  clear.methods = [
+    {
+      id: `${clear.id}:password`,
+      type: "password",
+      generator: { id: "derived", rules: { ...DEFAULT_RULES }, counter: 2 },
+      pepper: false,
+      secret: mintRootSecret(),
+      changedAt: EXPORTED_AT,
+    },
+  ];
+  const slotted = account("Personal computed slotted account");
+  slotted.methods = [
+    {
+      id: `${slotted.id}:password`,
+      type: "password",
+      generator: { id: "derived", rules: { ...DEFAULT_RULES }, counter: 0 },
+      pepper: true,
+      pepperAt: "-4",
+      secret: mintRootSecret(),
+      changedAt: EXPORTED_AT,
+    },
+  ];
+  return [clear, slotted];
+}
+
+/** The derived vector, keyed by name. Nothing here is added to an existing key. */
+export async function emitDerivedVectors() {
+  const { header, vaultKey, rawVaultKey } = await createVault(
+    VECTOR_ACCOUNT_PASSWORD,
+    "vector hint",
+  );
+  rawVaultKey.fill(0);
+  const body: VaultBody = {
+    v: 1,
+    items: derivedItems(),
+    folders: [],
+    rev: 3,
+  };
+  const sealed = await sealJson(
+    vaultKey,
+    body,
+    vaultSealBinding("personal", "body"),
+  );
+  const envelope = buildOfflineBackupEnvelope({
+    projectId: null,
+    header: { ...header, bodyRev: 3 },
+    body: sealed,
+    exportedAt: EXPORTED_AT,
+  });
+  return {
+    "backup-personal-derived": {
+      file: serializeOfflineBackupEnvelope(envelope),
+      expect: expectationFor("personal", true, body),
+    },
   };
 }

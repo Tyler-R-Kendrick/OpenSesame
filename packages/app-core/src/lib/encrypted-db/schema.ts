@@ -1,5 +1,5 @@
 /**
- * What an encrypted database may be asked, declared up front (ADR 0173).
+ * What an encrypted database may be asked, declared up front (ADR 0175).
  *
  * The schema lives in the application's code and never on disk. It says, per
  * column, which searchable layers the column may reach; the layer itself is

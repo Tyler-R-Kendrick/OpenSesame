@@ -5,6 +5,8 @@
  */
 export * from "./account.js";
 export * from "./bytes.js";
+export * from "./character-rules.js";
+export * from "./derive.js";
 export * from "./crypto.js";
 export * from "./device-key.js";
 export * from "./drop-format.js";
@@ -15,7 +17,9 @@ export * from "./merge.js";
 export * from "./model.js";
 export * from "./offline-backup-format.js";
 export * from "./paths.js";
+export * from "./pepper-position.js";
 export * from "./pepper-seal.js";
+export * from "./produce.js";
 export * from "./protection-limits.js";
 export * from "./protection-types.js";
 export * from "./seal-open.js";

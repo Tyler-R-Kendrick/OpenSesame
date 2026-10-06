@@ -1,5 +1,5 @@
 /**
- * The two IndexedDB shapes an encrypted database ever has (ADR 0173): one
+ * The two IndexedDB shapes an encrypted database ever has (ADR 0175): one
  * object store of out-of-line keys, and one multi-entry index over every
  * entry of every row. Nothing else about the application's data model is
  * visible in the browser's database, because nothing else is in it.

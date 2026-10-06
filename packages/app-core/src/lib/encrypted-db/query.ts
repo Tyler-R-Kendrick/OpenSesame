@@ -1,5 +1,5 @@
 /**
- * A `where` clause, compiled (ADR 0173).
+ * A `where` clause, compiled (ADR 0175).
  *
  * Each predicate becomes two things: the index range that finds candidate
  * rows without opening them, and the exact test the opened row must pass.

@@ -1,4 +1,4 @@
-# ADR 0173 — Searchable encryption over IndexedDB
+# ADR 0175 — Searchable encryption over IndexedDB
 
 - Status: Accepted
 - Date: 2026-10-05

@@ -278,7 +278,7 @@ jobs:
         run: pnpm --filter @opensesame/pages verify:static
       - name: Encrypted search in the built app
         if: matrix.shard == 'static'
-        # ADR 0173: with the capability on, retiring a password writes only an
+        # ADR 0175: with the capability on, retiring a password writes only an
         # encrypted database. A sweep of every record of every database finds
         # no item id, no store, index or field name, and no digest; the sealed
         # database the capability replaced was readable until it was switched

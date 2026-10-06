@@ -1,5 +1,5 @@
 /**
- * The names an encrypted database goes by on disk (ADR 0173).
+ * The names an encrypted database goes by on disk (ADR 0175).
  *
  * A database's real name ("history-backups") is as telling as a column name,
  * so what the browser lists is the name run through a keyed hash: a fixed

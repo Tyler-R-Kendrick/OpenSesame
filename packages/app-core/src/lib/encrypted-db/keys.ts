@@ -1,5 +1,5 @@
 /**
- * The key hierarchy of an encrypted database (ADR 0173).
+ * The key hierarchy of an encrypted database (ADR 0175).
  *
  * One master key per device, derived from the at-rest key, and from it a key
  * per purpose: the row seal, the pseudonyms rows and the schema's names are

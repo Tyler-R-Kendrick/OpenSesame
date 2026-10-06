@@ -1,6 +1,6 @@
 /**
  * A row as the disk holds it: one sealed string and the index entries that
- * were computed from it (ADR 0173).
+ * were computed from it (ADR 0175).
  *
  * The table, the key and every field are inside the seal, which is bound to
  * the pseudonym the row is stored under, so a row moved to another slot, or

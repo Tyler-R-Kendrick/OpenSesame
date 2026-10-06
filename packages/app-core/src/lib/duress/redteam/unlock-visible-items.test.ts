@@ -9,7 +9,6 @@
 
 import {
   type AccountItem,
-  accountPlainPassword,
   accountTotp,
   createItem,
   manualPassword,
@@ -17,6 +16,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { duressContinueSeams } from "../../../screens/unlock/unlock-duress-continue.js";
 import { plainAccount } from "../../account.test-support.js";
+import { producedPassword } from "../../account.test-support.js";
 import { forgetDeviceIdentityKeyInFlightForTests } from "../../device-identity-key.js";
 import { kvDelete, kvGet } from "../../kv.js";
 import { ATTEMPTS_KEY, VaultStore } from "../../vault/store.js";
@@ -101,7 +101,7 @@ describe("visible items, through unlock", () => {
       createdAt: stored?.createdAt,
       updatedAt: stored?.updatedAt,
     });
-    expect(accountPlainPassword(first)).toBe("netflix-pw-4417");
+    expect(producedPassword(first)).toBe("netflix-pw-4417");
     expect(first.uris.map((u) => [u.uri, u.match])).toEqual([
       ["https://netflix.example.test", "host"],
     ]);
@@ -209,7 +209,7 @@ describe("visible items, through unlock", () => {
       store
         .getSnapshot()
         .items.map((item) =>
-          item.kind === "account" ? accountPlainPassword(item) : "",
+          item.kind === "account" ? producedPassword(item) : "",
         );
     await typeCode(store);
     const first = view();

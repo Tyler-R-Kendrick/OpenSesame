@@ -1,5 +1,5 @@
 /**
- * The index entries a row gets, and the ones a query looks for (ADR 0173).
+ * The index entries a row gets, and the ones a query looks for (ADR 0175).
  *
  * Every entry of every column of every table goes into one index, and the
  * entries are indistinguishable by shape: a 128-bit hex string for an

@@ -1,6 +1,6 @@
 /**
  * Reading the device-sealed history database for the move into the encrypted
- * one (ADR 0173). Lives with the optional library, not the store it reads, so
+ * one (ADR 0175). Lives with the optional library, not the store it reads, so
  * the core entry carries none of it.
  */
 

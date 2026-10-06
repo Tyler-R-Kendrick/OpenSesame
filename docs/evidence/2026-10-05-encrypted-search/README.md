@@ -1,6 +1,6 @@
 # Encrypted search: Settings › Capabilities
 
-[ADR 0173](../../adr/0173-searchable-encryption-over-indexeddb.md). The one
+[ADR 0175](../../adr/0175-searchable-encryption-over-indexeddb.md). The one
 visible change is a new section on Settings › Capabilities, with the switch of
 the `storage.encrypted-search` capability. Two real builds (the base commit
 `e53d2a2c` and this branch), walked the same way by `journey.json`, at desktop

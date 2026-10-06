@@ -75,5 +75,7 @@ export async function answerArm(
   }
   if (again.field !== decision.field) return { outcome: "focus_moved" };
   writeValue(input, reply.value);
-  return { outcome: "filled" };
+  // With a pepper slot only what comes before it was written: the person types
+  // their own next, and it is never asked for here (ADR 0174).
+  return { outcome: reply.pepper === true ? "pepper_next" : "filled" };
 }
