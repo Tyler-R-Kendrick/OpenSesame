@@ -121,3 +121,18 @@ describe("ci gates, tutorials", () => {
     );
   });
 });
+
+describe("ci gate selection", () => {
+  it("selects the gates for real paths without falling back", async () => {
+    const { bundlePackageDirs, pushPackageDirs, selectGates } = await import(
+      "./ci-changed-areas.mjs"
+    );
+    const gates = selectGates(
+      root,
+      ["apps/pages/src/sections/identity/EditApplication.tsx"],
+      bundlePackageDirs(root),
+      pushPackageDirs(root),
+    );
+    expect([...gates].sort()).toEqual(["budgets", "journeys", "sign-in"]);
+  });
+});
