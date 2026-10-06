@@ -25,7 +25,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { useTabSwipe } from "../lib/use-tab-swipe.js";
+import { useTabSwipe } from "../lib/tab-swipe-hook.js";
 import { SupportRouteOverrideContext } from "./session.js";
 import "./gate-seat.css";
 

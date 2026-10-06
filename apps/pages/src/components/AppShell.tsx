@@ -16,9 +16,9 @@ import {
   focusVaultListing,
   registerKeymapHelp,
 } from "../lib/keymap.js";
+import { useTabSwipe } from "../lib/tab-swipe-hook.js";
 import { useGestures } from "../lib/use-gestures.js";
 import { useNarrow } from "../lib/use-narrow.js";
-import { useTabSwipe } from "../lib/use-tab-swipe.js";
 import { useVaultStore } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { AccountSwitcher } from "./AccountSwitcher.js";

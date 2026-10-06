@@ -37,7 +37,6 @@ const UI_LOCAL_LIB = [
   "gesture",
   "use-gestures",
   "tab-swipe",
-  "use-tab-swipe",
   "strip",
   "keymap",
   "use-claimed-drags",
