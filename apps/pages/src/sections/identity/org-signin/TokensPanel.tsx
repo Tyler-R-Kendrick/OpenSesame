@@ -137,7 +137,6 @@ function TokenRow({
           <div className="actions">
             <IconKey
               small
-              danger
               armed={armed}
               label={armed ? `Confirm revoking ${row.id}` : `Revoke ${row.id}`}
               disabled={state.busy || !online}

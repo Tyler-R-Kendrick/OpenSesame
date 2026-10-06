@@ -141,7 +141,6 @@ function DirectoryRowKeys({
         keyRef={deleteKey}
         label={armed ? "Confirm deletion" : "Delete"}
         small
-        danger
         armed={armed}
         disabled={locked}
         onClick={() =>

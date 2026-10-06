@@ -107,7 +107,6 @@ function PackedCard({
         disabled: !ack.bundleSaved || !ack.codeRecorded,
         onClick: () => flow.depart(pkg),
       }}
-      secondary={{ label: "Keep them here", onClick: () => flow.reset() }}
     >
       <ul className="travel__list" aria-label="The travel bundle">
         <TravelRow

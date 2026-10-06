@@ -85,7 +85,7 @@
   padding: 0.25rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
   border-width: 1px 0 0;
   /* The same top edge as every other bottom sheet (`.sheet`). */
-  border-radius: 18px 18px 0 0;
+  border-radius: 0;
 }
 
 .ctxmenu__title {
@@ -138,14 +138,9 @@
   color: var(--ink-3);
 }
 
-.ctxmenu__item.is-danger {
-  color: var(--err);
-}
-
-.ctxmenu__item.is-danger:focus,
 .ctxmenu__item.is-armed {
-  background: var(--err);
-  color: var(--err-ink);
+  background: var(--ink);
+  color: var(--canvas);
 }
 
 .ctxmenu__check {
@@ -193,10 +188,6 @@
   .ctxmenu__item:focus:not(:focus-visible):not(.is-armed) {
     background: transparent;
     color: inherit;
-  }
-
-  .ctxmenu__item.is-danger:focus:not(:focus-visible):not(.is-armed) {
-    color: var(--err);
   }
 
   /* Holding a row asks for its menu, so the platform must not answer the

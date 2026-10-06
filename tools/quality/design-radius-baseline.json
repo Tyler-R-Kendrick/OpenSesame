@@ -1,13 +1,1 @@
-{
-  "apps/pages/src/components/context-menu/context-menu.css": 1,
-  "apps/pages/src/modules/networking.tailnet-devices/tailnet-devices.css": 1,
-  "apps/pages/src/screens/unlock.css": 3,
-  "apps/pages/src/sections/access.css": 1,
-  "apps/pages/src/sections/connections.css": 1,
-  "apps/pages/src/sections/settings/item-types/item-types.css": 3,
-  "apps/pages/src/sections/settings/security/duress-pick.css": 2,
-  "apps/pages/src/sections/settings/security/duress-sheet.css": 2,
-  "apps/pages/src/sections/vault.css": 1,
-  "apps/pages/src/styles.css": 10,
-  "apps/pages/src/tutorial/coach/coach.css": 3
-}
+{}

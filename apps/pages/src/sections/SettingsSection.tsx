@@ -126,7 +126,6 @@ export function SettingsSection({
               guideId={entry.guideId}
               to={settingsPath(entry.id)}
               label={entry.label}
-              danger={entry.id === "danger"}
               current={category === entry.id}
             />
           ))}

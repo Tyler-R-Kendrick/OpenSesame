@@ -23,13 +23,11 @@ export function CategoryLink({
   guideId,
   to,
   label,
-  danger,
   current,
 }: {
   guideId: string;
   to: string;
   label: string;
-  danger: boolean;
   current: boolean;
 }) {
   const guideRef = useGuideTarget<HTMLAnchorElement>(guideId);
@@ -40,7 +38,7 @@ export function CategoryLink({
     <Link
       ref={stripRef}
       to={to}
-      className={`set__nav-link${danger ? " set__nav-link--danger" : ""}`}
+      className="set__nav-link"
       aria-current={current ? "page" : undefined}
     >
       {label}

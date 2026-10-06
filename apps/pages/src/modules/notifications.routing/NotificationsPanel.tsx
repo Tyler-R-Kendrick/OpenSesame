@@ -202,7 +202,6 @@ function DestinationsPanel({
               <span className="notif-row__keys">
                 <IconKey
                   small
-                  danger
                   label={`Disconnect ${row.name}${row.label ? ` · ${row.label}` : ""}`}
                   onClick={() => void session.unbind(row.id)}
                 >

@@ -46,7 +46,7 @@ function RemoveKeys({
     <>
       <button
         type="button"
-        className="icon-btn icon-btn--sm icon-btn--danger is-armed"
+        className="icon-btn icon-btn--sm is-armed"
         aria-label={`Remove ${path}; items of this type keep their values`}
         title="Remove; items keep their values"
         onClick={onRemove}

@@ -184,13 +184,13 @@ describe("UnlockMethodsPanel", () => {
     await userEvent.click(
       dialog.getByRole("button", { name: "Remove this password" }),
     );
-    expect(document.querySelector(".found--ask .go--danger")).toBeTruthy();
+    expect(document.querySelector(".found--ask .go")).toBeTruthy();
     expect(
       dialog.getByRole("button", { name: "Remove password" }),
     ).toHaveProperty("disabled", true);
     expect(dialog.getByText(/only key/)).toBeTruthy();
     expect(dialog.getByRole("button", { name: "Add a PIN" })).toBeTruthy();
-    await userEvent.click(dialog.getByRole("button", { name: "Keep it" }));
+    await userEvent.click(dialog.getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(store.removePassword).not.toHaveBeenCalled();
   });
@@ -348,7 +348,7 @@ describe("UnlockMethodsPanel", () => {
       row("Authenticator app").getByRole("button", { name: "Remove" }),
     );
     const dialog = sheet();
-    expect(document.querySelector(".found--ask .go--danger")).toBeTruthy();
+    expect(document.querySelector(".found--ask .go")).toBeTruthy();
     expect(store.removeTotp).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(dialog.getByText(/1 unused codes are discarded/)).toBeTruthy(),

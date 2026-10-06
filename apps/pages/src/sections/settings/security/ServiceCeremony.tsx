@@ -61,7 +61,6 @@ function ForgetCard({ busy, run, onDone }: CardProps) {
             onDone();
           }, "Sign-in service forgotten."),
       }}
-      secondary={{ label: "Keep it", onClick: onDone }}
     />
   );
 }

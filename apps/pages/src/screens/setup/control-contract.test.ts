@@ -1,330 +1,197 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 
 /**
- * The control contract, tested on the lint that enforces it.
+ * A control is never red, and a sheet has one way out.
  *
- * `docs/design/controls.md` names two primary actions and says which is which.
- * The setup ceremony shipped with the wrong one — a full-width text slab where
- * the screen's terminal commit belongs — and no gate caught it. This pins both
- * halves: that the shipped screens satisfy the contract, and that the lint
- * would actually fail on the exact code that got through.
+ * "Reset this browser" shipped with a red bin on the erase key, a second X
+ * beside the erase key ("Keep it") under the close key in the head, and round
+ * corners on both. Each case below is one spelling of the first two; each must
+ * fail the lint by its own rule, and the plain spellings must not.
  *
- * A lint nobody has watched fail is a lint nobody knows works.
+ * Every case is a file in one throwaway tree and the lint sweeps that tree
+ * once; a case passes or fails by whether the lint named its own file.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "..", "..", "..", "..", "..");
 const lint = join(root, "scripts", "quality", "design-lint.mjs");
 
-type LintResult = { code: number; output: string };
+type Case = { rule: string; file: string; why: string; text: string };
 
-function runLint(...files: string[]): LintResult {
+const SHOULD_FAIL: readonly Case[] = [
+  {
+    rule: "no-danger-control",
+    file: "danger-class.tsx",
+    why: "a danger modifier on an icon key",
+    text: `export const x = <button type="button" className="icon-btn icon-btn--danger" aria-label="Delete" title="Delete" />;\n`,
+  },
+  {
+    rule: "no-danger-control",
+    file: "danger-go.tsx",
+    why: "a danger modifier on the terminal square",
+    text: `export const x = <button type="button" className="go go--danger" aria-label="Erase" title="Erase" />;\n`,
+  },
+  {
+    rule: "no-danger-control",
+    file: "danger-css.css",
+    why: "a stylesheet that defines a danger modifier",
+    text: ".icon-btn--danger { background: none; }\n",
+  },
+  {
+    rule: "no-control-error-ink",
+    file: "go-red.css",
+    why: "the terminal square in the error ink",
+    text: ".go { background: var(--err); color: var(--err-ink); }\n",
+  },
+  {
+    rule: "no-control-error-ink",
+    file: "button-red.css",
+    why: "a button's text in the error ink",
+    text: ".panel button { color: var(--err); }\n",
+  },
+  {
+    rule: "no-control-error-ink",
+    file: "armed-red.css",
+    why: "an armed key in the error ink",
+    text: ".thing.is-armed { background: var(--err); }\n",
+  },
+  {
+    rule: "no-control-error-ink",
+    file: "mic-red.css",
+    why: "a mic key held red while it listens",
+    text: ".command-bar__mic.is-hot { color: var(--err); background: var(--err-wash); }\n",
+  },
+  {
+    rule: "no-control-error-ink",
+    file: "menu-red.css",
+    why: "a danger menu entry's hover in the error ink inside a media query",
+    text: "@media (hover: hover) {\n  .ctxmenu__item.is-danger:hover { color: var(--err); }\n}\n",
+  },
+  {
+    rule: "one-way-out",
+    file: "keep-key.tsx",
+    why: "a Keep key beside the erase key",
+    text: `export const x = (
+  <CeremonyShell
+    name="This browser"
+    primary={{ label: "Erase this browser", tone: "danger", onClick: erase }}
+    secondary={{ label: "Keep it", onClick: onClose }}
+  />
+);\n`,
+  },
+  {
+    rule: "one-way-out",
+    file: "not-now.tsx",
+    why: "a Not now key that only leaves",
+    text: `export const x = (
+  <CeremonyShell
+    name="Leave these"
+    primary={{ label: "Leave them", onClick: go }}
+    secondary={{ label: "Not now", onClick: () => flow.reset() }}
+  />
+);\n`,
+  },
+];
+
+const SHOULD_PASS: readonly Case[] = [
+  {
+    rule: "no-control-error-ink",
+    file: "status-mark.css",
+    why: "the status glyph in the error ink",
+    text: ".status-mark--err { color: var(--err); }\n",
+  },
+  {
+    rule: "no-control-error-ink",
+    file: "tray-card.css",
+    why: "the tray card's border in the error ink",
+    text: ".notice-card--err { border-color: var(--err); }\n",
+  },
+  {
+    rule: "no-control-error-ink",
+    file: "invalid-field.css",
+    why: "an invalid field's border",
+    text: '.field input[aria-invalid="true"] { border-color: var(--err); }\n',
+  },
+  {
+    rule: "no-control-error-ink",
+    file: "plain-go.css",
+    why: "the terminal square in ink",
+    text: ".go { background: var(--ink); color: var(--canvas); }\n",
+  },
+  {
+    rule: "one-way-out",
+    file: "choice-secondary.tsx",
+    why: "a secondary that is a real second road",
+    text: `export const x = (
+  <CeremonyShell
+    name="Identity"
+    primary={{ label: "Sign in", onClick: signIn }}
+    secondary={{ label: "Continue as guest", choice: true, onClick: guest }}
+  />
+);\n`,
+  },
+  {
+    rule: "one-way-out",
+    file: "no-secondary.tsx",
+    why: "the erase key alone",
+    text: `export const x = (
+  <CeremonyShell
+    name="This browser"
+    primary={{ label: "Erase this browser", tone: "danger", onClick: erase }}
+  />
+);\n`,
+  },
+];
+
+let output = "";
+
+beforeAll(() => {
+  const dir = mkdtempSync(join(tmpdir(), "design-lint-controls-"));
+  const sections = join(dir, "apps/pages/src/sections");
+  mkdirSync(sections, { recursive: true });
+  for (const item of [...SHOULD_FAIL, ...SHOULD_PASS])
+    writeFileSync(join(sections, item.file), item.text);
   try {
-    const output = execFileSync(process.execPath, [lint, ...files], {
+    output = execFileSync(process.execPath, [lint, "--root", dir], {
       cwd: root,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
-      // The hook path clears this for the same reason: an inherited
-      // `--import` flag makes every node invocation fail confusingly.
       env: { ...process.env, NODE_OPTIONS: "" },
     });
-    return { code: 0, output };
   } catch (error) {
-    const failure: { status?: number; stdout?: string; stderr?: string } =
-      Object(error);
-    return {
-      code: failure.status ?? 1,
-      output: `${failure.stdout ?? ""}${failure.stderr ?? ""}`,
-    };
+    const failure: { stdout?: string; stderr?: string } = Object(error);
+    output = `${failure.stdout ?? ""}${failure.stderr ?? ""}`;
   }
-}
-
-/**
- * A throwaway tree holding one deliberately-broken file, at the path the lint
- * cares about. Returns the args that point the lint at it.
- */
-function brokenTree(name: string, contents: string): string[] {
-  const dir = mkdtempSync(join(tmpdir(), "design-lint-"));
-  const file = join(dir, "apps", "pages", "src", "screens", name);
-  execFileSync("mkdir", ["-p", dirname(file)]);
-  writeFileSync(file, contents);
-  return ["--root", dir, file];
-}
-
-/** A copy of a real screen, edited to break exactly one rule. */
-function withEdit(relPath: string, edit: (source: string) => string): string[] {
-  const source = readFileSync(join(root, relPath), "utf8");
-  return brokenTree("Broken.tsx", edit(source));
-}
-
-describe("the shipped screens satisfy the control contract", () => {
-  it("passes a full sweep", () => {
-    const result = runLint();
-    expect(result.output).toContain("OK");
-    expect(result.code).toBe(0);
-  });
 });
 
-describe("the lint fails on the code that actually got through", () => {
-  it.each([
-    "color: white",
-    "background: #fff",
-    "background-color: rgb(255,255,255)",
-    "background: transparent",
-  ])("rejects fixed dropdown %s", (declaration) => {
-    const result = runLint(
-      ...brokenTree("drift.css", `select option { ${declaration}; }`),
+/** Whether the sweep named `rule` against `file`. */
+function flagged(file: string, rule: string): boolean {
+  return output
+    .split("\n")
+    .some(
+      (line) =>
+        line.startsWith(`apps/pages/src/sections/${file}:`) &&
+        line.includes(rule),
     );
-    expect(result.code).toBe(1);
-    expect(result.output).toContain("dropdown-theme-colors");
-  });
+}
 
-  it.each(["background-color: var(--surface);", "color: var(--ink);"])(
-    "rejects missing popup color pair: %s",
-    (declaration) => {
-      const result = runLint(
-        ...brokenTree(
-          "../native-controls.css",
-          `select option, select optgroup { ${declaration} }`,
-        ),
-      );
-      expect(result.code).toBe(1);
-      expect(result.output).toContain("dropdown-popup-theme");
+describe("a red control or a second way out fails design lint", () => {
+  it.each(SHOULD_FAIL.map((item) => [item.why, item] as const))(
+    "rejects %s",
+    (_, item) => {
+      expect(flagged(item.file, item.rule)).toBe(true);
     },
   );
 
-  it("rejects a disconnected dropdown theme", () => {
-    const result = runLint(
-      ...brokenTree("../styles.css", "select { color: var(--ink); }"),
-    );
-    expect(result.code).toBe(1);
-    expect(result.output).toContain("dropdown-popup-theme");
-  });
-
-  it("rejects the vault text-button empty state", () => {
-    const result = runLint(
-      ...brokenTree(
-        "../sections/VaultSection.tsx",
-        '<Link className="btn btn--primary btn--sm">New item</Link>',
-      ),
-    );
-    expect(result.code).toBe(1);
-    expect(result.output).toContain("vault-commands-use-icons");
-  });
-
-  it("rejects a text button in a screen's commit bar", () => {
-    // Verbatim the shape that shipped: a wide `btn--primary` in `setup__foot`.
-    const broken = withEdit(
-      "apps/pages/src/screens/SetupScreen.tsx",
-      (source) =>
-        source.replace(
-          /<div className="go-row">[\s\S]*?<\/div>/,
-          '<button type="button" className="btn btn--primary">{verb}</button>',
-        ),
-    );
-    const result = runLint(...broken);
-    expect(result.code).toBe(1);
-    expect(result.output).toContain("commit-bar-uses-go");
-  });
-
-  it("rejects a `.go` square with no accessible name", () => {
-    const broken = withEdit(
-      "apps/pages/src/screens/SetupScreen.tsx",
-      (source) => source.replace("aria-label={verb}", ""),
-    );
-    const result = runLint(...broken);
-    expect(result.code).toBe(1);
-    expect(result.output).toContain("go-needs-name");
-  });
-
-  it("rejects a `.go` square with no verb beside it", () => {
-    const broken = withEdit(
-      "apps/pages/src/screens/SetupScreen.tsx",
-      (source) =>
-        source.replace(/<span className="go-verb"[\s\S]*?<\/span>/, ""),
-    );
-    const result = runLint(...broken);
-    expect(result.code).toBe(1);
-    expect(result.output).toContain("go-needs-verb");
-  });
-
-  it.each(["uppercase", "capitalize"])(
-    "rejects a rule that forces %s case",
-    (value) => {
-      const result = runLint(
-        ...brokenTree(
-          "drift.css",
-          `.label {\n  text-transform: ${value};\n}\n`,
-        ),
-      );
-      expect(result.code).toBe(1);
-      expect(result.output).toContain("sentence-case");
+  it.each(SHOULD_PASS.map((item) => [item.why, item] as const))(
+    "accepts %s",
+    (_, item) => {
+      expect(flagged(item.file, item.rule)).toBe(false);
     },
   );
-
-  it("rejects a second definition of the commit control", () => {
-    const broken = brokenTree(
-      "drift.css",
-      ".go {\n  background: hotpink;\n}\n",
-    );
-    const result = runLint(...broken);
-    expect(result.code).toBe(1);
-    expect(result.output).toContain("go-defined-once");
-  });
-});
-
-describe("icon keys in a card", () => {
-  it("accepts an icon key in a card's foot", () => {
-    const result = runLint(
-      "apps/pages/src/sections/connections/ConnectionCard.tsx",
-    );
-    expect(result.code).toBe(0);
-  });
-});
-
-describe("status pills fail design lint", () => {
-  it("rejects a status word painted on a chip", () => {
-    const dir = mkdtempSync(join(tmpdir(), "design-lint-"));
-    const file = join(dir, "apps/pages/src/sections/connections/Broken.tsx");
-    execFileSync("mkdir", ["-p", dirname(file)]);
-    writeFileSync(file, `<span className="chip chip--ok">Connected</span>\n`);
-    const result = runLint("--root", dir, file);
-    expect(result.code).toBe(1);
-    expect(result.output).toContain("status-is-symbol");
-  });
-});
-describe("word-verb buttons fail design lint", () => {
-  it("rejects a verb painted on a button", () => {
-    const dir = mkdtempSync(join(tmpdir(), "design-lint-"));
-    const file = join(dir, "apps/pages/src/sections/connections/Broken.tsx");
-    execFileSync("mkdir", ["-p", dirname(file)]);
-    writeFileSync(
-      file,
-      `<button type="button" className="btn">Revoke</button>\n`,
-    );
-    const result = runLint("--root", dir, file);
-    expect(result.code).toBe(1);
-    expect(result.output).toContain("word-verb-button");
-  });
-});
-
-describe("explainer copy fails design lint", () => {
-  it("rejects a caption that narrates a connector panel", () => {
-    const dir = mkdtempSync(join(tmpdir(), "design-lint-"));
-    const file = join(dir, "apps/pages/src/sections/connections/Broken.tsx");
-    execFileSync("mkdir", ["-p", dirname(file)]);
-    writeFileSync(
-      file,
-      `<section><div className="panel__head"><h2>Installation</h2><p className="hint">The GitHub account this app is installed on.</p></div></section>\n`,
-    );
-    const result = runLint("--root", dir, file);
-    expect(result.code).toBe(1);
-    expect(result.output).toContain("no-explainer");
-  });
-});
-
-describe("status explainer copy fails design lint", () => {
-  it("rejects a consolation tail in a `.ts` status module", () => {
-    const dir = mkdtempSync(join(tmpdir(), "design-lint-"));
-    const file = join(dir, "apps/pages/src/tutorial/ui/Broken.ts");
-    execFileSync("mkdir", ["-p", dirname(file)]);
-    writeFileSync(
-      file,
-      `export const TEXT =\n  "This browser has no on-device model. The written help below still works.";\n`,
-    );
-    const result = runLint("--root", dir, file);
-    expect(result.code).toBe(1);
-    expect(result.output).toContain("no-status-explainer");
-  });
-
-  it("rejects a walk through the browser's own settings", () => {
-    const dir = mkdtempSync(join(tmpdir(), "design-lint-"));
-    const file = join(dir, "apps/pages/src/tutorial/ui/Broken.ts");
-    execFileSync("mkdir", ["-p", dirname(file)]);
-    writeFileSync(
-      file,
-      `export const TEXT =\n  "Enable Experimental Web Platform features at chrome://flags, relaunch, and reload this page.";\n`,
-    );
-    const result = runLint("--root", dir, file);
-    expect(result.code).toBe(1);
-    expect(result.output).toContain("no-status-explainer");
-  });
-
-  it("accepts a status that states the fact and stops", () => {
-    const dir = mkdtempSync(join(tmpdir(), "design-lint-"));
-    const file = join(dir, "apps/pages/src/tutorial/ui/Ok.ts");
-    execFileSync("mkdir", ["-p", dirname(file)]);
-    writeFileSync(
-      file,
-      `export const TEXT = "No on-device model and no support endpoint on this deployment.";\n`,
-    );
-    const result = runLint("--root", dir, file);
-    expect(result.code).toBe(0);
-  });
-});
-
-describe("keys have a home", () => {
-  // Verbatim the shape Settings shipped: a form's save key alone on the row
-  // under its field, a screen-width from the value it saves.
-  const stranded = `<form>
-  <input id="view-name" />
-  <div className="actions">
-    <button
-      type="submit"
-      className="icon-btn icon-btn--sm"
-      aria-label="Pin view"
-      title="Pin view"
-    >
-      <IconStar size={16} />
-    </button>
-  </div>
-</form>
-`;
-
-  it("rejects a commit key on a row of its own", () => {
-    const result = runLint(...brokenTree("Stranded.tsx", stranded));
-    expect(result.code).toBe(1);
-    expect(result.output).toContain("commit-key-has-a-home");
-  });
-
-  it("accepts the same key ending its field's row", () => {
-    const result = runLint(
-      ...brokenTree(
-        "Inline.tsx",
-        stranded.replace(
-          '<div className="actions">',
-          '<div className="field-inline">',
-        ),
-      ),
-    );
-    expect(result.code).toBe(0);
-  });
-});
-
-describe("fields have a measure", () => {
-  it("rejects a field rule stretched to its panel", () => {
-    const result = runLint(
-      ...brokenTree(
-        "stretched.css",
-        ".transport__form select {\n  width: 100%;\n}\n",
-      ),
-    );
-    expect(result.code).toBe(1);
-    expect(result.output).toContain("field-has-a-measure");
-  });
-
-  it("accepts the same rule with a measure", () => {
-    const result = runLint(
-      ...brokenTree(
-        "measured.css",
-        ".transport__form select {\n  width: 100%;\n  max-width: var(--field-max);\n}\n",
-      ),
-    );
-    expect(result.code).toBe(0);
-  });
 });

@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-06-sharp-plain-sheets/`](2026-10-06-sharp-plain-sheets/README.md) | Sharp corners, no red controls, one way out |
 | [`2026-10-06-share-key-and-api-rows/`](2026-10-06-share-key-and-api-rows/README.md) | Share once as a toolbar key, and an account's credentials that all copy |
 | [`2026-10-06-pages-are-pages/`](2026-10-06-pages-are-pages/README.md) | A page's own files are the page |
 | [`2026-10-05-travel-hidden-items/`](2026-10-05-travel-hidden-items/README.md) | Leave items at home — before and after |

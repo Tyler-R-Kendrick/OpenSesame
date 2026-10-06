@@ -294,7 +294,7 @@ function SiopCommit(props: {
       disabled={busy || !(signedIn || props.canVerify)}
       onClick={signedIn ? props.onAllow : props.onVerify}
     >
-      <IconKey label="Deny" danger disabled={busy} onClick={props.onDeny}>
+      <IconKey label="Deny" disabled={busy} onClick={props.onDeny}>
         <IconX size={16} />
       </IconKey>
     </FormCommit>

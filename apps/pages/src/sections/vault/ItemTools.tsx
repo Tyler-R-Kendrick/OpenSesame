@@ -93,7 +93,7 @@ export function ItemTools({
         </IconKey>
         <button
           type="button"
-          className={`icon-btn icon-btn--danger${confirmPurge ? " is-armed" : ""}`}
+          className={`icon-btn${confirmPurge ? " is-armed" : ""}`}
           onClick={() => {
             if (!confirmPurge) {
               onConfirmPurge(true);
@@ -144,7 +144,7 @@ export function ItemTools({
       <button
         ref={trashRef}
         type="button"
-        className="icon-btn icon-btn--danger"
+        className="icon-btn"
         onClick={() => {
           void store.trashItem(item.id);
           navigate(listPath);

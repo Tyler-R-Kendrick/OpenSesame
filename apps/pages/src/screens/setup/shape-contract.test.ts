@@ -26,7 +26,9 @@ const css = (declaration: string) => `.thing { ${declaration} }\n`;
 const ROUND: readonly (readonly [string, string])[] = [
   ["a circle", "border-radius: 50%;"],
   ["a pill", "border-radius: 999px;"],
-  ["the pill token", "border-radius: var(--radius-pill);"],
+  ["the retired pill token", "border-radius: var(--radius-pill);"],
+  ["the old two-pixel scale", "border-radius: 2px;"],
+  ["one pixel", "border-radius: 1px;"],
   ["a large radius", "border-radius: 8px;"],
   ["rem units", "border-radius: 0.5rem;"],
   ["half the size, in a calc", "border-radius: calc(var(--fab-size) / 2);"],
@@ -44,15 +46,11 @@ const ROUND: readonly (readonly [string, string])[] = [
 const SHARP: readonly (readonly [string, string])[] = [
   ["none", "border-radius: 0;"],
   ["zero pixels", "border-radius: 0px;"],
-  ["the documented scale", "border-radius: 2px;"],
-  ["the scale's token", "border-radius: var(--radius);"],
-  [
-    "the large token, which is the same 2px",
-    "border-radius: var(--radius-lg);",
-  ],
+  ["the radius token, which is zero", "border-radius: var(--radius);"],
+  ["the large token, which is zero too", "border-radius: var(--radius-lg);"],
   ["a calc that comes to nothing", "border-radius: calc(var(--radius) - 2px);"],
   ["two sharp corners", "border-radius: var(--radius) var(--radius) 0 0;"],
-  ["a longhand inside the scale", "border-top-left-radius: 1px;"],
+  ["a longhand at zero", "border-top-left-radius: 0;"],
   ["inheriting", "border-radius: inherit;"],
 ];
 
@@ -157,20 +155,18 @@ describe("round corners fail design lint", () => {
       join(root, "apps/pages/src/styles.css"),
       "utf8",
     );
-    expect(styles).toMatch(/--radius:\s*2px;/);
-    expect(styles).toMatch(/--radius-lg:\s*2px;/);
-    expect(styles).toMatch(/--radius-pill:\s*999px;/);
+    expect(styles).toMatch(/--radius:\s*0;/);
+    expect(styles).toMatch(/--radius-lg:\s*0;/);
+    expect(styles).not.toMatch(/--radius-pill/);
   });
 
-  it("keeps the Add button and its drag area sharp, with nothing on the ledger", () => {
+  it("keeps every corner square, with nothing on the ledger", () => {
     const ledger: Record<string, number> = JSON.parse(
       readFileSync(
         join(root, "tools/quality/design-radius-baseline.json"),
         "utf8",
       ),
     );
-    for (const sheet of ["new-item-fab.css", "add-slide.css"]) {
-      expect(ledger[`apps/pages/src/sections/vault/${sheet}`]).toBeUndefined();
-    }
+    expect(ledger).toEqual({});
   });
 });

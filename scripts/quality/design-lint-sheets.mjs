@@ -23,12 +23,17 @@
  *     (`ok={false}`) nor a kicker (`top=`): the danger key carries it.
  *   - `top-is-a-fact` — `CeremonyShell`'s top line is a fact ("Enrolled 28
  *     Aug", "7 of 10 left"), never a question.
+ *   - `one-way-out` — a sheet's close key is its one way out, with Escape and
+ *     the scrim. A ceremony's `secondary` that only dismisses ("Keep it", "Not
+ *     now", "Cancel") is a second close key beside the first, and a sheet that
+ *     draws two X marks has drawn the same act twice.
  *   - `title-said-once` — a ceremony's `name` or `top` that repeats the
  *     sheet's own title says the title twice.
  *
  * `report` and `lineOf` are passed in, so this module owns no sweep state.
  */
 
+import { checkDangerClasses } from "./design-lint-ink.mjs";
 import { wordsAreChoice } from "./design-lint-verbs.mjs";
 
 /** Index just past the `>` that ends the tag opened at `from`. */
@@ -212,9 +217,31 @@ function checkCeremonies(file, source, report, lineOf) {
   }
 }
 
+/** Words that only leave the sheet: the close key already does. */
+const DISMISS =
+  /^(?:keep(?: it| them(?: here)?)?|not now|cancel|close|no|never mind|back)$/i;
+
+function checkOneWayOut(file, source, report, lineOf) {
+  for (const match of source.matchAll(/<CeremonyShell\b/g)) {
+    const start = match.index ?? 0;
+    const tag = source.slice(start, tagEnd(source, start));
+    const secondary = attribute(tag, "secondary") ?? "";
+    const label = /\blabel:\s*"([^"]*)"/.exec(secondary)?.[1];
+    if (label === undefined || !DISMISS.test(label.trim())) continue;
+    report(
+      file,
+      lineOf(source, start),
+      "one-way-out",
+      `A sheet has one way out: its close key (and Escape, and the scrim). The secondary "${label}" only dismisses, so it is a second close key beside the first. Remove it; where the keyboard should land, land it on the close key.`,
+    );
+  }
+}
+
 /** Every check, for one `.tsx` file. */
 export function checkSheets(file, source, report, lineOf) {
   checkWordSlots(file, source, report, lineOf);
   checkSheetCaptions(file, source, report, lineOf);
   checkCeremonies(file, source, report, lineOf);
+  checkOneWayOut(file, source, report, lineOf);
+  checkDangerClasses(file, source, report, lineOf);
 }

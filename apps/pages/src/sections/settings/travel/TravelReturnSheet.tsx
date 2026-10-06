@@ -102,7 +102,6 @@ function PreviewCard({
         disabled: !anyComesHome(opened.preview),
         onClick: () => flow.bringHome(opened),
       }}
-      secondary={{ label: "Not now", onClick: () => flow.reset() }}
     >
       {sites.length > 0 ? (
         <label className="travel__ack">
@@ -141,7 +140,6 @@ function ItemsPreviewCard({
         disabled: !anyItemReturns(opened.preview),
         onClick: () => flow.bringItemsBack(opened),
       }}
-      secondary={{ label: "Not now", onClick: () => flow.reset() }}
     >
       <TravelNoticeMark notice={notice} />
     </CeremonyShell>

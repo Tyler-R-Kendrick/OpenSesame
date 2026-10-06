@@ -48,9 +48,8 @@ typography:
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
     fontSize: "0.8125rem"
 rounded:
-  md: "2px"
-  lg: "2px"
-  pill: "999px"
+  md: "0"
+  lg: "0"
 spacing:
   sm: "0.4rem"
   md: "0.9rem"
@@ -475,16 +474,15 @@ flat with hairline separators.
 
 ## Shapes
 
-All-sharp, one documented scale: 2px on every control, chip, badge, and menu
-(just enough to keep focus rings clean). **There are no round corners:** no
-pill, no circle, no percentage and no radius past 2px, on a button, a field, a
-chip, a panel or a menu. A button that stands alone (the phone's Add) is a
-square with sharp edges, not a disc. This is a design violation, not a taste:
+All-sharp, no scale. Every corner is square: `--radius` is 0 and stays 0, on
+every control, chip, badge, menu, panel and sheet, and a focus ring follows the
+square. **There are no round corners** — no pill, no circle, no percentage and
+no radius at all, not even 2px. A status dot, a switch knob, a spinner and the
+phone's Add are squares. This is a design violation, not a taste:
 `pnpm lint:design` (`no-round-corners`) resolves every `border-radius` to
-pixels and fails any past 2px, or any it cannot prove sharp. Corners that were
-round before the rule are pinned per file in
-`tools/quality/design-radius-baseline.json`, which only falls; a file that
-loses one must lower its record, and a new file starts at none. The mark is
+pixels and fails any past 0, or any it cannot prove square. The ledger
+`tools/quality/design-radius-baseline.json` is empty and stays empty; a new
+file meets the rule outright. The mark is
 bare in the chrome; only the OS app icon keeps a tile and its platform
 mask.
 
@@ -518,7 +516,9 @@ whose face is a prop (`word-slot`).
 
 A confirmation sheet is its mark, its name and its close key, then one card:
 the object the act touches, the facts that justify it ("After", "Untouched"),
-and the danger square beside Keep. It wears no warning wash and no kicker —
+and the act's own `.go` square with the bin on it. The close key is the one way
+out, and where the keyboard lands; there is no second Keep key (`one-way-out`),
+and no red on any control. It wears no warning wash and no kicker —
 an ask has not failed — and no caption under the title or in a foot
 (`docs/design/controls.md` rules 10–13). A button
 whose words are its choice says so by its role (tab, radio, switch, menu
@@ -569,9 +569,12 @@ render tests.
 
 ### Buttons
 Ink fill for the primary action (inverting to paper-on-ink in dark mode),
-surface fill with a hairline for secondary, ghost for tertiary, and a
-red-tinted variant for anything destructive. One primary per view, sized to
-its content — never block-width.
+surface fill with a hairline for secondary, ghost for tertiary. There is no
+red variant: red is a status (a `StatusMark`, the tray card, an `aria-invalid`
+border), never paint on a control, and a destructive act is the ordinary
+primary with the bin glyph, a card that names what goes, and the close key as
+the safe road (`no-danger-control`, `no-control-error-ink`). One primary per
+view, sized to its content — never block-width.
 
 ### Keys have a home
 A key sits on the row of the thing it acts on, at that row's end — never on

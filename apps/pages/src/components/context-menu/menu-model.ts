@@ -18,7 +18,6 @@ export type MenuItem = {
   hint?: string;
   /** A checkbox entry (`menuitemcheckbox`), with its current state. */
   checked?: boolean;
-  danger?: boolean;
   disabled?: boolean;
   /**
    * A destructive entry asks twice: the first activation re-labels it with

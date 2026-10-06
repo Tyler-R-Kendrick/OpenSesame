@@ -7,7 +7,13 @@
  */
 
 import type { BrowserResetReport } from "@opensesame/app-core/lib/browser-reset.js";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { ResetBrowser } from "./ResetBrowser.js";
 import { resetBrowserSeams } from "./reset-browser-run.js";
@@ -28,6 +34,13 @@ function openPanel(): void {
 const eraseKey = () =>
   screen.getByRole("button", { name: "Erase this browser" });
 
+/** The sheet's one way out: the close key in its head. */
+const closeKey = () =>
+  within(screen.getByRole("dialog", { name: "Reset this browser" })).getByRole(
+    "button",
+    { name: "Close" },
+  );
+
 describe("ResetBrowser", () => {
   it("states the place and the facts, and wears no wash, kicker or caption", () => {
     render(<ResetBrowser />);
@@ -42,19 +55,31 @@ describe("ResetBrowser", () => {
       (dt) => dt.textContent,
     );
     expect(facts).toEqual(["Vaults", "With them", "After", "Untouched"]);
-    expect(eraseKey().className).toBe("go go--danger");
+    // Ink on paper like every other `.go`: red is a status, not a control.
+    expect(eraseKey().className).toBe("go");
     expect(eraseKey().textContent).toBe("");
+  });
+
+  it("has one way out: a close key in the head, and no Keep key beside the erase key", () => {
+    render(<ResetBrowser />);
+    openPanel();
+    const dialog = screen.getByRole("dialog", { name: "Reset this browser" });
+    expect(
+      within(dialog)
+        .getAllByRole("button")
+        .map((key) => key.getAttribute("aria-label")),
+    ).toEqual(["Close", "Erase this browser"]);
   });
 
   it("opens on the safe key and closes back onto the question", () => {
     render(<ResetBrowser />);
     openPanel();
 
-    const keep = screen.getByRole("button", { name: "Keep it" });
-    expect(document.activeElement).toBe(keep);
+    const close = closeKey();
+    expect(document.activeElement).toBe(close);
     expect(eraseKey()).toBeTruthy();
 
-    fireEvent.click(keep);
+    fireEvent.click(close);
     const question = screen.getByRole("button", {
       name: "Reset this browser?",
     });
@@ -72,9 +97,7 @@ describe("ResetBrowser", () => {
     render(<ResetBrowser />);
     openPanel();
 
-    fireEvent.keyDown(screen.getByRole("button", { name: "Keep it" }), {
-      key: "Escape",
-    });
+    fireEvent.keyDown(closeKey(), { key: "Escape" });
 
     const question = screen.getByRole("button", {
       name: "Reset this browser?",
@@ -86,9 +109,7 @@ describe("ResetBrowser", () => {
 
     // Reopened, it asks again from the safe key; nothing ran in between.
     openPanel();
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Keep it" }),
-    );
+    expect(document.activeElement).toBe(closeKey());
     expect(eraseKey().hasAttribute("disabled")).toBe(false);
     expect(reset).not.toHaveBeenCalled();
     fireEvent.click(eraseKey());

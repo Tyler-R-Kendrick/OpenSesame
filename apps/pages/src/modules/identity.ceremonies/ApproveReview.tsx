@@ -116,12 +116,7 @@ function DecisionKeys({
   const { step } = view;
   return (
     <>
-      <IconKey
-        label={APPROVAL_LABELS.deny}
-        danger
-        disabled={off}
-        onClick={onDeny}
-      >
+      <IconKey label={APPROVAL_LABELS.deny} disabled={off} onClick={onDeny}>
         <IconX size={16} />
       </IconKey>
       <IconKey

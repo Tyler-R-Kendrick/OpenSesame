@@ -26,6 +26,8 @@
  * (`apps/pages/src/components/FailureNotice.tsx`) or `StatusNote`.
  */
 
+import { checkControlInk } from "./design-lint-ink.mjs";
+
 const MESSAGE =
   "A failure is a StatusMark on the thing that failed, or a notice in the tray — never a red box or alert in the page. Mount <FailureNotice id title message /> (apps/pages/src/components/FailureNotice.tsx) or use StatusNote. See DESIGN.md § Status is a symbol and docs/design/controls.md.";
 
@@ -144,9 +146,12 @@ export function checkInPageErrors(file, source, report, lineOf) {
   }
 }
 
-/** Selectors that may carry the error colour: controls, glyphs, the tray. */
+/**
+ * Selectors that may carry the error colour: glyphs, the tray, an invalid
+ * field. Never a control (`design-lint-ink.mjs`): there is no danger button.
+ */
 const ALLOWED_SELECTOR =
-  /(btn--danger|icon-btn--danger|chip--err|status-mark|notice-card|--danger|__danger|\.is-hot|\.is-danger|\.is-armed|\[aria-invalid)/;
+  /(chip--err|status-mark|notice-card|__danger|\[aria-invalid)/;
 
 const FAILURE_SELECTOR =
   /(\.note--err|\.broker__card--err|\.conn-flash|\.conn-error|__error\b|__err\b|-error\b)/;
@@ -155,6 +160,7 @@ const FILLS_ERROR =
   /(?:^|;)\s*background(?:-color)?\s*:[^;]*var\(--err(?:-wash)?\)/;
 
 export function checkFailureCss(file, source, report, lineOf) {
+  checkControlInk(file, source, report, lineOf);
   const css = blankComments(source);
   for (const block of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const selector = block[1].trim();

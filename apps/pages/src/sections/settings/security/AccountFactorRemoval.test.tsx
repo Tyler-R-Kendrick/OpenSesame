@@ -283,8 +283,8 @@ describe("removing an account factor asks for a proof", () => {
     expect(within(panel).queryByRole("textbox")).toBeNull();
     remove.focus();
     await user.keyboard("{Enter}");
-    // The sheet opens on its Close key; Tab walks the field, the danger key
-    // and Keep it, and stays inside the sheet.
+    // The sheet opens on its Close key; Tab walks the field and the erase
+    // key, and stays inside the sheet.
     const close = sheet().getByRole("button", { name: "Close" });
     await waitFor(() => expect(document.activeElement).toBe(close));
     await user.tab();
@@ -293,10 +293,6 @@ describe("removing an account factor asks for a proof", () => {
     await user.tab();
     expect(document.activeElement).toBe(
       sheet().getByRole("button", { name: "Remove authenticator" }),
-    );
-    await user.tab();
-    expect(document.activeElement).toBe(
-      sheet().getByRole("button", { name: "Keep it" }),
     );
     // Only the open sheet holds focus: Tab wraps to its Close key.
     await user.tab();
@@ -321,7 +317,7 @@ describe("removing an account factor asks for a proof", () => {
     expect(
       sheet().queryByRole("button", { name: "Remove passkey" }),
     ).toBeNull();
-    await user.click(sheet().getByRole("button", { name: "Keep it" }));
+    await user.click(sheet().getByRole("button", { name: "Close" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(api.calls.filter((call) => call.method !== "GET")).toEqual([]);
   });

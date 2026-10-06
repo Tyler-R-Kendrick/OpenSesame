@@ -63,7 +63,6 @@ export function KeysPanel({ model }: { model: TailnetModel }) {
                       <ArmedKey
                         model={model}
                         arm={{ action: "revoke", id: key.id }}
-                        danger
                         label={`Revoke the auth key ${name}`}
                         confirmLabel={`Confirm revoking the auth key ${name}`}
                         keepLabel={`Keep the auth key ${name}`}

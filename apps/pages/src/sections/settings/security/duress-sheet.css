@@ -123,11 +123,11 @@
   }
 
   .duress__ack input[type="checkbox"]::before {
-    border-radius: 3px;
+    border-radius: 0;
   }
 
   .duress__choice input[type="radio"]::before {
-    border-radius: 50%;
+    border-radius: 0;
   }
 
   .duress__ack input[type="checkbox"]:checked::before,

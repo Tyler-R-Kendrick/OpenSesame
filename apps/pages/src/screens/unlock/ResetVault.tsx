@@ -33,7 +33,7 @@ export function ResetVault({
         only clears the file so you can start again.
       </p>
       <div className="actions">
-        <IconKey label="Delete this vault" danger onClick={onDelete}>
+        <IconKey label="Delete this vault" onClick={onDelete}>
           <IconTrash size={16} />
         </IconKey>
         <IconKey label="Keep it" small onClick={onKeep}>

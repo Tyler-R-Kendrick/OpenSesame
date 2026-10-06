@@ -4,6 +4,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -93,7 +94,12 @@ describe("Settings → Vaults", () => {
     fireEvent.click(screen.getByRole("button", { name: "Delete vault Work" }));
     expect(removeVault).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog", { name: "Delete a vault" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Keep it" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog", { name: "Delete a vault" })).getByRole(
+        "button",
+        { name: "Close" },
+      ),
+    );
     expect(screen.queryByRole("dialog")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Delete vault Work" }));

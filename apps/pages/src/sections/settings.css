@@ -37,15 +37,6 @@
   font-weight: 550;
 }
 
-.set__nav-link--danger:hover {
-  color: var(--err);
-}
-
-.set__nav-link--danger[aria-current="page"] {
-  color: var(--err);
-  border-bottom-color: var(--err);
-}
-
 /* A text input with its action beside it, aligned to the control row. */
 .set__inline {
   display: flex;

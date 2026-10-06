@@ -42,7 +42,7 @@
   position: fixed;
   box-sizing: border-box;
   border: 2px solid var(--accent);
-  border-radius: calc(var(--radius) + 1px);
+  border-radius: 0;
   /* A hairline of paper outside the teal, so the ring still reads on an
      inverse-video row. */
   box-shadow: 0 0 0 1px var(--surface);
@@ -55,7 +55,7 @@
   position: absolute;
   inset: -2px;
   border: 2px solid var(--accent);
-  border-radius: calc(var(--radius) + 1px);
+  border-radius: 0;
   opacity: 0;
   animation: coach-ping 1.5s var(--ease) 2 0.35s;
 }
@@ -265,7 +265,7 @@
 .coach__pulse {
   width: 0.4rem;
   height: 0.4rem;
-  border-radius: var(--radius-pill);
+  border-radius: 0;
   background: var(--accent);
   animation: coach-breathe 1.6s ease-in-out infinite;
 }

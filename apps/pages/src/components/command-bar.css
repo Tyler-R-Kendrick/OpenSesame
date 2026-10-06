@@ -81,9 +81,10 @@
   background: var(--surface-3);
 }
 
+/* Listening is pressed, like any toggle: paper on ink, never red. */
 .command-bar__mic.is-hot {
-  color: var(--err);
-  background: color-mix(in srgb, var(--err) 12%, var(--surface-2));
+  color: var(--canvas);
+  background: var(--ink);
 }
 
 .command-bar__mic:disabled,

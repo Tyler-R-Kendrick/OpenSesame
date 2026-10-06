@@ -310,7 +310,6 @@ function ProviderActions({
             : "Remove"
         }
         small
-        danger
         armed={confirming}
         onClick={confirming ? remove : () => setConfirming(true)}
       >

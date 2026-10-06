@@ -64,7 +64,6 @@ export function LocalMemberships(props: MembershipProps) {
                     : "Remove member"
                 }
                 small
-                danger
                 disabled={disabled}
                 onClick={() => {
                   if (removing !== member.principalId) {

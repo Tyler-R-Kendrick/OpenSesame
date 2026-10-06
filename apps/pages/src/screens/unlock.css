@@ -418,7 +418,7 @@
 }
 
 .unlock__track span {
-  border-radius: var(--radius-pill);
+  border-radius: 0;
   background: var(--surface-3);
   transition: background 220ms var(--ease);
 }
@@ -504,20 +504,6 @@
   background: var(--surface-2);
   font-size: 0.8125rem;
   color: var(--ink-2);
-}
-
-.unlock__danger {
-  display: grid;
-  gap: 0.6rem;
-  padding: 0.8rem 0.9rem;
-  border: 1px solid color-mix(in srgb, var(--err) 35%, var(--line));
-  border-radius: var(--radius);
-  background: var(--err-wash);
-}
-
-.unlock__danger p {
-  font-size: 0.8125rem;
-  line-height: 1.5;
 }
 
 /* What a reset left behind: a glyph and the area's name per row. */
@@ -981,7 +967,7 @@
   height: 1.4rem;
   flex: none;
   border: 1px solid var(--line-strong);
-  border-radius: 50%;
+  border-radius: 0;
   background: var(--surface);
 }
 
@@ -1028,7 +1014,7 @@
   height: 1.9rem;
   flex: none;
   border: 1px solid var(--line-strong);
-  border-radius: 50%;
+  border-radius: 0;
   background: var(--surface);
 }
 
