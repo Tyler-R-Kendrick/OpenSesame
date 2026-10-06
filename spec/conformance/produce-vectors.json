@@ -1,0 +1,311 @@
+{
+  "about": "Golden vectors for producing a password (ADR 0174): the algorithmic generator and where a pepper goes. Read by packages/vault-core and crates/sealed-store. Synthetic data. Never regenerate to make a test pass.",
+  "derived": [
+    {
+      "name": "the defaults",
+      "root": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "counter": 0,
+      "rules": {
+        "length": 20,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": true,
+        "avoidAmbiguous": true,
+        "minDigits": 0,
+        "minSymbols": 0
+      },
+      "password": "dS5m.#2:BHjujI%AC8$^"
+    },
+    {
+      "name": "the next counter",
+      "root": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "counter": 1,
+      "rules": {
+        "length": 20,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": true,
+        "avoidAmbiguous": true,
+        "minDigits": 0,
+        "minSymbols": 0
+      },
+      "password": "knxWI#TTgxEMa[b64xEG"
+    },
+    {
+      "name": "another root",
+      "root": "H8DxEGDhP0xZ7sB5RnFfXTq3KkYj4m0hQ1y2z3A4B5c=",
+      "counter": 0,
+      "rules": {
+        "length": 20,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": true,
+        "avoidAmbiguous": true,
+        "minDigits": 0,
+        "minSymbols": 0
+      },
+      "password": "SX4thSG-=.vwmHeV(?wV"
+    },
+    {
+      "name": "the largest counter",
+      "root": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "counter": 4294967295,
+      "rules": {
+        "length": 20,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": true,
+        "avoidAmbiguous": true,
+        "minDigits": 0,
+        "minSymbols": 0
+      },
+      "password": "Jd@9wvf*;]KN3D@.x3H8"
+    },
+    {
+      "name": "letters and numbers only",
+      "root": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "counter": 3,
+      "rules": {
+        "length": 20,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": false,
+        "avoidAmbiguous": false,
+        "minDigits": 0,
+        "minSymbols": 0
+      },
+      "password": "aLFFjcOCEhdA6stg4G0a"
+    },
+    {
+      "name": "digits only",
+      "root": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "counter": 0,
+      "rules": {
+        "length": 12,
+        "lower": false,
+        "upper": false,
+        "digits": true,
+        "symbols": false,
+        "avoidAmbiguous": true,
+        "minDigits": 0,
+        "minSymbols": 0
+      },
+      "password": "693728254396"
+    },
+    {
+      "name": "floors for numbers and symbols",
+      "root": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "counter": 0,
+      "rules": {
+        "length": 16,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": true,
+        "avoidAmbiguous": true,
+        "minDigits": 6,
+        "minSymbols": 5
+      },
+      "password": "6(j$63{A?j7$u84_"
+    },
+    {
+      "name": "floors that lengthen it",
+      "root": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=",
+      "counter": 0,
+      "rules": {
+        "length": 8,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": true,
+        "avoidAmbiguous": true,
+        "minDigits": 10,
+        "minSymbols": 10
+      },
+      "password": ":9[2u)74%6&#$6A3+3!$89"
+    },
+    {
+      "name": "the shortest and the longest",
+      "root": "H8DxEGDhP0xZ7sB5RnFfXTq3KkYj4m0hQ1y2z3A4B5c=",
+      "counter": 7,
+      "rules": {
+        "length": 8,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": true,
+        "avoidAmbiguous": true,
+        "minDigits": 0,
+        "minSymbols": 0
+      },
+      "password": "bCBq,8:d"
+    },
+    {
+      "name": "sixty-four long, ambiguous allowed",
+      "root": "H8DxEGDhP0xZ7sB5RnFfXTq3KkYj4m0hQ1y2z3A4B5c=",
+      "counter": 7,
+      "rules": {
+        "length": 64,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": true,
+        "avoidAmbiguous": false,
+        "minDigits": 0,
+        "minSymbols": 0
+      },
+      "password": "Ta#wN!GYZcKPoGd?vwC3o132E{(bg:Oc&G?g5C:6,E%=hp.t#!jKT2i)rVOolX&&"
+    },
+    {
+      "name": "past the cap",
+      "root": "H8DxEGDhP0xZ7sB5RnFfXTq3KkYj4m0hQ1y2z3A4B5c=",
+      "counter": 0,
+      "rules": {
+        "length": 400,
+        "lower": true,
+        "upper": true,
+        "digits": true,
+        "symbols": true,
+        "avoidAmbiguous": true,
+        "minDigits": 0,
+        "minSymbols": 0
+      },
+      "password": "e_=msuA2;s4q!85y[_Td)emKV5+AtYUeSGsf:F%yN^M7*8wTG477[6&mq.eqVHSwU$?=NSut{QDk@,?G3PFJZHWY9BA.9AcqCGd78DJP=jN*K#pxWz+pwvX8?KIT8@6-&hN9zU+*+_.4,TUmr(;;ujpzYtp,p:dGFZ,BIqF!IjXdkyz?WtWqrr*]9[:48T?]fJe5f(vs,g.k@ETxSyjXtR93QV-5V$g4a7)7hg+6rm+CV]eZk6r4HM7-vQ]vKPmZ"
+    }
+  ],
+  "positions": {
+    "password": "abcdefghij",
+    "cases": [
+      {
+        "expression": "",
+        "head": "abcdefghij",
+        "tail": ""
+      },
+      {
+        "expression": "end",
+        "head": "abcdefghij",
+        "tail": ""
+      },
+      {
+        "expression": "0",
+        "head": "",
+        "tail": "abcdefghij"
+      },
+      {
+        "expression": "3",
+        "head": "abc",
+        "tail": "defghij"
+      },
+      {
+        "expression": "10",
+        "head": "abcdefghij",
+        "tail": ""
+      },
+      {
+        "expression": "99",
+        "head": "abcdefghij",
+        "tail": ""
+      },
+      {
+        "expression": "-1",
+        "head": "abcdefghi",
+        "tail": "j"
+      },
+      {
+        "expression": "-3",
+        "head": "abcdefg",
+        "tail": "hij"
+      },
+      {
+        "expression": "-10",
+        "head": "",
+        "tail": "abcdefghij"
+      },
+      {
+        "expression": "-99",
+        "head": "",
+        "tail": "abcdefghij"
+      },
+      {
+        "expression": "2:5",
+        "head": "ab",
+        "tail": "fghij"
+      },
+      {
+        "expression": ":4",
+        "head": "",
+        "tail": "efghij"
+      },
+      {
+        "expression": "-3:",
+        "head": "abcdefg",
+        "tail": ""
+      },
+      {
+        "expression": "[2:5]",
+        "head": "ab",
+        "tail": "fghij"
+      },
+      {
+        "expression": " 2 : 5 ",
+        "head": "ab",
+        "tail": "fghij"
+      },
+      {
+        "expression": ":",
+        "head": "",
+        "tail": ""
+      },
+      {
+        "expression": "-4:-1",
+        "head": "abcdef",
+        "tail": "j"
+      },
+      {
+        "expression": "5:2",
+        "head": "abcde",
+        "tail": "fghij"
+      },
+      {
+        "expression": "3:3",
+        "head": "abc",
+        "tail": "defghij"
+      },
+      {
+        "expression": "8:99",
+        "head": "abcdefgh",
+        "tail": ""
+      },
+      {
+        "expression": "-99:2",
+        "head": "",
+        "tail": "cdefghij"
+      },
+      {
+        "expression": "middle",
+        "head": "abcdefghij",
+        "tail": ""
+      },
+      {
+        "expression": "1:2:3",
+        "head": "abcdefghij",
+        "tail": ""
+      },
+      {
+        "expression": "1.5",
+        "head": "abcdefghij",
+        "tail": ""
+      },
+      {
+        "expression": "+2",
+        "head": "ab",
+        "tail": "cdefghij"
+      }
+    ]
+  }
+}

@@ -26,6 +26,7 @@ export type SourceId =
   | "dashlane-csv"
   | "nordpass-csv"
   | "protonpass-json"
+  | "enpass-json"
   | "keepass-kdbx"
   | "fido-cxf"
   | "generic-csv";

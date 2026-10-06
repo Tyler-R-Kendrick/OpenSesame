@@ -1,7 +1,11 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { createItem } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
-import { pepperedAccount, plainAccount } from "../account.test-support.js";
+import {
+  legacySealedAccount,
+  pepperedAccount,
+  plainAccount,
+} from "../account.test-support.js";
 import type { EncryptionPlan, ExecutionPermit } from "./plan.js";
 import type { SopsRunner } from "./runner.js";
 import { exportVaultSecrets, importVaultSecrets } from "./vault-secrets.js";
@@ -39,8 +43,8 @@ describe("a vault-secrets document", () => {
     expect(back.items).toEqual([account]);
   });
 
-  it("treats a peppered password as absent: not exported, not counted as a value", async () => {
-    const peppered = await pepperedAccount(
+  it("treats a password an older version sealed as absent: not exported, not counted as a value", async () => {
+    const peppered = await legacySealedAccount(
       "Vaulted",
       "the-peppered-password",
       "pepper",
@@ -72,6 +76,32 @@ describe("a vault-secrets document", () => {
     const vaulted = back.items.find((item) => item.name === "Vaulted");
     expect(vaulted?.kind === "account" ? vaulted.methods : null).toEqual([]);
     expect(vaulted?.kind === "account" ? vaulted.username : "").toBe("ada");
+  });
+
+  it("exports a password with a pepper slot as the stored password and its position, never a pepper", async () => {
+    const slotted = pepperedAccount("Slotted", "kept-base-password", "-3");
+    const document = await exportVaultSecrets({
+      runner,
+      items: [slotted],
+      plan,
+      permit,
+      onOmitted: () => undefined,
+    });
+    const back = await importVaultSecrets({
+      runner,
+      ciphertext: document,
+      identities: [],
+      consentToVaultCopy: false,
+      permit,
+    });
+    const item = back.items.find((entry) => entry.name === "Slotted");
+    const method = item?.kind === "account" ? item.methods[0] : undefined;
+    expect(method).toMatchObject({
+      type: "password",
+      pepper: true,
+      pepperAt: "-3",
+      secret: "kept-base-password",
+    });
   });
 
   it("opens a document written before accounts, and its logins become accounts", async () => {

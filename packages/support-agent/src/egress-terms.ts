@@ -9,12 +9,15 @@ export const DENIED_KEY_TERMS: readonly string[] = [
   "secret",
   "token",
   "totp",
-  // An account's login-method secrets (ADR 0172): a pepper is typed by the
-  // person and never stored, a sealed envelope and an OPRF key are as good as
-  // the password they open, and an API key is a credential.
+  // An account's login-method secrets (ADR 0172, 0173): a pepper is typed by
+  // the person and never stored, a sealed envelope, its OPAQUE record and
+  // server setup, and an OPRF key are as good as the password they open, and
+  // an API key is a credential.
   "pepper",
   "sealed",
   "oprf",
+  "serversetup",
+  "registrationrecord",
   "apikey",
   "privatekey",
   "recoverycode",

@@ -40,7 +40,8 @@ const observer = (() => {
       return () => listeners.delete(listener);
     },
     pairTailnetDrive: vi.fn<(code: string) => Promise<"paired" | "adopted">>(),
-    syncTailnetNow: vi.fn<() => Promise<void>>(),
+    syncTailnetNow:
+      vi.fn<(request?: { interactive?: boolean }) => Promise<void>>(),
     forgetTailnetDrive: vi.fn<() => Promise<void>>(),
   };
 })();
@@ -161,7 +162,12 @@ describe("TailnetSyncPanel", () => {
       /^In step at /,
     );
     fireEvent.click(screen.getByRole("button", { name: "Sync now" }));
-    await waitFor(() => expect(observer.syncTailnetNow).toHaveBeenCalledOnce());
+    // A person pressed it: the browser may ask for local network access.
+    await waitFor(() =>
+      expect(observer.syncTailnetNow).toHaveBeenCalledWith({
+        interactive: true,
+      }),
+    );
     const stop = await screen.findByRole("button", {
       name: "Stop syncing this vault",
     });
@@ -184,5 +190,18 @@ describe("TailnetSyncPanel", () => {
       "Pair again",
     );
     expect(screen.getAllByText("desk.tail1.ts.net")).toHaveLength(2);
+  });
+
+  it("marks a pass waiting on the browser as a warning that says what to do", () => {
+    observer.set({
+      phase: "blocked",
+      drive: { label: "Desk", url: "https://desk.tail1.ts.net" },
+      error:
+        "Sync is waiting for local network access. Sync now, and allow it when the browser asks.",
+    });
+    const { container } = render(<TailnetSyncPanel />);
+    const mark = screen.getByRole("img");
+    expect(mark.getAttribute("aria-label")).toMatch(/allow it when/);
+    expect(container.querySelector(".status-mark--warn")).toBe(mark);
   });
 });

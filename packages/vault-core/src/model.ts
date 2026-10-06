@@ -1,5 +1,4 @@
 /** Vault item model. Everything here lives inside the sealed body — never in plaintext storage. */
-
 import type { JsonObject } from "@opensesame/os-domain";
 import type {
   FieldValues,
@@ -8,7 +7,7 @@ import type {
 // Type-only in the other direction, so this stays a leaf at runtime.
 import { typedSearchText, typedSubtitle } from "./item-types.js";
 
-import { type AccountItem, DEFAULT_RULES } from "./account.js";
+import { type AccountItem, newPasswordMethod } from "./account.js";
 import type { LoginUri, UriMatch } from "./login-uri.js";
 import type { ItemTypeInstallTimes, VaultTombstones } from "./sync-model.js";
 export type { AccountItem } from "./account.js";
@@ -49,6 +48,8 @@ export type BaseItem = {
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
+  /** Field key → when it last changed, so a merge keeps both devices' edits (`stamps.ts`). */
+  fieldTimes?: Readonly<Record<string, string>>;
 };
 
 export type PasskeyCustody = "vault" | "external";
@@ -200,11 +201,7 @@ export type VaultBody = {
   v: 1;
   items: VaultItem[];
   folders: Folder[];
-  /**
-   * Item type definitions installed into this vault (ADR 0087 §7). They live
-   * inside the sealed body so they sync E2EE to the user's other devices,
-   * work offline, and need no server.
-   */
+  /** Installed item type definitions (ADR 0087 §7): sealed, so they sync E2EE and work offline. */
   itemTypes?: InstalledItemTypes;
   /** When each of `itemTypes` was installed, so an uninstall elsewhere can lose to it. */
   itemTypesAt?: ItemTypeInstallTimes | undefined;
@@ -222,6 +219,8 @@ export type VaultBody = {
    * items. `device-key.ts` reads, merges and ranks it.
    */
   deviceIdentityKey?: JsonObject | undefined;
+  /** The current master-password wrap, so a change reaches every device (ADR 0144). */
+  masterWrap?: import("./sync-model.js").MasterWrap | undefined;
 };
 
 import { KIND_LABEL } from "./kind-labels.js";
@@ -318,16 +317,7 @@ export function createItem(kind: LegacyItemKind, name = ""): VaultItem {
         kind: "account",
         username: "",
         uris: [],
-        methods: [
-          {
-            id: `${b.id}:password`,
-            type: "password",
-            generator: { id: "rules", ...DEFAULT_RULES },
-            pepper: false,
-            secret: "",
-            changedAt: b.createdAt,
-          },
-        ],
+        methods: [newPasswordMethod(b.id, b.createdAt)],
       };
     case "passkey":
       return {

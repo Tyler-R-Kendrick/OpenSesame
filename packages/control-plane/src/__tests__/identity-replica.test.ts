@@ -1,31 +1,26 @@
-import { PGlite } from "@electric-sql/pglite";
 import { createPasskeySeam } from "@opensesame/auth-upstream";
 import { createEventSealer } from "@opensesame/database";
 import * as schema from "@opensesame/database/schema";
 import { overlapCast } from "@opensesame/os-domain";
 import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { expect, it, vi } from "vitest";
+import { beforeAll, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
 import { DurableMap, incrementSecurityCounter } from "../repos/durable-map.js";
 import { durablePasskeyCredentials } from "../repos/durable-passkey-store.js";
+import { migratedPGlite, warmMigratedPGlite } from "./migrated-pglite.js";
 
-// Each PGlite test here boots a database and applies every migration inside
-// the test itself; on a loaded CI runner that alone took most of the
-// package's 15s budget (legacy-agent-durability timed out on it). Same 60s
-// budget the beforeAll-based PGlite suites give the identical setup.
+// Each PGlite test here starts its own database. They used to boot one and
+// apply every migration inside the test, which on a loaded CI runner took most
+// of the package's 15s budget (legacy-agent-durability timed out on it); now
+// the migrations run once per file, in the hook below, and each test loads a
+// copy (migrated-pglite.ts). The 60s budget stays as the margin for load.
 vi.setConfig({ testTimeout: 60_000 });
+beforeAll(warmMigratedPGlite, 60_000);
 
 it("shares sessions/revocation and atomic passkey/counter state across app instances", async () => {
-  const client = new PGlite();
+  const client = await migratedPGlite();
   try {
     const db = drizzle(client, { schema });
-    await migrate(db, {
-      migrationsFolder: new URL(
-        "../../../../packages/database/drizzle",
-        import.meta.url,
-      ).pathname,
-    });
     const options = {
       database: overlapCast(db),
       config: { claimPepper: "replica-test-only-claim-pepper-32chars" },

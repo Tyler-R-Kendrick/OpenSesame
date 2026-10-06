@@ -32,6 +32,7 @@ export const CAPABILITY_TUTORIALS = {
   "backup.status": "settings.backup",
   "backup.target.set": "settings.backup",
   "vault.drive.sync": "settings.tailnet-sync",
+  "vault.health.security_check": "feature.security-checks",
   "tailnet.devices.pair": "identity.tailnet.devices.manage",
   "tailnet.devices.read": "identity.tailnet.devices.manage",
   "tailnet.devices.manage": "identity.tailnet.devices.manage",

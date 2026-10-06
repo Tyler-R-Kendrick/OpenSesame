@@ -45,7 +45,7 @@ export const vaultCliCapabilities: readonly Capability[] = [
   {
     id: "vault.account.pepper",
     title:
-      "Type the pepper that unseals a peppered account password, or the Sphinx master input that recomputes one",
+      "Type the earlier pepper (or Sphinx master input) that converts a password an older version made, once, into a stored one",
     plane: "client_local",
     kind: "ceremony",
     surfaces: {

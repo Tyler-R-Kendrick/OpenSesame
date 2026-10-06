@@ -29,7 +29,10 @@ async function outcomeOf(
 ): Promise<"Works" | "Rejected" | "Indeterminate"> {
   const until = Date.now() + windowMs;
   while (Date.now() < until) {
-    if ((await pages.waitFor(signedIn, SLICE_MS)) === "ok") return "Works";
+    // A slice never outlasts the window: a fixed one would let a short window
+    // run a whole second, and a long one overrun by as much.
+    const slice = Math.min(SLICE_MS, Math.max(0, until - Date.now()));
+    if ((await pages.waitFor(signedIn, slice)) === "ok") return "Works";
     if (rejected && (await pages.waitFor(rejected, 0)) === "ok")
       return "Rejected";
   }

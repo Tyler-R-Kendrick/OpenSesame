@@ -199,7 +199,7 @@ pub fn cmd_show(
     let entry = root
         .show_with_age_identity(name, &key, age_id.as_deref())
         .map_err(|e| anyhow::anyhow!("{e}"))?;
-    print!("{}", entry.render());
+    crate::entry::print_shown(&entry);
     Ok(())
 }
 

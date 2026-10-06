@@ -1,6 +1,10 @@
 import { expect } from "@playwright/test";
 import { toTheList } from "./phone-vault.mjs";
 
+// A loaded CI runner shares its cores with the other gates: the match worker
+// has answered in well under a second on a quiet one and missed 5 s on a busy one.
+const MATCH_WAIT_MS = 20_000;
+
 export async function checkAccountWebsites(page, check) {
   const viewport = page.viewportSize();
   for (const width of [1280, 390]) {
@@ -30,14 +34,14 @@ export async function checkAccountWebsites(page, check) {
     await page.getByRole("button", { name: "Test match", exact: true }).click();
     await expect(
       page.locator("form.editor output[aria-live=polite]"),
-    ).toHaveText("match");
+    ).toHaveText("match", { timeout: MATCH_WAIT_MS });
     await page
       .getByLabel("Test website", { exact: true })
       .fill("https://app.example.com.evil.test");
     await page.getByRole("button", { name: "Test match", exact: true }).click();
     await expect(
       page.locator("form.editor output[aria-live=polite]"),
-    ).toHaveText("no-match");
+    ).toHaveText("no-match", { timeout: MATCH_WAIT_MS });
     await rule.selectOption("regex");
     await address.fill("(.*\\.)?example\\.com");
     await page
@@ -46,7 +50,7 @@ export async function checkAccountWebsites(page, check) {
     await page.getByRole("button", { name: "Test match", exact: true }).click();
     await expect(
       page.locator("form.editor output[aria-live=polite]"),
-    ).toHaveText("match");
+    ).toHaveText("match", { timeout: MATCH_WAIT_MS });
     await address.fill("(a+)+");
     await page
       .getByLabel("Test website", { exact: true })
@@ -54,7 +58,7 @@ export async function checkAccountWebsites(page, check) {
     await page.getByRole("button", { name: "Test match", exact: true }).click();
     await expect(
       page.locator("form.editor output[aria-live=polite]"),
-    ).toHaveText("timeout");
+    ).toHaveText("timeout", { timeout: MATCH_WAIT_MS });
     await address.fill("[");
     await page.getByLabel("Name", { exact: true }).fill("Pattern fixture");
     await page.getByRole("button", { name: "Save item", exact: true }).click();

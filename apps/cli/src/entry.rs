@@ -142,6 +142,36 @@ fn link_to(exe: &Path, path: &Path) -> std::io::Result<()> {
     std::fs::hard_link(exe, path).or_else(|_| std::fs::copy(exe, path).map(|_| ()))
 }
 
+/// An entry as `pass show` prints it. An account whose password an algorithm
+/// computes holds no password in its file (ADR 0174): line one is empty and the
+/// trailer carries the parameters, so the revealed line one is produced here,
+/// through the same facade the app and the daemon use. A pepper is never asked
+/// for: with a slot, what is printed stops before it.
+pub(crate) fn print_shown(entry: &opensesame_sealed_store::Entry) {
+    use opensesame_sealed_store::{produce_entry, Produced};
+    if entry.secret.is_empty() {
+        let line = match produce_entry(entry) {
+            Produced::Ok(password) => Some(password),
+            Produced::Slotted { head, .. } => {
+                eprintln!("Add your pepper after this: it is yours, and is not stored.");
+                Some(head)
+            }
+            Produced::Absent => None,
+            Produced::Legacy => {
+                eprintln!("This password was made with an earlier pepper: open it in the vault app to convert it.");
+                None
+            }
+        };
+        if let Some(line) = line {
+            let rendered = entry.render();
+            println!("{}", &*line);
+            print!("{}", rendered.strip_prefix('\n').unwrap_or(&rendered));
+            return;
+        }
+    }
+    print!("{}", entry.render());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -8,7 +8,6 @@ import type { JsonObject, JsonValue } from "@opensesame/os-domain";
 import {
   type AccountItem,
   type LoginMethod,
-  accountPlainPassword,
   createItem,
   methodsOfType,
   normalizeLegacyItems,
@@ -17,6 +16,8 @@ import {
   sealWithPepper,
 } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
+import { typePassword } from "../account.test-support.js";
+import { producedPassword } from "../account.test-support.js";
 import {
   entryToVaultItem,
   planManifestMerge,
@@ -110,11 +111,11 @@ describe("an account through a store entry", () => {
   it("keeps a plain password on line one once, never in the trailer", () => {
     const item = createItem("account", "Plain");
     const method = passwordMethod(item);
-    if (method) method.secret = "hunter2";
+    if (method) typePassword(method, "hunter2");
     const entry = vaultItemToEntry(item, []);
     expect(entry.secret).toBe("hunter2");
     expect(entry.trailer).not.toContain("hunter2");
-    expect(accountPlainPassword(accountOf(entryToVaultItem(entry)))).toBe(
+    expect(producedPassword(accountOf(entryToVaultItem(entry)))).toBe(
       "hunter2",
     );
   });
@@ -122,10 +123,10 @@ describe("an account through a store entry", () => {
   it("carries a password with a line break in the trailer, line one empty", () => {
     const item = createItem("account", "Long");
     const method = passwordMethod(item);
-    if (method) method.secret = "first\nsecond";
+    if (method) typePassword(method, "first\nsecond");
     const entry = vaultItemToEntry(item, []);
     expect(entry.secret).toBe("");
-    expect(accountPlainPassword(accountOf(entryToVaultItem(entry)))).toBe(
+    expect(producedPassword(accountOf(entryToVaultItem(entry)))).toBe(
       "first\nsecond",
     );
   });
@@ -202,7 +203,7 @@ describe("entries written before the account", () => {
         trailer: legacyTrailer({ values: { password: "a\nb" } }),
       }),
     );
-    expect(accountPlainPassword(back)).toBe("a\nb");
+    expect(producedPassword(back)).toBe("a\nb");
   });
 
   it("is stable: a login entry migrates once and re-encodes as an account", () => {
@@ -351,7 +352,7 @@ describe("a hostile manifest", () => {
         trailer: JSON.stringify({ kind: "account", username: "u" }),
       }),
     );
-    expect(accountPlainPassword(back)).toBe("pw");
+    expect(producedPassword(back)).toBe("pw");
     expect(back.username).toBe("u");
   });
 });

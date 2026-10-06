@@ -13,7 +13,7 @@ import { createHash } from "node:crypto";
 import { type Server, createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { overlapCast } from "@opensesame/os-domain";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mqttCarrier } from "./mqtt.js";
 
 const GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
@@ -61,14 +61,23 @@ async function unwelcoming() {
 
 describe("an MQTT broker that cannot be used", () => {
   it("rejects, and stops knocking", async () => {
-    const { port, count } = await unwelcoming();
-    await expect(
-      mqttCarrier({ kind: "mqtt", url: `ws://127.0.0.1:${port}` }, "topic"),
-    ).rejects.toThrow();
-    const knocks = count();
-    expect(knocks).toBeGreaterThanOrEqual(1);
-    // The old reconnect period was 3 s; wait past two of them.
-    await new Promise((resolve) => setTimeout(resolve, 6500));
-    expect(count()).toBe(knocks);
-  }, 15_000);
+    // mqtt.js schedules its retries with `setInterval`: that clock is the
+    // test's, the sockets and every other timer stay real.
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      const { port, count } = await unwelcoming();
+      await expect(
+        mqttCarrier({ kind: "mqtt", url: `ws://127.0.0.1:${port}` }, "topic"),
+      ).rejects.toThrow();
+      const knocks = count();
+      expect(knocks).toBeGreaterThanOrEqual(1);
+      // Past two of the old 3 s reconnect periods: a retry would fire here
+      // and open a real socket, which the server counts.
+      await vi.advanceTimersByTimeAsync(6500);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      expect(count()).toBe(knocks);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

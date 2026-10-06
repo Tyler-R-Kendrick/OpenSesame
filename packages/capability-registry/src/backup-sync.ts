@@ -137,7 +137,7 @@ export const backupSyncCapabilities: readonly Capability[] = [
     plane: "client_local",
     kind: "ceremony",
     surfaces: {
-      cli: null,
+      cli: "opensesame-id vault sync",
       pwa: "lib/tailnet-sync/observer.ts:pairTailnetDrive",
       mcp_host: null,
       mcp_client: null,

@@ -92,14 +92,14 @@ describe("HealthPanel", () => {
     ).toBeTruthy();
   });
 
-  it("counts a peppered password as unchecked, never as clean or weak", () => {
+  it("counts a password with a pepper slot as unchecked, never as clean or weak", () => {
     const peppered = makeAccount({ id: "itm_pep", name: "Sealed" });
     const method = peppered.methods[0];
     if (method?.type !== "password") throw new Error("fixture");
     vault.current = {
       items: [
         makeAccount(),
-        { ...peppered, methods: [{ ...method, pepper: true, secret: "" }] },
+        { ...peppered, methods: [{ ...method, pepper: true }] },
       ],
     };
     renderPanel();

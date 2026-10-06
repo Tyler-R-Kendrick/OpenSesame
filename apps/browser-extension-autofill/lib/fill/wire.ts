@@ -73,7 +73,8 @@ export type GuardReply = z.infer<typeof guardReply>;
 
 /** The background's answer to a value request. */
 export const valueReply = z.union([
-  z.object({ value: z.string() }),
+  /** `pepper`: the person's own pepper goes after `value` (ADR 0174). */
+  z.object({ value: z.string(), pepper: z.optional(z.boolean()) }),
   z.object({ refusal: CODE }),
 ]);
 export type ValueReply = z.infer<typeof valueReply>;
@@ -130,14 +131,15 @@ export const daemonMatch = z.object({
 });
 
 /**
- * `needsPepper` is set when the entry's password is peppered or Sphinx-derived
- * (ADR 0172): the daemon cannot ask the person, and a page has no way to, so the
- * client refuses with `needs_pepper` and never reads `value`.
+ * `pepper` is set when the entry's password has a slot for a pepper of the
+ * person's own (ADR 0174): `value` is what comes before the slot. The daemon
+ * never asks for the pepper and the extension never holds one; an entry an older
+ * version sealed under one is refused with `legacy_password` and no value.
  */
 export const daemonValue = z.object({
   field: fillField,
   value: z.string(),
-  needsPepper: z.optional(z.boolean()),
+  pepper: z.optional(z.boolean()),
 });
 
 /** A stored string, or absent: anything else a key holds reads as absent. */

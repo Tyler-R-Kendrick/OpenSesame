@@ -3,12 +3,10 @@
  */
 
 import { createHash } from "node:crypto";
-import { PGlite } from "@electric-sql/pglite";
 import * as schema from "@opensesame/database/schema";
 import { overlapCast } from "@opensesame/os-domain";
 import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
   createTestKeyPair,
   issueCredential,
@@ -16,13 +14,16 @@ import {
 } from "../../../../packages/openid4vp/src/__fixtures__/holder.js";
 import { createControlPlane } from "../create-app.js";
 import { resetInteractionLinkBudget } from "../routes/interaction-handoff.js";
+import { migratedPGlite, warmMigratedPGlite } from "./migrated-pglite.js";
 import { seedOwnedCeremony } from "./seed-ceremony-subject.js";
 
-// Each PGlite test here boots a database and applies every migration inside
-// the test itself; on a loaded CI runner that alone took most of the
-// package's 15s budget (legacy-agent-durability timed out on it). Same 60s
-// budget the beforeAll-based PGlite suites give the identical setup.
+// Each PGlite test here starts its own database. They used to boot one and
+// apply every migration inside the test, which on a loaded CI runner took most
+// of the package's 15s budget (legacy-agent-durability timed out on it); now
+// the migrations run once per file, in the hook below, and each test loads a
+// copy (migrated-pglite.ts). The 60s budget stays as the margin for load.
 vi.setConfig({ testTimeout: 60_000 });
+beforeAll(warmMigratedPGlite, 60_000);
 
 const ISSUER = "http://127.0.0.1:8788";
 const VCT = "https://credentials.opensesame.local/opensesame-holder-binding/v1";
@@ -42,15 +43,9 @@ async function withReplicaDb(
   options: ReplicaDbOptions,
 ) {
   resetInteractionLinkBudget();
-  const client = new PGlite();
+  const client = await migratedPGlite();
   try {
     const db = drizzle(client, { schema });
-    await migrate(db, {
-      migrationsFolder: new URL(
-        "../../../../packages/database/drizzle",
-        import.meta.url,
-      ).pathname,
-    });
     const shared: Parameters<typeof createControlPlane>[0] = {
       database: overlapCast(db),
       config: {

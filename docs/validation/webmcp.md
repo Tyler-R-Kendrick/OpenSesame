@@ -21,6 +21,12 @@ PLAYWRIGHT_CHROMIUM=/path/to/webmcp-capable/chrome \
   pnpm --filter @opensesame/pages verify:webmcp
 ```
 
+A browser without the `WebMCP` DevTools domain (the Chromium 141 in the
+agent container) stops at `WebMCP.enable`. Chrome for Testing 154 has it:
+download `chrome-linux64.zip` for the version `last-known-good-versions` names
+from `storage.googleapis.com/chrome-for-testing-public/` and point
+`PLAYWRIGHT_CHROMIUM` at its `chrome`.
+
 The test serves `dist/` under the production HTTPS origin without a backend.
 It listens to native `WebMCP.toolsAdded`/`toolsRemoved`, invokes tools with
 `WebMCP.invokeTool`, and inspects actual rendered state. It covers all 23
@@ -36,6 +42,10 @@ focused navigation/caller regressions passed 138 tests. Typechecks, the
 offline static-origin journeys, structural/package quality, and all three
 application bundle budgets passed. This records local evidence, not a claim
 that the branch has merged or the hosted CI/deployment has run these changes.
+
+Local validation on 2026-10-05 used Chrome for Testing 154.0.8037.92: 4 boot
+tools, 19 unlocked tools, 24 destinations and 51 CDP invocations passed, with
+accounts as the item kind and the derived generator the default.
 
 ## Authority limits
 

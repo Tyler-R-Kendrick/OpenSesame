@@ -83,6 +83,11 @@ export const VAULT_LIB_RULES = [
     "named environments, schema text, and the missing-value notice",
   ),
   optional(
+    `${V}security-checks`,
+    "vault.security-checks",
+    "breach and two-step checks against Pwned Passwords and 2fa.directory",
+  ),
+  optional(
     `${V}import/`,
     "vault.interop-formats",
     "import pipeline and manager formats",

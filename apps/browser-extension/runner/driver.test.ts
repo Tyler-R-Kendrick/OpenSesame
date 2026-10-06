@@ -277,4 +277,28 @@ describe("verify_login", () => {
     });
     expect(r.browser.privateWindows).toEqual({ opened: 2, closed: 2 });
   });
+
+  it("waits for the signed-in marker no longer than the login window", async () => {
+    const { step, deps } = await setup();
+    const waits: number[] = [];
+    const fresh = deps.pages.fresh.bind(deps.pages);
+    deps.pages.fresh = async () => {
+      const clean = await fresh();
+      if (clean === null) return null;
+      const waitFor = clean.waitFor.bind(clean);
+      clean.waitFor = (selector, timeoutMs) => {
+        waits.push(timeoutMs ?? 0);
+        return waitFor(selector, timeoutMs);
+      };
+      return clean;
+    };
+    const handle = `candidate:${crypto.randomUUID()}`;
+    await step({ step: "generate_candidate", handle });
+    expect(await step({ step: "verify_login", reference: handle })).toEqual({
+      outcome: "verified",
+      verified: "Rejected",
+    });
+    expect(waits.length).toBeGreaterThan(0);
+    expect(Math.max(...waits)).toBeLessThanOrEqual(deps.loginWindowMs ?? 0);
+  });
 });

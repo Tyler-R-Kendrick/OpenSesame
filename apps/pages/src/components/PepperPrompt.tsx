@@ -1,17 +1,17 @@
 /**
- * Asking the person for a pepper (ADR 0172 §4, §6).
+ * Asking for the pepper an older version sealed a password under (ADR 0174 §5).
  *
- * One modal is the only place a pepper (or a Sphinx master input) is typed. It
- * is a `CeremonySheet`, so focus is trapped, Escape closes and the key that
- * opened it gets focus back. The value lives in this component's state and
- * nowhere else: it is handed to the caller once, on commit, and the state goes
- * with the sheet. It is never logged and never drawn outside the input.
+ * A pepper is not asked for and not stored now, so this is the one place one is
+ * typed, and only to convert a password that older version made, once. It is a
+ * `CeremonySheet`, so focus is trapped, Escape closes and the key that opened it
+ * gets focus back. The value lives in this component's state and nowhere else:
+ * it is handed to the caller once, on commit, and the state goes with the sheet.
+ * It is never logged and never drawn outside the input.
  *
  * `usePepperPrompt()` is the promise-shaped way in: `ask` resolves with what
  * was typed and rejects with `PepperCancelled` when the sheet is closed.
  */
 
-import type { PepperAsk } from "@opensesame/app-core/lib/vault/generators/index.js";
 import {
   type ReactNode,
   useCallback,
@@ -24,10 +24,6 @@ import { FieldShell } from "./FieldShell.js";
 import { FormCommit } from "./FormCommit.js";
 import { IconKey } from "./IconKey.js";
 import { IconEye, IconEyeOff, IconLock } from "./Icons.js";
-import { StatusMark } from "./StatusMark.js";
-
-/** `enter` asks once; `set` asks twice so a typo cannot seal a password for good. */
-export type PepperMode = "enter" | "set";
 
 export class PepperCancelled extends Error {
   constructor() {
@@ -41,44 +37,27 @@ export function isPepperCancelled<T>(caught: T): caught is T & PepperCancelled {
 }
 
 export type PepperAskFn = (
-  mode: PepperMode,
   purpose: string,
-  /** Names the field: "Pepper", or "Master input" for Sphinx. */
+  /** Names the field: "Earlier pepper", or "Master input" for Sphinx. */
   label?: string,
 ) => Promise<string>;
 
-/** The adapter generators' `usePassword` takes: ask once, for this purpose. */
-export function pepperAsk(
-  ask: PepperAskFn,
-  purpose: string,
-  label?: string,
-): PepperAsk {
-  return () => ask("enter", purpose, label);
-}
-
 export function PepperPrompt({
-  mode,
   purpose,
   label = "Pepper",
   onSubmit,
   onCancel,
 }: {
-  mode: PepperMode;
   purpose: string;
   label?: string;
   onSubmit: (value: string) => void;
   onCancel: () => void;
 }) {
   const [value, setValue] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [reveal, setReveal] = useState(false);
   const input = useRef<HTMLInputElement>(null);
-  const setting = mode === "set";
-  const matches = value !== "" && value === confirm;
-  const ready = setting ? matches : value !== "";
-  const commit = setting
-    ? `Set ${label.toLowerCase()}`
-    : `Use ${label.toLowerCase()}`;
+  const ready = value !== "";
+  const commit = `Use ${label.toLowerCase()}`;
   const type = reveal ? "text" : "password";
 
   return (
@@ -120,31 +99,13 @@ export function PepperPrompt({
             </IconKey>
           }
         />
-        {setting ? (
-          <FieldShell
-            label={`Confirm ${label.toLowerCase()}`}
-            type={type}
-            mono
-            autoComplete="off"
-            value={confirm}
-            onValueChange={setConfirm}
-            status={
-              confirm === "" ? null : (
-                <StatusMark
-                  tone={matches ? "ok" : "warn"}
-                  label={matches ? "Matches" : "Does not match"}
-                />
-              )
-            }
-          />
-        ) : null}
         <FormCommit label={commit} disabled={!ready} />
       </form>
     </CeremonySheet>
   );
 }
 
-type Open = { mode: PepperMode; purpose: string; label: string; key: number };
+type Open = { purpose: string; label: string; key: number };
 type Pending = {
   resolve: (value: string) => void;
   reject: (reason: PepperCancelled) => void;
@@ -170,12 +131,12 @@ export function usePepperPrompt(): PepperPromptHandle {
     else current.reject(new PepperCancelled());
   }, []);
 
-  const ask = useCallback<PepperAskFn>((mode, purpose, label = "Pepper") => {
+  const ask = useCallback<PepperAskFn>((purpose, label = "Pepper") => {
     return new Promise<string>((resolve, reject) => {
       pending.current?.reject(new PepperCancelled());
       pending.current = { resolve, reject };
       count.current += 1;
-      setOpen({ mode, purpose, label, key: count.current });
+      setOpen({ purpose, label, key: count.current });
     });
   }, []);
 
@@ -191,7 +152,6 @@ export function usePepperPrompt(): PepperPromptHandle {
   const element = open ? (
     <PepperPrompt
       key={open.key}
-      mode={open.mode}
       purpose={open.purpose}
       label={open.label}
       onSubmit={(value) => settle("submit", value)}

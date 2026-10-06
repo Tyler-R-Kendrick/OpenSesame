@@ -1,10 +1,13 @@
 /**
- * Production UI probe — mark blocked when SETTINGS has not wired the panel.
+ * Production UI probe: an owner's Settings › Security draws the Duress panel.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { doorGuest } from "../../lib/front-door.mjs";
+import {
+  openSettingsCategory,
+  sealWithPassword,
+} from "../../lib/pages-journey.mjs";
 import { createHarness } from "../../lib/static-origin-harness.mjs";
 import { SCENARIO_IDS, buildScenarioMatrix } from "./scenario-matrix.mjs";
 
@@ -24,30 +27,28 @@ function settingsPanelWired() {
   const src = fs.existsSync(settingsSection)
     ? fs.readFileSync(settingsSection, "utf8")
     : "";
-  return /DuressEnrollmentPanel/.test(src);
+  return /DuressPanel/.test(src);
 }
 
+/**
+ * Duress is a row of the owner's Settings › Security, never a guest's
+ * (`useDuressPanelShown`): seal a vault on this device the way a person does,
+ * then read what the section draws.
+ */
 async function probeSecurityDuressPanel(page, snap, blockers, check) {
-  await page.getByRole("treeitem", { name: "Settings", exact: true }).click();
-  await page.waitForTimeout(600);
-  await page
-    .getByRole("navigation", { name: "Settings sections", exact: true })
-    .getByRole("link", { name: /^security/i })
-    .first()
-    .click();
+  await sealWithPassword(page);
+  await openSettingsCategory(page, "Security");
   await page.waitForTimeout(800);
-  const body = snap
-    ? await snap(page, "ui-security")
-    : await page.evaluate(() => document.body.innerText);
-  const onScreen = /Duress profiles|Duress protection/i.test(body);
+  if (snap) await snap(page, "ui-security");
+  const onScreen = (await page.locator("#duress-profiles h2").count()) > 0;
   if (!onScreen) {
-    blockers.push("settings/security has no visible Duress profiles panel");
+    blockers.push("settings/security has no visible Duress panel");
   }
   check(
-    true,
+    onScreen,
     onScreen
       ? "duress panel visible in settings/security"
-      : "duress panel absent in settings/security (blocked until SETTINGS wires it)",
+      : "duress panel absent in settings/security",
   );
 }
 
@@ -55,9 +56,7 @@ export async function walkUiSettings({ browser, check, record, snap }) {
   const blockers = [];
   const panelWired = settingsPanelWired();
   if (!panelWired) {
-    blockers.push(
-      "Duress settings/enrollment panel is not imported in SettingsSection — production entry missing",
-    );
+    blockers.push("the Duress panel is not imported in SettingsSection");
   }
 
   if (!fs.existsSync(path.join(DIST, "index.html"))) {
@@ -81,19 +80,12 @@ export async function walkUiSettings({ browser, check, record, snap }) {
   const { page, context } = await harness.newPage(browser);
   try {
     await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
-    const guest = doorGuest(page);
-    if ((await guest.count()) === 0) {
-      blockers.push("front door guest button not found");
-    } else {
-      await guest.click();
-      await page.waitForTimeout(2000);
-      try {
-        await probeSecurityDuressPanel(page, snap, blockers, check);
-      } catch (error) {
-        blockers.push(
-          `settings navigation failed: ${error instanceof Error ? error.message : error}`,
-        );
-      }
+    try {
+      await probeSecurityDuressPanel(page, snap, blockers, check);
+    } catch (error) {
+      blockers.push(
+        `settings navigation failed: ${error instanceof Error ? error.message : error}`,
+      );
     }
   } finally {
     await context.close();
