@@ -21,10 +21,11 @@ import { useVaultList } from "../../lib/vault-list-path.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { AccountDetail } from "./AccountDetail.js";
 import { ItemGone } from "./ItemGone.js";
+import { useItemShare } from "./ItemShare.js";
 import { ItemTools } from "./ItemTools.js";
 import { UpdateSecretPanel } from "./SecretUpdate.js";
 import { TypedFieldRows, UnknownTypeRows } from "./TypedFields.js";
-import { KindRecord, SecretShares } from "./item-contributions.js";
+import { KindRecord } from "./item-contributions.js";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -44,6 +45,7 @@ export function ItemDetail() {
   const [confirmPurge, setConfirmPurge] = useState(false);
 
   const item = items.find((candidate) => candidate.id === itemId);
+  const { tool: share, ceremony } = useItemShare(item, location.search);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: itemId is the trigger, not an input — a revealed secret must not survive a move to another item
   useEffect(() => {
@@ -95,6 +97,7 @@ export function ItemDetail() {
           listPath={listPath}
           confirmPurge={confirmPurge}
           onConfirmPurge={setConfirmPurge}
+          share={share}
         />
       </div>
 
@@ -113,14 +116,7 @@ export function ItemDetail() {
           await store.saveItem(updated);
         }}
       />
-      {item.kind !== "drop" ? (
-        <SecretShares
-          item={item}
-          initialOpen={
-            new URLSearchParams(location.search).get("share") === "drop"
-          }
-        />
-      ) : null}
+      {ceremony}
 
       {item.fields.length > 0 ? (
         <section className="detail__group">

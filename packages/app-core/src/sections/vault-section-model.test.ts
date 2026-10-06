@@ -67,6 +67,26 @@ describe("chipTypeIds", () => {
   });
 });
 
+describe("shareText for an account with no password", () => {
+  const keyed = (key: string, token = "") => ({
+    ...plainAccount("Billing", "unused"),
+    notes: "",
+    methods: [
+      { id: "k", type: "api-key" as const, key, header: "X-Api-Key" },
+      { id: "t", type: "token" as const, token, expiresAt: "" },
+    ],
+  });
+
+  it("is its API key's header line, else its token's bearer line", () => {
+    expect(shareText(keyed("ak_1", "tok_1"))).toBe("X-Api-Key: ak_1");
+    expect(shareText(keyed("", "tok_1"))).toBe("Authorization: Bearer tok_1");
+  });
+
+  it("is nothing when there is no value and no notes", () => {
+    expect(shareText(keyed(""))).toBeNull();
+  });
+});
+
 describe("shareText", () => {
   it("sends the concealed value of every item that has one", () => {
     const wifi = itemTypeRegistry().get("wifi");

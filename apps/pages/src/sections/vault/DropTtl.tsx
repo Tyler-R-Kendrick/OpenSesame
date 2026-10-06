@@ -6,30 +6,37 @@ export const DROP_TTL_OPTIONS = [
   { label: "1 day", ms: 86_400_000 },
 ] as const;
 
-export function TtlPicker({
+/**
+ * How long the share stays open: three choices side by side, the one in force
+ * pressed. The chosen one takes `selectedRef`, so a ceremony that opens can
+ * hand it the focus.
+ */
+export function TtlChoices({
   value,
   onChange,
-  selectRef,
+  selectedRef,
+  disabled = false,
 }: {
   value: number;
   onChange: (ms: number) => void;
-  selectRef?: Ref<HTMLSelectElement>;
+  selectedRef?: Ref<HTMLButtonElement>;
+  disabled?: boolean;
 }) {
   return (
-    <div className="field">
-      <label htmlFor="drop-ttl">Opens for</label>
-      <select
-        id="drop-ttl"
-        ref={selectRef}
-        value={String(value)}
-        onChange={(event) => onChange(Number(event.target.value))}
-      >
-        {DROP_TTL_OPTIONS.map((option) => (
-          <option key={option.ms} value={option.ms}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+    <div className="share-ttl" role="radiogroup" aria-label="Opens for">
+      {DROP_TTL_OPTIONS.map((option) => (
+        <button
+          key={option.ms}
+          ref={option.ms === value ? selectedRef : undefined}
+          type="button"
+          aria-pressed={option.ms === value}
+          className="share-ttl__choice"
+          disabled={disabled}
+          onClick={() => onChange(option.ms)}
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
   );
 }

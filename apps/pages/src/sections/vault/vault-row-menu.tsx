@@ -1,6 +1,7 @@
 import type { ItemRow } from "@opensesame/vault-core";
 import { IconDots } from "../../components/Icons.js";
 import { ContextMenuList } from "../../components/context-menu/ContextMenuList.js";
+import { asSheet } from "../../components/context-menu/phone-menu.js";
 import { type VaultTreeActions, vaultItemMenu } from "./vault-menu.js";
 
 /**
@@ -28,6 +29,9 @@ export function VaultRowMenu({
   setCursor: (key: string) => void;
   setMenuFor: (key: string | null) => void;
 }) {
+  // On a phone the row's menu is not wide enough to hang a submenu beside it:
+  // choosing a row with nested choices replaces the list with them.
+  const drill = asSheet();
   return (
     <>
       <button
@@ -49,7 +53,8 @@ export function VaultRowMenu({
         <ContextMenuList
           className={`ctxmenu vtree__menu${
             menuAbove ? " vtree__menu--above" : ""
-          }`}
+          }${drill ? " ctxmenu--drill" : ""}`}
+          sheet={drill}
           label={`Actions for ${row.name}`}
           groups={vaultItemMenu(row.item, actions)}
           ignoreOutside="[data-vtree-more]"
