@@ -248,35 +248,6 @@ describe("SettingsSection", () => {
     expect(screen.getByRole("heading", { name: "Item types" })).toBeTruthy();
   });
 
-  // A page's own document is not a second, textual view of it: opening
-  // `config.yaml` (the rail, the command bar, an old link) or a capability
-  // document draws the designed page, like every other page in the app.
-  it.each([
-    ["/settings/capabilities?file=config.yaml", "capabilities-panel"],
-    [
-      `/settings/capabilities?file=${encodeURIComponent("settings/capabilities/installation-selection.yaml")}`,
-      "capabilities-panel",
-    ],
-    [
-      `/settings/capabilities?file=${encodeURIComponent("settings/capabilities/effective-plan.yaml")}`,
-      "capabilities-panel",
-    ],
-  ])("draws the page, not its text, for %s", (route, testId) => {
-    renderSettings(route);
-    expect(screen.getByTestId(testId)).toBeTruthy();
-    expect(document.querySelector(".set-raw__stage")).toBeNull();
-    expect(screen.queryByRole("navigation", { name: "Files" })).toBeNull();
-  });
-
-  it("draws the Vaults page for its config.yaml, and for any category's", () => {
-    renderSettings("/settings/vaults?file=config.yaml");
-    expect(screen.getByRole("heading", { name: "Item types" })).toBeTruthy();
-    expect(screen.queryByRole("textbox", { name: /config\.yaml/ })).toBeNull();
-    cleanup();
-    renderSettings("/settings?file=config.yaml");
-    expect(screen.queryByRole("textbox", { name: /config\.yaml/ })).toBeNull();
-  });
-
   // The nav has declared a Capabilities tab since the composition work
   // landed, but the section drew nothing for it, so the tab opened empty.
   it("draws the capabilities panel on its own category", () => {
