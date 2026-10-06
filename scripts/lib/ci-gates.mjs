@@ -82,6 +82,7 @@ export const DRIVER_GATES = {
   "verify-mobile.mjs": ["mobile"],
   "verify-local-iam.mjs": ["sign-in"],
   "verify-static-origin.mjs": ["static"],
+  "verify-encrypted-search.mjs": ["static"],
   "verify-auth-flow.mjs": ["auth"],
   "verify-experience-journeys.mjs": ["journeys"],
   "verify-webmcp.mjs": ["budgets"],

@@ -32,6 +32,7 @@ import { PACKAGE_RULES } from "./classification-packages.js";
 import { PLUGIN_RULES } from "./classification-plugins.js";
 import { SECTION_RULES } from "./classification-sections.js";
 import { SHELL_RULES } from "./classification-shell.js";
+import { STORAGE_LIB_RULES } from "./classification-storage.js";
 import { TUTORIAL_RULES, VAULT_LIB_RULES } from "./classification-vault.js";
 
 export type SourceClass = "core" | "shared" | "optional";
@@ -83,6 +84,7 @@ export const SOURCE_CLASSIFICATION: readonly SourceClassification[] = [
   ...LIB_RULES,
   ...DEVICE_CONNECTOR_RULES,
   ...VAULT_LIB_RULES,
+  ...STORAGE_LIB_RULES,
   ...TUTORIAL_RULES,
   ...PACKAGE_RULES,
   ...PLUGIN_RULES,

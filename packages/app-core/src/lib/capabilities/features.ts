@@ -48,6 +48,7 @@ export type FeatureId =
   | "password-managers"
   | "cloud-secret-storage"
   | "local-storage"
+  | "encrypted-search"
   | "autofill"
   | "sharing"
   | "payments"
@@ -130,6 +131,12 @@ export const FEATURES: readonly Feature[] = [
     ["cloud_secret_storage"],
   ),
   section("local-storage", "Local storage", [], ["local_storage"]),
+  section(
+    "encrypted-search",
+    "Encrypted search",
+    ["storage.encrypted-search"],
+    [],
+  ),
   section(
     "item-types",
     "Item types",

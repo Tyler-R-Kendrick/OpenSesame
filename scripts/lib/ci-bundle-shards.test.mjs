@@ -38,6 +38,7 @@ const GATES = [
   "verify:local-iam",
   "verify:siop",
   "verify:static",
+  "verify:encrypted-search",
   "verify:auth",
   "verify:customer-vault-browser",
   "verify-experience-journeys.mjs",

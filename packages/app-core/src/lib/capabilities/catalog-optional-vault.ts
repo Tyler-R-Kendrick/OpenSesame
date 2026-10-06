@@ -69,6 +69,16 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "Named values for vault items.",
   ),
   optional(
+    "storage.encrypted-search",
+    "Encrypted search",
+    "Keep the stores that hold identifiers - history backups and retired-password digests - in encrypted databases where no table, field, id or name is readable on disk, and search them by blind index (equality, order, keywords) without opening the rest. A field is searchable only once a query has needed it, and stops being the moment it is dropped (ADR 0175).",
+    {
+      keyAccess: ["item-plaintext", "protector-wrap"],
+      offlineLimits:
+        "Works offline. The databases belong to this device and this browser profile: they are not synced, and are unreadable without the device key.",
+    },
+  ),
+  optional(
     "vault.security-checks",
     "Breach and two-step checks",
     "When you press Check, find logins whose password has appeared in a known breach and logins on sites that take an authenticator code you have not stored. Only five characters of each password's hash leave the browser; the list of two-step sites is fetched whole and matched here.",
