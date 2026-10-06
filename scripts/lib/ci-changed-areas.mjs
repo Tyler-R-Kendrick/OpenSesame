@@ -346,7 +346,11 @@ function browserGates(root, base, head, dirs, pushDirs) {
       path === ".github/workflows/ci.yml" ||
       areasForPaths([path], dirs, pushDirs).bundle,
   );
-  return gatesForPaths(inBundle, driverReach(root));
+  const read = (path) => {
+    const file = join(root, path);
+    return existsSync(file) ? readFileSync(file, "utf8") : "";
+  };
+  return gatesForPaths(inBundle, driverReach(root), read);
 }
 
 const invoked =

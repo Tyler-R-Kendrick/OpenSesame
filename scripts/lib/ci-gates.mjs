@@ -207,6 +207,9 @@ function scriptGates(path, reach) {
 // --- the rules ------------------------------------------------------------
 
 const PAGES_SRC = "apps/pages/src";
+// What a component imports to give the tutorial registry one of its elements.
+const GUIDE_TARGET =
+  /useGuideTarget|useOptionalGuideTarget|tutorial\/registry\/react/;
 const CORE_SRC = "packages/app-core/src";
 
 const startsWithAny = (text, prefixes) =>
@@ -218,7 +221,8 @@ function pagesLib(path) {
   // AGENTS.md: "Changes to boot, routing, shell, controls or focus require
   // verify:keyboard". The journeys walk navigation by key.
   if (startsWithAny(rest, ["keymap", "pane-escape", "focus"])) {
-    return gates("keyboard", "journeys", "budgets");
+    // The keyboard tutorials teach the keys this file binds.
+    return gates("keyboard", "journeys", "budgets", "tutorials");
   }
   // AGENTS.md: "A phone is not a narrow desktop": touch input is verify:mobile.
   if (startsWithAny(rest, ["gesture", "use-gestures", "tab-swipe", "strip"])) {
@@ -287,9 +291,11 @@ function coreSource(path) {
   const rest = path.slice(`${CORE_SRC}/`.length);
   if (under(rest, "tutorial")) return gates("budgets", "tutorials");
   if (under(rest, "webmcp")) return gates("budgets");
-  if (under(rest, "sections")) return gates("budgets", "journeys");
-  if (under(rest, "lib/keymap"))
-    return gates("keyboard", "journeys", "budgets");
+  // The settings view-models decide which rows a tour can point at.
+  if (under(rest, "sections")) return gates("budgets", "journeys", "tutorials");
+  if (under(rest, "lib/keymap")) {
+    return gates("keyboard", "journeys", "budgets", "tutorials");
+  }
   // Settings as files and the configuration the journeys save and reload.
   if (under(rest, "lib/configuration")) return gates("budgets", "journeys");
   return everyGate();
@@ -307,8 +313,25 @@ function pagesOther(path, reach) {
  * The gates one changed path can reach, given it is in the Pages build's area.
  * @param {string} path
  * @param {Map<string, Set<string>>} reach `driverReach(root)`
+ * @param {(path: string) => string} read the file's text, "" when it is gone
  */
-export function gatesForPath(path, reach) {
+export function gatesForPath(path, reach, read = () => "") {
+  const out = gatesByPath(path, reach);
+  // A file that mounts a guide target is a control a tutorial points at: a
+  // change to it can leave a tour with nothing to light.
+  if (
+    out.size > 0 &&
+    !out.has("tutorials") &&
+    path.startsWith(`${PAGES_SRC}/`) &&
+    /\.[cm]?[jt]sx?$/.test(path) &&
+    GUIDE_TARGET.test(read(path))
+  ) {
+    out.add("tutorials");
+  }
+  return out;
+}
+
+function gatesByPath(path, reach) {
   if (isDocPath(path) || isTestPath(path)) return gates();
   // The workflow itself: enough to prove the matrix it writes starts and runs.
   if (path === ".github/workflows/ci.yml") {
@@ -337,10 +360,10 @@ export function gatesForPath(path, reach) {
  *   to (a deletion selects nothing), already known to be in the bundle area
  * @param {Map<string, Set<string>>} reach `driverReach(root)`
  */
-export function gatesForPaths(paths, reach) {
+export function gatesForPaths(paths, reach, read = () => "") {
   const out = gates();
   for (const path of paths) {
-    for (const gate of gatesForPath(path, reach)) out.add(gate);
+    for (const gate of gatesForPath(path, reach, read)) out.add(gate);
   }
   return out;
 }

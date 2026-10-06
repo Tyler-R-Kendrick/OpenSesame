@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { experiencePackages } from "./lib/experience-packages.mjs";
 
 function isString(value) {
   return Object.prototype.toString.call(value) === "[object String]";
@@ -49,14 +50,7 @@ function runPagesScript(script) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-// `EXPERIENCE_PACKAGES` (the plan's `verify_packages`, comma separated) names
-// the experience packages a diff reached; the other packages' blocks are not
-// run. Unset or empty runs every block, as it does for a whole-workspace run.
-const named = (process.env.EXPERIENCE_PACKAGES ?? "")
-  .split(",")
-  .map((name) => name.trim())
-  .filter(Boolean);
-const reached = (name) => named.length === 0 || named.includes(name);
+const reached = experiencePackages(process.env.EXPERIENCE_PACKAGES);
 
 if (reached("@opensesame/app-core")) {
   run("@opensesame/app-core", [

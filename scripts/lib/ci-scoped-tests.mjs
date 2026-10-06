@@ -178,6 +178,20 @@ export function reverseImports(root, nodes) {
   return reverse;
 }
 
+/** Non-test source files, anywhere in the workspace, that read the filesystem. */
+function fsReaders(root, reverse) {
+  const files = new Set();
+  for (const importers of reverse.values()) {
+    for (const file of importers) files.add(file);
+  }
+  return [...files].filter(
+    (file) =>
+      !TEST_FILE.test(file) &&
+      /\.[cm]?[jt]sx?$/.test(file) &&
+      STRUCTURAL.test(readFileSync(join(root, file), "utf8")),
+  );
+}
+
 /**
  * The tests under `dir` that reach `file`, by import, with how many steps away
  * the nearest of each is. Unbounded `depth` finds every one.
@@ -242,6 +256,7 @@ export function planUnitTests({ root, nodes, packages, paths, isDoc }) {
     if (isInput(target) && existsSync(join(root, target))) related.push(target);
   }
   let reverse;
+  let readers;
   return packages.map((name) => {
     const node = nodes.find((candidate) => candidate.name === name);
     if (node === undefined) throw new Error(`no workspace package ${name}`);
@@ -288,6 +303,15 @@ export function planUnitTests({ root, nodes, packages, paths, isDoc }) {
     // suite leans on selects the whole suite. A hub's tests are followed a few
     // steps instead; the typecheck holds the rest of what it exports.
     reverse ??= reverseImports(root, nodes);
+    const structural = new Set(structuralTests(root, node.dir));
+    // A test that reads a file through a helper imports no `fs` itself, but
+    // what it reads is not in its import graph either.
+    readers ??= fsReaders(root, reverse);
+    for (const file of readers) {
+      for (const test of testsReaching(reverse, file, node.dir)) {
+        structural.add(test.slice(node.dir.length + 1));
+      }
+    }
     const hubs = [];
     const direct = [];
     const hubTests = new Set();
@@ -308,7 +332,7 @@ export function planUnitTests({ root, nodes, packages, paths, isDoc }) {
       related: direct,
       hubs,
       hubTests: [...hubTests].sort(),
-      structural: structuralTests(root, node.dir),
+      structural: [...structural].sort(),
       extra: parsed.rest,
       // The chain after `vitest run` belongs to the package's own files.
       extraRuns: changed.some(underPackage),

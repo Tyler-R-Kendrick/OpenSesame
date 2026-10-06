@@ -12,6 +12,7 @@ import {
 } from "./ci-affected-graph.mjs";
 import { isDocPath } from "./ci-gates.mjs";
 import { planUnitTests } from "./ci-scoped-tests.mjs";
+import { describePlans, unitTestCommands } from "./ci-unit-commands.mjs";
 
 export {
   loadCrateNodes,
@@ -123,59 +124,16 @@ function runUnitTests(plan) {
           paths,
           isDoc: isDocPath,
         });
-  const whole = (plans ?? [])
-    .filter((entry) => entry.mode === "full")
-    .map((entry) => entry.name);
-  if (plans === undefined) whole.push(...plan.packages);
-  for (const entry of plans ?? []) {
-    console.error(
-      `unit tests: ${entry.name} ${entry.mode}${entry.why ? ` (${entry.why})` : ""}`,
-    );
-  }
-  if (whole.length > 0) {
-    runListed("pnpm", [
-      "exec",
-      "turbo",
-      "run",
-      "test",
-      "--concurrency=4",
-      ...whole.map((name) => `--filter=${name}`),
-    ]);
-  }
-  for (const entry of plans ?? []) {
-    if (entry.mode === "scoped") runScoped(root, entry);
-  }
-}
-
-function runScoped(root, entry) {
-  const vitest = ["--filter", entry.name, "exec", "vitest"];
-  if (entry.related.length > 0) {
-    runListed("pnpm", [
-      ...vitest,
-      "related",
-      ...entry.related.map((path) => resolve(root, path)),
-      "--run",
-      "--passWithNoTests",
-    ]);
-  }
-  const named = [...new Set([...entry.structural, ...entry.hubTests])];
-  if (entry.hubs.length > 0) {
-    console.error(
-      `unit tests: ${entry.name} follows ${entry.hubs.join(", ")} ${entry.hubTests.length} tests deep, not the whole suite`,
-    );
-  }
-  if (named.length > 0) {
-    runListed("pnpm", [...vitest, "run", ...named, "--passWithNoTests"]);
-  }
-  if (entry.extra !== undefined && entry.extraRuns) {
-    runListed("pnpm", [
-      "--filter",
-      entry.name,
-      "exec",
-      "sh",
-      "-c",
-      entry.extra,
-    ]);
+  if (plans === undefined)
+    console.error("unit tests: diff unreadable; all whole");
+  for (const line of describePlans(plans)) console.error(line);
+  for (const { command, args, note } of unitTestCommands(
+    root,
+    plan.packages,
+    plans,
+  )) {
+    if (note) console.error(`unit tests: ${note}`);
+    runListed(command, args);
   }
 }
 

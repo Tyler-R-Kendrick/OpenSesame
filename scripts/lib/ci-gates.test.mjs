@@ -81,3 +81,43 @@ describe("ci gates", () => {
     expect(bundleMatrix([], shards)).toEqual([]);
   });
 });
+
+describe("ci gates, tutorials", () => {
+  const read = (text) => () => text;
+
+  it("starts the tutorial walk for a file that mounts a guide target", () => {
+    const path = "apps/pages/src/sections/vault/ItemTools.tsx";
+    const mounts = [
+      ...gatesForPath(
+        path,
+        reach,
+        read('import { useGuideTarget } from "../../tutorial/registry/react";'),
+      ),
+    ];
+    expect(mounts).toContain("tutorials");
+    expect([
+      ...gatesForPath(path, reach, read("export const x = 1;")),
+    ]).not.toContain("tutorials");
+  });
+
+  it("starts it for the keymap, whose keys the keyboard tutorials teach", () => {
+    expect(gatesOf("apps/pages/src/lib/keymap-targets.ts")).toContain(
+      "tutorials",
+    );
+    expect(gatesOf("packages/app-core/src/lib/keymap/commands.ts")).toContain(
+      "tutorials",
+    );
+  });
+
+  it("starts it for a settings view-model a tour points through", () => {
+    expect(
+      gatesOf("packages/app-core/src/sections/settings/x-model.ts"),
+    ).toContain("tutorials");
+  });
+
+  it("leaves it out for a stylesheet-only or doc-only diff", () => {
+    expect(gatesOf("apps/pages/src/styles/shell.css")).not.toContain(
+      "tutorials",
+    );
+  });
+});
