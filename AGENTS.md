@@ -301,6 +301,8 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # where focus went. A control that is missing is a failure here although a
 # person would see it degrade to text. Run before touching a tutorial, the
 # tutorial card, the Support sheet or the target registry.
+# `TUTORIALS_SHARD=k/n` walks the kth of n slices of the library (by tutorial id);
+# slice 1 also runs Escape, the move and the gates. CI runs three per width.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:encrypted-search
 # Same harness, Encrypted search (ADR 0175) in the built app, at desktop and
