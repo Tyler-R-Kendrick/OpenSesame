@@ -16,7 +16,7 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "unlock.submit",
     description:
-      "The ink square that opens the vault — passkey, PIN or master password, whichever method is selected.",
+      "The ink square that opens the vault — passkey or PIN, or a master password an older vault still holds, whichever method is selected.",
     role: "action",
     routes: ["/unlock"],
     capabilityId: null,
@@ -24,7 +24,7 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "unlock.secret",
     description:
-      "The field that takes the master password or PIN used to unwrap the vault key on this device.",
+      "The field that takes the PIN (or, on an older vault, the master password) used to unwrap the vault key on this device.",
     role: "action",
     routes: ["/unlock"],
     capabilityId: null,
@@ -39,7 +39,7 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "unlock.methods",
     description:
-      "The tabs of unlock methods: exactly the keys this vault has enrolled — a passkey, a PIN, the master password — and on first run the three it can be sealed with.",
+      "The tabs of unlock methods: exactly the keys this vault has enrolled — a passkey, a PIN, or a master password an older vault still holds — and on first run the two it can be sealed with.",
     role: "navigation",
     routes: ["/unlock"],
     capabilityId: null,
@@ -55,7 +55,7 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "unlock.local-only",
     description:
-      "Use without an account, on first run: seals a vault on this device with a passkey, PIN or password and no account, so there is no sync and no account recovery.",
+      "Use without an account, on first run: seals a vault on this device with a passkey or PIN and no account, so there is no sync and no account recovery.",
     role: "action",
     routes: ["/unlock/signin"],
     capabilityId: null,

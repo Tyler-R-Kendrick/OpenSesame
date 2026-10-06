@@ -145,14 +145,6 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     routes: ["/settings"],
     capabilityId: null,
   },
-  {
-    id: "settings.master-password",
-    description:
-      "The master password's row under Unlock methods: it opens the sheet that sets or changes it. The vault key itself is unchanged, so no item is re-encrypted.",
-    role: "ceremony",
-    routes: ["/settings"],
-    capabilityId: null,
-  },
 
   // ── Statusline detail: the health notice ──────────────────────────────
   {

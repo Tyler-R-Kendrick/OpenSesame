@@ -4,11 +4,11 @@
  * methods), so a fresh vault — which has no recovery codes and therefore no
  * Recovery panel (ADR 0158) — still says it.
  */
-import { openSettingsCategory, sealWithPassword } from "./pages-journey.mjs";
+import { openSettingsCategory, sealWithPin } from "./pages-journey.mjs";
 
 export async function walkJRecovery({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page);
+  await sealWithPin(page);
   await openSettingsCategory(page, "Security");
   await page.getByRole("heading", { name: "Unlock methods" }).waitFor({
     timeout: 15000,

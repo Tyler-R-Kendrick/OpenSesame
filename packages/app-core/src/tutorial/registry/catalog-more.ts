@@ -46,7 +46,7 @@ export const GUIDE_TARGETS_MORE: readonly GuideTargetDescriptor[] = [
   {
     id: "vault.export",
     description:
-      "Opens the export sheet in the vault's path strip: one encrypted backup file of the sealed vault body plus its key-wrapping header, opened again with the master password, for moving to another device.",
+      "Opens the export sheet in the vault's path strip: one encrypted backup file of the sealed vault body plus its key-wrapping header, opened again with the unlock the vault already has, for moving to another device.",
     role: "ceremony",
     routes: ["/vault"],
     capabilityId: "vault.export",

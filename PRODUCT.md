@@ -28,7 +28,7 @@ An Infisical-class authority console that also keeps a human store on the device
 ## Brand commitments
 
 - Two stores, one console. Host holds connectors; this device holds human items.
-- Master password unwraps the device vault key. It is not stored. A reload asks for it again.
+- A passkey (or, where WebAuthn cannot run, a PIN) unwraps the device vault key. Nothing is stored. A reload asks again. A new vault is never sealed with a master password (ADR 0180).
 - Agents get ConnectionRefs and grants, never plaintext. There is no `getSecret()` affordance anywhere in the UI.
 - The statusline tells the truth about Host and Identity. "Online" is not a Host status.
 - Guests and anonymous use are first-class everywhere; sign-in is never required to be useful.
@@ -38,7 +38,7 @@ An Infisical-class authority console that also keeps a human store on the device
 ## Capabilities (this surface)
 
 - Create and unlock an E2EE vault: PBKDF2-SHA256 master key, AES-GCM wrapped vault key, sealed blob in OPFS
-- Unlock with passkey (WebAuthn PRF), PIN, and/or master password; optional TOTP MFA after primary unwrap
+- Unlock with passkey (WebAuthn PRF) or PIN; an older vault may still hold a master password, which Settings only removes. Optional TOTP MFA after primary unwrap
 - Vault items: login, passkey, card, secret, note, certificate, drop — full create/edit/delete, folders, favorites, trash
 - Certificates: enter names and lifetime; the Host generates the key/CSR and uses the sealed OpenSesame private CA by default, or a configured Let's Encrypt, ZeroSSL, or Cloudflare Origin CA connection without trust downgrade
 - Password generator (characters and passphrase), strength estimation, password health report (weak, reused, old)

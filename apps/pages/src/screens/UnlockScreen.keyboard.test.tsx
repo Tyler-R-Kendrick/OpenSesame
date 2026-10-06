@@ -63,7 +63,7 @@ describe("UnlockScreen — where the keyboard lands", () => {
     );
   });
 
-  it("lands on the master password once 'Use without an account' is chosen", () => {
+  it("lands on the PIN once 'Use without an account' is chosen with no passkey", () => {
     // The seal form mounts after the sign-in stage on the same screen; the
     // caret has to move into it even though the method never changed.
     v.state.status = "empty";
@@ -73,9 +73,7 @@ describe("UnlockScreen — where the keyboard lands", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Use without an account" }),
     );
-    expect(document.activeElement).toBe(
-      screen.getByLabelText("Master password"),
-    );
+    expect(document.activeElement).toBe(screen.getByLabelText("Device PIN"));
   });
 
   it("lands on the acknowledgement when the seal form opens on passkey", () => {

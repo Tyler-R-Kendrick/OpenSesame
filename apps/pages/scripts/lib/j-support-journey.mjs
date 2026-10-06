@@ -5,11 +5,11 @@
  * mutation tool (ADV-10); that gate is held at the enforcement boundary with
  * these exact strings in `lib/configuration/experience-journeys.test.ts`.
  */
-import { addCapabilities, sealWithPassword } from "./pages-journey.mjs";
+import { addCapabilities, sealWithPin } from "./pages-journey.mjs";
 
 export async function walkJSupport({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page);
+  await sealWithPin(page);
   // The support panel is contributed by `support.guided-help`: choose it
   // before its key exists (ADR 0130).
   await addCapabilities(page, ["Guided help"]);

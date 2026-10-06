@@ -27,7 +27,7 @@ export function unlockMethodTabs(input: {
   if (input.firstRun) {
     const available: UnlockTabId[] = [];
     if (input.passkeyOk) available.push("passkey");
-    available.push("pin", "password");
+    available.push("pin");
     return available;
   }
   const own: UnlockTabId[] = listAvailableUnlockMethods(input.header);
@@ -49,7 +49,7 @@ export function fallbackUnlockMethod(input: {
   passkeyOk: boolean;
   methods: readonly UnlockTabId[];
 }): UnlockTabId {
-  if (input.firstRun) return input.passkeyOk ? "passkey" : "password";
+  if (input.firstRun) return input.passkeyOk ? "passkey" : "pin";
   const preferred = preferredUnlockMethod(input.header);
   if (preferred && input.methods.includes(preferred)) return preferred;
   return input.methods[0] ?? preferred ?? "password";

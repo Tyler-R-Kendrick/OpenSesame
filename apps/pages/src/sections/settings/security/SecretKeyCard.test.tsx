@@ -13,8 +13,6 @@ import {
 
 const store = vi.hoisted(() => ({
   enrollPin: vi.fn(),
-  enrollPassword: vi.fn(),
-  changeMasterPassword: vi.fn(),
 }));
 
 import { vaultHooksSeams } from "../../../lib/vault/hooks.js";
@@ -32,11 +30,10 @@ function button(name: string) {
 }
 
 /**
- * The master password is set and changed in this card and nowhere else
- * (AGENTS.md: never a second PIN or password form), so the checks the old
- * Security › Master password panel made live here now.
+ * A PIN is set and changed in this card and nowhere else (AGENTS.md: never a
+ * second PIN form). There is no password card (ADR 0180).
  */
-describe("SecretKeyCard — the master password", () => {
+describe("SecretKeyCard — the PIN", () => {
   beforeEach(() => {
     for (const fn of Object.values(store)) fn.mockReset();
     run.mockClear();
@@ -46,88 +43,34 @@ describe("SecretKeyCard — the master password", () => {
     cleanup();
   });
 
-  it("asks for the current password before a change, and re-wraps with it", async () => {
+  it("sets a PIN once both entries match", async () => {
     const onDone = vi.fn();
-    render(
-      <SecretKeyCard
-        kind="password"
-        view="change"
-        busy={false}
-        run={run}
-        onDone={onDone}
-      />,
-    );
-    // The change view says what is already there before asking for more.
-    expect(screen.getByText("Enrolled")).toBeTruthy();
-    await userEvent.type(
-      screen.getByLabelText("New password"),
-      "correct horse battery",
-    );
-    await userEvent.type(
-      screen.getByLabelText("Confirm new password"),
-      "correct horse battery",
-    );
-    // Without the current password the change cannot be made.
-    expect(button("Change password").disabled).toBe(true);
-    await userEvent.type(
-      screen.getByLabelText("Current password"),
-      "old-password-1",
-    );
-    await userEvent.click(button("Change password"));
+    render(<SecretKeyCard view="add" busy={false} run={run} onDone={onDone} />);
+    expect(button("Set PIN").disabled).toBe(true);
+    await userEvent.type(screen.getByLabelText("PIN"), "48271639");
+    await userEvent.type(screen.getByLabelText("Confirm PIN"), "48271639");
+    await userEvent.click(button("Set PIN"));
     await waitFor(() =>
-      expect(store.changeMasterPassword).toHaveBeenCalledWith(
-        "old-password-1",
-        "correct horse battery",
-      ),
+      expect(store.enrollPin).toHaveBeenCalledWith("48271639"),
     );
-    expect(store.enrollPassword).not.toHaveBeenCalled();
     expect(onDone).toHaveBeenCalled();
   });
 
-  it("sets a first password without asking for one that does not exist", () => {
+  it("holds a PIN that does not match back", async () => {
     render(
-      <SecretKeyCard
-        kind="password"
-        view="add"
-        busy={false}
-        run={run}
-        onDone={() => {}}
-      />,
+      <SecretKeyCard view="add" busy={false} run={run} onDone={() => {}} />,
     );
-    expect(screen.queryByLabelText("Current password")).toBeNull();
+    await userEvent.type(screen.getByLabelText("PIN"), "48271639");
+    await userEvent.type(screen.getByLabelText("Confirm PIN"), "48271630");
+    expect(button("Set PIN").disabled).toBe(true);
+    expect(store.enrollPin).not.toHaveBeenCalled();
   });
 
-  it("suggests a strong password, fills the confirm and reveals it", async () => {
+  it("changes a PIN without asking for a current one, and offers no password", () => {
     render(
-      <SecretKeyCard
-        kind="password"
-        view="change"
-        busy={false}
-        run={run}
-        onDone={() => {}}
-      />,
+      <SecretKeyCard view="change" busy={false} run={run} onDone={() => {}} />,
     );
-    const field = screen.getByLabelText<HTMLInputElement>("New password");
-    expect(field.type).toBe("password");
-    await userEvent.click(button("Suggest a strong password"));
-    const revealed = screen.getByLabelText<HTMLInputElement>("New password");
-    expect(revealed.type).toBe("text");
-    expect(revealed.value.length).toBeGreaterThan(11);
-    expect(
-      screen.getByLabelText<HTMLInputElement>("Confirm new password").value,
-    ).toBe(revealed.value);
-  });
-
-  it("changes a PIN without a current-PIN field", () => {
-    render(
-      <SecretKeyCard
-        kind="pin"
-        view="change"
-        busy={false}
-        run={run}
-        onDone={() => {}}
-      />,
-    );
+    expect(screen.getByText("Enrolled")).toBeTruthy();
     expect(screen.queryByLabelText("Current password")).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Suggest a strong password" }),

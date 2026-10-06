@@ -40,8 +40,6 @@ export const store = {
   removePasskey: vi.fn(),
   enrollPin: vi.fn(),
   removePin: vi.fn(),
-  enrollPassword: vi.fn(),
-  changeMasterPassword: vi.fn(),
   removePassword: vi.fn(),
   beginTotpEnrollment: vi.fn(),
   confirmTotpEnrollment: vi.fn(),
@@ -130,6 +128,12 @@ export function pinAndPasswordHeader() {
     header: { wrap: {}, kdf: {}, unlocks: { pin: {} } },
   };
   listAvailableUnlockMethods.mockReturnValue(["password", "pin"]);
+}
+
+/** A vault sealed by a passkey alone: no master password anywhere on it. */
+export function passkeyOnlyHeader() {
+  vault.current = { header: { unlocks: { passkey: {} } } };
+  listAvailableUnlockMethods.mockReturnValue(["passkey"]);
 }
 
 export function guestHeader() {

@@ -13,7 +13,6 @@ import { UnlockScreen, unlockScreenDependencies } from "./UnlockScreen.js";
 import {
   ANSWERED,
   FEDERATED_BUTTON,
-  STRONG,
   UPSTREAM,
   beginSignIn,
   catalogSettled,
@@ -116,7 +115,7 @@ describe("UnlockScreen — first run", () => {
     expect(v.store.create).not.toHaveBeenCalled();
   });
 
-  it("hides passkey and falls back to password when WebAuthn cannot run", () => {
+  it("hides passkey and falls back to a PIN when WebAuthn cannot run", () => {
     v.host = {
       ok: false,
       reason: "Passkeys need a DNS hostname.",
@@ -126,7 +125,10 @@ describe("UnlockScreen — first run", () => {
     goLocalOnly();
     expect(screen.queryByRole("tab", { name: "Passkey" })).toBeNull();
     expect(screen.getByRole("tab", { name: "PIN" })).toBeTruthy();
-    expect(screen.getByLabelText(/Master password/)).toBeTruthy();
+    expect(screen.getByLabelText("Device PIN")).toBeTruthy();
+    // A password is never offered to seal a new vault (ADR 0180).
+    expect(screen.queryByRole("tab", { name: "Password" })).toBeNull();
+    expect(screen.queryByLabelText(/password/i)).toBeNull();
   });
 
   it("switching methods cancels a pending first-run passkey seal", async () => {
@@ -149,68 +151,60 @@ describe("UnlockScreen — first run", () => {
     await waitFor(() =>
       expect(v.store.createWithPasskey).toHaveBeenCalledTimes(1),
     );
-    fireEvent.click(screen.getByRole("tab", { name: "Password" }));
-    await waitFor(() => expect(masterInput().disabled).toBe(false));
+    fireEvent.click(screen.getByRole("tab", { name: "PIN" }));
+    await waitFor(() =>
+      expect(
+        overlapCast<unknown, HTMLInputElement>(
+          screen.getByLabelText("Device PIN"),
+        ).disabled,
+      ).toBe(false),
+    );
     expect(listNotices().filter((n) => n.kind === "status")).toEqual([]);
     expect(v.store.create).not.toHaveBeenCalled();
   });
 
-  it("explains the seal and keeps the submit disabled until the form is valid", () => {
+  it("never offers a master password to seal a new vault", () => {
     render(<UnlockScreen />);
     goLocalOnly();
-    chooseSealMethod("Password");
     expect(
       screen.getByRole("heading", { name: "Seal this device" }),
     ).toBeTruthy();
-    // Nothing to judge yet: the strength meter stays off a pristine field.
-    expect(screen.queryByText("Enter a master password")).toBeNull();
+    expect(screen.getByRole("tab", { name: "Passkey" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "PIN" })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: "Password" })).toBeNull();
+    expect(screen.queryByLabelText(/password/i)).toBeNull();
     expect(submitButton().disabled).toBe(true);
   });
 
-  it("warns about weak passwords as they are typed", () => {
+  it("keeps the PIN seal disabled until the PIN, its twin and the acknowledgement line up", () => {
     render(<UnlockScreen />);
     goLocalOnly();
-    chooseSealMethod("Password");
-    fireEvent.change(masterInput(), { target: { value: "hunter2" } });
-    expect(screen.getByText(/Very weak|Weak/)).toBeTruthy();
-    expect(
-      screen.getByText(/would not survive an offline attack/),
-    ).toBeTruthy();
-    expect(submitButton().disabled).toBe(true);
-  });
-
-  it("creates the vault once password, confirmation, and acknowledgement line up", async () => {
-    render(<UnlockScreen />);
-    goLocalOnly();
-    chooseSealMethod("Password");
-    fireEvent.change(masterInput(), { target: { value: STRONG } });
-    fireEvent.change(screen.getByLabelText("Confirm master password"), {
-      target: { value: STRONG },
+    chooseSealMethod("PIN");
+    fireEvent.change(screen.getByLabelText("Device PIN"), {
+      target: { value: "48291037" },
     });
-    fireEvent.change(screen.getByLabelText(/Reminder/), {
-      target: { value: "  my usual place  " },
+    fireEvent.change(screen.getByLabelText("Confirm PIN"), {
+      target: { value: "48291038" },
     });
-    // Still blocked until the no-recovery acknowledgement.
-    expect(submitButton().disabled).toBe(true);
     fireEvent.click(
       screen.getByLabelText("I understand this vault cannot be recovered."),
     );
-    expect(submitButton().disabled).toBe(false);
-
-    fireEvent.click(submitButton());
-    await waitFor(() =>
-      expect(v.store.create).toHaveBeenCalledWith(STRONG, "my usual place"),
-    );
+    expect(submitButton().disabled).toBe(true);
+    expect(v.store.createWithPin).not.toHaveBeenCalled();
   });
 
   it("shows create failures inline", async () => {
-    v.store.create.mockRejectedValue(new Error("storage quota exceeded"));
+    v.store.createWithPin.mockRejectedValue(
+      new Error("storage quota exceeded"),
+    );
     render(<UnlockScreen />);
     goLocalOnly();
-    chooseSealMethod("Password");
-    fireEvent.change(masterInput(), { target: { value: STRONG } });
-    fireEvent.change(screen.getByLabelText("Confirm master password"), {
-      target: { value: STRONG },
+    chooseSealMethod("PIN");
+    fireEvent.change(screen.getByLabelText("Device PIN"), {
+      target: { value: "48291037" },
+    });
+    fireEvent.change(screen.getByLabelText("Confirm PIN"), {
+      target: { value: "48291037" },
     });
     fireEvent.click(
       screen.getByLabelText("I understand this vault cannot be recovered."),
@@ -219,28 +213,12 @@ describe("UnlockScreen — first run", () => {
     await expectInTray("storage quota exceeded");
   });
 
-  it("reveals and hides both password fields together", () => {
-    render(<UnlockScreen />);
-    goLocalOnly();
-    chooseSealMethod("Password");
-    const master = masterInput();
-    expect(master.type).toBe("password");
-    fireEvent.click(screen.getByRole("button", { name: "Show password" }));
-    expect(master.type).toBe("text");
-    expect(
-      overlapCast(screen.getByLabelText("Confirm master password")).type,
-    ).toBe("text");
-    fireEvent.click(screen.getByRole("button", { name: "Hide password" }));
-    expect(master.type).toBe("password");
-  });
-
   it("offers the no-key road on first run as the local seal", () => {
     render(<UnlockScreen />);
     // The one no-account road here is the local seal.
     goLocalOnly();
-    chooseSealMethod("Password");
-    expect(masterInput()).toBeTruthy();
-    expect(v.store.create).not.toHaveBeenCalled();
+    chooseSealMethod("PIN");
+    expect(screen.getByLabelText("Device PIN")).toBeTruthy();
     expect(v.store.createWithPasskey).not.toHaveBeenCalled();
     expect(v.store.createWithPin).not.toHaveBeenCalled();
   });

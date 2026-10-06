@@ -17,8 +17,8 @@ import path from "node:path";
 import {
   lockVault,
   openSettingsCategory,
-  sealWithPassword,
-  unlockWithPassword,
+  sealWithPin,
+  unlockWithPin,
 } from "./pages-journey.mjs";
 
 const HIDE = [
@@ -100,7 +100,7 @@ async function unlockPersonal(page) {
   // One vault on the device: the unlock form is already up, no list to pick from.
   const pick = page.getByRole("button", { name: /^personal/ });
   if ((await pick.count()) > 0) await pick.first().click();
-  await unlockWithPassword(page);
+  await unlockWithPin(page);
 }
 
 async function openTravel(page) {
@@ -190,9 +190,7 @@ async function surfaces(page, base) {
 /** After a reload, a lock and an unlock with the real key. */
 async function atTheBorder({ page, check, snap }, base) {
   await page.reload({ waitUntil: "networkidle" });
-  await page
-    .getByLabel("Password", { exact: true })
-    .waitFor({ timeout: 15000 });
+  await page.getByLabel("PIN", { exact: true }).waitFor({ timeout: 15000 });
   await unlockPersonal(page);
   await lockVault(page);
   await unlockPersonal(page);
@@ -276,7 +274,7 @@ async function comeBack({ page, check, snap }, base, { bundle, code }) {
 export async function walkJTravelItems(context) {
   const { page, origin, base } = context;
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page);
+  await sealWithPin(page);
   for (const item of [...HIDE, ...KEEP, TRASHED]) await addItem(page, item);
   await trashFirst(page, base, TRASHED.name);
   // Before: the history does carry them, so the walk has something to find.

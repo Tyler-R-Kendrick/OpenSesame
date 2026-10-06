@@ -44,7 +44,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "vault.lock"',
-      'say "Locking drops the keys held in memory; the master password opens it again."',
+      'say "Locking drops the keys held in memory; your unlock method opens it again."',
       'focus "shell.lock" "This is the lock. Press it whenever you step away." side=top',
       'wait target "shell.lock" event=activate timeout=30000',
       'success "Locked. The vault is sealed until you unlock it again."',
@@ -105,11 +105,10 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "settings.security.review"',
-      'say "Security holds the keys that open this vault, the second steps asked after one, and the master password those unlocks are wrapped under."',
+      'say "Security holds the keys that open this vault, and the second steps asked after one."',
       'navigate "/settings/security"',
       'wait route "/settings/security" timeout=15000',
       'focus "settings.vault-key-protection" "The keys enrolled on this vault. Add opens one sheet for a recovery key, a passkey, an age recipient or a cloud key; each row can be tested, and most removed." side=top',
-      'focus "settings.master-password" "Changing it re-wraps the vault key. No item is re-encrypted, and nothing is re-uploaded." side=top',
       'focus "settings.second-step" "Second steps are asked after a key. Nothing turns on until a code from the new method matches." side=top',
       'success "Every row here has one action, and each opens the same sheet."',
       "end",
@@ -152,7 +151,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     guide: [
       "guide/1",
       'goal "vault.export"',
-      'say "An export is one encrypted backup file: the sealed vault body plus its key-wrapping header. It is opened again with the master password, for moving to another device."',
+      'say "An export is one encrypted backup file: the sealed vault body plus its key-wrapping header. It is opened again with the unlock the vault already has, for moving to another device."',
       'navigate "/vault"',
       'wait route "/vault" timeout=15000',
       'focus "vault.export" "Export opens the export sheet; on a phone, hold the + and slide down, then let go on Export. Nothing is written until you choose where to save it." side=bottom',
@@ -281,9 +280,9 @@ export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
   },
   {
     id: "help.settings.security.review",
-    title: "Where are the unlock and master-password settings?",
+    title: "Where are the unlock settings?",
     answer:
-      "Settings → Security. It holds the unlock methods enrolled on this device — password, PIN, passkey — and the master password they are wrapped under. Changing the master password re-wraps the vault key; it does not re-encrypt your items.",
+      "Settings → Security. It holds the unlock methods enrolled on this device — passkey and PIN — and the second steps asked after one. A new vault is sealed with a passkey; a master password is never added, and an older vault that still has one can remove it once a passkey is enrolled.",
     routes: [],
     goal: "settings.security.review",
     keywords: [

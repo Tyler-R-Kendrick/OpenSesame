@@ -8,7 +8,7 @@
 import {
   openConfigForm,
   openSettingsCategory,
-  sealWithPassword,
+  sealWithPin,
 } from "./pages-journey.mjs";
 
 const INSTALLED = "settings/item-types/installed";
@@ -55,7 +55,7 @@ const TICKET = JSON.stringify({
 
 export async function walkJTypes({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page);
+  await sealWithPin(page);
   await openSettingsCategory(page, "Vaults");
   await page.getByRole("heading", { name: "Item types" }).waitFor({
     timeout: 15000,

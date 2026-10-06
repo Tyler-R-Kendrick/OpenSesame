@@ -44,7 +44,6 @@ const OUT = path.resolve(
     path.join(here, "..", "..", "..", "artifacts", "auth-flow"),
 );
 const PIN = "48291037";
-const PASSWORD = "correct horse battery staple 2026";
 const MIME = {
   ".html": "text/html",
   ".js": "text/javascript",
@@ -278,24 +277,22 @@ const browser = await chromium.launch(launch);
   await context.close();
 }
 
-// ---- 2: a password-sealed vault enrolls MFA directly
+// ---- 2: a PIN-sealed vault enrolls MFA directly
 {
   const { page, context } = await newPage(browser);
-  step = "2-password";
+  step = "2-pin";
   await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
   // The local-only seal is a sign-in road, behind the door (ADR 0150 §1).
   await passTheDoor(page);
   await page.getByRole("button", { name: "Use without an account" }).click();
   await page.waitForTimeout(500);
-  await page.getByRole("tab", { name: "Password" }).click();
-  await page.getByLabel("Master password", { exact: true }).fill(PASSWORD);
-  await page
-    .getByLabel("Confirm master password", { exact: true })
-    .fill(PASSWORD);
+  await page.getByRole("tab", { name: "PIN" }).click();
+  await page.getByLabel("Device PIN", { exact: true }).fill(PIN);
+  await page.getByLabel("Confirm PIN", { exact: true }).fill(PIN);
   await page
     .getByLabel("I understand this vault cannot be recovered.", { exact: true })
     .check();
-  await page.getByRole("button", { name: "Seal this device" }).click();
+  await page.getByRole("button", { name: "Seal with PIN" }).click();
   await page.waitForTimeout(5000);
   check(/@/.test(await text(page)), "sealed device landed inside the app");
   await goSecurity(page);
@@ -305,7 +302,7 @@ const browser = await chromium.launch(launch);
     .click();
   await page.waitForTimeout(2500);
   const dialog = page.getByRole("dialog");
-  await snap(page, "2-password-scan");
+  await snap(page, "2-pin-scan");
   check(
     (await dialog.locator(".steps__seg.is-now .steps__label").textContent()) ===
       "1 · Scan",
@@ -332,17 +329,17 @@ const browser = await chromium.launch(launch);
   // code by hand — the road a person gets once they trash the entry.
   await withdrawSelfAuthenticator(page, check);
   await lock(page);
-  const locked = await snap(page, "2-password-locked");
+  const locked = await snap(page, "2-pin-locked");
   check(
-    (await page.getByRole("tab", { name: "Password" }).count()) === 1 &&
-      (await page.getByRole("tab", { name: "PIN" }).count()) === 0,
-    "only the password tab is offered",
+    (await page.getByRole("tab", { name: "PIN" }).count()) === 1 &&
+      (await page.getByRole("tab", { name: "Password" }).count()) === 0,
+    "only the PIN tab is offered",
   );
   check(/2 · Authenticator code/.test(locked), "step 2 announced");
-  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByLabel("PIN", { exact: true }).fill(PIN);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await page.waitForTimeout(5000);
-  await finishUnlockWithCode(page, secret, "2-password", {
+  await finishUnlockWithCode(page, secret, "2-pin", {
     check,
     snap,
     totp,
@@ -361,7 +358,7 @@ await protectorJourney({
   },
   openSecurity: goSecurity,
   lock,
-  PASSWORD,
+  PIN,
   ORIGIN,
   BASE,
   totp,

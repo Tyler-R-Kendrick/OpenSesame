@@ -9,8 +9,8 @@ import {
   openConfigForm,
   openGeneral,
   runCommand,
-  sealWithPassword,
-  unlockWithPassword,
+  sealWithPin,
+  unlockWithPin,
 } from "./pages-journey.mjs";
 
 /** The Keybindings tab, reached the way a person reaches it. */
@@ -66,7 +66,7 @@ async function reducedMotionCountdown(page, check) {
 
 export async function walkJNav({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page);
+  await sealWithPin(page);
   await openGeneral(page);
   // Pending approvals are an Access › Requests concern, not a setting.
   check(
@@ -107,7 +107,7 @@ export async function walkJNav({ page, origin, base, check, snap }) {
   await snap(page, "J-NAV-config");
   await lockVault(page);
   await page.reload({ waitUntil: "networkidle" });
-  await unlockWithPassword(page);
+  await unlockWithPin(page);
   await openKeybindings(page);
   check(
     (await page

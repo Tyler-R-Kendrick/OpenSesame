@@ -84,11 +84,6 @@ function UnlockMethodsBody() {
   );
   const secondStepRef = useGuideTarget<HTMLElement>("settings.second-step");
   const recoveryRef = useGuideTarget<HTMLElement>("settings.recovery");
-  // The one place a master password is set or changed (AGENTS.md: never a
-  // second password form).
-  const passwordRef = useGuideTarget<HTMLButtonElement>(
-    "settings.master-password",
-  );
 
   useEffect(() => {
     setWebauthnHost(checkWebauthnHost());
@@ -156,23 +151,24 @@ function UnlockMethodsBody() {
         action={
           on ? (
             <IconKey
-              label={kind === "passkey" ? "Remove" : "Change"}
+              label={kind === "pin" ? "Change" : "Remove"}
               small
-              keyRef={kind === "password" ? passwordRef : undefined}
               disabled={busy}
-              onClick={open(kind, kind === "passkey" ? "remove" : "change")}
+              onClick={open(
+                kind,
+                kind === "passkey" || kind === "password" ? "remove" : "change",
+              )}
             >
-              {kind === "passkey" ? (
-                <IconTrash size={16} />
-              ) : (
+              {kind === "pin" ? (
                 <IconEdit size={16} />
+              ) : (
+                <IconTrash size={16} />
               )}
             </IconKey>
           ) : (
             <IconKey
               label="Add"
               small
-              keyRef={kind === "password" ? passwordRef : undefined}
               disabled={busy}
               onClick={open(kind, "add")}
             >
@@ -223,13 +219,18 @@ function UnlockMethodsBody() {
             "Four to twelve digits, held on this device.",
             "Four to twelve digits, held on this device.",
           )}
-          {keyRow(
-            "password",
-            "Twelve characters or more.",
-            header?.hint
-              ? "The reminder you saved shows at unlock."
-              : "Master password.",
-          )}
+          {/* A master password is never added or changed (ADR 0180). A vault
+              that already holds one keeps its row, so it can be removed once
+              a passkey is in place — and only then. */}
+          {enrolled.includes("password")
+            ? keyRow(
+                "password",
+                "",
+                header?.hint
+                  ? "The reminder you saved shows at unlock."
+                  : "Master password.",
+              )
+            : null}
         </div>
       </section>
 

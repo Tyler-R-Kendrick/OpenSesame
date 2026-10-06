@@ -2,28 +2,26 @@
  * The unlock screen a phone sees for a vault with an enrolled recovery key
  * (ADR 0152): the extra tab, its field, and the second tab row all measured
  * against the touch contract — the 44px keys, the 16px field, nothing hidden
- * in a strip. A password vault is sealed in the touch context, a recovery key
+ * in a strip. A PIN vault is sealed in the touch context, a recovery key
  * is enrolled from Settings, and the vault is locked; every stop is audited
  * by the walk's own `audit`, so a regression here fails the same gate.
  */
 import fs from "node:fs";
 import { passTheDoor } from "./front-door.mjs";
 
-const PASSWORD = "correct horse battery staple 2026";
+const PIN = "48291037";
 
-async function sealWithPassword(page) {
+async function sealWithPin(page) {
   await passTheDoor(page);
   await page.getByRole("button", { name: "Use without an account" }).tap();
   await page.waitForTimeout(500);
-  await page.getByRole("tab", { name: "Password" }).tap();
-  await page.getByLabel("Master password", { exact: true }).fill(PASSWORD);
-  await page
-    .getByLabel("Confirm master password", { exact: true })
-    .fill(PASSWORD);
+  await page.getByRole("tab", { name: "PIN" }).tap();
+  await page.getByLabel("Device PIN", { exact: true }).fill(PIN);
+  await page.getByLabel("Confirm PIN", { exact: true }).fill(PIN);
   await page
     .getByLabel("I understand this vault cannot be recovered.", { exact: true })
     .check();
-  await page.getByRole("button", { name: "Seal this device" }).tap();
+  await page.getByRole("button", { name: "Seal with PIN" }).tap();
   await page.waitForTimeout(5000);
 }
 
@@ -45,7 +43,7 @@ export async function protectorUnlockStops(
   { harness, audit, openTab, stop, origin, base },
 ) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page);
+  await sealWithPin(page);
   await openSecurity(page, openTab);
   const add = page.getByRole("button", { name: "Add key protection method" });
   if ((await add.count()) === 0) {

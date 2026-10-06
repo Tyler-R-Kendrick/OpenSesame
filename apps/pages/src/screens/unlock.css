@@ -405,42 +405,6 @@
   border-bottom-color: var(--accent);
 }
 
-.unlock__meter {
-  display: grid;
-  gap: 0.35rem;
-}
-
-.unlock__track {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 3px;
-  height: 5px;
-}
-
-.unlock__track span {
-  border-radius: 0;
-  background: var(--surface-3);
-  transition: background 220ms var(--ease);
-}
-
-.unlock__meter-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem;
-  font-size: 0.8125rem;
-}
-
-.unlock__meter-label {
-  font-weight: 600;
-}
-
-.unlock__bits {
-  color: var(--ink-2);
-  font-family: var(--mono);
-  font-size: 0.75rem;
-}
-
 .unlock__terms {
   display: grid;
   gap: 0.5rem;
@@ -483,18 +447,6 @@
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
-}
-
-.unlock__optional summary {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--accent);
-  cursor: pointer;
-  list-style-position: inside;
-}
-
-.unlock__optional[open] summary {
-  margin-bottom: 0.5rem;
 }
 
 .unlock__hint {

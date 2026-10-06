@@ -57,7 +57,7 @@ describe("UnlockScreen — guidance is drawn in the page, not trayed", () => {
     expect(submitButton().disabled).toBe(true);
     expect(v.store.createWithPin).not.toHaveBeenCalled();
     // Leaving the field takes the guidance with it; nothing is left behind.
-    chooseSealMethod("Password");
+    chooseSealMethod("Passkey");
     expect(screen.queryByText(/sequential run of digits/)).toBeNull();
     expect(statusNotices()).toEqual([]);
   });

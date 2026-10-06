@@ -10,9 +10,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
-  PASSWORD,
+  PIN,
   openSettingsCategory,
-  sealWithPassword,
+  sealWithPin,
   waitOpen,
 } from "./pages-journey.mjs";
 
@@ -21,7 +21,7 @@ const panel = async (page) =>
 
 async function openPersonal(page) {
   await page.getByRole("button", { name: /^personal/ }).click();
-  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByLabel("PIN", { exact: true }).fill(PIN);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page);
   await openSettingsCategory(page, "Vaults");
@@ -192,7 +192,7 @@ async function comeHome({ page, check, snap }, { bundle, code }) {
 export async function walkJTravel(context) {
   const { page, origin, base } = context;
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page);
+  await sealWithPin(page);
   await openSettingsCategory(page, "Vaults");
   await markSafe(context);
   const trip = await depart(context);

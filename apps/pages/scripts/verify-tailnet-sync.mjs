@@ -21,7 +21,14 @@
 // TAILNET_SYNC_TAILNET=<name>,<tls port>,<100.x address> runs the same walk
 // over a real tailnet instead (scripts/test/tailnet-sync-real-tailnet.sh).
 //
-//   TS-PAIR    device A seals a vault with a password, saves an item, turns
+//   NOT MIGRATED (ADR 0180): this walk needs a wrap that travels to a second
+//   device. A PIN never does (tailnet-sync/snapshot.ts) and a master password
+//   can no longer be created in the UI, so A is sealed with a PIN here and
+//   TS-ADOPT cannot open the vault on B. It needs a fixture that seals A with
+//   a passkey whose PRF output a second virtual authenticator can reproduce.
+//   Not part of CI; run it by hand only once that fixture exists.
+//
+//   TS-PAIR    device A seals a vault with a PIN, saves an item, turns
 //              Networking on and pairs (the row's key opens the pairing
 //              sheet, the code goes in the sheet, its commit pairs): the panel
 //              reports it in step and the drive holds generation ≥ 1 of a
@@ -29,7 +36,7 @@
 //   TS-ADOPT   device B, a guest, opens the pairing link: the sheet opens with
 //              the code from the fragment filled in and gone from the address
 //              bar, pressing the sheet's commit hands over to an unlock
-//              screen, and A's master password opens A's item
+//              screen, and A's key opens A's item
 //   TS-BACK    B saves an item; A, syncing, shows it
 //   TS-FILE    A seals a file in a File item; B downloads the same bytes, its
 //              parts carried by the drive (lib/tailnet-sync-file.mjs)
@@ -49,7 +56,7 @@ import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
-import { sealWithPassword, unlockWithPassword } from "./lib/pages-journey.mjs";
+import { sealWithPin, unlockWithPin } from "./lib/pages-journey.mjs";
 import { openVaultList, toTheList } from "./lib/phone-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import {
@@ -211,7 +218,7 @@ try {
   const a = await device(browser, {
     device: { viewport: { width: 1280, height: 900 } },
   });
-  await sealWithPassword(a.page);
+  await sealWithPin(a.page);
   await saveItem(a.page, "Bank of Example");
   await networkingOn(a.page);
   await visit(a.page, "settings/vaults");
@@ -269,7 +276,7 @@ try {
     .getByLabel("Password", { exact: true })
     .waitFor({ timeout: 20_000 });
   await shot(b.page, "390-device-b-unlock");
-  await unlockWithPassword(b.page);
+  await unlockWithPin(b.page);
   await visit(b.page, "vault");
   // A phone opens the vault on the section tree; the item is two panes in.
   await openVaultList(b.page);

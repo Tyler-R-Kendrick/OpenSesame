@@ -49,7 +49,7 @@ import { prepareScreen, tabStep } from "./lib/capture-tab-step.mjs";
 import { vaultSteps } from "./lib/capture-vault-steps.mjs";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
-import { sealWithPassword } from "./lib/pages-journey.mjs";
+import { sealWithPin } from "./lib/pages-journey.mjs";
 import { switchSteps } from "./lib/switch-steps.mjs";
 import { tapStep } from "./lib/tap-step.mjs";
 import { composeSheet } from "./lib/visual-evidence.mjs";
@@ -119,7 +119,7 @@ const STEPS = {
    * instance policy).
    */
   async seal(page) {
-    await sealWithPassword(page);
+    await sealWithPin(page);
     await page.waitForTimeout(1400);
   },
   async guest(page) {

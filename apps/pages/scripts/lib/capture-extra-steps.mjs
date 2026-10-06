@@ -18,7 +18,7 @@ import { railSteps } from "./capture-rail-steps.mjs";
 import { routingSteps } from "./capture-routing-steps.mjs";
 import { pluginAndWalkSteps } from "./capture-settings-walk-steps.mjs";
 import { keySteps } from "./key-steps.mjs";
-import { sealWithPin, unlockWithPassword } from "./pages-journey.mjs";
+import { sealWithPin, unlockWithPin } from "./pages-journey.mjs";
 
 async function sealPin(page) {
   await sealWithPin(page);
@@ -45,7 +45,7 @@ export function extraSteps({ press }) {
     async reloadUnlock(page) {
       await page.reload({ waitUntil: "networkidle" });
       await page.waitForTimeout(5200);
-      await unlockWithPassword(page);
+      await unlockWithPin(page);
       await page.waitForTimeout(1400);
     },
     ...pluginAndWalkSteps(),

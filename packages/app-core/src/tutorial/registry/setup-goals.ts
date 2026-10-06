@@ -99,7 +99,7 @@ export const SETUP_HELP: readonly HelpTopic[] = [
     id: "help.unlock",
     title: "How do I unlock the vault?",
     answer:
-      "The unlock screen is the passkey, PIN or master password challenge for this device. Signing in with an identity provider is a separate tab and does not unwrap the vault key.",
+      "The unlock screen is the passkey or PIN challenge for this device (an older vault may still hold a master password). Signing in with an identity provider is a separate tab and does not unwrap the vault key.",
     routes: ["/unlock"],
     goal: "gate.unlock",
     keywords: [

@@ -72,10 +72,10 @@ Turn on **Networking** in Settings › Capabilities on each device; the
   turn on Networking, press the row's **Set this device up from the drive**
   key in Settings › Vaults and paste the code in the sheet (or open the
   link). The vault is written into this device and the unlock screen asks
-  for its **master password** or a **synced passkey**. Enrol a PIN afterwards if you want one;
-  PINs never leave the device that set them, so a vault that only a PIN opens
-  must get a password or passkey on its first device before it can be set up
-  anywhere else.
+  for a **synced passkey** (or, on a vault made before ADR 0180, its **master
+  password**). Enrol a PIN afterwards if you want one; PINs never leave the
+  device that set them, so a vault that only a PIN opens must get a passkey on
+  its first device before it can be set up anywhere else.
 
 After that each device syncs on unlock, 1.5 s after a change, once a minute
 while the vault is open, when the app is looked at again, and when the device

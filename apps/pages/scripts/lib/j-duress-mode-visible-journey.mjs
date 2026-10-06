@@ -14,9 +14,9 @@
  */
 import { TELLS } from "./j-duress-journey.mjs";
 import {
-  PASSWORD,
+  PIN,
   openSettingsCategory,
-  sealWithPassword,
+  sealWithPin,
   waitOpen,
 } from "./pages-journey.mjs";
 
@@ -142,14 +142,12 @@ async function turnOn({ page, check, snap }) {
 async function useCode({ page, base, check, snap }) {
   await page.waitForTimeout(1500);
   await page.reload({ waitUntil: "networkidle" });
-  await page
-    .getByLabel("Password", { exact: true })
-    .waitFor({ timeout: 15000 });
+  await page.getByLabel("PIN", { exact: true }).waitFor({ timeout: 15000 });
   check(
     (await page.getByText("Continue as guest").count()) >= 1,
     "the guest road is still on the unlock screen",
   );
-  await page.getByLabel("Password", { exact: true }).fill(CODE);
+  await page.getByLabel("PIN", { exact: true }).fill(CODE);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page).catch(async (error) => {
     const body = await page.evaluate(() => document.body.innerText);
@@ -213,10 +211,8 @@ async function comeBack({ page, base, check, snap }) {
     .locator("visible=true")
     .first()
     .click();
-  await page
-    .getByLabel("Password", { exact: true })
-    .waitFor({ timeout: 15000 });
-  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByLabel("PIN", { exact: true }).waitFor({ timeout: 15000 });
+  await page.getByLabel("PIN", { exact: true }).fill(PIN);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page);
   await toTheVault(page, base);
@@ -234,7 +230,7 @@ async function comeBack({ page, base, check, snap }) {
 export async function walkJDuressVisible(context) {
   const { page, origin, base } = context;
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page);
+  await sealWithPin(page);
   for (const item of ALL) await keepItem(page, item);
   await turnOn(context);
   await useCode(context);

@@ -7,7 +7,6 @@ import { PERSONAL_PROJECT_ID } from "@opensesame/app-core/lib/projects.js";
 import type { FederatedProviderSummary } from "@opensesame/app-core/lib/providers.js";
 import { noWayIn } from "@opensesame/app-core/lib/settings.js";
 import { loadSetup, unlockViable } from "@opensesame/app-core/lib/setup.js";
-import { estimateStrength } from "@opensesame/app-core/lib/vault/password.js";
 import type { UnlockTabId } from "@opensesame/app-core/lib/vault/protection/unlock-protector-methods.js";
 import type { SentCode } from "@opensesame/app-core/lib/vault/remote-code.js";
 import { GUEST_TOMB } from "@opensesame/app-core/lib/vault/store.js";
@@ -56,7 +55,6 @@ import { ResetBrowser } from "./unlock/ResetBrowser.js";
 import { ResetVault } from "./unlock/ResetVault.js";
 import { SecondStepFields } from "./unlock/SecondStepFields.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
-import { StrengthMeter } from "./unlock/StrengthMeter.js";
 import { UnlockUserMenu } from "./unlock/UnlockUserMenu.js";
 import {
   METHOD_LABEL,
@@ -262,7 +260,6 @@ function UnlockForm({
   const [recoveryMode, setRecoveryMode] = useState(false);
   const [recovery, setRecovery] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [hint, setHint] = useState("");
   const [accepted, setAccepted] = useState(false);
   const [reveal, setReveal] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -361,7 +358,6 @@ function UnlockForm({
       confirm,
       password,
       protectorSecret,
-      hint,
       recovery,
       totp,
       setPin,
@@ -378,18 +374,16 @@ function UnlockForm({
     });
   }
 
-  const strength = estimateStrength(password);
   const pinProblems =
     firstRun && activeMethod === "pin" ? pinPolicyProblems(pin) : [];
   const pinProblem =
     activeMethod === "pin" && pin.length > 0 ? (pinProblems[0] ?? null) : null;
+  // A new vault is sealed with a passkey or a PIN, never a password (ADR 0180).
   const createBlocked =
     !accepted ||
     (isCeremonyMethod(activeMethod)
       ? !passkeyHost.ok
-      : activeMethod === "pin"
-        ? pinProblems.length > 0 || pin !== confirm
-        : password.length < 12 || password !== confirm || strength.score < 2);
+      : activeMethod !== "pin" || pinProblems.length > 0 || pin !== confirm);
 
   let unlockBlocked = true;
   if (guestKeyless) unlockBlocked = false;
@@ -693,9 +687,7 @@ function UnlockForm({
 
             {showsPrimaryField && activeMethod === "password" && (
               <div className="field">
-                <label htmlFor="master">
-                  {firstRun ? "Master password" : "Password"}
-                </label>
+                <label htmlFor="master">Password</label>
                 <div className="unlock__reveal">
                   <input
                     id="master"
@@ -704,13 +696,10 @@ function UnlockForm({
                       secretRef(element);
                     }}
                     type={reveal ? "text" : "password"}
-                    autoComplete={
-                      firstRun ? "new-password" : "current-password"
-                    }
+                    autoComplete="current-password"
                     value={password}
                     disabled={busy || lockedFor > 0}
                     onChange={(e) => setPassword(e.target.value)}
-                    aria-describedby={firstRun ? "master-help" : undefined}
                   />
                   <button
                     type="button"
@@ -723,46 +712,6 @@ function UnlockForm({
                 </div>
               </div>
             )}
-
-            {firstRun && activeMethod === "password" ? (
-              <>
-                {/* Nothing to judge before anything is typed — a meter with a
-                    red "enter a password" under a pristine field reads as an
-                    error the person hasn't earned yet. */}
-                {password.length > 0 ? (
-                  <StrengthMeter password={password} />
-                ) : null}
-                <div className="field">
-                  <label htmlFor="confirm">Confirm master password</label>
-                  <input
-                    id="confirm"
-                    type={reveal ? "text" : "password"}
-                    autoComplete="new-password"
-                    value={confirm}
-                    disabled={busy}
-                    onChange={(e) => setConfirm(e.target.value)}
-                  />
-                </div>
-                <details className="unlock__optional">
-                  <summary>Add an unlock reminder (optional)</summary>
-                  <div className="field">
-                    <input
-                      id="hint"
-                      type="text"
-                      value={hint}
-                      maxLength={80}
-                      aria-label="Reminder"
-                      placeholder="Something only you would understand"
-                      onChange={(e) => setHint(e.target.value)}
-                    />
-                    <p className="hint">
-                      Stored unencrypted beside the vault so it can be shown
-                      before you unlock. Never put the password itself here.
-                    </p>
-                  </div>
-                </details>
-              </>
-            ) : null}
 
             {firstRun && activeMethod === "pin" ? (
               <div className="field">
@@ -784,9 +733,7 @@ function UnlockForm({
                 <p id="master-help">
                   {activeMethod === "passkey"
                     ? "There is no recovery. Lose this device's authenticator and the encrypted items on this device are unreadable — by you and by us."
-                    : activeMethod === "pin"
-                      ? "There is no recovery. Forget this PIN and the encrypted items on this device are unreadable — by you and by us."
-                      : "There is no recovery. Forget this password and the encrypted items on this device are unreadable — by you and by us."}
+                    : "There is no recovery. Forget this PIN and the encrypted items on this device are unreadable — by you and by us."}
                 </p>
                 <label className="check">
                   <input
@@ -854,16 +801,6 @@ function UnlockForm({
                 </span>
               </div>
             )}
-
-            {firstRun &&
-            activeMethod === "password" &&
-            password.length > 0 &&
-            strength.score < 2 ? (
-              <p className="hint">
-                Aim for a passphrase of four or more unrelated words. This one
-                would not survive an offline attack on the encrypted file.
-              </p>
-            ) : null}
           </form>
         )}
 
