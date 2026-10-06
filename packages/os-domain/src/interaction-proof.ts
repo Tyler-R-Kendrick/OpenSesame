@@ -12,7 +12,8 @@
  *
  * So there are two halves here, and they are deliberately separate:
  *
- * - `sealApprovalProof` is the *only* way to make an `ApprovalProof`. Every
+ * - `sealApprovalProof` is the *only* way to make a `SealedApprovalProof`, the
+ *   one type `interactionMachine.approve` accepts. Every
  *   field of the result comes from a server-established fact — the mechanism
  *   the route verified, the digest it stored, the assurance read from the
  *   approver's principal record, the server's own clock. Nothing a client
@@ -25,60 +26,20 @@
  */
 
 import { DomainError } from "./errors.js";
-import type { ApprovalMechanism, ApprovalProof } from "./interaction.js";
 import {
   type JsonValue,
   isString,
   isTypeofObject,
   overlapCast,
 } from "./json.js";
-import type { AssuranceLevel } from "./types.js";
 
-/**
- * Facts the server itself established about an approval.
- *
- * This is the input to `sealApprovalProof`, and it is a distinct type from
- * `ApprovalProof` precisely so a value that came off the wire cannot be handed
- * in by accident: constructing one is an act of asserting "I, the server,
- * verified these things", and the only place that is true is the route after
- * it has done the verifying.
- */
-export interface ServerEstablishedApproval {
-  /** The mechanism the route actually verified. Not a client claim. */
-  mechanism: ApprovalMechanism;
-  /** The digest the interaction stored, which the echo was checked against. */
-  boundDigest: string;
-  /** The assurance read from the approver's principal record. */
-  assurance: AssuranceLevel;
-  /** The server's own clock at the moment of verification. */
-  verifiedAt: Date;
-  /** Non-secret handle for the key or credential that signed, when there is one. */
-  credentialRef?: string;
-}
-
-/**
- * Seal a proof from server-established facts.
- *
- * The one constructor of `ApprovalProof`. `exactOptionalPropertyTypes` is on,
- * so `credentialRef` is assigned only when present rather than spread in as
- * `undefined` — a proof either names the credential that signed or does not,
- * and an explicit `undefined` is a third state the audit row should never
- * carry.
- */
-export function sealApprovalProof(
-  facts: ServerEstablishedApproval,
-): ApprovalProof {
-  const proof: ApprovalProof = {
-    mechanism: facts.mechanism,
-    boundDigest: facts.boundDigest,
-    assurance: facts.assurance,
-    verifiedAt: facts.verifiedAt,
-  };
-  if (facts.credentialRef !== undefined) {
-    proof.credentialRef = facts.credentialRef;
-  }
-  return proof;
-}
+// The one constructor, and the sealed type it makes, live under `proofs/`
+// (ADR 0177); they are re-exported here so the entry points do not move.
+export {
+  type SealedApprovalProof,
+  type ServerEstablishedApproval,
+  sealApprovalProof,
+} from "./proofs/approval-seal.js";
 
 /**
  * What a client may send when approving: the digest it was shown, and — at

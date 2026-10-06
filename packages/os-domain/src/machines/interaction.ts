@@ -12,11 +12,11 @@
 
 import { DomainError } from "../errors.js";
 import type {
-  ApprovalProof,
   Interaction,
   InteractionKind,
   InteractionStatus,
 } from "../interaction.js";
+import type { SealedApprovalProof } from "../proofs/approval-seal.js";
 import type { PrincipalId } from "../types.js";
 
 type InteractionTransitions = {
@@ -176,7 +176,8 @@ export function awaitApproval(
 
 export interface ApproveInput {
   approverPrincipalId: PrincipalId;
-  proof: ApprovalProof;
+  /** Only `sealApprovalProof` makes one; a literal does not compile. */
+  proof: SealedApprovalProof;
   now: Date;
 }
 

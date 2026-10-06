@@ -58,6 +58,8 @@ const LOCAL_RECORDS = [
   "local-request-store",
   "local-sessions",
   "local-share-grants",
+  // Who may write a share (ADR 0177): the proofs local-share-grants takes.
+  "proofs/share-write",
   "local-vault-session-issue",
   "local-vault-sessions",
   "pages-dogfood",

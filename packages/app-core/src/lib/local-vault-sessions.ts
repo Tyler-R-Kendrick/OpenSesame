@@ -8,6 +8,7 @@
  * Join a session / redeem uses to attach a principal mid-run.
  */
 
+import { type Named, name } from "@gdp-ts/core";
 import type { OrganizationRole } from "@opensesame/os-domain";
 import {
   type BoundaryValue,
@@ -25,6 +26,11 @@ import {
   revokeSharesForSession,
 } from "./local-share-grants.js";
 import { issueSessionGrants } from "./local-vault-session-issue.js";
+import {
+  type ManageGrants,
+  requireManageGrants,
+  systemShareWrite,
+} from "./proofs/share-write.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
 const PATH = "config/vault-sessions";
@@ -189,9 +195,10 @@ async function settleExpired(
       continue;
     }
     dirty = true;
-    await revokeSharesForSession(tomb, session.id, {
-      bypassAccessCheck: true,
-    });
+    // An expiry sweep runs for the vault, whoever opened the list.
+    await name(tomb, (named) =>
+      revokeSharesForSession(named, session.id, systemShareWrite(named)),
+    );
     next.push({
       ...session,
       status: "stopped",
@@ -253,14 +260,25 @@ export async function startVaultSession(
   tomb: string,
   sessionId: string,
 ): Promise<LocalVaultSession> {
-  await assertAccessCapability(tomb, "manage_grants");
+  return name(tomb, async (named) => {
+    const manage = await requireManageGrants(named);
+    return startCheckedVaultSession(named, tomb, sessionId, manage);
+  });
+}
+
+async function startCheckedVaultSession<T>(
+  named: Named<T, string>,
+  tomb: string,
+  sessionId: string,
+  manage: ManageGrants<T>,
+): Promise<LocalVaultSession> {
   const current = await settleExpired(tomb, await readAll(tomb));
   const index = current.findIndex((row) => row.id === sessionId);
   if (index < 0) throw new LocalDirectoryError("This session is unavailable.");
   let session = current[index];
   if (!session) throw new LocalDirectoryError("This session is unavailable.");
   if (session.status === "running") {
-    await revokeSharesForSession(tomb, session.id, { bypassAccessCheck: true });
+    await revokeSharesForSession(named, session.id, manage);
   }
   const startedAt = Date.now();
   session = {
@@ -276,9 +294,7 @@ export async function startVaultSession(
     current[index] = session;
     await writeAll(tomb, current);
   } catch (error) {
-    await revokeSharesForSession(tomb, session.id, {
-      bypassAccessCheck: true,
-    });
+    await revokeSharesForSession(named, session.id, manage);
     const previous = current[index];
     if (previous?.status === "running") {
       current[index] = {
@@ -299,13 +315,24 @@ export async function stopVaultSession(
   tomb: string,
   sessionId: string,
 ): Promise<LocalVaultSession> {
-  await assertAccessCapability(tomb, "manage_grants");
+  return name(tomb, async (named) => {
+    const manage = await requireManageGrants(named);
+    return stopCheckedVaultSession(named, tomb, sessionId, manage);
+  });
+}
+
+async function stopCheckedVaultSession<T>(
+  named: Named<T, string>,
+  tomb: string,
+  sessionId: string,
+  manage: ManageGrants<T>,
+): Promise<LocalVaultSession> {
   const current = await readAll(tomb);
   const index = current.findIndex((row) => row.id === sessionId);
   if (index < 0) throw new LocalDirectoryError("This session is unavailable.");
   const session = current[index];
   if (!session) throw new LocalDirectoryError("This session is unavailable.");
-  await revokeSharesForSession(tomb, session.id, { bypassAccessCheck: true });
+  await revokeSharesForSession(named, session.id, manage);
   const stopped: LocalVaultSession = {
     ...session,
     status: "stopped",

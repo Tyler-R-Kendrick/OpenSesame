@@ -18,6 +18,13 @@ export * from "./machines/provisional-resource.js";
 export * from "./machines/agent-registration.js";
 export * from "./interaction-links.js";
 export * from "./interaction.js";
+// The browser-local approval path seals its own proof (ADR 0086 §7); the
+// constructor is pure, so only it and its types ride on this entry.
+export {
+  type SealedApprovalProof,
+  type ServerEstablishedApproval,
+  sealApprovalProof,
+} from "./proofs/approval-seal.js";
 export * from "./authorization-details.js";
 export * from "./trust.js";
 // Channel capability is one closed record (ADR 0084), and the browser reads

@@ -33,9 +33,11 @@ import {
 } from "./draft-suggestions.js";
 import {
   type PagesWebMcpTool,
+  assertItemReach,
   ceremonyOpened,
-  findItem,
+  findSavedItem,
   optStr,
+  reachedItem,
   requireUnlocked,
   str,
 } from "./tool-shared.js";
@@ -55,18 +57,6 @@ function isItemKind(value: string): value is LegacyItemKind {
   // `login` is the retired name of `account` and still resolves (ADR 0172).
   const kind = resolveTypeId(value);
   return ITEM_KINDS.some((known) => known === kind);
-}
-
-async function assertItemReach(
-  itemId: string,
-  wanted: "read" | "write",
-): Promise<void> {
-  const { assertShareReach } = await import("../lib/local-share-reach.js");
-  await assertShareReach(
-    vaultStore.activeTomb(),
-    { kind: "item", id: itemId },
-    wanted,
-  );
 }
 
 async function assertVaultWrite(): Promise<void> {
@@ -237,9 +227,7 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
     execute: async (args) => {
       requireUnlocked();
       // Reach first: an unshared actor learns nothing about which ids exist.
-      const itemId = str(args, "itemId");
-      await assertItemReach(itemId, "read");
-      const item = findItem(itemId);
+      const item = await reachedItem(str(args, "itemId"), "read");
       return {
         ...projectVaultItemMeta(item),
         healthIssues: healthIssuesById().get(item.id) ?? [],
@@ -283,16 +271,16 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
       if (args.action === "suggest") return suggestItemMetadata(args);
       assertMetadataOnlyWrite(args);
       const itemId = optStr(args, "itemId");
-      if (itemId) await assertItemReach(itemId, "write");
-      else await assertVaultWrite();
+      const existing = itemId ? await reachedItem(itemId, "write") : null;
+      if (!itemId) await assertVaultWrite();
       const name = optStr(args, "name");
       const folderId = optStr(args, "folderId");
       const url = optStr(args, "url");
       const favorite = isBoolean(args.favorite) ? args.favorite : null;
 
       let item: VaultItem;
-      if (itemId) {
-        item = { ...findItem(itemId) };
+      if (existing) {
+        item = { ...existing };
       } else {
         const kind = str(args, "kind");
         item = newItemDraft(kind, name ?? undefined);
@@ -314,7 +302,7 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
         item.uris = [{ ...first, uri: url, match: "domain" }, ...rest];
       }
       await vaultStore.saveItem(item);
-      return projectVaultItemMeta(findItem(item.id));
+      return projectVaultItemMeta(findSavedItem(item.id));
     },
   },
   {
@@ -334,9 +322,7 @@ export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
       // A live code is the second factor itself: the same share reach as a
       // read, checked before the item is looked up (so a missing id and an
       // unshared one refuse alike) and before the rate-limit ledger.
-      const itemId = str(args, "itemId");
-      await assertItemReach(itemId, "read");
-      const item = findItem(itemId);
+      const item = await reachedItem(str(args, "itemId"), "read");
       const seed = item.kind === "account" ? accountTotp(item) : "";
       if (item.kind !== "account" || seed === "") {
         throw new Error("item_has_no_totp");
@@ -374,9 +360,7 @@ export const OPEN_REVEAL_TOOL: PagesWebMcpTool = {
   },
   execute: async (args) => {
     requireUnlocked();
-    const itemId = str(args, "itemId");
-    await assertItemReach(itemId, "read");
-    const item = findItem(itemId);
+    const item = await reachedItem(str(args, "itemId"), "read");
     return ceremonyOpened(`/vault/${encodeURIComponent(item.id)}`);
   },
 };
