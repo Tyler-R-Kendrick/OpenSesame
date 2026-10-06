@@ -4,29 +4,23 @@
 // report. A suite runs only when a changed path can affect it. Docs do
 // not run a suite. A path this file does not recognize runs every suite:
 // a wrong skip is worse than one extra run.
-//
-// It also decides whether the diff is `deep` (ci-deep-gates.mjs), which says
-// whether the identity, sign-in and storage browser gates start at all.
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { bundleMatrix, deepForPaths } from "./ci-deep-gates.mjs";
 import {
-  anyUnder,
-  baseName,
-  isDoc,
-  normalizePath,
-  repoRootFromHere,
-  under,
-} from "./ci-paths.mjs";
-import { isString } from "./json-boundary.mjs";
-
-export { bundleMatrix, deepForPaths, normalizePath, repoRootFromHere };
+  ALL_GATES,
+  bundleMatrix,
+  driverReach,
+  gatesForPaths,
+  loadShards,
+} from "./ci-gates.mjs";
+import { bundlePackageDirs, pushPackageDirs } from "./ci-package-dirs.mjs";
 
 export const AREAS = ["typescript", "bundle", "rust", "mtls", "push"];
 
+const DOC_ROOTS = ["docs", "skills", ".agents", ".claude"];
 const RUST_ROOTS = [
   "crates",
   "apps/cli",
@@ -110,6 +104,29 @@ function blank() {
     mtls: false,
     push: false,
   };
+}
+
+export function normalizePath(path) {
+  return path.replaceAll("\\", "/").replace(/^\.\//, "").replace(/^\/+/, "");
+}
+
+function under(path, prefix) {
+  const root = prefix.endsWith("/") ? prefix.slice(0, -1) : prefix;
+  return path === root || path.startsWith(`${root}/`);
+}
+
+function anyUnder(path, prefixes) {
+  return prefixes.some((prefix) => under(path, prefix));
+}
+
+function baseName(path) {
+  return path.slice(path.lastIndexOf("/") + 1);
+}
+
+function isDoc(path) {
+  if (path.endsWith(".md")) return true;
+  if (anyUnder(path, DOC_ROOTS)) return true;
+  return baseName(path) === "LICENSE";
 }
 
 function isRust(path) {
@@ -229,92 +246,47 @@ export function areasForPaths(paths, bundleDirs = [], pushDirs = []) {
   return out;
 }
 
-function workspaceGlobs(root) {
-  const yaml = readFileSync(join(root, "pnpm-workspace.yaml"), "utf8");
-  return [...yaml.matchAll(/^\s*-\s*"([^"]+)"/gm)].map((match) => match[1]);
+export {
+  bundlePackageDirs,
+  packageDirsFrom,
+  pushPackageDirs,
+} from "./ci-package-dirs.mjs";
+
+export function repoRootFromHere() {
+  return join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 }
 
-function packageDirs(root) {
-  const dirs = [];
-  for (const glob of workspaceGlobs(root)) {
-    if (glob.endsWith("/*")) {
-      const parent = join(root, glob.slice(0, -2));
-      if (!existsSync(parent)) continue;
-      for (const entry of readdirSync(parent, { withFileTypes: true })) {
-        if (!entry.isDirectory()) continue;
-        const dir = join(parent, entry.name);
-        if (existsSync(join(dir, "package.json"))) dirs.push(dir);
-      }
-      continue;
-    }
-    const dir = join(root, glob);
-    if (existsSync(join(dir, "package.json"))) dirs.push(dir);
-  }
-  return dirs;
-}
-
-/** Workspace packages reachable from `seeds` through production deps. */
-export function packageDirsFrom(root, seeds) {
-  const byName = new Map();
-  for (const dir of packageDirs(root)) {
-    const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
-    if (isString(pkg.name)) byName.set(pkg.name, { dir, pkg });
-  }
-  for (const seed of seeds) {
-    if (!byName.has(seed)) throw new Error(`workspace has no ${seed} package`);
-  }
-  const seen = new Set();
-  const queue = [...seeds];
-  while (queue.length > 0) {
-    const name = queue.pop();
-    if (name === undefined || seen.has(name)) continue;
-    seen.add(name);
-    const entry = byName.get(name);
-    if (!entry) continue;
-    const fields = [entry.pkg.dependencies, entry.pkg.optionalDependencies];
-    for (const field of fields) {
-      for (const dep of Object.keys(field ?? {})) {
-        if (byName.has(dep)) queue.push(dep);
-      }
-    }
-  }
-  return [...seen]
-    .map((name) => relative(root, byName.get(name).dir).replaceAll("\\", "/"))
-    .sort();
-}
-
-/** Workspace packages reachable from @opensesame/pages production deps. */
-export const bundlePackageDirs = (root) =>
-  packageDirsFrom(root, ["@opensesame/pages"]);
-
-/**
- * What `verify:push` imports as source: the Identity API, the Host's Web Push
- * delivery, the adapters and their stand-in, and the repositories, with what
- * each depends on.
- */
-export const pushPackageDirs = (root) =>
-  packageDirsFrom(root, [
-    "@opensesame/control-plane",
-    "@opensesame/identity-worker",
-    "@opensesame/notification-adapters",
-    "@opensesame/database",
-  ]);
-
-function emit(areas, deep = true) {
+function emit(areas, gates = new Set(ALL_GATES)) {
+  // Whatever goes wrong upstream, the default is every gate and every leg.
+  const matrix = bundleMatrix(gates, loadShards(repoRootFromHere()));
   const lines = [
-    ...AREAS.map((name) => `${name}=${areas[name] ? "true" : "false"}`),
-    `deep=${deep ? "true" : "false"}`,
-    `bundle_matrix=${JSON.stringify(bundleMatrix(deep))}`,
+    ...AREAS.map((name) => {
+      // The Web Push job runs for the server code it exercises (the `push`
+      // area) and for the changes the gate rules send to it.
+      const on =
+        name === "push" ? areas.push || gates.has("push") : areas[name];
+      return `${name}=${on ? "true" : "false"}`;
+    }),
+    // The bundle job's legs for this diff, as the workflow's matrix.
+    `bundle_matrix=${JSON.stringify(matrix)}`,
+    `tutorials=${gates.has("tutorials") ? "true" : "false"}`,
+    `device_inbox=${gates.has("device-inbox") ? "true" : "false"}`,
+    `device_identity=${gates.has("device-identity") ? "true" : "false"}`,
   ];
   const output = process.env.GITHUB_OUTPUT;
   if (output) writeFileSync(output, `${lines.join("\n")}\n`, { flag: "a" });
   for (const line of lines) console.log(line);
 }
 
-function changedPaths(root, base, head) {
+function changedPaths(root, base, head, filter) {
   const diff = execFileSync(
     "git",
-    ["diff", "--name-only", `${base}...${head}`],
+    [
+      "diff",
+      "--name-only",
+      ...(filter ? [`--diff-filter=${filter}`] : []),
+      `${base}...${head}`,
+    ],
     { encoding: "utf8", cwd: root },
   );
   return diff.split("\n").filter(Boolean);
@@ -332,40 +304,65 @@ function main() {
     return;
   }
   let paths;
-  try {
-    paths = changedPaths(root, base, head);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`git diff failed, running every area: ${message}`);
-    emit(everyArea());
-    return;
-  }
   let dirs;
-  try {
-    dirs = bundlePackageDirs(root);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`package graph failed, running every area: ${message}`);
-    emit(everyArea());
-    return;
-  }
   let pushDirs;
   try {
+    paths = changedPaths(root, base, head);
+    dirs = bundlePackageDirs(root);
     pushDirs = pushPackageDirs(root);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`package graph failed, running every area: ${message}`);
+    console.error(
+      `git diff or package graph failed, running every area: ${message}`,
+    );
     emit(everyArea());
     return;
   }
   const areas = areasForPaths(paths, dirs, pushDirs);
-  const deep = deepForPaths(paths);
   const ran = AREAS.filter((name) => areas[name]);
   const which = ran.length > 0 ? ran.join(" ") : "no heavy suite";
-  console.error(
-    `changed ${paths.length} path(s); ${which}; ${deep ? "deep" : "UI-local"}`,
+  console.error(`changed ${paths.length} path(s); ${which}`);
+  let gates;
+  try {
+    gates = browserGates(root, base, head, dirs, pushDirs);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // A workflow annotation, so a fallback that costs a full run is not silent.
+    console.error(
+      `::warning::gate selection failed, running every gate: ${message}`,
+    );
+    gates = new Set(ALL_GATES);
+  }
+  console.error(`browser gates: ${[...gates].join(" ") || "none"}`);
+  emit(areas, gates);
+}
+
+/**
+ * The browser gates the diff has to run: what each added, modified or renamed
+ * path in the Pages build's area can reach (ci-gates.mjs). A deleted path
+ * selects nothing: whatever imported it changed in the same diff.
+ */
+function browserGates(root, base, head, dirs, pushDirs) {
+  return selectGates(
+    root,
+    changedPaths(root, base, head, "ACMRT"),
+    dirs,
+    pushDirs,
   );
-  emit(areas, deep);
+}
+
+/** The gates for changed paths that are added, modified or renamed. */
+export function selectGates(root, kept, dirs, pushDirs) {
+  const inBundle = kept.filter(
+    (path) =>
+      path === ".github/workflows/ci.yml" ||
+      areasForPaths([path], dirs, pushDirs).bundle,
+  );
+  const read = (path) => {
+    const file = join(root, path);
+    return existsSync(file) ? readFileSync(file, "utf8") : "";
+  };
+  return gatesForPaths(inBundle, driverReach(root), read);
 }
 
 const invoked =

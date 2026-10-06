@@ -109,3 +109,49 @@ fn a_password_an_older_version_sealed_or_sphinx_made_is_legacy() {
     }));
     assert_eq!(produce_entry(&entry("", &sphinx)), Produced::Legacy);
 }
+
+const PEPPER_VECTORS: &str = include_str!("../../../spec/conformance/pepper-position-vectors.json");
+
+/// `length` characters, ASCII or beyond the basic plane, so a position counts
+/// code points the way Python does and never UTF-16 units or bytes.
+fn passwords(length: u32) -> [Vec<char>; 2] {
+    [
+        (0..length)
+            .filter_map(|i| char::from_u32(0x61 + i))
+            .collect(),
+        (0..length)
+            .filter_map(|i| char::from_u32(0x1_f600 + i))
+            .collect(),
+    ]
+}
+
+#[test]
+fn cuts_every_expression_at_every_length_as_python_does() {
+    let vectors: Value = serde_json::from_str(PEPPER_VECTORS).expect("the vectors parse");
+    let cases = vectors["cases"].as_array().expect("cases");
+    let max = usize::try_from(vectors["maxLength"].as_u64().expect("maxLength")).expect("fits");
+    assert!(cases.len() > 800, "the corpus is the whole grid");
+    for case in cases {
+        let expression = case["expression"].as_str().expect("expression");
+        let cuts = case["cuts"].as_array().expect("cuts");
+        assert_eq!(cuts.len(), max + 1, "`{expression}`");
+        for (length, cut) in cuts.iter().enumerate() {
+            let head = usize::try_from(cut[0].as_u64().expect("head")).expect("fits");
+            let tail = usize::try_from(cut[1].as_u64().expect("tail")).expect("fits");
+            for chars in passwords(u32::try_from(length).expect("fits")) {
+                let password: String = chars.iter().collect();
+                let (got_head, got_tail) = split_at_pepper(&password, expression);
+                assert_eq!(
+                    got_head,
+                    chars[..head].iter().collect::<String>(),
+                    "`{expression}` head at {length}"
+                );
+                assert_eq!(
+                    got_tail,
+                    chars[chars.len() - tail..].iter().collect::<String>(),
+                    "`{expression}` tail at {length}"
+                );
+            }
+        }
+    }
+}

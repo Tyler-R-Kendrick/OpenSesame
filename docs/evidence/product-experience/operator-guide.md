@@ -1,10 +1,10 @@
 # Operator guide (product experience)
 
-## Visual / Source preferences
+## Preferences
 
-1. Open Settings → General (or the rail entry `settings/prefs.yaml`).
-2. Appearance and locking are the Visual editor. The Source toggle shows the same draft as YAML.
-3. Switching modes without editing keeps comments and blank lines.
+1. Open Settings → General. Appearance and locking are the form.
+2. The same preferences are a file, `/settings?file=config.yaml`, reached from the rail or a row's open key. There is no Visual/Source toggle; the form and the file write the same document.
+3. Editing the file keeps comments and blank lines.
 4. `autoLockMinutes` may be any non-negative number (for example `7`). It is not coerced to 5 or 15.
 5. `prefsRevision` cannot be written from source.
 6. `.config/opensesame/prefs.yaml` is an alias of the same resource, not a second store.
@@ -21,7 +21,7 @@ When a project has no configs, Settings → Connectivity (Host configs) can crea
 
 ## Hosted OIDC applications
 
-Identity › OIDC applications › Edit application is Visual/Source over the same client. Source writes PATCH `/v1/oauth/clients/:id`. `ownerPrincipalId` cannot be set in source. Workload `client_credentials` requires a confidential method (`private_key_jwt`) plus a public JWKS stored on the client row (`token_endpoint_jwks`). Token minting is `POST /token` on the Identity issuer, not a browser session. PATCH the JWKS to retire a key; PATCH `state: suspended` to stop minting. Replicas share the same Postgres row. Preview claims calls the same projector as issuance and does not sign a token.
+Identity › OIDC applications › Edit application is a single form over the client and writes PATCH `/v1/oauth/clients/:id`. `ownerPrincipalId` cannot be set from the form. Workload `client_credentials` requires a confidential method (`private_key_jwt`) plus a public JWKS stored on the client row (`token_endpoint_jwks`). Token minting is `POST /token` on the Identity issuer, not a browser session. PATCH the JWKS to retire a key; PATCH `state: suspended` to stop minting. Replicas share the same Postgres row. Preview claims calls the same projector as issuance and does not sign a token.
 
 OAuth2 Proxy is not native. Pin `v7.8.2`, point `oidc_issuer_url` at Identity discovery, use a public PKCE client, and never put a client secret in the generated recipe. The pinned binary still requires a non-empty `--client-secret` CLI value even for public PKCE; that placeholder is not a credential and must not be copied into the recipe. Live binary `/ping` against Identity discovery is covered by `oauth2-proxy-live.test.ts`.
 

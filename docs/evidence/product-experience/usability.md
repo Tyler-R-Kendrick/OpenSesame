@@ -4,7 +4,7 @@ Human participant testing was not collected in this session. Do not treat this f
 
 Deterministic task evidence that did run:
 
-- Visual/Source round-trips, alias resolution, keybinding import refusal, saved-view scope isolation (`apps/pages` configuration tests).
+- Preferences-file round-trips, alias resolution, keybinding import refusal, saved-view scope isolation (`apps/pages` configuration tests).
 - ADV-01..36 each have a runnable test on shipped functions or the owning Identity/Hosted adapter (`adv-matrix.test.ts`, `adv-matrix-rest.test.ts`, oauth-provider, control-plane SCIM/LDAP/admin).
 - J-LOCAL: built Pages under `/OpenSesame/` with no Host/Identity; guest visits every section; zero loopback requests (`verify:static`).
 - J-CONFIG / J-FILE / J-CONFLICT / J-NAV / J-APP / J-RECIPE / J-TYPES / J-HOST-CONFIG / J-EXPLAIN / J-APPROVAL (local filter) / J-RECOVERY / J-SUPPORT: Playwright against built `/OpenSesame/` dist via `verify-experience-journeys.mjs` (password-sealed vault where lock/unlock matters).

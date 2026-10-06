@@ -291,7 +291,12 @@ export async function liveKeyboardContract({
     headless: true,
     args: [
       "--allow-loopback-in-peer-connection",
-      "--disable-features=LocalNetworkAccessChecks",
+      // Host candidates as plain addresses, not `<uuid>.local` names: two
+      // browsers on one runner would resolve those names over multicast DNS,
+      // which a hosted runner does not reliably carry, and the keyboard
+      // contract is about where focus goes, not about mDNS (verify:live-join
+      // and verify:live-netns walk the real network paths).
+      "--disable-features=LocalNetworkAccessChecks,WebRtcHideLocalIpsWithMdns",
     ],
   });
   try {
@@ -319,7 +324,24 @@ export async function liveKeyboardContract({
       request,
       tabTo,
     });
-    await joinerConnects(joiner.page, { reply, tabTo });
+    await joinerConnects(joiner.page, { reply, tabTo }).catch(async (error) => {
+      // Say what each side showed, so a connection that never forms reads as
+      // one, not as a bare "element(s) not found".
+      for (const [who, page] of [
+        ["owner", owner.page],
+        ["joiner", joiner.page],
+      ]) {
+        const shown = await page
+          .locator("#live-session, .live-join")
+          .first()
+          .innerText({ timeout: 2000 })
+          .catch(() => "(no live panel)");
+        console.error(
+          `${who} showed: ${shown.replace(/\s+/g, " ").slice(0, 400)}`,
+        );
+      }
+      throw error;
+    });
     await endings(owner.page, joiner.page, { tabTo });
     await owner.context.close();
     await joiner.context.close();

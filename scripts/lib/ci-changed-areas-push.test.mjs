@@ -85,11 +85,10 @@ describe("the Web Push walk's area", () => {
 describe("the Bundle budgets aggregate", () => {
   it("gates the Web Push job on bundle or push, and Bundle budgets still reports it", () => {
     const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
-    // The Web Push job runs for a deep Pages build (bundle) or the server code
-    // it exercises (push), and `Bundle budgets` still reports it. A UI-local
-    // diff cannot reach it, so the Pages build alone does not start it.
+    // The Web Push job runs for the Pages build (bundle) or the server code it
+    // exercises (push), and `Bundle budgets` still reports it.
     expect(ci).toMatch(
-      /push-e2e:[\s\S]*?if: \(needs\.changes\.outputs\.bundle == 'true' && needs\.changes\.outputs\.deep == 'true'\) \|\| needs\.changes\.outputs\.push == 'true'/,
+      /push-e2e:[\s\S]*?if: needs\.changes\.outputs\.push == 'true'/,
     );
     // `Bundle budgets` reports every job the bundle or push area gates: derive
     // the list from the workflow so adding a job cannot leave it unreported.
@@ -102,7 +101,7 @@ describe("the Bundle budgets aggregate", () => {
     ];
     const gated = jobs
       .filter(([, , body]) =>
-        /\n {4}if: \(?needs\.changes\.outputs\.(bundle|push) == 'true'/.test(
+        /\n {4}if: needs\.changes\.outputs\.(bundle_matrix|push|tutorials|device_inbox|device_identity) (==|!=) '(true|\[\])'/.test(
           `\n${body}`,
         ),
       )
@@ -110,14 +109,22 @@ describe("the Bundle budgets aggregate", () => {
     const check = jobs.find(([, name]) => name === "bundle-check")?.[2] ?? "";
     const needs = /needs: \[([^\]]*)\]/.exec(check)?.[1] ?? "";
     const listed = needs.split(",").map((name) => name.trim());
-    expect(gated).toEqual(expect.arrayContaining(["bundle", "push-e2e"]));
+    expect(gated).toEqual(
+      expect.arrayContaining([
+        "bundle",
+        "push-e2e",
+        "tutorials-e2e",
+        "device-inbox",
+        "device-identity-e2e",
+      ]),
+    );
     for (const name of gated) {
       expect(listed).toContain(name);
     }
     expect(listed).toContain("changes");
   });
 
-  it("runs the device identity walk in its own job, gated on the bundle area, and Bundle budgets still reports it", () => {
+  it("runs the device identity walk in its own job, gated on the gate the diff reaches, and Bundle budgets still reports it", () => {
     const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
     const bundle = ci.split("  bundle:")[1]?.split("  push-e2e:")[0] ?? "";
     // Out of the twenty-minute bundle job, which it had filled.
@@ -128,10 +135,10 @@ describe("the Bundle budgets aggregate", () => {
       "pnpm --filter @opensesame/pages verify:device-identity",
     );
     expect(job).toContain("needs: changes");
-    expect(job).toContain("if: needs.changes.outputs.bundle == 'true'");
     expect(job).toContain(
-      "pnpm exec turbo run build --filter=@opensesame/pages",
+      "if: needs.changes.outputs.device_identity == 'true'",
     );
+    expect(job).toContain("node scripts/lib/ci-pages-build.mjs");
     expect(job).toMatch(/timeout-minutes: 15\b/);
     // The aggregate accepts only success or skipped from it.
     const check =

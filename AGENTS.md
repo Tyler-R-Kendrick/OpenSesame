@@ -301,6 +301,8 @@ PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
 # where focus went. A control that is missing is a failure here although a
 # person would see it degrade to text. Run before touching a tutorial, the
 # tutorial card, the Support sheet or the target registry.
+# `TUTORIALS_SHARD=k/n` walks the kth of n slices of the library (by tutorial id);
+# slice 1 also runs Escape, the move and the gates. CI runs three per width.
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
   pnpm --filter @opensesame/pages verify:live-join
 # Same harness, live sessions (ADR 0150) in real browser contexts over real
@@ -1229,23 +1231,24 @@ CI lives in `.github/workflows/`:
   TypeScript, Bundle budgets, and Rust, and each name reports on every
   pull request (a skipped required check does not satisfy the ruleset).
   The suite behind a check runs only when the diff touches that area
-  (`scripts/lib/ci-changed-areas.mjs`). The browser gates for identity, sign-in
-  and storage (the `sign-in`, `auth` and `customer-crypto` legs, Web Push,
-  device identity, device inbox) start only for a **deep** diff: any non-doc path
-  outside the UI-local regions listed in `scripts/lib/ci-deep-gates.mjs` (a
-  control, a style, a tutorial, the keymap, the quality tooling, a test). A path
-  nobody classified is deep, and so is a change to the workflow, a gate's own
-  script or the boot path. Inside a suite,
+  (`scripts/lib/ci-changed-areas.mjs`). Inside a suite,
   `scripts/lib/ci-affected-tests.mjs` tests the changed packages or crates
-  and the ones that depend on them: TypeScript runs `turbo run typecheck test`
-  for that set, and Rust runs `cargo test --all-targets -p` for that set on
-  Rust 1.88.0. A root lockfile or manifest tests the whole suite. Bundle
-  budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`;
-  its browser gates run as parallel shards of one matrix job (`bundle`: each
-  shard builds Pages once and walks its own gates; `verify:mobile` is split by
-  viewport with `MOBILE_SIZES`), and `scripts/lib/ci-bundle-shards.test.mjs`
-  fails on a gate that runs in no shard or in two. A new gate goes in exactly
-  one shard, not appended to a serial list;
+  and the ones that depend on them: TypeScript typechecks that set and runs
+  the tests the diff reaches (`scripts/lib/ci-scoped-tests.mjs`: `vitest
+  related`, plus every test that reads the filesystem; a package runs whole
+  when a manifest, config or its test setup changed), and Rust runs `cargo
+  test --all-targets -p` for that set on Rust 1.88.0. A root lockfile or
+  manifest tests the whole suite. Bundle budgets builds `apps/pages` and
+  checks `tools/quality/bundle-budgets.json`; its browser gates run as
+  parallel shards of one matrix job (`bundle`: each shard builds Pages once
+  and walks its own gates; `verify:mobile` is split by viewport with
+  `MOBILE_SIZES`). The shard list is `scripts/lib/ci-bundle-shards.json`, and
+  `scripts/lib/ci-gates.mjs` selects the shards and jobs a diff can break
+  ([ADR 0176](docs/adr/0176-ci-runs-what-a-diff-can-reach.md)); a path it does
+  not recognize starts every gate, and a push to `main` runs everything.
+  `scripts/lib/ci-bundle-shards.test.mjs` fails on a gate that runs in no
+  shard or in two, and `ci-gates.test.mjs` on a `verify-*` driver with no gate
+  row. A new gate goes in exactly one shard, not appended to a serial list;
   "Web Push end to end" (`verify:push`) is its own job that the same check
   waits for, and runs when the Pages build or the server code it imports changes.
   The TypeScript job also runs the signature preflight, changed-file lint,

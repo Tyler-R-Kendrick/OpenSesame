@@ -7,7 +7,7 @@
 | ADV-03 | Documents over 256 KiB fail bounded; aliases/custom tags refused; no network fetch. |
 | ADV-04 | Comment-only YAML change is presentation; local application configure is skipped. |
 | ADV-05 | `autoLockMinutes: 7` is a valid number, not coerced. |
-| ADV-12 | Source textarea uses `data-config-source`; keymap `typing()` ignores those keys. |
+| ADV-12 | A settings file's textarea counts as typing: keymap `typing()` ignores its keys (`keymap.test.ts`). |
 | ADV-13 | `authorizationForDestination` drops headers when the origin changes. |
 | ADV-14 | Simulation evaluator is pure; no mail/token/approval. |
 | ADV-16 | Reserved `sub`/`aud` cannot be mapped; untrusted email is not marked verified. |

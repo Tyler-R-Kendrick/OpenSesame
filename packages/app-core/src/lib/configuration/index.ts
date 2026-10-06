@@ -7,14 +7,12 @@ export {
 export { REGISTERED_ACTIONS, actionById, isBindableAction } from "./actions.js";
 export {
   createDraft,
-  switchDraftMode,
   applySourceEdit,
   undoDraft,
   redoDraft,
   draftIsDirty,
   draftMatchesScope,
   type ConfigDraft,
-  type EditorMode,
 } from "./draft.js";
 export { lookupConfigResource } from "./registry.js";
 export { isForbiddenConfigPath } from "./forbidden.js";
@@ -53,10 +51,6 @@ export {
   applyBoundRecipe,
 } from "./recipes.js";
 export {
-  parseApplicationSource,
-  registrationToYaml,
-} from "./application-document.js";
-export {
   publicationBlocked,
   runSavedPolicyTests,
 } from "./policy-tests.js";
@@ -89,7 +83,6 @@ export {
   oauth2ProxyConfig,
 } from "./oauth2-proxy-recipe.js";
 export { mappingOverridesReserved } from "./claim-preview.js";
-export { commitLocalApplicationSource } from "./local-application-source.js";
 export { authorizationForDestination } from "./endpoint-rebinding.js";
 export {
   SERVICE_ACCESS_TOKEN_MAX_SECONDS,

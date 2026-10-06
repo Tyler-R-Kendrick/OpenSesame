@@ -1,8 +1,4 @@
 import { describe, expect, it } from "vitest";
-import {
-  parseApplicationSource,
-  registrationToYaml,
-} from "./application-document.js";
 import { commitApproval } from "./approval-freshness.js";
 import { sealedExportCoverage } from "./backup-coverage.js";
 import { previewSyntheticClaims } from "./claim-preview.js";
@@ -120,14 +116,7 @@ describe("experience journeys against shipped functions", () => {
     expect(rows).toEqual([]);
   });
 
-  it("J-APP: registration YAML cannot change application identity", () => {
-    const yaml = registrationToYaml({
-      applicationId: "app-1",
-      organizationId: "org-1",
-      redirectUris: ["https://rp.example/cb"],
-      scopes: ["openid"],
-    });
-    expect(parseApplicationSource(yaml, "app-2").ok).toBe(false);
+  it("J-APP: a synthetic claim preview never invents a name", () => {
     expect(
       previewSyntheticClaims({
         pairwiseSub: "s",

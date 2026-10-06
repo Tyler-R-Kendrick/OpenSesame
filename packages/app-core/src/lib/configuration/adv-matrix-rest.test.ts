@@ -11,11 +11,11 @@ import {
 /** @vitest-environment jsdom */
 import { describe, expect, it } from "vitest";
 import { deliverToRp, parseBrokerRequest } from "../site-broker.js";
-import { COMMENTED, PREFS, draft } from "./adv-fixtures.js";
+import { PREFS, draft } from "./adv-fixtures.js";
 import { commitApproval } from "./approval-freshness.js";
 import { inventoryBackup } from "./backup-coverage.js";
 import { copyTextBestEffort } from "./clipboard-copy.js";
-import { applySourceEdit, switchDraftMode } from "./draft.js";
+import { applySourceEdit } from "./draft.js";
 import { hostedDraftMatchesIssuer } from "./hosted-application.js";
 import { resetKeybindings } from "./keybindings.js";
 import { commitPrefsSource } from "./prefs-adapter.js";
@@ -205,14 +205,6 @@ describe("ADV-19..36 against shipped functions", () => {
     expect(item.values.reference).toBe("SECRET99");
     expect(unknownTypeSubtitle(item)).toContain("type not installed");
     syncInstalledTypes({});
-  });
-
-  it("ADV-36: mode switch is local; source editor is a native textarea", () => {
-    const switched = switchDraftMode(draft(), "source");
-    expect(switched.currentSource).toBe(COMMENTED);
-    const area = document.createElement("textarea");
-    area.setAttribute("data-config-source", "true");
-    expect(area.tagName).toBe("TEXTAREA");
   });
 
   it("HIS: a backup that omits vault body cannot claim completeness", () => {
