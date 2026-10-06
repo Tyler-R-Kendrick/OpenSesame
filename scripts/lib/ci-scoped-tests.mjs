@@ -23,6 +23,8 @@ const SKIP_DIRS = new Set(["node_modules", "dist", ".turbo", "coverage"]);
 const STRUCTURAL =
   /\bfrom\s+["'](?:node:)?(?:fs|child_process)(?:\/promises)?["']|\brequire\(\s*["'](?:node:)?(?:fs|child_process)["']\s*\)/;
 const IMPORT = /(?:from\s*|import\s*\(\s*|import\s+)["']([^"']+)["']/g;
+// `import type` and `export type ... from` are erased before a test runs.
+const TYPE_ONLY = /\b(?:import|export)\s+type\b[^;]*?from\s*["'][^"']+["'];?/gs;
 const EXTENSIONS = ["", ".ts", ".tsx", ".mts", ".js", ".mjs", ".jsx", ".json"];
 
 /**
@@ -127,6 +129,8 @@ function resolveSpec(root, file, spec) {
  * The files a package's test setup imports, transitively, and whether every
  * import could be followed. A workspace import `@opensesame/x/y.js` is read as
  * `packages/x/src/y`; any other bare name is a dependency, not a source file.
+ * A type-only import is not followed: it is gone before the setup runs, so the
+ * file it names cannot change what any test runs on.
  */
 export function setupClosure(root, dir) {
   const files = new Set();
@@ -140,7 +144,7 @@ export function setupClosure(root, dir) {
       complete = false;
       continue;
     }
-    const text = readFileSync(join(root, file), "utf8");
+    const text = readFileSync(join(root, file), "utf8").replace(TYPE_ONLY, "");
     for (const match of text.matchAll(IMPORT)) {
       const resolved = resolveSpec(root, file, match[1]);
       if (resolved === null) continue;
