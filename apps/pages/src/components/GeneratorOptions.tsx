@@ -7,15 +7,18 @@ import type {
 
 function Check({
   label,
+  hint,
   checked,
   onChange,
 }: {
   label: string;
+  /** What the option means in plain words, on hover and long press. */
+  hint?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="check">
+    <label className="check" title={hint}>
       <input
         type="checkbox"
         checked={checked}
@@ -85,7 +88,7 @@ function Count({
   );
 }
 
-/** Length, classes, floors and ambiguity: the options `rules` and `sphinx` share. */
+/** Length, character types, floors and look-alikes: the options `rules`, `derived` and `sphinx` share. */
 function RuleOptions({
   rules,
   onChange,
@@ -106,17 +109,17 @@ function RuleOptions({
       />
       <div className="gen__checks">
         <Check
-          label="A–Z"
+          label="Capital letters"
           checked={rules.upper}
           onChange={(upper) => set({ upper })}
         />
         <Check
-          label="a–z"
+          label="Lowercase letters"
           checked={rules.lower}
           onChange={(lower) => set({ lower })}
         />
         <Check
-          label="0–9"
+          label="Numbers"
           checked={rules.digits}
           onChange={(digits) => set({ digits })}
         />
@@ -126,7 +129,8 @@ function RuleOptions({
           onChange={(symbols) => set({ symbols })}
         />
         <Check
-          label="Avoid l1IO0"
+          label="Avoid look-alike characters"
+          hint="Leaves out characters that are easy to mix up, such as the letter l and the number 1"
           checked={rules.avoidAmbiguous}
           onChange={(avoidAmbiguous) => set({ avoidAmbiguous })}
         />
@@ -134,7 +138,7 @@ function RuleOptions({
       <div className="gen__checks">
         {rules.digits ? (
           <Count
-            label="Minimum digits"
+            label="Fewest numbers"
             value={rules.minDigits}
             max={64}
             onChange={(minDigits) => set({ minDigits })}
@@ -142,7 +146,7 @@ function RuleOptions({
         ) : null}
         {rules.symbols ? (
           <Count
-            label="Minimum symbols"
+            label="Fewest symbols"
             value={rules.minSymbols}
             max={64}
             onChange={(minSymbols) => set({ minSymbols })}
@@ -198,19 +202,30 @@ function PassphraseOptions({
   );
 }
 
-/** One line of data about the chosen configuration; null when nothing is configured. */
-function bitsOf(generator: PasswordGenerator): number | null {
+/** How hard the configuration is to guess, in a word; null when nothing is configured. */
+function strengthOf(generator: PasswordGenerator): {
+  word: string;
+  bits: number;
+} | null {
+  let bits: number | null;
   try {
-    return generatorEntropyBits(generator);
+    bits = generatorEntropyBits(generator);
   } catch {
-    // No class chosen: the options say so by being unusable, not by a message.
+    // No type chosen: the options say so by being unusable, not by a message.
     return null;
   }
+  if (bits === null) return null;
+  const rounded = Math.round(bits);
+  if (rounded >= 100) return { word: "Excellent", bits: rounded };
+  if (rounded >= 70) return { word: "Strong", bits: rounded };
+  if (rounded >= 50) return { word: "Fair", bits: rounded };
+  return { word: "Weak", bits: rounded };
 }
 
 /**
- * The chosen generator's own options, inline under its select (ADR 0172 §6).
- * `manual` has none. Entropy is the configuration's own, a data readout.
+ * The chosen generator's options (ADR 0172 §6, ADR 0173), in plain words. They
+ * are drawn inside the method's one *Options* disclosure, never on the form
+ * itself. `manual` has none.
  */
 export function GeneratorOptions({
   generator,
@@ -220,13 +235,19 @@ export function GeneratorOptions({
   onChange: (next: PasswordGenerator) => void;
 }) {
   if (generator.id === "manual") return null;
-  const bits = bitsOf(generator);
+  const strength = strengthOf(generator);
   return (
-    <div className="gen__opts">
+    <>
       {generator.id === "rules" ? (
         <RuleOptions
           rules={generator}
           onChange={(rules) => onChange({ id: "rules", ...rules })}
+        />
+      ) : null}
+      {generator.id === "derived" ? (
+        <RuleOptions
+          rules={generator.rules}
+          onChange={(rules) => onChange({ ...generator, rules })}
         />
       ) : null}
       {generator.id === "passphrase" ? (
@@ -248,9 +269,14 @@ export function GeneratorOptions({
           </div>
         </>
       ) : null}
-      {bits === null ? null : (
-        <output className="gen__bits">≈{bits} bits</output>
+      {strength === null ? null : (
+        <output
+          className="gen__bits"
+          title={`About ${strength.bits} bits of guesswork`}
+        >
+          {strength.word}
+        </output>
       )}
-    </div>
+    </>
   );
 }

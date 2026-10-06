@@ -4,11 +4,13 @@ import { isString } from "@opensesame/os-domain";
  * screen — no React, no DOM — so any shell can drive the same behaviour.
  */
 import {
+  type AccountItem,
   type VaultItem,
-  accountPlainPassword,
   definitionFor,
+  handoff,
   itemTypeId,
   itemTypeRegistry,
+  produceAccountPassword,
   readItemField,
 } from "@opensesame/vault-core";
 import { RESERVED_TYPE_IDS } from "@opensesame/vault-item-types";
@@ -40,11 +42,20 @@ export function chipTypeIds(live: readonly VaultItem[]): readonly string[] {
   return [...ordered, ...orphans.sort()];
 }
 
+/**
+ * What the facade produces, shared as one value: the whole password, or what
+ * comes before the pepper's slot when the pepper goes last (the usual place). A
+ * slot inside the password leaves no single value to share, and a password an
+ * older version made is absent (ADR 0174).
+ */
+function sharedPassword(item: AccountItem): string | null {
+  const out = handoff(produceAccountPassword(item));
+  return out !== null && out.later === "" && out.now !== "" ? out.now : null;
+}
+
 /** Any registered type may be the one a filtered "+ new" creates. */
 export function concealedValue(item: VaultItem): string | null {
-  // A peppered or Sphinx password reads as "" here and so as absent: this is a
-  // sync read that cannot ask the person for anything (ADR 0172 §4).
-  if (item.kind === "account") return accountPlainPassword(item) || null;
+  if (item.kind === "account") return sharedPassword(item);
   if (item.kind === "secret") return item.value;
   if (item.kind === "card") return item.number;
   if (item.kind === "certificate") return item.privateKeyPem;

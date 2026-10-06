@@ -1,11 +1,11 @@
 import {
   type AccountItem,
   type VaultItem,
-  accountPlainPassword,
   accountTotp,
+  completePassword,
   hostOf,
-  needsPepper,
   passwordMethod,
+  produceAccountPassword,
 } from "@opensesame/vault-core";
 import { estimateStrength } from "./password.js";
 
@@ -24,8 +24,8 @@ export type HealthReport = {
   scored: number;
   clean: number;
   /**
-   * Accounts whose password needs a pepper (or is a Sphinx password): health
-   * cannot prompt, so it neither reads nor scores them (ADR 0172 §4).
+   * Accounts whose password has a slot for a pepper only the person has, or
+   * was made by an older version: health neither asks nor scores them (ADR 0174).
    */
   unchecked: number;
   counts: Record<HealthIssue, number>;
@@ -52,17 +52,19 @@ export function buildHealthReport(items: VaultItem[]): HealthReport {
     (item): item is AccountItem =>
       item.kind === "account" && item.deletedAt === null,
   );
-  const accounts = live.filter(
-    (account) => accountPlainPassword(account) !== "",
-  );
+  // Scored on the whole password the facade produces. One missing a pepper
+  // only the person has, or made by an older version, cannot be scored.
+  const wholeOf = (account: AccountItem) =>
+    completePassword(produceAccountPassword(account)) ?? "";
+  const accounts = live.filter((account) => wholeOf(account) !== "");
   const unchecked = live.filter((account) => {
-    const method = passwordMethod(account);
-    return method !== undefined && needsPepper(method);
+    const { status } = produceAccountPassword(account);
+    return status === "slotted" || status === "legacy";
   }).length;
 
   const byPassword = new Map<string, AccountItem[]>();
   for (const account of accounts) {
-    const password = accountPlainPassword(account);
+    const password = wholeOf(account);
     const bucket = byPassword.get(password);
     if (bucket) bucket.push(account);
     else byPassword.set(password, [account]);
@@ -78,7 +80,7 @@ export function buildHealthReport(items: VaultItem[]): HealthReport {
   const findings: HealthFinding[] = [];
 
   for (const account of accounts) {
-    const password = accountPlainPassword(account);
+    const password = wholeOf(account);
     const issues: HealthIssue[] = [];
     const strength = estimateStrength(password);
     if (strength.score <= 1) issues.push("weak");

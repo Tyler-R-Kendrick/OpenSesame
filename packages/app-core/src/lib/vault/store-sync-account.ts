@@ -1,7 +1,9 @@
 /**
  * An account as one sealed-store entry (ADR 0172, ADR 0037 §6). Line one is
- * the first password method's password when nothing has to be asked for it (a
- * pepper, a Sphinx key), as `pass show` reads it; a bare `otpauth://` line is
+ * the first password method's stored password, as `pass show` reads it. A
+ * method that computes its password holds none: line one is empty and the
+ * trailer carries the parameters it is computed from (ADR 0174), so a file
+ * never contains a generated password; a bare `otpauth://` line is
  * the first authenticator's seed, so `pass otp` works; everything else — every
  * method, the secrets in it included — is the trailer's `values.methods`.
  *
@@ -22,13 +24,13 @@ import {
   type AccountItem,
   type LegacyLoginItem,
   type LoginMethod,
-  accountPlainPassword,
+  accountFilePassword,
   authenticatorMethod,
   createItem,
+  isAlgorithmic,
   migrateLegacyLogin,
   newId,
   passwordMethod,
-  plainPassword,
 } from "@opensesame/vault-core";
 import {
   type OsMeta,
@@ -111,8 +113,9 @@ function withLineOne(methods: LoginMethod[], entry: StorePlainEntry) {
     if (
       method === firstPassword &&
       method.type === "password" &&
-      method.secret === "" &&
-      plainPassword(method) !== null
+      !isAlgorithmic(method) &&
+      method.sealed === undefined &&
+      method.secret === ""
     ) {
       return { ...method, secret: entry.secret };
     }
@@ -163,7 +166,7 @@ export function describeAccount(
   meta.uris = item.uris.map((u) => u.uri).filter(Boolean);
   meta.uriMatches = item.uris.filter((u) => u.uri).map((u) => u.match);
   const first = passwordMethod(item);
-  const lineOne = accountPlainPassword(item);
+  const lineOne = accountFilePassword(item);
   const blankPassword = lineOne !== "" && ONE_LINE.test(lineOne);
   const seed = authenticatorMethod(item);
   const otpauth =
@@ -212,9 +215,11 @@ function graftSecret(
   if (index === -1) return [...current, incoming];
   const held = current[index];
   const secret = "secret" in incoming ? incoming.secret : "";
+  // A line of text cannot say the parameters an algorithmic password is
+  // computed from, or what an older version sealed, so it leaves those methods
+  // as they were.
   const askedFor =
-    held?.type === "password" &&
-    (held.pepper || held.generator.id === "sphinx");
+    held?.type === "password" && (isAlgorithmic(held) || held.sealed);
   if (held === undefined || askedFor || !("secret" in held)) return current;
   return current.map((method, i) =>
     i === index ? { ...held, secret } : method,
@@ -224,8 +229,8 @@ function graftSecret(
 /**
  * A first-format entry said a username, sites, notes, one password and one
  * seed, and nothing else. Laid over an account it changes those, and leaves
- * every other method, the ids of the ones it touched and any password kept
- * behind a pepper or a Sphinx key as they were.
+ * every other method, the ids of the ones it touched and any method that
+ * computes its password from parameters as they were.
  */
 export function graftAccountFormatOne(
   current: AccountItem,

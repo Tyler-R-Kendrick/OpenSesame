@@ -29,6 +29,7 @@ const FIELD_ALIASES: ReadonlyArray<{
   words: readonly string[];
 }> = [
   { field: "password", words: ["password", "secret", "pass"] },
+  { field: "rest", words: ["rest", "ending", "tail"] },
   { field: "username", words: ["username", "user", "email", "login"] },
   { field: "otp", words: ["otp", "code", "totp", "2fa", "mfa"] },
   { field: "url", words: ["url", "site", "website", "link"] },
@@ -52,7 +53,7 @@ function parseNavigate(lower: string): AppCommand | null {
 
 function parseCopy(text: string): AppCommand | null {
   const copy = text.match(
-    /^(?:copy|get|grab)\s+(password|secret|pass|username|user|email|login|otp|code|totp|2fa|mfa|url|site|website|link)\s+(?:for|of|from)?\s*(.+)$/i,
+    /^(?:copy|get|grab)\s+(password|secret|pass|rest|ending|tail|username|user|email|login|otp|code|totp|2fa|mfa|url|site|website|link)\s+(?:for|of|from)?\s*(.+)$/i,
   );
   if (!copy) return null;
   const fieldWord = copy[1]?.toLowerCase() ?? "";

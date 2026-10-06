@@ -1,9 +1,6 @@
-import {
-  accountPlainPassword,
-  accountTotp,
-  methodsOfType,
-} from "@opensesame/vault-core";
+import { accountTotp, methodsOfType } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
+import { producedPassword } from "../../account.test-support.js";
 import { defaultMergeOptions, planMerge } from "./merge.js";
 import { draftAccount, draftNote, draftSecret } from "./types.js";
 
@@ -38,7 +35,7 @@ describe("planMerge item shapes", () => {
     expect(item.fields[0]?.id).toBeTruthy();
     expect(item.uris.map((u) => u.match)).toEqual(["host", "exact"]);
     expect(accountTotp(item)).toBe("JBSWY3DPEHPK3PXP");
-    expect(accountPlainPassword(item)).toBe("hunter2");
+    expect(producedPassword(item)).toBe("hunter2");
   });
 
   it("lands an imported password as a manual, unpeppered method", () => {

@@ -135,7 +135,13 @@
       "by their bech32 checksum (`sops/keys/bech32.ts`) without it. The entry",
       "chunk measured 813.3 KiB before and 669.3 KiB after, so the ceiling is",
       "the measurement plus four kibibytes, as before. The OPRF's 13.5 KiB that",
-      "raised it to 798 left the entry with the same module."
+      "raised it to 798 left the entry with the same module.",
+      "2026-10-05: largestAsset 673 -> 678 for both hardened profiles. The one",
+      "password facade (ADR 0174) is in the entry because every surface that",
+      "produces a password calls it: producePassword, the algorithmic generator's",
+      "HKDF and rejection sampler, and the pepper position parser, about five",
+      "kibibytes together. Measured 674.0 KiB, so the ceiling is that plus four,",
+      "as before."
     ],
     "builds": {
       "minimal-local-hardened": {
@@ -145,7 +151,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 673
+          "largestAsset": 678
         }
       },
       "family-local-hardened": {
@@ -155,7 +161,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 673
+          "largestAsset": 678
         }
       }
     }

@@ -1,0 +1,152 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 1500,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Bank"
+          }
+        },
+        {
+          "measure": ".method"
+        },
+        {
+          "shot": "390-default"
+        },
+        {
+          "openDisclosureOptional": "Options"
+        },
+        {
+          "measure": ".method"
+        },
+        {
+          "shot": "390-options"
+        },
+        {
+          "selectOptional": {
+            "label": "Password generator",
+            "value": "passphrase"
+          }
+        },
+        {
+          "shot": "390-words"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 1100,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Bank"
+          }
+        },
+        {
+          "measure": ".method"
+        },
+        {
+          "shot": "1280-default"
+        },
+        {
+          "openDisclosureOptional": "Options"
+        },
+        {
+          "measure": ".method"
+        },
+        {
+          "shot": "1280-options"
+        },
+        {
+          "selectOptional": {
+            "label": "Password generator",
+            "value": "passphrase"
+          }
+        },
+        {
+          "shot": "1280-words"
+        }
+      ],
+      "desktop": true
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-default",
+      "width": 390,
+      "title": "A new account's password — 390 wide",
+      "caption": "The password, and one line: Options. Nothing else is asked.",
+      "before": "Generator, rules, strength and pepper all drawn",
+      "after": "The password and one Options line"
+    },
+    {
+      "shot": "390-options",
+      "width": 390,
+      "title": "Options, opened — 390 wide",
+      "caption": "The generator (Algorithmic), its choices and the pepper, which is on and goes at the end.",
+      "before": "Always drawn on the form",
+      "after": "Opened from one line, in plain words"
+    },
+    {
+      "shot": "390-words",
+      "width": 390,
+      "title": "Random words — 390 wide",
+      "caption": "Choosing random words inside Options.",
+      "before": "Word count and separator always drawn",
+      "after": "Inside Options"
+    },
+    {
+      "shot": "1280-default",
+      "width": 1280,
+      "title": "A new account's password — 1280 wide",
+      "caption": "The password, and one line: Options. Nothing else is asked.",
+      "before": "Generator, rules, strength and pepper all drawn",
+      "after": "The password and one Options line"
+    },
+    {
+      "shot": "1280-options",
+      "width": 1280,
+      "title": "Options, opened — 1280 wide",
+      "caption": "The generator (Algorithmic), its choices and the pepper, which is on and goes at the end.",
+      "before": "Always drawn on the form",
+      "after": "Opened from one line, in plain words"
+    },
+    {
+      "shot": "1280-words",
+      "width": 1280,
+      "title": "Random words — 1280 wide",
+      "caption": "Choosing random words inside Options.",
+      "before": "Word count and separator always drawn",
+      "after": "Inside Options"
+    }
+  ]
+}

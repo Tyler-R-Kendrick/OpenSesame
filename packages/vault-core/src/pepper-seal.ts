@@ -1,11 +1,13 @@
 /**
- * A password sealed under a pepper (ADR 0172). The pepper is something the
- * person types each time a password is used; it is never stored, so the sealed
- * body alone cannot produce the password.
+ * The pepper seal an older version wrote (ADR 0172: v1, and v2 which wraps a
+ * per-password key). Nothing writes one now (ADR 0174): a pepper is not asked
+ * for and not stored. A vault that still holds one opens it here, once, with the
+ * pepper the person chose then, so it can become an ordinary stored password.
+ * `sealWithPepper` stays for the fixtures that build such a vault.
  *
  * PBKDF2-SHA256 at the vault's own iteration floor stretches the pepper into an
- * AES-GCM wrapping key for a fresh per-password DEK. The seal is bound to the account and method ids: moved to
- * another method, it fails to open.
+ * AES-GCM wrapping key for a fresh per-password DEK. The seal is bound to the
+ * account and method ids: moved to another method, it fails to open.
  */
 
 import { isString, overlapCast } from "@opensesame/os-domain";
@@ -144,14 +146,14 @@ export async function sealWithPepper(
   }
 }
 
-/** The outer vault root supplies customer isolation; this nested seal adds a user factor. */
+/** Opens a PBKDF2 seal, v1 or v2 (ADR 0172). The outer vault root supplies customer isolation; this nested seal adds a user factor. Throws `WrongPepperError` for a wrong pepper or a seal moved to another method. */
 export async function openWithPepper(
   sealed: PepperSeal,
   pepper: string,
   binding: string,
 ): Promise<string> {
   if (sealed.v !== 1 && sealed.v !== 2)
-    throw new VaultCorruptError("unknown pepper seal");
+    throw new VaultCorruptError("not a PBKDF2 pepper seal");
   assertKdfParams(sealed.kdf);
   const key = await pepperKey(
     pepper,

@@ -7,7 +7,6 @@ import {
   passwordMethod,
 } from "@opensesame/vault-core";
 import { cleanup, render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from "vitest";
 
@@ -65,12 +64,6 @@ export function passwordOf(item: AccountItem): PasswordMethod {
   const method = passwordMethod(item);
   if (!method) throw new Error("expected a password method");
   return method;
-}
-
-export async function typeInPrompt(pepper: string, confirm = false) {
-  await userEvent.type(screen.getByLabelText("Pepper"), pepper);
-  if (confirm)
-    await userEvent.type(screen.getByLabelText("Confirm pepper"), pepper);
 }
 
 /** The editor's seams and per-test reset, installed by the suite that calls it. */

@@ -1,10 +1,10 @@
-import { generateStored } from "@opensesame/app-core/lib/vault/generators/index.js";
 import {
   type AccountItem,
   DEFAULT_RULES,
   LOGIN_METHOD_TYPES,
   type LoginMethod,
   type LoginMethodType,
+  mintRootSecret,
   newMethodId,
 } from "@opensesame/vault-core";
 import { type RefObject, useEffect, useRef } from "react";
@@ -36,13 +36,17 @@ export function newMethod(
   const id = newMethodId(account.id, type);
   switch (type) {
     case "password": {
-      const generator = { id: "rules", ...DEFAULT_RULES } as const;
+      const generator = {
+        id: "derived",
+        rules: { ...DEFAULT_RULES },
+        counter: 0,
+      } as const;
       return {
         id,
         type,
         generator,
-        pepper: false,
-        secret: generateStored(generator),
+        pepper: true,
+        secret: mintRootSecret(),
         changedAt: now.toISOString(),
       };
     }

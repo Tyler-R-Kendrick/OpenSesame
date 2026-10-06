@@ -3,9 +3,10 @@ import {
   type VaultItem,
   accountTotp,
   definitionFor,
+  handoff,
+  produceAccountPassword,
   readItemField,
 } from "@opensesame/vault-core";
-import { type AskPepper, readAccountPassword } from "../account-password.js";
 import {
   type AppCommand,
   type CommandOutcome,
@@ -21,11 +22,6 @@ export type CommandPorts = {
   copy: (value: string) => Promise<"copied" | "unavailable">;
   items: () => readonly VaultItem[];
   vaultLocked: () => boolean;
-  /**
-   * Ask for a pepper (ADR 0172 §4). Without it a peppered or Sphinx password
-   * has nothing to copy; with it the question is asked once per command.
-   */
-  askPepper?: AskPepper;
 };
 
 function scoreName(name: string, query: string): number {
@@ -79,33 +75,37 @@ function concealedValue(item: VaultItem): string | null {
 /** What a copy reads: a value, or the reason there is none to copy. */
 type Read = { value: string | null } | { refusal: CommandOutcome };
 
-async function accountPassword(
+/**
+ * A password through the facade (ADR 0174). With a pepper in it, the first copy
+ * is what comes before the pepper and `rest` is what comes after; the person
+ * supplies the pepper where they paste, and the product is never asked for it.
+ */
+function accountPassword(
   item: Extract<VaultItem, { kind: "account" }>,
-  ports: CommandPorts,
-): Promise<Read> {
-  const reading = await readAccountPassword(item, ports.askPepper);
-  switch (reading.status) {
-    case "ok":
-      return { value: reading.password };
-    case "cancelled":
-      return { refusal: { ok: false, message: "Cancelled." } };
-    case "wrong":
-      return {
-        refusal: { ok: false, message: "That pepper did not open it." },
-      };
-    default:
-      return { value: null };
+  part: "now" | "later",
+): Read {
+  const produced = produceAccountPassword(item);
+  if (produced.status === "legacy") {
+    return {
+      refusal: {
+        ok: false,
+        message: `${item.name} was made with an earlier pepper: open it to convert it.`,
+      },
+    };
   }
+  const out = handoff(produced);
+  return { value: out === null ? null : out[part] };
 }
 
 async function fieldValue(
   item: VaultItem,
   field: Extract<AppCommand, { action: "copy_field" }>["field"],
-  ports: CommandPorts,
 ): Promise<Read> {
-  if (field === "password") {
-    if (item.kind === "account") return accountPassword(item, ports);
-    return { value: concealedValue(item) };
+  if (field === "password" || field === "rest") {
+    if (item.kind === "account") {
+      return accountPassword(item, field === "rest" ? "later" : "now");
+    }
+    return { value: field === "rest" ? null : concealedValue(item) };
   }
   return { value: plainFieldValue(item, field) };
 }
@@ -165,7 +165,7 @@ async function copyField(
   const subject = subjectOf(ports, command.query);
   if ("refusal" in subject) return subject.refusal;
   const { item } = subject;
-  const read = await fieldValue(item, command.field, ports);
+  const read = await fieldValue(item, command.field);
   if ("refusal" in read) return read.refusal;
   const { value } = read;
   if (value === null || value === "") {
@@ -177,6 +177,17 @@ async function copyField(
   const result = await ports.copy(value);
   if (result !== "copied") {
     return { ok: false, message: "Clipboard unavailable." };
+  }
+  const produced =
+    item.kind === "account" ? produceAccountPassword(item) : undefined;
+  if (command.field === "password" && produced?.status === "slotted") {
+    return {
+      ok: true,
+      message:
+        produced.tail === ""
+          ? `Copied password for ${item.name}: add your pepper after it`
+          : `Copied the start of the password for ${item.name}: add your pepper, then copy the rest`,
+    };
   }
   return { ok: true, message: `Copied ${command.field} for ${item.name}` };
 }

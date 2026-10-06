@@ -2,14 +2,18 @@
 import {
   type AccountItem,
   type VaultItem,
-  accountPlainPassword,
   accountTotp,
   createItem,
   passwordMethod,
 } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
-import { pepperedAccount, plainAccount } from "../account.test-support.js";
-import { checkPepper } from "../vault/generators/index.js";
+import {
+  derivedAccount,
+  legacySealedAccount,
+  pepperedAccount,
+  plainAccount,
+  producedPassword,
+} from "../account.test-support.js";
 import {
   PasswordWriteRefused,
   assignField,
@@ -20,10 +24,10 @@ describe("assignField", () => {
   it("replaces an account password and stamps when it changed", async () => {
     const item = plainAccount("GitHub", "hunter2", { username: "octo" });
     const next = await assignField(item, "password", "rotated");
-    expect(accountPlainPassword(item)).toBe("hunter2");
+    expect(producedPassword(item)).toBe("hunter2");
     expect(next?.kind).toBe("account");
     if (next?.kind !== "account") return;
-    expect(accountPlainPassword(next)).toBe("rotated");
+    expect(producedPassword(next)).toBe("rotated");
     expect(next.username).toBe("octo");
     expect(passwordMethod(next)?.changedAt).toBe(next.updatedAt);
     expect(await assignField(item, "nope", "x")).toBeNull();
@@ -41,37 +45,30 @@ describe("assignField", () => {
     expect(second.methods).toHaveLength(2);
   });
 
-  it("refuses a plaintext write to a peppered method when nothing can ask", async () => {
-    const item = await pepperedAccount("GitHub", "old-secret", "pepper");
-    await expect(assignField(item, "password", "plain")).rejects.toMatchObject({
-      reason: "pepper_required",
+  it("writes a stored password into a method with a pepper slot, and keeps the slot", async () => {
+    const item = pepperedAccount("GitHub", "old-secret", "-2");
+    const next = await assignField(item, "password", "rotated");
+    if (next?.kind !== "account") throw new Error("fixture");
+    const method = passwordMethod(next);
+    expect(method).toMatchObject({
+      secret: "rotated",
+      pepper: true,
+      pepperAt: "-2",
     });
+  });
+
+  it("refuses to write over what an older version sealed", async () => {
+    const item = await legacySealedAccount("GitHub", "old-secret", "pepper");
     await expect(assignField(item, "password", "plain")).rejects.toBeInstanceOf(
       PasswordWriteRefused,
     );
-    // A cancelled prompt is the same refusal.
-    await expect(
-      assignField(item, "password", "plain", async () => null),
-    ).rejects.toMatchObject({ reason: "pepper_required" });
-    // And nothing about the item changed in the clear.
     expect(JSON.stringify(item)).not.toContain("plain");
   });
 
-  it("seals a write to a peppered method under the pepper it asked for", async () => {
-    const item = await pepperedAccount("GitHub", "old-secret", "pepper");
-    let asked = 0;
-    const next = await assignField(item, "password", "rotated", async () => {
-      asked += 1;
-      return "pepper";
-    });
-    expect(asked).toBe(1);
-    if (next?.kind !== "account") throw new Error("fixture");
-    const method = passwordMethod(next);
-    if (method === undefined) throw new Error("fixture");
-    expect(method.secret).toBe("");
-    expect(JSON.stringify(next)).not.toContain("rotated");
-    expect(await checkPepper(next.id, method, "pepper")).toBe(true);
-    expect(accountPlainPassword(next)).toBe("");
+  it("refuses to write a password a derived method computes", async () => {
+    await expect(
+      assignField(derivedAccount("Bank"), "password", "x"),
+    ).rejects.toMatchObject({ reason: "computed" });
   });
 
   it("refuses to write a computed Sphinx password at all", async () => {
@@ -101,9 +98,9 @@ describe("assignField", () => {
         secret: "",
       },
     ];
-    await expect(
-      assignField(item, "password", "x", async () => "master"),
-    ).rejects.toMatchObject({ reason: "computed" });
+    await expect(assignField(item, "password", "x")).rejects.toMatchObject({
+      reason: "computed",
+    });
   });
 
   it("replaces notes and a custom field, and refuses an unknown custom id", async () => {
@@ -153,14 +150,14 @@ describe("vaultWrite", () => {
     const written = saved[0];
     expect(written?.kind).toBe("account");
     if (written?.kind === "account")
-      expect(accountPlainPassword(written)).toBe("rotated");
+      expect(producedPassword(written)).toBe("rotated");
     expect(await write(item.id, "nope", "x")).toBe(false);
     expect(await write("other", "password", "x")).toBe(false);
     expect(saved).toHaveLength(1);
   });
 
-  it("never saves a write to a peppered password", async () => {
-    const item = await pepperedAccount("GitHub", "old-secret", "pepper");
+  it("never saves a write to a password an older version sealed", async () => {
+    const item = await legacySealedAccount("GitHub", "old-secret", "pepper");
     const saved: VaultItem[] = [];
     const write = vaultWrite(
       { scope: { kind: "vault" }, items: () => [item] },
