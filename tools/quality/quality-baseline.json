@@ -1013,9 +1013,9 @@
       "max-lines-per-function": 3
     },
     "packages/control-plane/src/routes/projects.ts": {
-      "complexity": 2,
-      "max-lines": 748,
-      "max-lines-per-function": 3
+      "complexity": 1,
+      "max-lines": 657,
+      "max-lines-per-function": 2
     },
     "packages/control-plane/src/routes/scim.ts": {
       "max-lines": 554,
