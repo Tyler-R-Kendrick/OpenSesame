@@ -15,8 +15,8 @@
  * Argon2 in Wasm is large, and a person who never opens a KDBX file never
  * fetches it. Activating this capability therefore loads no Wasm either.
  *
- * On a phone the same flow is the `Entry`: an item of the menu behind the
- * Add button (its ellipsis, or a long press on the +), mounted beside it.
+ * On a phone the same flow is the `Entry`: what holding the Add button and
+ * sliding up chooses, mounted beside it.
  *
  * Egress: none. Every byte read is a file the person chose through an
  * `<input type="file">`; no format handler fetches anything.

@@ -1,6 +1,5 @@
-/* A phone's Add button: the `+`, one tap, with a vertical ellipsis attached
-   for the alternatives (Import, Export). A long press on the `+` opens the
-   same menu.
+/* A phone's Add button: the `+`, one tap. Held, it draws a drag area to slide
+   into for the alternatives (Import up, Export down): see `add-slide.css`.
 
    Absolute inside `.vault`, whose box ends on the statusline's top edge and
    never scrolls (the rows inside it do), so the button stays put without a
@@ -10,7 +9,6 @@
 .vault {
   position: relative;
   --fab-size: 3.5rem;
-  --fab-more: 2.75rem;
   --fab-gap: 1rem;
   --vault-status-h: 2rem;
 }
@@ -20,16 +18,16 @@
   z-index: 3;
   right: max(var(--fab-gap), env(safe-area-inset-right));
   bottom: var(--fab-gap);
-  display: flex;
-  align-items: stretch;
+  width: var(--fab-size);
   height: var(--fab-size);
-  border-radius: calc(var(--fab-size) / 2);
+  /* A sharp square, like every control (DESIGN.md § Shapes). */
+  border-radius: 0;
   background: var(--ink);
   color: var(--canvas);
   /* The edge is a ring, not a border: a border would take a pixel off every
-     side of the targets inside, and the + is 56px or it is not. */
+     side of the target inside, and the + is 56px or it is not. */
   box-shadow: 0 0 0 1px var(--line), var(--shadow);
-  /* A held finger asks for the menu; it is not selecting, and a held link
+  /* A held finger slides to choose; it is not selecting, and a held link
      must not raise the platform's own preview. */
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -40,48 +38,30 @@
   bottom: calc(var(--vault-status-h) + var(--fab-gap));
 }
 
-.fab__add,
-.fab__more {
+.fab__add {
   display: grid;
   place-items: center;
+  width: 100%;
+  height: 100%;
   margin: 0;
   padding: 0;
   border: 0;
+  border-radius: 0;
   background: transparent;
   color: inherit;
-  touch-action: manipulation;
+  /* The slide is the page's: no pan or zoom may take a held finger away. */
+  touch-action: none;
   -webkit-tap-highlight-color: transparent;
   transition: background 140ms var(--ease);
 }
 
-.fab__add {
-  width: var(--fab-size);
-  border-radius: calc(var(--fab-size) / 2) 0 0 calc(var(--fab-size) / 2);
-}
-
-.fab__more {
-  width: var(--fab-more);
-  border-left: 1px solid color-mix(in srgb, var(--canvas) 24%, transparent);
-  border-radius: 0 calc(var(--fab-size) / 2) calc(var(--fab-size) / 2) 0;
-}
-
-.fab__add:active,
-.fab__more:active {
+.fab__add:active {
   background: color-mix(in srgb, var(--canvas) 16%, transparent);
 }
 
-.fab__add:focus-visible,
-.fab__more:focus-visible {
+.fab__add:focus-visible {
   outline-offset: -4px;
   outline-color: var(--canvas);
-}
-
-.fab__add:focus-visible {
-  border-radius: calc(var(--fab-size) / 2) 0 0 calc(var(--fab-size) / 2);
-}
-
-.fab__more:focus-visible {
-  border-radius: 0 calc(var(--fab-size) / 2) calc(var(--fab-size) / 2) 0;
 }
 
 /* The last row clears the button instead of ending under it. */
@@ -98,8 +78,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fab__add,
-  .fab__more {
+  .fab__add {
     transition: none;
   }
 }

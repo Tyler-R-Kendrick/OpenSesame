@@ -58,9 +58,13 @@ a person can iterate against.
   only a test more than two steps away would catch surfaces on `main`, not on
   the pull request. The threshold and depth are `HUB_TESTS` and `HUB_DEPTH`.
 - A package's test setup imports a wide closure (app-core's and Pages' reach
-  `@opensesame/os-domain` and some 600 files). A change inside it runs that
-  package whole, because setup code runs before every test; the saving is for
-  changes outside it.
+  `@opensesame/os-domain` and about 150 files once type-only imports are left
+  out). A change inside it runs that package whole, because setup code runs
+  before every test; the saving is for changes outside it. A type-only import
+  (`import type`, `export type ... from`) is not followed: it is erased before
+  the setup runs, and counting it put some 480 files, tutorial and capability
+  type contracts among them, in the closure, so a one-line edit to one of those
+  ran every test of the package.
 - The tutorials walk is the slowest gate (about eight minutes whole), so CI
   splits it per width into three legs by tutorial id (`TUTORIALS_SHARD`,
   `shard.mjs`); the first leg also runs the passes that are not a tutorial.

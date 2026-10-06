@@ -43,7 +43,7 @@ export type GestureHost = Readonly<{
 }>;
 
 /** A text field has the keyboard up, wherever on the page a finger lands. */
-function textEntryFocused(): boolean {
+export function textEntryFocused(): boolean {
   const held = document.activeElement;
   if (held instanceof HTMLTextAreaElement) return true;
   if (held instanceof HTMLInputElement)

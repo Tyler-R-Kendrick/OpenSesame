@@ -6,7 +6,8 @@
  *
  * The set is closed on purpose, like the contexts. One finger belongs to the
  * page — a tap activates, a drag scrolls, a hold or a row swiped left asks
- * for the row's actions, a pane swiped right goes back — and a pinch is the
+ * for the row's actions, a pane swiped right goes back, a page with tabs turns
+ * to the next or the one before — and a pinch is the
  * browser's zoom. Those are fixed and cannot be bound, so a person can never
  * lose the touch road. What is left to bind is what a thumb cannot reach by
  * accident: two fingers, and the phone itself.
@@ -111,6 +112,7 @@ export const FIXED_GESTURES: readonly (readonly [
   ["Tap", "Open or activate"],
   ["Hold, or swipe a row left", "Actions for the row"],
   ["Swipe a pane right", "Back"],
+  ["Swipe a page with tabs", "Next or previous tab"],
   ["Pinch", "Zoom, the browser's"],
 ];
 

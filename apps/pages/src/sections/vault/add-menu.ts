@@ -1,17 +1,20 @@
 import { useEffect } from "react";
 
 /**
- * The other ways to add that sit behind the Add button on a phone: Import,
- * Export, whatever a capability contributes. Each is a flow with its own
- * sheet, mounted beside the button, which registers one entry here while it
- * is mounted; the button's menu (its ellipsis, or a long press on it) lists
- * what is registered when it opens.
+ * The other ways to add that sit behind the Add button on a phone: Import and
+ * Export. Each is a flow with its own sheet, mounted beside the button, which
+ * registers one entry here while it is mounted. Holding the button draws the
+ * drag area (`AddSlide`): the entry whose `slide` is `up` is chosen by sliding
+ * up and released there, the one that is `down` by sliding down. A keyboard
+ * or a screen reader, which cannot slide, gets the same entries as a menu.
  */
 export type AddEntry = {
   id: string;
   label: string;
   /** Lower first. */
   order: number;
+  /** Which way the finger slides from the held button to choose this one. */
+  slide: "up" | "down";
   run: () => void;
 };
 
@@ -26,12 +29,12 @@ export function addEntries(): AddEntry[] {
 
 /** Register an entry while the calling flow is mounted. */
 export function useAddEntry(entry: AddEntry): void {
-  const { id, label, order, run } = entry;
+  const { id, label, order, slide, run } = entry;
   useEffect(() => {
-    const own = { id, label, order, run };
+    const own = { id, label, order, slide, run };
     entries.set(id, own);
     return () => {
       if (entries.get(id) === own) entries.delete(id);
     };
-  }, [id, label, order, run]);
+  }, [id, label, order, slide, run]);
 }

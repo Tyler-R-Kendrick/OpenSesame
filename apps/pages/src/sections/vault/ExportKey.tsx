@@ -169,7 +169,8 @@ export function ExportKey() {
 
 /**
  * Export as one of the Add button's other ways to add, on a phone: the same
- * sheet, behind the button's menu instead of a key of its own.
+ * sheet, chosen by holding the button and sliding down instead of a key of its
+ * own.
  */
 export function ExportEntry() {
   const flow = useExportFlow();
@@ -177,6 +178,7 @@ export function ExportEntry() {
     id: "export",
     label: "Export items",
     order: 20,
+    slide: "down",
     run: flow.show,
   });
   return flow.element;

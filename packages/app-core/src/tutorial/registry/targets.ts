@@ -121,6 +121,26 @@ function fireActivation(id: GuideTargetId): void {
 }
 
 /**
+ * Report that the person activated `id` by a road that is not a click or a
+ * key on its element: a control chosen by a drag (the Add button's slide to
+ * Import or Export). Only a target mounted with `activation: "manual"` should
+ * be reported this way; like the passive listeners it observes and does nothing.
+ */
+export function reportGuideActivation(id: GuideTargetId): void {
+  fireActivation(id);
+}
+
+export type MountOptions = Readonly<{
+  /**
+   * How the element is activated. `click` (the default) is a click or Enter /
+   * Space on it. `manual` is a control that is not activated by either — its
+   * own code reports it with `reportGuideActivation` — so a tap on the element
+   * that does something else cannot complete a step that waits for the drag.
+   */
+  activation?: "click" | "manual";
+}>;
+
+/**
  * Binds a declared target to a live element. Returns the unbind function the
  * React effect calls on unmount.
  *
@@ -132,6 +152,7 @@ function fireActivation(id: GuideTargetId): void {
 export function mountGuideTarget(
   id: GuideTargetId,
   element: HTMLElement,
+  options: MountOptions = {},
 ): () => void {
   const descriptor = declared().get(id);
   if (!descriptor) {
@@ -164,13 +185,17 @@ export function mountGuideTarget(
   const onKey = (event: KeyboardEvent) => {
     if (event.key === "Enter" || event.key === " ") fireActivation(id);
   };
-  element.addEventListener("click", onActivate, { capture: true });
-  element.addEventListener("keyup", onKey, { capture: true });
+  const observed = options.activation !== "manual";
+  if (observed) {
+    element.addEventListener("click", onActivate, { capture: true });
+    element.addEventListener("keyup", onKey, { capture: true });
+  }
 
   const entry: MountedTarget = {
     descriptor,
     element,
     detach: () => {
+      if (!observed) return;
       element.removeEventListener("click", onActivate, { capture: true });
       element.removeEventListener("keyup", onKey, { capture: true });
     },

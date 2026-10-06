@@ -130,6 +130,8 @@ function keyboardTarget(): Element | null {
  */
 function holdable(target: Element | null): boolean {
   if (!target || target.closest(".ctxmenu, .ctxmenu-layer")) return false;
+  // A control that answers its own hold (the Add button slides to choose).
+  if (target.closest("[data-own-hold]")) return false;
   return target.closest('[role="tree"], a[href]') !== null;
 }
 

@@ -107,11 +107,12 @@ export async function openPanel(user: ReturnType<typeof userEvent.setup>) {
  * two verbs — a suite that wants it regardless asks for either.
  */
 export function composer(): Promise<HTMLInputElement> {
-  return screen
-    .findByLabelText<HTMLInputElement>("Ask about this screen")
-    .catch(() =>
-      screen.findByLabelText<HTMLInputElement>("Search the written help"),
-    );
+  // One query for either verb. Trying one label and falling back to the other
+  // on a miss waited out the whole timeout whenever the field carried the
+  // second, which is every time no model is ready.
+  return screen.findByLabelText<HTMLInputElement>(
+    /^(Ask about this screen|Search the written help)$/,
+  );
 }
 
 export async function ask(

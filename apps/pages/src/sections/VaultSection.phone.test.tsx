@@ -16,10 +16,6 @@ import {
   vault,
 } from "../components/app-shell.test-harness.js";
 import { ContextMenuLayer } from "../components/context-menu/ContextMenuLayer.js";
-import {
-  closeContextMenu,
-  contextMenuSnapshot,
-} from "../components/context-menu/menu-model.js";
 import { createKeymapHandler } from "../lib/keymap.js";
 import { stubScreen } from "../lib/use-narrow.test-support.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
@@ -134,93 +130,17 @@ describe("the vault on a phone", () => {
     expect(screen.queryByRole("button", { name: "Export items" })).toBeNull();
   });
 
-  it("Add is one button: the default + with an attached ellipsis", () => {
+  it("Add is one button: a sharp + with no ellipsis and no button beside it", () => {
     renderVault("/vault");
     const add = drawn(".vault > .fab");
     const plus = within(add).getByRole("link", {
       name: "New item",
     });
     expect(plus.getAttribute("href")).toMatch(/^\/vault\/new/);
-    const more = within(add).getByRole("button", {
-      name: "More ways to add",
-    });
-    expect(more.getAttribute("aria-haspopup")).toBe("menu");
-    expect(more.textContent).toBe("");
-  });
-
-  it("the ellipsis, and a context menu on the +, list the alternatives to adding", () => {
-    renderVault("/vault");
-    const listed = () =>
-      contextMenuSnapshot()
-        ?.groups.flat()
-        .map((entry) => entry.label) ?? [];
-    expect(listed()).toEqual([]);
-    fireEvent.click(screen.getByRole("button", { name: "More ways to add" }));
-    expect(listed()).toEqual(["Import items", "Export items"]);
-    expect(contextMenuSnapshot()?.label).toBe("Add actions");
-    // Drawn by the real layer, as an action sheet of named rows.
+    expect(within(add).queryAllByRole("button")).toEqual([]);
     expect(
-      within(screen.getByRole("menu", { name: "Add actions" }))
-        .getAllByRole("menuitem")
-        .map((row) => row.textContent),
-    ).toEqual(["Import items", "Export items"]);
-    closeContextMenu();
-    // A long press is the platform's context-menu road: the same ask, the
-    // same menu — not the link's "Open link / Copy link address" menu.
-    fireEvent.contextMenu(screen.getByRole("link", { name: "New item" }));
-    expect(listed()).toEqual(["Import items", "Export items"]);
-    expect(contextMenuSnapshot()?.label).toBe("Add actions");
-  });
-
-  it("Import's entry starts the file picker, and Export's opens its sheet", async () => {
-    renderVault("/vault");
-    const picker = vi
-      .spyOn(HTMLInputElement.prototype, "click")
-      .mockImplementation(() => undefined);
-    const ellipsis = screen.getByRole("button", { name: "More ways to add" });
-    fireEvent.click(ellipsis);
-    const entry = (id: string) =>
-      contextMenuSnapshot()
-        ?.groups.flat()
-        .find((item) => item.id === id);
-    act(() => entry("import")?.run());
-    expect(picker).toHaveBeenCalledOnce();
-    picker.mockRestore();
-    const real = vaultHooksSeams.useVault;
-    vaultHooksSeams.useVault = () => ({
-      ...real(),
-      tomb: "personal",
-      header: null,
-      status: "unlocked",
-    });
-    fireEvent.click(ellipsis);
-    act(() => entry("export")?.run());
-    expect(
-      await screen.findByRole("dialog", { name: "Export encrypted vault" }),
-    ).toBeTruthy();
-    vaultHooksSeams.useVault = real;
-  });
-
-  it("closing the menu returns the keyboard to the ellipsis", async () => {
-    renderVault("/vault");
-    const ellipsis = screen.getByRole("button", { name: "More ways to add" });
-    fireEvent.click(ellipsis);
-    await screen.findByRole("menu", { name: "Add actions" });
-    fireEvent.keyDown(document.activeElement ?? document.body, {
-      key: "Escape",
-    });
-    await waitFor(() => expect(document.activeElement).toBe(ellipsis));
-  });
-
-  it("the menu lists Import before Export, each a flow the button mounts", () => {
-    renderVault("/vault");
-    fireEvent.click(screen.getByRole("button", { name: "More ways to add" }));
-    const entries = contextMenuSnapshot()?.groups.flat() ?? [];
-    expect(entries.map((entry) => entry.id)).toEqual(["import", "export"]);
-    // Their file input is mounted beside the button, ready for the tap.
-    expect(
-      document.querySelector('input[type="file"][aria-label]'),
-    ).not.toBeNull();
+      screen.queryByRole("button", { name: "More ways to add" }),
+    ).toBeNull();
   });
 
   it("the list's header is back and the view it shows, named; nothing else is a key", () => {

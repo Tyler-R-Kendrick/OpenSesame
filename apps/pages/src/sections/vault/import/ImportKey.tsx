@@ -68,7 +68,8 @@ export function ImportKey() {
 
 /**
  * Import as one of the Add button's other ways to add, on a phone: the same
- * flow, behind the button's menu instead of a key of its own.
+ * flow, chosen by holding the button and sliding up instead of a key of its
+ * own.
  */
 export function ImportEntry() {
   const flow = useImportFlow();
@@ -76,6 +77,7 @@ export function ImportEntry() {
     id: "import",
     label: "Import items",
     order: 10,
+    slide: "up",
     run: flow.pick,
   });
   return flow.element;
