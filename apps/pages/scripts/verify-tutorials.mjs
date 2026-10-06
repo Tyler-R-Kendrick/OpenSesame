@@ -43,6 +43,7 @@ import {
   moveAdvancesTheTour,
 } from "./lib/tutorial-interact.mjs";
 import { seedVault } from "./lib/tutorial-seed.mjs";
+import { inShard, isFirstShard, parseShard } from "./lib/tutorial-shard.mjs";
 import {
   listTutorials,
   resetToVault,
@@ -63,6 +64,8 @@ const only = new Set(
 const widths = (process.env.TUTORIALS_WIDTHS ?? "1280,390")
   .split(",")
   .map(Number);
+const shard = parseShard(process.env.TUTORIALS_SHARD);
+const firstShard = isFirstShard(shard);
 const keepShots = process.env.TUTORIALS_SHOTS === "1";
 const verbose = process.env.TUTORIALS_VERBOSE === "1";
 
@@ -157,8 +160,10 @@ async function sealedShell(width) {
 }
 
 const wants = (id) => only.size === 0 || only.has(id);
+// The gates and the passes that are not a tutorial belong to the first shard.
 const gatesWanted =
-  only.size === 0 || [...only].some((id) => id.startsWith("gate."));
+  firstShard &&
+  (only.size === 0 || [...only].some((id) => id.startsWith("gate.")));
 
 /** One tutorial a gate offers, walked on the gate it was listed from. */
 async function walkGate(page, entry, { phone, width }) {
@@ -190,17 +195,18 @@ async function shellPass(width) {
     "the shell's library offers none of the gates' tutorials (ADR 0166)",
   );
   const entries = listed.filter(
-    (entry) => only.size === 0 || only.has(entry.id),
+    (entry) =>
+      (only.size === 0 || only.has(entry.id)) && inShard(entry.id, shard),
   );
   console.log(`${width}px: ${entries.length} tutorials on the shell`);
   const started = Date.now();
-  if (only.size === 0 || only.has("vault.lock")) {
+  if (firstShard && (only.size === 0 || only.has("vault.lock"))) {
     where = `${width}px escape`;
     await guarded(page, "escape", () =>
       escapeEndsTheTour(page, { check, base }),
     );
   }
-  if (only.size === 0 || only.has("vaults.switch")) {
+  if (firstShard && (only.size === 0 || only.has("vaults.switch"))) {
     where = `${width}px move`;
     await guarded(page, "move", () =>
       moveAdvancesTheTour(page, { check, base }),
@@ -214,7 +220,10 @@ async function shellPass(width) {
   where = `${width}px seed`;
   await guarded(page, "seed", () => seedVault(page, base));
   const later = (await listTutorials(page)).filter(
-    (entry) => !walked.has(entry.id) && (only.size === 0 || only.has(entry.id)),
+    (entry) =>
+      !walked.has(entry.id) &&
+      (only.size === 0 || only.has(entry.id)) &&
+      inShard(entry.id, shard),
   );
   console.log(`${width}px: ${later.length} more once the vault holds items`);
   await walkEntries(page, later, { phone, width });
