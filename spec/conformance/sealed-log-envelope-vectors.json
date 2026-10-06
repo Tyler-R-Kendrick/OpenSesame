@@ -1,0 +1,14 @@
+{
+  "key": "0707070707070707070707070707070707070707070707070707070707070707",
+  "scope": "",
+  "lines": [
+    {
+      "plain": "TypeScript customer log envelope",
+      "sealed": "osl2.6xYHhPJ0A9py-NhLW741qZeVE5RH0sqm7GcsATJL_fzg54PzPn5UpbYbq5BXwtfq5M5l8-tVUILR-R68qAUZpODXsrtK_1Ppc2JpQ2JUrMrGhABHpOMrYxF0ED8hecGLqh2v3Z5rAotoQffERkMpkqiodaUbkoGIG-7DT2WNs8XLJBMGcfgjWIry_NUrmRkN"
+    },
+    {
+      "plain": "Unicode private line: café 日本語",
+      "sealed": "osl2.Xki76RhqwPXHYDgUqI7NI6dy9iYYdAltzfwgo2nVA5QnU_rjGyCJgKL-y_cqZlLKohBJsKnKy8NF7KwrQIb6WbXKWf7he540XOCATmqvucOKVSi5dLNpRhlGhmT2boIeIQ_pWGq5saWp7b4wLOCk03V2UTG9N8bf1dY9oSOJSSReBPV3pbWbGIK1AIY8KqFepv8cL1w"
+    }
+  ]
+}

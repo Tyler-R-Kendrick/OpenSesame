@@ -6,6 +6,7 @@ license.workspace = true
 description = "An encrypted, rotating log file: every line sealed on its own under a key kept apart from it (ADR 0157)"
 
 [dependencies]
+opensesame-event-seal = { path = "../event-seal" }
 opensesame-redaction = { path = "../redaction" }
 base64 = { workspace = true }
 chacha20poly1305 = { workspace = true }
@@ -13,6 +14,8 @@ hex = { workspace = true }
 zeroize = { workspace = true }
 
 [dev-dependencies]
+hkdf = { workspace = true }
+sha2 = { workspace = true }
 opensesame-redaction = { path = "../redaction", features = ["tracing"] }
 serde_json = { workspace = true }
 tempfile = { workspace = true }

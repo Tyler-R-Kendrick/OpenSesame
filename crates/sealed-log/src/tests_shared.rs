@@ -8,9 +8,9 @@ fn key() -> LogKey {
     LogKey::from_bytes([7; 32])
 }
 
-/// A sealed `x`-line is 86 bytes with its newline; two fit under 200.
+/// An enveloped `x`-line is 185 bytes with its newline; two fit under 400.
 const LINE: &str = "xxxxxxxxxxxxxxxxxxxx";
-const MAX: u64 = 200;
+const MAX: u64 = 400;
 
 fn opened(path: &std::path::Path) -> Vec<String> {
     std::fs::read_to_string(path)
