@@ -296,10 +296,12 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
         run: pnpm verify:customer-vault-browser
       - name: Experience journeys
-        if: matrix.shard == 'journeys'
+        # Half the walks per leg (EXPERIENCE_SHARD), in turn, so each runs once.
+        if: startsWith(matrix.shard, 'journeys')
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
+          EXPERIENCE_SHARD: ${{ matrix.journeys }}
         run: node apps/pages/scripts/verify-experience-journeys.mjs
 
   device-inbox:
@@ -419,7 +421,9 @@ jobs:
         run: pnpm --filter @opensesame/pages verify:device-identity
 
   tutorials-e2e:
-    # Its own job, one per width: every tutorial is walked end to end (the
+    # Its own job, one per width and third of the library (`TUTORIALS_SHARD`;
+    # the first third also walks Escape, the move and the gates, so every
+    # tutorial and pass runs in exactly one leg): every tutorial is walked end to end (the
     # shell's, each started, walked, gone back through, replayed and walked
     # again, and the gates', ADR 0166, each started from the help key its
     # screen draws). Measured locally that is about four minutes a width for
@@ -429,7 +433,7 @@ jobs:
     # the Bundle budget job's twenty minutes beside its builds and gates. `bundle-check` below folds the
     # result into the required "Bundle budgets" check, so it gates merges
     # without another required name.
-    name: Every tutorial, walked (${{ matrix.width }}px)
+    name: Every tutorial, walked (${{ matrix.width }}px, ${{ matrix.shard }})
     needs: changes
     # The Pages build, the app core and the guide runtime that build ships.
     if: needs.changes.outputs.tutorials == 'true'
@@ -439,6 +443,7 @@ jobs:
       fail-fast: false
       matrix:
         width: [1280, 390]
+        shard: ["1/3", "2/3", "3/3"]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -469,6 +474,7 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
           TUTORIALS_WIDTHS: ${{ matrix.width }}
+          TUTORIALS_SHARD: ${{ matrix.shard }}
         run: pnpm --filter @opensesame/pages verify:tutorials
 
   rust:

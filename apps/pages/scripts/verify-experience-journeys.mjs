@@ -25,6 +25,7 @@ import { walkJSupport } from "./lib/j-support-journey.mjs";
 import { walkJTravelItems } from "./lib/j-travel-items-journey.mjs";
 import { walkJTravel } from "./lib/j-travel-journey.mjs";
 import { walkJTypes } from "./lib/j-types-journey.mjs";
+import { inTurn, parseShard } from "./lib/shard.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -57,8 +58,16 @@ const ONLY = (process.env.EXPERIENCE_ONLY ?? "")
   .map((name) => name.trim())
   .filter(Boolean);
 
+// EXPERIENCE_SHARD=k/n runs every nth walk, in the order below, from the kth:
+// each walk runs in exactly one shard, and a walk added later joins the next.
+const SHARD = parseShard(process.env.EXPERIENCE_SHARD, "EXPERIENCE_SHARD");
+let walkIndex = 0;
+
 async function runWalk(name, walk) {
   if (ONLY.length > 0 && !ONLY.includes(name)) return;
+  const mine = inTurn(walkIndex, SHARD);
+  walkIndex += 1;
+  if (!mine) return;
   const { page, context } = await newPage(browser);
   setStep(name);
   try {

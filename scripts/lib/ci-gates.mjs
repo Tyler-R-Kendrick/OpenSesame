@@ -39,9 +39,10 @@ export const ALL_GATES = [...SHARD_GATES, ...JOB_GATES];
 const everyGate = () => new Set(ALL_GATES);
 const gates = (...names) => new Set(names);
 
-/** A shard's gate: `mobile-390` is the `mobile` gate. */
+/** A shard's gate: `mobile-390` is the `mobile` gate, `journeys-1` the `journeys` one. */
 export function gateOfShard(shard) {
-  return shard.startsWith("mobile-") ? "mobile" : shard;
+  if (shard.startsWith("mobile-")) return "mobile";
+  return shard.startsWith("journeys-") ? "journeys" : shard;
 }
 
 // --- paths ---------------------------------------------------------------
@@ -221,7 +222,11 @@ function pagesLib(path) {
   // AGENTS.md: "Changes to boot, routing, shell, controls or focus require
   // verify:keyboard". The journeys walk navigation by key.
   if (startsWithAny(rest, ["keymap", "pane-escape", "focus"])) {
-    // The keyboard tutorials teach the keys this file binds.
+    // keymap-targets.ts is the selectors `typing()` reads; no tutorial teaches
+    // those. The rest of the keymap binds the keys the keyboard tutorials teach.
+    if (rest.startsWith("keymap-targets")) {
+      return gates("keyboard", "journeys", "budgets");
+    }
     return gates("keyboard", "journeys", "budgets", "tutorials");
   }
   // AGENTS.md: "A phone is not a narrow desktop": touch input is verify:mobile.

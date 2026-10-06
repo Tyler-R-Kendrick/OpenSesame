@@ -69,6 +69,15 @@ describe("ci gates", () => {
     );
   });
 
+  it("maps the split shards to their one gate", () => {
+    expect(gateOfShard("journeys-2")).toBe("journeys");
+    expect(gateOfShard("mobile-390")).toBe("mobile");
+    expect(gateOfShard("journeys")).toBe("journeys");
+    expect(
+      bundleMatrix(["journeys"], loadShards(root)).map((leg) => leg.shard),
+    ).toEqual(["journeys-1", "journeys-2"]);
+  });
+
   it("writes matrix legs in the shard file's order and only for wanted gates", () => {
     const shards = loadShards(root);
     const legs = bundleMatrix(["mobile", "budgets"], shards).map(
@@ -101,12 +110,15 @@ describe("ci gates, tutorials", () => {
   });
 
   it("starts it for the keymap, whose keys the keyboard tutorials teach", () => {
-    expect(gatesOf("apps/pages/src/lib/keymap-targets.ts")).toContain(
-      "tutorials",
-    );
+    expect(gatesOf("apps/pages/src/lib/keymap.ts")).toContain("tutorials");
     expect(gatesOf("packages/app-core/src/lib/keymap/commands.ts")).toContain(
       "tutorials",
     );
+  });
+
+  it("does not start it for the selectors the keymap reads while typing", () => {
+    const gates = gatesOf("apps/pages/src/lib/keymap-targets.ts");
+    expect(gates).toEqual(["budgets", "journeys", "keyboard"]);
   });
 
   it("starts it for a settings view-model a tour points through", () => {
