@@ -6,7 +6,6 @@
  */
 
 import { ByoError } from "@opensesame/app-core/lib/byo.js";
-import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   cleanup,
   fireEvent,
@@ -15,23 +14,10 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { expectInTray } from "../../components/tray.test-support.js";
 import { ByoProviderSheet, byoSheetDependencies } from "./ByoProviderSheet.js";
 
 const REAL = { ...byoSheetDependencies };
-
-/** The tray holds a status notice carrying every part; the page does not. */
-async function trayHas(...parts: string[]) {
-  await waitFor(() =>
-    expect(
-      listNotices().some(
-        (n) =>
-          n.kind === "status" &&
-          parts.every((part) => `${n.title} ${n.body}`.includes(part)),
-      ),
-    ).toBe(true),
-  );
-  expect(document.body.textContent).not.toContain(parts[parts.length - 1]);
-}
 
 const REGISTERED = {
   id: "byo_1",
@@ -45,7 +31,6 @@ const REGISTERED = {
 
 afterEach(() => {
   cleanup();
-  clearNotices();
   Object.assign(byoSheetDependencies, REAL);
   vi.restoreAllMocks();
 });
@@ -101,7 +86,7 @@ describe("ByoProviderSheet", () => {
     typeIssuer("https://auth.kestrel.dev");
     fireEvent.click(screen.getByRole("button", { name: "Check provider" }));
 
-    await trayHas("does not register clients automatically");
+    await expectInTray("does not register clients automatically");
     fireEvent.change(await screen.findByLabelText("Client ID"), {
       target: { value: "manual-client" },
     });
@@ -138,7 +123,7 @@ describe("ByoProviderSheet", () => {
     typeIssuer("https://not-an-idp.example");
     fireEvent.click(screen.getByRole("button", { name: "Check provider" }));
 
-    await trayHas("discovery document");
+    await expectInTray("discovery document");
     // No manual fields for this failure — the URL itself is the problem.
     expect(screen.queryByLabelText("Client ID")).toBeNull();
   });

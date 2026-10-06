@@ -6,7 +6,7 @@
  * explanation.
  */
 
-import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
+import { listNotices } from "@opensesame/app-core/lib/notices.js";
 import type { OrgTenant } from "@opensesame/app-core/lib/orgs.js";
 import {
   cleanup,
@@ -16,26 +16,13 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { expectInTray } from "../../components/tray.test-support.js";
 import {
   IdentifierField,
   identifierFieldDependencies,
 } from "./IdentifierField.js";
 
 const REAL = { ...identifierFieldDependencies };
-
-/** The tray holds a status notice carrying every part; the page does not. */
-async function trayHas(...parts: string[]) {
-  await waitFor(() =>
-    expect(
-      listNotices().some(
-        (n) =>
-          n.kind === "status" &&
-          parts.every((part) => `${n.title} ${n.body}`.includes(part)),
-      ),
-    ).toBe(true),
-  );
-  expect(document.body.textContent).not.toContain(parts[parts.length - 1]);
-}
 
 const ACME: OrgTenant = {
   slug: "acme-corp",
@@ -49,7 +36,6 @@ const ACME: OrgTenant = {
 
 afterEach(() => {
   cleanup();
-  clearNotices();
   Object.assign(identifierFieldDependencies, REAL);
   vi.restoreAllMocks();
 });
@@ -189,6 +175,6 @@ describe("IdentifierField", () => {
     type("acme-corp");
     submit();
 
-    await trayHas("Sign-in service unreachable");
+    await expectInTray("Sign-in service unreachable");
   });
 });
