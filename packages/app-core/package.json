@@ -23,13 +23,13 @@
     "@types/react": "19.2.7",
     "@types/whatwg-url": "13.0.0",
     "esbuild": "0.25.12",
+    "fake-indexeddb": "6.2.5",
     "fast-check": "4.9.0",
     "jsdom": "26.1.0",
     "typescript": "5.8.3",
     "vitest": "4.1.11"
   },
   "dependencies": {
-    "@opensesame/log-scrub": "workspace:*",
     "@ag-ui/client": "0.0.59",
     "@ai-sdk/provider": "3.0.14",
     "@azure/msal-browser": "5.22.0",
@@ -46,6 +46,7 @@
     "@opensesame/ceremony-kit": "workspace:*",
     "@opensesame/contracts": "workspace:*",
     "@opensesame/guide-lang": "workspace:*",
+    "@opensesame/log-scrub": "workspace:*",
     "@opensesame/os-domain": "workspace:*",
     "@opensesame/qr": "workspace:^",
     "@opensesame/sdk-browser": "workspace:*",

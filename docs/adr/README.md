@@ -215,4 +215,5 @@ looks arbitrary, the ADR it cites explains it.
 | [0172](0172-accounts-and-login-methods.md) | Accounts own login methods; a password is one of them | Accepted |
 | [0173](0173-algorithmic-passwords-by-default.md) | Algorithmic passwords by default | Accepted |
 | [0174](0174-the-pepper-is-the-persons-and-passwords-are-produced-by-one-facade.md) | The pepper is the person's; one facade produces every password | Accepted |
+| [0175](0175-searchable-encryption-over-indexeddb.md) | Searchable encryption over IndexedDB | Accepted |
 | [0176](0176-ci-runs-what-a-diff-can-reach.md) | CI runs what a diff can reach, and a push to main runs everything | Accepted |
