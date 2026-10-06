@@ -7,6 +7,7 @@ import {
   openSection,
   sealWithPassword,
 } from "./pages-journey.mjs";
+import { expectInTray } from "./tray-contract.mjs";
 
 async function openApplications(page) {
   const region = page.getByRole("region", {
@@ -64,10 +65,7 @@ export async function walkJExplain({ page, origin, base, check, snap }) {
   // Expect allow while member+openid on an empty policy is deny/indeterminate.
   await row.getByLabel("Expected decision").selectOption("allow");
   await row.getByRole("button", { name: "Save as policy test" }).click();
-  await row
-    .getByRole("alert")
-    .filter({ hasText: /Candidate publication is blocked/i })
-    .waitFor({ timeout: 8000 });
+  await expectInTray(page, /Candidate publication is blocked/i);
   check(true, "failing saved test blocks publication");
   await snap(page, "J-EXPLAIN-diagnostics");
 }

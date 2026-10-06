@@ -46,6 +46,7 @@ Object.assign(vaultHooksSeams, {
 });
 afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
 
+import { expectInTray } from "../../components/tray.test-support.js";
 import { ItemDetail } from "./ItemDetail.js";
 import { makeAccount } from "./account.test-support.js";
 
@@ -184,7 +185,7 @@ describe("account detail", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Save new value/i }),
     );
-    expect(await screen.findByRole("alert")).toBeTruthy();
+    await expectInTray("Enter a new value.");
     expect(store.saveItem).not.toHaveBeenCalled();
     await userEvent.type(
       screen.getByPlaceholderText("New password"),

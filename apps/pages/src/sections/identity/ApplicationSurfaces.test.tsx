@@ -1,6 +1,8 @@
-import { recipePanelSeams } from "@opensesame/app-core/sections/identity/application-recipe-panel-model.js";
 /** @vitest-environment jsdom */
-import { cleanup, render, screen } from "@testing-library/react";
+import type { LocalScopeRoles } from "@opensesame/app-core/lib/local-application-policy.js";
+import { listNotices } from "@opensesame/app-core/lib/notices.js";
+import { recipePanelSeams } from "@opensesame/app-core/sections/identity/application-recipe-panel-model.js";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApplicationDiagnostics } from "./ApplicationDiagnostics.js";
@@ -83,6 +85,7 @@ describe("application surfaces", () => {
   it("saves a simulation as a policy test without issuing a token", async () => {
     render(
       <ApplicationDiagnostics
+        applicationId="app-1"
         policy={[{ scope: "openid", roles: ["owner", "admin", "member"] }]}
         policyRevision="1"
       />,
@@ -93,5 +96,47 @@ describe("application surfaces", () => {
     );
     expect(screen.getAllByText(/pass|fail/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/access_token/)).toBeNull();
+  });
+
+  it("raises a failed policy test notice per application, not one shared by all", async () => {
+    const openid: LocalScopeRoles[] = [
+      { scope: "openid", roles: ["owner", "admin", "member"] },
+    ];
+    render(
+      <>
+        <section aria-label="first">
+          <ApplicationDiagnostics
+            applicationId="app-a"
+            policy={openid}
+            policyRevision="1"
+          />
+        </section>
+        <section aria-label="second">
+          <ApplicationDiagnostics
+            applicationId="app-b"
+            policy={openid}
+            policyRevision="1"
+          />
+        </section>
+      </>,
+    );
+    const ids = () =>
+      listNotices()
+        .map((notice) => notice.id)
+        .sort();
+    for (const name of ["first", "second"]) {
+      const panel = within(screen.getByRole("region", { name }));
+      await userEvent.selectOptions(
+        panel.getByLabelText("Expected decision"),
+        "deny",
+      );
+      await userEvent.click(
+        panel.getByRole("button", { name: "Save as policy test" }),
+      );
+    }
+    expect(ids()).toEqual([
+      "identity:application-tests:app-a",
+      "identity:application-tests:app-b",
+    ]);
   });
 });

@@ -8,6 +8,7 @@ import {
   revokeLocalShare,
 } from "@opensesame/app-core/lib/local-share-grants.js";
 import { useCallback, useEffect, useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconPlus, IconRefresh, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { GuideTarget, useGuideTarget } from "../../tutorial/registry/react.jsx";
@@ -156,11 +157,7 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
             but cannot grant or revoke them.
           </p>
         ) : null}
-        {error ? (
-          <p className="note note--err" role="alert">
-            {error}
-          </p>
-        ) : null}
+        <FailureNotice id="access:shares" title="Shares" message={error} />
         {draft && canGrant ? (
           <GuideTarget id="access.grant-ceremony">
             <ShareGrantForm

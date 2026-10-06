@@ -14,6 +14,7 @@ import {
   tamperPostedSignature,
   unlockIfAsked,
 } from "./siop-rp-steps.mjs";
+import { expectInTray } from "./tray-contract.mjs";
 
 const pass = (what) => console.log(`PASS ${what}`);
 
@@ -55,7 +56,7 @@ export async function unregisteredRedirect(env) {
   const mark = harness.log.length;
   await page.goto(login.url.href);
   await unlockIfAsked(page);
-  await expect(page.getByRole("alert")).toContainText(/unavailable/i);
+  await expectInTray(page, /unavailable/i);
   await expect(
     page.getByRole("button", { name: "Verify with passkey", exact: true }),
   ).toHaveCount(0);

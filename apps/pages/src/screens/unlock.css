@@ -826,10 +826,6 @@
   min-width: 0;
 }
 
-.identifier__error {
-  color: var(--err);
-}
-
 .identifier__resolved,
 .identifier__fallback {
   display: grid;

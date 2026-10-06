@@ -17,6 +17,7 @@ import {
 import type { NormalizedAuthorizationRequest } from "@opensesame/siop-v2";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
+import { FailureNotice } from "../components/FailureNotice.js";
 import { FormCommit } from "../components/FormCommit.js";
 import { IconKey } from "../components/IconKey.js";
 import { IconPasskey, IconX } from "../components/Icons.js";
@@ -41,9 +42,11 @@ export function SiopAuthorize() {
           <h1>Invalid Self-Issued request</h1>
         </div>
         <div className="panel__body">
-          <p role="alert">
-            Start sign-in again from the registered application.
-          </p>
+          <FailureNotice
+            id="siop-authorize:request"
+            title="Invalid Self-Issued request"
+            message="Start sign-in again from the registered application."
+          />
           <Link to="/identity?view=applications">Manage applications</Link>
         </div>
       </section>
@@ -210,11 +213,11 @@ function SiopConsent({
           upstream token are shared. SIOPv2 is an OpenID Implementer&apos;s
           Draft.
         </p>
-        {error ? (
-          <p role="alert" className="note note--err">
-            {error}
-          </p>
-        ) : null}
+        <FailureNotice
+          id="siop-authorize:consent"
+          title="Self-issued sign-in"
+          message={error}
+        />
         {!loaded && !error ? (
           <output>Reading application registration…</output>
         ) : null}

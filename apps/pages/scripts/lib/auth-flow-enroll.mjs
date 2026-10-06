@@ -1,3 +1,4 @@
+import { readTray } from "./tray-contract.mjs";
 /**
  * The unlock/MFA ceremony's page-driving for `verify-auth-flow.mjs`: read the
  * setup key out of the sheet, type a code into its Confirm step, put the vault's
@@ -84,7 +85,7 @@ export async function finishUnlockWithCode(
   // A full code submits itself; the wrong one is refused without a click.
   await page.getByLabel("Authenticator code", { exact: true }).fill("000000");
   await page.waitForTimeout(800);
-  const refused = await snap(page, `${name}-wrong-code`);
+  const refused = `${await snap(page, `${name}-wrong-code`)} ${await readTray(page)}`;
   check(/not valid/i.test(refused), "a wrong code is refused in plain words");
   check(
     /Confirm it is you/.test(refused),

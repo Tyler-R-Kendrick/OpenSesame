@@ -95,9 +95,7 @@ export async function editPangolin({ page, stub, shot, until }) {
   await again.getByLabel("Tags", { exact: true }).fill("tag:nobody");
   await again.getByRole("button", { name: "Save changes" }).click();
   await expect(
-    again
-      .getByRole("alert")
-      .getByRole("img", { name: /tag:nobody is not a valid tag/ }),
+    again.getByRole("img", { name: /tag:nobody is not a valid tag/ }),
   ).toBeVisible({ timeout: 20_000 });
   await shot(page, "1280-refused");
   await page.keyboard.press("Escape");

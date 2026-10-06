@@ -16,7 +16,7 @@
  */
 
 import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** The sharp ceiling, in px: DESIGN.md's one documented scale. */
@@ -178,7 +178,8 @@ const baseline = readBaseline();
  * Report the round corners in `source` beyond what `path` is recorded as
  * holding. A file with fewer than its record must lower the record.
  */
-export function checkCorners(path, source, report, lineOf, file) {
+export function checkCorners(root, file, source, report, lineOf) {
+  const path = relative(root, file).replaceAll("\\", "/");
   const hits = roundCorners(source);
   const recorded = Object.hasOwn(baseline, path) ? baseline[path] : 0;
   if (!Number.isInteger(recorded) || hits.length === recorded) return;

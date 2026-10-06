@@ -24,6 +24,7 @@ import {
   switchVault,
 } from "@opensesame/app-core/lib/vaults.js";
 import { useEffect, useRef, useState } from "react";
+import { FailureNotice } from "../components/FailureNotice.js";
 import { IconMark, IconPlus } from "../components/Icons.js";
 import { VaultList } from "../components/VaultList.js";
 import { firstControl, landFocus } from "../lib/focus.js";
@@ -215,11 +216,7 @@ export function VaultsScreen({ providers, onPicked }: Props) {
               </button>
             )}
 
-            {error ? (
-              <p className="note note--err" role="alert">
-                <span>{error}</span>
-              </p>
-            ) : null}
+            <FailureNotice id="vaults:open" title="Vault" message={error} />
           </div>
         )}
 

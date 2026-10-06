@@ -101,14 +101,6 @@ export function ItemDetail() {
         />
       </div>
 
-      {inTrash ? (
-        <div className="note note--warn">
-          <span>
-            This item is in the trash. It stays encrypted until you purge it.
-          </span>
-        </div>
-      ) : null}
-
       <ItemFields
         item={item}
         revealed={revealed}
@@ -177,7 +169,7 @@ export function ItemDetail() {
       ) : null}
 
       {confirmPurge ? (
-        <p className="hint" role="alert">
+        <p className="visually-hidden" role="alert">
           Purging deletes the encrypted record permanently. Press the trash key
           again to confirm — this cannot be undone.
         </p>
@@ -369,6 +361,7 @@ function ItemFields({
                 />
               </div>
               <UpdateSecretPanel
+                itemId={item.id}
                 label="secret"
                 onUpdate={onUpdateSecret}
                 leading={

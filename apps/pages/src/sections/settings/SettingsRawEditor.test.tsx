@@ -1,3 +1,4 @@
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 /** @vitest-environment jsdom */
 import type { VaultPrefs } from "@opensesame/app-core/lib/vault/store.js";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -63,6 +64,8 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  clearNotices();
+  vi.restoreAllMocks();
   Object.assign(vaultHooksSeams, original);
 });
 
@@ -241,5 +244,48 @@ describe("a settings directory's config.yaml", () => {
         .getByRole("button", { name: "Write settings/security/config.yaml" })
         .hasAttribute("disabled"),
     ).toBe(true);
+    // The draft is state, not a failure: the tray stays empty.
+    expect(field.getAttribute("aria-invalid")).toBe("true");
+    expect(listNotices()).toHaveLength(0);
+  });
+
+  it("trays a save the store refused, keyed by the file, and marks the status", async () => {
+    render(<SettingsRawEditor category="keybindings" />);
+    const field = screen.getByLabelText("settings/keybindings/config.yaml");
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("quota");
+    });
+    fireEvent.change(field, {
+      target: { value: "keybindings:\n  s: item.share\n" },
+    });
+    expect(listNotices()).toHaveLength(0);
+    fireEvent.keyDown(field, { key: "s", ctrlKey: true });
+    await vi.waitFor(() => expect(listNotices()).toHaveLength(1));
+    const [notice] = listNotices();
+    expect(notice?.id).toBe("settings-file:settings/keybindings/config.yaml");
+    expect(screen.getByRole("img", { name: notice?.body ?? "" })).toBeTruthy();
+    expect(document.body.textContent).not.toContain(notice?.body);
+    // Typing again is a new draft; the refusal is cleared with it.
+    fireEvent.change(field, {
+      target: { value: "keybindings:\n  s: item.share # again\n" },
+    });
+    expect(listNotices()).toHaveLength(0);
+  });
+
+  it("does not move a refusal to another file when the category changes", async () => {
+    const { rerender } = render(<SettingsRawEditor category="keybindings" />);
+    const field = screen.getByLabelText("settings/keybindings/config.yaml");
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("quota");
+    });
+    fireEvent.change(field, {
+      target: { value: "keybindings:\n  s: item.share\n" },
+    });
+    fireEvent.keyDown(field, { key: "s", ctrlKey: true });
+    await vi.waitFor(() => expect(listNotices()).toHaveLength(1));
+    rerender(<SettingsRawEditor category="security" />);
+    expect(listNotices().map((notice) => notice.id)).not.toContain(
+      "settings-file:settings/security/config.yaml",
+    );
   });
 });

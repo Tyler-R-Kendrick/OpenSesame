@@ -32,9 +32,11 @@ import { GateHelpSeat } from "../tutorial/gate-seat.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupportRoute } from "../tutorial/session.js";
 import "./broker.css";
+import { FailureNotice } from "../components/FailureNotice.js";
 import { FormCommit } from "../components/FormCommit.js";
 import { IconKey } from "../components/IconKey.js";
 import { IconX } from "../components/Icons.js";
+import { StatusMark } from "../components/StatusMark.js";
 
 type Phase =
   | { kind: "invalid"; error: string; detail: string; state?: string }
@@ -55,6 +57,28 @@ function resumePath(request: BrokerRequest): string {
     profile: "pages_passthrough_loopback",
   });
   return `/broker/authorize?${params.toString()}`;
+}
+
+/** The sentence a failed phase would have painted; it goes to the tray. */
+function brokerFailure(
+  phase: Phase,
+): { title: string; message: string } | null {
+  if (phase.kind === "invalid") {
+    return {
+      title: "Invalid request",
+      message: `${phase.error} — ${phase.detail}`,
+    };
+  }
+  if (phase.kind === "blocked") {
+    return {
+      title: "Domain not allowed",
+      message: `${phase.request.origin} — ${phase.detail}`,
+    };
+  }
+  if (phase.kind === "error") {
+    return { title: "Sign-in failed", message: phase.message };
+  }
+  return null;
 }
 
 export function BrokerAuthorize() {
@@ -175,6 +199,8 @@ export function BrokerAuthorize() {
     }
   };
 
+  const failure = brokerFailure(phase);
+
   return (
     <div className="broker">
       <header className="broker__head">
@@ -185,24 +211,24 @@ export function BrokerAuthorize() {
         <h1>Sign in for a static site</h1>
       </header>
 
+      <FailureNotice
+        id="broker:authorize"
+        title={failure?.title ?? ""}
+        message={failure?.message}
+      />
+
       <main ref={mainRef} className="broker__main">
         {phase.kind === "loading" ? (
           <p className="broker__status">Checking request…</p>
         ) : null}
 
-        {phase.kind === "invalid" ? (
-          <div className="broker__card broker__card--err" role="alert">
-            <h2>Invalid request</h2>
-            <p>
-              <code>{phase.error}</code> — {phase.detail}
-            </p>
-          </div>
-        ) : null}
-
-        {phase.kind === "error" ? (
-          <div className="broker__card broker__card--err" role="alert">
-            <h2>Something went wrong</h2>
-            <p>{phase.message}</p>
+        {/* The failure is a mark on the card that stands for the request; its
+            sentence is the mark's label and a notice in the tray. */}
+        {failure ? (
+          <div className="broker__card">
+            <h2>
+              {failure.title} <StatusMark tone="err" label={failure.message} />
+            </h2>
           </div>
         ) : null}
 
@@ -214,16 +240,6 @@ export function BrokerAuthorize() {
           <div className="broker__card">
             <h2>Done</h2>
             <p>{phase.via}</p>
-          </div>
-        ) : null}
-
-        {phase.kind === "blocked" ? (
-          <div className="broker__card broker__card--err" role="alert">
-            <h2>Domain not allowed</h2>
-            <p>
-              <code className="broker__origin">{phase.request.origin}</code>
-            </p>
-            <p>{phase.detail}</p>
           </div>
         ) : null}
 

@@ -1,3 +1,4 @@
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { StatusMark } from "../../components/StatusMark.js";
 
 /** A labelled switch: one setting a person turns on or off. */
@@ -31,11 +32,21 @@ export function SwitchRow({
   );
 }
 
-/** What the daemon or Tailscale refused, inside a sheet, as a mark and an alert. */
+/**
+ * What the daemon or Tailscale refused, inside a sheet. The sheet is modal, so
+ * the bell is out of reach while it is open: the sentence is the mark's label
+ * here and also a notice in the tray (ADR 0163 § Modal ceremonies). One sheet is
+ * open at a time, so they share an id.
+ */
 export function ErrorMark({ error }: { error: string }) {
-  return error ? (
-    <p className="vexport__marks" role="alert">
-      <StatusMark tone="err" label={error} />
-    </p>
-  ) : null;
+  return (
+    <>
+      {error ? (
+        <p className="vexport__marks">
+          <StatusMark tone="err" label={error} />
+        </p>
+      ) : null}
+      <FailureNotice id="tailnet:devices" title="Tailnet" message={error} />
+    </>
+  );
 }

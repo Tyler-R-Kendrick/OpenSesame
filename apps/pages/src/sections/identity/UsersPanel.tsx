@@ -10,6 +10,7 @@ import {
 } from "@opensesame/app-core/lib/orgs.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
 import {
@@ -142,11 +143,7 @@ export function UsersPanel({ online }: { online: boolean }) {
           Create directory users here; their first verified organization sign-in
           establishes their OIDC identity.
         </p>
-        {error ? (
-          <p role="alert" className="note note--err">
-            {error}
-          </p>
-        ) : null}
+        <FailureNotice id="identity:users" title="Users" message={error} />
         {loading ? <output>Loading directory…</output> : null}
         {!loading && organizations.length === 0 ? (
           <p className="hint">

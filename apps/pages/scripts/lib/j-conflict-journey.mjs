@@ -8,6 +8,7 @@ import {
   sealWithPassword,
   unlockWithPassword,
 } from "./pages-journey.mjs";
+import { expectInTray } from "./tray-contract.mjs";
 
 async function openApplications(page) {
   const region = page.getByRole("region", {
@@ -107,12 +108,8 @@ export async function walkJConflict({
   await rowB
     .getByRole("button", { name: "Save registration", exact: true })
     .click();
-  await rowB.getByRole("alert").waitFor({ timeout: 10000 });
-  const alert = await rowB.getByRole("alert").innerText();
-  check(
-    /changed\. Reload before saving/i.test(alert),
-    `stale tab is refused: ${alert}`,
-  );
+  await expectInTray(pageB, /changed\. Reload before saving/i);
+  check(true, "stale tab is refused, in the tray");
   await snap(pageB, "J-CONFLICT-stale");
   await pageB.close();
 }

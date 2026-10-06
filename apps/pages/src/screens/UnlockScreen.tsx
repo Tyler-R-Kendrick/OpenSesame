@@ -25,6 +25,7 @@ import {
   switchVault,
 } from "@opensesame/app-core/lib/vaults.js";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FailureNotice } from "../components/FailureNotice.js";
 import { GateTools } from "../components/GateTools.js";
 import { IconKey } from "../components/IconKey.js";
 import {
@@ -656,6 +657,7 @@ function UnlockForm({
                   inputMode="numeric"
                   autoComplete={firstRun ? "new-password" : "one-time-code"}
                   value={pin}
+                  aria-invalid={pinProblem ? true : undefined}
                   disabled={busy || lockedFor > 0}
                   onChange={(e) => setPin(e.target.value)}
                 />
@@ -666,7 +668,7 @@ function UnlockForm({
                   </p>
                 ) : null}
                 {pinProblem ? (
-                  <p className="note note--err" aria-live="polite">
+                  <p className="hint" aria-live="polite">
                     {pinProblem}
                   </p>
                 ) : null}
@@ -815,11 +817,7 @@ function UnlockForm({
               </output>
             ) : null}
 
-            {error ? (
-              <p className="note note--err" role="alert">
-                <span>{error}</span>
-              </p>
-            ) : null}
+            <FailureNotice id="unlock:error" title="Unlock" message={error} />
 
             {lockedFor > 0 ? (
               <output className="note note--warn">

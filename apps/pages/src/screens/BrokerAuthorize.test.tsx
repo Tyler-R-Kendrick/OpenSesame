@@ -1,3 +1,4 @@
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   cleanup,
   fireEvent,
@@ -16,6 +17,20 @@ import {
   it,
   vi,
 } from "vitest";
+
+/** The tray holds a status notice whose title and body carry every part. */
+async function trayHas(...parts: string[]) {
+  await waitFor(() =>
+    expect(
+      listNotices().some(
+        (n) =>
+          n.kind === "status" &&
+          parts.every((part) => `${n.title} ${n.body}`.includes(part)),
+      ),
+    ).toBe(true),
+  );
+  expect(document.body.textContent).not.toContain(parts[parts.length - 1]);
+}
 
 const fed = vi.hoisted(() => ({
   beginSignIn: vi.fn(),
@@ -99,14 +114,16 @@ describe("BrokerAuthorize", () => {
     mockedDeliver.mockReturnValue("none");
   });
 
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    clearNotices();
+  });
 
   it("rejects requests missing the required parameters", async () => {
     renderBroker("?client_id=origin:x");
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("Invalid request");
-    expect(alert.textContent).toContain("invalid_request");
-    expect(alert.textContent).toContain(
+    await trayHas(
+      "Invalid request",
+      "invalid_request",
       "client_id, origin, and state are required.",
     );
   });
@@ -119,16 +136,13 @@ describe("BrokerAuthorize", () => {
       state: STATE,
     });
     renderBroker(`?${params.toString()}`);
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("origin_mismatch");
+    await trayHas("origin_mismatch");
   });
 
   it("blocks origins denied by the domain policy and informs the site", async () => {
     addDomainRule("localhost:5173", "blacklist");
     renderBroker(validSearch());
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("Domain not allowed");
-    expect(alert.textContent).toContain("matches a blocked domain");
+    await trayHas("Domain not allowed", "matches a blocked domain");
     expect(mockedDeliver).toHaveBeenCalledTimes(1);
     const [message, targetOrigin] = mockedDeliver.mock.calls[0] ?? [];
     expect(message).toMatchObject({
@@ -174,9 +188,7 @@ describe("BrokerAuthorize", () => {
     fireEvent.click(
       await screen.findByRole("button", { name: "Continue with GitHub" }),
     );
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("Something went wrong");
-    expect(alert.textContent).toContain("Could not reach the IdP.");
+    await trayHas("Sign-in failed", "Could not reach the IdP.");
   });
 
   it("shows the consent card for a new origin and releases on approval", async () => {

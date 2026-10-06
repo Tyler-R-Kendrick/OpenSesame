@@ -11,6 +11,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { Link, MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectInTray } from "../../components/tray.test-support.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { activateForTest } from "../../modules/runtime-test-kit.js";
 import * as drops from "../../modules/sharing.drops/runtime.js";
@@ -224,9 +225,7 @@ describe("vault editor route types", () => {
     expect(screen.getByText(/No \/ delimiters or flags/)).toBeTruthy();
     await userEvent.type(screen.getByLabelText("Name"), "Example");
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));
-    await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toContain("pattern"),
-    );
+    await expectInTray("pattern");
     expect(saveItem).not.toHaveBeenCalled();
   });
   it("moves a relative path into the title folder on blur and saves both together", async () => {
@@ -273,7 +272,7 @@ describe("vault editor route types", () => {
     await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "../entry");
     await userEvent.tab();
-    expect(screen.getByRole("alert").textContent).toContain("vault root");
+    await expectInTray("vault root");
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
       "../entry",
     );

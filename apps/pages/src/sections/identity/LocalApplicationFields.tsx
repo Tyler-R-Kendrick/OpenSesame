@@ -4,21 +4,51 @@ import {
   defaultScopeRoles,
 } from "@opensesame/app-core/lib/local-application-policy.js";
 import type { LocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
+import { StatusMark } from "../../components/StatusMark.js";
+
+const TOO_MANY_SCOPES = "Use at most 32 scopes.";
 
 export function ScopeRolesField({
+  applicationId,
   scopes,
   value,
   onChange,
 }: {
+  /** Keys the tray notice, so two applications never share one. */
+  applicationId: string;
   scopes: string;
   value: LocalScopeRoles[];
   onChange: (value: LocalScopeRoles[]) => void;
 }) {
   const names = [...new Set(scopes.trim().split(/\s+/).filter(Boolean))];
-  if (names.length > 32) return <p role="alert">Use at most 32 scopes.</p>;
-  const policy = defaultScopeRoles(names).map(
+  const tooMany = names.length > 32;
+  const policy = defaultScopeRoles(tooMany ? [] : names).map(
     (fallback) => value.find((row) => row.scope === fallback.scope) ?? fallback,
   );
+  return (
+    <>
+      <FailureNotice
+        id={`identity:application-scopes:${applicationId}`}
+        title="Scopes"
+        message={tooMany ? TOO_MANY_SCOPES : null}
+      />
+      {tooMany ? (
+        <StatusMark tone="err" label={TOO_MANY_SCOPES} />
+      ) : (
+        <ScopeRolesRows policy={policy} onChange={onChange} />
+      )}
+    </>
+  );
+}
+
+function ScopeRolesRows({
+  policy,
+  onChange,
+}: {
+  policy: LocalScopeRoles[];
+  onChange: (value: LocalScopeRoles[]) => void;
+}) {
   return (
     <fieldset>
       <legend>Roles allowed per scope</legend>

@@ -10,6 +10,7 @@ import {
   listLocalIdentitySessions,
   revokeLocalIdentitySession,
 } from "@opensesame/app-core/lib/local-sessions.js";
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 /** @vitest-environment jsdom */
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -69,8 +70,15 @@ beforeEach(() => {
     notifyLocalIamChange();
   });
 });
+function trayFailures() {
+  return listNotices().filter(
+    (notice) => notice.kind === "status" && notice.tone === "err",
+  );
+}
+
 afterEach(() => {
   cleanup();
+  clearNotices();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -166,16 +174,18 @@ it("does not turn a failed read into an empty list", async () => {
     new Error("private diagnostic"),
   );
   render(<LocalAuthorityPanel tomb="vault-a" records="grant" />);
-  await screen.findByRole("alert");
+  await waitFor(() => expect(trayFailures()).toHaveLength(1));
+  expect(screen.queryByRole("alert")).toBeNull();
   expect(
     screen.queryByText("No unexpired local application grants."),
   ).toBeNull();
   expect(document.body.textContent).not.toContain("private diagnostic");
+  expect(JSON.stringify(listNotices())).not.toContain("private diagnostic");
   await userEvent.click(
     screen.getByRole("button", { name: "Reload local access records" }),
   );
   await screen.findByText("Test person → Test application");
-  expect(screen.queryByRole("alert")).toBeNull();
+  await waitFor(() => expect(trayFailures()).toHaveLength(0));
 });
 
 it("retains confirmation on failed writes and never claims revocation succeeded", async () => {
@@ -189,7 +199,16 @@ it("retains confirmation on failed writes and never claims revocation succeeded"
   await userEvent.click(
     screen.getByRole("button", { name: "Confirm revocation" }),
   );
-  await screen.findByText("Revocation was not confirmed. Reload and retry.");
+  await waitFor(() =>
+    expect(
+      trayFailures().some((notice) =>
+        notice.body.includes("Revocation was not confirmed. Reload and retry."),
+      ),
+    ).toBe(true),
+  );
+  expect(
+    screen.queryByText("Revocation was not confirmed. Reload and retry."),
+  ).toBeNull();
   expect(
     screen.getByRole("button", { name: "Confirm revocation" }),
   ).toBeTruthy();

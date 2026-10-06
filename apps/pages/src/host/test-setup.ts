@@ -1,6 +1,7 @@
 import { browserPorts } from "@opensesame/app-core/browser/host.js";
 import { composeHost, configureHost } from "@opensesame/app-core/host.js";
 import { installWipeGuard } from "@opensesame/app-core/lib/duress/wipe/test-guard.js";
+import { clearNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   assertOwnedStorageWrites,
   recordStorageWrite,
@@ -36,6 +37,8 @@ closeJsdomGaps();
 // when the code under test swallowed the write's outcome.
 afterEach(assertOwnedStorageWrites);
 
+// A failure a test raised in the tray never reaches the next test.
+afterEach(clearNotices);
 // The duress wipe removes every vault in the origin's storage: a test that
 // reaches the real runner fails when it ends, unless it opted in by name.
 installWipeGuard();

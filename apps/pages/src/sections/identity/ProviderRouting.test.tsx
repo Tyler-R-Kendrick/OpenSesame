@@ -23,6 +23,7 @@ import { IdentitySection } from "../IdentitySection.js";
 import { contributeIdentityForTests } from "./identity-test-support.js";
 
 import { IDENTITY_VIEWS } from "@opensesame/app-core/lib/section-view-names.js";
+import { expectInTray } from "../../components/tray.test-support.js";
 // The Identity tabs belong to three capabilities (local IAM, federation,
 // directory provisioning), and each contributes its own view. These cases
 // describe a deployment that approved them, so they register the same
@@ -140,7 +141,8 @@ it("preserves an existing provider when a registration retry cannot start", asyn
     new Error("Sign-in unavailable"),
   );
   await chooseDefault();
-  await screen.findByText("Sign-in unavailable");
+  await expectInTray("Sign-in unavailable");
+  expect(screen.queryByText("Sign-in unavailable")).toBeNull();
   expect(listIdpRegistrations()).toEqual([
     expect.objectContaining({ id: "opensesame-device", kind: "device" }),
     previous,
@@ -152,7 +154,8 @@ it("removes only the new record when initial registration cannot start", async (
     new Error("Sign-in unavailable"),
   );
   await chooseDefault();
-  await screen.findByText("Sign-in unavailable");
+  await expectInTray("Sign-in unavailable");
+  expect(screen.queryByText("Sign-in unavailable")).toBeNull();
   expect(listIdpRegistrations()).toEqual([
     expect.objectContaining({ id: "opensesame-device", kind: "device" }),
   ]);

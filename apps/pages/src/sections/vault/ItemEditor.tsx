@@ -21,6 +21,7 @@ import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useWebMcpLoginDraft } from "../../bindings/webmcp-login-draft.js";
 import { EmptyTip } from "../../components/EmptyTip.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconEye, IconEyeOff } from "../../components/Icons.js";
 import { useVaultAllTo } from "../../lib/vault-list-path.js";
@@ -345,11 +346,11 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
 
         <EditorExtras key={draft.id} draft={draft} onChange={patch} />
 
-        {error ? (
-          <p className="note note--err" role="alert">
-            <span>{error}</span>
-          </p>
-        ) : null}
+        <FailureNotice
+          id={`vault:item-editor:${draft.id}`}
+          title="Item"
+          message={error}
+        />
         <EditorActions busy={saving} label={saveVerb} closeTo={closeTo} />
       </form>
     </div>

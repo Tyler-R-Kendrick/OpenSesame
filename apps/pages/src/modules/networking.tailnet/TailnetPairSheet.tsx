@@ -7,10 +7,26 @@
 
 import { useState } from "react";
 import { CeremonySheet } from "../../components/CeremonySheet.js";
-import { CeremonyShell } from "../../components/CeremonyShell.js";
+import {
+  type CeremonyFact,
+  CeremonyShell,
+} from "../../components/CeremonyShell.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import { IconConnection } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+
+function driveFacts(guest: boolean): CeremonyFact[] {
+  return guest
+    ? [
+        { key: "Writes", value: "the vault, into this device's own place" },
+        { key: "Then", value: "the unlock screen asks for its password" },
+      ]
+    : [
+        { key: "Pairs", value: "this vault with the drive" },
+        { key: "Code from", value: "opensesame daemon drive create" },
+      ];
+}
 
 export function TailnetPairSheet({
   initialCode,
@@ -60,24 +76,12 @@ export function TailnetPairSheet({
       >
         <CeremonyShell
           ok={error === null}
+          // The sheet is a modal ceremony: its focus is trapped, so the bell
+          // is out of reach while it is open. The refusal is read here, in
+          // the sheet, and also kept in the tray for after it closes.
+          top={error ?? undefined}
           name="Tailnet drive"
-          facts={
-            guest
-              ? [
-                  {
-                    key: "Writes",
-                    value: "the vault, into this device's own place",
-                  },
-                  {
-                    key: "Then",
-                    value: "the unlock screen asks for its password",
-                  },
-                ]
-              : [
-                  { key: "Pairs", value: "this vault with the drive" },
-                  { key: "Code from", value: "opensesame daemon drive create" },
-                ]
-          }
+          facts={driveFacts(guest)}
           primary={{
             label: action,
             submit: true,
@@ -95,16 +99,22 @@ export function TailnetPairSheet({
             value={code}
             disabled={!canPair}
             readOnly={busy}
+            status={
+              error === null ? null : <StatusMark tone="err" label={error} />
+            }
             onValueChange={(next) => {
               setCode(next);
               setError(null);
             }}
           />
-          {error ? (
-            <p className="vexport__marks" role="alert">
-              <StatusMark tone="err" label={error} />
-            </p>
-          ) : null}
+          <output className="visually-hidden" aria-live="polite">
+            {error ?? ""}
+          </output>
+          <FailureNotice
+            id="tailnet:pair"
+            title="Tailnet pairing"
+            message={error}
+          />
         </CeremonyShell>
       </form>
     </CeremonySheet>

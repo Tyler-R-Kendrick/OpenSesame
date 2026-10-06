@@ -539,8 +539,18 @@ the existing icons: check, alert, dismiss, lock. Colour carries the tone
 or a platform may stay text. `pnpm lint:design` rejects a `.chip` whose face
 carries a status word.
 
-An in-page error box is the same violation. Do not render `note`, `conn-flash`,
-or a paragraph banner to explain a failure. The failure is a `StatusMark`.
+An in-page error box is the same violation. A failure is never drawn in the
+page: not a `note--err`, a `conn-flash`, a `broker__card--err`, a `*__error`
+paragraph, a visible `role="alert"`, or any block filled with the error wash.
+The failure is a `StatusMark` on the thing that failed and a notice in the
+notifications tray (the bell), which announces it and keeps it when the person
+leaves the screen. The tray can offer a retry when the caller supplies one
+through `setStatusNotice` (`retry` / `retryLabel`); the three seam components
+do not. A failure inside an `aria-modal` ceremony sheet is also the sheet's own
+status line (see docs/design/controls.md § Modal ceremonies), and live
+validation of an unsaved draft is a `StatusMark` on the field, not a notice. Pages mount `<FailureNotice>` (or call
+`useFailureNotice`, or use `StatusNote`) and draw nothing. `pnpm lint:design`
+fails on every spelling of the box.
 Do not add caption or explainer prose under a title, a button, or a field:
 no sentence that tells the person what the control will do, where it goes,
 or why it exists. The control's `aria-label` and `title` carry that sentence.

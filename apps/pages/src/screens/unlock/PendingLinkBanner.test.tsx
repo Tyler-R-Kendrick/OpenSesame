@@ -10,7 +10,11 @@ import {
   readAuthOutcome,
   storeAuthOutcome,
 } from "@opensesame/app-core/lib/auth-outcome.js";
-import { clearNotices, pushNotice } from "@opensesame/app-core/lib/notices.js";
+import {
+  clearNotices,
+  listNotices,
+  pushNotice,
+} from "@opensesame/app-core/lib/notices.js";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { PendingLinkBanner } from "./PendingLinkBanner.js";
@@ -47,12 +51,34 @@ describe("PendingLinkBanner", () => {
     expect(screen.getByText(/Signed in as sam@acme.com/)).toBeTruthy();
   });
 
-  it("renders a link failure with its stored detail", () => {
+  it("sends a link failure to the tray and spends the stored record", () => {
     storeAuthOutcome({ kind: "link_failed", detail: "Identity unreachable." });
 
     render(<PendingLinkBanner />);
 
-    expect(screen.getByText("Identity unreachable.")).toBeTruthy();
+    expect(screen.queryByText("Identity unreachable.")).toBeNull();
+    expect(
+      listNotices().some(
+        (n) =>
+          n.kind === "status" &&
+          n.tone === "warn" &&
+          n.body === "Identity unreachable.",
+      ),
+    ).toBe(true);
+    expect(readAuthOutcome()).toBeNull();
+  });
+
+  it("sends a failed sign-in to the tray as an error", () => {
+    storeAuthOutcome({ kind: "error", detail: "Provider refused." });
+
+    render(<PendingLinkBanner />);
+
+    expect(screen.queryByText("Provider refused.")).toBeNull();
+    expect(
+      listNotices().some(
+        (n) => n.tone === "err" && n.body === "Provider refused.",
+      ),
+    ).toBe(true);
   });
 
   it("dismisses a stored outcome and clears the record", () => {

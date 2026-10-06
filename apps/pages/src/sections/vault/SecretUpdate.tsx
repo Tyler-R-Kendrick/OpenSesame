@@ -1,5 +1,6 @@
 import { generate } from "@opensesame/app-core/lib/vault/password.js";
 import { type ReactNode, useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconCheck, IconRefresh, IconX } from "../../components/Icons.js";
 
@@ -20,7 +21,6 @@ function UpdateEditor({
   mode,
   value,
   busy,
-  error,
   onMode,
   onValue,
   onApply,
@@ -30,7 +30,6 @@ function UpdateEditor({
   mode: "generate" | "provide";
   value: string;
   busy: boolean;
-  error: string | null;
   onMode: (mode: "generate" | "provide") => void;
   onValue: (value: string) => void;
   onApply: () => void;
@@ -71,11 +70,6 @@ function UpdateEditor({
           onChange={(event) => onValue(event.target.value)}
         />
       ) : null}
-      {error ? (
-        <p className="note note--err" role="alert">
-          <span>{error}</span>
-        </p>
-      ) : null}
       <div className="actions">
         <button
           type="button"
@@ -101,10 +95,13 @@ function UpdateEditor({
  * the update key; the editor opens beneath that row.
  */
 export function UpdateSecretPanel({
+  itemId,
   label,
   onUpdate,
   leading,
 }: {
+  /** The item the secret belongs to: its notice is keyed by item, not field. */
+  itemId: string;
   label: string;
   onUpdate: (next: string) => Promise<void>;
   leading?: ReactNode;
@@ -131,18 +128,35 @@ export function UpdateSecretPanel({
     }
   }
 
+  const failure = (
+    <FailureNotice
+      id={`vault:secret-update:${itemId}:${label}`}
+      title="Password update"
+      message={error}
+    />
+  );
   const trigger = (
     <IconKey label={`Update ${label}`} onClick={() => setOpen(true)}>
       <IconRefresh size={17} />
     </IconKey>
   );
   if (!open) {
-    if (!leading) return trigger;
+    if (!leading) {
+      return (
+        <>
+          {failure}
+          {trigger}
+        </>
+      );
+    }
     return (
-      <div className="frow__actions">
-        {leading}
-        {trigger}
-      </div>
+      <>
+        {failure}
+        <div className="frow__actions">
+          {leading}
+          {trigger}
+        </div>
+      </>
     );
   }
 
@@ -152,7 +166,6 @@ export function UpdateSecretPanel({
       mode={mode}
       value={value}
       busy={busy}
-      error={error}
       onMode={setMode}
       onValue={setValue}
       onApply={() => void apply()}
@@ -162,9 +175,17 @@ export function UpdateSecretPanel({
       }}
     />
   );
-  if (!leading) return editor;
+  if (!leading) {
+    return (
+      <>
+        {failure}
+        {editor}
+      </>
+    );
+  }
   return (
     <>
+      {failure}
       <div className="frow__actions">
         {leading}
         {trigger}

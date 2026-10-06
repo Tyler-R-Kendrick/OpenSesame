@@ -1025,11 +1025,21 @@ Do not add new top-level directories or loose root files — find the group.
   screen) with `aria-label` and `title`. Do not paint a verb on a button.
   Text on a control is only a choice object (a provider, a mode, a navigation
   target, the guest road). A status is a `StatusMark` glyph, never a text
-  pill. Do not render an in-page error box (`note`, `conn-flash`, or a
-  paragraph banner). Do not add explainer or caption prose. Pages copy never
+  pill. **A failure is never drawn in the page**: no red box (`note--err`,
+  a dynamic `note--${tone}`, `conn-error`, `conn-flash`, `broker__card--err`,
+  any `*__error`/`*__err` paragraph), no visible `role="alert"`, no error
+  wash on a block. It is a `StatusMark` on the row, field or receipt that
+  failed *and* a notice in the tray (the bell): mount
+  `<FailureNotice id title message />` (`apps/pages/src/components/FailureNotice.tsx`),
+  call `useFailureNotice` (`apps/pages/src/components/use-failure-notice.ts`), or
+  use `StatusNote`, which now trays every error and warning and draws only a
+  quiet success. A screen with no shell (unlock, front door, federated return,
+  an unframed popup) gets the corner bell, `NoticeCorner`, mounted by `AppRoot`
+  ([ADR 0163](docs/adr/0163-failures-live-in-the-tray.md)). Do not add explainer or caption prose. Pages copy never
   names a Host, and a browser-local connector action never asks the person to
   pair one. `pnpm lint:design` (`scripts/quality/design-lint.mjs`) rejects word-verb
-  buttons, status pills, and explainer captions; `impeccable detect`
+  buttons, status pills, explainer captions, and any in-page failure
+  (`no-in-page-error`, `no-error-box-css`; no ledger, the count is zero); `impeccable detect`
   enforces the same design file. Both run in `.githooks/pre-commit`. The
   word-verb ledger is `tools/quality/design-button-baseline.json` and only falls.
 - No `sudo` (`.cursor/rules/no-sudo.mdc`).

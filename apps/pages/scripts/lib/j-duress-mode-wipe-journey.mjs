@@ -22,6 +22,7 @@ import {
   sealWithPin,
   waitOpen,
 } from "./pages-journey.mjs";
+import { takeRefusal, waitForTray } from "./tray-contract.mjs";
 
 const PIN = "48291037";
 const CODE = "246813579";
@@ -150,16 +151,20 @@ async function typeAtUnlock(page, secret) {
   await (await reachPin(page)).fill(secret);
   const started = Date.now();
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
-  const refusal = page.getByText(/did not unlock the vault/).first();
-  await refusal.waitFor({ timeout: 40000 }).catch(async (error) => {
+  // The refusal is a notice in the tray, never a box in the page.
+  await waitForTray(page, 40000).catch(async (error) => {
     throw new Error(
       `no refusal after typing ${secret.slice(0, 2)}…: ${(await bodyText(page)).slice(0, 400)} (${error.message})`,
     );
   });
-  return {
-    text: (await refusal.innerText()).replace(/\s+/g, " ").trim(),
-    ms: Date.now() - started,
-  };
+  const ms = Date.now() - started;
+  // What the screen shows is read the moment the refusal lands, before the tray
+  // is opened: a wipe that runs behind the sentence redraws the screen meanwhile.
+  const guest = await page
+    .getByRole("button", { name: "Continue as guest" })
+    .count();
+  const body = await bodyText(page);
+  return { text: await takeRefusal(page), ms, guest, body };
 }
 
 async function reloadToUnlock(page) {
@@ -245,16 +250,13 @@ async function whole(context) {
     `the refusal reads as a wrong PIN's ("${wiped.text}" vs "${ordinary.text}")`,
   );
   check(
-    !/wipe|removed|duress|decoy/i.test(await bodyText(page)),
+    !/wipe|removed|duress|decoy/i.test(wiped.body),
     "the screen says nothing of a wipe",
   );
   console.log(
     `  refusal timing: wrong PIN ${ordinary.ms} ms, wipe code ${wiped.ms} ms`,
   );
-  check(
-    (await guestRoad.count()) === 1,
-    "and offers it still after the wipe code was typed",
-  );
+  check(wiped.guest === 1, "and offers it still after the wipe code was typed");
   await snap(page, "J-DURESS-WIPE-refused");
   check(
     (await vaultFiles(page)).length === 0,

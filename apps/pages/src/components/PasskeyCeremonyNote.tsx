@@ -1,6 +1,6 @@
 import { webauthnSeams } from "@opensesame/app-core/lib/webauthn.js";
 import { useEffect, useState } from "react";
-import { IconAlert } from "./Icons.js";
+import { FailureNotice } from "./FailureNotice.js";
 
 /**
  * Said once, where a connect ceremony would need a passkey this browser
@@ -17,15 +17,17 @@ function PasskeyCeremonyNoteDefault() {
     void webauthnSeams.detectWebAuthn().then(setSupport);
   }, []);
 
-  if (support === null || support === "ok") return null;
-
   return (
-    <div className="note note--warn passkey-note">
-      <IconAlert />
-      <div className="passkey-note__body">
-        <p>{webauthnSeams.WEBAUTHN_FALLBACK}</p>
-      </div>
-    </div>
+    <FailureNotice
+      id="connection:passkey-support"
+      title="Passkey"
+      message={
+        support === null || support === "ok"
+          ? null
+          : webauthnSeams.WEBAUTHN_FALLBACK
+      }
+      tone="warn"
+    />
   );
 }
 

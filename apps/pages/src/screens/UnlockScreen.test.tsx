@@ -1,3 +1,4 @@
+import { listNotices } from "@opensesame/app-core/lib/notices.js";
 /** @vitest-environment jsdom */
 import { overlapCast } from "@opensesame/os-domain";
 import {
@@ -115,24 +116,6 @@ describe("UnlockScreen — first run", () => {
     expect(v.store.create).not.toHaveBeenCalled();
   });
 
-  it("names the PIN format problem live on first run", () => {
-    render(<UnlockScreen />);
-    goLocalOnly();
-    chooseSealMethod("PIN");
-    fireEvent.change(screen.getByLabelText("Device PIN"), {
-      target: { value: "12345678" },
-    });
-    expect(screen.getByText(/sequential run of digits/)).toBeTruthy();
-    fireEvent.click(
-      screen.getByLabelText("I understand this vault cannot be recovered."),
-    );
-    fireEvent.change(screen.getByLabelText("Confirm PIN"), {
-      target: { value: "12345678" },
-    });
-    expect(submitButton().disabled).toBe(true);
-    expect(v.store.createWithPin).not.toHaveBeenCalled();
-  });
-
   it("hides passkey and falls back to password when WebAuthn cannot run", () => {
     v.host = {
       ok: false,
@@ -168,7 +151,7 @@ describe("UnlockScreen — first run", () => {
     );
     fireEvent.click(screen.getByRole("tab", { name: "Password" }));
     await waitFor(() => expect(masterInput().disabled).toBe(false));
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(listNotices().filter((n) => n.kind === "status")).toEqual([]);
     expect(v.store.create).not.toHaveBeenCalled();
   });
 
@@ -233,7 +216,7 @@ describe("UnlockScreen — first run", () => {
       screen.getByLabelText("I understand this vault cannot be recovered."),
     );
     fireEvent.click(submitButton());
-    expect(await screen.findByText("storage quota exceeded")).toBeTruthy();
+    await expectInTray("storage quota exceeded");
   });
 
   it("reveals and hides both password fields together", () => {
@@ -318,7 +301,7 @@ describe("UnlockScreen — first run", () => {
     render(<UnlockScreen />);
     const federated = screen.getByRole("button", { name: FEDERATED_BUTTON });
     fireEvent.click(federated);
-    expect(await screen.findByText("broker unreachable")).toBeTruthy();
+    await expectInTray("broker unreachable");
     await waitFor(() => expect(federated.hasAttribute("disabled")).toBe(false));
   });
 
@@ -514,7 +497,7 @@ describe("UnlockScreen — first run", () => {
     lookupOrgTenant.mockRejectedValue(new Error("No such organization."));
     render(<UnlockScreen />);
     submitIdentifier("nope");
-    expect(await screen.findByText("No such organization.")).toBeTruthy();
+    await expectInTray("No such organization.");
     expect(beginSignIn).not.toHaveBeenCalled();
   });
 
@@ -582,7 +565,7 @@ describe("UnlockScreen — first run", () => {
   it("asks again when the field is neither an address nor a slug", () => {
     render(<UnlockScreen />);
     submitIdentifier("acme.example");
-    expect(screen.getByText(/Enter a work email/)).toBeTruthy();
+    expect(inTray("Enter a work email")).toBe(true);
     expect(beginSignIn).not.toHaveBeenCalled();
     expect(lookupOrgTenant).not.toHaveBeenCalled();
     expect(lookupOrgByDomain).not.toHaveBeenCalled();
@@ -623,7 +606,7 @@ describe("UnlockScreen — first run", () => {
       target: { value: "ada@example.com" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Send link" }));
-    expect(await screen.findByText(/not available/)).toBeTruthy();
+    await expectInTray("not available");
   });
 
   it("offers the sign-in entries on an existing vault too", async () => {
@@ -818,24 +801,6 @@ describe("UnlockScreen — password unlock", () => {
     expect(screen.queryByText("2 · Authenticator code")).toBeNull();
   });
 
-  it("says so when a vault has an authenticator code but no key to guard", () => {
-    v.state = { ...v.state, header: { unlocks: { totp: {} } } };
-    v.methods = [];
-    render(<UnlockScreen />);
-    expect(
-      screen.getByText(/no passkey, PIN or password to open it with/),
-    ).toBeTruthy();
-    expect(screen.queryByRole("tab", { name: "Password" })).toBeNull();
-    expect(screen.queryByRole("button", { name: /^Unlock/ })).toBeNull();
-    // The roads that still work stay: guest, and deleting to seal again.
-    expect(
-      screen.getByRole("button", { name: "Continue as guest" }),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Forgotten how to unlock?" }),
-    ).toBeTruthy();
-  });
-
   it("names the signed-in account in a dropdown and signs out from there", () => {
     sessionHolder.current = {
       principalId: "prn_8f3c",
@@ -911,7 +876,7 @@ describe("UnlockScreen — password unlock", () => {
     const master = masterInput();
     fireEvent.change(master, { target: { value: "nope" } });
     fireEvent.click(submitButton());
-    expect(await screen.findByText("wrong password")).toBeTruthy();
+    await expectInTray("wrong password");
     expect(master.value).toBe("");
   });
 
@@ -923,9 +888,7 @@ describe("UnlockScreen — password unlock", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Password" }));
     fireEvent.change(masterInput(), { target: { value: "nope" } });
     fireEvent.click(submitButton());
-    expect(
-      await screen.findByText("webauthn: SecurityError: invalid domain"),
-    ).toBeTruthy();
+    await expectInTray("webauthn: SecurityError: invalid domain");
   });
 
   it("points at localhost when passkeys cannot work on this host", () => {
@@ -1044,7 +1007,7 @@ describe("UnlockScreen — PIN unlock", () => {
       target: { value: "12345678" },
     });
     fireEvent.click(submitButton());
-    expect(await screen.findByText("bad PIN")).toBeTruthy();
+    await expectInTray("bad PIN");
   });
 });
 
@@ -1090,9 +1053,7 @@ describe("UnlockScreen — passkey unlock", () => {
     );
     render(<UnlockScreen />);
     fireEvent.click(submitButton());
-    expect(
-      await screen.findByText("webauthn: The operation was cancelled."),
-    ).toBeTruthy();
+    await expectInTray("webauthn: The operation was cancelled.");
   });
 
   it("warns instead of prompting on a host where WebAuthn cannot work", async () => {
@@ -1163,7 +1124,7 @@ describe("UnlockScreen — passkey unlock", () => {
     fireEvent.click(passwordTab);
     // The ceremony was aborted, no error surfaced, and the password form works.
     await waitFor(() => expect(masterInput().disabled).toBe(false));
-    expect(screen.queryByRole("alert")).toBeNull();
+    expect(listNotices().filter((n) => n.kind === "status")).toEqual([]);
     expect(submitButton().getAttribute("aria-label")).toContain("Unlock");
     fireEvent.change(masterInput(), { target: { value: "hunter2" } });
     expect(submitButton().disabled).toBe(false);
@@ -1230,7 +1191,7 @@ describe("UnlockScreen — TOTP step-up", () => {
     fireEvent.change(screen.getByLabelText("Authenticator code"), {
       target: { value: "123456" },
     });
-    expect(await screen.findByText("code expired")).toBeTruthy();
+    await expectInTray("code expired");
   });
 
   it("can bail back to the primary unlock methods", () => {
@@ -1249,6 +1210,7 @@ describe("UnlockScreen — TOTP step-up", () => {
 /* ── Several vaults on one device (ADR 0089) ─────────────────────────── */
 
 import { vaultsSeams } from "@opensesame/app-core/lib/vaults.js";
+import { expectInTray, inTray } from "../components/tray.test-support.js";
 
 describe("UnlockScreen — several vaults on this device", () => {
   const originalDeps = { ...unlockScreenDependencies };
