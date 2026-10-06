@@ -4,7 +4,7 @@
 //! comments, runner steps and receipts are sealed before they reach the `SQLite`
 //! file, under a key derived from the Host sealing key
 //! (`OPENSESAME_CONNECTION_KEY`). The sealer is installed here, before anything
-//! writes an event, and what an older build left in the clear is sealed in place.
+//! writes an event, and legacy values are refused unless an operator explicitly enables import.
 //!
 //! A Host that is networked or in production and has no sealing key refuses to
 //! start: it would otherwise keep its history in the clear. On a development
@@ -13,12 +13,12 @@
 use opensesame_connection_broker::BrokerConfig;
 use opensesame_storage::Db;
 
-/// Install the event sealer and seal existing rows.
+/// Install the event sealer and validate existing rows, or explicitly import legacy rows.
 ///
 /// # Errors
 ///
 /// Returns an error when a production Host has no sealing key, or when an
-/// existing row cannot be sealed or scrubbed.
+/// an existing row is legacy without explicit import, or cannot be sealed or scrubbed.
 pub async fn install(db: &Db, config: &BrokerConfig, production: bool) -> anyhow::Result<()> {
     scrub_failure_text(db).await?;
     match config.key() {
@@ -47,9 +47,13 @@ async fn scrub_failure_text(db: &Db) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Install the sealer under `key`, then seal what an older build left in the clear.
+/// Install the sealer, then validate current rows or explicitly import trusted legacy rows.
 async fn seal_events(db: &Db, key: &[u8; 32]) -> anyhow::Result<()> {
     opensesame_event_seal::install(key);
+    if std::env::var("OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION").as_deref() != Ok("true") {
+        return db.validate_current_event_envelopes().await;
+    }
+    tracing::warn!("explicit trusted legacy secret import enabled; disable OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION after upgrade");
     let sealed = db.seal_legacy_events().await?;
     if sealed > 0 {
         tracing::info!(
@@ -57,5 +61,5 @@ async fn seal_events(db: &Db, key: &[u8; 32]) -> anyhow::Result<()> {
             "sealed event values an older build left in the clear"
         );
     }
-    Ok(())
+    db.validate_current_event_envelopes().await
 }

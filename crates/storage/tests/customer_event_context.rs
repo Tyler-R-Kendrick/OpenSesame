@@ -173,5 +173,64 @@ async fn legacy_event_sweep_matches_connection_and_delivery_contexts() {
         "{}"
     );
     assert_eq!(db.seal_legacy_events().await.unwrap(), 0);
+    // Once startup migration finishes, replacing a row with its old plaintext
+    // must fail through the production reader, rather than silently reimporting it.
+    sqlx::query("UPDATE security_deliveries SET payload_json = '{}' WHERE id = 'd-1'")
+        .execute(db.pool())
+        .await
+        .unwrap();
+    assert!(db.list_security_deliveries("org-1", 10).await.is_err());
+    sqlx::query("UPDATE security_deliveries SET payload_json = 'osev1.replayed' WHERE id = 'd-1'")
+        .execute(db.pool())
+        .await
+        .unwrap();
+    assert!(db.list_security_deliveries("org-1", 10).await.is_err());
+    opensesame_event_seal::clear();
+}
+
+#[tokio::test]
+async fn ordinary_restart_refuses_legacy_replay_without_reimporting() {
+    let _turn = SERIAL.lock().await;
+    opensesame_event_seal::clear();
+    let db = db_without_parents().await;
+    db.enqueue_security_delivery(&delivery("restart", r#"{"saved":"legacy"}"#))
+        .await
+        .unwrap();
+    opensesame_event_seal::install(&KEY);
+    assert!(db.validate_current_event_envelopes().await.is_err());
+    assert_eq!(
+        raw(&db, "SELECT payload_json FROM security_deliveries").await,
+        r#"{"saved":"legacy"}"#
+    );
+    // Explicit trusted import remains compatible; ordinary startup never calls it.
+    assert_eq!(db.seal_legacy_events().await.unwrap(), 1);
+    db.validate_current_event_envelopes().await.unwrap();
+    // A copied database attacker can also bypass application/schema checks.
+    sqlx::query("PRAGMA ignore_check_constraints = ON")
+        .execute(db.pool())
+        .await
+        .unwrap();
+    for legacy in [r#"{"saved":"legacy"}"#, "osev1.saved-ciphertext", ""] {
+        sqlx::query(
+            "UPDATE security_deliveries SET organization_id = 'other-customer', payload_json = ?",
+        )
+        .bind(legacy)
+        .execute(db.pool())
+        .await
+        .unwrap();
+        opensesame_event_seal::install(&KEY);
+        assert!(db.validate_current_event_envelopes().await.is_err());
+        assert_eq!(
+            raw(&db, "SELECT payload_json FROM security_deliveries").await,
+            legacy
+        );
+        assert!(db
+            .list_security_deliveries("other-customer", 10)
+            .await
+            .is_err());
+    }
+    // Empty legacy values also receive an envelope during explicit import.
+    assert_eq!(db.seal_legacy_events().await.unwrap(), 1);
+    db.validate_current_event_envelopes().await.unwrap();
     opensesame_event_seal::clear();
 }

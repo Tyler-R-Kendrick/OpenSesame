@@ -117,6 +117,8 @@ impl Db {
     /// Idempotent: current envelopes are skipped. Legacy encrypted values are
     /// opened with the deployment key, then rebound to authoritative customer
     /// and record columns. Unbound deployment events retain deployment scope.
+    /// Explicit trusted import only: callers must require operator authorization,
+    /// because legacy values do not authenticate customer or record ownership.
     /// Returns how many values were sealed.
     ///
     /// # Errors
@@ -131,6 +133,31 @@ impl Db {
             sealed += self.seal_legacy_column(table, key, column).await?;
         }
         Ok(sealed)
+    }
+
+    /// Refuse legacy event values without decrypting or rewriting them.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when any non-null event value lacks the current envelope
+    /// prefix, or when the database cannot be inspected.
+    pub async fn validate_current_event_envelopes(&self) -> anyhow::Result<()> {
+        for (table, _, column) in SEALED_COLUMNS {
+            let query = format!(
+                "SELECT EXISTS(SELECT 1 FROM {table} WHERE {column} IS NOT NULL AND substr({column}, 1, ?) <> ?)"
+            );
+            let legacy: bool = sqlx::query_scalar(&query)
+                .bind(i64::try_from(opensesame_event_seal::PREFIX.len())?)
+                .bind(opensesame_event_seal::PREFIX)
+                .fetch_one(&self.pool)
+                .await
+                .with_context(|| format!("validating {table}.{column}"))?;
+            anyhow::ensure!(
+                !legacy,
+                "legacy event value in {table}.{column}: trusted one-time import requires OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION=true; disable it after import"
+            );
+        }
+        Ok(())
     }
 
     /// Scrub failure text an older build stored as it came. Idempotent: text
@@ -216,7 +243,7 @@ impl Db {
         };
         let select = format!(
             "SELECT {key} AS k, {column} AS v, {binding} AS customer, {record} AS record FROM {table} \
-             WHERE {column} IS NOT NULL AND {column} <> '' AND substr({column}, 1, {len}) <> '{prefix}' LIMIT 500",
+             WHERE {column} IS NOT NULL AND substr({column}, 1, {len}) <> '{prefix}' LIMIT 500",
             prefix = opensesame_event_seal::PREFIX,
             len = opensesame_event_seal::PREFIX.len()
         );
@@ -268,7 +295,8 @@ impl Db {
         row: &sqlx::sqlite::SqliteRow,
     ) -> anyhow::Result<usize> {
         let stored: String = row.get("v");
-        let plain = opensesame_event_seal::open(qualified, &stored).map_err(anyhow::Error::new)?;
+        let plain = opensesame_event_seal::open_legacy_for_migration(qualified, &stored)
+            .map_err(anyhow::Error::new)?;
         let original_customer: Option<String> = row.get("customer");
         let mut customer = original_customer.clone();
         let outbox = qualified == "outbox_events.payload_json";

@@ -8,6 +8,7 @@
 
 import { isString } from "@opensesame/os-domain";
 import type { PasswordDigestStore } from "../vault/password-history-types.js";
+import { DEVICE_EDB_NAMESPACE } from "./names.js";
 import { defineSchema } from "./schema.js";
 import { withEncryptedDb } from "./with-db.js";
 
@@ -23,7 +24,12 @@ export function createPasswordDigestStore(
 ): PasswordDigestStore {
   const run = async <T>(work: Parameters<typeof withEncryptedDb<T>>[2]) => {
     await ready();
-    return withEncryptedDb(PASSWORD_DATABASE, passwordSchema, work);
+    return withEncryptedDb(
+      PASSWORD_DATABASE,
+      passwordSchema,
+      work,
+      DEVICE_EDB_NAMESPACE,
+    );
   };
   return {
     add: (scope, digest) =>

@@ -95,9 +95,10 @@ export function openRow(
   atRest: AtRestKey,
   store: string,
   row: BoundaryValue,
+  allowLegacyPlaintext = true,
 ): BoundaryValue {
   if (!isJsonObject(row) || !isString(row.id)) return null;
-  if (!isString(row.sealed)) return row;
+  if (!isString(row.sealed)) return allowLegacyPlaintext ? row : null;
   const text = openAtRest(atRest.key, rowBinding(store, row.id), row.sealed);
   if (text === null) return null;
   try {
