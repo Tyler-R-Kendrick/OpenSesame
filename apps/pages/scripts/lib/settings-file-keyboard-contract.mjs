@@ -156,6 +156,7 @@ export async function settingsFileKeyboardContract({
     });
     await enterAsGuest(page);
     await expect(page).toHaveURL(/\/settings\?file=config\.yaml$/);
+    await page.locator(".set__nav").waitFor({ timeout: 15000 });
     const drawn = await page.evaluate(() => ({
       page: document.querySelector(".set__nav") !== null,
       editor: document.querySelector(".set-raw__stage") !== null,

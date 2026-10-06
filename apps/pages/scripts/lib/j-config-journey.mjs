@@ -42,8 +42,7 @@ export async function walkJConfig({ page, origin, base, check, snap }) {
   await snap(page, "J-CONFIG-form");
   await page.getByRole("button", { name: "Night" }).click();
   const clipboard = page.getByLabel("Clear copied secrets after");
-  await clipboard.fill("30");
-  await clipboard.press("Tab");
+  await clipboard.selectOption("30");
   await page.waitForTimeout(400);
   check((await clipboard.inputValue()) === "30", "the form holds clipboard 30");
   await snap(page, "J-CONFIG-form-30");

@@ -1,0 +1,84 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Directory"
+        },
+        {
+          "visit": "settings/capabilities?file=settings%2Fcapabilities%2Finstallation-selection.yaml"
+        },
+        {
+          "facts": "1280-selection"
+        },
+        {
+          "shot": "1280-selection"
+        },
+        {
+          "visit": "settings/capabilities?file=config.yaml"
+        },
+        {
+          "facts": "1280-capabilities"
+        },
+        {
+          "shot": "1280-capabilities"
+        },
+        {
+          "visit": "settings?file=config.yaml"
+        },
+        {
+          "facts": "1280-general"
+        },
+        {
+          "shot": "1280-general"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Directory"
+        },
+        {
+          "visit": "settings/capabilities?file=settings%2Fcapabilities%2Finstallation-selection.yaml"
+        },
+        {
+          "facts": "390-selection"
+        },
+        {
+          "shot": "390-selection"
+        },
+        {
+          "visit": "settings/capabilities?file=config.yaml"
+        },
+        {
+          "facts": "390-capabilities"
+        },
+        {
+          "shot": "390-capabilities"
+        },
+        {
+          "visit": "settings?file=config.yaml"
+        },
+        {
+          "facts": "390-general"
+        },
+        {
+          "shot": "390-general"
+        }
+      ]
+    }
+  ]
+}
