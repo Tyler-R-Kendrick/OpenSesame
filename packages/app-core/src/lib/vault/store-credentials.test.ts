@@ -353,6 +353,30 @@ describe("a credential kept on its own", () => {
   });
 });
 
+describe("an account that takes a credential kept on its own", () => {
+  it("binds it in one write, with no copy, and the account lists it", async () => {
+    const store = await openStore();
+    const account = accountWith("Billing");
+    await store.saveItem(account);
+    const own = createCredential(apiKey("k9"), "Spare", null);
+    await store.saveItem(own);
+
+    const held = accountIn(store, account.id);
+    await store.saveItems([
+      { ...held, methods: held.methods },
+      { ...own, accountId: account.id },
+    ]);
+
+    expect(accountIn(store, account.id).methods.map((m) => m.id)).toContain(
+      "k9",
+    );
+    expect(credentials(store).filter((c) => c.id === "k9")).toHaveLength(1);
+    expect(credentials(store)).toHaveLength(2);
+    expect(unboundCredentials(store.getSnapshot().items)).toEqual([]);
+    store.lock();
+  });
+});
+
 describe("what a surface reads", () => {
   it("resolves accounts on the snapshot and nowhere else", async () => {
     const store = await openStore();

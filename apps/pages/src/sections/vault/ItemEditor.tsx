@@ -35,7 +35,11 @@ import { EditorTitle } from "./EditorTitle.js";
 import { UnknownItemType } from "./EditorType.js";
 import { NativeItemFields } from "./NativeItemFields.js";
 import { TypedFieldInputs } from "./TypedFields.js";
-import { settleForSave, settleMethods } from "./account-secrets.js";
+import {
+  saveWithCredentials,
+  settleForSave,
+  settleMethods,
+} from "./account-secrets.js";
 import { useEditorContributions } from "./item-contributions.js";
 import { seedDraft } from "./seed-draft.js";
 import { useEditorPath } from "./useEditorPath.js";
@@ -253,7 +257,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         );
         next = { ...next, method };
       }
-      await store.saveItem(next, location.folder);
+      await saveWithCredentials(store, items, next, location.folder);
       if (deliveryId) {
         await acknowledgeCertificateDelivery(deliveryId);
         setPendingDeliveryId(undefined);

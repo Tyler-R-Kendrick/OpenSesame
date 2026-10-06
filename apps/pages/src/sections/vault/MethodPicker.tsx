@@ -1,5 +1,6 @@
 import {
   type AccountItem,
+  type CredentialItem,
   type LoginMethod,
   type LoginMethodType,
   newLoginMethod,
@@ -34,19 +35,25 @@ export function newMethod(
 }
 
 /**
- * The choice of what to add: one key per method type, opened by the heading's
- * `+`. Focus lands on the first and Escape closes it back to the `+`.
+ * The choice of what to add, opened by the heading's `+`: one key per method
+ * type to make a new one, and one per credential the vault keeps on its own to
+ * bind it to this account. Focus lands on the first and Escape closes it back
+ * to the `+`.
  */
 export function MethodPicker({
   opener,
   types,
+  existing,
   onPick,
+  onBind,
   onClose,
 }: {
   opener: RefObject<HTMLButtonElement | null>;
-  /** The types this vault has switched on (Settings › Vaults › Item types). */
   types: readonly LoginMethodType[];
+  /** Credentials kept on their own, which this account may take. */
+  existing: readonly CredentialItem[];
   onPick: (type: LoginMethodType) => void;
+  onBind: (credential: CredentialItem) => void;
   onClose: () => void;
 }) {
   const group = useRef<HTMLFieldSetElement>(null);
@@ -76,6 +83,23 @@ export function MethodPicker({
           {METHOD_LABELS[type]}
         </button>
       ))}
+      {existing.length > 0 ? (
+        <fieldset
+          className="method__existing"
+          aria-label="Existing credentials"
+        >
+          {existing.map((credential) => (
+            <button
+              key={credential.id}
+              type="button"
+              className="btn btn--sm choice"
+              onClick={() => onBind(credential)}
+            >
+              {credential.name || METHOD_LABELS[credential.method.type]}
+            </button>
+          ))}
+        </fieldset>
+      ) : null}
     </fieldset>
   );
 }

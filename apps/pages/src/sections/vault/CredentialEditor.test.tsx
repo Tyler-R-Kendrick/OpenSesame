@@ -9,13 +9,17 @@ import {
 } from "@opensesame/vault-core";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   installEditorHarness,
   open,
   saveItem,
+  saveItems,
   vault,
 } from "./account-editor.test-support.js";
+import { credentialPackSeams } from "./account-secrets.js";
+
+const enablePack = vi.spyOn(credentialPackSeams, "enable");
 
 function savedCredential(): CredentialItem {
   const item = saveItem.mock.calls[0]?.[0];
@@ -25,13 +29,11 @@ function savedCredential(): CredentialItem {
 
 const billing: AccountItem = { ...createItem("account", "Billing") };
 
-describe("the credential types an account may add are the ones this vault has switched on", () => {
+describe("an account can always take a credential", () => {
   installEditorHarness();
 
-  it("offers every switched-on type and no other", async () => {
+  it("draws the + and offers every credential type, whichever are switched on", async () => {
     resetPackStateForTests();
-    setStatus("password", { phase: "on" });
-    setStatus("api-key", { phase: "on" });
     open("/vault/new/account");
     await userEvent.click(
       screen.getByRole("button", { name: "Add login method" }),
@@ -42,24 +44,100 @@ describe("the credential types an account may add are the ones this vault has sw
     expect(picker.getAllByRole("button").map((b) => b.textContent)).toEqual([
       "Password",
       "API key",
+      "Token",
+      "OAuth",
+      "Authenticator",
     ]);
-  });
-
-  it("draws no + at all when nothing can be added", () => {
-    resetPackStateForTests();
-    open("/vault/new/account");
-    expect(
-      screen.queryByRole("button", { name: "Add login method" }),
-    ).toBeNull();
     // The account still opens on its password: Accounts needs Password.
     expect(screen.getByRole("group", { name: "Password method" })).toBeTruthy();
   });
 
-  it("starts a new account on a password whichever types are on", () => {
+  it("adds a method of a type the vault had not switched on, and switches it on", async () => {
     resetPackStateForTests();
-    setStatus("account", { phase: "on" });
+    enablePack.mockClear();
     open("/vault/new/account");
-    expect(screen.getByRole("group", { name: "Password method" })).toBeTruthy();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add login method" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "API key" }));
+    expect(screen.getByRole("group", { name: "API key method" })).toBeTruthy();
+    expect(enablePack).toHaveBeenCalledWith("api-key");
+  });
+
+  it("does not ask for a type that is already on", async () => {
+    resetPackStateForTests();
+    setStatus("api-key", { phase: "on" });
+    enablePack.mockClear();
+    open("/vault/new/account");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add login method" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "API key" }));
+    expect(enablePack).not.toHaveBeenCalled();
+  });
+});
+
+describe("a credential kept on its own can be bound from the account", () => {
+  installEditorHarness();
+  const spare = createCredential(
+    { id: "k9", type: "api-key", key: "ak_9", header: "X-Api-Key" },
+    "Spare key",
+    null,
+  );
+
+  const elsewhere: AccountItem = { ...createItem("account", "Elsewhere") };
+
+  it("lists the unbound ones, and not those already here, trashed or bound elsewhere", async () => {
+    const other = createCredential(
+      { id: "k8", type: "api-key", key: "ak_8", header: "X-Api-Key" },
+      "On another",
+      elsewhere.id,
+    );
+    const gone = {
+      ...createCredential(
+        { id: "k7", type: "api-key", key: "ak_7", header: "X-Api-Key" },
+        "Trashed",
+        null,
+      ),
+      deletedAt: "2026-01-01T00:00:00.000Z",
+    };
+    vault.current.items = [billing, elsewhere, spare, other, gone];
+    open(`/vault/${billing.id}/edit`);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add login method" }),
+    );
+    const existing = within(
+      screen.getByRole("group", { name: "Existing credentials" }),
+    );
+    expect(existing.getAllByRole("button").map((b) => b.textContent)).toEqual([
+      "Spare key",
+    ]);
+  });
+
+  it("binds the chosen one in the same write as the account, never as a copy", async () => {
+    vault.current.items = [billing, spare];
+    open(`/vault/${billing.id}/edit`);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Add login method" }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Spare key" }));
+    expect(screen.getByRole("group", { name: "API key method" })).toBeTruthy();
+    await userEvent.click(
+      screen.getAllByRole("button", { name: "Save item" })[0],
+    );
+    await waitFor(() => expect(saveItems).toHaveBeenCalledTimes(1));
+    expect(saveItem).not.toHaveBeenCalled();
+    const [written] = saveItems.mock.calls[0] ?? [];
+    const [account, bound] = written ?? [];
+    expect(account?.kind === "account" && account.id).toBe(billing.id);
+    expect(
+      account?.kind === "account" && account.methods.map((method) => method.id),
+    ).not.toContain("k9");
+    expect(bound).toMatchObject({
+      kind: "credential",
+      id: "k9",
+      accountId: billing.id,
+    });
   });
 });
 

@@ -1,0 +1,193 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 1500,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "measure": "button[aria-label='Add login method']"
+        },
+        {
+          "shot": "390-editor"
+        },
+        {
+          "pressOptional": "Add login method"
+        },
+        {
+          "measure": ".method__picker button"
+        },
+        {
+          "shot": "390-picker"
+        },
+        {
+          "pressOptional": "^API key$"
+        },
+        {
+          "fillOptional": {
+            "label": "X-Api-Key value",
+            "text": "demo-api-key-0001"
+          }
+        },
+        {
+          "pressOptional": "Save item"
+        },
+        {
+          "visit": "vault/new/api-key"
+        },
+        {
+          "fillOptional": {
+            "label": "X-Api-Key value",
+            "text": "demo-spare-key-0002"
+          }
+        },
+        {
+          "pressOptional": "Save item"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "pressOptional": "Add login method"
+        },
+        {
+          "measure": ".method__existing button"
+        },
+        {
+          "shot": "390-existing"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "measure": "button[aria-label='Add login method']"
+        },
+        {
+          "shot": "1280-editor"
+        },
+        {
+          "pressOptional": "Add login method"
+        },
+        {
+          "measure": ".method__picker button"
+        },
+        {
+          "shot": "1280-picker"
+        },
+        {
+          "pressOptional": "^API key$"
+        },
+        {
+          "fillOptional": {
+            "label": "X-Api-Key value",
+            "text": "demo-api-key-0001"
+          }
+        },
+        {
+          "pressOptional": "Save item"
+        },
+        {
+          "visit": "vault/new/api-key"
+        },
+        {
+          "fillOptional": {
+            "label": "X-Api-Key value",
+            "text": "demo-spare-key-0002"
+          }
+        },
+        {
+          "pressOptional": "Save item"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "pressOptional": "Add login method"
+        },
+        {
+          "measure": ".method__existing button"
+        },
+        {
+          "shot": "1280-existing"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-editor",
+      "width": 390,
+      "title": "An account with only Accounts switched on \u2014 390 wide",
+      "caption": "The + on Login methods, which has to be there whatever is switched on.",
+      "before": "The + (a vault with Password off draws none)",
+      "after": "The + is always drawn"
+    },
+    {
+      "shot": "390-picker",
+      "width": 390,
+      "title": "What the + offers \u2014 390 wide",
+      "caption": "Every credential type; one the vault had not switched on is switched on by being chosen.",
+      "before": "Only Password",
+      "after": "Password, API key, Token, OAuth, Authenticator"
+    },
+    {
+      "shot": "390-existing",
+      "width": 390,
+      "title": "A credential kept on its own, under the + \u2014 390 wide",
+      "caption": "Chosen, it is bound to the account in the same save: never a copy.",
+      "before": "No way to bind one",
+      "after": "Existing credentials on a row of their own"
+    },
+    {
+      "shot": "1280-editor",
+      "width": 1280,
+      "title": "An account with only Accounts switched on \u2014 1280 wide",
+      "caption": "The + on Login methods, which has to be there whatever is switched on.",
+      "before": "The + (a vault with Password off draws none)",
+      "after": "The + is always drawn"
+    },
+    {
+      "shot": "1280-picker",
+      "width": 1280,
+      "title": "What the + offers \u2014 1280 wide",
+      "caption": "Every credential type; one the vault had not switched on is switched on by being chosen.",
+      "before": "Only Password",
+      "after": "Password, API key, Token, OAuth, Authenticator"
+    },
+    {
+      "shot": "1280-existing",
+      "width": 1280,
+      "title": "A credential kept on its own, under the + \u2014 1280 wide",
+      "caption": "Chosen, it is bound to the account in the same save: never a copy.",
+      "before": "No way to bind one",
+      "after": "Existing credentials on a row of their own"
+    }
+  ]
+}
