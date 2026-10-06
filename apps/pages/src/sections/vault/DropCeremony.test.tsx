@@ -1,6 +1,7 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 /** @vitest-environment jsdom */
+import { useState } from "react";
 import { MemoryRouter } from "react-router";
 import {
   afterAll,
@@ -158,18 +159,42 @@ afterEach(() => {
   Object.assign(dropSeams, { createClaim, pollClaim });
 });
 
+/** The ceremony as ItemDetail drives it: open or closed, closing by `onClose`. */
+function Ceremony({
+  item,
+  startOpen = true,
+  onClose,
+}: {
+  item: VaultItem;
+  startOpen?: boolean;
+  onClose?: () => void;
+}) {
+  const [open, setOpen] = useState(startOpen);
+  return (
+    <MemoryRouter>
+      <button type="button" onClick={() => setOpen((value) => !value)}>
+        toggle
+      </button>
+      <ShareSecretDrop
+        item={item}
+        open={open}
+        onClose={() => {
+          setOpen(false);
+          onClose?.();
+        }}
+      />
+    </MemoryRouter>
+  );
+}
+
 describe("share ceremony on an item", () => {
   it("seals a secret with a TTL and shows the drop card, saving no item", async () => {
     const user = userEvent.setup();
-    render(
-      <MemoryRouter>
-        <ShareSecretDrop item={makeSecret()} />
-      </MemoryRouter>,
-    );
+    render(<Ceremony item={makeSecret()} />);
 
-    await user.click(screen.getByRole("button", { name: /Share once/i }));
-    const ttl = screen.getByLabelText("Opens for");
-    expect(ttl.querySelectorAll("option")).toHaveLength(3);
+    const ttl = screen.getByRole("radiogroup", { name: "Opens for" });
+    expect(ttl.querySelectorAll("button")).toHaveLength(3);
+    expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.queryByRole("checkbox", { name: /Keep a copy/ })).toBeNull();
 
     await user.click(screen.getByRole("button", { name: /Seal and share/i }));
@@ -187,80 +212,90 @@ describe("share ceremony on an item", () => {
     expect(JSON.stringify(manifest)).not.toContain("s3cr3t-value");
   });
 
-  it("names the key once: the group head is decoration beside it", () => {
-    render(
-      <MemoryRouter>
-        <ShareSecretDrop item={makeSecret()} />
-      </MemoryRouter>,
-    );
-    expect(screen.getAllByText("Share once")).toHaveLength(1);
-    expect(screen.queryByRole("heading", { name: "Share once" })).toBeNull();
-    expect(screen.getAllByRole("button", { name: "Share once" })).toHaveLength(
-      1,
-    );
+  it("draws nothing while closed, and a closed ceremony forgets a finished drop", async () => {
+    const user = userEvent.setup();
+    render(<Ceremony item={makeSecret()} startOpen={false} />);
+    expect(screen.queryByRole("radiogroup")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Share once" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "toggle" }));
+    await user.click(screen.getByRole("button", { name: /Seal and share/i }));
+    await screen.findByText("Drop ready");
+
+    await user.click(screen.getByRole("button", { name: "toggle" }));
+    expect(screen.queryByText("Drop ready")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "toggle" }));
+    expect(screen.queryByText("Drop ready")).toBeNull();
+    expect(screen.getByRole("radiogroup", { name: "Opens for" })).toBeTruthy();
   });
 
-  it("moves focus into the ceremony on open and back to the key on Cancel", async () => {
+  it("presses the one-hour choice at first and seals for the choice in force", async () => {
     const user = userEvent.setup();
+    render(<Ceremony item={makeSecret()} />);
+    const pressed = (name: string) =>
+      screen.getByRole("button", { name }).getAttribute("aria-pressed");
+    expect(pressed("1 hour")).toBe("true");
+    expect(pressed("10 minutes")).toBe("false");
+
+    await user.click(screen.getByRole("button", { name: "1 day" }));
+    expect(pressed("1 day")).toBe("true");
+    expect(pressed("1 hour")).toBe("false");
+
+    await user.click(screen.getByRole("button", { name: /Seal and share/i }));
+    await screen.findByText("Drop ready");
+    expect(createClaim.mock.calls[0]?.[1]).toBe(86_400_000);
+  });
+
+  it("takes focus on the choice in force when it opens, and Cancel closes it", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
     render(
-      <MemoryRouter>
-        <ShareSecretDrop item={makeSecret()} />
-      </MemoryRouter>,
+      <Ceremony item={makeSecret()} startOpen={false} onClose={onClose} />,
     );
-    await user.click(screen.getByRole("button", { name: "Share once" }));
-    expect(document.activeElement).toBe(screen.getByLabelText("Opens for"));
+    await user.click(screen.getByRole("button", { name: "toggle" }));
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "1 hour" }),
+    );
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Share once" }),
-    );
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("radiogroup")).toBeNull();
   });
 
-  it("opens by keyboard with focus on the first control, and Cancel by keyboard returns it", async () => {
+  it("is reached and left by keyboard alone", async () => {
     const user = userEvent.setup();
+    const onClose = vi.fn();
     render(
-      <MemoryRouter>
-        <ShareSecretDrop item={makeSecret()} />
-      </MemoryRouter>,
+      <Ceremony item={makeSecret()} startOpen={false} onClose={onClose} />,
     );
-    screen.getByRole("button", { name: "Share once" }).focus();
+    screen.getByRole("button", { name: "toggle" }).focus();
     await user.keyboard("{Enter}");
-    expect(document.activeElement).toBe(screen.getByLabelText("Opens for"));
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "1 hour" }),
+    );
+    await user.keyboard("{ArrowRight}");
+    await user.tab();
     await user.tab();
     await user.tab();
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Cancel" }),
     );
     await user.keyboard("{Enter}");
-    expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Share once" }),
-    );
-  });
-
-  it("does not take focus when it mounts already open", () => {
-    render(
-      <MemoryRouter>
-        <ShareSecretDrop item={makeSecret()} initialOpen />
-      </MemoryRouter>,
-    );
-    expect(document.activeElement).toBe(document.body);
+    expect(onClose).toHaveBeenCalledOnce();
   });
 
   it("seals an account password the same way", async () => {
     const user = userEvent.setup();
     render(
-      <MemoryRouter>
-        <ShareSecretDrop
-          item={makeAccount({
-            id: "itm_login",
-            name: "GitHub",
-            username: "octocat",
-            password: "hunter2-login",
-          })}
-        />
-      </MemoryRouter>,
+      <Ceremony
+        item={makeAccount({
+          id: "itm_login",
+          name: "GitHub",
+          username: "octocat",
+          password: "hunter2-login",
+        })}
+      />,
     );
-    await user.click(screen.getByRole("button", { name: /Share once/i }));
     await user.click(screen.getByRole("button", { name: /Seal and share/i }));
     await screen.findByText("Drop ready");
     expect(store.saveItem).not.toHaveBeenCalled();

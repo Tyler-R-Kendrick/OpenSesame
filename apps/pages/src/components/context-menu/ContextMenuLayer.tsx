@@ -9,6 +9,7 @@ import {
   contextMenuSnapshot,
   subscribeContextMenu,
 } from "./menu-model.js";
+import { asSheet } from "./phone-menu.js";
 
 /**
  * The page owns its right-click. Every ask for a menu — a right button, a
@@ -101,13 +102,5 @@ export function ContextMenuLayer() {
       }}
       onClose={close}
     />
-  );
-}
-
-/** The phone arrangement (DESIGN.md § Touch): coarse pointer or narrow. */
-function asSheet(): boolean {
-  return (
-    window.matchMedia?.("(pointer: coarse), (max-width: 900px)").matches ??
-    false
   );
 }

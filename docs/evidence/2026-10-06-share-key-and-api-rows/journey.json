@@ -1,0 +1,233 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 1500,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Billing API"
+          }
+        },
+        {
+          "press": "Add login method"
+        },
+        {
+          "pressIn": ["fieldset[aria-label='Login method type']", "API key"]
+        },
+        {
+          "fillOptional": {
+            "label": "API key",
+            "text": "demo-api-key-0001"
+          }
+        },
+        {
+          "press": "Add login method"
+        },
+        {
+          "pressIn": ["fieldset[aria-label='Login method type']", "Token"]
+        },
+        {
+          "fillOptional": {
+            "label": "Token",
+            "text": "demo-token-0001"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "measure": ".detail__tools"
+        },
+        {
+          "shot": "390-detail"
+        },
+        {
+          "press": "Share once"
+        },
+        {
+          "measure": ".detail__tools"
+        },
+        {
+          "shot": "390-share-open"
+        },
+        {
+          "visit": "vault?f=all"
+        },
+        {
+          "press": "Actions for Billing API"
+        },
+        {
+          "shot": "390-copy-menu"
+        },
+        {
+          "menuOptional": "Copy"
+        },
+        {
+          "shot": "390-copy-choices"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 1100,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Billing API"
+          }
+        },
+        {
+          "press": "Add login method"
+        },
+        {
+          "pressIn": ["fieldset[aria-label='Login method type']", "API key"]
+        },
+        {
+          "fillOptional": {
+            "label": "API key",
+            "text": "demo-api-key-0001"
+          }
+        },
+        {
+          "press": "Add login method"
+        },
+        {
+          "pressIn": ["fieldset[aria-label='Login method type']", "Token"]
+        },
+        {
+          "fillOptional": {
+            "label": "Token",
+            "text": "demo-token-0001"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "measure": ".detail__tools"
+        },
+        {
+          "shot": "1280-detail"
+        },
+        {
+          "press": "Share once"
+        },
+        {
+          "measure": ".detail__tools"
+        },
+        {
+          "shot": "1280-share-open"
+        },
+        {
+          "visit": "vault?f=all"
+        },
+        {
+          "press": "Actions for Billing API"
+        },
+        {
+          "shot": "1280-copy-menu"
+        },
+        {
+          "menuOptional": "Copy"
+        },
+        {
+          "shot": "1280-copy-choices"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-detail",
+      "width": 390,
+      "title": "An account's toolbar and credentials \u2014 390 wide",
+      "caption": "Share is a key beside favorite, edit and delete. The API key shows its header with a copy key, the whole header line to reveal and copy, and a token its bearer line.",
+      "before": "Three keys; Header had no copy key; no header line",
+      "after": "Four keys, Share among them; every credential copies"
+    },
+    {
+      "shot": "390-share-open",
+      "width": 390,
+      "title": "Share once, opened from the toolbar \u2014 390 wide",
+      "caption": "The key is pressed and the ceremony opens under the fields. How long it lasts is three choices, not a dropdown.",
+      "before": "A headed Share once group under the fields, with a duration dropdown",
+      "after": "The pressed key, three duration choices, then Seal and share"
+    },
+    {
+      "shot": "390-copy-menu",
+      "width": 390,
+      "title": "A row's menu \u2014 390 wide",
+      "caption": "Copy asks which credential, and Copy username keeps its own row.",
+      "before": "Copy secret",
+      "after": "Copy, with a submenu mark"
+    },
+    {
+      "shot": "390-copy-choices",
+      "width": 390,
+      "title": "Copy, opened \u2014 390 wide",
+      "caption": "Every credential the account holds: the password, the API key and its header line, the token and its bearer line. On a phone the choices replace the list, with a way back.",
+      "before": "Choosing Copy secret copied one value and closed the menu",
+      "after": "Each credential, named"
+    },
+    {
+      "shot": "1280-detail",
+      "width": 1280,
+      "title": "An account's toolbar and credentials \u2014 1280 wide",
+      "caption": "Share is a key beside favorite, edit and delete. The API key shows its header with a copy key, the whole header line to reveal and copy, and a token its bearer line.",
+      "before": "Three keys; Header had no copy key; no header line",
+      "after": "Four keys, Share among them; every credential copies"
+    },
+    {
+      "shot": "1280-share-open",
+      "width": 1280,
+      "title": "Share once, opened from the toolbar \u2014 1280 wide",
+      "caption": "The key is pressed and the ceremony opens under the fields. How long it lasts is three choices, not a dropdown.",
+      "before": "A headed Share once group under the fields, with a duration dropdown",
+      "after": "The pressed key, three duration choices, then Seal and share"
+    },
+    {
+      "shot": "1280-copy-menu",
+      "width": 1280,
+      "title": "A row's menu \u2014 1280 wide",
+      "caption": "Copy asks which credential, and Copy username keeps its own row.",
+      "before": "Copy secret",
+      "after": "Copy, with a submenu mark"
+    },
+    {
+      "shot": "1280-copy-choices",
+      "width": 1280,
+      "title": "Copy, opened \u2014 1280 wide",
+      "caption": "Every credential the account holds: the password, the API key and its header line, the token and its bearer line. On a phone the choices replace the list, with a way back.",
+      "before": "Choosing Copy secret copied one value and closed the menu",
+      "after": "Each credential, named"
+    }
+  ]
+}

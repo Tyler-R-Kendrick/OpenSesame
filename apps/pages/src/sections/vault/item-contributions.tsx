@@ -3,7 +3,7 @@ import { useContributions } from "../../bindings/contributions.js";
 
 /**
  * What the vault's item pages draw from other capabilities: a contributed
- * kind's record view (a legacy drop, `sharing.drops`), offers to share any
+ * kind's record view (a legacy drop, `sharing.drops`), a way to share any
  * stored item, and suggestions for a new item's labels (the
  * on-device model, `support.local-ai`). Absent, the page draws none of them.
  */
@@ -24,19 +24,26 @@ export function KindRecord({ item }: { item: VaultItem }) {
   return Record ? <Record item={item} /> : null;
 }
 
-/** Every offer to share this item, in contribution order. */
+/** Whether any capability offers to share a stored item once. */
+export function useCanShare(): boolean {
+  return useContributions("secret-share").length > 0;
+}
+
+/** Every ceremony that shares this item, in contribution order. */
 export function SecretShares({
   item,
-  initialOpen,
+  open,
+  onClose,
 }: {
   item: VaultItem;
-  initialOpen?: boolean;
+  open: boolean;
+  onClose: () => void;
 }) {
   const shares = useContributions("secret-share");
   return (
     <>
       {shares.map(({ id, Panel }) => (
-        <Panel key={id} item={item} initialOpen={initialOpen} />
+        <Panel key={id} item={item} open={open} onClose={onClose} />
       ))}
     </>
   );
