@@ -14,6 +14,7 @@ import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { repoRootFromHere } from "./ci-changed-areas.mjs";
+import { isString } from "./json-boundary.mjs";
 
 /** The steps of a `&&` chain, without the typecheck. */
 export function buildSteps(script) {
@@ -27,7 +28,7 @@ function main() {
   const dir = join(repoRootFromHere(), "apps/pages");
   const pkg = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
   const script = pkg.scripts?.build;
-  if (typeof script !== "string") {
+  if (!isString(script)) {
     console.error("apps/pages has no build script");
     process.exit(1);
   }

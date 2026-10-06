@@ -57,6 +57,12 @@ a person can iterate against.
 - Hub damping is a deliberate trade: a behavioural change in a hub file that
   only a test more than two steps away would catch surfaces on `main`, not on
   the pull request. The threshold and depth are `HUB_TESTS` and `HUB_DEPTH`.
+- A package's test setup imports a wide closure (app-core's and Pages' reach
+  `@opensesame/os-domain` and some 600 files). A change inside it runs that
+  package whole, because setup code runs before every test; the saving is for
+  changes outside it.
+- The typecheck and the unit tests run side by side (`ci-run-lanes.mjs`), so
+  a diff costs the longer of the two, not their sum.
 - The rules are conservative by construction (unknown means all), so the cost
   of a wrong rule is extra work, never a skipped check, except where a rule
   names a narrower set on purpose; each of those cites the contract it follows.
