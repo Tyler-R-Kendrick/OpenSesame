@@ -1,5 +1,5 @@
 /**
- * Runs a route handler under an `OrgOwner` proof (ADR 0177).
+ * Runs a route handler under an `OrgOwner` proof (ADR 0178).
  *
  * `name()` scopes the actor and the organization to one callback, and the
  * handler is generic in those names, so it cannot return or store them. Every

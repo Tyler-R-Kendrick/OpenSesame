@@ -1,6 +1,6 @@
 /**
  * Project and membership mutations, each demanding a proof about the exact
- * project it touches (ADR 0177).
+ * project it touches (ADR 0178).
  *
  * A route used to run its role check and then call a store with an id string,
  * and nothing tied the two together. These functions cannot be called without

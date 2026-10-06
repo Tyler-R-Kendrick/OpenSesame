@@ -6,6 +6,7 @@
 
 import { storageWritesHalted } from "../storage-halt.js";
 import { type EncryptedDb, openEncryptedDb } from "./db.js";
+import { DEVICE_EDB_NAMESPACE } from "./names.js";
 import type { Schema } from "./schema.js";
 
 /**
@@ -18,12 +19,13 @@ export async function withEncryptedDb<T>(
   logicalName: string,
   schema: Schema,
   run: (db: EncryptedDb) => Promise<T>,
+  customerNamespace = DEVICE_EDB_NAMESPACE,
 ): Promise<T | undefined> {
   // Opening alone recreates a deleted database.
   if (storageWritesHalted()) return undefined;
   let db: EncryptedDb;
   try {
-    db = await openEncryptedDb(logicalName, schema);
+    db = await openEncryptedDb(logicalName, schema, customerNamespace);
   } catch {
     return undefined;
   }

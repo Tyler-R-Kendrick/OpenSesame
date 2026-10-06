@@ -12,6 +12,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const grammar = [
   readFileSync(join(here, "parse.ts"), "utf8"),
   readFileSync(join(here, "run.ts"), "utf8"),
+  readFileSync(join(here, "parity-parse.ts"), "utf8"),
+  readFileSync(join(here, "parity-commands.ts"), "utf8"),
 ]
   .join("\n")
   .toLowerCase();

@@ -2,7 +2,7 @@
  * Project membership CRUD — kept out of projects.ts so GA-I-02 reconcile
  * wiring does not push that module past the ADR 0093 line budget.
  *
- * Every handler runs under `asProjectMember` (ADR 0177): the role lookup, the
+ * Every handler runs under `asProjectMember` (ADR 0178): the role lookup, the
  * visibility test and the 404 live in one proof, and each write goes through
  * `services/project-admin.ts`, which will not run without the proof that
  * matches the project and, for an owner, the proof that the actor is one.

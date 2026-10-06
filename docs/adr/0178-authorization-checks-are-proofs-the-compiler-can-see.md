@@ -1,4 +1,4 @@
-# ADR 0177 — Authorization checks are proofs the compiler can see
+# ADR 0178 — Authorization checks are proofs the compiler can see
 
 Status: Accepted
 Date: 2026-10-06

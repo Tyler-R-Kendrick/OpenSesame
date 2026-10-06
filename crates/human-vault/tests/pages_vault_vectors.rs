@@ -140,10 +140,8 @@ fn assert_listing(name: &str, opened: &OpenedVaultFile) {
             .collect();
         assert_eq!(logins.len(), 1, "{name}: one legacy login");
         assert_eq!(
-            std::path::Path::new(logins[0].2)
-                .extension()
-                .and_then(std::ffi::OsStr::to_str),
-            Some("login"),
+            std::path::Path::new(logins[0].2).extension(),
+            Some(std::ffi::OsStr::new("login")),
             "{name}: {}",
             logins[0].2
         );

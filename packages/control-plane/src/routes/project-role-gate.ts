@@ -1,6 +1,6 @@
 /**
  * Runs a project route handler under the proofs the caller's role earns
- * (ADR 0177).
+ * (ADR 0178).
  *
  * `name()` scopes the actor and the project to one callback, and the handler is
  * generic in those names, so it cannot return or store them. Mutations pass

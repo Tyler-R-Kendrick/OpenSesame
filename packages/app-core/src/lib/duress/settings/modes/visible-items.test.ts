@@ -1,4 +1,4 @@
-import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
 import { type VaultItem, createItem } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import { MAX_SLOT_PAYLOAD_BYTES } from "../../crypto/slot-profile.js";
@@ -126,8 +126,17 @@ describe("visible items body reader", () => {
     const list = items();
     return VISIBLE_ITEMS.plan(extrasFor(list), ctx(list)).body;
   };
-  const clone = (): { v: number; items: Record<string, BoundaryValue>[] } =>
-    JSON.parse(JSON.stringify(good()));
+  const clone = () => {
+    const parsed: BoundaryValue = JSON.parse(JSON.stringify(good()));
+    if (
+      !isJsonObject(parsed) ||
+      parsed.v !== 1 ||
+      !Array.isArray(parsed.items) ||
+      !parsed.items.every(isJsonObject)
+    )
+      throw new Error("Fixture is not a valid visible-items body");
+    return { v: parsed.v, items: parsed.items };
+  };
 
   it("reads exactly what the mode seals", () => {
     expect(readVisibleItemsBody(good())?.map((i) => i.kind)).toEqual([
@@ -234,7 +243,10 @@ describe("visible items body reader", () => {
       v = 1;
       items = [];
     }
-    expect(readVisibleItemsBody(overlapCast(new Dressed()))).toBeNull();
+    const dressed = { v: 1, items: [] };
+    Object.setPrototypeOf(dressed, Dressed.prototype);
+    expect(dressed).toBeInstanceOf(Dressed);
+    expect(readVisibleItemsBody(dressed)).toBeNull();
     expect(
       readVisibleItemsBody(Object.create({ v: 1, items: good() })),
     ).toBeNull();

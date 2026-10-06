@@ -1,6 +1,6 @@
 /**
  * `OrgOwner<A, O>` — the actor named `A` holds the `owner` role in the live
- * organization named `O` (ADR 0177).
+ * organization named `O` (ADR 0178).
  *
  * This is the only module that can mint the proof: the prover stays private,
  * and `no-define-proof` / `no-exported-prover` hold the line. It replaces four
@@ -29,7 +29,7 @@ export interface OrgOwner<A, O> extends Proof<"OrgOwner", [A, O]> {}
  * `unchecked` is what the membership routes in `routes/organizations.ts` have
  * always done: they never read the organization's state, so an owner of a
  * deleted organization can still list and edit members. That is recorded drift
- * (ADR 0177), kept so this change alters no behavior; it is not an endorsement.
+ * (ADR 0178), kept so this change alters no behavior; it is not an endorsement.
  * They are named, not unified, because collapsing them would change who may
  * manage a suspended or deleted organization.
  */

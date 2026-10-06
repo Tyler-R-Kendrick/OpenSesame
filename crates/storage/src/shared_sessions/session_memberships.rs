@@ -86,10 +86,24 @@ impl Db {
         organization_id: &str,
         membership: &SessionMembership,
     ) -> anyhow::Result<()> {
-        sqlx::query(
+        let mut transaction = self.pool.begin().await.context("begin membership")?;
+        self.upsert_session_membership_in(&mut transaction, organization_id, membership)
+            .await?;
+        transaction.commit().await.context("commit membership")?;
+        Ok(())
+    }
+
+    pub(super) async fn upsert_session_membership_in(
+        &self,
+        transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+        organization_id: &str,
+        membership: &SessionMembership,
+    ) -> anyhow::Result<()> {
+        let result = sqlx::query(
             "INSERT INTO session_memberships (session_id, organization_id, \
              principal_id, mode, admitted_by_principal_id, admitted_at, ended_at) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) \
+             SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7 \
+             WHERE EXISTS (SELECT 1 FROM sessions WHERE id = ?1 AND organization_id = ?2 AND closed_at IS NULL) \
              ON CONFLICT (session_id, principal_id) DO UPDATE SET \
              mode = excluded.mode, ended_at = excluded.ended_at",
         )
@@ -100,9 +114,12 @@ impl Db {
         .bind(membership.admitted_by_principal_id.to_string())
         .bind(membership.admitted_at.to_rfc3339())
         .bind(membership.ended_at.map(|at| at.to_rfc3339()))
-        .execute(&self.pool)
+        .execute(&mut **transaction)
         .await
         .context("upsert session membership")?;
+        if result.rows_affected() != 1 {
+            return Err(super::SessionClosed.into());
+        }
         Ok(())
     }
 

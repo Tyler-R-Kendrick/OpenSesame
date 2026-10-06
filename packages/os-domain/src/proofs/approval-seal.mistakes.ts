@@ -1,5 +1,5 @@
 /**
- * Mistakes the type checker must keep refusing (ADR 0177).
+ * Mistakes the type checker must keep refusing (ADR 0178).
  *
  * `interactionMachine.approve` takes a `SealedApprovalProof`. Every
  * `@ts-expect-error` below is a way to hand it an approval nobody sealed;

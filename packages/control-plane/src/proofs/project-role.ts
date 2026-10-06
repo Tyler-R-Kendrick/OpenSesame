@@ -1,6 +1,6 @@
 /**
  * `ProjectMember`, `ProjectAdmin` and `ProjectOwner` — the actor named `A` holds
- * at least that role on the visible project named `P` (ADR 0177).
+ * at least that role on the visible project named `P` (ADR 0178).
  *
  * This is the only module that can mint them. It replaces the
  * `roleFor` + `isVisible` + `role === "member"` block that every project and

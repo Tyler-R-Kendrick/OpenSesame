@@ -1,8 +1,9 @@
 # gitleaks gate — negative control
 
-`pnpm audit:gitleaks` reports the working tree clean. Twenty-three findings
-were exempted to get there, so this is how to confirm the scanner still works,
-and what the exemptions actually cost.
+`pnpm audit:gitleaks` reports the working tree clean. Reviewed synthetic
+fixtures have exemptions, so this confirms the scanner still works and
+explains what those exemptions cost. Historical findings are reported
+separately; working-tree cleanliness does not claim clean git history.
 
 Run it after any change to `.gitleaks.toml`.
 
@@ -39,7 +40,7 @@ clean and reads as a broken gate when nothing is wrong.
 Two mechanisms, and the choice between them is not stylistic.
 
 **Preferred — a trailing `// gitleaks:allow` on the offending line.** Only that
-line is exempt; the rest of the file stays scanned. Eight findings use this.
+line is exempt; the rest of the file stays scanned.
 
 The comment must be **trailing, on the same line**. On the line above it does
 nothing:
@@ -55,10 +56,22 @@ That is exactly how the pre-existing exemption in `parse.test.mjs` was written
 — on its own line, two lines above the finding — which is why the file kept
 failing the gate despite looking like it had been handled.
 
-**Fallback — a path entry in `.gitleaks.toml`.** Whole-file, so use it only
-where a comment is impossible. Four files qualify: three JSON fixtures (no
+**Exact synthetic values — anchored regex entries in `.gitleaks.toml`.** The
+reviewed literals use `\A` and `\z` anchors, with no path exemption. A new key
+in the same file must still fail. In gitleaks 8.30.1 a global allowlist with
+`condition = "AND"`, path and regex filters can prune the file before checking
+the regex; that combination failed the different-value negative control.
+Keep paths as explanatory descriptions rather than scanner filters.
+
+Probe a file mentioned by an exact-value exception with a generated GitHub
+token different from the reviewed literal, then remove the probe. It must
+fail `github-app-token`. The reviewed literal must still pass. Run outside
+ignored scratch directories so the scanner reads the fixture.
+
+**Legacy fallback — a path entry in `.gitleaks.toml`.** Whole-file, so use it only
+where a comment is impossible. Existing entries include JSON fixtures (no
 comment syntax) and `Cargo.lock` (generated, so a comment is erased on the
-next resolve).
+next resolve). Prefer exact synthetic-value regex entries for new cases.
 
 ### What the path entries cost
 

@@ -25,7 +25,7 @@ try {
   const entry = path.join(scratch, "entry.ts");
   await writeFile(
     entry,
-    `import * as crypto from ${JSON.stringify(path.join(root, "packages/vault-core/src/crypto.ts"))};\nimport * as files from ${JSON.stringify(path.join(root, "packages/vault-core/src/file-parts.ts"))};\nimport * as vaultModel from ${JSON.stringify(path.join(root, "packages/vault-core/src/model.ts"))};\nimport * as vaultPepper from ${JSON.stringify(path.join(root, "packages/vault-core/src/pepper-seal.ts"))};\nimport { SopsEngine } from ${JSON.stringify(path.join(root, "packages/app-core/src/lib/sops/engine.ts"))};\nimport { HandleRegistry } from ${JSON.stringify(path.join(root, "packages/app-core/src/lib/sops/handles.ts"))};\nimport * as plans from ${JSON.stringify(path.join(root, "packages/app-core/src/lib/sops/plan.ts"))};\nimport * as age from ${JSON.stringify(resolvePageDependency.resolve("age-encryption"))};\nimport * as customerSops from ${JSON.stringify(path.join(root, "scripts/test/customer-sops-browser-checks.mjs"))};\nimport * as customerVault from ${JSON.stringify(path.join(root, "scripts/test/customer-vault-browser-checks.mjs"))};\nimport * as browserAtRest from ${JSON.stringify(path.join(root, "packages/browser-at-rest/src/index.ts"))};\nimport * as browserRestChecks from ${JSON.stringify(path.join(root, "scripts/test/customer-at-rest-browser-checks.mjs"))};\nimport * as recordCipher from ${JSON.stringify(path.join(root, "packages/app-core/src/lib/at-rest/cipher.ts"))};\nimport * as recordKeys from ${JSON.stringify(path.join(root, "packages/app-core/src/lib/at-rest/idb-key-store.ts"))};\nimport * as recordHost from ${JSON.stringify(path.join(root, "packages/app-core/src/host.ts"))};\nimport { browserPorts } from ${JSON.stringify(path.join(root, "packages/app-core/src/browser/host.ts"))};\nimport * as vaultBytes from ${JSON.stringify(path.join(root, "packages/vault-core/src/bytes.ts"))};\nimport { xchacha20poly1305 } from ${JSON.stringify(resolveCoreDependency.resolve("@noble/ciphers/chacha"))};\nimport { hkdf } from ${JSON.stringify(resolveCoreDependency.resolve("@noble/hashes/hkdf"))};\nimport { sha256 } from ${JSON.stringify(resolveCoreDependency.resolve("@noble/hashes/sha256"))};\nimport * as recordChecks from ${JSON.stringify(path.join(root, "scripts/test/customer-record-browser-checks.mjs"))};\nObject.assign(globalThis, { vaultModel, vaultPepper, recordCipher, recordKeys, recordHost, browserPortsFactory: browserPorts, vaultBytes, recordPrimitives: { xchacha20poly1305, hkdf, sha256 }, recordChecks, browserAtRest, browserRestChecks, customerSops, customerVault, vaultCrypto: crypto, vaultFiles: files, SopsEngine, HandleRegistry, sopsPlans: plans, age });`,
+    `import * as crypto from ${JSON.stringify(path.join(root, "packages/vault-core/src/crypto.ts"))};\nimport * as files from ${JSON.stringify(path.join(root, "packages/vault-core/src/file-parts.ts"))};\nimport * as vaultModel from ${JSON.stringify(path.join(root, "packages/vault-core/src/model.ts"))};\nimport * as vaultPepper from ${JSON.stringify(path.join(root, "packages/vault-core/src/pepper-seal.ts"))};\nimport { SopsEngine } from ${JSON.stringify(path.join(root, "packages/app-core/src/lib/sops/engine.ts"))};\nimport { HandleRegistry } from ${JSON.stringify(path.join(root, "packages/app-core/src/lib/sops/handles.ts"))};\nimport * as plans from ${JSON.stringify(path.join(root, "packages/app-core/src/lib/sops/plan.ts"))};\nimport * as age from ${JSON.stringify(resolvePageDependency.resolve("age-encryption"))};\nimport * as customerSops from ${JSON.stringify(path.join(root, "scripts/test/customer-sops-browser-checks.mjs"))};\nimport * as customerVault from ${JSON.stringify(path.join(root, "scripts/test/customer-vault-browser-checks.mjs"))};\nimport * as browserAtRest from ${JSON.stringify(path.join(root, "packages/browser-at-rest/src/index.ts"))};\nimport * as browserRestChecks from ${JSON.stringify(path.join(root, "scripts/test/customer-at-rest-browser-checks.mjs"))};\nimport * as recordCipher from ${JSON.stringify(path.join(root, "packages/app-core/src/lib/at-rest/cipher.ts"))};\nimport * as recordKeys from ${JSON.stringify(path.join(root, "packages/app-core/src/lib/at-rest/idb-key-store.ts"))};\nimport * as recordHost from ${JSON.stringify(path.join(root, "packages/app-core/src/host.ts"))};\nimport { browserPorts } from ${JSON.stringify(path.join(root, "packages/app-core/src/browser/host.ts"))};\nimport * as vaultBytes from ${JSON.stringify(path.join(root, "packages/vault-core/src/bytes.ts"))};\nimport { xchacha20poly1305 } from ${JSON.stringify(resolveCoreDependency.resolve("@noble/ciphers/chacha"))};\nimport { hkdf } from ${JSON.stringify(resolveCoreDependency.resolve("@noble/hashes/hkdf"))};\nimport { sha256 } from ${JSON.stringify(resolveCoreDependency.resolve("@noble/hashes/sha256"))};\nimport * as customerEncryptedDb from ${JSON.stringify(path.join(root, "scripts/test/customer-encrypted-db-browser-checks.mjs"))};\nimport * as recordChecks from ${JSON.stringify(path.join(root, "scripts/test/customer-record-browser-checks.mjs"))};\nObject.assign(globalThis, { vaultModel, vaultPepper, recordCipher, recordKeys, recordHost, browserPortsFactory: browserPorts, vaultBytes, recordPrimitives: { xchacha20poly1305, hkdf, sha256 }, recordChecks, customerEncryptedDb, browserAtRest, browserRestChecks, customerSops, customerVault, vaultCrypto: crypto, vaultFiles: files, SopsEngine, HandleRegistry, sopsPlans: plans, age });`,
   );
   await build({
     configFile: false,
@@ -65,6 +65,9 @@ try {
   const recordChecks = await page.evaluate(() =>
     globalThis.recordChecks.verifyRecordAtRestIsolation("write"),
   );
+  const encryptedDbChecks = await page.evaluate(() =>
+    globalThis.customerEncryptedDb.verifyCustomerEncryptedDb("write"),
+  );
   const sopsChecks = await page.evaluate(() =>
     globalThis.customerSops.verifySopsCustomerIsolation(),
   );
@@ -83,6 +86,11 @@ try {
   recordChecks.push(
     ...(await page.evaluate(() =>
       globalThis.recordChecks.verifyRecordAtRestIsolation("reload"),
+    )),
+  );
+  encryptedDbChecks.push(
+    ...(await page.evaluate(() =>
+      globalThis.customerEncryptedDb.verifyCustomerEncryptedDb("reload"),
     )),
   );
   await page.evaluate(async () => {
@@ -141,10 +149,17 @@ try {
         browser: "Chromium",
         checks:
           checks.length +
+          encryptedDbChecks.length +
           sopsChecks.length +
           restChecks.length +
           recordChecks.length,
-        passed: [...restChecks, ...recordChecks, ...sopsChecks, ...checks],
+        passed: [
+          ...restChecks,
+          ...recordChecks,
+          ...encryptedDbChecks,
+          ...sopsChecks,
+          ...checks,
+        ],
       },
       null,
       2,

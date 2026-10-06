@@ -1,6 +1,6 @@
 /**
  * `SealedApprovalProof` — an `ApprovalProof` that `sealApprovalProof` made
- * (ADR 0086 §7, ADR 0177).
+ * (ADR 0086 §7, ADR 0178).
  *
  * `ApprovalProof` is the *recorded* shape: it is what a row carries and what a
  * reader sees, and a Postgres read rebuilds one from jsonb. Anything that

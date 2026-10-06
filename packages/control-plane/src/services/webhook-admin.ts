@@ -1,6 +1,6 @@
 /**
  * Webhook mutations that demand an `OwnsWebhook` proof about the exact endpoint
- * they touch (ADR 0177). `deleteById` takes a bare id and no principal, so the
+ * they touch (ADR 0178). `deleteById` takes a bare id and no principal, so the
  * proof is what stops a delete from reaching an endpoint the caller does not own.
  */
 

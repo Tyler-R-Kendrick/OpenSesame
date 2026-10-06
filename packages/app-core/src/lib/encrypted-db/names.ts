@@ -18,6 +18,7 @@ import { bytesToHex } from "@noble/hashes/utils";
 import { EDB_DATABASE_PREFIX } from "../storage-ownership.js";
 
 const encoder = new TextEncoder();
+export const DEVICE_EDB_NAMESPACE = "device";
 export const EDB_SALT = encoder.encode("opensesame.edb.v1");
 
 /** The logical names the app opens, so Reset can derive every one. */
@@ -34,10 +35,22 @@ export function edbMasterKey(atRestKey: Uint8Array): Uint8Array {
 }
 
 /** What the browser's database list shows for `logical`. */
-export function edbDatabaseName(master: Uint8Array, logical: string): string {
-  const nameKey = hkdf(sha256, master, EDB_SALT, encoder.encode("name"), 32);
+export function edbDatabaseName(
+  master: Uint8Array,
+  logical: string,
+  customerNamespace = DEVICE_EDB_NAMESPACE,
+): string {
+  const purpose =
+    customerNamespace === DEVICE_EDB_NAMESPACE
+      ? "name"
+      : JSON.stringify(["customer-name", customerNamespace]);
+  const nameKey = hkdf(sha256, master, EDB_SALT, encoder.encode(purpose), 32);
   try {
-    const digest = hmac(sha256, nameKey, encoder.encode(logical));
+    const identity =
+      customerNamespace === DEVICE_EDB_NAMESPACE
+        ? logical
+        : JSON.stringify(["customer", customerNamespace, logical]);
+    const digest = hmac(sha256, nameKey, encoder.encode(identity));
     return `${EDB_DATABASE_PREFIX}${bytesToHex(digest).slice(0, 32)}`;
   } finally {
     nameKey.fill(0);

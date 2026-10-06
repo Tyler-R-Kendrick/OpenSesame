@@ -21,8 +21,8 @@ const VAULT_SESSION_WALLET_TOOLS = [
   "opensesame_wallet_payment_propose",
   "opensesame_wallet_payment_status",
 ];
-/** 4 boot tools + 7 vault/help tools + 8 Wallet session tools. */
-const VAULT_UNLOCKED_TOOL_COUNT = 19;
+/** 4 boot tools + 12 vault/help/workflow tools + 8 Wallet session tools. */
+const VAULT_UNLOCKED_TOOL_COUNT = 24;
 /**
  * What this installation is asked to support before anything is measured.
  *

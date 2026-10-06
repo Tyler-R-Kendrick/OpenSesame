@@ -55,7 +55,7 @@ export { memberIds, parseMemberSelector };
 /**
  * Map a directory group to an organization role. Mapping a group to `owner`
  * grants ownership to everyone in it, so this takes the owner's proof about the
- * exact organization rather than trusting the caller to have checked (ADR 0177).
+ * exact organization rather than trusting the caller to have checked (ADR 0178).
  */
 export async function putGroupRoleMapping<A, O>(
   ctx: AppContext,

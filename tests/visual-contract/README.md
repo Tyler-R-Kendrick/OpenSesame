@@ -40,17 +40,14 @@ pnpm --filter @opensesame/visual-contract test:visual
 
 This drives `playwright test` (config: `playwright.config.ts`), which:
 
-1. Starts `apps/pages` for real via its own `webServer` — `pnpm exec turbo
-   run build --filter=@opensesame/pages` (which builds the workspace
-   packages Pages imports first, so a fresh checkout works) and `vite
-   preview` on
-   its own strict port `5182`, so it never reuses a developer's `5180`
-   dev server — with `VITE_BASE=/`
-   overriding that app's GitHub-Pages default of `/OpenSesame/` (Playwright's
-   `baseURL` + a leading-`/` `page.goto()` resolves against the origin, not a
-   non-root base path, so serving at `/` keeps every test's navigation
-   simple). `reuseExistingServer: !process.env.CI` is kept as a default; this
-   suite is not part of `.github/workflows/ci.yml` and runs locally.
+1. Builds Pages' workspace dependencies with `turbo run build
+   --filter=@opensesame/pages^...`, then builds Pages at `VITE_BASE=/` into
+   ignored `work/visual-contract-dist`. The existing stamped-build and worker
+   output seams preserve the deployment profile and include the distributed
+   worker variants. The canonical `apps/pages/dist` remains unchanged.
+   Vite previews this isolated output on strict loopback port `5182`;
+   `reuseExistingServer: false` prevents reuse of an unrelated developer
+   server. Root-base navigation matches Playwright's leading-`/` URLs.
 2. Runs `tests/vault-visual-contract.spec.ts` under two projects —
    `desktop` (1440×900, matching the checked-in baselines) and `mobile`
    (390×844, `devices["iPhone 13"]` with
@@ -59,8 +56,10 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
    "Use without an account" road to the seal form
    (`apps/pages/src/screens/UnlockScreen.tsx`: `#master`, `#confirm`,
    the `"Seal this device"` button), and the vault
-   (`apps/pages/src/sections/VaultSection.tsx`, `.vault`, the empty state
-   `"Nothing here"`). Every test gets a fresh browser context, so every run
+   (`apps/pages/src/sections/VaultSection.tsx`, `.vault`). Desktop shows
+   the empty `"Nothing here"` list; phone opens its Sections tree with Vault
+   expanded and all selected, retaining the empty list behind it. Both verify
+   the unlocked vault and its empty state before capture. Every test gets a fresh browser context, so every run
    is a true first run. Nothing is mocked: Pages calls no backend by default
    (ADR 0090), so a request that leaves the preview origin, or an uncaught
    page error, fails the test. Service workers are blocked
@@ -77,13 +76,12 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
    and `output/<name>-actual.png` (the raw capture) for a human to look at.
    `output/` is git-ignored — see `.gitignore` — and is never committed.
 
-If the preinstalled Chromium at `/opt/pw-browsers/chromium`
-(`PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers`,
-`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`) doesn't match what this package's
-pinned `@playwright/test` (`1.55.1`, matching the repo root) resolves by
-default, `playwright.config.ts` falls back to launching that path explicitly
-via `launchOptions.executablePath`. Do **not** run `playwright install` —
-the browser is already provisioned in this environment.
+Browser selection prefers an explicit `PLAYWRIGHT_CHROMIUM` executable,
+then `/opt/pw-browsers/chromium`, then the newest installed Chromium in
+`PLAYWRIGHT_BROWSERS_PATH` or the standard user cache. Both `chrome-linux`
+and `chrome-linux64` cache layouts are supported. A missing explicit path
+fails clearly. The selected executable is launched directly; no browser
+install or download is needed.
 
 ## Rebaselining (`VISUAL_UPDATE=1`)
 

@@ -1,5 +1,5 @@
 /**
- * Runs a route handler under a `VerifiedPrincipal` proof (ADR 0177).
+ * Runs a route handler under a `VerifiedPrincipal` proof (ADR 0178).
  *
  * The caller is named for one callback, and the handler is generic in that
  * name, so it cannot return or store it. Each route passes the refusal it has

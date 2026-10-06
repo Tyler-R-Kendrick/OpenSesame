@@ -1,7 +1,7 @@
 import gdp from "@gdp-ts/core/lint/oxlint";
 import { defineConfig } from "oxlint";
 
-// Ghosts of Departed Proofs (ADR 0177): a proof is minted only inside a
+// Ghosts of Departed Proofs (ADR 0178): a proof is minted only inside a
 // `proofs/` module and never asserted into existence elsewhere. Non-strict:
 // it bans forging a proof, not every `as` (anti-slop already gates those).
 const gdpLint = gdp({

@@ -143,7 +143,6 @@ const ACCESS_FILES = [
   "local-access-requests",
   "local-grant-admin",
   "local-grant-store",
-  "local-share-reach",
 ];
 const LOCAL_IAM_FILES = [
   "local-access-bootstrap",
@@ -152,6 +151,7 @@ const LOCAL_IAM_FILES = [
   "local-application-approval",
   "local-authenticator",
   "local-authorization",
+  "local-pending-codes",
   "local-iam-lock-resets",
   "local-issuer-channel",
   "local-request",

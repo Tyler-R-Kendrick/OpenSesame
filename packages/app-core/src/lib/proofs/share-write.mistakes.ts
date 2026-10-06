@@ -1,5 +1,5 @@
 /**
- * Mistakes the type checker must keep refusing (ADR 0177).
+ * Mistakes the type checker must keep refusing (ADR 0178).
  *
  * Each `@ts-expect-error` is a way to write a share without the authority for
  * the tomb it lands in. `tsc` fails the build if one starts to compile.

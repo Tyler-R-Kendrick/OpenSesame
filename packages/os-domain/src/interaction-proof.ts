@@ -34,7 +34,7 @@ import {
 } from "./json.js";
 
 // The one constructor, and the sealed type it makes, live under `proofs/`
-// (ADR 0177); they are re-exported here so the entry points do not move.
+// (ADR 0178); they are re-exported here so the entry points do not move.
 export {
   type SealedApprovalProof,
   type ServerEstablishedApproval,

@@ -105,6 +105,8 @@ pub(super) async fn insert_member(
     tx: &mut sqlx::SqliteConnection,
     member: &BitwardenOrgMember,
 ) -> anyhow::Result<bool> {
+    // Only compile-time column lists are interpolated; all caller values use bound parameters.
+    // ast-grep-ignore: sql-format-injection
     let done = sqlx::query(&format!(
         "INSERT INTO bitwarden_org_members ({MEMBER_COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) \
          ON CONFLICT(org_id, email) DO NOTHING"
@@ -131,6 +133,8 @@ pub(super) async fn insert_org(
     tx: &mut sqlx::SqliteConnection,
     org: &BitwardenOrganization,
 ) -> anyhow::Result<()> {
+    // Only compile-time column lists are interpolated; all caller values use bound parameters.
+    // ast-grep-ignore: sql-format-injection
     sqlx::query(&format!(
         "INSERT INTO bitwarden_organizations ({ORG_COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?)"
     ))
@@ -180,6 +184,8 @@ impl Db {
         &self,
         id: &str,
     ) -> anyhow::Result<Option<BitwardenOrganization>> {
+        // Only compile-time column lists are interpolated; all caller values use bound parameters.
+        // ast-grep-ignore: sql-format-injection
         let row = sqlx::query(&format!(
             "SELECT {ORG_COLUMNS} FROM bitwarden_organizations WHERE id = ?"
         ))
@@ -237,6 +243,8 @@ impl Db {
         &self,
         org_id: &str,
     ) -> anyhow::Result<Vec<BitwardenOrgMember>> {
+        // Only compile-time column lists are interpolated; all caller values use bound parameters.
+        // ast-grep-ignore: sql-format-injection
         let rows = sqlx::query(&format!(
             "SELECT {MEMBER_COLUMNS} FROM bitwarden_org_members WHERE org_id = ? ORDER BY created_at, id"
         ))
@@ -256,6 +264,8 @@ impl Db {
         &self,
         user_id: &str,
     ) -> anyhow::Result<Vec<(BitwardenOrgMember, BitwardenOrganization)>> {
+        // Only compile-time column lists are interpolated; all caller values use bound parameters.
+        // ast-grep-ignore: sql-format-injection
         let members = sqlx::query(&format!(
             "SELECT {MEMBER_COLUMNS} FROM bitwarden_org_members WHERE user_id = ? ORDER BY created_at"
         ))

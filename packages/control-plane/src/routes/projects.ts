@@ -592,7 +592,7 @@ projectRoutes.patch("/:id", requirePrincipal(), (c) =>
   asProjectMember(
     c,
     // PATCH has never taken the per-project lock, unlike DELETE. A stale
-    // `{...project}` write can therefore race a DELETE; recorded in ADR 0177
+    // `{...project}` write can therefore race a DELETE; recorded in ADR 0178
     // rather than changed here, so this refactor alters no behavior.
     { serialize: false },
     async ({ ctx, actor, project: named, access }) => {

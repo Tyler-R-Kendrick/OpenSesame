@@ -87,6 +87,8 @@ async fn has_two_step(tx: &mut SqliteConnection, user_id: &str) -> anyhow::Resul
 
 /// Whether the account has accepted or joined an organization besides `org_id`.
 async fn elsewhere(tx: &mut SqliteConnection, org_id: &str, user_id: &str) -> anyhow::Result<bool> {
+    // Only typed policy constants and fixed aliases are interpolated; caller values remain bound.
+    // ast-grep-ignore: sql-format-injection
     Ok(sqlx::query(&format!(
         "SELECT 1 FROM bitwarden_org_members o WHERE o.user_id = ? AND o.org_id <> ? \
          AND o.status IN ({}, {})",
@@ -107,6 +109,8 @@ pub(super) async fn bound_elsewhere(
     org_id: &str,
     user_id: &str,
 ) -> anyhow::Result<bool> {
+    // Only typed policy constants and fixed aliases are interpolated; caller values remain bound.
+    // ast-grep-ignore: sql-format-injection
     Ok(sqlx::query(&format!(
         "SELECT 1 FROM bitwarden_org_members o JOIN bitwarden_org_policies p \
          ON p.org_id = o.org_id AND p.enabled = 1 AND p.policy_type = {} \
@@ -170,6 +174,8 @@ async fn revoke_excluded(
         "FROM bitwarden_org_members m WHERE m.org_id = ? AND m.user_id IS NOT NULL AND {} AND {excluded}",
         bound("m")
     );
+    // Only literal policy clauses and bound("m") constants are interpolated; org IDs are bound.
+    // ast-grep-ignore: sql-format-injection
     let users: Vec<String> = sqlx::query(&format!("SELECT m.user_id {which}"))
         .bind(org_id)
         .fetch_all(&mut *tx)
@@ -198,6 +204,8 @@ pub(super) async fn revoke_violators(
     tx: &mut SqliteConnection,
     org_id: &str,
 ) -> anyhow::Result<usize> {
+    // Only typed policy constants and fixed aliases are interpolated; caller values remain bound.
+    // ast-grep-ignore: sql-format-injection
     let members: Vec<(String, String, i64)> = sqlx::query(&format!(
         "SELECT m.id, m.user_id, m.member_type FROM bitwarden_org_members m \
          WHERE m.org_id = ? AND m.user_id IS NOT NULL AND m.status IN ({}, {})",
@@ -233,6 +241,8 @@ pub(super) async fn revoke_without_two_step(
     tx: &mut SqliteConnection,
     user_id: &str,
 ) -> anyhow::Result<()> {
+    // Only typed policy constants and fixed aliases are interpolated; caller values remain bound.
+    // ast-grep-ignore: sql-format-injection
     sqlx::query(&format!(
         "UPDATE bitwarden_org_members SET status = ?, revision_at = ? WHERE user_id = ? \
          AND {} AND org_id IN (SELECT org_id FROM bitwarden_org_policies \

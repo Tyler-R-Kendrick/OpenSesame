@@ -1,6 +1,6 @@
 /**
  * Mutations that need a verified identity, each demanding a `VerifiedPrincipal`
- * proof about the exact principal it acts for (ADR 0177).
+ * proof about the exact principal it acts for (ADR 0178).
  *
  * The routes used to run the assurance check and then hand a store an owner id
  * string; nothing tied the two together. These functions cannot be called

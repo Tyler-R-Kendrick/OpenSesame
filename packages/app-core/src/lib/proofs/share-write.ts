@@ -1,5 +1,5 @@
 /**
- * Who may write a standing share (ADR 0177): `ManageGrants<T>` or
+ * Who may write a standing share (ADR 0178): `ManageGrants<T>` or
  * `SystemShareWrite<T>`, each a proof about the tomb `T` the write lands in.
  *
  * `local-share-grants` used to take `{ bypassAccessCheck: true }`, so "this

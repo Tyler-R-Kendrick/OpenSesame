@@ -111,3 +111,202 @@ paths = [
   '''(^|/)spec/conformance/item-type-cases\.json$''',
   '''(^|/)crates/bitwarden-server/tests/protocol\.rs$''',
 ]
+
+# Reviewed synthetic test literals and public schema/storage names. Each exemption
+# matches only the exact captured literal, so other keys in the same files
+# remain detectable. Paths are descriptions, not scanner-pruning exemptions.
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: apps/cli/src/daemon_toolbar.rs"
+regexes = ['''(?s)\Aosc_clm_bearer\-12345\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: apps/cli/src/github.rs"
+regexes = ['''(?s)\Aghs_16C7e42F292c6912E7710c838347Ae178B4a\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: apps/pages/scripts/lib/capture-plugin-steps.mjs"
+regexes = ['''(?s)\ARXZpZGVuY2UtZGFlbW9uLWtleS1ub3QtcmVhbC0wMSE\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: apps/pages/scripts/lib/j-duress-mode-visible-journey.mjs"
+regexes = ['''(?s)\Ahidden\-secret\-5520\z''', '''(?s)\Ahidden\-secret\-7731\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: apps/pages/scripts/lib/j-travel-items-journey.mjs"
+regexes = ['''(?s)\Apw\-quartz\-88e2\z''', '''(?s)\Apw\-trashed\-31f0\z''', '''(?s)\Apw\-zebra\-9f31\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: apps/pages/scripts/lib/live-netns-run.mjs"
+regexes = ['''(?s)\Acorrect\-horse\-battery\-staple\-2026\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: apps/pages/scripts/lib/tailscale-stub.mjs"
+regexes = ['''(?s)\Atskey\-api\-kVERIFY1CNTRL\-0123456789abcdef\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: apps/pages/scripts/lib/tutorial-seed.mjs"
+regexes = ['''(?s)\Acorrect\-horse\-battery\-staple\-9\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: apps/pages/scripts/vault-vectors/emit-accounts.ts"
+regexes = ['''(?s)\AGEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: apps/pages/scripts/verify-browser-session-lifecycle.mjs"
+regexes = ['''(?s)\Acorrect\-horse\-battery\-staple\-2026\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: apps/pages/scripts/verify-browser-sessions.mjs"
+regexes = ['''(?s)\Acorrect\-horse\-battery\-staple\-2026\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: apps/pages/scripts/verify-live-join.mjs"
+regexes = ['''(?s)\Acorrect\-horse\-battery\-staple\-2026\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: crates/a2h/src/envelope.rs"
+regexes = ['''(?s)\Awhsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: crates/bitwarden-server/tests/bw_cli_oracle_hub.rs"
+regexes = ['''(?s)\A4f9Q2xK7mP1rT8vW3yZ6aB0cD\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: crates/connection-broker/src/installation.rs"
+regexes = ['''(?s)\Aghs_16C7e42F292c6912E7710c838347Ae178B4a\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: crates/connection-broker/src/secret_debug.rs"
+regexes = ['''(?s)\Aghs_derived\-12345\z''', '''(?s)\Aosc_claim\-12345\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: crates/invoke-through/src/scrub.rs"
+regexes = ['''(?s)\Aghs_16C7e42F292c6912E7710c838347Ae178B4a\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: crates/redaction/src/writer.rs"
+regexes = ['''(?s)\A\-\-\-\-\-BEGIN\ PRIVATE\ KEY\-\-\-\-\-\\nMIIEvQSECRETBODY\\nabcdef\\n\-\-\-\-\-END\ PRIVATE\ KEY\-\-\-\-\-\ done\\nnext\\n"\],\n\ \ \ \ \ \ \ \ \);\n\ \ \ \ \ \ \ \ assert_eq!\(out,\ "key:\ \[REDACTED\]\\n\ done\\nnext\\n"\);\n\ \ \ \ \}\n\n\ \ \ \ \#\[test\]\n\ \ \ \ fn\ a_pem_block_that_never_ends_swallows_what_follows\(\)\ \{\n\ \ \ \ \ \ \ \ let\ out\ =\ run\(\n\ \ \ \ \ \ \ \ \ \ \ \ Format::Text,\n\ \ \ \ \ \ \ \ \ \ \ \ \&\[b"\-\-\-\-\-BEGIN\ PRIVATE\ KEY\-\-\-\-\-\z''', '''(?s)\Aosc_clm_AbC123\.secretpart\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: crates/redaction/tests/tracing_sink.rs"
+regexes = ['''(?s)\Aosc_clm_AbC\.s3cr3tpart\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: crates/rotation-web/src/login_surrogate/form.rs"
+regexes = ['''(?s)\Aosr_0123456789abcdef0123456789abcdef\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: crates/sealed-log/tests/pipeline.rs"
+regexes = ['''(?s)\Aosc_clm_AbC\.s3cr3tpart\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: crates/security-events/src/notice/tests.rs"
+regexes = ['''(?s)\Aosc_clm_AbC\.s3cr3tpart\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: crates/storage/src/bitwarden/debug_redaction.rs"
+regexes = ['''(?s)\Adigest\-12345\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: docs/evidence/2026-09-27-sample-data-and-manifest/manifest.json"
+regexes = ['''(?s)\AFjord\-Lantern\-9\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: docs/evidence/2026-09-28-live-routes/journey.json"
+regexes = ['''(?s)\AbWludGVkLWZvci10aGlzLXNlc3Npb24=\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: docs/evidence/2026-10-03-live-sessions-stack/journey.json"
+regexes = ['''(?s)\AbWludGVkLWZvci10aGlzLXNlc3Npb24=\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: docs/evidence/2026-10-05-travel-hidden-items/journey.json"
+regexes = ['''(?s)\Apw\-quartz\-7f3a\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/activity-log.test.ts"
+regexes = ['''(?s)\Aosc_clm_AbC\.s3cr3tpart\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/connector-catalog.generated.ts"
+regexes = ['''(?s)\Aintegration_configuration_fields\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/device-receipts.test.ts"
+regexes = ['''(?s)\A9f1c1a3e\-7d1d\-4f56\-9f6f\-2f9e0a0d4c11\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/duress/redteam/unlock-visible-items.fixture.ts"
+regexes = ['''(?s)\Ahidden\-pw\-Zq91\-xk\z''', '''(?s)\Atrashed\-pw\-9042\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/duress/store/boot-keys.ts"
+regexes = ['''(?s)\Aduress\.incident\-intent\.v1\z''', '''(?s)\Aduress\.incident\-record\.v1\z''', '''(?s)\Aduress\.wipe\-intent\.v1\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/tailnet-sync/plugin-daemon-race.test.ts"
+regexes = ['''(?s)\AUGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMSE\z''', '''(?s)\AUGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMiE\z''', '''(?s)\AUGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMyE\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/tailnet-sync/plugin-daemon-store.test.ts"
+regexes = ['''(?s)\AUGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMSE\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/tailnet-sync/plugin-daemon.test.ts"
+regexes = ['''(?s)\AUGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMSE\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/tailnet-sync/plugin-pairing.test.ts"
+regexes = ['''(?s)\AUGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMSE\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/travel/travel-items-leak.fixture.ts"
+regexes = ['''(?s)\Apw\-zebra\-9f31\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/vault/export/cxf-account.test.ts"
+regexes = ['''(?s)\AKRSXG5CTMVRXEZLU\z''', '''(?s)\AT1BSRi1LRVktRElELU5PVC1FWFBPUlQ=\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/vault/import/formats/cxf-account.test.ts"
+regexes = ['''(?s)\AKRSXG5CTMVRXEZLU\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/vault/import/merge-shapes.test.ts"
+regexes = ['''(?s)\AKRSXG5CTMVRXEZLU\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/vault/store-accounts.test.ts"
+regexes = ['''(?s)\Aq83vEjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJA=\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/lib/vault/store-sync-account.test.ts"
+regexes = ['''(?s)\Aq83vEjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJA=\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/app-core/src/sections/vault/import/store-manifest.fixture.ts"
+regexes = ['''(?s)\A\-\-\-\-\-BEGIN\ PRIVATE\ KEY\-\-\-\-\-\\nMC4CAQAwBQYDK2VwBCIEIFixtureOnlyNotARealKey000000000000\\n\-\-\-\-\-END\ PRIVATE\ KEY\-\-\-\-\-\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/ceremony-kit/src/claim-link.test.ts"
+regexes = ['''(?s)\Aosc_clm_AbC\-_1\.s3cr3t\-_\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/cli/src/fixtures/password-agent/request-key.pem"
+regexes = ['''(?s)\A\-\-\-\-\-BEGIN\ PRIVATE\ KEY\-\-\-\-\-\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC\+VAMJf1rnqskj\nWd9qvNdao9JOVPSiMDqHquMLYTUfrRHdXDYYUlJL0K9Z2kKJAAkrGZL3Mek3/WzM\n1s4zku73iKzVMmcuj57XcOx1I0Xe8ffveXMdmxpOtdzpjCJU3oV0IETEkX3uAe\+q\nRABFcfZu33eMANql\+OFc7zxntdPAsd7XabSrzpNSgLF/DV5Rtemb3fdEIPBVQkw\+\n0/fEvSfoYjUiFlHu/zXiisitqfU30nwfiFn67/fIktpv4SKbzw/WYEX1oCHRkwjU\nXuW5yb/1glj5FGLKlDIf5NtzSs/x0UvtN9echbp2BbEAPf7PtbWnDAY5ULOGkr2r\nJo\+hYse/AgMBAAECggEAKL910v\+4J6cx3uar5X8\+oAI40Vpw8ZRfw5H7gAE0zW5R\nR9IpJrXhNqgcEqGe4xPl4ptcEp5V7w3L0GMgzHvlu4tAbXiYDKjk\+f0MMtv1ZpDp\nYxTeZ3VAgZ\+AB2RgKUlmywDpmCgKDP3PIOXkJPoMJ5qiTpAUP7p0DWCOzylnh3Zt\n8poTcm/0UIDXCu1syW6tuygHMJ9GceeQVW9oxGf/fUBCgmbhtgTDDo6hiHdHa//U\nSjoPZCNXFe53gqdfwuhu20KVVwi/C10InmFXmNcakYYWA\+eWjfhW0lReZ0u5QZcJ\nFVZUdaUs1/je8l4XlPAsojNyyROHUYVPfS6OyowpuQKBgQD9bwTYTj4CAeN5mBuR\nDoZ52vGlds0xaMltDgOhcXUzjSapbvTOI95DblROarCAxTv9bap6qCgcNVNc6Fz5\n6guFkY9Ts6b5yWaXJ/saxL05nyxERWpqmkqZzWh9WG\+PQ0NJ1Ix6helOKPU7jiiZ\ntCFWaYaRWQSlT7LUYXXh9fNBcwKBgQDAQWdAAxQxoMyqGpH7jawj6S065G96OhG\+\ntss5jkprZwq5wc\+uufzbQiKWqvU5WJDCtllBD1Up4Q3fjynDnDZqum\+KuPe2q/qG\ncn\+Grg/Wg5Kb5laif5oPhl88FWFrK2JDCvpVQvQskUU\+cy12IUt4uOBa3fS564vo\n4KH9zRldhQKBgQDufNKqWravXOebPTBzyJ9zfD1539oobNtf7JguDH6mDGYde3ST\np904x1I\+mNeP1gsl6VVMJ4HXSbcw7tjPtRcykk\+2DJFM7eHEzLLX9du7pbYaaNhD\niP46zblOezJANqPTjljD09BA5PohGR3Lxl642oTvsj1U8zLt\+Ojdwn0vUQKBgGDc\nEqLDalcehj5lKIst8z4cajczg552xx3ohja3I3M89MBljrae6W\+lwDtcYjPEFRqk\nOA95JBT3V7/8JrRwbVIUH8IqMlMMDinSYcF\+zGfs3d5BjABOfVW5Ax4IP454ywav\n7zMpik8x2Ur/SDYtzBJEQnRFQtiwfUqUccimnlLpAoGAZFg5uqWaVKfqGfnn\+0Aj\n9bgW97mG4goyOhq05EbGILz0cfLkCn7zB59bT\+sg6cb1hM2M7B5YmpsVhNbmzcJc\ngf/pRsTTGiZMVCuGKj/o2PfuP\+Z4v6YX0mUne/kMFuy5EwwV\+gsjx1trdz62NL4s\nm7nhoktYQhE73Bx2ea7kgDU=\n\-\-\-\-\-END\ PRIVATE\ KEY\-\-\-\-\-\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/cli/src/output.test.ts"
+regexes = ['''(?s)\Aabcdef123456789\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/observability/src/__tests__/logger.test.ts"
+regexes = ['''(?s)\ABIND\-LEAK\-1234567890\z''', '''(?s)\Aosc_clm_AbC\.s3cr3tpart\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/observability/src/__tests__/sealed-log.test.ts"
+regexes = ['''(?s)\Aosc_clm_AbC\.s3cr3tpart\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: packages/vault-core/src/normalize.test.ts"
+regexes = ['''(?s)\Aq83vEjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJA=\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: spec/conformance/store-manifest.json"
+regexes = ['''(?s)\AFjord\-Lantern\-9\z''', '''(?s)\AY3JlZGVudGlhbC1pZA==\z''']
+[[allowlists]]
+description = "Reviewed synthetic fixture or public identifier: spec/log-scrub/log-scrub.json"
+regexes = ['''(?s)\A\-\-\-\-\-BEGIN\ PRIVATE\ KEY\-\-\-\-\-\\nMIIEvQIBADANBg\\n\-\-\-\-\-END\ PRIVATE\ KEY\-\-\-\-\-\ done",\n\ \ \ \ \ \ "expect":\ "key:\ \[REDACTED\]\ done"\n\ \ \ \ \},\n\ \ \ \ \{\n\ \ \ \ \ \ "rule":\ "pem",\n\ \ \ \ \ \ "input":\ "cut\ \-\-\-\-\-BEGIN\ RSA\ PRIVATE\ KEY\-\-\-\-\-\z''']
+[[allowlists]]
+description = "Ignored task scratch artifacts (never shipped)"
+paths = ['''(^|/)work(?:/|$)''']
+
+# Public CDP virtual-authenticator ID in two reviewed captures, not a credential.
+# Rule scope avoids global directory-pruning behavior and requires both criteria.
+[[rules]]
+id = "generic-api-key"
+[[rules.allowlists]]
+description = "Reviewed public CDP virtual-authenticator identifier"
+condition = "AND"
+regexTarget = "secret"
+regexes = ['\A2c4c3bf6-621a-43c7-96db-92c657496656\z']
+paths = ['(^|/)docs/evidence/2026-10-05-customer-envelope/duress/(capabilities|journeys)\.json$']
+
+[[rules.allowlists]]
+description = "Public synthetic vault-drive part identifier"
+condition = "AND"
+regexTarget = "secret"
+regexes = ['\AAbCdEfGhIjKl\-_09\z']
+paths = ['(^|/)crates/daemon/src/vault_drive_routes_tests\.rs$']
+
+[[rules.allowlists]]
+description = "Public SHA-1 of the literal password corpus fixture"
+condition = "AND"
+regexTarget = "secret"
+regexes = ['\A5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8\z']
+paths = ['(^|/)packages/app\-core/src/lib/vault/security\-checks\.test\.ts$']
+
+[[rules.allowlists]]
+description = "Public pairing test key decodes to Bogus-evidence-key-not-a-real-one"
+condition = "AND"
+regexTarget = "secret"
+regexes = ['\AQm9ndXMtZXZpZGVuY2Uta2V5LW5vdC1hLXJlYWwtb25l\z']
+paths = ['(^|/)packages/cli/src/vault\-sync\.test\.ts$']
+
+[[rules.allowlists]]
+description = "Public cross-language derived-password vector from sequential root bytes"
+condition = "AND"
+regexTarget = "secret"
+regexes = ['\AaLFFjcOCEhdA6stg4G0a\z']
+paths = ['(^|/)spec/conformance/produce\-vectors\.json$']

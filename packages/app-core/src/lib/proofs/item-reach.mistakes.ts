@@ -1,5 +1,5 @@
 /**
- * Mistakes the type checker must keep refusing (ADR 0177).
+ * Mistakes the type checker must keep refusing (ADR 0178).
  *
  * Each `@ts-expect-error` is a way to get a vault item without share reach for
  * that item, or to read with a proof that only covers something else. `tsc`

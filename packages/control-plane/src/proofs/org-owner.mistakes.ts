@@ -1,5 +1,5 @@
 /**
- * Mistakes the type checker must keep refusing (ADR 0177).
+ * Mistakes the type checker must keep refusing (ADR 0178).
  *
  * Every `@ts-expect-error` below is a way to skip or misuse the owner check.
  * `tsc` fails the build if one of them starts to compile, so a change to

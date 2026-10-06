@@ -152,7 +152,7 @@ export const SHELL_RULES = [
   core(
     "src/lib/proofs/item-reach",
     null,
-    "the share-reach proof the core vault tools take before an item is read (ADR 0177)",
+    "the share-reach proof the core vault tools take before an item is read (ADR 0178)",
   ),
   core(
     "src/webmcp/registration",

@@ -43,7 +43,7 @@ export { provisionedRoleForSubject, putGroupRoleMapping, roleForGroupName };
 
 /**
  * The first-party directory and token management are owner-fenced, and only on
- * an `active` organization — the stricter of the liveness readings (ADR 0177).
+ * an `active` organization — the stricter of the liveness readings (ADR 0178).
  */
 const OWNER: OrgOwnerSource = { param: "organizationId", liveness: "active" };
 

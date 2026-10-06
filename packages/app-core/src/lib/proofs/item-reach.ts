@@ -1,6 +1,6 @@
 /**
  * `ItemReadReach<I>` / `ItemWriteReach<I>` — the current actor's shares (or
- * operator role) let them read, or write, the item named `I` (ADR 0177).
+ * operator role) let them read, or write, the item named `I` (ADR 0178).
  *
  * The WebMCP vault tools used to run a void `assertItemReach(id, wanted)` and
  * then look the item up with a separate, unguarded `findItem(id)`, so the

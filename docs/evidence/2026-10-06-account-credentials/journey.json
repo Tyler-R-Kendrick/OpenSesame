@@ -1,0 +1,178 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "itemPack": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Example account"
+          }
+        },
+        {
+          "openDisclosureOptional": "^Options$"
+        },
+        {
+          "select": {
+            "label": "Password generator",
+            "option": "My own"
+          }
+        },
+        {
+          "fill": {
+            "label": "Password",
+            "text": "evidence-fixture-password"
+          }
+        },
+        {
+          "checked": {
+            "label": "Include pepper",
+            "value": false
+          }
+        },
+        {
+          "press": "^Save item$"
+        },
+        {
+          "bringIntoViewOptional": ".detail__group.password-workflows"
+        },
+        {
+          "count": [
+            ".detail__group.password-workflows",
+            ".detail__group.password-workflows fieldset"
+          ]
+        },
+        {
+          "measure": ".detail__group.password-workflows button, .detail__group.password-workflows input[type=\"checkbox\"]"
+        },
+        {
+          "shot": "desktop-account"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 900,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "itemPack": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "Example account"
+          }
+        },
+        {
+          "openDisclosureOptional": "^Options$"
+        },
+        {
+          "select": {
+            "label": "Password generator",
+            "option": "My own"
+          }
+        },
+        {
+          "fill": {
+            "label": "Password",
+            "text": "evidence-fixture-password"
+          }
+        },
+        {
+          "checked": {
+            "label": "Include pepper",
+            "value": false
+          }
+        },
+        {
+          "press": "^Save item$"
+        },
+        {
+          "bringIntoViewOptional": ".detail__group.password-workflows"
+        },
+        {
+          "count": [
+            ".detail__group.password-workflows",
+            ".detail__group.password-workflows fieldset"
+          ]
+        },
+        {
+          "measure": ".detail__group.password-workflows button, .detail__group.password-workflows input[type=\"checkbox\"]"
+        },
+        {
+          "shot": "phone-account"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "desktop-account",
+      "width": 1280,
+      "title": "Account credential workflows \u2014 desktop",
+      "caption": "The account retains its own password controls and adds references and verified method-specific comparison.",
+      "before": "Account password controls",
+      "after": "References and verified password method update"
+    },
+    {
+      "shot": "phone-account",
+      "width": 390,
+      "title": "Account credential workflows \u2014 phone",
+      "caption": "Reference downloads and password comparison stay with the selected account.",
+      "before": "Account password controls",
+      "after": "Local reference and method comparison"
+    }
+  ],
+  "evidence": {
+    "beforeBase": "4b422255ea3bc0b5b2beb378a5b4045bfb8ca996",
+    "integratedUpstreamBase": "6fc96a6aa98c6b6723346f328e5421c757080bad",
+    "beforeBuildIndexSha256": "6861a1925de164efdae1ec542ef11c71f45c77d2d9770f77fdbfe54a1b7248a3",
+    "afterBuildIndexSha256": "143f06f00977225ef82623d7e889cd57a840d26a65e49e63475c4c5f3102e27a",
+    "afterSource": "Integrated working-tree production build; implementation revision identified by pull request",
+    "afterCapturedAt": "2026-10-06T17:09:48.448049+00:00",
+    "measurements": {
+      "before": {
+        "desktop": {
+          "referenceSections": 0,
+          "fieldsets": 0,
+          "targets": []
+        },
+        "phone": {
+          "referenceSections": 0,
+          "fieldsets": 0,
+          "targets": []
+        }
+      },
+      "after": {
+        "desktop": {
+          "referenceSections": 1,
+          "fieldsets": 2,
+          "targetBoxes": "32x32 @1194,366 | 32x32 @627,501 | 13x13 @631,548 | 32x32 @627,575 | 32x32 @627,737 | 32x32 @664,737"
+        },
+        "phone": {
+          "referenceSections": 1,
+          "fieldsets": 2,
+          "targetBoxes": "44x44 @304,226 | 44x44 @31,407 | 44x44 @35,464 | 44x44 @31,521 | 44x44 @31,707 | 44x44 @80,707"
+        }
+      }
+    }
+  }
+}

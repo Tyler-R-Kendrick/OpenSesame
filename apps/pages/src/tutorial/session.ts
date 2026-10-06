@@ -55,6 +55,7 @@ import {
   type SupportTransport,
   loadBrowserEngine,
 } from "./engine.js";
+import { refreshEngineAvailability } from "./refresh-engine.js";
 import { SupportContext } from "./support-context.js";
 import {
   GUIDE_ERROR_TEXT,
@@ -342,8 +343,7 @@ export function createSupportController(
           return loaded;
         })
         .catch(() => {
-          // A chunk that failed to load (an offline first open, say) is worth
-          // retrying: dropping the memo is what lets the next ask try again.
+          // Drop a failed chunk load so the next request can retry.
           if (era === generation) {
             loading = null;
             set({ ready: true });
@@ -355,13 +355,13 @@ export function createSupportController(
     return loading;
   }
 
-  async function refreshAvailability(): Promise<void> {
-    const loaded = await ensureEngine();
-    if (!loaded || engine !== loaded) return;
-    const availability = await loaded.session.availability();
-    if (engine !== loaded) return;
-    set({ availability });
-  }
+  const refreshAvailability = () =>
+    refreshEngineAvailability(
+      ensureEngine,
+      () => engine,
+      set,
+      () => notifyFailure(UNEXPECTED_TEXT),
+    );
 
   async function runProgram(
     program: GuideProgram,

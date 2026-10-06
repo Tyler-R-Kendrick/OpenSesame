@@ -52,11 +52,12 @@ export function sealPostgresEvents(
     : repos;
 }
 
-/** Seal what an older release left in the clear. Idempotent. */
+/** Validate durable envelopes; import legacy rows only with explicit operator opt-in. */
 export async function sealExistingEvents(
   db: Database,
   sealer: EventSealer,
+  allowLegacy = false,
 ): Promise<void> {
-  await sealLegacyEvents(db, sealer);
-  await sealLegacySecrets(db, sealer);
+  await sealLegacyEvents(db, sealer, allowLegacy);
+  await sealLegacySecrets(db, sealer, allowLegacy);
 }

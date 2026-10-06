@@ -1,5 +1,5 @@
 /**
- * Branded identifiers for the Identity API (ADR 0177).
+ * Branded identifiers for the Identity API (ADR 0178).
  *
  * `PrincipalId` and every other id in `@opensesame/os-domain` is a plain
  * `string`, so a principal id and an organization id are interchangeable to the

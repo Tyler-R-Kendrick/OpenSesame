@@ -1,6 +1,6 @@
 /**
  * The owner's "sync now" for an organization's LDAP directory, demanding an
- * `OrgOwner` proof about that organization (ADR 0177).
+ * `OrgOwner` proof about that organization (ADR 0178).
  *
  * Kept apart from `org-admin.ts` on purpose: `interactions/ldap.ts` imports
  * `routes/organizations.ts`, which imports `org-admin.ts`, so reaching the sync

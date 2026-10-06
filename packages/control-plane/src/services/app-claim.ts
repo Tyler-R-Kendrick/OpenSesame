@@ -150,7 +150,7 @@ export class AppClaimService {
 
   /**
    * Claiming transfers ownership to `owner`, so it demands the proof that
-   * `owner` is a verified principal (ADR 0177): the route's check and this
+   * `owner` is a verified principal (ADR 0178): the route's check and this
    * operation can no longer drift apart.
    */
   async startClaim<A>(

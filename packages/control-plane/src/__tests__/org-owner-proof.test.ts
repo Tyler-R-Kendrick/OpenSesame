@@ -42,7 +42,7 @@ async function verdictFor(
 /**
  * The three liveness readings are not one rule, and they must stay what each
  * call site always did: collapsing them would change who may manage a
- * suspended, provisional or deleted organization (ADR 0177).
+ * suspended, provisional or deleted organization (ADR 0178).
  */
 const MATRIX: ReadonlyArray<[OrganizationState, Record<OrgLiveness, boolean>]> =
   [

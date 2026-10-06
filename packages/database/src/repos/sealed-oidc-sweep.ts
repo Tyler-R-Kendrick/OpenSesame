@@ -9,6 +9,7 @@ import type { Database } from "./postgres.js";
 export async function sealLegacyOidc(
   db: Database,
   sealer: EventSealer,
+  allowLegacy = true,
 ): Promise<number> {
   let cursorModel = "";
   let cursorId = "";
@@ -30,6 +31,7 @@ export async function sealLegacyOidc(
         openOidcRow(sealer, row);
         continue;
       }
+      if (!allowLegacy) throw new EventSealError("oidc_payloads.payload");
       if ("$sealed" in row.payload)
         throw new EventSealError("oidc_payloads.legacy");
       const values = sealOidcRow(

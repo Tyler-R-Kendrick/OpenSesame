@@ -11,6 +11,11 @@ export type WebMcpContextId = (typeof WEBMCP_CONTEXTS)[number];
 
 /** Session tools registered only while this surface is the one on screen. */
 export const SESSION_TOOL_CONTEXTS = {
+  opensesame_vault_find_references: ["vault"],
+  opensesame_vault_inventory: ["vault"],
+  opensesame_vault_audit_organization: ["vault"],
+  opensesame_vault_env_template: ["vault"],
+  opensesame_open_password_workflow: ["vault"],
   opensesame_vault_search: ["vault"],
   opensesame_vault_item_read: ["vault"],
   opensesame_vault_item_write: ["vault"],

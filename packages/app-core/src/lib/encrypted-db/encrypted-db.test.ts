@@ -9,6 +9,7 @@ import {
   receiptSchema,
   seed,
 } from "./edb.test-support.js";
+import { leakedSeedPlaintext } from "./plaintext-oracle.test-support.js";
 import { EdbQueryError } from "./query.js";
 
 let factory: IDBFactory;
@@ -84,28 +85,10 @@ describe("what reaches the disk", () => {
       disk.records.every((r) => JSON.parse(r.value).c.startsWith("osr2.")),
     ).toBe(true);
     const everything = [
-      ...disk.names,
-      ...disk.records.map((r) => `${String(r.key)}${r.value}`),
+      ...disk.names.map((name) => JSON.stringify(name)),
+      ...disk.records.map((r) => `${JSON.stringify(r.key)}${r.value}`),
     ].join("\n");
-    for (const secret of [
-      "user-alice",
-      "user-bob",
-      "alice",
-      "vault",
-      "review",
-      "receipts",
-      "sessions",
-      "userId",
-      "action",
-      "approve",
-      "2026",
-      "unknown device",
-      "quarterly",
-      "tags",
-      "history",
-    ]) {
-      expect(everything.toLowerCase()).not.toContain(secret.toLowerCase());
-    }
+    expect(leakedSeedPlaintext(everything)).toEqual([]);
   });
 
   it("shows one pseudonymous database with one store and one index", async () => {

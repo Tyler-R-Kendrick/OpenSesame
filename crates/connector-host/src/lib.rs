@@ -5,6 +5,7 @@
 
 mod constrained_http;
 pub mod manifest;
+pub mod password_agent;
 pub mod providers;
 #[cfg(feature = "wasm-connectors")]
 pub mod wasm;
@@ -87,7 +88,6 @@ impl Default for HostPolicy {
 }
 
 /// # Errors
-///
 /// Returns an error when a required signature is absent or the component
 /// digest is not trusted.
 pub fn assert_component_trusted(

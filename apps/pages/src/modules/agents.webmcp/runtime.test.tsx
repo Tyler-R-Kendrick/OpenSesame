@@ -1,7 +1,8 @@
-/** @vitest-environment jsdom */
 import { resetContributionsForTest } from "@opensesame/app-core/lib/contributions.js";
 import { webmcpNavigationSeam } from "@opensesame/app-core/webmcp/navigation.js";
 import { overlapCast } from "@opensesame/os-domain";
+/** @vitest-environment jsdom */
+import type { WebMcpToolDescriptor } from "@opensesame/webmcp";
 import {
   afterAll,
   afterEach,
@@ -19,7 +20,7 @@ import {
   runtimeOf,
 } from "../runtime-test-kit.js";
 import { createTestContext } from "../test-context.js";
-import { webMcpSdkSeams } from "./registrar.js";
+import { registerWebMcpScope, webMcpSdkSeams } from "./registrar.js";
 import type * as Runtime from "./runtime.js";
 
 let runtime: typeof Runtime;
@@ -51,6 +52,7 @@ afterAll(() => {
 describe("agents.webmcp runtime", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     sdk.load.mockClear();
     sdk.detect.mockClear();
     sdk.createRegistrar.mockClear();
@@ -74,10 +76,10 @@ describe("agents.webmcp runtime", () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "agents.webmcp",
       kinds: ["background-job", "shell-wrapper", "webmcp-tool"],
-      // three boot tools, the core's five (four vault tools and the reveal
+      // three boot tools, the core's ten (vault metadata, password workflows and the reveal
       // ceremony) and the login draft, plus the registration job and the
       // session wrapper
-      count: 3 + 5 + 1 + 1 + 1,
+      count: 3 + 10 + 1 + 1 + 1,
     });
   });
 
@@ -106,6 +108,11 @@ describe("agents.webmcp runtime", () => {
       "opensesame_vault_item_write",
       "opensesame_totp_code",
       "opensesame_open_reveal",
+      "opensesame_vault_find_references",
+      "opensesame_vault_inventory",
+      "opensesame_vault_audit_organization",
+      "opensesame_vault_env_template",
+      "opensesame_open_password_workflow",
     ]) {
       expect(tools.map((tool) => tool.name)).toContain(name);
     }
@@ -148,5 +155,39 @@ describe("agents.webmcp runtime", () => {
     expect(t.liveKinds()).not.toContain("shell-wrapper");
     await handle.dispose();
     expect(record?.revokeCalls).toBe(1);
+  });
+  it("uses the real registrar against a browser API and revokes registered tools", async () => {
+    const sdkLoads = vi
+      .spyOn(webMcpSdkSeams, "load")
+      .mockImplementation(originalLoad);
+    const tools = new Map<string, WebMcpToolDescriptor>();
+    vi.stubGlobal("navigator", {
+      modelContext: {
+        registerTool(tool: WebMcpToolDescriptor) {
+          tools.set(tool.name, tool);
+          return () => {
+            tools.delete(tool.name);
+          };
+        },
+      },
+    });
+    const t = createTestContext();
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
+    expect(sdkLoads).not.toHaveBeenCalled();
+    const controller = new AbortController();
+    const off = await registerWebMcpScope(
+      "session",
+      t.entries("webmcp-tool"),
+      controller.signal,
+    );
+    expect(sdkLoads).toHaveBeenCalledOnce();
+    expect([...tools.keys()]).toEqual(
+      t.entries("webmcp-tool").map((tool) => tool.name),
+    );
+    expect(tools.has("opensesame_open_password_workflow")).toBe(true);
+    off();
+    expect(tools.size).toBe(0);
+    off();
+    await handle.dispose();
   });
 });

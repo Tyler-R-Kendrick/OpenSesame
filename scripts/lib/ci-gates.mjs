@@ -95,6 +95,8 @@ export const DRIVER_GATES = {
   // The contract suite's vitest blocks run in the TypeScript job; its browser
   // half is the gates above.
   "verify-experience.mjs": null,
+  // Password parity has its own workflow and is not a ci.yml shard.
+  "verify-password-agent.mjs": null,
   // Not run by any job of ci.yml.
   "verify-access-pathbar.mjs": null,
   "verify-ambient-sso.mjs": null,

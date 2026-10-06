@@ -9,6 +9,12 @@ page it is armed for, performs the candidate custody steps in its own sealed
 store, and settles what it did. It never exposes a secret or a `getSecret()`
 affordance to a web page, and no credential ever travels to the Host.
 
+The popup also opens the PWA's password workflow sheet for reference search,
+inventory, organization audits, templates and private credential operations.
+The person unlocks the PWA vault there; the extension does not read it or
+grant origin access. Native provider operations remain on the native CLI
+([ADR 0177](../../docs/adr/0177-password-workflow-surface-boundaries.md)).
+
 ## Where it fits
 
 - **Used by:** nothing in the workspace depends on it; it is loaded into a
@@ -112,3 +118,5 @@ Playwright suite in `tests/auth-surface.spec.ts` is skipped unless
 - [ADR 0017](../../docs/adr/0017-host-client-product-topology.md) — host/client topology
 - [ADR 0082](../../docs/adr/0082-agent-run-registration-ceremonies.md) — the extension as a second ceremony runner
 - [Audit: extension Host API loopback fence](../../docs/security/audits/2026-08-08-extension-host-fence.md)
+
+The popup offers create, compare, update, private-read and environment-resolution handoffs that focus the matching human control in the PWA. Access Requests opens the existing local/Identity inbox. Task links carry only fixed action selectors, never the active site, credentials or native approval handles.

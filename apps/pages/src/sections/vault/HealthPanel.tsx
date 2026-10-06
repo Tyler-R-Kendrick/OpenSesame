@@ -11,6 +11,8 @@ import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
+import { OrganizationAudit } from "./OrganizationAudit.js";
+
 const ISSUE_TONE = {
   weak: "chip--err",
   reused: "chip--err",
@@ -125,6 +127,7 @@ export function HealthPanel() {
           )}
         </div>
       )}
+      <OrganizationAudit />
     </div>
   );
 }

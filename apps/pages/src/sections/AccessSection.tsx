@@ -16,6 +16,7 @@ import { LocalPoliciesPanel } from "./access/LocalPoliciesPanel.js";
 import { LocalRequestsPanel } from "./access/LocalRequestsPanel.js";
 import { LocalResourcesPanel } from "./access/LocalResourcesPanel.js";
 import { LocalSharePanel } from "./access/LocalSharePanel.js";
+import { PrivateRequestPanel } from "./access/PrivateRequestPanel.js";
 import { SessionsPanel } from "./access/SessionsPanel.js";
 import { useInboxCount } from "./access/use-inbox.js";
 import "./access.css";
@@ -80,6 +81,7 @@ export function AccessSection() {
             </Suspense>
           ) : null}
           <LocalRequestsPanel tomb={tomb} />
+          <PrivateRequestPanel />
         </>
       ) : null}
       {tab === "sessions" ? <SessionsPanel key={tomb} online={online} /> : null}

@@ -22,3 +22,5 @@ export {
 export type { EncryptedDb, LayerReport } from "./db.js";
 export { EdbQueryError } from "./query.js";
 export type { FindOptions, Predicate, Where } from "./query.js";
+
+export { DEVICE_EDB_NAMESPACE } from "./names.js";

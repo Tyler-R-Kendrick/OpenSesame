@@ -21,11 +21,9 @@ import {
   isAgeIdentity,
   isAgeRecipient,
 } from "../../age-keys.js";
-import { mintRootKeyHandle } from "./adapter.js";
+import { assertNotCanceled, mintRootKeyHandle } from "./adapter.js";
 import { createAgeRecipientAdapter } from "./adapters/age-recipient-ops.js";
 import { publishUntestedAgeRecipient } from "./adapters/age-recipient.js";
-import { createAwsKmsProtector } from "./adapters/aws-kms.js";
-import { createGcpKmsProtector } from "./adapters/gcp-kms.js";
 import type { AwsKmsConnection, GcpKmsConnection } from "./cloud-connection.js";
 import { ProtectionError } from "./errors.js";
 import { newProtectorId } from "./ids.js";
@@ -200,6 +198,8 @@ async function enrollAwsKms(
   );
   const protectorId = newProtectorId("aws-kms");
   const context = input.context(protectorId);
+  const { createAwsKmsProtector } = await import("./adapters/aws-kms.js");
+  assertNotCanceled(input.signal);
   const protector = createAwsKmsProtector({
     transport: enrollment.transport,
     authorization: "authorized",
@@ -244,6 +244,8 @@ async function enrollGcpKms(
   );
   const protectorId = newProtectorId("gcp-kms");
   const context = input.context(protectorId);
+  const { createGcpKmsProtector } = await import("./adapters/gcp-kms.js");
+  assertNotCanceled(input.signal);
   const protector = createGcpKmsProtector({
     transport: enrollment.transport,
     authorization: "authorized",

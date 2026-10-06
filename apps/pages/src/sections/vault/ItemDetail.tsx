@@ -20,6 +20,10 @@ import { UpLink } from "../../components/UpLink.js";
 import { useVaultList } from "../../lib/vault-list-path.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { AccountDetail } from "./AccountDetail.js";
+import {
+  ItemCredentialActions,
+  updateItemSecret,
+} from "./ItemCredentialActions.js";
 import { ItemGone } from "./ItemGone.js";
 import { useItemShare } from "./ItemShare.js";
 import { ItemTools } from "./ItemTools.js";
@@ -108,14 +112,9 @@ export function ItemDetail() {
         copied={copied}
         failed={failed}
         copy={copy}
-        onUpdateSecret={async (next) => {
-          const updated = { ...item, updatedAt: new Date().toISOString() };
-          if (updated.kind === "secret") {
-            updated.value = next;
-          }
-          await store.saveItem(updated);
-        }}
+        onUpdateSecret={(next) => updateItemSecret(item, next, store.saveItem)}
       />
+      <ItemCredentialActions key={item.id} item={item} />
       {ceremony}
 
       {item.fields.length > 0 ? (

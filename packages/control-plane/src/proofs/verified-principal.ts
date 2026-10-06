@@ -1,6 +1,6 @@
 /**
  * `VerifiedPrincipal<A>` — the actor named `A` is a stored principal whose
- * assurance is not `provisional` (ADR 0177).
+ * assurance is not `provisional` (ADR 0178).
  *
  * Five routes wrote this check by hand (`oauth-clients`, `app-claims`,
  * `authentication-service`, organization creation, and a variant in

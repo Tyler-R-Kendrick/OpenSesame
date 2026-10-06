@@ -64,7 +64,7 @@ const JOIN_MAX_TOKEN_AGE_SECONDS = 600;
 /**
  * The member routes have never read the organization's state, only the
  * caller's membership, so an owner of a deleted organization still reaches
- * them. Recorded as `unchecked` instead of quietly changed (ADR 0177).
+ * them. Recorded as `unchecked` instead of quietly changed (ADR 0178).
  */
 const MEMBER_ADMIN: OrgOwnerSource = { param: "id", liveness: "unchecked" };
 

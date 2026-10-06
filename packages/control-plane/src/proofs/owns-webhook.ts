@@ -1,6 +1,6 @@
 /**
  * `OwnsWebhook<A, W>` — the webhook endpoint named `W` is registered for the
- * actor named `A` (ADR 0177).
+ * actor named `A` (ADR 0178).
  *
  * The route used to read the endpoint, compare its `principalId`, and then call
  * `deleteById(id)` with a bare id, so the comparison and the delete were two

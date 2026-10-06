@@ -86,7 +86,7 @@ type Sealing = { sealer: EventSealer };
 function openOutbox(sealer: EventSealer, event: OutboxEvent): OutboxEvent {
   return {
     ...event,
-    payload: sealer.open(
+    payload: sealer.openCurrent(
       `${OUTBOX}:${event.id}`,
       event.payload,
       JSON.stringify([event.aggregateType, event.aggregateId]),
@@ -124,7 +124,7 @@ function sealedAudit(
 ): Repositories["auditEvents"] {
   const open = (event: AuditEvent): AuditEvent => ({
     ...event,
-    metadata: sealer.open(
+    metadata: sealer.openCurrent(
       `${AUDIT}:${event.id}`,
       event.metadata,
       event.organizationId ?? event.principalId ?? "deployment",
@@ -205,7 +205,7 @@ function sealedDeliveries<
 ) {
   const open = (delivery: D): D => ({
     ...delivery,
-    payload: sealer.open(
+    payload: sealer.openCurrent(
       `${purpose}:${delivery.id}`,
       delivery.payload,
       delivery.principalId ?? delivery.endpointId ?? "deployment",
@@ -245,7 +245,7 @@ function sealedNotifications(
     listForRequest: async (authReqId: string) =>
       (await base.listForRequest(authReqId)).map((d) => ({
         ...d,
-        payload: sealing.sealer.open(
+        payload: sealing.sealer.openCurrent(
           `${NOTIFICATION}:${d.id}`,
           d.payload,
           d.principalId,

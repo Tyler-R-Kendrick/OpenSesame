@@ -1,6 +1,6 @@
 /**
  * Owner-only organization mutations, each demanding an `OrgOwner` proof about
- * the exact organization it touches (ADR 0177).
+ * the exact organization it touches (ADR 0178).
  *
  * A route used to run its owner check and then call a store with an id string,
  * and nothing tied the two together: a handler that forgot the check, or ran it

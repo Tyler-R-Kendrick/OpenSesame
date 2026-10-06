@@ -106,13 +106,16 @@ function pressLock(): void {
   lockTheVault();
 }
 
+// A subscribed store retains its snapshot until a mutation. Keep this seam
+// equally stable so effects observing item identity do not invent mutations.
+const journeyVault = {
+  items: [],
+  folders: [],
+  header: null,
+  status: "unlocked",
+};
 Object.assign(vaultHooksSeams, {
-  useVault: () => ({
-    items: [],
-    folders: [],
-    header: null,
-    status: "unlocked",
-  }),
+  useVault: () => journeyVault,
   useVaultStore: () => ({ lock: pressLock }),
 });
 Object.assign(notificationsBarSeams, {

@@ -690,7 +690,7 @@ Do not add new top-level directories or loose root files — find the group.
   start. The event keys derive from secrets the deployment already holds
   (`docs/operators/log-and-event-sealing.md`).
 - **An authorization check is a proof the compiler can see**
-  ([ADR 0177](docs/adr/0177-authorization-checks-are-proofs-the-compiler-can-see.md)).
+  ([ADR 0178](docs/adr/0178-authorization-checks-are-proofs-the-compiler-can-see.md)).
   In the TypeScript plane, a function that needs "this actor owns this
   organization / holds this project role / is a verified principal / may write
   these shares" takes a `@gdp-ts/core` proof about the exact `Named` values it

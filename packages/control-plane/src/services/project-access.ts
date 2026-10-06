@@ -3,7 +3,7 @@
  *
  * These lived in `routes/projects.ts`. They move here so the `ProjectMember`
  * family of proofs (`proofs/project-role.ts`) and the routes can both use them
- * without the proof module importing a route (ADR 0177).
+ * without the proof module importing a route (ADR 0178).
  */
 
 import type { Project, ProjectRole } from "@opensesame/os-domain";
