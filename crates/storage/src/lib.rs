@@ -1512,7 +1512,7 @@ macro_rules! optional_sealed_material {
 // module declared above its definition cannot see it.
 mod managed_certs;
 mod shared_sessions;
-pub use shared_sessions::StoredSession;
+pub use shared_sessions::{ClosedOrDecided, SessionClosed, StoredSession};
 
 mod security;
 pub use security::{

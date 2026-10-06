@@ -2,11 +2,9 @@
 //! restart, by a binding created after the revocation, and when revocations
 //! race on the stored binding set. A durable layer that cannot be written is
 //! an error, never a `200` with a note.
-
-use std::collections::BTreeMap;
-
 use chrono::{Duration, Utc};
 use opensesame_domain::transport::{operations, BindingPurpose, BindingScope, ServiceBindingSet};
+use std::collections::BTreeMap;
 
 use crate::app_state::AppState;
 use crate::transport::bindings::{self, BindingsSource};
@@ -178,6 +176,8 @@ async fn a_bindings_write_that_cannot_apply_is_an_error_not_a_note() {
     )
     .await
     .expect("bindings");
+    // Trigger identifiers/events and key are fixed test constants, never caller input.
+    // ast-grep-ignore: sql-format-injection
     sqlx::query(&format!(
         "CREATE TRIGGER bindings_down BEFORE UPDATE ON host_kv WHEN NEW.key = '{}' \
          BEGIN SELECT RAISE(ABORT, 'store down'); END",

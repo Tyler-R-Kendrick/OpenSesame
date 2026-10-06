@@ -118,12 +118,13 @@ describe("slot payload", () => {
     const sealedLength = async (
       payload: Uint8Array | undefined,
     ): Promise<number> => {
-      const slot = await seal({
+      const base = {
         compartmentKey: new Uint8Array(32),
         actionCapability: null,
         presentation: "decoy",
-        payload,
-      });
+      };
+      const plaintext = payload === undefined ? base : { ...base, payload };
+      const slot = await seal(plaintext);
       return fromB64(slot.ciphertextB64).length;
     };
     // 4 + 32 key + 4 + 0 capability + "decoy", plus the 16-byte GCM tag.

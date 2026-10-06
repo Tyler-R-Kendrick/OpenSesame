@@ -65,7 +65,7 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
   });
 
   it("classifies the executable roots the way ownership.md records them", () => {
-    const expectations: Record<string, string> = {
+    const expectations = {
       "src/main.tsx": "core",
       "src/sw.ts": "install.pwa",
       "src/sw-push.ts": "notifications.web-push",
@@ -96,6 +96,7 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     for (const path of [
       "src/lib/local-directory.ts",
       "src/lib/local-sessions.ts",
+      "src/lib/local-share-reach.ts",
       "src/lib/connections.ts",
       "src/lib/vercel-connect.ts",
       "src/sections/identity/LocalApplicationSettings.tsx",
@@ -115,10 +116,13 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     expect(classify("src/sections/ConnectionsSection.tsx")?.capability).toBe(
       "connectors.external",
     );
+    expect(
+      classify("src/modules/access.authority/runtime.ts")?.capability,
+    ).toBe("access.authority");
   });
 
   it("classifies every exclusive package", () => {
-    const expectations: Record<string, string> = {
+    const expectations = {
       "node_modules/@azure/msal-browser/redirect-bridge":
         "identity.ambient-sso",
       "node_modules/@ag-ui/client": "support.remote-ai",

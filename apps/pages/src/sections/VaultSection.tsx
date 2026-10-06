@@ -7,6 +7,7 @@ import {
   useParams,
   useSearchParams,
 } from "react-router";
+import { canPreviewVaultPath } from "./vault/preview-path.js";
 
 import { accessNewPath } from "@opensesame/app-core/lib/access-routes.js";
 import { isCreatableItemKind } from "@opensesame/app-core/lib/item-kinds.js";
@@ -115,9 +116,11 @@ export function VaultSection() {
   // Moving the cursor with the keyboard previews that item in the buffer,
   // ranger-style — but never while an editor, the health report, or a new-item
   // ceremony owns the pane.
-  const previewable =
-    location.pathname === "/vault" ||
-    (itemId !== undefined && !location.pathname.endsWith("/edit"));
+  const previewable = canPreviewVaultPath(
+    location.pathname,
+    itemId,
+    params.get("workflow"),
+  );
   const actions = useMemo(
     () => ({
       open: (item: VaultItem) => {

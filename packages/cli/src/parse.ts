@@ -1,5 +1,8 @@
 import { endpointAddress } from "@opensesame/os-domain";
 import { z } from "zod";
+import { type ParityCommand, parseParity } from "./parity-parse.js";
+import { leftover, takeOption } from "./parse-options.js";
+import { parseVaultSync } from "./parse-vault-sync.js";
 
 export const GlobalFlagsSchema = z.object({
   json: z.boolean().default(false),
@@ -11,6 +14,7 @@ export const GlobalFlagsSchema = z.object({
 export type GlobalFlags = z.infer<typeof GlobalFlagsSchema>;
 
 export type ParsedCommand =
+  | ParityCommand
   | { name: "help" }
   | {
       name: "login";
@@ -77,16 +81,10 @@ function takeFlag(args: string[], name: string): boolean {
   return true;
 }
 
-function takeOption(args: string[], name: string): string | undefined {
-  const idx = args.indexOf(name);
-  if (idx === -1) return undefined;
-  const value = args[idx + 1];
-  args.splice(idx, 2);
-  return value;
-}
-
 export function parseArgs(argv: string[]): ParsedCommand {
   const args = [...argv];
+  const separator = args.indexOf("--");
+  const trailing = separator < 0 ? [] : args.splice(separator);
   const json = takeFlag(args, "--json");
   const issuer = takeOption(args, "--issuer");
   const api = takeOption(args, "--api");
@@ -98,29 +96,16 @@ export function parseArgs(argv: string[]): ParsedCommand {
     ...(clientId !== undefined ? { clientId } : undefined),
   });
 
+  args.push(...trailing);
   const cmd = args.shift() ?? "help";
+  const parity = parseParity(cmd, args, flags);
+  if (parity) return parity;
 
   if (cmd === "help" || cmd === "--help" || cmd === "-h") {
     return { name: "help" };
   }
 
-  if (cmd === "login") {
-    const device = takeFlag(args, "--device");
-    const loopback = takeFlag(args, "--loopback");
-    const noBrowser = takeFlag(args, "--no-browser");
-    const anonymous =
-      takeFlag(args, "--anonymous") || takeFlag(args, "--guest");
-    const qr = takeFlag(args, "--qr");
-    const noQr = takeFlag(args, "--no-qr");
-    let mode: "device" | "loopback" | "anonymous" | "auto" = "auto";
-    if (anonymous) mode = "anonymous";
-    else if (device || noBrowser) mode = "device";
-    else if (loopback) mode = "loopback";
-    let qrPreference: "auto" | "on" | "off" = "auto";
-    if (noQr) qrPreference = "off";
-    else if (qr) qrPreference = "on";
-    return { name: "login", mode, qrPreference, flags };
-  }
+  if (cmd === "login") return parseLogin(args, flags);
 
   if (cmd === "auth" && args[0] === "status") {
     args.shift();
@@ -189,13 +174,6 @@ export function parseArgs(argv: string[]): ParsedCommand {
 /** `login` is the pre-ADR 0172 name of `account`; it is still accepted as input. */
 const ITEM_KINDS = new Set(["account", "login", "secret", "note", "card"]);
 
-function leftover(args: readonly string[], verb: string): void {
-  const extra = args[0];
-  if (extra !== undefined) {
-    throw new Error(`vault ${verb} does not take ${extra}`);
-  }
-}
-
 function parseVaultFile(
   verb: "verify" | "ls",
   args: string[],
@@ -227,14 +205,6 @@ function parseVaultShare(args: string[], flags: GlobalFlags): ParsedCommand {
   if (!query) throw new Error("vault share requires an item name or id");
   leftover(args, "share");
   return { name: "vault-share", query, flags };
-}
-
-function parseVaultSync(args: string[], flags: GlobalFlags): ParsedCommand {
-  const code = takeOption(args, "--pair");
-  leftover(args, "sync");
-  return code === undefined
-    ? { name: "vault-sync", flags }
-    : { name: "vault-sync", code, flags };
 }
 
 function parseVaultList(args: string[], flags: GlobalFlags): ParsedCommand {
@@ -348,6 +318,20 @@ export function helpText(): string {
   return `opensesame-id — OpenSesame identity CLI (alias: opensesame-identity)
 
 Commands:
+  find <query...> [--vault <vault>] [--account <account>]
+  inventory | audit           Metadata and organization checks, never values
+  create api-credential --title <title> --vault <vault> --stdin|--clipboard
+  password <item> --vault <vault> --stdin|--clipboard [--apply]
+  read <op://reference>        Explicit plaintext stdout
+  run --env NAME=op://reference -- <command...>
+  env write <file> <NAME=op://reference...>
+  env resolve <file> --output <file>|--in-place
+  env run <file> -- <command...>
+  service-account setup|connect|status|recover|forget
+  request <https-url> --secret <op://reference> [--lease <id>]
+  lease approve <https-url> --secret <ref> --desktop [--expires-in 10m] [--uses 1]
+  lease list|status <id>|revoke <id>
+  doctor                      Inspect provider setup without authentication
   login [--device|--loopback|--no-browser|--anonymous] [--qr|--no-qr]
                   --anonymous (alias --guest): start as a provisional guest;
                   link an identity later to keep the same principal id
@@ -382,4 +366,21 @@ Global:
   --client-id <id>
   --qr / --no-qr  Device login: print a terminal QR (default: on for TTY)
 `;
+}
+
+function parseLogin(args: string[], flags: GlobalFlags): ParsedCommand {
+  const device = takeFlag(args, "--device");
+  const loopback = takeFlag(args, "--loopback");
+  const noBrowser = takeFlag(args, "--no-browser");
+  const anonymous = takeFlag(args, "--anonymous") || takeFlag(args, "--guest");
+  const qr = takeFlag(args, "--qr");
+  const noQr = takeFlag(args, "--no-qr");
+  let mode: "device" | "loopback" | "anonymous" | "auto" = "auto";
+  if (anonymous) mode = "anonymous";
+  else if (device || noBrowser) mode = "device";
+  else if (loopback) mode = "loopback";
+  let qrPreference: "auto" | "on" | "off" = "auto";
+  if (noQr) qrPreference = "off";
+  else if (qr) qrPreference = "on";
+  return { name: "login", mode, qrPreference, flags };
 }

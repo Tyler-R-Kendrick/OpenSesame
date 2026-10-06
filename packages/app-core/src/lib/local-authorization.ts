@@ -13,6 +13,10 @@ import {
   readLocalGrantRecords,
   writeLocalGrantRecords,
 } from "./local-grant-store.js";
+import {
+  pendingCodeBudgetFull,
+  reclaimPendingCodes,
+} from "./local-pending-codes.js";
 import { claimConsumedRequest } from "./local-request-issuance.js";
 import {
   type LocalSession,
@@ -130,9 +134,8 @@ async function approve(
     async (admission, assertActive) => {
       if (admission.revision !== expected.applicationRevision) refused();
       const now = Date.now();
-      for (const [key, code] of queue)
-        if (code.expiresAt <= now || code.issuedAt > now) queue.delete(key);
-      if (queue.size >= 128)
+      reclaimPendingCodes(queue, now);
+      if (pendingCodeBudgetFull(queue))
         throw new LocalDirectoryError(
           "Too many pending authorizations. Wait for an existing request to expire.",
         );
@@ -146,7 +149,7 @@ async function approve(
         Date.now() - approval.approver.authTime >= 300_000
       )
         refused();
-      if (queue.size >= 128) refused();
+      if (pendingCodeBudgetFull(queue)) refused();
       const expiresAt = Math.min(
         now + 120_000,
         approval.session.expiresAt,

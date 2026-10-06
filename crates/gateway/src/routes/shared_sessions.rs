@@ -22,7 +22,7 @@
 use axum::{
     extract::{Path, State},
     http::StatusCode,
-    response::{sse, IntoResponse, Response, Sse},
+    response::{IntoResponse, Response},
     Json,
 };
 use chrono::{DateTime, Utc};
@@ -36,7 +36,7 @@ use serde_json::{json, Value};
 
 use crate::app_state::AppState;
 use crate::middleware::auth::{parse_principal, resolve_caller, Caller};
-use crate::session_channel::{Delivery, Recipient, SessionChannel, SessionEvent};
+use crate::session_channel::SessionEvent;
 use crate::shared_session_fence::Reach;
 
 /// Every shared-session road, declared by the feature that owns them.
@@ -408,15 +408,14 @@ pub async fn grant(
         Ok(grant) => grant,
         Err(resp) => return resp,
     };
-    // The seat is written first. A grant that then fails leaves somebody
-    // seated with nothing, which is a state the product already has a name
-    // for; the other order would leave a grant whose holder is not in the
-    // room, which the fence reads as no standing at all.
     if let Err(error) = st
         .db
         .upsert_session_membership(&session.organization_id, &seat)
         .await
     {
+        if error.is::<opensesame_storage::SessionClosed>() {
+            return bad_request("session_closed", "a closed session grants nothing");
+        }
         return unavailable(&error);
     }
     match st
@@ -441,15 +440,16 @@ pub async fn grant(
             )
                 .into_response()
         }
+        Err(error) if error.is::<opensesame_storage::SessionClosed>() => {
+            bad_request("session_closed", "a closed session grants nothing")
+        }
         Err(error) => unavailable(&error),
     }
 }
 
 /// `DELETE /api/v1/shared-sessions/{id}/grants/{grant_id}` — withdraw it.
 ///
-/// Idempotent: revoking an already-revoked grant is `204`, because the caller's
-/// intent — "this person must not have this any more" — is satisfied either
-/// way, and a `409` would only invite a retry loop.
+/// Revoking an already-revoked grant is `204`; the intent is already satisfied.
 ///
 /// The response says what revocation does *not* undo. A participant who held a
 /// wrapped item key and copied the ciphertext keeps the ability to read that
@@ -508,7 +508,7 @@ pub async fn revoke(
 /// courtesy: a route that failed to publish has still done what it was asked,
 /// and a route that refused to act because nobody was listening would be
 /// worse. Publishing never widens anybody's reach — every event still passes
-/// [`Delivery::for_recipient`] against live grants before it reaches a reader.
+/// [`crate::session_channel::Delivery::for_recipient`] against live grants before it reaches a reader.
 pub(crate) fn announce(st: &AppState, session_id: SessionId, event: SessionEvent) {
     let channels = st.session_channels.lock().unwrap();
     if let Some(channel) = channels.get(&session_id) {
@@ -618,127 +618,9 @@ impl Drop for Presence {
     }
 }
 
-/// `GET /api/v1/shared-sessions/{id}/events` — the session's live channel.
-///
-/// Server-sent events, one direction only. That is the security decision in
-/// this handler rather than an implementation convenience: ADR 0079 §6 says an
-/// inbound message is a request like any other and never evidence its sender
-/// is allowed, and the cheapest way to hold that rule is to have no inbound
-/// frame path at all. Everything a participant *does* goes through the
-/// authenticated routes above, where the fence already runs.
-///
-/// Standing is re-read from the store on every event rather than captured at
-/// subscribe time. A subscription is not a permission: a participant whose
-/// grant is withdrawn or lapses mid-stream stops receiving on the next event,
-/// not at their next reconnect.
-pub async fn events(
-    State(st): State<AppState>,
-    headers: axum::http::HeaderMap,
-    Path(id): Path<String>,
-) -> Response {
-    let (principal, session, reach) = match standing(&st, &headers, &id).await {
-        Ok(found) => found,
-        Err(resp) => return resp,
-    };
-    if !reach.may_see_session() {
-        return not_found();
-    }
-    let is_operator = reach.is_operator();
-    let seated = match reach {
-        Reach::Participant => Some(SessionMode::Participant),
-        Reach::Observer => Some(SessionMode::Observer),
-        Reach::Operator | Reach::None => None,
-    };
-
-    let receiver = {
-        let mut channels = st.session_channels.lock().unwrap();
-        // Sessions with no reader are dropped when their last one leaves, so
-        // the map holds live channels rather than a row per session ever
-        // opened.
-        channels.retain(|_, channel| !channel.is_idle());
-        channels
-            .entry(session.id)
-            .or_insert_with(SessionChannel::new)
-            .subscribe()
-    };
-
-    let session_id = session.id;
-    announce(
-        &st,
-        session_id,
-        SessionEvent::ParticipantJoined {
-            principal_id: principal,
-            // The seat, not a role. The operator used to be announced as
-            // `write`, which said the person running the session writes the
-            // vault through it; they run it, and they are seated as a
-            // participant only if somebody seated them.
-            mode: seated.unwrap_or(SessionMode::Participant),
-        },
-    );
-    let presence = Presence {
-        state: st.clone(),
-        session_id,
-        principal_id: principal,
-    };
-
-    // `unfold` rather than a generator macro: the loop's state is exactly the
-    // receiver, and the per-event standing read is an ordinary await inside it.
-    let stream = futures::stream::unfold(
-        (receiver, st.clone(), presence),
-        move |(mut receiver, st, presence)| async move {
-            loop {
-                let event = match receiver.recv().await {
-                    Ok(event) => event,
-                    // A reader that fell behind is told how far and keeps its
-                    // place. It never grows the buffer for anybody else.
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged(missed)) => {
-                        let notice = sse::Event::default()
-                            .event("lagged")
-                            .data(missed.to_string());
-                        return Some((
-                            Ok::<_, std::convert::Infallible>(notice),
-                            (receiver, st, presence),
-                        ));
-                    }
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => return None,
-                };
-
-                let now = Utc::now();
-                // Read afresh: a subscription is not a permission, and a grant
-                // withdrawn mid-stream must stop delivery on the next event
-                // rather than at the next reconnect. A read that fails yields
-                // no grants, which denies — the same rule the fence uses.
-                let grants = st
-                    .db
-                    .active_grants_for(session_id, principal, now)
-                    .await
-                    .unwrap_or_default();
-                let recipient = Recipient {
-                    principal_id: principal,
-                    is_operator,
-                    mode: seated,
-                    grants,
-                };
-                if !Delivery::for_recipient(&event, &recipient, now) {
-                    continue;
-                }
-                match serde_json::to_string(&event) {
-                    Ok(payload) => {
-                        let frame = sse::Event::default().data(payload);
-                        return Some((Ok(frame), (receiver, st, presence)));
-                    }
-                    Err(error) => {
-                        tracing::warn!(%error, "session event would not serialize");
-                    }
-                }
-            }
-        },
-    );
-
-    Sse::new(stream)
-        .keep_alive(sse::KeepAlive::default())
-        .into_response()
-}
+#[path = "shared_sessions/events.rs"]
+mod session_events;
+pub use session_events::events;
 
 #[path = "shared_sessions/join.rs"]
 pub mod join;

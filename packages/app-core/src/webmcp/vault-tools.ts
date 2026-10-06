@@ -40,6 +40,8 @@ import {
   str,
 } from "./tool-shared.js";
 
+import { PASSWORD_WORKFLOW_TOOLS } from "./password-workflow-tools.js";
+
 const ITEM_KINDS: readonly LegacyItemKind[] = [
   "account",
   "passkey",
@@ -168,6 +170,7 @@ export function resetTotpRateLimitForTests(): void {
 }
 
 export const VAULT_TOOLS: readonly PagesWebMcpTool[] = [
+  ...PASSWORD_WORKFLOW_TOOLS,
   {
     name: "opensesame_vault_search",
     capabilityIds: ["vault.items.search"],

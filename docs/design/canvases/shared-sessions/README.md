@@ -32,8 +32,25 @@ where row-level authorization has to go. Tokens and components are lifted
 verbatim from `apps/pages/src/styles.css`, so these screens sit in the same
 vocabulary as the first-run ceremony.
 
-Nothing here is implemented. The ADR is `Proposed` on purpose: the findings are
-meant to be argued with before code exists.
+The artboards describe the original proposal. The implemented Host routes now
+provide session coordination and the closure policy below; the artboards have
+not yet been updated to show a close control.
+
+## Closing a session
+
+The operator closes a session permanently with
+`POST /api/v1/shared-sessions/{id}/close`. Repeated closure is idempotent; there
+is no reopen operation. One transaction marks the session closed, withdraws
+its seats, and revokes grants minted by that session. Referenced grants from
+other access paths remain intact. Revocation stops new authorization; it
+cannot undo plaintext already opened or replace the separate re-keying
+ceremony.
+
+A closed session accepts no new seats, grants or join admissions. Participant
+requests lose standing, and existing event streams recheck closure and current
+reach before delivering each data frame. The operator retains the historical
+session and join-request record, including access needed to inspect or revoke
+its grants. Closure does not delete that record.
 
 ## Building and re-seeding
 

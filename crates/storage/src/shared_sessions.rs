@@ -17,7 +17,7 @@
 use anyhow::{bail, Context};
 use chrono::{DateTime, Utc};
 use opensesame_domain::{
-    Admission, GrantScope, JoinDecision, JoinRequest, JoinRequestId, PrincipalId, SessionGrant,
+    GrantScope, JoinDecision, JoinRequest, JoinRequestId, PrincipalId, SessionGrant,
     SessionGrantId, SessionId, SessionRole, SessionVisibility, VaultId, VaultItemId,
 };
 use sqlx::{sqlite::SqliteRow, Row};
@@ -27,7 +27,9 @@ use crate::Db;
 use session_links::{admission_from, link_from, link_str};
 
 mod session_admission;
+mod session_join_decision;
 mod session_links;
+pub use session_join_decision::{ClosedOrDecided, SessionClosed};
 mod session_memberships;
 
 /// A session as stored: who runs it, what it is called, and whether strangers
@@ -350,97 +352,6 @@ impl Db {
         Ok(())
     }
 
-    /// Admit or refuse a pending request, in one transaction with the grant
-    /// that admitting mints.
-    ///
-    /// Admission IS a grant: passing `JoinDecision::Admitted` without having
-    /// the grant to write alongside it is unrepresentable, and the two land
-    /// together or not at all. A request that is no longer pending is refused
-    /// rather than re-decided, so a second approval cannot rewrite the first.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error when the request is not pending, when the grant does
-    /// not match the decision, or when either write fails.
-    pub async fn decide_join_request(
-        &self,
-        organization_id: &str,
-        request_id: JoinRequestId,
-        decision: JoinDecision,
-        decided_by: PrincipalId,
-        decided_at: DateTime<Utc>,
-        minted: Option<&SessionGrant>,
-    ) -> anyhow::Result<()> {
-        // Matched on the decision itself rather than a tuple so the compiler
-        // checks every shape: the pairings that are contradictions each get
-        // their own refusal instead of falling through a catch-all.
-        let (admitted_mode, grant_id) = match decision {
-            JoinDecision::Pending => {
-                bail!("deciding a request to 'pending' is not a decision")
-            }
-            JoinDecision::Admitted {
-                admission: Admission::Participant { grant_id },
-            } => match minted {
-                Some(grant) if grant.id == grant_id => (Some("participant"), Some(grant_id)),
-                _ => bail!("admitting a participant must carry the grant it mints"),
-            },
-            JoinDecision::Admitted {
-                admission: Admission::Observer,
-            } => {
-                // The seat that holds nothing. A grant alongside it would be a
-                // key wrapped for somebody the operator said needs none, and
-                // ADR 0079 §3 cannot take that back.
-                if minted.is_some() {
-                    bail!("admitting an observer must not mint a grant");
-                }
-                (Some("observer"), None)
-            }
-            JoinDecision::Refused => {
-                if minted.is_some() {
-                    bail!("a refusal must not carry a grant");
-                }
-                (None, None)
-            }
-        };
-
-        let mut transaction = self.pool.begin().await.context("begin decision")?;
-
-        if let Some(grant) = minted {
-            // Written inside the same transaction as the decision, so a
-            // partial failure cannot leave an admitted request pointing at a
-            // grant that does not exist.
-            self.insert_grant_in(&mut transaction, organization_id, grant)
-                .await?;
-        }
-
-        // `decision = 'pending'` in the predicate is the guard: a request that
-        // has already been decided is not decided again, and the audit trail
-        // cannot be edited in place. A later ask is a new row.
-        let result = sqlx::query(
-            "UPDATE session_join_requests \
-             SET decision = ?1, decided_at = ?2, decided_by_principal_id = ?3, \
-             admitted_mode = ?4, grant_id = ?5 \
-             WHERE id = ?6 AND organization_id = ?7 AND decision = 'pending'",
-        )
-        .bind(decision_str(decision))
-        .bind(decided_at.to_rfc3339())
-        .bind(decided_by.to_string())
-        .bind(admitted_mode)
-        .bind(grant_id.map(|id| id.to_string()))
-        .bind(request_id.to_string())
-        .bind(organization_id)
-        .execute(&mut *transaction)
-        .await
-        .context("decide join request")?;
-
-        if result.rows_affected() != 1 {
-            bail!("join request is not pending");
-        }
-
-        transaction.commit().await.context("commit decision")?;
-        Ok(())
-    }
-
     /// The one grant insert, inside a caller's transaction.
     ///
     /// Both roads that write a grant — the operator's direct grant and the one
@@ -459,11 +370,12 @@ impl Db {
                 ("rows", *vault_id, items.iter().copied().collect::<Vec<_>>())
             }
         };
-        sqlx::query(
+        let result = sqlx::query(
             "INSERT INTO session_grants (id, session_id, organization_id, \
              subject_principal_id, granted_by_principal_id, scope_kind, vault_id, \
              role, granted_at, expires_at, revoked_at, link, source_grant_id) \
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+             SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13 \
+             WHERE EXISTS (SELECT 1 FROM sessions WHERE id = ?2 AND organization_id = ?3 AND closed_at IS NULL)",
         )
         .bind(grant.id.to_string())
         .bind(grant.session_id.to_string())
@@ -481,6 +393,9 @@ impl Db {
         .execute(&mut **transaction)
         .await
         .context("insert minted grant")?;
+        if result.rows_affected() != 1 {
+            return Err(SessionClosed.into());
+        }
 
         for item in items {
             sqlx::query("INSERT INTO session_grant_items (grant_id, item_id) VALUES (?1, ?2)")

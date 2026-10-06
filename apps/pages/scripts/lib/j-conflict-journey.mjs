@@ -111,5 +111,15 @@ export async function walkJConflict({
   await expectInTray(pageB, /changed\. Reload before saving/i);
   check(true, "stale tab is refused, in the tray");
   await snap(pageB, "J-CONFLICT-stale");
+  // Return to the original tab and verify the stale save left its registration intact.
+  await page.bringToFront();
+  const savedRedirects = await rowA
+    .getByRole("textbox", { name: "Redirect URIs (one per line)", exact: true })
+    .inputValue();
+  check(
+    savedRedirects === "https://rp.example.test/a",
+    "the stale tab cannot overwrite the original tab's saved registration",
+  );
+  await snap(page, "J-CONFLICT-saved-registration");
   await pageB.close();
 }

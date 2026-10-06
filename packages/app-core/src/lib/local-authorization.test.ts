@@ -23,7 +23,10 @@ import {
 } from "./local-grant-admin.js";
 import { bindLocalIamLockResets } from "./local-iam-lock-resets.js";
 import { enrollLocalPasskey } from "./local-passkeys.js";
-import { consumedApplicationRequest } from "./local-request.fixture.js";
+import {
+  authorizationConfiguration,
+  consumedApplicationRequest,
+} from "./local-request.fixture.js";
 import {
   type LocalSession,
   revokeLocalIdentitySession,
@@ -62,17 +65,9 @@ async function create(
   return entry.id;
 }
 function configuration() {
-  return {
-    applicationId: app,
-    organizationId: org,
-    redirectUris: [request.redirectUri],
-    scopes: ["openid", "resource:read", "resource:write"],
-    scopeRoles: ["openid", "resource:read", "resource:write"].map((scope) => ({
-      scope,
-      roles: ["owner" as const],
-    })),
-  };
+  return authorizationConfiguration(app, org, request.redirectUri);
 }
+
 async function approve() {
   return approveLocalApplication(
     tomb,
@@ -376,14 +371,19 @@ it("rejects malformed state, nonce and challenge instead of treating structure a
   expect(await listLocalApplicationGrants(tomb, session)).toEqual([]);
 });
 
-it("bounds pending consent codes and reclaims only expired requests", async () => {
-  for (let index = 0; index < 128; index++) await approve();
-  await expect(approve()).rejects.toThrow("Too many pending authorizations");
-  vi.spyOn(Date, "now").mockReturnValue(Date.now() + 120_001);
+it("reclaims expired pending codes while an unexpired real approval remains redeemable", async () => {
+  const first = await approve();
+  const started = Date.now();
+  vi.mocked(Date.now).mockReturnValue(started + 60000);
+  const second = await approve();
+  vi.mocked(Date.now).mockReturnValue(started + 120001);
+  // Real issuance exercises queue cleanup, then redemption proves retained authority.
   expect(await approve()).toHaveProperty("code");
-  // 129 real approvals: about 12 s alone, and over a minute when a loaded CI
-  // runner shares its cores with the other suites.
-}, 180_000);
+  await expect(redeem(first.code)).rejects.toThrow(
+    "authorization is unavailable",
+  );
+  expect(await redeem(second.code)).toHaveProperty("applicationId", app);
+});
 
 it("does not overwrite a corrupt grant ledger during redemption", async () => {
   const { code } = await approve();

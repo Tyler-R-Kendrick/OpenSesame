@@ -6397,6 +6397,776 @@
     }
   },
   {
+    "id": "vault.workflow.find_references",
+    "title": "Find references by title queries",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame-id find",
+      "pwa": "lib/vault/password-workflows.ts:passwordWorkflowFind",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": "opensesame_vault_find_references"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Host MCP has custody of neither a native provider session nor the unlocked browser vault; real metadata operations run in Pages WebMCP",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_client": {
+        "reason": "Host MCP has custody of neither a native provider session nor the unlocked browser vault; real metadata operations run in Pages WebMCP",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "extension": {
+        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "vault.workflow.inventory",
+    "title": "Inspect metadata-only credential inventory",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame-id inventory",
+      "pwa": "lib/vault/password-workflows.ts:passwordWorkflowInventory",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": "opensesame_vault_inventory"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Host MCP has custody of neither a native provider session nor the unlocked browser vault; real metadata operations run in Pages WebMCP",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_client": {
+        "reason": "Host MCP has custody of neither a native provider session nor the unlocked browser vault; real metadata operations run in Pages WebMCP",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "extension": {
+        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "vault.workflow.audit_organization",
+    "title": "Audit credential organization without values",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame-id audit",
+      "pwa": "lib/vault/password-workflows.ts:passwordWorkflowAudit",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": "opensesame_vault_audit_organization"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Host MCP has custody of neither a native provider session nor the unlocked browser vault; real metadata operations run in Pages WebMCP",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_client": {
+        "reason": "Host MCP has custody of neither a native provider session nor the unlocked browser vault; real metadata operations run in Pages WebMCP",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "extension": {
+        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "vault.workflow.env_template",
+    "title": "Build reference-only environment templates",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame-id env write",
+      "pwa": "route:/vault",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": "opensesame_vault_env_template"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "Host MCP has custody of neither a native provider session nor the unlocked browser vault; real metadata operations run in Pages WebMCP",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_client": {
+        "reason": "Host MCP has custody of neither a native provider session nor the unlocked browser vault; real metadata operations run in Pages WebMCP",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "extension": {
+        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "vault.workflow.create_private",
+    "title": "Create an API credential from private input",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame-id create api-credential",
+      "pwa": "lib/vault/password-workflows.ts:createPrivateCredential",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": "opensesame_open_password_workflow"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "extension": {
+        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "vault.workflow.compare_private",
+    "title": "Compare a privately supplied credential value",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame-id password",
+      "pwa": "lib/vault/password-workflows.ts:comparePrivatePassword",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": "opensesame_open_password_workflow"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "extension": {
+        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "vault.workflow.update_private",
+    "title": "Update and verify a privately supplied credential value",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame-id password",
+      "pwa": "lib/vault/password-workflows.ts:comparePrivatePassword",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": "opensesame_open_password_workflow"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "extension": {
+        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.native_cli",
+    "title": "Native password-provider command family",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame password-agent",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "extension": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.read",
+    "title": "Read a credential value on the human plane",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id read",
+      "pwa": "lib/vault/password-workflows.ts:resolveLocalReference",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": "opensesame_open_password_workflow"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "extension": {
+        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.run",
+    "title": "Execute a local child with provider-injected environment",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id run",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "extension": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.env_resolve",
+    "title": "Write a private file with resolved credential values",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id env resolve",
+      "pwa": "lib/vault/password-workflows.ts:resolveLocalEnvTemplate",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": "opensesame_open_password_workflow"
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "extension": {
+        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.env_run",
+    "title": "Run a local child from a reference template",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id env run",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "extension": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.doctor",
+    "title": "Check native provider dependencies and authentication posture",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame-id doctor",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_host": {
+        "reason": "Host MCP has custody of neither a native provider session nor the unlocked browser vault; real metadata operations run in Pages WebMCP",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_client": {
+        "reason": "Host MCP has custody of neither a native provider session nor the unlocked browser vault; real metadata operations run in Pages WebMCP",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "webmcp": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "extension": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.account_connect",
+    "title": "Connect a privately supplied provider service account",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id service-account connect",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "extension": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.account_setup",
+    "title": "Provision a scoped provider service account",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id service-account setup",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "extension": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.account_status",
+    "title": "Inspect saved provider service-account configuration",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame-id service-account status",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_host": {
+        "reason": "Host MCP has custody of neither a native provider session nor the unlocked browser vault; real metadata operations run in Pages WebMCP",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_client": {
+        "reason": "Host MCP has custody of neither a native provider session nor the unlocked browser vault; real metadata operations run in Pages WebMCP",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "webmcp": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "extension": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.account_recover",
+    "title": "Recover a provider account into OS credential custody",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id service-account recover",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "extension": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.account_forget",
+    "title": "Remove locally saved provider authentication",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id service-account forget",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_host": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "mcp_client": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "webmcp": {
+        "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
+        "adr": "0005-authority-handle-connectionref.md"
+      },
+      "extension": {
+        "reason": "requires native provider custody, local process execution, files or OS credential storage; browser users operate on their own vault instead",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.request",
+    "title": "Send a bound native request (PWA command handoff)",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": "opensesame-id request",
+      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_client": {
+        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "webmcp": {
+        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "extension": {
+        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.lease_approve",
+    "title": "Approve a bounded native lease (PWA command handoff)",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id lease approve",
+      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_client": {
+        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "webmcp": {
+        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "extension": {
+        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.lease_status",
+    "title": "Inspect native lease metadata (PWA command handoff)",
+    "plane": "client_local",
+    "kind": "read",
+    "surfaces": {
+      "cli": "opensesame-id lease status",
+      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_client": {
+        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "webmcp": {
+        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "extension": {
+        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
+    "id": "password_provider.lease_revoke",
+    "title": "Revoke a native lease (PWA command handoff)",
+    "plane": "client_local",
+    "kind": "admin",
+    "surfaces": {
+      "cli": "opensesame-id lease revoke",
+      "pwa": "lib/password-agent/native-handoff.ts:nativeRequestCommands",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "mcp_client": {
+        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "webmcp": {
+        "reason": "native provider requests and leases require the human CLI; PWA prepares reviewable commands only, and the MCP guide grants neither state access nor authority",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "extension": {
+        "reason": "the extension opens the human PWA workflow sheet; it does not execute operations against that origin's unlocked vault",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      },
+      "android": {
+        "reason": "native authenticator applications are OpenID4VC wallets with neither a password-provider session nor the browser vault; mobile users use the PWA",
+        "adr": "0177-password-workflow-surface-boundaries.md"
+      }
+    }
+  },
+  {
     "id": "vault.login_draft",
     "title": "Read and fill the on-screen account editor (metadata only: name, username, sites, method types; never a password, pepper or method secret)",
     "plane": "client_local",

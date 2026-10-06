@@ -7,6 +7,18 @@ import type { GuideGoalDescriptor, HelpTopic } from "./goals.js";
 
 export const ACCESS_GOALS: readonly GuideGoalDescriptor[] = [
   {
+    id: "access.private-request",
+    title: "Prepare a bounded native credential request",
+    routes: [],
+    guide: [
+      "guide/1",
+      'goal "access.private-request"',
+      'navigate "/access/requests"',
+      'focus "access.private-request" "Choose a reference, exact destination and header, expiry and use budget. This prepares shell-safe commands. Review them and approve with the native CLI yourself; the browser never approves, fetches a secret or sends the request. Enter the resulting lease ID for use, status and revoke commands." side=bottom',
+      "end",
+    ].join("\n"),
+  },
+  {
     id: "access.grant",
     title: "Grant an agent access",
     routes: [],
@@ -113,6 +125,22 @@ export const ACCESS_GOALS: readonly GuideGoalDescriptor[] = [
 ];
 
 export const ACCESS_HELP: readonly HelpTopic[] = [
+  {
+    id: "help.access.private-request",
+    title: "How do I approve and use a native credential request?",
+    answer:
+      "Access Requests prepares native CLI commands for an exact destination, credential reference, header, expiry and use budget. Review and run lease approve in your native terminal. Enter its lease ID for request, status and revoke commands. This browser handoff neither approves nor sends a request; Identity and local-vault approval ceremonies are separate.",
+    routes: ["/access/requests"],
+    goal: "access.private-request",
+    keywords: [
+      "lease",
+      "request",
+      "destination",
+      "approve",
+      "revoke",
+      "2password",
+    ],
+  },
   {
     id: "help.access.grant",
     title: "How do I give an agent access to something?",

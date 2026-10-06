@@ -54,7 +54,11 @@ async function toLocalSeal(page) {
  * way in to the list, where the desktop already is.
  */
 async function intoTheList(page, width) {
+  // Sealing or creating a guest vault derives keys asynchronously. Await the
+  // mounted vault before checking where its own focus effect lands.
+  await expect(page.locator(".vault")).toBeVisible({ timeout: 30_000 });
   if (width === 1280) return;
+
   await expect(page.locator(".railtree")).toBeFocused();
   await page.keyboard.press("Enter");
 }
@@ -131,8 +135,11 @@ try {
     // (ADR 0166): Tab reaches it, Enter opens the Support sheet, and Escape
     // closes it with the focus back on the key. It never held the focus on
     // arrival — the door landed on Set up above.
-    await page.keyboard.press("Tab");
     const help = page.getByRole("button", { name: "Support", exact: true });
+    // Guided help is an asynchronously loaded module; wait for its key before
+    // testing Tab order, without moving focus or changing the keymap.
+    await expect(help).toBeVisible();
+    await page.keyboard.press("Tab");
     await expect(help).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(

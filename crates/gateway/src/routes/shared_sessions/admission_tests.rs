@@ -115,3 +115,74 @@ async fn an_asker_is_seated_as_an_observer_holding_nothing() {
         (StatusCode::ACCEPTED, json!("pending"))
     );
 }
+
+#[tokio::test]
+async fn pending_observer_and_participant_admissions_are_refused_after_close() {
+    let st = Box::pin(state()).await;
+    let router = router(st.clone());
+    let organization = OrganizationId::new();
+    let operator = actor(&st, organization);
+    let asker = actor(&st, organization);
+    for mode in ["observer", "participant"] {
+        let (_, opened) = open(
+            &router,
+            &operator,
+            json!({"display_name": "Closed", "visibility": "public"}),
+        )
+        .await;
+        let id = opened["id"].as_str().unwrap();
+        let asks = format!("/api/v1/shared-sessions/{id}/join-requests");
+        let (status, waiting) = call(&router, "POST", &asks, &asker, json!({})).await;
+        assert_eq!(status, StatusCode::ACCEPTED);
+        let request_id = waiting["id"].as_str().unwrap();
+        let (status, _) = call(
+            &router,
+            "POST",
+            &format!("/api/v1/shared-sessions/{id}/close"),
+            &operator,
+            json!({}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        let mut body = json!({"decision": "admitted", "mode": mode});
+        if mode == "participant" {
+            body["grant"] = json!({"scope": {"kind": "collection", "vault_id": opensesame_domain::VaultId::new().to_string()}, "role": "read", "expires_at": (chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339()});
+        }
+        let path = format!("{asks}/{request_id}/decide");
+        let (status, _) = call(&router, "POST", &path, &operator, body).await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+        let session_id = opensesame_domain::SessionId::parse(id).unwrap();
+        let request_id = opensesame_domain::JoinRequestId::parse(request_id).unwrap();
+        assert_eq!(
+            st.db
+                .join_request(&organization.to_string(), request_id)
+                .await
+                .unwrap()
+                .unwrap()
+                .decision,
+            opensesame_domain::JoinDecision::Pending
+        );
+        assert!(st
+            .db
+            .session_membership(session_id, asker.principal)
+            .await
+            .unwrap()
+            .is_none());
+        let count: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM session_grants WHERE session_id = ?1")
+                .bind(id)
+                .fetch_one(st.db.pool())
+                .await
+                .unwrap();
+        assert_eq!(count, 0);
+        let (status, _) = call(
+            &router,
+            "POST",
+            &path,
+            &operator,
+            json!({"decision": "refused"}),
+        )
+        .await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+}

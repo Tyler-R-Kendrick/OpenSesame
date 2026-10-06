@@ -5,7 +5,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type HeaderPair, parseClientCertFields } from "./index.js";
-import { OriginatingChainError, verifyOriginatingChain } from "./node.js";
+import {
+  OriginatingChainError,
+  type VerifiedOriginatingChain,
+  verifyOriginatingChain,
+} from "./node.js";
 
 /** A disposable PKI made with the openssl CLI (an oracle independent of Node), deleted after the run. */
 let dir: string;
@@ -128,7 +132,7 @@ function headers(leafName: string, ...chain: string[]): HeaderPair[] {
     pairs.push(["client-cert-chain", chain.map(b64).join(", ")]);
   return pairs;
 }
-function codeOf(fn: () => ReturnType<typeof verifyOriginatingChain>): string {
+function codeOf(fn: () => VerifiedOriginatingChain): string {
   try {
     fn();
   } catch (err) {
@@ -145,7 +149,7 @@ beforeAll(() => {
   ca("other-root");
   leaf("alice", "inter", "clientAuth", "30");
   leaf("server-only", "inter", "serverAuth", "30");
-  leaf("expired", "inter", "clientAuth", "1");
+  leaf("short-lived", "inter", "clientAuth", "1");
   leaf("stranger", "other-root", "clientAuth", "30");
 });
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -195,17 +199,18 @@ describe("verifyOriginatingChain", () => {
   });
 
   it("refuses an expired leaf and a leaf checked before its window", () => {
-    // Positive validity is portable across OpenSSL versions; verify just after expiry.
-    const afterExpiry = new Date(
-      Date.parse(new X509Certificate(pem("expired")).validTo) + 1000,
+    const chain = parseClientCertFields(headers("short-lived", "inter"));
+    const expiresAt = Date.parse(
+      new X509Certificate(pem("short-lived")).validTo,
     );
+    // Exercise the actual certificate boundary while its 30-day issuers remain valid.
+    expect(
+      verifyOriginatingChain(chain, pem("root"), new Date(expiresAt - 1))
+        .pathLength,
+    ).toBe(2);
     expect(
       codeOf(() =>
-        verifyOriginatingChain(
-          parseClientCertFields(headers("expired", "inter")),
-          pem("root"),
-          afterExpiry,
-        ),
+        verifyOriginatingChain(chain, pem("root"), new Date(expiresAt + 1)),
       ),
     ).toBe("evidence_expired");
     expect(

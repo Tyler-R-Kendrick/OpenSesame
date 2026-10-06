@@ -1,4 +1,4 @@
-import { isString, isTypeofObject } from "@opensesame/os-domain";
+import { isJsonObject, isString } from "@opensesame/os-domain";
 /**
  * Which of the open vault's items may be shown under a duress code, and the
  * copy of one (ADR 0168).
@@ -30,6 +30,7 @@ import {
 } from "@opensesame/vault-core";
 import {
   type FieldTypeId,
+  type FieldValue,
   definitionFields,
 } from "@opensesame/vault-item-types";
 import type { DuressPickRow } from "./mode.js";
@@ -116,9 +117,7 @@ export function pickRows(items: readonly VaultItem[]): DuressPickRow[] {
   }));
 }
 
-function sharedValue(
-  value: (VaultItem & { kind: "typed" })["values"][string] | undefined,
-): SharedValue | null {
+function sharedValue(value: FieldValue | undefined): SharedValue | null {
   if (isString(value)) return cutText(value);
   if (Array.isArray(value)) {
     return value
@@ -126,7 +125,7 @@ function sharedValue(
       .slice(0, VISIBLE_LIMITS.list)
       .map(cutText);
   }
-  if (isTypeofObject(value) && value !== null) {
+  if (isJsonObject(value)) {
     const out: Record<string, string> = {};
     for (const [key, part] of Object.entries(value).slice(
       0,

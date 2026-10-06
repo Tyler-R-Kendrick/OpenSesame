@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OSV-Scanner gate — fails on any non-ignored vulnerability in lockfiles.
+# OSV-Scanner gate — fails on unresolved vulnerabilities; verifies exact local source backports.
 # Complements cargo-deny (RustSec) and cve-lite (npm-focused OSV) with Google OSV.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -9,7 +9,7 @@ opensesame_audit_directory
 mkdir -p .tools/bin
 
 VERSION="${OPENSESAME_OSV_SCANNER_VERSION:-2.5.0}"
-BIN="$ROOT/.tools/bin/osv-scanner"
+BIN="${OPENSESAME_OSV_SCANNER_BIN:-$ROOT/.tools/bin/osv-scanner}"
 
 ensure_osv_scanner() {
   if [[ -x "$BIN" ]] && "$BIN" --version 2>/dev/null | grep -q "$VERSION"; then
@@ -44,8 +44,12 @@ set +e
   2>"$OPENSESAME_AUDIT_DIR/osv-scanner.err"
 status=$?
 set -e
+if [[ "$status" -gt 1 ]]; then
+  echo "osv-scanner gate: FAIL (scanner error $status)" >&2
+  exit 1
+fi
 
-python3 - <<'PY'
+OSV_SCAN_STATUS="$status" python3 - <<'PY'
 import json, os, sys
 from pathlib import Path
 
@@ -57,6 +61,9 @@ if not path.exists() or path.stat().st_size == 0:
     sys.exit(1)
 
 data = json.loads(path.read_text())
+if not isinstance(data.get("results"), list):
+    print("osv-scanner gate: FAIL (invalid results)", file=sys.stderr)
+    sys.exit(1)
 findings = []
 for result in data.get("results") or []:
     src = (result.get("source") or {}).get("path", "?")
@@ -77,15 +84,10 @@ for result in data.get("results") or []:
                 }
             )
 
-if findings:
-    print(f"osv-scanner gate: FAIL ({len(findings)} vulnerabilities)", file=sys.stderr)
-    for f in findings:
-        print(
-            f"  {f['id']}: {f['ecosystem']} {f['package']}@{f['version']} — {f['summary']}",
-            file=sys.stderr,
-        )
+if os.environ["OSV_SCAN_STATUS"] == "1" and not findings:
+    print("osv-scanner gate: FAIL (scanner findings omitted from report)", file=sys.stderr)
     sys.exit(1)
-
-print("osv-scanner gate: CLEAN (0 vulnerabilities after ignores)")
-sys.exit(0)
+output = Path(os.environ["OPENSESAME_AUDIT_DIR"]) / "osv-findings.json"
+output.write_text(json.dumps(findings))
 PY
+node scripts/security/verified-backports.mjs "$OPENSESAME_AUDIT_DIR/osv-findings.json"

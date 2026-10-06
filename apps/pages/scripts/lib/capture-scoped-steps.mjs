@@ -31,6 +31,14 @@ export function scopedSteps({ press }) {
       await summary.click();
       await page.waitForTimeout(400);
     },
+    /** Set a named checkbox through its real control; a missing control fails. */
+    async checked(page, { label, value }) {
+      await page
+        .getByRole("checkbox", { name: label, exact: true })
+        .first()
+        .setChecked(value);
+      await page.waitForTimeout(300);
+    },
     /** Type into a field found by label or selector, when this build has it. */
     async fillOptional(page, { label, selector, text }) {
       const field = selector

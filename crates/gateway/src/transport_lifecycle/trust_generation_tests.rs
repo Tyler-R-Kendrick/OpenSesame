@@ -286,6 +286,8 @@ async fn a_store_failure_leaves_the_running_generation_unchanged() {
     let generations = attached(&state, &DisposableCa::new("clients"));
     let before = generations.current().number;
     for event in ["INSERT", "UPDATE"] {
+        // Trigger identifiers/events and key are fixed test constants, never caller input.
+        // ast-grep-ignore: sql-format-injection
         sqlx::query(&format!(
             "CREATE TRIGGER trust_store_down_{event} BEFORE {event} ON host_kv \
              WHEN NEW.key = '{}' BEGIN SELECT RAISE(ABORT, 'store down'); END",

@@ -69,7 +69,7 @@ fn trailer_values<'a>(trailer: &'a str, keys: &'a [&str]) -> impl Iterator<Item 
     })
 }
 
-/// The metadata object an OpenSesame account entry's trailer carries (the
+/// The metadata object an `OpenSesame` account entry's trailer carries (the
 /// vault writes its sites and username there, ADR 0172), if it carries one: the
 /// first non-`otpauth://` text, when it is a JSON object.
 fn account_meta(trailer: &str) -> Option<serde_json::Value> {
