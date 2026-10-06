@@ -61,7 +61,7 @@ export async function walkJTypes({ page, origin, base, check, snap }) {
     timeout: 15000,
   });
   check(
-    (await page.getByRole("switch").count()) === 18,
+    (await page.getByRole("switch").count()) === 23,
     "every built-in type beyond the core is a switch",
   );
   check(
@@ -86,11 +86,16 @@ export async function walkJTypes({ page, origin, base, check, snap }) {
     (await login.getAttribute("aria-checked")) === "true",
     "Account is on once its pack has arrived",
   );
-  await page.getByText("1 of 18 on").waitFor({ timeout: 5000 });
+  await page.getByText("2 of 23 on").waitFor({ timeout: 5000 });
   await snap(page, "J-TYPES-on");
   await login.click();
-  await page.getByText("0 of 18 on").waitFor({ timeout: 5000 });
-  check(true, "switching it off drops the pack again");
+  // Password was switched on with it (Account needs one) and stays: the
+  // person never turned it off.
+  await page.getByText("1 of 23 on").waitFor({ timeout: 5000 });
+  check(
+    (await login.getAttribute("aria-checked")) === "false",
+    "switching it off drops the pack again",
+  );
 
   // Installing is writing a file: the key on Item types opens a new one.
   await page.getByRole("button", { name: "Write a new item type" }).click();
