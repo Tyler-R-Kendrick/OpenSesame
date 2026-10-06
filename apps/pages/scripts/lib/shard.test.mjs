@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inShard, isFirstShard, parseShard } from "./tutorial-shard.mjs";
+import { inShard, inTurn, isFirstShard, parseShard } from "./shard.mjs";
 
 const ids = Array.from({ length: 120 }, (_, i) => `area.tutorial-${i}`);
 
@@ -36,6 +36,22 @@ describe("tutorial shards", () => {
       inShard(id, shard),
     );
     expect(after.slice(0, before.length)).toEqual(before);
+  });
+
+  it("splits a fixed list in turn, each position in exactly one shard", () => {
+    const shards = [1, 2].map((index) => parseShard(`${index}/2`));
+    const positions = Array.from({ length: 19 }, (_, i) => i);
+    for (const position of positions) {
+      expect(shards.filter((shard) => inTurn(position, shard))).toHaveLength(1);
+    }
+    expect(positions.filter((p) => inTurn(p, shards[0]))).toHaveLength(10);
+    expect(positions.filter((p) => inTurn(p, shards[1]))).toHaveLength(9);
+  });
+
+  it("names the variable in the error", () => {
+    expect(() => parseShard("9/3", "EXPERIENCE_SHARD")).toThrow(
+      /EXPERIENCE_SHARD/,
+    );
   });
 
   it("names the first shard as the one that also runs the non-tutorial passes", () => {

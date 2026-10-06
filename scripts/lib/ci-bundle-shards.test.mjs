@@ -101,11 +101,14 @@ describe("the bundle job's shards", () => {
       const running = all.filter((step) => step.text.includes(gate));
       expect(running.length, `${gate} runs in ${running.length} steps`).toBe(1);
       const where = shardsOf(running[0].when, shards);
-      // `verify:mobile` is the one gate split across shards, by viewport.
-      const expected =
-        gate === "verify:mobile"
-          ? shards.filter((name) => name.startsWith("mobile-"))
-          : where.slice(0, 1);
+      // `verify:mobile` (by viewport) and the journeys (in turn) are split across shards.
+      const split = {
+        "verify:mobile": "mobile-",
+        "verify-experience-journeys.mjs": "journeys-",
+      }[gate];
+      const expected = split
+        ? shards.filter((name) => name.startsWith(split))
+        : where.slice(0, 1);
       expect(where, `${gate} runs in ${where.join(", ")}`).toEqual(expected);
       expect(where.length).toBeGreaterThan(0);
       for (const name of where) expect(shards).toContain(name);
@@ -149,5 +152,17 @@ describe("the bundle job's shards", () => {
       expect(leg.shard.startsWith("mobile-")).toBe(leg.sizes !== undefined);
     }
     expect(bundle).toContain("MOBILE_SIZES: ${{ matrix.sizes }}");
+  });
+
+  it("splits the experience journeys into legs that between them run every walk once", () => {
+    const named = legs().filter((leg) => leg.journeys !== undefined);
+    const counts = named.map((leg) => Number(leg.journeys.split("/")[1]));
+    expect(named.length).toBeGreaterThan(1);
+    expect(new Set(counts).size).toBe(1);
+    expect(named.map((leg) => leg.journeys).sort()).toEqual(
+      named.map((_, i) => `${i + 1}/${counts[0]}`),
+    );
+    for (const leg of named) expect(leg.shard).toMatch(/^journeys-\d+$/);
+    expect(bundle).toContain("EXPERIENCE_SHARD: ${{ matrix.journeys }}");
   });
 });
