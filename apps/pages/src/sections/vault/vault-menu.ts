@@ -90,7 +90,6 @@ function trashedItemMenu(
             id: "purge",
             label: "Delete permanently",
             hint: "X",
-            danger: true,
             confirm: PURGE_CONFIRM,
             run: () => (actions.commitPurge ?? purge)(item),
           },
@@ -208,7 +207,7 @@ export function vaultItemMenu(
     // Share opens the ways out. A sealed drop expires; a standing grant is a
     // person or an agent, and only when Access is part of this installation.
     ...(item.kind === "secret" ? [secretShare(item, actions)] : []),
-    [verb("trash", "Trash", "x", actions.trash, { danger: true })],
+    [verb("trash", "Trash", "x", actions.trash)],
   ];
 }
 

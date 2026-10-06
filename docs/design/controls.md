@@ -87,17 +87,19 @@ for something that was attempted and did not work.
 the connector panels. In-page failures are a plain failure
 (`no-in-page-error` for markup, `no-error-box-css` for CSS that paints one) with
 no ledger: the count is zero everywhere, and a new file meets that outright.
-The tray's own `.notice-card--err`, danger controls (`btn--danger`,
-`icon-btn--danger`), the `StatusMark` glyph and `aria-invalid` field borders may
-carry the error colour; nothing else may fill a block with it.
+The tray's own `.notice-card--err`, the `StatusMark` glyph and `aria-invalid`
+field borders may carry the error colour; nothing else may — in particular no
+control (rule 14).
 
 ## 1. The terminal commit — `.go`
 
 **The one action that ends the screen you are on, or the ceremony card you
 are in.** Unlocking a vault. Sealing a device. Finishing setup. Removing a
-key, erasing this browser — `CeremonyShell` draws its primary this way, and
-`.go--danger` is the same square in the error ink for the one irreversible
-act, with a Keep key (an icon key) beside it where the keyboard lands.
+key, erasing this browser — `CeremonyShell` draws its primary this way. The
+one irreversible act is the same square with the bin glyph (`tone: "danger"`
+picks the glyph and keeps the card plain); it is not red, and there is no Keep
+key beside it: the sheet's close key is the way out and where the keyboard
+lands (rules 14 and 15).
 
 ```html
 <div class="go-row">
@@ -249,7 +251,7 @@ and a Claude Code `PostToolUse` hook:
     is a failure — in a `.tsx` screen or a `.ts` module alike, since
     the copy lives in strings. Specs are not UI and are not swept.
  9. **A verb passed in a prop is still a verb on a button** (`word-slot`).
-    A text button (`btn`, `btn--primary`, `btn--danger`…) whose face renders
+    A text button (`btn`, `btn--primary`…) whose face renders
     a prop or a variable — `{primary.label}`, `{submitLabel}` — is a slot the
     literal check cannot read, so the slot itself fails unless the button is
     a `choice`. `CeremonyShell` draws its primary as the `.go` square with
@@ -263,7 +265,7 @@ and a Claude Code `PostToolUse` hook:
 11. **An ask is not an alarm** (`ask-is-not-alarm`). A `CeremonyShell` whose
     primary is `tone: "danger"` has not failed: it passes neither
     `ok={false}` (the warning wash) nor `top` (a kicker). The card is drawn
-    plain and the danger square carries the weight.
+    plain and the bin glyph, the facts and the close key carry the weight.
 12. **The top line is a fact** (`top-is-a-fact`). `top` is "Enrolled",
     "7 of 10 left", "Saved" — never a question.
 13. **A title is said once** (`title-said-once`). A ceremony's `name` or
@@ -271,7 +273,23 @@ and a Claude Code `PostToolUse` hook:
     dialog's `aria-label`) names the question twice; name the object the
     ceremony acts on instead — the vault, the key, the origin.
 
-`scripts/quality/design-lint-sheets.mjs` holds rules 9–13, and
+14. **A control is never red** (`no-danger-control`, `no-control-error-ink`).
+    The error ink is a status: a `StatusMark`, the tray card, an
+    `aria-invalid` border. A `btn--danger`, `go--danger`, `icon-btn--danger`
+    or `set__nav-link--danger` class, or a CSS rule for a control, a danger
+    modifier or an armed key that reads `--err`, `--err-wash`, `--err-ink` or
+    `--danger`, fails. Armed keys invert to ink; a menu entry that destroys
+    is an ordinary entry. No ledger: the count is zero.
+15. **A sheet has one way out** (`one-way-out`). The head's close key, Escape
+    and the scrim leave a sheet. A `CeremonyShell` `secondary` whose label only
+    leaves ("Keep it", "Keep them here", "Not now", "Cancel", "Back") is a
+    second X beside the first and fails; the keyboard lands on the close key.
+16. **Corners are square** (`no-round-corners`). `--radius` is 0. A
+    `border-radius` past 0 — 2px, a pill, a circle, a percentage, a value the
+    lint cannot resolve — fails, on a control, a dot, a knob or a panel alike.
+    The ledger is empty.
+
+`scripts/quality/design-lint-sheets.mjs` holds rules 9–13 and 15, and
 `apps/pages/src/screens/setup/sheet-contract.test.ts` watches each one fail
 on the "Reset this browser?" sheet that passed every earlier check.
 

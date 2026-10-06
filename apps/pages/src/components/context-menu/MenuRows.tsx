@@ -40,7 +40,7 @@ function MenuEntry({
       }
       aria-disabled={item.disabled || undefined}
       tabIndex={current ? 0 : -1}
-      className={`ctxmenu__item${item.danger ? " is-danger" : ""}${armed ? " is-armed" : ""}`}
+      className={`ctxmenu__item${armed ? " is-armed" : ""}`}
       onPointerMove={() => {
         if (!item.disabled && !current) onHover();
       }}

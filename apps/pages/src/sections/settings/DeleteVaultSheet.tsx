@@ -37,7 +37,6 @@ export function DeleteVaultSheet({
           busy,
           onClick: onDelete,
         }}
-        secondary={{ label: "Keep it", onClick: onClose }}
       />
     </CeremonySheet>
   );

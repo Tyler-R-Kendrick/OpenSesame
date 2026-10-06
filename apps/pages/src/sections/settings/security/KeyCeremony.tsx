@@ -85,7 +85,6 @@ export function KeyCard({
               onDone();
             }, `${KEY_TITLE[kind]} unlock removed.`),
         }}
-        secondary={{ label: "Keep it", onClick: onDone }}
       >
         {lastKey ? (
           <p className="hint">

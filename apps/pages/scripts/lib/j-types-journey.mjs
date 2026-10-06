@@ -6,7 +6,6 @@
  * rewriting the item values it shaped (ADR 0087 §7).
  */
 import {
-  openConfigFile,
   openConfigForm,
   openSettingsCategory,
   sealWithPassword,
@@ -93,9 +92,8 @@ export async function walkJTypes({ page, origin, base, check, snap }) {
   await page.getByText("0 of 18 on").waitFor({ timeout: 5000 });
   check(true, "switching it off drops the pack again");
 
-  // Installing is writing a file: the directory's files, then a new one.
-  await openConfigFile(page, "vaults");
-  await page.getByRole("button", { name: `New file in ${INSTALLED}/` }).click();
+  // Installing is writing a file: the key on Item types opens a new one.
+  await page.getByRole("button", { name: "Write a new item type" }).click();
   await page.getByRole("textbox", { name: DRAFT, exact: true }).fill(TICKET);
   await page.getByRole("button", { name: `Save ${DRAFT}` }).click();
   await page

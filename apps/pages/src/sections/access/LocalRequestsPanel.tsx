@@ -293,7 +293,7 @@ function RequestDecision({
         />
       ) : null}
       <div className="actions">
-        <IconKey label={removeLabel} danger onClick={() => void remove()}>
+        <IconKey label={removeLabel} onClick={() => void remove()}>
           <IconTrash size={16} />
         </IconKey>
         <IconKey label="Close request" onClick={close}>

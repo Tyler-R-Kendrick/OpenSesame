@@ -17,11 +17,14 @@ import {
   useSettingsTabs,
 } from "./SettingsSectionNav.js";
 import { CapabilitiesPanel } from "./settings/CapabilitiesPanel.js";
+import { EndpointsPanel } from "./settings/EndpointsPanel.js";
 import { GeneralPrefsPanel } from "./settings/GeneralPrefsPanel.js";
 import { VaultsAndTypes } from "./settings/ItemTypesPanel.js";
 import { VaultKeyProtectionPanel } from "./settings/VaultKeyProtectionPanel.js";
 import { SettingsFiles } from "./settings/files/SettingsFiles.js";
 import { SettingsFileContext } from "./settings/files/context.js";
+import { isSettingsDocument } from "./settings/files/documents.js";
+import { useCategoryFiles } from "./settings/files/providers.js";
 import { useSettingsFileNav } from "./settings/files/useSettingsFileNav.js";
 import {
   DuressPanel,
@@ -88,17 +91,26 @@ export function SettingsSection({
   const category = useSettingsCategory();
   const ContributedPanel = tabs.find((tab) => tab.id === category)?.Panel;
   const contributedPanels = useCategoryPanels(category);
-  // A directory's files are the same page spelled as files: its
-  // `config.yaml` and whatever else it keeps, opened by `?file=` (the rail,
-  // the command bar, a row's open key) and drawn here in place of the form.
+  // A directory's files are addressed by `?file=` (the rail, the command bar,
+  // a row's open key). Its own `config.yaml` and the capability documents are
+  // the page itself, drawn as every page is; only a file a provider keeps for
+  // authoring (an item type's JSON, a routing file) opens in the file viewer
+  // in place of the form.
   const { openPath, setOpenPath, fileNav } = useSettingsFileNav(
     category,
     search,
   );
+  const provided = useCategoryFiles(category);
+  const file =
+    openPath !== null &&
+    provided !== null &&
+    !isSettingsDocument(category, openPath)
+      ? openPath
+      : null;
 
   useSettingsLocation(category, hash, pathname);
 
-  const form = openPath === null;
+  const form = file === null;
 
   return (
     <SettingsFileContext.Provider value={fileNav}>
@@ -114,15 +126,14 @@ export function SettingsSection({
               guideId={entry.guideId}
               to={settingsPath(entry.id)}
               label={entry.label}
-              danger={entry.id === "danger"}
               current={category === entry.id}
             />
           ))}
         </nav>
-        {form ? null : (
+        {file === null ? null : (
           <SettingsFiles
             category={category}
-            selected={openPath}
+            selected={file}
             onSelect={setOpenPath}
           />
         )}
@@ -155,7 +166,12 @@ export function SettingsSection({
         {form && category !== "security"
           ? contributedPanels.map(({ id, Panel }) => <Panel key={id} />)
           : null}
-        {form && category === "capabilities" ? <CapabilitiesPanel /> : null}
+        {form && category === "capabilities" ? (
+          <>
+            <CapabilitiesPanel />
+            <EndpointsPanel />
+          </>
+        ) : null}
         {form && category === "danger" ? <SettingsDangerPanel /> : null}
       </div>
     </SettingsFileContext.Provider>

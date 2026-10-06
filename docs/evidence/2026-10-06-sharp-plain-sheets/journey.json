@@ -1,0 +1,78 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "press": "Lock vault"
+        },
+        {
+          "press": "Reset this browser?"
+        },
+        {
+          "measure": ".sheet button"
+        },
+        {
+          "style": {
+            "selector": ".sheet button, .sheet__mark",
+            "props": ["background-color", "color", "border-top-left-radius"]
+          }
+        },
+        {
+          "shot": "1280-reset-sheet"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "seal": null
+        },
+        {
+          "press": "Lock vault"
+        },
+        {
+          "press": "Reset this browser?"
+        },
+        {
+          "measure": ".sheet button"
+        },
+        {
+          "style": {
+            "selector": ".sheet button, .sheet__mark",
+            "props": ["background-color", "color", "border-top-left-radius"]
+          }
+        },
+        {
+          "shot": "390-reset-sheet"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-reset-sheet",
+      "width": 1280,
+      "title": "Reset this browser — 1280 × 800",
+      "caption": "Reset this browser on the unlock screen, as a desktop sheet. Measured in the browser: the erase square was rgb(179, 36, 36) with a white bin, and the sheet had three keys (Close in the head, Erase, and a second X, Keep it); every key and the mark had a 2px corner. Now the erase square is ink (rgb(23, 23, 23)), the sheet has two keys (Close and Erase), and every corner is 0px.",
+      "before": "red erase square, a second X beside it, rounded corners",
+      "after": "ink erase square, one close key, square corners"
+    },
+    {
+      "shot": "390-reset-sheet",
+      "width": 390,
+      "title": "Reset this browser, phone — 390 × 844",
+      "caption": "The same sheet on a phone, in a coarse-pointer context. Before: red erase square, three 44×44 keys (Close, Erase, Keep it) and 2px corners. After: ink erase square, two 44×44 keys, 0px corners. The keyboard lands on the close key.",
+      "before": "red erase square, a second X beside it, rounded corners",
+      "after": "ink erase square, one close key, square corners"
+    }
+  ]
+}

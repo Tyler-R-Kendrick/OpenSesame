@@ -832,16 +832,20 @@ Do not add new top-level directories or loose root files — find the group.
   configure the thing, no static status a person cannot change. A control
   whose precondition is unmet is absent; the row that needs a setting opens the
   sheet that sets it. A setting is not removable while something depends on it.
-- **Settings is files, and the Form is a view of them**
+- **Settings is files, and a page is how a file is seen**
   ([ADR 0134](docs/adr/0134-item-type-marketplaces-and-settings-files.md)).
-  Configuration a Settings panel edits lives in a virtual file a
-  `VirtualFileProvider` stores; the page's source view is a file viewer over
-  those paths, and every Form key is a write to one of them. Do not add a
-  per-panel Visual/Source toggle or a paste box: add a provider and let the
-  file viewer show it. An item-type marketplace is a git repository read
-  through its forge's anonymous raw-file route; it confers no trust — every
-  definition it offers meets ADR 0087's parser and registry — and it is read
-  only when a person opens it.
+  Configuration a Settings panel edits lives in a virtual file; a directory's
+  `config.yaml` and the capability documents are those files, and **opening one
+  draws the designed page that writes it, never its text** — the same as every
+  other page. Never draw YAML as a view, never add a Form/Visual/Source toggle
+  or a paste box, and when a key has no designed row, add the row (Capabilities
+  draws an Endpoints panel for the addresses `config.yaml` holds). Only a file
+  a provider keeps for authoring (an item type's JSON, `marketplaces.json`, a
+  routing file) opens in the file viewer, painted in the same colours, from a
+  row's key. An item-type marketplace is a git repository read through its
+  forge's anonymous raw-file route; it confers no trust — every definition it
+  offers meets ADR 0087's parser and registry — and it is read only when a
+  person opens it.
 - **Built-in item types beyond the core are packs, switched on to download**
   ([ADR 0165](docs/adr/0165-item-type-packs-on-demand.md)). Only `secret`,
   `file`, `passkey`, `certificate` and `drop` are embedded in the bundle; the
@@ -1042,6 +1046,19 @@ Do not add new top-level directories or loose root files — find the group.
   (`no-in-page-error`, `no-error-box-css`; no ledger, the count is zero); `impeccable detect`
   enforces the same design file. Both run in `.githooks/pre-commit`. The
   word-verb ledger is `tools/quality/design-button-baseline.json` and only falls.
+  **Three shape rules gate every control, and each has a lint rule with no
+  ledger.** *Corners are square* (`no-round-corners`): `--radius` is 0, and no
+  `border-radius` past 0 — no 2px, no pill, no circle, no percentage — appears on
+  anything; dots, knobs and spinners are squares. *A control is never red*
+  (`no-danger-control`, `no-control-error-ink`): the error ink belongs to a
+  status (`StatusMark`, the tray card, an `aria-invalid` border), so there is no
+  `btn--danger`, `go--danger`, `icon-btn--danger`, no red armed key, no red
+  menu entry; the one irreversible act is the ordinary `.go` square with the bin
+  glyph, and `tone: "danger"` only picks that glyph and keeps the ask plain.
+  *A sheet has one way out* (`one-way-out`): its close key in the head (with
+  Escape and the scrim) is the only dismiss, so a `CeremonyShell` `secondary`
+  that only says "Keep it", "Not now" or "Cancel" is a second X and fails;
+  focus lands on the close key.
 - No `sudo` (`.cursor/rules/no-sudo.mdc`).
 - Configuration follows the `.env.schema` env-spec pattern (`@type`,
   `@required`, `@sensitive`, `@public` annotations). Never commit live

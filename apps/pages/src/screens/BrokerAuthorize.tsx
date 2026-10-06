@@ -279,7 +279,7 @@ export function BrokerAuthorize() {
               label="Allow once and remember"
               onClick={() => release(phase.request, phase.identity, true)}
             >
-              <IconKey label="Deny" danger onClick={() => deny(phase.request)}>
+              <IconKey label="Deny" onClick={() => deny(phase.request)}>
                 <IconX size={16} />
               </IconKey>
             </FormCommit>

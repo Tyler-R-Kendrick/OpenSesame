@@ -156,7 +156,6 @@ export function AccountFactorRemoval({
         ok={false}
         name="This browser cannot use a passkey"
         facts={[{ key: "Use", value: "a browser with passkeys" }]}
-        secondary={{ label: "Keep it", onClick: onDone }}
       />
     );
   }
@@ -173,7 +172,7 @@ export function AccountFactorRemoval({
       refused: (message) => {
         setRefusal(message);
         setCode("");
-        land(by === "totp" ? "input" : ".go--danger");
+        land(by === "totp" ? "input" : ".found--ask .go");
       },
       removed: () => {
         setRemoved(true);
@@ -264,7 +263,6 @@ function ProveForm({
           busy,
           onClick: () => {},
         }}
-        secondary={{ label: "Keep it", onClick: onDone }}
       >
         {offered.length > 1 ? (
           <ProofChoice offered={offered} by={by} busy={busy} onPick={onPick} />

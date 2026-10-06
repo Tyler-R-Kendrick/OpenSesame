@@ -246,7 +246,6 @@ function AgentsRows({
                     <IconKey
                       label="Confirm revocation"
                       small
-                      danger
                       disabled={busy || !online}
                       onClick={() => void revokeAgent(agent.id)}
                     >
@@ -265,7 +264,6 @@ function AgentsRows({
                   <IconKey
                     label="Revoke"
                     small
-                    danger
                     disabled={busy || !online}
                     onClick={() => setRevoke(agent.id)}
                   >

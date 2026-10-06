@@ -1,6 +1,6 @@
 /**
  * J-NAV: record a key on Settings › Keybindings, command-bar setting search,
- * source typing does not fire global chords, the key survives a reload.
+ * the same key on keybindings/config.yaml's page, the key survives a reload.
  * Settings › General does not pin an approvals view.
  */
 import {
@@ -12,8 +12,6 @@ import {
   sealWithPassword,
   unlockWithPassword,
 } from "./pages-journey.mjs";
-
-const RAW = 'textarea[aria-label="settings/keybindings/config.yaml"]';
 
 /** The Keybindings tab, reached the way a person reaches it. */
 async function openKeybindings(page) {
@@ -95,20 +93,18 @@ export async function walkJNav({ page, origin, base, check, snap }) {
     /Opened autoLockMinutes/i.test(opened),
     `palette reaches setting: ${opened}`,
   );
+  // The file's view is the page: its address draws the keymap, with the key.
   await openConfigFile(page, "keybindings");
-  const source = page.locator(RAW);
-  await source.waitFor({ timeout: 8000 });
+  await page
+    .getByRole("button", { name: "Change w for Next row" })
+    .waitFor({ timeout: 8000 });
   check(
-    /^\s*w: listing\.next\b/m.test(await source.inputValue()),
-    "the recorded key is written in keybindings/config.yaml",
+    (await page
+      .getByRole("button", { name: "Change w for Next row" })
+      .count()) === 1,
+    "the recorded key is drawn on keybindings/config.yaml's page",
   );
-  await source.click();
-  await page.keyboard.type("j");
-  check(
-    (await source.inputValue()).includes("j"),
-    "typing j in Source stays in the editor",
-  );
-  await snap(page, "J-NAV-source-typing");
+  await snap(page, "J-NAV-config");
   await lockVault(page);
   await page.reload({ waitUntil: "networkidle" });
   await unlockWithPassword(page);

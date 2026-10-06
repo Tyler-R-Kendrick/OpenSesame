@@ -111,7 +111,6 @@ function ReviewPanel({
         >
           <IconKey
             label={INTERACTION_LABELS.deny}
-            danger
             disabled={busy || !online}
             onClick={view.deny}
           >

@@ -50,12 +50,7 @@ function DeleteVaultSection({
           </p>
           {confirmDestroy ? (
             <>
-              <IconKey
-                label="Delete permanently"
-                danger
-                armed
-                onClick={onDestroy}
-              >
+              <IconKey label="Delete permanently" armed onClick={onDestroy}>
                 <IconTrash size={16} />
               </IconKey>
               <IconKey label="Cancel" onClick={onCancel}>
@@ -63,7 +58,7 @@ function DeleteVaultSection({
               </IconKey>
             </>
           ) : (
-            <IconKey label="Delete this vault" danger onClick={onArm}>
+            <IconKey label="Delete this vault" onClick={onArm}>
               <IconTrash size={16} />
             </IconKey>
           )}
@@ -109,9 +104,7 @@ function TrashList({
               </button>
               <button
                 type="button"
-                className={`icon-btn icon-btn--sm icon-btn--danger${
-                  armed ? " is-armed" : ""
-                }`}
+                className={`icon-btn icon-btn--sm${armed ? " is-armed" : ""}`}
                 aria-label={
                   armed ? PURGE_CONFIRM : `Delete ${item.name} permanently`
                 }
@@ -197,7 +190,6 @@ export function SettingsDangerPanel() {
                   <>
                     <IconKey
                       label="Empty the trash"
-                      danger
                       armed
                       onClick={() => {
                         setEmptyArmed(false);
@@ -215,7 +207,7 @@ export function SettingsDangerPanel() {
                     </IconKey>
                   </>
                 ) : (
-                  <IconKey label="Empty the trash" danger onClick={armEmpty}>
+                  <IconKey label="Empty the trash" onClick={armEmpty}>
                     <IconTrash size={16} />
                   </IconKey>
                 )}

@@ -214,7 +214,7 @@
   height: 1.15rem;
   padding: 0 0.25rem;
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: 0;
   background: var(--surface);
   color: var(--ink-3);
   font: inherit;
@@ -341,7 +341,7 @@
   height: 1.25rem;
   touch-action: manipulation;
   border: 0;
-  border-radius: 2px;
+  border-radius: 0;
   padding: 0;
   background: transparent;
   color: var(--ink-2);
@@ -490,7 +490,7 @@
   min-height: 32px;
   padding: 0 0.8rem;
   border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--canvas);
   color: var(--ink);
   font: inherit;

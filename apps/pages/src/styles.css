@@ -42,9 +42,8 @@
   --s-3: #0f7a51;
   --s-4: #0d7268;
 
-  --radius: 2px;
-  --radius-lg: 2px;
-  --radius-pill: 999px;
+  --radius: 0;
+  --radius-lg: 0;
 
   /* The floor a form control's type may not go below. Zero here: on a mouse
      the chrome's own sizes are right. The touch/narrow block lifts it to 1rem,
@@ -352,16 +351,6 @@ kbd {
   border-color: transparent;
 }
 
-.btn--danger {
-  color: var(--err);
-  border-color: color-mix(in srgb, var(--err) 35%, var(--line));
-}
-
-.btn--danger:hover:not(:disabled) {
-  background: var(--err-wash);
-  border-color: var(--err);
-}
-
 .btn--ghost {
   background: transparent;
   border-color: transparent;
@@ -437,16 +426,6 @@ kbd {
   cursor: progress;
 }
 
-/* The one irreversible act: the same square in the error ink. */
-.go--danger {
-  background: var(--err);
-  color: var(--err-ink);
-}
-
-.go--danger:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--err) 85%, var(--ink));
-}
-
 /* The verb, in the margin voice. `aria-hidden`: the square already carries it
    as its accessible name, and a screen reader must not hear it twice. */
 .go-verb {
@@ -513,25 +492,11 @@ kbd {
   height: 1.5rem;
 }
 
-.icon-btn--danger {
-  color: var(--err);
-}
-
-.icon-btn--danger:hover:not(:disabled) {
-  background: var(--err-wash);
-  color: var(--err);
-}
-
-/* A key that one more press will fire. A neutral one (a claim) is armed in
-   ink; only a destructive one is armed in the error colour. */
+/* A key that one more press will fire is armed in ink, whatever it does: red
+   is a status, never a control (DESIGN.md § Actions). */
 .icon-btn.is-armed {
   background: var(--ink);
   color: var(--canvas);
-}
-
-.icon-btn--danger.is-armed {
-  background: var(--err);
-  color: var(--err-ink);
 }
 
 /* Hovering an armed key must not make it look idle: the pointer is usually
@@ -539,11 +504,6 @@ kbd {
 .icon-btn.is-armed:hover:not(:disabled) {
   background: var(--ink);
   color: var(--canvas);
-}
-
-.icon-btn--danger.is-armed:hover:not(:disabled) {
-  background: var(--err);
-  color: var(--err-ink);
 }
 
 .vtree__keys {
@@ -1088,7 +1048,7 @@ input[type="radio"] {
 .dot {
   width: 0.5rem;
   height: 0.5rem;
-  border-radius: 50%;
+  border-radius: 0;
   flex: none;
   background: var(--ink-3);
 }
@@ -1247,7 +1207,7 @@ body {
   gap: 3px;
   padding: 0.3rem 0.4rem 0.25rem;
   border: 1px solid transparent;
-  border-radius: 2px;
+  border-radius: 0;
   background: transparent;
   color: var(--rail-fg);
   font: inherit;
@@ -1266,7 +1226,7 @@ body {
 .cx__pip {
   width: 5px;
   height: 5px;
-  border-radius: 50%;
+  border-radius: 0;
   background: transparent;
 }
 
@@ -1999,7 +1959,7 @@ body {
   right: 0.35rem;
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: 0;
   background: var(--warn);
 }
 
@@ -2270,7 +2230,7 @@ body {
   height: 1.9rem;
   flex: none;
   border: 1px solid var(--line-strong);
-  border-radius: 50%;
+  border-radius: 0;
   background: var(--surface);
 }
 
@@ -3153,7 +3113,7 @@ fieldset.picker {
   height: 1.4rem;
   flex: none;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-pill);
+  border-radius: 0;
   background: var(--surface-3);
   cursor: pointer;
   transition: background 140ms var(--ease), border-color 140ms var(--ease);
@@ -3166,7 +3126,7 @@ fieldset.picker {
   left: 1px;
   width: 1.15rem;
   height: 1.15rem;
-  border-radius: 50%;
+  border-radius: 0;
   background: var(--surface);
   box-shadow: var(--shadow-sm);
   transition: transform 160ms var(--ease);
@@ -3230,8 +3190,8 @@ fieldset.picker {
     max-height: 88dvh;
     border-left: 0;
     border-top: 1px solid var(--line);
-    border-top-left-radius: 18px;
-    border-top-right-radius: 18px;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
     animation: slide-up 240ms var(--ease);
   }
 
@@ -3328,7 +3288,7 @@ fieldset.picker {
     width: 2.4rem;
     height: 1.4rem;
     border: 1px solid var(--line-strong);
-    border-radius: var(--radius-pill);
+    border-radius: 0;
     background: var(--surface-3);
     transition: background 140ms var(--ease), border-color 140ms var(--ease);
   }
@@ -3570,7 +3530,7 @@ button.vault-row__body:hover:not(:disabled) {
 
 .steps__bar {
   height: 3px;
-  border-radius: var(--radius-pill);
+  border-radius: 0;
   background: var(--surface-3);
 }
 

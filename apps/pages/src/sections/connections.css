@@ -700,7 +700,7 @@ button.conn-tile__link {
   min-height: 2.75rem;
   padding: 0.35rem 0.6rem;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 0.875rem;
   cursor: pointer;
   background: var(--surface);

@@ -153,7 +153,7 @@ function DeleteMacro({
   return (
     <button
       type="button"
-      className={`icon-btn icon-btn--danger${armed ? " is-armed" : ""}`}
+      className={`icon-btn${armed ? " is-armed" : ""}`}
       aria-label={label}
       title={label}
       onBlur={() => setArmed(false)}

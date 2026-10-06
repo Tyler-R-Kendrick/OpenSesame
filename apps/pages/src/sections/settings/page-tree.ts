@@ -63,8 +63,8 @@ function panel(category: string, id: string, label: string): PageTreeSource {
 
 /**
  * Sections on Settings → Capabilities, in document order: Guests, every
- * feature section, then the operator's Instance policy. Their providers are
- * configured in place.
+ * feature section, then the operator's Instance policy, then Endpoints. Their
+ * providers are configured in place.
  */
 export function capabilitiesSettingsSections(
   guests = true,
@@ -80,6 +80,7 @@ export function capabilitiesSettingsSections(
     ...(instancePolicy
       ? [panel("capabilities", "instance-policy", "Instance policy")]
       : []),
+    panel("capabilities", "settings-endpoints", "Endpoints"),
   ];
 }
 

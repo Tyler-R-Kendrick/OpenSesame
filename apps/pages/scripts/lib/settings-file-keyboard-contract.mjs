@@ -11,12 +11,16 @@
  *     load of the file's own address, which is what a link or a bookmark
  *     leaves, then the front door's guest road, then Tab to the file:
  *   - the read-only built-in, `settings/vaults?file=…/builtin/secret.json`;
- *   - `settings?file=config.yaml`.
+ *   - a new draft, which is editable, `settings/vaults?file=…/installed/new.json`.
  * Shift+Tab then leaves the file and the cue goes back to the unfocused one.
+ *
+ * A page's own document (`settings?file=config.yaml`) is not one of these: it
+ * is the page, so a cold load of it must draw the page and no text editor.
  */
 import { expect } from "@playwright/test";
 
 const BUILTIN = "settings/item-types/builtin/secret.json";
+const DRAFT = "settings/item-types/installed/new.json";
 
 /** What the stage paints under its text: the only visible cue. */
 function cueOf(page) {
@@ -126,24 +130,46 @@ export async function settingsFileKeyboardContract({
   {
     const { page, context } = await harness.newPage(browser);
     await page.setViewportSize({ width, height: 900 });
+    await page.goto(
+      `${origin}${base}settings/vaults?file=${encodeURIComponent(DRAFT)}`,
+      { waitUntil: "networkidle" },
+    );
+    await enterAsGuest(page);
+    await expect(page).toHaveURL(
+      /file=settings%2Fitem-types%2Finstalled%2Fnew/,
+    );
+    await cueFollowsFocus(harness, page, DRAFT, `${width}px new draft`, {
+      readOnly: false,
+    });
+    await context.close();
+    if (harness.failures.length === before)
+      console.log(
+        `PASS ${width}px: an editable settings file shows its focus cue, reached by keyboard from a cold deep link`,
+      );
+  }
+  before = harness.failures.length;
+  {
+    const { page, context } = await harness.newPage(browser);
+    await page.setViewportSize({ width, height: 900 });
     await page.goto(`${origin}${base}settings?file=config.yaml`, {
       waitUntil: "networkidle",
     });
     await enterAsGuest(page);
     await expect(page).toHaveURL(/\/settings\?file=config\.yaml$/);
-    await cueFollowsFocus(
+    await page.locator(".set__nav").waitFor({ timeout: 15000 });
+    const drawn = await page.evaluate(() => ({
+      page: document.querySelector(".set__nav") !== null,
+      editor: document.querySelector(".set-raw__stage") !== null,
+    }));
+    must(
       harness,
-      page,
-      "settings/general/config.yaml",
-      `${width}px config.yaml`,
-      {
-        readOnly: false,
-      },
+      drawn.page && !drawn.editor,
+      `${width}px config.yaml: a cold load draws the page, not a text editor (page ${drawn.page}, editor ${drawn.editor})`,
     );
     await context.close();
     if (harness.failures.length === before)
       console.log(
-        `PASS ${width}px: config.yaml shows its focus cue, reached by keyboard from a cold deep link`,
+        `PASS ${width}px: config.yaml opens as the page from a cold deep link`,
       );
   }
 }
