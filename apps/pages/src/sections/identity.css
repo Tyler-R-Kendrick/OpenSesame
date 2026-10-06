@@ -311,3 +311,13 @@
 .identity-orgs .identity-row__id > .chip {
   justify-self: start;
 }
+
+/* Claim previews: a read-only mono block. */
+.cfg-pre {
+  width: 100%;
+  max-width: var(--text-max);
+  min-height: 12rem;
+  font-family: var(--mono);
+  font-size: 1rem;
+  line-height: 1.4;
+}

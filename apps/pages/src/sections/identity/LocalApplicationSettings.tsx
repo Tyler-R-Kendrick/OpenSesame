@@ -1,4 +1,3 @@
-import type { EditorMode } from "@opensesame/app-core/lib/configuration/draft.js";
 import {
   type LocalScopeRoles,
   defaultScopeRoles,
@@ -21,9 +20,7 @@ import {
   useState,
 } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
-import { ModeToggle } from "../../components/configuration/ModeToggle.js";
 import { ApplicationSetupCard } from "./ApplicationSetupCard.js";
-import { ApplicationSourceEditor } from "./ApplicationSourceEditor.js";
 import {
   OrganizationField,
   ScopeRolesField,
@@ -164,11 +161,9 @@ function RegistrationEditor({
     (app) => app.applicationId === applicationId,
   );
   const [removing, setRemoving] = useState(false);
-  const [mode, setMode] = useState<EditorMode>("visual");
   const removeButton = useRef<HTMLButtonElement>(null);
   return (
     <div aria-busy={model.busy}>
-      <ModeToggle mode={mode} onMode={setMode} />
       <p className="hint">
         Bind this application to an organization and exact callbacks.
         Registration alone grants no sign-in or resource access.
@@ -188,28 +183,12 @@ function RegistrationEditor({
       {!model.state && !model.error ? (
         <output>Loading registration…</output>
       ) : null}
-      {model.state && mode === "visual" ? (
+      {model.state ? (
         <RegistrationForm
           model={model}
           applicationId={applicationId}
           directory={directory}
           disabled={disabled}
-        />
-      ) : null}
-      {model.state && mode === "source" ? (
-        <ApplicationSourceEditor
-          applicationId={applicationId}
-          revision={model.state.revision}
-          registration={registration}
-          disabled={disabled || model.busy}
-          onApply={(registration) =>
-            model.save(
-              registration.organizationId,
-              registration.redirectUris.join("\n"),
-              registration.scopes.join(" "),
-              defaultScopeRoles(registration.scopes),
-            )
-          }
         />
       ) : null}
       <RegistrationActions

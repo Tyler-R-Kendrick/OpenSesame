@@ -1,12 +1,9 @@
 import type { JsonObject } from "@opensesame/os-domain";
 import type { ConfigDiagnostic } from "./types.js";
 
-export type EditorMode = "visual" | "source";
-
 export type ConfigDraft = {
   resourceKey: string;
   revisionToken: string;
-  mode: EditorMode;
   originalSource: string;
   currentSource: string;
   lastValid: JsonObject | null;
@@ -28,7 +25,6 @@ export function createDraft(input: {
   return {
     resourceKey: input.resourceKey,
     revisionToken: input.revisionToken,
-    mode: "visual",
     originalSource: input.source,
     currentSource: input.source,
     lastValid: input.lastValid ?? null,
@@ -38,14 +34,6 @@ export function createDraft(input: {
     actorKey: input.actorKey,
     scopeKey: input.scopeKey,
   };
-}
-
-/** Mode switch with no edit must keep exact bytes. */
-export function switchDraftMode(
-  draft: ConfigDraft,
-  mode: EditorMode,
-): ConfigDraft {
-  return { ...draft, mode };
 }
 
 function pushHistory(draft: ConfigDraft, source: string): ConfigDraft {

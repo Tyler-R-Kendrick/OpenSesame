@@ -150,7 +150,6 @@ export function capturingKeys(target: EventTarget | null): boolean {
 
 export function typing(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
-  if (target.closest("[data-config-source]")) return true;
   return (
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||

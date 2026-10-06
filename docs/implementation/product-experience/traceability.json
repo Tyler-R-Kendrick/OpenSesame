@@ -1,7 +1,7 @@
 {
   "objectives": [
     {
-      "objective": "Visual/Source prefs draft",
+      "objective": "Prefs as a file",
       "workId": "DOC-EDIT",
       "entry": "apps/pages/src/sections/settings/GeneralPrefsPanel.tsx",
       "domain": "packages/app-core/src/lib/configuration/prefs-adapter.ts",
