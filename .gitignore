@@ -118,3 +118,6 @@ apps/pages/scripts/duress/.ui-artifacts/
 .cache/bitwarden-oracle/
 .cache/tailnet-fixtures/
 artifacts/mtls/
+
+# Local parity gauntlet reports and scratch fixtures
+/work/
