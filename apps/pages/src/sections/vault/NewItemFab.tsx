@@ -15,14 +15,25 @@ import { useAddSlide } from "./add-slide.js";
 import "./new-item-fab.css";
 
 /**
+ * Run an entry the person chose, by the slide or by the menu, and tell the
+ * guide: on a phone the guide's Import and Export keys are this button's, and
+ * neither road clicks them.
+ */
+function chooseEntry(entry: AddEntry): void {
+  entry.run();
+  if (entry.id === "import") reportGuideActivation("vault.import");
+  if (entry.id === "export") reportGuideActivation("vault.export");
+}
+
+/**
  * The other ways to add as a menu: the road for a keyboard, a screen reader
  * or a mouse, none of which can hold and slide. A held finger never opens it.
  */
 function openAddMenu(event: MenuOpening, anchor: Element | null): void {
-  const entries = addEntries().map(({ id, label, run }) => ({
-    id,
-    label,
-    run,
+  const entries = addEntries().map((entry) => ({
+    id: entry.id,
+    label: entry.label,
+    run: () => chooseEntry(entry),
   }));
   openContextMenu(event, anchor, "Add actions", [entries]);
 }
@@ -63,21 +74,15 @@ function AddButton({
   fabRef?: (element: HTMLAnchorElement | null) => void;
 }) {
   const flows = useContributions("vault-command");
-  // On a phone the guide's Import and Export keys are this button's slide. The
-  // button is not clicked to reach them, so the guide is told when one is
-  // chosen rather than when the `+` is tapped.
+  // The button is not clicked to reach Import or Export, so the guide is told
+  // when one is chosen (`chooseEntry`) rather than when the `+` is tapped.
   const importGuide = useGuideTarget<HTMLAnchorElement>("vault.import", {
     activation: "manual",
   });
   const exportGuide = useGuideTarget<HTMLAnchorElement>("vault.export", {
     activation: "manual",
   });
-  const choose = useCallback((entry: AddEntry) => {
-    entry.run();
-    if (entry.id === "import") reportGuideActivation("vault.import");
-    if (entry.id === "export") reportGuideActivation("vault.export");
-  }, []);
-  const slide = useAddSlide(choose);
+  const slide = useAddSlide(chooseEntry);
   const plusRef = useCallback(
     (element: HTMLAnchorElement | null) => {
       importGuide(element);

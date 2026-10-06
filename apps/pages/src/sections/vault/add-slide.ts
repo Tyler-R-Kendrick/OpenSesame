@@ -16,6 +16,9 @@ import { type AddEntry, addEntries } from "./add-menu.js";
 
 export type Slide = "up" | "down";
 
+/** How long after a hold's lift its click, if the browser makes one, is swallowed. */
+const LIFT_CLICK_MS = 400;
+
 /** How far the finger must travel from where it landed to be over a zone. */
 export const SLIDE_ENTER = 32;
 
@@ -65,8 +68,12 @@ function createSlide(
   let live: SlideState | null = null;
   let down: Touch | null = null;
   let timer: number | undefined;
-  /** The next click is the lift that ended a hold, not a tap. */
-  let lifted = false;
+  /**
+   * Until when the next click is the lift that ended a hold, not a tap. Open
+   * ended while the hold is on, a moment past the lift: a browser that makes
+   * no click must not leave a later keyboard activation to be swallowed.
+   */
+  let liftedUntil = 0;
   /** A touch is on the button, or ended just now: its `contextmenu` is the hold's. */
   let touchUntil = 0;
 
@@ -83,7 +90,7 @@ function createSlide(
   const arm = (target: HTMLElement, pointer: number) => {
     const zones = slideZones();
     if (!down || (!zones.up && !zones.down)) return;
-    lifted = true;
+    liftedUntil = Number.POSITIVE_INFINITY;
     target.setPointerCapture?.(pointer);
     target.focus({ preventScroll: true });
     navigator.vibrate?.(12);
@@ -94,12 +101,14 @@ function createSlide(
     holding: () => Date.now() < touchUntil,
     /** Swallow the click a hold's lift would make, so it never follows the `+`. */
     click(event: { preventDefault: () => void }) {
-      if (!lifted) return;
-      lifted = false;
+      if (Date.now() >= liftedUntil) return;
+      liftedUntil = 0;
       event.preventDefault();
     },
     down(event: PointerEvent<HTMLElement>) {
-      lifted = false;
+      // One finger holds the button; a second landing on it is not another hold.
+      if (down && down.id !== event.pointerId) return;
+      liftedUntil = 0;
       if (event.pointerType === "mouse" && event.button !== 0) return;
       const target = event.currentTarget;
       if (touchLike(event)) touchUntil = Number.POSITIVE_INFINITY;
@@ -124,14 +133,18 @@ function createSlide(
       draw({ ...live, over });
     },
     up(event: PointerEvent<HTMLElement>) {
+      // A second finger lifting is not the one that holds the button.
+      if (down && down.id !== event.pointerId) return;
       if (touchLike(event)) touchUntil = Date.now() + 700;
       const held = live;
+      if (held) liftedUntil = Date.now() + LIFT_CLICK_MS;
       stop();
       const entry = held?.over ? held.zones[held.over] : undefined;
       if (entry) choose(entry);
     },
     cancel() {
       touchUntil = Date.now() + 700;
+      liftedUntil = 0;
       stop();
     },
   };

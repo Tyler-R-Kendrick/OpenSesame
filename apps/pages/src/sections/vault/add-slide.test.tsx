@@ -1,3 +1,4 @@
+import { observeGuideTarget } from "@opensesame/app-core/tutorial/registry/targets.js";
 /** @vitest-environment jsdom */
 import { act, cleanup, fireEvent, screen } from "@testing-library/react";
 import { Route, Routes, useNavigationType } from "react-router";
@@ -62,7 +63,7 @@ function renderVault(path: string) {
  * A pointer event jsdom will dispatch, carrying what the slide reads. jsdom has
  * no PointerEvent, so this is a MouseEvent with the pointer's own fields.
  */
-type PointerAt = Readonly<{ y: number }>;
+type PointerAt = Readonly<{ y: number; id?: number }>;
 
 function pointer(type: string, init: PointerAt): Event {
   const event = new MouseEvent(type, {
@@ -72,7 +73,7 @@ function pointer(type: string, init: PointerAt): Event {
     clientY: init.y,
   });
   Object.defineProperty(event, "pointerType", { value: "touch" });
-  Object.defineProperty(event, "pointerId", { value: 1 });
+  Object.defineProperty(event, "pointerId", { value: init.id ?? 1 });
   return event;
 }
 
@@ -270,6 +271,84 @@ describe("holding the Add button on a phone", () => {
     expect(
       document.querySelector('input[type="file"][aria-label]'),
     ).not.toBeNull();
+    closeContextMenu();
+  });
+});
+
+describe("the Add button's slide, edge cases", () => {
+  beforeEach(() => {
+    stubScreen({ narrow: true, coarse: true });
+    vault.items = [makeAccount({ id: "itm_1", name: "GitHub" })];
+    vault.folders = [];
+    vi.useFakeTimers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    cleanup();
+    resetShellRender();
+    vi.unstubAllGlobals();
+  });
+  const plus = () => screen.getByRole("link", { name: "New item" });
+  const fire = (type: string, y: number, id = 1) =>
+    act(() => {
+      plus().dispatchEvent(pointer(type, { y, id }));
+    });
+  const armed = () => {
+    fire("pointerdown", 500);
+    act(() => {
+      vi.advanceTimersByTime(gestureLimits.longPressMs + 20);
+    });
+  };
+
+  it("a second finger lifting does not choose what the first one is over", () => {
+    renderVault("/vault");
+    const picker = vi
+      .spyOn(HTMLInputElement.prototype, "click")
+      .mockImplementation(() => undefined);
+    armed();
+    fire("pointermove", 500 - SLIDE_ENTER - 30);
+    fire("pointerup", 500 - SLIDE_ENTER - 30, 2);
+    expect(picker).not.toHaveBeenCalled();
+    expect(document.querySelector(".add-slide")).not.toBeNull();
+    fire("pointerup", 500 - SLIDE_ENTER - 30);
+    expect(picker).toHaveBeenCalledOnce();
+  });
+
+  it("a click the browser never made does not swallow a later one", () => {
+    renderVault("/vault");
+    armed();
+    fire("pointerup", 500);
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    act(() => {
+      plus().dispatchEvent(click);
+    });
+    // The Link took it: a client-side navigation, not a swallowed lift.
+    expect(screen.getByTestId("arrival").textContent).toBe("PUSH");
+  });
+
+  it("choosing from the menu tells the guide, as the slide does", async () => {
+    renderVault("/vault");
+    const controller = new AbortController();
+    const settled = vi.fn();
+    void observeGuideTarget("vault.import", "activate", controller.signal)
+      .then(settled)
+      .catch(() => undefined);
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(
+      () => undefined,
+    );
+    fireEvent.contextMenu(plus());
+    const entry = contextMenuSnapshot()
+      ?.groups.flat()
+      .find((candidate) => candidate.id === "import");
+    act(() => entry?.run());
+    await Promise.resolve();
+    await Promise.resolve();
+    controller.abort();
+    expect(settled).toHaveBeenCalled();
     closeContextMenu();
   });
 });
