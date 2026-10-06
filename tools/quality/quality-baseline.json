@@ -1018,7 +1018,7 @@
       "max-lines-per-function": 3
     },
     "packages/control-plane/src/routes/scim.ts": {
-      "max-lines": 575,
+      "max-lines": 554,
       "max-lines-per-function": 1
     },
     "packages/control-plane/src/routes/siop-link.ts": {
