@@ -333,10 +333,9 @@ export function gatesForPath(path, reach, read = () => "") {
 
 function gatesByPath(path, reach) {
   if (isDocPath(path) || isTestPath(path)) return gates();
-  // The workflow itself: enough to prove the matrix it writes starts and runs.
-  if (path === ".github/workflows/ci.yml") {
-    return gates("budgets", "static", "push");
-  }
+  // The workflow is every job's definition: an edit to one job is proved only
+  // by running it, so it starts them all.
+  if (path === ".github/workflows/ci.yml") return everyGate();
   if (path === "tools/quality/bundle-budgets.json") return gates("budgets");
   if (path.startsWith(`${PAGES_SRC}/`)) return pagesSource(path);
   if (path.startsWith("apps/pages/")) return pagesOther(path, reach);

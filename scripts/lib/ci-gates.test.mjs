@@ -63,9 +63,9 @@ describe("ci gates", () => {
     expect(gates).not.toContain("auth");
   });
 
-  it("gives a workflow edit enough to prove the matrix it writes", () => {
+  it("runs every gate for an edit to the workflow, which defines them all", () => {
     expect(gatesForPath(".github/workflows/ci.yml", reach)).toEqual(
-      new Set(["budgets", "static", "push"]),
+      new Set(ALL_GATES),
     );
   });
 
