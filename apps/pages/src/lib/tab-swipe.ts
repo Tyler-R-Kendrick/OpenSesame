@@ -26,7 +26,7 @@ const TABS = '[role="tab"], .set__nav-link';
 const CURRENT = '[aria-selected="true"], [aria-current="page"]';
 const MODAL = '[role="dialog"][aria-modal="true"]';
 /** What a drag on it means is its own, whatever page it is on. */
-const OWN_DRAG = '[role="slider"], [role="textbox"], [data-config-source]';
+const OWN_DRAG = '[role="slider"], [role="textbox"]';
 
 function rendered(element: HTMLElement): boolean {
   return (

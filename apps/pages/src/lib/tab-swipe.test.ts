@@ -212,10 +212,7 @@ describe("swiping a page with tabs", () => {
       ["a text field", `<input id="from" type="text" />`],
       ["a textarea", `<textarea id="from"></textarea>`],
       ["a slider", `<div role="slider" id="from"></div>`],
-      [
-        "a settings file's source",
-        `<div data-config-source><p id="from">yaml</p></div>`,
-      ],
+      ["an editable region", `<div role="textbox" id="from">yaml</div>`],
     ];
     for (const [name, markup] of cases) {
       it(name, () => {
