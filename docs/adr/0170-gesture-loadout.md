@@ -64,7 +64,12 @@ phone at lunch.
 
 3. **One finger is the page's, and is fixed.** A tap activates, a drag scrolls,
    a hold or a row swiped left asks for the row's actions, a pane swiped right
-   goes back, and a pinch is the browser's zoom. Those are listed under the
+   goes back, a page with a tab strip turns to the next or previous tab when
+   swiped sideways (`lib/tab-swipe.ts`: a quick one-finger drag, the strip
+   nearest above the finger, no wrap, standing down in a listing, a text field,
+   anything that scrolls sideways, an open menu or a modal that does not hold
+   the finger; it clicks the neighbouring tab and never moves focus), and a
+   pinch is the browser's zoom. Those are listed under the
    lock in the Gestures panel (`FIXED_GESTURES`) and a file that names one
    (`swipe-right: …`, `pinch: …`) is refused with its reason, as a reserved key
    is. A bindable gesture is therefore one a thumb cannot make by accident: two

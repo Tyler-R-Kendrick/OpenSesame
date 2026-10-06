@@ -35,6 +35,7 @@ import { stubJourneyIdentity } from "./lib/capture-ceremony-steps.mjs";
 import { extraSteps } from "./lib/capture-extra-steps.mjs";
 import { fieldSteps } from "./lib/capture-field-steps.mjs";
 import { openHarness } from "./lib/capture-harness.mjs";
+import { holdSteps } from "./lib/capture-hold-steps.mjs";
 import { inboxSteps } from "./lib/capture-inbox-steps.mjs";
 import { liveJoinSteps, viewOf } from "./lib/capture-live-join-steps.mjs";
 import { livePolicySteps } from "./lib/capture-live-policy-steps.mjs";
@@ -194,6 +195,7 @@ const STEPS = {
     }
   },
   ...extraSteps({ press }),
+  ...holdSteps(),
   ...tapStep({ press }),
   ...fieldSteps({ press }),
   ...readSteps(),

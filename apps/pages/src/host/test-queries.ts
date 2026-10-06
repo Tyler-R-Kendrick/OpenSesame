@@ -26,6 +26,14 @@ if ("document" in globalThis) {
     );
   };
   configure({
+    // A `findBy*` or `waitFor` waits for what it asks, and a miss is a failure
+    // only when the wait runs out. The default is one second, which is shorter
+    // than one real key derivation (PBKDF2 at its production strength, Argon2,
+    // the vault's own KDF) on a runner that is busy with the whole workspace's
+    // tests, so a test that waited on one failed for the machine's load, not for
+    // the code. A wait that succeeds still returns on its first poll; the test's
+    // own ceiling (`testTimeout`, 20 s) is the bound on one that does not.
+    asyncUtilTimeout: 10_000,
     getElementError(message, container) {
       if (!polling()) return printed(message, container);
       const error = new Error(message ?? "");

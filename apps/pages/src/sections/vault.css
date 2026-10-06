@@ -673,7 +673,6 @@
 }
 
 .sbar__track span {
-  border-radius: var(--radius-pill);
   background: var(--surface-3);
 }
 

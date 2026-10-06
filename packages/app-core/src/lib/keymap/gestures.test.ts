@@ -45,6 +45,7 @@ describe("the gesture catalogue", () => {
       "Tap",
       "Hold, or swipe a row left",
       "Swipe a pane right",
+      "Swipe a page with tabs",
       "Pinch",
     ]);
   });

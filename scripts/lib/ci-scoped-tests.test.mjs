@@ -129,3 +129,21 @@ describe("ci scoped tests", () => {
     ).toEqual(["packages/a/src/x.test.ts"]);
   });
 });
+
+describe("ci scoped tests, test setup", () => {
+  it("does not follow a type-only import out of the test setup", () => {
+    const root = repo({
+      "packages/a/package.json": pkg("vitest run"),
+      "packages/a/vitest.config.ts":
+        'export default { test: { setupFiles: ["./src/setup.ts"] } };\n',
+      "packages/a/src/setup.ts":
+        'import type { Shape } from "./types.js";\nimport "./runtime.js";\nexport type { Other } from "./other.js";\n',
+      "packages/a/src/types.ts": "export type Shape = {};\n",
+      "packages/a/src/other.ts": "export type Other = {};\n",
+      "packages/a/src/runtime.ts": "export {};\n",
+    });
+    expect(plan(root, ["packages/a/src/types.ts"]).mode).toBe("scoped");
+    expect(plan(root, ["packages/a/src/other.ts"]).mode).toBe("scoped");
+    expect(plan(root, ["packages/a/src/runtime.ts"]).mode).toBe("full");
+  });
+});
