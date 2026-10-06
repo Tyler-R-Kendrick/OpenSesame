@@ -114,7 +114,7 @@ async function openSettings(page, name) {
 /** The steps a journey may take, named after what a person does, not the DOM. */
 const STEPS = {
   /**
-   * Seal a password vault on this device: the operator's own installation,
+   * Seal a PIN vault on this device: the operator's own installation,
    * where Settings shows what a guest never sees (Allow guests, the
    * instance policy).
    */

@@ -1,3 +1,5 @@
+import { passTheDoor } from "./front-door.mjs";
+
 /**
  * Capture verbs for a vault with something in it, and for the shell's one
  * text input. An empty vault hides what a list does once it is long enough to
@@ -5,6 +7,12 @@
  */
 export function vaultSteps({ press, visit }) {
   return {
+    /** The first-run seal form: past the door, sign-in's no-account road. */
+    async localSeal(page) {
+      await passTheDoor(page);
+      await press(page.getByRole("button", { name: "Use without an account" }));
+      await page.waitForTimeout(800);
+    },
     /**
      * Add accounts through the editor, one per name, the way a person fills a
      * vault: the lists in a sheet are then long enough to scroll and search.
