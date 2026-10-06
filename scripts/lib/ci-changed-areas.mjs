@@ -6,7 +6,7 @@
 // a wrong skip is worse than one extra run.
 
 import { execFileSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -327,7 +327,10 @@ function main() {
     gates = browserGates(root, base, head, dirs, pushDirs);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`gate selection failed, running every gate: ${message}`);
+    // A workflow annotation, so a fallback that costs a full run is not silent.
+    console.error(
+      `::warning::gate selection failed, running every gate: ${message}`,
+    );
     gates = new Set(ALL_GATES);
   }
   console.error(`browser gates: ${[...gates].join(" ") || "none"}`);
@@ -340,7 +343,16 @@ function main() {
  * selects nothing: whatever imported it changed in the same diff.
  */
 function browserGates(root, base, head, dirs, pushDirs) {
-  const kept = changedPaths(root, base, head, "ACMRT");
+  return selectGates(
+    root,
+    changedPaths(root, base, head, "ACMRT"),
+    dirs,
+    pushDirs,
+  );
+}
+
+/** The gates for changed paths that are added, modified or renamed. */
+export function selectGates(root, kept, dirs, pushDirs) {
   const inBundle = kept.filter(
     (path) =>
       path === ".github/workflows/ci.yml" ||

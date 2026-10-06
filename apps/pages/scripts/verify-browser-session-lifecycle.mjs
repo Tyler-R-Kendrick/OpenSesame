@@ -7,6 +7,7 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
+import "./lib/expect-timeout.mjs";
 import {
   SHARED_ITEM,
   joinerSeesCatalog,
