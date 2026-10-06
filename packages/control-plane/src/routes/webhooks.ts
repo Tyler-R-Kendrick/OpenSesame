@@ -1,12 +1,16 @@
 import { randomBytes } from "node:crypto";
+import { name } from "@gdp-ts/core";
 import { appendAuditEvent } from "@opensesame/audit";
 import { RegisterWebhookEndpointSchema } from "@opensesame/contracts";
 import type { WebhookEndpoint } from "@opensesame/os-domain";
 import { generateWebhookSecret, maskWebhookSecret } from "@opensesame/webhooks";
 import { Hono } from "hono";
+import { actorId, webhookEndpointId } from "../lib/ids.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
+import { ownsWebhook } from "../proofs/owns-webhook.js";
+import { deleteWebhookEndpoint } from "../services/webhook-admin.js";
 import { authenticatedPrincipalId } from "./organizations.js";
 
 /**
@@ -110,12 +114,14 @@ webhookRoutes.get("/", requirePrincipal(), async (c) => {
 
 webhookRoutes.delete("/:id", requirePrincipal(), async (c) => {
   const ctx = c.get("ctx");
-  const principalId = authenticatedPrincipalId(c.get("principalId"));
-  const id = c.req.param("id") ?? "";
-  const endpoint = await ctx.repos.webhookEndpoints.getById(id);
-  if (!endpoint || endpoint.principalId !== principalId) {
-    return c.json({ error: "not_found" }, 404);
-  }
-  await ctx.repos.webhookEndpoints.deleteById(id);
-  return c.body(null, 204);
+  return name(
+    actorId(c.get("principalId")),
+    webhookEndpointId(c.req.param("id") ?? ""),
+    async (actor, endpoint) => {
+      const owned = await ownsWebhook(ctx.repos, actor, endpoint);
+      if (!owned.ok) return c.json({ error: "not_found" }, 404);
+      await deleteWebhookEndpoint(ctx.repos, endpoint, owned.proof);
+      return c.body(null, 204);
+    },
+  );
 });

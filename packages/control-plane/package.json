@@ -21,7 +21,7 @@
     "generate:openapi": "tsx src/generate-openapi.ts && pnpm --workspace-root exec biome format --write packages/control-plane/openapi.json"
   },
   "dependencies": {
-    "@opensesame/log-scrub": "workspace:*",
+    "@gdp-ts/core": "0.1.0",
     "@hono/node-server": "2.1.0",
     "@node-saml/node-saml": "5.1.0",
     "@opensesame/agent-protocols": "workspace:*",
@@ -33,6 +33,7 @@
     "@opensesame/database": "workspace:*",
     "@opensesame/device-auth": "workspace:*",
     "@opensesame/ingress-evidence": "workspace:*",
+    "@opensesame/log-scrub": "workspace:*",
     "@opensesame/notification-adapters": "workspace:*",
     "@opensesame/oauth-provider": "workspace:*",
     "@opensesame/observability": "workspace:*",

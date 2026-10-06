@@ -10,6 +10,7 @@ import {
   SetActiveProjectRequestSchema,
 } from "@opensesame/contracts";
 import {
+  type JsonObject,
   PERSONAL_PROJECT_SLUG,
   type Project,
   type ProjectMembership,
@@ -24,14 +25,18 @@ import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
 import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { serializeKeyed } from "../serialize.js";
+import { isVisible, roleFor } from "../services/project-access.js";
+import {
+  deleteProject,
+  reconcileMembership,
+  writeProject,
+} from "../services/project-admin.js";
 import { reconcileProjectAuthorityMembership } from "../services/project-membership-reconcile.js";
 import { getUsage } from "../state.js";
 import { authenticatedPrincipalId } from "./organizations.js";
+import { asProjectMember } from "./project-role-gate.js";
 
 export const projectRoutes = new Hono<{ Variables: Variables }>();
-
-/** States a caller can still see and act on. */
-const VISIBLE_PROJECT_STATES = new Set(["provisional", "active"]);
 
 export function projectMembershipKey(
   projectId: string,
@@ -46,63 +51,6 @@ function slugify(value: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 48);
-}
-
-export function isVisible(project: Project, now: Date): boolean {
-  if (!VISIBLE_PROJECT_STATES.has(project.state)) return false;
-  if (project.expiresAt && project.expiresAt <= now) return false;
-  return true;
-}
-
-/**
- * Role a principal holds on a project. Memberships are authoritative for
- * personal and standard projects (both mint an owner membership at creation,
- * so a removed membership means removed access). Temporary projects are
- * minted through the claims flow without a membership row, so their creating
- * principal resolves as owner via the ownership field instead.
- */
-export async function roleFor(
-  ctx: AppContext,
-  project: Project,
-  principalId: string,
-): Promise<ProjectRole | undefined> {
-  const membership = await ctx.stores.projectMemberships.find(
-    project.id,
-    principalId,
-  );
-  if (membership) return membership.role;
-  if (
-    project.kind === "temporary" &&
-    project.ownerPrincipalId === principalId
-  ) {
-    return "owner";
-  }
-  return undefined;
-}
-
-/** Serialize membership mutations per project so checks and writes don't interleave. */
-export async function serializeProjectMutation<T>(
-  ctx: AppContext,
-  projectId: string,
-  mutation: () => Promise<T>,
-): Promise<T> {
-  const previous =
-    ctx.stores.projectMembershipMutations.get(projectId) ?? Promise.resolve();
-  let release = () => {};
-  const turn = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const tail = previous.then(() => turn);
-  ctx.stores.projectMembershipMutations.set(projectId, tail);
-  await previous;
-  try {
-    return await mutation();
-  } finally {
-    release();
-    if (ctx.stores.projectMembershipMutations.get(projectId) === tail) {
-      ctx.stores.projectMembershipMutations.delete(projectId);
-    }
-  }
 }
 
 function toResponse(project: Project, role: ProjectRole) {
@@ -599,150 +547,111 @@ projectRoutes.get("/:id", requirePrincipal(), async (c) => {
   return c.json(projectDetailResponse(project, role));
 });
 
-projectRoutes.patch("/:id", requirePrincipal(), async (c) => {
-  const ctx = c.get("ctx");
-  const principalId = authenticatedPrincipalId(c.get("principalId"));
-  const project = await ctx.stores.projects.get(c.req.param("id"));
-  const role = project && (await roleFor(ctx, project, principalId));
-  if (!project || !role || !isVisible(project, ctx.clock())) {
-    return c.json({ error: "not_found" }, 404);
-  }
-  if (role === "member") {
-    return c.json({ error: "admin_required" }, 403);
-  }
+const TOMB_NAME = /^[A-Za-z0-9._-]{1,64}$/;
+const FOLDER_ID = /^[A-Za-z0-9._:/-]{1,128}$/;
 
-  const body = overlapCast(await c.req.json());
-
-  const tombName = /^[A-Za-z0-9._-]{1,64}$/;
-  const folderId = /^[A-Za-z0-9._:/-]{1,128}$/;
-
-  const next: Project = {
-    ...project,
-    updatedAt: ctx.clock(),
-  };
+/**
+ * Copy the patchable fields of a JSON body onto `next`; returns the
+ * `validation_error` message for the first invalid one. `null` or a blank
+ * string clears an opaque binding.
+ */
+function applyProjectPatch(
+  next: Project,
+  body: JsonObject,
+): string | undefined {
   if (isString(body.displayName)) {
     const displayName = body.displayName.trim();
-    if (!displayName || displayName.length > 128) {
-      return c.json(
-        { error: "validation_error", message: "invalid displayName" },
-        400,
-      );
-    }
+    if (!displayName || displayName.length > 128) return "invalid displayName";
     next.displayName = displayName;
   }
-  if (body.sealedStoreTombName !== undefined) {
-    if (body.sealedStoreTombName === null) {
-      Reflect.deleteProperty(next, "sealedStoreTombName");
-    } else if (!isString(body.sealedStoreTombName)) {
-      return c.json(
-        { error: "validation_error", message: "invalid sealedStoreTombName" },
-        400,
-      );
+  const bindings = [
+    ["sealedStoreTombName", TOMB_NAME],
+    ["pagesVaultFolderId", FOLDER_ID],
+  ] as const;
+  for (const [field, pattern] of bindings) {
+    const value = body[field];
+    if (value === undefined) continue;
+    if (value === null) {
+      Reflect.deleteProperty(next, field);
+      continue;
+    }
+    if (!isString(value)) return `invalid ${field}`;
+    const trimmed = value.trim();
+    if (!trimmed) {
+      Reflect.deleteProperty(next, field);
+    } else if (!pattern.test(trimmed) || trimmed.includes("..")) {
+      return `invalid ${field}`;
     } else {
-      const sealedStoreTombName = body.sealedStoreTombName.trim();
-      if (!sealedStoreTombName) {
-        Reflect.deleteProperty(next, "sealedStoreTombName");
-      } else {
-        if (
-          !tombName.test(sealedStoreTombName) ||
-          sealedStoreTombName.includes("..")
-        ) {
-          return c.json(
-            {
-              error: "validation_error",
-              message: "invalid sealedStoreTombName",
-            },
-            400,
-          );
-        }
-        next.sealedStoreTombName = sealedStoreTombName;
-      }
+      next[field] = trimmed;
     }
   }
-  if (body.pagesVaultFolderId !== undefined) {
-    if (body.pagesVaultFolderId === null) {
-      Reflect.deleteProperty(next, "pagesVaultFolderId");
-    } else if (!isString(body.pagesVaultFolderId)) {
-      return c.json(
-        { error: "validation_error", message: "invalid pagesVaultFolderId" },
-        400,
-      );
-    } else {
-      const pagesVaultFolderId = body.pagesVaultFolderId.trim();
-      if (!pagesVaultFolderId) {
-        Reflect.deleteProperty(next, "pagesVaultFolderId");
-      } else {
-        if (
-          !folderId.test(pagesVaultFolderId) ||
-          pagesVaultFolderId.includes("..")
-        ) {
-          return c.json(
-            {
-              error: "validation_error",
-              message: "invalid pagesVaultFolderId",
-            },
-            400,
-          );
-        }
-        next.pagesVaultFolderId = pagesVaultFolderId;
-      }
-    }
-  }
+  return undefined;
+}
 
-  await ctx.stores.projects.set(project.id, next);
-  await appendAuditEvent(ctx.repos.auditEvents, {
-    eventType: "project.updated",
-    outcome: "succeeded",
-    principalId,
-    projectId: project.id,
-    correlationId: c.get("correlationId"),
-    metadata: {
-      action: "project.patch",
-      displayName: next.displayName,
+projectRoutes.patch("/:id", requirePrincipal(), (c) =>
+  asProjectMember(
+    c,
+    // PATCH has never taken the per-project lock, unlike DELETE. A stale
+    // `{...project}` write can therefore race a DELETE; recorded in ADR 0178
+    // rather than changed here, so this refactor alters no behavior.
+    { serialize: false },
+    async ({ ctx, actor, project: named, access }) => {
+      if (access.role === "member") {
+        return c.json({ error: "admin_required" }, 403);
+      }
+      const { project, role } = access;
+
+      const next: Project = { ...project, updatedAt: ctx.clock() };
+      const invalid = applyProjectPatch(next, overlapCast(await c.req.json()));
+      if (invalid) {
+        return c.json({ error: "validation_error", message: invalid }, 400);
+      }
+      await writeProject(ctx, named, access.admin, next);
+      await appendAuditEvent(ctx.repos.auditEvents, {
+        eventType: "project.updated",
+        outcome: "succeeded",
+        principalId: actor.value,
+        projectId: project.id,
+        correlationId: c.get("correlationId"),
+        metadata: {
+          action: "project.patch",
+          displayName: next.displayName,
+        },
+      });
+      return c.json(projectDetailResponse(next, role));
     },
-  });
-  return c.json(projectDetailResponse(next, role));
-});
+  ),
+);
 
-projectRoutes.delete("/:id", requirePrincipal(), async (c) => {
-  const ctx = c.get("ctx");
-  const principalId = authenticatedPrincipalId(c.get("principalId"));
-  const projectId = c.req.param("id");
-  return serializeProjectMutation(ctx, projectId, async () => {
-    const project = await ctx.stores.projects.get(projectId);
-    const role = project && (await roleFor(ctx, project, principalId));
-    if (!project || !role || !isVisible(project, ctx.clock())) {
-      return c.json({ error: "not_found" }, 404);
-    }
-    if (role !== "owner") {
-      return c.json({ error: "owner_required" }, 403);
-    }
-    if (project.kind === "personal") {
-      // The default scope must always exist — it can be neither shared nor deleted.
-      return c.json({ error: "personal_project_immutable" }, 409);
-    }
-    const now = ctx.clock();
-    await ctx.stores.projects.set(projectId, {
-      ...project,
-      state: "deleted",
-      updatedAt: now,
-    });
-    await ctx.stores.projectMemberships.removeByProject(projectId);
-    for (const [holder, activeId] of ctx.stores.activeProjects) {
-      if (activeId === projectId) ctx.stores.activeProjects.delete(holder);
-    }
-    await reconcileProjectAuthorityMembership(ctx, projectId, {
-      actorPrincipalId: principalId,
-      correlationId: c.get("correlationId"),
-    });
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "project.deleted",
-      outcome: "succeeded",
-      principalId,
-      projectId,
-      correlationId: c.get("correlationId"),
-      metadata: { action: "project.delete", kind: project.kind },
-    });
-    return c.body(null, 204);
-  });
-});
+projectRoutes.delete("/:id", requirePrincipal(), (c) =>
+  asProjectMember(
+    c,
+    { serialize: true },
+    async ({ ctx, actor, project, access }) => {
+      if (access.role !== "owner") {
+        return c.json({ error: "owner_required" }, 403);
+      }
+      if (access.project.kind === "personal") {
+        // The default scope must always exist — it can be neither shared nor deleted.
+        return c.json({ error: "personal_project_immutable" }, 409);
+      }
+      await deleteProject(ctx, project, access.owner, access.project);
+      await reconcileMembership(
+        ctx,
+        actor,
+        project,
+        access.member,
+        c.get("correlationId"),
+      );
+      await appendAuditEvent(ctx.repos.auditEvents, {
+        eventType: "project.deleted",
+        outcome: "succeeded",
+        principalId: actor.value,
+        projectId: project.value,
+        correlationId: c.get("correlationId"),
+        metadata: { action: "project.delete", kind: access.project.kind },
+      });
+      return c.body(null, 204);
+    },
+  ),
+);
