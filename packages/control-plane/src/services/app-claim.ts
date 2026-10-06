@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
+import type { Named } from "@gdp-ts/core";
 import {
   type ClientClaimChallengeStore,
   ClientOriginConflictError,
@@ -17,6 +18,8 @@ import {
   isJsonObject,
   overlapCast,
 } from "@opensesame/os-domain";
+import type { ActorId } from "../lib/ids.js";
+import type { VerifiedPrincipal } from "../proofs/verified-principal.js";
 
 /** F5: claim challenges live at most ten minutes. */
 export const CLAIM_CHALLENGE_TTL_MS = 600_000;
@@ -145,16 +148,21 @@ export class AppClaimService {
     return client;
   }
 
-  async startClaim(input: {
-    applicationId: string;
-    ownerPrincipalId: string;
-    /** Alias origin to claim; defaults to the client's canonical origin. */
-    origin?: string;
-  }): Promise<StartedClaim> {
-    const client = await this.#loadClaimable(
-      input.applicationId,
-      input.ownerPrincipalId,
-    );
+  /**
+   * Claiming transfers ownership to `owner`, so it demands the proof that
+   * `owner` is a verified principal (ADR 0177): the route's check and this
+   * operation can no longer drift apart.
+   */
+  async startClaim<A>(
+    owner: Named<A, ActorId>,
+    _proof: VerifiedPrincipal<A>,
+    input: {
+      applicationId: string;
+      /** Alias origin to claim; defaults to the client's canonical origin. */
+      origin?: string;
+    },
+  ): Promise<StartedClaim> {
+    const client = await this.#loadClaimable(input.applicationId, owner.value);
     if (client.state !== "active") {
       throw new ClaimError(
         "client_inactive",
@@ -172,7 +180,7 @@ export class AppClaimService {
     await this.options.challengeStore.insert({
       id,
       applicationId: client.id,
-      ownerPrincipalId: input.ownerPrincipalId,
+      ownerPrincipalId: owner.value,
       challenge,
       expiresAt,
     });
@@ -188,7 +196,7 @@ export class AppClaimService {
         challenge,
         expires_at: expiresAt.toISOString(),
         issuer: this.options.issuer,
-        owner_principal_id: input.ownerPrincipalId,
+        owner_principal_id: owner.value,
       },
     };
   }
@@ -258,20 +266,23 @@ export class AppClaimService {
     return parsed;
   }
 
-  async verifyAndClaim(input: {
-    challenge: string;
-    ownerPrincipalId: string;
-    /** Origin the document was hosted at; defaults to the client's origin. */
-    origin?: string;
-    /** Attach the verified origin as an alias even when canonical. */
-    attachAlias?: boolean;
-  }): Promise<VerifiedClaim> {
+  async verifyAndClaim<A>(
+    owner: Named<A, ActorId>,
+    _proof: VerifiedPrincipal<A>,
+    input: {
+      challenge: string;
+      /** Origin the document was hosted at; defaults to the client's origin. */
+      origin?: string;
+      /** Attach the verified origin as an alias even when canonical. */
+      attachAlias?: boolean;
+    },
+  ): Promise<VerifiedClaim> {
     const { challengeStore, clientStore, clientOriginStore } = this.options;
     const row = await challengeStore.findByChallenge(input.challenge);
     if (!row) {
       throw new ClaimError("not_found", 404, "Claim challenge not found");
     }
-    if (row.ownerPrincipalId !== input.ownerPrincipalId) {
+    if (row.ownerPrincipalId !== owner.value) {
       throw new ClaimError(
         "owner_mismatch",
         403,
@@ -294,10 +305,7 @@ export class AppClaimService {
       );
     }
 
-    const client = await this.#loadClaimable(
-      row.applicationId,
-      input.ownerPrincipalId,
-    );
+    const client = await this.#loadClaimable(row.applicationId, owner.value);
     if (client.state !== "active") {
       throw new ClaimError(
         "client_inactive",
@@ -315,7 +323,7 @@ export class AppClaimService {
       doc.application_id !== client.id ||
       doc.origin !== canonical ||
       doc.issuer !== this.options.issuer ||
-      doc.owner_principal_id !== input.ownerPrincipalId
+      doc.owner_principal_id !== owner.value
     ) {
       throw new ClaimError(
         "proof_mismatch",
@@ -353,7 +361,7 @@ export class AppClaimService {
     // claiming verified principal.
     const updated = await clientStore.update({
       ...client,
-      ownerPrincipalId: input.ownerPrincipalId,
+      ownerPrincipalId: owner.value,
       ownershipStatus: "claimed",
       claimedAt: now,
       updatedAt: now,

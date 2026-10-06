@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { appendAuditEvent, redactAuditMetadata } from "@opensesame/audit";
 import {
   AuthenticationServiceError,
-  DEFAULT_AUTHENTICATION_CONFIGURATIONS,
   authenticationApplicationSecretMatches,
   mintAuthenticationApplicationSecret,
   visibleAuthenticationAlias,
@@ -32,8 +31,10 @@ import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
+import { createAuthenticationApplication } from "../services/verified-admin.js";
 import { consumePublicBudget } from "./authentication-budget.js";
 import { authenticatedPrincipalId } from "./organizations.js";
+import { asVerifiedPrincipalOr } from "./verified-principal-gate.js";
 
 export const authenticationServiceRoutes = new Hono<{ Variables: Variables }>();
 
@@ -131,14 +132,6 @@ function serviceError(error: AuthenticationServiceError): Response {
   return Response.json({ error: error.code }, { status });
 }
 
-async function assertVerifiedPrincipal(
-  ctx: AppContext,
-  principalId: string,
-): Promise<boolean> {
-  const principal = await ctx.repos.principals.getById(principalId);
-  return Boolean(principal && principal.assurance !== "provisional");
-}
-
 async function assertOrganizationAdmin(
   ctx: AppContext,
   organizationId: string,
@@ -186,81 +179,54 @@ authenticationServiceRoutes.post(
   requirePrincipal(),
   async (c) => {
     const ctx = c.get("ctx");
-    const principalId = authenticatedPrincipalId(c.get("principalId"));
-    if (!(await assertVerifiedPrincipal(ctx, principalId))) {
-      return c.json({ error: "verified_identity_required" }, 403);
-    }
-    const parsed = CreateAuthenticationApplicationRequestSchema.safeParse(
-      await c.req.json(),
-    );
-    if (!parsed.success) {
-      return c.json(
-        { error: "validation_error", details: parsed.error.flatten() },
-        400,
-      );
-    }
-    if (
-      parsed.data.organizationId &&
-      !(await assertOrganizationAdmin(
-        ctx,
-        parsed.data.organizationId,
-        principalId,
-      ))
-    ) {
-      return c.json({ error: "admin_required" }, 403);
-    }
-    const now = ctx.clock();
-    const minted = mintAuthenticationApplicationSecret();
-    const application: AuthenticationApplication = {
-      id: `authapp_${randomUUID()}`,
-      ownerPrincipalId: principalId,
-      ...(parsed.data.organizationId
-        ? { organizationId: parsed.data.organizationId }
-        : undefined),
-      displayName: parsed.data.displayName,
-      rpId: parsed.data.rpId,
-      origins: [...new Set(parsed.data.origins)],
-      secretHash: minted.secretHash,
-      secretPrefix: minted.secretPrefix,
-      apiKeys: [
-        {
-          id: `authkey_${randomUUID()}`,
-          secretHash: minted.secretHash,
-          secretPrefix: minted.secretPrefix,
-          state: "active",
-          createdAt: now.toISOString(),
-        },
-      ],
-      configurations: DEFAULT_AUTHENTICATION_CONFIGURATIONS.map(
-        (configuration) => ({
-          ...configuration,
-          hints: [...configuration.hints],
-        }),
-      ),
-      manualTokensEnabled: false,
-      magicLinksEnabled: false,
-      state: "active",
-      createdAt: now,
-      updatedAt: now,
-    };
-    await ctx.authenticationStores.applications.create(application);
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "authentication.application.created",
-      outcome: "succeeded",
-      principalId,
-      clientId: application.id,
-      ...(application.organizationId
-        ? { organizationId: application.organizationId }
-        : undefined),
-      correlationId: c.get("correlationId"),
-      metadata: { rpId: application.rpId },
-    });
-    return c.json(
-      {
-        application: applicationResponse(application),
-        apiSecret: minted.secret,
+    // Unlike the OAuth routes, an unknown principal and a provisional one are
+    // the same `403 verified_identity_required` here.
+    return asVerifiedPrincipalOr(
+      c,
+      () => c.json({ error: "verified_identity_required" }, 403),
+      async ({ actor, proof }) => {
+        const principalId = actor.value;
+        const parsed = CreateAuthenticationApplicationRequestSchema.safeParse(
+          await c.req.json(),
+        );
+        if (!parsed.success) {
+          return c.json(
+            { error: "validation_error", details: parsed.error.flatten() },
+            400,
+          );
+        }
+        if (
+          parsed.data.organizationId &&
+          !(await assertOrganizationAdmin(
+            ctx,
+            parsed.data.organizationId,
+            principalId,
+          ))
+        ) {
+          return c.json({ error: "admin_required" }, 403);
+        }
+        const { application, secret } = await createAuthenticationApplication(
+          ctx,
+          actor,
+          proof,
+          parsed.data,
+        );
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "authentication.application.created",
+          outcome: "succeeded",
+          principalId,
+          clientId: application.id,
+          ...(application.organizationId
+            ? { organizationId: application.organizationId }
+            : undefined),
+          correlationId: c.get("correlationId"),
+          metadata: { rpId: application.rpId },
+        });
+        return c.json(
+          { application: applicationResponse(application), apiSecret: secret },
+          201,
+        );
       },
-      201,
     );
   },
 );

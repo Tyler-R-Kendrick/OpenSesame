@@ -25,6 +25,12 @@ import { idempotencyMiddleware } from "../middleware/idempotency.js";
 import { serializeKeyed } from "../serialize.js";
 import { emailLinkFields } from "../services/email-authority.js";
 import { attachVerifiedExternalIdentity } from "../services/identity-link.js";
+import {
+  removeOrganizationMembership,
+  writeOrganization,
+  writeOrganizationMembership,
+} from "../services/org-admin.js";
+import { createOrganization } from "../services/verified-admin.js";
 import { getUsage } from "../state.js";
 import {
   OrgAssertionError,
@@ -34,11 +40,13 @@ import {
 } from "./org-assertion.js";
 import { normalizeEmailDomain } from "./org-domains.js";
 import { issuerConfigurationError } from "./org-issuer-guard.js";
+import { type OrgOwnerSource, asOrgOwner } from "./org-owner-gate.js";
 // One direction of a deliberate cycle: SCIM is per-organization, so its router
 // reuses this module's membership helpers, and this module asks it what role a
 // provisioned subject joins at. Both are functions called per request, never at
 // module load.
 import { provisionedRoleForSubject } from "./scim.js";
+import { asVerifiedPrincipal } from "./verified-principal-gate.js";
 
 export const organizationRoutes = new Hono<{ Variables: Variables }>();
 
@@ -52,6 +60,13 @@ export const organizationRoutes = new Hono<{ Variables: Variables }>();
  * federated round-trip gets.
  */
 const JOIN_MAX_TOKEN_AGE_SECONDS = 600;
+
+/**
+ * The member routes have never read the organization's state, only the
+ * caller's membership, so an owner of a deleted organization still reaches
+ * them. Recorded as `unchecked` instead of quietly changed (ADR 0177).
+ */
+const MEMBER_ADMIN: OrgOwnerSource = { param: "id", liveness: "unchecked" };
 
 export function authenticatedPrincipalId(value: string | undefined): string {
   if (!value) throw new Error("requirePrincipal middleware invariant violated");
@@ -418,93 +433,88 @@ organizationRoutes.post(
   async (c) => {
     const ctx = c.get("ctx");
     const principalId = authenticatedPrincipalId(c.get("principalId"));
-    const principal = await ctx.repos.principals.getById(principalId);
-    if (!principal) {
-      return c.json({ error: "not_found" }, 404);
-    }
-    if (principal.assurance === "provisional") {
-      return c.json(
-        {
-          error: "assurance_too_low",
-          message: "Verified identity required to create an organization",
-        },
-        403,
-      );
-    }
-
-    const parsed = CreateOrganizationRequestSchema.safeParse(
-      await c.req.json(),
-    );
-    if (!parsed.success) {
-      return c.json(
-        { error: "validation_error", details: parsed.error.flatten() },
-        400,
-      );
-    }
-    const unsafeIssuer =
-      issuerConfigurationError(ctx.config, parsed.data.ssoIssuer) ??
-      issuerConfigurationError(ctx.config, parsed.data.samlIssuer);
-    if (unsafeIssuer) {
-      return c.json({ error: "unsafe_issuer", message: unsafeIssuer }, 400);
-    }
-
-    return serializeKeyed(
-      ctx.stores.principalMutations,
-      principalId,
-      async () => {
-        const decision = ctx.policy.evaluate(
-          principal,
-          {
-            subject: {
-              type: "principal",
-              id: principal.id,
-              assurance: principal.assurance,
-            },
-            action: "organization.create",
-            resource: { type: "organization", id: "*" },
-          },
-          await getUsage(ctx.stores, principalId, ctx.clock()),
+    return asVerifiedPrincipal(
+      c,
+      "Verified identity required to create an organization",
+      async ({ actor, proof, principal }) => {
+        const parsed = CreateOrganizationRequestSchema.safeParse(
+          await c.req.json(),
         );
-        if (decision.effect === "deny") {
-          return c.json({ error: "forbidden", reasons: decision.reasons }, 403);
+        if (!parsed.success) {
+          return c.json(
+            { error: "validation_error", details: parsed.error.flatten() },
+            400,
+          );
+        }
+        const unsafeIssuer =
+          issuerConfigurationError(ctx.config, parsed.data.ssoIssuer) ??
+          issuerConfigurationError(ctx.config, parsed.data.samlIssuer);
+        if (unsafeIssuer) {
+          return c.json({ error: "unsafe_issuer", message: unsafeIssuer }, 400);
         }
 
-        if (await ctx.stores.organizations.getBySlug(parsed.data.slug)) {
-          return c.json({ error: "slug_taken" }, 409);
-        }
-
-        const now = ctx.clock();
-        const org: Organization = {
-          // Rust Host APIs use the canonical opaque-id spelling `org:<uuid>`.
-          id: `org:${randomUUID()}`,
-          slug: parsed.data.slug,
-          displayName: parsed.data.displayName,
-          state: "active",
-          createdBy: principalId,
-          createdAt: now,
-          updatedAt: now,
-        };
-        if (parsed.data.ssoIssuer) org.ssoIssuer = parsed.data.ssoIssuer;
-        if (parsed.data.samlIssuer) org.samlIssuer = parsed.data.samlIssuer;
-        await ctx.stores.organizations.set(org.id, org);
-        await ctx.stores.organizationMemberships.upsert({
-          organizationId: org.id,
+        return serializeKeyed(
+          ctx.stores.principalMutations,
           principalId,
-          role: "owner",
-          createdAt: now,
-          updatedAt: now,
-        });
+          async () => {
+            const decision = ctx.policy.evaluate(
+              principal,
+              {
+                subject: {
+                  type: "principal",
+                  id: principal.id,
+                  assurance: principal.assurance,
+                },
+                action: "organization.create",
+                resource: { type: "organization", id: "*" },
+              },
+              await getUsage(ctx.stores, principalId, ctx.clock()),
+            );
+            if (decision.effect === "deny") {
+              return c.json(
+                { error: "forbidden", reasons: decision.reasons },
+                403,
+              );
+            }
 
-        await appendAuditEvent(ctx.repos.auditEvents, {
-          eventType: "organization.created",
-          outcome: "succeeded",
-          principalId,
-          organizationId: org.id,
-          correlationId: c.get("correlationId"),
-          metadata: { action: "organization.create", slug: org.slug },
-        });
+            if (await ctx.stores.organizations.getBySlug(parsed.data.slug)) {
+              return c.json({ error: "slug_taken" }, 409);
+            }
 
-        return c.json(toResponse(org, "owner"), 201);
+            const now = ctx.clock();
+            const org: Organization = {
+              // Rust Host APIs use the canonical opaque-id spelling `org:<uuid>`.
+              id: `org:${randomUUID()}`,
+              slug: parsed.data.slug,
+              displayName: parsed.data.displayName,
+              state: "active",
+              createdBy: principalId,
+              createdAt: now,
+              updatedAt: now,
+            };
+            if (parsed.data.ssoIssuer) org.ssoIssuer = parsed.data.ssoIssuer;
+            if (parsed.data.samlIssuer) org.samlIssuer = parsed.data.samlIssuer;
+            await createOrganization(ctx, actor, proof, org);
+            await ctx.stores.organizationMemberships.upsert({
+              organizationId: org.id,
+              principalId,
+              role: "owner",
+              createdAt: now,
+              updatedAt: now,
+            });
+
+            await appendAuditEvent(ctx.repos.auditEvents, {
+              eventType: "organization.created",
+              outcome: "succeeded",
+              principalId,
+              organizationId: org.id,
+              correlationId: c.get("correlationId"),
+              metadata: { action: "organization.create", slug: org.slug },
+            });
+
+            return c.json(toResponse(org, "owner"), 201);
+          },
+        );
       },
     );
   },
@@ -661,184 +671,13 @@ organizationRoutes.post(
   },
 );
 
-organizationRoutes.patch("/:id", requirePrincipal(), async (c) => {
-  const ctx = c.get("ctx");
-  const principalId = authenticatedPrincipalId(c.get("principalId"));
-  const org = await ctx.stores.organizations.get(c.req.param("id"));
-  const membership = org && (await getMembership(ctx, org.id, principalId));
-  if (!org || org.state === "deleted" || !membership) {
-    return c.json({ error: "not_found" }, 404);
-  }
-  if (membership.role !== "owner") {
-    return c.json({ error: "owner_required" }, 403);
-  }
-  const parsed = UpdateOrganizationRequestSchema.safeParse(await c.req.json());
-  if (!parsed.success) {
-    return c.json(
-      { error: "validation_error", details: parsed.error.flatten() },
-      400,
-    );
-  }
-  const unsafeIssuer =
-    issuerConfigurationError(ctx.config, parsed.data.ssoIssuer) ??
-    issuerConfigurationError(ctx.config, parsed.data.samlIssuer) ??
-    issuerConfigurationError(ctx.config, parsed.data.samlMetadataUrl);
-  if (unsafeIssuer) {
-    return c.json({ error: "unsafe_issuer", message: unsafeIssuer }, 400);
-  }
-
-  const patch = <T>(submitted: T | null | undefined, current: T | undefined) =>
-    submitted === undefined ? current : (submitted ?? undefined);
-  const ssoIssuer = patch(parsed.data.ssoIssuer, org.ssoIssuer);
-  const ssoClientId = patch(parsed.data.ssoClientId, org.ssoClientId);
-  const ssoClientSecret = patch(
-    parsed.data.ssoClientSecret,
-    org.ssoClientSecret,
-  );
-  const samlIssuer = patch(parsed.data.samlIssuer, org.samlIssuer);
-  const samlMetadataUrl = patch(
-    parsed.data.samlMetadataUrl,
-    org.samlMetadataUrl,
-  );
-  const samlMetadataXml = patch(
-    parsed.data.samlMetadataXml,
-    org.samlMetadataXml,
-  );
-  // Exactly one metadata source may survive the merge, or a later fetch has no
-  // deterministic answer to "which document describes this IdP".
-  if (samlMetadataUrl && samlMetadataXml) {
-    return c.json(
-      {
-        error: "validation_error",
-        message: "samlMetadataUrl and samlMetadataXml are mutually exclusive",
-      },
-      400,
-    );
-  }
-  const updated: Organization = {
-    id: org.id,
-    slug: org.slug,
-    displayName: parsed.data.displayName ?? org.displayName,
-    state: org.state,
-    createdBy: org.createdBy,
-    createdAt: org.createdAt,
-    updatedAt: ctx.clock(),
-  };
-  if (ssoIssuer) updated.ssoIssuer = ssoIssuer;
-  // Credentials only mean anything alongside the issuer they were issued at,
-  // so clearing `ssoIssuer` drops them rather than leaving one tenant's client
-  // id to be presented at whatever issuer is configured next.
-  if (ssoIssuer && ssoClientId) updated.ssoClientId = ssoClientId;
-  if (ssoIssuer && ssoClientId && ssoClientSecret) {
-    updated.ssoClientSecret = ssoClientSecret;
-  }
-  if (samlIssuer) updated.samlIssuer = samlIssuer;
-  if (samlMetadataUrl) updated.samlMetadataUrl = samlMetadataUrl;
-  if (samlMetadataXml) updated.samlMetadataXml = samlMetadataXml;
-  const provisioningEnabled =
-    parsed.data.provisioningEnabled ?? org.provisioningEnabled;
-  if (provisioningEnabled) updated.provisioningEnabled = true;
-  await ctx.stores.organizations.set(org.id, updated);
-  await appendAuditEvent(ctx.repos.auditEvents, {
-    eventType: "organization.updated",
-    outcome: "succeeded",
-    principalId,
-    organizationId: org.id,
-    correlationId: c.get("correlationId"),
-    metadata: { action: "organization.update" },
-  });
-  return c.json(toResponse(updated, membership.role));
-});
-
-organizationRoutes.get("/:id/members", requirePrincipal(), async (c) => {
-  const ctx = c.get("ctx");
-  const principalId = authenticatedPrincipalId(c.get("principalId"));
-  const organizationId = c.req.param("id");
-  const membership = await getMembership(ctx, organizationId, principalId);
-  if (!membership) return c.json({ error: "not_found" }, 404);
-  if (membership.role !== "owner") {
-    return c.json({ error: "owner_required" }, 403);
-  }
-  const members = (
-    await ctx.stores.organizationMemberships.listByOrganization(organizationId)
-  ).map(membershipResponse);
-  return c.json({ members });
-});
-
-organizationRoutes.post("/:id/members", requirePrincipal(), async (c) => {
-  const ctx = c.get("ctx");
-  const principalId = authenticatedPrincipalId(c.get("principalId"));
-  const organizationId = c.req.param("id");
-  return serializeMembershipMutation(ctx, organizationId, async () => {
-    const actor = await getMembership(ctx, organizationId, principalId);
-    if (!actor) return c.json({ error: "not_found" }, 404);
-    if (actor.role !== "owner") {
-      return c.json({ error: "owner_required" }, 403);
-    }
-    const parsed = AddOrganizationMemberRequestSchema.safeParse(
-      await c.req.json(),
-    );
-    if (!parsed.success) {
-      return c.json(
-        { error: "validation_error", details: parsed.error.flatten() },
-        400,
-      );
-    }
-    const principal = await ctx.repos.principals.getById(
-      parsed.data.principalId,
-    );
-    if (!principal) return c.json({ error: "principal_not_found" }, 404);
-    if (principal.state === "suspended" || principal.state === "closed") {
-      return c.json({ error: "principal_inactive" }, 409);
-    }
-    if (await getMembership(ctx, organizationId, principal.id)) {
-      return c.json({ error: "membership_exists" }, 409);
-    }
-    const now = ctx.clock();
-    const membership = await ctx.stores.organizationMemberships.upsert({
-      organizationId,
-      principalId: principal.id,
-      role: parsed.data.role,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "organization.member_added",
-      outcome: "succeeded",
-      principalId,
-      organizationId,
-      correlationId: c.get("correlationId"),
-      metadata: {
-        action: "organization.member.add",
-        memberPrincipalId: principal.id,
-        role: membership.role,
-      },
-    });
-    return c.json(membershipResponse(membership), 201);
-  });
-});
-
-organizationRoutes.patch(
-  "/:id/members/:principalId",
-  requirePrincipal(),
-  async (c) => {
-    const ctx = c.get("ctx");
-    const actorPrincipalId = authenticatedPrincipalId(c.get("principalId"));
-    const organizationId = c.req.param("id");
-    return serializeMembershipMutation(ctx, organizationId, async () => {
-      const actor = await getMembership(ctx, organizationId, actorPrincipalId);
-      if (!actor) return c.json({ error: "not_found" }, 404);
-      if (actor.role !== "owner") {
-        return c.json({ error: "owner_required" }, 403);
-      }
-      const targetPrincipalId = c.req.param("principalId");
-      const target = await getMembership(
-        ctx,
-        organizationId,
-        targetPrincipalId,
-      );
-      if (!target) return c.json({ error: "membership_not_found" }, 404);
-      const parsed = ChangeOrganizationMemberRoleRequestSchema.safeParse(
+organizationRoutes.patch("/:id", requirePrincipal(), async (c) =>
+  asOrgOwner(
+    c,
+    { param: "id", liveness: "not_deleted" },
+    async ({ ctx, org: orgName, proof, actor, organization: org }) => {
+      const principalId = actor.value;
+      const parsed = UpdateOrganizationRequestSchema.safeParse(
         await c.req.json(),
       );
       if (!parsed.success) {
@@ -847,44 +686,207 @@ organizationRoutes.patch(
           400,
         );
       }
-      if (target.role === parsed.data.role) {
-        return c.json(membershipResponse(target));
+      const unsafeIssuer =
+        issuerConfigurationError(ctx.config, parsed.data.ssoIssuer) ??
+        issuerConfigurationError(ctx.config, parsed.data.samlIssuer) ??
+        issuerConfigurationError(ctx.config, parsed.data.samlMetadataUrl);
+      if (unsafeIssuer) {
+        return c.json({ error: "unsafe_issuer", message: unsafeIssuer }, 400);
       }
-      if (
-        target.role === "owner" &&
-        (await ctx.stores.organizationMemberships.countOwners(
-          organizationId,
-        )) === 1
-      ) {
-        return c.json({ error: "last_owner" }, 409);
+
+      const patch = <T>(
+        submitted: T | null | undefined,
+        current: T | undefined,
+      ) => (submitted === undefined ? current : (submitted ?? undefined));
+      const ssoIssuer = patch(parsed.data.ssoIssuer, org.ssoIssuer);
+      const ssoClientId = patch(parsed.data.ssoClientId, org.ssoClientId);
+      const ssoClientSecret = patch(
+        parsed.data.ssoClientSecret,
+        org.ssoClientSecret,
+      );
+      const samlIssuer = patch(parsed.data.samlIssuer, org.samlIssuer);
+      const samlMetadataUrl = patch(
+        parsed.data.samlMetadataUrl,
+        org.samlMetadataUrl,
+      );
+      const samlMetadataXml = patch(
+        parsed.data.samlMetadataXml,
+        org.samlMetadataXml,
+      );
+      // Exactly one metadata source may survive the merge, or a later fetch has no
+      // deterministic answer to "which document describes this IdP".
+      if (samlMetadataUrl && samlMetadataXml) {
+        return c.json(
+          {
+            error: "validation_error",
+            message:
+              "samlMetadataUrl and samlMetadataXml are mutually exclusive",
+          },
+          400,
+        );
       }
-      const updated: OrganizationMembership = {
-        ...target,
-        role: parsed.data.role,
+      const updated: Organization = {
+        id: org.id,
+        slug: org.slug,
+        displayName: parsed.data.displayName ?? org.displayName,
+        state: org.state,
+        createdBy: org.createdBy,
+        createdAt: org.createdAt,
         updatedAt: ctx.clock(),
       };
-      // Publish the new role before yielding to Host revocation. Otherwise a
-      // concurrent approval can capture the old role after Host has revoked it.
-      await ctx.stores.organizationMemberships.upsert(updated);
-      if (!(await revokeHostSessions(ctx, organizationId, targetPrincipalId))) {
-        await ctx.stores.organizationMemberships.upsert(target);
-        return c.json({ error: "session_revocation_failed" }, 502);
+      if (ssoIssuer) updated.ssoIssuer = ssoIssuer;
+      // Credentials only mean anything alongside the issuer they were issued at,
+      // so clearing `ssoIssuer` drops them rather than leaving one tenant's client
+      // id to be presented at whatever issuer is configured next.
+      if (ssoIssuer && ssoClientId) updated.ssoClientId = ssoClientId;
+      if (ssoIssuer && ssoClientId && ssoClientSecret) {
+        updated.ssoClientSecret = ssoClientSecret;
       }
+      if (samlIssuer) updated.samlIssuer = samlIssuer;
+      if (samlMetadataUrl) updated.samlMetadataUrl = samlMetadataUrl;
+      if (samlMetadataXml) updated.samlMetadataXml = samlMetadataXml;
+      const provisioningEnabled =
+        parsed.data.provisioningEnabled ?? org.provisioningEnabled;
+      if (provisioningEnabled) updated.provisioningEnabled = true;
+      await writeOrganization(ctx, orgName, proof, updated);
       await appendAuditEvent(ctx.repos.auditEvents, {
-        eventType: "organization.member_role_changed",
+        eventType: "organization.updated",
         outcome: "succeeded",
-        principalId: actorPrincipalId,
+        principalId,
+        organizationId: org.id,
+        correlationId: c.get("correlationId"),
+        metadata: { action: "organization.update" },
+      });
+      return c.json(toResponse(updated, "owner"));
+    },
+  ),
+);
+
+organizationRoutes.get("/:id/members", requirePrincipal(), async (c) =>
+  asOrgOwner(c, MEMBER_ADMIN, async ({ ctx, org }) => {
+    const members = (
+      await ctx.stores.organizationMemberships.listByOrganization(org.value)
+    ).map(membershipResponse);
+    return c.json({ members });
+  }),
+);
+
+organizationRoutes.post("/:id/members", requirePrincipal(), async (c) => {
+  const ctx = c.get("ctx");
+  const organizationId = c.req.param("id");
+  return serializeMembershipMutation(ctx, organizationId, () =>
+    asOrgOwner(c, MEMBER_ADMIN, async ({ org, proof, actor }) => {
+      const principalId = actor.value;
+      const parsed = AddOrganizationMemberRequestSchema.safeParse(
+        await c.req.json(),
+      );
+      if (!parsed.success) {
+        return c.json(
+          { error: "validation_error", details: parsed.error.flatten() },
+          400,
+        );
+      }
+      const principal = await ctx.repos.principals.getById(
+        parsed.data.principalId,
+      );
+      if (!principal) return c.json({ error: "principal_not_found" }, 404);
+      if (principal.state === "suspended" || principal.state === "closed") {
+        return c.json({ error: "principal_inactive" }, 409);
+      }
+      if (await getMembership(ctx, organizationId, principal.id)) {
+        return c.json({ error: "membership_exists" }, 409);
+      }
+      const now = ctx.clock();
+      const membership = await writeOrganizationMembership(ctx, org, proof, {
+        organizationId,
+        principalId: principal.id,
+        role: parsed.data.role,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await appendAuditEvent(ctx.repos.auditEvents, {
+        eventType: "organization.member_added",
+        outcome: "succeeded",
+        principalId,
         organizationId,
         correlationId: c.get("correlationId"),
         metadata: {
-          action: "organization.member.role.change",
-          memberPrincipalId: targetPrincipalId,
-          previousRole: target.role,
-          role: updated.role,
+          action: "organization.member.add",
+          memberPrincipalId: principal.id,
+          role: membership.role,
         },
       });
-      return c.json(membershipResponse(updated));
-    });
+      return c.json(membershipResponse(membership), 201);
+    }),
+  );
+});
+
+organizationRoutes.patch(
+  "/:id/members/:principalId",
+  requirePrincipal(),
+  async (c) => {
+    const ctx = c.get("ctx");
+    const organizationId = c.req.param("id");
+    return serializeMembershipMutation(ctx, organizationId, () =>
+      asOrgOwner(c, MEMBER_ADMIN, async ({ org, proof, actor }) => {
+        const actorPrincipalId = actor.value;
+        const targetPrincipalId = c.req.param("principalId");
+        const target = await getMembership(
+          ctx,
+          organizationId,
+          targetPrincipalId,
+        );
+        if (!target) return c.json({ error: "membership_not_found" }, 404);
+        const parsed = ChangeOrganizationMemberRoleRequestSchema.safeParse(
+          await c.req.json(),
+        );
+        if (!parsed.success) {
+          return c.json(
+            { error: "validation_error", details: parsed.error.flatten() },
+            400,
+          );
+        }
+        if (target.role === parsed.data.role) {
+          return c.json(membershipResponse(target));
+        }
+        if (
+          target.role === "owner" &&
+          (await ctx.stores.organizationMemberships.countOwners(
+            organizationId,
+          )) === 1
+        ) {
+          return c.json({ error: "last_owner" }, 409);
+        }
+        const updated: OrganizationMembership = {
+          ...target,
+          role: parsed.data.role,
+          updatedAt: ctx.clock(),
+        };
+        // Publish the new role before yielding to Host revocation. Otherwise a
+        // concurrent approval can capture the old role after Host has revoked it.
+        await writeOrganizationMembership(ctx, org, proof, updated);
+        if (
+          !(await revokeHostSessions(ctx, organizationId, targetPrincipalId))
+        ) {
+          await writeOrganizationMembership(ctx, org, proof, target);
+          return c.json({ error: "session_revocation_failed" }, 502);
+        }
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "organization.member_role_changed",
+          outcome: "succeeded",
+          principalId: actorPrincipalId,
+          organizationId,
+          correlationId: c.get("correlationId"),
+          metadata: {
+            action: "organization.member.role.change",
+            memberPrincipalId: targetPrincipalId,
+            previousRole: target.role,
+            role: updated.role,
+          },
+        });
+        return c.json(membershipResponse(updated));
+      }),
+    );
   },
 );
 
@@ -893,53 +895,49 @@ organizationRoutes.delete(
   requirePrincipal(),
   async (c) => {
     const ctx = c.get("ctx");
-    const actorPrincipalId = authenticatedPrincipalId(c.get("principalId"));
     const organizationId = c.req.param("id");
-    return serializeMembershipMutation(ctx, organizationId, async () => {
-      const actor = await getMembership(ctx, organizationId, actorPrincipalId);
-      if (!actor) return c.json({ error: "not_found" }, 404);
-      if (actor.role !== "owner") {
-        return c.json({ error: "owner_required" }, 403);
-      }
-      const targetPrincipalId = c.req.param("principalId");
-      const target = await getMembership(
-        ctx,
-        organizationId,
-        targetPrincipalId,
-      );
-      if (!target) return c.json({ error: "membership_not_found" }, 404);
-      if (
-        target.role === "owner" &&
-        (await ctx.stores.organizationMemberships.countOwners(
+    return serializeMembershipMutation(ctx, organizationId, () =>
+      asOrgOwner(c, MEMBER_ADMIN, async ({ org, proof, actor }) => {
+        const actorPrincipalId = actor.value;
+        const targetPrincipalId = c.req.param("principalId");
+        const target = await getMembership(
+          ctx,
           organizationId,
-        )) === 1
-      ) {
-        return c.json({ error: "last_owner" }, 409);
-      }
-      // Remove authority before yielding so no approval can mint a session in the
-      // gap between revocation and this mutation. Restore it if Host fails closed.
-      await ctx.stores.organizationMemberships.remove(
-        organizationId,
-        targetPrincipalId,
-      );
-      if (!(await revokeHostSessions(ctx, organizationId, targetPrincipalId))) {
-        await ctx.stores.organizationMemberships.upsert(target);
-        return c.json({ error: "session_revocation_failed" }, 502);
-      }
-      await appendAuditEvent(ctx.repos.auditEvents, {
-        eventType: "organization.member_removed",
-        outcome: "succeeded",
-        principalId: actorPrincipalId,
-        organizationId,
-        correlationId: c.get("correlationId"),
-        metadata: {
-          action: "organization.member.remove",
-          memberPrincipalId: targetPrincipalId,
-          role: target.role,
-        },
-      });
-      return c.body(null, 204);
-    });
+          targetPrincipalId,
+        );
+        if (!target) return c.json({ error: "membership_not_found" }, 404);
+        if (
+          target.role === "owner" &&
+          (await ctx.stores.organizationMemberships.countOwners(
+            organizationId,
+          )) === 1
+        ) {
+          return c.json({ error: "last_owner" }, 409);
+        }
+        // Remove authority before yielding so no approval can mint a session in the
+        // gap between revocation and this mutation. Restore it if Host fails closed.
+        await removeOrganizationMembership(ctx, org, proof, targetPrincipalId);
+        if (
+          !(await revokeHostSessions(ctx, organizationId, targetPrincipalId))
+        ) {
+          await writeOrganizationMembership(ctx, org, proof, target);
+          return c.json({ error: "session_revocation_failed" }, 502);
+        }
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "organization.member_removed",
+          outcome: "succeeded",
+          principalId: actorPrincipalId,
+          organizationId,
+          correlationId: c.get("correlationId"),
+          metadata: {
+            action: "organization.member.remove",
+            memberPrincipalId: targetPrincipalId,
+            role: target.role,
+          },
+        });
+        return c.body(null, 204);
+      }),
+    );
   },
 );
 
