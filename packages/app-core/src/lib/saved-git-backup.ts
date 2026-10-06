@@ -3,7 +3,13 @@
  * from here when a Capabilities configuration is present.
  */
 
+import { assertNotDecoySession } from "./decoy-session.js";
 import { runListedFeature } from "./feature-connector-operation.js";
+import {
+  assertFeatureAuthority,
+  bindFeatureAuthority,
+  featureAuthorityCurrent,
+} from "./feature-request-authority.js";
 import {
   type GitBackupForge,
   forgeForProvider,
@@ -28,23 +34,27 @@ let savedGit: SavedGitBackup[] = [];
 
 /** Hold the backup requests the sync will send. */
 export function bindSavedGitBackup(uses: readonly SavedGitBackup[]): void {
-  savedGit = uses.map((row) => ({
-    providerId: row.providerId,
-    operation: row.operation,
-    fields: { ...row.fields },
-    secret: { ...row.secret },
-  }));
+  assertNotDecoySession();
+  savedGit = uses.map((row) => {
+    assertFeatureAuthority(row);
+    return bindFeatureAuthority({
+      providerId: row.providerId,
+      operation: row.operation,
+      fields: { ...row.fields },
+      secret: { ...row.secret },
+    });
+  });
 }
 
 export function savedGitBackupUse(providerId: string): SavedGitBackup | null {
   const row = savedGit.find((item) => item.providerId === providerId);
-  if (!row) return null;
-  return {
+  if (!row || !featureAuthorityCurrent(row)) return null;
+  return bindFeatureAuthority({
     providerId: row.providerId,
     operation: row.operation,
     fields: { ...row.fields },
     secret: { ...row.secret },
-  };
+  });
 }
 
 export function resetSavedGitBackupForTest(): void {

@@ -43,6 +43,7 @@ opensesame-tailnet-admin = { path = "../../crates/tailnet-admin" }
 opensesame-session-observe = { path = "../../crates/session-observe" }
 anyhow = { workspace = true }
 clap = { workspace = true }
+libc = { workspace = true }
 jsonwebtoken = { workspace = true }
 reqwest = { workspace = true }
 secrecy = { workspace = true }

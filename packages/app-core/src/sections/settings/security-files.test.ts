@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { kvDelete, kvGet } from "../../lib/kv.js";
 import { TRAVEL_SAFE_KEY } from "../../lib/travel/safe-flags.js";
 import { DURESS_STATUS_FILE } from "./duress-status-files.js";
+import { RETIRED_CREDENTIAL_STATUS_FILE } from "./retired-credential-files.js";
 import { securityFiles } from "./security-files.js";
 import { TRAVEL_SAFE_FILE } from "./travel-safe-files.js";
 
@@ -14,7 +15,11 @@ describe("Settings › Security's files, on the sheets' own seams", () => {
       securityFiles(() => true)
         .list()
         .map((file) => file.path),
-    ).toEqual([TRAVEL_SAFE_FILE, DURESS_STATUS_FILE]);
+    ).toEqual([
+      TRAVEL_SAFE_FILE,
+      DURESS_STATUS_FILE,
+      RETIRED_CREDENTIAL_STATUS_FILE,
+    ]);
     expect(securityFiles(() => false).list()).toEqual([]);
   });
 

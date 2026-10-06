@@ -4,11 +4,15 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { createItem } from "@opensesame/vault-core";
+import { maybeLocalStore } from "../ports.js";
 /**
  * Browser-held forge-agnostic git remotes (ADR 0090).
  * Public metadata stays in localStorage; credentials seal in the vault.
  */
-import { maybeLocalStore } from "../ports.js";
+import {
+  assertNotDecoySession,
+  isRealAuthorityBlocked,
+} from "./decoy-session.js";
 import type { GitAuthMode, GitRemoteConfiguration } from "./git-auth-modes.js";
 import { isGitAuthMode } from "./git-auth-modes.js";
 import { vaultStore } from "./vault/store.js";
@@ -88,6 +92,7 @@ function parseRows(parsed: BoundaryValue): LocalGitRemote[] {
 }
 
 function readRaw(): LocalGitRemote[] {
+  if (isRealAuthorityBlocked()) return [];
   const store = maybeLocalStore();
   if (!store) return memoryRemotes.map((row) => ({ ...row }));
   const raw = store.getItem(PUBLIC_KEY);
@@ -101,6 +106,7 @@ function readRaw(): LocalGitRemote[] {
 }
 
 function writeRaw(rows: LocalGitRemote[]): void {
+  assertNotDecoySession();
   memoryRemotes = rows.map((row) => ({ ...row }));
   const store = maybeLocalStore();
   if (store) {
@@ -170,11 +176,13 @@ export async function rememberLocalGitRemote(input: {
   displayName: string;
   configuration: GitRemoteConfiguration;
 }): Promise<LocalGitRemote> {
+  const realm = assertNotDecoySession();
   const displayName = input.displayName.trim() || "Git remote";
   const now = new Date().toISOString();
   const secretItemId = needsSecrets(input.configuration)
     ? await sealSecrets(displayName, input.configuration)
     : null;
+  assertNotDecoySession(realm);
   const username =
     input.configuration.username !== undefined &&
     input.configuration.username.trim() !== ""
@@ -195,12 +203,14 @@ export async function rememberLocalGitRemote(input: {
 }
 
 async function trashSecret(secretItemId: string | null): Promise<void> {
+  const realm = assertNotDecoySession();
   if (!secretItemId) return;
   try {
     await vaultStore.trashItem(secretItemId);
   } catch {
     /* vault may already lack the item */
   }
+  assertNotDecoySession(realm);
 }
 
 function assertUnlockedForSecrets(rows: LocalGitRemote[]): void {
@@ -213,20 +223,25 @@ function assertUnlockedForSecrets(rows: LocalGitRemote[]): void {
 }
 
 export async function forgetLocalGitRemote(id: string): Promise<boolean> {
+  const realm = assertNotDecoySession();
   const rows = readRaw();
   const target = rows.find((row) => row.id === id);
   if (!target) return false;
   assertUnlockedForSecrets([target]);
   await trashSecret(target.secretItemId);
+  assertNotDecoySession(realm);
   writeRaw(rows.filter((row) => row.id !== id));
   return true;
 }
 
 export async function forgetAllLocalGitRemotes(): Promise<void> {
+  const realm = assertNotDecoySession();
   const rows = readRaw();
   assertUnlockedForSecrets(rows);
   for (const row of rows) {
     await trashSecret(row.secretItemId);
+    assertNotDecoySession(realm);
   }
+  assertNotDecoySession(realm);
   writeRaw([]);
 }

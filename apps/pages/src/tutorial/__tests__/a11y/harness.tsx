@@ -39,11 +39,18 @@ import {
 import { cleanup, render, screen, within } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
+import { beforeAll } from "vitest";
 import { createScrollRenderer } from "../../coach/scroll-renderer.js";
 import type { SupportEngine, SupportTransport } from "../../session.js";
 import { SupportProvider, supportSessionSeams } from "../../session.js";
 import { tourRunner } from "../../tour-runner.js";
 import { SupportLauncher } from "../../ui/SupportLauncher.js";
+
+// These suites query rendered semantics rather than compilation latency.
+// Warm the actual lazy panel for pointer and keyboard entry alike.
+beforeAll(async () => {
+  await import("../../ui/SupportPanel.js");
+});
 
 export type TestUser = ReturnType<typeof userEvent.setup>;
 

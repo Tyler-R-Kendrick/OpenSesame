@@ -24,6 +24,7 @@ import {
   bindClaimLockReset,
   captureClaimArrivalFromPage,
 } from "@opensesame/app-core/lib/claims/arrival.js";
+import { assertAuthenticationSession } from "@opensesame/app-core/lib/decoy-session.js";
 import { captureDeviceLinkFromPage } from "@opensesame/app-core/lib/device-link.js";
 import { resumeWipeAtBoot } from "@opensesame/app-core/lib/duress/wipe/real.js";
 import { captureInteractionArrivalFromPage } from "@opensesame/app-core/lib/interactions-link.js";
@@ -35,7 +36,6 @@ import {
 import { kvHydrate } from "@opensesame/app-core/lib/kv.js";
 import { lastVaultIsGuest } from "@opensesame/app-core/lib/last-vault.js";
 import {
-  activeProject,
   listProjects,
   projectScopedKeys,
   rehydrateProjects,
@@ -46,6 +46,7 @@ import {
 } from "@opensesame/app-core/lib/runtime-config.js";
 import { restorePacks } from "@opensesame/app-core/lib/type-packs/restore.js";
 import { watchVaultTypes } from "@opensesame/app-core/lib/type-packs/watch.js";
+import { scopedVaultScope } from "@opensesame/app-core/lib/vault/store-scope.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   migrateLegacyVaultStorage,
@@ -68,6 +69,17 @@ export type CoreBoot = Readonly<{
 export const bootSeams = {
   now: (): string => new Date().toISOString(),
 };
+
+/** Roll forward only bounded ciphertext before choosing the unlock header. */
+async function recoverStartupRoot(tomb: string): Promise<void> {
+  const authenticationRealm = assertAuthenticationSession();
+  const { recoverPreparedRoot } = await import(
+    "@opensesame/app-core/lib/vault/store-root-rotation.js"
+  );
+  await recoverPreparedRoot(tomb, null, () =>
+    assertAuthenticationSession(authenticationRealm),
+  );
+}
 
 export async function bootCore(): Promise<CoreBoot> {
   // An invite's bearer leaves the address bar before anything else runs or
@@ -125,10 +137,11 @@ export async function bootCore(): Promise<CoreBoot> {
   // has to be hydrated too: reading only the active project left a guest's
   // enrolled gate unreadable on reload, and the unlock form then offered a
   // road with no challenge behind it (#467).
-  const tomb = activeProject().id;
+  const tomb = scopedVaultScope().tomb;
+  await recoverStartupRoot(tomb);
   const guestTomb = lastVaultIsGuest() ? GUEST_TOMB : null;
   await kvHydrate([
-    ...projectScopedKeys(),
+    ...projectScopedKeys(tomb),
     ...tombStorageKeys(tomb),
     ...(guestTomb ? tombStorageKeys(guestTomb) : []),
     vaultSelectionKey(tomb),

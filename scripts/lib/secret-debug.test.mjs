@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -129,13 +129,18 @@ describe("the repository", () => {
         "utf8",
       ),
     ).allowed;
-    const tracked = execFileSync("git", ["ls-files", "-z"], {
-      cwd: root,
-      maxBuffer: 64 * 1024 * 1024,
-    })
+    const tracked = execFileSync(
+      "git",
+      ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+      {
+        cwd: root,
+        maxBuffer: 64 * 1024 * 1024,
+      },
+    )
       .toString("utf8")
       .split("\0")
-      .filter(isScannedRust);
+      .filter(isScannedRust)
+      .filter((path) => existsSync(resolve(root, path)));
     const used = new Set();
     const offenders = [];
     for (const path of tracked) {

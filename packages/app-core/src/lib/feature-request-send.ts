@@ -11,7 +11,12 @@ import {
 } from "@opensesame/os-domain";
 import type { Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
+import { assertNotDecoySession } from "./decoy-session.js";
 import { runListedFeature } from "./feature-connector-operation.js";
+import {
+  assertFeatureAuthority,
+  bindFeatureAuthority,
+} from "./feature-request-authority.js";
 import {
   type FeatureRequest,
   savedFeatureRequests,
@@ -31,15 +36,29 @@ export const featureRequestSeams = {
 type CategorySend = () => FeatureRequest[];
 
 const categorySends = new Map<string, CategorySend>();
+const sendWrappers = new WeakMap<
+  CategorySend,
+  { realm: number; guarded: CategorySend }
+>();
 
 /** Run this category's saved connectors when the feature performs the operation. */
 export function registerCategorySend(
   category: string,
   send: CategorySend,
 ): () => void {
-  categorySends.set(category, send);
+  const realm = assertNotDecoySession();
+  const previous = sendWrappers.get(send);
+  const guarded =
+    previous?.realm === realm
+      ? previous.guarded
+      : () => {
+          assertNotDecoySession(realm);
+          return send().map(bindFeatureAuthority);
+        };
+  sendWrappers.set(send, { realm, guarded });
+  categorySends.set(category, guarded);
   return () => {
-    if (categorySends.get(category) === send) categorySends.delete(category);
+    if (categorySends.get(category) === guarded) categorySends.delete(category);
   };
 }
 
@@ -94,6 +113,7 @@ function refusesPayment(value: JsonValue): boolean {
 export function sendFeatureOperation(
   operation: ReturnType<typeof runListedFeature>,
 ): FeatureRequest {
+  assertFeatureAuthority(operation);
   if (!operation.ok) return { ok: false, providerId: operation.providerId };
   const fields: StringFields = {};
   const secret: StringFields = {};
@@ -131,6 +151,7 @@ export function sendFeatureOperation(
     fields,
     secret,
   };
+  bindFeatureAuthority(request);
   featureRequestSeams.performed(request);
   return request;
 }
@@ -157,6 +178,7 @@ function sendCategory(category: string): FeatureRequest[] {
 export function performSavedCategory(
   categories: readonly string[],
 ): FeatureRequest[] {
+  assertNotDecoySession();
   const sent: FeatureRequest[] = [];
   const seen = new Set<CategorySend>();
   for (const category of categories) {

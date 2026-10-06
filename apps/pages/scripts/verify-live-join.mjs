@@ -22,10 +22,10 @@
  *    at all but a TURN server: the owner names one in Routes, relay only, and
  *    a Nostr carrier. Both peer connections are relay-only, the pair they
  *    select is relay to relay, and nobody pastes anything. One walk for each
- *    way to reach the server: `turn:` over UDP (node-turn on loopback),
+ *    way to reach the server: `turn:` over UDP (Pion TURN on loopback),
  *    `turn:` with `?transport=tcp`, and `turns:` (TLS, a throwaway
  *    self-signed certificate whose public key alone Chromium is told to
- *    trust) — the last two on `live-turn`, a real pion/turn server. Each
+ *    trust) — all three on `live-turn`, a real pion/turn server. Each
  *    also asks the server which transport carried the clients: the one
  *    named authenticated and allocated for both peers, and no client
  *    traffic reached the others.
@@ -87,7 +87,7 @@ const ORIGIN = "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const DIST = path.resolve(here, "../dist");
 const OUT = path.resolve(ROOT, "artifacts/live-join");
-const SECRET = "correct-horse-battery-staple-2026";
+const SECRET = "correct-horse-battery-staple-2026"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 const KINDS = (
   process.env.LIVE_CARRIERS ?? "nostr,mqtt,nats,ntfy,broadcast"
 ).split(",");
@@ -275,7 +275,7 @@ try {
     if (SCENARIOS.has("carriers"))
       for (const kind of KINDS) await carried(browser, own, kind);
     if (SCENARIOS.has("declined")) await declined(browser, own);
-    if (SCENARIOS.has("relayed")) await relayed(browser, own);
+    if (SCENARIOS.has("relayed")) await relayed(browser, own, turnFixture);
     if (SCENARIOS.has("relayed-tcp"))
       await relayedOver(browser, own, "tcp", turnFixture);
     if (SCENARIOS.has("relayed-tls"))

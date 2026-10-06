@@ -75,6 +75,7 @@ describe("IndexedDB history rows", () => {
     });
     await appendHistoryEntry("hacc_1", new Uint8Array([1, 2, 3]));
 
+    expect([...databases.keys()]).toEqual([HISTORY_BACKUP_DATABASE]);
     const accounts = rawRows(databases, HISTORY_BACKUP_DATABASE, "accounts");
     expect(JSON.stringify(accounts)).not.toContain("anon-secret-handle");
     expect(JSON.stringify(accounts)).not.toContain("neon");

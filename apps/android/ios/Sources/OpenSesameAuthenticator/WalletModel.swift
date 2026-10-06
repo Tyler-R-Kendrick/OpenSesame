@@ -13,24 +13,32 @@ public final class WalletModel {
     public let promptModel = Platform.shared.promptModel
 
     private var callbacks: [String: CheckedContinuation<String, Never>] = [:]
+    private weak var admission: WalletAdmission?
+    private var httpClient: HttpClient?
+    private var authority: NativeAuthorityFence?
 
     public init() {}
 
-    public func initialize(appGroup: String, backendURL: URL) async {
+    public func initialize(appGroup: String, backendURL: URL, admission: WalletAdmission) async {
+        self.admission = admission
         guard backendURL.scheme == "https" else {
             error = WalletError.insecureBackend
             return
         }
         do {
+            let permit = try admission.requireReal()
+            let fence = try admission.authorityFence(permit)
+            authority = fence
             PromptModel.Companion.shared.setGlobal(promptModel: promptModel)
             guard let container = FileManager.default.containerURL(
                 forSecurityApplicationGroupIdentifier: appGroup
             ) else { throw WalletError.missingAppGroup }
-            let storage = IosStorage(
+            let storage = NativeGatedStorage(delegate: IosStorage(
                 storageFileUrl: container.appendingPathComponent("wallet.db"),
                 excludeFromBackup: true
-            )
-            let secureArea = try await Platform.shared.getSecureArea(storage: storage)
+            ), fence: fence)
+            let secureArea = NativeGatedSecureArea(delegate: try await Platform.shared.getSecureArea(storage: storage), fence: fence)
+            try admission.requireSame(permit)
             let secureAreas = SecureAreaRepository.Builder()
                 .add(secureArea: secureArea)
                 .build()
@@ -40,12 +48,13 @@ public final class WalletModel {
             ).build()
             let rpc = try await RpcAuthorizedDeviceClient.companion.connect(
                 exceptionMap: RpcExceptionMap.Builder().build(),
-                httpClientEngine: Darwin(),
+                httpClientEngine: NativeRealmHttpEngine(fence: fence),
                 url: backendURL.appendingPathComponent("rpc").absoluteString,
                 secureArea: secureArea,
                 storage: storage,
                 secret: nil
             )
+            try admission.requireSame(permit)
             backend = OpenID4VCIBackendStub(
                 endpoint: "openid4vci_backend",
                 dispatcher: rpc.dispatcher,
@@ -58,6 +67,9 @@ public final class WalletModel {
                 locales: ["en-US"],
                 signingAlgorithms: [.esp256]
             )
+            try admission.requireSame(permit)
+            let http = HttpClient(engineFactory: NativeRealmHttpEngine(fence: fence)) { $0.followRedirects = false }
+            httpClient = http
             provisioningModel = ProvisioningModel(
                 documentProvisioningHandler: DocumentProvisioningHandler(
                     secureArea: secureArea,
@@ -65,11 +77,12 @@ public final class WalletModel {
                     metadataHandler: nil,
                     defaultDocumentProvisioningSettings: DocumentProvisioningSettings()
                 ),
-                httpClient: HttpClient(engineFactory: Darwin()) { $0.followRedirects = false },
+                httpClient: http,
                 promptModel: promptModel,
                 authorizationSecureArea: secureArea,
                 eventLogger: nil
             )
+            try admission.requireSame(permit)
             ready = true
         } catch {
             self.error = error
@@ -77,7 +90,7 @@ public final class WalletModel {
     }
 
     public func launch(offerURI: String) {
-        guard ready else { return }
+        guard ready, (try? admission?.requireReal()) != nil else { return }
         provisioningModel.launchOpenID4VCIProvisioning(
             offerUri: offerURI,
             clientPreferences: clientPreferences,
@@ -86,13 +99,29 @@ public final class WalletModel {
     }
 
     public func receiveRedirect(_ url: URL) {
+        guard ready, (try? admission?.requireReal()) != nil else { return }
         guard let state = URLComponents(url: url, resolvingAgainstBaseURL: false)?
             .queryItems?.first(where: { $0.name == "state" })?.value else { return }
         callbacks.removeValue(forKey: state)?.resume(returning: url.absoluteString)
     }
 
     public func waitForRedirect(state: String) async -> String {
-        await withCheckedContinuation { callbacks[state] = $0 }
+        guard ready, (try? admission?.requireReal()) != nil else { return "" }
+        return await withCheckedContinuation { callbacks[state] = $0 }
+    }
+
+    public func lock() {
+        authority?.revoke()
+        authority = nil
+        ready = false
+        provisioningModel?.cancel()
+        httpClient?.close()
+        httpClient = nil
+        provisioningModel = nil
+        clientPreferences = nil
+        backend = nil
+        for callback in callbacks.values { callback.resume(returning: "") }
+        callbacks.removeAll()
     }
 }
 

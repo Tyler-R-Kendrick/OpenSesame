@@ -1,3 +1,5 @@
+import { decoyGuardedFetch } from "./decoy-fetch.js";
+import { assertNotDecoySession } from "./decoy-session.js";
 /**
  * Browser → Connect relay. The relay holds the Vercel token; this page never
  * does. Same base as the OAuth callback (`connectCallbackBase`).
@@ -20,7 +22,7 @@ export function connectRelayConfigured(): boolean {
 }
 
 export class RelayError extends Error {
-  readonly name = "RelayError";
+  override readonly name = "RelayError";
   constructor(
     readonly status: number,
     readonly code: string,
@@ -38,6 +40,7 @@ export async function relayFetch(
   path: string,
   init: RequestInit = {},
 ): Promise<BoundaryValue> {
+  const authorityGeneration = assertNotDecoySession();
   const base = connectRelayBase();
   if (!base) {
     throw new RelayError(0, "unconfigured", "Connect relay is not configured.");
@@ -49,13 +52,14 @@ export async function relayFetch(
   }
   let response: Response;
   try {
-    response = await fetch(`${base}${path}`, {
+    response = await decoyGuardedFetch(`${base}${path}`, {
       ...init,
       headers,
       credentials: "omit",
       mode: "cors",
     });
   } catch {
+    assertNotDecoySession(authorityGeneration);
     throw new RelayError(0, "unreachable", "Couldn't reach the Connect relay.");
   }
   const body: BoundaryValue = await response.json().catch(() => null);
@@ -68,6 +72,7 @@ export async function relayFetch(
       text(error.message) || "Request failed.",
     );
   }
+  assertNotDecoySession(authorityGeneration);
   return body;
 }
 

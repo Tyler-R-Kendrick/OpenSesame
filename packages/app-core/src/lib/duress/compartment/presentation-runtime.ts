@@ -8,6 +8,8 @@ import type { OpenOutcome } from "./session.js";
 
 export type ActivePresentation = Readonly<{
   profileId: string;
+  /** The ordinary vault screen renders synthetic items already held by its store. */
+  storeOwnsView?: boolean;
   outcome: OpenOutcome;
   view: ScopedView;
 }>;

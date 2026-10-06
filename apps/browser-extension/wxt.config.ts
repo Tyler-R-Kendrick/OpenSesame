@@ -1,12 +1,25 @@
 import { defineConfig } from "wxt";
 
 export default defineConfig({
+  hooks: {
+    "prepare:tsconfig": (_wxt, { tsconfig }) => {
+      tsconfig.compilerOptions.lib = [
+        "ESNext",
+        "DOM",
+        "DOM.Iterable",
+        "DOM.AsyncIterable",
+      ];
+    },
+  },
   // Vite's default web target ("modules") includes safari14, and esbuild treats
   // destructuring as unsupported there (a real Safari 14 bug) then fails rather
   // than lowering it — which breaks any dependency shipping plain destructuring.
   // An MV3 extension only ever runs on Chromium/Firefox, so target those.
   vite: () => ({
     build: { target: ["chrome111", "firefox115"] },
+    optimizeDeps: {
+      esbuildOptions: { target: ["chrome111", "firefox115"] },
+    },
   }),
   manifest: {
     name: "OpenSesame",
@@ -21,7 +34,8 @@ export default defineConfig({
     optional_permissions: ["scripting"],
     optional_host_permissions: ["https://*/*"],
     content_security_policy: {
-      extension_pages: "script-src 'self'; object-src 'self'",
+      extension_pages:
+        "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
     },
   },
 });

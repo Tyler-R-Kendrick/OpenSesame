@@ -4,11 +4,17 @@
 
 import type { VaultHeader } from "@opensesame/vault-core";
 import { carryProjectsViewInto, projectsState } from "../projects.js";
-import { HEADER_PATH, unlockTomb, writePlaintextFile } from "../vfs.js";
+import {
+  HEADER_PATH,
+  refreshTombRootGeneration,
+  unlockTomb,
+  writePlaintextFile,
+} from "../vfs.js";
 
 type VaultScope = Readonly<{ tomb: string; attempts: string }>;
 
 export async function carryForkUnlockedIntoActiveScope(input: {
+  pinContext: (allowKeyAdmission?: boolean) => () => void;
   vaultKey: CryptoKey | null;
   header: VaultHeader | null;
   ephemeral: boolean;
@@ -25,6 +31,7 @@ export async function carryForkUnlockedIntoActiveScope(input: {
   emit: () => void;
   nextScope: () => VaultScope;
 }): Promise<void> {
+  const assertOriginal = input.pinContext();
   if (!input.vaultKey || !input.header) {
     throw new Error("Unlock the vault before carrying it into a new project.");
   }
@@ -34,12 +41,15 @@ export async function carryForkUnlockedIntoActiveScope(input: {
   const { assertCompartmentSwitchAllowed } = await import(
     "../duress/store/compartment-guard.js"
   );
+  assertOriginal();
   const nextScope = input.nextScope();
+  const digest = await input.sessionRootDigest();
+  assertOriginal();
   assertCompartmentSwitchAllowed({
     sourceTomb: input.scope.tomb,
     targetTomb: nextScope.tomb,
     mode: "fork",
-    sessionRootDigest: await input.sessionRootDigest(),
+    sessionRootDigest: digest,
     ephemeral: input.ephemeral,
   });
   input.assignScope(nextScope);
@@ -55,10 +65,15 @@ export async function carryForkUnlockedIntoActiveScope(input: {
   input.assignHeader(header);
   input.assignBody();
   input.clearPendingVaultKey();
+  const assertCurrent = input.pinContext();
   await writePlaintextFile(nextScope.tomb, HEADER_PATH, JSON.stringify(header));
+  assertCurrent();
+  refreshTombRootGeneration(nextScope.tomb, input.vaultKey);
   input.persistPrefs();
   await input.persist();
-  await carryProjectsViewInto(nextScope.tomb, projectsState());
+  assertCurrent();
+  await carryProjectsViewInto(nextScope.tomb, projectsState(), assertCurrent);
+  assertCurrent();
   input.touch();
   input.armIdleTimer();
   input.emit();

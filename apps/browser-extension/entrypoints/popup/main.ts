@@ -1,6 +1,11 @@
 import { normalizeLoopbackBaseUrl } from "@opensesame/api-client";
 import { openFromRest, sealForRest } from "@opensesame/browser-at-rest";
-import { ENDPOINTS, isString, overlapCast } from "@opensesame/os-domain";
+import {
+  type BoundaryObject,
+  ENDPOINTS,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
 
 type HealthResponse = {
   health?: { ok?: boolean };
@@ -20,7 +25,8 @@ async function loadHostInput() {
   );
   if (!input) return;
   try {
-    const stored = await browser.storage.local.get("hostApiBase");
+    const stored =
+      await browser.storage.local.get<BoundaryObject>("hostApiBase");
     // Sealed at rest (ADR 0149); a value from an older build reads as it is.
     const value = isString(stored.hostApiBase)
       ? await openFromRest(STORE, "hostApiBase", stored.hostApiBase)
@@ -130,3 +136,7 @@ void (async () => {
   await loadHostInput();
   await loadStatus();
 })();
+
+document.getElementById("security-open")?.addEventListener("click", () => {
+  void browser.runtime.openOptionsPage();
+});

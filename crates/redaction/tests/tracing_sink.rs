@@ -36,7 +36,7 @@ fn emit(format: Format) -> String {
             password = "hunter2",
             api_key = "k_live_12345",
             endpoint = "https://hooks.example/x?token=abc123&page=2",
-            "delivery failed: claim https://app.example/claim#token=osc_clm_AbC.s3cr3tpart"
+            "delivery failed: claim https://app.example/claim#token=osc_clm_AbC.s3cr3tpart" // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
         );
         tracing::warn!(error = %"connect postgres://app:pw0rd@db:5432/x refused", "db");
     });

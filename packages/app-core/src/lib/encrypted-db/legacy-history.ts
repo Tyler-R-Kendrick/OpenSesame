@@ -5,11 +5,9 @@
  */
 
 import type { BoundaryValue } from "@opensesame/os-domain";
-import { openOwnedDatabase } from "../../ports.js";
 import { type AtRestKey, atRestReady } from "../at-rest/key.js";
 import {
   ACCOUNTS,
-  DB_VERSION,
   ENTRIES,
   asAccount,
   asEntry,
@@ -21,6 +19,7 @@ import type {
   HistoryEntryRecord,
   ProvisionalHistoryAccount,
 } from "../history-backup-types.js";
+import { openLegacySource } from "../legacy-transfer.js";
 import { storageWritesHalted } from "../storage-halt.js";
 import { HISTORY_BACKUP_DATABASE } from "../storage-ownership.js";
 
@@ -28,24 +27,6 @@ export type LegacyHistory = {
   accounts: ProvisionalHistoryAccount[];
   entries: HistoryEntryRecord[];
 };
-
-/** Open the database only if it exists: opening alone would create it. */
-function openExisting(): Promise<IDBDatabase | undefined> {
-  return new Promise((resolve, reject) => {
-    const req = openOwnedDatabase(HISTORY_BACKUP_DATABASE, DB_VERSION);
-    let created = false;
-    req.onupgradeneeded = (event) => {
-      if (event.oldVersion !== 0) return;
-      created = true;
-      req.transaction?.abort();
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () =>
-      created
-        ? resolve(undefined)
-        : reject(req.error ?? new Error("indexedDB open failed"));
-  });
-}
 
 /**
  * Everything the sealed database holds, opened, for moving into the
@@ -58,28 +39,35 @@ export async function readLegacyHistory(): Promise<LegacyHistory | undefined> {
   try {
     atRest = await atRestReady();
     if (!atRest.durable) return undefined;
-    const db = await openExisting();
+    const db = await openLegacySource(HISTORY_BACKUP_DATABASE);
     if (!db) return undefined;
     try {
-      const tx = db.transaction([ACCOUNTS, ENTRIES], "readonly");
-      const accounts: BoundaryValue[] = await idbReq(
-        tx.objectStore(ACCOUNTS).getAll(),
-      );
-      const entries: BoundaryValue[] = await idbReq(
-        tx.objectStore(ENTRIES).getAll(),
-      );
-      return {
-        accounts: accounts
-          .map((row) => asAccount(openRow(atRest, ACCOUNTS, row)))
-          .filter(present),
-        entries: entries
-          .map((row) => asEntry(openRow(atRest, ENTRIES, row)))
-          .filter(present),
-      };
+      return readLegacyHistoryFrom(db, atRest);
     } finally {
       db.close();
     }
   } catch {
     return undefined;
   }
+}
+
+export async function readLegacyHistoryFrom(
+  db: IDBDatabase,
+  atRest: AtRestKey,
+): Promise<LegacyHistory> {
+  const tx = db.transaction([ACCOUNTS, ENTRIES], "readonly");
+  const accounts: BoundaryValue[] = await idbReq(
+    tx.objectStore(ACCOUNTS).getAll(),
+  );
+  const entries: BoundaryValue[] = await idbReq(
+    tx.objectStore(ENTRIES).getAll(),
+  );
+  return {
+    accounts: accounts
+      .map((row) => asAccount(openRow(atRest, ACCOUNTS, row)))
+      .filter(present),
+    entries: entries
+      .map((row) => asEntry(openRow(atRest, ENTRIES, row)))
+      .filter(present),
+  };
 }

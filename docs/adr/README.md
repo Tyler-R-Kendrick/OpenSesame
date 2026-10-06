@@ -218,3 +218,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0174](0174-the-pepper-is-the-persons-and-passwords-are-produced-by-one-facade.md) | The pepper is the person's; one facade produces every password | Accepted |
 | [0175](0175-searchable-encryption-over-indexeddb.md) | Searchable encryption over IndexedDB | Accepted |
 | [0176](0176-ci-runs-what-a-diff-can-reach.md) | CI runs what a diff can reach, and a push to main runs everything | Accepted |
+| [0177](0177-retired-credential-traps.md) | Retired credential traps in the offline client | Accepted |

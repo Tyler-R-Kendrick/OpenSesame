@@ -29,8 +29,7 @@ import {
 type Store = ReturnType<typeof useVaultStore>;
 
 function openTomb(store: Store): string | null {
-  const tomb =
-    typeof store.activeTomb === "function" ? store.activeTomb() : null;
+  const tomb = store.activeTomb();
   return tomb && tombUnlocked(tomb) ? tomb : null;
 }
 
@@ -141,9 +140,13 @@ export function useCapabilityFiles(): VirtualFileProvider {
  */
 export function useSecurityFiles(): VirtualFileProvider {
   const shown = useDuressPanelShown();
+  const { tomb } = useVault();
   useSettingsFilesRevision();
   return useMemo(() => {
-    const provider = securityFiles(() => shown);
+    const provider = securityFiles(
+      () => shown,
+      () => tomb,
+    );
     return {
       ...provider,
       write: async (path, text) => {
@@ -152,7 +155,7 @@ export function useSecurityFiles(): VirtualFileProvider {
         return outcome;
       },
     };
-  }, [shown]);
+  }, [shown, tomb]);
 }
 
 export function useCategoryFiles(category: string): VirtualFileProvider | null {

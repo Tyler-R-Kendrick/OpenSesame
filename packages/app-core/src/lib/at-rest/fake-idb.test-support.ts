@@ -22,6 +22,7 @@ type FakeRequest = {
   onsuccess?: () => void;
   onerror?: () => void;
   onupgradeneeded?: () => void;
+  transaction?: { abort: () => void };
 };
 
 function request(
@@ -157,8 +158,20 @@ export function fakeIndexedDb(
         const stores = databases.get(name) ?? new Map<string, FakeStore>();
         databases.set(name, stores);
         req.result = overlapCast(database(stores));
-        if (fresh) req.onupgradeneeded?.();
-        req.onsuccess?.();
+        let aborted = false;
+        if (fresh) {
+          req.transaction = {
+            abort: () => {
+              aborted = true;
+            },
+          };
+          req.onupgradeneeded?.();
+        }
+        if (aborted) {
+          databases.delete(name);
+          req.error = "IndexedDB upgrade aborted";
+          req.onerror?.();
+        } else req.onsuccess?.();
       });
       return req;
     },

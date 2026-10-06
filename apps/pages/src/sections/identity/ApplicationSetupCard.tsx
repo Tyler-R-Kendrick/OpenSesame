@@ -6,6 +6,7 @@ import type { LocalApplicationRegistration } from "@opensesame/app-core/lib/loca
 import { useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconLogin } from "../../components/Icons.js";
+import { runSessionNavigation } from "../../lib/decoy-navigation.js";
 
 export function ApplicationSetupCard(props: {
   registration: LocalApplicationRegistration | undefined;
@@ -32,7 +33,18 @@ export function ApplicationSetupCard(props: {
       setTest("No registered callback to test.");
       return;
     }
-    window.open(callback, "_blank", "noopener,noreferrer");
+    if (
+      !runSessionNavigation(
+        callback,
+        () => {
+          window.open(callback, "_blank", "noopener,noreferrer");
+        },
+        "new_context",
+      )
+    ) {
+      setTest("External navigation is unavailable in this session.");
+      return;
+    }
     setTest(
       "Opened the registered callback. That checks connectivity, not authorization to use the app.",
     );

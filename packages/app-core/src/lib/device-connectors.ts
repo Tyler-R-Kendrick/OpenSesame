@@ -13,6 +13,7 @@ import {
 } from "./connections-local-git.js";
 import type { Connection, Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
+import { assertNotDecoySession } from "./decoy-session.js";
 import {
   type PublicRow,
   type StringFields,
@@ -142,6 +143,7 @@ function upsert(row: PublicRow, secrets: StringFields): void {
 }
 
 export function deviceConnection(id: string): Connection | null {
+  assertNotDecoySession();
   const row = findId(id);
   if (!row || isLocalGitRemoteId(id)) return null;
   return toConnection(row);
@@ -181,6 +183,7 @@ export function renderedConnectorRecord(
 }
 
 export function createDeviceConnection(body: SaveBody): Connection {
+  assertNotDecoySession();
   const stamp = nowIso();
   const row: PublicRow = {
     connectionId: randomId(),
@@ -199,6 +202,7 @@ export function sealDeviceCredential(
   id: string,
   value: string,
 ): Connection | null {
+  assertNotDecoySession();
   const row = findId(id);
   if (!row || isLocalGitRemoteId(id)) return null;
   const secrets: StringFields = { ...(readDeviceSecrets()[id] ?? {}) };
@@ -211,6 +215,7 @@ export function sealDeviceConfiguration(
   id: string,
   values: Record<string, string>,
 ): Connection | null {
+  assertNotDecoySession();
   const row = findId(id);
   if (!row) return null;
   const hidden = secretNames(row.providerId);
@@ -229,6 +234,7 @@ export function revokeDeviceConnection(id: string): {
   revoked: boolean;
   providerRevocation: "ok";
 } | null {
+  assertNotDecoySession();
   if (!findId(id) || isLocalGitRemoteId(id)) return null;
   writeDeviceRows(readDeviceRows().filter((row) => row.connectionId !== id));
   const map = readDeviceSecrets();
@@ -262,11 +268,13 @@ export async function saveForgeConnector(
   provider: Provider,
   input: { displayName: string; configuration: GitRemoteConfiguration },
 ): Promise<Connection> {
+  const realm = assertNotDecoySession();
   const displayName = input.displayName.trim() || provider.displayName;
   const remote = await rememberLocalGitRemote({
     displayName,
     configuration: input.configuration,
   });
+  assertNotDecoySession(realm);
   bindHistoryConnection(provider.id, remote.id, input.configuration.remote_url);
   const split = splitValues(provider.id, input.configuration);
   const stamp = nowIso();
@@ -287,6 +295,7 @@ export async function saveForgeConnector(
 
 /** The catalog operation the owning feature runs from the saved configuration. */
 export function runFeatureConnector(provider: Provider): ConnectorRun {
+  assertNotDecoySession();
   const row = latestFor(provider.id);
   if (!row) return { ok: false, providerId: provider.id };
   const fields: StringFields = { ...row.fields };

@@ -10,7 +10,7 @@ import {
 } from "@opensesame/app-core/lib/history-backup-idb.js";
 import { HISTORY_BACKUP_DATABASE } from "@opensesame/app-core/lib/storage-ownership.js";
 import { installPasswordDigestStore } from "@opensesame/app-core/lib/vault/password-history.js";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
@@ -21,6 +21,9 @@ import { createTestContext } from "../test-context.js";
 import type * as Runtime from "./runtime.js";
 
 let runtime: typeof Runtime;
+beforeEach(() => {
+  freshIndexedDb();
+});
 
 afterEach(() => {
   installHistoryRowStore(null);
@@ -61,6 +64,7 @@ describe("storage.encrypted-search runtime", () => {
     await appendHistoryEntry("hacc_a", new Uint8Array([1]));
     expect(await listHistoryEntries("hacc_a")).toHaveLength(1);
     expect(await names()).toEqual([
+      expect.stringMatching(/^opensesame-edb-[0-9a-f]{32}$/),
       expect.stringMatching(/^opensesame-edb-[0-9a-f]{32}$/),
     ]);
 

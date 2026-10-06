@@ -132,6 +132,7 @@ async fn at_fga_stale_freshness_fence_denies_before_dispatch() {
         },
         connection_policy_id: "github".into(),
         spend_budget: None,
+        controlled_alias: None,
         broker_connection: true,
     };
     let err = authorize_openfga(

@@ -88,7 +88,7 @@ describe("planMerge item shapes", () => {
     draft.totp = "JBSWY3DPEHPK3PXP";
     draft.methods = [
       { type: "password", secret: "pw-two" },
-      { type: "authenticator", secret: "KRSXG5CTMVRXEZLU" },
+      { type: "authenticator", secret: "KRSXG5CTMVRXEZLU" }, // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
       { type: "api-key", key: "key-1", header: "X-Api-Key" },
     ];
     const item = planMerge([draft], [], [], defaultMergeOptions).items[0];

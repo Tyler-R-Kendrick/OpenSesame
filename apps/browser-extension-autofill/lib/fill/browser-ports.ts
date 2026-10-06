@@ -82,7 +82,7 @@ export function browserFillPorts(): FillPorts {
     async inject(tabId) {
       await browser.scripting.executeScript({
         target: { tabId, frameIds: [0] },
-        files: [GUARD_SCRIPT],
+        files: [`/${GUARD_SCRIPT}`],
       });
     },
     send: async (tabId, message) => {

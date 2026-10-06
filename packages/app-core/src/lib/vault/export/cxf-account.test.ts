@@ -76,7 +76,7 @@ describe("exporting an account's login methods", () => {
       manualPassword("a:p1", "first-password", NOW),
       { id: "a:t1", type: "authenticator", secret: SEED },
       manualPassword("a:p2", "second-password", NOW),
-      { id: "a:t2", type: "authenticator", secret: "KRSXG5CTMVRXEZLU" },
+      { id: "a:t2", type: "authenticator", secret: "KRSXG5CTMVRXEZLU" }, // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
       { id: "a:k1", type: "api-key", key: "key-123", header: "X-Api-Key" },
     ]);
     const [draft] = reimport(body(original));
@@ -187,7 +187,7 @@ describe("a password that needs a pepper is withheld", () => {
         },
         realm: "service.example",
         counter: 0,
-        oprfKeyB64: "T1BSRi1LRVktRElELU5PVC1FWFBPUlQ=",
+        oprfKeyB64: "T1BSRi1LRVktRElELU5PVC1FWFBPUlQ=", // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
       },
       pepper: true,
       secret: "",

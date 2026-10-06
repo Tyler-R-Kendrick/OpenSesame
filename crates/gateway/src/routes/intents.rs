@@ -1,3 +1,4 @@
+mod controlled_references;
 use axum::{
     extract::State,
     http::StatusCode,
@@ -5,6 +6,9 @@ use axum::{
     Json,
 };
 use chrono::{Duration, Utc};
+use controlled_references::{
+    assert_alias_current, execute_invocation, resolve_invocation, ControlledAliasAdmission,
+};
 use opensesame_broker::InvokeInput;
 use opensesame_connector_host::{HostError, InvokeResult};
 use opensesame_domain::{
@@ -44,6 +48,7 @@ pub(crate) struct ResolvedInvocation {
     /// True when this resolved through the durable connection broker rather
     /// than the development bootstrap fixture.
     pub(crate) broker_connection: bool,
+    pub(crate) controlled_alias: Option<ControlledAliasAdmission>,
 }
 
 #[derive(Deserialize)]
@@ -191,6 +196,7 @@ fn bootstrap_invocation(
         connection_policy_id: "demo-conn".into(),
         spend_budget: None,
         broker_connection: false,
+        controlled_alias: None,
     })
 }
 
@@ -279,6 +285,7 @@ async fn delegated_invocation(
             lineage: None,
             spend_budget: None,
             broker_connection: true,
+            controlled_alias: None,
         });
     }
     delegate_invocation(st, &row, subject, level, connection_id, connection_ref).await
@@ -345,69 +352,8 @@ async fn delegate_invocation(
             .to_string(),
         spend_budget: Some(delegation.delegation_id.clone()),
         broker_connection: true,
+        controlled_alias: None,
     })
-}
-
-async fn resolve_invocation(
-    st: &AppState,
-    boot: &crate::app_state::Bootstrap,
-    subject: &str,
-    body: &InvokeBody,
-    level: u8,
-) -> Result<ResolvedInvocation, Response> {
-    let default_ref = st
-        .connection_ref
-        .as_ref()
-        .map_or_else(String::new, |connection| connection.handle.uri());
-    let requested_ref = body
-        .connection_ref
-        .as_ref()
-        .or(body.connection.as_ref())
-        .unwrap_or(&default_ref);
-    let logical_name = st
-        .connection_ref
-        .as_ref()
-        .map_or("", |connection| connection.handle.logical_name.as_str());
-    if [default_ref.as_str(), logical_name, ""].contains(&requested_ref.as_str()) {
-        bootstrap_invocation(st, boot)
-    } else {
-        delegated_invocation(st, boot, subject, requested_ref, level).await
-    }
-}
-
-pub(super) async fn execute_invocation(
-    st: &AppState,
-    organization_id: OrganizationId,
-    resolved: &ResolvedInvocation,
-    input: InvokeInput,
-    constrained_http: Option<ConstrainedHttpInput>,
-) -> anyhow::Result<InvocationReceipt> {
-    let Some(network) = constrained_http else {
-        return st.broker.invoke(input).await;
-    };
-    let broker = st.connection_broker.clone();
-    let connection_id = resolved.connection_id.to_string();
-    let operation = input.intent.operation.clone();
-    st.broker
-        .invoke_with(input, || async move {
-            broker
-                .invoke_network_json(
-                    &organization_id,
-                    &connection_id,
-                    &operation,
-                    &network.method,
-                    &network.url,
-                    network.body,
-                )
-                .await
-                .map(|safe_summary| InvokeResult {
-                    ok: true,
-                    safe_summary,
-                    external_request_digest: None,
-                })
-                .map_err(|error| HostError::Connector(error.to_string()))
-        })
-        .await
 }
 
 pub async fn create(

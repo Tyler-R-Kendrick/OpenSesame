@@ -69,6 +69,7 @@ pub(crate) async fn run(server: &str, output: &str, cmd: VaultArea) -> anyhow::R
 
 async fn run_pass(server: &str, cmd: super::PassCmd) -> anyhow::Result<()> {
     match cmd {
+        PassCmd::Security { cmd } => crate::pass_security::run(server, cmd).await?,
         cmd @ (PassCmd::Init { .. }
         | PassCmd::Insert { .. }
         | PassCmd::Generate { .. }

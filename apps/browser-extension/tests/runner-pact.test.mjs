@@ -197,16 +197,21 @@ test("the runner only ever acts inside the run's origin", () => {
 
 test("only this extension's own pages may arm, disarm or ask about the runner", () => {
   const background = code(read("entrypoints/background.ts"));
+  const listener = code(read("runner/security-listener.ts"));
+  assertSourceOrder(listener, [
+    "return (",
+    "if (!ownPage(sender)) return undefined",
+    "security.allows(message.securityPermit)",
+    "runner.status()",
+  ]);
   for (const type of ["status", "arm", "disarm"]) {
-    const at = background.indexOf(
-      `message?.type === "opensesame.runner.${type}"`,
+    assert.ok(
+      listener.includes(`"opensesame.runner.${type}"`),
+      `handles ${type}`,
     );
-    assert.notEqual(at, -1, `handles ${type}`);
-    const branch = background.slice(at, at + 160);
-    assert.match(branch, /if \(!fromOwnPage\(sender\)\) return undefined/);
   }
   assertSourceOrder(background, [
-    "function fromOwnPage(",
+    "runnerListener(",
     'isOwnPage(sender, browser.runtime.id, browser.runtime.getURL(""))',
   ]);
   assertSourceOrder(code(read("runner/sender.ts")), [

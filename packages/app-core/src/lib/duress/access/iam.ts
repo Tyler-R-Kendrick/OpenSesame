@@ -21,12 +21,7 @@ export function capabilityDeniedByFence(
   ctx: AccessContext | null,
 ): boolean {
   if (fence.retiredDevice) return true;
-  if (fence.activeIncidentIds.length === 0) return false;
-  const ops = CAPABILITY_OPERATIONS[capability];
-  for (const op of ops) {
-    if (fence.denyOperations.includes(op)) return true;
-    if (ctx?.claims.denyOperations.includes(op)) return true;
-  }
+
   if (
     ctx &&
     (ctx.claims.presentation === "restricted" ||
@@ -35,6 +30,12 @@ export function capabilityDeniedByFence(
   ) {
     // Restricted presentations never retain operator IAM capabilities.
     return true;
+  }
+  if (fence.activeIncidentIds.length === 0) return false;
+  const ops = CAPABILITY_OPERATIONS[capability];
+  for (const op of ops) {
+    if (fence.denyOperations.includes(op)) return true;
+    if (ctx?.claims.denyOperations.includes(op)) return true;
   }
   return false;
 }
@@ -45,10 +46,9 @@ export function capabilityDeniedByFence(
  */
 export function roleUnderFence(
   ordinary: AccessRole,
-  fence: FenceState,
+  _fence: FenceState,
   ctx: AccessContext | null,
 ): AccessRole {
-  if (fence.activeIncidentIds.length === 0) return ordinary;
   if (
     ctx &&
     (ctx.claims.presentation === "restricted" ||

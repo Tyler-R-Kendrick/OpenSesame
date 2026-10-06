@@ -3,6 +3,7 @@ import type {
   ConnectPlan,
 } from "@opensesame/app-core/lib/connect-plan.js";
 import { type ReactNode, useId } from "react";
+import { SessionAnchor } from "../../../components/DecoyNavigationAnchor.js";
 import { IconCopy, IconExternal } from "../../../components/Icons.js";
 
 /** A connection method is a choice object, so it keeps its word. */
@@ -114,13 +115,13 @@ export function OutLink({
   children,
 }: { href: string; children: ReactNode }) {
   return (
-    <a
+    <SessionAnchor
       className="conn-doc-link"
       href={href}
       target="_blank"
       rel="noreferrer noopener"
     >
       {children} <IconExternal size={12} />
-    </a>
+    </SessionAnchor>
   );
 }

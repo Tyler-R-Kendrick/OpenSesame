@@ -8,6 +8,7 @@ mod age_fmt;
 mod attachment;
 mod entry;
 mod envelope;
+mod format_hint;
 mod generate;
 mod git;
 mod gpg;
@@ -15,8 +16,8 @@ mod history;
 mod manifest;
 mod otp {
     #[cfg(test)]
-    pub use opensesame_authenticator_core::parse_otpauth;
-    pub use opensesame_authenticator_core::{find_otpauth_in_trailer, sync_trailer_otp, OtpUri};
+    pub use opensesame_human_vault::otp::parse_otpauth;
+    pub use opensesame_human_vault::otp::{find_otpauth_in_trailer, sync_trailer_otp, OtpUri};
 }
 mod object_store;
 mod path;
@@ -54,7 +55,7 @@ pub use history::{entry_history, restore_entry, HistoryEntry};
 // —— end entry history / restore ——————————————————————————————————————————
 pub use manifest::{parse_manifest, seal_manifest, ManifestEntry, SealOutcome};
 pub use object_store::{assert_confined_rel, FsObjectStore, ObjectStore};
-pub use opensesame_authenticator_core::{
+pub use opensesame_human_vault::otp::{
     find_otpauth_in_trailer, hotp_code, parse_otpauth, sync_trailer_otp, totp_code,
     validate_otpauth, OtpAlgorithm, OtpError, OtpKind, OtpUri,
 };
@@ -88,3 +89,6 @@ pub use update::{
 };
 
 pub use opensesame_human_vault::{ItemDataKey, VaultRootKey};
+
+pub mod credential_canaries;
+pub mod retired_credentials;

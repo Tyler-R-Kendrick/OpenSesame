@@ -11,7 +11,7 @@
 import http from "node:http";
 
 export const TAILNET = "example.com";
-export const API_TOKEN = "tskey-api-kVERIFY1CNTRL-0123456789abcdef";
+export const API_TOKEN = "tskey-api-kVERIFY1CNTRL-0123456789abcdef"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 const DOMAIN = "tail4c2e.ts.net";
 /** Tags the tailnet policy file owns; any other is refused, as Tailscale does. */
 const OWNED_TAGS = new Set(["tag:ci", "tag:web", "tag:edge", "tag:server"]);

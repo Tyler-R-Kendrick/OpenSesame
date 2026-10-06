@@ -103,10 +103,10 @@ it("never reuses or refreshes a cached customer credential against another issue
     expect(customerB.received).toEqual(["Bearer customer-b-access"]);
     expect(output + errors).not.toContain("customer-a-access");
     expect(output + errors).not.toContain("customer-a-refresh");
-    expect(output + errors).not.not.toContain("customer-b-access");
+    expect(output + errors).not.toContain("customer-b-access");
     const path = join(directory, "identity-session.json");
     expect((await stat(path)).mode & 0o777).toBe(0o600);
-    // The current human-auth cache relies on file permissions, not encryption.
+    // The customer-bound envelope and owner-only file must both hide the bearer token.
     expect(await readFile(path, "utf8")).not.toContain("customer-b-access");
   } finally {
     vi.restoreAllMocks();

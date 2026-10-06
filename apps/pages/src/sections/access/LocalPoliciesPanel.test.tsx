@@ -1,3 +1,4 @@
+import { webLocksDouble } from "@opensesame/app-core/lib/__tests__/web-locks-double.js";
 import {
   configureLocalApplication,
   readLocalApplications,
@@ -21,18 +22,8 @@ beforeEach(async () => {
   vi.stubGlobal("Uint8Array", new TextEncoder().encode("").constructor);
   tomb = `policies-ui-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
   vi.stubGlobal("navigator", {
-    locks: {
-      request: <T,>(_name: string, action: () => Promise<T>) => {
-        const next = queue.then(action);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
+    locks: webLocksDouble(),
   });
 });
 afterEach(() => {

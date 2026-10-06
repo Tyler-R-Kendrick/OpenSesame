@@ -63,7 +63,7 @@ describe("emit prints the command's own output (ADR 0157)", () => {
       printed(JSON_FLAGS, "", {
         ok: false,
         error: "request failed: Authorization: Bearer abcdefghijklmnop1234",
-        nested: { message: "GET https://x.example/cb#token=abcdef123456789" },
+        nested: { message: "GET https://x.example/cb#token=abcdef123456789" }, // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
       }),
     );
     expect(out.error).not.toContain("abcdefghijklmnop1234");

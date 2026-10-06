@@ -1,3 +1,8 @@
+import {
+  assertNotDecoySession,
+  currentRealmGeneration,
+  isRealAuthorityBlocked,
+} from "./decoy-session.js";
 /**
  * Vercel Connect session + readiness. CRUD lives in `vercel-connect-ops.ts`.
  * Prefer the Connect relay (no browser token); sealed session auth is fallback.
@@ -31,7 +36,7 @@ export type VercelConnectAuth = {
 };
 
 export class ConnectError extends Error {
-  readonly name = "ConnectError";
+  override readonly name = "ConnectError";
   constructor(
     readonly status: number,
     readonly code: string,
@@ -42,6 +47,7 @@ export class ConnectError extends Error {
 }
 
 let sessionAuth: VercelConnectAuth | null = null;
+let sessionAuthRealm = -1;
 const listeners = new Set<() => void>();
 /** Connector ids listed or created on the live Connect transport this session. */
 const knownConnectors = new Set<string>();
@@ -51,6 +57,8 @@ export function rememberConnector(id: string): void {
 }
 
 export function vercelConnectAuth(): VercelConnectAuth | null {
+  if (sessionAuthRealm !== currentRealmGeneration()) sessionAuth = null;
+  if (isRealAuthorityBlocked()) return null;
   return sessionAuth;
 }
 
@@ -71,7 +79,9 @@ export function vercelConnectConfigured(): boolean {
 }
 
 export function setVercelConnectAuth(next: VercelConnectAuth | null): void {
+  if (next) assertNotDecoySession();
   sessionAuth = next;
+  sessionAuthRealm = currentRealmGeneration();
   if (!next) knownConnectors.clear();
   for (const listener of listeners) listener();
   notifyConnectRoads();
@@ -104,6 +114,7 @@ export function appSubject(scopes?: string[]) {
 }
 
 export function requireAuth(): VercelConnectAuth {
+  assertNotDecoySession();
   const auth = vercelConnectSeams.auth();
   if (!auth?.token) {
     throw new ConnectError(
@@ -116,6 +127,7 @@ export function requireAuth(): VercelConnectAuth {
 }
 
 export function requireTransport(): "relay" | VercelConnectAuth {
+  assertNotDecoySession();
   if (connectRelayConfigured()) return "relay";
   return requireAuth();
 }

@@ -1,0 +1,152 @@
+{
+  "v": 1,
+  "rust": {
+    "retired": [
+      "retired_credentials::tests::enrollment_rejects_noncanonical_spelling_without_rewriting_passwords",
+      "retired_credentials::tests::bounded_untrusted_bytes_never_panic_and_accepted_records_round_trip",
+      "retired_credentials::tests::structured_wire_versions_and_retention_limits",
+      "retired_credentials::tests::typescript_argon2id_vectors_exact_utf8_bytes",
+      "retired_credentials::tests::context_and_bounded_records_fail_closed_before_derivation",
+      "retired_credentials::tests::exact_selected_passwords_and_non_destructive_bounded_events"
+    ],
+    "canaries": [
+      "credential_canaries::receiver::tests::receiver_destination_accepts_only_pinned_canonical_origins",
+      "credential_canaries::receiver::tests::pending_ack_cannot_survive_disable_reenable_or_replaced_binding",
+      "credential_canaries::receiver::tests::receiver_rejects_tampering_wrong_binding_expiry_and_unsealed_ack",
+      "credential_canaries::tests::authenticated_digest_retirement_refuses_foreign_bait_duplicates_and_bad_wire",
+      "credential_canaries::receiver::tests::password_budget_survives_owner_reconfiguration_and_response_changes",
+      "credential_canaries::receiver::tests::shared_aes_gcm_hmac_package_and_ack_vectors_match_exactly",
+      "credential_canaries::receiver::tests::outbox_requires_ack_current_revision_and_bounded_retries",
+      "credential_canaries::tests::copied_corrupt_and_unbounded_state_fails_closed_before_matching",
+      "credential_canaries::tests::installed_mcp_validator_accepts_only_registered_token_and_one_synthetic_tool",
+      "credential_canaries::tests::published_typescript_vectors_and_reserved_reference_spellings_match",
+      "credential_canaries::tests::recognition_never_recovers_production_authority_and_keeps_closed_metadata",
+      "credential_canaries::tests::verified_generation_retirement_matches_only_its_exact_registered_identity",
+      "credential_canaries::tests::protected_detection_state_rejects_foreign_identity_and_redacts_provision_material",
+      "credential_canaries::tests::metadata_caps_suppress_evidence_without_disabling_canary_classification"
+    ],
+    "authenticator": [
+      "tests::accepts_only_verified_secret_free_links",
+      "tests::validates_by_reference_protocol_requests",
+      "tests::rejects_ssrf_literal_and_localhost_forms",
+      "tests::rejects_ambiguous_invocation_parameters",
+      "tests::requires_fresh_verification_for_each_request",
+      "tests::platform_api_returns_only_validated_protocol_requests",
+      "retired_gate::tests::native_application_password_lifecycle_cannot_restore_retired_authority",
+      "retired_gate::tests::native_gate_refuses_corrupt_context_and_unbounded_records",
+      "native_canaries::tests::native_receiver_test_and_revocation_require_exact_authenticated_current_binding",
+      "native_canaries::tests::native_validator_export_records_only_closed_dispatch_metadata",
+      "native_canaries::tests::native_owner_uuid_migration_requires_current_password_and_survives_rotation",
+      "native_canaries::tests::native_canary_detection_never_admits_real_or_retired_owner_management",
+      "native_canaries::tests::trusted_issuer_import_requires_fresh_owner_and_original_issued_context"
+    ],
+    "windows-library": [
+      "windows_io::tests::bounded_io_and_exact_handle_deletion",
+      "windows_io::tests::locks_are_nonblocking_and_preserve_ancestor_pins",
+      "windows_io::tests::hardlinked_final_files_fail_closed_for_every_operation",
+      "windows_io::tests::junction_parent_never_reaches_external_file",
+      "windows_io::tests::world_readable_vault_root_is_refused_before_private_file_access",
+      "windows_io::tests::world_readable_descendant_is_refused_without_widening_private_file_permissions",
+      "windows_io::tests::ordinary_readable_os_ancestor_does_not_block_private_vault_access",
+      "windows_publish::tests::post_publication_flush_failure_never_deletes_the_committed_value",
+      "windows_publish::tests::failed_publication_preserves_complete_value_and_cleans_exact_pending_file",
+      "windows_publish::tests::process_exit_before_publication_preserves_complete_value",
+      "windows_io::path::tests::rejects_windows_aliases_without_filesystem_access"
+    ],
+    "windows-storage": [
+      "other_principal_read_grants_refuse_private_files_without_replacing_them",
+      "publication_refuses_hardlinked_and_reparse_destinations",
+      "other_principal_directory_modification_grants_refuse_all_common_operations",
+      "locks_exclude_other_processes_and_process_exit_releases_them",
+      "pinned_parent_blocks_junction_replacement_and_root_rename_races"
+    ],
+    "windows-retired-refusal": [
+      "windows_store_without_traps_preserves_existing_owner_admission",
+      "windows_enrollment_and_management_refuse_without_changing_the_real_key",
+      "windows_copied_valid_record_cannot_skip_classification_or_open_either_realm"
+    ],
+    "windows-common-key": [
+      "windows_common_key_and_rotation_preserve_owner_and_revoke_stale_root",
+      "windows_junction_key_parent_cannot_touch_another_store"
+    ],
+    "otp": [
+      "otp::tests::rfc6238_sha1_8_digits",
+      "otp::tests::rfc4226_hotp_vectors",
+      "otp::tests::hotp_requires_counter_and_type_specific_generation",
+      "otp::tests::validate_rejects_missing_secret",
+      "otp::tests::rejects_ambiguous_or_silently_normalized_parameters",
+      "otp::tests::ten_digits_do_not_overflow",
+      "otp::tests::find_and_sync_trailer",
+      "otp::tests::an_otp_uri_prints_no_seed"
+    ]
+  },
+  "jvm": {
+    "dev.opensesame.authenticator.NativeCanaryFfiTest": [
+      "actualBindingsCreateExportObserveAndRevokeWithoutRealAdmission",
+      "genuineAuthenticatedAckCannotVerifyReceiverAfterOwnerPolicyRotation"
+    ],
+    "dev.opensesame.authenticator.NativeCanaryIssuerInventoryTest": [
+      "authenticInventoryMetadataKeepsSupportedGenerationKinds",
+      "rejectsWrongVaultAndCallerInventedKinds",
+      "rejectsDuplicateReferencesUnboundedInventoryAndInvalidGenerations",
+      "rejectsNoncanonicalPublicReferences"
+    ],
+    "dev.opensesame.authenticator.NativeCanaryTransportTest": [
+      "dedicatedReceiverNeverSendsAmbientCookiesOrAuthentication",
+      "receiverDoesNotFollowRedirectAndRejectsOversizedAcknowledgement",
+      "transportRefusesGenericDestinationsAndOversizedOutboundDataBeforeNetwork"
+    ],
+    "dev.opensesame.authenticator.NativeFfiBehaviorTest": [
+      "retiredCredentialsRemainSyntheticAcrossActualFfi"
+    ],
+    "dev.opensesame.authenticator.NativeInvocationBoundaryTest": [
+      "associatedInvocationRoundTripsThroughNativeBindings",
+      "invocationCopiedToAnotherAssociationFailsClosed",
+      "invocationCannotFetchPrivateNetworkCredentialRequests"
+    ],
+    "dev.opensesame.authenticator.NativeIssuerGuardTest": [
+      "passwordChangeAfterRealKdfBeforeForeignDispatchPreventsHostCall",
+      "passwordChangeDuringForeignDispatchRefusesEnrollmentAfterReturn"
+    ],
+    "dev.opensesame.authenticator.NativeRealmStateTest": [
+      "coldStartAndSyntheticNeverAdmitProduction",
+      "syntheticCannotUpgradeInPlace",
+      "lockAndNewRealAuthenticationInvalidateOldRequests",
+      "cancelledOwnerPromptCannotReopenALockedWallet",
+      "staleOwnerDerivationCannotCommitAfterLock"
+    ],
+    "dev.opensesame.authenticator.RealmHttpEngineTest": [
+      "currentRealPipelineDispatchesAndClientCloseClosesDelegate",
+      "lockedOrSyntheticPipelineNeverDispatches",
+      "reauthenticationCannotReceivePendingOldResponse",
+      "lockCancelsPendingCallWithoutNetworkRelease",
+      "cancellingCallerStopsDelegateAndCloseIsIdempotent",
+      "throwingRevocationCallbackCannotKeepOtherPermitsAlive"
+    ]
+  },
+  "androidDevice": {
+    "dev.opensesame.authenticator.NativeAdmissionDeviceTest": [
+      "retiredPasswordUsesSyntheticAndBothRealProvidersRefuseIt",
+      "currentPasswordCannotSkipActualOwnerPromptAndCancellationKeepsLocked",
+      "freshCurrentAndActualDeviceCredentialAdmitRealThenLockRevokesPermit",
+      "staleOwnerKdfResultCannotCommitSetupAfterLock",
+      "authenticatedCiphertextCorruptionFailsClosed"
+    ],
+    "dev.opensesame.authenticator.NativeCanaryDeviceTest": [
+      "visibleFreshOwnerCanaryCreateAndRevokeKeepsRawIdentifierOutOfUiAndStorage",
+      "cancelActualManagementOwnerPromptDoesNotInstallSecondaryState",
+      "completedOwnerDerivationCannotCommitIntoFreshSameWalletSuccessor",
+      "secondaryCiphertextTamperingFailsClosedWithoutBreakingPrimaryAdmissionRecord",
+      "compoundCompareAndSwapRejectsChangedProtectedSnapshotAndCrossAccountCiphertext",
+      "normalOwnerPasswordChangeRefusesHeldIssuerResultWithoutChangingRealEpoch"
+    ],
+    "dev.opensesame.authenticator.NativeSettingsDeviceJourneyTest": [
+      "actualSettingsOwnerJourneyRejectsAndDivertsRetiredCredentials"
+    ]
+  },
+  "swiftPrograms": {
+    "swift-realm": "Native realm behavioral checks passed",
+    "swift-ffi": "Swift FFI behavioral checks passed",
+    "swift-canary": "Swift actual FFI canary/export/receiver refusal checks passed"
+  }
+}

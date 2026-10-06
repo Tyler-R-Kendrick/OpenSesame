@@ -1,3 +1,4 @@
+import "@opensesame/app-core/browser/security/security.css";
 import { FILL_MESSAGE, PAIR_MESSAGE } from "@/lib/fill/protocol";
 import {
   type PairRequest,
@@ -7,6 +8,7 @@ import {
   triggerReply,
 } from "@/lib/fill/wire";
 import { type PanelElements, mountPanel } from "@/lib/popup/panel";
+import { mountSecurityPanel } from "@opensesame/app-core/browser/security/panel.js";
 
 function byId<T extends HTMLElement>(id: string, kind: new () => T): T {
   const found = document.getElementById(id);
@@ -25,8 +27,18 @@ const elements: PanelElements = {
 };
 
 /** Ask the background; an unreachable one answers nothing, decoded as such. */
+const security = await mountSecurityPanel(
+  byId("security", HTMLElement),
+  browser.runtime,
+  (allowed) => {
+    const main = document.querySelector("main");
+    if (main) main.hidden = !allowed;
+  },
+);
 const ask = (message: PopupRequest | PairRequest) =>
-  browser.runtime.sendMessage(message).catch(() => null);
+  browser.runtime
+    .sendMessage({ ...message, securityPermit: security.permit() })
+    .catch(() => null);
 
 // Every reply is decoded before the panel sees it (`wire.ts`).
 void mountPanel(elements, {

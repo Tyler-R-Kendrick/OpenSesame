@@ -51,7 +51,7 @@ export const TOMB_PATHS = [
 export const HIDDEN = {
   name: "Hidden Bank 7731",
   username: "hidden.user.7731@example.test",
-  password: "hidden-pw-Zq91-xk",
+  password: "hidden-pw-Zq91-xk", // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
   notes: "hidden notes 7731 about the safe",
   uri: "https://hidden-bank-7731.example.test",
 } as const;
@@ -62,7 +62,7 @@ export const HIDDEN_NOTE = {
 export const PASSKEY_NAME = "Passkey 3318";
 export const TRASHED = {
   name: "Trashed Mail 9042",
-  password: "trashed-pw-9042",
+  password: "trashed-pw-9042", // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 };
 export const SEED = "JBSWY3DPEXAMPLESEED";
 

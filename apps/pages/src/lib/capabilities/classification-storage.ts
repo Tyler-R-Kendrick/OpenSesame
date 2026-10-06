@@ -2,13 +2,22 @@
  * `src/lib/encrypted-db/**`: searchable encryption over IndexedDB (ADR 0175).
  */
 
-import { core, each, optional } from "./classification-rule.js";
+import { core, each, optional, shared } from "./classification-rule.js";
 
 const L = "src/lib/";
 const SHELL = "shell.navigation";
 const GIT = "backup.git-remote";
 
 export const STORAGE_LIB_RULES = [
+  shared(
+    `${L}legacy-transfer`,
+    "sealed legacy-writer handoff shared by core password history and optional encrypted migration",
+  ),
+  optional(
+    `${L}history-backup-lazy.test.ts`,
+    GIT,
+    "test-only proof of operation-scoped history routing and reset across lazy backend loading",
+  ),
   // The history store's records and its device-sealed implementation, split
   // from `history-backup-idb` behind the store seam.
   ...each(L, ["history-backup-legacy", "history-backup-types"], (p) =>

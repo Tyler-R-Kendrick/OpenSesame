@@ -20,6 +20,7 @@ import {
   BODY_PATH,
   INDEX_PATH,
   SEAL_BOUND_MARKER_PATH,
+  pinTombAuthority,
   readPlaintextFile,
   tombFileKey,
   vfsSeams,
@@ -64,33 +65,45 @@ async function rewriteIfUnbound(
   key: CryptoKey,
   path: string,
   blob: SealedBlob,
+  check: () => void,
 ): Promise<BoundaryValue> {
+  check();
   const binding = vaultSealBinding(tomb, path);
   const opened = await openJsonForRebind<BoundaryValue>(key, blob, binding);
+  check();
   if (opened.rebound) {
     const next = await sealJson(key, opened.value, binding);
+    check();
     assertSealed(next);
     await vfsSeams.writeRaw(tombFileKey(tomb, path), JSON.stringify(next));
+    check();
   }
   return opened.value;
 }
 
-async function rebindIndex(tomb: string, key: CryptoKey): Promise<TombIndex> {
+async function rebindIndex(
+  tomb: string,
+  key: CryptoKey,
+  check: () => void,
+): Promise<TombIndex> {
+  check();
   const raw = vfsSeams.readRaw(tombFileKey(tomb, INDEX_PATH));
   if (!raw) {
     const empty = emptyIndex();
     const binding = vaultSealBinding(tomb, INDEX_PATH);
     const sealed = await sealJson(key, empty, binding);
+    check();
     assertSealed(sealed);
     await vfsSeams.writeRaw(
       tombFileKey(tomb, INDEX_PATH),
       JSON.stringify(sealed),
     );
+    check();
     return empty;
   }
   const blob = parseBlob(raw);
   if (!blob) return emptyIndex();
-  return parseIndex(await rewriteIfUnbound(tomb, key, INDEX_PATH, blob));
+  return parseIndex(await rewriteIfUnbound(tomb, key, INDEX_PATH, blob, check));
 }
 
 /**
@@ -100,18 +113,28 @@ async function rebindIndex(tomb: string, key: CryptoKey): Promise<TombIndex> {
 export async function rebindTombSeals(
   tomb: string,
   key: CryptoKey,
+  originatingAuthority: () => void = () => {},
 ): Promise<void> {
+  const pin = pinTombAuthority(tomb, key);
+  const check = () => {
+    originatingAuthority();
+    pin();
+  };
+  check();
   if (readPlaintextFile(tomb, SEAL_BOUND_MARKER_PATH) === "1") return;
-  const index = await rebindIndex(tomb, key);
+  const index = await rebindIndex(tomb, key, check);
   const paths = new Set<string>(Object.keys(index.files));
   paths.add(BODY_PATH);
   for (const path of paths) {
+    check();
     if (path === INDEX_PATH) continue;
     const raw = vfsSeams.readRaw(tombFileKey(tomb, path));
     if (!raw) continue;
     const blob = parseBlob(raw);
     if (!blob) continue;
-    await rewriteIfUnbound(tomb, key, path, blob);
+    await rewriteIfUnbound(tomb, key, path, blob, check);
   }
+  check();
   await writePlaintextFile(tomb, SEAL_BOUND_MARKER_PATH, "1");
+  check();
 }

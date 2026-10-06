@@ -1,5 +1,6 @@
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import {
   ensureSiopKey,
   getActivePublicIdentity,
@@ -20,33 +21,9 @@ async function openTomb() {
 }
 
 function stubLocks() {
-  const tails = new Map<string, Promise<void>>();
   vi.stubGlobal("isSecureContext", true);
   vi.stubGlobal("navigator", {
-    locks: {
-      request: async <T>(name: string, action: () => Promise<T>) => {
-        const previous = tails.get(name) ?? Promise.resolve();
-        let release!: () => void;
-        const gate = new Promise<void>((resolve) => {
-          release = resolve;
-        });
-        tails.set(
-          name,
-          previous
-            .then(() => gate)
-            .then(
-              () => undefined,
-              () => undefined,
-            ),
-        );
-        await previous;
-        try {
-          return await action();
-        } finally {
-          release();
-        }
-      },
-    },
+    locks: webLocksDouble(),
   });
 }
 

@@ -11,7 +11,11 @@ import {
   openFromRest,
   sealForRest,
 } from "@opensesame/browser-at-rest";
-import { ENDPOINTS, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryObject,
+  ENDPOINTS,
+  isString,
+} from "@opensesame/os-domain";
 
 export const DEFAULT_HOST = ENDPOINTS.host.default;
 /** Where `hostApiBase` rests, sealed (ADR 0149). */
@@ -19,7 +23,8 @@ const STORE = "chrome.storage.local";
 
 export async function resolveHostBase(): Promise<string> {
   try {
-    const stored = await browser.storage.local.get("hostApiBase");
+    const stored =
+      await browser.storage.local.get<BoundaryObject>("hostApiBase");
     const raw = stored.hostApiBase;
     // Sealed at rest (ADR 0149); a value from an older build reads as it is.
     const value = isString(raw)

@@ -1,3 +1,5 @@
+import { decoyGuardedFetch } from "../../decoy-fetch.js";
+import { assertNotDecoySession } from "../../decoy-session.js";
 /**
  * Browser sender for optional local HTTPS duress peer receiver (PEER-C).
  * Bound paths only — no generic webhooks / open URL fetch (INV-26).
@@ -44,7 +46,9 @@ export async function sendPeerEnvelope(
   envelope: PeerEnvelope,
   config: PeerSenderConfig,
 ): Promise<PeerSendResult> {
+  const authorityGeneration = assertNotDecoySession();
   const originUrl = await assertPeerOriginResolved(config.registeredOrigin);
+  assertNotDecoySession(authorityGeneration);
   if (!originsExactMatch(config.registeredOrigin, originUrl.origin)) {
     return { ok: false, code: "unapproved_route" };
   }
@@ -57,7 +61,7 @@ export async function sendPeerEnvelope(
     return { ok: false, code: "unsupported_factor" };
   }
   try {
-    const res = await fetch(`${originUrl.origin}${path}`, {
+    const res = await decoyGuardedFetch(`${originUrl.origin}${path}`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -75,6 +79,7 @@ export async function sendPeerEnvelope(
       return { ok: false, code: "unsupported_factor", httpStatus: 413 };
     }
     const text = await res.text();
+    assertNotDecoySession(authorityGeneration);
     if (text.length > PEER_BOUNDS.httpBodyMaxBytes) {
       return { ok: false, code: "unsupported_factor", httpStatus: res.status };
     }
@@ -100,19 +105,26 @@ export async function sendPeerEnvelope(
         httpStatus: res.status,
       };
     }
+    assertNotDecoySession(authorityGeneration);
     return { ok: true, receipt };
   } catch {
+    assertNotDecoySession(authorityGeneration);
     return { ok: false, code: "completion_unknown" };
   }
 }
 
-export async function probePeerReceiver(
-  config: PeerSenderConfig,
-): Promise<{ ok: true } | { ok: false; code: string }> {
+export async function probePeerReceiver(config: PeerSenderConfig): Promise<
+  | {
+      ok: true;
+    }
+  | { ok: false; code: string }
+> {
+  const authorityGeneration = assertNotDecoySession();
   const originUrl = await assertPeerOriginResolved(config.registeredOrigin);
+  assertNotDecoySession(authorityGeneration);
   const path = assertAllowedPath("/v1/duress/peer/health");
   try {
-    const res = await fetch(`${originUrl.origin}${path}`, {
+    const res = await decoyGuardedFetch(`${originUrl.origin}${path}`, {
       method: "GET",
       headers: { accept: "application/json", "x-opensesame-duress-peer": "1" },
       signal: config.signal,
@@ -120,9 +132,11 @@ export async function probePeerReceiver(
       credentials: "omit",
       cache: "no-store",
     });
+    assertNotDecoySession(authorityGeneration);
     if (!res.ok) return { ok: false, code: "unavailable_authority" };
     return { ok: true };
   } catch {
+    assertNotDecoySession(authorityGeneration);
     return { ok: false, code: "completion_unknown" };
   }
 }

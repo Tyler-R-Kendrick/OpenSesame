@@ -8,6 +8,10 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import {
+  assertNotDecoySession,
+  isRealAuthorityBlocked,
+} from "./decoy-session.js";
 import { kvDelete, kvGet, kvSet } from "./kv.js";
 
 const PUBLIC_KEY = "opensesame.device-connectors.v1";
@@ -32,6 +36,7 @@ interface SecretStore {
 }
 
 export function clearDeviceConnectorStore(): void {
+  assertNotDecoySession();
   kvDelete(PUBLIC_KEY);
   kvDelete(SECRET_KEY);
 }
@@ -71,6 +76,7 @@ function rowFrom(value: BoundaryValue): PublicRow | null {
 }
 
 export function readDeviceRows(): PublicRow[] {
+  if (isRealAuthorityBlocked()) return [];
   const raw = kvGet(PUBLIC_KEY);
   if (!raw) return [];
   try {
@@ -88,11 +94,13 @@ export function readDeviceRows(): PublicRow[] {
 }
 
 export function writeDeviceRows(rows: PublicRow[]): void {
+  assertNotDecoySession();
   if (rows.length === 0) kvDelete(PUBLIC_KEY);
   else kvSet(PUBLIC_KEY, JSON.stringify(rows));
 }
 
 export function readDeviceSecrets(): SecretStore {
+  if (isRealAuthorityBlocked()) return {};
   const raw = kvGet(SECRET_KEY);
   if (!raw) return {};
   try {
@@ -114,6 +122,7 @@ export function readDeviceSecrets(): SecretStore {
 }
 
 export function writeDeviceSecrets(map: SecretStore): void {
+  assertNotDecoySession();
   if (Object.keys(map).length === 0) kvDelete(SECRET_KEY);
   else kvSet(SECRET_KEY, JSON.stringify(map));
 }

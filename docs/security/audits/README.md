@@ -156,3 +156,4 @@ here. The architecture-level documents they refine live one level up in
 | 2026-09-28 | [Invoke-through returned a reflected credential to its caller](2026-09-28-invoke-through-reflection.md) |
 | 2026-09-28 | [Audit 2026-09-28 — Secrets in logs, events and error text](2026-09-28-log-and-event-secrets.md) |
 | 2026-09-28 | [Audit 2026-09-28 — Client data at rest in the clear](2026-09-28-plaintext-at-rest.md) |
+| 2026-10-06 | [RSA Marvin advisory reachability — October 6, 2026](2026-10-06-rsa-marvin-reachability.md) |

@@ -45,6 +45,11 @@ set +e
 status=$?
 set -e
 
+if [[ "$status" -ne 0 ]]; then
+  echo "osv-scanner gate: FAIL (scanner status $status)" >&2
+  exit 1
+fi
+
 python3 - <<'PY'
 import json, os, sys
 from pathlib import Path

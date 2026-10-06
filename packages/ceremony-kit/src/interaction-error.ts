@@ -75,7 +75,7 @@ const DECLARED = /^[A-Za-z][A-Za-z0-9_]{0,63}$/;
  * existed, and `.code` is the added precision.
  */
 export class InteractionError extends CeremonyRequestError {
-  readonly code: InteractionErrorCode;
+  override readonly code: InteractionErrorCode;
   /**
    * The code the response body named when it was identifier-shaped, else
    * `""`. The server names refusals the closed union has no room for

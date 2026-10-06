@@ -19,6 +19,13 @@ import {
 const panel = async (page) =>
   (await page.locator("#travel").innerText()).replace(/\s+/g, " ");
 
+async function waitOpenVault(page, name) {
+  await page
+    .locator('#vaults .vault-row--open [aria-current="true"]')
+    .getByText(name, { exact: true })
+    .waitFor({ timeout: 20000 });
+}
+
 async function openPersonal(page) {
   await page.getByRole("button", { name: /^personal/ }).click();
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
@@ -26,6 +33,7 @@ async function openPersonal(page) {
   await waitOpen(page);
   await openSettingsCategory(page, "Vaults");
   await page.locator("#vaults").waitFor({ timeout: 15000 });
+  await waitOpenVault(page, "personal");
 }
 
 const safeSwitch = (page, name) =>
@@ -39,15 +47,17 @@ async function sealNamed(page, name) {
   await dialog.locator("#vaults-new-name").fill(name);
   await dialog.getByRole("button", { name: "Seal vault" }).click();
   await dialog.waitFor({ state: "hidden", timeout: 20000 });
+  // The sheet closes before the asynchronous seal and scope switch finish.
+  await waitOpenVault(page, name);
   // Sealing shares the open key and lands in the new vault. Personal has to
   // be the open one: an open vault always travels, so it cannot be the one
   // this walk sends home.
-  const personal = page.getByRole("button", { name: /^personal/ });
-  if ((await personal.count()) > 0) {
-    await personal.first().click();
-    await waitOpen(page);
-    await openSettingsCategory(page, "Vaults");
-  }
+  await page
+    .locator("#vaults")
+    .getByRole("button", { name: /^personal/ })
+    .click();
+  await waitOpenVault(page, "personal");
+  await openSettingsCategory(page, "Vaults");
 }
 
 async function openLeave(page) {

@@ -16,8 +16,10 @@ import https from "node:https";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Aedes } from "aedes";
 import { WebSocketServer, createWebSocketStream } from "ws";
+import { startLiveTurn } from "./live-turn.mjs";
 
 export function freePort(host = "127.0.0.1") {
   return new Promise((resolve, reject) => {
@@ -239,22 +241,18 @@ export async function startNtfyServer(binary) {
  * A TURN server (RFC 5766, long-term credentials) on UDP: loopback unless
  * `host` names another local address, which it then listens and relays on.
  */
-export async function startTurnServer({ host = "127.0.0.1" } = {}) {
-  const { default: Turn } = await import("node-turn");
-  const port = await freePort(host);
-  const server = new Turn({
-    authMech: "long-term",
-    credentials: { live: "turn-credential-2026" },
-    listeningIps: [host],
-    relayIps: [host],
-    listeningPort: port,
-    debugLevel: "OFF",
-  });
-  server.start();
-  return {
-    url: `turn:${host}:${port}?transport=udp`,
-    username: "live",
-    credential: "turn-credential-2026",
-    stop: async () => server.stop(),
-  };
+export async function startTurnServer({
+  host = "127.0.0.1",
+  binary = process.env.LIVE_TURN_SERVER ??
+    fileURLToPath(
+      new URL(
+        "../../../../.cache/live-fixtures/bin/live-turn",
+        import.meta.url,
+      ),
+    ),
+} = {}) {
+  const server = await startLiveTurn(binary, { host });
+  if (server.missing)
+    throw new Error(`No live-turn binary at ${server.missing}`);
+  return { ...server, url: server.urls.udp };
 }

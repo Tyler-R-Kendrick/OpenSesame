@@ -36,6 +36,8 @@ export type SettingsRailSnapshot = {
   contributed?: readonly ContributedPanel[];
   /** Security › Duress draws (the owner of an open vault; never a guest or a decoy). */
   duress?: boolean;
+  /** Security › Decoy has a supported real owner session. */
+  decoy?: boolean;
   /** Security › Your account draws (an Identity session is held). */
   account?: boolean;
   /**
@@ -94,6 +96,29 @@ function contributedTo(
     .map((entry) => panel(category, entry.id, entry.label));
 }
 
+function securitySections(
+  snapshot: SettingsRailSnapshot,
+  contributed: PageTreeSource[],
+): PageTreeSource[] {
+  return [
+    panel("security", "vault-key-protection", "Vault key protection"),
+    panel("security", "unlock-methods", "Unlock methods"),
+    panel("security", "second-step", "Second step"),
+    panel("security", "recovery", "Recovery"),
+    ...(snapshot.account
+      ? [panel("security", "account-factors", "Your account")]
+      : []),
+    ...(snapshot.duress
+      ? [
+          panel("security", "duress-profiles", "Duress"),
+          panel("security", "travel", "Travel"),
+        ]
+      : []),
+    ...(snapshot.decoy ? [panel("security", "decoy", "Decoy")] : []),
+    ...contributed,
+  ];
+}
+
 function sectionsFor(
   tab: SettingsTab,
   snapshot: SettingsRailSnapshot,
@@ -117,24 +142,7 @@ function sectionsFor(
         ...contributed,
       ];
     case "security":
-      // SecurityPanels' order: a capability's panels take the slot after
-      // the unlock methods and the account's own factors.
-      return [
-        panel("security", "vault-key-protection", "Vault key protection"),
-        panel("security", "unlock-methods", "Unlock methods"),
-        panel("security", "second-step", "Second step"),
-        panel("security", "recovery", "Recovery"),
-        ...(snapshot.account
-          ? [panel("security", "account-factors", "Your account")]
-          : []),
-        ...(snapshot.duress
-          ? [
-              panel("security", "duress-profiles", "Duress"),
-              panel("security", "travel", "Travel"),
-            ]
-          : []),
-        ...contributed,
-      ];
+      return securitySections(snapshot, contributed);
     case "vaults":
       return [
         ...(snapshot.vaults ?? []).map((vault) => ({

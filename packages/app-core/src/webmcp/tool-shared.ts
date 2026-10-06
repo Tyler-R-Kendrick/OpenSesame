@@ -1,3 +1,4 @@
+import { assertNotDecoySession } from "../lib/decoy-session.js";
 /**
  * Helpers every WebMCP tool group shares: argument readers, the unlocked
  * gate, the ceremony opener, and the support seam. Nothing here names a
@@ -34,6 +35,7 @@ export function optStr(args: JsonObject, key: string): string | null {
 }
 
 export function requireUnlocked(): void {
+  assertNotDecoySession();
   if (vaultStore.getSnapshot().status !== "unlocked") {
     throw new Error("vault_locked");
   }
