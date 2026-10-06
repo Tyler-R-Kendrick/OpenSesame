@@ -11,8 +11,6 @@ import {
   type Folder,
   type VaultItem,
   passwordMethod,
-  pepperBinding,
-  sealWithPepper,
 } from "@opensesame/vault-core";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -40,7 +38,7 @@ const copySecret = vi.hoisted(() => vi.fn());
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
-  useVault: () => vault.current,
+  useVault: () => ({ ...vault.current, tomb: "personal" }),
   useVaultStore: () => store,
   useCopySecret: () => copySecret,
 });
@@ -48,56 +46,13 @@ afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
 
 import { expectInTray } from "../../components/tray.test-support.js";
 import { ItemDetail } from "./ItemDetail.js";
+import { bindAccountPasswordCore } from "./account-password-test-context.js";
+import {
+  PLAIN,
+  sealedAccount,
+  slottedAccount,
+} from "./account-pepper.test-support.js";
 import { makeAccount } from "./account.test-support.js";
-
-const PLAIN = "correct-horse-battery";
-
-async function sealPassword() {
-  const base = makeAccount({ id: "itm_pep", password: PLAIN });
-  const method = passwordMethod(base);
-  if (!method) throw new Error("fixture");
-  const sealed: typeof method = {
-    ...method,
-    pepper: true,
-    secret: "",
-    sealed: await sealWithPepper(
-      PLAIN,
-      "right",
-      pepperBinding(base.id, method.id),
-    ),
-  };
-  return { account: { ...base, methods: [sealed] }, method: sealed };
-}
-
-let sealed: ReturnType<typeof sealPassword> | undefined;
-
-/**
- * An account an older version made: its password sealed under the pepper
- * `right`. Sealing is one real PBKDF2 at its production strength, and the
- * sealed record is never changed by a test, so it is derived once for the file
- * rather than once per test.
- */
-function sealedAccount() {
-  sealed ??= sealPassword();
-  return sealed;
-}
-
-/** A stored password with a slot for the person's own pepper at `at`. */
-function slottedAccount(password: string, at?: string): AccountItem {
-  const base = makeAccount({ id: "itm_slot", password });
-  const method = passwordMethod(base);
-  if (!method) throw new Error("fixture");
-  return {
-    ...base,
-    methods: [
-      {
-        ...method,
-        pepper: true,
-        ...(at === undefined ? undefined : { pepperAt: at }),
-      },
-    ],
-  };
-}
 
 function sphinxAccount(): AccountItem {
   const base = makeAccount({ id: "itm_sph", username: "ada" });
@@ -150,10 +105,12 @@ describe("account detail", () => {
     vault.current = { items: [], folders: [] };
     copySecret.mockResolvedValue("copied");
     store.saveItem.mockResolvedValue(undefined);
+    bindAccountPasswordCore(() => vault.current.items, store.saveItem);
   });
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it("generates a replacement password through the update panel", async () => {

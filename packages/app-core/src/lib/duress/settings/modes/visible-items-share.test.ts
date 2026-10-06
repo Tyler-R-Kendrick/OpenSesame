@@ -1,4 +1,9 @@
-import { type VaultItem, createItem } from "@opensesame/vault-core";
+import {
+  type VaultItem,
+  createItem,
+  itemTypeRegistry,
+} from "@opensesame/vault-core";
+import { definitionFields } from "@opensesame/vault-item-types";
 import { describe, expect, it } from "vitest";
 import { pepperedAccount } from "../../../account.test-support.js";
 import { VISIBLE_LIMITS, readVisibleItemsBody } from "./visible-items-shape.js";
@@ -142,6 +147,37 @@ describe("what is eligible, and what is never copied", () => {
       values: {},
     };
     expect(isShareable(file)).toBe(false);
+  });
+
+  it("omits malformed persisted typed values without throwing", () => {
+    const candidate = itemTypeRegistry()
+      .list()
+      .find(({ definition, source }) => {
+        if (source !== "builtin" || definitionFields(definition).length === 0)
+          return false;
+        return isShareable({
+          ...createItem("note", "Typed"),
+          kind: "typed",
+          typeId: definition.metadata.id,
+          values: {},
+        });
+      });
+    if (!candidate) throw new Error("No shareable built-in typed fixture");
+    const field = definitionFields(candidate.definition)[0];
+    if (!field) throw new Error("Typed fixture has no field");
+    const item: VaultItem = {
+      ...createItem("note", "Typed"),
+      kind: "typed",
+      typeId: candidate.definition.metadata.id,
+      values: {},
+    };
+    for (const invalid of [null, true, 42]) {
+      Object.assign(item.values, { [field.id]: invalid });
+      const copy = shareItem(item);
+      expect(copy?.kind).toBe("typed");
+      if (copy?.kind !== "typed") throw new Error("Typed copy was refused");
+      expect(copy.values[field.id]).toBeUndefined();
+    }
   });
 
   it("collapses a name to one line and cuts what is too long, so a copy always reads back", () => {

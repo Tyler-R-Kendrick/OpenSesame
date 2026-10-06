@@ -28,7 +28,6 @@ export function PaintedText({
   onFocus,
   painter = paintSource,
 }: {
-  painter?: typeof paintSource;
   language: FileLanguage;
   /** The file's path, which names the textarea. */
   path: string;
@@ -40,6 +39,8 @@ export function PaintedText({
   onKeyDown?: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
   onKeyUp?: (caret: number) => void;
   onFocus?: () => void;
+  /** Rendering port; the owner can size the editor independently of token painting. */
+  painter?: typeof paintSource;
 }) {
   const cols = longestLine(source);
   const stage = useRef<HTMLDivElement>(null);

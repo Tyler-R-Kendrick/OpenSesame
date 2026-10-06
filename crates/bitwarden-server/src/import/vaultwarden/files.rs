@@ -39,6 +39,8 @@ pub(super) async fn attachments(
         Owner::Account(id) => ("user_uuid", id, Some(id.to_owned())),
         Owner::Organization(id) => ("organization_uuid", id, None),
     };
+    // Column is selected from the closed Owner enum; the owner ID is bound separately.
+    // ast-grep-ignore: sql-format-injection
     let rows = sqlx::query(&format!(
         "SELECT a.id, a.cipher_uuid, a.file_name, a.file_size, a.akey FROM attachments a \
          JOIN ciphers c ON c.uuid = a.cipher_uuid WHERE c.{column} = ?"

@@ -1,4 +1,7 @@
 import type { Capability } from "./index.js";
+import { passwordProviderCapabilities } from "./password-provider.js";
+import { passwordRequestCapabilities } from "./password-requests.js";
+import { passwordWorkflowCapabilities } from "./password-workflows.js";
 import { vaultCliCapabilities } from "./vault-cli.js";
 import { vaultDuressCapabilities } from "./vault-duress.js";
 import { vaultFileCapabilities } from "./vault-files.js";
@@ -12,6 +15,9 @@ import { vaultTravelCapabilities } from "./vault-travel.js";
  * export, travel, and key protection.
  */
 export const vaultCapabilities: readonly Capability[] = [
+  ...passwordWorkflowCapabilities,
+  ...passwordProviderCapabilities,
+  ...passwordRequestCapabilities,
   ...vaultLoginDraftCapabilities,
   ...vaultFileCapabilities,
   ...vaultCliCapabilities,

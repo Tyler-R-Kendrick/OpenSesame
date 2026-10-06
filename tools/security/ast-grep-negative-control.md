@@ -64,6 +64,20 @@ Case 4 covers the `tsx` rules separately from the `typescript` ones: ast-grep
 treats them as different languages, so a rule fixed in one is not fixed in
 the other.
 
+**5. SQL formatting with an explicit caller argument — must FAIL.**
+
+```bash
+cat > /tmp/ng/src/sql.rs <<'EOF'
+fn bad(input: &str) { sqlx::query(&format!("SELECT {}", input)); }
+EOF
+run /tmp/ng/src/sql.rs   # expect: 1
+```
+
+The SQL patterns use a variadic capture: a single capture misses the comma
+and explicit argument, although it recognizes implicit `{input}` formatting.
+Reviewed column lists and closed enum choices have individual audit comments;
+caller values must remain bound parameters.
+
 ```bash
 rm -rf /tmp/ng
 ```

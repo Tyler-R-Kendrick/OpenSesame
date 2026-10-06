@@ -14,8 +14,7 @@ use axum::{
 };
 use chrono::Utc;
 use opensesame_domain::{
-    Admission, JoinDecision, JoinRequest, SessionAdmission, SessionId, SessionMembership,
-    SessionVisibility,
+    Admission, JoinDecision, JoinRequest, SessionAdmission, SessionId, SessionVisibility,
 };
 use opensesame_storage::StoredSession;
 use serde::Deserialize;
@@ -169,8 +168,7 @@ pub async fn discover(
 /// Seat an asker under the session's own policy (ADR 0137): as an observer,
 /// holding nothing, decided in the operator's name because the operator made
 /// this decision once for everybody when they opened the session. The seat
-/// is written before the decision, as [`super::join::decide_join_request`] does; if the
-/// decision then fails the request stays pending for the operator to answer.
+/// and decision land atomically with a fresh check that the session is open.
 pub(super) async fn admit_on_ask(
     st: &AppState,
     session: &StoredSession,
@@ -179,20 +177,6 @@ pub(super) async fn admit_on_ask(
     let now = Utc::now();
     let decided_by = session.operator_principal_id;
     let admission = Admission::Observer;
-    let seat = SessionMembership::new(
-        session.id,
-        request.requester_principal_id,
-        admission.mode(),
-        decided_by,
-        now,
-    );
-    if let Err(error) = st
-        .db
-        .upsert_session_membership(&session.organization_id, &seat)
-        .await
-    {
-        return unavailable(&error);
-    }
     let decision = JoinDecision::Admitted { admission };
     if let Err(error) = st
         .db
@@ -206,6 +190,9 @@ pub(super) async fn admit_on_ask(
         )
         .await
     {
+        if error.is::<opensesame_storage::ClosedOrDecided>() {
+            return super::not_found();
+        }
         return unavailable(&error);
     }
     announce(

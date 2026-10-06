@@ -22,13 +22,10 @@ import type {
   GuideRuntimeSnapshot,
 } from "@opensesame/guide-runtime";
 import type {
-  SupportAgentAvailability,
-  SupportAgentPort,
   SupportErrorCode,
   SupportSession,
 } from "@opensesame/support-agent";
-import { ABSENT_AGENT_LOADERS, supportAgentLoaders } from "./agent-seams.js";
-import { chooseSupportAgent } from "./choose-agent.js";
+import { lazyEngineAgent } from "./lazy-engine-agent.js";
 import { tourRunner } from "./tour-runner.js";
 
 /** Who wrote the walkthrough. It selects the vocabulary and budget it is checked against, never whether it is checked. */
@@ -108,8 +105,7 @@ export type SupportHost = {
 export type EngineOptions = { readonly offline?: boolean };
 
 /** Everything the engine is made of, imported together on first open. */
-async function loadModules(offline: boolean) {
-  const loaders = offline ? ABSENT_AGENT_LOADERS : supportAgentLoaders;
+async function loadModules() {
   const [
     { SupportError, createSupportSession, redactionWarning },
     { compileGuide, AUTHORED_GUIDE_LIMITS },
@@ -119,8 +115,6 @@ async function loadModules(offline: boolean) {
     routes,
     predicateState,
     rendering,
-    promptApi,
-    agUi,
     predicates,
     connectivity,
   ] = await Promise.all([
@@ -148,8 +142,6 @@ async function loadModules(offline: boolean) {
     import("@opensesame/app-core/tutorial/registry/routes.js"),
     import("@opensesame/app-core/tutorial/registry/state.js"),
     import("./coach/scroll-renderer.js"),
-    loaders.promptApi(),
-    loaders.agUi(),
     import("@opensesame/app-core/tutorial/registry/predicates.js"),
     import("@opensesame/app-core/lib/connectivity-monitor.js"),
   ]);
@@ -166,56 +158,12 @@ async function loadModules(offline: boolean) {
     routes,
     predicateState,
     rendering,
-    promptApi,
-    agUi,
     predicates,
     connectivity,
   };
 }
 
 type Modules = Awaited<ReturnType<typeof loadModules>>;
-
-async function localAvailability(
-  port: SupportAgentPort,
-): Promise<SupportAgentAvailability> {
-  try {
-    return await port.availability();
-  } catch {
-    return { kind: "unavailable", reason: "platform_unsupported" };
-  }
-}
-
-/** Whichever agent this browser can actually reach, and where it answers from. */
-async function chooseAgent(mods: Modules, offline: boolean) {
-  /** Stands in when this browser has neither, so the panel still opens. */
-  const absent = {
-    availability: (): Promise<SupportAgentAvailability> =>
-      Promise.resolve({ kind: "unavailable", reason: "no_local_model" }),
-    run: () =>
-      Promise.reject(
-        new mods.SupportError(
-          "AGENT_UNAVAILABLE",
-          "no support agent is available in this browser",
-        ),
-      ),
-    destroy: () => {},
-  };
-  if (offline) return { port: absent, transport: "none" as const };
-  const local = mods.promptApi.createPromptApiAgent();
-  const providerMod = await supportAgentLoaders.provider();
-  const provider = providerMod.createProviderAgent();
-  const chosen = chooseSupportAgent(
-    local,
-    local === null ? null : await localAvailability(local),
-    provider,
-    () => mods.agUi.createAgUiAgent(),
-    absent,
-  );
-  // Keep unused planes from holding a second live session.
-  if (chosen.port !== local) local?.destroy();
-  if (chosen.port !== provider) provider?.destroy();
-  return chosen;
-}
 
 /** The deterministic runtime, over the registries this build declares. */
 function buildRuntime(mods: Modules, host: SupportHost) {
@@ -254,10 +202,11 @@ export async function loadBrowserEngine(
   options: EngineOptions = {},
 ): Promise<SupportEngine> {
   const offline = options.offline === true;
-  const mods = await loadModules(offline);
+  const mods = await loadModules();
   const { SupportError, compileGuide, AUTHORED_GUIDE_LIMITS, context } = mods;
   mods.predicates.registerGuidePredicates();
-  const { port, transport } = await chooseAgent(mods, offline);
+  const agent = lazyEngineAgent(offline);
+  const { port } = agent;
 
   function readContext(question?: string) {
     const planes = mods.connectivity.connectivitySnapshot();
@@ -299,8 +248,12 @@ export async function loadBrowserEngine(
   const { renderer, runtime } = buildRuntime(mods, host);
 
   return {
-    transport,
-    warning: transport === "remote" ? mods.redactionWarning() : null,
+    get transport() {
+      return agent.transport;
+    },
+    get warning() {
+      return agent.transport === "remote" ? mods.redactionWarning() : null;
+    },
     session,
     compile(source) {
       const result = compileGuide(source, vocabulary);
@@ -326,7 +279,7 @@ export async function loadBrowserEngine(
     },
     async acquire(onProgress) {
       try {
-        await mods.promptApi.acquirePromptApiModel(onProgress);
+        await agent.acquire(onProgress);
         return { kind: "acquired" };
       } catch (cause) {
         if (cause instanceof SupportError) {
@@ -339,7 +292,6 @@ export async function loadBrowserEngine(
       runtime.cancel("lock");
       renderer.clear();
       session.destroy();
-      mods.promptApi.releaseLocalModelSession();
     },
   };
 }

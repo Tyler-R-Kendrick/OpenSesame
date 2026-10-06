@@ -1,0 +1,98 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "itemPack": "Account"
+        },
+        {
+          "seed": ["Example account"]
+        },
+        {
+          "bringIntoViewOptional": ".detail__group.password-workflows"
+        },
+        {
+          "count": [
+            ".detail__group.password-workflows",
+            ".detail__group.password-workflows fieldset"
+          ]
+        },
+        {
+          "measure": ".detail__group.password-workflows button, .detail__group.password-workflows input[type=\"checkbox\"]"
+        },
+        {
+          "shot": "desktop-account"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 900,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "itemPack": "Account"
+        },
+        {
+          "seed": ["Example account"]
+        },
+        {
+          "bringIntoViewOptional": ".detail__group.password-workflows"
+        },
+        {
+          "count": [
+            ".detail__group.password-workflows",
+            ".detail__group.password-workflows fieldset"
+          ]
+        },
+        {
+          "measure": ".detail__group.password-workflows button, .detail__group.password-workflows input[type=\"checkbox\"]"
+        },
+        {
+          "shot": "phone-account"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "desktop-account",
+      "width": 1280,
+      "title": "Account credential workflows \u2014 desktop",
+      "caption": "The account retains its own password controls and adds references and verified method-specific comparison.",
+      "before": "Account password controls",
+      "after": "References and verified password method update"
+    },
+    {
+      "shot": "phone-account",
+      "width": 390,
+      "title": "Account credential workflows \u2014 phone",
+      "caption": "Reference downloads and password comparison stay with the selected account.",
+      "before": "Account password controls",
+      "after": "Local reference and method comparison"
+    }
+  ],
+  "evidence": {
+    "beforeBase": "e53d2a2ca18628021be020f1c916a9aca793d93e",
+    "integratedUpstreamBase": "e53d2a2ca18628021be020f1c916a9aca793d93e",
+    "afterBuildIndexSha256": "37e211d4845ee6c59bdea4ef9ee5b07d6222bf506c3434371b5ab3124f0c6d9a",
+    "afterSource": "Integrated working tree; feature commit recorded in implementation pull request",
+    "afterCapturedAt": "2026-10-05T19:45:36.135838+00:00",
+    "measurements": {
+      "referenceSections": 1,
+      "fieldsets": 2,
+      "phoneActionAndConfirmationPixels": [44, 44],
+      "desktopActionPixels": [32, 32]
+    },
+    "beforeBuildIndexSha256": "ee8559e3ba57cb1c0e1c86d726e4692a67205c6310c3363eb8e402e6e3545fd5"
+  }
+}

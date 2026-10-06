@@ -15,7 +15,7 @@ fi
 echo "==> ast-grep security scan"
 set +e
 ast-grep scan --inline-rules "$(cat "$RULES")" \
-  --globs '!**/*.test.*' --globs '!**/*.spec.*' --globs '!**/__snapshots__/**' \
+  --globs '!**/__snapshots__/**' \
   apps crates packages \
   2>"$OPENSESAME_AUDIT_DIR/ast-grep.err" \
   | tee "$OPENSESAME_AUDIT_DIR/ast-grep.out"

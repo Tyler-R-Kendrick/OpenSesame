@@ -18,6 +18,23 @@ export function capabilitySteps({ press, openSettings }) {
   }
 
   return {
+    /** Install an item pack through the person's Vaults settings switch. */
+    async itemPack(page, title) {
+      await openSettings(page, "Vaults");
+      const control = page.getByRole("switch", { name: title, exact: true });
+      await control.waitFor();
+      if ((await control.getAttribute("aria-checked")) === "false")
+        await press(control);
+      await page.waitForFunction((name) => {
+        const toggle = [...document.querySelectorAll('[role="switch"]')].find(
+          (node) => node.getAttribute("aria-label") === name,
+        );
+        return (
+          toggle?.getAttribute("aria-checked") === "true" &&
+          toggle?.getAttribute("aria-busy") !== "true"
+        );
+      }, title);
+    },
     /**
      * `scrollToOptional`, with the heading in the middle of the viewport: a
      * sticky strip above the list hides a heading brought to the top, and a

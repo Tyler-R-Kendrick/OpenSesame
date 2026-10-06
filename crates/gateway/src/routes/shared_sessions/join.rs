@@ -23,7 +23,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use opensesame_domain::{
     Admission, JoinDecision, JoinRequest, JoinRequestId, PrincipalId, SessionAdmission,
-    SessionGrant, SessionId, SessionMembership, SessionMode, SessionVisibility,
+    SessionGrant, SessionId, SessionMode, SessionVisibility,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -183,7 +183,7 @@ pub async fn decide_join_request(
         Ok(found) => found,
         Err(resp) => return resp,
     };
-    if !reach.is_operator() {
+    if !reach.is_operator() || session.closed_at.is_some() {
         return not_found();
     }
     let Ok(request_id) = JoinRequestId::parse(&request_id) else {
@@ -212,21 +212,6 @@ pub async fn decide_join_request(
         Ok(shape) => shape,
         Err(resp) => return resp,
     };
-
-    // The seat is written before the decision, and only for an admission. A
-    // decision that then fails leaves a seat nobody was told about, which the
-    // operator can see and end; the other order would leave an admitted
-    // requester with no standing at all and no way to notice.
-    if let JoinDecision::Admitted { admission } = decision {
-        let seat = SessionMembership::new(session.id, seated, admission.mode(), principal, now);
-        if let Err(error) = st
-            .db
-            .upsert_session_membership(&session.organization_id, &seat)
-            .await
-        {
-            return unavailable(&error);
-        }
-    }
 
     match st
         .db
@@ -277,6 +262,7 @@ pub async fn decide_join_request(
             }))
             .into_response()
         }
+        Err(error) if error.is::<opensesame_storage::ClosedOrDecided>() => not_found(),
         Err(error) => unavailable(&error),
     }
 }

@@ -73,11 +73,36 @@ describe("the offline engine a gate is built with", () => {
     engine.destroy();
   });
 
-  it("is the shell's engine when it is not offline: the loaders are asked", async () => {
+  it("loads shell agents only when their actual availability is requested", async () => {
     const seen = spies();
     const engine = await loadBrowserEngine(host);
+    expect(seen.promptApi).not.toHaveBeenCalled();
+    await engine.session.availability();
     expect(seen.promptApi).toHaveBeenCalled();
     expect(seen.provider).toHaveBeenCalled();
+    engine.destroy();
+  });
+  it("compiles and runs an authored guide while an optional agent loader is pending", async () => {
+    const never = new Promise<never>(() => {});
+    const promptApi = vi.fn(() => never);
+    installSupportAgentLoaders({ promptApi });
+    const engine = await loadBrowserEngine(host);
+    void engine.session.availability();
+    const program = engine.compileAuthored(
+      [
+        "guide/1",
+        'goal "gate.front-door"',
+        'say "Written help needs no model."',
+        "end",
+      ].join("\n"),
+    );
+    expect(program).not.toBeNull();
+    if (!program) throw new Error("Authored guide failed to compile");
+    const running = engine.runGuide(program, "authored");
+    expect(engine.transport).toBe("none");
+    expect(promptApi).toHaveBeenCalledTimes(1);
+    engine.cancelGuide("user");
+    expect((await running).kind).toBe("cancelled");
     engine.destroy();
   });
 });

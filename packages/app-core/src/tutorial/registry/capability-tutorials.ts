@@ -7,6 +7,11 @@ import { AUTHORITY_TUTORIALS } from "./authority-help.js";
  */
 export const CAPABILITY_TUTORIALS = {
   ...AUTHORITY_TUTORIALS,
+  "password_provider.request": "access.private-request",
+  "password_provider.lease_approve": "access.private-request",
+  "password_provider.lease_status": "access.private-request",
+  "password_provider.lease_revoke": "access.private-request",
+
   "vaults.switch": "vaults.switch",
   "vaults.travel": "vaults.travel",
   "vaults.travel_items": "vaults.travel",
@@ -91,6 +96,15 @@ export const CAPABILITY_TUTORIALS = {
   "identity.approval.requests": "identity.approval.review",
   // The hand-off's browser fallback is the device approval (`/device`).
   "identity.authenticator.invoke": "identity.device.approve",
+  "vault.workflow.find_references": "vault.password-workflows",
+  "vault.workflow.inventory": "vault.password-workflows",
+  "vault.workflow.audit_organization": "vault.password-workflows",
+  "vault.workflow.env_template": "vault.password-workflows",
+  "vault.workflow.create_private": "vault.password-workflows",
+  "vault.workflow.compare_private": "vault.password-workflows",
+  "vault.workflow.update_private": "vault.password-workflows",
+  "password_provider.read": "vault.password-workflows",
+  "password_provider.env_resolve": "vault.password-workflows",
   "vault.items.search": "vault.item.create",
   "vault.items.read_meta": "vault.item.create",
   "vault.items.write_meta": "vault.item.create",

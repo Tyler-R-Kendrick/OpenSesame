@@ -29,8 +29,8 @@ severity: error
 message: Possible SQL string formatting / injection
 rule:
   any:
-    - pattern: sqlx::query(&format!($A))
-    - pattern: sqlx::query(format!($A))
+    - pattern: sqlx::query(&format!($$$ARGS))
+    - pattern: sqlx::query(format!($$$ARGS))
 ---
 id: rust-command-injection
 language: rust

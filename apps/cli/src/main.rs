@@ -21,6 +21,7 @@ mod local_authority;
 mod log_sink;
 mod pass_otp;
 mod pass_protect;
+mod password_agent;
 mod plugins;
 mod plugins_install;
 mod private_file;
@@ -54,7 +55,6 @@ pub(crate) use rotate_recipes::RotateCmd;
 use serde::Deserialize;
 use serde_json::json;
 use std::{env, path::PathBuf, time::Duration};
-
 #[derive(Parser, Debug)]
 #[command(
     name = "opensesame",
@@ -69,9 +69,10 @@ pub(crate) struct Cli {
     #[command(subcommand)]
     command: Commands,
 }
-
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// 1Password workflows with verified private writes.
+    PasswordAgent(password_agent::Options),
     /// Interactive session and the first-run setup ceremony.
     Session,
     /// Vault: items, exports, and the sealed store.
@@ -178,7 +179,6 @@ enum Commands {
         cmd: hooks::HooksCmd,
     },
 }
-
 #[derive(Subcommand, Debug)]
 pub(crate) enum CeremonyCmd {
     /// Every provider a ceremony covers, and how far each one gets.
@@ -189,7 +189,6 @@ pub(crate) enum CeremonyCmd {
         provider: String,
     },
 }
-
 #[derive(Subcommand, Debug)]
 pub(crate) enum LifecycleCmd {
     /// Every tracked deadline and how close it is (metadata only).
@@ -209,7 +208,6 @@ pub(crate) enum LifecycleCmd {
     /// Run one expiry scan now instead of waiting for the tick.
     Scan,
 }
-
 #[derive(Subcommand, Debug)]
 pub(crate) enum LifecycleHookCmd {
     /// Register a subscription. Prints the signing secret once.
@@ -229,7 +227,6 @@ pub(crate) enum LifecycleHookCmd {
     /// Remove a subscription and its queued deliveries.
     Rm { id: String },
 }
-
 #[derive(Subcommand, Debug)]
 pub(crate) enum CertCmd {
     /// Print the Host dev CA certificate (trust this for local TLS).
@@ -266,12 +263,10 @@ pub(crate) enum CertCmd {
         out: Option<PathBuf>,
     },
 }
-
 #[derive(Subcommand, Debug)]
 pub(crate) enum AuthCmd {
     Doctor,
 }
-
 #[derive(Subcommand, Debug)]
 pub(crate) enum ReceiptCmd {
     Verify { id: String },
@@ -849,6 +844,7 @@ async fn real_main() -> anyhow::Result<()> {
     let cli = session::verb()?;
     serve::init_tracing(&cli.command);
     match cli.command {
+        Commands::PasswordAgent(options) => password_agent::execute(options).await?,
         Commands::Session => session::enter()?,
         Commands::Vault { cmd } => vault_area::run(&cli.server, &cli.output, cmd).await?,
         Commands::Access { cmd } => access_area::run(&cli.server, &cli.output, cmd).await?,
@@ -1523,17 +1519,17 @@ async fn import_connections(server: &str, input: PathBuf) -> anyhow::Result<()> 
 fn completion_script(shell: CompletionShell) -> &'static str {
     match shell {
         CompletionShell::Bash => {
-            r#"_opensesame() { COMPREPLY=( $(compgen -W 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass tui dev daemon task intent cert' -- "${COMP_WORDS[COMP_CWORD]}") ); }
+            r#"_opensesame() { COMPREPLY=( $(compgen -W 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass password-agent tui dev daemon task intent cert' -- "${COMP_WORDS[COMP_CWORD]}") ); }
 complete -F _opensesame opensesame
 "#
         }
         CompletionShell::Zsh => {
             r"#compdef opensesame
-_arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass tui dev daemon task intent cert)'
+_arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass password-agent tui dev daemon task intent cert)'
 "
         }
         CompletionShell::Fish => {
-            r"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass tui dev daemon task intent cert'
+            r"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass password-agent tui dev daemon task intent cert'
 "
         }
     }

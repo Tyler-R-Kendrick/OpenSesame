@@ -13,8 +13,8 @@ export type AddEntry = {
   label: string;
   /** Lower first. */
   order: number;
-  /** Which way the finger slides from the held button to choose this one. */
-  slide: "up" | "down";
+  /** Optional hold direction; omitted entries are available through the menu. */
+  slide?: "up" | "down" | undefined;
   run: () => void;
 };
 
