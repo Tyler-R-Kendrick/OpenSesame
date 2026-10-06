@@ -128,8 +128,6 @@ const GIT_FILES = [
   "github-history",
   "history-backups",
   "history-backup-idb",
-  "history-backup-legacy",
-  "history-backup-types",
   "history-claim-notice",
   "vault-backup-observer",
   "backup-egress-gate",

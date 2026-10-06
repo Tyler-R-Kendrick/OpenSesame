@@ -2,12 +2,18 @@
  * `src/lib/encrypted-db/**`: searchable encryption over IndexedDB (ADR 0175).
  */
 
-import { core, optional } from "./classification-rule.js";
+import { core, each, optional } from "./classification-rule.js";
 
 const L = "src/lib/";
 const SHELL = "shell.navigation";
+const GIT = "backup.git-remote";
 
 export const STORAGE_LIB_RULES = [
+  // The history store's records and its device-sealed implementation, split
+  // from `history-backup-idb` behind the store seam.
+  ...each(L, ["history-backup-legacy", "history-backup-types"], (p) =>
+    optional(p, GIT, "history backup store: the seam and its sealed database"),
+  ),
   optional(
     `${L}encrypted-db/`,
     "storage.encrypted-search",
