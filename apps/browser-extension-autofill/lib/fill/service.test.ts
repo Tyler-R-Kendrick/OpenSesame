@@ -37,10 +37,10 @@ describe("the background fill flow", () => {
     expect(JSON.stringify(result)).not.toContain(VALUE);
   });
 
-  it("answers the guard needs_pepper, with no value, for a peppered password", async () => {
+  it("answers the guard legacy_password, with no value, for a password an earlier pepper sealed", async () => {
     const h = harness({
       value: async () => {
-        throw new FillError("needs_pepper");
+        throw new FillError("legacy_password");
       },
     });
     const service = createFillService(h.ports);
@@ -50,12 +50,30 @@ describe("the background fill flow", () => {
         ask({ op: "value", nonce: message.nonce, field: "password" }),
         guardSender(),
       );
-      return { outcome: "needs_pepper" };
+      return { outcome: "legacy_password" };
     };
     const reply = await service.handle(ask({ op: "trigger" }), popup);
-    expect(valueReply).toEqual({ refusal: "needs_pepper" });
+    expect(valueReply).toEqual({ refusal: "legacy_password" });
     expect(JSON.stringify(valueReply)).not.toContain("value");
-    expect(reply).toEqual({ outcome: "needs_pepper" });
+    expect(reply).toEqual({ outcome: "legacy_password" });
+  });
+
+  it("tells the guard a pepper follows, and never asks for it", async () => {
+    const h = harness({
+      value: async () => ({ value: "head", pepper: true }),
+    });
+    const service = createFillService(h.ports);
+    let valueReply: unknown;
+    h.guard = async (message) => {
+      valueReply = await service.handle(
+        ask({ op: "value", nonce: message.nonce, field: "password" }),
+        guardSender(),
+      );
+      return { outcome: "pepper_next" };
+    };
+    const reply = await service.handle(ask({ op: "trigger" }), popup);
+    expect(valueReply).toEqual({ value: "head", pepper: true });
+    expect(reply).toEqual({ outcome: "pepper_next" });
   });
 
   it("refuses a value request nobody armed: a page cannot trigger a fill", async () => {

@@ -33,8 +33,9 @@ const SAY = new Map<string, string>(
     hidden: HIDDEN_FIELD,
     off_screen: HIDDEN_FIELD,
     zero_size: HIDDEN_FIELD,
-    needs_pepper:
-      "This password needs a pepper. Open it in the vault to use it",
+    pepper_next: "Filled. Type your pepper where it goes",
+    legacy_password:
+      "This password was made with an earlier pepper. Open it in the vault to convert it",
     store_locked: "The store on this computer is locked",
     daemon_unreachable: "Nothing answers on this computer",
     rate_limited: "Too many fills. Wait a moment",
@@ -42,7 +43,7 @@ const SAY = new Map<string, string>(
   }),
 );
 
-const OK = new Set(["filled", "ready"]);
+const OK = new Set(["filled", "ready", "pepper_next"]);
 
 /** A person-readable line for an outcome code. */
 export function describeOutcome(outcome: Outcome): string {

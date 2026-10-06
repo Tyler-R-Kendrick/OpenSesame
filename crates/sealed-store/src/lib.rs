@@ -21,6 +21,7 @@ mod otp {
 mod object_store;
 mod path;
 mod piv_age;
+mod produce;
 mod recipients;
 mod root;
 mod root_protection;
@@ -65,6 +66,7 @@ pub use path::{logical_to_relative, relative_to_logical};
 pub use piv_age::{
     discover_piv_age, refuse_destructive_ykman, PivAgeDiscovery, PivAgeError, PivAgeRuntime,
 };
+pub use produce::{produce_entry, split_at_pepper, Produced};
 pub use recipients::Recipients;
 pub use root::{resolve_store_dir, StoreError, StoreRoot};
 pub use root_protection::{

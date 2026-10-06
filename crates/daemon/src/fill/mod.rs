@@ -44,6 +44,7 @@ mod gate;
 mod operator;
 mod origin;
 mod pairing;
+mod produced;
 mod source;
 
 use crate::{
@@ -61,6 +62,7 @@ use caller::{extension_caller, refuse, Caller};
 use gate::{PluginGate, SettingsGate};
 use origin::{entry_matches, login_of, valid_reference, WebOrigin};
 use pairing::{PairOutcome, Pairings};
+use produced::{password_of, Filled};
 use serde::Deserialize;
 use serde_json::json;
 use source::{EntrySource, SealedSource, SourceError};
@@ -183,18 +185,25 @@ impl FillState {
         reference: &str,
         origin: &WebOrigin,
         field: Field,
-    ) -> Result<Zeroizing<String>, SourceError> {
+    ) -> Result<Filled, SourceError> {
         let reader = self.source.open()?;
         let mut entry = reader.read(reference)?;
-        let value = entry_matches(&entry.trailer, origin).then(|| match field {
-            Field::Password => Zeroizing::new(entry.secret.clone()),
-            Field::Username => Zeroizing::new(login_of(reference, &entry.trailer)),
-        });
-        entry.secret.zeroize();
-        entry.trailer.zeroize();
         // A reference for another site answers exactly like one that does not
         // exist, so the route cannot be used to probe which names are stored.
-        value.ok_or(SourceError::Missing)
+        let filled = if entry_matches(&entry.trailer, origin) {
+            match field {
+                Field::Password => password_of(&entry),
+                Field::Username => Ok(Filled {
+                    value: Zeroizing::new(login_of(reference, &entry.trailer)),
+                    pepper: false,
+                }),
+            }
+        } else {
+            Err(SourceError::Missing)
+        };
+        entry.secret.zeroize();
+        entry.trailer.zeroize();
+        filled
     }
 }
 
@@ -217,15 +226,18 @@ fn no_store(mut response: Response) -> Response {
 
 /// The one body that carries a value, serialized straight from the zeroizing
 /// copy so no intermediate JSON tree holds a second one.
-fn value_response(field: Field, value: &str) -> Response {
+fn value_response(field: Field, filled: &Filled) -> Response {
     #[derive(serde::Serialize)]
     struct FillBody<'a> {
         field: &'static str,
         value: &'a str,
+        #[serde(skip_serializing_if = "std::ops::Not::not")]
+        pepper: bool,
     }
     match serde_json::to_vec(&FillBody {
         field: field.as_str(),
-        value,
+        value: &filled.value,
+        pepper: filled.pepper,
     }) {
         Ok(body) => ([(header::CONTENT_TYPE, "application/json")], body).into_response(),
         Err(_) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "store_failed"),
@@ -236,6 +248,7 @@ fn store_refusal(error: &SourceError) -> Response {
     match error {
         SourceError::Missing => refuse(StatusCode::NOT_FOUND, "no_match"),
         SourceError::Locked => refuse(StatusCode::SERVICE_UNAVAILABLE, "store_locked"),
+        SourceError::Legacy => refuse(StatusCode::CONFLICT, "legacy_password"),
         SourceError::Failed => refuse(StatusCode::INTERNAL_SERVER_ERROR, "store_failed"),
     }
 }
@@ -322,7 +335,7 @@ async fn fill_value(
     let resolved =
         tokio::task::spawn_blocking(move || lookup.resolve(&reference, &origin, field)).await;
     match resolved {
-        Ok(Ok(value)) => no_store(value_response(field, &value)),
+        Ok(Ok(filled)) => no_store(value_response(field, &filled)),
         Ok(Err(error)) => no_store(store_refusal(&error)),
         Err(_) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "store_failed"),
     }

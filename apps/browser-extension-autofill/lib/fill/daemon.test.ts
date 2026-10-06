@@ -32,7 +32,7 @@ interface DaemonBody {
   readonly code?: string;
   readonly references?: readonly (string | number | null)[];
   readonly truncated?: boolean;
-  readonly needsPepper?: boolean;
+  readonly pepper?: boolean;
 }
 
 const json = (body: DaemonBody, status = 200) =>
@@ -86,35 +86,33 @@ describe("the daemon client", () => {
     ).rejects.toThrow("unexpected_response");
   });
 
-  it("skips a peppered password: refuses needs_pepper and returns no value", async () => {
+  it("hands over what comes before a pepper slot and says a pepper follows", async () => {
     const { daemon } = client(() =>
-      json({ field: "password", value: "sealed-envelope", needsPepper: true }),
-    );
-    await expect(
-      daemon.value("Web/x", "https://example.com", "password"),
-    ).rejects.toEqual(new FillError("needs_pepper"));
-  });
-
-  it("names a daemon's own needs_pepper refusal and still fills the username", async () => {
-    const refused = client(() => json({ error: "needs_pepper" }, 409));
-    await expect(
-      refused.daemon.value("Web/x", "https://example.com", "password"),
-    ).rejects.toEqual(new FillError("needs_pepper"));
-    const username = client(() =>
-      json({ field: "username", value: "alice", needsPepper: true }),
+      json({ field: "password", value: "head", pepper: true }),
     );
     expect(
-      await username.daemon.value("Web/x", "https://example.com", "username"),
-    ).toBe("alice");
+      await daemon.value("Web/x", "https://example.com", "password"),
+    ).toEqual({ value: "head", pepper: true });
   });
 
-  it("fills a plain password exactly as before", async () => {
+  it("names a daemon's legacy_password refusal, with no value, and still fills the username", async () => {
+    const refused = client(() => json({ error: "legacy_password" }, 409));
+    await expect(
+      refused.daemon.value("Web/x", "https://example.com", "password"),
+    ).rejects.toEqual(new FillError("legacy_password"));
+    const username = client(() => json({ field: "username", value: "alice" }));
+    expect(
+      await username.daemon.value("Web/x", "https://example.com", "username"),
+    ).toEqual({ value: "alice", pepper: false });
+  });
+
+  it("fills a whole password with no pepper", async () => {
     const { daemon } = client(() =>
-      json({ field: "password", value: "plain", needsPepper: false }),
+      json({ field: "password", value: "plain" }),
     );
-    expect(await daemon.value("Web/x", "https://example.com", "password")).toBe(
-      "plain",
-    );
+    expect(
+      await daemon.value("Web/x", "https://example.com", "password"),
+    ).toEqual({ value: "plain", pepper: false });
   });
 
   it("reports an unreachable daemon", async () => {
