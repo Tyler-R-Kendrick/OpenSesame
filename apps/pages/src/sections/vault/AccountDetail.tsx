@@ -61,9 +61,23 @@ function MethodRows({
           />
         );
       case "api-key":
-        return <ApiKeyRows key={method.id} method={method} ports={ports} />;
+        return (
+          <ApiKeyRows
+            key={method.id}
+            method={method}
+            methods={item.methods}
+            ports={ports}
+          />
+        );
       case "token":
-        return <TokenRows key={method.id} method={method} ports={ports} />;
+        return (
+          <TokenRows
+            key={method.id}
+            method={method}
+            title={methodTitle(item.methods, method)}
+            ports={ports}
+          />
+        );
       case "oauth":
         return <OAuthRows key={method.id} method={method} ports={ports} />;
       case "authenticator":

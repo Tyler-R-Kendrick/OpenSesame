@@ -7,6 +7,7 @@ import {
   passwordMethod,
 } from "@opensesame/vault-core";
 import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from "vitest";
 
@@ -52,6 +53,12 @@ export function input(label: string | RegExp): HTMLInputElement {
 
 export function block(name: string) {
   return within(screen.getByRole("group", { name: `${name} method` }));
+}
+
+/** Open a password line's options, closed until its key is pressed. */
+export async function showOptions(group: ReturnType<typeof block>) {
+  const key = group.getByRole("button", { name: "Password options" });
+  if (key.getAttribute("aria-expanded") !== "true") await userEvent.click(key);
 }
 
 export function saved(): AccountItem {

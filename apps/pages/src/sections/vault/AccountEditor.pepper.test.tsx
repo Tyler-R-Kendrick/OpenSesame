@@ -15,6 +15,7 @@ import {
   passwordOf,
   saveItem,
   saved,
+  showOptions,
   vault,
 } from "./account-editor.test-support.js";
 import { makeAccount } from "./account.test-support.js";
@@ -25,6 +26,7 @@ describe("account editor: pepper (ADR 0174)", () => {
   it("has Include pepper on at the end by default, never asks for one, and draws where it goes only while it is on", async () => {
     open("/vault/new/account");
     const password = block("Password");
+    await showOptions(password);
     expect(
       password.getByLabelText<HTMLInputElement>("Include pepper").checked,
     ).toBe(true);
@@ -39,22 +41,32 @@ describe("account editor: pepper (ADR 0174)", () => {
     expect(password.getByLabelText("Pepper goes")).toBeTruthy();
   });
 
-  it("keeps the options behind one line, closed, with the generator and the pepper inside", () => {
+  it("keeps the options behind a key on the password's line, closed, with the generator and the pepper inside", async () => {
     const { container } = open("/vault/new/account");
-    const more = container.querySelector("details.gen__more");
-    expect(more?.hasAttribute("open")).toBe(false);
-    expect(more?.querySelector("summary")?.textContent).toBe("Options");
+    const password = block("Password");
+    const key = password.getByRole("button", { name: "Password options" });
+    expect(key.getAttribute("aria-expanded")).toBe("false");
+    expect(container.querySelector("details")).toBeNull();
+    expect(password.queryByLabelText("Password generator")).toBeNull();
+    expect(password.queryByLabelText("Include pepper")).toBeNull();
+    // One line: the password, its keys and the remove ×, in one row.
+    const line = key.closest(".editor__uri");
+    expect(line?.contains(input("Password"))).toBe(true);
     expect(
-      more?.contains(block("Password").getByLabelText("Password generator")),
+      line?.contains(password.getByRole("button", { name: "Remove password" })),
     ).toBe(true);
-    expect(
-      more?.contains(block("Password").getByLabelText("Include pepper")),
-    ).toBe(true);
+    await userEvent.click(key);
+    expect(key.getAttribute("aria-expanded")).toBe("true");
+    expect(password.getByLabelText("Password generator")).toBeTruthy();
+    expect(password.getByLabelText("Include pepper")).toBeTruthy();
+    await userEvent.click(key);
+    expect(password.queryByLabelText("Password generator")).toBeNull();
   });
 
   it("saves the password and where the pepper goes, and never a pepper or a seal", async () => {
     open("/vault/new/account");
     const password = block("Password");
+    await showOptions(password);
     await userEvent.click(
       password.getByRole("button", { name: "Show password" }),
     );
@@ -75,6 +87,7 @@ describe("account editor: pepper (ADR 0174)", () => {
   it("takes a Python-style position, and marks one that is not, keeping the last good one", async () => {
     open("/vault/new/account");
     const password = block("Password");
+    await showOptions(password);
     const at = password.getByLabelText("Pepper goes");
     await userEvent.type(at, "2:5");
     expect(password.queryByRole("img")).toBeNull();
@@ -105,6 +118,7 @@ describe("account editor: pepper (ADR 0174)", () => {
     };
     open("/vault/itm_1/edit");
     const password = block("Password");
+    await showOptions(password);
     expect(password.getByLabelText<HTMLInputElement>("Pepper goes").value).toBe(
       "4",
     );
@@ -151,6 +165,9 @@ describe("account editor: pepper (ADR 0174)", () => {
       await screen.findByLabelText("Earlier pepper"),
       "right{Enter}",
     );
+    // Converted, it is an ordinary password line, with its options behind its key.
+    await password.findByRole("button", { name: "Password options" });
+    await showOptions(password);
     expect(await password.findByLabelText("Include pepper")).toBeTruthy();
     expect(input("Password").value).toBe("old-password");
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));

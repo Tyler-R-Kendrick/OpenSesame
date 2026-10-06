@@ -11,6 +11,7 @@ import {
   passwordOf,
   saveItem,
   saved,
+  showOptions,
 } from "./account-editor.test-support.js";
 
 describe("account editor: methods and generators", () => {
@@ -30,7 +31,7 @@ describe("account editor: methods and generators", () => {
       screen.getAllByRole("group", { name: /^Password.* method$/ }),
     ).toHaveLength(1);
     const adds: [string, string, RegExp][] = [
-      ["API key", "API key", /^API key$/],
+      ["API key", "API key", /^API header$/],
       ["Token", "Token", /^Token$/],
       ["OAuth", "OAuth", /^Client id$/],
       ["Authenticator", "Authenticator", /^Authenticator secret$/],
@@ -78,7 +79,10 @@ describe("account editor: methods and generators", () => {
       );
       await userEvent.click(screen.getByRole("button", { name: choice }));
     }
-    await userEvent.type(block("API key").getByLabelText("API key"), "ak_1");
+    await userEvent.type(
+      block("API key").getByLabelText("X-Api-Key value"),
+      "ak_1",
+    );
     await userEvent.type(block("Token").getByLabelText("Token"), "tok_1");
     await userEvent.type(block("OAuth").getByLabelText("Client id"), "cid");
     await userEvent.type(
@@ -106,6 +110,7 @@ describe("account editor: methods and generators", () => {
 
   it("publishes the editor to WebMCP as metadata only, whatever the password holds", async () => {
     open("/vault/new/account?uri=https://bank.example.com");
+    await showOptions(block("Password"));
     await userEvent.selectOptions(
       block("Password").getByLabelText("Password generator"),
       "derived",
@@ -142,6 +147,7 @@ describe("account editor: methods and generators", () => {
   it("changes the options with the generator", async () => {
     open("/vault/new/account");
     const password = block("Password");
+    await showOptions(password);
     const select = password.getByLabelText("Password generator");
     expect(password.getByLabelText("Length")).toBeTruthy();
     expect(password.getByLabelText("Fewest numbers")).toBeTruthy();
@@ -180,6 +186,7 @@ describe("account editor: methods and generators", () => {
   it("offers Include pepper on the generation form for every generator it lists, and the earlier Sphinx is not among them", async () => {
     open("/vault/new/account");
     const password = block("Password");
+    await showOptions(password);
     const select = password.getByLabelText("Password generator");
     const offered = [...select.querySelectorAll("option")].map(
       (option) => option.value,
@@ -194,6 +201,7 @@ describe("account editor: methods and generators", () => {
   it("saves a derived method as a root and rotates it with the counter", async () => {
     open("/vault/new/account?uri=https://bank.example.com");
     const password = block("Password");
+    await showOptions(password);
     await userEvent.selectOptions(
       password.getByLabelText("Password generator"),
       "derived",
@@ -225,6 +233,7 @@ describe("account editor: methods and generators", () => {
   it("keeps the same algorithmic password when the pepper goes off: the root stays", async () => {
     open("/vault/new/account");
     const password = block("Password");
+    await showOptions(password);
     await userEvent.selectOptions(
       password.getByLabelText("Password generator"),
       "derived",
