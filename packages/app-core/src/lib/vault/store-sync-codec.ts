@@ -22,6 +22,10 @@ import {
 } from "@opensesame/vault-core";
 import { accountFromEntry, describeAccount } from "./store-sync-account.js";
 import {
+  credentialFromEntry,
+  describeCredential,
+} from "./store-sync-credential.js";
+import {
   type OsMeta,
   type StorePlainEntry,
   TRAILER_FORMAT,
@@ -85,7 +89,10 @@ export function entryToVaultItem(
   const item =
     meta.kind === "typed" && isString(meta.typeId)
       ? typedFromMeta(meta, meta.typeId, name)
-      : builtInFromMeta(entry, meta, legacyKindOf(meta.kind), name);
+      : ((meta.kind === "credential"
+          ? credentialFromEntry(entry, meta, name)
+          : null) ??
+        builtInFromMeta(entry, meta, legacyKindOf(meta.kind), name));
   item.folderId = folderId;
   if (isWholeItemMeta(meta)) {
     item.fields = customFieldsIn(meta.fields);
@@ -113,6 +120,7 @@ function describeKind(item: VaultItem, meta: OsMeta): string | null {
     return null;
   }
   if (item.kind === "account") return describeAccount(item, meta);
+  if (item.kind === "credential") return describeCredential(item, meta);
   if (item.kind === "secret") {
     meta.connectionRef = item.connectionRef || undefined;
   }

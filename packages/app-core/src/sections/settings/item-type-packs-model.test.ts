@@ -31,7 +31,7 @@ const rowOf = (
     .find((row) => row.id === id);
 
 describe("the item-type list", () => {
-  it("groups the 18 packs by what they are for, in the order people reach for them", () => {
+  it("groups the 23 packs by what they are for, in the order people reach for them", () => {
     const groups = packGroups(base);
     expect(groups.map((group) => group.label)).toEqual([
       "Access",
@@ -40,7 +40,7 @@ describe("the item-type list", () => {
       "Identity",
       "Documents",
     ]);
-    expect(groups.flatMap((group) => group.rows)).toHaveLength(18);
+    expect(groups.flatMap((group) => group.rows)).toHaveLength(23);
   });
 
   it("says what each costs to switch on", () => {
@@ -112,13 +112,13 @@ describe("the item-type list", () => {
   });
 
   it("tallies what is on", () => {
-    expect(packTally(base)).toBe("0 of 18 on");
+    expect(packTally(base)).toBe("0 of 23 on");
     expect(
       packTally({
         ...base,
         status: { account: { phase: "on" }, card: { phase: "installing" } },
       }),
-    ).toBe("1 of 18 on");
+    ).toBe("1 of 23 on");
   });
 });
 

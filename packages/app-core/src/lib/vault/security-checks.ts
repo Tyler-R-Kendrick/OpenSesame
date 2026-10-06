@@ -22,12 +22,15 @@ import {
 } from "@opensesame/os-domain";
 import {
   type AccountItem,
+  type CredentialItem,
   type VaultItem,
   accountTotp,
   activeItems,
   completePassword,
   hostOf,
   produceAccountPassword,
+  producePassword,
+  unboundCredentials,
 } from "@opensesame/vault-core";
 
 export const PWNED_RANGE_URL = "https://api.pwnedpasswords.com/range/";
@@ -41,7 +44,7 @@ export {
 export type CheckFetch = (url: string, init: RequestInit) => Promise<Response>;
 
 export type SecurityFinding = {
-  item: AccountItem;
+  item: AccountItem | CredentialItem;
   /** Times the password appears in known breaches; 0 when it does not. */
   breaches: number;
   /** The site takes an authenticator code and this login stores none. */
@@ -156,15 +159,26 @@ export async function fetchTwoFactorSites(
  * person (ADR 0174); "" otherwise. A password completed by a pepper the
  * product never holds is not here to hash, so it is not checked.
  */
-function wholePassword(item: AccountItem): string {
+function wholePassword(item: AccountItem | CredentialItem): string {
+  if (item.kind === "credential") {
+    return item.method.type === "password"
+      ? (completePassword(producePassword(item.method)) ?? "")
+      : "";
+  }
   return completePassword(produceAccountPassword(item)) ?? "";
 }
 
-/** Live accounts whose whole password the product can produce. */
-function logins(items: readonly VaultItem[]): AccountItem[] {
-  return activeItems([...items]).filter(
-    (item): item is AccountItem =>
-      item.kind === "account" && wholePassword(item) !== "",
+/**
+ * Live accounts whose whole password the product can produce, and passwords
+ * kept on their own (ADR 0179): a breached password is as breached for no
+ * account at all.
+ */
+function logins(items: readonly VaultItem[]): (AccountItem | CredentialItem)[] {
+  const accounts = activeItems([...items]).filter(
+    (item): item is AccountItem => item.kind === "account",
+  );
+  return [...accounts, ...unboundCredentials(items)].filter(
+    (item) => wholePassword(item) !== "",
   );
 }
 
@@ -182,7 +196,9 @@ export async function runSecurityChecks(
 ): Promise<SecurityReport> {
   const checked = logins(items);
   const counts = await breachCounts(checked.map(wholePassword), fetchRange);
-  const needCodes = checked.some((login) => !accountTotp(login));
+  const needCodes = checked.some(
+    (login) => login.kind === "account" && !accountTotp(login),
+  );
   const sites = needCodes
     ? await fetchTwoFactorSites(fetchList)
     : new Set<string>();
@@ -190,6 +206,7 @@ export async function runSecurityChecks(
   for (const item of checked) {
     const breaches = counts.get(wholePassword(item)) ?? 0;
     const twoFactorAvailable =
+      item.kind === "account" &&
       !accountTotp(item) &&
       item.uris.some((uri) => {
         const host = hostOf(uri.uri);

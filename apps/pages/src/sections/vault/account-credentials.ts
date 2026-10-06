@@ -136,7 +136,9 @@ function choicesFor(
  * `y` copies the first password, else the first API key or token as its line;
  * that is the choice marked `primary`, and the one the menu shows the key on.
  */
-export function credentialChoices(item: AccountItem): CredentialChoice[] {
+export function credentialChoices(
+  item: Pick<AccountItem, "methods">,
+): CredentialChoice[] {
   const all = item.methods.flatMap((method) =>
     choicesFor(item.methods, method),
   );

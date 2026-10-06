@@ -155,10 +155,23 @@ export type AccountCredentials = {
 };
 
 export function accountCredentials(item: AccountItem): AccountCredentials {
+  return methodCredentials(item.methods, item.username, true);
+}
+
+/**
+ * The CXF credentials for login methods. An account always carries a
+ * `basic-auth` that names its username; a credential kept on its own (ADR 0179)
+ * is only what it is.
+ */
+export function methodCredentials(
+  methods: readonly LoginMethod[],
+  username: string,
+  asAccount: boolean,
+): AccountCredentials {
   const credentials: CxfCredential[] = [];
   let withheld = 0;
   let hasBasic = false;
-  for (const method of item.methods) {
+  for (const method of methods) {
     if (method.type === "password") {
       // A CXF credential holds a whole password, and a file never holds one an
       // algorithm computed (ADR 0174): CXF has no field for its parameters.
@@ -177,23 +190,23 @@ export function accountCredentials(item: AccountItem): AccountCredentials {
       hasBasic = true;
       credentials.push({
         type: CXF_TYPES.basicAuth,
-        username: field(item.username, "string"),
+        username: field(username, "string"),
         // The facade's whole password: a stored one, or what a derived method
         // computes. Never the root it computes from.
         password: field(whole ?? "", "concealed-string"),
       });
     } else if (method.type === "authenticator") {
-      const totp = totpCredential(method.secret, item.username);
+      const totp = totpCredential(method.secret, username);
       if (totp !== null) credentials.push(totp);
     } else {
       const credential = methodCredential(method);
       if (credential !== null) credentials.push(credential);
     }
   }
-  if (!hasBasic) {
+  if (asAccount && !hasBasic) {
     credentials.unshift({
       type: CXF_TYPES.basicAuth,
-      username: field(item.username, "string"),
+      username: field(username, "string"),
     });
   }
   return { credentials, withheld };

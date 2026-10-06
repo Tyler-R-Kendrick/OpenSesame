@@ -2,7 +2,11 @@
  * The store path manifest against a real, unlocked vault store: the write
  * the Import sheet makes, end to end.
  */
-import { createItem, passwordMethod } from "@opensesame/vault-core";
+import {
+  createItem,
+  outsideAccounts,
+  passwordMethod,
+} from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   planStoreManifest,
@@ -79,10 +83,11 @@ describe("the store path manifest in a real vault", () => {
     }
 
     const after = target.getSnapshot();
-    expect(after.items.map((item) => item.name).sort()).toEqual([
-      "Deploy hook",
-      "GitHub",
-    ]);
+    expect(
+      outsideAccounts(after.items)
+        .map((item) => item.name)
+        .sort(),
+    ).toEqual(["Deploy hook", "GitHub"]);
     expect(after.folders.map((folder) => folder.name)).toEqual(["Dev"]);
     const github = after.items.find((item) => item.name === "GitHub");
     expect(github).toMatchObject({ kind: "account", username: "octo" });

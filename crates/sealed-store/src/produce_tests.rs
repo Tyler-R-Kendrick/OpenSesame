@@ -82,6 +82,32 @@ fn an_algorithmic_entry_has_no_password_in_the_file_and_computes_it_here() {
 }
 
 #[test]
+fn a_credential_kept_on_its_own_produces_as_the_account_method_does() {
+    let case = &vectors()["derived"][0];
+    let meta = json!({
+        "v": 2, "kind": "credential",
+        "values": { "method": {
+            "id": "m", "type": "password", "pepper": false, "secret": case["root"],
+            "generator": { "id": "derived", "rules": case["rules"], "counter": case["counter"] },
+            "changedAt": "2026-01-01T00:00:00.000Z"
+        } }
+    });
+    assert_eq!(
+        produce_entry(&entry("", &meta)),
+        Produced::Ok(Zeroizing::new(case["password"].as_str().unwrap().into()))
+    );
+    // An API key on its own is what line one says, as any `pass` entry.
+    let key = json!({
+        "v": 2, "kind": "credential",
+        "values": { "method": { "id": "k", "type": "api-key", "key": "", "header": "X-Api-Key" } }
+    });
+    assert_eq!(
+        produce_entry(&entry("ak_1", &key)),
+        Produced::Ok(Zeroizing::new("ak_1".into()))
+    );
+}
+
+#[test]
 fn a_stored_password_with_a_pepper_slot_comes_out_in_two_parts() {
     let meta = password(&json!({
         "id": "m", "type": "password", "pepper": true, "pepperAt": "-2",

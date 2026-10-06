@@ -1,18 +1,21 @@
 import {
   type AccountItem,
+  type CredentialItem,
+  type ProducedPassword,
   type VaultItem,
   accountTotp,
   completePassword,
   hostOf,
   passwordMethod,
   produceAccountPassword,
+  producePassword,
 } from "@opensesame/vault-core";
 import { estimateStrength } from "./password.js";
 
 export type HealthIssue = "weak" | "reused" | "old" | "no-2fa";
 
 export type HealthFinding = {
-  item: AccountItem;
+  item: AccountItem | CredentialItem;
   issues: HealthIssue[];
   /** Other item names sharing this password, when reused. */
   sharedWith: string[];
@@ -47,27 +50,70 @@ export const ISSUE_EXPLANATION = {
   "no-2fa": "This account has no authenticator secret stored.",
 };
 
-export function buildHealthReport(items: VaultItem[]): HealthReport {
-  const live = items.filter(
-    (item): item is AccountItem =>
-      item.kind === "account" && item.deletedAt === null,
+/** One password the report scores: an account's, or a credential kept on its own. */
+type Subject = {
+  item: AccountItem | CredentialItem;
+  produced: ProducedPassword;
+  changedAt: string;
+  /** Null for a credential: there is no account for a second step to protect. */
+  hasTotp: boolean | null;
+  /** Read only when another password is reused with this one. */
+  label: () => string;
+};
+
+function subjectsOf(items: readonly VaultItem[]): Subject[] {
+  const accounts = new Set(
+    items
+      .filter((item) => item.kind === "account" && item.deletedAt === null)
+      .map((item) => item.id),
   );
+  return items.flatMap((item): Subject[] => {
+    if (item.deletedAt !== null) return [];
+    if (item.kind === "account") {
+      return [
+        {
+          item,
+          produced: produceAccountPassword(item),
+          changedAt: passwordMethod(item)?.changedAt ?? "",
+          hasTotp: accountTotp(item) !== "",
+          label: () => item.name || hostOf(item.uris[0]?.uri),
+        },
+      ];
+    }
+    // A password bound to an account is scored with that account.
+    if (item.kind !== "credential" || item.method.type !== "password")
+      return [];
+    if (item.accountId !== null && accounts.has(item.accountId)) return [];
+    return [
+      {
+        item,
+        produced: producePassword(item.method),
+        changedAt: item.method.changedAt,
+        hasTotp: null,
+        label: () => item.name,
+      },
+    ];
+  });
+}
+
+export function buildHealthReport(items: VaultItem[]): HealthReport {
+  const live = subjectsOf(items);
   // Scored on the whole password the facade produces. One missing a pepper
   // only the person has, or made by an older version, cannot be scored.
-  const wholeOf = (account: AccountItem) =>
-    completePassword(produceAccountPassword(account)) ?? "";
-  const accounts = live.filter((account) => wholeOf(account) !== "");
-  const unchecked = live.filter((account) => {
-    const { status } = produceAccountPassword(account);
-    return status === "slotted" || status === "legacy";
-  }).length;
+  const wholeOf = (subject: Subject) =>
+    completePassword(subject.produced) ?? "";
+  const scoredSubjects = live.filter((subject) => wholeOf(subject) !== "");
+  const unchecked = live.filter(
+    ({ produced }) =>
+      produced.status === "slotted" || produced.status === "legacy",
+  ).length;
 
-  const byPassword = new Map<string, AccountItem[]>();
-  for (const account of accounts) {
-    const password = wholeOf(account);
+  const byPassword = new Map<string, Subject[]>();
+  for (const subject of scoredSubjects) {
+    const password = wholeOf(subject);
     const bucket = byPassword.get(password);
-    if (bucket) bucket.push(account);
-    else byPassword.set(password, [account]);
+    if (bucket) bucket.push(subject);
+    else byPassword.set(password, [subject]);
   }
 
   const cutoff = Date.now() - OLD_PASSWORD_DAYS * 86_400_000;
@@ -79,29 +125,26 @@ export function buildHealthReport(items: VaultItem[]): HealthReport {
   };
   const findings: HealthFinding[] = [];
 
-  for (const account of accounts) {
-    const password = wholeOf(account);
+  for (const subject of scoredSubjects) {
+    const password = wholeOf(subject);
     const issues: HealthIssue[] = [];
     const strength = estimateStrength(password);
     if (strength.score <= 1) issues.push("weak");
 
     const shared = (byPassword.get(password) ?? []).filter(
-      (other) => other.id !== account.id,
+      (other) => other.item.id !== subject.item.id,
     );
     if (shared.length > 0) issues.push("reused");
 
-    const changedAt = passwordMethod(account)?.changedAt ?? "";
-    if (Date.parse(changedAt) < cutoff) issues.push("old");
-    if (!accountTotp(account)) issues.push("no-2fa");
+    if (Date.parse(subject.changedAt) < cutoff) issues.push("old");
+    if (subject.hasTotp === false) issues.push("no-2fa");
 
     for (const issue of issues) counts[issue] += 1;
     if (issues.length > 0) {
       findings.push({
-        item: account,
+        item: subject.item,
         issues,
-        sharedWith: shared.map(
-          (other) => other.name || hostOf(other.uris[0]?.uri),
-        ),
+        sharedWith: shared.map((other) => other.label()),
         bits: strength.bits,
       });
     }
@@ -111,8 +154,8 @@ export function buildHealthReport(items: VaultItem[]): HealthReport {
 
   return {
     findings,
-    scored: accounts.length,
-    clean: accounts.length - findings.length,
+    scored: scoredSubjects.length,
+    clean: scoredSubjects.length - findings.length,
     unchecked,
     counts,
   };

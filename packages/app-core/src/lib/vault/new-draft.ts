@@ -1,10 +1,13 @@
 import {
   type LegacyItemKind,
   type VaultItem,
+  createCredential,
   createItem,
   createTypedItem,
   itemTypeRegistry,
+  loginMethodTypeOf,
   mintRootSecret,
+  newLoginMethod,
   newUri,
   newValues,
   passwordMethod,
@@ -97,6 +100,12 @@ export function newItemDraft(rawTypeId: string, name?: string): VaultItem {
   const legacy = LEGACY_KINDS.find((kind) => kind === typeId);
   if (legacy !== undefined)
     return newNativeDraft(legacy, { ...labels, name: title });
+  // A credential of its own, bound to no account until a person says (ADR 0179).
+  const loginType = loginMethodTypeOf(typeId);
+  if (loginType !== undefined) {
+    const method = newLoginMethod(loginType, "credential");
+    return createCredential({ ...method, id: crypto.randomUUID() }, title);
+  }
   const values = { ...newValues(definition) };
   for (const field of definitionFields(definition)) {
     if (field.multiple || field.default !== undefined) continue;

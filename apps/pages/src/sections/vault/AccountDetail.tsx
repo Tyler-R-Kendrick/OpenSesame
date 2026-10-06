@@ -7,15 +7,9 @@ import {
 import { CopyButton, FieldRow } from "../../components/FieldRow.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
-import {
-  ApiKeyRows,
-  AuthenticatorRows,
-  OAuthRows,
-  TokenRows,
-} from "./AccountMethodRows.js";
-import { AccountPasswordRow } from "./AccountPasswordRow.js";
+import type { MethodRowPorts } from "./AccountMethodRows.js";
 import { AccountWebsiteRows } from "./AccountWebsiteRows.js";
-import { methodTitle } from "./MethodPicker.js";
+import { MethodRow } from "./MethodRow.js";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString(undefined, {
@@ -32,8 +26,6 @@ type Ports = {
   copy: (key: string, value: string) => Promise<void>;
 };
 
-type RowPorts = Parameters<typeof ApiKeyRows>[0]["ports"];
-
 /** One row group per login method, in the account's order. */
 function MethodRows({
   item,
@@ -41,52 +33,22 @@ function MethodRows({
   onSave,
 }: {
   item: AccountItem;
-  ports: RowPorts;
+  ports: MethodRowPorts;
   onSave: (method: PasswordMethod) => Promise<void>;
 }) {
-  const { copied, failed, copy } = ports;
   // The tutorials point at the first password's copy key, one target.
   const firstPassword = passwordMethod(item);
-  return item.methods.map((method) => {
-    switch (method.type) {
-      case "password":
-        return (
-          <AccountPasswordRow
-            key={method.id}
-            item={item}
-            method={method}
-            title={methodTitle(item.methods, method)}
-            copying={{ copied, failed, copy }}
-            guide={method === firstPassword}
-            onSave={onSave}
-          />
-        );
-      case "api-key":
-        return (
-          <ApiKeyRows
-            key={method.id}
-            method={method}
-            methods={item.methods}
-            ports={ports}
-          />
-        );
-      case "token":
-        return (
-          <TokenRows
-            key={method.id}
-            method={method}
-            title={methodTitle(item.methods, method)}
-            ports={ports}
-          />
-        );
-      case "oauth":
-        return <OAuthRows key={method.id} method={method} ports={ports} />;
-      case "authenticator":
-        return (
-          <AuthenticatorRows key={method.id} method={method} ports={ports} />
-        );
-    }
-  });
+  return item.methods.map((method) => (
+    <MethodRow
+      key={method.id}
+      account={item}
+      method={method}
+      methods={item.methods}
+      ports={ports}
+      guide={method === firstPassword}
+      onSave={onSave}
+    />
+  ));
 }
 
 /** An account: who it is, one row group per login method, and the sites it lives at. */

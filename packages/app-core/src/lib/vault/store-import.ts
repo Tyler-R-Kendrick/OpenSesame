@@ -31,6 +31,7 @@ import {
   deviceKeyTimeBounds,
   importVaultKey,
   normalizeVaultBody,
+  outsideAccounts,
   syncInstalledTypes,
   vaultSealBinding,
 } from "@opensesame/vault-core";
@@ -100,7 +101,8 @@ function mergeItemsInto(body: VaultBody, incoming: VaultBody): number {
     (id) => body.itemTypes?.[id] === undefined,
   );
   recordItemTypes(body, { ...types, ...body.itemTypes }, { added });
-  return items.length;
+  // An account's credentials are counted with it (ADR 0179).
+  return outsideAccounts(items).length;
 }
 
 /**

@@ -4,7 +4,12 @@
  * (ADR 0130, SB-069).
  */
 
-import type { Folder, VaultBody, VaultItem } from "@opensesame/vault-core";
+import {
+  type Folder,
+  type VaultBody,
+  type VaultItem,
+  resolveAccounts,
+} from "@opensesame/vault-core";
 import { noteSavedItems } from "./item-activity.js";
 import { itemText } from "./item-departure.js";
 import { writeItem } from "./item-path.js";
@@ -52,7 +57,11 @@ function assertExpectedUpdates(
   items: readonly VaultItem[],
   expected: ReadonlyMap<string, string>,
 ): void {
-  const current = new Map(items.map((item) => [item.id, item]));
+  // The body keeps an account's methods as credentials of their own; the
+  // items a caller read are the resolved ones (ADR 0179).
+  const current = new Map(
+    resolveAccounts(items).map((item) => [item.id, item]),
+  );
   for (const [id, text] of expected) {
     const item = current.get(id);
     if (!item || itemText(item) !== text)

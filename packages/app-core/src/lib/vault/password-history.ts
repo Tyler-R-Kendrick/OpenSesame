@@ -99,6 +99,18 @@ function heldSecrets(
         completePassword(producePassword(method)) ?? "",
       );
     }
+  } else if (item.kind === "credential") {
+    // History follows the password, wherever it is written from: one bound to
+    // an account is kept in that account's scope, as the account reads it
+    // (ADR 0179), and one kept on its own in its own.
+    if (item.method.type === "password") {
+      held.set(
+        item.accountId === null
+          ? `${tomb}\u0000${item.id}`
+          : methodScope(tomb, item.accountId, item.method.id),
+        completePassword(producePassword(item.method)) ?? "",
+      );
+    }
   } else if (item.kind === "secret") {
     held.set(`${tomb}\u0000${item.id}`, item.value);
   }

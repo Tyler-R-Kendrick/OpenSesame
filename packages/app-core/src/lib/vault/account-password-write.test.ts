@@ -1,5 +1,4 @@
 import { manualPassword } from "@opensesame/vault-core";
-import { emptyBody } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { shareReachSeams } from "../local-share-reach.js";
 import { updateLocalAccountPasswordMethod } from "./account-password-write.js";
@@ -7,6 +6,8 @@ import { stampedEdit } from "./body-edits.js";
 import { writeItem } from "./item-path.js";
 import {
   openWorkflowVault,
+  readBody,
+  sealedBody,
   testAccount,
 } from "./password-workflows.test-support.js";
 import { vaultStore } from "./store.js";
@@ -73,10 +74,8 @@ describe("account authoritative password write", () => {
     expect(state.items[0]).toEqual({
       ...original,
       updatedAt: expect.any(String),
-      fieldTimes: {
-        methods: expect.any(String),
-        [`methods.${next.id}`]: expect.any(String),
-      },
+      // The method's clock is its credential's (ADR 0179).
+      fieldTimes: {},
       methods: [next, original.methods[1]],
     });
   });
@@ -86,9 +85,9 @@ describe("account authoritative password write", () => {
     state.items = [{ methods: originalMethods, ...originalProperties }];
     vi.mocked(vaultStore.saveItem).mockImplementationOnce(async (item) => {
       if (item.kind !== "account") throw new Error("Expected account");
-      const body = { ...emptyBody(), items: state.items };
+      const body = sealedBody(state.items);
       stampedEdit((draft) => writeItem(draft, item))(body);
-      const persisted = body.items[0];
+      const persisted = readBody(body)[0];
       if (persisted?.kind !== "account")
         throw new Error("Expected persisted account");
       const { methods: persistedMethods, ...persistedProperties } = persisted;

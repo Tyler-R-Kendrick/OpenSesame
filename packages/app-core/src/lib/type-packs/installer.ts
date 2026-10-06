@@ -31,6 +31,7 @@ import {
 import { dismissNotice } from "../notices.js";
 import { announcePacks, announceSeams } from "./announce.js";
 import { updateStoredPacks } from "./persist.js";
+import { neededBy, packsNeeded } from "./requires.js";
 import {
   getPackSnapshot,
   isBusy,
@@ -181,6 +182,8 @@ export type EnableOptions = { keep?: boolean };
 
 export function enablePack(id: string, options: EnableOptions = {}): void {
   if (packEntry(id) === undefined) return;
+  // A type that cannot work without another switches it on too (ADR 0179).
+  for (const need of packsNeeded(id)) enablePack(need, options);
   const { phase } = statusOf(id);
   if (phase === "on" || (isBusy(phase) && !cancelled.has(id))) return;
   cancelled.delete(id);
@@ -219,6 +222,10 @@ export async function disablePack(id: string): Promise<DisableOutcome> {
     setStatus(id, { phase: "off" });
     announcePacks();
     return { ok: true };
+  }
+  const needing = neededBy(id, (pack) => statusOf(pack).phase === "on");
+  if (needing !== null) {
+    return { ok: false, reason: `${needing} needs ${entry.title}.` };
   }
   const held = getPackSnapshot().counts.get(id) ?? 0;
   if (held > 0) {

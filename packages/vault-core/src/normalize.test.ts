@@ -12,6 +12,7 @@ import {
   methodsOfType,
   passwordMethod,
 } from "./account.js";
+import { resolveAccounts } from "./credential.js";
 import { createVault, openJson, sealJson, vaultSealBinding } from "./crypto.js";
 import { mergeVaultBodies, sameVaultContent } from "./merge.js";
 import { type VaultBody, type VaultItem, emptyBody } from "./model.js";
@@ -57,8 +58,11 @@ function legacyBody(...logins: LegacyLoginItem[]): VaultBody {
   return Object.assign(emptyBody(), { items: logins, rev: 1 });
 }
 
+/** The account as a surface reads it: its methods filled from the credentials bound to it. */
 function accountOf(body: VaultBody, id: string): AccountItem {
-  const item = body.items.find((candidate) => candidate.id === id);
+  const item = resolveAccounts(body.items).find(
+    (candidate) => candidate.id === id,
+  );
   if (item?.kind !== "account") throw new Error(`no account ${id}`);
   return item;
 }
@@ -139,7 +143,12 @@ describe("merging legacy and migrated bodies", () => {
 
   it("makes one account with no duplicate methods", () => {
     const merged = mergeVaultBodies(legacyBody(legacy("a")), migrated("a", T0));
-    expect(merged.items).toHaveLength(1);
+    expect(merged.items.filter((item) => item.kind === "account")).toHaveLength(
+      1,
+    );
+    expect(
+      merged.items.filter((item) => item.kind === "credential"),
+    ).toHaveLength(2);
     const account = accountOf(merged, "a");
     expect(account.methods.map((method) => method.id)).toEqual([
       "a:password",
@@ -159,7 +168,8 @@ describe("merging legacy and migrated bodies", () => {
     ).toBe(true);
     expect(
       mergeVaultBodies(left, right)
-        .items.map((i) => i.id)
+        .items.filter((item) => item.kind === "account")
+        .map((i) => i.id)
         .sort(),
     ).toEqual(["a", "only-old"]);
   });

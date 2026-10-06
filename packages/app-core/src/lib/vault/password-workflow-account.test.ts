@@ -7,7 +7,6 @@ import {
   migrateLegacyLogin,
   producePassword,
 } from "@opensesame/vault-core";
-import { emptyBody } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PASSWORD_WORKFLOW_TOOLS } from "../../webmcp/password-workflow-tools.js";
 import { shareReachSeams } from "../local-share-reach.js";
@@ -23,6 +22,8 @@ import {
 } from "./password-workflows.js";
 import {
   openWorkflowVault,
+  readBody,
+  sealedBody,
   testAccount,
 } from "./password-workflows.test-support.js";
 import { vaultStore } from "./store.js";
@@ -248,9 +249,9 @@ describe("account password workflow custody", () => {
     const state = openWorkflowVault([account]);
     vi.mocked(vaultStore.saveItem).mockImplementationOnce(async (item) => {
       if (item.kind !== "account") throw new Error("Expected account");
-      const body = { ...emptyBody(), items: state.items };
+      const body = sealedBody(state.items);
       stampedEdit((draft) => writeItem(draft, item))(body);
-      const persisted = body.items[0];
+      const persisted = readBody(body)[0];
       if (persisted?.kind !== "account")
         throw new Error("Expected persisted account");
       const { methods: persistedMethods, ...persistedProperties } = persisted;

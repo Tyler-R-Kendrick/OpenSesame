@@ -58,6 +58,7 @@ export function mergeVaultBodies(
     v: 1,
     items: mergeItems(left.items, right.items)
       .filter((item) => !purgedSince(deadItems[item.id], item))
+      .filter((item) => !orphanedByPurge(item, deadItems))
       .map((item) => rehomed(item, deadFolders)),
     folders: newest(left.folders, right.folders, folderVersion).filter(
       (folder) => deadFolders[folder.id] === undefined,
@@ -197,6 +198,23 @@ function folderVersion(folder: Folder): string {
 /** An edit made after the purge — on a device that had not heard of it — survives. */
 function purgedSince(at: string | undefined, item: VaultItem): boolean {
   return at !== undefined && at >= changedAt(item);
+}
+
+/**
+ * A credential goes with the account it was bound to (ADR 0179): one a stale
+ * copy of a purged account brings back, extracted from its methods, has no
+ * tombstone of its own and must not outlive it as a password nothing opens. One
+ * changed after the purge, or kept on its own, stays.
+ */
+function orphanedByPurge(
+  item: VaultItem,
+  dead: Readonly<Record<string, string>>,
+): boolean {
+  return (
+    item.kind === "credential" &&
+    item.accountId !== null &&
+    purgedSince(dead[item.accountId], item)
+  );
 }
 
 function mergeTombstones(

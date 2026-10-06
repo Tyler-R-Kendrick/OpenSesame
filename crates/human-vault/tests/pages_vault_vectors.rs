@@ -6,17 +6,13 @@
 //! edited KDF are refused; the PIN and passkey PRF wraps open the same body.
 //! A failure here is a format break, never a reason to regenerate the file.
 
-use aes_gcm::{
-    aead::{Aead, KeyInit, Payload},
-    Aes256Gcm, Key, Nonce,
-};
 use base64::{engine::general_purpose::STANDARD, Engine};
 use opensesame_human_vault::pages_vault::{
     open_body, open_vault_file, read_vault_file, summarize, unwrap_with_password, unwrap_with_pin,
-    unwrap_with_prf, vault_seal_binding, OpenedVaultFile, VaultFileError, DEVICE_IDENTITY_KEY_PATH,
+    unwrap_with_prf, OpenedVaultFile, VaultFileError, DEVICE_IDENTITY_KEY_PATH,
 };
 use serde_json::Value;
-use sha2::Sha256;
+use support::{CREDENTIAL_VECTORS, VOCABULARY};
 
 mod support;
 
@@ -83,48 +79,6 @@ fn as_listed(opened: &OpenedVaultFile) -> Value {
     listed
 }
 
-fn b64(value: &Value) -> Vec<u8> {
-    STANDARD
-        .decode(value.as_str().expect("base64 field"))
-        .expect("base64")
-}
-
-fn aes_open(key: &[u8], blob: &Value, aad: &[u8]) -> Option<Vec<u8>> {
-    Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key))
-        .decrypt(
-            Nonce::from_slice(&b64(&blob["ivB64"])),
-            Payload {
-                msg: &b64(&blob["ctB64"]),
-                aad,
-            },
-        )
-        .ok()
-}
-
-/// The body decrypted independently of the reader (PBKDF2 → wrap → body),
-/// so the test can name the values the reader must never list.
-fn independent_body(file: &str, tomb: &str) -> Value {
-    let envelope: Value = serde_json::from_str(file).unwrap();
-    let vault = if envelope["vault"].is_object() {
-        &envelope["vault"]
-    } else {
-        &envelope
-    };
-    let kdf = &vault["header"]["kdf"];
-    let mut kek = [0u8; 32];
-    pbkdf2::pbkdf2_hmac::<Sha256>(
-        text(&fixture(), "passwordNfkc").as_bytes(),
-        &b64(&kdf["saltB64"]),
-        u32::try_from(kdf["iterations"].as_u64().unwrap()).unwrap(),
-        &mut kek,
-    );
-    let vk = aes_open(&kek, &vault["header"]["wrap"], &[]).expect("wrap opens");
-    let body = aes_open(&vk, &vault["body"], &vault_seal_binding(tomb, "body"))
-        .or_else(|| aes_open(&vk, &vault["body"], &[]))
-        .expect("body opens");
-    serde_json::from_slice(&body).unwrap()
-}
-
 /// Name, kind and path of every listed item: a legacy vector lists its login
 /// as `.login`, an account vector lists accounts as `.account` (ADR 0172).
 fn assert_listing(name: &str, opened: &OpenedVaultFile) {
@@ -153,6 +107,10 @@ fn assert_listing(name: &str, opened: &OpenedVaultFile) {
     }
     if DERIVED_VECTORS.contains(&name) {
         support::assert_derived_listing(name, &listed);
+        return;
+    }
+    if CREDENTIAL_VECTORS.contains(&name) {
+        support::assert_credentials_listing(name, &listed);
         return;
     }
     let label = if name.contains("project") {
@@ -186,8 +144,11 @@ fn every_vector_opens_to_its_recorded_summary_and_lists_no_value() {
     let vectors = vectors();
     assert_eq!(
         vectors.len(),
-        LEGACY_VECTORS.len() + ACCOUNT_VECTORS.len() + DERIVED_VECTORS.len(),
-        "the five legacy `login` vectors, the three `account` vectors and the derived one"
+        LEGACY_VECTORS.len()
+            + ACCOUNT_VECTORS.len()
+            + DERIVED_VECTORS.len()
+            + CREDENTIAL_VECTORS.len(),
+        "the five legacy `login` vectors, the three `account` vectors, the derived one and the credentials one"
     );
     for (name, file, expect) in vectors {
         let opened = open_vault_file(&file, &password()).unwrap_or_else(|e| panic!("{name}: {e}"));
@@ -201,11 +162,20 @@ fn every_vector_opens_to_its_recorded_summary_and_lists_no_value() {
 
         assert_listing(&name, &opened);
 
-        let body = independent_body(&file, &opened.tomb);
+        let body =
+            support::independent_body(&file, &opened.tomb, &text(&fixture(), "passwordNfkc"));
         let folders = body["folders"].as_array().map_or(0, Vec::len);
         assert_eq!(opened.folders, folders, "{name}");
         let printed = format!("{opened:?}");
         let mut values = Vec::new();
+        // An id is listed, so a reference to one (a credential's account) shows
+        // nothing the listing does not (ADR 0179).
+        let ids: Vec<String> = body["items"]
+            .as_array()
+            .expect("items")
+            .iter()
+            .map(|item| text(item, "id"))
+            .collect();
         for item in body["items"].as_array().expect("items") {
             let mut rest = item.as_object().unwrap().clone();
             for listed in ["id", "name", "kind"] {
@@ -226,7 +196,11 @@ fn every_vector_opens_to_its_recorded_summary_and_lists_no_value() {
             values.push(text(&fixture(), "accountPepper"));
             support::assert_derived_methods(&name, &body);
         }
-        values.retain(|value| value.chars().count() >= 6);
+        values.retain(|value| {
+            value.chars().count() >= 6
+                && !ids.contains(value)
+                && !VOCABULARY.contains(&value.as_str())
+        });
         assert!(!values.is_empty(), "{name}: the vector holds values");
         for value in values {
             assert!(!printed.contains(&value), "{name}: listed a field value");
@@ -372,7 +346,7 @@ fn lists_the_device_identity_key_by_name_and_never_by_value() {
         .iter()
         .all(|item| !item.path.contains("device-identity")));
 
-    let body = independent_body(&file, &opened.tomb);
+    let body = support::independent_body(&file, &opened.tomb, &text(&fixture(), "passwordNfkc"));
     let mut secrets = Vec::new();
     support::string_leaves(&body["deviceIdentityKey"], &mut secrets);
     secrets.retain(|value| value.chars().count() >= 6);

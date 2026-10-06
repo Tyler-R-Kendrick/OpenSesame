@@ -32,15 +32,44 @@ pub(super) struct ItemMeta {
     pub(super) type_id: Option<String>,
     #[serde(rename = "folderId", default)]
     pub(super) folder_id: Option<String>,
+    /// A credential's account (ADR 0179); `null` for one kept on its own.
+    #[serde(rename = "accountId", default)]
+    pub(super) account_id: Option<String>,
+    /// A credential's method, reduced to its type: never a value.
+    #[serde(default)]
+    pub(super) method: Option<MethodMeta>,
+}
+
+/// A credential's method as listed: the type and nothing else.
+#[derive(Deserialize)]
+pub(super) struct MethodMeta {
+    #[serde(rename = "type", default)]
+    pub(super) kind: Option<String>,
 }
 
 impl ItemMeta {
-    /// `itemTypeId`: a plugin-defined item's `typeId`, else its kind.
+    /// `itemTypeId`: a plugin-defined item's `typeId`, a credential's type
+    /// (`credentialTypeId`), else its kind.
     pub(super) fn type_id(&self) -> &str {
         match (&*self.kind, &self.type_id) {
             ("typed", Some(type_id)) => type_id,
+            ("credential", _) => credential_type_id(self.method.as_ref()),
             _ => &self.kind,
         }
+    }
+}
+
+/// `credentialTypeId`: the item type a login method type is kept as. A method
+/// this reader does not know is listed as the bare kind, as a typed item of an
+/// unknown type is.
+fn credential_type_id(method: Option<&MethodMeta>) -> &'static str {
+    match method.and_then(|method| method.kind.as_deref()) {
+        Some("password") => "password",
+        Some("api-key") => "api-key",
+        Some("token") => "token",
+        Some("oauth") => "oauth-client",
+        Some("authenticator") => "authenticator",
+        _ => "credential",
     }
 }
 

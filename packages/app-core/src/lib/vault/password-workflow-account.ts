@@ -201,8 +201,11 @@ export function matchesWrittenAccount(
   )
     return false;
   const fieldTimes = { ...original.fieldTimes };
+  // A method's clock is its credential's own `updatedAt`, so the account
+  // records none for it (ADR 0179).
   for (const key of changedFieldKeys(original, expected))
-    fieldTimes[key] = saved.updatedAt;
+    if (key !== "methods" && !key.startsWith("methods."))
+      fieldTimes[key] = saved.updatedAt;
   return (
     itemText(saved) ===
     itemText({ ...expected, updatedAt: saved.updatedAt, fieldTimes })

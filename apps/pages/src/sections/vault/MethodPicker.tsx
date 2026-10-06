@@ -1,11 +1,8 @@
 import {
   type AccountItem,
-  DEFAULT_RULES,
-  LOGIN_METHOD_TYPES,
   type LoginMethod,
   type LoginMethodType,
-  mintRootSecret,
-  newMethodId,
+  newLoginMethod,
 } from "@opensesame/vault-core";
 import { type RefObject, useEffect, useRef } from "react";
 
@@ -33,40 +30,7 @@ export function newMethod(
   type: LoginMethodType,
   now: Date = new Date(),
 ): LoginMethod {
-  const id = newMethodId(account.id, type);
-  switch (type) {
-    case "password": {
-      const generator = {
-        id: "derived",
-        rules: { ...DEFAULT_RULES },
-        counter: 0,
-      } as const;
-      return {
-        id,
-        type,
-        generator,
-        pepper: true,
-        secret: mintRootSecret(),
-        changedAt: now.toISOString(),
-      };
-    }
-    case "api-key":
-      return { id, type, key: "", header: "X-Api-Key" };
-    case "token":
-      return { id, type, token: "", expiresAt: "" };
-    case "oauth":
-      return {
-        id,
-        type,
-        clientId: "",
-        clientSecret: "",
-        tokenUrl: "",
-        scopes: "",
-        refreshToken: "",
-      };
-    case "authenticator":
-      return { id, type, secret: "" };
-  }
+  return newLoginMethod(type, account.id, now);
 }
 
 /**
@@ -75,10 +39,13 @@ export function newMethod(
  */
 export function MethodPicker({
   opener,
+  types,
   onPick,
   onClose,
 }: {
   opener: RefObject<HTMLButtonElement | null>;
+  /** The types this vault has switched on (Settings › Vaults › Item types). */
+  types: readonly LoginMethodType[];
   onPick: (type: LoginMethodType) => void;
   onClose: () => void;
 }) {
@@ -99,7 +66,7 @@ export function MethodPicker({
         opener.current?.focus();
       }}
     >
-      {LOGIN_METHOD_TYPES.map((type) => (
+      {types.map((type) => (
         <button
           key={type}
           type="button"

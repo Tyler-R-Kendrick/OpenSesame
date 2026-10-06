@@ -11,6 +11,7 @@
 import { type BoundaryValue, isString } from "@opensesame/os-domain";
 import { isLegacyLogin, migrateLegacyLogin } from "./account.js";
 import type { LegacyLoginItem } from "./account.js";
+import { extractEmbeddedMethods } from "./credential-split.js";
 import { type SealedBlob, VaultCorruptError, openJson } from "./crypto.js";
 import type { VaultBody, VaultItem } from "./model.js";
 
@@ -68,15 +69,28 @@ export function normalizeItems(
   );
 }
 
-/** True when `body` still holds an item from before ADR 0172. */
+/** True when `body` still holds an item from before ADR 0172 or 0179. */
 export function hasLegacyItems(body: Pick<VaultBody, "items">): boolean {
   // An export is whatever its author wrote: a body with no list has none.
-  return Array.isArray(body.items) && body.items.some(isLegacyLogin);
+  return (
+    Array.isArray(body.items) &&
+    body.items.some(
+      (item) =>
+        isLegacyLogin(item) ||
+        (item.kind === "account" &&
+          Array.isArray(item.methods) &&
+          item.methods.length > 0),
+    )
+  );
 }
 
-/** `body` with no legacy item left in it; `body` itself when it had none. */
+/**
+ * `body` with no legacy item left in it, and no login method held inside an
+ * account: each is a credential of its own (ADR 0179). `body` itself when it
+ * had neither.
+ */
 export function normalizeVaultBody(body: VaultBody): VaultBody {
   return hasLegacyItems(body)
-    ? { ...body, items: normalizeItems(body.items) }
+    ? { ...body, items: extractEmbeddedMethods(normalizeItems(body.items)) }
     : body;
 }

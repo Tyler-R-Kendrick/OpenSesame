@@ -2,7 +2,12 @@ import { shareReachSeams } from "@opensesame/app-core/lib/local-share-reach.js";
 import { stampedEdit } from "@opensesame/app-core/lib/vault/body-edits.js";
 import { writeItem } from "@opensesame/app-core/lib/vault/item-path.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
-import { type VaultItem, emptyBody } from "@opensesame/vault-core";
+import {
+  type VaultItem,
+  emptyBody,
+  extractEmbeddedMethods,
+  resolveAccounts,
+} from "@opensesame/vault-core";
 import { vi } from "vitest";
 
 /** The real shared password writer sees an authoritative body, separate from a stale open UI. */
@@ -40,7 +45,9 @@ export function persistPasswordTestItem(
   items: VaultItem[],
   next: VaultItem,
 ): VaultItem[] {
-  const body = { ...emptyBody(), items };
+  // An account's methods are entries of their own in the body (ADR 0179); the
+  // snapshot a surface reads is the resolved view.
+  const body = { ...emptyBody(), items: extractEmbeddedMethods(items) };
   stampedEdit((draft) => writeItem(draft, next))(body);
-  return body.items;
+  return resolveAccounts(body.items);
 }

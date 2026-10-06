@@ -1,0 +1,43 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "authenticator",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Authenticator",
+    "plural": "Authenticators",
+    "extension": ".totp",
+    "summary": "A one-time code seed, kept on its own or bound to the account it opens.",
+    "categories": ["access"],
+    "sections": [
+      {
+        "id": "credential",
+        "title": "Authenticator",
+        "fields": [
+          {
+            "id": "totp",
+            "type": "totp",
+            "label": "Authenticator secret"
+          }
+        ]
+      }
+    ],
+    "native": {
+      "secret": null,
+      "trailer": [
+        {
+          "key": "otpauth",
+          "field": "totp"
+        }
+      ]
+    },
+    "cxf": {
+      "credential": "totp"
+    },
+    "subtitle": [],
+    "search": []
+  }
+}

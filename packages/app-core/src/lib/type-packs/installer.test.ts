@@ -46,16 +46,16 @@ describe("switching a pack on", () => {
   it("walks queued → downloading → installing → on and registers the type", async () => {
     const phases: string[] = [];
     const stop = subscribePackState(() =>
-      phases.push(statusOf("account").phase),
+      phases.push(statusOf("address").phase),
     );
-    enablePack("account");
+    enablePack("address");
     await idle();
     stop();
     // The run resetting its counter re-announces the last phase; collapse it.
     const walked = phases.filter((phase, at) => phase !== phases[at - 1]);
     expect(walked).toEqual(["queued", "downloading", "installing", "on"]);
-    expect(isPackLoaded("account")).toBe(true);
-    expect(isPackOn("account")).toBe(true);
+    expect(isPackLoaded("address")).toBe(true);
+    expect(isPackOn("address")).toBe(true);
   });
 
   it("keeps a sealed copy so the next boot needs no request", async () => {
@@ -71,7 +71,7 @@ describe("switching a pack on", () => {
   it("hands the main thread back at every step, and between packs", async () => {
     const yielded = vi.fn(() => Promise.resolve());
     packSeams.yieldToMain = yielded;
-    enablePacks(["account", "card", "note"]);
+    enablePacks(["address", "card", "note"]);
     await idle();
     // Before the download, before the install and after each pack: at least
     // three times per pack, so eighteen definitions never form one long task.
@@ -84,11 +84,11 @@ describe("switching a pack on", () => {
       packEntries().filter((entry) => statusOf(entry.id).phase === "installing")
         .length;
     const stop = subscribePackState(() => seen.push(sample()));
-    enablePacks(["account", "card", "note"]);
+    enablePacks(["address", "card", "note"]);
     await idle();
     stop();
     expect(Math.max(...seen)).toBe(1);
-    expect(["account", "card", "note"].every((id) => isPackOn(id))).toBe(true);
+    expect(["address", "card", "note"].every((id) => isPackOn(id))).toBe(true);
   });
 
   it("downloads a few ahead, so a bulk switch takes the slowest chunk and not the sum", async () => {
@@ -97,12 +97,12 @@ describe("switching a pack on", () => {
       new Promise((resolve) => {
         releases.set(id, () => resolve(importPackText(id)));
       });
-    enablePacks(["account", "card", "note"]);
+    enablePacks(["address", "card", "note"]);
     // All three are in the air before any has landed.
     await vi.waitFor(() => expect(releases.size).toBe(3));
     for (const release of releases.values()) release();
     await idle();
-    expect(["account", "card", "note"].every((id) => isPackOn(id))).toBe(true);
+    expect(["address", "card", "note"].every((id) => isPackOn(id))).toBe(true);
   });
 
   it("answers the first press only: a second while busy is ignored", async () => {
@@ -118,34 +118,34 @@ describe("switching a pack on", () => {
 describe("a pack that does not arrive", () => {
   it("fails with the reason, keeps nothing, and notices it with a retry", async () => {
     packSeams.fetchText = () =>
-      Promise.reject(new Error("The account pack could not be downloaded."));
-    enablePack("account");
+      Promise.reject(new Error("The address pack could not be downloaded."));
+    enablePack("address");
     await idle();
-    expect(statusOf("account")).toEqual({
+    expect(statusOf("address")).toEqual({
       phase: "failed",
-      reason: "The account pack could not be downloaded.",
+      reason: "The address pack could not be downloaded.",
     });
-    expect(isPackLoaded("account")).toBe(false);
-    expect(readStoredPacks().get("account")).toBeUndefined();
-    const notice = listNotices().find((n) => n.id === "type-pack:account");
+    expect(isPackLoaded("address")).toBe(false);
+    expect(readStoredPacks().get("address")).toBeUndefined();
+    const notice = listNotices().find((n) => n.id === "type-pack:address");
     expect(notice?.tone).toBe("err");
     expect(notice?.retry).toBeTypeOf("function");
 
     packSeams.fetchText = importPackText;
     notice?.retry?.();
     await idle();
-    expect(statusOf("account").phase).toBe("on");
-    expect(listNotices().some((n) => n.id === "type-pack:account")).toBe(false);
+    expect(statusOf("address").phase).toBe("on");
+    expect(listNotices().some((n) => n.id === "type-pack:address")).toBe(false);
   });
 
   it("refuses text that is not the build's own", async () => {
     packSeams.fetchText = async (id) =>
       (await importPackText(id)).replace('"1.0.0"', '"9.9.9"');
-    enablePack("account");
+    enablePack("address");
     await idle();
-    expect(statusOf("account").phase).toBe("failed");
-    expect(statusOf("account").reason).toMatch(/not the one this build/);
-    expect(isPackLoaded("account")).toBe(false);
+    expect(statusOf("address").phase).toBe("failed");
+    expect(statusOf("address").reason).toMatch(/not the one this build/);
+    expect(isPackLoaded("address")).toBe(false);
   });
 
   it("does not mistake an unknown id for a pack", () => {
@@ -162,16 +162,16 @@ describe("switching a pack off", () => {
       new Promise((resolve) => {
         release = () => resolve(importPackText(id));
       });
-    enablePack("account");
+    enablePack("address");
     await vi.waitFor(() =>
-      expect(statusOf("account").phase).toBe("downloading"),
+      expect(statusOf("address").phase).toBe("downloading"),
     );
-    await disablePack("account");
-    expect(statusOf("account").phase).toBe("off");
+    await disablePack("address");
+    expect(statusOf("address").phase).toBe("off");
     release();
     await idle();
-    expect(isPackLoaded("account")).toBe(false);
-    expect(readStoredPacks().get("account")).toBeUndefined();
+    expect(isPackLoaded("address")).toBe(false);
+    expect(readStoredPacks().get("address")).toBeUndefined();
   });
 
   it("drops an installed pack and forgets its copy", async () => {
@@ -203,12 +203,28 @@ describe("the tray", () => {
   it("follows a bulk switch with one notice, then clears itself", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     packSeams.yieldToMain = () => Promise.resolve();
-    enablePacks(["account", "card"]);
+    enablePacks(["address", "card"]);
     expect(listNotices().filter((n) => n.id === "type-packs")).toHaveLength(1);
     await vi.waitFor(() => expect(getPackSnapshot().pending).toBe(0));
     const done = listNotices().find((n) => n.id === "type-packs");
     expect(done?.title).toBe("2 item types installed");
     vi.advanceTimersByTime(6000);
     expect(listNotices().some((n) => n.id === "type-packs")).toBe(false);
+  });
+});
+
+describe("a pack that needs another (ADR 0179)", () => {
+  it("switches Password on with Accounts, and keeps it on while Accounts is", async () => {
+    enablePack("account");
+    await vi.waitFor(() => expect(isPackOn("account")).toBe(true));
+    await vi.waitFor(() => expect(isPackOn("password")).toBe(true));
+    expect(await disablePack("password")).toEqual({
+      ok: false,
+      reason: "Account needs Password.",
+    });
+    expect(isPackOn("password")).toBe(true);
+    expect(await disablePack("account")).toEqual({ ok: true });
+    expect(await disablePack("password")).toEqual({ ok: true });
+    expect(isPackOn("password")).toBe(false);
   });
 });

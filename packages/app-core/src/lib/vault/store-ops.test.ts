@@ -3,6 +3,7 @@ import {
   type VaultItem,
   createItem,
   createVault,
+  outsideAccounts,
   parseTotp,
   totpCode,
 } from "@opensesame/vault-core";
@@ -108,13 +109,11 @@ describe("VaultStore item mutations", () => {
     const store = await unlockedStore();
     const item = createItem("account", "Mail");
     await store.saveItem(item);
-    expect(store.getSnapshot().items).toHaveLength(1);
-
+    expect(outsideAccounts(store.getSnapshot().items)).toHaveLength(1);
     const renamed = { ...item, name: "Mail (work)" };
     await store.saveItem(renamed);
-    expect(store.getSnapshot().items).toHaveLength(1);
+    expect(outsideAccounts(store.getSnapshot().items)).toHaveLength(1);
     expect(store.getSnapshot().items[0]?.name).toBe("Mail (work)");
-
     await store.trashItem(item.id);
     expect(store.getSnapshot().items[0]?.deletedAt).not.toBeNull();
 
@@ -203,7 +202,7 @@ describe("VaultStore import plans", () => {
       newFolders: [folder],
     });
     expect(count).toBe(2);
-    expect(store.getSnapshot().items).toHaveLength(2);
+    expect(outsideAccounts(store.getSnapshot().items)).toHaveLength(2);
     expect(store.getSnapshot().folders).toHaveLength(1);
 
     await expect(
@@ -229,9 +228,8 @@ describe("VaultStore import plans", () => {
       newFolders: [newFolder],
     });
 
-    const names = store
-      .getSnapshot()
-      .items.map((item) => item.name)
+    const names = outsideAccounts(store.getSnapshot().items)
+      .map((item) => item.name)
       .sort();
     expect(names).toEqual(["Added", "Existing"]);
     expect(
@@ -264,7 +262,9 @@ describe("VaultStore sealed export and import", () => {
     clearVault();
     const target = await unlockedStore();
     await expect(target.importSealed(exported, PASSWORD)).resolves.toBe(1);
-    expect(target.getSnapshot().items.map((i) => i.name)).toEqual(["Portable"]);
+    expect(
+      outsideAccounts(target.getSnapshot().items).map((i) => i.name),
+    ).toEqual(["Portable"]);
 
     // Importing the same file again merges nothing.
     await expect(target.importSealed(exported, PASSWORD)).resolves.toBe(0);

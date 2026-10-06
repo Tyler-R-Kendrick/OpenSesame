@@ -1,4 +1,9 @@
-import type { AccountItem, LoginMethod } from "@opensesame/vault-core";
+import {
+  type AccountItem,
+  type LoginMethod,
+  createCredential,
+  manualPassword,
+} from "@opensesame/vault-core";
 import { describe, expect, it, vi } from "vitest";
 import type { MenuItem } from "../../components/context-menu/menu-model.js";
 import { credentialChoices } from "./account-credentials.js";
@@ -173,5 +178,32 @@ describe("what each credential puts on the clipboard", () => {
         (choice) => choice.id,
       ),
     ).toEqual(["o:secret", "o:refresh"]);
+  });
+});
+
+describe("a credential kept on its own copies as the one it is (ADR 0179)", () => {
+  const own = (method: LoginMethod) => createCredential(method, "Spare");
+
+  it("is one row named for it, with no username", () => {
+    const group = vaultItemMenu(own(apiKey("ak_1")), actions())[1] ?? [];
+    expect(group.map((row) => row.label)).toEqual(["Copy"]);
+    const labels = group[0]?.submenu?.[0]?.map((entry) => entry.label);
+    expect(labels).toEqual(["API key", "API key as header"]);
+  });
+
+  it("names a password as itself", () => {
+    const [copy, ...rest] =
+      vaultItemMenu(
+        own(manualPassword("p", "pw", "2026-01-01T00:00:00.000Z")),
+        actions(),
+      )[1] ?? [];
+    expect(copy?.label).toBe("Copy password");
+    expect(copy?.hint).toBe("y");
+    expect(rest).toEqual([]);
+  });
+
+  it("keeps a row visible and disabled when there is nothing to copy", () => {
+    const [copy] = vaultItemMenu(own(apiKey("")), actions())[1] ?? [];
+    expect(copy?.disabled).toBe(true);
   });
 });

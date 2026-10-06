@@ -13,6 +13,10 @@ import type { PackRow } from "@opensesame/app-core/sections/settings/item-type-p
 import { StatusMark } from "../../../components/StatusMark.js";
 
 function End({ row }: { row: PackRow }) {
+  // On because another type needs it: no count to show, only the reason.
+  if (row.control === "held" && row.held === 0) {
+    return <StatusMark tone="ok" label={row.sentence} />;
+  }
   if (row.control === "held") {
     return (
       <span

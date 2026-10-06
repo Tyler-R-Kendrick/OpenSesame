@@ -1,4 +1,5 @@
 import { registerLegacyItemKinds } from "@opensesame/app-core/lib/contributions.test-support.js";
+import { switchCredentialPacksOn } from "@opensesame/app-core/lib/type-packs/credential-packs.test-support.js";
 import {
   type AccountItem,
   type Folder,
@@ -76,10 +77,15 @@ export function passwordOf(item: AccountItem): PasswordMethod {
 /** The editor's seams and per-test reset, installed by the suite that calls it. */
 export function installEditorHarness(): void {
   let revokeKinds: () => void = () => undefined;
+  let revokePacks: () => void = () => undefined;
   beforeAll(() => {
     revokeKinds = registerLegacyItemKinds();
+    revokePacks = switchCredentialPacksOn();
   });
-  afterAll(() => revokeKinds());
+  afterAll(() => {
+    revokeKinds();
+    revokePacks();
+  });
   beforeEach(() => {
     vault.current = { items: [], folders: [] };
     saveItem.mockResolvedValue(undefined);

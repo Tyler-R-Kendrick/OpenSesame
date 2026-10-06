@@ -31,7 +31,7 @@
 
 import { isString } from "@opensesame/os-domain";
 import type { TypedItem, VaultBody, VaultItem } from "@opensesame/vault-core";
-import { definitionFor } from "@opensesame/vault-core";
+import { definitionFor, outsideAccounts } from "@opensesame/vault-core";
 import {
   FIELD_TYPES,
   type FieldValue,
@@ -43,7 +43,7 @@ import {
   base64ToBase64Url,
   base64UrlToBase64,
 } from "../import/types.js";
-import { accountCredentials } from "./cxf-account.js";
+import { accountCredentials, methodCredentials } from "./cxf-account.js";
 import {
   CXF_EXPORTER,
   CXF_EXTENSION,
@@ -177,6 +177,17 @@ function itemFor(item: VaultItem) {
       withheldHere = withheld;
       break;
     }
+    case "credential": {
+      // Kept on its own: what it is, with no account around it (ADR 0179).
+      const { credentials, withheld } = methodCredentials(
+        [item.method],
+        "",
+        false,
+      );
+      base.credentials.push(...credentials);
+      withheldHere = withheld;
+      break;
+    }
     case "passkey":
       base.credentials.push({
         type: CXF_TYPES.passkey,
@@ -283,7 +294,8 @@ function buildCxfExportDefault(
   let withheld = 0;
   const byFolder = new Map<string, { item: string }[]>();
 
-  for (const item of body.items) {
+  // A credential bound to an account is in that account's credentials (ADR 0179).
+  for (const item of outsideAccounts(body.items)) {
     if (item.deletedAt !== null) continue;
     const { cxf, skipped: rejected, withheld: held } = itemFor(item);
     withheld += held;

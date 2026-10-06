@@ -1,4 +1,4 @@
-import { createItem, emptyBody } from "@opensesame/vault-core";
+import { createItem } from "@opensesame/vault-core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { shareReachSeams } from "../local-share-reach.js";
 import { updateLocalAccountPasswordMethod } from "./account-password-write.js";
@@ -7,6 +7,8 @@ import { writeItem } from "./item-path.js";
 import { comparePrivatePassword } from "./password-workflows.js";
 import {
   openWorkflowVault,
+  readBody,
+  sealedBody,
   testAccount,
 } from "./password-workflows.test-support.js";
 import { vaultStore } from "./store.js";
@@ -23,11 +25,11 @@ function persistedFixture() {
   account.fieldTimes = { notes: "2000-01-01T00:00:00.000Z" };
   const other = createItem("note", "Other device clock");
   other.updatedAt = "2099-01-01T00:00:00.000Z";
-  const body = { ...emptyBody(), items: [account, other] };
-  const state = openWorkflowVault(body.items);
+  const body = sealedBody([account, other]);
+  const state = openWorkflowVault(readBody(body));
   vi.mocked(vaultStore.saveItem).mockImplementation(async (item) => {
     stampedEdit((draft) => writeItem(draft, item))(body);
-    state.items = body.items;
+    state.items = readBody(body);
   });
   return { account, body, state };
 }
@@ -37,11 +39,10 @@ it("verifies actual stamped password writes while preserving sibling values and 
     comparePrivatePassword(account.id, "NEW_PRIVATE", true),
   ).resolves.toMatchObject({ verified: true });
   const saved = body.items.find((item) => item.id === account.id);
-  expect(saved?.fieldTimes).toEqual({
-    notes: account.fieldTimes?.notes,
-    methods: saved?.updatedAt,
-    [`methods.${account.methods[0]?.id}`]: saved?.updatedAt,
-  });
+  // The password's clock is its credential's, not the account's (ADR 0179).
+  expect(saved?.fieldTimes).toEqual({ notes: account.fieldTimes?.notes });
+  const held = body.items.find((item) => item.id === account.methods[0]?.id);
+  expect(held?.updatedAt).toBe(saved?.updatedAt);
   expect(saved?.updatedAt).toBe("2099-01-01T00:00:00.001Z");
   expect(vaultStore.saveItem).toHaveBeenCalledTimes(1);
 });
@@ -70,13 +71,13 @@ it.each(["unexpected clock", "unchanged clock", "password content"])(
         saved.fieldTimes = { ...saved.fieldTimes, unexpected: saved.updatedAt };
       if (tamper === "unchanged clock")
         saved.fieldTimes = { ...saved.fieldTimes, notes: saved.updatedAt };
-      if (tamper === "password content")
-        saved.methods = saved.methods.map((method) =>
-          method.type === "password"
-            ? { ...method, secret: "CORRUPTED_PRIVATE" }
-            : method,
-        );
-      state.items = body.items;
+      if (tamper === "password content") {
+        const held = body.items.find((entry) => entry.kind === "credential");
+        if (held?.kind !== "credential" || held.method.type !== "password")
+          throw new Error("Missing fixture credential");
+        held.method = { ...held.method, secret: "CORRUPTED_PRIVATE" };
+      }
+      state.items = readBody(body);
     });
     await expect(
       comparePrivatePassword(account.id, "NEW_PRIVATE", true),

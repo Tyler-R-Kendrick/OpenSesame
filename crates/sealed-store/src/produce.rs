@@ -289,12 +289,22 @@ fn trailer_json(trailer: &str) -> Option<Value> {
         .flatten()
 }
 
+fn is_password(method: &Value) -> bool {
+    method.get("type").and_then(Value::as_str) == Some("password")
+}
+
+/// The password method an entry holds: an account's first, or the one method of
+/// a credential kept on its own (ADR 0179).
 fn first_password(meta: &Value) -> Option<&Value> {
-    meta.get("values")?
+    let values = meta.get("values")?;
+    if let Some(method) = values.get("method").filter(|method| is_password(method)) {
+        return Some(method);
+    }
+    values
         .get("methods")?
         .as_array()?
         .iter()
-        .find(|method| method.get("type").and_then(Value::as_str) == Some("password"))
+        .find(|method| is_password(method))
 }
 
 fn base_password(method: &Value, line_one: &str) -> Option<Zeroizing<String>> {

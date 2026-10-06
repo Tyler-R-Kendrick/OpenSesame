@@ -8,6 +8,7 @@
  * and `vault ls` print, and what an isolate runs to prove the read path.
  */
 import { isString, overlapCast } from "@opensesame/os-domain";
+import { outsideAccounts } from "./credential.js";
 import {
   type SealedBlob,
   VaultCorruptError,
@@ -125,7 +126,8 @@ export function summarizeVaultBody(
   body: VaultBody,
   bound: boolean,
 ): OpenedVaultFile {
-  const items = normalizeVaultBody(body).items;
+  // A credential bound to an account is part of that account's file (ADR 0179).
+  const items = outsideAccounts(normalizeVaultBody(body).items);
   const rows = buildRows(items, body.folders ?? [], new Set(), "");
   const paths = new Map<string, string>();
   for (const row of rows)

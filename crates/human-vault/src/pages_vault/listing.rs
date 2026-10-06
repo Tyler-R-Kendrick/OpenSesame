@@ -3,7 +3,7 @@
 //! vault tree lists it (`buildRows` in `packages/vault-core`) — never a field
 //! value.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use super::{
     body::{FolderMeta, ItemMeta, OpenedBody},
@@ -150,6 +150,25 @@ fn item_paths(body: &OpenedBody, extension_of: ExtensionOf<'_>) -> HashMap<Strin
     paths
 }
 
+/// The items a file lists. A credential bound to an account in the same body is
+/// part of that account's file (ADR 0179), not a file of its own; one kept on
+/// its own, or bound to an account that is not there, is listed.
+fn listed(body: &OpenedBody) -> impl Iterator<Item = &ItemMeta> {
+    let accounts: HashSet<&str> = body
+        .items
+        .iter()
+        .filter(|item| item.kind == "account")
+        .map(|item| item.id.as_str())
+        .collect();
+    body.items.iter().filter(move |item| {
+        item.kind != "credential"
+            || item
+                .account_id
+                .as_deref()
+                .is_none_or(|account| !accounts.contains(account))
+    })
+}
+
 /// Names, kinds and paths — never a field value.
 #[must_use]
 pub fn summarize(
@@ -167,9 +186,7 @@ pub fn summarize(
         header_rev,
         rolled_back: body.rev.unwrap_or(0) < header_rev.unwrap_or(0),
         folders: body.folders.len(),
-        items: body
-            .items
-            .iter()
+        items: listed(body)
             .map(|item| VaultFileEntry {
                 id: item.id.clone(),
                 name: item.name.clone(),

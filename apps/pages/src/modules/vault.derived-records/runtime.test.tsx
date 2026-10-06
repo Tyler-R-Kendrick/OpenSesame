@@ -37,11 +37,11 @@ describe("vault.derived-records runtime", () => {
     expect(loaded.effects).toEqual(NO_SIDE_EFFECTS);
   });
 
-  it("registers the eighteen derived kinds and nothing else (LOAD-09)", async () => {
+  it("registers the twenty-three derived kinds and nothing else (LOAD-09)", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "vault.derived-records",
       kinds: ["item-kind"],
-      count: 18,
+      count: 23,
     });
   });
 
@@ -51,7 +51,7 @@ describe("vault.derived-records runtime", () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     const kinds = t.entries("item-kind");
-    expect(kinds).toHaveLength(18);
+    expect(kinds).toHaveLength(23);
     const named = Object.fromEntries(
       kinds.map((k) => [k.kind, [k.label, k.segment, k.order]]),
     );

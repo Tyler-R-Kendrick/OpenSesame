@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 427,
-    "violations": 666,
-    "oversizedLines": 217690
+    "violations": 662,
+    "oversizedLines": 216698
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -207,9 +207,7 @@
       "max-lines": 596
     },
     "apps/pages/src/sections/vault/ItemDetail.tsx": {
-      "complexity": 1,
-      "max-lines": 508,
-      "max-lines-per-function": 2
+      "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
       "max-lines": 616
@@ -707,7 +705,7 @@
       "max-lines": 498
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1602
+      "max-lines": 1600
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
       "max-lines": 577
@@ -1329,8 +1327,7 @@
       "max-lines": 416
     },
     "packages/vault-core/src/model.ts": {
-      "complexity": 1,
-      "max-lines": 482
+      "complexity": 1
     },
     "packages/vault-item-types/src/native.ts": {
       "complexity": 1,

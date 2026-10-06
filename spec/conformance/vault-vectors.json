@@ -230,6 +230,31 @@
           }
         ]
       }
+    },
+    "backup-personal-credentials": {
+      "file": "{\n  \"format\": \"opensesame-offline-backup\",\n  \"v\": 1,\n  \"projectId\": null,\n  \"exportedAt\": \"2026-10-06T00:00:00.000Z\",\n  \"vault\": {\n    \"header\": {\n      \"v\": 1,\n      \"kdf\": {\n        \"alg\": \"PBKDF2-SHA256\",\n        \"saltB64\": \"/lhI9UEpoSgkBXw1Jvg1JQ==\",\n        \"iterations\": 600000\n      },\n      \"wrap\": {\n        \"ivB64\": \"M0TGsNzktvJf1eN1\",\n        \"ctB64\": \"WxBPksAkCHF3bX+5kVIvIxVZm1ujCRyIbFtsIbVgHUfJVFMC3DXkgLLI2zc8m3eL\"\n      },\n      \"createdAt\": \"2026-10-06T17:29:02.672Z\",\n      \"hint\": \"vector hint\",\n      \"bodyRev\": 4\n    },\n    \"body\": {\n      \"ivB64\": \"VegoeQ/UYS4hJRpP\",\n      \"ctB64\": \"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\"\n    }\n  },\n  \"syncBlobs\": [],\n  \"deploymentSealUsed\": false\n}\n",
+      "expect": {
+        "tomb": "personal",
+        "bound": true,
+        "rev": 4,
+        "items": [
+          {
+            "id": "51b63cfd-b305-43a4-9b79-6fceb8dc4a5d",
+            "name": "Personal bound account",
+            "kind": "account"
+          },
+          {
+            "id": "vector-own-password",
+            "name": "Personal spare password",
+            "kind": "credential"
+          },
+          {
+            "id": "vector-orphan-key",
+            "name": "Personal orphaned key",
+            "kind": "credential"
+          }
+        ]
+      }
     }
   },
   "concealedBodies": [

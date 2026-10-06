@@ -1,0 +1,49 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "api-key",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "API key",
+    "plural": "API keys",
+    "extension": ".apikey",
+    "summary": "An API key and the header it travels in, kept on its own or bound to an account.",
+    "categories": ["developer", "access"],
+    "sections": [
+      {
+        "id": "credential",
+        "title": "API key",
+        "fields": [
+          {
+            "id": "header",
+            "type": "string",
+            "label": "API header",
+            "placeholder": "X-Api-Key"
+          },
+          {
+            "id": "apiKey",
+            "type": "concealed",
+            "label": "API key"
+          }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "apiKey",
+      "trailer": [
+        {
+          "key": "header",
+          "field": "header"
+        }
+      ]
+    },
+    "cxf": {
+      "credential": "api-key"
+    },
+    "subtitle": ["header"],
+    "search": ["header"]
+  }
+}

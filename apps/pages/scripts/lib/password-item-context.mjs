@@ -17,7 +17,11 @@ export async function verifyItemContext(
   }, `${base}vault?f=all`);
   const command = page.getByRole("combobox", { name: "Command", exact: true });
   await command.fill("/search Gauntlet Account");
-  const loginRow = page.getByRole("treeitem", { name: /^Gauntlet Account/ });
+  // The account's credentials are entries beside it ("Gauntlet Account ·
+  // Password", ADR 0179); the account is the one without a middle dot.
+  const loginRow = page.getByRole("treeitem", {
+    name: /^Gauntlet Account(?! ·)/,
+  });
   await loginRow.waitFor();
   await loginRow.click();
   await page.waitForURL((url) => url.pathname === `${base}vault/${loginId}`);

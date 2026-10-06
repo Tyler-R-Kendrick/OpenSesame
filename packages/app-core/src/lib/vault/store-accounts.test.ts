@@ -12,8 +12,10 @@ import {
   createItem,
   importVaultKey,
   openJson,
+  outsideAccounts,
   passwordMethod,
   pepperBinding,
+  resolveAccounts,
   sealJson,
   sealWithPepper,
   unwrapRawVaultKeyFromPassword,
@@ -137,9 +139,9 @@ describe("a vault body written before accounts", () => {
     if (!header) throw new Error("expected a header");
     const account = accountIn(store, "login-1");
     expect(passwordMethod(account)?.secret).toBe("hunter2");
-    expect(store.getSnapshot().items.map((item) => item.kind)).toEqual([
-      "account",
-    ]);
+    expect(
+      outsideAccounts(store.getSnapshot().items).map((item) => item.kind),
+    ).toEqual(["account"]);
 
     // Any write seals the whole body; none of it says `login`.
     await store.saveItem(createItem("note", "Later"));
@@ -199,7 +201,7 @@ describe("a vault body written before accounts", () => {
       "login-1:password",
       "login-1:authenticator",
     ]);
-    expect(store.getSnapshot().items).toHaveLength(1);
+    expect(outsideAccounts(store.getSnapshot().items)).toHaveLength(1);
     store.lock();
   });
 });
@@ -272,7 +274,9 @@ describe("a pepper seal and a Sphinx key through the store", () => {
     const held = accountIn(store, account.id);
     expect(JSON.stringify(held.methods)).toBe(methodsJson);
     const onDisk: VaultBody = JSON.parse(await bodyOnDisk(key));
-    const written = onDisk.items.find((item) => item.id === account.id);
+    const written = resolveAccounts(onDisk.items).find(
+      (item) => item.id === account.id,
+    );
     expect(JSON.stringify(written?.kind === "account" && written.methods)).toBe(
       methodsJson,
     );

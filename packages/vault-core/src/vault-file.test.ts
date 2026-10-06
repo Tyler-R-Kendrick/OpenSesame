@@ -33,6 +33,19 @@ function stringLeaves(value: JsonValue): string[] {
   return found;
 }
 
+/**
+ * Words the format itself uses: a method's type and a generator's id are stored
+ * as strings, and a type's name is the extension a credential is listed under.
+ */
+const VOCABULARY = new Set([
+  "password",
+  "api-key",
+  "token",
+  "oauth",
+  "oauth-client",
+  "authenticator",
+]);
+
 describe("openVaultFile over the golden vectors", () => {
   it.each(vectors)("%s opens to its recorded summary", async (_n, v) => {
     const opened = await openVaultFile(v.file, fixture.password);
@@ -84,9 +97,15 @@ describe("openVaultFile over the golden vectors", () => {
       fixture.password,
     );
     const { body } = await openVaultBody(sealed, raw);
+    // An id is listed, so a reference to one (a credential's account) shows
+    // nothing the listing does not.
+    const ids = new Set(body.items.map((item) => item.id));
     const values = body.items.flatMap(
       ({ id: _i, name: _n2, kind: _k, ...rest }) =>
-        stringLeaves(overlapCast(rest)).filter((value) => value.length >= 6),
+        stringLeaves(overlapCast(rest)).filter(
+          (value) =>
+            value.length >= 6 && !ids.has(value) && !VOCABULARY.has(value),
+        ),
     );
     expect(values.length).toBeGreaterThan(0);
     for (const value of values) expect(printed).not.toContain(value);

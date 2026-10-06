@@ -3,6 +3,7 @@ import {
   PBKDF2_ITERATIONS,
   createItem,
   createVault,
+  outsideAccounts,
   parseTotp,
   totpCode,
 } from "@opensesame/vault-core";
@@ -152,10 +153,9 @@ describe("VaultStore rollback detection", () => {
     store.lock();
     const reopened = new VaultStore();
     await reopened.unlock(PASSWORD);
-    expect(reopened.getSnapshot().items.map((item) => item.name)).toEqual([
-      "Kept",
-      "After",
-    ]);
+    expect(
+      outsideAccounts(reopened.getSnapshot().items).map((item) => item.name),
+    ).toEqual(["Kept", "After"]);
   });
 
   it("opens the body it last wrote", async () => {
@@ -166,9 +166,9 @@ describe("VaultStore rollback detection", () => {
 
     const reopened = new VaultStore();
     await reopened.unlock(PASSWORD);
-    expect(reopened.getSnapshot().items.map((item) => item.name)).toEqual([
-      "Kept",
-    ]);
+    expect(
+      outsideAccounts(reopened.getSnapshot().items).map((item) => item.name),
+    ).toEqual(["Kept"]);
   });
 });
 
@@ -324,9 +324,9 @@ describe("VaultStore multi-method unlock", () => {
     await store.openActiveScopeWithCurrentKey();
     expect(store.getSnapshot().status).toBe("unlocked");
     expect(store.getSnapshot().tomb).toBe(shared.id);
-    expect(store.getSnapshot().items.map((item) => item.name)).toEqual([
-      "Work only",
-    ]);
+    expect(
+      outsideAccounts(store.getSnapshot().items).map((item) => item.name),
+    ).toEqual(["Work only"]);
 
     // A tomb sealed with a different key is refused, and the session comes
     // back exactly where it was: same tomb, same key, same items.
@@ -339,9 +339,9 @@ describe("VaultStore multi-method unlock", () => {
     );
     expect(store.getSnapshot().status).toBe("unlocked");
     expect(store.getSnapshot().tomb).toBe(shared.id);
-    expect(store.getSnapshot().items.map((item) => item.name)).toEqual([
-      "Work only",
-    ]);
+    expect(
+      outsideAccounts(store.getSnapshot().items).map((item) => item.name),
+    ).toEqual(["Work only"]);
     await store.saveItem(createItem("account", "Still writable"));
 
     // Enrolling another method on one side does not break the prediction:

@@ -23,8 +23,8 @@ beforeEach(() => {
 afterEach(loadEveryPack);
 
 describe("packs", () => {
-  it("are 18 built-ins beyond the embedded core, known without being loaded", () => {
-    expect(packEntries()).toHaveLength(18);
+  it("are 23 built-ins beyond the embedded core, known without being loaded", () => {
+    expect(packEntries()).toHaveLength(23);
     expect(loadedPacks().size).toBe(0);
     expect(builtinRegistry().has("account")).toBe(false);
     expect(builtinRegistry().has("secret")).toBe(true);
