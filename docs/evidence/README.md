@@ -53,6 +53,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-06-pages-are-pages/`](2026-10-06-pages-are-pages/README.md) | A page's own files are the page |
 | [`2026-10-06-credentials-as-entries/`](2026-10-06-credentials-as-entries/README.md) | Credentials are entries of their own, bound to an account |
 | [`2026-10-06-credential-lines/`](2026-10-06-credential-lines/README.md) | A credential is one line, like a website |
+| [`2026-10-06-account-takes-credentials/`](2026-10-06-account-takes-credentials/README.md) | An account can always take a credential |
 | [`2026-10-06-account-credentials/`](2026-10-06-account-credentials/README.md) | Account credential workflows |
 | [`2026-10-06-account-credential-lines/`](2026-10-06-account-credential-lines/README.md) | Account credential workflows |
 | [`2026-10-05-travel-hidden-items/`](2026-10-05-travel-hidden-items/README.md) | Leave items at home — before and after |
