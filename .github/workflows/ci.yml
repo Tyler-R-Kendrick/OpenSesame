@@ -296,10 +296,12 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
         run: pnpm verify:customer-vault-browser
       - name: Experience journeys
-        if: matrix.shard == 'journeys'
+        # Half the walks per leg (EXPERIENCE_SHARD), in turn, so each runs once.
+        if: startsWith(matrix.shard, 'journeys')
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
+          EXPERIENCE_SHARD: ${{ matrix.journeys }}
         run: node apps/pages/scripts/verify-experience-journeys.mjs
 
   device-inbox:

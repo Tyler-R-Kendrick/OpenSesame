@@ -36,6 +36,7 @@ import { chromium } from "@playwright/test";
 import { enableEverything } from "./lib/enable-capabilities.mjs";
 import { passTheDoor } from "./lib/front-door.mjs";
 import { sealLocalOnly } from "./lib/pages-journey.mjs";
+import { inShard, isFirstShard, parseShard } from "./lib/shard.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { gatePass, popupPass } from "./lib/tutorial-gates.mjs";
 import {
@@ -43,7 +44,6 @@ import {
   moveAdvancesTheTour,
 } from "./lib/tutorial-interact.mjs";
 import { seedVault } from "./lib/tutorial-seed.mjs";
-import { inShard, isFirstShard, parseShard } from "./lib/tutorial-shard.mjs";
 import {
   listTutorials,
   resetToVault,

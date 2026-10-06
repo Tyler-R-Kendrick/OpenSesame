@@ -39,9 +39,10 @@ export const ALL_GATES = [...SHARD_GATES, ...JOB_GATES];
 const everyGate = () => new Set(ALL_GATES);
 const gates = (...names) => new Set(names);
 
-/** A shard's gate: `mobile-390` is the `mobile` gate. */
+/** A shard's gate: `mobile-390` is the `mobile` gate, `journeys-1` the `journeys` one. */
 export function gateOfShard(shard) {
-  return shard.startsWith("mobile-") ? "mobile" : shard;
+  if (shard.startsWith("mobile-")) return "mobile";
+  return shard.startsWith("journeys-") ? "journeys" : shard;
 }
 
 // --- paths ---------------------------------------------------------------
