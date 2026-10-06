@@ -75,7 +75,9 @@ export async function sealAgeActivation(input: {
     throw new DuressKdfError("age recipients required");
   }
   for (const r of input.recipients) {
-    if (!isAgeRecipient(r)) throw new DuressKdfError("invalid age recipient");
+    if (!(await isAgeRecipient(r))) {
+      throw new DuressKdfError("invalid age recipient");
+    }
   }
   const header = bindingHeader(input);
   const headerBytes = te.encode(header);
@@ -110,7 +112,7 @@ export async function openAgeActivation(input: {
   if (input.package.vaultRef !== input.expect.vaultRef) return null;
   if (input.package.policyRevision !== input.expect.policyRevision) return null;
   if (input.package.keyEpoch !== input.expect.keyEpoch) return null;
-  if (!isAgeIdentity(input.identity)) {
+  if (!(await isAgeIdentity(input.identity))) {
     throw new DuressKdfError("invalid age identity");
   }
   try {

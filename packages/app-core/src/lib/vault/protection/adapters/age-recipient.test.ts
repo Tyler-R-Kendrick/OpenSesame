@@ -28,7 +28,7 @@ describe("age-recipient protector", () => {
     const pair = await generateAgeKeyPair();
     const rootKey = crypto.getRandomValues(new Uint8Array(ROOT_KEY_BYTES));
     const ctx = context("age_protector_1");
-    const adapter = createAgeRecipientAdapter({
+    const adapter = await createAgeRecipientAdapter({
       recipients: [pair.recipient],
       resolveIdentity: async () => pair.identity,
       custody: "external",
@@ -59,7 +59,7 @@ describe("age-recipient protector", () => {
     const pair = await generateAgeKeyPair();
     const rootKey = crypto.getRandomValues(new Uint8Array(ROOT_KEY_BYTES));
     const ctx = context("age_protector_cycle");
-    const adapter = createAgeRecipientAdapter({
+    const adapter = await createAgeRecipientAdapter({
       recipients: [pair.recipient],
       resolveIdentity: async () => pair.identity,
       custody: "vault-sealed",
@@ -106,7 +106,7 @@ describe("age-recipient protector", () => {
     expect(ageRecipientCanSatisfyLastVerifiedGuard(record)).toBe(false);
 
     // Ciphertext is real — the matching identity can still open it later.
-    const adapter = createAgeRecipientAdapter({
+    const adapter = await createAgeRecipientAdapter({
       recipients: [pair.recipient],
       resolveIdentity: async () => pair.identity,
       custody: "external",
@@ -134,7 +134,7 @@ describe("age-recipient protector", () => {
       ...record,
       capsuleAgeB64: btoa("not-valid-age-ciphertext"),
     };
-    const adapter = createAgeRecipientAdapter({
+    const adapter = await createAgeRecipientAdapter({
       recipients: [pair.recipient],
       resolveIdentity: async () => pair.identity,
       custody: "external",
