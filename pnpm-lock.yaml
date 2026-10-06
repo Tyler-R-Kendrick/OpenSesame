@@ -130,9 +130,6 @@ importers:
 
   apps/browser-extension:
     dependencies:
-      '@gdp-ts/core':
-        specifier: 0.1.0
-        version: 0.1.0(oxlint@1.79.0)(typescript@5.8.3)
       '@opensesame/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
@@ -1212,9 +1209,6 @@ importers:
 
   packages/identity-worker:
     dependencies:
-      '@gdp-ts/core':
-        specifier: 0.1.0
-        version: 0.1.0(oxlint@1.79.0)(typescript@5.8.3)
       '@opensesame/claims':
         specifier: workspace:*
         version: link:../claims
@@ -1899,9 +1893,6 @@ importers:
 
   packages/wallet-x402:
     dependencies:
-      '@gdp-ts/core':
-        specifier: 0.1.0
-        version: 0.1.0(oxlint@1.79.0)(typescript@5.8.3)
       '@opensesame/os-domain':
         specifier: workspace:*
         version: link:../os-domain

@@ -689,6 +689,21 @@ Do not add new top-level directories or loose root files — find the group.
   plaintext fallback: a configured sealed sink that cannot open refuses to
   start. The event keys derive from secrets the deployment already holds
   (`docs/operators/log-and-event-sealing.md`).
+- **An authorization check is a proof the compiler can see**
+  ([ADR 0177](docs/adr/0177-authorization-checks-are-proofs-the-compiler-can-see.md)).
+  In the TypeScript plane, a function that needs "this actor owns this
+  organization / holds this project role / is a verified principal / may write
+  these shares" takes a `@gdp-ts/core` proof about the exact `Named` values it
+  touches, minted only by a module under `proofs/` (`defineProof` is private to
+  it and never exported). The checker returns a *verdict* (`proof | refusal`) so
+  the route keeps its own status and message and the wire does not change. Do not
+  write another `requireOwner`/`assertVerified`/`roleFor` that returns a boolean
+  or a bare id; do not forge a proof with `as` (the Oxlint preset in
+  `oxlint.config.ts` fails it); do not add a flag such as `bypassAccessCheck`
+  where a `SystemShareWrite`-style typed choice belongs. Each proof gets a
+  `*.mistakes.ts` of `@ts-expect-error` lines proving misuse does not compile,
+  and tests obtain proofs from the real prover, never a cast. Where call sites
+  disagree, name each behavior as an option and pin it; do not unify silently.
 - Never expose raw secrets, private proof keys, or a public `getSecret()`
   affordance. Agent-facing APIs use ConnectionRef + Intent
   ([ADR 0005](docs/adr/0005-authority-handle-connectionref.md)).
