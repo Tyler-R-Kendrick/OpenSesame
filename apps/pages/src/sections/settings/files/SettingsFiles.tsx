@@ -1,16 +1,10 @@
 /**
- * A settings directory's files. A directory is its own document
- * (`settings/<category>/config.yaml`) plus whatever files its providers keep
- * — for Vaults, the item types. The list is the files as paths; the pane
- * beside it is the one that is open. A directory with only its document
- * shows the document alone.
+ * The files a settings directory's providers keep for authoring — for
+ * Vaults, the item types. The directory's own document and the capability
+ * documents are not here: they are the page (`documents.ts`). The list is the
+ * files as paths; the pane beside it is the one that is open.
  */
 
-import {
-  SETTINGS_CONFIG_FILE,
-  settingsFields,
-  settingsFilePath,
-} from "@opensesame/app-core/sections/settings/settings-files.js";
 import {
   type VirtualFile,
   type VirtualFileProvider,
@@ -19,8 +13,8 @@ import {
 } from "@opensesame/app-core/sections/settings/virtual-files.js";
 import type { CSSProperties } from "react";
 import { IconLock, IconPlus } from "../../../components/Icons.js";
-import { SettingsRawEditor } from "../SettingsRawEditor.js";
 import { VirtualFileEditor } from "./VirtualFileEditor.js";
+import { isSettingsDocument } from "./documents.js";
 import { useCategoryFiles } from "./providers.js";
 import "./settings-files.css";
 
@@ -165,48 +159,32 @@ function FileList({
 
 export function SettingsFiles({
   category,
-  selected: asked,
-  onSelect: select,
+  selected,
+  onSelect,
 }: {
   /** A core category, or one a capability contributed. */
   category: string;
-  /** The `?file=` value: `config.yaml` is the directory's own document. */
-  selected: string | null;
+  /** The `?file=` value: a path the category's provider keeps. */
+  selected: string;
   onSelect: (file: string | null) => void;
 }) {
   const provider = useCategoryFiles(category);
-  const document = settingsFilePath(category);
-  if (provider === null) return <SettingsRawEditor category={category} />;
-
-  // The list names the document by its full path; the address calls it by
-  // its file name, the same way the rail and the command bar do.
-  const selected = asked === SETTINGS_CONFIG_FILE ? document : asked;
-  const onSelect = (path: string | null) =>
-    select(path === document ? SETTINGS_CONFIG_FILE : path);
-  const own: VirtualFile = {
-    path: document,
-    language: "yaml",
-    readOnly: false,
-    removable: false,
-  };
-  // A directory whose settings all live in its provider's files (a
-  // contributed category, such as Notifications) has no `config.yaml` of its
-  // own to list: `?file=config.yaml` opens its first file instead.
-  const provided = provider.list();
-  const ownListed =
-    settingsFields(category).length > 0 || provided.length === 0;
-  const listed = ownListed ? [own, ...provided] : [...provided];
+  if (provider === null) return null;
+  const listed = provider
+    .list()
+    .filter((file) => !isSettingsDocument(category, file.path));
   const draft = provider.creates?.draftPath;
   const open =
     listed.find((file) => file.path === selected) ??
-    (selected !== null && selected === draft
+    (selected === draft && draft !== undefined
       ? {
           path: draft,
           language: "json" as const,
           readOnly: false,
           removable: false,
         }
-      : (listed[0] ?? own));
+      : listed[0]);
+  if (open === undefined) return null;
 
   return (
     <div className="vfiles">
@@ -217,19 +195,13 @@ export function SettingsFiles({
         onSelect={onSelect}
       />
       <div className="vfiles__open">
-        {open.path === document ? (
-          <SettingsRawEditor category={category} />
-        ) : (
-          <VirtualFileEditor
-            key={open.path}
-            file={open}
-            files={provider}
-            initial={
-              open.path === draft ? provider.creates?.template : undefined
-            }
-            onMoved={(path) => onSelect(path)}
-          />
-        )}
+        <VirtualFileEditor
+          key={open.path}
+          file={open}
+          files={provider}
+          initial={open.path === draft ? provider.creates?.template : undefined}
+          onMoved={(path) => onSelect(path)}
+        />
       </div>
     </div>
   );

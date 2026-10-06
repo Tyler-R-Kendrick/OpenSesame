@@ -1,0 +1,134 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Directory"
+        },
+        {
+          "visit": "settings/capabilities?file=settings%2Fcapabilities%2Finstallation-selection.yaml"
+        },
+        {
+          "facts": "1280-selection"
+        },
+        {
+          "shot": "1280-selection"
+        },
+        {
+          "visit": "settings/capabilities?file=config.yaml"
+        },
+        {
+          "facts": "1280-capabilities"
+        },
+        {
+          "shot": "1280-capabilities"
+        },
+        {
+          "visit": "settings?file=config.yaml"
+        },
+        {
+          "facts": "1280-general"
+        },
+        {
+          "shot": "1280-general"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "feature": "Directory"
+        },
+        {
+          "visit": "settings/capabilities?file=settings%2Fcapabilities%2Finstallation-selection.yaml"
+        },
+        {
+          "facts": "390-selection"
+        },
+        {
+          "shot": "390-selection"
+        },
+        {
+          "visit": "settings/capabilities?file=config.yaml"
+        },
+        {
+          "facts": "390-capabilities"
+        },
+        {
+          "shot": "390-capabilities"
+        },
+        {
+          "visit": "settings?file=config.yaml"
+        },
+        {
+          "facts": "390-general"
+        },
+        {
+          "shot": "390-general"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-selection",
+      "width": 1280,
+      "title": "installation-selection.yaml \u2014 1280 \u00d7 800",
+      "caption": "A page's file is the page: the capability switches, not their YAML.",
+      "before": "text editor, 25 painted tokens, 0 switches",
+      "after": "no editor, 35 switches"
+    },
+    {
+      "shot": "1280-capabilities",
+      "width": 1280,
+      "title": "Capabilities config.yaml \u2014 1280 \u00d7 800",
+      "caption": "The directory's own file draws the Capabilities page, with the addresses it held as an Endpoints panel.",
+      "before": "text editor, 9 painted tokens, 0 switches",
+      "after": "no editor, 35 switches, 2 address fields"
+    },
+    {
+      "shot": "1280-general",
+      "width": 1280,
+      "title": "General config.yaml \u2014 1280 \u00d7 800",
+      "caption": "Opening settings?file=config.yaml draws General, like every other page.",
+      "before": "text editor, 10 painted tokens, 0 switches",
+      "after": "no editor, Appearance and Locking, 2 fields"
+    },
+    {
+      "shot": "390-selection",
+      "width": 390,
+      "title": "installation-selection.yaml \u2014 390 \u00d7 844",
+      "caption": "A page's file is the page: the capability switches, not their YAML.",
+      "before": "text editor, 25 painted tokens, 0 switches",
+      "after": "no editor, 35 switches"
+    },
+    {
+      "shot": "390-capabilities",
+      "width": 390,
+      "title": "Capabilities config.yaml \u2014 390 \u00d7 844",
+      "caption": "The directory's own file draws the Capabilities page, with the addresses it held as an Endpoints panel.",
+      "before": "text editor, 9 painted tokens, 0 switches",
+      "after": "no editor, 35 switches, 2 address fields"
+    },
+    {
+      "shot": "390-general",
+      "width": 390,
+      "title": "General config.yaml \u2014 390 \u00d7 844",
+      "caption": "Opening settings?file=config.yaml draws General, like every other page.",
+      "before": "text editor, 10 painted tokens, 0 switches",
+      "after": "no editor, Appearance and Locking, 2 fields"
+    }
+  ]
+}

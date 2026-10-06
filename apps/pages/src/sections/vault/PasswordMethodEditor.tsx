@@ -9,9 +9,11 @@ import type {
   PasswordGenerator,
   PasswordMethod,
 } from "@opensesame/vault-core";
+import { useState } from "react";
 import { GeneratorOptions } from "../../components/GeneratorOptions.js";
+import { CredentialLine } from "./CredentialLine.js";
 import { LegacyConvert } from "./LegacyConvert.js";
-import { PasswordFieldRow } from "./PasswordFieldRow.js";
+import { PasswordControl } from "./PasswordControl.js";
 import { PepperCheck } from "./PepperCheck.js";
 import { regenerate, switchGenerator } from "./account-secrets.js";
 
@@ -22,10 +24,11 @@ function generatorId(value: string): OfferedGeneratorId | undefined {
 }
 
 /**
- * One password method: the password (typed, generated or computed) and one
- * *Options* line. The generator, its options and *Include pepper* (on by
- * default, at the end) are inside it, out of the way until wanted (ADR 0172 §6,
- * ADR 0174). A password an older version made from a typed
+ * One password method, drawn on one line like a website: the password (typed,
+ * generated or computed) with its reveal, regenerate and options keys inside its
+ * rule, and the remove × at the end. The generator, its options and *Include
+ * pepper* (on by default, at the end) open from the options key and are out of
+ * the way until wanted (ADR 0172 §6, ADR 0174). A password an older version made from a typed
  * pepper has none of that: it is converted once, then it is an ordinary one.
  */
 export function PasswordMethodEditor({
@@ -33,18 +36,28 @@ export function PasswordMethodEditor({
   method,
   liveRoll,
   onEdit,
+  onRemove,
 }: {
   account: AccountItem;
   method: PasswordMethod;
   /** A draft that has never been saved makes a new password as its options change. */
   liveRoll: boolean;
   onEdit: (next: PasswordMethod) => void;
+  /** The line's remove key, at its end like a website's. */
+  onRemove: () => void;
 }) {
+  const [open, setOpen] = useState(false);
   if (isLegacyMethod(method)) {
     return (
-      <LegacyConvert account={account} method={method} onConvert={onEdit} />
+      <LegacyConvert
+        account={account}
+        method={method}
+        onConvert={onEdit}
+        onRemove={onRemove}
+      />
     );
   }
+  const panel = `${method.id}-options`;
   const { generator } = method;
   const options = offeredGenerators(generator.id);
 
@@ -58,10 +71,24 @@ export function PasswordMethodEditor({
 
   return (
     <>
-      <PasswordFieldRow method={method} onEdit={onEdit} />
-      <details className="gen__more">
-        <summary>Options</summary>
-        <div className="gen__opts">
+      <CredentialLine
+        label="Password"
+        htmlFor={`${method.id}-password`}
+        remove={{ label: "Remove password", onRemove }}
+        field={
+          <PasswordControl
+            method={method}
+            onEdit={onEdit}
+            options={{
+              open,
+              controls: panel,
+              onToggle: () => setOpen((on) => !on),
+            }}
+          />
+        }
+      />
+      {open ? (
+        <div id={panel} className="gen__opts">
           <div className="field">
             <label htmlFor={`${method.id}-generator`}>Generator</label>
             <div className="editor__inline">
@@ -85,7 +112,7 @@ export function PasswordMethodEditor({
           <GeneratorOptions generator={generator} onChange={retuneOptions} />
           <PepperCheck method={method} onEdit={onEdit} />
         </div>
-      </details>
+      ) : null}
     </>
   );
 }

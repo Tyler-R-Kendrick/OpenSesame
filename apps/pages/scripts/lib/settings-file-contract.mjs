@@ -5,12 +5,14 @@
  * a deleted stylesheet block (the list and the open file side by side on a
  * phone, rows under the 44px floor) and a painted editor whose text was set
  * below 16px went unseen: the audit had no screen to measure. This opens the
- * files — a new draft, a read-only built-in, the capabilities selection and
- * the directory's `config.yaml` — and runs the whole phone audit on each,
- * then states what only the viewer owes: the list above the file where the
+ * files a provider keeps — a new draft and a read-only built-in — and runs
+ * the whole phone audit on each, then states what only the viewer owes: the
+ * list above the file where the
  * window is narrow and beside it where it is wide, a 44px row, one size for
  * the painted copy and the textarea over it, and a long line that scrolls the
- * stage and never the page.
+ * stage and never the page. A page's own document (`config.yaml`, a capability
+ * document) is not one of those files: it is drawn as the page, and its stop
+ * says so.
  */
 
 const DRAFT = "settings/item-types/installed/new.json";
@@ -206,15 +208,43 @@ export async function settingsFileStops(ctx) {
     `${label}: tapping the built-in's row opens it, read-only`,
   );
   viewerChecks(ctx.harness, label, await ctx.page.evaluate(measureViewer));
-  await openStop(
+  await documentStop(
     ctx,
     "file-capabilities",
     fileRoute(
       "capabilities",
       "settings/capabilities/installation-selection.yaml",
     ),
+    "[data-testid='capabilities-panel']",
   );
-  await openStop(ctx, "file-config", "settings?file=config.yaml", {
-    list: false,
-  });
+  await documentStop(
+    ctx,
+    "file-config",
+    "settings?file=config.yaml",
+    ".set__nav-link[aria-current='page']",
+  );
+}
+
+/**
+ * A page's own document — `config.yaml`, a capability document — is the page,
+ * drawn as every page is. The audit runs on it, and it owes no text editor
+ * and no file list of its own.
+ */
+async function documentStop(ctx, name, route, pageSelector) {
+  const label = ctx.stop(name);
+  await visit(ctx.page, ctx.base, route);
+  await ctx.audit(ctx.page, label);
+  const drawn = await ctx.page.evaluate(
+    (selector) => ({
+      page: document.querySelector(selector) !== null,
+      editor: document.querySelector(".set-raw__stage") !== null,
+      files: document.querySelector(".vfiles") !== null,
+    }),
+    pageSelector,
+  );
+  ctx.harness.setStep(label);
+  ctx.harness.check(
+    drawn.page && !drawn.editor && !drawn.files,
+    `${label}: the document is drawn as the page, with no text editor or file list (page ${drawn.page}, editor ${drawn.editor}, files ${drawn.files})`,
+  );
 }

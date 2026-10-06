@@ -239,13 +239,16 @@ describe("account detail", () => {
     renderAt("itm_many");
     expect(screen.getByText("Username / ID")).toBeTruthy();
     expect(screen.getByText("Authenticator code")).toBeTruthy();
-    expect(screen.getByText("API key")).toBeTruthy();
+    expect(screen.getByText("API header")).toBeTruthy();
+    expect(screen.getByText("X-Api-Key value")).toBeTruthy();
     expect(screen.getByText("Token")).toBeTruthy();
     expect(screen.getByText("Client id")).toBeTruthy();
     // Concealed until asked, never drawn.
     for (const hidden of ["ak_secret", "tok_secret", "csecret", "rtok"])
       expect(screen.queryByText(hidden)).toBeNull();
-    expect(screen.getByRole("button", { name: "Reveal api key" })).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Reveal x-api-key value" }),
+    ).toBeTruthy();
   });
 
   it("marks where the person's pepper goes, copies what comes before it, then the rest, and never asks for one", async () => {

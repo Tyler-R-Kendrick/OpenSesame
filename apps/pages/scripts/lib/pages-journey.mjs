@@ -134,10 +134,6 @@ export async function openGeneral(page) {
     await openSection(page, "settings/");
     await heading.waitFor({ timeout: 15000 });
   }
-  // A reload keeps a `?file=config.yaml` location; the form is its sibling.
-  if (await page.locator(".set-raw").count()) {
-    await openConfigForm(page, "General");
-  }
 }
 
 /** Open a Settings category without a full document navigation (keeps the vault open). */
@@ -161,20 +157,6 @@ export async function openSettingsCategory(page, label) {
   }
 }
 
-export async function setTextarea(page, selector, yaml) {
-  const source = page.locator(selector);
-  await source.waitFor({ timeout: 8000 });
-  await source.evaluate((node, value) => {
-    const setter = Object.getOwnPropertyDescriptor(
-      window.HTMLTextAreaElement.prototype,
-      "value",
-    )?.set;
-    setter?.call(node, value);
-    node.dispatchEvent(new Event("input", { bubbles: true }));
-    node.dispatchEvent(new Event("change", { bubbles: true }));
-  }, yaml);
-}
-
 export async function runCommand(page, utterance) {
   const input = page.locator("#command-bar-input");
   await input.fill(utterance);
@@ -188,17 +170,20 @@ export async function runCommand(page, utterance) {
  * Open a settings directory's `config.yaml` by its path. The rail lists the
  * file only while it shows hidden items; the command bar opens it at any
  * width, which is the road a journey that is not about the rail should take.
+ * The file's view is the page: the address names it, and the page is drawn
+ * with no text editor.
  */
 export async function openConfigFile(page, category) {
   const opened = await runCommand(page, `settings/${category}/config.yaml`);
   if (!/Opened/i.test(opened))
     throw new Error(`config.yaml for ${category} did not open: ${opened}`);
-  await page
-    .getByLabel(`settings/${category}/config.yaml`, { exact: true })
-    .waitFor({ timeout: 8000 });
+  await page.waitForURL(/[?&]file=config\.yaml/, { timeout: 8000 });
+  await page.locator(".set__nav").waitFor({ timeout: 8000 });
+  if ((await page.locator(".set-raw").count()) !== 0)
+    throw new Error(`config.yaml for ${category} drew a text editor`);
 }
 
-/** Back from a directory's `config.yaml` to the form it spells. */
+/** The directory's own page, by its tab (drops any open file). */
 export async function openConfigForm(page, label) {
   await page
     .locator(".set__nav")

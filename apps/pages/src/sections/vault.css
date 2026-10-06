@@ -913,6 +913,11 @@ select.editor__ext:hover {
   align-items: center;
 }
 
+/* A credential's line has no match rule: the field, then the × ending the line. */
+.editor__uri.editor__uri--cred {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 /* —— Generator ————————————————————————————————————————————— */
 
 .gen__opts {
@@ -976,19 +981,16 @@ select.editor__ext:hover {
   gap: 0.9rem;
 }
 
+/* A login method is its lines, each in the label column's grid like a website's. */
 .method__list {
-  display: grid;
-  gap: 0.35rem;
+  display: block;
 }
 
 .method {
-  display: grid;
-  gap: 0.2rem;
   min-width: 0;
   margin: 0;
-  padding: 0.55rem 0 0.2rem;
+  padding: 0;
   border: 0;
-  border-top: 1px solid var(--line);
 }
 
 .method__picker {
@@ -1201,6 +1203,11 @@ select.editor__ext:hover {
   /* The × ends the address it removes; centred across the address and its
      rule it sat on neither. */
   .editor__uri > :last-child {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .editor__uri--cred > :nth-child(2) {
     grid-column: 2;
     grid-row: 1;
   }

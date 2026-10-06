@@ -169,6 +169,17 @@ async function facts(page, name) {
               input.scrollWidth > input.clientWidth + 1
           : null;
       })(),
+      // What the page draws for a settings address: a text editor, or the
+      // designed page (its panel headings, switches and fields).
+      textEditors: document.querySelectorAll(".set-raw__stage").length,
+      switches: document.querySelectorAll('.section__inner [role="switch"]')
+        .length,
+      fields: document.querySelectorAll(
+        ".section__inner input:not([type=hidden]), .section__inner select",
+      ).length,
+      headings: [...document.querySelectorAll(".section__inner h2")].map(
+        (heading) => heading.textContent?.trim(),
+      ),
       completions: [...document.querySelectorAll(".set-raw__option")].map(
         (option) => option.textContent?.trim(),
       ),
