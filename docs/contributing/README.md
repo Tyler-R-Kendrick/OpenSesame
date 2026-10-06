@@ -30,11 +30,20 @@ says the diff can affect it. A docs-only change runs the signature check
 and passes the three required checks without those suites. A path the
 classifier does not recognize runs every suite.
 
+A pull request runs what its diff can reach
+([ADR 0176](../adr/0176-ci-runs-what-a-diff-can-reach.md)): the browser gates
+[`scripts/lib/ci-gates.mjs`](../../scripts/lib/ci-gates.mjs) maps the changed
+files to (the bundle job's matrix is written from
+[`ci-bundle-shards.json`](../../scripts/lib/ci-bundle-shards.json)), and the unit
+tests [`scripts/lib/ci-scoped-tests.mjs`](../../scripts/lib/ci-scoped-tests.mjs)
+selects. A push to `main` and a manual run have no diff and run everything, so
+a scoping rule that dropped a check fails there.
+
 | Check | Suite, when the diff touches that area |
 |---|---|
-| **TypeScript** | Commit-signature check (every pull request), then frozen install, changed-file lint, and `pnpm quality`. `pnpm typecheck` and `pnpm test` run only for the workspace packages the diff changes and the packages that depend on them ([`scripts/lib/ci-affected-tests.mjs`](../../scripts/lib/ci-affected-tests.mjs)). A root manifest, lockfile, or `turbo.json` still tests every package. Product-experience contracts run when that set includes one of their packages. A workflow or script change runs lint and quality and skips package tests. |
+| **TypeScript** | Commit-signature check (every pull request), then frozen install, changed-file lint, and `pnpm quality`. `pnpm typecheck` runs for the workspace packages the diff changes and the packages that depend on them ([`scripts/lib/ci-affected-tests.mjs`](../../scripts/lib/ci-affected-tests.mjs)); their tests run for what the diff reaches (`vitest related`, plus every test that reads the filesystem), or whole when a manifest, config or test setup changed. A root manifest, lockfile, or `turbo.json` still tests every package. Product-experience contracts run when that set includes one of their packages. A workflow or script change runs lint and quality and skips package tests. |
 | **Rust** | `cargo test --all-targets -p` for the crates the diff changes and the crates that depend on them. The whole workspace runs when a root Cargo file, the lockfile, the toolchain, or `spec/` changes. Skipped when no Rust, Cargo, or embedded host input changed. |
-| **Bundle budgets** | Builds `apps/pages`, checks [`tools/quality/bundle-budgets.json`](../../tools/quality/bundle-budgets.json), and runs the Pages browser gates in Chromium: WebMCP, keyboard, mobile, local IAM, SIOPv2. Skipped when Pages and its production dependencies did not change. |
+| **Bundle budgets** | Builds `apps/pages`, checks [`tools/quality/bundle-budgets.json`](../../tools/quality/bundle-budgets.json), and runs the Pages browser gates in Chromium (WebMCP, keyboard, mobile, local IAM, SIOPv2, and the rest) that the diff can reach, one matrix shard each. Skipped when the diff reaches none. |
 
 mTLS is not a required check. It runs when the diff touches the transport
 crates, the gateway, ingress or NATS config, or the Pages transport scripts.

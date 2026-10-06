@@ -206,7 +206,7 @@ describe("Pages graph and required check names", () => {
       expect(ci).toContain(`name: ${name}\n`);
     }
     expect(ci).toContain("needs.changes.outputs.typescript == 'true'");
-    expect(ci).toContain("needs.changes.outputs.bundle == 'true'");
+    expect(ci).toContain("needs.changes.outputs.bundle_matrix != '[]'");
     expect(ci).toContain("needs.changes.outputs.rust == 'true'");
     expect(ci).toContain("needs.changes.outputs.mtls == 'true'");
     expect(ci).toContain("always() && !cancelled()");
