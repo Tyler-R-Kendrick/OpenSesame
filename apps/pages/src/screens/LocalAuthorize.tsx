@@ -197,12 +197,7 @@ function ConsentForm({ model }: { model: ReturnType<typeof useLocalConsent> }) {
         }
         onClick={() => void model.run(Boolean(session))}
       >
-        <IconKey
-          label="Deny"
-          danger
-          disabled={busy}
-          onClick={() => void model.deny()}
-        >
+        <IconKey label="Deny" disabled={busy} onClick={() => void model.deny()}>
           <IconX size={16} />
         </IconKey>
       </FormCommit>

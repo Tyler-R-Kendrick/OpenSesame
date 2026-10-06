@@ -171,7 +171,6 @@ function MemberRow({
               <IconKey
                 label={armed ? "Confirm removal" : "Remove member"}
                 small
-                danger
                 armed={armed}
                 onClick={() => {
                   arm(!armed);

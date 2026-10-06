@@ -184,7 +184,6 @@ describe("the lint refuses CSS that paints a failure into the page", () => {
   });
 
   it.each([
-    [".btn--danger:hover { background: var(--err-wash); }"],
     [".notice-card--err { border-color: var(--err); }"],
     [".status-mark--err { color: var(--err); }"],
     ['.field input[aria-invalid="true"] { border-color: var(--err); }'],

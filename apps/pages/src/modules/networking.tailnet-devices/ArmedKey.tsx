@@ -12,7 +12,6 @@ import type { Armed, TailnetModel } from "./use-tailnet-admin.js";
 export function ArmedKey({
   model,
   arm,
-  danger = false,
   label,
   confirmLabel,
   keepLabel,
@@ -21,7 +20,6 @@ export function ArmedKey({
 }: {
   model: TailnetModel;
   arm: Armed;
-  danger?: boolean;
   label: string;
   confirmLabel: string;
   keepLabel: string;
@@ -37,7 +35,6 @@ export function ArmedKey({
         keyRef={primary}
         label={isArmed ? confirmLabel : label}
         small
-        danger={danger}
         armed={isArmed}
         disabled={busy}
         onClick={() => (isArmed ? onConfirm() : setArmed(arm))}

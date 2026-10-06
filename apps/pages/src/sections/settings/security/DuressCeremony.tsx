@@ -69,11 +69,6 @@ function RemoveCard({
             onDone("Duress code removed.");
           }, null),
       }}
-      secondary={{
-        label: "Keep it",
-        disabled: busy,
-        onClick: () => onDone(""),
-      }}
     />
   );
 }

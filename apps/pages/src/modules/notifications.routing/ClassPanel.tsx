@@ -132,7 +132,6 @@ function OrderRow({
         {kind === "in_app" ? null : (
           <IconKey
             small
-            danger
             label={`Remove ${name} from ${label}`}
             onClick={() => {
               refocus([`notif-${cls}-add-key`, `notif-${cls}-head`]);

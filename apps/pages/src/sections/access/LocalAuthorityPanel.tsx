@@ -111,7 +111,6 @@ function ConfirmRevocation({
       <div className="actions">
         <IconKey
           label="Confirm revocation"
-          danger
           onClick={() =>
             void revoke(row).then((done) => {
               if (done) close();
@@ -159,7 +158,7 @@ function AuthorityRows({
           </p>
           <button
             type="button"
-            className="icon-btn icon-btn--danger icon-btn--sm"
+            className="icon-btn icon-btn--sm"
             disabled={disabled}
             onClick={(event) => select(row, event.currentTarget)}
             aria-label={`Revoke ${row.kind}`}

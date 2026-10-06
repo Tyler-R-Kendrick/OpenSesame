@@ -225,7 +225,7 @@ export function ConnectionCard({
             <button
               ref={revokeRef}
               type="button"
-              className={`icon-btn icon-btn--sm icon-btn--danger${
+              className={`icon-btn icon-btn--sm${
                 confirming ? " is-armed" : ""
               }`}
               disabled={busy !== null || (!online && !localGit)}

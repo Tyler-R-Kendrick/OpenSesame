@@ -144,9 +144,12 @@ export function checkInPageErrors(file, source, report, lineOf) {
   }
 }
 
-/** Selectors that may carry the error colour: controls, glyphs, the tray. */
+/**
+ * Selectors that may carry the error colour: glyphs, the tray, an invalid
+ * field. Never a control (`design-lint-ink.mjs`): there is no danger button.
+ */
 const ALLOWED_SELECTOR =
-  /(btn--danger|icon-btn--danger|chip--err|status-mark|notice-card|--danger|__danger|\.is-hot|\.is-danger|\.is-armed|\[aria-invalid)/;
+  /(chip--err|status-mark|notice-card|__danger|\[aria-invalid)/;
 
 const FAILURE_SELECTOR =
   /(\.note--err|\.broker__card--err|\.conn-flash|\.conn-error|__error\b|__err\b|-error\b)/;

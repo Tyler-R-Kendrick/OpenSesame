@@ -60,9 +60,10 @@ export type CeremonyPrimary = {
   disabled?: boolean;
   /**
    * `danger` for the one irreversible act a ceremony can hold — removing a
-   * key or a second step — drawn as the `.go` square in the error ink beside
-   * a Keep key. A card that asks has not failed: it drops the wash and the
-   * kicker, and the danger key carries the weight.
+   * key or a second step — drawn as the ordinary `.go` square with the bin
+   * glyph. It is never red and has no Keep key beside it: the sheet's close
+   * key is the way out. A card that asks has not failed: it drops the wash
+   * and the kicker.
    */
   tone?: "danger";
   /** Submit a surrounding form instead of clicking, so Enter in a field commits. */
@@ -172,7 +173,7 @@ function PrimaryKey({ primary }: { primary: CeremonyPrimary }) {
       <button
         ref={primary.keyRef}
         type={primary.submit ? "submit" : "button"}
-        className={danger ? "go go--danger" : "go"}
+        className="go"
         disabled={primary.disabled || primary.busy}
         aria-busy={primary.busy || undefined}
         aria-label={primary.label}

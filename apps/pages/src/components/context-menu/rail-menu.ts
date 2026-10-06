@@ -69,7 +69,6 @@ function vaultGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
       {
         id: "empty-trash",
         label: "Empty trash",
-        danger: true,
         confirm: "Really empty trash? This cannot be undone",
         run: () => void vaultStore.emptyTrash(),
       },

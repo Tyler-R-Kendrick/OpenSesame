@@ -27,7 +27,6 @@ export function RegistrationActions(props: {
           <IconKey
             label={props.removing ? "Confirm removal" : "Remove registration"}
             small
-            danger
             keyRef={props.removeButton}
             disabled={props.busy}
             onClick={props.onRemove}
