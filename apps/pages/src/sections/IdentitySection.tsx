@@ -1053,7 +1053,6 @@ function LinkedIdentitiesCard({ online }: { online: boolean }) {
                           <IconKey
                             label="Unlink"
                             small
-                            danger
                             disabled={busyId !== null || !online}
                             onClick={() => void unlink(identity)}
                           >
@@ -1071,7 +1070,6 @@ function LinkedIdentitiesCard({ online }: { online: boolean }) {
                         <IconKey
                           label="Unlink"
                           small
-                          danger
                           disabled={busyId !== null || !online}
                           onClick={() => setConfirmId(identity.id)}
                         >
@@ -1232,7 +1230,6 @@ function OrgMembersCard({ online }: { online: boolean }) {
                           <IconKey
                             label="Remove them"
                             small
-                            danger
                             disabled={busy || !online}
                             onClick={() => void remove(member)}
                           >
@@ -1250,7 +1247,6 @@ function OrgMembersCard({ online }: { online: boolean }) {
                         <IconKey
                           label="Remove"
                           small
-                          danger
                           disabled={busy || !online}
                           onClick={() => setConfirmId(member.principalId)}
                         >
@@ -1477,7 +1473,6 @@ function ServiceAccountsPanel({
                           <IconKey
                             label="Revoke it"
                             small
-                            danger
                             disabled={busyId !== null || !online}
                             onClick={() => void revoke(client)}
                           >
@@ -1495,7 +1490,6 @@ function ServiceAccountsPanel({
                         <IconKey
                           label="Revoke"
                           small
-                          danger
                           disabled={busyId !== null || !online}
                           onClick={() => setConfirmId(client.id)}
                         >

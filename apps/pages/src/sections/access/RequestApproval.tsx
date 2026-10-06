@@ -86,7 +86,6 @@ export function RequestApproval({
         </IconKey>
         <IconKey
           label="Deny with passkey"
-          danger
           disabled={!principalId}
           onClick={() => void decide("deny")}
         >

@@ -1042,6 +1042,19 @@ Do not add new top-level directories or loose root files — find the group.
   (`no-in-page-error`, `no-error-box-css`; no ledger, the count is zero); `impeccable detect`
   enforces the same design file. Both run in `.githooks/pre-commit`. The
   word-verb ledger is `tools/quality/design-button-baseline.json` and only falls.
+  **Three shape rules gate every control, and each has a lint rule with no
+  ledger.** *Corners are square* (`no-round-corners`): `--radius` is 0, and no
+  `border-radius` past 0 — no 2px, no pill, no circle, no percentage — appears on
+  anything; dots, knobs and spinners are squares. *A control is never red*
+  (`no-danger-control`, `no-control-error-ink`): the error ink belongs to a
+  status (`StatusMark`, the tray card, an `aria-invalid` border), so there is no
+  `btn--danger`, `go--danger`, `icon-btn--danger`, no red armed key, no red
+  menu entry; the one irreversible act is the ordinary `.go` square with the bin
+  glyph, and `tone: "danger"` only picks that glyph and keeps the ask plain.
+  *A sheet has one way out* (`one-way-out`): its close key in the head (with
+  Escape and the scrim) is the only dismiss, so a `CeremonyShell` `secondary`
+  that only says "Keep it", "Not now" or "Cancel" is a second X and fails;
+  focus lands on the close key.
 - No `sudo` (`.cursor/rules/no-sudo.mdc`).
 - Configuration follows the `.env.schema` env-spec pattern (`@type`,
   `@required`, `@sensitive`, `@public` annotations). Never commit live

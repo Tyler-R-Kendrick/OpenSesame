@@ -137,24 +137,31 @@ describe("CeremonyShell", () => {
     expect(container.querySelector(".btn")).toBeNull();
   });
 
-  it("draws an ask plain: no wash, the danger square beside an icon Keep key", () => {
-    const keep = vi.fn();
+  it("draws an ask plain: no wash, an ordinary square with the bin on it, never red", () => {
     const { container } = renderShell({
       ok: false,
       top: undefined,
       primary: { label: "Delete vault", tone: "danger", onClick: () => {} },
-      secondary: { label: "Keep it", onClick: keep },
     });
     expect(container.querySelector(".found--ask")).toBeTruthy();
     expect(container.querySelector(".found--attn")).toBeNull();
-    expect(screen.getByRole("button", { name: "Delete vault" }).className).toBe(
-      "go go--danger",
-    );
-    const keepKey = screen.getByRole("button", { name: "Keep it" });
-    expect(keepKey.className).toBe("icon-btn");
-    expect(keepKey.textContent).toBe("");
-    fireEvent.click(keepKey);
-    expect(keep).toHaveBeenCalledTimes(1);
+    const key = screen.getByRole("button", { name: "Delete vault" });
+    expect(key.className).toBe("go");
+    expect(key.querySelector("svg")).toBeTruthy();
+    expect(container.querySelector("[class*='--danger']")).toBeNull();
+  });
+
+  it("draws a secondary as an icon key beside the primary", () => {
+    const more = vi.fn();
+    renderShell({
+      primary: { label: "Download", onClick: () => {} },
+      secondary: { label: "Copy link", onClick: more },
+    });
+    const key = screen.getByRole("button", { name: "Copy link" });
+    expect(key.className).toBe("icon-btn");
+    expect(key.textContent).toBe("");
+    fireEvent.click(key);
+    expect(more).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the words on a key whose words are the thing chosen", () => {

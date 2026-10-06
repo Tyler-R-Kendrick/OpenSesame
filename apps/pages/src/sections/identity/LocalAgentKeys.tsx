@@ -338,8 +338,8 @@ function AgentKeyRows({
                 type="button"
                 className={
                   removing === key.credentialId
-                    ? "icon-btn icon-btn--sm icon-btn--danger is-armed"
-                    : "icon-btn icon-btn--sm icon-btn--danger"
+                    ? "icon-btn icon-btn--sm is-armed"
+                    : "icon-btn icon-btn--sm"
                 }
                 disabled={disabled}
                 onClick={(event) => {

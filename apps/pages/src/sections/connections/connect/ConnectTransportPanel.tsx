@@ -37,7 +37,7 @@ function ForgetConnectKey({
   return (
     <button
       type="button"
-      className="icon-btn icon-btn--sm icon-btn--danger"
+      className="icon-btn icon-btn--sm"
       aria-label="Forget Vercel Connect"
       title="Forget Vercel Connect"
       disabled={busy}

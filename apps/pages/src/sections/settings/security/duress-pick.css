@@ -66,7 +66,7 @@
   width: 2.4rem;
   height: 1.4rem;
   border: 1px solid var(--line-strong);
-  border-radius: var(--radius-pill);
+  border-radius: 0;
   background: var(--surface-3);
   transition: background 140ms var(--ease), border-color 140ms var(--ease);
 }
@@ -78,7 +78,7 @@
   left: 1px;
   width: 1.15rem;
   height: 1.15rem;
-  border-radius: 50%;
+  border-radius: 0;
   background: var(--surface);
   box-shadow: var(--shadow-sm);
   transition: transform 160ms var(--ease);

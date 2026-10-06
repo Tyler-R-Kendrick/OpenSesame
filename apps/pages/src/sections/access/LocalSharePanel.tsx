@@ -225,7 +225,7 @@ function ShareRow({
         <div className="actions">
           <button
             type="button"
-            className="icon-btn icon-btn--sm icon-btn--danger"
+            className="icon-btn icon-btn--sm"
             disabled={busy || !canRevoke}
             aria-label="Revoke"
             title="Revoke"

@@ -191,7 +191,7 @@ export function RecoveryCeremony({
         <>
           <button
             type="button"
-            className="icon-btn icon-btn--danger"
+            className="icon-btn"
             disabled={busy}
             aria-label="Make a new set"
             title="Make a new set"
@@ -351,7 +351,6 @@ export function AuthenticatorCeremony({
               onDone();
             }, "Authenticator removed. Unlock no longer asks for a code."),
         }}
-        secondary={{ label: "Keep it", onClick: onDone }}
       />
     );
   }
@@ -654,7 +653,6 @@ export function CodeCeremony({
               onDone();
             }, `${words.name} code removed.`),
         }}
-        secondary={{ label: "Keep it", onClick: onDone }}
       />
     );
   }

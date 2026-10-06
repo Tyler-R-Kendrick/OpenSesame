@@ -186,7 +186,6 @@ function SessionRow({
             <IconKey
               label="Stop session"
               small
-              danger
               disabled={busy}
               onClick={onStop}
             >

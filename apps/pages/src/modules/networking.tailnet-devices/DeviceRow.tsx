@@ -92,7 +92,6 @@ function DeviceKeys({
       <ArmedKey
         model={model}
         arm={{ action: "remove", id: device.id }}
-        danger
         label={`Remove ${name} from the tailnet`}
         confirmLabel={`Confirm removing ${name} from the tailnet`}
         keepLabel={`Keep ${name}`}

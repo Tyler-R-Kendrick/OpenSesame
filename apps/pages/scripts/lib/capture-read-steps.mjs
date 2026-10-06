@@ -16,6 +16,24 @@ async function selectOptional(page, { label, value }) {
   await page.waitForTimeout(300);
 }
 
+/**
+ * Print computed styles of every match, so a colour or a corner is read from
+ * the browser and not from the stylesheet: `{ selector, props }`.
+ */
+async function printStyles(page, { selector, props }) {
+  const rows = await page.locator(selector).evaluateAll(
+    (nodes, names) =>
+      nodes.map((node) => {
+        const computed = getComputedStyle(node);
+        const label = node.getAttribute("aria-label") ?? node.tagName;
+        return `${label}: ${names.map((name) => `${name}=${computed.getPropertyValue(name)}`).join("; ")}`;
+      }),
+    props,
+  );
+  console.log(`  style ${selector}:`);
+  for (const row of rows) console.log(`    ${row}`);
+}
+
 export function readSteps() {
   return {
     /**
@@ -28,6 +46,7 @@ export function readSteps() {
         console.log(`  count ${selector}: ${n}`);
       }
     },
+    style: printStyles,
     /**
      * `fill`, for a field only one of the two builds draws: a form the base
      * still offers and the branch has rightly withdrawn. Matches the label as

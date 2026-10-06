@@ -69,7 +69,7 @@ function BindingRow({
       {disabled ? <StatusMark tone="warn" label="Connector off" /> : null}
       <button
         type="button"
-        className="icon-btn icon-btn--sm icon-btn--danger"
+        className="icon-btn icon-btn--sm"
         disabled={busy}
         aria-label="Revoke"
         title="Revoke"

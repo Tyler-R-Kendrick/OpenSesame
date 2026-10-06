@@ -1,15 +1,16 @@
 /**
  * Design lint, corners — DESIGN.md § Shapes: **no round corners**.
  *
- * Every control, chip, badge, menu and panel is sharp. The documented scale
- * is one step, 2px (`--radius`), and it exists only to keep a focus ring
- * clean; a pill, a circle, a percentage or anything past 2px is a violation.
+ * Every control, chip, badge, menu and panel is sharp: square corners, no
+ * scale. `--radius` is 0 and stays there; a focus ring follows the square. A
+ * pill, a circle, a percentage or any radius past 0 is a violation.
  *
  * A radius is resolved to pixels before it is judged, so the rule reads what
  * the browser would draw rather than how it was spelled: `var(--radius)` is
- * 2px and passes, `var(--radius-pill)` is 999px and fails, `calc(var(--radius)
- * - 2px)` is nothing and passes, `50%` fails. A value the rule cannot resolve
- * (an unknown custom property, `clamp()`) fails too: sharp has to be provable.
+ * 0 and passes, `calc(var(--radius)
+ * - 2px)` is nothing and passes, `50%` and `2px` fail. A value the rule cannot resolve
+ * (an unknown custom property, `clamp()`, the retired `--radius-pill`) fails
+ * too: sharp has to be provable.
  *
  * Corners that were round before the rule existed are pinned per file in
  * `tools/quality/design-radius-baseline.json`, and that ledger only falls.
@@ -19,17 +20,16 @@ import { readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** The sharp ceiling, in px: DESIGN.md's one documented scale. */
-export const SHARP_PX = 2;
+/** The sharp ceiling, in px: DESIGN.md § Shapes — a corner is square. */
+export const SHARP_PX = 0;
 
 /**
  * The radius tokens, as `styles.css` defines them. The contract test reads
  * that file and fails if these drift from it.
  */
 export const RADIUS_TOKENS = {
-  "--radius": 2,
-  "--radius-lg": 2,
-  "--radius-pill": 999,
+  "--radius": 0,
+  "--radius-lg": 0,
 };
 
 const BASELINE = join(
@@ -197,7 +197,7 @@ export function checkCorners(root, file, source, report, lineOf) {
       file,
       lineOf(source, index),
       "no-round-corners",
-      "Corners are sharp: 0, or at most the 2px scale (`var(--radius)`). A pill, a circle, a percentage or a larger radius is a design violation. See DESIGN.md § Shapes.",
+      "Corners are square: `border-radius: 0` (or `var(--radius)`, which is 0). A pill, a circle, a percentage or any radius past 0 is a design violation. See DESIGN.md § Shapes.",
     );
   }
 }

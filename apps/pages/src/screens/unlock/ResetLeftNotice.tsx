@@ -66,11 +66,7 @@ export function ResetLeftNotice() {
         ))}
       </ul>
       <div className="actions">
-        <IconKey
-          label="Erase again"
-          danger
-          onClick={() => void eraseAndLeave()}
-        >
+        <IconKey label="Erase again" onClick={() => void eraseAndLeave()}>
           <IconRefresh size={16} />
         </IconKey>
         <IconKey label="Dismiss" small onClick={dismissLandingReset}>

@@ -9,12 +9,13 @@
  * The sheet is the shape every irreversible act wears: its mark, its
  * name and its close key in the head; one card naming the place that
  * is erased, with the facts that justify it — how many vaults go,
- * what comes after, what is untouched; and the erase key — the `.go`
- * square in the error ink with its verb beside it — next to the Keep
- * key, where the keyboard lands. No warning wash, no kicker, and no
- * caption in a foot: an ask has not failed, and the facts already say
- * what a sentence would (`design-lint` `ask-is-not-alarm`,
- * `sheet-caption`).
+ * what comes after, what is untouched; and the erase key — the plain
+ * `.go` square with the bin on it and its verb beside it. The close
+ * key in the head is the one way out, and where the keyboard lands: no
+ * second Keep key beside the erase key (`design-lint` `one-way-out`),
+ * and no red on a control. No warning wash, no kicker, and no caption
+ * in a foot: an ask has not failed, and the facts already say what a
+ * sentence would (`ask-is-not-alarm`, `sheet-caption`).
  *
  * Erasing always leaves for a fresh document (`reset-browser-run.ts`);
  * while it runs the app is not drawn (`ResetGate`). Whatever a reset
@@ -39,7 +40,7 @@ type Phase = "closed" | "asking" | "erasing";
 export function ResetBrowser() {
   const [phase, setPhase] = useState<Phase>("closed");
   const sheetRef = useRef<HTMLDivElement>(null);
-  const keepRef = useRef<HTMLButtonElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
 
   const open = phase !== "closed";
   const busy = phase === "erasing";
@@ -49,10 +50,11 @@ export function ResetBrowser() {
     if (!busy) setPhase("closed");
   };
 
-  // The sheet owns the keyboard while it is open: the safe key is
-  // where focus lands, Tab stays inside, and closing hands focus
-  // back to the question (AGENTS.md § Keyboard access).
-  useModalFocus(open, sheetRef, keepRef, onClose);
+  // The sheet owns the keyboard while it is open: the close key is
+  // where focus lands (the safe one, beside the erase key), Tab stays
+  // inside, and closing hands focus back to the question
+  // (AGENTS.md § Keyboard access).
+  useModalFocus(open, sheetRef, closeRef, onClose);
 
   function erase(): void {
     setPhase("erasing");
@@ -79,7 +81,7 @@ export function ResetBrowser() {
         <ResetBrowserSheet
           busy={busy}
           erase={erase}
-          keepRef={keepRef}
+          closeRef={closeRef}
           onClose={onClose}
           sheetRef={sheetRef}
         />
@@ -92,13 +94,13 @@ export function ResetBrowser() {
 function ResetBrowserSheet({
   busy,
   erase,
-  keepRef,
+  closeRef,
   onClose,
   sheetRef,
 }: {
   busy: boolean;
   erase: () => void;
-  keepRef: RefObject<HTMLButtonElement | null>;
+  closeRef: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
   sheetRef: RefObject<HTMLDivElement | null>;
 }) {
@@ -137,6 +139,7 @@ function ResetBrowserSheet({
             <h2>Reset this browser</h2>
           </div>
           <button
+            ref={closeRef}
             type="button"
             className="icon-btn"
             aria-label="Close"
@@ -161,12 +164,6 @@ function ResetBrowserSheet({
               tone: "danger",
               busy,
               onClick: erase,
-            }}
-            secondary={{
-              label: "Keep it",
-              busy,
-              keyRef: keepRef,
-              onClick: onClose,
             }}
           />
         </div>

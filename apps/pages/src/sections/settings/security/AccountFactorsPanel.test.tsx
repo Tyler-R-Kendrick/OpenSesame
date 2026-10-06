@@ -268,7 +268,7 @@ describe("the one sheet", () => {
     const first = screen.getByText(/key 4f2a/).closest(".sw");
     if (!(first instanceof HTMLElement)) throw new Error("no row");
     await user.click(within(first).getByRole("button", { name: "Remove" }));
-    expect(document.querySelector(".found--ask .go--danger")).toBeTruthy();
+    expect(document.querySelector(".found--ask .go")).toBeTruthy();
     expect(sheet().getByText(/untouched; its keys keep working/)).toBeTruthy();
     await user.click(sheet().getByRole("button", { name: "Remove passkey" }));
     await user.click(await sheet().findByRole("button", { name: "Done" }));

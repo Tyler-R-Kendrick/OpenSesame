@@ -82,7 +82,6 @@ function DomainRow({
           )}
           <IconKey
             small
-            danger
             armed={armed}
             label={
               armed

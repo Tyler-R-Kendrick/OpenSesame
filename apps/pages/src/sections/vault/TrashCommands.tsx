@@ -102,7 +102,7 @@ export function TrashCommands({
       <button
         ref={purgeRef}
         type="button"
-        className={`icon-btn icon-btn--sm icon-btn--danger${armed ? " is-armed" : ""}`}
+        className={`icon-btn icon-btn--sm${armed ? " is-armed" : ""}`}
         aria-label={armed ? PURGE_CONFIRM : "Delete permanently"}
         title={armed ? PURGE_CONFIRM : "Delete permanently (X)"}
         disabled={disabled}

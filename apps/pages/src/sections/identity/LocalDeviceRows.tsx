@@ -136,7 +136,6 @@ function DeviceRow({
             <ArmedKeys
               model={model}
               armKey={{ action: "remove", id: device.id }}
-              danger
               label={`Remove ${device.name}`}
               confirmLabel={`Confirm removing ${device.name}`}
               keepLabel={`Keep ${device.name}`}
@@ -163,7 +162,6 @@ function DeviceRow({
 function ArmedKeys({
   model,
   armKey,
-  danger = false,
   label,
   confirmLabel,
   keepLabel,
@@ -172,7 +170,6 @@ function ArmedKeys({
 }: {
   model: DevicesModel;
   armKey: ArmedKey;
-  danger?: boolean;
   label: string;
   confirmLabel: string;
   keepLabel: string;
@@ -188,7 +185,6 @@ function ArmedKeys({
         keyRef={primary}
         label={isArmed ? confirmLabel : label}
         small
-        danger={danger}
         armed={isArmed}
         disabled={busy || draft !== null}
         onClick={() => (isArmed ? void onConfirm() : setArmed(armKey))}
