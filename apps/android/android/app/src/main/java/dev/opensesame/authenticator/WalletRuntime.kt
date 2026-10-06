@@ -35,7 +35,14 @@ object WalletRuntime {
 
     suspend fun initialize() = initMutex.withLock {
         if (initialized) return
-        val storage = Platform.nonBackedUpStorage
+        require(BuildConfig.WALLET_BACKEND_URL.startsWith("https://")) {
+            "opensesameWalletBackendUrl must be an HTTPS wallet-attestation service"
+        }
+        val storage = WalletEnvelopeStorage(
+            Platform.nonBackedUpStorage,
+            BuildConfig.WALLET_BACKEND_URL.trimEnd('/'),
+            WalletRecordCipher(AndroidWalletWrappingKeys()),
+        )
         val secureArea = Platform.getSecureArea(storage)
         val secureAreas = SecureAreaRepository.Builder().add(secureArea).build()
         val documents = DocumentStore.Builder(storage, secureAreas).build()
@@ -57,9 +64,6 @@ object WalletRuntime {
             authorizationSecureArea = secureArea,
             eventLogger = null,
         )
-        require(BuildConfig.WALLET_BACKEND_URL.startsWith("https://")) {
-            "opensesameWalletBackendUrl must be an HTTPS wallet-attestation service"
-        }
         val rpc = RpcAuthorizedDeviceClient.connect(
             exceptionMap = RpcExceptionMap.Builder().build(),
             httpClientEngine = Android,

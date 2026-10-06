@@ -5,6 +5,8 @@ native_root="$(cd "$(dirname "$0")/.." && pwd)"
 repo_root="$(cd "$native_root/../.." && pwd)"
 core_package="opensesame-authenticator-core"
 library_name="opensesame_authenticator_core"
+core_target="${CARGO_TARGET_DIR:-$repo_root/target}"
+[[ "$core_target" == /* ]] || core_target="$repo_root/$core_target"
 
 cd "$repo_root"
 
@@ -56,10 +58,10 @@ case "${1:-}" in
     cargo +1.88.0 build -p "$core_package" --release --features ffi \
       --target x86_64-apple-ios
 
-    local_sim="$repo_root/target/opensesame-authenticator-ios-simulator.a"
+    local_sim="$core_target/opensesame-authenticator-ios-simulator.a"
     xcrun lipo -create \
-      "$repo_root/target/aarch64-apple-ios-sim/release/lib${library_name}.a" \
-      "$repo_root/target/x86_64-apple-ios/release/lib${library_name}.a" \
+      "$core_target/aarch64-apple-ios-sim/release/lib${library_name}.a" \
+      "$core_target/x86_64-apple-ios/release/lib${library_name}.a" \
       -output "$local_sim"
     output="$native_root/ios/Libraries/OpenSesameAuthenticatorCoreFFI.xcframework"
     header_dir="$(mktemp -d)"
@@ -71,7 +73,7 @@ case "${1:-}" in
     rm -rf "$output"
     mkdir -p "$(dirname "$output")"
     xcodebuild -create-xcframework \
-      -library "$repo_root/target/aarch64-apple-ios/release/lib${library_name}.a" \
+      -library "$core_target/aarch64-apple-ios/release/lib${library_name}.a" \
       -headers "$header_dir" \
       -library "$local_sim" \
       -headers "$header_dir" \

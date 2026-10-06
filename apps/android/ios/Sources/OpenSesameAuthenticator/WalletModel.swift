@@ -1,6 +1,8 @@
 import Foundation
 import Multipaz
 import Observation
+import WalletEnvelopeCore
+import WalletEnvelopeStorage
 
 @MainActor
 @Observable
@@ -17,6 +19,8 @@ public final class WalletModel {
     public init() {}
 
     public func initialize(appGroup: String, backendURL: URL) async {
+        ready = false
+        error = nil
         guard backendURL.scheme == "https" else {
             error = WalletError.insecureBackend
             return
@@ -26,10 +30,10 @@ public final class WalletModel {
             guard let container = FileManager.default.containerURL(
                 forSecurityApplicationGroupIdentifier: appGroup
             ) else { throw WalletError.missingAppGroup }
-            let storage = IosStorage(
-                storageFileUrl: container.appendingPathComponent("wallet.db"),
-                excludeFromBackup: true
-            )
+            let keys = try WalletStorageFactory.keys()
+            let namespace = try WalletStorageFactory.namespace(backend: backendURL)
+            let storage = try WalletStorageFactory.open(root: container, namespace: namespace, keys: keys)
+            try keys.select(namespace: namespace)
             let secureArea = try await Platform.shared.getSecureArea(storage: storage)
             let secureAreas = SecureAreaRepository.Builder()
                 .add(secureArea: secureArea)
@@ -63,7 +67,7 @@ public final class WalletModel {
                     secureArea: secureArea,
                     documentStore: documents,
                     metadataHandler: nil,
-                    defaultDocumentProvisioningSettings: DocumentProvisioningSettings()
+                    defaultDocumentProvisioningSettings: defaultProvisioningSettings()
                 ),
                 httpClient: HttpClient(engineFactory: Darwin()) { $0.followRedirects = false },
                 promptModel: promptModel,
