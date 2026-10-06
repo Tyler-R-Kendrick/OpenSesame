@@ -90,3 +90,31 @@ export async function takeRefusal(page, timeout = 20000) {
   await expect(sheet).toBeHidden();
   return text;
 }
+
+/**
+ * Everything the tray holds right now, "" when nothing is pending: the desktop
+ * statusline key or the phone's More menu, opened and closed again. For a walk
+ * that asks "was this refused, and in what words" without knowing which screen
+ * draws the bell.
+ */
+export async function trayText(page) {
+  const bell = page
+    .getByRole("button", { name: /^Notifications — [1-9]\d* pending/ })
+    .locator("visible=true");
+  const phone = page.locator(".topbar__more.is-attn").locator("visible=true");
+  if ((await bell.count()) === 0 && (await phone.count()) === 0) return "";
+  if (await bell.count()) {
+    await bell.first().click();
+  } else {
+    await phone.first().click();
+    await page
+      .getByRole("button", { name: /^Notifications/ })
+      .last()
+      .click();
+  }
+  const sheet = page.getByRole("dialog", { name: "Notifications" });
+  const text = await sheet.innerText();
+  await sheet.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(sheet).toBeHidden();
+  return text;
+}

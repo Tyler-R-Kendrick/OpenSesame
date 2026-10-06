@@ -34,6 +34,7 @@ import {
 import { doorGuest } from "./lib/front-door.mjs";
 import { waitOpen } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
+import { trayText } from "./lib/tray-contract.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(here, "..", "dist");
@@ -156,7 +157,9 @@ async function changeSecret(page, id, secret) {
   await page.getByLabel("Secret value", { exact: true }).fill(secret);
   await page.getByRole("button", { name: "Save item" }).first().click();
   await page.waitForTimeout(1200);
-  return page.evaluate(() => document.body.innerText);
+  // A refusal is a notice in the tray, not text in the page: read both.
+  const shown = await page.evaluate(() => document.body.innerText);
+  return `${shown}\n${await trayText(page)}`;
 }
 
 const browser = await launch();
