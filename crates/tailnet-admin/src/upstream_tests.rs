@@ -91,3 +91,78 @@ fn debug_names_the_base_and_nothing_else() {
     assert!(shown.contains("api.tailscale.com"));
     assert!(!shown.contains("token"));
 }
+
+#[tokio::test]
+async fn oauth_cache_is_isolated_between_directories_and_credential_rotation() {
+    use crate::Credential;
+    use axum::{routing::post, Json, Router};
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    let requests = Arc::new(AtomicUsize::new(0));
+    let counted = requests.clone();
+    let app = Router::new().route("/api/v2/oauth/token", post(move || {
+        let count = counted.fetch_add(1, Ordering::SeqCst) + 1;
+        async move { Json(serde_json::json!({ "access_token": format!("access-{count}"), "expires_in": 3600 })) }
+    }));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let up = Upstream::loopback(&base).unwrap();
+    let a = tempfile::tempdir().unwrap();
+    let b = tempfile::tempdir().unwrap();
+    let first = AdminStore::at(a.path());
+    let other = AdminStore::at(b.path());
+    let credential = Credential {
+        kind: CredentialKind::Oauth,
+        client_id: "sameClient".into(),
+    };
+    let secret = SecretString::from("tskey-client-first-0123456789abcdef".to_owned());
+    let first_config = first
+        .connect("customer.example", credential.clone(), &secret, 1)
+        .unwrap();
+    let other_config = other
+        .connect("customer.example", credential.clone(), &secret, 1)
+        .unwrap();
+    assert_eq!(
+        up.token(&first, &first_config)
+            .await
+            .unwrap()
+            .expose_secret(),
+        "access-1"
+    );
+    assert_eq!(
+        up.token(&first, &first_config)
+            .await
+            .unwrap()
+            .expose_secret(),
+        "access-1"
+    );
+    assert_eq!(requests.load(Ordering::SeqCst), 1);
+    assert_eq!(
+        up.token(&other, &other_config)
+            .await
+            .unwrap()
+            .expose_secret(),
+        "access-2"
+    );
+    assert_eq!(
+        up.token(&first, &first_config)
+            .await
+            .unwrap()
+            .expose_secret(),
+        "access-3"
+    );
+    let replacement = SecretString::from("tskey-client-second-0123456789abcdef".to_owned());
+    let current = first
+        .connect("customer.example", credential, &replacement, 2)
+        .unwrap();
+    assert!(up.token(&first, &first_config).await.is_err());
+    assert_eq!(
+        up.token(&first, &current).await.unwrap().expose_secret(),
+        "access-4"
+    );
+    assert_eq!(requests.load(Ordering::SeqCst), 4);
+    server.abort();
+}

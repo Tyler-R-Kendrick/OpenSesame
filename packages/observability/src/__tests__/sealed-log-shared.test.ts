@@ -18,8 +18,8 @@ import {
 
 const key = Uint8Array.from({ length: 32 }, () => 7);
 const dir = () => mkdtempSync(join(tmpdir(), "sealed-log-shared-"));
-/** A sealed 21-character line is 87 bytes with its newline: two fit under 200. */
-const MAX = 200;
+/** A sealed 21-character envelope is 184 bytes with its newline: two fit under 400. */
+const MAX = 400;
 const LINE = "xxxxxxxxxxxxxxxxxxxx";
 
 function opened(path: string): string[] {

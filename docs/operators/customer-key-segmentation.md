@@ -18,6 +18,9 @@ keys. Sharing a root key or copying a vault header is sharing key custody.
 | Identity OIDC authorization codes, refresh tokens and grants | Fresh data key per payload | Account and client scope; model and token digest are authenticated. Bearer identifiers and secondary lookup fields use keyed digests. |
 | Identity TOTP, MFA and provisional-session security state | Fresh data key per internal record | Owner context where available, plus namespace and indexed record identity. Credential lookup keys are keyed digests; single-use consumption stays atomic across replicas. |
 | Identity BYO upstream registry | Fresh data key per client secret | Deployment scope and upstream record. This registry has no customer ownership field. |
+| Native Android/iOS wallet payloads | Fresh AES-GCM data key per record | Independent platform wrapping keys bind the backend, Multipaz table, document partition and record. All document, provisioning, provider and RPC consumers use the wrapper; SecureArea signing keys alone do not encrypt bearer credentials. |
+| Managed daemon tailnet credentials | Fresh data key per credential envelope | Local bootstrap root and authenticated admin-directory, tailnet and OAuth/API credential context; cached tokens also bind the credential snapshot. |
+| Rust and TypeScript sealed logs | Fresh data key per line in `osl2` | Independent private local key files, known canonical key-path scope and log purpose; legacy `osl1` reads and migration remain supported. |
 | Client CLI human-authentication cache | Random-DEK envelopes with issuer/client-bound HKDF wrapping keys | Owner-only local root file (`0600`); legacy plaintext migrates on load. Issuer matching prevents reuse or refresh against another issuer. No OS-keyring integration. |
 
 Vault item definitions do not select an encryption algorithm. Passwords, API
@@ -48,12 +51,13 @@ and customer-specific authority-root rotation require a customer-key provider
 and are not configuration options supplied by this change. Human vault roots
 already have independent custody through their own protectors.
 
-The daemon's tailnet API credential, TLS key files, environment-provided
-provider credentials and service signing roots belong to the deployment.
-They are not customer vault records. Their existing secret-file or runtime
-custody remains the operator's responsibility; assigning one to a customer
-requires moving it into an owned secret record rather than copying its value
-into deployment configuration.
+The daemon's managed tailnet credential uses an envelope in `tailnet-admin.secret`
+under a separate private `tailnet-admin.key` bootstrap root. It belongs to the
+deployment, and is bound to its validated directory and tailnet configuration.
+Pairing stores retain digests rather than recoverable codes. TLS key files,
+environment-provided provider credentials and service signing roots remain
+bootstrap or external runtime custody inputs. Assigning one to a customer
+requires an owned secret record rather than copying it into deployment configuration.
 
 The Client CLI's `identity-session.json` is separate from its encrypted vault
 records. Its access and refresh tokens use a random data key wrapped by an issuer/client-bound
@@ -65,11 +69,14 @@ this local authentication cache's root custody.
 ## Upgrade and recovery
 
 New Host credential writes use a versioned authority envelope inside the
-existing ciphertext column. Event writes use `osev2`; both planes keep their
-older `osev1` readers. Host startup upgrades legacy event fields using trusted
-organization and row context. Identity startup seals legacy secret fields and
-event payloads before readiness completes, including OIDC payload sealing and
-atomic conversion of bearer indexes to keyed digests. Existing direct Host credential
+existing ciphertext column. Event writes use `osev2`. Normal Host, Identity and worker startup requires
+current envelopes and refuses legacy ciphertext or plaintext. To upgrade a
+trusted pre-envelope backup, stop traffic, retain the original customer and row
+context, and temporarily set `OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION=true`.
+This explicitly authorizes legacy event and secret import, OIDC payload sealing
+and atomic conversion of bearer indexes to keyed digests before readiness.
+Remove the setting immediately after the upgrade; leaving it enabled permits
+legacy data to be imported again on a later restart. Existing direct Host credential
 seals remain readable and become envelopes on their next normal rewrite.
 
 Once new envelopes are written, older binaries cannot open them. Keep the
@@ -81,3 +88,17 @@ Tests cover same-password independent vaults, cross-customer and cross-record
 substitution, malformed wraps, altered data, legacy reads and startup migration.
 These checks establish the implemented storage boundaries; they do not remove
 the authority an operator holding the deployment root has over Host secrets.
+
+Native mobile legacy records have no authenticated backend owner and are refused
+by default. Re-provision an old wallet or authorize migration only with its
+trusted original namespace. The iOS app and provider require their shared
+Keychain entitlement; Android binds an installation to its configured backend.
+Completed partition migration receipts prevent later plaintext downgrades.
+Physical Keystore/Keychain behavior must be validated on deployment devices.
+
+Managed tailnet v1 plaintext migrates only with the known, validated private
+configuration; v2 credentials and sealed logs never mint a replacement root
+when existing ciphertext lacks its key. Back up the separate local roots with
+the corresponding ciphertext, and restore to the trusted original key-path
+namespace. Relocating path-bound stores requires explicit rewrapping. Older
+binaries cannot read v2 managed credentials or `osl2` log lines.

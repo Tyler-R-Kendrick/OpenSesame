@@ -48,7 +48,7 @@ const MINT_BODY_CAP: u64 = 64 * 1024;
 const EARLY_EXPIRY: Duration = Duration::from_secs(60);
 
 struct Cached {
-    client_id: String,
+    scope: [u8; 32],
     token: SecretString,
     until: Instant,
 }
@@ -144,7 +144,12 @@ impl Upstream {
         Self::production()
     }
 
-    async fn mint(&self, client_id: &str, secret: &SecretString) -> Result<Cached, AdminError> {
+    async fn mint(
+        &self,
+        client_id: &str,
+        secret: &SecretString,
+        scope: [u8; 32],
+    ) -> Result<Cached, AdminError> {
         let form = [
             ("client_id", client_id),
             ("client_secret", secret.expose_secret()),
@@ -186,7 +191,7 @@ impl Upstream {
             .unwrap_or(3600);
         let until = Instant::now() + Duration::from_secs(lifetime).saturating_sub(EARLY_EXPIRY);
         Ok(Cached {
-            client_id: client_id.to_string(),
+            scope,
             token: SecretString::from(token.to_string()),
             until,
         })
@@ -197,19 +202,20 @@ impl Upstream {
         store: &AdminStore,
         config: &TailnetConfig,
     ) -> Result<SecretString, AdminError> {
+        let (secret, scope) = store.credential_snapshot(config)?;
         let kind = config.credential.kind;
         if kind == CredentialKind::ApiKey {
-            return store.secret(kind);
+            return Ok(secret);
         }
         let client_id = &config.credential.client_id;
         let mut cached = self.cached.lock().await;
         if let Some(hit) = cached
             .as_ref()
-            .filter(|c| &c.client_id == client_id && c.until > Instant::now())
+            .filter(|c| c.scope == scope && c.until > Instant::now())
         {
             return Ok(hit.token.clone());
         }
-        let fresh = self.mint(client_id, &store.secret(kind)?).await?;
+        let fresh = self.mint(client_id, &secret, scope).await?;
         let token = fresh.token.clone();
         *cached = Some(fresh);
         Ok(token)
