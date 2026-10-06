@@ -231,7 +231,8 @@ describe("SettingsSection", () => {
     // No representation switch: the file is addressed like a page.
     expect(screen.queryByRole("button", { name: "YAML" })).toBeNull();
     const files = screen.getByRole("navigation", { name: "Files" });
-    expect(files.textContent).toContain("config.yaml");
+    // The directory's own document is the page, not a row in this list.
+    expect(files.textContent).not.toContain("config.yaml");
     expect(files.textContent).toContain("marketplaces.json");
     expect(
       screen.getByRole("textbox", {
@@ -245,6 +246,35 @@ describe("SettingsSection", () => {
       ).getByRole("link", { name: "Vaults" }),
     );
     expect(screen.getByRole("heading", { name: "Item types" })).toBeTruthy();
+  });
+
+  // A page's own document is not a second, textual view of it: opening
+  // `config.yaml` (the rail, the command bar, an old link) or a capability
+  // document draws the designed page, like every other page in the app.
+  it.each([
+    ["/settings/capabilities?file=config.yaml", "capabilities-panel"],
+    [
+      `/settings/capabilities?file=${encodeURIComponent("settings/capabilities/installation-selection.yaml")}`,
+      "capabilities-panel",
+    ],
+    [
+      `/settings/capabilities?file=${encodeURIComponent("settings/capabilities/effective-plan.yaml")}`,
+      "capabilities-panel",
+    ],
+  ])("draws the page, not its text, for %s", (route, testId) => {
+    renderSettings(route);
+    expect(screen.getByTestId(testId)).toBeTruthy();
+    expect(document.querySelector(".set-raw__stage")).toBeNull();
+    expect(screen.queryByRole("navigation", { name: "Files" })).toBeNull();
+  });
+
+  it("draws the Vaults page for its config.yaml, and for any category's", () => {
+    renderSettings("/settings/vaults?file=config.yaml");
+    expect(screen.getByRole("heading", { name: "Item types" })).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: /config\.yaml/ })).toBeNull();
+    cleanup();
+    renderSettings("/settings?file=config.yaml");
+    expect(screen.queryByRole("textbox", { name: /config\.yaml/ })).toBeNull();
   });
 
   // The nav has declared a Capabilities tab since the composition work
@@ -281,7 +311,14 @@ describe("SettingsSection", () => {
   it("puts every provider on Capabilities, with no Connections tab", () => {
     renderSettings("#connectivity");
     expect(screen.queryByRole("heading", { name: /^Core/ })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "Endpoints" })).toBeNull();
+    // Endpoints is a panel on this page (the addresses its config.yaml holds),
+    // never a tab of its own.
+    expect(screen.getByRole("heading", { name: "Endpoints" })).toBeTruthy();
+    expect(
+      within(
+        screen.getByRole("navigation", { name: "Settings sections" }),
+      ).queryByRole("link", { name: "Endpoints" }),
+    ).toBeNull();
     expect(screen.getByRole("region", { name: "Identity" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Identity" })).toBeTruthy();
   });

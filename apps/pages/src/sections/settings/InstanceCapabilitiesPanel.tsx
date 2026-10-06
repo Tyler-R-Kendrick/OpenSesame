@@ -17,7 +17,6 @@ import {
   capabilityPorts,
 } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import { defaultCapabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-resources.js";
-import { POLICY_FILE } from "@opensesame/app-core/sections/settings/capability-files.js";
 import { useState } from "react";
 import { useComposition } from "../../bindings/capabilities.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
@@ -25,7 +24,6 @@ import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { PurposeCards } from "../../screens/capabilities/PurposeCards.js";
 import { SectionHead } from "./CapabilitySwitch.js";
-import { OpenFileKey } from "./files/OpenFileKey.js";
 import { useDeviceOperator } from "./useDeviceOperator.js";
 
 export const instancePanelSeams = {
@@ -66,7 +64,6 @@ export function InstanceCapabilitiesPanel() {
     >
       <SectionHead id="instance-policy-title" title="Instance policy">
         {notice === null ? null : <StatusMark tone="err" label={notice} />}
-        <OpenFileKey path={POLICY_FILE} name="instance-policy.yaml" />
       </SectionHead>
       <FailureNotice
         id="settings:instance-policy"

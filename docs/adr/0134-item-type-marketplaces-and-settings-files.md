@@ -180,6 +180,19 @@ directory new files may be created in. `itemTypeFiles`
   directory's `config.yaml` is the first entry under it in the rail (and the
   first file in the viewer), ahead of its panels.
 
+- **2026-10-06 note — a page's own files are the page.** The viewer drew
+  `config.yaml` and the capability documents as text, and a page that is
+  a file should be seen the way every other page is. A directory's
+  `config.yaml` and the three capability documents now open the designed page
+  (the rail row stays selected; the address keeps `?file=`), and nothing draws
+  their text: the YAML editor, its Write key and its completions are gone, and
+  the key on the Capabilities heading and on Instance policy that opened them
+  with it. The viewer is left to the files a provider keeps for authoring (item
+  types, `marketplaces.json`, routing). What the editor alone could reach — the
+  connections and local-agent addresses in the capabilities `config.yaml` — is
+  an Endpoints panel on the page. The file's content is still defined in
+  `settings-files.ts` and `settings-config.ts`; only its view changed.
+
 ### 5. Consent and egress
 
 The read belongs to the core `vault.passwords` capability. That
