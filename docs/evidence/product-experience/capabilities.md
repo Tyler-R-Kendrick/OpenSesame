@@ -2,7 +2,7 @@
 
 | Capability | Direction | Availability | Evidence |
 | --- | --- | --- | --- |
-| Visual/Source vault prefs | local | implemented, tested | `apps/pages/src/lib/configuration/*.test.ts` |
+| Vault prefs as a file | local | implemented, tested | `apps/pages/src/lib/configuration/*.test.ts` |
 | Prefs aliases | local | implemented, tested | `registry.test.ts` |
 | Command palette metadata search | local | implemented, tested | `nav.test.ts` |
 | Saved views | local | implemented (query only), tested | `nav.test.ts` |
@@ -10,7 +10,7 @@
 | Hosted OIDC claims beyond `sub` | Identity | implemented, tested | `projectAccountClaims` + `/v1/oauth/clients/:id/claim-preview` |
 | `client_credentials` | Identity | implemented, tested | confidential `private_key_jwt` + public JWKS persisted in Postgres (`token_endpoint_jwks`); `POST /token` mint/deny/replay/retirement/suspend on a PGlite-backed issuer |
 | OAuth2 Proxy recipe | inbound OIDC consumer | implemented, tested | pinned `v7.8.2` public PKCE config; live binary `/ping` vs Identity discovery (`oauth2-proxy-live.test.ts`) |
-| Hosted Visual/Source client editor | Identity UI | implemented, tested | `EditApplication` PATCH adapter |
+| Hosted application edit (one form) | Identity UI | implemented, tested | `EditApplication` PATCH adapter |
 | SCIM group-id role mappings | inbound SCIM | implemented, tested | org-owner `/scim/mappings` + Groups PATCH |
 | Durable `private_key_jwt` jti fence | Identity | implemented, tested | `DurableJwtReplayCache` + replica test |
 | First-admin enrollment tickets | Identity | implemented, tested | `/v1/enrollment/*` + replica-enrollment |
@@ -25,7 +25,7 @@
 | Reverse proxy | n/a | not implemented | use a standard proxy; OAuth2 Proxy is a recipe, not native |
 | Prefs source sidecar | local | implemented, tested | `config/prefs.source.yaml` survives lock/unlock through VaultStore/VFS |
 
-`pnpm verify:experience` **EXIT 0** at 2026-09-17T22:02Z: Pages **36/186**, oauth-provider **3/31**, control-plane **13/34** (includes `oauth2-proxy-live`), database **migrate-0027-0028**, plus static/keyboard/mobile/auth/local-iam and experience journeys J-CONFIG…J-SUPPORT. GitHub required checks success on baseline SHA. Two-build Settings Visual/Source gallery: `docs/evidence/product-experience/screenshots/`.
+`pnpm verify:experience` **EXIT 0** at 2026-09-17T22:02Z: Pages **36/186**, oauth-provider **3/31**, control-plane **13/34** (includes `oauth2-proxy-live`), database **migrate-0027-0028**, plus static/keyboard/mobile/auth/local-iam and experience journeys J-CONFIG…J-SUPPORT. GitHub required checks success on baseline SHA. Two-build Settings gallery from that date: `docs/evidence/product-experience/screenshots/` (it shows the Visual/Source toggle, which was removed on 2026-10-05: `docs/evidence/2026-10-05-remove-visual-source-toggle/`).
 
 ### Journey coverage (honest)
 
