@@ -16,10 +16,8 @@ describe("the tutorial walk's CI job", () => {
     expect(job).toContain("TUTORIALS_WIDTHS: ${{ matrix.width }}");
     expect(job).toContain("width: [1280, 390]");
     expect(job).toContain("needs: changes");
-    expect(job).toContain("if: needs.changes.outputs.bundle == 'true'");
-    expect(job).toContain(
-      "pnpm exec turbo run build --filter=@opensesame/pages",
-    );
+    expect(job).toContain("if: needs.changes.outputs.tutorials == 'true'");
+    expect(job).toContain("node scripts/lib/ci-pages-build.mjs");
     const check =
       ci.split("  bundle-check:")[1]?.split("  rust-check:")[0] ?? "";
     expect(check).toContain('tutorials="${{ needs.tutorials-e2e.result }}"');

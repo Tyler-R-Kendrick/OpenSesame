@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { experiencePackages } from "./lib/experience-packages.mjs";
 
 function isString(value) {
   return Object.prototype.toString.call(value) === "[object String]";
@@ -49,29 +50,35 @@ function runPagesScript(script) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-run("@opensesame/app-core", [
-  "src/lib/configuration",
-  "src/lib/vault/item-types.test.ts",
-  "src/lib/site-broker-delivery.test.ts",
-]);
+const reached = experiencePackages(process.env.EXPERIENCE_PACKAGES);
 
-run("@opensesame/pages", [
-  "src/sections/settings/page-tree.test.ts",
-  "src/sections/settings/ItemTypesPanel.test.tsx",
-  "src/sections/identity/ApplicationSurfaces.test.tsx",
-  "src/sections/identity/LocalApplicationSettings.test.tsx",
-  "src/sections/identity/management.test.tsx",
-  "src/sections/SettingsSection.test.tsx",
-  "src/sections/settings/GeneralPrefsPanel.test.tsx",
-  "src/lib/keymap.behavior.test.ts",
-]);
+if (reached("@opensesame/app-core")) {
+  run("@opensesame/app-core", [
+    "src/lib/configuration",
+    "src/lib/vault/item-types.test.ts",
+    "src/lib/site-broker-delivery.test.ts",
+  ]);
+}
+
+if (reached("@opensesame/pages")) {
+  run("@opensesame/pages", [
+    "src/sections/settings/page-tree.test.ts",
+    "src/sections/settings/ItemTypesPanel.test.tsx",
+    "src/sections/identity/ApplicationSurfaces.test.tsx",
+    "src/sections/identity/LocalApplicationSettings.test.tsx",
+    "src/sections/identity/management.test.tsx",
+    "src/sections/SettingsSection.test.tsx",
+    "src/sections/settings/GeneralPrefsPanel.test.tsx",
+    "src/lib/keymap.behavior.test.ts",
+  ]);
+}
 
 const oauthArgs = [
   "src/__tests__/project-account-claims.test.ts",
   "src/__tests__/client-credentials.test.ts",
   "src/__tests__/create-provider-callbacks.test.ts",
 ].filter((path) => existsSync(join(root, "packages/oauth-provider", path)));
-if (oauthArgs.length > 0) {
+if (oauthArgs.length > 0 && reached("@opensesame/oauth-provider")) {
   run("@opensesame/oauth-provider", oauthArgs);
 }
 
@@ -90,14 +97,14 @@ const scimArgs = [
   "src/__tests__/oauth2-proxy-contract.test.ts",
   "src/__tests__/oauth2-proxy-live.test.ts",
 ].filter((path) => existsSync(join(root, "packages/control-plane", path)));
-if (scimArgs.length > 0) {
+if (scimArgs.length > 0 && reached("@opensesame/control-plane")) {
   run("@opensesame/control-plane", scimArgs);
 }
 
 const migrateArgs = ["tests/migrate-0027-0028.test.ts"].filter((path) =>
   existsSync(join(root, "packages/database", path)),
 );
-if (migrateArgs.length > 0) {
+if (migrateArgs.length > 0 && reached("@opensesame/database")) {
   run("@opensesame/database", migrateArgs);
 }
 
