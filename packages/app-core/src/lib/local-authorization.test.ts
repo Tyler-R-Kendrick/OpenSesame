@@ -381,7 +381,9 @@ it("bounds pending consent codes and reclaims only expired requests", async () =
   await expect(approve()).rejects.toThrow("Too many pending authorizations");
   vi.spyOn(Date, "now").mockReturnValue(Date.now() + 120_001);
   expect(await approve()).toHaveProperty("code");
-}, 60_000);
+  // 129 real approvals: about 12 s alone, and over a minute when a loaded CI
+  // runner shares its cores with the other suites.
+}, 180_000);
 
 it("does not overwrite a corrupt grant ledger during redemption", async () => {
   const { code } = await approve();
