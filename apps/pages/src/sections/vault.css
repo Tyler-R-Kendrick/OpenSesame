@@ -1003,6 +1003,19 @@ select.editor__ext:hover {
   border: 0;
 }
 
+/* Credentials kept on their own, on a row beneath the types (ADR 0179). */
+.method__existing {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-width: 0;
+  margin: 0.2rem 0 0;
+  padding: 0.5rem 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
 .method .gen__opts {
   padding: 0.1rem 0 0.4rem;
 }

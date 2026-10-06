@@ -7,8 +7,14 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { kvDelete } from "../kv.js";
 import { clearNotices } from "../notices.js";
+import { disablePack, enablePack } from "./installer.js";
 import { PACKS_KEY, readStoredPacks } from "./persist.js";
-import { getPackSnapshot, resetPackStateForTests, statusOf } from "./state.js";
+import {
+  getPackSnapshot,
+  resetPackStateForTests,
+  setStatus,
+  statusOf,
+} from "./state.js";
 import { countPackItems, watchVaultTypes } from "./watch.js";
 
 function typed(typeId: string): VaultItem {
@@ -74,6 +80,27 @@ describe("watching the open vault", () => {
     expect(isPackLoaded("server")).toBe(false);
     vault.set([typed("server")]);
     await vi.waitFor(() => expect(isPackLoaded("server")).toBe(true));
+    stop();
+  });
+
+  it("switches on the pack a switched-on pack needs", async () => {
+    const vault = source([]);
+    const stop = watchVaultTypes(vault);
+    expect(statusOf("password").phase).toBe("off");
+    enablePack("account");
+    await vi.waitFor(() => expect(statusOf("password").phase).toBe("on"));
+    stop();
+  });
+
+  it("brings Password to a vault whose Accounts were already on", async () => {
+    enablePack("account", { keep: false });
+    await vi.waitFor(() => expect(statusOf("account").phase).toBe("on"));
+    // Accounts on alone, as a vault from before Password was a pack has it.
+    await disablePack("password").catch(() => undefined);
+    dropPack("password");
+    setStatus("password", { phase: "off" });
+    const stop = watchVaultTypes(source([]));
+    await vi.waitFor(() => expect(statusOf("password").phase).toBe("on"));
     stop();
   });
 });

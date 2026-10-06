@@ -18,12 +18,14 @@ export type VaultFixture = {
 
 export const vault: VaultFixture = { current: { items: [], folders: [] } };
 export const saveItem = vi.fn<(item: VaultItem) => Promise<void>>();
+export const saveItems =
+  vi.fn<(items: readonly VaultItem[]) => Promise<void>>();
 
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
   useVault: () => vault.current,
-  useVaultStore: () => ({ saveItem }),
+  useVaultStore: () => ({ saveItem, saveItems }),
   useCopySecret: () => vi.fn().mockResolvedValue("copied"),
 });
 afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
@@ -89,6 +91,7 @@ export function installEditorHarness(): void {
   beforeEach(() => {
     vault.current = { items: [], folders: [] };
     saveItem.mockResolvedValue(undefined);
+    saveItems.mockResolvedValue(undefined);
   });
   afterEach(() => {
     cleanup();

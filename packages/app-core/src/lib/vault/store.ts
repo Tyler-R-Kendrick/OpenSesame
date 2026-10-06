@@ -1350,8 +1350,8 @@ export class VaultStore {
     return writeSavedItems(this.#writes(), [item], folder);
   }
 
-  saveItems(items: readonly VaultItem[]): Promise<void> {
-    return writeSavedItems(this.#writes(), items);
+  saveItems(items: readonly VaultItem[], folder?: Folder): Promise<void> {
+    return writeSavedItems(this.#writes(), items, folder);
   }
 
   #writes(): ItemWriteHost {

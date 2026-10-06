@@ -8,6 +8,7 @@
  * stored.
  */
 
+import { enablePack } from "@opensesame/app-core/lib/type-packs/installer.js";
 import {
   defaultGenerator,
   newSecretFor,
@@ -15,11 +16,16 @@ import {
 import type { OfferedGeneratorId } from "@opensesame/app-core/lib/vault/generators/index.js";
 import {
   type AccountItem,
+  type CredentialItem,
+  type Folder,
   type LoginMethod,
   type PasswordMethod,
+  type VaultItem,
   completePassword,
+  isCredential,
   isPepperPosition,
   producePassword,
+  unboundCredentials,
 } from "@opensesame/vault-core";
 
 /** The password the editor shows: what the facade produces before any pepper. */
@@ -133,3 +139,77 @@ export function settleForSave(
     methods: settleMethods(account.methods, existing?.methods ?? []),
   };
 }
+
+/**
+ * An account as the editor holds it, split into what is written as the account
+ * and the credentials it takes from those the vault keeps on its own (or on
+ * another account): a method whose id is such a credential's was chosen from the
+ * `+`, not made, and is bound to this account in the same write, never copied
+ * (ADR 0179).
+ */
+export type AdoptedSplit = {
+  readonly account: AccountItem;
+  readonly adopted: readonly CredentialItem[];
+};
+
+export function splitAdopted(
+  items: readonly VaultItem[],
+  account: AccountItem,
+): AdoptedSplit {
+  const adopted: CredentialItem[] = [];
+  const own: LoginMethod[] = [];
+  for (const method of account.methods) {
+    const held = items.find(
+      (item): item is CredentialItem =>
+        isCredential(item) &&
+        item.id === method.id &&
+        item.deletedAt === null &&
+        item.accountId !== account.id,
+    );
+    if (held === undefined) own.push(method);
+    else adopted.push({ ...held, method, accountId: account.id });
+  }
+  return { account: { ...account, methods: own }, adopted };
+}
+
+/** The two writes of the store an item is saved with. */
+export type ItemWriter = {
+  saveItem: (item: VaultItem, folder?: Folder) => Promise<void>;
+  saveItems: (items: readonly VaultItem[], folder?: Folder) => Promise<void>;
+};
+
+/**
+ * Save an item. An account that took credentials from the `+` is saved with
+ * them in one write: each is bound to it there, not copied (ADR 0179).
+ */
+export async function saveWithCredentials(
+  writer: ItemWriter,
+  items: readonly VaultItem[],
+  item: VaultItem,
+  folder?: Folder,
+): Promise<void> {
+  if (item.kind !== "account") return writer.saveItem(item, folder);
+  const split = splitAdopted(items, item);
+  if (split.adopted.length === 0) return writer.saveItem(item, folder);
+  return writer.saveItems([split.account, ...split.adopted], folder);
+}
+
+/** The credentials kept on their own that an account may take, and has not. */
+export function bindableCredentials(
+  items: readonly VaultItem[],
+  methods: readonly LoginMethod[],
+): CredentialItem[] {
+  const taken = new Set(methods.map((method) => method.id));
+  return unboundCredentials(items).filter(
+    (credential) =>
+      credential.deletedAt === null &&
+      !taken.has(credential.id) &&
+      !(credential.method.type === "password" && credential.method.sealed),
+  );
+}
+
+/**
+ * The pack switch an editor reaches for. A seam, so a test can see which type
+ * was switched on without downloading it.
+ */
+export const credentialPackSeams = { enable: enablePack };

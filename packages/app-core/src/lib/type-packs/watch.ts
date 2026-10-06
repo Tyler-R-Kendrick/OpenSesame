@@ -11,9 +11,14 @@
 
 import { itemTypeId } from "@opensesame/vault-core";
 import type { VaultItem } from "@opensesame/vault-core";
-import { isPackId, isPackLoaded } from "@opensesame/vault-item-types";
+import {
+  isPackId,
+  isPackLoaded,
+  packEntries,
+} from "@opensesame/vault-item-types";
 import { enablePack } from "./installer.js";
-import { isBusy, setCounts, statusOf } from "./state.js";
+import { packsNeeded } from "./requires.js";
+import { isBusy, setCounts, statusOf, subscribePackState } from "./state.js";
 
 export type ItemSource = Readonly<{
   subscribe: (listener: () => void) => () => void;
@@ -42,8 +47,30 @@ function settle(source: ItemSource): void {
   }
 }
 
+/**
+ * A pack that is on brings the packs it cannot work without (ADR 0179): a
+ * vault whose Accounts were switched on before Password was a pack of its own
+ * gets Password, so its accounts can be given credentials and a password can
+ * be written on its own.
+ */
+function settleNeeds(): void {
+  for (const entry of packEntries()) {
+    if (statusOf(entry.id).phase !== "on") continue;
+    for (const need of packsNeeded(entry.id)) {
+      const { phase } = statusOf(need);
+      if (phase === "off") enablePack(need);
+    }
+  }
+}
+
 /** Start watching; returns the stop function. */
 export function watchVaultTypes(source: ItemSource): () => void {
   settle(source);
-  return source.subscribe(() => settle(source));
+  settleNeeds();
+  const stopItems = source.subscribe(() => settle(source));
+  const stopPacks = subscribePackState(settleNeeds);
+  return () => {
+    stopItems();
+    stopPacks();
+  };
 }
