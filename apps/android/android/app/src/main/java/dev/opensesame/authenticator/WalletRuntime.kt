@@ -1,7 +1,6 @@
 package dev.opensesame.authenticator
 
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.android.Android
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.multipaz.crypto.Algorithm
@@ -21,38 +20,58 @@ import org.multipaz.securearea.SecureAreaRepository
 import org.multipaz.util.Platform
 
 object WalletRuntime {
-    lateinit var presentmentSource: PresentmentSource
-        private set
-    lateinit var provisioningModel: ProvisioningModel
-        private set
-    lateinit var clientPreferences: OpenID4VCIClientPreferences
-        private set
-    lateinit var backend: OpenID4VCIBackend
-        private set
+    private var realPresentmentSource: PresentmentSource? = null
+    private var realProvisioningModel: ProvisioningModel? = null
+    private var realClientPreferences: OpenID4VCIClientPreferences? = null
+    private var realBackend: OpenID4VCIBackend? = null
+    val presentmentSource: PresentmentSource get() {
+        val permit = NativeGate.requireReal()
+        return GatedPresentmentSource(checkNotNull(realPresentmentSource), permit)
+    }
+    val provisioningModel: ProvisioningModel get() { NativeGate.requireReal(); return checkNotNull(realProvisioningModel) }
+    val clientPreferences: OpenID4VCIClientPreferences get() { NativeGate.requireReal(); return checkNotNull(realClientPreferences) }
+    val backend: OpenID4VCIBackend get() { NativeGate.requireReal(); return checkNotNull(realBackend) }
 
     private val initMutex = Mutex()
     private var initialized = false
+    private var productionHttp: HttpClient? = null
+
+    fun lock() {
+        initialized = false
+        realProvisioningModel?.cancel()
+        productionHttp?.close()
+        productionHttp = null
+        realPresentmentSource = null
+        realProvisioningModel = null
+        realClientPreferences = null
+        realBackend = null
+    }
 
     suspend fun initialize() = initMutex.withLock {
+        val permit = NativeGate.requireReal()
         if (initialized) return
         val storage = Platform.nonBackedUpStorage
         val secureArea = Platform.getSecureArea(storage)
+        NativeGate.requireSame(permit)
         val secureAreas = SecureAreaRepository.Builder().add(secureArea).build()
         val documents = DocumentStore.Builder(storage, secureAreas).build()
+        NativeGate.requireSame(permit)
         val documentTypes = DocumentTypeRepository().apply { addKnownTypes() }
-        presentmentSource = SimplePresentmentSource(
+        realPresentmentSource = SimplePresentmentSource(
             documentStore = documents,
             documentTypeRepository = documentTypes,
-            domainsMdocSignature = listOf("mdoc_user_auth", "mdoc_no_user_auth"),
-            domainsKeylessSdJwt = listOf("sdjwt_keyless"),
-            domainsKeyBoundSdJwt = listOf("sdjwt_user_auth", "sdjwt_no_user_auth"),
+            domainsMdocSignature = listOf("mdoc_user_auth"),
+            domainsKeylessSdJwt = emptyList(),
+            domainsKeyBoundSdJwt = listOf("sdjwt_user_auth"),
         )
-        provisioningModel = ProvisioningModel(
+        val http = HttpClient(RealmHttpEngine(permit)) { followRedirects = false }
+        productionHttp = http
+        realProvisioningModel = ProvisioningModel(
             documentProvisioningHandler = DocumentProvisioningHandler(
                 secureArea = secureArea,
                 documentStore = documents,
             ),
-            httpClient = HttpClient(Android) { followRedirects = false },
+            httpClient = http,
             promptModel = Platform.promptModel,
             authorizationSecureArea = secureArea,
             eventLogger = null,
@@ -62,22 +81,24 @@ object WalletRuntime {
         }
         val rpc = RpcAuthorizedDeviceClient.connect(
             exceptionMap = RpcExceptionMap.Builder().build(),
-            httpClientEngine = Android,
+            httpClientEngine = RealmHttpEngine(permit),
             url = "${BuildConfig.WALLET_BACKEND_URL.trimEnd('/')}/rpc",
             secureArea = secureArea,
             storage = storage,
         )
-        backend = OpenID4VCIBackendStub(
+        NativeGate.requireSame(permit)
+        realBackend = OpenID4VCIBackendStub(
             endpoint = "openid4vci_backend",
             dispatcher = rpc.dispatcher,
             notifier = rpc.notifier,
         )
-        clientPreferences = OpenID4VCIClientPreferences(
+        realClientPreferences = OpenID4VCIClientPreferences(
             clientId = backend.getClientId(),
             redirectUrl = "https://${BuildConfig.INVOCATION_HOST}/invoke/oid4vci/callback",
             locales = listOf("en-US"),
             signingAlgorithms = listOf(Algorithm.ESP256),
         )
+        NativeGate.requireSame(permit)
         initialized = true
     }
 

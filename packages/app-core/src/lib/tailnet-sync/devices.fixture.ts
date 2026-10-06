@@ -4,6 +4,7 @@
  * its own `VaultStore`, so nothing one device writes is visible to the other
  * except through the drive — the same isolation two phones have.
  */
+import { deviceVfsNamespace } from "../__tests__/vfs-device-namespaces.js";
 import { VaultStore } from "../vault/store.js";
 import { type VfsSeams, vfsFlush, vfsSeams } from "../vfs.js";
 
@@ -15,6 +16,10 @@ export type Device = {
 };
 
 export function device(name: string): Device {
+  if (deviceVfsNamespace.installedFactories === 0)
+    throw new Error(
+      "The simulated device admission namespaces were not installed.",
+    );
   const files = new Map<string, string>();
   return {
     name,
@@ -32,22 +37,30 @@ export function device(name: string): Device {
   };
 }
 
-const original = {
-  readRaw: vfsSeams.readRaw,
-  writeRaw: vfsSeams.writeRaw,
-  deleteRaw: vfsSeams.deleteRaw,
-};
-
 /** Run `act` as `on`: its storage is the only storage while it runs. */
 export async function as<T>(on: Device, act: () => Promise<T>): Promise<T> {
   await vfsFlush();
+  const previousDevice = deviceVfsNamespace.current;
+  const previous = {
+    readRaw: vfsSeams.readRaw,
+    writeRaw: vfsSeams.writeRaw,
+    deleteRaw: vfsSeams.deleteRaw,
+  };
+  deviceVfsNamespace.current = on;
   Object.assign(vfsSeams, on.seams);
   try {
     return await act();
   } finally {
-    await on.store.flushPendingWrites();
-    await vfsFlush();
-    Object.assign(vfsSeams, original);
+    try {
+      await on.store.flushPendingWrites();
+    } finally {
+      try {
+        await vfsFlush();
+      } finally {
+        deviceVfsNamespace.current = previousDevice;
+        Object.assign(vfsSeams, previous);
+      }
+    }
   }
 }
 

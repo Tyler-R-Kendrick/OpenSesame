@@ -1,6 +1,7 @@
 import { createLocalAgentKey } from "@opensesame/static-auth";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import { beginLocalAgentAuthentication } from "./local-agent-auth.js";
 import {
   readLocalAgentKeys,
@@ -75,19 +76,9 @@ beforeEach(async () => {
   unbindLockResets = bindLocalIamLockResets();
   tomb = `agents-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
   vi.stubGlobal("location", { origin });
   vi.stubGlobal("navigator", {
-    locks: {
-      request: <T>(_name: string, run: () => Promise<T>) => {
-        const next = queue.then(run);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
+    locks: webLocksDouble(),
   });
   agent = await create("agent");
   owner = await create("person");

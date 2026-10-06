@@ -8,16 +8,24 @@
  */
 import type { Host, RuntimeEnv } from "../host.js";
 import { createMemoryStorage } from "../memory-storage.js";
+import type { AtRestKeyPort, LockManagerLike } from "../ports.js";
 
 export type SandboxHostOptions = Readonly<{
   env?: Partial<RuntimeEnv>;
   /** Local storage entries the embedder hands in (for example a sealed tomb). */
   local?: Iterable<readonly [string, string]>;
+  /** Native embedder ports. Together they preserve the same durable sealed KV contract. */
+  persistence?: Readonly<{
+    atRestKeys: AtRestKeyPort;
+    originFiles: () => Promise<FileSystemDirectoryHandle>;
+    locks: LockManagerLike;
+  }>;
 }>;
 
 export function createSandboxHost(options: SandboxHostOptions = {}): Host {
   return {
     env: { BASE_URL: "/", DEV: false, ...options.env },
+    ...options.persistence,
     storage: {
       local: createMemoryStorage(options.local),
       session: createMemoryStorage(),

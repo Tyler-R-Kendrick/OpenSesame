@@ -8,6 +8,7 @@
 
 import { isString } from "@opensesame/os-domain";
 import type { PasswordDigestStore } from "../vault/password-history-types.js";
+import type { WriteGuard } from "./db.js";
 import { defineSchema } from "./schema.js";
 import { withEncryptedDb } from "./with-db.js";
 
@@ -20,6 +21,7 @@ export const passwordSchema = defineSchema({
 /** `ready` resolves when rows may be read: after a legacy migration has run. */
 export function createPasswordDigestStore(
   ready: () => Promise<void> = async () => {},
+  guard?: WriteGuard,
 ): PasswordDigestStore {
   const run = async <T>(work: Parameters<typeof withEncryptedDb<T>>[2]) => {
     await ready();
@@ -31,7 +33,8 @@ export function createPasswordDigestStore(
         // Keyed by both, so a digest moved twice (two tabs switching the
         // capability on at once) is one row.
         const id = `${scope}\u0000${digest}`;
-        await db.put("digests", { id, scope, digest });
+        if (guard) await db.putGuarded("digests", { id, scope, digest }, guard);
+        else await db.put("digests", { id, scope, digest });
         return true as const;
       }),
     digestsFor: (scope) =>

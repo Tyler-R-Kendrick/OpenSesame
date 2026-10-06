@@ -1,0 +1,216 @@
+name: Native admission
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows MSVC storage contracts, generated FFI and gated trap support
+    runs-on: windows-2022
+    timeout-minutes: 90
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          targets: x86_64-pc-windows-msvc
+      - name: Install checksum-pinned Gradle and Android JVM compile SDK
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $nativeTarget = Join-Path $env:RUNNER_TEMP 'opensesame-native-target'
+          "CARGO_TARGET_DIR=$nativeTarget" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "JAVA_HOME=$env:JAVA_HOME_17_X64" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "$env:JAVA_HOME_17_X64/bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          $archive = Join-Path $env:RUNNER_TEMP 'native-gradle.zip'
+          Invoke-WebRequest 'https://services.gradle.org/distributions/gradle-8.13-bin.zip' -OutFile $archive
+          if ((Get-FileHash $archive -Algorithm SHA256).Hash.ToLower() -ne '20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78') { throw 'Gradle checksum mismatch' }
+          $tools = Join-Path $env:RUNNER_TEMP 'native-gradle'
+          Expand-Archive $archive -DestinationPath $tools
+          "$tools/gradle-8.13/bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          & "$env:ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager.bat" 'platforms;android-36' 'build-tools;36.0.0'
+          if ($LASTEXITCODE -ne 0) { throw 'Android compile SDK installation failed' }
+      - name: Run canonical vectors, native wrappers and Windows storage boundaries
+        run: ./apps/android/scripts/test-windows.ps1 -Phase engine
+      - name: Execute generated Kotlin bindings against the actual MSVC DLL
+        run: ./apps/android/scripts/test-windows.ps1 -Phase ffi
+      - name: Compile the actual Windows native CLI executable
+        run: ./apps/android/scripts/test-windows.ps1 -Phase cli
+      - name: Preserve Windows generated-FFI JVM reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: native-windows-ffi-results
+          if-no-files-found: error
+          path: |
+            apps/android/android/app/build/test-results/testDebugUnitTest/*.xml
+            ${{ runner.temp }}/opensesame-native-target/native-reports/*
+
+  android:
+    name: Android SDK compile, FFI and realm tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CARGO_TARGET_DIR: /tmp/opensesame-native-target
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+      - name: Install pinned native toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+          echo "$JAVA_HOME_17_X64/bin" >> "$GITHUB_PATH"
+          curl --fail --location --retry 3 https://services.gradle.org/distributions/gradle-8.13-bin.zip -o /tmp/gradle.zip
+          echo '20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78  /tmp/gradle.zip' | sha256sum --check
+          unzip -q /tmp/gradle.zip -d /tmp/native-gradle
+          echo /tmp/native-gradle/gradle-8.13/bin >> "$GITHUB_PATH"
+          sdk_manager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [[ -x "$sdk_manager" ]] || { echo 'Android SDK command-line tools unavailable' >&2; exit 1; }
+          "$sdk_manager" 'platforms;android-36' 'build-tools;36.0.0' 'ndk;28.2.13676358'
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+          cargo +1.88.0 install cargo-ndk --version 4.1.2 --locked
+      - name: Test canonical Rust and package Android JNI libraries
+        run: |
+          bash apps/android/scripts/test-native.sh core
+          bash apps/android/scripts/test-native.sh android
+          cd apps/android/android
+          gradle --no-daemon --max-workers=4 :app:assembleDebugAndroidTest
+      - name: Preserve actual app and device-test packages
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: native-android-packages
+          if-no-files-found: error
+          path: |
+            apps/android/android/app/build/outputs/apk/debug/app-debug.apk
+            apps/android/android/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+
+      - name: Preserve canonical Rust and generated JVM execution reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: native-android-execution-results
+          if-no-files-found: error
+          path: |
+            /tmp/opensesame-native-target/native-reports/**
+            apps/android/android/app/build/test-results/testDebugUnitTest/*.xml
+
+  android-device:
+    name: Android owner-factor and isolation device tests (${{ matrix.pages }} bytes)
+    runs-on: ubuntu-24.04
+    needs: android
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: google_apis
+            pages: 4096
+          - target: google_apis_ps16k
+            pages: 16384
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
+        with:
+          name: native-android-packages
+          path: native-apks
+      - name: Enable disposable runner KVM
+        run: sudo chmod 0666 /dev/kvm
+      - name: Exercise real emulator OS prompts and protected data boundaries
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: 35
+          target: ${{ matrix.target }}
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -noaudio -no-boot-anim -gpu swiftshader_indirect -no-snapshot
+          script: bash apps/android/scripts/test-android-device.sh native-apks/debug/app-debug.apk native-apks/androidTest/debug/app-debug-androidTest.apk ${{ matrix.pages }}
+
+      - name: Preserve actual OS instrumentation and page-size results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: native-android-device-${{ matrix.pages }}-results
+          if-no-files-found: error
+          path: native-device-results/${{ matrix.pages }}/*
+
+  apple-sdk:
+    name: Apple SDK app, provider and simulator tests
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      CARGO_TARGET_DIR: /tmp/opensesame-native-target
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+      - name: Install checksum-pinned XcodeGen
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 https://github.com/yonaskolb/XcodeGen/releases/download/2.44.1/xcodegen.zip -o /tmp/xcodegen.zip
+          echo 'a2e905fb68446e9bb4008cdfe2e13e3f176d0cbcca828b71770f8e53fca91b73  /tmp/xcodegen.zip' | shasum --algorithm 256 --check
+          unzip -q /tmp/xcodegen.zip -d /tmp/native-xcodegen
+          echo /tmp/native-xcodegen/xcodegen/bin >> "$GITHUB_PATH"
+      - name: Compile actual Apple app/provider and run simulator behavior tests
+        run: bash apps/android/scripts/test-apple.sh
+      - name: Preserve Apple SDK test results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: native-apple-sdk-results
+          if-no-files-found: error
+          path: |
+            /tmp/opensesame-native-target/native-apple-validation/*.xcresult
+            /tmp/opensesame-native-target/native-apple-validation/*.json
+
+  swift:
+    name: Linux Swift production realm and generated FFI behavior
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    container:
+      image: swift:6.2-bookworm@sha256:da5a812247285bddb8cf3a242f882a3affa156f34deb16df1b3267efe7129aff
+    env:
+      CARGO_TARGET_DIR: /tmp/opensesame-native-target
+    steps:
+      - name: Install Rust installer HTTPS prerequisites
+        run: |
+          apt-get update
+          apt-get install --yes --no-install-recommends curl ca-certificates python3
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+      - name: Run real Rust classifier through generated Swift binding
+        run: bash apps/android/scripts/test-native.sh swift
+      - name: Preserve actual Swift program results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: native-linux-swift-results
+          if-no-files-found: error
+          path: /tmp/opensesame-native-target/native-reports/*

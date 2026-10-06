@@ -74,6 +74,8 @@ impl Db {
         &self,
         org_id: &str,
     ) -> anyhow::Result<Vec<BitwardenCipher>> {
+        // Formatting interpolates only fixed column constants; external values are bound.
+        // ast-grep-ignore: sql-format-injection
         let rows = sqlx::query(&format!(
             "SELECT {CIPHER_COLUMNS} FROM bitwarden_ciphers WHERE organization_id = ? \
              ORDER BY created_at, id"
@@ -90,6 +92,8 @@ impl Db {
     ///
     /// Returns an error when the query fails or the row is malformed.
     pub async fn bitwarden_cipher_any(&self, id: &str) -> anyhow::Result<Option<BitwardenCipher>> {
+        // Formatting interpolates only fixed column constants; external values are bound.
+        // ast-grep-ignore: sql-format-injection
         let row = sqlx::query(&format!(
             "SELECT {CIPHER_COLUMNS} FROM bitwarden_ciphers WHERE id = ?"
         ))

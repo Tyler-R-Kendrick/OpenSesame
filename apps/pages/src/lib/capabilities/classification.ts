@@ -30,6 +30,7 @@ import { DEVICE_CONNECTOR_RULES } from "./classification-device-connectors.js";
 import { LIB_RULES } from "./classification-lib.js";
 import { PACKAGE_RULES } from "./classification-packages.js";
 import { PLUGIN_RULES } from "./classification-plugins.js";
+import { RETIRED_CREDENTIAL_RULES } from "./classification-retired.js";
 import { SECTION_RULES } from "./classification-sections.js";
 import { SHELL_RULES } from "./classification-shell.js";
 import { STORAGE_LIB_RULES } from "./classification-storage.js";
@@ -82,6 +83,7 @@ export const SOURCE_CLASSIFICATION: readonly SourceClassification[] = [
   ...SHELL_RULES,
   ...SECTION_RULES,
   ...LIB_RULES,
+  ...RETIRED_CREDENTIAL_RULES,
   ...DEVICE_CONNECTOR_RULES,
   ...VAULT_LIB_RULES,
   ...STORAGE_LIB_RULES,

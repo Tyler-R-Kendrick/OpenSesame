@@ -10,6 +10,8 @@ import {
   readString,
 } from "@opensesame/os-domain";
 import { readBoundedObject } from "./bounded-response.js";
+import { decoyGuardedFetch } from "./decoy-fetch.js";
+import { assertNotDecoySession } from "./decoy-session.js";
 import { pemFromVault, readLocalGithubApp } from "./github-app-local.js";
 import { githubAppRelayBase } from "./github-app-relay.js";
 
@@ -57,6 +59,7 @@ async function postRelayDefault(
   path: string,
   body: JsonObject,
 ): Promise<RelayOutcome> {
+  const authorityGeneration = assertNotDecoySession();
   const base = githubAppRelayBase();
   if (base === "") {
     return {
@@ -65,7 +68,7 @@ async function postRelayDefault(
       payload: { message: "Relay not configured" },
     } satisfies RelayOutcome;
   }
-  const response = await fetch(`${base}${path}`, {
+  const response = await decoyGuardedFetch(`${base}${path}`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -77,12 +80,14 @@ async function postRelayDefault(
   try {
     payload = overlapCast(await readBoundedObject(response, 262_144, 30_000));
   } catch {
+    assertNotDecoySession(authorityGeneration);
     return {
       ok: false,
       status: response.status,
       payload: { message: "Could not read the GitHub App relay response." },
     } satisfies RelayOutcome;
   }
+  assertNotDecoySession(authorityGeneration);
   return {
     ok: response.ok,
     status: response.status,
@@ -123,6 +128,7 @@ export type InstallationRepoList = {
 
 /** Private repos visible to every local App installation. */
 export async function listGithubAppInstallationRepos(): Promise<InstallationRepoList> {
+  const authorityGeneration = assertNotDecoySession();
   const creds = githubAppRepoSeams.credentials();
   if (!creds) {
     return {
@@ -142,6 +148,7 @@ export async function listGithubAppInstallationRepos(): Promise<InstallationRepo
         installationId: install.installationId,
       },
     );
+    assertNotDecoySession(authorityGeneration);
     if (!ok) {
       error =
         (isString(payload.message) ? payload.message : null) ||
@@ -170,6 +177,7 @@ export async function createGithubAppRepo(input: {
   name: string;
   accountType: string;
 }): Promise<AppRepoSummary> {
+  const authorityGeneration = assertNotDecoySession();
   const creds = githubAppRepoSeams.credentials();
   if (!creds) {
     throw new Error("Unlock the vault and install the GitHub App first.");
@@ -192,6 +200,7 @@ export async function createGithubAppRepo(input: {
       private: true,
     },
   );
+  assertNotDecoySession(authorityGeneration);
   if (!ok) {
     throw new Error(
       (isString(payload.message) ? payload.message : null) ||

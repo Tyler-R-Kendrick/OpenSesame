@@ -1,0 +1,44 @@
+{
+  "mutate": [
+    "packages/app-core/src/browser/security/broker.ts:75:0-144:0",
+    "packages/app-core/src/browser/security/client.ts:69:0-94:0"
+  ],
+  "ignorePatterns": [
+    ".agents/**",
+    ".codex/**",
+    ".deepsec/**",
+    ".tools/**",
+    ".turbo/**",
+    ".git/**",
+    "apps/**",
+    "docs/**",
+    "crates/**",
+    "tests/**",
+    "scripts/**",
+    "artifacts/**",
+    "coverage/**",
+    "target/**"
+  ],
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "vitest": {
+    "configFile": "tools/mutation/extension-security-feature-vitest.mjs",
+    "related": false
+  },
+  "concurrency": 1,
+  "timeoutMS": 10000,
+  "reporters": ["clear-text", "json"],
+  "jsonReporter": {
+    "fileName": "artifacts/mutation/extension-security-feature.json"
+  },
+  "tempDirName": ".stryker-extension-security-feature",
+  "cleanTempDir": "always",
+  "thresholds": {
+    "high": 100,
+    "low": 100,
+    "break": 100
+  },
+  "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "timeoutFactor": 1.5,
+  "dryRunTimeoutMinutes": 5
+}

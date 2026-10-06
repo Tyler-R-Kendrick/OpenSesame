@@ -1,0 +1,110 @@
+name: OpenSesameNative
+options:
+  minimumXcodeGenVersion: 2.44.1
+  deploymentTarget:
+    iOS: "26.0"
+packages:
+  NativeWallet:
+    path: .
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    DEVELOPMENT_TEAM: $(OPENSESAME_DEVELOPMENT_TEAM)
+    OPENSESAME_APP_GROUP: group.dev.opensesame.authenticator
+    OPENSESAME_KEYCHAIN_GROUP: dev.opensesame.authenticator
+    OPENSESAME_INVOCATION_HOST: auth.opensesame.dev
+    OPENSESAME_WALLET_BACKEND_URL: ""
+    TARGETED_DEVICE_FAMILY: "1,2"
+targets:
+  OpenSesameNative:
+    type: application
+    platform: iOS
+    sources: [App]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.opensesame.authenticator
+        CODE_SIGN_ENTITLEMENTS: OpenSesameAuthenticator.entitlements
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: OpenSesame
+        NSFaceIDUsageDescription: Verify the device owner before opening or presenting real wallet credentials.
+        OpenSesameWalletBackendURL: $(OPENSESAME_WALLET_BACKEND_URL)
+        OpenSesameAppGroup: $(OPENSESAME_APP_GROUP)
+        OpenSesameInvocationHost: $(OPENSESAME_INVOCATION_HOST)
+        UILaunchScreen: {}
+        CFBundleURLTypes:
+          - CFBundleTypeRole: Viewer
+            CFBundleURLSchemes: [openid-credential-offer, haip-vci]
+    dependencies:
+      - package: NativeWallet
+        product: OpenSesameAuthenticator
+      - target: OpenSesameDocumentProvider
+        embed: true
+        copy:
+          destination: productsDirectory
+          subpath: $(EXTENSIONS_FOLDER_PATH)
+  OpenSesameDocumentProvider:
+    type: extensionkit-extension
+    platform: iOS
+    sources:
+      - path: IdentityDocumentProvider
+        excludes: [Info.plist, IdentityDocumentProvider.entitlements]
+      - Sources/OpenSesameAuthenticator/NativeGateStorage.swift
+      - Sources/OpenSesameAuthenticator/NativeAuthorityFence.swift
+      - Sources/OpenSesameAuthenticator/NativeGatedStorage.swift
+      - Sources/OpenSesameAuthenticator/NativeGatedSecureArea.swift
+      - Sources/OpenSesameAuthenticator/NativeGatedPresentmentSource.swift
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.opensesame.authenticator.document-provider
+        CODE_SIGN_ENTITLEMENTS: IdentityDocumentProvider/IdentityDocumentProvider.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+    info:
+      path: IdentityDocumentProvider/Info.plist
+      properties:
+        NSFaceIDUsageDescription: Verify the device owner before presenting real wallet credentials.
+        OpenSesameAppGroup: $(OPENSESAME_APP_GROUP)
+        EXAppExtensionAttributes:
+          EXExtensionPointIdentifier: com.apple.identity-document-services.document-provider-ui
+    dependencies:
+      - package: NativeWallet
+        product: MultipazRuntime
+  NativeAdmissionTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests/OpenSesameAuthenticatorTests]
+    dependencies:
+      - target: OpenSesameNative
+      - package: NativeWallet
+        product: OpenSesameAuthenticator
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.opensesame.authenticator.tests
+        GENERATE_INFOPLIST_FILE: YES
+  NativeAdmissionUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+        excludes: [Info.plist]
+    info:
+      path: UITests/Info.plist
+      properties:
+        OpenSesameBiometricHelperURL: $(OPENSESAME_TEST_BIOMETRIC_HELPER_URL)
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+    dependencies:
+      - target: OpenSesameNative
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.opensesame.authenticator.ui-tests
+        GENERATE_INFOPLIST_FILE: NO
+schemes:
+  OpenSesameNative:
+    build:
+      targets:
+        OpenSesameNative: all
+    test:
+      targets: [NativeAdmissionTests, NativeAdmissionUITests]
+      gatherCoverageData: true

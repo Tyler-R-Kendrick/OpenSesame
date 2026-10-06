@@ -4,9 +4,10 @@
 
 [advisories]
 ignore = [
-  # No fixed rsa release. Present via sqlx mysql/postgres lockfile edges; we do
-  # not use the rsa crate for JWT/DPoP (jsonwebtoken uses aws_lc_rs). Aligns
-  # with osv-scanner.toml. Revisit when sqlx drops rsa or rsa ships a fix.
-  # (sqlx 0.9 + Rust 1.94 may clear the edge — not yet on this toolchain.)
+  # No fixed rsa release. The existing exception remains; direct PKI and SQLx
+  # edges and the variable-time RSA library signer are documented in
+  # docs/security/audits/2026-10-06-rsa-marvin-reachability.md. Current gateway
+  # CA/EST issuance uses rcgen/ring; do not expose the RustCrypto signer as an
+  # attacker-timable service. This exception is not a constant-time proof.
   "RUSTSEC-2023-0071",
 ]

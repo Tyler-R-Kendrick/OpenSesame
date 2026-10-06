@@ -65,7 +65,7 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
   });
 
   it("classifies the executable roots the way ownership.md records them", () => {
-    const expectations: Record<string, string> = {
+    const expectations = {
       "src/main.tsx": "core",
       "src/sw.ts": "install.pwa",
       "src/sw-push.ts": "notifications.web-push",
@@ -118,7 +118,7 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
   });
 
   it("classifies every exclusive package", () => {
-    const expectations: Record<string, string> = {
+    const expectations = {
       "node_modules/@azure/msal-browser/redirect-bridge":
         "identity.ambient-sso",
       "node_modules/@ag-ui/client": "support.remote-ai",
@@ -143,6 +143,30 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     expect(classify("node_modules/age-encryption")?.capability).toBe(
       "backup.cloud-secrets",
     );
+  });
+
+  it("owns connector recovery separately from its shared authority records", () => {
+    for (const path of [
+      "src/lib/device-connector-legacy.ts",
+      "src/lib/device-connector-legacy.test.ts",
+    ]) {
+      expect(classify(path)).toMatchObject({
+        classification: "core",
+        capability: "vault.local-unlock",
+      });
+    }
+    for (const path of [
+      "src/lib/device-connector-legacy-storage.ts",
+      "src/lib/device-connector-lock.ts",
+      "src/lib/device-connector-principal.ts",
+      "src/lib/device-connector-principal-state.ts",
+    ]) {
+      expect(classify(path)).toMatchObject({
+        classification: "shared",
+        capability: null,
+      });
+    }
+    expect(classify("src/lib/device-connector-unreviewed.ts")).toBeNull();
   });
 
   it("prefix matching continues only on '.', '-' or '/'", () => {

@@ -5,11 +5,17 @@
 
 import type { Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
+import { assertNotDecoySession } from "./decoy-session.js";
 import { listDeviceConnections } from "./device-connectors.js";
 import {
   isListedProvider,
   runListedFeature,
 } from "./feature-connector-operation.js";
+import {
+  assertFeatureAuthority,
+  bindFeatureAuthority,
+  featureAuthorityCurrent,
+} from "./feature-request-authority.js";
 
 export type FeatureRequest =
   | { ok: false; providerId: string }
@@ -34,6 +40,7 @@ const dispatched: DispatchedFeatureCall[] = [];
 
 /** Record the operation a feature will send. Secrets stay on that call. */
 export function dispatchFeatureCall(request: FeatureRequest): FeatureRequest {
+  assertFeatureAuthority(request);
   if (!request.ok) return request;
   const call: DispatchedFeatureCall = {
     providerId: request.providerId,
@@ -41,14 +48,15 @@ export function dispatchFeatureCall(request: FeatureRequest): FeatureRequest {
     fields: { ...request.fields },
     secret: { ...request.secret },
   };
+  bindFeatureAuthority(call);
   dispatched.push(call);
-  return {
+  return bindFeatureAuthority({
     ok: true,
     providerId: call.providerId,
     operation: call.operation,
     fields: { ...call.fields },
     secret: { ...call.secret },
-  };
+  });
 }
 
 /** The call a feature dispatched for one provider, if it performed the operation. */
@@ -57,7 +65,8 @@ export function dispatchedFeatureCall(
 ): DispatchedFeatureCall | undefined {
   for (let index = dispatched.length - 1; index >= 0; index -= 1) {
     const call = dispatched[index];
-    if (call?.providerId === providerId) return call;
+    if (call?.providerId === providerId && featureAuthorityCurrent(call))
+      return call;
   }
   return undefined;
 }
@@ -71,13 +80,13 @@ export function featureRequest(provider: Provider | string): FeatureRequest {
   const run = runListedFeature(provider);
   if (!run.ok)
     return { ok: false, providerId: run.providerId || idOf(provider) };
-  return {
+  return bindFeatureAuthority({
     ok: true,
     providerId: run.providerId,
     operation: run.operation,
     fields: { ...run.action },
     secret: { ...run.secrets },
-  };
+  });
 }
 
 /** Saved connectors in these catalog categories. The stored id is kept. */
@@ -107,25 +116,34 @@ export function savedFeatureRequests(
 export function rememberUses(
   uses: readonly FeatureRequest[],
 ): FeatureRequest[] {
+  assertNotDecoySession();
   for (const use of uses) {
+    assertFeatureAuthority(use);
     if (!use.ok) {
       armed.delete(use.providerId);
       continue;
     }
-    armed.set(use.providerId, {
-      ok: true,
-      providerId: use.providerId,
-      operation: use.operation,
-      fields: { ...use.fields },
-      secret: { ...use.secret },
-    });
+    armed.set(
+      use.providerId,
+      bindFeatureAuthority({
+        ok: true,
+        providerId: use.providerId,
+        operation: use.operation,
+        fields: { ...use.fields },
+        secret: { ...use.secret },
+      }),
+    );
   }
   return uses.filter((use) => use.ok).map((use) => currentUse(use.providerId));
 }
 
 /** The request the feature sends for one armed connector. */
 export function currentUse(providerId: string): FeatureRequest {
-  if (!armed.has(providerId)) return { ok: false, providerId };
+  const held = armed.get(providerId);
+  if (!held || !featureAuthorityCurrent(held)) {
+    armed.delete(providerId);
+    return { ok: false, providerId };
+  }
   const fresh = featureRequest(providerId);
   if (!fresh.ok) {
     armed.delete(providerId);

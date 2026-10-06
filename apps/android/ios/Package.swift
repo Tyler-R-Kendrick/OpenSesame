@@ -6,11 +6,12 @@ let package = Package(
     platforms: [.iOS(.v26)],
     products: [
         .library(name: "OpenSesameAuthenticator", targets: ["OpenSesameAuthenticator"]),
+        .library(name: "MultipazRuntime", targets: ["Multipaz"]),
     ],
     targets: [
         .binaryTarget(
             name: "Multipaz",
-            url: "https://github.com/openwallet-foundation/multipaz/releases/download/0.100.0/Multipaz-0.100.0.xcframework.zip",
+            url: "https://apps.multipaz.org/xcf/Multipaz-0.100.0.xcframework.zip",
             checksum: "6098070b02dfe416f27146b9ca43d7867182caf93d5f872aaf560c1af9764452"
         ),
         .binaryTarget(
@@ -26,6 +27,10 @@ let package = Package(
         .target(
             name: "OpenSesameAuthenticator",
             dependencies: ["Multipaz", "OpenSesameAuthenticatorCore"]
+        ),
+        .testTarget(
+            name: "OpenSesameAuthenticatorTests",
+            dependencies: ["OpenSesameAuthenticator"]
         ),
     ]
 )

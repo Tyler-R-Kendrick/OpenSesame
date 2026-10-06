@@ -283,7 +283,7 @@ mod tests {
     #[test]
     fn an_installation_token_never_prints() {
         let token: InstallationToken = serde_json::from_str(
-            r#"{"token":"ghs_16C7e42F292c6912E7710c838347Ae178B4a","expires_at":"2030-01-01T00:00:00Z"}"#,
+            r#"{"token":"ghs_16C7e42F292c6912E7710c838347Ae178B4a","expires_at":"2030-01-01T00:00:00Z"}"#, // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
         )
         .unwrap();
         let shown = format!("{token:?}");

@@ -10,6 +10,7 @@
 import { WrongPasswordError, createItem } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { unlockWithPinAfterDuressGate } from "../../../screens/unlock/unlock-pin-duress.js";
+import { webLocksDouble } from "../../__tests__/web-locks-double.js";
 import { kvFlush, kvForgetAll, kvHydrate } from "../../kv.js";
 import {
   offlineBackupFile,
@@ -55,6 +56,7 @@ const fenced = () => duressSessionFence.readFence().activeIncidentIds.length;
 beforeEach(async () => {
   opfs = makeOpfs();
   installOpfs(opfs);
+  vi.stubGlobal("navigator", { ...navigator, locks: webLocksDouble() });
   kvForgetAll();
   clearEnrollmentStateForUnlock();
   resetFence();

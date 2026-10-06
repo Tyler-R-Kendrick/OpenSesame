@@ -87,6 +87,16 @@ export const SHELL_RULES = [
   core("src/node/", null, "the CLI host; never in a Pages build"),
   core("src/sandbox/", null, "the isolate host; never in a Pages build"),
   core("src/test-setup", null, "installs the app-core test host (ADR 0133)"),
+  core(
+    "src/test-device-vfs-setup.ts",
+    null,
+    "test-only routing for independent device VFS namespaces",
+  ),
+  core(
+    "src/lib/org-idp-authority.test.ts",
+    "vault.local-unlock",
+    "test-only verification of organization and provider cache admission",
+  ),
   core("src/boot-transport", null, "boot never reaches the transport client"),
   core("src/runtime-config.shipped", null, "the shipped runtime config file"),
   core(

@@ -4,6 +4,7 @@ import {
   clearActivePresentation,
   setActivePresentation,
 } from "@opensesame/app-core/lib/duress/compartment/presentation-runtime.js";
+import { createKeyedCompartment } from "@opensesame/app-core/lib/duress/compartment/registry.js";
 import { projectScopedView } from "@opensesame/app-core/lib/duress/compartment/scope.js";
 import {
   mintPresentationSession,
@@ -60,4 +61,50 @@ describe("DuressPresentationOverlay", () => {
     const view = render(<DuressPresentationOverlay />);
     expect(view.container.textContent).toBe("");
   });
+});
+
+it("leaves store-owned synthetic views to the ordinary vault screen", async () => {
+  const compartment = await createKeyedCompartment({
+    compartmentRef: "synthetic-overlay",
+    kind: "decoy",
+    label: "Personal",
+    keyEpoch: 1,
+    items: [
+      {
+        id: "fake",
+        title: "Example account",
+        folder: "Personal",
+        secret: "synthetic",
+      },
+    ],
+  });
+  try {
+    const session = await mintPresentationSession({
+      presentation: "decoy",
+      profileId: "retired:test",
+      contextId: "retired:test",
+      admittedKeys: [
+        {
+          compartmentRef: compartment.compartmentRef,
+          keyEpoch: 1,
+          rawKey: compartment.rawKey,
+        },
+      ],
+    });
+    const outcome = await openPresentation(session, compartment);
+    expect(outcome.kind).toBe("opened");
+    setActivePresentation({
+      profileId: "retired:test",
+      outcome,
+      view: projectScopedView(outcome),
+      storeOwnsView: true,
+    });
+    const rendered = render(<DuressPresentationOverlay />);
+    expect(rendered.container.textContent).toBe("");
+    expect(
+      rendered.container.querySelector(".duress-presentation-overlay"),
+    ).toBeNull();
+  } finally {
+    compartment.rawKey.fill(0);
+  }
 });

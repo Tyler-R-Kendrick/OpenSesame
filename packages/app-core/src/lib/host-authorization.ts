@@ -8,6 +8,7 @@ import { isLoopbackOrigin } from "@opensesame/static-auth";
 import { page, pageOrigin } from "../ports.js";
 import { readBoundedObject } from "./bounded-response.js";
 import { browserPairingSignal } from "./browser-pairing.js";
+import { assertNotDecoySession } from "./decoy-session.js";
 import { hostFetch, remoteIdentityApi } from "./identity.js";
 
 export type ControlTransition = "handoff" | "take" | "release";
@@ -66,6 +67,7 @@ export async function authorizeHost(
   cancellation: AbortSignal,
   via: AuthorizationFetch = hostAuthorizationSeams.hostFetch,
 ): Promise<string | null> {
+  const authorityGeneration = assertNotDecoySession();
   const base = hostAuthorizationSeams.identityBase().trim();
   if (!base) {
     throw new HostAuthorizationError(
@@ -96,8 +98,10 @@ export async function authorizeHost(
       request,
       lifetime,
       via,
+      authorityGeneration,
     );
     lifetime.throwIfAborted();
+    assertNotDecoySession(authorityGeneration);
     const result = await read(
       await via("/api/v1/host-authorizations/verify", {
         method: "POST",
@@ -109,6 +113,7 @@ export async function authorizeHost(
       }),
     );
     lifetime.throwIfAborted();
+    assertNotDecoySession(authorityGeneration);
     if (
       !isJsonObject(result) ||
       result.status !== "authorized" ||
@@ -140,6 +145,7 @@ function exchange(
   request: HostAuthorizationRequest,
   signal: AbortSignal,
   via: AuthorizationFetch,
+  authorityGeneration: number,
 ): Promise<{ challengeId: string; value: string }> {
   return new Promise((resolve, reject) => {
     let started = false;
@@ -157,6 +163,7 @@ function exchange(
       reject(new HostAuthorizationError());
     };
     const start = async () => {
+      assertNotDecoySession(authorityGeneration);
       const challenge = await read(
         await via("/api/v1/host-authorizations", {
           method: "POST",
@@ -165,6 +172,7 @@ function exchange(
         }),
       );
       signal.throwIfAborted();
+      assertNotDecoySession(authorityGeneration);
       if (settled) throw new HostAuthorizationError();
       if (
         !isJsonObject(challenge) ||

@@ -1,3 +1,7 @@
+import {
+  isDecoySession,
+  observeDecoyInteraction,
+} from "@opensesame/app-core/lib/decoy-session.js";
 import { useEffect, useRef } from "react";
 import { longPress, swipe } from "../../lib/gestures.js";
 import { typing } from "../../lib/keymap-targets.js";
@@ -67,6 +71,10 @@ export function useContextMenuInput(navigate: (to: string) => void): void {
         return;
       }
       if (event.isTrusted && event.shiftKey && !openedByKeyboard()) {
+        if (isDecoySession()) {
+          event.preventDefault();
+          observeDecoyInteraction("authority_denied");
+        }
         event.stopImmediatePropagation();
       }
     };

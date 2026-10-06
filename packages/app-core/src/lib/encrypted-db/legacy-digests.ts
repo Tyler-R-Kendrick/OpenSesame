@@ -9,34 +9,15 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import { openOwnedDatabase } from "../../ports.js";
-import { atRestReady } from "../at-rest/key.js";
+import { type AtRestKey, atRestReady } from "../at-rest/key.js";
+import { openLegacySource } from "../legacy-transfer.js";
 import { storageWritesHalted } from "../storage-halt.js";
 import { PASSWORD_HISTORY_DATABASE } from "../storage-ownership.js";
 import {
-  DB_VERSION,
   DIGESTS,
   idbReq,
   openDigest,
 } from "../vault/password-history-legacy.js";
-
-/** Open the database only if it exists: opening alone would create it. */
-function openExisting(): Promise<IDBDatabase | undefined> {
-  return new Promise((resolve, reject) => {
-    const req = openOwnedDatabase(PASSWORD_HISTORY_DATABASE, DB_VERSION);
-    let created = false;
-    req.onupgradeneeded = (event) => {
-      if (event.oldVersion !== 0) return;
-      created = true;
-      req.transaction?.abort();
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () =>
-      created
-        ? resolve(undefined)
-        : reject(req.error ?? new Error("indexedDB open failed"));
-  });
-}
 
 export type LegacyDigest = { scope: string; digest: string };
 
@@ -50,24 +31,31 @@ export async function readLegacyDigests(): Promise<LegacyDigest[] | undefined> {
   try {
     const atRest = await atRestReady();
     if (!atRest.durable) return undefined;
-    const db = await openExisting();
+    const db = await openLegacySource(PASSWORD_HISTORY_DATABASE);
     if (!db) return undefined;
     try {
-      const rows: BoundaryValue[] = await idbReq(
-        db.transaction(DIGESTS, "readonly").objectStore(DIGESTS).getAll(),
-      );
-      const out: LegacyDigest[] = [];
-      for (const row of rows) {
-        const digest = openDigest(atRest, row);
-        if (digest !== null && isJsonObject(row) && isString(row.scope)) {
-          out.push({ scope: row.scope, digest });
-        }
-      }
-      return out;
+      return readLegacyDigestsFrom(db, atRest);
     } finally {
       db.close();
     }
   } catch {
     return undefined;
   }
+}
+
+export async function readLegacyDigestsFrom(
+  db: IDBDatabase,
+  atRest: AtRestKey,
+): Promise<LegacyDigest[]> {
+  const rows: BoundaryValue[] = await idbReq(
+    db.transaction(DIGESTS, "readonly").objectStore(DIGESTS).getAll(),
+  );
+  const out: LegacyDigest[] = [];
+  for (const row of rows) {
+    const digest = openDigest(atRest, row);
+    if (digest !== null && isJsonObject(row) && isString(row.scope)) {
+      out.push({ scope: row.scope, digest });
+    }
+  }
+  return out;
 }

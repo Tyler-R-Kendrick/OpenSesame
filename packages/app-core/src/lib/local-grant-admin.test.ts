@@ -1,5 +1,6 @@
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import { listReceipts } from "./device-receipts.js";
 import {
   listRecordedLocalGrants,
@@ -24,18 +25,8 @@ let records: LocalGrantRecord[];
 beforeEach(async () => {
   tomb = `grant-admin-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
   vi.stubGlobal("navigator", {
-    locks: {
-      request: <T>(_name: string, action: () => Promise<T>) => {
-        const next = queue.then(action);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
+    locks: webLocksDouble(),
   });
   const now = Date.now();
   records = [0, 1].map((index) => ({

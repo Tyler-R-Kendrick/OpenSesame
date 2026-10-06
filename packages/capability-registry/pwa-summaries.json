@@ -776,6 +776,30 @@
     }
   },
   {
+    "id": "vaults.retired_credentials",
+    "title": "Retired credentials: enroll bounded detection traps and optional synthetic decoys",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/retired-credentials/index.ts:enrollRetiredCredential"
+    }
+  },
+  {
+    "id": "vaults.controlled_canaries",
+    "title": "Controlled canaries: enroll synthetic artifacts and retired issuer generations",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/credential-canaries/index.ts:createControlledCanary"
+    }
+  },
+  {
+    "id": "vaults.observation_receiver",
+    "title": "Observation receiver: pair and test independent sealed metadata delivery",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/credential-observation/index.ts:configureObservationReceiver"
+    }
+  },
+  {
     "id": "vault.protectors.manage",
     "title": "Vault key protection: enroll a recovery key, passkey, age recipient, AWS KMS or Google Cloud KMS protector, test it, prefer an unlock, or remove it",
     "plane": "client_local",

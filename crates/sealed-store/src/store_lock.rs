@@ -14,8 +14,10 @@
 //!   current root (the key file's manifest MAC), so a key unlocked before a
 //!   rotation cannot write under the old root after it.
 //!
-//! The lock is `flock(2)` on Unix, so a crashed process never leaves it held.
+//! The lock is `flock(2)` on Unix and `LockFileEx` on Windows; process exit
+//! releases either lock. Windows also retains confined ancestor handles.
 
+#[cfg(not(windows))]
 use std::fs::File;
 use std::path::Path;
 
@@ -42,15 +44,18 @@ const RESERVED_TOP_LEVEL: [&str; 4] = [
 ];
 
 /// A held store lock; released when dropped (or when the process exits).
+#[cfg(windows)]
+type PlatformLock = opensesame_human_vault::windows_io::WindowsLock;
+#[cfg(not(windows))]
+type PlatformLock = File;
 pub(crate) struct StoreLock {
-    _file: File,
+    _file: PlatformLock,
 }
 
 impl StoreLock {
     /// The rotation lock: refused while any writer or another rotation holds it.
     pub(crate) fn exclusive(root: &Path) -> Result<Self, StoreError> {
-        let file = open_lock_file(root)?;
-        acquire(&file, true).map_err(|busy| {
+        let file = held_lock(root, true).map_err(|busy| {
             busy.unwrap_or_else(|| {
                 StoreError::Other(
                     "the store is busy: another write or rotation is in progress; retry once \
@@ -65,8 +70,8 @@ impl StoreLock {
     /// An ordinary write: refused while a rotation runs or left its staging.
     pub(crate) fn shared(root: &Path) -> Result<Self, StoreError> {
         refuse_staging(root)?;
-        let file = open_lock_file(root)?;
-        acquire(&file, false).map_err(|busy| busy.unwrap_or_else(rotation_in_progress))?;
+        let file =
+            held_lock(root, false).map_err(|busy| busy.unwrap_or_else(rotation_in_progress))?;
         // A rotation may have created its staging directory between the first
         // check and the lock; with the lock held, look again.
         refuse_staging(root)?;
@@ -152,6 +157,25 @@ fn ensure_current_root(root: &Path, key: &ItemDataKey) -> Result<(), StoreError>
     })
 }
 
+#[cfg(windows)]
+fn held_lock(root: &Path, exclusive: bool) -> Result<PlatformLock, Option<StoreError>> {
+    opensesame_human_vault::windows_io::lock(root, Path::new(STORE_LOCK_FILE), exclusive).map_err(
+        |error| {
+            if error.kind() == std::io::ErrorKind::WouldBlock {
+                None
+            } else {
+                Some(StoreError::Io(error))
+            }
+        },
+    )
+}
+#[cfg(not(windows))]
+fn held_lock(root: &Path, exclusive: bool) -> Result<PlatformLock, Option<StoreError>> {
+    let file = open_lock_file(root).map_err(Some)?;
+    acquire(&file, exclusive)?;
+    Ok(file)
+}
+
 #[cfg(unix)]
 fn open_lock_file(root: &Path) -> Result<File, StoreError> {
     use std::os::unix::fs::OpenOptionsExt;
@@ -192,7 +216,7 @@ fn acquire(file: &File, exclusive: bool) -> Result<(), Option<StoreError>> {
     Err(Some(StoreError::Io(error)))
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn open_lock_file(root: &Path) -> Result<File, StoreError> {
     Ok(std::fs::OpenOptions::new()
         .read(true)
@@ -203,7 +227,7 @@ fn open_lock_file(root: &Path) -> Result<File, StoreError> {
 }
 
 /// Without `flock`, only the staging-directory refusal protects writers.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn acquire(_file: &File, _exclusive: bool) -> Result<(), Option<StoreError>> {
     Ok(())
 }

@@ -12,6 +12,7 @@ import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
 import { useState } from "react";
 import { IconCheck, IconLogin } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { navigateConsentWindow } from "../../../lib/decoy-navigation.js";
 import { Facts } from "./fields.js";
 
 const WAIT_MS = 10 * 60_000;
@@ -168,16 +169,16 @@ export function UserTokenPanel({
 
   async function authorize() {
     if (!subject) return;
-    const popup = openConsentPopup("about:blank");
+    let popup: Window | null = null;
     setBusy("authorize");
     try {
+      popup = openConsentPopup("about:blank");
       const { authorizationUrl } = await authorizeConnectorAs(
         connectorId,
         subject,
         scopes,
       );
-      if (popup) popup.location.href = authorizationUrl;
-      else window.location.href = authorizationUrl;
+      navigateConsentWindow(authorizationUrl, popup);
       await settled(popup);
     } catch (error) {
       popup?.close();

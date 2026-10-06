@@ -1,3 +1,4 @@
+import { assertNotDecoySession } from "./decoy-session.js";
 /**
  * Device-native Identity plane (ADR 0118).
  *
@@ -78,15 +79,21 @@ export async function identityPlaneRequest(
   path: string,
   init: RequestInit & { timeoutMs?: number } = {},
 ): Promise<Response> {
+  const authorityGeneration = assertNotDecoySession();
   if (isDeviceIdentityMode()) {
     // The host, its sessions and its key code load on the first device
     // request, never with the entry: a device that never asks pays nothing.
     const { deviceIdentityFetch } = await import("./device-identity-host.js");
-    return deviceIdentityFetch(path, init);
+    assertNotDecoySession(authorityGeneration);
+    const response = await deviceIdentityFetch(path, init);
+    assertNotDecoySession(authorityGeneration);
+    return response;
   }
   const { timeoutMs = IDENTITY_FETCH_MS, ...rest } = init;
-  return localNetworkFetch(`${resolveIdentityBase()}${path}`, {
+  const response = await localNetworkFetch(`${resolveIdentityBase()}${path}`, {
     ...rest,
     timeoutMs,
   });
+  assertNotDecoySession(authorityGeneration);
+  return response;
 }

@@ -1,30 +1,10 @@
-/**
- * The connections this device holds, and the roads that make them.
- *
- * A connection is one of three things, and every one is made and kept by the
- * browser itself (ADR 0128: Pages does not speak Host; ADR 0151: a connector
- * page acts on the roads a device has):
- *
- * - a **Connect** connector, once Vercel Connect holds its credential;
- * - a **device** connector — a key or a configuration sealed on this device
- *   (`device-connectors.ts`);
- * - a **local git remote** (`connections-local-git.ts`).
- *
- * Nothing here sends a request to a Host. A call no road can take is refused
- * with the reason, never attempted.
- */
-
-import {
-  type JsonObject,
-  isTypeofObject,
-  overlapCast,
-} from "@opensesame/os-domain";
-import type { BoundaryValue } from "@opensesame/os-domain";
-import { page, pageOrigin } from "../ports.js";
+import type { JsonObject } from "@opensesame/os-domain";
+import { page } from "../ports.js";
 import {
   noteConnectionCreated,
   noteConnectionRevoked,
 } from "./activity-log.js";
+import { awaitConnectionConsent } from "./connection-consent.js";
 import { ConnectionsError } from "./connections-error.js";
 import {
   type Integration,
@@ -34,7 +14,13 @@ import {
   mergeLocalGitConnections,
   revokeLocalGitConnection,
 } from "./connections-local-git.js";
+import type { Connection } from "./connections-types.js";
 import { catalogProvider } from "./connector-catalog.js";
+import {
+  assertNotDecoySession,
+  isRealAuthorityBlocked,
+  withRealAuthority,
+} from "./decoy-session.js";
 import {
   createDeviceConnection,
   deviceConnection,
@@ -56,124 +42,18 @@ import * as vercelConnect from "./vercel-connect-ops.js";
 export type { Integration } from "./connections-integrations.js";
 export { ConnectionsError };
 
-export type ProviderCategory =
-  | "identity"
-  | "backup_recovery"
-  | "encryption"
-  | "password_managers"
-  | "agent_harnesses"
-  | "networking"
-  | "wallet"
-  | "cloud_secret_storage"
-  | "local_storage"
-  | "developer"
-  | "productivity"
-  | "communication"
-  | "storage"
-  | "crm"
-  | "testing"
-  | "certificates"
-  | "custom";
-export type AuthKind =
-  | "oauth2_authorization_code"
-  | "api_key"
-  | "configuration";
-
-export type ConfigurationField = {
-  name: string;
-  label: string;
-  secret: boolean;
-  required: boolean;
-};
-
-export type ScopeDef = {
-  name: string;
-  description: string;
-  sensitive: boolean;
-  default: boolean;
-};
-
-export type Egress = {
-  scheme: string;
-  authorities: string[];
-  pathPrefixes: string[];
-};
-
-export type Provider = {
-  id: string;
-  displayName: string;
-  category: ProviderCategory;
-  docsUrl: string;
-  authKind: AuthKind;
-  supportsRefresh: boolean;
-  /** Deployment has a client id and secret for this provider. */
-  configured: boolean;
-  /** Host can supply every connection field without asking the user. */
-  autoConfigurable: boolean;
-  /** Exact environment variables the deployment is missing. Empty when configured. */
-  missingConfig: string[];
-  /** Host OAuth callback URL for this provider, when applicable. */
-  callbackUrl: string | null;
-  scopes: ScopeDef[];
-  egress: Egress;
-  operations: string[];
-  configurationFields?: ConfigurationField[];
-};
-
-export type ConnectionStatus =
-  | "pending"
-  | "active"
-  | "needs_reauth"
-  | "expired"
-  | "revoked"
-  | "error";
-
-export type BindingTargetKind =
-  | "organization"
-  | "project"
-  | "agent"
-  | "group"
-  | "device"
-  | "identity";
-
-export type Binding = {
-  id: string;
-  targetKind: BindingTargetKind;
-  targetId: string;
-  targetLabel: string | null;
-  createdAt: string;
-};
-
-export type Connection = {
-  connectionId: string;
-  connectionRef: string;
-  logicalName: string;
-  displayName: string;
-  providerId: string;
-  /** Tenant integration that sealed this connection's OAuth/App credentials. */
-  integrationId: string | null;
-  status: ConnectionStatus;
-  statusDetail: string | null;
-  organizationId: string;
-  projectId: string | null;
-  ownerKind: string;
-  shareability: "private" | "delegable" | "organization_wide";
-  requestedScopes: string[];
-  grantedScopes: string[];
-  accountLabel: string | null;
-  expiresAt: string | null;
-  refreshable: boolean;
-  lastRefreshedAt: string | null;
-  maxInvokeLevel: number;
-  egress: Egress;
-  bindings: Binding[];
-  createdAt: string;
-  updatedAt: string;
-};
-
-function obj(value: BoundaryValue): JsonObject {
-  return value && isTypeofObject(value) ? overlapCast(value) : {};
-}
+export type {
+  ProviderCategory,
+  AuthKind,
+  ConfigurationField,
+  ScopeDef,
+  Egress,
+  Provider,
+  ConnectionStatus,
+  BindingTargetKind,
+  Binding,
+  Connection,
+} from "./connections-types.js";
 
 /** A call no road on this device can take: said with its reason, not tried. */
 function noRoad(providerName: string, what: string): ConnectionsError {
@@ -237,6 +117,7 @@ function listConnectionsDefault(): Promise<Connection[]> {
 }
 
 export function getConnection(id: string): Promise<Connection> {
+  assertNotDecoySession();
   const local =
     deviceConnection(id) ??
     mergeLocalGitConnections([]).find((row) => row.connectionId === id);
@@ -280,22 +161,22 @@ function authorizeConnectionDefault(
   return Promise.reject(noRoad("This connection", "be authorized"));
 }
 
-function setConnectionCredentialDefault(
+async function setConnectionCredentialDefault(
   id: string,
   value: string,
 ): Promise<Connection> {
-  const sealed = sealDeviceCredential(id, value);
+  const sealed = await sealDeviceCredential(id, value);
   return sealed
     ? Promise.resolve(sealed)
     : Promise.reject(noRoad("This connection", "hold a key"));
 }
 
-function setConnectionConfigurationDefault(
+async function setConnectionConfigurationDefault(
   id: string,
   configurationSet: Record<string, string>,
   _configurationClear: string[] = [],
 ): Promise<Connection> {
-  const sealed = sealDeviceConfiguration(id, configurationSet);
+  const sealed = await sealDeviceConfiguration(id, configurationSet);
   return sealed
     ? Promise.resolve(sealed)
     : Promise.reject(noRoad("This connection", "hold a configuration"));
@@ -305,7 +186,7 @@ async function revokeConnectionDefault(id: string): Promise<{
   revoked: boolean;
   providerRevocation: "ok" | "unsupported" | "failed";
 }> {
-  const device = revokeDeviceConnection(id);
+  const device = await revokeDeviceConnection(id);
   if (device) return device;
   const local = await revokeLocalGitConnection(id);
   if (local) return local;
@@ -321,76 +202,12 @@ export type ConsentOutcome =
   | { result: "failed"; connection: Connection }
   | { result: "abandoned" };
 
-const POLL_MS = 1500;
-const CONSENT_TIMEOUT_MS = 5 * 60_000;
-
-/**
- * Wait for the consent popup's round trip. Connect bounces the popup back to
- * this app, which tells its opener from its own origin, so that is the one
- * origin a message may come from; the poll settles it when no message does.
- */
-async function awaitConsentDefault(
+function awaitConsentDefault(
   connectionId: string,
   popup: Window | null,
   signal?: AbortSignal,
 ): Promise<ConsentOutcome> {
-  const origin = pageOrigin();
-  const deadline = Date.now() + CONSENT_TIMEOUT_MS;
-
-  let settled = false;
-  let sawMessage = false;
-  let onMessage: ((event: MessageEvent) => void) | null = null;
-
-  const messaged = new Promise<void>((resolve) => {
-    onMessage = (event: MessageEvent) => {
-      if (event.origin !== origin) return;
-      const data = obj(event.data);
-      if (data.type !== "opensesame:connection") return;
-      if (data.connectionId !== connectionId) return;
-      sawMessage = true;
-      resolve();
-    };
-    page().addEventListener("message", onMessage);
-  });
-
-  try {
-    while (!settled) {
-      if (signal?.aborted) return { result: "abandoned" };
-      if (Date.now() > deadline) return { result: "abandoned" };
-
-      if (sawMessage) {
-        await sleep(POLL_MS);
-      } else {
-        await Promise.race([messaged, sleep(POLL_MS)]);
-      }
-
-      const connection = await getConnection(connectionId).catch(() => null);
-      if (connection && connection.status !== "pending") {
-        settled = true;
-        return connection.status === "active"
-          ? { result: "active", connection }
-          : { result: "failed", connection };
-      }
-
-      if (popup?.closed) {
-        await sleep(POLL_MS);
-        const last = await getConnection(connectionId).catch(() => null);
-        if (last && last.status !== "pending") {
-          return last.status === "active"
-            ? { result: "active", connection: last }
-            : { result: "failed", connection: last };
-        }
-        return { result: "abandoned" };
-      }
-    }
-    return { result: "abandoned" };
-  } finally {
-    if (onMessage) page().removeEventListener("message", onMessage);
-  }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return awaitConnectionConsent(connectionId, popup, getConnection, signal);
 }
 
 function openConsentPopupDefault(url: string): Window | null {
@@ -416,26 +233,33 @@ export const connectionSeams = {
 };
 
 export function listIntegrations(): Promise<Integration[]> {
-  return connectionSeams.listIntegrations();
+  if (isRealAuthorityBlocked()) return Promise.resolve([]);
+  return withRealAuthority(() => connectionSeams.listIntegrations());
 }
 export function startGithubAppRegistration(
   body: Parameters<typeof startGithubAppRegistrationDefault>[0],
 ): Promise<GithubAppRegistration> {
-  return connectionSeams.startGithubAppRegistration(body);
+  return withRealAuthority(() =>
+    connectionSeams.startGithubAppRegistration(body),
+  );
 }
 export function submitGithubAppManifest(
   ...args: Parameters<typeof submitGithubAppManifestDefault>
 ): ReturnType<typeof submitGithubAppManifestDefault> {
+  assertNotDecoySession();
   return connectionSeams.submitGithubAppManifest(...args);
 }
 export function listConnections(): Promise<Connection[]> {
+  if (isRealAuthorityBlocked()) return Promise.resolve([]);
   performSavedCategory(["password_managers", "local_storage"]);
-  return connectionSeams.listConnections();
+  return withRealAuthority(() => connectionSeams.listConnections());
 }
 export async function createConnection(
   body: Parameters<typeof createConnectionDefault>[0],
 ): Promise<Connection> {
+  const authorityGeneration = assertNotDecoySession();
   const created = await connectionSeams.createConnection(body);
+  assertNotDecoySession(authorityGeneration);
   if (isGuestSession()) claimGuestConnection(created.connectionId);
   noteConnectionCreated(created.connectionId);
   return created;
@@ -443,29 +267,35 @@ export async function createConnection(
 export function authorizeConnection(
   ...args: Parameters<typeof authorizeConnectionDefault>
 ): ReturnType<typeof authorizeConnectionDefault> {
-  return connectionSeams.authorizeConnection(...args);
+  return withRealAuthority(() => connectionSeams.authorizeConnection(...args));
 }
 export function setConnectionCredential(
   ...args: Parameters<typeof setConnectionCredentialDefault>
 ): ReturnType<typeof setConnectionCredentialDefault> {
-  return connectionSeams.setConnectionCredential(...args);
+  return withRealAuthority(() =>
+    connectionSeams.setConnectionCredential(...args),
+  );
 }
 export async function awaitConsent(
   ...args: Parameters<typeof awaitConsentDefault>
 ): ReturnType<typeof awaitConsentDefault> {
-  return connectionSeams.awaitConsent(...args);
+  return withRealAuthority(() => connectionSeams.awaitConsent(...args));
 }
 export function openConsentPopup(url: string): Window | null {
+  assertNotDecoySession();
   return connectionSeams.openConsentPopup(url);
 }
 export function setConnectionConfiguration(
   ...args: Parameters<typeof setConnectionConfigurationDefault>
 ): ReturnType<typeof setConnectionConfigurationDefault> {
-  return connectionSeams.setConnectionConfiguration(...args);
+  return withRealAuthority(() =>
+    connectionSeams.setConnectionConfiguration(...args),
+  );
 }
 export function revokeConnection(
   id: string,
 ): ReturnType<typeof revokeConnectionDefault> {
+  assertNotDecoySession();
   const result = connectionSeams.revokeConnection(id);
   noteConnectionRevoked(id);
   return result;

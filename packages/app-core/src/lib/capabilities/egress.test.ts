@@ -1,5 +1,6 @@
 import type { EffectivePlan } from "@opensesame/capability-composition";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { markDecoySession } from "../decoy-session.js";
 import {
   FAMILY_POLICY,
   MANAGED_POLICY,
@@ -306,4 +307,28 @@ describe("installPlanAwareEgress (S18)", () => {
       EgressDenied,
     );
   });
+});
+
+it("denies external capability traffic in a decoy while retaining application assets", async () => {
+  const plan = approvedPlan([CONNECTORS], FAMILY_POLICY);
+  const { port: p, fetchImpl } = port(CONNECTORS, plan);
+  markDecoySession(true);
+  try {
+    await expect(
+      p.fetch(
+        "https://id.example.test/v1/connectors",
+        { headers: { Authorization: "Bearer member" } },
+        { capability: CONNECTORS, purpose: CONNECTOR_PURPOSE },
+      ),
+    ).rejects.toThrow("authenticate again");
+    expect(fetchImpl).not.toHaveBeenCalled();
+    await expect(
+      p.fetch("/OpenSesame/assets/x.js", undefined, {
+        capability: CONNECTORS,
+        purpose: "",
+      }),
+    ).resolves.toHaveProperty("status", 200);
+  } finally {
+    markDecoySession(false);
+  }
 });

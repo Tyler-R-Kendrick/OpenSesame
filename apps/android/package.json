@@ -4,6 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test test/native-contract.test.mjs"
+    "test": "node --test test/native-contract.test.mjs",
+    "test:core": "bash scripts/test-native.sh core",
+    "test:android": "bash scripts/test-native.sh android",
+    "test:swift": "bash scripts/test-native.sh swift",
+    "test:apple": "bash scripts/test-apple.sh",
+    "test:windows:engine": "pwsh -File scripts/test-windows.ps1 -Phase engine",
+    "test:windows:ffi": "pwsh -File scripts/test-windows.ps1 -Phase ffi",
+    "test:windows:cli": "pwsh -File scripts/test-windows.ps1 -Phase cli"
   }
 }

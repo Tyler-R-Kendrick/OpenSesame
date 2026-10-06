@@ -6857,6 +6857,118 @@
     }
   },
   {
+    "id": "vaults.retired_credentials",
+    "title": "Retired credentials: enroll bounded detection traps and optional synthetic decoys",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id vault retired-credentials enroll",
+      "pwa": "lib/retired-credentials/index.ts:enrollRetiredCredential",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "enrolling, removing or clearing retired credential traps requires fresh owner authentication; agents never acquire password history or arm deception",
+        "adr": "0177-retired-credential-traps.md"
+      },
+      "mcp_client": {
+        "reason": "enrolling, removing or clearing retired credential traps requires fresh owner authentication; agents never acquire password history or arm deception",
+        "adr": "0177-retired-credential-traps.md"
+      },
+      "webmcp": {
+        "reason": "enrolling, removing or clearing retired credential traps requires fresh owner authentication; agents never acquire password history or arm deception",
+        "adr": "0177-retired-credential-traps.md"
+      }
+    }
+  },
+  {
+    "id": "vaults.controlled_canaries",
+    "title": "Controlled canaries: enroll synthetic artifacts and retired issuer generations",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id security canary create",
+      "pwa": "lib/credential-canaries/index.ts:createControlledCanary",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "canary enrollment and receiver pairing require fresh real-owner authentication; agents cannot change detection or its external destination",
+        "adr": "0177-retired-credential-traps.md"
+      },
+      "mcp_client": {
+        "reason": "canary enrollment and receiver pairing require fresh real-owner authentication; agents cannot change detection or its external destination",
+        "adr": "0177-retired-credential-traps.md"
+      },
+      "webmcp": {
+        "reason": "canary enrollment and receiver pairing require fresh real-owner authentication; agents cannot change detection or its external destination",
+        "adr": "0177-retired-credential-traps.md"
+      }
+    }
+  },
+  {
+    "id": "vaults.observation_receiver",
+    "title": "Observation receiver: pair and test independent sealed metadata delivery",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame-id security receiver configure",
+      "pwa": "lib/credential-observation/index.ts:configureObservationReceiver",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "canary enrollment and receiver pairing require fresh real-owner authentication; agents cannot change detection or its external destination",
+        "adr": "0177-retired-credential-traps.md"
+      },
+      "mcp_client": {
+        "reason": "canary enrollment and receiver pairing require fresh real-owner authentication; agents cannot change detection or its external destination",
+        "adr": "0177-retired-credential-traps.md"
+      },
+      "webmcp": {
+        "reason": "canary enrollment and receiver pairing require fresh real-owner authentication; agents cannot change detection or its external destination",
+        "adr": "0177-retired-credential-traps.md"
+      }
+    }
+  },
+  {
+    "id": "vaults.native_canary_detector",
+    "title": "Native canary detector: install a synthetic validator without real vault authority",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": "opensesame canary install",
+      "pwa": null,
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "pwa": {
+        "reason": "the browser exports a canary configuration; installing its independent native stdio detector requires a human ceremony in that native environment",
+        "adr": "0177-retired-credential-traps.md"
+      },
+      "mcp_host": {
+        "reason": "canary enrollment and receiver pairing require fresh real-owner authentication; agents cannot change detection or its external destination",
+        "adr": "0177-retired-credential-traps.md"
+      },
+      "mcp_client": {
+        "reason": "canary enrollment and receiver pairing require fresh real-owner authentication; agents cannot change detection or its external destination",
+        "adr": "0177-retired-credential-traps.md"
+      },
+      "webmcp": {
+        "reason": "canary enrollment and receiver pairing require fresh real-owner authentication; agents cannot change detection or its external destination",
+        "adr": "0177-retired-credential-traps.md"
+      }
+    }
+  },
+  {
     "id": "vault.protectors.manage",
     "title": "Vault key protection: enroll a recovery key, passkey, age recipient, AWS KMS or Google Cloud KMS protector, test it, prefer an unlock, or remove it",
     "plane": "client_local",

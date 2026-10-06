@@ -1,5 +1,5 @@
 // live-turn is the TURN server verify:live-join runs (ADR 0150 §6) when a walk
-// has to prove a transport node-turn does not speak: TURN over UDP, over TCP
+// proves authenticated TURN over UDP, over TCP
 // and over TLS at once, on one loopback address, with long-term credentials
 // (RFC 8656 / RFC 5766, RFC 6062 not used) — built on pion/turn.
 //
@@ -104,6 +104,7 @@ func mint(dir string) {
 
 func serve(args []string) {
 	flags := flag.NewFlagSet("serve", flag.ExitOnError)
+	listen := flags.String("listen", "127.0.0.1", "local IPv4 listener and relay address")
 	user := flags.String("user", "", "long-term credential name")
 	credential := flags.String("credential", "", "long-term credential secret")
 	restSecret := flags.String("rest-secret", "", "TURN REST shared secret, instead of -user and -credential")
@@ -116,9 +117,13 @@ func serve(args []string) {
 	}
 
 	stats := newStats()
-	loopback := net.ParseIP("127.0.0.1")
+	address := net.ParseIP(*listen)
+	if address == nil || address.To4() == nil {
+		fail("listen needs a local IPv4 address")
+	}
+	bind := net.JoinHostPort(*listen, "0")
 	relay := func() turn.RelayAddressGenerator {
-		return &turn.RelayAddressGeneratorStatic{RelayAddress: loopback, Address: "127.0.0.1"}
+		return &turn.RelayAddressGeneratorStatic{RelayAddress: address, Address: *listen}
 	}
 	ready := map[string]any{"ready": true}
 	config := turn.ServerConfig{
@@ -127,7 +132,7 @@ func serve(args []string) {
 		EventHandler: stats.events(),
 	}
 
-	udp, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	udp, err := net.ListenPacket("udp4", bind)
 	check(err)
 	ready["udp"] = port(udp.LocalAddr())
 	stats.name(port(udp.LocalAddr()), "udp")
@@ -135,7 +140,7 @@ func serve(args []string) {
 		PacketConn: stats.countPackets("udp", udp), RelayAddressGenerator: relay(),
 	}}
 
-	tcp, err := net.Listen("tcp4", "127.0.0.1:0")
+	tcp, err := net.Listen("tcp4", bind)
 	check(err)
 	ready["tcp"] = port(tcp.Addr())
 	stats.name(port(tcp.Addr()), "tcp")
@@ -146,7 +151,7 @@ func serve(args []string) {
 	if *certFile != "" || *keyFile != "" {
 		pair, err := tls.LoadX509KeyPair(*certFile, *keyFile)
 		check(err)
-		inner, err := net.Listen("tcp4", "127.0.0.1:0")
+		inner, err := net.Listen("tcp4", bind)
 		check(err)
 		ready["tls"] = port(inner.Addr())
 		stats.name(port(inner.Addr()), "tls")

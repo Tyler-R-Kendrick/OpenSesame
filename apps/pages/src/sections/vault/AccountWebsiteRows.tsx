@@ -1,5 +1,6 @@
 import { loginWebsiteLink } from "@opensesame/app-core/lib/vault/website-pattern.js";
 import { type AccountItem, hostOf } from "@opensesame/vault-core";
+import { SessionAnchor } from "../../components/DecoyNavigationAnchor.js";
 import { CopyButton, FieldRow } from "../../components/FieldRow.js";
 import { IconExternal } from "../../components/Icons.js";
 
@@ -29,7 +30,7 @@ export function AccountWebsiteRows({
               actions={
                 <>
                   {href ? (
-                    <a
+                    <SessionAnchor
                       className="icon-btn"
                       href={href}
                       target="_blank"
@@ -38,7 +39,7 @@ export function AccountWebsiteRows({
                       title="Open in a new tab"
                     >
                       <IconExternal size={17} />
-                    </a>
+                    </SessionAnchor>
                   ) : null}
                   <CopyButton
                     value={uri.uri}

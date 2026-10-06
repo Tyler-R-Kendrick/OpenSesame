@@ -134,3 +134,11 @@ DevTools input, so it stays covered by `lib/fill/service.test.ts`.
 Each refusal test was run against a build with its check removed (opacity,
 hit test, the second look after the round trip, the identity of the focused
 field, passkey) and fails there.
+
+WXT development uses its supported manual runner. Run the `dev` command above,
+then load the unpacked output path printed by WXT through `chrome://extensions`
+(Developer mode → Load unpacked), or Firefox’s temporary add-on loader.
+The optional `web-ext` launcher is omitted because its Android ADB dependency
+requires an unpatched vulnerable `node-forge`. Automatic browser launching and
+Firefox Android development through that launcher are unavailable; production
+builds, archives and the Playwright browser suites use no such launcher.

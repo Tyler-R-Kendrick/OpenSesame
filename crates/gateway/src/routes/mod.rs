@@ -18,6 +18,7 @@ mod changelog;
 mod connections;
 #[cfg(test)]
 mod contract;
+mod credential_canaries;
 mod credential_connections;
 mod delegations;
 mod device;
@@ -363,6 +364,7 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/tasks/{id}/terminate", post(tasks::terminate_task))
         // ADR 0159: agent-hooks verdicts and the organization's hook policy.
         .merge(agent_hooks::routes())
+        .merge(credential_canaries::routes())
         // ADR 0076 §4, ADR 0159: the recipes a web-login run replays, and their signers.
         .merge(web_login_recipes::routes())
         .merge(aauth::routes());

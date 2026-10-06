@@ -1,3 +1,14 @@
+import {
+  type JsonValue,
+  isJsonObject,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
+import {
+  type ObjectStore,
+  type VaultItem,
+  readFileManifest,
+} from "@opensesame/vault-core";
 /**
  * Attachments over a tailnet drive (ADR 0144).
  *
@@ -15,17 +26,7 @@
  * before pairing). A device that lacks a part reads it from the drive and
  * keeps it, so a file opened once opens offline after.
  */
-import {
-  type JsonValue,
-  isJsonObject,
-  isString,
-  overlapCast,
-} from "@opensesame/os-domain";
-import {
-  type ObjectStore,
-  type VaultItem,
-  readFileManifest,
-} from "@opensesame/vault-core";
+import { assertNotDecoySession } from "../decoy-session.js";
 import {
   driveClientSeams,
   driveHeaders,
@@ -42,14 +43,17 @@ function partUrl(pairing: DrivePairing, key: string): string {
 export async function listDriveParts(
   pairing: DrivePairing,
 ): Promise<Set<string>> {
+  const generation = assertNotDecoySession();
   const response = await driveClientSeams.fetch(`${slotBase(pairing)}/parts`, {
     method: "GET",
     headers: driveHeaders(pairing),
     credentials: "omit",
     cache: "no-store",
   });
+  assertNotDecoySession(generation);
   if (!response.ok) throw refused(response);
   const json = await readJson(response);
+  assertNotDecoySession(generation);
   const parts =
     isJsonObject(json) && Array.isArray(json.parts) ? json.parts : [];
   return new Set(parts.filter(isString));
@@ -59,15 +63,20 @@ export async function readDrivePart(
   pairing: DrivePairing,
   key: string,
 ): Promise<Uint8Array | null> {
+  const generation = assertNotDecoySession();
   const response = await driveClientSeams.fetch(partUrl(pairing, key), {
     method: "GET",
     headers: driveHeaders(pairing, "application/octet-stream"),
     credentials: "omit",
     cache: "no-store",
   });
+  assertNotDecoySession(generation);
   if (response.status === 404) return null;
+  assertNotDecoySession(generation);
   if (!response.ok) throw refused(response);
-  return new Uint8Array(await response.arrayBuffer());
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  assertNotDecoySession(generation);
+  return bytes;
 }
 
 export async function writeDrivePart(
@@ -75,12 +84,14 @@ export async function writeDrivePart(
   key: string,
   bytes: Uint8Array,
 ): Promise<void> {
+  const generation = assertNotDecoySession();
   const response = await driveClientSeams.fetch(partUrl(pairing, key), {
     method: "PUT",
     headers: driveHeaders(pairing, "application/octet-stream"),
     credentials: "omit",
     body: bytes,
   });
+  assertNotDecoySession(generation);
   if (!response.ok) throw refused(response);
 }
 
@@ -93,14 +104,20 @@ export function driveFileStore(
   pairing: DrivePairing,
   local: ObjectStore,
 ): ObjectStore {
+  const generation = assertNotDecoySession();
   return {
     async getObject(key) {
+      assertNotDecoySession(generation);
       const bytes = await readDrivePart(pairing, key).catch(() => null);
+      assertNotDecoySession(generation);
       if (bytes) await local.putObject(key, bytes).catch(() => undefined);
+      assertNotDecoySession(generation);
       return bytes;
     },
     async putObject(key, body) {
+      assertNotDecoySession(generation);
       await writeDrivePart(pairing, key, body).catch(() => undefined);
+      assertNotDecoySession(generation);
     },
   };
 }
@@ -134,15 +151,19 @@ export async function putMissingParts(
   items: readonly VaultItem[],
   local: ObjectStore,
 ): Promise<number> {
+  const generation = assertNotDecoySession();
   const wanted = referencedParts(items);
   if (wanted.size === 0) return 0;
   const held = await listDriveParts(pairing);
+  assertNotDecoySession(generation);
   let put = 0;
   for (const key of wanted) {
     if (held.has(key)) continue;
     const bytes = await local.getObject(key);
+    assertNotDecoySession(generation);
     if (!bytes) continue;
     await writeDrivePart(pairing, key, bytes);
+    assertNotDecoySession(generation);
     put += 1;
   }
   return put;

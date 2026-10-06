@@ -12,6 +12,7 @@ import { resetDeliveredModels } from "./hosted-inference.js";
 import { identitySeams } from "./identity.js";
 import { kvGet } from "./kv.js";
 import { MODEL_PROVIDER_KEY, savedModelRequests } from "./model-provider.js";
+import { vaultStore } from "./vault/store.js";
 
 const originalIdentity = { ...identitySeams };
 
@@ -44,19 +45,21 @@ async function saveConnector(id: string, secret: string): Promise<void> {
 }
 
 describe("savedModelRequests", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     identitySeams.hostBase = () => "";
     identitySeams.hostLocalSessionEligible = () => false;
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response("{}", { status: 200 }),
     );
+    await vaultStore.createGuest({ resume: false });
     resetDeliveredModels();
-    forgetDeviceConnectors();
+    await forgetDeviceConnectors();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     Object.assign(identitySeams, originalIdentity);
-    forgetDeviceConnectors();
+    await forgetDeviceConnectors();
+    vaultStore.lock();
     vi.restoreAllMocks();
   });
 

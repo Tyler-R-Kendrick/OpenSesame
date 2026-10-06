@@ -133,3 +133,19 @@ async fn bootstrap_intent_requires_proven_assurance_even_in_its_organization() {
     let response = create(State(state), headers, Json(request)).await;
     assert_eq!(response.status(), StatusCode::OK);
 }
+
+#[tokio::test]
+async fn reserved_references_are_rejected_before_connection_lookup() {
+    let state = crate::app_state::test_demo_state().await;
+    let boot = state.bootstrap.lock().unwrap().clone().unwrap();
+    for reference in [
+        "oscanary:v1:malformed",
+        "oscanary:v2:forged",
+        "oscanary:v1:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    ] {
+        let mut request = body();
+        request.connection_ref = Some(reference.into());
+        let result = resolve_invocation(&state, &boot, "user:demo", &request, 1).await;
+        assert!(matches!(result, Err(response) if response.status() == StatusCode::FORBIDDEN));
+    }
+}

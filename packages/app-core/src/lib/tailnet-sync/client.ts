@@ -17,6 +17,7 @@ import {
   isJsonObject,
   isNumber,
 } from "@opensesame/os-domain";
+import { assertNotDecoySession } from "../decoy-session.js";
 import {
   type LocalNetworkFetchInit,
   localNetworkFetch,
@@ -84,6 +85,7 @@ export function driveHeaders(
   pairing: DrivePairing,
   contentType = "application/json",
 ): HeadersInit {
+  assertNotDecoySession();
   return tailnetSyncHeaders(
     { Authorization: `Bearer ${pairing.key}`, "Content-Type": contentType },
     currentTailnet(),
@@ -126,6 +128,7 @@ export function refused(response: Response): DriveError {
 }
 
 function getSlot(pairing: DrivePairing, timeoutMs?: number) {
+  assertNotDecoySession();
   return driveClientSeams.fetch(slotUrl(pairing), {
     ...(timeoutMs ? { timeoutMs } : undefined),
     method: "GET",
@@ -145,14 +148,19 @@ export async function reachDrive(
   pairing: DrivePairing,
   waitMs: number,
 ): Promise<void> {
+  const authorityGeneration = assertNotDecoySession();
   const response = await getSlot(pairing, waitMs);
+  assertNotDecoySession(authorityGeneration);
   if (!response.ok) throw refused(response);
 }
 
 export async function readDrive(pairing: DrivePairing): Promise<DriveRead> {
+  const authorityGeneration = assertNotDecoySession();
   const response = await getSlot(pairing);
+  assertNotDecoySession(authorityGeneration);
   if (!response.ok) throw refused(response);
   const json = await readJson(response);
+  assertNotDecoySession(authorityGeneration);
   const generation = generationOf(json);
   const raw = isJsonObject(json) ? json.snapshot : null;
   return {
@@ -167,15 +175,16 @@ export async function writeDrive(
   expectedGeneration: number,
   snapshot: DriveSnapshot,
 ): Promise<DriveWrite> {
+  const authorityGeneration = assertNotDecoySession();
   const response = await driveClientSeams.fetch(slotUrl(pairing), {
     method: "PUT",
     headers: headers(pairing),
     credentials: "omit",
     body: JSON.stringify({ expected_generation: expectedGeneration, snapshot }),
   });
-  if (response.status === 409) {
-    return { ok: false, generation: generationOf(await readJson(response)) };
-  }
-  if (!response.ok) throw refused(response);
-  return { ok: true, generation: generationOf(await readJson(response)) };
+  assertNotDecoySession(authorityGeneration);
+  if (response.status !== 409 && !response.ok) throw refused(response);
+  const json = await readJson(response);
+  assertNotDecoySession(authorityGeneration);
+  return { ok: response.status !== 409, generation: generationOf(json) };
 }

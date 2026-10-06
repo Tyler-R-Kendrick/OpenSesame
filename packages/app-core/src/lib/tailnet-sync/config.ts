@@ -1,3 +1,4 @@
+import { isJsonObject, isString } from "@opensesame/os-domain";
 /**
  * Where this device keeps its drive pairing (ADR 0144): sealed in the vault's
  * own tomb, so the slot key is readable only while the vault is open, and
@@ -7,7 +8,7 @@
  * drive — waits in memory until the adopted vault is unlocked, then is sealed
  * like any other. A reload before that forgets it, which costs a paste.
  */
-import { isJsonObject, isString } from "@opensesame/os-domain";
+import { assertNotDecoySession } from "../decoy-session.js";
 import { VfsError, deleteFile, readFile, writeFile } from "../vfs.js";
 import {
   type DrivePairing,
@@ -21,6 +22,7 @@ let pending: { pairing: DrivePairing; tomb: string } | null = null;
 
 /** Hold a pairing for the tomb it was adopted into, until that tomb opens. */
 export function holdPendingPairing(pairing: DrivePairing, tomb: string): void {
+  assertNotDecoySession();
   pending = { pairing, tomb };
 }
 
@@ -29,6 +31,7 @@ export function holdPendingPairing(pairing: DrivePairing, tomb: string): void {
  * opening first — a project, say — neither takes it nor clears it.
  */
 export function takePendingPairing(tomb: string): DrivePairing | null {
+  assertNotDecoySession();
   if (pending?.tomb !== tomb) return null;
   const held = pending.pairing;
   pending = null;
@@ -38,9 +41,11 @@ export function takePendingPairing(tomb: string): DrivePairing | null {
 export async function readDriveConfig(
   tomb: string,
 ): Promise<DrivePairing | null> {
+  const generation = assertNotDecoySession();
   let bytes: Uint8Array;
   try {
     bytes = await readFile(tomb, DRIVE_CONFIG_PATH);
+    assertNotDecoySession(generation);
   } catch (error) {
     if (error instanceof VfsError && error.code === "not-found") return null;
     throw error;
@@ -58,12 +63,15 @@ export async function writeDriveConfig(
   tomb: string,
   pairing: DrivePairing | null,
 ): Promise<void> {
+  const generation = assertNotDecoySession();
   if (!pairing) {
     await deleteFile(tomb, DRIVE_CONFIG_PATH);
+    assertNotDecoySession(generation);
     return;
   }
   // Stored as the pairing code itself, so a stored value passes the same
   // checks a pasted one does every time it is read back.
   const text = JSON.stringify({ v: 1, code: formatPairingCode(pairing) });
   await writeFile(tomb, DRIVE_CONFIG_PATH, new TextEncoder().encode(text));
+  assertNotDecoySession(generation);
 }

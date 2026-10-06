@@ -1,6 +1,7 @@
 import type { LocalAuthorizationRequest } from "@opensesame/static-auth";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { vi } from "vitest";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import {
   consumeLocalAccessRequest,
   decideLocalAccessRequest,
@@ -38,21 +39,11 @@ export async function localRequestFixture() {
   const tomb = `local-requests-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
   const device = await authenticator();
-  let queue = Promise.resolve();
   vi.stubGlobal("isSecureContext", true);
   vi.stubGlobal("location", { origin, hostname: rpID });
   vi.stubGlobal("navigator", {
     credentials: device,
-    locks: {
-      request: <T>(_name: string, action: () => Promise<T>) => {
-        const next = queue.then(action);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
+    locks: webLocksDouble(),
   });
   async function change(input: LocalDirectoryChange) {
     return changeLocalDirectory(

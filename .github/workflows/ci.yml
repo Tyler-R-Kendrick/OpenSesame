@@ -21,6 +21,15 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      test_depth:
+        description: Require exact verification, global coverage, scans, selected mutation and native fuzz
+        type: boolean
+        default: false
+      extension_mutation:
+        description: Also require the separate genuine BrowserHost feature mutation scope
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -42,6 +51,7 @@ jobs:
       "rust": ${{ steps.areas.outputs.rust }}
       mtls: ${{ steps.areas.outputs.mtls }}
       "push": ${{ steps.areas.outputs.push }}
+      native: ${{ steps.areas.outputs.native }}
       # The browser gates this diff reaches (scripts/lib/ci-gates.mjs): the
       # bundle job's legs as a matrix, and the gates that are jobs of their own.
       bundle_matrix: ${{ steps.areas.outputs.bundle_matrix }}
@@ -174,6 +184,16 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.changes.outputs.bundle_matrix) }}
     steps:
+      - name: Initialize isolated browser evidence before setup
+        id: browser_evidence
+        if: matrix.shard == 'auth' || matrix.shard == 'duress'
+        run: |
+          evidence_root="$(mktemp -d "$RUNNER_TEMP/retired-credential-evidence.XXXXXX")"
+          for target in browser controlled extensions/main extensions/autofill duress; do
+            mkdir -p "$evidence_root/$target"
+            printf 'CI run: %s\nSource: %s\nOnly files created by this job belong here.\n' "$GITHUB_RUN_ID" "$GITHUB_SHA" > "$evidence_root/$target/run.txt"
+          done
+          echo "root=$evidence_root" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           persist-credentials: false
@@ -233,6 +253,33 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:keyboard
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        if: matrix.shard == 'keyboard' || matrix.shard == 'live-transports'
+        with:
+          go-version: '1.24.10'
+          cache-dependency-path: scripts/test/live-turn/go.sum
+      - name: Build the pinned TURN fixture
+        if: matrix.shard == 'keyboard' || matrix.shard == 'live-transports'
+        run: |
+          mkdir -p .cache/live-fixtures/bin
+          cd scripts/test/live-turn
+          CGO_ENABLED=0 GOFLAGS=-mod=readonly go build -trimpath -o ../../../.cache/live-fixtures/bin/live-turn .
+      - name: Real TURN protocol and browser relay transports
+        if: matrix.shard == 'live-transports'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+          LIVE_SCENARIOS: relayed,relayed-tcp,relayed-tls
+        run: |
+          (cd scripts/test/live-turn && GOFLAGS=-mod=readonly go test -v ./...)
+          pnpm --filter @opensesame/pages build:live-dedicated
+          pnpm --filter @opensesame/pages verify:live-join
+      - name: Keyboard-only production TURN TCP route
+        if: matrix.shard == 'keyboard'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:relay-keyboard
       - name: Push worker installs on approval and reverts on removal
         if: matrix.shard == 'budgets'
         # A real localhost origin with service workers allowed (context.route
@@ -306,6 +353,89 @@ jobs:
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
         run: pnpm verify:customer-vault-browser
+      - name: Duress owner enrollment and isolated synthetic unlock
+        if: matrix.shard == 'duress'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+          DURESS_BROWSER_EVIDENCE_OUT: ${{ steps.browser_evidence.outputs.root }}/duress
+        run: |
+          set -o pipefail
+          pnpm --filter @opensesame/pages verify:duress:browser 2>&1 | tee "$DURESS_BROWSER_EVIDENCE_OUT/stdout.txt"
+      - name: Preserve duress browser evidence
+        if: always() && matrix.shard == 'duress'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: duress-browser-evidence
+          path: ${{ steps.browser_evidence.outputs.root }}/duress/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Retired credentials and synthetic owner recovery
+        if: matrix.shard == 'auth'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+          RETIRED_EVIDENCE_OUT: ${{ steps.browser_evidence.outputs.root }}/browser
+        run: |
+          set -o pipefail
+          pnpm --filter @opensesame/pages verify:retired-credentials 2>&1 | tee "$RETIRED_EVIDENCE_OUT/online.stdout.txt"
+      - name: Retired credentials after offline service worker restart
+        if: matrix.shard == 'auth'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+          RETIRED_EVIDENCE_OUT: ${{ steps.browser_evidence.outputs.root }}/browser
+        run: |
+          set -o pipefail
+          pnpm --filter @opensesame/pages verify:retired-offline 2>&1 | tee "$RETIRED_EVIDENCE_OUT/offline.stdout.txt"
+      - name: Compile controlled-security loopback deployment
+        if: matrix.shard == 'auth'
+        env:
+          CONTROLLED_SECURITY_EVIDENCE_OUT: ${{ steps.browser_evidence.outputs.root }}/controlled
+        run: |
+          set -o pipefail
+          pnpm --filter @opensesame/pages build:controlled-security 2>&1 | tee "$CONTROLLED_SECURITY_EVIDENCE_OUT/build.stdout.txt"
+      - name: Browser canary export and independent sealed receiver
+        if: matrix.shard == 'auth'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+          CONTROLLED_SECURITY_EVIDENCE_OUT: ${{ steps.browser_evidence.outputs.root }}/controlled
+        run: |
+          set -o pipefail
+          pnpm --filter @opensesame/pages verify:controlled-security 2>&1 | tee "$CONTROLLED_SECURITY_EVIDENCE_OUT/stdout.txt"
+      - name: Install Chromium for extension security integration
+        if: always() && matrix.shard == 'auth'
+        # Bundled Chromium supports unpacked extensions; branded Chrome removes
+        # the loading flags. This uses an isolated test profile on the CI runner.
+        run: |
+          set -o pipefail
+          pnpm --filter @opensesame/browser-extension exec playwright install --with-deps chromium 2>&1 | tee "${{ steps.browser_evidence.outputs.root }}/extensions/install.stdout.txt"
+      - name: Extension retired credentials and worker isolation
+        if: always() && matrix.shard == 'auth'
+        env:
+          RETIRED_EXTENSION_EVIDENCE_OUT: ${{ steps.browser_evidence.outputs.root }}/extensions/main
+        run: |
+          set -o pipefail
+          pnpm --filter @opensesame/browser-extension verify:retired-credentials 2>&1 | tee "$RETIRED_EXTENSION_EVIDENCE_OUT/stdout.txt"
+      - name: Autofill retired credentials and worker isolation
+        if: always() && matrix.shard == 'auth'
+        env:
+          RETIRED_EXTENSION_EVIDENCE_OUT: ${{ steps.browser_evidence.outputs.root }}/extensions/autofill
+        run: |
+          set -o pipefail
+          pnpm --filter @opensesame/browser-extension-autofill verify:retired-credentials 2>&1 | tee "$RETIRED_EXTENSION_EVIDENCE_OUT/stdout.txt"
+      - name: Preserve browser admission evidence
+        if: always() && matrix.shard == 'auth'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: retired-credential-browser-evidence
+          path: |
+            ${{ steps.browser_evidence.outputs.root }}/browser/
+            ${{ steps.browser_evidence.outputs.root }}/controlled/
+            ${{ steps.browser_evidence.outputs.root }}/extensions/
+          if-no-files-found: error
+          retention-days: 14
       - name: Experience journeys
         # Half the walks per leg (EXPERIENCE_SHARD), in turn, so each runs once.
         if: startsWith(matrix.shard, 'journeys')
@@ -577,9 +707,16 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  test-depth:
+    name: Requested test-depth admission
+    if: github.event_name == 'workflow_dispatch' && inputs.test_depth
+    uses: ./.github/workflows/test-depth-admission.yml
+    with:
+      extension_mutation: ${{ inputs.extension_mutation }}
+
   typescript:
     name: TypeScript
-    needs: [changes, typescript-tests]
+    needs: [changes, typescript-tests, test-depth]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -588,10 +725,16 @@ jobs:
         run: |
           changes="${{ needs.changes.result }}"
           heavy="${{ needs.typescript-tests.result }}"
+          depth_requested="${{ github.event_name == 'workflow_dispatch' && inputs.test_depth }}"
+          depth="${{ needs.test-depth.result }}"
           if [ "$changes" != "success" ]; then
             echo "change detection result: $changes"
             exit 1
           fi
+          case "$depth_requested:$depth" in
+            true:success|false:skipped) ;;
+            *) echo "requested test-depth result: $depth (required: $depth_requested)"; exit 1 ;;
+          esac
           case "$heavy" in
             success|skipped) exit 0 ;;
             *) echo "typescript tests result: $heavy"; exit 1 ;;
@@ -637,9 +780,15 @@ jobs:
             *) echo "device identity end to end result: $identity"; exit 1 ;;
           esac
 
+  native:
+    name: Native platform admission
+    needs: changes
+    if: needs.changes.outputs.native == 'true'
+    uses: ./.github/workflows/native-admission.yml
+
   rust-check:
     name: Rust
-    needs: [changes, rust]
+    needs: [changes, rust, native]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -648,10 +797,16 @@ jobs:
         run: |
           changes="${{ needs.changes.result }}"
           heavy="${{ needs.rust.result }}"
+          native_expected="${{ needs.changes.outputs.native }}"
+          native="${{ needs.native.result }}"
           if [ "$changes" != "success" ]; then
             echo "change detection result: $changes"
             exit 1
           fi
+          case "$native_expected:$native" in
+            true:success|false:skipped) ;;
+            *) echo "native admission result: $native (required: $native_expected)"; exit 1 ;;
+          esac
           case "$heavy" in
             success|skipped) exit 0 ;;
             *) echo "rust tests result: $heavy"; exit 1 ;;

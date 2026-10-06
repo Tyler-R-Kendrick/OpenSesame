@@ -67,6 +67,11 @@ import {
   tailnetUsed,
 } from "./capability-connector-observe.test-support.js";
 
+import {
+  admitConnectorOwner,
+  releaseConnectorOwner,
+} from "./connector-owner.test-support.js";
+
 installDoublePorts();
 
 const originalIdentity = { ...identitySeams };
@@ -254,12 +259,10 @@ describe("capability features use the saved connector", () => {
   beforeEach(async () => {
     identitySeams.hostBase = () => "";
     identitySeams.hostLocalSessionEligible = () => false;
-    vi.spyOn(vaultStore, "isUnlocked").mockReturnValue(true);
-    vi.spyOn(vaultStore, "addItems").mockResolvedValue(undefined);
-    vi.spyOn(vaultStore, "trashItem").mockResolvedValue(undefined);
+    await admitConnectorOwner();
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("no network"));
     await forgetAllLocalGitRemotes();
-    forgetDeviceConnectors();
+    await forgetDeviceConnectors();
     performed.length = 0;
     featureRequestSeams.performed = (request) => {
       performed.push(request);
@@ -272,14 +275,16 @@ describe("capability features use the saved connector", () => {
     stopTailnetSync();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     Object.assign(identitySeams, originalIdentity);
     featureRequestSeams.performed = originalPerformed;
     driveClientSeams.fetch = originalDriveFetch;
     vaultBackupSyncSeams.putForgeContents = originalForgePut;
     vaultBackupSyncSeams.sealedEnvelopeJson = originalEnvelope;
     stopTailnetSync();
+    await releaseConnectorOwner();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("uses a connector saved after the feature is already on", async () => {

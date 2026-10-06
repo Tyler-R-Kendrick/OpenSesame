@@ -1,134 +1,114 @@
-/**
- * The Pages vault is a sealed virtual filesystem. Node has no OPFS, so those
- * records would otherwise forget the vault when the process exits. The CLI
- * keeps the same records in the state directory.
- */
-import { chmod, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+/** Node uses the core's sealed KV transport; legacy CLI snapshots migrate once. */
+import { readFile, rename } from "node:fs/promises";
 import { join } from "node:path";
+import { configureHost } from "@opensesame/app-core/host.js";
 import { flushActivityLog } from "@opensesame/app-core/lib/activity-log.js";
-import { kvForgetAll } from "@opensesame/app-core/lib/kv.js";
-import { vfsFlush, vfsSeams } from "@opensesame/app-core/lib/vfs.js";
+import { LEGACY_CONNECTOR_PUBLIC_KEY } from "@opensesame/app-core/lib/device-connector-legacy-storage.js";
+import { DURESS_BOOT_KEYS } from "@opensesame/app-core/lib/duress/store/boot-keys.js";
+import {
+  kvFlush,
+  kvForgetAll,
+  kvGet,
+  kvHydrate,
+  kvRefresh,
+  kvSetDurable,
+} from "@opensesame/app-core/lib/kv.js";
+import { tombStorageKeys } from "@opensesame/app-core/lib/vault/tomb-migration.js";
+import {
+  TOMBS_REGISTRY_KEY,
+  listTombs,
+  vfsFlush,
+} from "@opensesame/app-core/lib/vfs.js";
+import { createNodeHost } from "@opensesame/app-core/node/host.js";
+import { lockManager } from "@opensesame/app-core/ports.js";
 import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
+import { headlessCapabilityArtifacts } from "./headless-composition.js";
 
-const FILE_NAME = "vault-kv.json";
-
-/** What the store reads from disk through; a suite holds a read open here. */
 export const vaultKvSeams = {
   readText: (path: string): Promise<string> => readFile(path, "utf8"),
 };
-
 let directory: string | null = null;
-let records = new Map<string, string>();
-let pending = Promise.resolve();
-let installed = false;
-// A released store is a closed process. Notes that land after release must
-// not snapshot the cleared map over the file the next open is reading.
-let accepting = true;
-let readMemory: (key: string) => string | null = vfsSeams.readRaw;
-let deleteMemory: (key: string) => Promise<void> = vfsSeams.deleteRaw;
 
-function filePath(dir: string): string {
-  return join(dir, FILE_NAME);
-}
-
-function isEnoent(error: Error): boolean {
-  return "code" in error && error.code === "ENOENT";
-}
-
-async function readRecords(dir: string): Promise<Map<string, string>> {
+async function legacyRecords(
+  stateDir: string,
+): Promise<Map<string, string> | null> {
   let text: string;
   try {
-    text = await vaultKvSeams.readText(filePath(dir));
+    text = await vaultKvSeams.readText(join(stateDir, "vault-kv.json"));
   } catch (error) {
-    if (error instanceof Error && isEnoent(error)) return new Map();
+    if (error instanceof Error && "code" in error && error.code === "ENOENT")
+      return null;
     throw error;
   }
   const parsed = overlapCast(JSON.parse(text));
   if (!isJsonObject(parsed)) throw new Error("Vault storage is unreadable.");
-  const next = new Map<string, string>();
+  const result = new Map<string, string>();
   for (const [key, value] of Object.entries(parsed)) {
     if (!isString(value)) throw new Error("Vault storage is unreadable.");
-    next.set(key, value);
+    result.set(key, value);
   }
-  return next;
+  return result;
 }
 
-async function writeSnapshot(
-  dir: string | null,
-  snapshot: ReadonlyMap<string, string>,
-): Promise<void> {
-  if (dir === null) return;
-  const path = filePath(dir);
-  const temp = `${path}.tmp`;
-  await writeFile(temp, JSON.stringify(Object.fromEntries(snapshot)), {
-    mode: 0o600,
-  });
-  await chmod(temp, 0o600);
-  await rename(temp, path);
+async function migrateLegacySnapshot(stateDir: string): Promise<void> {
+  const locks = lockManager();
+  if (!locks) throw new Error("Local credential locking is required.");
+  await locks.request(
+    "opensesame.retired-credentials",
+    { mode: "exclusive", ifAvailable: true },
+    async (lock) => {
+      if (!lock)
+        throw new Error("A vault command is already running. Try again.");
+      const records = await legacyRecords(stateDir);
+      if (!records) return;
+      for (const [key, value] of records) {
+        await kvRefresh(
+          key,
+          Math.max(65536, new TextEncoder().encode(value).length),
+        );
+        // A damaged target raises above; an existing target always wins over an old snapshot.
+        if (kvGet(key) === null) await kvSetDurable(key, value);
+      }
+      await kvFlush();
+      await rename(
+        join(stateDir, "vault-kv.json"),
+        join(stateDir, "vault-kv.json.migrated"),
+      );
+    },
+  );
 }
 
-function enqueueWrite(): Promise<void> {
-  if (!accepting || directory === null) return Promise.resolve();
-  const dir = directory;
-  const snapshot = new Map(records);
-  const write = () => writeSnapshot(dir, snapshot);
-  pending = pending.then(write, write);
-  return pending;
-}
-
-function installSeams(): void {
-  if (!installed) {
-    readMemory = vfsSeams.readRaw;
-    deleteMemory = vfsSeams.deleteRaw;
-    installed = true;
-  }
-  vfsSeams.readRaw = (key) => records.get(key) ?? readMemory(key);
-  vfsSeams.writeRaw = async (key, value) => {
-    if (!accepting || directory === null) return;
-    records.set(key, value);
-    await enqueueWrite();
-  };
-  vfsSeams.deleteRaw = async (key) => {
-    if (!accepting || directory === null) return;
-    records.delete(key);
-    await deleteMemory(key);
-    await enqueueWrite();
-  };
-}
-
-/** Notes fired during a command finish before the file is closed or swapped. */
-async function drainDurableWrites(): Promise<void> {
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    await flushActivityLog();
-    await vfsFlush();
-    const current = pending;
-    await current;
-    if (pending === current) return;
-  }
-}
-
-/** Point KV at this state directory and load the vault file into it. */
+/** Point the shared core at a durable Node host and hydrate locked-vault records. */
 export async function useVaultKv(stateDir: string): Promise<void> {
-  await mkdir(stateDir, { recursive: true });
   if (directory !== stateDir) {
-    await drainDurableWrites();
-    accepting = false;
-    await pending;
-    const loaded = await readRecords(stateDir);
+    await releaseVaultKv();
+    configureHost({
+      ...createNodeHost({ stateDir }),
+      capabilities: headlessCapabilityArtifacts,
+      observationRuntime: "human-node-cli",
+    });
     directory = stateDir;
-    records = loaded;
-    accepting = true;
-    kvForgetAll();
   }
-  installSeams();
+  await migrateLegacySnapshot(stateDir);
+  await kvHydrate([
+    TOMBS_REGISTRY_KEY,
+    LEGACY_CONNECTOR_PUBLIC_KEY,
+    ...DURESS_BOOT_KEYS,
+  ]);
+  await kvHydrate(listTombs().flatMap(tombStorageKeys));
 }
 
-/** Forget the in-memory copy so the next open reads the file again. */
+/** Drain every write before changing host/key domains or simulating a new process. */
 export async function releaseVaultKv(): Promise<void> {
-  await drainDurableWrites();
-  accepting = false;
-  await pending;
+  if (directory !== null) {
+    const { vaultStore } = await import(
+      "@opensesame/app-core/lib/vault/store.js"
+    );
+    vaultStore.lock();
+  }
+  await flushActivityLog();
+  await vfsFlush();
+  await kvFlush();
   directory = null;
-  records = new Map();
   kvForgetAll();
 }

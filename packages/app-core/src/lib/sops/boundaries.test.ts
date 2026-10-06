@@ -11,8 +11,12 @@
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { createItem } from "@opensesame/vault-core";
+import { describe, expect, it, vi } from "vitest";
 import { mayUseVaultIdentities } from "../../sections/settings/sops/identities.js";
+import { kvGet } from "../kv.js";
+import { VaultStore } from "../vault/store.js";
+import { BODY_PATH, tombFileKey, vfsFlush, vfsSeams } from "../vfs.js";
 import { SopsError, redactError } from "./errors.js";
 
 const sopsDir = __dirname;
@@ -175,15 +179,50 @@ describe("SB-069 a vault import lands whole or not at all", () => {
     expect(batch.match(/host\.mutate\(/gu)).toHaveLength(1);
   });
 
-  it("a failed write restores the previous body rather than leaving memory ahead", () => {
-    const store = readFileSync(join(coreSrc, "lib/vault/store.ts"), "utf8");
-    // Every write is queued (`#mutate` goes through `#exclusive`, on the write
-    // chain), and the write itself (`#apply`) keeps the body it will put back.
-    const mutate = store.slice(store.indexOf("#mutate(change"));
-    expect(mutate.slice(0, 400)).toMatch(/#exclusive/u);
-    const exclusive = store.slice(store.indexOf("#exclusive<T>("));
-    expect(exclusive.slice(0, 1600)).toMatch(/#writeChain/u);
-    const apply = store.slice(store.indexOf("async #apply("));
-    expect(apply.slice(0, 1600)).toMatch(/previous/u);
+  it("a failed write restores the previous body rather than leaving memory ahead", async () => {
+    const store = new VaultStore();
+    let restoreWrite = () => {};
+    try {
+      await store.create("generated SOPS rollback fixture password");
+      await store.saveItem(createItem("note", "Already kept"));
+      await store.addFolder("Existing folder");
+      await store.protection.ensureProtectionProjected();
+      expect(store.getSnapshot().header?.protection?.authB64).toBeTruthy();
+      await store.flushPendingWrites();
+      const before = store.getSnapshot();
+      const bodyKey = tombFileKey(store.activeTomb(), BODY_PATH);
+      const sealedBefore = kvGet(bodyKey);
+      expect(sealedBefore).not.toBeNull();
+      const write = vfsSeams.writeRaw;
+      const failedWrite = vi
+        .spyOn(vfsSeams, "writeRaw")
+        .mockImplementation(async (key, value) => {
+          if (key === bodyKey) throw new Error("Generated body write refusal");
+          await write(key, value);
+        });
+      restoreWrite = () => failedWrite.mockRestore();
+      await expect(
+        store.applyImport({
+          items: [createItem("note", "Imported item")],
+          newFolders: [
+            {
+              id: crypto.randomUUID(),
+              name: "Imported folder",
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        }),
+      ).rejects.toThrow("Generated body write refusal");
+      expect(store.getSnapshot()).toMatchObject({
+        status: "unlocked",
+        items: before.items,
+        folders: before.folders,
+      });
+      expect(kvGet(bodyKey)).toBe(sealedBefore);
+    } finally {
+      restoreWrite();
+      store.lock();
+      await vfsFlush();
+    }
   });
 });

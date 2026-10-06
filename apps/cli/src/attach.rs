@@ -248,8 +248,9 @@ pub async fn cmd_attach_sync(
     path: Option<&Path>,
     tomb: Option<&str>,
 ) -> anyhow::Result<()> {
-    // Replication moves sealed bytes only, so it never needs the passphrase.
+    // Trapped stores require production admission even for ciphertext replication.
     let root_path = resolve_root(path, tomb)?;
+    crate::pass_read::require_production_if_traps(&root_path)?;
     let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
     let units = root
         .attach_replication_units()

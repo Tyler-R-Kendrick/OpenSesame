@@ -21,6 +21,10 @@ import { FailureNotice } from "../components/FailureNotice.js";
 import { FormCommit } from "../components/FormCommit.js";
 import { IconKey } from "../components/IconKey.js";
 import { IconPasskey, IconX } from "../components/Icons.js";
+import {
+  runSessionNavigation,
+  sessionNavigationAllowed,
+} from "../lib/decoy-navigation.js";
 import { firstControl, keyboardIsIdle, landFocus } from "../lib/focus.js";
 import { useOnce } from "../lib/use-once.js";
 import { useVault } from "../lib/vault/hooks.js";
@@ -158,7 +162,9 @@ function SiopConsent({
       );
       if (current !== generation.current) return;
       setFinished(true);
-      globalThis.location.replace(redirectUrl);
+      runSessionNavigation(redirectUrl, () =>
+        globalThis.location.replace(redirectUrl),
+      );
     } catch (failure) {
       if (current === generation.current) {
         setSession(null);
@@ -176,9 +182,20 @@ function SiopConsent({
   // A refusal is recorded once, however fast it is pressed twice: `finished`
   // is this render's, and a second press can land before the next one.
   const refuse = useOnce(async () => {
+    const redirect = denySiopAuthorization(request);
+    if (!sessionNavigationAllowed(redirect)) {
+      setError("External navigation is unavailable in this session.");
+      return;
+    }
     setFinished(true);
-    await recordSiopDenial(tomb, request);
-    globalThis.location.replace(denySiopAuthorization(request));
+    try {
+      await recordSiopDenial(tomb, request);
+      runSessionNavigation(redirect, () =>
+        globalThis.location.replace(redirect),
+      );
+    } catch {
+      setError("The refusal could not be completed in this session.");
+    }
   });
 
   function deny() {

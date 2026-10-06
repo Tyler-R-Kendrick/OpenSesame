@@ -1,3 +1,4 @@
+import { isJsonObject, isString } from "@opensesame/os-domain";
 /**
  * Set up a vault on this device from a tailnet drive (ADR 0144) — Enpass's
  * "restore from sync": write the drive's sealed body and portable header into
@@ -10,7 +11,7 @@
  * holds a different vault in that tomb is refused, and one that already holds
  * this vault is left alone for the ordinary merge to bring up to date.
  */
-import { isJsonObject, isString } from "@opensesame/os-domain";
+import { assertNotDecoySession } from "../decoy-session.js";
 import { kvHydrate } from "../kv.js";
 import { writeLastVaultId } from "../last-vault.js";
 import { tombStorageKeys } from "../vault/tomb-migration.js";
@@ -53,6 +54,7 @@ function storedCreatedAt(tomb: string): string | null {
 export async function adoptSnapshot(
   snapshot: DriveSnapshot,
 ): Promise<AdoptResult> {
+  const authorityGeneration = assertNotDecoySession();
   const { tomb } = snapshot;
   if (tomb !== PERSONAL_TOMB && !isProjectTomb(tomb)) {
     throw new Error("The drive holds a vault this device cannot set up.");
@@ -67,6 +69,7 @@ export async function adoptSnapshot(
   // What is on disk, not only what this tab has read: a project's tomb may
   // never have been opened here.
   await kvHydrate(tombStorageKeys(tomb));
+  assertNotDecoySession(authorityGeneration);
   const existing = storedCreatedAt(tomb);
   if (existing === header.createdAt) return "already-here";
   if (existing !== null || readSealedFile(tomb, BODY_PATH)) {
@@ -78,11 +81,14 @@ export async function adoptSnapshot(
   // can remove; then body, then header: a header is what makes a vault
   // visible, so a failure between the two leaves nothing that claims to be one.
   if (tomb !== PERSONAL_TOMB) await registerTomb(tomb);
+  assertNotDecoySession(authorityGeneration);
   await vfsSeams.writeRaw(
     tombFileKey(tomb, BODY_PATH),
     JSON.stringify(snapshot.body),
   );
+  assertNotDecoySession(authorityGeneration);
   await writePlaintextFile(tomb, HEADER_PATH, JSON.stringify(header));
+  assertNotDecoySession(authorityGeneration);
   if (tomb === PERSONAL_TOMB) writeLastVaultId(PERSONAL_TOMB);
   return "adopted";
 }

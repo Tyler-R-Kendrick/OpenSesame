@@ -7,6 +7,7 @@ import { createRunnerService } from "./service";
 import { RunnerSettings } from "./settings";
 import { SealedKv } from "./store";
 import { MemoryStore } from "./test-support/memory";
+import { memorySecurityPort } from "./test-support/security-port";
 import { RunnerVault } from "./vault";
 
 // Key generation and sealed storage are real here; a loaded CI runner needs more than
@@ -73,6 +74,7 @@ async function openPage(): Promise<Wired> {
       },
     },
     runtime: {
+      connect: memorySecurityPort,
       sendMessage: async (message: { type: string; origin?: string }) => {
         wired.messages.push(message);
         if (message.type === "opensesame.runner.status")

@@ -8,6 +8,7 @@
     "build": "wxt build",
     "test": "vitest run && node --test tests/pact.test.mjs tests/capability-parity.test.mjs tests/runner-pact.test.mjs",
     "test:e2e": "wxt build && playwright test",
+    "verify:retired-credentials": "wxt build && node tests/retired-credentials.e2e.mjs",
     "test:install": "playwright install chromium",
     "typecheck": "wxt prepare && tsc --noEmit -p .wxt/tsconfig.json"
   },
@@ -15,13 +16,14 @@
     "@opensesame/api-client": "workspace:*",
     "@opensesame/browser-at-rest": "workspace:*",
     "@opensesame/client-core": "workspace:*",
-    "@opensesame/os-domain": "workspace:*"
+    "@opensesame/os-domain": "workspace:*",
+    "@opensesame/app-core": "workspace:*"
   },
   "devDependencies": {
     "@playwright/test": "1.55.1",
     "jsdom": "26.1.0",
     "typescript": "5.8.3",
     "vitest": "4.1.11",
-    "wxt": "0.20.6"
+    "wxt": "0.21.4"
   }
 }

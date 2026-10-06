@@ -1,5 +1,16 @@
 import { isString, overlapCast } from "@opensesame/os-domain";
+import {
+  assertAuthenticationSession,
+  assertNotDecoySession,
+  requiresFreshOwnerAuthentication,
+} from "../decoy-session.js";
+import { identityMfaAuthentication } from "../identity-mfa-authentication.js";
 import { identityFetch, isRemoteIdentityConfigured } from "../identity.js";
+import {
+  type MfaAuthenticationPermit,
+  assertMfaAuthenticationPermit,
+  bindMfaAuthenticationChallenge,
+} from "./remote-code-admission.js";
 import type { CodeChannel } from "./unlock-methods.js";
 
 /**
@@ -47,12 +58,18 @@ function requireIdentity(): void {
 async function sendCodeDefault(
   channel: CodeChannel,
   to: string,
+  permit?: MfaAuthenticationPermit,
 ): Promise<SentCode> {
   requireIdentity();
-  const res = await identityFetch("/v1/mfa/code/send", {
-    method: "POST",
-    body: JSON.stringify({ channel, to }),
-  });
+  const res = permit
+    ? await identityMfaAuthentication(
+        { operation: "send", channel, to },
+        permit,
+      )
+    : await identityFetch("/v1/mfa/code/send", {
+        method: "POST",
+        body: JSON.stringify({ channel, to }),
+      });
   const body = overlapCast(await res.json().catch(() => ({})));
   if (res.ok && isString(body.challengeId) && isString(body.to)) {
     return {
@@ -93,12 +110,18 @@ async function sendCodeDefault(
 async function verifyCodeDefault(
   challengeId: string,
   code: string,
+  permit?: MfaAuthenticationPermit,
 ): Promise<void> {
   requireIdentity();
-  const res = await identityFetch("/v1/mfa/code/verify", {
-    method: "POST",
-    body: JSON.stringify({ challengeId, code }),
-  });
+  const res = permit
+    ? await identityMfaAuthentication(
+        { operation: "verify", challengeId, code },
+        permit,
+      )
+    : await identityFetch("/v1/mfa/code/verify", {
+        method: "POST",
+        body: JSON.stringify({ challengeId, code }),
+      });
   if (res.ok) return;
   const body = overlapCast(await res.json().catch(() => ({})));
   if (body.error === "challenge_spent") {
@@ -125,10 +148,51 @@ export const remoteCodeSeams = {
   verifyCode: verifyCodeDefault,
 };
 
-export function sendCode(channel: CodeChannel, to: string): Promise<SentCode> {
-  return remoteCodeSeams.sendCode(channel, to);
+function codeAdmission(
+  permit?: MfaAuthenticationPermit,
+  challenge?: string,
+): number {
+  if (permit) {
+    const realm = assertAuthenticationSession();
+    assertMfaAuthenticationPermit(permit, challenge);
+    return realm;
+  }
+  return assertNotDecoySession();
 }
 
-export function verifyCode(challengeId: string, code: string): Promise<void> {
-  return remoteCodeSeams.verifyCode(challengeId, code);
+export async function sendCode(
+  channel: CodeChannel,
+  to: string,
+  permit?: MfaAuthenticationPermit,
+): Promise<SentCode> {
+  const realm = codeAdmission(permit);
+  try {
+    const sent = permit
+      ? await remoteCodeSeams.sendCode(channel, to, permit)
+      : await remoteCodeSeams.sendCode(channel, to);
+    codeAdmission(permit);
+    if (permit) bindMfaAuthenticationChallenge(permit, sent.challengeId);
+    return sent;
+  } finally {
+    assertAuthenticationSession(realm);
+    if (!permit && requiresFreshOwnerAuthentication())
+      assertNotDecoySession(realm);
+  }
+}
+
+export async function verifyCode(
+  challengeId: string,
+  code: string,
+  permit?: MfaAuthenticationPermit,
+): Promise<void> {
+  const realm = codeAdmission(permit, challengeId);
+  try {
+    if (permit) await remoteCodeSeams.verifyCode(challengeId, code, permit);
+    else await remoteCodeSeams.verifyCode(challengeId, code);
+    codeAdmission(permit, challengeId);
+  } finally {
+    assertAuthenticationSession(realm);
+    if (!permit && requiresFreshOwnerAuthentication())
+      assertNotDecoySession(realm);
+  }
 }

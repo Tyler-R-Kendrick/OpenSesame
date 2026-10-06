@@ -157,23 +157,23 @@ async function webauthnPrfOpen(
 /** Copy a view so wrap does not read bytes outside the view. */
 function copiedBuffer(value: ArrayBuffer | Uint8Array): ArrayBuffer {
   if (value instanceof Uint8Array) {
-    return value.buffer.slice(
-      value.byteOffset,
-      value.byteOffset + value.byteLength,
-    );
+    return new Uint8Array(value).buffer;
   }
   return value.slice(0);
 }
 
 /** Wrap a VRK with a PRF output this caller already holds. Does not start a ceremony. */
-export async function protectorFromPrfMaterial(input: {
+export type PrfMaterial = {
   rootKey: Uint8Array;
   prfOutput: ArrayBuffer;
   prfSalt: Uint8Array;
   credentialId: ArrayBuffer | Uint8Array;
   userId: ArrayBuffer | Uint8Array;
   protectorId: string;
-}): Promise<WebauthnPrfProtectorRecord> {
+};
+export async function protectorFromPrfMaterial(
+  input: PrfMaterial,
+): Promise<WebauthnPrfProtectorRecord> {
   assertUsablePrfOutput(input.prfOutput);
   const wrapped = await wrapVaultKeyWithPrf(
     input.rootKey,

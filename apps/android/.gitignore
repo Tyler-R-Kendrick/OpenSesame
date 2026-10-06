@@ -1,4 +1,7 @@
 generated/android/jniLibs/
 android/.gradle/
+android/.kotlin/
 android/app/build/
 ios/Libraries/
+ios/OpenSesameNative.xcodeproj/
+ios/.build/
