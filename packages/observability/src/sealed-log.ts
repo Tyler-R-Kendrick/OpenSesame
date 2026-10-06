@@ -1,8 +1,8 @@
 /**
  * An encrypted, rotating log file for the TypeScript services (ADR 0157).
  *
- * The same format as `crates/sealed-log`, so one reader opens both: each line is
- * `osl1.` + base64url(24-byte nonce | XChaCha20-Poly1305 ciphertext and tag),
+ * The same format as `crates/sealed-log`, so one reader opens both. Each
+ * `osl2.` envelope wraps a fresh data key for its line,
  * sealed on its own under a 32-byte key that lives apart from the file (its own
  * 0600 key file, or a path an operator points at a secret mount). The vectors in
  * `spec/conformance/sealed-log-vectors.json` are opened by both implementations.
@@ -27,18 +27,26 @@ import {
   writeSync,
 } from "node:fs";
 import { dirname } from "node:path";
-import { xchacha20poly1305 } from "@noble/ciphers/chacha";
+import {
+  LEGACY_LINE_PREFIX,
+  type LogKey,
+  SEALED_LINE_PREFIX,
+  bindLogKeyPath,
+  openLogLine,
+  sealLogLine,
+} from "./sealed-log-cipher.js";
+export {
+  SEALED_LINE_PREFIX,
+  type LogKey,
+  openLogLine,
+  sealLogLine,
+} from "./sealed-log-cipher.js";
 import { scrubText } from "@opensesame/log-scrub";
 
-export const SEALED_LINE_PREFIX = "osl1.";
 /** What stands in for a sealed line that does not open. */
 export const UNREADABLE = "[sealed line: not readable with this key]";
-const AAD = new TextEncoder().encode("opensesame.log.v1");
-const NONCE_BYTES = 24;
 const DEFAULT_MAX_BYTES = 8 * 1024 * 1024;
 const DEFAULT_KEEP = 3;
-
-export type LogKey = Uint8Array;
 
 function fromHex(text: string): Uint8Array | undefined {
   const clean = text.trim();
@@ -50,7 +58,7 @@ function fromHex(text: string): Uint8Array | undefined {
 export function loadLogKey(path: string): LogKey {
   const key = fromHex(readFileSync(path, "utf8"));
   if (!key) throw new Error(`${path} does not hold a 32-byte hex log key`);
-  return key;
+  return bindLogKeyPath(key, path);
 }
 
 /**
@@ -72,45 +80,13 @@ export function loadOrCreateLogKey(path: string): LogKey {
   }
   try {
     linkSync(staging, path);
-    return key;
+    return bindLogKeyPath(key, path);
   } catch (error) {
     // Another process published its key first: use that one.
     if (existsSync(path)) return loadLogKey(path);
     throw error;
   } finally {
     rmSync(staging, { force: true });
-  }
-}
-
-/** Seal one line (without its newline). */
-export function sealLogLine(key: LogKey, line: string): string {
-  const nonce = Uint8Array.from(randomBytes(NONCE_BYTES));
-  const body = xchacha20poly1305(key, nonce, AAD).encrypt(
-    new TextEncoder().encode(line),
-  );
-  const packed = new Uint8Array(nonce.length + body.length);
-  packed.set(nonce);
-  packed.set(body, nonce.length);
-  return `${SEALED_LINE_PREFIX}${Buffer.from(packed).toString("base64url")}`;
-}
-
-/** Open one sealed line, or `null` when it is not one, is torn or was sealed under another key. */
-export function openLogLine(key: LogKey, sealed: string): string | null {
-  const text = sealed.trim();
-  if (!text.startsWith(SEALED_LINE_PREFIX)) return null;
-  const packed = Uint8Array.from(
-    Buffer.from(text.slice(SEALED_LINE_PREFIX.length), "base64url"),
-  );
-  if (packed.length <= NONCE_BYTES) return null;
-  try {
-    const plain = xchacha20poly1305(
-      key,
-      packed.subarray(0, NONCE_BYTES),
-      AAD,
-    ).decrypt(packed.subarray(NONCE_BYTES));
-    return new TextDecoder("utf-8", { fatal: true }).decode(plain);
-  } catch {
-    return null;
   }
 }
 
@@ -167,6 +143,7 @@ export class SealedLogFile {
     this.#key = key;
     this.#maxBytes = options.maxBytes ?? DEFAULT_MAX_BYTES;
     this.#keep = options.keep ?? DEFAULT_KEEP;
+    sealExistingLog(path, key);
     mkdirSync(dirname(path), { recursive: true });
     appendFileSync(path, "", { mode: 0o600 });
     // `mode` applies only when the file is created; one an older build left
@@ -225,7 +202,7 @@ function linesOf(path: string): string[] {
 }
 
 function present(key: LogKey, line: string): string {
-  if (line.startsWith(SEALED_LINE_PREFIX)) {
+  if (/^osl\d+\./u.test(line.trim())) {
     return openLogLine(key, line) ?? UNREADABLE;
   }
   return scrubText(line);
@@ -251,16 +228,30 @@ const MAX_ROTATED_SCAN = 64;
 
 function sealOneLog(path: string, key: LogKey): number {
   const lines = linesOf(path);
-  const legacy = lines.filter((line) => !line.startsWith(SEALED_LINE_PREFIX));
+  for (const line of lines) {
+    if (/^osl\d+\./u.test(line.trim()) && openLogLine(key, line) === null)
+      throw new Error("Sealed log line cannot be opened");
+  }
+  const legacy = lines.filter(
+    (line) => !line.trim().startsWith(SEALED_LINE_PREFIX),
+  );
   if (legacy.length === 0) return 0;
   const staging = `${path}.sealing`;
   rmSync(staging, { force: true });
   const fd = openSync(staging, "wx", 0o600);
   try {
     for (const line of lines) {
-      const out = line.startsWith(SEALED_LINE_PREFIX)
-        ? line
-        : sealLogLine(key, scrubText(line));
+      let out = line;
+      if (line.trim().startsWith(LEGACY_LINE_PREFIX)) {
+        const plain = openLogLine(key, line);
+        if (plain === null)
+          throw new Error("Legacy sealed log line cannot be opened");
+        out = sealLogLine(key, plain);
+      } else if (!line.trim().startsWith(SEALED_LINE_PREFIX)) {
+        if (/^osl\d+\./u.test(line.trim()))
+          throw new Error("Unknown sealed log version");
+        out = sealLogLine(key, scrubText(line));
+      }
       writeSync(fd, `${out}\n`);
     }
   } finally {
@@ -296,8 +287,21 @@ export function createSealedLogDestination(
   logPath: string,
   keyOverride?: string,
 ): LogDestination {
-  const key = loadOrCreateLogKey(logKeyPath(logPath, keyOverride));
-  sealExistingLog(logPath, key);
+  const keyPath = logKeyPath(logPath, keyOverride);
+  const paths = [
+    logPath,
+    ...Array.from({ length: MAX_ROTATED_SCAN }, (_, index) =>
+      rotatedPath(logPath, index + 1),
+    ),
+  ];
+  const hasSealed = paths.some((path) =>
+    linesOf(path).some((line) => /^osl\d+\./u.test(line.trim())),
+  );
+  if (!existsSync(keyPath) && hasSealed)
+    throw new Error(
+      "Sealed log key is missing; refusing to generate a replacement",
+    );
+  const key = hasSealed ? loadLogKey(keyPath) : loadOrCreateLogKey(keyPath);
   const file = new SealedLogFile(logPath, key);
   return { write: (message) => file.append(message) };
 }

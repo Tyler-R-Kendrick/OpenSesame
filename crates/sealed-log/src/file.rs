@@ -74,6 +74,7 @@ impl SealedLogFile {
         if let Some(parent) = path.parent().filter(|p| !p.as_os_str().is_empty()) {
             std::fs::create_dir_all(parent)?;
         }
+        crate::read::seal_existing(path, &key)?;
         let file = open_append(path)?;
         let len = file.metadata()?.len();
         Ok(Self {

@@ -3,7 +3,7 @@
 //! When, which pairing (id, label, origin), the action, the device or key id,
 //! and the status that came back. Never a value: no key, no token, no name a
 //! person typed. The file keeps its newest [`AUDIT_KEEP`] lines; a reader is
-//! handed the newest [`AUDIT_READ`]. Each line rests sealed (`osl1.`, the
+//! handed the newest [`AUDIT_READ`]. Each line rests sealed (`osl2.`, the
 //! sealed-log format) under a key in its own 0600 file beside the trail, and
 //! every write holds the lock the CLI's device verbs share (ADR 0157).
 
@@ -83,7 +83,11 @@ impl AuditLog {
             ensure_private_dir(dir)?;
         }
         let _lock = FileLock::acquire(&self.path)?;
-        let key = LogKey::load_or_create(&self.key)?;
+        let key = if self.lines()?.is_empty() {
+            LogKey::load_or_create(&self.key)?
+        } else {
+            LogKey::load(&self.key)?
+        };
         let line = format!("{}\n", seal_line(&key, &json));
         let exists = self.path.exists();
         let mut file = if exists {
@@ -126,14 +130,16 @@ impl AuditLog {
     /// A file error.
     pub fn recent(&self, limit: usize) -> Result<Vec<AuditEntry>, AdminError> {
         let limit = limit.clamp(1, AUDIT_READ);
+        let lines = self.lines()?;
         let key = match LogKey::load(&self.key) {
             Ok(key) => key,
             // Nothing was ever sealed: there is no trail yet.
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound && lines.is_empty() => {
+                return Ok(Vec::new());
+            }
             Err(error) => return Err(error.into()),
         };
-        Ok(self
-            .lines()?
+        Ok(lines
             .iter()
             .rev()
             .filter_map(|line| open_line(&key, line))
@@ -224,7 +230,7 @@ mod tests {
         ))
         .unwrap();
         let rest = std::fs::read_to_string(tmp.path().join(AUDIT_FILE)).unwrap();
-        assert!(rest.starts_with("osl1."), "{rest}");
+        assert!(rest.starts_with("osl2."), "{rest}");
         for plain in ["device.rename", "nSECRETID", "ops.example.com", "tp_1"] {
             assert!(!rest.contains(plain), "{plain} rests in the clear");
         }
@@ -234,8 +240,40 @@ mod tests {
             0o600
         );
         assert_eq!(log.recent(1).unwrap()[0].target, "nSECRETID");
-        // Without its key the trail reads as nothing, never as an error.
+        // An existing trail without its key cannot be reported as empty.
         std::fs::remove_file(&key).unwrap();
-        assert!(log.recent(10).unwrap().is_empty());
+        assert!(log.recent(10).is_err());
+    }
+}
+
+#[cfg(test)]
+mod missing_root_tests {
+    use super::*;
+
+    #[test]
+    fn existing_audit_ciphertext_never_mints_a_replacement_root() {
+        let dir = tempfile::tempdir().unwrap();
+        let log = AuditLog::at(dir.path());
+        let entry = AuditEntry {
+            at: 1,
+            pairing: "p".into(),
+            label: "owner".into(),
+            origin: "https://customer.example".into(),
+            action: "key.create".into(),
+            target: "key-id".into(),
+            status: 200,
+        };
+        log.append(&entry).unwrap();
+        let original = std::fs::read(&log.path).unwrap();
+        std::fs::remove_file(&log.key).unwrap();
+        assert!(log.append(&entry).is_err());
+        assert!(log.recent(10).is_err());
+        assert!(!log.key.exists());
+        assert_eq!(std::fs::read(&log.path).unwrap(), original);
+        std::fs::write(&log.path, "damaged marker\n").unwrap();
+        assert!(log.append(&entry).is_err());
+        assert!(log.recent(10).is_err());
+        assert!(!log.key.exists());
+        assert_eq!(std::fs::read(&log.path).unwrap(), b"damaged marker\n");
     }
 }
