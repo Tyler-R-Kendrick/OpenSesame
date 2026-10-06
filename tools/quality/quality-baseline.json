@@ -17,8 +17,8 @@
   },
   "totals": {
     "files": 427,
-    "violations": 668,
-    "oversizedLines": 217987
+    "violations": 666,
+    "oversizedLines": 217907
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -101,11 +101,11 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/UnlockScreen.test.tsx": {
-      "max-lines": 1354
+      "max-lines": 1316
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 1,
-      "max-lines": 907,
+      "max-lines": 905,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -131,18 +131,17 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/ConnectionsSection.test.tsx": {
-      "max-lines": 482
+      "max-lines": 481
     },
     "apps/pages/src/sections/ConnectionsSection.tsx": {
       "complexity": 1,
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/IdentitySection.test.tsx": {
-      "max-lines": 819
+      "max-lines": 816
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
-      "complexity": 2,
-      "max-lines": 1992,
+      "max-lines": 1969,
       "max-lines-per-function": 8
     },
     "apps/pages/src/sections/SettingsSection.tsx": {
@@ -209,11 +208,11 @@
     },
     "apps/pages/src/sections/vault/ItemDetail.tsx": {
       "complexity": 1,
-      "max-lines": 516,
+      "max-lines": 509,
       "max-lines-per-function": 2
     },
     "apps/pages/src/sections/vault/ItemEditor.test.tsx": {
-      "max-lines": 622
+      "max-lines": 616
     },
     "apps/pages/src/sections/vault/ItemEditor.tsx": {
       "complexity": 2,

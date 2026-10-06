@@ -59,6 +59,7 @@ Object.assign(certsSeams, {
   acknowledgeCertificateDelivery,
 });
 
+import { expectInTray } from "../../components/tray.test-support.js";
 import { ItemEditor } from "./ItemEditor.js";
 import {
   type AccountSeed,
@@ -154,8 +155,7 @@ describe("ItemEditor", () => {
     renderEditor();
     await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
-    expect(await screen.findByRole("alert")).toBeTruthy();
-    expect(screen.getByText(/Give this item a name/)).toBeTruthy();
+    await expectInTray("Give this item a name");
     expect(saveItem).not.toHaveBeenCalled();
   });
 
@@ -269,9 +269,7 @@ describe("ItemEditor", () => {
       screen.getByRole("button", { name: /Create certificate/i }),
     );
 
-    expect((await screen.findByRole("alert")).textContent).toContain(
-      "issuer offline",
-    );
+    await expectInTray("issuer offline");
     expect(saveItem).not.toHaveBeenCalled();
   });
 
@@ -284,9 +282,7 @@ describe("ItemEditor", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Create certificate/i }),
     );
-    expect((await screen.findByRole("alert")).textContent).toContain(
-      "vault temporarily locked",
-    );
+    await expectInTray("vault temporarily locked");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalledTimes(2));
     await screen.findByText("navigated away");
@@ -601,8 +597,7 @@ describe("ItemEditor", () => {
     renderEditor();
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Nope");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toMatch(/vault locked/);
+    await expectInTray("vault locked");
   });
 
   it("uses a generic message for non-Error save failures", async () => {
@@ -610,8 +605,7 @@ describe("ItemEditor", () => {
     renderEditor();
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Nope");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toMatch(/Could not save this item/);
+    await expectInTray("Could not save this item");
   });
 
   it("cancels back to the vault list for new items", () => {

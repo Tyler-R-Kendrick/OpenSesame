@@ -10,6 +10,7 @@ import {
   revokeLocalAccessRequest,
 } from "@opensesame/app-core/lib/local-access-requests.js";
 import type { LocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import {
   IconArrowRight,
@@ -122,11 +123,11 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
         </div>
       </div>
       <div className="panel__body">
-        {model.error ? (
-          <p className="note note--err" role="alert">
-            {model.error}
-          </p>
-        ) : null}
+        <FailureNotice
+          id="access:requests"
+          title="Requests"
+          message={model.error}
+        />
         <output>{model.message}</output>
         {creating && model.data ? (
           <LocalRequestForm

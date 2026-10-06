@@ -19,6 +19,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { FormCommit } from "../../components/FormCommit.js";
 import { ApplicationSetupCard } from "./ApplicationSetupCard.js";
 import {
@@ -175,11 +176,11 @@ function RegistrationEditor({
             : "Not registered for local application access."}
         </output>
       ) : null}
-      {model.error ? (
-        <p role="alert" className="note note--err">
-          {model.error}
-        </p>
-      ) : null}
+      <FailureNotice
+        id={`identity:local-application:${applicationId}`}
+        title="Application"
+        message={model.error}
+      />
       {!model.state && !model.error ? (
         <output>Loading registration…</output>
       ) : null}
@@ -216,6 +217,7 @@ function RegistrationEditor({
       />
       <ApplicationSetupCard registration={registration} />
       <RegistrationExtras
+        applicationId={applicationId}
         tomb={tomb}
         registration={registration}
         revision={model.state?.revision}
@@ -303,6 +305,7 @@ function RegistrationForm({
           />
         </div>
         <ScopeRolesField
+          applicationId={applicationId}
           scopes={scopes}
           value={scopeRoles}
           onChange={(scopeRoles) => setDraft({ ...draft, scopeRoles })}

@@ -16,6 +16,7 @@ import {
   withdrawSelfAuthenticator,
 } from "./auth-flow-enroll.mjs";
 import { passTheDoor } from "./front-door.mjs";
+import { readTray } from "./tray-contract.mjs";
 
 const tabs = (page) =>
   page
@@ -130,7 +131,11 @@ async function unlockFromRecoveryKey(page, h, { key, seed }) {
   await page.keyboard.type("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
   await page.keyboard.press("Enter");
   await page.waitForTimeout(1200);
-  const refused = await snap(page, "3-protector-wrong-key");
+  const body = await snap(page, "3-protector-wrong-key");
+  // The caret is read before the tray is: opening the bell moves focus to it.
+  const caret = await focusedId(page);
+  const refused = `${body} ${await readTray(page)}`;
+  await page.getByLabel("Recovery key", { exact: true }).focus();
   check(
     /That recovery key did not unlock the vault/.test(refused),
     "a wrong recovery key is refused in plain words",
@@ -145,7 +150,7 @@ async function unlockFromRecoveryKey(page, h, { key, seed }) {
     "the wrong key is not left in the field",
   );
   check(
-    (await focusedId(page)) === "unlock-protector",
+    caret === "unlock-protector",
     "the caret is back in the field after a refusal",
   );
 

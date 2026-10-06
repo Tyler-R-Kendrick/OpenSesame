@@ -4,6 +4,7 @@ import {
 } from "@opensesame/static-auth";
 import { useEffect, useMemo, useRef } from "react";
 import { Link, useLocation } from "react-router";
+import { FailureNotice } from "../components/FailureNotice.js";
 import { FormCommit } from "../components/FormCommit.js";
 import { IconKey } from "../components/IconKey.js";
 import { IconPasskey, IconX } from "../components/Icons.js";
@@ -28,9 +29,11 @@ export function LocalAuthorize() {
           <h1>Invalid application request</h1>
         </div>
         <div className="panel__body">
-          <p role="alert">
-            Start sign-in again from the registered application.
-          </p>
+          <FailureNotice
+            id="local-authorize:request"
+            title="Invalid application request"
+            message="Start sign-in again from the registered application."
+          />
           <Link to="/identity?view=applications">Manage applications</Link>
         </div>
       </section>
@@ -88,11 +91,11 @@ function LocalConsent({
             ? "This authorizes the named agent, not your identity. Access ends when either session expires or is revoked. No vault contents or upstream token are shared."
             : "This shares your local subject identifier, not vault contents or an upstream token. Application resource access still requires its own policy."}
         </p>
-        {model.error ? (
-          <p role="alert" className="note note--err">
-            {model.error}
-          </p>
-        ) : null}
+        <FailureNotice
+          id="local-authorize:consent"
+          title="Application sign-in"
+          message={model.error}
+        />
         {!model.loaded && !model.error ? (
           <output>Reading application registration…</output>
         ) : null}

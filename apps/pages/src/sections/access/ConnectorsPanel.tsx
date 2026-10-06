@@ -12,6 +12,7 @@
  */
 
 import { useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconPlus, IconX } from "../../components/Icons.js";
 import { StatusNote } from "../../components/StatusNote.js";
 import { byId, useFocusAfter } from "../../lib/use-focus-after.js";
@@ -177,11 +178,11 @@ export function ConnectorsPanel({ tomb }: { tomb: string }) {
         </fieldset>
       </div>
       <div className="panel__body">
-        {state.error ? (
-          <p className="note note--err" role="alert">
-            {state.error}
-          </p>
-        ) : null}
+        <FailureNotice
+          id="access:connectors"
+          title="Connectors"
+          message={state.error}
+        />
         <StatusNote
           message={state.message ? { tone: "ok", text: state.message } : null}
         />

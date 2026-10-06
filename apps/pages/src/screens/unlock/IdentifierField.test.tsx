@@ -6,6 +6,7 @@
  * explanation.
  */
 
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import type { OrgTenant } from "@opensesame/app-core/lib/orgs.js";
 import {
   cleanup,
@@ -22,6 +23,20 @@ import {
 
 const REAL = { ...identifierFieldDependencies };
 
+/** The tray holds a status notice carrying every part; the page does not. */
+async function trayHas(...parts: string[]) {
+  await waitFor(() =>
+    expect(
+      listNotices().some(
+        (n) =>
+          n.kind === "status" &&
+          parts.every((part) => `${n.title} ${n.body}`.includes(part)),
+      ),
+    ).toBe(true),
+  );
+  expect(document.body.textContent).not.toContain(parts[parts.length - 1]);
+}
+
 const ACME: OrgTenant = {
   slug: "acme-corp",
   displayName: "Acme Corp",
@@ -34,6 +49,7 @@ const ACME: OrgTenant = {
 
 afterEach(() => {
   cleanup();
+  clearNotices();
   Object.assign(identifierFieldDependencies, REAL);
   vi.restoreAllMocks();
 });
@@ -153,7 +169,11 @@ describe("IdentifierField", () => {
     type("two words");
     submit();
 
-    expect(await screen.findByRole("alert")).toBeTruthy();
+    await waitFor(() =>
+      expect(listNotices().some((n) => n.id === "unlock:identifier")).toBe(
+        true,
+      ),
+    );
     expect(lookupOrgTenant).not.toHaveBeenCalled();
     expect(lookupOrgByDomain).not.toHaveBeenCalled();
   });
@@ -169,8 +189,6 @@ describe("IdentifierField", () => {
     type("acme-corp");
     submit();
 
-    expect((await screen.findByRole("alert")).textContent).toContain(
-      "Sign-in service unreachable",
-    );
+    await trayHas("Sign-in service unreachable");
   });
 });

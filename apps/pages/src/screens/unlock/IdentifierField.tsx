@@ -17,6 +17,7 @@ import {
 } from "@opensesame/app-core/lib/orgs.js";
 import { requestEmailMagicLink } from "@opensesame/app-core/lib/providers.js";
 import { type FormEvent, useEffect, useRef, useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 
 export const identifierFieldDependencies = {
   lookupOrgTenant,
@@ -154,11 +155,7 @@ export function IdentifierField({
           ‹ Use a different email or organization
         </button>
 
-        {error ? (
-          <p className="hint identifier__error" role="alert">
-            {error}
-          </p>
-        ) : null}
+        <FailureNotice id="unlock:identifier" title="Sign-in" message={error} />
 
         {tenant ? (
           <div className="identifier__resolved">
@@ -245,6 +242,7 @@ export function IdentifierField({
             autoComplete="username"
             placeholder="you@acme.com  ·  acme-corp"
             value={value}
+            aria-invalid={error ? true : undefined}
             disabled={disabled || busy}
             onChange={(event) => {
               setValue(event.target.value);
@@ -262,11 +260,7 @@ export function IdentifierField({
         </div>
       </form>
 
-      {error ? (
-        <p className="hint identifier__error" role="alert">
-          {error}
-        </p>
-      ) : null}
+      <FailureNotice id="unlock:identifier" title="Sign-in" message={error} />
     </div>
   );
 }

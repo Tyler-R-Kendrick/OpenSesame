@@ -3,6 +3,7 @@ import { ApplicationDiagnostics } from "./ApplicationDiagnostics.js";
 import { ApplicationRecipePanel } from "./ApplicationRecipePanel.js";
 
 export function RegistrationExtras(props: {
+  applicationId: string;
   tomb: string;
   registration: LocalApplication | undefined;
   revision: number | undefined;
@@ -17,6 +18,7 @@ export function RegistrationExtras(props: {
         onApplied={props.onApplied}
       />
       <ApplicationDiagnostics
+        applicationId={props.applicationId}
         policy={props.registration?.scopeRoles}
         policyRevision={String(props.revision ?? 0)}
       />

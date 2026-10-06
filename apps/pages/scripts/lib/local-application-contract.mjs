@@ -1,4 +1,5 @@
 import { expect } from "@playwright/test";
+import { expectTrayRaised } from "./tray-contract.mjs";
 
 export async function localApplicationContract(page, tabTo) {
   async function activate(control) {
@@ -43,7 +44,7 @@ export async function localApplicationContract(page, tabTo) {
     exact: true,
   });
   await activate(save);
-  await expect(row.getByRole("alert")).toContainText("exact HTTPS");
+  await expectTrayRaised(page);
   await expect(redirects).toHaveValue(
     "https://rp.example.test/callback#unsafe",
   );

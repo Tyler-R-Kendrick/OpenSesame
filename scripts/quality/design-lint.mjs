@@ -19,6 +19,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkCopy } from "./design-lint-copy.mjs";
+import { checkFailureCss, checkInPageErrors } from "./design-lint-failures.mjs";
 import { checkCommitKeys, checkFieldWidths } from "./design-lint-layout.mjs";
 import { checkSheets } from "./design-lint-sheets.mjs";
 import { wordVerbHits } from "./design-lint-verbs.mjs";
@@ -177,6 +178,7 @@ function checkTsx(file, source) {
     }
   }
   checkCopy(root, file, source, report, lineOf);
+  checkInPageErrors(file, source, report, lineOf);
   checkCommitKeys(file, source, report, lineOf);
   checkSheets(file, source, report, lineOf);
   checkWordVerbs(file, source);
@@ -268,6 +270,7 @@ function entranceKeyframes() {
 
 function checkCss(file, source) {
   checkDropdowns(file, source);
+  checkFailureCss(file, source, report, lineOf);
   // Comments blanked to the same number of lines, so a reported line
   // number still points at the rule.
   checkFieldWidths(file, blankComments(source), report, lineOf);

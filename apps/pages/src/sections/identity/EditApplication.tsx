@@ -4,6 +4,7 @@ import {
   updateApplication,
 } from "@opensesame/app-core/lib/oauth-client-admin.js";
 import { useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconX } from "../../components/Icons.js";
 
@@ -185,11 +186,11 @@ function HostedApplicationForm(props: {
         Authorization code with PKCE S256; exact redirects remain enforced.
         Public clients cannot use client_credentials.
       </p>
-      {props.error ? (
-        <p className="note note--err" role="alert">
-          {props.error}
-        </p>
-      ) : null}
+      <FailureNotice
+        id={`identity:application:${props.client.id}`}
+        title="Application"
+        message={props.error}
+      />
       {props.preview ? (
         <pre className="cfg-pre" aria-label="Claim preview">
           {props.preview}

@@ -30,7 +30,8 @@ import {
   receiptTarget,
 } from "@opensesame/app-core/sections/access/receipts-model.js";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IconAlert, IconClock, IconRefresh } from "../../components/Icons.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
+import { IconClock, IconRefresh } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useIdentityPlane } from "../../lib/use-configured.js";
 import { useVault } from "../../lib/vault/hooks.js";
@@ -159,6 +160,7 @@ export function Receipts({
     device,
     reachable,
   );
+  const failed = reachable ? error : "Offline.";
 
   return (
     <section className="panel" id="access-receipts">
@@ -171,6 +173,9 @@ export function Receipts({
             tone="warn"
             label={`${pending} ${pending === 1 ? "receipt" : "receipts"} not written yet`}
           />
+        ) : null}
+        {failed ? (
+          <StatusMark tone={reachable ? "err" : "warn"} label={failed} />
         ) : null}
         <button
           type="button"
@@ -185,13 +190,15 @@ export function Receipts({
       </div>
 
       <div className="panel__body panel__body--tight">
-        {!reachable ? (
-          <output className="note note--warn">
-            <IconAlert /> Offline.
-          </output>
-        ) : error ? (
-          <p className="note note--err" role="alert">
-            <IconAlert /> {error}
+        <FailureNotice
+          id="access:receipts"
+          title="Receipts"
+          message={failed}
+          tone={reachable ? "err" : "warn"}
+        />
+        {failed ? (
+          <p className="hint" aria-hidden="true">
+            —
           </p>
         ) : busy && events === null ? (
           <output className="note">

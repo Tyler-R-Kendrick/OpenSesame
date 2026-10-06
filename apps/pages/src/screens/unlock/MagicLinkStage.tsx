@@ -1,5 +1,6 @@
 import { requestEmailMagicLink } from "@opensesame/app-core/lib/providers.js";
 import { type ReactElement, useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconMail } from "../../components/Icons.js";
 
@@ -50,6 +51,7 @@ export function MagicLinkStage({
             inputMode="email"
             autoComplete="email"
             value={linkEmail}
+            aria-invalid={linkError ? true : undefined}
             placeholder="you@example.com"
             disabled={busy || linkSent}
             onChange={(e) => {
@@ -68,11 +70,11 @@ export function MagicLinkStage({
         {linkSent ? (
           <p className="hint">Check your email for a sign-in link.</p>
         ) : null}
-        {linkError ? (
-          <p className="hint identifier__error" role="alert">
-            {linkError}
-          </p>
-        ) : null}
+        <FailureNotice
+          id="unlock:magic-link"
+          title="Email link"
+          message={linkError}
+        />
       </div>
     </div>
   );

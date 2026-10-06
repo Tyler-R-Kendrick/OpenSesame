@@ -6,9 +6,11 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import type { TailnetSyncState } from "@opensesame/app-core/lib/tailnet-sync/observer.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { captureLinkedPairing } from "../../lib/pairing-link.js";
@@ -71,6 +73,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  clearNotices();
   Object.assign(vaultHooksSeams, originalHooks);
   Object.assign(tailnetPanelSeams, originalPanelSeams);
 });
@@ -138,12 +141,24 @@ describe("TailnetSyncPanel", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Pair with this drive" }),
     );
+    await waitFor(() =>
+      expect(
+        listNotices().some(
+          (notice) =>
+            notice.kind === "status" && notice.body.includes("another vault"),
+        ),
+      ).toBe(true),
+    );
+    // The ceremony stays open: nothing was paired. Its focus is trapped, so
+    // the bell is out of reach: the sentence is read in the sheet as well.
+    const dialog = screen.getByRole("dialog", { name: "Pair with a drive" });
+    expect(within(dialog).getAllByText(/another vault/).length).toBeGreaterThan(
+      0,
+    );
     expect(
-      await screen.findByRole("img", { name: /another vault/ }),
-    ).toBeTruthy();
-    // The ceremony stays open: nothing was paired.
-    expect(
-      screen.getByRole("dialog", { name: "Pair with a drive" }),
+      within(dialog).getByRole("img", {
+        name: "That snapshot belongs to another vault",
+      }),
     ).toBeTruthy();
   });
 

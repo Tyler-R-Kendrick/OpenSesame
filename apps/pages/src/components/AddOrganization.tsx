@@ -23,6 +23,7 @@ import {
 import { brokeredOrgUpstream } from "@opensesame/app-core/lib/providers.js";
 import { useState } from "react";
 import { useLocation } from "react-router";
+import { FailureNotice } from "./FailureNotice.js";
 import { IconPlus } from "./Icons.js";
 
 /** The lookup-then-start flow's state and the two things that drive it. */
@@ -180,7 +181,11 @@ export function AddOrganization() {
         </div>
       ) : null}
 
-      {error ? <p className="account-switcher__error">{error}</p> : null}
+      <FailureNotice
+        id="account:add-organization"
+        title="Account"
+        message={error}
+      />
     </>
   );
 }

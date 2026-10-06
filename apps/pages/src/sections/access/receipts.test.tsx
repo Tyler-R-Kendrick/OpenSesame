@@ -7,14 +7,16 @@ import {
 import { changeLocalDirectory } from "@opensesame/app-core/lib/local-directory-admin.js";
 import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { notifyLocalIamChange } from "@opensesame/app-core/lib/local-iam-events.js";
+import { listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   loadSettings,
   saveSettings,
 } from "@opensesame/app-core/lib/settings.js";
 import { lockAllTombs, unlockTomb } from "@opensesame/app-core/lib/vfs.js";
 import { mintVaultKey } from "@opensesame/vault-core";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectInTray } from "../../components/tray.test-support.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { Receipts } from "./receipts.js";
 
@@ -134,10 +136,22 @@ describe("Receipts on the device plane (ADR 0162)", () => {
     cleanup();
     identityJson.mockRejectedValue(new Error("boom"));
     const failed = render(<Receipts online={true} sessionKey={tomb} />);
-    expect(await failed.findByRole("alert")).toBeTruthy();
+    await waitFor(() => expect(listNotices()).not.toHaveLength(0));
+    const tray = listNotices().map((n) => `${n.title} ${n.body}`);
+    expect(tray.join(" ")).not.toMatch(/Identity|service|unreachable|http/i);
     expect(failed.container.textContent).not.toMatch(
       /Identity|service|unreachable|http/i,
     );
+  });
+
+  it("marks the panel and trays the sentence when the trail cannot be read", async () => {
+    identityJson.mockRejectedValue(new Error("boom"));
+    const { container } = render(<Receipts online={true} sessionKey={tomb} />);
+    const sentence = "Receipts did not load. Reload to read them again.";
+    await expectInTray(sentence);
+    expect(screen.getByRole("img", { name: sentence })).toBeTruthy();
+    expect(container.querySelector(".panel__body")?.textContent).not.toBe("");
+    expect(screen.queryByText("No receipts yet.")).toBeNull();
   });
 
   it("reads again when a decision lands, in this tab", async () => {
@@ -205,9 +219,11 @@ describe("Receipts on the device plane (ADR 0162)", () => {
 describe("Receipts on a remote Identity plane", () => {
   beforeEach(() => identityAt("https://identity.example.test"));
 
-  it("needs the network, and says so when there is none", () => {
+  it("needs the network, and says so when there is none", async () => {
     render(<Receipts online={false} sessionKey="prn_a" />);
-    expect(screen.getByText("Offline.")).toBeTruthy();
+    await expectInTray("Offline.");
+    expect(screen.getByRole("img", { name: "Offline." })).toBeTruthy();
+    expect(screen.queryByText("No receipts yet.")).toBeNull();
     expect(identityJson).not.toHaveBeenCalled();
   });
 

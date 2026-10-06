@@ -23,6 +23,7 @@ import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js
 import { clearActivePresentation } from "@opensesame/app-core/lib/duress/compartment/presentation-runtime.js";
 import { hasAuthResponse as defaultHasAuthResponse } from "@opensesame/app-core/lib/federation.js";
 import { recoverPendingFederatedLink as defaultRecoverPendingFederatedLink } from "@opensesame/app-core/lib/guest-auth.js";
+import { NoticeCorner } from "./components/NoticeCorner.js";
 import { usePaneEscape } from "./lib/pane-escape.js";
 import {
   useSessionGuards as defaultUseSessionGuards,
@@ -353,8 +354,14 @@ export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
     <VaultApp />
   );
 
+  // The unlocked shell carries its own bell. Every other screen — locked,
+  // the federated return, a route on its own page — has none, and a failure
+  // is a notice in the tray, so it gets the corner one.
+  const shellless = isAuthCallback || ungated !== null || status !== "unlocked";
+
   return (
     <AppSlotsContext.Provider value={resolved}>
+      {shellless ? <NoticeCorner /> : null}
       {body}
       <ContextMenuLayer />
     </AppSlotsContext.Provider>

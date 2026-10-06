@@ -1,5 +1,6 @@
 import { expect } from "@playwright/test";
 import { toTheList } from "./phone-vault.mjs";
+import { expectInTray } from "./tray-contract.mjs";
 
 // A loaded CI runner shares its cores with the other gates: the match worker
 // has answered in well under a second on a quiet one and missed 5 s on a busy one.
@@ -62,7 +63,7 @@ export async function checkAccountWebsites(page, check) {
     await address.fill("[");
     await page.getByLabel("Name", { exact: true }).fill("Pattern fixture");
     await page.getByRole("button", { name: "Save item", exact: true }).click();
-    await expect(page.getByRole("alert")).toContainText("invalid");
+    await expectInTray(page, "invalid");
     await address.fill("(.*\\.)?example\\.com");
     await page.getByRole("button", { name: "Save item", exact: true }).click();
     await expect(

@@ -4,7 +4,9 @@ import {
 } from "@opensesame/app-core/lib/local-directory.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconRefresh } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { LocalApplicationSettings } from "../identity/LocalApplicationSettings.js";
 
@@ -58,6 +60,7 @@ export function LocalPolicyEditor({ tomb }: { tomb: string }) {
     >
       <div className="panel__head">
         <h2>Local application policies</h2>
+        {error ? <StatusMark tone="err" label={error} /> : null}
         <button
           type="button"
           className="icon-btn icon-btn--sm"
@@ -69,12 +72,13 @@ export function LocalPolicyEditor({ tomb }: { tomb: string }) {
         </button>
       </div>
       <div className="panel__body">
-        {error ? (
-          <p className="note note--err" role="alert">
-            {error}
+        <FailureNotice id="access:policies" title="Policies" message={error} />
+        {!directory && !error ? <output>Loading local policies…</output> : null}
+        {!directory && error ? (
+          <p className="hint" aria-hidden="true">
+            —
           </p>
         ) : null}
-        {!directory && !error ? <output>Loading local policies…</output> : null}
         {directory && applications ? (
           <>
             {applications.length ? (

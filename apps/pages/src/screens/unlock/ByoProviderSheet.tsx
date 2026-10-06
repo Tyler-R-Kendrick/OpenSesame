@@ -15,6 +15,7 @@ import {
   registerByoProvider,
 } from "@opensesame/app-core/lib/byo.js";
 import { type FormEvent, useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { FormCommit } from "../../components/FormCommit.js";
 
 export const byoSheetDependencies = {
@@ -94,6 +95,7 @@ export function ByoProviderSheet({ disabled, onContinue }: Props) {
             spellCheck={false}
             placeholder="https://auth.example.dev"
             value={issuer}
+            aria-invalid={error ? true : undefined}
             disabled={disabled || busy}
             onChange={(event) => {
               setIssuer(event.target.value);
@@ -145,11 +147,11 @@ export function ByoProviderSheet({ disabled, onContinue }: Props) {
         />
       </form>
 
-      {error ? (
-        <p className="hint identifier__error" role="alert">
-          {error}
-        </p>
-      ) : null}
+      <FailureNotice
+        id="unlock:byo-provider"
+        title="Identity provider"
+        message={error}
+      />
 
       {registration ? (
         <div className="byo__ready">

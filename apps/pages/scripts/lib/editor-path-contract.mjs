@@ -1,5 +1,6 @@
 import { expect } from "@playwright/test";
 import { toTheList } from "./phone-vault.mjs";
+import { expectInTray } from "./tray-contract.mjs";
 
 export async function checkEditorPaths(page, check) {
   const original = page.viewportSize();
@@ -46,7 +47,7 @@ export async function checkEditorPaths(page, check) {
     await expect(folder).toHaveValue("");
     await name.fill("../../invalid");
     await name.press("Tab");
-    await expect(page.getByRole("alert")).toContainText("vault root");
+    await expectInTray(page, "vault root");
     await expect(name).toHaveValue("../../invalid");
     await page.getByRole("link", { name: "Cancel", exact: true }).click();
     await page.getByRole("link", { name: "New item", exact: true }).click();

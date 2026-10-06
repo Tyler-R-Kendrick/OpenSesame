@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconDrop, IconX } from "../../components/Icons.js";
@@ -12,15 +12,12 @@ import { TtlChoices } from "./DropTtl.js";
 export function ShareForm({
   ttlMs,
   onTtl,
-  notice,
   busy,
   onSeal,
   onCancel,
 }: {
   ttlMs: number;
   onTtl: (ms: number) => void;
-  /** A failure the ceremony reports, drawn between the choices and the keys. */
-  notice: ReactNode;
   busy: boolean;
   onSeal: () => void;
   onCancel: () => void;
@@ -38,7 +35,6 @@ export function ShareForm({
         selectedRef={chosen}
         disabled={busy}
       />
-      {notice}
       <div className="actions">
         <FormCommit
           label={busy ? "Sealing…" : "Seal and share"}

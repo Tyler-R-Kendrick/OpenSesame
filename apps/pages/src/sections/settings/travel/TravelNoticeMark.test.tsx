@@ -11,11 +11,11 @@ describe("TravelNoticeMark", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("says a refusal as a glyph, announced", () => {
+  it("says a refusal as a glyph, never as an alert box", () => {
     render(
       <TravelNoticeMark notice={{ tone: "err", text: "That is wrong" }} />,
     );
-    expect(screen.getByRole("alert")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
     expect(screen.getByRole("img", { name: "That is wrong" })).toBeTruthy();
   });
 

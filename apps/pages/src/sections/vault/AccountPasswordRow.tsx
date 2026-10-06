@@ -61,6 +61,7 @@ export function AccountPasswordRow({
   // A computed password is rotated in the editor, never typed over here.
   const update = isAlgorithmic(method) ? null : (
     <UpdateSecretPanel
+      itemId={`${item.id}:${method.id}`}
       label="password"
       onUpdate={(next) =>
         onSave({

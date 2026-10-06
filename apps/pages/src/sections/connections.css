@@ -8,29 +8,6 @@
   max-width: 56ch;
 }
 
-.conn-error {
-  max-width: 46rem;
-}
-
-.conn-error__copy {
-  min-width: 0;
-  display: grid;
-  gap: 0.2rem;
-}
-
-.conn-error__copy p {
-  overflow-wrap: anywhere;
-}
-
-.conn-flash {
-  align-items: center;
-}
-
-.conn-flash p {
-  flex: 1;
-  margin: 0;
-}
-
 /* ------------------------------------------------- authorized connections */
 
 .conn-list {
@@ -346,10 +323,6 @@
 }
 
 /* --------------------------------------------------------- the gallery */
-
-.conn-unconfigured {
-  max-width: 76ch;
-}
 
 .conn-catalog__head {
   align-items: center;
