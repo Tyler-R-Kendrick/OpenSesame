@@ -69,6 +69,15 @@ describe("ci gates", () => {
     );
   });
 
+  it("maps the split shards to their one gate", () => {
+    expect(gateOfShard("journeys-2")).toBe("journeys");
+    expect(gateOfShard("mobile-390")).toBe("mobile");
+    expect(gateOfShard("journeys")).toBe("journeys");
+    expect(
+      bundleMatrix(["journeys"], loadShards(root)).map((leg) => leg.shard),
+    ).toEqual(["journeys-1", "journeys-2"]);
+  });
+
   it("writes matrix legs in the shard file's order and only for wanted gates", () => {
     const shards = loadShards(root);
     const legs = bundleMatrix(["mobile", "budgets"], shards).map(

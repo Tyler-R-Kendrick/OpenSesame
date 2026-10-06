@@ -63,8 +63,9 @@ a person can iterate against.
   changes outside it.
 - The tutorials walk is the slowest gate (about eight minutes whole), so CI
   splits it per width into three legs by tutorial id (`TUTORIALS_SHARD`,
-  `tutorial-shard.mjs`); the first leg also runs the passes that are not a
-  tutorial. Each leg is a few minutes.
+  `shard.mjs`); the first leg also runs the passes that are not a tutorial.
+  The experience journeys split in two the same way (`EXPERIENCE_SHARD`, the
+  walks in turn). Each leg is a few minutes.
 - The typecheck and the unit tests run side by side (`ci-run-lanes.mjs`), so
   a diff costs the longer of the two, not their sum.
 - The rules are conservative by construction (unknown means all), so the cost
