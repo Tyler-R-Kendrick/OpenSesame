@@ -156,9 +156,9 @@ fn prompt_secret_hidden(prompt: &str) -> anyhow::Result<String> {
     if !io::stdin().is_terminal() {
         return prompt_line(prompt);
     }
+    crossterm::terminal::enable_raw_mode()?;
     eprint!("{prompt}: ");
     let _ = io::stderr().flush();
-    crossterm::terminal::enable_raw_mode()?;
     let mut buf = String::new();
     let outcome = loop {
         match crossterm::event::read() {

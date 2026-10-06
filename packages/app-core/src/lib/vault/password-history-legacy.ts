@@ -3,9 +3,13 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import { openOwnedDatabase } from "../../ports.js";
+import { maybeIndexedDatabases, openOwnedDatabase } from "../../ports.js";
 import { atRestBinding, openAtRest, sealAtRest } from "../at-rest/cipher.js";
 import { type AtRestKey, atRestReady } from "../at-rest/key.js";
+import {
+  LegacyTransferDeniedError,
+  assertLegacyWritable,
+} from "../legacy-transfer.js";
 import { storageWritesHalted } from "../storage-halt.js";
 import { PASSWORD_HISTORY_DATABASE } from "../storage-ownership.js";
 import type { PasswordDigestStore } from "./password-history-types.js";
@@ -27,7 +31,7 @@ export function isDigest(value: string): boolean {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = openOwnedDatabase(PASSWORD_HISTORY_DATABASE, DB_VERSION);
+    const req = openOwnedDatabase(PASSWORD_HISTORY_DATABASE);
     req.onerror = () => reject(req.error ?? new Error("indexedDB open failed"));
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -36,7 +40,10 @@ function openDb(): Promise<IDBDatabase> {
         store.createIndex("by_scope", "scope", { unique: false });
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      req.result.onversionchange = () => req.result.close();
+      resolve(req.result);
+    };
   });
 }
 
@@ -56,16 +63,20 @@ async function withDb<T>(
   run: (db: IDBDatabase, atRest: AtRestKey) => Promise<T>,
 ): Promise<T | undefined> {
   if (storageWritesHalted()) return undefined;
+  if (!maybeIndexedDatabases()) return undefined;
   try {
     const atRest = await atRestReady();
     if (!atRest.durable) return undefined;
+    await assertLegacyWritable("password-history");
     const db = await openDb();
     try {
+      await assertLegacyWritable("password-history");
       return await run(db, atRest);
     } finally {
       db.close();
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof LegacyTransferDeniedError) throw error;
     return undefined;
   }
 }

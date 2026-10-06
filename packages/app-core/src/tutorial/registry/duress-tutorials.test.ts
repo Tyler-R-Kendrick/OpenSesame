@@ -63,6 +63,7 @@ describe("the duress code and travel mode walkthroughs", () => {
     const goals = new Set(guideGoalIds());
     expect(DURESS_HELP.map((topic) => topic.goal).sort()).toEqual([
       "vaults.duress-code",
+      "vaults.retired-credentials",
       "vaults.travel",
     ]);
     for (const topic of DURESS_HELP)

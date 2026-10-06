@@ -18,6 +18,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { OBSERVATION_EGRESS_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-core.js";
 import { PLUGIN_DAEMON_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-plugins.js";
 import {
   TAILNET_DEVICES_PURPOSE,
@@ -51,6 +52,7 @@ const CATALOG_DIR = join(repo, "packages/app-core/src/lib/capabilities");
 /** Every purpose constant a catalog file exports, with its text. */
 const catalogConstants: ReadonlyMap<string, string> = new Map(
   Object.entries({
+    OBSERVATION_EGRESS_PURPOSE,
     LIVE_CARRIER_PURPOSE,
     PLUGIN_DAEMON_PURPOSE,
     PWNED_PURPOSE,
@@ -331,5 +333,30 @@ describe("shapes that must pass", () => {
   it("ignores a purpose in a file that never deals in egress, and a platform fetch", () => {
     expect(verdicts('const k = { purpose: "workload-root" };')).toEqual([]);
     expect(verdicts("const egress = 1;\nfetch(url, init);")).toEqual([]);
+  });
+});
+
+describe("the canonical observation-purpose declaration", () => {
+  const canonical = "@opensesame/app-core/lib/capabilities/catalog-core.js";
+  it("accepts its canonical alias through a local metadata binding", () => {
+    expect(
+      verdicts(
+        `import { OBSERVATION_EGRESS_PURPOSE as SEALED } from "${canonical}";\nconst META = { capability: "vault.local-unlock", purpose: SEALED };\negress.decide(destination, META);`,
+      ),
+    ).toEqual([]);
+  });
+  it("rejects the same declared purpose under another capability", () => {
+    expect(
+      verdicts(
+        `import { OBSERVATION_EGRESS_PURPOSE } from "${canonical}";\negress.decide(destination, { capability: "vault.passwords", purpose: OBSERVATION_EGRESS_PURPOSE });`,
+      ).join("\n"),
+    ).toMatch(/vault\.passwords does not declare OBSERVATION_EGRESS_PURPOSE/);
+  });
+  it("rejects an identically named purpose from a non-catalog import", () => {
+    expect(
+      verdicts(
+        'import { OBSERVATION_EGRESS_PURPOSE } from "./egress-purpose.js";\negress.decide(destination, { capability: "vault.local-unlock", purpose: OBSERVATION_EGRESS_PURPOSE });',
+      ).join("\n"),
+    ).toMatch(/imports OBSERVATION_EGRESS_PURPOSE from/);
   });
 });

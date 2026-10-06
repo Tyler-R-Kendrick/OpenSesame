@@ -79,7 +79,7 @@ The full picture is in [docs/architecture](docs/architecture/README.md).
 
 ## Quick start
 
-Prerequisites: Node 22+, pnpm 9 (via Corepack), and Rust 1.88 for the Host
+Prerequisites: Node 22.22.0+, pnpm 9 (via Corepack), and Rust 1.88 for the Host
 plane. Details and troubleshooting: [getting started](docs/getting-started/README.md).
 
 ```bash

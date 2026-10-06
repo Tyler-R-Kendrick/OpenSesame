@@ -1,3 +1,4 @@
+pub mod credential_canaries;
 use anyhow::Context;
 use async_trait::async_trait;
 use chrono::Utc;
@@ -7,7 +8,6 @@ use opensesame_domain::{
 };
 use sqlx::{sqlite::SqlitePoolOptions, sqlite::SqliteRow, Row, SqlitePool};
 use std::path::Path;
-
 #[derive(Clone)]
 pub struct Db {
     pool: SqlitePool,

@@ -177,7 +177,7 @@ describe("pre-unlock boot path", () => {
     // (Boot endpoints in `settings.v1` hydrate through the kv layer and
     // never pass through the VFS at all.)
     const PLAINTEXT_BOUNDARY_RE =
-      /^(projects\.v1|tombs\.v1|vault\.[a-z]+\.v1|site-broker\.[a-z]+\.v1|tomb\/[^/]+\/(header|body|migrated\.v1))$/;
+      /^(projects\.v1|tombs\.v1|vault\.[a-z]+\.v1|site-broker\.[a-z]+\.v1|tomb\/[^/]+\/(header|body|migrated\.v1|rotation-journal\.v1))$/;
     for (const key of touched.keys) {
       expect(key).toMatch(PLAINTEXT_BOUNDARY_RE);
     }

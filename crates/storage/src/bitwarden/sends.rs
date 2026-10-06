@@ -90,6 +90,8 @@ impl Db {
         if taken.is_some() {
             return Ok(false);
         }
+        // Formatting interpolates only fixed column constants; external values are bound.
+        // ast-grep-ignore: sql-format-injection
         sqlx::query(&format!(
             "INSERT INTO bitwarden_sends ({SEND_COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
         ))
@@ -144,6 +146,8 @@ impl Db {
     ///
     /// Returns an error when the write fails.
     pub async fn bitwarden_put_send(&self, send: &BitwardenSend) -> anyhow::Result<()> {
+        // Formatting interpolates only fixed column constants; external values are bound.
+        // ast-grep-ignore: sql-format-injection
         sqlx::query(&format!(
             "INSERT INTO bitwarden_sends ({SEND_COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) \
              ON CONFLICT(id) DO UPDATE SET data = excluded.data, key = excluded.key, \
@@ -179,6 +183,8 @@ impl Db {
     ///
     /// Returns an error when the query fails or a row is malformed.
     pub async fn bitwarden_sends(&self, user_id: &str) -> anyhow::Result<Vec<BitwardenSend>> {
+        // Formatting interpolates only fixed column constants; external values are bound.
+        // ast-grep-ignore: sql-format-injection
         let rows = sqlx::query(&format!(
             "SELECT {SEND_COLUMNS} FROM bitwarden_sends WHERE user_id = ? ORDER BY created_at, id"
         ))
@@ -193,6 +199,8 @@ impl Db {
     ///
     /// Returns an error when the query fails or the row is malformed.
     pub async fn bitwarden_send(&self, id: &str) -> anyhow::Result<Option<BitwardenSend>> {
+        // Formatting interpolates only fixed column constants; external values are bound.
+        // ast-grep-ignore: sql-format-injection
         let row = sqlx::query(&format!(
             "SELECT {SEND_COLUMNS} FROM bitwarden_sends WHERE id = ?"
         ))

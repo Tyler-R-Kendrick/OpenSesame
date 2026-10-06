@@ -9,8 +9,10 @@ import {
   overlapCast,
   readString,
 } from "@opensesame/os-domain";
-import type { SealedBlob, VaultHeader } from "@opensesame/vault-core";
 import { backupOriginAllowed } from "./backup-egress-gate.js";
+import { utf8ToBase64 } from "./backup-encoding.js";
+import { sealedEnvelopeJson } from "./backup-sealed-envelope.js";
+import { readSecretToken } from "./backup-secret-token.js";
 import {
   type LocalBackupTarget,
   clearLocalBackupPending,
@@ -19,6 +21,8 @@ import {
   writeLocalBackupTarget,
 } from "./backup-target-local.js";
 import { readBoundedObject } from "./bounded-response.js";
+import { decoyGuardedFetch } from "./decoy-fetch.js";
+import { assertNotDecoySession } from "./decoy-session.js";
 import {
   performSavedCategory,
   performSavedConnector,
@@ -32,47 +36,7 @@ import { getLocalGitRemote } from "./git-remote-local.js";
 import { pemFromVault, readLocalGithubApp } from "./github-app-local.js";
 import { githubAppRelayBase } from "./github-app-relay.js";
 import { savedForgeCredentials } from "./saved-git-backup.js";
-import {
-  buildOfflineBackup,
-  serializeOfflineBackup,
-} from "./vault/offline-backup.js";
-import { GUEST_TOMB, vaultStore } from "./vault/store.js";
-import {
-  BODY_PATH,
-  HEADER_PATH,
-  readPlaintextFile,
-  readSealedFile,
-} from "./vfs.js";
-
-function utf8ToBase64(text: string): string {
-  const bytes = new TextEncoder().encode(text);
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-function sealedEnvelopeJson(): string {
-  const { status, tomb } = vaultStore.getSnapshot();
-  if (tomb === GUEST_TOMB) {
-    throw new Error("Guest vaults cannot sync to a backup remote.");
-  }
-  if (status !== "unlocked" && status !== "locked") {
-    throw new Error("There is no vault to back up.");
-  }
-  const headerRaw = readPlaintextFile(tomb, HEADER_PATH);
-  const body = readSealedFile(tomb, BODY_PATH);
-  if (!headerRaw || !body) {
-    throw new Error("There is nothing stored to back up yet.");
-  }
-  const header: VaultHeader = overlapCast(JSON.parse(headerRaw));
-  const sealedBody: SealedBlob = body;
-  const envelope = buildOfflineBackup({
-    projectId: tomb === "personal" ? null : tomb,
-    header,
-    body: sealedBody,
-  });
-  return serializeOfflineBackup(envelope);
-}
+import { vaultStore } from "./vault/store.js";
 
 type PutContentsResult = { commitSha: string | null };
 
@@ -92,20 +56,25 @@ async function putGithubContentsDefault(input: {
   branch: string;
   contentBase64: string;
 }): Promise<PutContentsResult> {
+  const authorityGeneration = assertNotDecoySession();
   const base = githubAppRelayBase();
   if (base === "") throw new Error("Connect relay is not configured.");
   refuseUnlessAllowed(base);
-  const response = await fetch(`${base}/api/github-app/put-contents`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
+  const response = await decoyGuardedFetch(
+    `${base}/api/github-app/put-contents`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(input),
     },
-    body: JSON.stringify(input),
-  });
+  );
   const payload: JsonObject = overlapCast(
     await readBoundedObject(response, 65536, 30_000).catch(() => ({})),
   );
+  assertNotDecoySession(authorityGeneration);
   if (!response.ok) {
     throw new Error(
       readString(payload.message) ||
@@ -128,6 +97,7 @@ async function putForgeContentsDefault(input: {
   contentBase64: string;
   fields?: Record<string, string>;
 }): Promise<PutContentsResult> {
+  const authorityGeneration = assertNotDecoySession();
   const base = githubAppRelayBase();
   if (base === "") throw new Error("Connect relay is not configured.");
   const body: JsonObject = {
@@ -141,7 +111,7 @@ async function putForgeContentsDefault(input: {
   if (input.fields) body.fields = { ...input.fields };
   if (input.username) body.username = input.username;
   refuseUnlessAllowed(base);
-  const response = await fetch(`${base}/api/git-backup/put`, {
+  const response = await decoyGuardedFetch(`${base}/api/git-backup/put`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -152,6 +122,7 @@ async function putForgeContentsDefault(input: {
   const payload: JsonObject = overlapCast(
     await readBoundedObject(response, 65536, 30_000).catch(() => ({})),
   );
+  assertNotDecoySession(authorityGeneration);
   if (!response.ok) {
     throw new Error(
       readString(payload.message) ||
@@ -176,18 +147,21 @@ async function drainWebhookPendingDefault(): Promise<number> {
   let total = 0;
   for (const target of targets) {
     try {
-      const response = await fetch(`${base}/api/github-app/webhook-pending`, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
+      const response = await decoyGuardedFetch(
+        `${base}/api/github-app/webhook-pending`,
+        {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            appId: creds.appId,
+            pem: creds.pem,
+            installationId: target.installationId,
+          }),
         },
-        body: JSON.stringify({
-          appId: creds.appId,
-          pem: creds.pem,
-          installationId: target.installationId,
-        }),
-      });
+      );
       if (!response.ok) continue;
       const payload: JsonObject = overlapCast(
         await readBoundedObject(response, 65536, 8_000).catch(() => ({})),
@@ -224,17 +198,6 @@ export {
   resetSavedGitBackupForTest,
   savedGitBackupUse,
 } from "./saved-git-backup.js";
-
-function readSecretToken(value: string): string {
-  try {
-    const secrets: JsonObject = overlapCast(JSON.parse(value));
-    const token = readString(secrets.token)?.trim();
-    if (token) return token;
-    return readString(secrets.password)?.trim() || "";
-  } catch {
-    return "";
-  }
-}
 
 function resolveForgeId(
   target: LocalBackupTarget,
@@ -292,6 +255,7 @@ export const vaultBackupSyncSeams = {
 export async function pushSavedForgeBackup(
   target: LocalBackupTarget,
 ): Promise<string | null> {
+  const authorityGeneration = assertNotDecoySession();
   const creds = vaultBackupSyncSeams.resolveForgeCredentials(target);
   if (!creds) {
     throw new Error("Unlock the vault and use an HTTPS token for this remote.");
@@ -309,12 +273,14 @@ export async function pushSavedForgeBackup(
   const result = await vaultBackupSyncSeams.putForgeContents(
     creds.fields ? { ...put, fields: creds.fields } : put,
   );
+  assertNotDecoySession(authorityGeneration);
   return result.commitSha;
 }
 
 async function syncOneTarget(
   target: LocalBackupTarget,
 ): Promise<LocalBackupTarget | null> {
+  const authorityGeneration = assertNotDecoySession();
   if (!target.enabled) return target;
   if (target.providerId) performSavedConnector(target.providerId);
   const providerKey = target.providerId ?? "github";
@@ -342,6 +308,7 @@ async function syncOneTarget(
       });
       commitSha = result.commitSha;
     }
+    assertNotDecoySession(authorityGeneration);
     const next: LocalBackupTarget = {
       ...target,
       status: "ok",
@@ -354,6 +321,7 @@ async function syncOneTarget(
     clearLocalBackupPending(providerKey);
     return next;
   } catch (caught) {
+    assertNotDecoySession(authorityGeneration);
     const message =
       caught instanceof Error ? caught.message : "Backup sync failed";
     writeLocalBackupTarget({
@@ -369,6 +337,7 @@ async function syncOneTarget(
 export async function syncVaultBackup(
   providerId?: string | null,
 ): Promise<LocalBackupTarget | null> {
+  const authorityGeneration = assertNotDecoySession();
   performSavedCategory(["cloud_secret_storage", "encryption"]);
   performSavedCategory(["backup_recovery"]);
   if (providerId) {
@@ -381,8 +350,10 @@ export async function syncVaultBackup(
   let failure: { error: unknown } | null = null;
   for (const target of enabled) {
     try {
+      assertNotDecoySession(authorityGeneration);
       last = await syncOneTarget(target);
     } catch (caught) {
+      assertNotDecoySession(authorityGeneration);
       failure ??= { error: caught };
     }
   }
@@ -391,5 +362,8 @@ export async function syncVaultBackup(
 }
 
 export async function drainBackupWebhooks(): Promise<number> {
-  return vaultBackupSyncSeams.drainWebhookPending();
+  const authorityGeneration = assertNotDecoySession();
+  const result = await vaultBackupSyncSeams.drainWebhookPending();
+  assertNotDecoySession(authorityGeneration);
+  return result;
 }

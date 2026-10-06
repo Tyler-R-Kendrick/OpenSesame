@@ -1,3 +1,8 @@
+import { decoyGuardedFetch } from "./decoy-fetch.js";
+import {
+  assertNotDecoySession,
+  isRealAuthorityBlocked,
+} from "./decoy-session.js";
 /**
  * A hosted model request built from a connector saved on this device.
  * The model-provider record stays free of keys. The secret is attached
@@ -64,6 +69,7 @@ function bodyHidesSecret(
 
 /** The inference request for one saved provider. Nothing saved does not succeed. */
 export function modelExchange(provider: Provider | string): ModelExchange {
+  assertNotDecoySession();
   const asked = isListedProvider(provider) ? provider.id : provider;
   const row = isListedProvider(provider) ? provider : catalogProvider(provider);
   if (row && row.id !== asked) row.id = asked;
@@ -84,8 +90,9 @@ export function modelExchange(provider: Provider | string): ModelExchange {
 
 export const hostedInferenceSeams = {
   fetch: (url: string, init: RequestInit): Promise<Response> =>
-    globalThis.fetch(url, init),
+    decoyGuardedFetch(url, init),
   deliver(exchange: ModelExchange & { ok: true }): DeliveredModel {
+    assertNotDecoySession();
     const sent: DeliveredModel = {
       url: exchange.url,
       body: JSON.stringify(exchange.body),
@@ -111,6 +118,7 @@ export const hostedInferenceSeams = {
 };
 
 export function deliveredModels(): readonly DeliveredModel[] {
+  if (isRealAuthorityBlocked()) return [];
   return delivered;
 }
 
@@ -146,6 +154,7 @@ function posted(exchange: ModelExchange & { ok: true }): ModelExchange {
  * Nothing saved does not succeed.
  */
 export function sendModelOperation(operation: FeatureOperation): ModelExchange {
+  assertNotDecoySession();
   if (!operation.ok) return { ok: false, providerId: operation.providerId };
   const drafted = modelExchange(operation.providerId);
   if (!drafted.ok) return drafted;
@@ -164,5 +173,6 @@ export function sendModelOperation(operation: FeatureOperation): ModelExchange {
 
 /** Send one saved provider's inference request. The key stays on that request. */
 export function performInference(provider: Provider | string): ModelExchange {
+  assertNotDecoySession();
   return sendModelOperation(runListedFeature(provider));
 }

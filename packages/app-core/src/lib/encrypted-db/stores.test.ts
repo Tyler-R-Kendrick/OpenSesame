@@ -48,8 +48,8 @@ beforeEach(() => {
   resetPasswordHistoryForTest();
 });
 
-afterEach(() => {
-  installed?.uninstall();
+afterEach(async () => {
+  await installed?.uninstall();
   installed = undefined;
   installHistoryRowStore(null);
   installPasswordDigestStore(null);
@@ -144,7 +144,7 @@ describe("history backups in an encrypted database", () => {
   it("routes back to the sealed database when the capability goes", async () => {
     installed = installEncryptedStores();
     await installed.migrated;
-    installed.uninstall();
+    await installed.uninstall();
     installed = undefined;
     await putHistoryAccount(account("hacc_back"));
     expect(await databaseNames()).toContain(HISTORY_BACKUP_DATABASE);

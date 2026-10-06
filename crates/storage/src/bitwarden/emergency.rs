@@ -74,6 +74,8 @@ impl Db {
         &self,
         access: &BitwardenEmergencyAccess,
     ) -> anyhow::Result<bool> {
+        // Formatting interpolates only fixed column constants; external values are bound.
+        // ast-grep-ignore: sql-format-injection
         let done = sqlx::query(&format!(
             "INSERT INTO bitwarden_emergency_access ({COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?,?,?) \
              ON CONFLICT(grantor_id, email) DO NOTHING"
@@ -103,6 +105,8 @@ impl Db {
         &self,
         id: &str,
     ) -> anyhow::Result<Option<BitwardenEmergencyAccess>> {
+        // Formatting interpolates only fixed column constants; external values are bound.
+        // ast-grep-ignore: sql-format-injection
         let row = sqlx::query(&format!(
             "SELECT {COLUMNS} FROM bitwarden_emergency_access WHERE id = ?"
         ))
@@ -128,6 +132,8 @@ impl Db {
         } else {
             "grantee_id"
         };
+        // Formatting interpolates only fixed column constants; external values are bound.
+        // ast-grep-ignore: sql-format-injection
         let rows = sqlx::query(&format!(
             "SELECT {COLUMNS} FROM bitwarden_emergency_access WHERE {column} = ? \
              ORDER BY created_at, id"

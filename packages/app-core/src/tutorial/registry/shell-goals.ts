@@ -3,6 +3,10 @@
  * recorded line debt does not rise (ADR 0093).
  */
 
+import {
+  CONTROLLED_SECURITY_GOALS,
+  CONTROLLED_SECURITY_HELP,
+} from "./controlled-security-goals.js";
 import { DURESS_GOALS, DURESS_HELP } from "./duress-goals.js";
 import type { GuideGoalDescriptor, HelpTopic } from "./goals.js";
 import { KEYBOARD_GOALS } from "./keyboard-goals.js";
@@ -43,6 +47,7 @@ export const SHELL_GOALS: readonly GuideGoalDescriptor[] = [
   },
 
   ...DURESS_GOALS,
+  ...CONTROLLED_SECURITY_GOALS,
   ...SHELL_TOUR_GOALS,
   ...SETTINGS_GOALS,
   ...VAULT_ITEM_GOALS,
@@ -78,4 +83,5 @@ export const SHELL_HELP: readonly HelpTopic[] = [
     ],
   },
   ...DURESS_HELP,
+  ...CONTROLLED_SECURITY_HELP,
 ];

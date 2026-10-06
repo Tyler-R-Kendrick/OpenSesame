@@ -3,6 +3,10 @@
  * Digest-only CodeSlotStatus stays for UI; sealed EnrollmentState drives selectTrigger.
  */
 
+import {
+  withRetiredCredentialDuressArm,
+  withRetiredCredentialDuressSeal,
+} from "../../retired-credentials/index.js";
 import type { PresentationClass } from "../access/context.js";
 import { createIndependentCompartmentKey } from "../crypto/slots.js";
 import type { JournalWriteResult } from "../store/journal.js";
@@ -45,6 +49,8 @@ export type SealUnlockTriggerInput = Readonly<{
    */
   opensOrdinaryUnlock?: (code: string) => Promise<boolean>;
 }>;
+
+const sealedTrapSets = new WeakMap<EnrollmentState, string>();
 
 function asPresentation(value: string): PresentationClass {
   if (
@@ -97,33 +103,40 @@ export async function sealUnlockTriggerFromCeremony(
   if (await opensOrdinary(input.code)) {
     throw new Error("ambiguous_trigger: collides with ordinary code");
   }
-  const base = baseEnrollmentState(input);
+  const protectedDraft = await withRetiredCredentialDuressSeal(
+    input.code,
+    async () => {
+      const base = baseEnrollmentState(input);
 
-  const consented: EnrollmentState = {
-    ...base,
-    ownerConsent: input.ownerConsent ?? base.ownerConsent,
-    vaultRef: input.vaultRef,
-    deviceBindingRef: input.deviceBindingRef,
-    policyRevision: input.policyRevision ?? base.policyRevision,
-    keyEpoch: input.keyEpoch ?? base.keyEpoch,
-  };
+      const consented: EnrollmentState = {
+        ...base,
+        ownerConsent: input.ownerConsent ?? base.ownerConsent,
+        vaultRef: input.vaultRef,
+        deviceBindingRef: input.deviceBindingRef,
+        policyRevision: input.policyRevision ?? base.policyRevision,
+        keyEpoch: input.keyEpoch ?? base.keyEpoch,
+      };
 
-  const slot = {
-    compartmentKey: createIndependentCompartmentKey(),
-    actionCapability: null,
-    presentation: asPresentation(String(input.presentation)),
-  };
-  const enrolled = await enrollTrigger({
-    state: consented,
-    code: input.code,
-    profileId: input.profileId,
-    triggerKind: "application_code",
-    plaintext: input.payload ? { ...slot, payload: input.payload } : slot,
-    replace: true,
-    autoRehearse: true,
-  });
+      const slot = {
+        compartmentKey: createIndependentCompartmentKey(),
+        actionCapability: null,
+        presentation: asPresentation(String(input.presentation)),
+      };
+      const enrolled = await enrollTrigger({
+        state: consented,
+        code: input.code,
+        profileId: input.profileId,
+        triggerKind: "application_code",
+        plaintext: input.payload ? { ...slot, payload: input.payload } : slot,
+        replace: true,
+        autoRehearse: true,
+      });
 
-  return { ...enrolled, armed: false };
+      return { ...enrolled, armed: false };
+    },
+  );
+  sealedTrapSets.set(protectedDraft.value, protectedDraft.fingerprint);
+  return protectedDraft.value;
 }
 
 type Options = Readonly<{ requireDurable?: boolean }>;
@@ -140,10 +153,27 @@ export async function armPersistedUnlockEnrollment(
       message: "No sealed triggers to arm.",
     };
   }
-  return persistEnrollmentStateForUnlock(
-    { ...state, armed: true },
-    { requireDurable: options.requireDurable ?? true },
-  );
+  const fingerprint = sealedTrapSets.get(state);
+  if (!fingerprint)
+    return {
+      ok: false,
+      code: "interrupted_write",
+      message: "Seal the duress trigger before arming.",
+    };
+  try {
+    return await withRetiredCredentialDuressArm(fingerprint, () =>
+      persistEnrollmentStateForUnlock(
+        { ...state, armed: true },
+        { requireDurable: options.requireDurable ?? true },
+      ),
+    );
+  } catch {
+    return {
+      ok: false,
+      code: "stale_revision",
+      message: "Credential enrollment changed. Seal this duress code again.",
+    };
+  }
 }
 
 /** Disarm, waiting for storage: a code that comes back on reload was not removed. */

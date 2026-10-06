@@ -31,6 +31,15 @@ export async function headerWithPassword(
   password: string,
 ): Promise<VaultHeader> {
   await assertNewPassword(password);
+  return sealAdmittedPasswordHeader(header, rawVaultKey, password);
+}
+
+/** Cryptographic header construction after the caller admits the password policy. */
+export async function sealAdmittedPasswordHeader(
+  header: VaultHeader,
+  rawVaultKey: Uint8Array,
+  password: string,
+): Promise<VaultHeader> {
   const { kdf, wrap } = await wrapVaultKeyWithPassword(rawVaultKey, password);
   return { ...header, kdf, wrap };
 }
@@ -55,6 +64,16 @@ export async function headerWithNewPassword(
     );
   }
   await assertNewPassword(next);
+  return rekeyAdmittedPasswordHeader(header, current, next, hint);
+}
+
+/** Rewrap construction for a password admitted through its full commit mutex. */
+export function rekeyAdmittedPasswordHeader(
+  header: VaultHeader,
+  current: string,
+  next: string,
+  hint?: string,
+): Promise<VaultHeader> {
   return rewrapVaultKey(header, current, next, hint);
 }
 

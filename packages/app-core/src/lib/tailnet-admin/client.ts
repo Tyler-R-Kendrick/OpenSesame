@@ -1,3 +1,4 @@
+import { assertNotDecoySession } from "../decoy-session.js";
 /**
  * The daemon a person paired this page with for tailnet device management
  * (ADR 0169), as the port the device panel works through.
@@ -146,6 +147,7 @@ function transport(egress: EgressPort, capability: CapabilityId) {
   const meta = { capability, purpose: TAILNET_DEVICES_PURPOSE };
 
   function send(base: string, path: string, init: RequestInit) {
+    assertNotDecoySession();
     return egress.fetch(
       `${base}${path}`,
       { ...init, credentials: "omit", cache: "no-store" },
@@ -160,6 +162,7 @@ function transport(egress: EgressPort, capability: CapabilityId) {
     body?: BoundaryValue,
     signal?: AbortSignal,
   ): Promise<DaemonAnswer> {
+    const authorityGeneration = assertNotDecoySession();
     const pairing = tailnetAdminSeams.pairing();
     if (!pairing) throw new TailnetAdminError("no-daemon");
     const headers = new Headers({ Authorization: `Bearer ${pairing.token}` });
@@ -173,6 +176,7 @@ function transport(egress: EgressPort, capability: CapabilityId) {
       throw new TailnetAdminError("unreachable");
     });
     const answer = await readBody(response);
+    assertNotDecoySession(authorityGeneration);
     if (!response.ok) throw refusal(response.status, answer);
     return { status: response.status, body: answer };
   }

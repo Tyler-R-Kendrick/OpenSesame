@@ -1,9 +1,8 @@
 /**
- * The TURN server the relayed walks use for TCP and TLS (ADR 0150 §6):
+ * The TURN server the relayed walks use for UDP, TCP and TLS (ADR 0150 §6):
  * `live-turn`, a pion/turn server (scripts/test/live-turn, built into
  * .cache/live-fixtures/bin by `pnpm test:live-fixtures`) that speaks UDP, TCP
  * and TLS at once and says, over a control endpoint, what each transport saw.
- * node-turn, which the UDP walk keeps, is UDP only.
  *
  * TLS needs a certificate a browser will take: `mintTurnCert` has the binary
  * write a throwaway self-signed one and returns the SHA-256 of its public key,
@@ -68,13 +67,17 @@ function firstLine(child, ms) {
  * `restSecret` the server takes TURN REST credentials minted from that secret
  * (coturn's `use-auth-secret`) instead of a static name and credential.
  */
-export async function startLiveTurn(binary, { cert, restSecret } = {}) {
+export async function startLiveTurn(
+  binary,
+  { cert, restSecret, host = "127.0.0.1" } = {},
+) {
   if (!binary || !fs.existsSync(binary)) return { missing: binary };
   const username = "live";
   const credential = randomBytes(12).toString("hex");
   const args = restSecret
     ? ["serve", "-rest-secret", restSecret]
     : ["serve", "-user", username, "-credential", credential];
+  args.push("-listen", host);
   if (cert) args.push("-cert", cert.cert, "-key", cert.key);
   const child = spawn(binary, args, { stdio: ["ignore", "pipe", "pipe"] });
   let ready;
@@ -89,9 +92,9 @@ export async function startLiveTurn(binary, { cert, restSecret } = {}) {
     username: restSecret ? undefined : username,
     credential: restSecret ? undefined : credential,
     urls: {
-      udp: `turn:127.0.0.1:${ready.udp}?transport=udp`,
-      tcp: `turn:127.0.0.1:${ready.tcp}?transport=tcp`,
-      tls: ready.tls ? `turns:127.0.0.1:${ready.tls}?transport=tcp` : null,
+      udp: `turn:${host}:${ready.udp}?transport=udp`,
+      tcp: `turn:${host}:${ready.tcp}?transport=tcp`,
+      tls: ready.tls ? `turns:${host}:${ready.tls}?transport=tcp` : null,
     },
     /** What each transport saw so far: { udp, tcp, tls } of counters. */
     stats: async () => (await fetch(url)).json(),

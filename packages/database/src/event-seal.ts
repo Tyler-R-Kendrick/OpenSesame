@@ -79,7 +79,9 @@ function sealEnvelope(
   const aad = Buffer.from(JSON.stringify([scope, purpose]));
   const encrypt = (secret: Buffer, plain: Buffer) => {
     const iv = randomBytes(IV_BYTES);
-    const cipher = createCipheriv("aes-256-gcm", secret, iv);
+    const cipher = createCipheriv("aes-256-gcm", secret, iv, {
+      authTagLength: TAG_BYTES,
+    });
     cipher.setAAD(aad);
     return Buffer.concat([
       iv,
@@ -141,6 +143,7 @@ export function createEventSealer(secret: string): EventSealer {
             "aes-256-gcm",
             secret,
             body.subarray(0, IV_BYTES),
+            { authTagLength: TAG_BYTES },
           );
           cipher.setAAD(aad);
           cipher.setAuthTag(body.subarray(body.length - TAG_BYTES));
@@ -170,6 +173,7 @@ export function createEventSealer(secret: string): EventSealer {
           "aes-256-gcm",
           key,
           packed.subarray(0, IV_BYTES),
+          { authTagLength: TAG_BYTES },
         );
         decipher.setAAD(Buffer.from(purpose.split(":")[0] ?? purpose));
         decipher.setAuthTag(packed.subarray(packed.length - TAG_BYTES));

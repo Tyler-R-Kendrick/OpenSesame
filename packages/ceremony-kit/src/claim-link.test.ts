@@ -63,7 +63,7 @@ describe("claim link", () => {
 });
 
 describe("complete claim link", () => {
-  const TOKEN = "osc_clm_AbC-_1.s3cr3t-_";
+  const TOKEN = "osc_clm_AbC-_1.s3cr3t-_"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 
   it("appends the bearer as a fragment to the built claim route", () => {
     const route = buildCeremonyUrl("https://app.example/OpenSesame/", "claim");

@@ -4,7 +4,7 @@
  * carrier passes the codes, and both browsers meet through the relay alone.
  * One walk per way to reach the server, because each is a different road:
  *
- * - **relayed** — `turn:host:port?transport=udp`, node-turn on loopback.
+ * - **relayed** — `turn:host:port?transport=udp`, Pion TURN on loopback.
  * - **relayed-tcp** — `turn:host:port?transport=tcp`, the road through a
  *   firewall that lets only TCP out.
  * - **relayed-tls** — `turns:host:port?transport=tcp`, the road through a
@@ -17,7 +17,7 @@
  *   secret. **relayed-rest-wrong** is its negative control: the server holds
  *   a different secret, authentication fails, and the browsers never meet.
  *
- * TCP, TLS and REST are served by `live-turn` (pion/turn), which counts what
+ * UDP, TCP, TLS and REST are served by `live-turn` (pion/turn), which counts what
  * each transport saw. A relay-to-relay pair says nothing of how the client reached
  * the server, so every walk also asks the server: the transport it was named
  * for authenticated and allocated for both peers, and no client traffic
@@ -165,9 +165,9 @@ async function through(browser, owner, label, hooks) {
   }
 }
 
-/** UDP, through node-turn: the road with no firewall in it. */
-export async function relayed(browser, owner) {
-  const turn = await startTurnServer();
+/** UDP, through Pion TURN: the road with no firewall in it. */
+export async function relayed(browser, owner, { binary }) {
+  const turn = await startTurnServer({ binary });
   try {
     const route = {
       url: turn.url,
@@ -176,8 +176,14 @@ export async function relayed(browser, owner) {
     };
     await through(browser, owner, "relayed", {
       prepare: (carrier) => formRoutes(owner.page, route, carrier),
-      afterwards: (pages) =>
-        checkPeers(pages, { url: turn.url, protocol: "udp", label: "relayed" }),
+      afterwards: async (pages) => {
+        await checkPeers(pages, {
+          url: turn.url,
+          protocol: "udp",
+          label: "relayed",
+        });
+        await checkServer(turn, "udp", "relayed");
+      },
     });
   } finally {
     await turn.stop();

@@ -30,6 +30,7 @@ import java.nio.CharBuffer
 import java.nio.charset.CodingErrorAction
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 // This is a helper for safely working with byte buffers returned from the Rust code.
 // A rust-owned buffer is represented by its capacity, its current length, and a
@@ -649,6 +650,28 @@ internal open class UniffiForeignFutureResultVoid(
 internal interface UniffiForeignFutureCompleteVoid : com.sun.jna.Callback {
     fun callback(`callbackData`: Long,`result`: UniffiForeignFutureResultVoid.UniffiByValue,)
 }
+internal interface UniffiCallbackInterfaceNativeCanaryIssuerProviderMethod0 : com.sun.jna.Callback {
+    fun callback(`uniffiHandle`: Long,`issuerRecordRef`: RustBuffer.ByValue,`expectedVaultIdentity`: RustBuffer.ByValue,`uniffiOutReturn`: RustBuffer,uniffiCallStatus: UniffiRustCallStatus,)
+}
+@Structure.FieldOrder("uniffiFree", "uniffiClone", "retireAuthenticated")
+internal open class UniffiVTableCallbackInterfaceNativeCanaryIssuerProvider(
+    @JvmField internal var `uniffiFree`: UniffiCallbackInterfaceFree? = null,
+    @JvmField internal var `uniffiClone`: UniffiCallbackInterfaceClone? = null,
+    @JvmField internal var `retireAuthenticated`: UniffiCallbackInterfaceNativeCanaryIssuerProviderMethod0? = null,
+) : Structure() {
+    class UniffiByValue(
+        `uniffiFree`: UniffiCallbackInterfaceFree? = null,
+        `uniffiClone`: UniffiCallbackInterfaceClone? = null,
+        `retireAuthenticated`: UniffiCallbackInterfaceNativeCanaryIssuerProviderMethod0? = null,
+    ): UniffiVTableCallbackInterfaceNativeCanaryIssuerProvider(`uniffiFree`,`uniffiClone`,`retireAuthenticated`,), Structure.ByValue
+
+   internal fun uniffiSetValue(other: UniffiVTableCallbackInterfaceNativeCanaryIssuerProvider) {
+        `uniffiFree` = other.`uniffiFree`
+        `uniffiClone` = other.`uniffiClone`
+        `retireAuthenticated` = other.`retireAuthenticated`
+    }
+
+}
 
 // A JNA Library to expose the extern-C FFI definitions.
 // This is an implementation detail which will be called internally by the public API.
@@ -674,6 +697,40 @@ internal object IntegrityCheckingUniffiLib {
     }
     external fun uniffi_opensesame_authenticator_core_checksum_func_validate_platform_invocation(
     ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_canary_observe(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_canary_queue_latest_password(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_canary_status(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_canary_dispatch_current(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_canary_finish(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_canary_reserve(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_canary_retire_issued(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_canary_manage(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_gate_admit(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_gate_authority_denied(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_gate_change_password(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_gate_clear_events(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_gate_create(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_gate_enroll(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_gate_remove(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_func_native_gate_status(
+    ): Int
+    external fun uniffi_opensesame_authenticator_core_checksum_method_nativecanaryissuerprovider_retire_authenticated(
+    ): Int
     external fun ffi_opensesame_authenticator_core_uniffi_contract_version(
     ): Int
 
@@ -682,12 +739,58 @@ internal object IntegrityCheckingUniffiLib {
 
 internal object UniffiLib {
 
+    // The Cleaner for the whole library
+    internal val CLEANER: UniffiCleaner by lazy {
+        UniffiCleaner.create()
+    }
+
 
     init {
         Native.register(UniffiLib::class.java, findLibraryName(componentName = "opensesame_authenticator_core"))
+        uniffiCallbackInterfaceNativeCanaryIssuerProvider.register(this)
 
     }
+    external fun uniffi_opensesame_authenticator_core_fn_clone_nativecanaryissuerprovider(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    ): Long
+    external fun uniffi_opensesame_authenticator_core_fn_free_nativecanaryissuerprovider(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
+    external fun uniffi_opensesame_authenticator_core_fn_init_callback_vtable_nativecanaryissuerprovider(`vtable`: UniffiVTableCallbackInterfaceNativeCanaryIssuerProvider,
+    ): Unit
+    external fun uniffi_opensesame_authenticator_core_fn_method_nativecanaryissuerprovider_retire_authenticated(`ptr`: Long,`issuerRecordRef`: RustBuffer.ByValue,`expectedVaultIdentity`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
     external fun uniffi_opensesame_authenticator_core_fn_func_validate_platform_invocation(`authenticatorOrigin`: RustBuffer.ByValue,`raw`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_canary_observe(`gateRecord`: RustBuffer.ByValue,`stateRecord`: RustBuffer.ByValue,`artifactId`: RustBuffer.ByValue,`presentedId`: RustBuffer.ByValue,`phase`: RustBuffer.ByValue,`now`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_canary_queue_latest_password(`gateRecord`: RustBuffer.ByValue,`stateRecord`: RustBuffer.ByValue,`now`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_canary_status(`gateRecord`: RustBuffer.ByValue,`stateRecord`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_canary_dispatch_current(`gateRecord`: RustBuffer.ByValue,`stateRecord`: RustBuffer.ByValue,`reserved`: RustBuffer.ByValue,`now`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): Byte
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_canary_finish(`gateRecord`: RustBuffer.ByValue,`stateRecord`: RustBuffer.ByValue,`reserved`: RustBuffer.ByValue,`acknowledgement`: RustBuffer.ByValue,`now`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_canary_reserve(`gateRecord`: RustBuffer.ByValue,`stateRecord`: RustBuffer.ByValue,`packageId`: RustBuffer.ByValue,`testing`: Byte,`now`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_canary_retire_issued(`gateRecord`: RustBuffer.ByValue,`current`: RustBuffer.ByValue,`stateRecord`: RustBuffer.ByValue,`issuerRecordRef`: RustBuffer.ByValue,`provider`: Long,`now`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_canary_manage(`gateRecord`: RustBuffer.ByValue,`current`: RustBuffer.ByValue,`stateRecord`: RustBuffer.ByValue,`operation`: RustBuffer.ByValue,`now`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_gate_admit(`record`: RustBuffer.ByValue,`password`: RustBuffer.ByValue,`now`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_gate_authority_denied(`record`: RustBuffer.ByValue,`trapId`: RustBuffer.ByValue,`now`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_gate_change_password(`record`: RustBuffer.ByValue,`current`: RustBuffer.ByValue,`next`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_gate_clear_events(`record`: RustBuffer.ByValue,`current`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_gate_create(`password`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_gate_enroll(`record`: RustBuffer.ByValue,`current`: RustBuffer.ByValue,`retired`: RustBuffer.ByValue,`synthetic`: Byte,`now`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_gate_remove(`record`: RustBuffer.ByValue,`current`: RustBuffer.ByValue,`id`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_opensesame_authenticator_core_fn_func_native_gate_status(`record`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun ffi_opensesame_authenticator_core_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
@@ -811,6 +914,57 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if (lib.uniffi_opensesame_authenticator_core_checksum_func_validate_platform_invocation() != 29577) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_canary_observe() != 14828) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_canary_queue_latest_password() != 25390) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_canary_status() != 56389) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_canary_dispatch_current() != 57065) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_canary_finish() != 38712) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_canary_reserve() != 42770) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_canary_retire_issued() != 39902) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_canary_manage() != 25009) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_gate_admit() != 36932) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_gate_authority_denied() != 65450) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_gate_change_password() != 64573) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_gate_clear_events() != 59560) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_gate_create() != 23398) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_gate_enroll() != 48575) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_gate_remove() != 44386) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_func_native_gate_status() != 40333) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if (lib.uniffi_opensesame_authenticator_core_checksum_method_nativecanaryissuerprovider_retire_authenticated() != 58834) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
 }
 
 /**
@@ -902,7 +1056,125 @@ object UniffiWithHandle
  *
  * @suppress
  * */
-object NoHandle
+object NoHandle// Magic number for the Rust proxy to call using the same mechanism as every other method,
+// to free the callback once it's dropped by Rust.
+internal const val IDX_CALLBACK_FREE = 0
+// Callback return codes
+internal const val UNIFFI_CALLBACK_SUCCESS = 0
+internal const val UNIFFI_CALLBACK_ERROR = 1
+internal const val UNIFFI_CALLBACK_UNEXPECTED_ERROR = 2
+
+/**
+ * @suppress
+ */
+public abstract class FfiConverterCallbackInterface<CallbackInterface: Any>: FfiConverter<CallbackInterface, Long> {
+    internal val handleMap = UniffiHandleMap<CallbackInterface>()
+
+    internal fun drop(handle: Long) {
+        handleMap.remove(handle)
+    }
+
+    override fun lift(value: Long): CallbackInterface {
+        return handleMap.get(value)
+    }
+
+    override fun read(buf: ByteBuffer) = lift(buf.getLong())
+
+    override fun lower(value: CallbackInterface) = handleMap.insert(value)
+
+    override fun allocationSize(value: CallbackInterface) = 8UL
+
+    override fun write(value: CallbackInterface, buf: ByteBuffer) {
+        buf.putLong(lower(value))
+    }
+}
+/**
+ * The cleaner interface for Object finalization code to run.
+ * This is the entry point to any implementation that we're using.
+ *
+ * The cleaner registers objects and returns cleanables, so now we are
+ * defining a `UniffiCleaner` with a `UniffiClenaer.Cleanable` to abstract the
+ * different implmentations available at compile time.
+ *
+ * @suppress
+ */
+interface UniffiCleaner {
+    interface Cleanable {
+        fun clean()
+    }
+
+    fun register(value: Any, cleanUpTask: Runnable): UniffiCleaner.Cleanable
+
+    companion object
+}
+
+// The fallback Jna cleaner, which is available for both Android, and the JVM.
+private class UniffiJnaCleaner : UniffiCleaner {
+    private val cleaner = com.sun.jna.internal.Cleaner.getCleaner()
+
+    override fun register(value: Any, cleanUpTask: Runnable): UniffiCleaner.Cleanable =
+        UniffiJnaCleanable(cleaner.register(value, cleanUpTask))
+}
+
+private class UniffiJnaCleanable(
+    private val cleanable: com.sun.jna.internal.Cleaner.Cleanable,
+) : UniffiCleaner.Cleanable {
+    override fun clean() = cleanable.clean()
+}
+
+
+// We decide at uniffi binding generation time whether we were
+// using Android or not.
+// There are further runtime checks to chose the correct implementation
+// of the cleaner.
+private fun UniffiCleaner.Companion.create(): UniffiCleaner =
+    try {
+        // For safety's sake: if the library hasn't been run in android_cleaner = true
+        // mode, but is being run on Android, then we still need to think about
+        // Android API versions.
+        // So we check if java.lang.ref.Cleaner is there, and use that…
+        java.lang.Class.forName("java.lang.ref.Cleaner")
+        JavaLangRefCleaner()
+    } catch (e: ClassNotFoundException) {
+        // … otherwise, fallback to the JNA cleaner.
+        UniffiJnaCleaner()
+    }
+
+private class JavaLangRefCleaner : UniffiCleaner {
+    val cleaner = java.lang.ref.Cleaner.create()
+
+    override fun register(value: Any, cleanUpTask: Runnable): UniffiCleaner.Cleanable =
+        JavaLangRefCleanable(cleaner.register(value, cleanUpTask))
+}
+
+private class JavaLangRefCleanable(
+    val cleanable: java.lang.ref.Cleaner.Cleanable
+) : UniffiCleaner.Cleanable {
+    override fun clean() = cleanable.clean()
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterBoolean: FfiConverter<Boolean, Byte> {
+    override fun lift(value: Byte): Boolean {
+        return value.toInt() != 0
+    }
+
+    override fun read(buf: ByteBuffer): Boolean {
+        return lift(buf.get())
+    }
+
+    override fun lower(value: Boolean): Byte {
+        return if (value) 1.toByte() else 0.toByte()
+    }
+
+    override fun allocationSize(value: Boolean) = 1UL
+
+    override fun write(value: Boolean, buf: ByteBuffer) {
+        buf.put(lower(value))
+    }
+}
 
 /**
  * @suppress
@@ -958,6 +1230,559 @@ public object FfiConverterString: FfiConverter<String, RustBuffer.ByValue> {
         val byteBuf = toUtf8(value)
         buf.putInt(byteBuf.limit())
         buf.put(byteBuf)
+    }
+}
+
+
+// This template implements a class for working with a Rust struct via a handle
+// to the live Rust struct on the other side of the FFI.
+//
+// There's some subtlety here, because we have to be careful not to operate on a Rust
+// struct after it has been dropped, and because we must expose a public API for freeing
+// theq Kotlin wrapper object in lieu of reliable finalizers. The core requirements are:
+//
+//   * Each instance holds an opaque handle to the underlying Rust struct.
+//     Method calls need to read this handle from the object's state and pass it in to
+//     the Rust FFI.
+//
+//   * When an instance is no longer needed, its handle should be passed to a
+//     special destructor function provided by the Rust FFI, which will drop the
+//     underlying Rust struct.
+//
+//   * Given an instance, calling code is expected to call the special
+//     `destroy` method in order to free it after use, either by calling it explicitly
+//     or by using a higher-level helper like the `use` method. Failing to do so risks
+//     leaking the underlying Rust struct.
+//
+//   * We can't assume that calling code will do the right thing, and must be prepared
+//     to handle Kotlin method calls executing concurrently with or even after a call to
+//     `destroy`, and to handle multiple (possibly concurrent!) calls to `destroy`.
+//
+//   * We must never allow Rust code to operate on the underlying Rust struct after
+//     the destructor has been called, and must never call the destructor more than once.
+//     Doing so may trigger memory unsafety.
+//
+//   * To mitigate many of the risks of leaking memory and use-after-free unsafety, a `Cleaner`
+//     is implemented to call the destructor when the Kotlin object becomes unreachable.
+//     This is done in a background thread. This is not a panacea, and client code should be aware that
+//      1. the thread may starve if some there are objects that have poorly performing
+//     `drop` methods or do significant work in their `drop` methods.
+//      2. the thread is shared across the whole library. This can be tuned by using `android_cleaner = true`,
+//         or `android = true` in the [`kotlin` section of the `uniffi.toml` file](https://mozilla.github.io/uniffi-rs/kotlin/configuration.html).
+//
+// If we try to implement this with mutual exclusion on access to the handle, there is the
+// possibility of a race between a method call and a concurrent call to `destroy`:
+//
+//    * Thread A starts a method call, reads the value of the handle, but is interrupted
+//      before it can pass the handle over the FFI to Rust.
+//    * Thread B calls `destroy` and frees the underlying Rust struct.
+//    * Thread A resumes, passing the already-read handle value to Rust and triggering
+//      a use-after-free.
+//
+// One possible solution would be to use a `ReadWriteLock`, with each method call taking
+// a read lock (and thus allowed to run concurrently) and the special `destroy` method
+// taking a write lock (and thus blocking on live method calls). However, we aim not to
+// generate methods with any hidden blocking semantics, and a `destroy` method that might
+// block if called incorrectly seems to meet that bar.
+//
+// So, we achieve our goals by giving each instance an associated `AtomicLong` counter to track
+// the number of in-flight method calls, and an `AtomicBoolean` flag to indicate whether `destroy`
+// has been called. These are updated according to the following rules:
+//
+//    * The initial value of the counter is 1, indicating a live object with no in-flight calls.
+//      The initial value for the flag is false.
+//
+//    * At the start of each method call, we atomically check the counter.
+//      If it is 0 then the underlying Rust struct has already been destroyed and the call is aborted.
+//      If it is nonzero them we atomically increment it by 1 and proceed with the method call.
+//
+//    * At the end of each method call, we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+//    * When `destroy` is called, we atomically flip the flag from false to true.
+//      If the flag was already true we silently fail.
+//      Otherwise we atomically decrement and check the counter.
+//      If it has reached zero then we destroy the underlying Rust struct.
+//
+// Astute readers may observe that this all sounds very similar to the way that Rust's `Arc<T>` works,
+// and indeed it is, with the addition of a flag to guard against multiple calls to `destroy`.
+//
+// The overall effect is that the underlying Rust struct is destroyed only when `destroy` has been
+// called *and* all in-flight method calls have completed, avoiding violating any of the expectations
+// of the underlying Rust code.
+//
+// This makes a cleaner a better alternative to _not_ calling `destroy()` as
+// and when the object is finished with, but the abstraction is not perfect: if the Rust object's `drop`
+// method is slow, and/or there are many objects to cleanup, and it's on a low end Android device, then the cleaner
+// thread may be starved, and the app will leak memory.
+//
+// In this case, `destroy`ing manually may be a better solution.
+//
+// The cleaner can live side by side with the manual calling of `destroy`. In the order of responsiveness, uniffi objects
+// with Rust peers are reclaimed:
+//
+// 1. By calling the `destroy` method of the object, which calls `rustObject.free()`. If that doesn't happen:
+// 2. When the object becomes unreachable, AND the Cleaner thread gets to call `rustObject.free()`. If the thread is starved then:
+// 3. The memory is reclaimed when the process terminates.
+//
+// [1] https://stackoverflow.com/questions/24376768/can-java-finalize-an-object-when-it-is-still-in-scope/24380219
+//
+
+
+/**
+ * A human-installed adapter authenticates the actual Host separately and resolves its issued
+ * UUID record. Local password/OS proof is not Host authorization. Implementations must bound
+ * transport, reject redirects, and return only the authenticated retirement's closed metadata.
+ */
+public interface NativeCanaryIssuerProvider {
+
+    /**
+     * # Errors
+     * Refuses missing Host authentication, absent issuance, or unsuccessful atomic revocation.
+     */
+    fun `retireAuthenticated`(`issuerRecordRef`: kotlin.String, `expectedVaultIdentity`: kotlin.String): kotlin.String
+
+    companion object
+}
+
+/**
+ * A human-installed adapter authenticates the actual Host separately and resolves its issued
+ * UUID record. Local password/OS proof is not Host authorization. Implementations must bound
+ * transport, reject redirects, and return only the authenticated retirement's closed metadata.
+ */
+open class NativeCanaryIssuerProviderImpl: Disposable, AutoCloseable, NativeCanaryIssuerProvider
+{
+
+    @Suppress("UNUSED_PARAMETER")
+    /**
+     * @suppress
+     */
+    constructor(withHandle: UniffiWithHandle, handle: Long) {
+        this.handle = handle
+        this.cleanable = UniffiLib.CLEANER.register(this, UniffiCleanAction(handle))
+    }
+
+    /**
+     * @suppress
+     *
+     * This constructor can be used to instantiate a fake object. Only used for tests. Any
+     * attempt to actually use an object constructed this way will fail as there is no
+     * connected Rust object.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    constructor(noHandle: NoHandle) {
+        this.handle = 0
+        this.cleanable = null
+    }
+
+    protected val handle: Long
+    protected val cleanable: UniffiCleaner.Cleanable?
+
+    private val wasDestroyed = AtomicBoolean(false)
+    private val callCounter = AtomicLong(1)
+
+    /**
+     * Whether the current object has been destroyed and its reference is gone in the Rust side.
+     */
+    val uniffiIsDestroyed: Boolean get() = wasDestroyed.get()
+
+    override fun destroy() {
+        // Only allow a single call to this method.
+        // TODO: maybe we should log a warning if called more than once?
+        if (this.wasDestroyed.compareAndSet(false, true)) {
+            // This decrement always matches the initial count of 1 given at creation time.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    @Synchronized
+    override fun close() {
+        this.destroy()
+    }
+
+    internal inline fun <R> callWithHandle(block: (handle: Long) -> R): R {
+        // Check and increment the call counter, to keep the object alive.
+        // This needs a compare-and-set retry loop in case of concurrent updates.
+        do {
+            val c = this.callCounter.get()
+            if (c == 0L) {
+                throw IllegalStateException("${this.javaClass.simpleName} object has already been destroyed")
+            }
+            if (c == Long.MAX_VALUE) {
+                throw IllegalStateException("${this.javaClass.simpleName} call counter would overflow")
+            }
+        } while (! this.callCounter.compareAndSet(c, c + 1L))
+        // Now we can safely do the method call without the handle being freed concurrently.
+        try {
+            return block(this.uniffiCloneHandle())
+        } finally {
+            // This decrement always matches the increment we performed above.
+            if (this.callCounter.decrementAndGet() == 0L) {
+                cleanable?.clean()
+            }
+        }
+    }
+
+    // Use a static inner class instead of a closure so as not to accidentally
+    // capture `this` as part of the cleanable's action.
+    private class UniffiCleanAction(private val handle: Long) : Runnable {
+        override fun run() {
+            if (handle == 0.toLong()) {
+                // Fake object created with `NoHandle`, don't try to free.
+                return;
+            }
+            uniffiRustCall { status ->
+                UniffiLib.uniffi_opensesame_authenticator_core_fn_free_nativecanaryissuerprovider(handle, status)
+            }
+        }
+    }
+
+    /**
+     * @suppress
+     */
+    fun uniffiCloneHandle(): Long {
+        if (handle == 0.toLong()) {
+            throw InternalException("uniffiCloneHandle() called on NoHandle object");
+        }
+        return uniffiRustCall() { status ->
+            UniffiLib.uniffi_opensesame_authenticator_core_fn_clone_nativecanaryissuerprovider(handle, status)
+        }
+    }
+
+
+    /**
+     * # Errors
+     * Refuses missing Host authentication, absent issuance, or unsuccessful atomic revocation.
+     */
+    @Throws(NativeGateException::class)override fun `retireAuthenticated`(`issuerRecordRef`: kotlin.String, `expectedVaultIdentity`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    callWithHandle {
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_method_nativecanaryissuerprovider_retire_authenticated(
+        it,
+
+        FfiConverterString.lower(`issuerRecordRef`),
+        FfiConverterString.lower(`expectedVaultIdentity`),_status)
+}
+    }
+    )
+    }
+
+
+
+
+
+
+
+
+
+    /**
+     * @suppress
+     */
+    companion object
+
+}
+
+
+
+// Put the implementation in an object so we don't pollute the top-level namespace
+internal object uniffiCallbackInterfaceNativeCanaryIssuerProvider {
+    internal object `retireAuthenticated`: UniffiCallbackInterfaceNativeCanaryIssuerProviderMethod0 {
+        override fun callback(`uniffiHandle`: Long,`issuerRecordRef`: RustBuffer.ByValue,`expectedVaultIdentity`: RustBuffer.ByValue,`uniffiOutReturn`: RustBuffer,uniffiCallStatus: UniffiRustCallStatus,) {
+            val uniffiObj = FfiConverterTypeNativeCanaryIssuerProvider.handleMap.get(uniffiHandle)
+            val makeCall = { ->
+                uniffiObj.`retireAuthenticated`(
+                    FfiConverterString.lift(`issuerRecordRef`),
+                    FfiConverterString.lift(`expectedVaultIdentity`),
+                )
+            }
+            val writeReturn = { value: kotlin.String -> uniffiOutReturn.setValue(FfiConverterString.lower(value)) }
+            uniffiTraitInterfaceCallWithError(
+                uniffiCallStatus,
+                makeCall,
+                writeReturn,
+                { e: NativeGateException -> FfiConverterTypeNativeGateError.lower(e) }
+            )
+        }
+    }
+
+    internal object uniffiFree: UniffiCallbackInterfaceFree {
+        override fun callback(handle: Long) {
+            FfiConverterTypeNativeCanaryIssuerProvider.handleMap.remove(handle)
+        }
+    }
+
+    internal object uniffiClone: UniffiCallbackInterfaceClone {
+        override fun callback(handle: Long): Long {
+            return FfiConverterTypeNativeCanaryIssuerProvider.handleMap.clone(handle)
+        }
+    }
+
+    internal var vtable = UniffiVTableCallbackInterfaceNativeCanaryIssuerProvider.UniffiByValue(
+        uniffiFree,
+        uniffiClone,
+        `retireAuthenticated`,
+    )
+
+    // Registers the foreign callback with the Rust side.
+    // This method is generated for each callback interface.
+    internal fun register(lib: UniffiLib) {
+        lib.uniffi_opensesame_authenticator_core_fn_init_callback_vtable_nativecanaryissuerprovider(vtable)
+    }
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeCanaryIssuerProvider: FfiConverter<NativeCanaryIssuerProvider, Long> {
+    internal val handleMap = UniffiHandleMap<NativeCanaryIssuerProvider>()
+
+    override fun lower(value: NativeCanaryIssuerProvider): Long {
+        if (value is NativeCanaryIssuerProviderImpl) {
+             // Rust-implemented object.  Clone the handle and return it
+            return value.uniffiCloneHandle()
+         } else {
+            // Kotlin object, generate a new vtable handle and return that.
+            return handleMap.insert(value)
+         }
+    }
+
+    override fun lift(value: Long): NativeCanaryIssuerProvider {
+        if ((value and 1.toLong()) == 0.toLong()) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return NativeCanaryIssuerProviderImpl(UniffiWithHandle, value)
+        } else {
+            // Kotlin-generated handle, get the object from the handle map
+            return handleMap.remove(value)
+        }
+    }
+
+    override fun read(buf: ByteBuffer): NativeCanaryIssuerProvider {
+        return lift(buf.getLong())
+    }
+
+    override fun allocationSize(value: NativeCanaryIssuerProvider) = 8UL
+
+    override fun write(value: NativeCanaryIssuerProvider, buf: ByteBuffer) {
+        buf.putLong(lower(value))
+    }
+}
+
+
+
+data class NativeAdmission (
+    var `realm`: NativeRealm
+    ,
+    var `record`: kotlin.String
+    ,
+    var `trapId`: kotlin.String?
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeAdmission: FfiConverterRustBuffer<NativeAdmission> {
+    override fun read(buf: ByteBuffer): NativeAdmission {
+        return NativeAdmission(
+            FfiConverterTypeNativeRealm.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeAdmission) = (
+            FfiConverterTypeNativeRealm.allocationSize(value.`realm`) +
+            FfiConverterString.allocationSize(value.`record`) +
+            FfiConverterOptionalString.allocationSize(value.`trapId`)
+    )
+
+    override fun write(value: NativeAdmission, buf: ByteBuffer) {
+            FfiConverterTypeNativeRealm.write(value.`realm`, buf)
+            FfiConverterString.write(value.`record`, buf)
+            FfiConverterOptionalString.write(value.`trapId`, buf)
+    }
+}
+
+
+
+data class NativeCanaryDelivery (
+    var `stateRecord`: kotlin.String
+    ,
+    var `reservation`: kotlin.String
+    ,
+    var `destination`: kotlin.String
+    ,
+    var `packet`: kotlin.String
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeCanaryDelivery: FfiConverterRustBuffer<NativeCanaryDelivery> {
+    override fun read(buf: ByteBuffer): NativeCanaryDelivery {
+        return NativeCanaryDelivery(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeCanaryDelivery) = (
+            FfiConverterString.allocationSize(value.`stateRecord`) +
+            FfiConverterString.allocationSize(value.`reservation`) +
+            FfiConverterString.allocationSize(value.`destination`) +
+            FfiConverterString.allocationSize(value.`packet`)
+    )
+
+    override fun write(value: NativeCanaryDelivery, buf: ByteBuffer) {
+            FfiConverterString.write(value.`stateRecord`, buf)
+            FfiConverterString.write(value.`reservation`, buf)
+            FfiConverterString.write(value.`destination`, buf)
+            FfiConverterString.write(value.`packet`, buf)
+    }
+}
+
+
+
+data class NativeCanaryFinishResult (
+    var `stateRecord`: kotlin.String
+    ,
+    var `delivered`: kotlin.Boolean
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeCanaryFinishResult: FfiConverterRustBuffer<NativeCanaryFinishResult> {
+    override fun read(buf: ByteBuffer): NativeCanaryFinishResult {
+        return NativeCanaryFinishResult(
+            FfiConverterString.read(buf),
+            FfiConverterBoolean.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeCanaryFinishResult) = (
+            FfiConverterString.allocationSize(value.`stateRecord`) +
+            FfiConverterBoolean.allocationSize(value.`delivered`)
+    )
+
+    override fun write(value: NativeCanaryFinishResult, buf: ByteBuffer) {
+            FfiConverterString.write(value.`stateRecord`, buf)
+            FfiConverterBoolean.write(value.`delivered`, buf)
+    }
+}
+
+
+
+data class NativeCanaryObservation (
+    var `stateRecord`: kotlin.String
+    ,
+    var `decision`: kotlin.String
+    ,
+    var `observed`: kotlin.Boolean
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeCanaryObservation: FfiConverterRustBuffer<NativeCanaryObservation> {
+    override fun read(buf: ByteBuffer): NativeCanaryObservation {
+        return NativeCanaryObservation(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterBoolean.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeCanaryObservation) = (
+            FfiConverterString.allocationSize(value.`stateRecord`) +
+            FfiConverterString.allocationSize(value.`decision`) +
+            FfiConverterBoolean.allocationSize(value.`observed`)
+    )
+
+    override fun write(value: NativeCanaryObservation, buf: ByteBuffer) {
+            FfiConverterString.write(value.`stateRecord`, buf)
+            FfiConverterString.write(value.`decision`, buf)
+            FfiConverterBoolean.write(value.`observed`, buf)
+    }
+}
+
+
+
+data class NativeCanaryOwnerResult (
+    var `gateRecord`: kotlin.String
+    ,
+    var `stateRecord`: kotlin.String
+    ,
+    var `output`: kotlin.String
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeCanaryOwnerResult: FfiConverterRustBuffer<NativeCanaryOwnerResult> {
+    override fun read(buf: ByteBuffer): NativeCanaryOwnerResult {
+        return NativeCanaryOwnerResult(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: NativeCanaryOwnerResult) = (
+            FfiConverterString.allocationSize(value.`gateRecord`) +
+            FfiConverterString.allocationSize(value.`stateRecord`) +
+            FfiConverterString.allocationSize(value.`output`)
+    )
+
+    override fun write(value: NativeCanaryOwnerResult, buf: ByteBuffer) {
+            FfiConverterString.write(value.`gateRecord`, buf)
+            FfiConverterString.write(value.`stateRecord`, buf)
+            FfiConverterString.write(value.`output`, buf)
     }
 }
 
@@ -1236,6 +2061,392 @@ public object FfiConverterTypeInvocationKind: FfiConverterRustBuffer<InvocationK
 }
 
 
+
+
+
+sealed class NativeCanaryMutation {
+
+    data class Create(
+        val `kind`: kotlin.String) : NativeCanaryMutation()
+
+    {
+
+
+        companion object
+    }
+
+    data class Remove(
+        val `artifactId`: kotlin.String) : NativeCanaryMutation()
+
+    {
+
+
+        companion object
+    }
+
+    object ClearEvents : NativeCanaryMutation()
+
+
+    data class ConfigureReceiver(
+        val `provision`: kotlin.String) : NativeCanaryMutation()
+
+    {
+
+
+        companion object
+    }
+
+    data class EnableReceiver(
+        val `enabled`: kotlin.Boolean) : NativeCanaryMutation()
+
+    {
+
+
+        companion object
+    }
+
+    object RemoveReceiver : NativeCanaryMutation()
+
+
+    object TestReceiver : NativeCanaryMutation()
+
+
+    data class ExportValidator(
+        val `artifactId`: kotlin.String,
+        val `presentedId`: kotlin.String) : NativeCanaryMutation()
+
+    {
+
+
+        companion object
+    }
+
+
+
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeCanaryMutation : FfiConverterRustBuffer<NativeCanaryMutation>{
+    override fun read(buf: ByteBuffer): NativeCanaryMutation {
+        return when(buf.getInt()) {
+            1 -> NativeCanaryMutation.Create(
+                FfiConverterString.read(buf),
+                )
+            2 -> NativeCanaryMutation.Remove(
+                FfiConverterString.read(buf),
+                )
+            3 -> NativeCanaryMutation.ClearEvents
+            4 -> NativeCanaryMutation.ConfigureReceiver(
+                FfiConverterString.read(buf),
+                )
+            5 -> NativeCanaryMutation.EnableReceiver(
+                FfiConverterBoolean.read(buf),
+                )
+            6 -> NativeCanaryMutation.RemoveReceiver
+            7 -> NativeCanaryMutation.TestReceiver
+            8 -> NativeCanaryMutation.ExportValidator(
+                FfiConverterString.read(buf),
+                FfiConverterString.read(buf),
+                )
+            else -> throw RuntimeException("invalid enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: NativeCanaryMutation): ULong = when(value) {
+        is NativeCanaryMutation.Create -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`kind`)
+            )
+        }
+        is NativeCanaryMutation.Remove -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`artifactId`)
+            )
+        }
+        is NativeCanaryMutation.ClearEvents -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is NativeCanaryMutation.ConfigureReceiver -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`provision`)
+            )
+        }
+        is NativeCanaryMutation.EnableReceiver -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterBoolean.allocationSize(value.`enabled`)
+            )
+        }
+        is NativeCanaryMutation.RemoveReceiver -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is NativeCanaryMutation.TestReceiver -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+            )
+        }
+        is NativeCanaryMutation.ExportValidator -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterString.allocationSize(value.`artifactId`)
+                + FfiConverterString.allocationSize(value.`presentedId`)
+            )
+        }
+    }
+
+    override fun write(value: NativeCanaryMutation, buf: ByteBuffer) {
+        when(value) {
+            is NativeCanaryMutation.Create -> {
+                buf.putInt(1)
+                FfiConverterString.write(value.`kind`, buf)
+                Unit
+            }
+            is NativeCanaryMutation.Remove -> {
+                buf.putInt(2)
+                FfiConverterString.write(value.`artifactId`, buf)
+                Unit
+            }
+            is NativeCanaryMutation.ClearEvents -> {
+                buf.putInt(3)
+                Unit
+            }
+            is NativeCanaryMutation.ConfigureReceiver -> {
+                buf.putInt(4)
+                FfiConverterString.write(value.`provision`, buf)
+                Unit
+            }
+            is NativeCanaryMutation.EnableReceiver -> {
+                buf.putInt(5)
+                FfiConverterBoolean.write(value.`enabled`, buf)
+                Unit
+            }
+            is NativeCanaryMutation.RemoveReceiver -> {
+                buf.putInt(6)
+                Unit
+            }
+            is NativeCanaryMutation.TestReceiver -> {
+                buf.putInt(7)
+                Unit
+            }
+            is NativeCanaryMutation.ExportValidator -> {
+                buf.putInt(8)
+                FfiConverterString.write(value.`artifactId`, buf)
+                FfiConverterString.write(value.`presentedId`, buf)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+}
+
+
+
+
+
+
+
+sealed class NativeGateException: kotlin.Exception() {
+
+    class InvalidRecord(
+        ) : NativeGateException() {
+        override val message
+            get() = ""
+    }
+
+    class OwnerRequired(
+        ) : NativeGateException() {
+        override val message
+            get() = ""
+    }
+
+    class EnrollmentRefused(
+        ) : NativeGateException() {
+        override val message
+            get() = ""
+    }
+
+
+
+
+
+    companion object ErrorHandler : UniffiRustCallStatusErrorHandler<NativeGateException> {
+        override fun lift(error_buf: RustBuffer.ByValue): NativeGateException = FfiConverterTypeNativeGateError.lift(error_buf)
+    }
+
+
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeGateError : FfiConverterRustBuffer<NativeGateException> {
+    override fun read(buf: ByteBuffer): NativeGateException {
+
+
+        return when(buf.getInt()) {
+            1 -> NativeGateException.InvalidRecord()
+            2 -> NativeGateException.OwnerRequired()
+            3 -> NativeGateException.EnrollmentRefused()
+            else -> throw RuntimeException("invalid error enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: NativeGateException): ULong {
+        return when(value) {
+            is NativeGateException.InvalidRecord -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is NativeGateException.OwnerRequired -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+            is NativeGateException.EnrollmentRefused -> (
+                // Add the size for the Int that specifies the variant plus the size needed for all fields
+                4UL
+            )
+        }
+    }
+
+    override fun write(value: NativeGateException, buf: ByteBuffer) {
+        when(value) {
+            is NativeGateException.InvalidRecord -> {
+                buf.putInt(1)
+                Unit
+            }
+            is NativeGateException.OwnerRequired -> {
+                buf.putInt(2)
+                Unit
+            }
+            is NativeGateException.EnrollmentRefused -> {
+                buf.putInt(3)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+
+}
+
+
+
+
+enum class NativeRealm {
+
+    REJECTED,
+    REAL,
+    SYNTHETIC;
+
+
+
+
+    companion object
+}
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeNativeRealm: FfiConverterRustBuffer<NativeRealm> {
+    override fun read(buf: ByteBuffer) = try {
+        NativeRealm.values()[buf.getInt() - 1]
+    } catch (e: IndexOutOfBoundsException) {
+        throw RuntimeException("invalid enum value, something is very wrong!!", e)
+    }
+
+    override fun allocationSize(value: NativeRealm) = 4UL
+
+    override fun write(value: NativeRealm, buf: ByteBuffer) {
+        buf.putInt(value.ordinal + 1)
+    }
+}
+
+
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalString: FfiConverterRustBuffer<kotlin.String?> {
+    override fun read(buf: ByteBuffer): kotlin.String? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterString.read(buf)
+    }
+
+    override fun allocationSize(value: kotlin.String?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterString.allocationSize(value)
+        }
+    }
+
+    override fun write(value: kotlin.String?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterString.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalTypeNativeCanaryDelivery: FfiConverterRustBuffer<NativeCanaryDelivery?> {
+    override fun read(buf: ByteBuffer): NativeCanaryDelivery? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeNativeCanaryDelivery.read(buf)
+    }
+
+    override fun allocationSize(value: NativeCanaryDelivery?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeNativeCanaryDelivery.allocationSize(value)
+        }
+    }
+
+    override fun write(value: NativeCanaryDelivery?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeNativeCanaryDelivery.write(value, buf)
+        }
+    }
+}
         /**
          * Validate and classify a native invocation using the shared policy engine.
          *
@@ -1251,6 +2462,313 @@ public object FfiConverterTypeInvocationKind: FfiConverterRustBuffer<InvocationK
 
         FfiConverterString.lower(`authenticatorOrigin`),
         FfiConverterString.lower(`raw`),_status)
+}
+    )
+    }
+
+
+        /**
+         * # Errors
+         * This detector path never verifies a submitted vault password or returns real-session admission.
+         */
+    @Throws(NativeGateException::class) fun `nativeCanaryObserve`(`gateRecord`: kotlin.String, `stateRecord`: kotlin.String, `artifactId`: kotlin.String, `presentedId`: kotlin.String, `phase`: kotlin.String, `now`: kotlin.String): NativeCanaryObservation {
+            return FfiConverterTypeNativeCanaryObservation.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_canary_observe(
+
+
+        FfiConverterString.lower(`gateRecord`),
+        FfiConverterString.lower(`stateRecord`),
+        FfiConverterString.lower(`artifactId`),
+        FfiConverterString.lower(`presentedId`),
+        FfiConverterString.lower(`phase`),
+        FfiConverterString.lower(`now`),_status)
+}
+    )
+    }
+
+
+        /**
+         * # Errors
+         * Optional sender hooks normalize only the latest existing closed password event.
+         */
+    @Throws(NativeGateException::class) fun `nativeCanaryQueueLatestPassword`(`gateRecord`: kotlin.String, `stateRecord`: kotlin.String?, `now`: kotlin.String): kotlin.String? {
+            return FfiConverterOptionalString.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_canary_queue_latest_password(
+
+
+        FfiConverterString.lower(`gateRecord`),
+        FfiConverterOptionalString.lower(`stateRecord`),
+        FfiConverterString.lower(`now`),_status)
+}
+    )
+    }
+
+
+        /**
+         * # Errors
+         * Platform callers must already hold a genuine real session before exposing redacted status.
+         */
+    @Throws(NativeGateException::class) fun `nativeCanaryStatus`(`gateRecord`: kotlin.String, `stateRecord`: kotlin.String?): kotlin.String {
+            return FfiConverterString.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_canary_status(
+
+
+        FfiConverterString.lower(`gateRecord`),
+        FfiConverterOptionalString.lower(`stateRecord`),_status)
+}
+    )
+    }
+
+
+        /**
+         * # Errors
+         * Check immediately before nonblocking dispatch under the same exclusion as owner revocation.
+         */
+    @Throws(NativeGateException::class) fun `nativeCanaryDispatchCurrent`(`gateRecord`: kotlin.String, `stateRecord`: kotlin.String, `reserved`: kotlin.String, `now`: kotlin.String): kotlin.Boolean {
+            return FfiConverterBoolean.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_canary_dispatch_current(
+
+
+        FfiConverterString.lower(`gateRecord`),
+        FfiConverterString.lower(`stateRecord`),
+        FfiConverterString.lower(`reserved`),
+        FfiConverterString.lower(`now`),_status)
+}
+    )
+    }
+
+
+        /**
+         * # Errors
+         * A changed binding, owner cancellation or unauthenticated HTTP response cannot mark delivery.
+         */
+    @Throws(NativeGateException::class) fun `nativeCanaryFinish`(`gateRecord`: kotlin.String, `stateRecord`: kotlin.String, `reserved`: kotlin.String, `acknowledgement`: kotlin.String?, `now`: kotlin.String): NativeCanaryFinishResult {
+            return FfiConverterTypeNativeCanaryFinishResult.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_canary_finish(
+
+
+        FfiConverterString.lower(`gateRecord`),
+        FfiConverterString.lower(`stateRecord`),
+        FfiConverterString.lower(`reserved`),
+        FfiConverterOptionalString.lower(`acknowledgement`),
+        FfiConverterString.lower(`now`),_status)
+}
+    )
+    }
+
+
+        /**
+         * # Errors
+         * Reserves a durable bounded attempt; platform sender awaits network after releasing its lock.
+         */
+    @Throws(NativeGateException::class) fun `nativeCanaryReserve`(`gateRecord`: kotlin.String, `stateRecord`: kotlin.String, `packageId`: kotlin.String?, `testing`: kotlin.Boolean, `now`: kotlin.String): NativeCanaryDelivery? {
+            return FfiConverterOptionalTypeNativeCanaryDelivery.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_canary_reserve(
+
+
+        FfiConverterString.lower(`gateRecord`),
+        FfiConverterString.lower(`stateRecord`),
+        FfiConverterOptionalString.lower(`packageId`),
+        FfiConverterBoolean.lower(`testing`),
+        FfiConverterString.lower(`now`),_status)
+}
+    )
+    }
+
+
+        /**
+         * # Errors
+         * Called only with an installed authenticated issuer capability after fresh OS owner proof.
+         * Caller must preserve original real-session epoch and CAS gate/state after this function returns.
+         */
+    @Throws(NativeGateException::class) fun `nativeCanaryRetireIssued`(`gateRecord`: kotlin.String, `current`: kotlin.String, `stateRecord`: kotlin.String?, `issuerRecordRef`: kotlin.String, `provider`: NativeCanaryIssuerProvider, `now`: kotlin.String): NativeCanaryOwnerResult {
+            return FfiConverterTypeNativeCanaryOwnerResult.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_canary_retire_issued(
+
+
+        FfiConverterString.lower(`gateRecord`),
+        FfiConverterString.lower(`current`),
+        FfiConverterOptionalString.lower(`stateRecord`),
+        FfiConverterString.lower(`issuerRecordRef`),
+        FfiConverterTypeNativeCanaryIssuerProvider.lower(`provider`),
+        FfiConverterString.lower(`now`),_status)
+}
+    )
+    }
+
+
+        /**
+         * # Errors
+         * Called only after fresh OS owner proof and a captured real-session epoch; the platform must
+         * recheck that exact epoch and stored gate/state revisions before committing this result.
+         */
+    @Throws(NativeGateException::class) fun `nativeCanaryManage`(`gateRecord`: kotlin.String, `current`: kotlin.String, `stateRecord`: kotlin.String?, `operation`: NativeCanaryMutation, `now`: kotlin.String): NativeCanaryOwnerResult {
+            return FfiConverterTypeNativeCanaryOwnerResult.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_canary_manage(
+
+
+        FfiConverterString.lower(`gateRecord`),
+        FfiConverterString.lower(`current`),
+        FfiConverterOptionalString.lower(`stateRecord`),
+        FfiConverterTypeNativeCanaryMutation.lower(`operation`),
+        FfiConverterString.lower(`now`),_status)
+}
+    )
+    }
+
+
+        /**
+         * Classify before production runtime admission. Rejected retired passwords still produce evidence.
+         * # Errors
+         * Refuses malformed records, ambiguous matches, or invalid evidence timestamps.
+         */
+    @Throws(NativeGateException::class) fun `nativeGateAdmit`(`record`: kotlin.String, `password`: kotlin.String, `now`: kotlin.String): NativeAdmission {
+            return FfiConverterTypeNativeAdmission.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_gate_admit(
+
+
+        FfiConverterString.lower(`record`),
+        FfiConverterString.lower(`password`),
+        FfiConverterString.lower(`now`),_status)
+}
+    )
+    }
+
+
+        /**
+         * Closed metadata only; no attacker-controlled URI, response body, or submitted password.
+         * # Errors
+         * Refuses malformed records, unknown/non-synthetic traps, or invalid timestamps.
+         */
+    @Throws(NativeGateException::class) fun `nativeGateAuthorityDenied`(`record`: kotlin.String, `trapId`: kotlin.String, `now`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_gate_authority_denied(
+
+
+        FfiConverterString.lower(`record`),
+        FfiConverterString.lower(`trapId`),
+        FfiConverterString.lower(`now`),_status)
+}
+    )
+    }
+
+
+        /**
+         * Rotate only the local admission password; a retained trap cannot become current.
+         * # Errors
+         * Refuses wrong current passwords or a new password colliding with a retained trap.
+         */
+    @Throws(NativeGateException::class) fun `nativeGateChangePassword`(`record`: kotlin.String, `current`: kotlin.String, `next`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_gate_change_password(
+
+
+        FfiConverterString.lower(`record`),
+        FfiConverterString.lower(`current`),
+        FfiConverterString.lower(`next`),_status)
+}
+    )
+    }
+
+
+        /**
+         * Clear local evidence after fresh owner authentication.
+         * # Errors
+         * Refuses malformed records or a wrong current password.
+         */
+    @Throws(NativeGateException::class) fun `nativeGateClearEvents`(`record`: kotlin.String, `current`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_gate_clear_events(
+
+
+        FfiConverterString.lower(`record`),
+        FfiConverterString.lower(`current`),_status)
+}
+    )
+    }
+
+
+        /**
+         * Create an application password gate after fresh OS owner authentication.
+         * # Errors
+         * Refuses empty/unbounded passwords or unavailable derivation.
+         */
+    @Throws(NativeGateException::class) fun `nativeGateCreate`(`password`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_gate_create(
+
+
+        FfiConverterString.lower(`password`),_status)
+}
+    )
+    }
+
+
+        /**
+         * Management requires a fresh current password as well as platform owner verification.
+         * # Errors
+         * Refuses wrong current passwords, collisions, duplicates, or full retention.
+         */
+    @Throws(NativeGateException::class) fun `nativeGateEnroll`(`record`: kotlin.String, `current`: kotlin.String, `retired`: kotlin.String, `synthetic`: kotlin.Boolean, `now`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_gate_enroll(
+
+
+        FfiConverterString.lower(`record`),
+        FfiConverterString.lower(`current`),
+        FfiConverterString.lower(`retired`),
+        FfiConverterBoolean.lower(`synthetic`),
+        FfiConverterString.lower(`now`),_status)
+}
+    )
+    }
+
+
+        /**
+         * Remove a selected trap after fresh owner authentication.
+         * # Errors
+         * Refuses malformed records or a wrong current password.
+         */
+    @Throws(NativeGateException::class) fun `nativeGateRemove`(`record`: kotlin.String, `current`: kotlin.String, `id`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_gate_remove(
+
+
+        FfiConverterString.lower(`record`),
+        FfiConverterString.lower(`current`),
+        FfiConverterString.lower(`id`),_status)
+}
+    )
+    }
+
+
+        /**
+         * UI metadata deliberately omits verifiers, salts, and submitted passwords.
+         * # Errors
+         * Refuses malformed or oversized records.
+         */
+    @Throws(NativeGateException::class) fun `nativeGateStatus`(`record`: kotlin.String): kotlin.String {
+            return FfiConverterString.lift(
+    uniffiRustCallWithError(NativeGateException) { _status ->
+    UniffiLib.uniffi_opensesame_authenticator_core_fn_func_native_gate_status(
+
+
+        FfiConverterString.lower(`record`),_status)
 }
     )
     }

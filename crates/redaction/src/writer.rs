@@ -178,7 +178,7 @@ mod tests {
 
     #[test]
     fn json_lines_are_scrubbed_field_by_field() {
-        let line = br#"{"level":"INFO","fields":{"message":"sent https://h.example/x#token=osc_clm_AbC123.secretpart","password":"hunter2","note":"{\"api_key\":\"k_1\"}"}}"#;
+        let line = br#"{"level":"INFO","fields":{"message":"sent https://h.example/x#token=osc_clm_AbC123.secretpart","password":"hunter2","note":"{\"api_key\":\"k_1\"}"}}"#; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
         let mut input = line.to_vec();
         input.push(b'\n');
         let out = run(Format::Json, &[&input]);
@@ -225,7 +225,7 @@ mod tests {
     fn a_pem_block_split_across_lines_is_dropped_whole() {
         let out = run(
             Format::Text,
-            &[b"key: -----BEGIN PRIVATE KEY-----\nMIIEvQSECRETBODY\nabcdef\n-----END PRIVATE KEY----- done\nnext\n"],
+            &[b"key: -----BEGIN PRIVATE KEY-----\nMIIEvQSECRETBODY\nabcdef\n-----END PRIVATE KEY----- done\nnext\n"], // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
         );
         assert_eq!(out, "key: [REDACTED]\n done\nnext\n");
     }

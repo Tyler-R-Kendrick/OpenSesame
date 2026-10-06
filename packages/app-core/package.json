@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133) — no React, no DOM shell",
+  "description": "The client application core shared by the Pages PWA, the CLIs and Android (ADR 0133) \u2014 no React, no DOM shell",
   "exports": {
     "./*.js": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"
     },
-    "./*.json": "./src/*.json"
+    "./*.json": "./src/*.json",
+    "./browser/security/security.css": "./src/browser/security/security.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -65,6 +66,7 @@
     "kdbxweb": "2.1.1",
     "whatwg-url": "14.2.0",
     "yaml": "2.9.1",
-    "zod": "4.4.3"
+    "zod": "4.4.3",
+    "@opensesame/observability": "workspace:*"
   }
 }

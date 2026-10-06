@@ -6,6 +6,7 @@ let package = Package(
     platforms: [.iOS(.v26)],
     products: [
         .library(name: "OpenSesameAuthenticator", targets: ["OpenSesameAuthenticator"]),
+        .library(name: "MultipazRuntime", targets: ["Multipaz"]),
     ],
     targets: [
         .binaryTarget(
@@ -26,6 +27,10 @@ let package = Package(
         .target(
             name: "OpenSesameAuthenticator",
             dependencies: ["Multipaz", "OpenSesameAuthenticatorCore"]
+        ),
+        .testTarget(
+            name: "OpenSesameAuthenticatorTests",
+            dependencies: ["OpenSesameAuthenticator"]
         ),
     ]
 )

@@ -27,6 +27,7 @@ import {
   DuressPanel,
   useDuressPanelShown,
 } from "./settings/security/DuressPanel.js";
+import { RetiredCredentialRow } from "./settings/security/RetiredCredentialRow.js";
 import { TravelPanel } from "./settings/travel/TravelPanel.js";
 import "./settings.css";
 
@@ -200,6 +201,7 @@ function SecurityPanels({
       <UnlockMethodsPanel />
       <DuressPanel />
       {duressShown ? <TravelPanel /> : null}
+      <RetiredCredentialRow />
       {contributed.map(({ id, Panel }) => (
         <Panel key={id} />
       ))}

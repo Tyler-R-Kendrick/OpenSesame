@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UNLOCK_PIN_MISS } from "../../../screens/unlock/unlock-duress-refuse.js";
 import { unlockWithPinAfterDuressGate } from "../../../screens/unlock/unlock-pin-duress.js";
 import { onCompleteUnlockCodeSubmission } from "../../../sections/settings/security/duress-unlock-bridge.js";
+import { webLocksDouble } from "../../__tests__/web-locks-double.js";
 import {
   kvFileName,
   kvFlush,
@@ -50,6 +51,7 @@ let opfs: FakeOpfs;
 async function freshDevice(): Promise<void> {
   opfs = makeOpfs();
   installOpfs(opfs);
+  vi.stubGlobal("navigator", { ...navigator, locks: webLocksDouble() });
   kvForgetAll();
   clearEnrollmentStateForUnlock();
   await kvHydrate([]);

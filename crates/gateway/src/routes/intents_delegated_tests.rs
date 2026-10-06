@@ -386,3 +386,6 @@ async fn property_budgets_deny_when_spent() {
     .await;
     assert_eq!(second.status(), StatusCode::FORBIDDEN);
 }
+
+#[path = "intents_controlled_reference_tests.rs"]
+mod controlled_reference_tests;

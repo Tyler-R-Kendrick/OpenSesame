@@ -11,6 +11,8 @@ import type { Host, RuntimeEnv } from "../host.js";
 import { createMemoryStorage } from "../memory-storage.js";
 import { fileAtRestKeys } from "./at-rest-key-file.js";
 import { createFileStorage } from "./file-storage.js";
+import { createNodeLocks } from "./locks.js";
+import { nodeOriginFiles } from "./origin-files.js";
 
 export type NodeHostOptions = Readonly<{
   /** Where local storage persists; defaults to `$OPENSESAME_STATE_DIR`. */
@@ -38,6 +40,8 @@ export function createNodeHost(options: NodeHostOptions = {}): Host {
       local: createFileStorage(join(stateDir, "local-storage.json")),
       session: createMemoryStorage(),
     },
+    locks: createNodeLocks(join(stateDir, "locks")),
+    originFiles: nodeOriginFiles(join(stateDir, "origin-files")),
     atRestKeys: fileAtRestKeys(join(stateDir, "at-rest.key")),
     environment: {
       online: true,

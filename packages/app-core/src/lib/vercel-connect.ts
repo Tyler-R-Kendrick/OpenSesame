@@ -1,3 +1,7 @@
+import {
+  assertNotDecoySession,
+  isRealAuthorityBlocked,
+} from "./decoy-session.js";
 /**
  * Vercel Connect session + readiness. CRUD lives in `vercel-connect-ops.ts`.
  * Prefer the Connect relay (no browser token); sealed session auth is fallback.
@@ -31,7 +35,7 @@ export type VercelConnectAuth = {
 };
 
 export class ConnectError extends Error {
-  readonly name = "ConnectError";
+  override readonly name = "ConnectError";
   constructor(
     readonly status: number,
     readonly code: string,
@@ -51,6 +55,7 @@ export function rememberConnector(id: string): void {
 }
 
 export function vercelConnectAuth(): VercelConnectAuth | null {
+  if (isRealAuthorityBlocked()) return null;
   return sessionAuth;
 }
 
@@ -104,6 +109,7 @@ export function appSubject(scopes?: string[]) {
 }
 
 export function requireAuth(): VercelConnectAuth {
+  assertNotDecoySession();
   const auth = vercelConnectSeams.auth();
   if (!auth?.token) {
     throw new ConnectError(
@@ -116,6 +122,7 @@ export function requireAuth(): VercelConnectAuth {
 }
 
 export function requireTransport(): "relay" | VercelConnectAuth {
+  assertNotDecoySession();
   if (connectRelayConfigured()) return "relay";
   return requireAuth();
 }

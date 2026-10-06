@@ -80,6 +80,8 @@ impl Db {
         if pending >= max_pending {
             return Ok(false);
         }
+        // Formatting interpolates only fixed column constants; external values are bound.
+        // ast-grep-ignore: sql-format-injection
         sqlx::query(&format!(
             "INSERT INTO bitwarden_auth_requests ({COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
         ))
@@ -111,6 +113,8 @@ impl Db {
         id: &str,
         since: DateTime<Utc>,
     ) -> anyhow::Result<Option<BitwardenAuthRequest>> {
+        // Formatting interpolates only fixed column constants; external values are bound.
+        // ast-grep-ignore: sql-format-injection
         let row = sqlx::query(&format!(
             "SELECT {COLUMNS} FROM bitwarden_auth_requests WHERE id = ? AND created_at >= ?"
         ))
@@ -131,6 +135,8 @@ impl Db {
         user_id: &str,
         since: DateTime<Utc>,
     ) -> anyhow::Result<Vec<BitwardenAuthRequest>> {
+        // Formatting interpolates only fixed column constants; external values are bound.
+        // ast-grep-ignore: sql-format-injection
         let rows = sqlx::query(&format!(
             "SELECT {COLUMNS} FROM bitwarden_auth_requests WHERE user_id = ? AND created_at >= ? \
              ORDER BY created_at"

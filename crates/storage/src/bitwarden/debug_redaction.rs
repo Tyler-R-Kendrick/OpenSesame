@@ -220,7 +220,7 @@ mod tests {
             user_id: "u1".into(),
             device_identifier: "dev".into(),
             device_type: 9,
-            access_code_digest: "digest-12345".into(),
+            access_code_digest: "digest-12345".into(), // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
             public_key: "pub-visible".into(),
             key: Some("2.wrapped-12345".into()),
             master_password_hash: Some("hash-12345".into()),

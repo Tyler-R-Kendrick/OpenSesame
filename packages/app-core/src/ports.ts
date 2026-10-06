@@ -150,20 +150,20 @@ export type KeyRangeFactory = {
 
 export type Ports = {
   readonly storage?: StoragePorts;
-  readonly atRestKeys?: AtRestKeyPort;
-  readonly page?: PagePort;
+  readonly atRestKeys?: AtRestKeyPort | undefined;
+  readonly page?: PagePort | undefined;
   readonly authenticator?: AuthenticatorPort;
-  readonly environment?: EnvironmentPort;
-  readonly locks?: LockManagerLike;
+  readonly environment?: EnvironmentPort | undefined;
+  readonly locks?: LockManagerLike | undefined;
   /** A same-origin broadcast channel, where contexts can share one. */
-  readonly broadcast?: (name: string) => BroadcastLike;
-  readonly worker?: WorkerConstructor;
-  readonly serviceWorker?: ServiceWorkerContainer;
+  readonly broadcast?: ((name: string) => BroadcastLike) | undefined;
+  readonly worker?: WorkerConstructor | undefined;
+  readonly serviceWorker?: ServiceWorkerContainer | undefined;
   /** The origin-private file system root (`navigator.storage.getDirectory`). */
-  readonly originFiles?: () => Promise<FileSystemDirectoryHandle>;
-  readonly indexedDB?: IDBFactory;
+  readonly originFiles?: (() => Promise<FileSystemDirectoryHandle>) | undefined;
+  readonly indexedDB?: IDBFactory | undefined;
   /** Builds the key ranges an IndexedDB index is queried with. */
-  readonly keyRange?: KeyRangeFactory;
+  readonly keyRange?: KeyRangeFactory | undefined;
   /**
    * Resolves a peer hostname before a duress peer request. A host that
    * cannot resolve leaves this unset, and a name is then refused.
@@ -172,7 +172,7 @@ export type Ports = {
     lookup(hostname: string): Promise<readonly string[]>;
   };
   /** The Cache API (`caches`): where the service worker keeps the offline shell. */
-  readonly cacheStorage?: CacheStorage;
+  readonly cacheStorage?: CacheStorage | undefined;
   /**
    * Told of every Web Storage write the core makes through these ports. The
    * test hosts record them (`test-host-storage-writes.ts`); a shell has none.
@@ -328,7 +328,7 @@ export function originFiles(): Ports["originFiles"] {
  */
 export function openOwnedDatabase(
   name: string,
-  version: number,
+  version?: number,
 ): IDBOpenDBRequest {
   if (!ownsDatabase(name)) {
     throw new Error(
@@ -337,7 +337,9 @@ export function openOwnedDatabase(
   }
   const factory = host().indexedDB;
   if (!factory) throw missing("IndexedDB");
-  return factory.open(name, version);
+  return version === undefined
+    ? factory.open(name)
+    : factory.open(name, version);
 }
 
 export function maybeIndexedDatabases(): IDBFactory | undefined {

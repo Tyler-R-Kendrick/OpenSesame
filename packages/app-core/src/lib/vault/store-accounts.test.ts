@@ -39,7 +39,7 @@ import { ATTEMPTS_KEY, VaultStore } from "./store.js";
 const PASSWORD = "correct horse battery staple";
 const T0 = "2026-01-01T00:00:00.000Z";
 const T1 = "2026-01-02T00:00:00.000Z";
-const SPHINX_KEY = "q83vEjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJA=";
+const SPHINX_KEY = "q83vEjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJA="; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 
 async function clearVault(): Promise<void> {
   await vfsFlush();

@@ -170,6 +170,8 @@ async fn revoke_excluded(
         "FROM bitwarden_org_members m WHERE m.org_id = ? AND m.user_id IS NOT NULL AND {} AND {excluded}",
         bound("m")
     );
+    // Fragments use closed policy branches and literal aliases; the organization ID is bound.
+    // ast-grep-ignore: sql-format-injection
     let users: Vec<String> = sqlx::query(&format!("SELECT m.user_id {which}"))
         .bind(org_id)
         .fetch_all(&mut *tx)

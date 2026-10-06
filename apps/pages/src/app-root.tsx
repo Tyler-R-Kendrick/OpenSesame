@@ -12,6 +12,7 @@ import { Link, Navigate, Route, Routes, useLocation } from "react-router";
 import { Framed, UngatedRoute, ungatedRoute } from "./components/RouteFrame.js";
 import { Wrapped } from "./components/ShellWrappers.js";
 import { ContextMenuLayer } from "./components/context-menu/ContextMenuLayer.js";
+import { useSessionNavigationBoundary } from "./lib/decoy-navigation.js";
 
 import type {
   RouteContribution,
@@ -331,6 +332,7 @@ function VaultApp() {
  */
 export function AppRoot({ slots }: { slots?: Partial<AppSlots> } = {}) {
   usePaneEscape();
+  useSessionNavigationBoundary();
   const resolved = { ...defaultSlots, ...slots };
   const location = useLocation();
   const routes = resolved.useRouteContributions();

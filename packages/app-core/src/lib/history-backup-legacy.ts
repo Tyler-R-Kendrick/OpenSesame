@@ -3,7 +3,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import { openOwnedDatabase } from "../ports.js";
+import { maybeIndexedDatabases, openOwnedDatabase } from "../ports.js";
 import { atRestBinding, openAtRest, sealAtRest } from "./at-rest/cipher.js";
 import { type AtRestKey, atRestReady } from "./at-rest/key.js";
 import type {
@@ -11,6 +11,7 @@ import type {
   HistoryRowStore,
   ProvisionalHistoryAccount,
 } from "./history-backup-types.js";
+import { assertLegacyWritable } from "./legacy-transfer.js";
 import { storageWritesHalted } from "./storage-halt.js";
 import { HISTORY_BACKUP_DATABASE } from "./storage-ownership.js";
 
@@ -34,7 +35,7 @@ export function resetLegacyHistorySweep(): void {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = openOwnedDatabase(HISTORY_BACKUP_DATABASE, DB_VERSION);
+    const req = openOwnedDatabase(HISTORY_BACKUP_DATABASE);
     req.onerror = () => reject(req.error ?? new Error("indexedDB open failed"));
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -46,7 +47,10 @@ function openDb(): Promise<IDBDatabase> {
         store.createIndex("by_account", "accountId", { unique: false });
       }
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      req.result.onversionchange = () => req.result.close();
+      resolve(req.result);
+    };
   });
 }
 
@@ -193,6 +197,7 @@ async function withDb<T>(
   // Opening alone recreates a deleted database, so a tab whose browser is
   // being reset does not open it at all; memory answers until it reloads.
   if (storageWritesHalted()) return undefined;
+  if (!maybeIndexedDatabases()) return undefined;
   let atRest: AtRestKey;
   try {
     atRest = await atRestReady();
@@ -201,6 +206,7 @@ async function withDb<T>(
   }
   // A key that dies with this document: rows could never be read back.
   if (!atRest.durable) return undefined;
+  await assertLegacyWritable("history-backups");
   let db: IDBDatabase;
   try {
     db = await openDb();
@@ -208,6 +214,7 @@ async function withDb<T>(
     return undefined;
   }
   try {
+    await assertLegacyWritable("history-backups");
     await sealLegacyRows(db, atRest);
     return await run(db, atRest);
   } finally {

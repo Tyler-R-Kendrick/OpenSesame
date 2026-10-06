@@ -32,31 +32,70 @@ import uniffi.opensesame_authenticator_core.validatePlatformInvocation
 
 class MainActivity : FragmentActivity() {
     private var browserChallenge: AuthorizationChallenge.OAuth? = null
+    private var screen by mutableStateOf("locked")
+    private var runtimeReady by mutableStateOf(false)
+    private var runtimeError by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        lifecycleScope.launch {
-            WalletRuntime.initialize()
-            handleIntent(intent)
             setContent {
                 MaterialTheme {
                     Surface(Modifier.fillMaxSize()) {
-                        PromptDialogs(Platform.promptModel)
-                        val state by WalletRuntime.provisioningModel.state.collectAsState()
-                        ProvisioningState(state)
+                        when (screen) {
+                            "locked" -> NativeAdmissionView(this) {
+                                if (NativeGate.session is NativeSession.Synthetic) screen = "synthetic"
+                                else {
+                                    screen = "real"
+                                    val permit = NativeGate.requireReal()
+                                    lifecycleScope.launch {
+                                    runCatching { WalletRuntime.initialize(); handleIntent(intent) }
+                                        .onSuccess { NativeGate.requireSame(permit); runtimeReady = true }
+                                        .onFailure { runtimeError = "Production wallet unavailable" }
+                                    }
+                                }
+                            }
+                            "synthetic" -> SyntheticWalletView { lockWallet() }
+                            "security" -> NativeSecurityView(this) { screen = "real" }
+                            "real" -> {
+                                PromptDialogs(Platform.promptModel)
+                                Column {
+                                    Button(onClick = { screen = "security" }) { Text("Security settings") }
+                                    Button(onClick = { lockWallet() }) { Text("Lock") }
+                                    if (runtimeReady) {
+                                        val state by WalletRuntime.provisioningModel.state.collectAsState()
+                                        ProvisioningState(state)
+                                    } else Text(runtimeError ?: "Opening wallet…")
+                                }
+                            }
+                        }
                     }
                 }
             }
-        }
+    }
+
+    private fun lockWallet() {
+        browserChallenge = null
+        runtimeReady = false
+        runtimeError = null
+        NativeGate.lock()
+        screen = "locked"
+    }
+
+    override fun onDestroy() {
+        lockWallet()
+        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        lifecycleScope.launch { handleIntent(intent) }
+        if (NativeGate.session is NativeSession.Real) {
+            lifecycleScope.launch { runCatching { handleIntent(intent) } }
+        } else NativeGate.observeDenied()
     }
 
     private suspend fun handleIntent(intent: Intent) {
+        NativeGate.requireReal()
         val uri = intent.data ?: return
         val waiting = browserChallenge
         if (waiting != null && uri.getQueryParameter("state") == waiting.state) {
@@ -138,6 +177,7 @@ class MainActivity : FragmentActivity() {
                     val response = AuthorizationResponse.SecretText(secret.id, value)
                     value = ""
                     lifecycleScope.launch {
+                        NativeGate.requireReal()
                         WalletRuntime.provisioningModel.provideAuthorizationResponse(response)
                     }
                 },

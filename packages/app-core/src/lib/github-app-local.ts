@@ -11,6 +11,11 @@ import {
  */
 import { maybeLocalStore, sessionStore } from "../ports.js";
 import { readBoundedObject } from "./bounded-response.js";
+import { decoyGuardedFetch } from "./decoy-fetch.js";
+import {
+  assertNotDecoySession,
+  isRealAuthorityBlocked,
+} from "./decoy-session.js";
 import { githubAppRelayBase } from "./github-app-relay.js";
 import {
   adoptLegacyPendingPem,
@@ -43,11 +48,13 @@ function notifyLocalGithubApp(): void {
 
 /** Drop the local App record (uninstall on GitHub or Remove on this device). */
 export function forgetLocalGithubApp(): void {
+  const authorityGeneration = assertNotDecoySession();
   maybeLocalStore()?.removeItem(PUBLIC_KEY);
   forgetGithubAppSecret();
   try {
     sessionStore().removeItem(STATE_KEY);
   } catch {
+    assertNotDecoySession(authorityGeneration);
     /* private mode */
   }
   const had = cachedPublicApp !== null || cachedPublicRaw !== null;
@@ -118,6 +125,7 @@ let cachedPublicRaw: string | null = null;
 let cachedPublicApp: LocalGithubApp | null = null;
 
 export function readLocalGithubApp(): LocalGithubApp | null {
+  if (isRealAuthorityBlocked()) return null;
   const app = readPublicRecord();
   adoptLegacyPendingPem(app);
   return app;
@@ -154,12 +162,14 @@ function readPublicRecord(): LocalGithubApp | null {
     };
     return cachedPublicApp;
   } catch {
+    assertNotDecoySession();
     cachedPublicApp = null;
     return null;
   }
 }
 
 export function rememberLocalGithubApp(app: LocalGithubApp): void {
+  assertNotDecoySession();
   const store = maybeLocalStore();
   if (!store) return;
   const raw = JSON.stringify({
@@ -183,6 +193,7 @@ export function rememberLocalGithubApp(app: LocalGithubApp): void {
 
 /** Seal a pending App secret once a durable vault is unlocked. */
 export async function sealPendingGithubAppPem(): Promise<void> {
+  assertNotDecoySession();
   readLocalGithubApp();
   await sealPendingGithubAppSecret();
 }
@@ -208,6 +219,7 @@ const emptyApp = (): LocalGithubApp => ({
 export async function refreshGithubAppOwner(
   app: LocalGithubApp = readLocalGithubApp() ?? emptyApp(),
 ): Promise<LocalGithubApp | null> {
+  const authorityGeneration = assertNotDecoySession();
   if (app.id === "") return null;
   if (app.ownerLogin) return app;
   const slug = slugFromHtmlUrl(app.htmlUrl);
@@ -215,7 +227,7 @@ export async function refreshGithubAppOwner(
   const base = githubAppRelayBase();
   if (base === "") return app;
   try {
-    const response = await fetch(`${base}/api/github-app/lookup`, {
+    const response = await decoyGuardedFetch(`${base}/api/github-app/lookup`, {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -226,6 +238,7 @@ export async function refreshGithubAppOwner(
     const payload = overlapCast(
       await readBoundedObject(response, 16384, 8000).catch(() => null),
     );
+    assertNotDecoySession(authorityGeneration);
     if (!response.ok || !isString(payload.ownerLogin)) return app;
     const ownerType = isString(payload.ownerType) ? payload.ownerType : null;
     const next: LocalGithubApp = {
@@ -233,9 +246,11 @@ export async function refreshGithubAppOwner(
       ownerLogin: payload.ownerLogin,
       ownerType,
     };
+    assertNotDecoySession(authorityGeneration);
     rememberLocalGithubApp(next);
     return next;
   } catch {
+    assertNotDecoySession(authorityGeneration);
     return app;
   }
 }

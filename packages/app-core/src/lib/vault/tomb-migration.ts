@@ -56,6 +56,7 @@ import {
   MIGRATION_MARKER_PATH,
   SEAL_BOUND_MARKER_PATH,
   ensureIndexed,
+  pinTombAuthority,
   readPlaintextFile,
   tombFileKey,
   vfsSeams,
@@ -187,52 +188,71 @@ const utf8 = new TextEncoder();
  */
 export async function hydrateAndMigrateTombOnUnlock(
   tomb: string,
+  origin: () => void = () => {},
 ): Promise<void> {
+  origin();
+  const authority = pinTombAuthority(tomb);
+  const assertCurrent = () => {
+    origin();
+    authority();
+  };
   await kvHydrate(tombSessionKeys(tomb));
-  await retireUnusedConnectionConfigs(tomb);
+  assertCurrent();
+  await retireUnusedConnectionConfigs(tomb, assertCurrent);
+  assertCurrent();
 
   const marker = readMarker(tomb);
   if (!marker.config) {
     const legacyPrefs = vfsSeams.readRaw(scopedKey(LEGACY_PREFS_KEY, tomb));
     if (legacyPrefs !== null) {
       await writeFile(tomb, PREFS_CONFIG_PATH, utf8.encode(legacyPrefs));
+      assertCurrent();
       await vfsSeams.deleteRaw(scopedKey(LEGACY_PREFS_KEY, tomb));
+      assertCurrent();
     }
 
-    const legacyRegistry = readLegacyIdpRegistry();
+    const legacyRegistry = readLegacyIdpRegistry(assertCurrent);
     if (legacyRegistry !== null) {
       await writeFile(
         tomb,
         IDP_REGISTRY_CONFIG_PATH,
         utf8.encode(legacyRegistry),
       );
-      clearLegacyIdpRegistry();
+      assertCurrent();
+      clearLegacyIdpRegistry(assertCurrent);
     }
 
     // The projects list seals into this tomb's config; the plaintext
     // `projects.v1` shrinks to the boot pointer (the active tomb name).
-    await migrateProjectsToVfs(tomb);
+    await migrateProjectsToVfs(tomb, assertCurrent);
+    assertCurrent();
 
-    const legacyProfile = readLegacyOrgProfile();
+    const legacyProfile = readLegacyOrgProfile(assertCurrent);
     if (legacyProfile !== null) {
       await writeFile(
         tomb,
         ORG_PROFILE_CONFIG_PATH,
         utf8.encode(legacyProfile),
       );
-      clearLegacyOrgProfile();
+      assertCurrent();
+      clearLegacyOrgProfile(assertCurrent);
     }
 
     // Phase B moved the body without a key, so it never reached the sealed
     // index — record it now that the index can be written.
     await ensureIndexed(tomb, BODY_PATH);
+    assertCurrent();
 
     await writeMarker(tomb, { ...marker, config: true });
+    assertCurrent();
   }
 
-  await hydrateIdpRegistryFromVfs(tomb);
-  await hydrateProjectsFromVfs(tomb);
-  await hydrateOrgProfileFromVfs(tomb);
+  await hydrateIdpRegistryFromVfs(tomb, assertCurrent);
+  assertCurrent();
+  await hydrateProjectsFromVfs(tomb, assertCurrent);
+  assertCurrent();
+  await hydrateOrgProfileFromVfs(tomb, assertCurrent);
+  assertCurrent();
 }
 
 /**

@@ -1,3 +1,4 @@
+import { SessionAnchor } from "../../../components/DecoyNavigationAnchor.js";
 /**
  * The repositories this vault reads item types from (ADR 0134), as
  * `settings/item-types/marketplaces.json` lists them: one row each, with
@@ -95,7 +96,7 @@ function SourceRow({
         >
           <IconRefresh size={16} />
         </button>
-        <a
+        <SessionAnchor
           className="icon-btn icon-btn--sm"
           href={sourceWebUrl(source)}
           target="_blank"
@@ -104,7 +105,7 @@ function SourceRow({
           title="Open the repository"
         >
           <IconExternal size={16} />
-        </a>
+        </SessionAnchor>
         <button
           type="button"
           className="icon-btn icon-btn--sm"

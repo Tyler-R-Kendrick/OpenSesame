@@ -33,6 +33,22 @@ pub struct InvokeInput {
     pub lineage: Option<ValidatedGrantChain>,
 }
 
+/// Project already supplied intent parameters into the host's canonical request.
+/// This pure projection grants no authority; invoke_with still authorizes it.
+#[must_use]
+pub fn invoke_request(input: &InvokeInput) -> InvokeRequest {
+    InvokeRequest {
+        operation: input.intent.operation.clone(),
+        resource: input.intent.resource.clone(),
+        audience: input.intent.audience.clone(),
+        parameters: input.parameters.clone(),
+        parameters_digest: input.intent.normalized_parameters_hash.clone(),
+        authorized_operation: input.intent.operation.clone(),
+        invoke_level: Some(1),
+        connection_ref: input.connection_policy_id.clone(),
+    }
+}
+
 impl Broker {
     async fn prior_receipt(
         &self,
@@ -80,16 +96,7 @@ impl Broker {
     /// Returns an error when validation, authorization, execution, or durable
     /// receipt persistence fails.
     pub async fn invoke(&self, input: InvokeInput) -> anyhow::Result<InvocationReceipt> {
-        let request = InvokeRequest {
-            operation: input.intent.operation.clone(),
-            resource: input.intent.resource.clone(),
-            audience: input.intent.audience.clone(),
-            parameters: input.parameters.clone(),
-            parameters_digest: input.intent.normalized_parameters_hash.clone(),
-            authorized_operation: input.intent.operation.clone(),
-            invoke_level: Some(1),
-            connection_ref: input.connection_policy_id.clone(),
-        };
+        let request = invoke_request(&input);
         let connection_policy_id = input.connection_policy_id.clone();
         self.invoke_with(input, || async {
             self.host.invoke(&connection_policy_id, &request)
@@ -122,12 +129,34 @@ impl Broker {
             >,
         >,
     {
+        // Reserved detection identifiers never resolve production connectors,
+        // even when the caller supplies an otherwise valid production grant.
         let now = Utc::now();
         input.intent.assert_fresh(now)?;
         input.grant.assert_active(now)?;
 
         if input.intent.organization_id != input.grant.organization_id {
             return Err(DomainError::OrganizationMismatch.into());
+        }
+
+        if input.connection_policy_id.starts_with("oscanary:")
+            || input.connection_policy_id.starts_with("osissued:")
+        {
+            let classified = self
+                .db
+                .classify_controlled_reference(
+                    &input.intent.organization_id,
+                    &input.connection_policy_id,
+                )
+                .await?;
+            // Active aliases must pass the gateway's existing target-specific
+            // delegation path; direct generic host policies cannot acquire them.
+            if !matches!(
+                classified,
+                opensesame_storage::credential_canaries::ControlledReferenceDecision::Ordinary
+            ) {
+                anyhow::bail!("controlled reference has no direct production authority");
+            }
         }
 
         if !self.db.authority_quorum_ok().await? {

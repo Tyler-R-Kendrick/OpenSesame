@@ -6,10 +6,11 @@ license.workspace = true
 description = "Git-native hierarchical sealed secret store (pass parity)"
 
 [dependencies]
-opensesame-authenticator-core = { path = "../authenticator-core" }
 opensesame-human-vault = { path = "../human-vault" }
 anyhow = { workspace = true }
 base64 = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
 blake3 = { workspace = true }
 hkdf = { workspace = true }
 rand = { workspace = true }

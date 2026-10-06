@@ -20,6 +20,8 @@ export interface ArmRecord {
   readonly reference: string;
   readonly trigger: Trigger;
   readonly armedAt: number;
+  /** Trusted worker closure, never sent to the content script. */
+  readonly authorize?: () => Promise<boolean>;
 }
 
 /** What the browser reports about a message's sender. */

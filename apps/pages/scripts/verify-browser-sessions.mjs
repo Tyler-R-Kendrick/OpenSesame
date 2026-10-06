@@ -36,7 +36,7 @@ const dist = path.resolve(here, "../dist");
 const out = path.resolve(
   process.env.PAGES_VERIFY_OUT ?? path.join(root, "artifacts/browser-sessions"),
 );
-const secret = "correct-horse-battery-staple-2026";
+const secret = "correct-horse-battery-staple-2026"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 const edited = "rotated-horse-battery-staple-2026";
 const privateSecret = "payroll-not-shared-2026";
 const joinerName = "Ada";

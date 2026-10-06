@@ -42,6 +42,11 @@ it.each([0, 1])(
         join(root, "scripts/fuzz/jazzer-gate.sh"),
       );
       writeFileSync(join(pkg, "package.json"), "{}");
+      mkdirSync(join(pkg, "src/security-protocol"), { recursive: true });
+      writeFileSync(
+        join(pkg, "src/security-protocol/credential-observation-native.ts"),
+        "",
+      );
       for (const name of [
         "alpha",
         "beta",
@@ -86,13 +91,17 @@ it.each([0, 1])(
       expect(statSync(privateDirectory).mode & 0o777).toBe(0o700);
       expect(existsSync(join(pkg, "artifacts"))).toBe(false);
       expect(readFileSync(calls, "utf8").trim().split("\n")).toEqual(
-        ["alpha", "beta"].flatMap((name) => [
+        [
+          "alpha",
+          "beta",
+          "security-protocol/credential-observation-native",
+        ].flatMap((name) => [
           "--no-warnings --import=tsx",
           `src/${name}`,
           "--",
           "-max_total_time=3",
-          `-artifact_prefix=${privateDirectory}/artifacts/${name}-`,
-          `${privateDirectory}/corpus/${name}`,
+          `-artifact_prefix=${privateDirectory}/artifacts/${name.split("/").at(-1)}-`,
+          `${privateDirectory}/corpus/${name.split("/").at(-1)}`,
         ]),
       );
       expect(result.stdout.includes("jazzer-gate: CLEAN")).toBe(status === 0);

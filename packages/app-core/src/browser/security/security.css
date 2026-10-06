@@ -1,0 +1,40 @@
+#security {
+  margin-block: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line, currentColor);
+  border-radius: var(--radius, 10px);
+}
+#security label {
+  display: block;
+  margin-block: 0.75rem;
+}
+#security input[type="password"],
+#security input:not([type]),
+#security select {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem;
+  margin-block: 0.25rem;
+  border: 1px solid var(--line, currentColor);
+  border-radius: 6px;
+  background: var(--surface, Canvas);
+  color: var(--ink, CanvasText);
+}
+#security button {
+  margin: 0.25rem;
+  padding: 0.5rem;
+  border: 1px solid var(--line, currentColor);
+  border-radius: 6px;
+  color: var(--ink, CanvasText);
+  background: var(--surface, Canvas);
+}
+#security button:focus-visible,
+#security input:focus-visible,
+#security select:focus-visible {
+  outline: 2px solid var(--accent, Highlight);
+  outline-offset: 2px;
+}
+#security [role="status"] {
+  overflow-wrap: anywhere;
+}

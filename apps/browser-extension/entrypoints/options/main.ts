@@ -1,3 +1,5 @@
+import "@opensesame/app-core/browser/security/security.css";
+import { createApiClient } from "@opensesame/api-client";
 /**
  * The local runner's options page: the person's own credential store, their
  * Host session, the recovery key a candidate is backed up to, and the one site
@@ -9,7 +11,7 @@
  * value. The one reveal is the recovery of a backed-up candidate, which needs
  * the private key the person holds and shows the value to them alone.
  */
-import { createApiClient } from "@opensesame/api-client";
+import { mountSecurityPanel } from "@opensesame/app-core/browser/security/panel.js";
 import { overlapCast } from "@opensesame/os-domain";
 import { backupId, createRecoveryKey, openBackup } from "../../runner/backup";
 import {
@@ -25,7 +27,19 @@ import { RunnerSettings } from "../../runner/settings";
 import { SealedKv, browserStore } from "../../runner/store";
 import { RunnerVault } from "../../runner/vault";
 
-const kv = new SealedKv(browserStore());
+const security = await mountSecurityPanel(
+  el("security"),
+  browser.runtime,
+  (allowed) => {
+    el("production-controls").hidden = !allowed;
+    if (allowed) setTimeout(() => void render(), 0);
+    else {
+      el("revealed").textContent = "";
+      el("recovery-private").textContent = "";
+    }
+  },
+);
+const kv = new SealedKv(browserStore(), undefined, security.requireProduction);
 const settings = new RunnerSettings(kv);
 const vault = new RunnerVault(kv);
 
@@ -71,14 +85,19 @@ function rows(list: HTMLElement, items: Row[]) {
 
 async function status(): Promise<RunnerStatus | null> {
   const reply = overlapCast(
-    await browser.runtime.sendMessage({ type: "opensesame.runner.status" }),
+    await browser.runtime.sendMessage({
+      securityPermit: security.permit(),
+      type: "opensesame.runner.status",
+    }),
   );
   return reply && !reply.error ? overlapCast(reply) : null;
 }
 
 async function arm(origin: string) {
+  await security.requireProduction();
   const reply = overlapCast(
     await browser.runtime.sendMessage({
+      securityPermit: security.permit(),
       type: "opensesame.runner.arm",
       origin,
     }),
@@ -93,6 +112,7 @@ async function arm(origin: string) {
 
 async function disarm(origin: string) {
   await browser.runtime.sendMessage({
+    securityPermit: security.permit(),
     type: "opensesame.runner.disarm",
     origin,
   });
@@ -157,6 +177,7 @@ async function render() {
 
 /** Open a candidate's backup with the private key the person pasted. */
 async function recover(handle: string) {
+  await security.requireProduction();
   const out = el("revealed");
   out.textContent = "";
   const token = await settings.token();

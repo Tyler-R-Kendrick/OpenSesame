@@ -33,6 +33,8 @@ const GATES = [
   "build:profile \\\n            --profile capability-profiles/enterprise-selected.json",
   "verify:webmcp",
   "verify:keyboard",
+  "verify:relay-keyboard",
+  "verify:live-join",
   "verify:push-worker",
   "verify:mobile",
   "verify:local-iam",
@@ -40,15 +42,23 @@ const GATES = [
   "verify:static",
   "verify:encrypted-search",
   "verify:auth",
+  "verify:duress:browser",
   "verify:customer-vault-browser",
+  "@opensesame/pages verify:retired-credentials",
+  "@opensesame/browser-extension verify:retired-credentials",
+  "@opensesame/browser-extension-autofill verify:retired-credentials",
+  "verify:retired-offline",
+  "verify:controlled-security",
   "verify-experience-journeys.mjs",
 ];
 
 /** The shards a step's `if:` selects: the union of its `||` clauses. */
 function shardsOf(when, shards) {
   if (!when) return shards;
+  // Status predicates change failure handling, not the matrix membership.
+  const membership = when.replace(/^always\(\) && /, "");
   const picked = new Set();
-  for (const clause of when.split("||").map((part) => part.trim())) {
+  for (const clause of membership.split("||").map((part) => part.trim())) {
     const startsWith = /^startsWith\(matrix\.shard, '([^']+)'\)$/.exec(
       clause,
     )?.[1];
@@ -68,8 +78,76 @@ function shardsOf(when, shards) {
   return shards.filter((name) => picked.has(name));
 }
 
+describe("the required relay protocol shard", () => {
+  it("requires real UDP, TCP and TLS relay journeys and the shipped protocol fixture", () => {
+    const relay = steps().find((step) =>
+      step.text.includes("verify:live-join"),
+    );
+    expect(relay?.when).toBe("matrix.shard == 'live-transports'");
+    expect(relay?.text).toContain(
+      "LIVE_SCENARIOS: relayed,relayed-tcp,relayed-tls",
+    );
+    expect(relay?.text).toContain("GOFLAGS=-mod=readonly go test -v ./...");
+    expect(relay?.text).toContain("build:live-dedicated");
+    expect(relay?.text).not.toMatch(/continue-on-error|\|\| true/);
+    const fixture = steps().find((step) =>
+      step.text.includes(
+        "go build -trimpath -o ../../../.cache/live-fixtures/bin/live-turn",
+      ),
+    );
+    expect(
+      shardsOf(
+        fixture?.when,
+        legs().map((leg) => leg.shard),
+      ),
+    ).toEqual(["keyboard", "live-transports"]);
+  });
+});
+
+describe("the controlled-security deployment gate", () => {
+  it("requires the authored loopback build before real browser validation in auth", () => {
+    const controlled = steps().find((step) =>
+      step.text.includes("verify:controlled-security"),
+    );
+    expect(controlled?.when).toBe("matrix.shard == 'auth'");
+    const build = steps().find((step) =>
+      step.text.includes("build:controlled-security"),
+    );
+    expect(build?.when).toBe("matrix.shard == 'auth'");
+    expect(bundle.indexOf("build:controlled-security")).toBeLessThan(
+      bundle.indexOf("verify:controlled-security"),
+    );
+    expect(controlled?.text).not.toMatch(/continue-on-error|\|\| true/);
+    const scripts = JSON.parse(
+      readFileSync(join(root, "apps/pages/package.json"), "utf8"),
+    ).scripts;
+    expect(scripts["build:controlled-security"]).toContain(
+      "PAGES_CANONICAL_ORIGIN=http://localhost:41878",
+    );
+    expect(scripts["build:controlled-security"]).toContain(
+      "PAGES_DEPLOYMENT_PROFILE=loopback_development",
+    );
+    expect(scripts["build:controlled-security"]).toContain("stamped-build.mjs");
+    expect(scripts["build:controlled-security"]).toContain(
+      "--outDir dist-profiles/controlled-security/dist --emptyOutDir",
+    );
+    expect(scripts["build:controlled-security"]).toContain(
+      "PAGES_OUT_DIR=dist-profiles/controlled-security/dist node scripts/build-workers.mjs",
+    );
+  });
+});
+
 describe("the bundle job's shards", () => {
   const shards = legs().map((leg) => leg.shard);
+
+  it("keeps a failure-resilient extension step confined to its auth shard", () => {
+    expect(shardsOf("always() && matrix.shard == 'auth'", shards)).toEqual([
+      "auth",
+    ]);
+    expect(() => shardsOf("always() && unsupported()", shards)).toThrow(
+      "unreadable shard condition",
+    );
+  });
 
   it("is a matrix of parallel shards that the required check reads across", () => {
     expect(shards.length).toBeGreaterThan(1);
@@ -139,7 +217,9 @@ describe("the bundle job's shards", () => {
       );
     }
   });
+});
 
+describe("the browser viewport and journey coverage", () => {
   it("splits verify:mobile across disjoint shards that between them walk every size", () => {
     const named = legs().filter((leg) => leg.sizes !== undefined);
     expect(named.length).toBeGreaterThan(1);

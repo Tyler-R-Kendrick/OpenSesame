@@ -6,5 +6,7 @@ export default defineConfig({
   test: {
     include: ["runner/**/*.test.ts"],
     environment: "node",
+    // Security settings load the real shared vault and cryptographic graph.
+    testTimeout: 20_000,
   },
 });

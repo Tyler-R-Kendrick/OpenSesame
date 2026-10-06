@@ -1,3 +1,5 @@
+import { decoyGuardedFetch } from "./decoy-fetch.js";
+import { assertNotDecoySession } from "./decoy-session.js";
 /**
  * The stores "Reset this browser" empties, one function each, every one
  * limited to what this app owns (`storage-ownership.ts`). The origin is
@@ -65,6 +67,7 @@ function throwIfRefused<T>(
 
 /** The app's origin-private files: `opensesame-pages-*`, and nothing else. */
 export async function clearOriginFiles(): Promise<void> {
+  const authorityGeneration = assertNotDecoySession();
   const open = originFiles();
   if (!open) return;
   const root = await open();
@@ -72,6 +75,7 @@ export async function clearOriginFiles(): Promise<void> {
   for await (const name of root.keys()) {
     if (ownsOriginFile(name)) names.push(name);
   }
+  assertNotDecoySession(authorityGeneration);
   throwIfRefused(
     "origin files",
     await Promise.allSettled(
@@ -139,9 +143,11 @@ async function encryptedDatabaseNames(factory: IDBFactory): Promise<string[]> {
 export async function clearDatabases(
   waitMs: number = DELETE_WAIT_MS,
 ): Promise<void> {
+  const authorityGeneration = assertNotDecoySession();
   const factory = maybeIndexedDatabases();
   if (!factory) return;
   const names = [...APP_DATABASES, ...(await encryptedDatabaseNames(factory))];
+  assertNotDecoySession(authorityGeneration);
   throwIfRefused(
     "databases",
     await Promise.allSettled(
@@ -171,6 +177,7 @@ function clearStore(
  * they name one of `msalClientIds`.
  */
 export function clearWebStorage(msalClientIds: readonly string[] = []): void {
+  assertNotDecoySession();
   clearStore(maybeLocalStore(), "local", msalClientIds);
   clearStore(maybeSessionStore(), "session", msalClientIds);
 }
@@ -179,9 +186,11 @@ export function clearWebStorage(msalClientIds: readonly string[] = []): void {
 export async function clearCaches(
   ownsCache: (name: string) => boolean,
 ): Promise<void> {
+  const authorityGeneration = assertNotDecoySession();
   const caches = maybeCacheStorage();
   if (!caches) return;
   const names = (await caches.keys()).filter(ownsCache);
+  assertNotDecoySession(authorityGeneration);
   throwIfRefused(
     "caches",
     await Promise.allSettled(names.map((name) => caches.delete(name))),
@@ -204,9 +213,12 @@ async function ownedRegistrations(
  * notifications stop arriving even where the worker itself stays.
  */
 export async function unsubscribePush(scope: string): Promise<void> {
+  const authorityGeneration = assertNotDecoySession();
   const registrations = await ownedRegistrations(scope);
+  assertNotDecoySession(authorityGeneration);
   for (const registration of registrations) {
     const subscription = await registration.pushManager?.getSubscription();
+    assertNotDecoySession(authorityGeneration);
     if (subscription && !(await subscription.unsubscribe())) {
       throw new Error("the push subscription would not end");
     }
@@ -215,7 +227,9 @@ export async function unsubscribePush(scope: string): Promise<void> {
 
 /** The app's own worker registration, by its scope. */
 export async function unregisterServiceWorkers(scope: string): Promise<void> {
+  const authorityGeneration = assertNotDecoySession();
   const registrations = await ownedRegistrations(scope);
+  assertNotDecoySession(authorityGeneration);
   throwIfRefused(
     "service workers",
     await Promise.allSettled(
@@ -234,10 +248,11 @@ export async function networkAnswers(
   scope: string,
   waitMs: number = PROBE_WAIT_MS,
 ): Promise<boolean> {
+  assertNotDecoySession();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), waitMs);
   try {
-    const response = await fetch(scope, {
+    const response = await decoyGuardedFetch(scope, {
       method: "HEAD",
       cache: "no-store",
       signal: controller.signal,

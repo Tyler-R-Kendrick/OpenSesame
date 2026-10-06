@@ -4,7 +4,6 @@
  * and waits for the answer, a refusal says where to undo it — and a device
  * catches up when the app is looked at again or comes back online.
  */
-import { overlapCast } from "@opensesame/os-domain";
 import { createItem } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureHost } from "../../host.js";
@@ -61,7 +60,24 @@ let visibility: DocumentVisibilityState = "visible";
 const onVisible = new Set<() => void>();
 const onOnline = new Set<(online: boolean) => void>();
 
-const page: PagePort = overlapCast({
+const page: PagePort = {
+  location: Object.assign(
+    new URL("https://observer.example.test/OpenSesame/"),
+    {
+      assign: () => {},
+      replace: () => {},
+      reload: () => {},
+    },
+  ),
+  opener: null,
+  isSecureContext: true,
+  addEventListener: () => {},
+  removeEventListener: () => {},
+  open: () => null,
+  close: () => {},
+  replaceUrl: () => {},
+  startDownload: () => {},
+  submitForm: () => {},
   get visibilityState() {
     return visibility;
   },
@@ -69,15 +85,18 @@ const page: PagePort = overlapCast({
     onVisible.add(listener);
     return () => onVisible.delete(listener);
   },
-});
+};
 
-const environment: EnvironmentPort = overlapCast({
+const environment: EnvironmentPort = {
   online: true,
+  userAgent: "Generated Chrome observer fixture",
+  userActivated: false,
+  workers: { dedicated: false, shared: false, service: false },
   onOnlineChange(listener: (online: boolean) => void) {
     onOnline.add(listener);
     return () => onOnline.delete(listener);
   },
-});
+};
 
 function wipePersonalTomb(): void {
   for (const path of [
@@ -116,6 +135,7 @@ beforeEach(async () => {
     intervalMs: 3_600_000,
   });
   await vaultStore.create(PASSWORD);
+  expect(vaultStore.getSnapshot().header?.protection?.authB64).toBeTruthy();
   startTailnetSync();
   await settle();
 });

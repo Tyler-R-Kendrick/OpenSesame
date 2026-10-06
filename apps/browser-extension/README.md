@@ -112,3 +112,11 @@ Playwright suite in `tests/auth-surface.spec.ts` is skipped unless
 - [ADR 0017](../../docs/adr/0017-host-client-product-topology.md) — host/client topology
 - [ADR 0082](../../docs/adr/0082-agent-run-registration-ceremonies.md) — the extension as a second ceremony runner
 - [Audit: extension Host API loopback fence](../../docs/security/audits/2026-08-08-extension-host-fence.md)
+
+WXT development uses its supported manual runner. Run the `dev` command above,
+then load the unpacked output path printed by WXT through `chrome://extensions`
+(Developer mode → Load unpacked), or Firefox’s temporary add-on loader.
+The optional `web-ext` launcher is omitted because its Android ADB dependency
+requires an unpatched vulnerable `node-forge`. Automatic browser launching and
+Firefox Android development through that launcher are unavailable; production
+builds, archives and the Playwright browser suites use no such launcher.

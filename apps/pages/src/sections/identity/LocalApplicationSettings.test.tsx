@@ -1,4 +1,5 @@
 /** @vitest-environment jsdom */
+import { webLocksDouble } from "@opensesame/app-core/lib/__tests__/web-locks-double.js";
 import {
   configureLocalApplication,
   readLocalApplications,
@@ -23,18 +24,8 @@ let directory: LocalDirectory;
 beforeEach(async () => {
   tomb = `registration-ui-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
   vi.stubGlobal("navigator", {
-    locks: {
-      request: <T,>(_name: string, run: () => Promise<T>) => {
-        const next = queue.then(run);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
+    locks: webLocksDouble(),
   });
   directory = { version: 2, revision: 0, entries: [], memberships: [] };
   for (const kind of ["person", "organization", "application"] as const)
@@ -116,13 +107,11 @@ it("preserves focus moved elsewhere while registration removal is pending", asyn
   await open();
   await screen.findByRole("button", { name: "Remove registration" });
   const write = vfsSeams.writeRaw;
-  let finishWrite: (() => void) | undefined;
+  let finishWrite: (() => Promise<void>) | undefined;
   vi.spyOn(vfsSeams, "writeRaw").mockImplementationOnce(
     (key, value) =>
       new Promise<void>((resolve, reject) => {
-        finishWrite = () => {
-          void write(key, value).then(resolve, reject);
-        };
+        finishWrite = () => write(key, value).then(resolve, reject);
       }),
   );
   await userEvent.click(
@@ -133,6 +122,7 @@ it("preserves focus moved elsewhere while registration removal is pending", asyn
   await userEvent.click(
     screen.getByRole("button", { name: "Confirm removal" }),
   );
+  await waitFor(() => expect(finishWrite).toBeTypeOf("function"));
   const elsewhere = screen.getByRole("button", { name: "Another control" });
   await userEvent.click(elsewhere);
   if (!finishWrite) throw new Error("Missing pending write");

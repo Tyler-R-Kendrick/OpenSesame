@@ -8,6 +8,7 @@ import {
   CeremonyShell,
 } from "../../../components/CeremonyShell.js";
 import { IconPasskey, IconTrash } from "../../../components/Icons.js";
+import { runSessionNavigation } from "../../../lib/decoy-navigation.js";
 import { useVaultStore } from "../../../lib/vault/hooks.js";
 import { SecretKeyCard } from "./SecretKeyCard.js";
 import {
@@ -124,7 +125,9 @@ export function KeyCard({
                   onClick: () => {
                     const url = new URL(host.fixUrl ?? "");
                     url.searchParams.set(ENROLL_PASSKEY_PARAM, "1");
-                    window.location.assign(url);
+                    runSessionNavigation(url.href, () =>
+                      window.location.assign(url),
+                    );
                   },
                 }
               : undefined
