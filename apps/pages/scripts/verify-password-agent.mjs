@@ -46,21 +46,22 @@ try {
       .first()
       .waitFor();
     await openSettingsCategory(page, "Vaults");
-    const accountPack = page.getByRole("switch", {
-      name: "Account",
-      exact: true,
-    });
-    if ((await accountPack.getAttribute("aria-checked")) === "false")
-      await accountPack.click();
-    await page.waitForFunction(() => {
-      const control = document.querySelector(
-        '[role="switch"][aria-label="Account"]',
-      );
-      return (
-        control?.getAttribute("aria-checked") === "true" &&
-        control?.getAttribute("aria-busy") !== "true"
-      );
-    });
+    // An account offers only the credential types this vault switched on
+    // (ADR 0178): Account brings Password with it, the other two are asked for.
+    for (const pack of ["Account", "API key", "Token"]) {
+      const control = page.getByRole("switch", { name: pack, exact: true });
+      if ((await control.getAttribute("aria-checked")) === "false")
+        await control.click();
+      await page.waitForFunction((label) => {
+        const found = document.querySelector(
+          `[role="switch"][aria-label="${label}"]`,
+        );
+        return (
+          found?.getAttribute("aria-checked") === "true" &&
+          found?.getAttribute("aria-busy") !== "true"
+        );
+      }, pack);
+    }
     await page.evaluate((route) => {
       history.pushState(null, "", route);
       window.dispatchEvent(new PopStateEvent("popstate"));

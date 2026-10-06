@@ -6,6 +6,7 @@ import {
   createItem,
   definitionFor,
   itemTypeId,
+  outsideAccounts,
   readItemField,
 } from "@opensesame/vault-core";
 import {
@@ -146,7 +147,9 @@ function unlocked() {
 async function reachableItems() {
   const state = unlocked();
   const items: VaultItem[] = [];
-  for (const item of state.items) {
+  // A credential bound to an account is that account's method, referenced
+  // through it (`method:<id>:secret`), not an item of its own to find (ADR 0178).
+  for (const item of outsideAccounts(state.items)) {
     if (item.deletedAt !== null) continue;
     try {
       await assertShareReach(state.tomb, { kind: "item", id: item.id }, "read");
@@ -158,7 +161,7 @@ async function reachableItems() {
   const current = unlocked();
   if (current.tomb !== state.tomb)
     throw new Error("The vault changed. Try again.");
-  const stillPresent = current.items.filter(
+  const stillPresent = outsideAccounts(current.items).filter(
     (entry) =>
       entry.deletedAt === null &&
       items.some(
