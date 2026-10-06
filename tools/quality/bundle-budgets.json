@@ -151,7 +151,19 @@
       "base64 every sealed read and write uses (bytes.ts), the master-password",
       "record (vault/master-wrap.ts) and the security checks' capability",
       "descriptor. None of it can load on demand. Four kibibytes over the",
-      "measurement, as before."
+      "measurement, as before.",
+      "2026-10-06: largestAsset 686 -> 693 for both hardened profiles (ADR",
+      "0178, credentials are entries). The entry measures 688.9 KiB, 10.1 over",
+      "main's 678.8 at 3f10a8e9 (built both ways, minimal-local hardened).",
+      "Attributed by sourcemap, it is the code every read and every write of the",
+      "vault runs: resolving an account's methods from its credentials and",
+      "splitting them back out on save (vault-core credential-split.ts 1.9,",
+      "credential.ts 1.6, credential-read.ts 1.4, credential-bind.ts 1.2,",
+      "item-factory.ts), the store's raw/resolved bodies and the cascade of",
+      "trash, restore and purge (store.ts, merge.ts, body-edits.ts), and five",
+      "more entries in the pack index (password, api-key, token, oauth-client,",
+      "authenticator). None of it can load on demand: the vault cannot be read",
+      "without it. Four kibibytes over the measurement, as before."
     ],
     "builds": {
       "minimal-local-hardened": {
@@ -161,7 +173,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 686
+          "largestAsset": 693
         }
       },
       "family-local-hardened": {
@@ -171,7 +183,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 686
+          "largestAsset": 693
         }
       }
     }
