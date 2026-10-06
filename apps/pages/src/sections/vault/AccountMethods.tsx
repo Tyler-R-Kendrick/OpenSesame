@@ -4,51 +4,18 @@ import type {
   LoginMethodType,
 } from "@opensesame/vault-core";
 import { useEffect, useRef, useState } from "react";
-import { IconKey } from "../../components/IconKey.js";
-import { IconPlus, IconX } from "../../components/Icons.js";
+import { IconPlus } from "../../components/Icons.js";
 import { MethodPicker, methodTitle, newMethod } from "./MethodPicker.js";
 import {
-  ApiKeyFields,
-  AuthenticatorFields,
-  OAuthFields,
-  TokenFields,
+  ApiKeyLines,
+  AuthenticatorLines,
+  OAuthLines,
+  TokenLines,
 } from "./OtherMethodEditors.js";
 import { PasswordMethodEditor } from "./PasswordMethodEditor.js";
 
-function MethodFields({
-  account,
-  method,
-  liveRoll,
-  onChange,
-}: {
-  account: AccountItem;
-  method: LoginMethod;
-  liveRoll: boolean;
-  onChange: (next: LoginMethod) => void;
-}) {
-  switch (method.type) {
-    case "password":
-      return (
-        <PasswordMethodEditor
-          account={account}
-          method={method}
-          liveRoll={liveRoll}
-          onEdit={onChange}
-        />
-      );
-    case "api-key":
-      return <ApiKeyFields method={method} onChange={onChange} />;
-    case "token":
-      return <TokenFields method={method} onChange={onChange} />;
-    case "oauth":
-      return <OAuthFields method={method} onChange={onChange} />;
-    case "authenticator":
-      return <AuthenticatorFields method={method} onChange={onChange} />;
-  }
-}
-
-/** One login method: its title with a remove key, then its own fields. */
-function MethodBlock({
+/** One login method's lines: each value on a line of its own, the × on the first. */
+function MethodLines({
   account,
   method,
   liveRoll,
@@ -62,35 +29,41 @@ function MethodBlock({
   onRemove: (method: LoginMethod) => void;
 }) {
   const title = methodTitle(account.methods, method);
+  const lines = {
+    methods: account.methods,
+    title,
+    onRemove: () => onRemove(method),
+  };
   return (
     <fieldset
       className="method"
       aria-label={`${title} method`}
       data-method={method.id}
     >
-      <span className="label editor__grouplabel">
-        {title}
-        <IconKey
-          small
-          label={`Remove ${title.toLowerCase()}`}
-          onClick={() => onRemove(method)}
-        >
-          <IconX size={15} />
-        </IconKey>
-      </span>
-      <MethodFields
-        account={account}
-        method={method}
-        liveRoll={liveRoll}
-        onChange={onReplace}
-      />
+      {method.type === "password" ? (
+        <PasswordMethodEditor
+          account={account}
+          method={method}
+          liveRoll={liveRoll}
+          onEdit={onReplace}
+          onRemove={lines.onRemove}
+        />
+      ) : method.type === "api-key" ? (
+        <ApiKeyLines {...lines} method={method} onChange={onReplace} />
+      ) : method.type === "token" ? (
+        <TokenLines {...lines} method={method} onChange={onReplace} />
+      ) : method.type === "oauth" ? (
+        <OAuthLines {...lines} method={method} onChange={onReplace} />
+      ) : (
+        <AuthenticatorLines {...lines} method={method} onChange={onReplace} />
+      )}
     </fieldset>
   );
 }
 
 /**
- * The account's login methods: one block each, in order, under a heading whose
- * `+` opens the type choice. An account may hold none, so every block can go.
+ * The account's login methods: a heading whose `+` opens the type choice, then
+ * each method's lines in order. An account may hold none, so every one can go.
  */
 export function AccountMethods({
   account,
@@ -130,31 +103,33 @@ export function AccountMethods({
   };
 
   return (
-    <div className="field method__group">
-      <span className="label editor__grouplabel">
-        Login methods
-        <button
-          ref={opener}
-          type="button"
-          className="icon-btn icon-btn--sm"
-          aria-label="Add login method"
-          title="Add login method"
-          aria-expanded={picking}
-          onClick={() => setPicking((open) => !open)}
-        >
-          <IconPlus size={15} />
-        </button>
-      </span>
-      {picking ? (
-        <MethodPicker
-          opener={opener}
-          onPick={add}
-          onClose={() => setPicking(false)}
-        />
-      ) : null}
+    <>
+      <div className="field method__group">
+        <span className="label editor__grouplabel">
+          Login methods
+          <button
+            ref={opener}
+            type="button"
+            className="icon-btn icon-btn--sm"
+            aria-label="Add login method"
+            title="Add login method"
+            aria-expanded={picking}
+            onClick={() => setPicking((open) => !open)}
+          >
+            <IconPlus size={15} />
+          </button>
+        </span>
+        {picking ? (
+          <MethodPicker
+            opener={opener}
+            onPick={add}
+            onClose={() => setPicking(false)}
+          />
+        ) : null}
+      </div>
       <div ref={list} className="method__list">
         {methods.map((method) => (
-          <MethodBlock
+          <MethodLines
             key={method.id}
             account={account}
             method={method}
@@ -164,6 +139,6 @@ export function AccountMethods({
           />
         ))}
       </div>
-    </div>
+    </>
   );
 }

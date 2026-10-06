@@ -1,15 +1,11 @@
 import type {
   ApiKeyMethod,
   AuthenticatorMethod,
+  LoginMethod,
   OAuthMethod,
   TokenMethod,
 } from "@opensesame/vault-core";
-import {
-  apiKeyHeaderLine,
-  bearerHeaderLine,
-  headerName,
-  totpSetupUri,
-} from "@opensesame/vault-core";
+import { headerName, totpSetupUri } from "@opensesame/vault-core";
 import {
   ConcealedValue,
   CopyButton,
@@ -24,6 +20,7 @@ import {
 } from "../../components/Icons.js";
 import { QrCode } from "../../components/QrCode.js";
 import { TotpCode, currentTotp } from "../../components/TotpCode.js";
+import { apiKeyLabels } from "./credential-labels.js";
 
 type Ports = {
   name: string;
@@ -107,121 +104,65 @@ function Plain({
 }
 
 /**
- * The credential as one pasteable header line, concealed like the secret in
- * it. Its reveal and copy keys act on the whole line; the rows above it keep
- * the single values.
+ * An API key as two rows, like a username and its password: the header it
+ * travels in (`API header`, copyable) and its value (`X-Api-Key value`, hidden
+ * until asked, copyable). An account may hold several, so each pair is named
+ * for its header. The header line a request takes is one of Copy's choices.
  */
-function HeaderLine({
-  label,
-  fieldKey,
-  line,
-  name,
-  ports,
-}: {
-  label: string;
-  fieldKey: string;
-  line: string;
-  /** The line's header, shown in the clear while its value is hidden. */
-  name: string;
-  ports: Ports;
-}) {
-  const revealed = ports.revealed.has(fieldKey);
-  const lower = label.toLowerCase();
-  return (
-    <FieldRow
-      label={label}
-      actions={
-        <>
-          <RevealButton
-            revealed={revealed}
-            label={lower}
-            onToggle={() => ports.toggle(fieldKey)}
-          />
-          <CopyButton
-            value={line}
-            label={lower}
-            fieldKey={fieldKey}
-            copied={ports.copied}
-            failed={ports.failed}
-            onCopy={ports.copy}
-          />
-        </>
-      }
-    >
-      {revealed ? (
-        <ConcealedValue value={line} label={lower} revealed />
-      ) : (
-        <>
-          <span className="frow__value frow__value--mono">{name}: </span>
-          <ConcealedValue value={line} label={lower} revealed={false} />
-        </>
-      )}
-    </FieldRow>
-  );
-}
-
 export function ApiKeyRows({
   method,
+  methods,
   ports,
-}: { method: ApiKeyMethod; ports: Ports }) {
-  const name = headerName(method.header);
+}: {
+  method: ApiKeyMethod;
+  methods: readonly LoginMethod[];
+  ports: Ports;
+}) {
+  const labels = apiKeyLabels(methods, method);
   return (
     <>
+      <Plain
+        label={labels.header}
+        fieldKey={`${method.id}:header`}
+        value={headerName(method.header)}
+        ports={ports}
+      />
       {method.key ? (
         <Concealed
-          label="API key"
+          label={labels.value}
           fieldKey={`${method.id}:key`}
           value={method.key}
           ports={ports}
         />
       ) : (
-        <FieldRow label="API key">
+        <FieldRow label={labels.value}>
           <span className="frow__value frow__value--muted">Not set</span>
         </FieldRow>
       )}
-      <Plain
-        label="Header"
-        fieldKey={`${method.id}:header`}
-        value={name}
-        ports={ports}
-      />
-      {method.key ? (
-        <HeaderLine
-          label="Header with key"
-          fieldKey={`${method.id}:line`}
-          line={apiKeyHeaderLine(method.header, method.key)}
-          name={name}
-          ports={ports}
-        />
-      ) : null}
     </>
   );
 }
 
 export function TokenRows({
   method,
+  title,
   ports,
-}: { method: TokenMethod; ports: Ports }) {
+}: {
+  method: TokenMethod;
+  title: string;
+  ports: Ports;
+}) {
   return (
     <>
       {method.token ? (
-        <>
-          <Concealed
-            label="Token"
-            fieldKey={`${method.id}:token`}
-            value={method.token}
-            ports={ports}
-          />
-          <HeaderLine
-            label="Bearer header"
-            fieldKey={`${method.id}:line`}
-            line={bearerHeaderLine(method.token)}
-            name="Authorization"
-            ports={ports}
-          />
-        </>
+        <Concealed
+          label={title}
+          fieldKey={`${method.id}:token`}
+          value={method.token}
+          ports={ports}
+        />
       ) : (
-        <FieldRow label="Token">
+        <FieldRow label={title}>
           <span className="frow__value frow__value--muted">Not set</span>
         </FieldRow>
       )}

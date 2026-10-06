@@ -1,0 +1,239 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 1700,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Billing API"
+          }
+        },
+        {
+          "measure": ".method"
+        },
+        {
+          "shot": "390-password"
+        },
+        {
+          "openDisclosureOptional": "Options"
+        },
+        {
+          "pressOptional": "Password options"
+        },
+        {
+          "measure": ".method"
+        },
+        {
+          "shot": "390-options"
+        },
+        {
+          "press": "Add login method"
+        },
+        {
+          "pressIn": ["fieldset[aria-label='Login method type']", "API key"]
+        },
+        {
+          "fillOptional": {
+            "label": "API key",
+            "text": "demo-api-key-0001"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "X-Api-Key value",
+            "text": "demo-api-key-0001"
+          }
+        },
+        {
+          "press": "Add login method"
+        },
+        {
+          "pressIn": ["fieldset[aria-label='Login method type']", "Token"]
+        },
+        {
+          "fillOptional": {
+            "label": "Token",
+            "text": "demo-token-0001"
+          }
+        },
+        {
+          "shot": "390-editor"
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "measure": ".detail"
+        },
+        {
+          "shot": "390-detail"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 1200,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Billing API"
+          }
+        },
+        {
+          "measure": ".method"
+        },
+        {
+          "shot": "1280-password"
+        },
+        {
+          "openDisclosureOptional": "Options"
+        },
+        {
+          "pressOptional": "Password options"
+        },
+        {
+          "measure": ".method"
+        },
+        {
+          "shot": "1280-options"
+        },
+        {
+          "press": "Add login method"
+        },
+        {
+          "pressIn": ["fieldset[aria-label='Login method type']", "API key"]
+        },
+        {
+          "fillOptional": {
+            "label": "API key",
+            "text": "demo-api-key-0001"
+          }
+        },
+        {
+          "fillOptional": {
+            "label": "X-Api-Key value",
+            "text": "demo-api-key-0001"
+          }
+        },
+        {
+          "press": "Add login method"
+        },
+        {
+          "pressIn": ["fieldset[aria-label='Login method type']", "Token"]
+        },
+        {
+          "fillOptional": {
+            "label": "Token",
+            "text": "demo-token-0001"
+          }
+        },
+        {
+          "shot": "1280-editor"
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "measure": ".detail"
+        },
+        {
+          "shot": "1280-detail"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-password",
+      "width": 390,
+      "title": "A new account's password \u2014 390 wide",
+      "caption": "One line, like a website: the password with its keys inside its rule, and the \u00d7 at the end of the line.",
+      "before": "The password under its label, the \u00d7 beside the label, an Options line beneath",
+      "after": "The password, its keys and the \u00d7 on one line"
+    },
+    {
+      "shot": "390-options",
+      "width": 390,
+      "title": "The generator's options \u2014 390 wide",
+      "caption": "They open from a key on the password's line, and close the same way.",
+      "before": "An Options disclosure on a line of its own",
+      "after": "A key on the password's line opens the same options"
+    },
+    {
+      "shot": "390-editor",
+      "width": 390,
+      "title": "An API key and a token added \u2014 390 wide",
+      "caption": "Each value on one line: the API header, then its value; the token. The \u00d7 ends the first line of each.",
+      "before": "A block per method, a title row with the \u00d7, fields under it",
+      "after": "API header and X-Api-Key value, one line each"
+    },
+    {
+      "shot": "390-detail",
+      "width": 390,
+      "title": "The saved account \u2014 390 wide",
+      "caption": "The API key reads like a username and password: the header, copyable, and its value, hidden and copyable.",
+      "before": "Header (no copy key) and a Header with key line",
+      "after": "API header (copy) and X-Api-Key value (reveal, copy)"
+    },
+    {
+      "shot": "1280-password",
+      "width": 1280,
+      "title": "A new account's password \u2014 1280 wide",
+      "caption": "One line, like a website: the password with its keys inside its rule, and the \u00d7 at the end of the line.",
+      "before": "The password under its label, the \u00d7 beside the label, an Options line beneath",
+      "after": "The password, its keys and the \u00d7 on one line"
+    },
+    {
+      "shot": "1280-options",
+      "width": 1280,
+      "title": "The generator's options \u2014 1280 wide",
+      "caption": "They open from a key on the password's line, and close the same way.",
+      "before": "An Options disclosure on a line of its own",
+      "after": "A key on the password's line opens the same options"
+    },
+    {
+      "shot": "1280-editor",
+      "width": 1280,
+      "title": "An API key and a token added \u2014 1280 wide",
+      "caption": "Each value on one line: the API header, then its value; the token. The \u00d7 ends the first line of each.",
+      "before": "A block per method, a title row with the \u00d7, fields under it",
+      "after": "API header and X-Api-Key value, one line each"
+    },
+    {
+      "shot": "1280-detail",
+      "width": 1280,
+      "title": "The saved account \u2014 1280 wide",
+      "caption": "The API key reads like a username and password: the header, copyable, and its value, hidden and copyable.",
+      "before": "Header (no copy key) and a Header with key line",
+      "after": "API header (copy) and X-Api-Key value (reveal, copy)"
+    }
+  ]
+}

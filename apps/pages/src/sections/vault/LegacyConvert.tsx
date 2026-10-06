@@ -6,13 +6,13 @@ import {
   WrongPepperError,
 } from "@opensesame/vault-core";
 import { useState } from "react";
-import { IconKey } from "../../components/IconKey.js";
 import { IconRefresh } from "../../components/Icons.js";
 import {
   isPepperCancelled,
   usePepperPrompt,
 } from "../../components/PepperPrompt.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { CredentialLine } from "./CredentialLine.js";
 
 /**
  * A password an older version made from a pepper (or Sphinx master input) the
@@ -25,10 +25,13 @@ export function LegacyConvert({
   account,
   method,
   onConvert,
+  onRemove,
 }: {
   account: AccountItem;
   method: PasswordMethod;
   onConvert: (next: PasswordMethod) => void | Promise<void>;
+  /** Drawn in the editor, where the line ends in a remove ×; absent on the page. */
+  onRemove?: () => void;
 }) {
   const prompt = usePepperPrompt();
   const [wrong, setWrong] = useState(false);
@@ -53,22 +56,35 @@ export function LegacyConvert({
   };
 
   return (
-    <div className="field">
-      <span className="label">Password</span>
-      <div className="editor__inline">
-        <StatusMark
-          tone={wrong ? "err" : "idle"}
-          label={
-            wrong
-              ? "That did not open it"
-              : "Made with an earlier pepper: convert it once"
-          }
-        />
-        <IconKey label="Convert password" onClick={() => void convert()}>
-          <IconRefresh size={17} />
-        </IconKey>
-      </div>
+    <>
+      <CredentialLine
+        label="Password"
+        htmlFor={`${method.id}-convert`}
+        remove={onRemove ? { label: "Remove password", onRemove } : undefined}
+        field={
+          <div className="editor__inline">
+            <StatusMark
+              tone={wrong ? "err" : "idle"}
+              label={
+                wrong
+                  ? "That did not open it"
+                  : "Made with an earlier pepper: convert it once"
+              }
+            />
+            <button
+              id={`${method.id}-convert`}
+              type="button"
+              className="icon-btn"
+              aria-label="Convert password"
+              title="Convert password"
+              onClick={() => void convert()}
+            >
+              <IconRefresh size={17} />
+            </button>
+          </div>
+        }
+      />
       {prompt.element}
-    </div>
+    </>
   );
 }
