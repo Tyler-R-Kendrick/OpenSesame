@@ -211,7 +211,7 @@ describe("ItemTypesPanel", () => {
   it("trays a failed install with a mark on the head, never a sentence in the page", async () => {
     install.mockRejectedValueOnce(new Error("Storage is full."));
     renderPanel();
-    fireEvent.click(tab("Marketplace"));
+    openMarketplace();
     fireEvent.click(
       await screen.findByRole("button", { name: "Install Vehicle" }),
     );
@@ -259,7 +259,7 @@ describe("ItemTypesPanel", () => {
       throw new Error("The repository is rate limited.");
     });
     renderPanel();
-    fireEvent.click(tab("Marketplace"));
+    openMarketplace();
     await expectInTray("The repository is rate limited.");
     expect(
       screen.getByRole("img", { name: "The repository is rate limited." }),
