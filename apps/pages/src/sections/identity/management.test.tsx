@@ -228,7 +228,7 @@ it("edits application redirects without replacing its subject sector", async () 
   ]);
 });
 
-it("saves hosted application source through the Identity PATCH adapter", async () => {
+it("saves a hosted application edit through the Identity PATCH adapter", async () => {
   const user = userEvent.setup();
   const saved = vi.fn();
   render(
@@ -239,10 +239,8 @@ it("saves hosted application source through the Identity PATCH adapter", async (
       onCancel={() => undefined}
     />,
   );
-  await user.click(screen.getByRole("button", { name: "Source" }));
-  // SAFETY: fixture constructed in this test matches the declared contract.
-  const source = screen.getByLabelText("Source") as HTMLTextAreaElement;
-  expect(source.value).toContain("Registration is not consent");
+  expect(screen.queryByRole("button", { name: "Visual" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Source" })).toBeNull();
   await user.click(screen.getByRole("button", { name: "Save application" }));
   await waitFor(() => expect(saved).toHaveBeenCalledOnce());
   expect(writes[0]?.path).toBe("/v1/oauth/clients/cli_1");

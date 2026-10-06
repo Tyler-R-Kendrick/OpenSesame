@@ -68,7 +68,7 @@ export function ApplicationSetupCard(props: {
         />
         {test ? <p className="hint">{test}</p> : null}
         <h4>Claim preview (unsigned, synthetic)</h4>
-        <pre className="cfg-source__input">
+        <pre className="cfg-pre">
           {JSON.stringify(
             {
               sub: preview.sub,

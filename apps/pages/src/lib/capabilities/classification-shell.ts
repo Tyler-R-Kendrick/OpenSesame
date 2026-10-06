@@ -89,6 +89,11 @@ export const SHELL_RULES = [
   core("src/test-setup", null, "installs the app-core test host (ADR 0133)"),
   core("src/boot-transport", null, "boot never reaches the transport client"),
   core("src/runtime-config.shipped", null, "the shipped runtime config file"),
+  core(
+    "src/no-source-toggle",
+    null,
+    "guard: no Visual/Source toggle in the client",
+  ),
   core("src/bindings/", null, "React hooks over the core's stores (ADR 0133)"),
   core(
     "src/screens/capabilities/",
@@ -162,11 +167,6 @@ export const SHELL_RULES = [
 
   // --- components: the shell by default ------------------------------------
   core("src/components/", SHELL, "rail, chrome, controls, status"),
-  core(
-    "src/components/configuration/",
-    "settings.core",
-    "Visual/Source editor chrome",
-  ),
   ...each("src/components/", ["InstallMark", "InstallOffer"], (p) =>
     core(p, "install.pwa", "install offer surface"),
   ),

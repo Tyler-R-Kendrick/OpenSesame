@@ -1,13 +1,11 @@
 /**
  * J-CONFLICT: two pages edit one local application. A semantic save in A
- * makes B's save a conflict. A's comment-only source save does not invalidate
- * grants.
+ * makes B's save a conflict.
  */
 import {
   addCapabilities,
   openSection,
   sealWithPassword,
-  setTextarea,
   unlockWithPassword,
 } from "./pages-journey.mjs";
 
@@ -116,22 +114,5 @@ export async function walkJConflict({
     `stale tab is refused: ${alert}`,
   );
   await snap(pageB, "J-CONFLICT-stale");
-  await rowA.getByRole("button", { name: "Source", exact: true }).click();
-  const source = rowA.locator("textarea[id^='app-source-']");
-  await source.waitFor({ timeout: 8000 });
-  const current = await source.inputValue();
-  await setTextarea(
-    page,
-    "textarea[id^='app-source-']",
-    `# keep grants\n${current}`,
-  );
-  await rowA.getByRole("button", { name: "Save source", exact: true }).click();
-  await rowA
-    .getByText("Saved comments. Application grants were not invalidated.", {
-      exact: true,
-    })
-    .waitFor({ timeout: 10000 });
-  check(true, "comment-only source save does not invalidate grants");
-  await snap(page, "J-CONFLICT-comment");
   await pageB.close();
 }
