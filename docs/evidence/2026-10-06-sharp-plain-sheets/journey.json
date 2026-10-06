@@ -21,11 +21,7 @@
         {
           "style": {
             "selector": ".sheet button, .sheet__mark",
-            "props": [
-              "background-color",
-              "color",
-              "border-top-left-radius"
-            ]
+            "props": ["background-color", "color", "border-top-left-radius"]
           }
         },
         {
@@ -52,11 +48,7 @@
         {
           "style": {
             "selector": ".sheet button, .sheet__mark",
-            "props": [
-              "background-color",
-              "color",
-              "border-top-left-radius"
-            ]
+            "props": ["background-color", "color", "border-top-left-radius"]
           }
         },
         {
