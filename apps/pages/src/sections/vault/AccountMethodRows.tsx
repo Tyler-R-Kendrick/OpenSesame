@@ -4,7 +4,12 @@ import type {
   OAuthMethod,
   TokenMethod,
 } from "@opensesame/vault-core";
-import { totpSetupUri } from "@opensesame/vault-core";
+import {
+  apiKeyHeaderLine,
+  bearerHeaderLine,
+  headerName,
+  totpSetupUri,
+} from "@opensesame/vault-core";
 import {
   ConcealedValue,
   CopyButton,
@@ -101,10 +106,65 @@ function Plain({
   );
 }
 
+/**
+ * The credential as one pasteable header line, concealed like the secret in
+ * it. Its reveal and copy keys act on the whole line; the rows above it keep
+ * the single values.
+ */
+function HeaderLine({
+  label,
+  fieldKey,
+  line,
+  name,
+  ports,
+}: {
+  label: string;
+  fieldKey: string;
+  line: string;
+  /** The line's header, shown in the clear while its value is hidden. */
+  name: string;
+  ports: Ports;
+}) {
+  const revealed = ports.revealed.has(fieldKey);
+  const lower = label.toLowerCase();
+  return (
+    <FieldRow
+      label={label}
+      actions={
+        <>
+          <RevealButton
+            revealed={revealed}
+            label={lower}
+            onToggle={() => ports.toggle(fieldKey)}
+          />
+          <CopyButton
+            value={line}
+            label={lower}
+            fieldKey={fieldKey}
+            copied={ports.copied}
+            failed={ports.failed}
+            onCopy={ports.copy}
+          />
+        </>
+      }
+    >
+      {revealed ? (
+        <ConcealedValue value={line} label={lower} revealed />
+      ) : (
+        <>
+          <span className="frow__value frow__value--mono">{name}: </span>
+          <ConcealedValue value={line} label={lower} revealed={false} />
+        </>
+      )}
+    </FieldRow>
+  );
+}
+
 export function ApiKeyRows({
   method,
   ports,
 }: { method: ApiKeyMethod; ports: Ports }) {
+  const name = headerName(method.header);
   return (
     <>
       {method.key ? (
@@ -114,11 +174,25 @@ export function ApiKeyRows({
           value={method.key}
           ports={ports}
         />
-      ) : null}
-      {method.header ? (
-        <FieldRow label="Header">
-          <span className="frow__value frow__value--mono">{method.header}</span>
+      ) : (
+        <FieldRow label="API key">
+          <span className="frow__value frow__value--muted">Not set</span>
         </FieldRow>
+      )}
+      <Plain
+        label="Header"
+        fieldKey={`${method.id}:header`}
+        value={name}
+        ports={ports}
+      />
+      {method.key ? (
+        <HeaderLine
+          label="Header with key"
+          fieldKey={`${method.id}:line`}
+          line={apiKeyHeaderLine(method.header, method.key)}
+          name={name}
+          ports={ports}
+        />
       ) : null}
     </>
   );
@@ -131,13 +205,26 @@ export function TokenRows({
   return (
     <>
       {method.token ? (
-        <Concealed
-          label="Token"
-          fieldKey={`${method.id}:token`}
-          value={method.token}
-          ports={ports}
-        />
-      ) : null}
+        <>
+          <Concealed
+            label="Token"
+            fieldKey={`${method.id}:token`}
+            value={method.token}
+            ports={ports}
+          />
+          <HeaderLine
+            label="Bearer header"
+            fieldKey={`${method.id}:line`}
+            line={bearerHeaderLine(method.token)}
+            name="Authorization"
+            ports={ports}
+          />
+        </>
+      ) : (
+        <FieldRow label="Token">
+          <span className="frow__value frow__value--muted">Not set</span>
+        </FieldRow>
+      )}
       {method.expiresAt ? (
         <FieldRow label="Expires">
           <span className="frow__value">{method.expiresAt}</span>

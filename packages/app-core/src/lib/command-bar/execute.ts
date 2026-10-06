@@ -2,6 +2,7 @@ import { isString } from "@opensesame/os-domain";
 import {
   type VaultItem,
   accountTotp,
+  credentialLine,
   definitionFor,
   handoff,
   produceAccountPassword,
@@ -94,7 +95,11 @@ function accountPassword(
     };
   }
   const out = handoff(produced);
-  return { value: out === null ? null : out[part] };
+  if (out === null) {
+    // No password: the account's API key or token, as the header line a request takes.
+    return { value: part === "now" ? credentialLine(item) : null };
+  }
+  return { value: out[part] };
 }
 
 async function fieldValue(

@@ -1,7 +1,9 @@
 import type { VaultItem } from "@opensesame/vault-core";
+import { type MutableRefObject, useCallback } from "react";
 import { Link, useNavigate } from "react-router";
 import { IconKey } from "../../components/IconKey.js";
 import {
+  IconDrop,
   IconEdit,
   IconRefresh,
   IconStar,
@@ -12,21 +14,67 @@ import { useVaultStore } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
 /**
+ * The Share once key. It is its own component because it is the target a
+ * tutorial points at (`item.share`, declared only where sharing is on), so the
+ * target is claimed only where the key is drawn; the same ref takes the focus
+ * back when the ceremony closes.
+ */
+function ShareKey({
+  open,
+  onToggle,
+  keyRef,
+}: {
+  open: boolean;
+  onToggle: () => void;
+  keyRef: MutableRefObject<HTMLButtonElement | null>;
+}) {
+  const guideRef = useGuideTarget<HTMLButtonElement>("item.share");
+  const ref = useCallback(
+    (element: HTMLButtonElement | null) => {
+      guideRef(element);
+      keyRef.current = element;
+    },
+    [guideRef, keyRef],
+  );
+  return (
+    <button
+      ref={ref}
+      type="button"
+      className={`icon-btn${open ? " is-on" : ""}`}
+      onClick={onToggle}
+      aria-pressed={open}
+      aria-label="Share once"
+      title="Share once (s)"
+    >
+      <IconDrop size={17} />
+    </button>
+  );
+}
+
+/**
  * The item's verbs: keys in one toolbar — symbols, named for the screen reader
- * and the hover. A live item offers favorite, edit and trash; one in the trash
- * offers restore and a delete that asks twice.
+ * and the hover. A live item offers favorite, edit, share (where something
+ * can share it) and trash; one in the trash offers restore and a delete that
+ * asks twice.
  */
 export function ItemTools({
   item,
   listPath,
   confirmPurge,
   onConfirmPurge,
+  share,
 }: {
   item: VaultItem;
   /** Where the list is, for the way out of an item that was just trashed. */
   listPath: string;
   confirmPurge: boolean;
   onConfirmPurge: (armed: boolean) => void;
+  /** Present when the item can be shared once: the key's state and its press. */
+  share?: {
+    open: boolean;
+    onToggle: () => void;
+    keyRef: MutableRefObject<HTMLButtonElement | null>;
+  };
 }) {
   const navigate = useNavigate();
   const store = useVaultStore();
@@ -92,6 +140,7 @@ export function ItemTools({
           <IconEdit size={17} />
         </Link>
       ) : null}
+      {share ? <ShareKey {...share} /> : null}
       <button
         ref={trashRef}
         type="button"

@@ -28,6 +28,7 @@ function spies(): VaultTreeActions {
     open: vi.fn(),
     preview: vi.fn(),
     copySecret: vi.fn(),
+    copyCredential: vi.fn(),
     copyUsername: vi.fn(),
     edit: vi.fn(),
     trash: vi.fn(),
@@ -245,7 +246,7 @@ describe("the vault listing's context menu", () => {
     ).toEqual([
       "Open",
       "Edit",
-      "Copy secret",
+      "Copy password",
       "Copy username",
       "Favorite",
       "Trash",

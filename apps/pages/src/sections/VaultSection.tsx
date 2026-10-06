@@ -36,6 +36,7 @@ import { VaultFilterMenu } from "./vault/VaultFilterMenu.js";
 import { VaultTree } from "./vault/VaultTree.js";
 import { WelcomeKeys } from "./vault/WelcomeKeys.js";
 import { accountSecretToCopy } from "./vault/account-copy.js";
+import { credentialChoices } from "./vault/account-credentials.js";
 import { useVaultFocus } from "./vault/use-vault-focus.js";
 import "./vault.css";
 import {
@@ -141,6 +142,15 @@ export function VaultSection() {
         }
         const value = concealedValue(item);
         if (value) void copySecret(value);
+      },
+      copyCredential: (item: VaultItem, choiceId: string) => {
+        if (item.kind !== "account") return;
+        const choice = credentialChoices(item).find(
+          (candidate) => candidate.id === choiceId,
+        );
+        void Promise.resolve(choice?.read()).then((value) => {
+          if (value) void copySecret(value);
+        });
       },
       copyUsername: (item: VaultItem) => {
         const value = username(item);

@@ -477,36 +477,47 @@
   border-bottom: 1px solid var(--line);
 }
 
-/* The closed Share once offer. On a desktop it is the bare key it always
-   was: the group and its bar draw no box and the head is not drawn. On a
-   phone the key sits at the end of a headed bar, the same head every other
-   group carries. */
-.detail__offer,
-.detail__offer > .detail__groupbar {
-  display: contents;
+/* How long a share stays open: three choices in a row, the one in force
+   pressed. A choice is words (a duration), so it is a pill, not a key. */
+.share-ttl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.55rem 0;
 }
 
-.detail__offer .detail__grouphead {
-  display: none;
+.share-ttl__choice {
+  min-height: 32px;
+  padding: 0 0.8rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--canvas);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
 }
 
-@media (max-width: 900px), (pointer: coarse) {
-  .detail__offer {
-    display: block;
-  }
+.share-ttl__choice[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--canvas);
+}
 
-  .detail__offer > .detail__groupbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    border-bottom: 1px solid var(--line);
-  }
+.share-ttl__choice:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
 
-  .detail__offer .detail__grouphead {
-    display: block;
-    padding: 0;
-    border-bottom: 0;
+.share-ttl__choice:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+@media (pointer: coarse) {
+  .share-ttl__choice {
+    min-height: 44px;
+    font-size: 16px;
   }
 }
 

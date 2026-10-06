@@ -160,11 +160,18 @@ export type ItemKindContribution = Readonly<{
   Create?: ComponentType<ItemCreateProps>;
 }>;
 
-/** An offer to share a stored item once, drawn under its fields. */
+/**
+ * A way to share a stored item once. The item's toolbar draws the key; this
+ * draws the ceremony under the item's fields while the key is pressed.
+ */
 export type SecretShareContribution = Readonly<{
   id: string;
   order: number;
-  Panel: ComponentType<{ item: VaultItem; initialOpen?: boolean }>;
+  Panel: ComponentType<{
+    item: VaultItem;
+    open: boolean;
+    onClose: () => void;
+  }>;
 }>;
 
 export type DraftAssistProps = Readonly<{

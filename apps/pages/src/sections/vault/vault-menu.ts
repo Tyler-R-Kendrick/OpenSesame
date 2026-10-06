@@ -6,11 +6,14 @@ import type {
   MenuItem,
 } from "../../components/context-menu/menu-model.js";
 import { canCopySecret } from "./account-copy.js";
+import { credentialChoices } from "./account-credentials.js";
 
 export type VaultTreeActions = {
   open: (item: VaultItem) => void;
   preview: (item: VaultItem) => void;
   copySecret: (item: VaultItem) => void;
+  /** Copy one of an account's credentials, named by a `credentialChoices` id. */
+  copyCredential: (item: VaultItem, choiceId: string) => void;
   copyUsername: (item: VaultItem) => void;
   edit: (item: VaultItem) => void;
   trash: (item: VaultItem) => void;
@@ -98,8 +101,9 @@ function trashedItemMenu(
 
 /**
  * Copy rows for one item. A secret has a single value, so the menu offers
- * one clipboard action. An account still copies its secret and its username,
- * and a row the item cannot answer stays visible and disabled.
+ * one clipboard action. An account holds several credentials, so its copy asks
+ * which: one credential is a row named for it, several are a submenu, and none
+ * is a row that stays visible and disabled. The username is its own row.
  */
 function copyRows(
   item: VaultItem,
@@ -119,13 +123,54 @@ function copyRows(
       }),
     ];
   }
+  const username_ = verb(
+    "copy-username",
+    "Copy username",
+    "u",
+    actions.copyUsername,
+    { disabled: !username(item) },
+  );
+  if (item.kind !== "account") {
+    return [
+      verb("copy-secret", "Copy secret", "y", actions.copySecret, {
+        disabled: !canCopySecret(item),
+      }),
+      username_,
+    ];
+  }
+  const choices = credentialChoices(item);
+  const entry = (
+    choice: (typeof choices)[number],
+    label: string,
+  ): MenuItem => ({
+    id: `copy:${choice.id}`,
+    label,
+    hint: choice.primary ? "y" : undefined,
+    run: () => actions.copyCredential(item, choice.id),
+  });
+  const [only] = choices;
+  if (only !== undefined && choices.length === 1) {
+    return [entry(only, `Copy ${only.label.toLowerCase()}`), username_];
+  }
+  if (only === undefined) {
+    return [
+      {
+        id: "copy-secret",
+        label: "Copy",
+        disabled: true,
+        run: () => undefined,
+      },
+      username_,
+    ];
+  }
   return [
-    verb("copy-secret", "Copy secret", "y", actions.copySecret, {
-      disabled: !canCopySecret(item),
-    }),
-    verb("copy-username", "Copy username", "u", actions.copyUsername, {
-      disabled: !username(item),
-    }),
+    {
+      id: "copy-secret",
+      label: "Copy",
+      submenu: [choices.map((choice) => entry(choice, choice.label))],
+      run: () => undefined,
+    },
+    username_,
   ];
 }
 
