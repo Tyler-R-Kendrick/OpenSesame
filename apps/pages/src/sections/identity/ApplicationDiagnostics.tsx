@@ -11,6 +11,7 @@ import type { LocalScopeRoles } from "@opensesame/app-core/lib/local-application
 import { useState } from "react";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconCheck } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 
 export function ApplicationDiagnostics(props: {
   /** Keys the tray notice: one application's tests never clear another's. */
@@ -120,7 +121,10 @@ export function ApplicationDiagnostics(props: {
           {runs.map((run) => (
             <li key={run.id}>
               {run.name}: expect {run.expect}, got {run.actual}{" "}
-              {run.passed ? "pass" : "fail"}
+              <StatusMark
+                tone={run.passed ? "ok" : "err"}
+                label={run.passed ? "Passed" : "Failed"}
+              />
             </li>
           ))}
         </ul>

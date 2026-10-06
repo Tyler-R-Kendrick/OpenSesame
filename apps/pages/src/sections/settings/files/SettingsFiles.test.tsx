@@ -25,6 +25,7 @@ import {
   uninstallItemType,
 } from "@opensesame/vault-core";
 import { useState } from "react";
+import { expectInTray, inTray } from "../../../components/tray.test-support.js";
 import { vaultHooksSeams } from "../../../lib/vault/hooks.js";
 import { SettingsFiles } from "./SettingsFiles.js";
 
@@ -275,9 +276,50 @@ describe("a write's outcome, as the provider states it", () => {
         name: "Saved. Kept for this session only.",
       });
       expect(mark.className).toContain("warn");
+      expect(inTray("Kept for this session only")).toBe(false);
       expect(editor("settings/notes/order.json").value).toBe(
         '{"revision":"new"}\n',
       );
+    } finally {
+      revoke();
+    }
+  });
+});
+
+describe("a refused write", () => {
+  it("is a mark on the file and a notice in the tray, not a sentence in the page", async () => {
+    const files: VirtualFileProvider = {
+      list: () => [
+        {
+          path: "settings/notes/order.json",
+          language: "json",
+          readOnly: false,
+          removable: false,
+        },
+      ],
+      read: async () => "{}\n",
+      check: () => ({ ok: true }),
+      write: async () => ({ ok: false, message: "The store is full." }),
+      remove: async () => ({ ok: false, message: "no" }),
+    };
+    const revoke = registerContributionForTest("settings-category", {
+      id: "notes",
+      label: "Notes",
+      guideId: "settings.capabilities",
+      Panel: () => null,
+      order: 300,
+      files,
+    });
+    try {
+      render(<Viewer category="notes" initial="config.yaml" />);
+      await waitFor(() =>
+        expect(editor("settings/notes/order.json").value).toBe("{}\n"),
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Save settings/notes/order.json" }),
+      );
+      await screen.findByRole("img", { name: "The store is full." });
+      await expectInTray("The store is full.");
     } finally {
       revoke();
     }

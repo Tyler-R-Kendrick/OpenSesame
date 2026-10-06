@@ -10,11 +10,57 @@ import {
 import { type ReactNode, useState, useTransition } from "react";
 import { Link, useLocation } from "react-router";
 import { EmptyTip } from "../../components/EmptyTip.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconPlus, IconSettings } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
 import { CONNECTIONS_PAGE_SIZE, nextPageCount } from "./page-cap.js";
+
+const READ_FAILED = "Connections could not be read.";
+
+/** A read the Host was asked for and did not answer: the mark and the notice. */
+function ReadFailure({ failed }: { failed: boolean }) {
+  return (
+    <>
+      {failed ? <StatusMark tone="err" label={READ_FAILED} /> : null}
+      <FailureNotice
+        id="connections:read"
+        title="Connections"
+        message={failed ? READ_FAILED : null}
+      />
+    </>
+  );
+}
+
+function LoadMore({
+  more,
+  pending,
+  onMore,
+}: {
+  more: number;
+  pending: boolean;
+  onMore: () => void;
+}) {
+  if (more <= 0) return null;
+  const label = pending ? "Loading connections" : `Load ${more} more`;
+  return (
+    <div className="conn-pad">
+      <button
+        type="button"
+        className="icon-btn icon-btn--sm"
+        disabled={pending}
+        aria-label={label}
+        title={label}
+        onClick={() => {
+          if (!pending) onMore();
+        }}
+      >
+        <IconPlus size={16} />
+      </button>
+    </div>
+  );
+}
 
 function nothingConnected() {
   return (
@@ -60,6 +106,11 @@ export function ConnectedPanel({
     <section id="connected" className="panel" ref={panelRef}>
       <div className="panel__head">
         <h2>Connected</h2>
+        <ReadFailure
+          failed={
+            connections === null && !loading && hostConfigured && !setupRequired
+          }
+        />
         {tools ? <div className="vtree__keys">{tools}</div> : null}
       </div>
       <div className="panel__body panel__body--tight">
@@ -77,11 +128,7 @@ export function ConnectedPanel({
             <div className="conn-pad">
               <p className="hint">Reading connections…</p>
             </div>
-          ) : hostConfigured ? (
-            <div className="conn-pad">
-              <p className="hint">Connections could not be read.</p>
-            </div>
-          ) : (
+          ) : hostConfigured ? null : (
             nothingConnected()
           )
         ) : (
@@ -98,27 +145,15 @@ export function ConnectedPanel({
                 />
               ))}
             </ul>
-            {more > 0 ? (
-              <div className="conn-pad">
-                <button
-                  type="button"
-                  className="icon-btn icon-btn--sm"
-                  disabled={pending}
-                  aria-label={
-                    pending ? "Loading connections" : `Load ${more} more`
-                  }
-                  title={pending ? "Loading connections" : `Load ${more} more`}
-                  onClick={() => {
-                    if (pending) return;
-                    startTransition(() => {
-                      setLimit((previous) => previous + CONNECTIONS_PAGE_SIZE);
-                    });
-                  }}
-                >
-                  <IconPlus size={16} />
-                </button>
-              </div>
-            ) : null}
+            <LoadMore
+              more={more}
+              pending={pending}
+              onMore={() =>
+                startTransition(() => {
+                  setLimit((previous) => previous + CONNECTIONS_PAGE_SIZE);
+                })
+              }
+            />
           </>
         )}
         {imported}

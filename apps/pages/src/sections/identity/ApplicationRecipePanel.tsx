@@ -5,7 +5,30 @@ import {
 import type { LocalApplicationRegistration } from "@opensesame/app-core/lib/local-applications.js";
 import { applyImportedRecipe } from "@opensesame/app-core/sections/identity/application-recipe-panel-model.js";
 import { useEffect, useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { FormCommit } from "../../components/FormCommit.js";
+import { StatusMark } from "../../components/StatusMark.js";
+
+function portableRecipe(
+  registration: LocalApplicationRegistration | undefined,
+) {
+  if (!registration) return null;
+  return exportRecipe({
+    name: registration.applicationId,
+    resources: [
+      {
+        kind: "local_application",
+        logicalId: registration.applicationId,
+        body: {
+          redirectUris: registration.redirectUris,
+          scopes: registration.scopes,
+          clientSecret: "must-not-export",
+        },
+      },
+    ],
+    requiredInputs: ["organization"],
+  });
+}
 
 export function ApplicationRecipePanel(props: {
   registration: LocalApplicationRegistration | undefined;
@@ -22,23 +45,8 @@ export function ApplicationRecipePanel(props: {
   const [imported, setImported] = useState("");
   const [organization, setOrganization] = useState("");
   const [result, setResult] = useState("");
-  const recipe = props.registration
-    ? exportRecipe({
-        name: props.registration.applicationId,
-        resources: [
-          {
-            kind: "local_application",
-            logicalId: props.registration.applicationId,
-            body: {
-              redirectUris: props.registration.redirectUris,
-              scopes: props.registration.scopes,
-              clientSecret: "must-not-export",
-            },
-          },
-        ],
-        requiredInputs: ["organization"],
-      })
-    : null;
+  const [failure, setFailure] = useState("");
+  const recipe = portableRecipe(props.registration);
   const preview = recipe ? previewRecipe(recipe) : null;
 
   return (
@@ -76,9 +84,11 @@ export function ApplicationRecipePanel(props: {
           id="recipe-import"
           rows={4}
           spellCheck={false}
+          aria-invalid={failure ? true : undefined}
           value={imported}
           onChange={(event) => setImported(event.target.value)}
         />
+        {failure ? <StatusMark tone="err" label={failure} /> : null}
         <FormCommit
           label="Apply import"
           onClick={() => {
@@ -91,15 +101,31 @@ export function ApplicationRecipePanel(props: {
               fallback: recipe,
             })
               .then((applied) => {
+                if (applied.revision === undefined) {
+                  // Asking to unlock first is guidance, not a failure.
+                  const guidance =
+                    applied.message.startsWith("Unlock the vault");
+                  setResult(guidance ? applied.message : "");
+                  setFailure(guidance ? "" : applied.message);
+                  return;
+                }
+                setFailure("");
                 setResult(applied.message);
-                if (applied.revision === undefined) return;
                 setRevision(applied.revision);
                 props.onApplied?.();
               })
-              .catch(() => setResult("Recipe failed to apply."));
+              .catch(() => {
+                setResult("");
+                setFailure("Recipe failed to apply.");
+              });
           }}
         />
         {result ? <p className="hint">{result}</p> : null}
+        <FailureNotice
+          id={`identity:recipe-apply:${props.registration?.applicationId ?? "none"}`}
+          title="Recipe import"
+          message={failure}
+        />
       </div>
     </section>
   );

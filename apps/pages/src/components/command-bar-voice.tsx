@@ -7,6 +7,8 @@ import {
 import { voiceRecognitionLang } from "@opensesame/app-core/lib/model-provider.js";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { registerCommandBarMic } from "../lib/command-bar/focus.js";
+import { FailureNotice } from "./FailureNotice.js";
+import { StatusMark } from "./StatusMark.js";
 import { MicButton } from "./command-bar-mic.js";
 import { useCoarsePointer } from "./use-coarse-pointer.js";
 
@@ -22,15 +24,30 @@ export function CommandBarVoice({
   busy,
 }: CommandVoiceProps) {
   const mic = useVoiceListenBar(setValue, setNotice, run, busy);
-  if (!mic.speechOk) return null;
   return (
-    <MicButton
-      listening={mic.listening}
-      disabled={busy || mic.talk === null}
-      onToggle={() => void mic.onMicToggle()}
-    />
+    <>
+      {mic.speechOk ? (
+        <MicButton
+          listening={mic.listening}
+          disabled={busy || mic.talk === null}
+          onToggle={() => void mic.onMicToggle()}
+        />
+      ) : null}
+      {mic.failure ? (
+        <StatusMark tone={mic.failure.tone} label={mic.failure.message} />
+      ) : null}
+      <FailureNotice
+        id="command-bar:voice"
+        title="Voice input"
+        message={mic.failure?.message}
+        tone={mic.failure?.tone}
+      />
+    </>
   );
 }
+
+/** A press that failed: the mic key's mark and the tray's notice. */
+type VoiceFailure = { message: string; tone: "warn" | "err" };
 
 function isBlocked(code: string | null): boolean {
   return code === "not-allowed" || code === "service-not-allowed";
@@ -44,17 +61,62 @@ function startErrorNotice(code: string): string {
   return "Couldn’t start listening — try again.";
 }
 
-/** Why a finished press heard nothing, from what the engine reported. */
-function silenceNotice(diag: SpeechDiagnostics): string {
+/** What a press that heard nothing tells the person, and where it goes. */
+type Silence = { message: string; failed: boolean };
+
+/**
+ * What a finished press that heard nothing asks of the person. An engine that
+ * cannot run is a failure (the tray); "speak again" is guidance, and stays in
+ * the bar's status line.
+ */
+function silence(diag: SpeechDiagnostics): Silence {
   if (diag.lastError === "network")
-    return "Speech engine needs network access in this browser (try Chrome or Edge).";
+    return {
+      message:
+        "Speech engine needs network access in this browser (try Chrome or Edge).",
+      failed: true,
+    };
   if (isBlocked(diag.lastError))
-    return "Microphone permission is blocked for this site.";
+    return {
+      message: "Microphone permission is blocked for this site.",
+      failed: true,
+    };
   if (!diag.started)
-    return "Speech engine never started — try Chrome or Edge on localhost.";
+    return {
+      message: "Speech engine never started — try Chrome or Edge on localhost.",
+      failed: true,
+    };
   if (diag.results === 0)
-    return "No speech heard. Allow the mic, speak while it is lit, then tap again.";
-  return "Didn’t catch that — try speaking again.";
+    return {
+      message:
+        "No speech heard. Allow the mic, speak while it is lit, then tap again.",
+      failed: false,
+    };
+  return {
+    message: "Didn’t catch that — try speaking again.",
+    failed: false,
+  };
+}
+
+/** What a press that ended with words in the field asks of the person. */
+function endedNotice(touch: boolean): string {
+  return touch
+    ? "Listening ended — tap the arrow to run, or tap mic again."
+    : "Listening ended — press Enter to run, or tap mic again.";
+}
+
+/** Escape while listening abandons the press. */
+function useEscapeToCancel(listening: boolean, onCancel: () => void) {
+  useEffect(() => {
+    if (!listening) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onCancel();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [listening, onCancel]);
 }
 
 function useVoiceListenBar(
@@ -64,6 +126,7 @@ function useVoiceListenBar(
   busy: boolean,
 ) {
   const [listening, setListening] = useState(false);
+  const [failure, setFailure] = useState<VoiceFailure | null>(null);
   const listeningRef = useRef(false);
   const draftRef = useRef("");
   const speechOk = detectSpeechRecognition() !== null;
@@ -87,11 +150,7 @@ function useVoiceListenBar(
           if (text.trim() !== "") {
             draftRef.current = text;
             setValue(text);
-            setNotice(
-              touchRef.current
-                ? "Listening ended — tap the arrow to run, or tap mic again."
-                : "Listening ended — press Enter to run, or tap mic again.",
-            );
+            setNotice(endedNotice(touchRef.current));
             return;
           }
           setNotice("Listening ended before speech. Tap mic, then speak.");
@@ -99,7 +158,8 @@ function useVoiceListenBar(
         onError: (code) => {
           listeningRef.current = false;
           setListening(false);
-          setNotice(startErrorNotice(code));
+          setNotice(null);
+          setFailure({ message: startErrorNotice(code), tone: "err" });
         },
       }),
     [setNotice, setValue],
@@ -120,10 +180,17 @@ function useVoiceListenBar(
         await run(text);
         return;
       }
-      setNotice(silenceNotice(talk.diagnostics()));
+      const heard = silence(talk.diagnostics());
+      if (heard.failed) {
+        setNotice(null);
+        setFailure({ message: heard.message, tone: "err" });
+      } else {
+        setNotice(heard.message);
+      }
       return;
     }
     draftRef.current = "";
+    setFailure(null);
     talk.press();
     listeningRef.current = true;
     setListening(true);
@@ -135,25 +202,20 @@ function useVoiceListenBar(
     [onMicToggle],
   );
 
-  useEffect(() => {
-    if (!listening) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      talk?.cancel();
-      listeningRef.current = false;
-      draftRef.current = "";
-      setListening(false);
-      setNotice("Listening cancelled.");
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [listening, setNotice, talk]);
+  const cancelListening = useCallback(() => {
+    talk?.cancel();
+    listeningRef.current = false;
+    draftRef.current = "";
+    setListening(false);
+    setNotice("Listening cancelled.");
+  }, [setNotice, talk]);
+  useEscapeToCancel(listening, cancelListening);
 
   return {
     speechOk,
     listening,
     talk,
+    failure,
     onMicToggle,
   };
 }

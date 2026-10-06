@@ -315,7 +315,7 @@ export function AuthenticatorRows({
           </button>
         }
       >
-        <TotpCode secret={method.secret} />
+        <TotpCode id={method.id} secret={method.secret} />
       </FieldRow>
       <FieldRow
         label="Setup QR"

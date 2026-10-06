@@ -65,6 +65,30 @@ receives it too. The page-level rule — no box in the page — is unchanged.
 Live validation of an unsaved draft is not a failed operation. It is a
 `StatusMark` on the field, not a tray notice.
 
+## What counts as a failure
+
+A sweep that moved every sentence that looked like trouble into the tray hid
+things a person must read before acting, and a skeptic review found it. The
+line is drawn by what the sentence reports:
+
+- **A failure** reports an operation that was attempted and did not succeed
+  ("could not read", "refused", "unreachable", a caught error). It goes to the
+  tray with a `StatusMark` on the failed row, field or key whose label is the
+  same sentence — including the sentence's own next step ("sign in again, then
+  try once more"), which travels with it.
+- **Stays in the page:** a disclosure the person must read before acting (the
+  storage-cannot-persist warning, "answers leave this device", the NIST
+  800-63B notice before an address is asked for); guidance and empty-state
+  instructions ("assign membership in Identity", "install the type from
+  Settings to edit"); a destructive-action confirmation; a live status that
+  changes under the person (a lockout countdown, a connection state); and a
+  warning that sits beside the only control that repairs it
+  (`PasskeyHostNote`'s "Continue on localhost").
+- **A notice stays mounted.** `useFailureNotice` dismisses only when its
+  message empties while it is still mounted, so a component never returns early
+  before it and never mounts it only in the failure branch. Ids are stable and
+  keyed by the item, and one failure raises one notice.
+
 ## Consequences
 
 - Browser harnesses read the tray (`apps/pages/scripts/lib/tray-contract.mjs`)

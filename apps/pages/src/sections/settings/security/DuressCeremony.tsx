@@ -16,6 +16,7 @@ import {
   CeremonyAlts,
   CeremonyShell,
 } from "../../../components/CeremonyShell.js";
+import { FailureNotice } from "../../../components/FailureNotice.js";
 import { FieldShell } from "../../../components/FieldShell.js";
 import { IconShield, IconTrash } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
@@ -159,7 +160,16 @@ function CodeFields({
             />
           ) : null
         }
-        hint={refusal ? duressRefusalText(refusal) : undefined}
+        // Naming the code to change is guidance the person acts on, so it
+        // stays in the page; the other refusals are failures for the tray.
+        hint={refusal === "collides" ? duressRefusalText(refusal) : undefined}
+      />
+      <FailureNotice
+        id="duress-code:refusal"
+        title="Duress code"
+        message={
+          refusal && refusal !== "collides" ? duressRefusalText(refusal) : null
+        }
       />
       <FieldShell
         label="Confirm duress code"

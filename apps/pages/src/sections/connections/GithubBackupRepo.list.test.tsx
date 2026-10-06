@@ -1,11 +1,13 @@
 import { backupSeams } from "@opensesame/app-core/lib/backup.js";
 import type { Connection } from "@opensesame/app-core/lib/connections.js";
 import { githubAppRepoSeams } from "@opensesame/app-core/lib/github-app-repos.js";
+import { listNotices } from "@opensesame/app-core/lib/notices.js";
 /** @vitest-environment jsdom */
 import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { expectInTray, inTray } from "../../components/tray.test-support.js";
 import { GithubBackupField } from "./GithubBackupRepo.js";
 
 const originalBackup = { ...backupSeams };
@@ -240,6 +242,69 @@ it("marks a list failure instead of showing an empty success", async () => {
   );
   await userEvent.click(screen.getByTestId("github-repo-toggle"));
   const list = await screen.findByTestId("github-repo-list");
-  expect(list.textContent).toContain("Repositories unavailable");
+  await expectInTray("Resource not accessible by integration");
+  // The failed list carries the mark, and never the words of an empty success.
+  expect(list.textContent).not.toContain("No matching repositories");
+  expect(
+    list.querySelector(
+      '[role="img"][aria-label="Resource not accessible by integration"]',
+    ),
+  ).not.toBeNull();
+  expect(screen.getByRole("combobox").getAttribute("aria-invalid")).toBe(
+    "true",
+  );
   expect(list.querySelectorAll('[role="option"]')).toHaveLength(0);
+});
+
+it("keeps one list failure per connection when another recovers", async () => {
+  const second = { ...connection, connectionId: "con_gh_2" };
+  postRelay.mockImplementation(
+    async (_path: string, body?: { connectionId?: string }) => {
+      void body;
+      return {
+        ok: false,
+        status: 403,
+        payload: { message: "Resource not accessible by integration" },
+      };
+    },
+  );
+  const view = render(
+    <>
+      <GithubBackupField connection={connection} online onFlash={vi.fn()} />
+      <GithubBackupField connection={second} online onFlash={vi.fn()} />
+    </>,
+  );
+  await waitFor(() =>
+    expect(
+      screen.getAllByLabelText("Resource not accessible by integration"),
+    ).toHaveLength(2),
+  );
+  await waitFor(() => expect(inTray("Resource not accessible")).toBe(true));
+  const ids = listNotices()
+    .filter((notice) => notice.body.includes("Resource not accessible"))
+    .map((notice) => notice.id);
+  expect(new Set(ids).size).toBe(2);
+  // One list recovers: the other's failure stays in the tray.
+  postRelay.mockResolvedValue({
+    ok: true,
+    status: 200,
+    payload: { repositories: [] },
+  });
+  view.rerender(
+    <>
+      <GithubBackupField connection={connection} online onFlash={vi.fn()} />
+      <GithubBackupField connection={second} online onFlash={vi.fn()} />
+    </>,
+  );
+  const refreshes = screen.getAllByTestId("github-repo-refresh");
+  const secondRefresh = refreshes[1];
+  if (!secondRefresh) throw new Error("no second refresh");
+  await userEvent.click(secondRefresh);
+  await waitFor(() =>
+    expect(
+      listNotices().filter((notice) =>
+        notice.body.includes("Resource not accessible"),
+      ),
+    ).toHaveLength(1),
+  );
 });

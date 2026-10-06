@@ -18,6 +18,7 @@
 import { withdrawnAlwaysOn } from "@opensesame/app-core/lib/capabilities/features.js";
 import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import { SELECTION_FILE } from "@opensesame/app-core/sections/settings/capability-files.js";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconRefresh } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { CapabilitySections } from "./CapabilitySections.js";
@@ -99,12 +100,12 @@ export function CapabilitiesPanel() {
       <div className="panel__body capspanel">
         <RestartNotice change={change} />
         <WithdrawnNotice change={change} />
-        {change.notice ? (
-          <p className="capspanel__notice">
-            <StatusMark tone="err" label={change.notice} />
-            <span>{change.notice}</span>
-          </p>
-        ) : null}
+        {change.notice ? <StatusMark tone="err" label={change.notice} /> : null}
+        <FailureNotice
+          id="settings:capabilities"
+          title="Capabilities"
+          message={change.notice}
+        />
         <Body change={change} />
       </div>
     </section>

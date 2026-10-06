@@ -22,6 +22,7 @@ import {
   voiceSlugOptions,
 } from "@opensesame/app-core/lib/model-slugs.js";
 import { useCallback, useEffect, useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { ModelRoleSelects } from "./AiModelRoles.js";
 
@@ -45,6 +46,25 @@ function planeSentence(plane: ResolvedModelPlane): string {
     default:
       return "No model. OpenSesame opens the right settings page and you make the change yourself; it never half-tries.";
   }
+}
+
+/** A save's outcome: a mark beside the picker, and a failure also in the tray. */
+function SaveFlash({ flash }: { flash: Flash | null }) {
+  return (
+    <>
+      <FailureNotice
+        id="settings:model-provider:save"
+        title="Model choice"
+        message={flash?.tone === "err" ? flash.text : null}
+      />
+      {flash ? (
+        <StatusMark
+          tone={flash.tone === "ok" ? "ok" : "err"}
+          label={flash.text}
+        />
+      ) : null}
+    </>
+  );
 }
 
 /**
@@ -134,12 +154,7 @@ export function ModelProviderPanel({
           onCommit={(next) => void commit(next)}
         />
         {embedded ? planeMark : null}
-        {flash ? (
-          <StatusMark
-            tone={flash.tone === "ok" ? "ok" : "err"}
-            label={flash.text}
-          />
-        ) : null}
+        <SaveFlash flash={flash} />
       </div>
     </div>
   );

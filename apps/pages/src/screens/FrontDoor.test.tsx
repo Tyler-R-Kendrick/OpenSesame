@@ -8,6 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 /** @vitest-environment jsdom */
 import { identityHookSeams } from "../bindings/identity.js";
+import { expectInTray } from "../components/tray.test-support.js";
 
 import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
 import { federationSeams } from "@opensesame/app-core/lib/federation.js";
@@ -196,6 +197,7 @@ describe("the front door", () => {
     await waitFor(() =>
       expect(screen.getByRole("img", { name: "Storage is full" })).toBeTruthy(),
     );
+    await expectInTray("Storage is full");
   });
 
   it("names no deployment and no failure: a door that asks nothing reports nothing", () => {

@@ -16,6 +16,7 @@ import { useSyncExternalStore } from "react";
 import { IconKey } from "../../components/IconKey.js";
 import { IconRefresh, IconX } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { useFailureNotice } from "../../components/use-failure-notice.js";
 import { eraseAndLeave } from "./reset-browser-run.js";
 
 const NAMES = {
@@ -36,6 +37,14 @@ function keptWhy(area: BrowserResetArea): string {
 
 export function ResetLeftNotice() {
   const left = useSyncExternalStore(onLandingResetChange, landingLeftBehind);
+  // Raised before the early return so dismissing the row clears the notice.
+  useFailureNotice(
+    "unlock:reset-left",
+    "Browser reset",
+    left?.failed.length
+      ? `${left.failed.map((area) => NAMES[area]).join(", ")}: not erased`
+      : null,
+  );
   if (!left) return null;
   return (
     <fieldset className="unlock__danger" aria-label="Reset this browser">

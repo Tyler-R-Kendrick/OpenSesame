@@ -67,6 +67,7 @@ function backupRepoView(state: RepoView) {
     accounts: state.accounts,
     bound: isBound(state.target),
     busy: state.busy,
+    connectionId: state.connection.connectionId,
     commit: (raw: string) =>
       commitRepoSlug(
         {

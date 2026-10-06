@@ -15,6 +15,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectInTray } from "../../../components/tray.test-support.js";
 import { DuressPanel } from "./DuressPanel.js";
 import {
   arm,
@@ -75,7 +76,7 @@ describe("DuressPanel sheet while arming", () => {
       release();
     });
     await waitFor(() => expect(dialog()?.getAttribute("aria-busy")).toBeNull());
-    expect(screen.getByText("The code could not be set.")).toBeTruthy();
+    await expectInTray("The code could not be set.");
     expect(dialog()).not.toBeNull();
     expect(
       screen

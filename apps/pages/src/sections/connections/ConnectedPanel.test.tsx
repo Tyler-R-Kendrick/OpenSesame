@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it } from "vitest";
+import { expectInTray } from "../../components/tray.test-support.js";
 import { ConnectedPanel } from "./ConnectedPanel.js";
 import { CONNECTIONS_PAGE_SIZE } from "./page-cap.js";
 import { declareConnectionsTutorial } from "./tutorial.test-support.js";
@@ -80,11 +81,14 @@ describe("ConnectedPanel with no Host", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("still reports a real read failure where a Host was asked", () => {
+  it("still reports a real read failure where a Host was asked", async () => {
     // With a Host configured, a null list after loading finished IS a failed
     // read, and the panel must keep saying so.
     renderPanel({ hostConfigured: true });
-    expect(screen.getByText("Connections could not be read.")).toBeTruthy();
+    await expectInTray("Connections could not be read.");
+    expect(
+      screen.getByRole("img", { name: "Connections could not be read." }),
+    ).toBeTruthy();
     expect(screen.queryByText("No Host connected")).toBeNull();
   });
 

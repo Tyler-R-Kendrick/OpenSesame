@@ -18,6 +18,7 @@ import {
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
+import { expectInTray } from "../../components/tray.test-support.js";
 import {
   type VaultKeymapTarget,
   createKeymapHandler,
@@ -345,9 +346,7 @@ describe("support panel", () => {
     await ask(user, "how do I add a connection");
 
     expect(await screen.findByText("Connections is the place.")).toBeTruthy();
-    expect(
-      await screen.findByText(/refused before anything ran/i),
-    ).toBeTruthy();
+    await expectInTray(/refused before anything ran/i);
     // Nothing was drawn: a program that does not compile never reaches a run.
     expect(built.renderer.calls).toHaveLength(0);
   });

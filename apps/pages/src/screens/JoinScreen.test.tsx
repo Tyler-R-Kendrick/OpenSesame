@@ -8,6 +8,7 @@
 import { JoinError } from "@opensesame/app-core/lib/join/client.js";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectInTray, inTray } from "../components/tray.test-support.js";
 import { JoinScreen, joinScreenDependencies } from "./JoinScreen.js";
 import {
   ENDPOINT,
@@ -164,6 +165,8 @@ describe("the invite road", () => {
     await approveAndVerify();
     fireEvent.click(screen.getByRole("button", { name: "Look up the invite" }));
     await screen.findByRole("img", { name: /already opened on this device/ });
+    // Guidance, not a failed call: the field mark only, nothing in the tray.
+    expect(inTray(/already opened on this device/)).toBe(false);
     expect(fakes.presentInvite).not.toHaveBeenCalled();
   });
 
@@ -174,6 +177,7 @@ describe("the invite road", () => {
     fakes.presentInvite.mockRejectedValueOnce(new JoinError("unreachable"));
     fireEvent.click(screen.getByRole("button", { name: "Look up the invite" }));
     await screen.findByRole("img", { name: "The endpoint did not answer." });
+    await expectInTray("The endpoint did not answer.");
     expect(store.marked.has(TOKEN)).toBe(true);
     store.marked.clear();
     fakes.presentInvite.mockRejectedValueOnce(new JoinError("verify_failed"));
@@ -181,6 +185,7 @@ describe("the invite road", () => {
     await screen.findByRole("img", {
       name: "Verification was refused or expired.",
     });
+    await expectInTray("Verification was refused or expired.");
     expect(store.marked.has(TOKEN)).toBe(false);
   });
 
@@ -204,9 +209,23 @@ describe("the invite road", () => {
     await lookUp();
     fireEvent.click(screen.getByRole("button", { name: "Join" }));
     await screen.findByRole("img", { name: /did not match/ });
+    expect(inTray(/did not match/)).toBe(false);
     await waitFor(() =>
       expect(document.activeElement).toBe(screen.getByLabelText("Code")),
     );
+  });
+
+  it("trays a refused claim, a failed call, and nothing else", async () => {
+    fakes.claimInvite.mockRejectedValueOnce(new JoinError("claim_refused"));
+    renderInvite();
+    typeCode();
+    await approveAndVerify();
+    await lookUp();
+    fireEvent.click(screen.getByRole("button", { name: "Join" }));
+    await screen.findByRole("img", {
+      name: "The endpoint refused that choice.",
+    });
+    await expectInTray("The endpoint refused that choice.");
   });
 
   it("forgets a dead offer so it does not come back", async () => {
@@ -217,6 +236,7 @@ describe("the invite road", () => {
     await lookUp();
     fireEvent.click(screen.getByRole("button", { name: "Join" }));
     await screen.findByRole("img", { name: /can no longer be used/ });
+    expect(inTray(/can no longer be used/)).toBe(false);
     expect(store.stash).toBeNull();
   });
 

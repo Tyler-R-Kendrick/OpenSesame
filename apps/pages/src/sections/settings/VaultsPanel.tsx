@@ -20,6 +20,7 @@ import {
   switchVault,
 } from "@opensesame/app-core/lib/vaults.js";
 import { useState } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconPlus, IconTrash } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
@@ -62,6 +63,7 @@ export function VaultsPanel() {
         </div>
         <div className="actions">
           {error ? <StatusMark tone="err" label={error} /> : null}
+          <FailureNotice id="settings:vaults" title="Vaults" message={error} />
           <IconKey
             small
             label="Seal a new vault"

@@ -15,6 +15,7 @@ import { exportInstanceConfiguration } from "@opensesame/app-core/lib/configurat
 import { capabilityPorts } from "@opensesame/app-core/lib/configuration/capabilities-ports.js";
 import type { CapabilityId } from "@opensesame/capability-composition";
 import { useEffect, useRef } from "react";
+import { FailureNotice } from "../../components/FailureNotice.js";
 import {
   IconAuthority,
   IconCheck,
@@ -194,24 +195,34 @@ function Cards({ model }: { model: CapabilitySetupModel }) {
 
 function Outcome({ model }: { model: CapabilitySetupModel }) {
   const outcome = model.outcome;
-  if (!outcome) return null;
-  const tone =
-    outcome.status === "durable"
-      ? "ok"
-      : outcome.status === "session-only"
-        ? "warn"
-        : "err";
-  const label =
-    outcome.status === "durable"
+  const failed =
+    outcome &&
+    outcome.status !== "durable" &&
+    outcome.status !== "session-only";
+  const label = !outcome
+    ? ""
+    : outcome.status === "durable"
       ? "applied · saved on this device"
       : outcome.status === "session-only"
         ? "applied · this session only"
         : `${outcome.status}${outcome.message ? ` · ${outcome.message}` : ""}`;
+  const tone = failed ? "err" : outcome?.status === "durable" ? "ok" : "warn";
   return (
-    <p className="capout" data-testid="capability-outcome">
-      <StatusMark tone={tone} label={label} />
-      <span>{label}</span>
-    </p>
+    <>
+      {/* Mounted whether or not there is an outcome, so going back or
+          retrying takes a refused commit's notice out of the tray. */}
+      <FailureNotice
+        id="capability-setup:outcome"
+        title="Capability setup"
+        message={failed ? label : null}
+      />
+      {outcome ? (
+        <p className="capout" data-testid="capability-outcome">
+          <StatusMark tone={tone} label={label} />
+          {failed ? null : <span>{label}</span>}
+        </p>
+      ) : null}
+    </>
   );
 }
 
@@ -273,8 +284,11 @@ function useRoadFocus(
   }, [stage, firstRoad]);
 }
 
+/** The state machine the screen draws; a suite wraps it to keep its latest model. */
+export const capabilitySetupViewSeams = { useModel: useCapabilitySetup };
+
 export function CapabilitySetup({ join = false }: { join?: boolean }) {
-  const model = useCapabilitySetup(join);
+  const model = capabilitySetupViewSeams.useModel(join);
   const firstRoad = useRef<HTMLButtonElement | null>(null);
   useRoadFocus(model.stage, firstRoad);
   const composing = model.stage === "cards" || model.stage === "outcome";

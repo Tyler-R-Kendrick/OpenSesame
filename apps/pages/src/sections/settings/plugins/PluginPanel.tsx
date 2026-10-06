@@ -19,6 +19,7 @@
 import type { PluginSession } from "@opensesame/app-core/lib/plugins/session.js";
 import { standingOf } from "@opensesame/app-core/lib/plugins/wire.js";
 import { type RefObject, useEffect, useRef, useSyncExternalStore } from "react";
+import { FailureNotice } from "../../../components/FailureNotice.js";
 import { IconPause, IconPlay, IconX } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
 import { useVault } from "../../../lib/vault/hooks.js";
@@ -83,6 +84,24 @@ function Forget({ session, home }: { session: PluginSession; home: Home }) {
   );
 }
 
+/**
+ * The tile's refusal, in the tray. Mounted whether or not the tile is drawn,
+ * so a refusal clears when the tile goes.
+ */
+function PluginFailure({ session }: { session: PluginSession }) {
+  const view = useSyncExternalStore(session.subscribe, session.view);
+  useVault();
+  const mark = markOf(view);
+  const drawn = view.daemon !== null || session.canPair();
+  return (
+    <FailureNotice
+      id={`plugin:${session.plugin.id}`}
+      title={session.plugin.title}
+      message={drawn && mark.tone === "err" ? mark.label : null}
+    />
+  );
+}
+
 export function PluginPanel({
   session,
   guideId,
@@ -102,7 +121,7 @@ export function PluginPanel({
   // No daemon paired and no way to pair one here (no open vault to keep the
   // key in, or an origin that may not hold local authority): the tile would be
   // a name and a mark nobody can act on, so it is not drawn (ADR 0158).
-  if (view.daemon === null && !session.canPair()) return null;
+  const hidden = view.daemon === null && !session.canPair();
   const { plugin } = session;
   const mark = markOf(view);
   const showInstall =
@@ -110,29 +129,40 @@ export function PluginPanel({
   const showTripwires =
     plugin.notices && view.state?.installed === true && view.read;
   return (
-    <div ref={ref} className="conn-tile plugin-tile" id={`plugin-${plugin.id}`}>
-      <div className="conn-tile__row plugin-tile__row">
-        <span className="conn-tile__copy plugin-tile__copy">
-          <span className="conn-tile__name" ref={home} tabIndex={-1}>
-            {plugin.title}
-          </span>
-          {view.daemon ? (
-            <span className="conn-tile__kind">
-              {view.state?.version
-                ? `${view.daemon.host} · ${view.state.version}`
-                : view.daemon.host}
+    <>
+      <PluginFailure session={session} />
+      {hidden ? null : (
+        <div
+          ref={ref}
+          className="conn-tile plugin-tile"
+          id={`plugin-${plugin.id}`}
+        >
+          <div className="conn-tile__row plugin-tile__row">
+            <span className="conn-tile__copy plugin-tile__copy">
+              <span className="conn-tile__name" ref={home} tabIndex={-1}>
+                {plugin.title}
+              </span>
+              {view.daemon ? (
+                <span className="conn-tile__kind">
+                  {view.state?.version
+                    ? `${view.daemon.host} · ${view.state.version}`
+                    : view.daemon.host}
+                </span>
+              ) : null}
             </span>
+            <StatusMark tone={mark.tone} label={mark.label} />
+            <Switch session={session} home={home} />
+            <Forget session={session} home={home} />
+          </div>
+          {view.daemon === null && session.pairable ? (
+            <PairForm session={session} home={home} />
           ) : null}
-        </span>
-        <StatusMark tone={mark.tone} label={mark.label} />
-        <Switch session={session} home={home} />
-        <Forget session={session} home={home} />
-      </div>
-      {view.daemon === null && session.pairable ? (
-        <PairForm session={session} home={home} />
-      ) : null}
-      {showInstall ? <InstallCommand command={plugin.installCommand} /> : null}
-      {showTripwires ? <TripwireList notices={view.notices} /> : null}
-    </div>
+          {showInstall ? (
+            <InstallCommand command={plugin.installCommand} />
+          ) : null}
+          {showTripwires ? <TripwireList notices={view.notices} /> : null}
+        </div>
+      )}
+    </>
   );
 }

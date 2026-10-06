@@ -13,6 +13,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { expectInTray } from "../../../components/tray.test-support.js";
 import { PluginPanel } from "./PluginPanel.js";
 
 const SURROGATE = "osr_7Hq2mV9xK3pL8wN4rT6yB1cD5fG0jZ";
@@ -192,5 +193,6 @@ describe("PluginPanel", () => {
       await screen.findByLabelText("The daemon did not let this device in"),
     ).toBeTruthy();
     expect(document.querySelector(".note, .conn-flash")).toBeNull();
+    await expectInTray("The daemon did not let this device in");
   });
 });

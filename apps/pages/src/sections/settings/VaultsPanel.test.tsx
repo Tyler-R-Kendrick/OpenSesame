@@ -14,6 +14,7 @@ import {
 } from "@opensesame/app-core/lib/projects.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { vaultsSeams } from "@opensesame/app-core/lib/vaults.js";
+import { expectInTray } from "../../components/tray.test-support.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { VaultsPanel } from "./VaultsPanel.js";
 
@@ -155,5 +156,6 @@ describe("Settings → Vaults", () => {
     expect(
       await screen.findByRole("img", { name: "different key" }),
     ).toBeTruthy();
+    await expectInTray("different key");
   });
 });
