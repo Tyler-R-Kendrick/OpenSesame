@@ -5,11 +5,13 @@
  * a test that stubs `localStorage` or `navigator.credentials` still reaches
  * the stub.
  */
+import { overlapCast } from "@opensesame/os-domain";
 import { indexedDbAtRestKeys } from "../lib/at-rest/idb-key-store.js";
 import type {
   AuthenticatorPort,
   BroadcastLike,
   EnvironmentPort,
+  LocalNetworkPermission,
   PagePort,
   Ports,
   StoragePorts,
@@ -100,7 +102,31 @@ const authenticator: AuthenticatorPort = {
   },
 };
 
+/**
+ * Chrome names the permission `local-network-access`; later releases split it
+ * into `local-network` and `loopback-network`. The first name the browser
+ * knows answers; a browser that knows none has no such gate.
+ */
+const LOCAL_NETWORK_NAMES = ["local-network-access", "local-network"] as const;
+
+async function localNetworkPermission(): Promise<LocalNetworkPermission> {
+  const permissions = globalThis.navigator?.permissions;
+  if (!permissions?.query) return "unsupported";
+  for (const name of LOCAL_NETWORK_NAMES) {
+    try {
+      // Not in the DOM lib's PermissionName union yet; the browser checks it.
+      const descriptor: PermissionDescriptor = overlapCast({ name });
+      const status = await permissions.query(descriptor);
+      return status.state;
+    } catch {
+      // Not a name this browser knows; try the next.
+    }
+  }
+  return "unsupported";
+}
+
 const environment: EnvironmentPort = {
+  localNetworkPermission,
   get online() {
     return globalThis.navigator?.onLine ?? true;
   },

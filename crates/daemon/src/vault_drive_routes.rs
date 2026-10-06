@@ -28,17 +28,17 @@ pub const PAIRING_PREFIX: &str = "opensesame-drive:v1:";
 /// JSON framing around the largest snapshot a slot accepts.
 const MAX_PUT_BYTES: usize = vault_drive::MAX_SNAPSHOT_BYTES + 64 * 1024;
 
-fn error(status: StatusCode, code: &str) -> Response {
+pub(crate) fn error(status: StatusCode, code: &str) -> Response {
     (status, Json(json!({ "error": code }))).into_response()
 }
 
-fn drive(st: &App) -> Result<&Arc<DriveStore>, Response> {
+pub(crate) fn drive(st: &App) -> Result<&Arc<DriveStore>, Response> {
     st.vault_drive
         .as_ref()
         .ok_or_else(|| error(StatusCode::SERVICE_UNAVAILABLE, "vault_drive_unconfigured"))
 }
 
-fn refused(err: DriveError) -> Response {
+pub(crate) fn refused(err: DriveError) -> Response {
     match err {
         DriveError::Unauthorized => error(StatusCode::UNAUTHORIZED, "unauthorized"),
         DriveError::Conflict(generation) => (
@@ -48,6 +48,7 @@ fn refused(err: DriveError) -> Response {
             .into_response(),
         DriveError::TooLarge => error(StatusCode::PAYLOAD_TOO_LARGE, "snapshot_too_large"),
         DriveError::Full => error(StatusCode::INSUFFICIENT_STORAGE, "too_many_slots"),
+        DriveError::PartsFull => error(StatusCode::INSUFFICIENT_STORAGE, "parts_quota_exceeded"),
         DriveError::Invalid(code) => error(StatusCode::BAD_REQUEST, code),
         DriveError::Io(io) => {
             tracing::warn!(error = %io, "vault drive storage failed");
@@ -57,7 +58,7 @@ fn refused(err: DriveError) -> Response {
 }
 
 /// The slot key from `Authorization: Bearer <key>`; operator tokens never qualify.
-fn slot_key(headers: &HeaderMap) -> Option<&str> {
+pub(crate) fn slot_key(headers: &HeaderMap) -> Option<&str> {
     let value = headers.get(header::AUTHORIZATION)?.to_str().ok()?;
     let key = value.strip_prefix("Bearer ")?.trim();
     let shaped = (32..=128).contains(&key.len())
@@ -224,9 +225,11 @@ pub(crate) async fn write_snapshot(
 
 /// Device routes only — what the whois-gated tailnet listener also serves.
 ///
-/// CORS is route-scoped in this codebase: these two are the only daemon
-/// routes a browser may call, so they alone carry the configured origins
-/// (`OPENSESAME_CORS_ORIGINS`). The operator routes carry none.
+/// CORS is route-scoped in this codebase: the snapshot and its file parts
+/// are the only daemon routes a browser may call, so they alone carry the configured origins
+/// (`OPENSESAME_CORS_ORIGINS`), and answer Chrome's Private Network Access
+/// preflight, since the page calling them is public and the drive is not.
+/// The operator routes carry none.
 pub(crate) fn device_routes() -> Router<App> {
     device_routes_for(&opensesame_host_core::http_security::cors_origins_from_env())
 }
@@ -239,9 +242,8 @@ pub(crate) fn device_routes_for(origins: &[String]) -> Router<App> {
                 .put(write_snapshot)
                 .layer(DefaultBodyLimit::max(MAX_PUT_BYTES)),
         )
-        .layer(opensesame_host_core::http_security::browser_cors_layer(
-            origins,
-        ))
+        .merge(parts::routes())
+        .layer(opensesame_host_core::http_security::ciphertext_drive_cors_layer(origins))
 }
 
 /// Every drive route, for the main listener.
@@ -255,6 +257,9 @@ pub(crate) fn routes() -> Router<App> {
         )
         .route("/v1/vault-drive/slots/{slot}", delete(remove_slot))
 }
+
+#[path = "vault_drive_parts_routes.rs"]
+mod parts;
 
 #[cfg(test)]
 #[path = "vault_drive_routes_tests.rs"]

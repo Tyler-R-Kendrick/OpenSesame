@@ -17,7 +17,10 @@ import {
   isJsonObject,
   isNumber,
 } from "@opensesame/os-domain";
-import { localNetworkFetch } from "../local-network-fetch.js";
+import {
+  type LocalNetworkFetchInit,
+  localNetworkFetch,
+} from "../local-network-fetch.js";
 import type { DrivePairing } from "./pairing.js";
 import { currentTailnet, tailnetSyncHeaders } from "./saved-connector.js";
 import { type DriveSnapshot, parseDriveSnapshot } from "./snapshot.js";
@@ -39,27 +42,56 @@ export class DriveError extends Error {
   }
 }
 
+/** How long a drive request may take before it is given up as unanswered. */
+export const DRIVE_TIMEOUT_MS = 15_000;
+
+/**
+ * How a drive request goes out. An `https:` drive (Tailscale Serve) carries no
+ * `targetAddressSpace` hint: the hint only exempts a plain-`http:` request from
+ * mixed-content blocking, and a hint Chrome cannot confirm — a browser behind
+ * a proxy sees the proxy's address, not the tailnet's — fails the request
+ * outright. Without it Chrome still asks for local network access wherever the
+ * name resolves to a private address.
+ */
+export function driveRequest(
+  url: string,
+  init: LocalNetworkFetchInit,
+): LocalNetworkFetchInit {
+  return {
+    timeoutMs: DRIVE_TIMEOUT_MS,
+    ...init,
+    ciphertextDrive: true,
+    skipAddressSpace: url.startsWith("https:"),
+  };
+}
+
 export const driveClientSeams = {
-  fetch: (url: string, init: RequestInit) =>
-    localNetworkFetch(url, {
-      ...init,
-      ciphertextDrive: true,
-      timeoutMs: 15_000,
-    }),
+  fetch: (url: string, init: LocalNetworkFetchInit) =>
+    localNetworkFetch(url, driveRequest(url, init)),
 };
 
+/** The slot's address on its drive; its snapshot and parts hang off it. */
+export function slotBase(pairing: DrivePairing): string {
+  return `${pairing.url}/v1/vault-drive/slots/${encodeURIComponent(pairing.slot)}`;
+}
+
 function slotUrl(pairing: DrivePairing): string {
-  return `${pairing.url}/v1/vault-drive/slots/${encodeURIComponent(pairing.slot)}/snapshot`;
+  return `${slotBase(pairing)}/snapshot`;
+}
+
+/** The slot key as a bearer, and the saved tailnet connector's headers. */
+export function driveHeaders(
+  pairing: DrivePairing,
+  contentType = "application/json",
+): HeadersInit {
+  return tailnetSyncHeaders(
+    { Authorization: `Bearer ${pairing.key}`, "Content-Type": contentType },
+    currentTailnet(),
+  );
 }
 
 function headers(pairing: DrivePairing): HeadersInit {
-  return tailnetSyncHeaders(
-    {
-      Authorization: `Bearer ${pairing.key}`,
-      "Content-Type": "application/json",
-    },
-    currentTailnet(),
-  );
+  return driveHeaders(pairing);
 }
 
 function generationOf(json: BoundaryValue): number {
@@ -69,7 +101,7 @@ function generationOf(json: BoundaryValue): number {
   return json.generation;
 }
 
-async function readJson(response: Response): Promise<BoundaryValue> {
+export async function readJson(response: Response): Promise<BoundaryValue> {
   try {
     return await response.json();
   } catch {
@@ -77,7 +109,7 @@ async function readJson(response: Response): Promise<BoundaryValue> {
   }
 }
 
-function refused(response: Response): DriveError {
+export function refused(response: Response): DriveError {
   if (response.status === 401 || response.status === 404) {
     return new DriveError(
       "The drive no longer knows this device's key. Pair again.",
@@ -93,13 +125,32 @@ function refused(response: Response): DriveError {
   );
 }
 
-export async function readDrive(pairing: DrivePairing): Promise<DriveRead> {
-  const response = await driveClientSeams.fetch(slotUrl(pairing), {
+function getSlot(pairing: DrivePairing, timeoutMs?: number) {
+  return driveClientSeams.fetch(slotUrl(pairing), {
+    ...(timeoutMs ? { timeoutMs } : undefined),
     method: "GET",
     headers: headers(pairing),
     credentials: "omit",
     cache: "no-store",
   });
+}
+
+/**
+ * One read given `waitMs` to be answered: the first request of a pass a
+ * person asked for, which may sit on the browser's Local Network Access
+ * prompt until they answer it (`network-access.ts`). Once they allow it,
+ * every later request of the pass goes straight out.
+ */
+export async function reachDrive(
+  pairing: DrivePairing,
+  waitMs: number,
+): Promise<void> {
+  const response = await getSlot(pairing, waitMs);
+  if (!response.ok) throw refused(response);
+}
+
+export async function readDrive(pairing: DrivePairing): Promise<DriveRead> {
+  const response = await getSlot(pairing);
   if (!response.ok) throw refused(response);
   const json = await readJson(response);
   const generation = generationOf(json);

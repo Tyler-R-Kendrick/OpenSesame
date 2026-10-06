@@ -82,8 +82,22 @@ export type AuthenticatorPort = {
   readonly publicKeyCredential?: typeof PublicKeyCredential;
 };
 
+/**
+ * Chrome's Local Network Access permission for this page: whether a request
+ * to a private or loopback address (a tailnet drive, a local daemon) may go
+ * out, will wait on a prompt, or is refused. `unsupported` where the browser
+ * has no such permission and requests go out as before.
+ */
+export type LocalNetworkPermission =
+  | "granted"
+  | "prompt"
+  | "denied"
+  | "unsupported";
+
 /** What the device is doing: connectivity, activation, identification. */
 export type EnvironmentPort = {
+  /** The Local Network Access permission; absent where the host has none. */
+  localNetworkPermission?(): Promise<LocalNetworkPermission>;
   readonly online: boolean;
   onOnlineChange(listener: (online: boolean) => void): () => void;
   readonly userAgent: string;
@@ -255,6 +269,13 @@ export function isPublicKeyCredential(
 
 export function maybeEnvironment(): EnvironmentPort | undefined {
   return host().environment;
+}
+
+/** The Local Network Access permission; `unsupported` where the host has none. */
+export async function localNetworkPermission(): Promise<LocalNetworkPermission> {
+  return (
+    (await maybeEnvironment()?.localNetworkPermission?.()) ?? "unsupported"
+  );
 }
 
 /** Online unless the host says otherwise: a host with no network signal. */

@@ -5,7 +5,7 @@ use axum::{
     middleware::{self, Next},
     Router,
 };
-use tower_http::cors::{AllowOrigin, CorsLayer};
+use tower_http::cors::{AllowHeaders, AllowOrigin, CorsLayer};
 
 pub const ENV_CORS_ORIGINS: &str = "OPENSESAME_CORS_ORIGINS";
 
@@ -79,6 +79,21 @@ pub fn browser_cors_layer(origins: &[String]) -> CorsLayer {
             HeaderName::from_static("idempotency-key"),
             HeaderName::from_static("dpop"),
         ])
+}
+
+/// CORS for a ciphertext drive's device routes (ADR 0144): the browser layer's
+/// exact origins, plus what a page served from a public origin asks of a
+/// drive at a private or loopback address. Chrome's Private Network Access
+/// preflight gets `Access-Control-Allow-Private-Network: true`, and the
+/// request headers are mirrored, because a saved connector rides on each
+/// drive request as headers named after its own fields (`x-tailnet-*`,
+/// `x-tailscale-*`). Only mount this where a bearer key, not CORS, authorizes
+/// the request.
+pub fn ciphertext_drive_cors_layer(origins: &[String]) -> CorsLayer {
+    browser_cors_layer(origins)
+        .allow_headers(AllowHeaders::mirror_request())
+        .allow_private_network(true)
+        .max_age(std::time::Duration::from_secs(600))
 }
 
 /// Credentialless public discovery; never mount this on authority routes.

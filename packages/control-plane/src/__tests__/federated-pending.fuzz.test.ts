@@ -86,6 +86,9 @@ function isWellFormed(
 describe("FUZZ — decodePending survives arbitrary cookie bytes", () => {
   it("never throws and never returns a partial record, over random bytes", () => {
     const rng = makeRng(0x5eed_1234);
+    // One assertion over every input: 80k `expect` calls cost more than the
+    // decoding they check, and the failures, if any, are listed together.
+    const malformed: string[] = [];
     for (let i = 0; i < 20_000; i++) {
       const len = Math.floor(rng() * 96);
       const bytes = Buffer.alloc(len);
@@ -98,9 +101,11 @@ describe("FUZZ — decodePending survives arbitrary cookie bytes", () => {
       ];
       for (const raw of encodings) {
         const decoded = decodePending(raw);
-        expect(decoded === undefined || isWellFormed(decoded)).toBe(true);
+        if (decoded !== undefined && !isWellFormed(decoded))
+          malformed.push(raw);
       }
     }
+    expect(malformed).toEqual([]);
   });
 
   it("never throws on structurally plausible but wrong JSON", () => {
