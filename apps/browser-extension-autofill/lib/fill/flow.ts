@@ -152,9 +152,14 @@ export async function value(
     return { refusal: "site_off" };
   }
   try {
-    return {
-      value: await flow.ports.daemon.value(reference, origin, request.field),
-    };
+    const filled = await flow.ports.daemon.value(
+      reference,
+      origin,
+      request.field,
+    );
+    return filled.pepper
+      ? { value: filled.value, pepper: true }
+      : { value: filled.value };
   } catch (cause) {
     return { refusal: codeOf(cause) };
   }

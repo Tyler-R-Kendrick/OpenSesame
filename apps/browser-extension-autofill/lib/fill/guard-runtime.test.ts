@@ -93,6 +93,15 @@ describe("the injected guard", () => {
     expect(input.value).toBe("");
   });
 
+  it("fills what comes before a pepper slot and says the person's pepper is next", async () => {
+    const input = field();
+    const { port } = runtime(() => ({ value: "head", pepper: true }));
+    expect(await answerArm(window, port, arm())).toEqual({
+      outcome: "pepper_next",
+    });
+    expect(input.value).toBe("head");
+  });
+
   it("re-checks after the round trip: an overlay swapped in is caught", async () => {
     const input = field();
     const overlay = document.createElement("div");
