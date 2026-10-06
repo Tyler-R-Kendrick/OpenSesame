@@ -10,6 +10,10 @@ import {
   planPackages,
   repoRootFromHere,
 } from "./ci-affected-graph.mjs";
+import { isDocPath } from "./ci-gates.mjs";
+import { runLanes } from "./ci-run-lanes.mjs";
+import { planUnitTests } from "./ci-scoped-tests.mjs";
+import { describePlans, unitTestCommands } from "./ci-unit-commands.mjs";
 
 export {
   loadCrateNodes,
@@ -60,10 +64,11 @@ function emit(plan) {
   for (const line of lines) console.log(line);
 }
 
-function runListed(command, args) {
+function runListed(command, args, options = {}) {
   const result = spawnSync(command, args, {
     stdio: "inherit",
     env: process.env,
+    ...options,
   });
   if (result.error) {
     console.error(result.error.message);
@@ -72,7 +77,7 @@ function runListed(command, args) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
-function runTs(plan) {
+async function runTs(plan) {
   if (plan.scope === "none") {
     console.log("no workspace package changed");
     return;
@@ -86,16 +91,48 @@ function runTs(plan) {
     console.error("affected scope was packages but the list was empty");
     process.exit(1);
   }
-  const filters = plan.packages.map((name) => `--filter=${name}`);
-  runListed("pnpm", [
-    "exec",
-    "turbo",
-    "run",
-    "typecheck",
-    "test",
-    "--concurrency=4",
-    ...filters,
-  ]);
+  const typecheck = {
+    command: "pnpm",
+    args: [
+      "exec",
+      "turbo",
+      "run",
+      "typecheck",
+      "--concurrency=4",
+      ...plan.packages.map((name) => `--filter=${name}`),
+    ],
+  };
+  // The typecheck and the tests do not wait on each other.
+  const status = await runLanes([[typecheck], unitTestSteps(plan)]);
+  if (status !== 0) process.exit(status);
+}
+
+/** Every changed path, deleted ones included, or undefined when unreadable. */
+function allChangedPaths(root) {
+  try {
+    return changedPaths(root);
+  } catch {
+    return undefined;
+  }
+}
+
+function unitTestSteps(plan) {
+  const root = repoRootFromHere();
+  const paths = allChangedPaths(root);
+  const plans =
+    paths === undefined
+      ? undefined
+      : planUnitTests({
+          root,
+          nodes: loadPackageNodes(root),
+          packages: plan.packages,
+          paths,
+          isDoc: isDocPath,
+        });
+  if (plans === undefined)
+    console.error("unit tests: diff unreadable; all whole");
+  for (const line of describePlans(plans)) console.error(line);
+  return unitTestCommands(root, plan.packages, plans);
 }
 
 function runCargo(plan) {
@@ -116,7 +153,7 @@ function runCargo(plan) {
   runListed("cargo", args);
 }
 
-function main() {
+async function main() {
   const command = process.argv[2] ?? "plan";
   if (command === "plan") {
     emit(readPlan("packages"));
@@ -127,8 +164,7 @@ function main() {
     return;
   }
   if (command === "run-ts") {
-    runTs(readPlan("packages"));
-    return;
+    return runTs(readPlan("packages"));
   }
   if (command === "run-cargo") {
     runCargo(readPlan("cargo"));
@@ -141,4 +177,4 @@ function main() {
 const invoked =
   process.argv[1] !== undefined &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (invoked) main();
+if (invoked) await main();

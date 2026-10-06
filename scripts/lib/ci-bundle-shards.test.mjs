@@ -6,6 +6,7 @@ import {
   TABLETS,
 } from "../../apps/pages/scripts/lib/mobile-contract.mjs";
 import { repoRootFromHere } from "./ci-changed-areas.mjs";
+import { loadShards } from "./ci-gates.mjs";
 
 const root = repoRootFromHere();
 const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
@@ -13,15 +14,7 @@ const bundle = ci.split("  bundle:")[1]?.split("  device-inbox:")[0] ?? "";
 
 /** The matrix legs, in order: `{ shard, sizes? }`. */
 function legs() {
-  const matrix =
-    bundle.split("        include:")[1]?.split("    steps:")[0] ?? "";
-  return matrix
-    .split(/\n\s+- shard: /)
-    .slice(1)
-    .map((leg) => ({
-      shard: leg.split("\n")[0].trim(),
-      sizes: /sizes: "([^"]*)"/.exec(leg)?.[1],
-    }));
+  return loadShards(root);
 }
 
 /** The job's steps with the `if:` each carries. */
@@ -83,7 +76,12 @@ describe("the bundle job's shards", () => {
     expect(new Set(shards).size).toBe(shards.length);
     expect(bundle).toContain("fail-fast: false");
     expect(bundle).toContain("needs: changes");
-    expect(bundle).toContain("if: needs.changes.outputs.bundle == 'true'");
+    // The legs come from the shard file, narrowed to the gates the diff reaches;
+    // a diff that reaches none skips the job, which the check reads as passing.
+    expect(bundle).toContain("needs.changes.outputs.bundle_matrix != '[]'");
+    expect(bundle).toContain(
+      "include: ${{ fromJSON(needs.changes.outputs.bundle_matrix) }}",
+    );
     // A matrix job's result is the worst of its legs.
     const check =
       ci.split("  bundle-check:")[1]?.split("  rust-check:")[0] ?? "";
@@ -118,7 +116,7 @@ describe("the bundle job's shards", () => {
           step.when &&
           step.text.includes("run:") &&
           shardsOf(step.when, shards).includes(shard) &&
-          !step.text.includes("turbo run build"),
+          !step.text.includes("ci-pages-build.mjs"),
       );
       expect(selected.length, `${shard} runs no gate`).toBeGreaterThan(0);
     }
@@ -126,7 +124,9 @@ describe("the bundle job's shards", () => {
 
   it("builds Pages once in every shard, and in `budgets` inside the measuring step", () => {
     const all = steps();
-    const builds = all.filter((step) => step.text.includes("turbo run build"));
+    const builds = all.filter((step) =>
+      step.text.includes("ci-pages-build.mjs"),
+    );
     for (const shard of shards) {
       const building = builds.filter((step) =>
         shardsOf(step.when, shards).includes(shard),

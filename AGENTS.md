@@ -1258,15 +1258,22 @@ CI lives in `.github/workflows/`:
   The suite behind a check runs only when the diff touches that area
   (`scripts/lib/ci-changed-areas.mjs`). Inside a suite,
   `scripts/lib/ci-affected-tests.mjs` tests the changed packages or crates
-  and the ones that depend on them: TypeScript runs `turbo run typecheck test`
-  for that set, and Rust runs `cargo test --all-targets -p` for that set on
-  Rust 1.88.0. A root lockfile or manifest tests the whole suite. Bundle
-  budgets builds `apps/pages` and checks `tools/quality/bundle-budgets.json`;
-  its browser gates run as parallel shards of one matrix job (`bundle`: each
-  shard builds Pages once and walks its own gates; `verify:mobile` is split by
-  viewport with `MOBILE_SIZES`), and `scripts/lib/ci-bundle-shards.test.mjs`
-  fails on a gate that runs in no shard or in two. A new gate goes in exactly
-  one shard, not appended to a serial list;
+  and the ones that depend on them: TypeScript typechecks that set and runs
+  the tests the diff reaches (`scripts/lib/ci-scoped-tests.mjs`: `vitest
+  related`, plus every test that reads the filesystem; a package runs whole
+  when a manifest, config or its test setup changed), and Rust runs `cargo
+  test --all-targets -p` for that set on Rust 1.88.0. A root lockfile or
+  manifest tests the whole suite. Bundle budgets builds `apps/pages` and
+  checks `tools/quality/bundle-budgets.json`; its browser gates run as
+  parallel shards of one matrix job (`bundle`: each shard builds Pages once
+  and walks its own gates; `verify:mobile` is split by viewport with
+  `MOBILE_SIZES`). The shard list is `scripts/lib/ci-bundle-shards.json`, and
+  `scripts/lib/ci-gates.mjs` selects the shards and jobs a diff can break
+  ([ADR 0176](docs/adr/0176-ci-runs-what-a-diff-can-reach.md)); a path it does
+  not recognize starts every gate, and a push to `main` runs everything.
+  `scripts/lib/ci-bundle-shards.test.mjs` fails on a gate that runs in no
+  shard or in two, and `ci-gates.test.mjs` on a `verify-*` driver with no gate
+  row. A new gate goes in exactly one shard, not appended to a serial list;
   "Web Push end to end" (`verify:push`) is its own job that the same check
   waits for, and runs when the Pages build or the server code it imports changes.
   The TypeScript job also runs the signature preflight, changed-file lint,
