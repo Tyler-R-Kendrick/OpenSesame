@@ -12,6 +12,7 @@
     "typecheck": "wxt prepare && tsc --noEmit -p .wxt/tsconfig.json"
   },
   "dependencies": {
+    "@gdp-ts/core": "0.1.0",
     "@opensesame/api-client": "workspace:*",
     "@opensesame/browser-at-rest": "workspace:*",
     "@opensesame/client-core": "workspace:*",

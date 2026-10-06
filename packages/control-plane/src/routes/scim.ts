@@ -14,6 +14,8 @@ import { Hono } from "hono";
 import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
+import { mintScimToken, revokeScimToken } from "../services/org-admin.js";
+import { type OrgOwnerSource, asOrgOwner } from "./org-owner-gate.js";
 import {
   SCIM_ROLE_ATTRIBUTE,
   SCIM_SUBJECTS_ATTRIBUTE,
@@ -38,6 +40,12 @@ import {
 } from "./scim-protocol.js";
 
 export { provisionedRoleForSubject, putGroupRoleMapping, roleForGroupName };
+
+/**
+ * The first-party directory and token management are owner-fenced, and only on
+ * an `active` organization — the stricter of the liveness readings (ADR 0177).
+ */
+const OWNER: OrgOwnerSource = { param: "organizationId", liveness: "active" };
 
 /**
  * SCIM 2.0 directory provisioning, per organization (C15, D11, ADR 0056).
@@ -155,7 +163,10 @@ async function authenticate(
   // The first-party directory uses the authenticated owner session, never a
   // provisioning secret copied into a browser. SCIM tokens keep their own path.
   if (c.get("principalId") && !header.slice(7).startsWith(SCIM_TOKEN_PREFIX)) {
-    return requireOwner(c);
+    return asOrgOwner(c, OWNER, async ({ ctx, organization }) => ({
+      ctx,
+      organization,
+    }));
   }
   if (!header.toLowerCase().startsWith("bearer ")) return unauthorized();
   const presented = header.slice(7).trim();
@@ -176,33 +187,6 @@ async function authenticate(
   );
   if (!live) return unauthorized();
   return { ctx, organization };
-}
-
-/** Owner-fenced management of the tenant's provisioning tokens (D11). */
-async function requireOwner(
-  c: Context<{ Variables: Variables }>,
-): Promise<
-  | { ctx: AppContext; organization: Organization; principalId: string }
-  | Response
-> {
-  const ctx = c.get("ctx");
-  const principalId = c.get("principalId") ?? "";
-  const organization = await ctx.stores.organizations.get(
-    c.req.param("organizationId") ?? "",
-  );
-  const membership =
-    organization &&
-    (await ctx.stores.organizationMemberships.find(
-      organization.id,
-      principalId,
-    ));
-  if (!organization || organization.state !== "active" || !membership) {
-    return c.json({ error: "not_found" }, 404);
-  }
-  if (membership.role !== "owner") {
-    return c.json({ error: "owner_required" }, 403);
-  }
-  return { ctx, organization, principalId };
 }
 
 /**
@@ -285,77 +269,72 @@ function userNameFilter(filter: string): string | undefined {
 export function createScimRoutes(): Hono<{ Variables: Variables }> {
   const routes = new Hono<{ Variables: Variables }>();
 
-  routes.post("/:organizationId/scim/tokens", requirePrincipal(), async (c) => {
-    const gate = await requireOwner(c);
-    if (gate instanceof Response) return gate;
-    const { ctx, organization, principalId } = gate;
+  routes.post("/:organizationId/scim/tokens", requirePrincipal(), async (c) =>
+    asOrgOwner(c, OWNER, async ({ ctx, org, proof, actor, organization }) => {
+      const principalId = actor.value;
 
-    // The only moment this value exists in plaintext. It is returned once,
-    // stored as a digest, and never written to a log or an audit row (T27).
-    const token = `${SCIM_TOKEN_PREFIX}${randomBytes(32).toString(
-      "base64url",
-    )}`;
-    const minted = await ctx.stores.scim.tokens.mint(
-      organization.id,
-      scimTokenHash(token),
-    );
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "organization.scim_token_minted",
-      outcome: "succeeded",
-      principalId,
-      organizationId: organization.id,
-      correlationId: c.get("correlationId"),
-      targetType: "scim_token",
-      targetId: minted.id,
-      metadata: { action: "organization.scim_token.mint" },
-    });
-    return c.json(
-      {
-        id: minted.id,
-        token,
-        scimBaseUrl: scimBase(ctx, organization.id),
-      },
-      201,
-    );
-  });
-
-  routes.get("/:organizationId/scim/tokens", requirePrincipal(), async (c) => {
-    const gate = await requireOwner(c);
-    if (gate instanceof Response) return gate;
-    const { ctx, organization } = gate;
-    const tokens = await ctx.stores.scim.tokens.list(organization.id);
-    return c.json({
-      tokens: tokens.map((record) => ({
-        id: record.id,
-        createdAt: record.createdAt.toISOString(),
-        revokedAt: record.revokedAt?.toISOString() ?? null,
-      })),
-    });
-  });
-
-  routes.delete(
-    "/:organizationId/scim/tokens/:tokenId",
-    requirePrincipal(),
-    async (c) => {
-      const gate = await requireOwner(c);
-      if (gate instanceof Response) return gate;
-      const { ctx, organization, principalId } = gate;
-      const tokenId = c.req.param("tokenId") ?? "";
-      if (!(await ctx.stores.scim.tokens.revoke(organization.id, tokenId))) {
-        return c.json({ error: "not_found" }, 404);
-      }
+      // The only moment this value exists in plaintext. It is returned once,
+      // stored as a digest, and never written to a log or an audit row (T27).
+      const token = `${SCIM_TOKEN_PREFIX}${randomBytes(32).toString(
+        "base64url",
+      )}`;
+      const minted = await mintScimToken(ctx, org, proof, scimTokenHash(token));
       await appendAuditEvent(ctx.repos.auditEvents, {
-        eventType: "organization.scim_token_revoked",
+        eventType: "organization.scim_token_minted",
         outcome: "succeeded",
         principalId,
         organizationId: organization.id,
         correlationId: c.get("correlationId"),
         targetType: "scim_token",
-        targetId: tokenId,
-        metadata: { action: "organization.scim_token.revoke" },
+        targetId: minted.id,
+        metadata: { action: "organization.scim_token.mint" },
       });
-      return c.body(null, 204);
-    },
+      return c.json(
+        {
+          id: minted.id,
+          token,
+          scimBaseUrl: scimBase(ctx, organization.id),
+        },
+        201,
+      );
+    }),
+  );
+
+  routes.get("/:organizationId/scim/tokens", requirePrincipal(), async (c) =>
+    asOrgOwner(c, OWNER, async ({ ctx, organization }) => {
+      const tokens = await ctx.stores.scim.tokens.list(organization.id);
+      return c.json({
+        tokens: tokens.map((record) => ({
+          id: record.id,
+          createdAt: record.createdAt.toISOString(),
+          revokedAt: record.revokedAt?.toISOString() ?? null,
+        })),
+      });
+    }),
+  );
+
+  routes.delete(
+    "/:organizationId/scim/tokens/:tokenId",
+    requirePrincipal(),
+    async (c) =>
+      asOrgOwner(c, OWNER, async ({ ctx, org, proof, actor, organization }) => {
+        const principalId = actor.value;
+        const tokenId = c.req.param("tokenId") ?? "";
+        if (!(await revokeScimToken(ctx, org, proof, tokenId))) {
+          return c.json({ error: "not_found" }, 404);
+        }
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "organization.scim_token_revoked",
+          outcome: "succeeded",
+          principalId,
+          organizationId: organization.id,
+          correlationId: c.get("correlationId"),
+          targetType: "scim_token",
+          targetId: tokenId,
+          metadata: { action: "organization.scim_token.revoke" },
+        });
+        return c.body(null, 204);
+      }),
   );
 
   routes.post("/:organizationId/scim/v2/Users", async (c) => {

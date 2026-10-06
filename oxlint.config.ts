@@ -1,4 +1,17 @@
+import gdp from "@gdp-ts/core/lint/oxlint";
 import { defineConfig } from "oxlint";
+
+// Ghosts of Departed Proofs (ADR 0177): a proof is minted only inside a
+// `proofs/` module and never asserted into existence elsewhere. Non-strict:
+// it bans forging a proof, not every `as` (anti-slop already gates those).
+const gdpLint = gdp({
+  files: [
+    "packages/**/*.ts",
+    "packages/**/*.tsx",
+    "apps/**/*.ts",
+    "apps/**/*.tsx",
+  ],
+});
 
 export default defineConfig({
   // `pnpm lint:anti-slop` is the anti-slop gate. Built-in Oxlint categories
@@ -44,7 +57,9 @@ export default defineConfig({
   ],
   jsPlugins: [
     { name: "anti-slop", specifier: "./tools/oxlint/anti-slop/index.ts" },
+    ...gdpLint.jsPlugins,
   ],
+  overrides: gdpLint.overrides,
   rules: {
     "anti-slop/no-chained-type-assertions": "error",
     "anti-slop/no-conditional-empty-object-spread": "error",

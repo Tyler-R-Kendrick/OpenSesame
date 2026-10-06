@@ -107,6 +107,7 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@env-spec/parser": "0.4.1",
+    "@gdp-ts/core": "0.1.0",
     "@hono/node-server": "2.1.0",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@oxlint/plugins": "1.79.0",
