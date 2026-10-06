@@ -54,7 +54,7 @@ export async function ageRecipientEnroll(
   assertNotCanceled(request.signal);
   assertSessionGeneration(sessionGeneration ?? 0, request.sessionGeneration);
   const identity = await options.resolveIdentity();
-  if (!isAgeIdentity(identity)) {
+  if (!(await isAgeIdentity(identity))) {
     throw new ProtectionError(
       "unavailable",
       "Verified age enrollment requires an independently available identity.",
@@ -139,10 +139,10 @@ export async function ageRecipientOpen(
   return mintRootKeyHandle(request.context, rootKey);
 }
 
-export function createAgeRecipientAdapter(
+export async function createAgeRecipientAdapter(
   options: AgeRecipientAdapterOptions,
-): KeyProtectorAdapter {
-  const recipients = requireRecipients(options.recipients);
+): Promise<KeyProtectorAdapter> {
+  const recipients = await requireRecipients(options.recipients);
   const custody = options.custody;
   const sessionGeneration = options.sessionGeneration;
 

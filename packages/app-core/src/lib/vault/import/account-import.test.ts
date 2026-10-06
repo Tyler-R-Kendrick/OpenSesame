@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { accountPlainPassword, accountTotp } from "@opensesame/vault-core";
+import { accountTotp } from "@opensesame/vault-core";
+import { producedPassword } from "../../account.test-support.js";
 import { parseImport } from "./index.js";
 import { defaultMergeOptions, planMerge } from "./merge.js";
 
@@ -32,7 +33,7 @@ describe("a CSV login lands as an account", () => {
       "bw.csv",
     );
     expect(item.username).toBe("ada");
-    expect(accountPlainPassword(item)).toBe("hunter2");
+    expect(producedPassword(item)).toBe("hunter2");
     expect(accountTotp(item)).toBe("JBSWY3DPEHPK3PXP");
     expect(item.methods).toHaveLength(2);
     expect(item.methods[0]).toMatchObject({
@@ -50,7 +51,7 @@ describe("a CSV login lands as an account", () => {
     expect(item.methods.map((method) => method.type)).toEqual([
       "authenticator",
     ]);
-    expect(accountPlainPassword(item)).toBe("");
+    expect(producedPassword(item)).toBe("");
     expect(accountTotp(item)).toBe("JBSWY3DPEHPK3PXP");
   });
 

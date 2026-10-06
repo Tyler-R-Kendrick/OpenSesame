@@ -48,11 +48,13 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-05-travel-hidden-items/`](2026-10-05-travel-hidden-items/README.md) | Leave items at home — before and after |
+| [`2026-10-05-tailnet-sync-finished/`](2026-10-05-tailnet-sync-finished/README.md) | Tailnet sync, finished — visual evidence (2026-10-05) |
 | [`2026-10-05-tailnet-devices/`](2026-10-05-tailnet-devices/README.md) | Identity › Devices manages the real tailnet (ADR 0169) |
 | [`2026-10-05-sops-gone-prompt-lines/`](2026-10-05-sops-gone-prompt-lines/README.md) | SOPS row removed from Security; the prompt's two identities on two lines |
 | [`2026-10-05-security-rows-for-guests/`](2026-10-05-security-rows-for-guests/README.md) | Security › Duress and Travel for a guest with no key yet |
 | [`2026-10-05-nats-live-route/`](2026-10-05-nats-live-route/README.md) | A NATS server as a live session's route — Settings › Live sessions › Routes |
 | [`2026-10-05-glyph-desktop-prompt/`](2026-10-05-glyph-desktop-prompt/README.md) | The glyph beside the name on desktop (ADR 0164) |
+| [`2026-10-05-generator-form/`](2026-10-05-generator-form/README.md) | The password form: one field and one Options line |
 | [`2026-10-05-gate-help-launcher/`](2026-10-05-gate-help-launcher/README.md) | A help key on the gates — before / after |
 | [`2026-10-05-file-viewer-painted/`](2026-10-05-file-viewer-painted/README.md) | The file viewer paints its files, and the open key is the settings icon |
 | [`2026-10-05-duress-mode-wipe/`](2026-10-05-duress-mode-wipe/README.md) | Duress mode: wipe this device's copy — visual evidence |

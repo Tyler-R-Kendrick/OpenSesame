@@ -1,15 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   type LegacyLoginItem,
-  accountPlainPassword,
   accountTotp,
   isLegacyLogin,
   methodsOfType,
   migrateLegacyLogin,
-  needsPepper,
   normalizeLegacyItems,
   passwordMethod,
-  plainPassword,
 } from "./account.js";
 import { createItem } from "./model.js";
 
@@ -105,60 +102,16 @@ describe("normalizeLegacyItems", () => {
 });
 
 describe("a new account", () => {
-  it("starts with one empty password method that is not peppered", () => {
+  it("starts with one derived password method, with no root yet, with a pepper slot at the end", () => {
     const account = createItem("account", "Site");
     if (account.kind !== "account") throw new Error("expected account");
     expect(account.methods).toHaveLength(1);
     expect(account.methods[0]).toMatchObject({
       type: "password",
-      generator: { id: "rules" },
-      pepper: false,
+      generator: { id: "derived", counter: 0 },
+      pepper: true,
       secret: "",
       changedAt: account.createdAt,
     });
-  });
-});
-
-describe("password helpers", () => {
-  it("hands out a plain password only when nothing needs asking", () => {
-    const account = createItem("account", "A");
-    if (account.kind !== "account") throw new Error("expected account");
-    const method = passwordMethod(account);
-    if (!method) throw new Error("expected a password method");
-    method.secret = "s3cret";
-    expect(plainPassword(method)).toBe("s3cret");
-    expect(needsPepper(method)).toBe(false);
-    expect(accountPlainPassword(account)).toBe("s3cret");
-
-    method.pepper = true;
-    method.secret = "";
-    expect(plainPassword(method)).toBeNull();
-    expect(needsPepper(method)).toBe(true);
-    expect(accountPlainPassword(account)).toBe("");
-  });
-
-  it("treats sphinx as always asking", () => {
-    const account = createItem("account", "A");
-    if (account.kind !== "account") throw new Error("expected account");
-    const method = passwordMethod(account);
-    if (!method) throw new Error("expected a password method");
-    method.generator = {
-      id: "sphinx",
-      rules: {
-        length: 20,
-        lower: true,
-        upper: true,
-        digits: true,
-        symbols: true,
-        avoidAmbiguous: false,
-        minDigits: 0,
-        minSymbols: 0,
-      },
-      realm: "example.com",
-      counter: 0,
-      oprfKeyB64: "AA==",
-    };
-    expect(needsPepper(method)).toBe(true);
-    expect(plainPassword(method)).toBeNull();
   });
 });

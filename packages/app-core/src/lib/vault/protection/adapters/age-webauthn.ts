@@ -19,7 +19,7 @@ import {
   type VerificationEvidence,
 } from "@opensesame/vault-core";
 import { b64ToBytes, bytesToB64 } from "@opensesame/vault-core";
-import * as age from "age-encryption";
+import { loadAge } from "../../../age-lib.js";
 import { canonicalizeToBytes } from "../canonicalize.js";
 import { contextsEqual } from "../capsule.js";
 import { ProtectionError } from "../errors.js";
@@ -132,6 +132,7 @@ function parsePayload(
 export function defaultAgeWebauthnCrypto(): AgeWebauthnCrypto {
   return {
     async createCredential(input) {
+      const age = await loadAge();
       if (input.rpId && input.type) {
         return age.webauthn.createCredential({
           keyName: input.keyName,
@@ -154,11 +155,13 @@ export function defaultAgeWebauthnCrypto(): AgeWebauthnCrypto {
       return age.webauthn.createCredential({ keyName: input.keyName });
     },
     async encrypt(plaintext, identity) {
+      const age = await loadAge();
       const encrypter = new age.Encrypter();
       encrypter.addRecipient(new age.webauthn.WebAuthnRecipient({ identity }));
       return new Uint8Array(await encrypter.encrypt(plaintext));
     },
     async decrypt(ciphertext, identity) {
+      const age = await loadAge();
       const decrypter = new age.Decrypter();
       decrypter.addIdentity(new age.webauthn.WebAuthnIdentity({ identity }));
       const out = await decrypter.decrypt(ciphertext, "uint8array");

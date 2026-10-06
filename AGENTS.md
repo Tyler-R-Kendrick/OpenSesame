@@ -120,6 +120,10 @@ pnpm test:live-stack     # scripts/test/live-stack-test.sh (live OpenFGA/OpenBao
 pnpm test:bitwarden-oracle # scripts/test/bitwarden-oracle-test.sh — pinned official bw CLI and the
                           #   SignalR client Bitwarden's apps pin, against the bitwarden-compat surface
                           #   (ADR 0141, ADR 0148); fails, never skips
+pnpm test:tailnet-sync:real # scripts/test/tailnet-sync-real-tailnet.sh — verify:tailnet-sync over a real
+                          #   tailnet: pinned headscale + two tailscaled nodes (one on a kernel TUN), the drive
+                          #   behind `tailscale serve`, Chrome's own Local Network Access gate; needs
+                          #   /dev/net/tun + CAP_NET_ADMIN, fails, never skips (ADR 0144)
 pnpm test:mtls           # scripts/mtls/mtls-test.sh — native transport-security + TS contract suites, no fixtures
 pnpm test:mtls:integration # scripts/mtls/mtls-integration-test.sh — pinned nats-server / OpenBao / SPIRE / Caddy
                           #   fixtures (scripts/mtls/mtls-fixtures.sh); fails, never skips, when a fixture is absent
@@ -825,6 +829,17 @@ Do not add new top-level directories or loose root files — find the group.
   editing `marketplace/item-types/builtin/*.json`, re-run
   `pnpm --filter @opensesame/vault-item-types generate`. A suite that assumes
   the whole corpus loads every pack in its setup.
+- **A password is produced by one facade, and a pepper is never asked for or
+  stored** ([ADR 0174](docs/adr/0174-the-pepper-is-the-persons-and-passwords-are-produced-by-one-facade.md)).
+  Copy, fill, the terminal, the daemon, health and export all call
+  `producePassword` (`@opensesame/vault-core`; `produce_entry` in
+  `crates/sealed-store`) and none knows how a password is made; `produce-facade.test.ts`
+  fails on any other reader of an algorithm or a pepper position. *Include
+  pepper* means the produced password has a slot for a secret of the person's
+  own, at a Python-style `pepperAt`; the product holds no pepper, no envelope under
+  one and no verifier for one. A file holds the parameters an algorithm computes
+  from (generator, rules, counter, root) and an empty line one, never the generated
+  password. A generator's label names a kind (*Algorithmic*), never a technique.
 - A vault item type is a manifest, never a code path. Adding one is a JSON
   file in `marketplace/item-types/builtin/` (embedded by both planes),
   and a user can install one at runtime with no build. Fields name types from

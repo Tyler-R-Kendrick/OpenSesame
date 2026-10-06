@@ -20,9 +20,6 @@ import {
 /** The pairing token's key in `storage.local`. It admits fill, not values. */
 export const TOKEN_KEY = "fillPairingToken";
 
-/** The refusal for a password that needs a pepper the person must type. */
-export const NEEDS_PEPPER = "needs_pepper";
-
 /** A refusal from the daemon, by its stable code. Never carries a value. */
 export class FillError extends Error {
   readonly code: string;
@@ -33,10 +30,20 @@ export class FillError extends Error {
   }
 }
 
+/** What the daemon gave: the value, and whether the person's own pepper follows it. */
+export interface FilledValue {
+  readonly value: string;
+  readonly pepper: boolean;
+}
+
 export interface DaemonClient {
   pair(): Promise<PairState>;
   match(origin: string): Promise<readonly string[]>;
-  value(reference: string, origin: string, field: FillField): Promise<string>;
+  value(
+    reference: string,
+    origin: string,
+    field: FillField,
+  ): Promise<FilledValue>;
 }
 
 /** A string-valued store; whatever else a key holds reads as absent. */
@@ -148,12 +155,9 @@ export function createDaemonClient(options: DaemonClientOptions): DaemonClient {
         daemonValue,
       );
       if (body.field !== field) throw new FillError("unexpected_response");
-      // A peppered or Sphinx password is skipped, never filled in its sealed
-      // form (ADR 0172 §4): refuse before the value is handed anywhere.
-      if (field === "password" && body.needsPepper === true) {
-        throw new FillError(NEEDS_PEPPER);
-      }
-      return body.value;
+      // A password with a pepper slot arrives as what comes before the slot;
+      // the pepper is the person's, typed where they use it (ADR 0174).
+      return { value: body.value, pepper: body.pepper === true };
     },
   };
 }

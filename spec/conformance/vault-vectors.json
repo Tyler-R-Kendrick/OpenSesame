@@ -210,6 +210,26 @@
           }
         ]
       }
+    },
+    "backup-personal-derived": {
+      "file": "{\n  \"format\": \"opensesame-offline-backup\",\n  \"v\": 1,\n  \"projectId\": null,\n  \"exportedAt\": \"2026-10-05T00:00:00.000Z\",\n  \"vault\": {\n    \"header\": {\n      \"v\": 1,\n      \"kdf\": {\n        \"alg\": \"PBKDF2-SHA256\",\n        \"saltB64\": \"51U6UT4vf1+2+6x2eGNpDg==\",\n        \"iterations\": 600000\n      },\n      \"wrap\": {\n        \"ivB64\": \"H4LW9DJKNR0tY0ZB\",\n        \"ctB64\": \"M9MBJrNdj6KOrxG8AiqBAHuV5indDumxiqv+LA3vdLscQUyBEpaxNOWpfYbr8qE0\"\n      },\n      \"createdAt\": \"2026-10-05T20:15:05.738Z\",\n      \"hint\": \"vector hint\",\n      \"bodyRev\": 3\n    },\n    \"body\": {\n      \"ivB64\": \"lIdZH93u74E49mGm\",\n      \"ctB64\": \"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\"\n    }\n  },\n  \"syncBlobs\": [],\n  \"deploymentSealUsed\": false\n}\n",
+      "expect": {
+        "tomb": "personal",
+        "bound": true,
+        "rev": 3,
+        "items": [
+          {
+            "id": "27c89463-e243-4370-8fd0-eb3010918ca2",
+            "name": "Personal computed account",
+            "kind": "account"
+          },
+          {
+            "id": "ac24943e-95b2-449f-b17d-7cc97bfaaf05",
+            "name": "Personal computed slotted account",
+            "kind": "account"
+          }
+        ]
+      }
     }
   },
   "concealedBodies": [

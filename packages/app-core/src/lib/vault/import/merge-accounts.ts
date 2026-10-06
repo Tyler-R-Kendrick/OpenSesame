@@ -15,15 +15,15 @@
  *   is additive: an account may hold several, so it is added.
  *
  * Pure: nothing here reads a pepper, a sealed envelope or an OPRF key. A method
- * whose secret is not in the clear (peppered or Sphinx) is compared by id only.
+ * one cannot produce (an older version's) is compared by id only.
  */
 
 import {
   type AccountItem,
   type LoginMethod,
   type PasswordMethod,
-  needsPepper,
   newMethodId,
+  producePassword,
 } from "@opensesame/vault-core";
 
 export type AccountMerge = {
@@ -38,8 +38,13 @@ export type AccountMerge = {
 
 function secretOf(method: LoginMethod): string | null {
   switch (method.type) {
-    case "password":
-      return needsPepper(method) ? null : method.secret;
+    case "password": {
+      const produced = producePassword(method);
+      if (produced.status === "ok") return produced.password;
+      return produced.status === "slotted"
+        ? `${produced.head}\u0000${produced.tail}`
+        : null;
+    }
     case "authenticator":
       return method.secret;
     case "api-key":

@@ -137,7 +137,8 @@ const GIT_FILES = [
   "saved-git-backup",
   "embedded-git",
 ];
-const CLOUD_FILES = ["age-keys", "aws-kms-config", "gcp-kms-config", "sops/"];
+const AGE_FILES = ["age-keys", "age-lib"];
+const CLOUD_FILES = [...AGE_FILES, "aws-kms-config", "gcp-kms-config", "sops/"];
 const ACCESS_FILES = [
   "access-book",
   "local-access-requests",

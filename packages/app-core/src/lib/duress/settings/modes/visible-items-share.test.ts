@@ -104,12 +104,8 @@ describe("what is eligible, and what is never copied", () => {
     expect(JSON.stringify(copy)).not.toContain("PIN");
   });
 
-  it("copies a peppered account without its password, and nothing sealed", async () => {
-    const peppered = await pepperedAccount(
-      "Vault Bank",
-      "sealed-pw-77",
-      "pep-9",
-    );
+  it("copies an account with a pepper slot without its password, and nothing sealed", async () => {
+    const peppered = pepperedAccount("Vault Bank", "sealed-pw-77", "-2");
     const copy = shareItem(peppered);
     expect(copy).toMatchObject({
       kind: "login",
@@ -117,7 +113,7 @@ describe("what is eligible, and what is never copied", () => {
       password: "",
     });
     const text = JSON.stringify(copy);
-    for (const left of ["sealed-pw-77", "pep-9", "ciphertext", "kdf"]) {
+    for (const left of ["sealed-pw-77", "pepperAt", "ciphertext", "kdf"]) {
       expect(text).not.toContain(left);
     }
   });

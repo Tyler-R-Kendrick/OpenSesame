@@ -22,6 +22,7 @@ import {
 } from "@opensesame/vault-core";
 import { toNativeEntry } from "@opensesame/vault-item-types";
 import { beforeEach, describe, expect, it } from "vitest";
+import { typePassword } from "../account.test-support.js";
 import { buildCxfExport } from "./export/cxf.js";
 import { entryToVaultItem, vaultItemToEntry } from "./store-sync.js";
 
@@ -172,7 +173,7 @@ describe("previews", () => {
 function setPassword(account: AccountItem, secret: string): void {
   const method = passwordMethod(account);
   if (!method) throw new Error("expected a password method");
-  method.secret = secret;
+  typePassword(method, secret);
 }
 
 describe("the legacy seam", () => {

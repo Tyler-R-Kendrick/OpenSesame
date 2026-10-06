@@ -50,7 +50,7 @@ export async function checkEditorTabOrder(page, check) {
     }
     await form.getByLabel("Folder", { exact: true }).focus();
     const controls = form.locator(
-      "input:visible, select:visible, textarea:visible, button:enabled:visible, a[href]:visible",
+      "input:visible, select:visible, textarea:visible, summary:visible, button:enabled:visible, a[href]:visible",
     );
     const count = await controls.count();
     check(

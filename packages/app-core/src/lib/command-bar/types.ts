@@ -53,7 +53,14 @@ export function commandPathAuthorized(path: string): boolean {
   }
 }
 
-export const COMMAND_FIELDS = ["password", "username", "otp", "url"] as const;
+/** `rest` is the part of a password that follows the person's own pepper (ADR 0174). */
+export const COMMAND_FIELDS = [
+  "password",
+  "rest",
+  "username",
+  "otp",
+  "url",
+] as const;
 
 export type CommandSection = string;
 export type CommandField = (typeof COMMAND_FIELDS)[number];

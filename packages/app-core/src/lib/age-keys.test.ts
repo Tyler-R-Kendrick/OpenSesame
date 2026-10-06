@@ -33,18 +33,20 @@ describe("age-keys (typage)", () => {
 
   it("validates recipients and identities via age-encryption parse", async () => {
     const pair = await generateAgeKeyPair();
-    expect(isAgeRecipient(pair.recipient)).toBe(true);
-    expect(isAgeIdentity(pair.identity)).toBe(true);
-    expect(isAgeRecipient("not-a-recipient")).toBe(false);
-    expect(isAgeRecipient("age1ql3z7hjy9example")).toBe(false);
-    expect(isAgeIdentity("age1ql3z7hjy9example")).toBe(false);
+    expect(await isAgeRecipient(pair.recipient)).toBe(true);
+    expect(await isAgeIdentity(pair.identity)).toBe(true);
+    expect(await isAgeRecipient("not-a-recipient")).toBe(false);
+    expect(await isAgeRecipient("age1ql3z7hjy9example")).toBe(false);
+    expect(await isAgeIdentity("age1ql3z7hjy9example")).toBe(false);
     expect(
-      isAgeIdentity(
+      await isAgeIdentity(
         "AGE-SECRET-KEY-1QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ",
       ),
     ).toBe(false);
     // SSH recipients are not accepted by age-encryption@0.3.1 Encrypter.
-    expect(isAgeRecipient("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI")).toBe(false);
+    expect(await isAgeRecipient("ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI")).toBe(
+      false,
+    );
   });
 
   it("mints a pair and round-trips ciphertext with typage", async () => {

@@ -3473,6 +3473,33 @@
     }
   },
   {
+    "id": "vault.health.security_check",
+    "title": "Check the vault's logins against known breaches and two-step sites",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/security-checks.ts:runSecurityChecks",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "the check reads every login's password to hash it and sends hash prefixes to a third party; only the person whose vault it is decides to run it",
+        "adr": "0080-security-event-hooks.md"
+      },
+      "mcp_host": {
+        "reason": "the check reads every login's password to hash it and sends hash prefixes to a third party; only the person whose vault it is decides to run it",
+        "adr": "0080-security-event-hooks.md"
+      },
+      "mcp_client": {
+        "reason": "the check reads every login's password to hash it and sends hash prefixes to a third party; only the person whose vault it is decides to run it",
+        "adr": "0080-security-event-hooks.md"
+      }
+    }
+  },
+  {
     "id": "agent_hooks.intercept",
     "title": "Answer an agent-hooks interception with a verdict: tool rules and the secret guard, and — with an approver configured — an escalation put to a person",
     "plane": "host",
@@ -4772,7 +4799,7 @@
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id vault sync",
       "pwa": "lib/tailnet-sync/observer.ts:pairTailnetDrive",
       "mcp_host": null,
       "mcp_client": null,
@@ -6580,7 +6607,7 @@
   },
   {
     "id": "vault.account.pepper",
-    "title": "Type the pepper that unseals a peppered account password, or the Sphinx master input that recomputes one",
+    "title": "Type the earlier pepper (or Sphinx master input) that converts a password an older version made, once, into a stored one",
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
@@ -6592,19 +6619,19 @@
     },
     "excluded": {
       "cli": {
-        "reason": "a pepper (or Sphinx master input) is typed by the person at each use and never stored; an agent surface must not carry, accept, log or ask for one",
+        "reason": "a pepper is the person's own and never asked for or stored; the earlier pepper typed to convert an older password is a human act; an agent surface must not carry, accept, log or ask for one",
         "adr": "0172-accounts-and-login-methods.md"
       },
       "mcp_host": {
-        "reason": "a pepper (or Sphinx master input) is typed by the person at each use and never stored; an agent surface must not carry, accept, log or ask for one",
+        "reason": "a pepper is the person's own and never asked for or stored; the earlier pepper typed to convert an older password is a human act; an agent surface must not carry, accept, log or ask for one",
         "adr": "0172-accounts-and-login-methods.md"
       },
       "mcp_client": {
-        "reason": "a pepper (or Sphinx master input) is typed by the person at each use and never stored; an agent surface must not carry, accept, log or ask for one",
+        "reason": "a pepper is the person's own and never asked for or stored; the earlier pepper typed to convert an older password is a human act; an agent surface must not carry, accept, log or ask for one",
         "adr": "0172-accounts-and-login-methods.md"
       },
       "webmcp": {
-        "reason": "a pepper (or Sphinx master input) is typed by the person at each use and never stored; an agent surface must not carry, accept, log or ask for one",
+        "reason": "a pepper is the person's own and never asked for or stored; the earlier pepper typed to convert an older password is a human act; an agent surface must not carry, accept, log or ask for one",
         "adr": "0172-accounts-and-login-methods.md"
       }
     }

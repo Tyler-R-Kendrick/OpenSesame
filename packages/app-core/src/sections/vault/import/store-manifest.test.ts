@@ -1,10 +1,10 @@
 import {
   type Folder,
-  accountPlainPassword,
   createItem,
   manualPassword,
 } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
+import { producedPassword } from "../../../lib/account.test-support.js";
 import { vaultItemToEntry } from "../../../lib/vault/store-sync.js";
 import {
   STORE_MANIFEST_LABEL,
@@ -83,7 +83,7 @@ describe("planStoreManifest", () => {
     const updated = plan.updates[0];
     if (updated?.kind !== "account") throw new Error("expected an account");
     expect(updated.id).toBe(current.id);
-    expect(accountPlainPassword(updated)).toBe("new");
+    expect(producedPassword(updated)).toBe("new");
     expect(plan.kept).toBe(0);
     expect(manifestCommitLabel(plan)).toBe("Merge 2 entries");
   });

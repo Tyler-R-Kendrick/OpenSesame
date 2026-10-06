@@ -32,6 +32,7 @@ export const GUARD_SCRIPT = "fill-guard.js";
  */
 export type FlowOutcome =
   | "filled"
+  | "pepper_next"
   | "focus_moved"
   | "no_value"
   | "no_page"

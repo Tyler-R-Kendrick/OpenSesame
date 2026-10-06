@@ -4,8 +4,9 @@ import {
   readJsonObject,
   readString,
 } from "@opensesame/os-domain";
-import { type VaultItem, accountPlainPassword } from "@opensesame/vault-core";
+import type { VaultItem } from "@opensesame/vault-core";
 import { describe, expect, it, vi } from "vitest";
+import { producedPassword } from "../../../account.test-support.js";
 import { MAX_SLOT_PAYLOAD_BYTES } from "../../crypto/slot-profile.js";
 import { DECOY_ITEMS_RUNNER } from "./decoy-items-effect.js";
 import {
@@ -243,7 +244,7 @@ describe("decoy items runner", () => {
     ]);
     expect(
       added.map((item) =>
-        item.kind === "account" ? accountPlainPassword(item) : null,
+        item.kind === "account" ? producedPassword(item) : null,
       ),
     ).toEqual(body.items.map((item) => item.secret));
     for (const item of added) {
