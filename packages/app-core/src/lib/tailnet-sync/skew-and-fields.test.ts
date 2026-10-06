@@ -6,9 +6,10 @@
  */
 import {
   type AccountItem,
-  accountPlainPassword,
   accountTotp,
   createItem,
+  manualPassword,
+  passwordMethod,
 } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { adoptSnapshot } from "./adopt.js";
@@ -30,6 +31,11 @@ function login(on: Device, id: string): AccountItem {
   return item;
 }
 
+/** What the account's password method stores: the field the merge carries. */
+function storedPassword(item: AccountItem): string | undefined {
+  return passwordMethod(item)?.secret;
+}
+
 /** The account with its password method's secret replaced. */
 function withPassword(item: AccountItem, secret: string): AccountItem {
   return {
@@ -47,8 +53,12 @@ async function pairedDevices() {
   const phone = device("phone");
   const created = createItem("account", "Bank");
   if (created.kind !== "account") throw new Error("not an account");
+  // A password the person typed: what a merge carries as a stored field.
   const bank: AccountItem = {
-    ...withPassword(created, "first"),
+    ...created,
+    methods: [
+      manualPassword(`${created.id}:password`, "first", created.createdAt),
+    ],
     username: "ada",
   };
   await as(laptop, async () => {
@@ -89,7 +99,7 @@ describe("a device whose clock runs behind", () => {
     // The phone, on the right time, sees that and then changes it again.
     vi.setSystemTime(NOW + 60_000);
     await sync(phone, drive);
-    expect(accountPlainPassword(login(phone, id))).toBe("second");
+    expect(storedPassword(login(phone, id))).toBe("second");
     await as(phone, () =>
       phone.store.saveItem(withPassword(login(phone, id), "third")),
     );
@@ -98,8 +108,8 @@ describe("a device whose clock runs behind", () => {
     await sync(phone, drive);
     await sync(laptop, drive);
 
-    expect(accountPlainPassword(login(laptop, id))).toBe("third");
-    expect(accountPlainPassword(login(phone, id))).toBe("third");
+    expect(storedPassword(login(laptop, id))).toBe("third");
+    expect(storedPassword(login(phone, id))).toBe("third");
   });
 
   it("keeps an item it purged gone, even one a fast clock stamped", async () => {
@@ -148,7 +158,7 @@ describe("two devices editing one item", () => {
       const merged = login(on, id);
       expect(merged.notes).toBe("Call first");
       expect(merged.username).toBe("ada@bank");
-      expect(accountPlainPassword(merged)).toBe("first");
+      expect(storedPassword(merged)).toBe("first");
     }
     expect(JSON.stringify(login(laptop, id))).toBe(
       JSON.stringify(login(phone, id)),
@@ -189,7 +199,7 @@ describe("two devices editing one item", () => {
     await sync(laptop, drive);
 
     for (const on of [laptop, phone]) {
-      expect(accountPlainPassword(login(on, id))).toBe("second");
+      expect(storedPassword(login(on, id))).toBe("second");
       expect(accountTotp(login(on, id))).toBe("JBSWY3DP");
     }
   });

@@ -4,6 +4,7 @@ import {
   createItem,
   createTypedItem,
   itemTypeRegistry,
+  mintRootSecret,
   newUri,
   newValues,
   passwordMethod,
@@ -126,10 +127,11 @@ function newNativeDraft(kind: LegacyItemKind, labels: DraftLabels): VaultItem {
     // wildcard's help and tester under a pattern nobody had written).
     item.uris = [newUri()];
     item.username = labels.username;
-    // The generated password goes in the first password method, under that
-    // method's own rules generator, in the clear: a draft has no pepper yet.
+    // The first password method keeps what its generator makes, in the clear:
+    // a draft has no pepper yet. A derived method keeps a fresh root.
     const method = passwordMethod(item);
-    if (method?.generator.id === "rules") {
+    if (method?.generator.id === "derived") method.secret = mintRootSecret();
+    else if (method?.generator.id === "rules") {
       method.secret = generateStored(method.generator);
     }
   }

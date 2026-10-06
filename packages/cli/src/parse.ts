@@ -64,7 +64,7 @@ export type ParsedCommand =
   | {
       name: "vault-copy";
       query: string;
-      field: "secret" | "username";
+      field: "secret" | "rest" | "username";
       flags: GlobalFlags;
     }
   | { name: "vault-share"; query: string; flags: GlobalFlags }
@@ -320,8 +320,12 @@ function parseVaultCopy(args: string[], flags: GlobalFlags): ParsedCommand {
   const query = args.shift();
   const fieldWord = takeOption(args, "--field") ?? "secret";
   if (!query) throw new Error("vault copy requires an item name or id");
-  if (fieldWord !== "secret" && fieldWord !== "username") {
-    throw new Error("vault copy --field must be secret or username");
+  if (
+    fieldWord !== "secret" &&
+    fieldWord !== "rest" &&
+    fieldWord !== "username"
+  ) {
+    throw new Error("vault copy --field must be secret, rest or username");
   }
   leftover(args, "copy");
   return { name: "vault-copy", query, field: fieldWord, flags };

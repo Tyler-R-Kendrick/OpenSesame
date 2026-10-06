@@ -21,7 +21,6 @@ import {
 import { EmptyTip } from "../components/EmptyTip.js";
 import { IconChevronLeft } from "../components/Icons.js";
 import { NavTree } from "../components/NavTree.js";
-import { usePepperPrompt } from "../components/PepperPrompt.js";
 import { UpLink } from "../components/UpLink.js";
 import { clearCommandBarSearch } from "../lib/command-bar/focus.js";
 import { swipeBack } from "../lib/gestures.js";
@@ -53,7 +52,6 @@ export function VaultSection() {
   const { items, folders } = useVault();
   const store = useVaultStore();
   const copySecret = useCopySecret();
-  const pepper = usePepperPrompt();
   const navigate = useNavigate();
 
   const filter = resolveFilterSlug(params.get("f") ?? "all");
@@ -137,9 +135,8 @@ export function VaultSection() {
       },
       copySecret: (item: VaultItem) => {
         if (item.kind === "account") {
-          void accountSecretToCopy(item, pepper.ask).then((value) => {
-            if (value) void copySecret(value);
-          });
+          const value = accountSecretToCopy(item);
+          if (value) void copySecret(value);
           return;
         }
         const value = concealedValue(item);
@@ -166,7 +163,6 @@ export function VaultSection() {
     [
       armedPurgeId,
       copySecret,
-      pepper.ask,
       createPath,
       inTrash,
       itemId,
@@ -237,7 +233,6 @@ export function VaultSection() {
 
   return (
     <AscendProvider value={narrow ? ascend : null}>
-      {pepper.element}
       <div className="vault" data-pane={showing}>
         {/* The section tree: the rail's own tree, drawn where a phone looks.
           It is mounted only below the breakpoint, so the rail and this pane

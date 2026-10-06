@@ -4,11 +4,7 @@
  * is the same whichever device merges.
  */
 import { describe, expect, it } from "vitest";
-import {
-  accountPlainPassword,
-  accountTotp,
-  passwordMethod,
-} from "./account.js";
+import { accountTotp, manualPassword, passwordMethod } from "./account.js";
 import { itemVersion, mergeItem } from "./item-merge.js";
 import { mergeVaultBodies, sameVaultContent } from "./merge.js";
 import {
@@ -22,6 +18,11 @@ import {
 import { captureBefore, restampEdits } from "./stamps.js";
 
 const T0 = "2026-01-01T00:00:00.000Z";
+
+/** What the account's password method stores: the field the merge carries. */
+function storedPassword(item: AccountItem): string | undefined {
+  return passwordMethod(item)?.secret;
+}
 const T1 = new Date("2026-01-02T00:00:00.000Z");
 const T2 = new Date("2026-01-03T00:00:00.000Z");
 
@@ -36,7 +37,9 @@ function withPassword(item: AccountItem, secret: string): AccountItem {
 }
 
 const ORIGINAL: AccountItem = {
-  ...withPassword(account(createItem("account", "Bank")), "first"),
+  ...account(createItem("account", "Bank")),
+  // A password the person typed: what a merge carries as a stored field.
+  methods: [manualPassword("x:password", "first", T0)],
   id: "x",
   createdAt: T0,
   updatedAt: T0,
@@ -81,7 +84,7 @@ describe("mergeItem", () => {
     const merged = account(both(onPhone, onDesk));
     expect(merged.username).toBe("ada@bank");
     expect(merged.notes).toBe("Call first");
-    expect(accountPlainPassword(merged)).toBe("first");
+    expect(storedPassword(merged)).toBe("first");
     expect(merged.updatedAt).toBe(T2.toISOString());
     expect(merged.fieldTimes).toEqual({
       username: T1.toISOString(),
@@ -92,7 +95,7 @@ describe("mergeItem", () => {
   it("keeps the later change to the same field", () => {
     const earlier = editedAt(T1, (item) => withPassword(item, "second"));
     const later = editedAt(T2, (item) => withPassword(item, "third"));
-    expect(accountPlainPassword(account(both(earlier, later)))).toBe("third");
+    expect(storedPassword(account(both(earlier, later)))).toBe("third");
   });
 
   it("merges login methods one at a time (ADR 0172)", () => {
@@ -105,7 +108,7 @@ describe("mergeItem", () => {
       ],
     }));
     const merged = account(both(onPhone, onDesk));
-    expect(accountPlainPassword(merged)).toBe("second");
+    expect(storedPassword(merged)).toBe("second");
     expect(accountTotp(merged)).toBe("JBSWY3DP");
     expect(merged.fieldTimes).toMatchObject({
       [`methods.${passwordMethod(ORIGINAL)?.id}`]: T1.toISOString(),

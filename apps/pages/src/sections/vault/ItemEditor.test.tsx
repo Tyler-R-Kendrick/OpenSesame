@@ -182,7 +182,7 @@ describe("ItemEditor", () => {
     expect(passwordOf(saved)).toMatchObject({
       secret: "s3cret-s3cret",
       generator: { id: "manual" },
-      pepper: false,
+      pepper: true,
     });
     expect(await screen.findByText("navigated away")).toBeTruthy();
   });

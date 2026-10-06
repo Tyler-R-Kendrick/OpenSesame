@@ -17,6 +17,20 @@ export function scopedSteps({ press }) {
         await page.waitForTimeout(1000);
       }
     },
+    /**
+     * Open a native disclosure whose summary reads like `pattern`, when this
+     * build has one — the options a form keeps behind a line of what it will
+     * make. A base build that draws them open is a legitimate difference.
+     */
+    async openDisclosureOptional(page, pattern) {
+      const summary = page
+        .locator("details:not([open]) > summary")
+        .filter({ hasText: new RegExp(pattern, "i") })
+        .first();
+      if (!(await summary.count())) return;
+      await summary.click();
+      await page.waitForTimeout(400);
+    },
     /** Type into a field found by label or selector, when this build has it. */
     async fillOptional(page, { label, selector, text }) {
       const field = selector

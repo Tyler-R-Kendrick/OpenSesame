@@ -15,8 +15,8 @@ import {
 } from "@opensesame/os-domain";
 import {
   type VaultItem,
-  needsPepper,
   normalizeLegacyItems,
+  producePassword,
 } from "@opensesame/vault-core";
 import { SopsError } from "./errors.js";
 import { emitJsonTree, parseJsonTree } from "./json-codec.js";
@@ -84,7 +84,9 @@ function withoutPepperedPasswords(items: readonly VaultItem[]): PepperFiltered {
   const kept = items.map((item) => {
     if (item.kind !== "account") return item;
     const methods = item.methods.filter(
-      (method) => method.type !== "password" || !needsPepper(method),
+      (method) =>
+        method.type !== "password" ||
+        producePassword(method).status !== "legacy",
     );
     omitted += item.methods.length - methods.length;
     return methods.length === item.methods.length ? item : { ...item, methods };

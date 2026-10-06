@@ -32,9 +32,9 @@ import { EditorTitle } from "./EditorTitle.js";
 import { UnknownItemType } from "./EditorType.js";
 import { NativeItemFields } from "./NativeItemFields.js";
 import { TypedFieldInputs } from "./TypedFields.js";
+import { settleForSave } from "./account-secrets.js";
 import { useEditorContributions } from "./item-contributions.js";
 import { seedDraft } from "./seed-draft.js";
-import { useAccountSecrets } from "./use-account-secrets.js";
 import { useEditorPath } from "./useEditorPath.js";
 
 export function ItemEditor({ mode }: { mode: "new" | "edit" }) {
@@ -63,7 +63,6 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   const [draft, setDraft] = useState<VaultItem | null>(initial.item);
   const [reveal, setReveal] = useState(false);
   const [saving, setSaving] = useState(false);
-  const secrets = useAccountSecrets(saving);
   const [error, setError] = useState<string | null>(initial.error);
   const [pendingDeliveryId, setPendingDeliveryId] = useState<string>();
   const [issuanceKey, setIssuanceKey] = useState(() => crypto.randomUUID());
@@ -72,10 +71,9 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
     setDraft(initial.item);
     setError(initial.error);
     setReveal(false);
-    secrets.clear();
     setPendingDeliveryId(undefined);
     setIssuanceKey(crypto.randomUUID());
-  }, [initial, secrets.clear]);
+  }, [initial]);
 
   const patch = (changes: Partial<VaultItem>) =>
     setDraft((current) =>
@@ -128,7 +126,6 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
     });
     setError(null);
     setReveal(false);
-    secrets.clear();
   };
   const onTypeChange =
     mode === "new" && kindParam === undefined ? changeType : undefined;
@@ -232,9 +229,8 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         setDraft(next);
       }
       if (next.kind === "account") {
-        // Peppered passwords are sealed here, after the pepper is asked for
-        // once; the plaintext never reaches the item the store is handed.
-        next = await secrets.seal(
+        // `changedAt` moves with the password it describes (ADR 0174).
+        next = settleForSave(
           next,
           existing?.kind === "account" ? existing : undefined,
         );
@@ -244,16 +240,11 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         await acknowledgeCertificateDelivery(deliveryId);
         setPendingDeliveryId(undefined);
       }
-      secrets.clear();
       navigate(`/vault/${next.id}`);
     } catch (caught) {
-      // Closing the pepper prompt is a decision, not a failure: nothing is saved.
-      if (!(caught instanceof Error && secrets.cancelled(caught)))
-        setError(
-          caught instanceof Error
-            ? caught.message
-            : "Could not save this item.",
-        );
+      setError(
+        caught instanceof Error ? caught.message : "Could not save this item.",
+      );
     } finally {
       setSaving(false);
     }
@@ -272,7 +263,6 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
 
   return (
     <div className="detail">
-      {secrets.pepper.element}
       <form className="editor" onSubmit={(event) => void onSubmit(event)}>
         <EditorTitle
           value={draft}
@@ -302,11 +292,8 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         {draft.kind === "account" ? (
           <AccountFields
             draft={draft}
-            plain={secrets.plain}
-            ask={secrets.pepper.ask}
             liveRoll={mode === "new"}
             onPatch={patch}
-            onPlain={secrets.setEntry}
           />
         ) : null}
 
@@ -363,12 +350,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
             <span>{error}</span>
           </p>
         ) : null}
-        <EditorActions
-          busy={saving}
-          label={saveVerb}
-          closeTo={closeTo}
-          saveRef={secrets.saveRef}
-        />
+        <EditorActions busy={saving} label={saveVerb} closeTo={closeTo} />
       </form>
     </div>
   );

@@ -23,10 +23,11 @@ import {
 import {
   type AccountItem,
   type VaultItem,
-  accountPlainPassword,
   accountTotp,
   activeItems,
+  completePassword,
   hostOf,
+  produceAccountPassword,
 } from "@opensesame/vault-core";
 
 export const PWNED_RANGE_URL = "https://api.pwnedpasswords.com/range/";
@@ -151,14 +152,19 @@ export async function fetchTwoFactorSites(
 }
 
 /**
- * Live accounts whose password can be read without asking (ADR 0172). A
- * password behind a pepper, or a Sphinx one that is never stored, is not
- * checked: it is not here to hash.
+ * The whole password the account produces, when that needs nothing from the
+ * person (ADR 0174); "" otherwise. A password completed by a pepper the
+ * product never holds is not here to hash, so it is not checked.
  */
+function wholePassword(item: AccountItem): string {
+  return completePassword(produceAccountPassword(item)) ?? "";
+}
+
+/** Live accounts whose whole password the product can produce. */
 function logins(items: readonly VaultItem[]): AccountItem[] {
   return activeItems([...items]).filter(
     (item): item is AccountItem =>
-      item.kind === "account" && accountPlainPassword(item) !== "",
+      item.kind === "account" && wholePassword(item) !== "",
   );
 }
 
@@ -175,17 +181,14 @@ export async function runSecurityChecks(
   now: () => Date = () => new Date(),
 ): Promise<SecurityReport> {
   const checked = logins(items);
-  const counts = await breachCounts(
-    checked.map(accountPlainPassword),
-    fetchRange,
-  );
+  const counts = await breachCounts(checked.map(wholePassword), fetchRange);
   const needCodes = checked.some((login) => !accountTotp(login));
   const sites = needCodes
     ? await fetchTwoFactorSites(fetchList)
     : new Set<string>();
   const findings: SecurityFinding[] = [];
   for (const item of checked) {
-    const breaches = counts.get(accountPlainPassword(item)) ?? 0;
+    const breaches = counts.get(wholePassword(item)) ?? 0;
     const twoFactorAvailable =
       !accountTotp(item) &&
       item.uris.some((uri) => {

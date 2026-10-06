@@ -16,7 +16,6 @@ import {
 import {
   type Folder,
   type VaultItem,
-  accountPlainPassword,
   accountTotp,
   createItem,
   definitionFor,
@@ -32,6 +31,7 @@ import {
   definitionFields,
 } from "@opensesame/vault-item-types";
 import { describe, expect, it } from "vitest";
+import { producedPassword } from "../../../lib/account.test-support.js";
 import { planManifestMerge } from "../../../lib/vault/store-sync.js";
 import { type FixtureVault, everyKindVault } from "./store-manifest.fixture.js";
 import {
@@ -300,7 +300,7 @@ describe("a manifest an older Pages saved (trailer format 1)", () => {
       notes: "n",
       uris: [{ uri: "https://a.example", match: "host" }],
     });
-    expect(accountPlainPassword(github)).toBe("hunter2");
+    expect(producedPassword(github)).toBe("hunter2");
     expect(accountTotp(github)).toBe("JBSWY3DPEHPK3PXP");
     // What format 1 folded into notes stays readable there.
     expect(by.get("Travel card")).toMatchObject({
@@ -351,7 +351,7 @@ describe("a manifest an older Pages saved (trailer format 1)", () => {
     const updated = plan.updates[0];
     if (updated?.kind !== "account") throw new Error("expected an account");
     expect(updated.id).toBe(items[0]?.id);
-    expect(accountPlainPassword(updated)).toBe("rotated");
+    expect(producedPassword(updated)).toBe("rotated");
     expect(updated.fields).toMatchObject([
       { name: "PIN", value: "9999", hidden: true },
     ]);

@@ -1,6 +1,6 @@
 # ADR 0172 — Accounts own login methods; a password is one of them
 
-- **Status:** Accepted — implementing
+- **Status:** Accepted — implementing; §3–§6 amended by [ADR 0173](0173-algorithmic-passwords-by-default.md) and [ADR 0174](0174-the-pepper-is-the-persons-and-passwords-are-produced-by-one-facade.md)
 - **Date:** 2026-10-05
 - **Deciders:** OpenSesame maintainers
 - **Supplements:** ADR 0087 ([vault item types are plugins](0087-vault-item-type-plugins.md)),

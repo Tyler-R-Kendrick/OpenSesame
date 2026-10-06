@@ -7,16 +7,21 @@
  * - `api-key` -> `api-key`, the header kept in this vault's extension.
  * - `token` and `oauth` -> `custom-fields`; CXF has no credential for either.
  *
- * A password that needs a pepper, or is Sphinx, is **withheld**: the export has
- * no way to ask for it, and the sealed envelope and OPRF key are never read
- * here. The account keeps a `basic-auth` that names its username and no
- * password at all, so it still arrives as an account, and the count is returned.
+ * A password that is not whole is **withheld**: one an algorithm computes (a
+ * file holds the parameters it is computed from, never the generated password,
+ * and CXF has no field for them), one missing the pepper only the person has,
+ * and one an older version made. The root, the sealed envelope and the OPRF key
+ * are never read here. The account keeps a `basic-auth` that names its username
+ * and no password at all, so it still arrives as an account, and the count is
+ * returned.
  */
 
 import {
   type AccountItem,
   type LoginMethod,
-  needsPepper,
+  completePassword,
+  isAlgorithmic,
+  producePassword,
 } from "@opensesame/vault-core";
 import {
   CXF_EXTENSION,
@@ -155,7 +160,17 @@ export function accountCredentials(item: AccountItem): AccountCredentials {
   let hasBasic = false;
   for (const method of item.methods) {
     if (method.type === "password") {
-      if (needsPepper(method)) {
+      // A CXF credential holds a whole password, and a file never holds one an
+      // algorithm computed (ADR 0174): CXF has no field for its parameters.
+      // That, a password missing its pepper and one an older version made are
+      // withheld, and counted.
+      const produced = producePassword(method);
+      if (isAlgorithmic(method) || produced.status === "legacy") {
+        withheld += 1;
+        continue;
+      }
+      const whole = completePassword(produced);
+      if (whole === null && produced.status !== "absent") {
         withheld += 1;
         continue;
       }
@@ -163,7 +178,9 @@ export function accountCredentials(item: AccountItem): AccountCredentials {
       credentials.push({
         type: CXF_TYPES.basicAuth,
         username: field(item.username, "string"),
-        password: field(method.secret, "concealed-string"),
+        // The facade's whole password: a stored one, or what a derived method
+        // computes. Never the root it computes from.
+        password: field(whole ?? "", "concealed-string"),
       });
     } else if (method.type === "authenticator") {
       const totp = totpCredential(method.secret, item.username);

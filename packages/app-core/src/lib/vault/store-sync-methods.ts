@@ -5,8 +5,8 @@
  * each checked against its shape: nothing else a file says reaches an item,
  * and a method that is not whole is left out rather than half trusted.
  *
- * The secrets a method holds — a password, a pepper seal, a Sphinx key, an
- * API key, a token, a client secret, a refresh token, an authenticator seed —
+ * The secrets a method holds — a password or the root an algorithm computes
+ * it from, a seal an older version wrote, an API key, a token, a client secret, a refresh token, an authenticator seed —
  * ride here as sealed content, exactly as a login's password and seed did.
  * They are written out, read back and passed on untouched.
  */
@@ -75,40 +75,65 @@ function rulesOf(value: JsonObject): CharacterRules | null {
     : { length, minDigits, minSymbols, ...flags };
 }
 
+const MANUAL: PasswordGenerator = { id: "manual" };
+
+function passphraseOf(value: JsonObject): PasswordGenerator {
+  const words = count(value.words);
+  const separator = text(value.separator);
+  const capitalize = flag(value.capitalize);
+  const includeNumber = flag(value.includeNumber);
+  return words === null ||
+    separator === null ||
+    capitalize === null ||
+    includeNumber === null
+    ? MANUAL
+    : { id: "passphrase", words, separator, capitalize, includeNumber };
+}
+
+/**
+ * Without its rules or counter the password a derived method computes is
+ * unknown: the method is not kept, and its root secret is never read back as a
+ * typed one.
+ */
+function derivedOf(value: JsonObject): PasswordGenerator | null {
+  const rules = rulesOf(objectAt(value.rules) ?? {});
+  const counter = count(value.counter);
+  return rules === null || counter === null
+    ? null
+    : { id: "derived", rules, counter };
+}
+
+/** Without its key a Sphinx password is nothing: the method is not kept. */
+function sphinxOf(value: JsonObject): PasswordGenerator | null {
+  const rules = rulesOf(objectAt(value.rules) ?? {});
+  const realm = text(value.realm);
+  const counter = count(value.counter);
+  const oprfKeyB64 = text(value.oprfKeyB64);
+  return rules === null ||
+    realm === null ||
+    counter === null ||
+    oprfKeyB64 === null
+    ? null
+    : { id: "sphinx", rules, realm, counter, oprfKeyB64 };
+}
+
 /** A generator that is not whole is `manual`, which keeps the typed secret. */
 function generatorOf(value: JsonObject | null): PasswordGenerator | null {
-  const manual: PasswordGenerator = { id: "manual" };
-  if (value === null) return manual;
-  if (value.id === "rules") {
-    const rules = rulesOf(value);
-    return rules === null ? manual : { id: "rules", ...rules };
+  if (value === null) return MANUAL;
+  switch (value.id) {
+    case "rules": {
+      const rules = rulesOf(value);
+      return rules === null ? MANUAL : { id: "rules", ...rules };
+    }
+    case "passphrase":
+      return passphraseOf(value);
+    case "derived":
+      return derivedOf(value);
+    case "sphinx":
+      return sphinxOf(value);
+    default:
+      return MANUAL;
   }
-  if (value.id === "passphrase") {
-    const words = count(value.words);
-    const separator = text(value.separator);
-    const capitalize = flag(value.capitalize);
-    const includeNumber = flag(value.includeNumber);
-    return words === null ||
-      separator === null ||
-      capitalize === null ||
-      includeNumber === null
-      ? manual
-      : { id: "passphrase", words, separator, capitalize, includeNumber };
-  }
-  if (value.id === "sphinx") {
-    // Without its key a Sphinx password is nothing: the method is not kept.
-    const rules = rulesOf(objectAt(value.rules) ?? {});
-    const realm = text(value.realm);
-    const counter = count(value.counter);
-    const oprfKeyB64 = text(value.oprfKeyB64);
-    return rules === null ||
-      realm === null ||
-      counter === null ||
-      oprfKeyB64 === null
-      ? null
-      : { id: "sphinx", rules, realm, counter, oprfKeyB64 };
-  }
-  return manual;
 }
 
 function kdfOf(value: JsonObject | null): PepperSeal["kdf"] | null {
@@ -126,13 +151,11 @@ function sealOf(value: JsonValue | undefined): PepperSeal | null | undefined {
   if (value === undefined) return undefined;
   const seal = objectAt(value);
   const blob = objectAt(seal?.seal);
-  const kdf = kdfOf(objectAt(seal?.kdf));
   const ivB64 = text(blob?.ivB64);
   const ctB64 = text(blob?.ctB64);
-  return (seal?.v !== 1 && seal?.v !== 2) ||
-    kdf === null ||
-    ivB64 === null ||
-    ctB64 === null
+  if (seal === null || ivB64 === null || ctB64 === null) return null;
+  const kdf = kdfOf(objectAt(seal.kdf));
+  return (seal.v !== 1 && seal.v !== 2) || kdf === null
     ? null
     : { v: seal.v, kdf, seal: { ivB64, ctB64 } };
 }
@@ -141,6 +164,7 @@ const password: Read<LoginMethod> = (m) => {
   const id = text(m.id);
   const secret = text(m.secret);
   const pepper = flag(m.pepper);
+  const pepperAt = m.pepperAt === undefined ? null : text(m.pepperAt);
   const changedAt = text(m.changedAt);
   const generator = generatorOf(objectAt(m.generator));
   const sealed = sealOf(m.sealed);
@@ -159,6 +183,7 @@ const password: Read<LoginMethod> = (m) => {
     type: "password",
     generator,
     pepper,
+    ...(pepperAt === null ? undefined : { pepperAt }),
     secret,
     ...(sealed === undefined ? undefined : { sealed }),
     changedAt,

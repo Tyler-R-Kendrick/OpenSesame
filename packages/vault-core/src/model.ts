@@ -7,7 +7,7 @@ import type {
 // Type-only in the other direction, so this stays a leaf at runtime.
 import { typedSearchText, typedSubtitle } from "./item-types.js";
 
-import { type AccountItem, DEFAULT_RULES } from "./account.js";
+import { type AccountItem, newPasswordMethod } from "./account.js";
 import type { LoginUri, UriMatch } from "./login-uri.js";
 import type { ItemTypeInstallTimes, VaultTombstones } from "./sync-model.js";
 export type { AccountItem } from "./account.js";
@@ -317,16 +317,7 @@ export function createItem(kind: LegacyItemKind, name = ""): VaultItem {
         kind: "account",
         username: "",
         uris: [],
-        methods: [
-          {
-            id: `${b.id}:password`,
-            type: "password",
-            generator: { id: "rules", ...DEFAULT_RULES },
-            pepper: false,
-            secret: "",
-            changedAt: b.createdAt,
-          },
-        ],
+        methods: [newPasswordMethod(b.id, b.createdAt)],
       };
     case "passkey":
       return {
