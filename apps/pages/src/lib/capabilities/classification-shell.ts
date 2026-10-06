@@ -150,6 +150,11 @@ export const SHELL_RULES = [
     "argument readers every capability's tool group shares; no SDK",
   ),
   core(
+    "src/lib/proofs/item-reach",
+    null,
+    "the share-reach proof the core vault tools take before an item is read (ADR 0178)",
+  ),
+  core(
     "src/webmcp/registration",
     null,
     "registration status store the support panel reads; written by the registrar",

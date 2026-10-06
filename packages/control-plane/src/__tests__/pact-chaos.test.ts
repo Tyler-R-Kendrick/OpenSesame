@@ -105,7 +105,7 @@ describe("PACT — Identity plane mutation oracles", () => {
       "ctx.stores.principalMutations",
       '"oauth-clients"',
       "assertRegistrationQuota",
-      "ctx.stores.oauthClients.insertAtomic",
+      "insertOAuthClient(ctx, actor, proof, toStoreRecord(client))",
     ]);
   });
 
@@ -115,7 +115,7 @@ describe("PACT — Identity plane mutation oracles", () => {
       "ctx.stores.principalMutations",
       "principalId",
       "organization.create",
-      "ctx.stores.organizations.set",
+      "createOrganization(ctx, actor, proof, org)",
     ]);
   });
 

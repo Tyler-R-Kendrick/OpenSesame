@@ -58,7 +58,7 @@ function assertExpectedUpdates(
   expected: ReadonlyMap<string, string>,
 ): void {
   // The body keeps an account's methods as credentials of their own; the
-  // items a caller read are the resolved ones (ADR 0178).
+  // items a caller read are the resolved ones (ADR 0179).
   const current = new Map(
     resolveAccounts(items).map((item) => [item.id, item]),
   );

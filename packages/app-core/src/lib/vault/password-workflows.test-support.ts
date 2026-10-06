@@ -20,7 +20,7 @@ export function testAccount(name: string, secret = ""): AccountItem {
   ];
   return account;
 }
-/** The body a vault holds for `items`: an account's methods are entries of their own (ADR 0178). */
+/** The body a vault holds for `items`: an account's methods are entries of their own (ADR 0179). */
 export function sealedBody(items: readonly VaultItem[]): VaultBody {
   return { ...emptyBody(), items: extractEmbeddedMethods(items) };
 }
@@ -40,7 +40,7 @@ export function openWorkflowVault(items: VaultItem[]): VaultState {
   vi.spyOn(vaultStore, "saveItem").mockImplementation(async (item) => {
     const body = sealedBody(state.items);
     stampedEdit((draft) => writeItem(draft, item))(body);
-    // The store's snapshot is the resolved view (ADR 0178).
+    // The store's snapshot is the resolved view (ADR 0179).
     state.items = readBody(body);
   });
   return state;

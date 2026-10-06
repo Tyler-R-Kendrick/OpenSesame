@@ -182,7 +182,7 @@ export type EnableOptions = { keep?: boolean };
 
 export function enablePack(id: string, options: EnableOptions = {}): void {
   if (packEntry(id) === undefined) return;
-  // A type that cannot work without another switches it on too (ADR 0178).
+  // A type that cannot work without another switches it on too (ADR 0179).
   for (const need of packsNeeded(id)) enablePack(need, options);
   const { phase } = statusOf(id);
   if (phase === "on" || (isBusy(phase) && !cancelled.has(id))) return;

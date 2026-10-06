@@ -148,7 +148,7 @@ async function reachableItems() {
   const state = unlocked();
   const items: VaultItem[] = [];
   // A credential bound to an account is that account's method, referenced
-  // through it (`method:<id>:secret`), not an item of its own to find (ADR 0178).
+  // through it (`method:<id>:secret`), not an item of its own to find (ADR 0179).
   for (const item of outsideAccounts(state.items)) {
     if (item.deletedAt !== null) continue;
     try {

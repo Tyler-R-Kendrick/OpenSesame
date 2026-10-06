@@ -7,9 +7,16 @@
  * and aggregated for tests in `tools.ts`.
  */
 
+import { type Named, name } from "@gdp-ts/core";
 import { type JsonObject, isString } from "@opensesame/os-domain";
 import type { VaultItem } from "@opensesame/vault-core";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
+import {
+  type ItemReadReach,
+  type ItemWriteReach,
+  reachItemRead,
+  reachItemWrite,
+} from "../lib/proofs/item-reach.js";
 import { vaultStore } from "../lib/vault/store.js";
 import { webmcpNavigationSeam } from "./seams.js";
 
@@ -39,12 +46,50 @@ export function requireUnlocked(): void {
   }
 }
 
-export function findItem(itemId: string): VaultItem {
+/**
+ * An item this tool just saved, read back as the store holds it. The save is
+ * the authority; anything else reaches an item through `reachedItem`.
+ */
+export function findSavedItem(itemId: string): VaultItem {
   const item = vaultStore
     .getSnapshot()
     .items.find((candidate) => candidate.id === itemId);
   if (!item) throw new Error(`item_not_found:${itemId}`);
   return item;
+}
+
+/** The item named `I`, given proof the actor's share reach covers it. */
+export function findItem<I>(
+  itemId: Named<I, string>,
+  _reach: ItemReadReach<I> | ItemWriteReach<I>,
+): VaultItem {
+  return findSavedItem(itemId.value);
+}
+
+/** Reach for an item, when only the yes or no matters (filtering a list). */
+export function assertItemReach(
+  itemId: string,
+  wanted: "read" | "write",
+): Promise<void> {
+  return name(itemId, async (named) => {
+    await (wanted === "read" ? reachItemRead(named) : reachItemWrite(named));
+  });
+}
+
+/**
+ * The item, and only after the actor's share reach for it passed. Reach is
+ * checked before the lookup, so a missing id and an unshared one refuse alike.
+ */
+export function reachedItem(
+  itemId: string,
+  wanted: "read" | "write",
+): Promise<VaultItem> {
+  return name(itemId, async (named) =>
+    findItem(
+      named,
+      await (wanted === "read" ? reachItemRead(named) : reachItemWrite(named)),
+    ),
+  );
 }
 
 export function ceremonyOpened(location: string) {

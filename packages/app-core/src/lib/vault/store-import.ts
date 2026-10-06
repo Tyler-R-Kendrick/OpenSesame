@@ -101,7 +101,7 @@ function mergeItemsInto(body: VaultBody, incoming: VaultBody): number {
     (id) => body.itemTypes?.[id] === undefined,
   );
   recordItemTypes(body, { ...types, ...body.itemTypes }, { added });
-  // An account's credentials are counted with it (ADR 0178).
+  // An account's credentials are counted with it (ADR 0179).
   return outsideAccounts(items).length;
 }
 

@@ -2,13 +2,16 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { resolveTxt } from "node:dns/promises";
 import { appendAuditEvent } from "@opensesame/audit";
 import { OrgEmailDomainConflictError } from "@opensesame/database";
-import type { Organization } from "@opensesame/os-domain";
-import type { Context } from "hono";
 import { Hono } from "hono";
 import { z } from "zod";
-import type { AppContext } from "../context.js";
 import { requirePrincipal } from "../middleware/auth.js";
 import type { Variables } from "../middleware/context.js";
+import {
+  claimEmailDomain,
+  markEmailDomainVerified,
+  releaseEmailDomain,
+} from "../services/org-admin.js";
+import { type OrgOwnerSource, asOrgOwner } from "./org-owner-gate.js";
 
 /**
  * Organization email domains — the storage half of home-realm discovery
@@ -40,6 +43,12 @@ export const DOMAIN_VERIFICATION_PREFIX = "opensesame-domain-verify=";
  * assert on somebody else's zone file.
  */
 export const orgDomainDependencies = { resolveTxt };
+
+/** Domains, like the rest of tenant configuration, stay manageable until an organization is deleted. */
+const OWNER: OrgOwnerSource = {
+  param: "organizationId",
+  liveness: "not_deleted",
+};
 
 const ClaimDomainRequestSchema = z.object({
   domain: z.string().min(3).max(253),
@@ -88,32 +97,6 @@ function recordMatches(published: string, expected: string): boolean {
   return timingSafeEqual(left, right);
 }
 
-async function requireOwner(
-  c: Context<{ Variables: Variables }>,
-): Promise<
-  | { ctx: AppContext; organization: Organization; principalId: string }
-  | Response
-> {
-  const ctx = c.get("ctx");
-  const principalId = c.get("principalId") ?? "";
-  const organization = await ctx.stores.organizations.get(
-    c.req.param("organizationId") ?? "",
-  );
-  const membership =
-    organization &&
-    (await ctx.stores.organizationMemberships.find(
-      organization.id,
-      principalId,
-    ));
-  if (!organization || organization.state === "deleted" || !membership) {
-    return c.json({ error: "not_found" }, 404);
-  }
-  if (membership.role !== "owner") {
-    return c.json({ error: "owner_required" }, 403);
-  }
-  return { ctx, organization, principalId };
-}
-
 function domainResponse(record: {
   domain: string;
   verificationToken: string;
@@ -129,82 +112,83 @@ function domainResponse(record: {
 export function createOrgDomainRoutes(): Hono<{ Variables: Variables }> {
   const routes = new Hono<{ Variables: Variables }>();
 
-  routes.get("/:organizationId/domains", requirePrincipal(), async (c) => {
-    const gate = await requireOwner(c);
-    if (gate instanceof Response) return gate;
-    const { ctx, organization } = gate;
-    const domains =
-      await ctx.stores.orgFederation.emailDomains.listByOrganization(
-        organization.id,
-      );
-    return c.json({ domains: domains.map(domainResponse) });
-  });
+  routes.get("/:organizationId/domains", requirePrincipal(), async (c) =>
+    asOrgOwner(c, OWNER, async ({ ctx, organization }) => {
+      const domains =
+        await ctx.stores.orgFederation.emailDomains.listByOrganization(
+          organization.id,
+        );
+      return c.json({ domains: domains.map(domainResponse) });
+    }),
+  );
 
-  routes.post("/:organizationId/domains", requirePrincipal(), async (c) => {
-    const gate = await requireOwner(c);
-    if (gate instanceof Response) return gate;
-    const { ctx, organization, principalId } = gate;
-
-    let body: unknown;
-    try {
-      body = await c.req.json();
-    } catch {
-      return c.json({ error: "validation_error" }, 400);
-    }
-    const parsed = ClaimDomainRequestSchema.safeParse(body);
-    if (!parsed.success) {
-      return c.json(
-        { error: "validation_error", details: parsed.error.flatten() },
-        400,
-      );
-    }
-    const domain = normalizeEmailDomain(parsed.data.domain);
-    if (!domain) {
-      return c.json(
-        { error: "validation_error", message: "Not an email domain." },
-        400,
-      );
-    }
-
-    // Re-claiming your own domain re-rolls the token: an owner who lost the
-    // value has no other way back, and the old record stops proving anything
-    // the moment it is replaced.
-    let claimed: Awaited<
-      ReturnType<typeof ctx.stores.orgFederation.emailDomains.claim>
-    >;
-    try {
-      claimed = await ctx.stores.orgFederation.emailDomains.claim({
-        organizationId: organization.id,
-        domain,
-        verificationToken: randomBytes(24).toString("base64url"),
-      });
-    } catch (error) {
-      if (error instanceof OrgEmailDomainConflictError) {
-        // Deliberately does not name the holder: this route is owner-fenced
-        // for the claimant, not for the incumbent.
+  routes.post("/:organizationId/domains", requirePrincipal(), async (c) =>
+    asOrgOwner(c, OWNER, async ({ ctx, org, proof, actor, organization }) => {
+      const principalId = actor.value;
+      let body: unknown;
+      try {
+        body = await c.req.json();
+      } catch {
+        return c.json({ error: "validation_error" }, 400);
+      }
+      const parsed = ClaimDomainRequestSchema.safeParse(body);
+      if (!parsed.success) {
         return c.json(
-          {
-            error: "domain_taken",
-            message: "That domain is already claimed by another organization.",
-          },
-          409,
+          { error: "validation_error", details: parsed.error.flatten() },
+          400,
         );
       }
-      throw error;
-    }
+      const domain = normalizeEmailDomain(parsed.data.domain);
+      if (!domain) {
+        return c.json(
+          { error: "validation_error", message: "Not an email domain." },
+          400,
+        );
+      }
 
-    await appendAuditEvent(ctx.repos.auditEvents, {
-      eventType: "organization.domain_claimed",
-      outcome: "succeeded",
-      principalId,
-      organizationId: organization.id,
-      correlationId: c.get("correlationId"),
-      targetType: "email_domain",
-      targetId: claimed.domain,
-      metadata: { action: "organization.domain.claim" },
-    });
-    return c.json(domainResponse(claimed), 201);
-  });
+      // Re-claiming your own domain re-rolls the token: an owner who lost the
+      // value has no other way back, and the old record stops proving anything
+      // the moment it is replaced.
+      let claimed: Awaited<
+        ReturnType<typeof ctx.stores.orgFederation.emailDomains.claim>
+      >;
+      try {
+        claimed = await claimEmailDomain(
+          ctx,
+          org,
+          proof,
+          domain,
+          randomBytes(24).toString("base64url"),
+        );
+      } catch (error) {
+        if (error instanceof OrgEmailDomainConflictError) {
+          // Deliberately does not name the holder: this route is owner-fenced
+          // for the claimant, not for the incumbent.
+          return c.json(
+            {
+              error: "domain_taken",
+              message:
+                "That domain is already claimed by another organization.",
+            },
+            409,
+          );
+        }
+        throw error;
+      }
+
+      await appendAuditEvent(ctx.repos.auditEvents, {
+        eventType: "organization.domain_claimed",
+        outcome: "succeeded",
+        principalId,
+        organizationId: organization.id,
+        correlationId: c.get("correlationId"),
+        targetType: "email_domain",
+        targetId: claimed.domain,
+        metadata: { action: "organization.domain.claim" },
+      });
+      return c.json(domainResponse(claimed), 201);
+    }),
+  );
 
   /**
    * Check the published TXT records for the expected challenge.
@@ -218,95 +202,87 @@ export function createOrgDomainRoutes(): Hono<{ Variables: Variables }> {
   routes.post(
     "/:organizationId/domains/:domain/verify",
     requirePrincipal(),
-    async (c) => {
-      const gate = await requireOwner(c);
-      if (gate instanceof Response) return gate;
-      const { ctx, organization, principalId } = gate;
+    async (c) =>
+      asOrgOwner(c, OWNER, async ({ ctx, org, proof, actor, organization }) => {
+        const principalId = actor.value;
 
-      const domain = normalizeEmailDomain(
-        decodeURIComponent(c.req.param("domain") ?? ""),
-      );
-      const record = domain
-        ? await ctx.stores.orgFederation.emailDomains.get(domain)
-        : null;
-      if (!domain || !record || record.organizationId !== organization.id) {
-        return c.json({ error: "not_found" }, 404);
-      }
-
-      const expected = `${DOMAIN_VERIFICATION_PREFIX}${record.verificationToken}`;
-      let published: string[][];
-      try {
-        published = await orgDomainDependencies.resolveTxt(domain);
-      } catch {
-        // NXDOMAIN, no TXT records, SERVFAIL: from here they are all "not
-        // proven yet".
-        return c.json(
-          { error: "verification_failed", message: VERIFICATION_FAILED },
-          422,
+        const domain = normalizeEmailDomain(
+          decodeURIComponent(c.req.param("domain") ?? ""),
         );
-      }
-      // A TXT record longer than 255 bytes arrives as multiple chunks that the
-      // resolver hands back unjoined; joining is what the DNS spec says the
-      // value is.
-      const matched = published
-        .map((chunks) => chunks.join("").trim())
-        .some((value) => recordMatches(value, expected));
-      if (!matched) {
-        return c.json(
-          { error: "verification_failed", message: VERIFICATION_FAILED },
-          422,
-        );
-      }
+        const record = domain
+          ? await ctx.stores.orgFederation.emailDomains.get(domain)
+          : null;
+        if (!domain || !record || record.organizationId !== organization.id) {
+          return c.json({ error: "not_found" }, 404);
+        }
 
-      const verified = await ctx.stores.orgFederation.emailDomains.markVerified(
-        domain,
-        ctx.clock(),
-      );
-      if (!verified) return c.json({ error: "not_found" }, 404);
-      await appendAuditEvent(ctx.repos.auditEvents, {
-        eventType: "organization.domain_verified",
-        outcome: "succeeded",
-        principalId,
-        organizationId: organization.id,
-        correlationId: c.get("correlationId"),
-        targetType: "email_domain",
-        targetId: verified.domain,
-        metadata: { action: "organization.domain.verify" },
-      });
-      return c.json(domainResponse(verified));
-    },
+        const expected = `${DOMAIN_VERIFICATION_PREFIX}${record.verificationToken}`;
+        let published: string[][];
+        try {
+          published = await orgDomainDependencies.resolveTxt(domain);
+        } catch {
+          // NXDOMAIN, no TXT records, SERVFAIL: from here they are all "not
+          // proven yet".
+          return c.json(
+            { error: "verification_failed", message: VERIFICATION_FAILED },
+            422,
+          );
+        }
+        // A TXT record longer than 255 bytes arrives as multiple chunks that the
+        // resolver hands back unjoined; joining is what the DNS spec says the
+        // value is.
+        const matched = published
+          .map((chunks) => chunks.join("").trim())
+          .some((value) => recordMatches(value, expected));
+        if (!matched) {
+          return c.json(
+            { error: "verification_failed", message: VERIFICATION_FAILED },
+            422,
+          );
+        }
+
+        const verified = await markEmailDomainVerified(ctx, org, proof, domain);
+        if (!verified) return c.json({ error: "not_found" }, 404);
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "organization.domain_verified",
+          outcome: "succeeded",
+          principalId,
+          organizationId: organization.id,
+          correlationId: c.get("correlationId"),
+          targetType: "email_domain",
+          targetId: verified.domain,
+          metadata: { action: "organization.domain.verify" },
+        });
+        return c.json(domainResponse(verified));
+      }),
   );
 
   routes.delete(
     "/:organizationId/domains/:domain",
     requirePrincipal(),
-    async (c) => {
-      const gate = await requireOwner(c);
-      if (gate instanceof Response) return gate;
-      const { ctx, organization, principalId } = gate;
+    async (c) =>
+      asOrgOwner(c, OWNER, async ({ ctx, org, proof, actor, organization }) => {
+        const principalId = actor.value;
 
-      const domain = normalizeEmailDomain(
-        decodeURIComponent(c.req.param("domain") ?? ""),
-      );
-      const removed =
-        domain !== undefined &&
-        (await ctx.stores.orgFederation.emailDomains.remove(
-          organization.id,
-          domain,
-        ));
-      if (!removed) return c.json({ error: "not_found" }, 404);
-      await appendAuditEvent(ctx.repos.auditEvents, {
-        eventType: "organization.domain_released",
-        outcome: "succeeded",
-        principalId,
-        organizationId: organization.id,
-        correlationId: c.get("correlationId"),
-        targetType: "email_domain",
-        targetId: domain,
-        metadata: { action: "organization.domain.release" },
-      });
-      return c.body(null, 204);
-    },
+        const domain = normalizeEmailDomain(
+          decodeURIComponent(c.req.param("domain") ?? ""),
+        );
+        const removed =
+          domain !== undefined &&
+          (await releaseEmailDomain(ctx, org, proof, domain));
+        if (!removed) return c.json({ error: "not_found" }, 404);
+        await appendAuditEvent(ctx.repos.auditEvents, {
+          eventType: "organization.domain_released",
+          outcome: "succeeded",
+          principalId,
+          organizationId: organization.id,
+          correlationId: c.get("correlationId"),
+          targetType: "email_domain",
+          targetId: domain,
+          metadata: { action: "organization.domain.release" },
+        });
+        return c.body(null, 204);
+      }),
   );
 
   return routes;

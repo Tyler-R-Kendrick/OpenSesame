@@ -17,7 +17,7 @@
  * under `vectors` (a derived password kept in the clear and sealed under the
  * OPAQUE pepper seal), refusing when it is already there.
  *
- * `--add credentials` adds the `credentials` vector (ADR 0178) the same way:
+ * `--add credentials` adds the `credentials` vector (ADR 0179) the same way:
  * a body holding credentials as entries of their own, bound and not.
  *
  * `--add accounts` adds the `account` vectors (ADR 0172) the same way: new

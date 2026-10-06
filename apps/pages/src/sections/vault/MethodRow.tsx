@@ -15,7 +15,7 @@ import { methodTitle } from "./MethodPicker.js";
 
 /**
  * One login method's rows on a detail page: an account's, or a credential's
- * own (ADR 0178), which is the same rows with no account around it.
+ * own (ADR 0179), which is the same rows with no account around it.
  */
 export function MethodRow({
   account,

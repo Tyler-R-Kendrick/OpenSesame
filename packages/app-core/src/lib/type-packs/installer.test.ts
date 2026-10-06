@@ -213,7 +213,7 @@ describe("the tray", () => {
   });
 });
 
-describe("a pack that needs another (ADR 0178)", () => {
+describe("a pack that needs another (ADR 0179)", () => {
   it("switches Password on with Accounts, and keeps it on while Accounts is", async () => {
     enablePack("account");
     await vi.waitFor(() => expect(isPackOn("account")).toBe(true));

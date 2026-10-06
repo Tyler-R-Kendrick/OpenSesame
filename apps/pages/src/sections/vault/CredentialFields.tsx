@@ -13,7 +13,7 @@ import {
 import { PasswordMethodEditor } from "./PasswordMethodEditor.js";
 
 /**
- * A credential written on its own (ADR 0178): its lines are the ones an
+ * A credential written on its own (ADR 0179): its lines are the ones an
  * account's login method draws, with no × because the item is the credential,
  * and one more row says which account it opens, or none.
  */

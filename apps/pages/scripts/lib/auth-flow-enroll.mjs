@@ -58,7 +58,7 @@ export async function withdrawSelfAuthenticator(page, check) {
   await page.getByRole("treeitem", { name: "Vault", exact: true }).click();
   await page.waitForTimeout(1000);
   // The account is an entry, and so is the authenticator bound to it
-  // ("... · Authenticator", ADR 0178); the account is the one to trash.
+  // ("... · Authenticator", ADR 0179); the account is the one to trash.
   const entry = page.getByRole("treeitem", {
     name: /OpenSesame \(this vault\)(?! ·)/,
   });

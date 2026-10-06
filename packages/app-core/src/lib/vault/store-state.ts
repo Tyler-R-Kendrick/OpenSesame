@@ -18,7 +18,7 @@ export type VaultState = {
    */
   decoy?: boolean;
   header: VaultHeader | null;
-  /** Accounts read with the methods of their credentials (ADR 0178). */
+  /** Accounts read with the methods of their credentials (ADR 0179). */
   items: VaultItem[];
   /** The items as sealed: an account holds no methods, its credentials sit beside it. */
   rawItems?: readonly VaultItem[];

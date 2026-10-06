@@ -74,7 +74,7 @@ describe("account authoritative password write", () => {
     expect(state.items[0]).toEqual({
       ...original,
       updatedAt: expect.any(String),
-      // The method's clock is its credential's (ADR 0178).
+      // The method's clock is its credential's (ADR 0179).
       fieldTimes: {},
       methods: [next, original.methods[1]],
     });

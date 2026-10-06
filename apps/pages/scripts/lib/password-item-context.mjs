@@ -18,7 +18,7 @@ export async function verifyItemContext(
   const command = page.getByRole("combobox", { name: "Command", exact: true });
   await command.fill("/search Gauntlet Account");
   // The account's credentials are entries beside it ("Gauntlet Account ·
-  // Password", ADR 0178); the account is the one without a middle dot.
+  // Password", ADR 0179); the account is the one without a middle dot.
   const loginRow = page.getByRole("treeitem", {
     name: /^Gauntlet Account(?! ·)/,
   });

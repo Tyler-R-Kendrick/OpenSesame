@@ -219,4 +219,5 @@ looks arbitrary, the ADR it cites explains it.
 | [0175](0175-searchable-encryption-over-indexeddb.md) | Searchable encryption over IndexedDB | Accepted |
 | [0176](0176-ci-runs-what-a-diff-can-reach.md) | CI runs what a diff can reach, and a push to main runs everything | Accepted |
 | [0177](0177-password-workflow-surface-boundaries.md) | Password workflows follow the vault that owns the credentials | Accepted |
-| [0178](0178-credentials-are-entries-bound-to-accounts.md) | Credentials are entries of their own, bound to an account by reference | Accepted |
+| [0178](0178-authorization-checks-are-proofs-the-compiler-can-see.md) | Authorization checks are proofs the compiler can see | Accepted |
+| [0179](0179-credentials-are-entries-bound-to-accounts.md) | Credentials are entries of their own, bound to an account by reference | Accepted |

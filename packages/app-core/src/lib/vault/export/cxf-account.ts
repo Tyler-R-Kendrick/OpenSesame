@@ -160,7 +160,7 @@ export function accountCredentials(item: AccountItem): AccountCredentials {
 
 /**
  * The CXF credentials for login methods. An account always carries a
- * `basic-auth` that names its username; a credential kept on its own (ADR 0178)
+ * `basic-auth` that names its username; a credential kept on its own (ADR 0179)
  * is only what it is.
  */
 export function methodCredentials(

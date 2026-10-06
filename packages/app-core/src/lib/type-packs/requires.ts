@@ -1,5 +1,5 @@
 /**
- * Packs that need another (ADR 0178). An account is opened by its credentials,
+ * Packs that need another (ADR 0179). An account is opened by its credentials,
  * so switching Accounts on switches Password on with it, and Password cannot be
  * switched off while Accounts is on.
  */

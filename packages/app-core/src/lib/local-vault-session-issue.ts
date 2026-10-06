@@ -1,14 +1,16 @@
 /** Resolve session grant subjects and issue LocalShares for a vault session. */
 
+import { name } from "@gdp-ts/core";
 import type { OrganizationRole } from "@opensesame/os-domain";
 import { readLocalDirectory } from "./local-directory.js";
 import { guestPersonIds } from "./local-guest.js";
 import { type AccessRole, resolveAccessRole } from "./local-rbac.js";
-import { createLocalShare } from "./local-share-grants.js";
+import { createLocalShareAs } from "./local-share-grants.js";
 import type {
   LocalVaultSession,
   SessionSubject,
 } from "./local-vault-sessions.js";
+import { systemShareWrite } from "./proofs/share-write.js";
 
 export async function resolvePrincipals(
   tomb: string,
@@ -70,18 +72,23 @@ export async function issueSessionGrants(
         : []
       : await resolvePrincipals(tomb, grant.subject);
     for (const principalId of principals) {
-      const shares = await createLocalShare(
-        tomb,
-        {
-          principalId,
-          resourceKind: grant.resourceKind,
-          resourceId: grant.resourceId,
-          resourceLabel: grant.resourceLabel,
-          policy: grant.policy,
-          durationSeconds,
-          sessionId: session.id,
-        },
-        { bypassAccessCheck: true },
+      // A session issues its shares as the vault itself: start has already
+      // checked `manage_grants`, and redeeming a code is done by a joiner who
+      // holds none, so neither is a person's write to trail.
+      const shares = await name(tomb, (named) =>
+        createLocalShareAs(
+          named,
+          {
+            principalId,
+            resourceKind: grant.resourceKind,
+            resourceId: grant.resourceId,
+            resourceLabel: grant.resourceLabel,
+            policy: grant.policy,
+            durationSeconds,
+            sessionId: session.id,
+          },
+          systemShareWrite(named),
+        ),
       );
       const created = shares.find(
         (row) =>

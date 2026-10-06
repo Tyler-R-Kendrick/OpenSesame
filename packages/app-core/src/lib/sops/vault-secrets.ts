@@ -68,7 +68,7 @@ export async function exportVaultSecrets(input: {
       "Vault exports are JSON documents.",
     );
   }
-  // A credential bound to an account travels in that account's methods (ADR 0178).
+  // A credential bound to an account travels in that account's methods (ADR 0179).
   const { items, omitted } = withoutPepperedPasswords(
     outsideAccounts(input.items),
   );

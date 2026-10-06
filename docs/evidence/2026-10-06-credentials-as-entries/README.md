@@ -1,6 +1,6 @@
 # Credentials are entries of their own, bound to an account
 
-Evidence for ADR 0178. Each pair is captured from the base build (`origin/main`)
+Evidence for ADR 0179. Each pair is captured from the base build (`origin/main`)
 and from this branch, walked the same way, at phone (390) and desktop (1280)
 width. In a fresh guest vault with Account switched on:
 

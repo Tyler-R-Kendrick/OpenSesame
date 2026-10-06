@@ -147,7 +147,7 @@ export function VaultSection() {
         if (value) void copySecret(value);
       },
       copyCredential: (item: VaultItem, choiceId: string) => {
-        // An account's credential, or a credential kept on its own (ADR 0178).
+        // An account's credential, or a credential kept on its own (ADR 0179).
         const holder =
           item.kind === "account"
             ? item

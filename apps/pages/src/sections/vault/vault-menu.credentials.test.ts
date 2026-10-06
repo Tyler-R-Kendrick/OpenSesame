@@ -181,7 +181,7 @@ describe("what each credential puts on the clipboard", () => {
   });
 });
 
-describe("a credential kept on its own copies as the one it is (ADR 0178)", () => {
+describe("a credential kept on its own copies as the one it is (ADR 0179)", () => {
   const own = (method: LoginMethod) => createCredential(method, "Spare");
 
   it("is one row named for it, with no username", () => {

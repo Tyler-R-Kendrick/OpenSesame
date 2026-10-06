@@ -7,9 +7,9 @@ import { ConflictError } from "@opensesame/database";
 import {
   type ApprovalActivation,
   type ApprovalMechanism,
-  type ApprovalProof,
   type Interaction,
   type InteractionKind,
+  type SealedApprovalProof,
   approvalPolicyDigest,
   approvalTransactionDigest,
   digestsEqual,
@@ -82,7 +82,7 @@ export async function spendInteractionActivation(input: {
   decision: "approved";
   now: Date;
 }): Promise<
-  | { ok: true; proof: ApprovalProof; activation: ApprovalActivation }
+  | { ok: true; proof: SealedApprovalProof; activation: ApprovalActivation }
   | { ok: false; error: "proof_required" | "digest_mismatch" }
 > {
   const { ctx, interaction, principalId, activationId, decision, now } = input;
@@ -127,7 +127,7 @@ export async function spendInteractionActivation(input: {
     now,
   );
   if (!consumed) return { ok: false, error: "proof_required" };
-  const proof: ApprovalProof = sealApprovalProof({
+  const proof: SealedApprovalProof = sealApprovalProof({
     mechanism,
     boundDigest: requestDigest,
     assurance: mechanism === "webauthn" ? "phishing_resistant" : "mfa",

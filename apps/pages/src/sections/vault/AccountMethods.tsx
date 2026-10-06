@@ -81,7 +81,7 @@ export function AccountMethods({
   const [picking, setPicking] = useState(false);
   const [added, setAdded] = useState<string | null>(null);
   // Only the credential types this vault has switched on may be added; the
-  // ones its accounts already hold are on by being held (ADR 0165, ADR 0178).
+  // ones its accounts already hold are on by being held (ADR 0165, ADR 0179).
   const packs = usePackSnapshot();
   const types = LOGIN_METHOD_TYPES.filter((type) =>
     isPackOn(credentialTypeId(type), packs),

@@ -101,7 +101,7 @@ function planManifestMergeDefault(
   existingFolders: Folder[],
 ): ManifestMergePlan {
   const byPath = new Map<string, VaultItem>();
-  // A credential bound to an account is in that account's entry (ADR 0178).
+  // A credential bound to an account is in that account's entry (ADR 0179).
   for (const item of outsideAccounts(
     existingItems.filter((candidate) => candidate.deletedAt === null),
   )) {

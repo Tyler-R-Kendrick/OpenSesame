@@ -5,13 +5,13 @@ import {
 import { overlapCast } from "@opensesame/os-domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createControlPlane } from "../create-app.js";
-import { putGroupRoleMapping } from "../routes/scim-groups.js";
 import {
   memberIds,
   parseMemberSelector,
   resolveMemberIds,
 } from "../routes/scim-member-selector.js";
 import { provisionedRoleForSubject } from "../routes/scim.js";
+import { putGroupRoleMappingAsOwner } from "./org-owner-fixture.js";
 import {
   DEFAULT_IDP_SUBJECT,
   PAGES_ORIGIN,
@@ -81,7 +81,7 @@ describe("SCIM Groups persistence", () => {
     const { owner, org } = await seedTenant(app, "adv20-org", idp);
     const { token } = await mintScimToken(app, org.id, owner.accessToken);
     const { idToken, subject } = await mintOrgIdToken(idp, PAGES_ORIGIN);
-    await putGroupRoleMapping(ctx, org.id, "owners", "owner");
+    await putGroupRoleMappingAsOwner(ctx, org.id, "owners", "owner");
     const created = await provisionUser(app, org.id, token, {
       userName: "ada@adv20.example",
       externalId: subject,
@@ -136,8 +136,8 @@ describe("SCIM Groups persistence", () => {
     const { owner, org } = await seedTenant(app, "adv21-org", idp);
     const { token } = await mintScimToken(app, org.id, owner.accessToken);
     const { idToken, subject } = await mintOrgIdToken(idp, PAGES_ORIGIN);
-    await putGroupRoleMapping(ctx, org.id, "leaders", "owner");
-    await putGroupRoleMapping(ctx, org.id, "operators", "admin");
+    await putGroupRoleMappingAsOwner(ctx, org.id, "leaders", "owner");
+    await putGroupRoleMappingAsOwner(ctx, org.id, "operators", "admin");
     const created = await provisionUser(app, org.id, token, {
       userName: "ada@adv21.example",
       externalId: subject,

@@ -3,7 +3,7 @@ import {
   LocalAccessRequestInputSchema,
   type LocalAccessRequestRecord,
 } from "@opensesame/contracts";
-import { interactionMachine } from "@opensesame/os-domain";
+import { interactionMachine, sealApprovalProof } from "@opensesame/os-domain";
 import {
   noteInboundRequestCreated,
   noteInboundRequestDecision,
@@ -238,12 +238,12 @@ export async function decideLocalAccessRequest(
             {
               approverPrincipalId: input.principalId,
               now,
-              proof: {
+              proof: sealApprovalProof({
                 mechanism: "webauthn",
                 boundDigest: row.requestDigest,
                 assurance: "phishing_resistant",
                 verifiedAt: new Date(evidence.authTime),
-              },
+              }),
             },
           )
         : interactionMachine.deny(interaction, input.principalId, now);

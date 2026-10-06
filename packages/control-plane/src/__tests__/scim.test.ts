@@ -9,9 +9,9 @@ import { createControlPlane } from "../create-app.js";
 import {
   SCIM_TOKEN_PREFIX,
   provisionedRoleForSubject,
-  putGroupRoleMapping,
   roleForGroupName,
 } from "../routes/scim.js";
+import { putGroupRoleMappingAsOwner } from "./org-owner-fixture.js";
 /**
  * SCIM 2.0 provisioning, end to end (C15, D11).
  *
@@ -533,7 +533,7 @@ describe("SCIM Groups role mapping", () => {
     const { owner, org } = await seedTenant(app, "groups-org");
     const { token } = await mintScimToken(app, org.id, owner.accessToken);
     const { idToken, subject } = await mintOrgIdToken(idp, PAGES_ORIGIN);
-    await putGroupRoleMapping(ctx, org.id, "acme-owners", "owner");
+    await putGroupRoleMappingAsOwner(ctx, org.id, "acme-owners", "owner");
     const created = await provisionUser(app, org.id, token, {
       userName: "ada@groups.example",
       externalId: subject,

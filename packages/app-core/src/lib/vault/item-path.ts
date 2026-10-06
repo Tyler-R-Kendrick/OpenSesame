@@ -69,7 +69,7 @@ function pathSegments(input: string, base?: string) {
 /**
  * When a write happened: now, or a millisecond past the item's last time when
  * the two fall in the same one, so a write is always later than what it
- * replaced, whatever else in the body it changed (a credential, ADR 0178).
+ * replaced, whatever else in the body it changed (a credential, ADR 0179).
  */
 function writtenAt(prior: VaultItem | undefined): string {
   const wall = new Date().toISOString();
@@ -93,12 +93,12 @@ export function writeItem(body: VaultBody, item: VaultItem, folder?: Folder) {
   const at = writtenAt(body.items.find((entry) => entry.id === item.id));
   const next = { ...account, folderId, updatedAt: at };
   // An account is written with the methods it now has: each is a credential of
-  // its own and one it dropped goes to the trash (ADR 0178).
+  // its own and one it dropped goes to the trash (ADR 0179).
   if (next.kind === "account") {
     body.items = splitAccount(body.items, next, at);
     return;
   }
-  // A credential written on its own is bound, moved or released (ADR 0178).
+  // A credential written on its own is bound, moved or released (ADR 0179).
   if (next.kind === "credential") {
     const saved = saveCredential(body.items, next, at);
     if (!saved.ok) throw new Error(bindRefusalMessage(saved.refusal));

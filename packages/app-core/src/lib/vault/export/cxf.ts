@@ -178,7 +178,7 @@ function itemFor(item: VaultItem) {
       break;
     }
     case "credential": {
-      // Kept on its own: what it is, with no account around it (ADR 0178).
+      // Kept on its own: what it is, with no account around it (ADR 0179).
       const { credentials, withheld } = methodCredentials(
         [item.method],
         "",
@@ -294,7 +294,7 @@ function buildCxfExportDefault(
   let withheld = 0;
   const byFolder = new Map<string, { item: string }[]>();
 
-  // A credential bound to an account is in that account's credentials (ADR 0178).
+  // A credential bound to an account is in that account's credentials (ADR 0179).
   for (const item of outsideAccounts(body.items)) {
     if (item.deletedAt !== null) continue;
     const { cxf, skipped: rejected, withheld: held } = itemFor(item);

@@ -153,7 +153,7 @@
       "descriptor. None of it can load on demand. Four kibibytes over the",
       "measurement, as before.",
       "2026-10-06: largestAsset 686 -> 693 for both hardened profiles (ADR",
-      "0178, credentials are entries). The entry measures 688.9 KiB, 10.1 over",
+      "0179, credentials are entries). The entry measures 688.9 KiB, 10.1 over",
       "main's 678.8 at 3f10a8e9 (built both ways, minimal-local hardened).",
       "Attributed by sourcemap, it is the code every read and every write of the",
       "vault runs: resolving an account's methods from its credentials and",

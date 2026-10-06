@@ -58,6 +58,8 @@ const LOCAL_RECORDS = [
   "local-request-store",
   "local-sessions",
   "local-share-grants",
+  // Who may write a share (ADR 0178): the proofs local-share-grants takes.
+  "proofs/share-write",
   // Core vault workflows and WebMCP enforce standing shares even while the
   // optional Access administration surface is absent.
   "local-share-reach",

@@ -39,7 +39,7 @@ it("verifies actual stamped password writes while preserving sibling values and 
     comparePrivatePassword(account.id, "NEW_PRIVATE", true),
   ).resolves.toMatchObject({ verified: true });
   const saved = body.items.find((item) => item.id === account.id);
-  // The password's clock is its credential's, not the account's (ADR 0178).
+  // The password's clock is its credential's, not the account's (ADR 0179).
   expect(saved?.fieldTimes).toEqual({ notes: account.fieldTimes?.notes });
   const held = body.items.find((item) => item.id === account.methods[0]?.id);
   expect(held?.updatedAt).toBe(saved?.updatedAt);

@@ -17,9 +17,10 @@ import {
   reserveLegacyAgent,
   transaction,
 } from "../repos/legacy-agent-store.js";
+import { roleFor } from "../services/project-access.js";
 import { getUsage } from "../state.js";
 import { authenticatedPrincipalId } from "./organizations.js";
-import { resolveActiveProject, roleFor } from "./projects.js";
+import { resolveActiveProject } from "./projects.js";
 
 export const agentRoutes = new Hono<{ Variables: Variables }>();
 

@@ -11,13 +11,13 @@ import {
 } from "@opensesame/contracts";
 import { ConflictError } from "@opensesame/database";
 import {
-  type ApprovalProof,
   type AuthorizationDetail,
   DomainError,
   FORBIDDEN_URL_PARAMS,
   type Interaction,
   type InteractionStatus,
   type JsonObject,
+  type SealedApprovalProof,
   assertAuthorizationDetails,
   assertOnlyDigestEcho,
   bindingMessageDigest,
@@ -1036,7 +1036,7 @@ function decideRoute(decision: "approved" | "denied") {
       return fail(c, "digest_mismatch");
     }
 
-    let approvalProof: ApprovalProof | undefined;
+    let approvalProof: SealedApprovalProof | undefined;
     if (decision === "approved") {
       // Re-parse the body at the approve boundary so `activationId` arrives as
       // the schema's own `string | undefined` — the shared `echo` is the

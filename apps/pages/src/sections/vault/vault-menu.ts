@@ -130,7 +130,7 @@ function copyRows(
     { disabled: !username(item) },
   );
   // A credential kept on its own asks the same question an account does, of the
-  // one method it holds, and has no username to copy (ADR 0178).
+  // one method it holds, and has no username to copy (ADR 0179).
   const holder =
     item.kind === "account"
       ? item

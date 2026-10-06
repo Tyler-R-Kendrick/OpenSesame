@@ -45,7 +45,7 @@ export function persistPasswordTestItem(
   items: VaultItem[],
   next: VaultItem,
 ): VaultItem[] {
-  // An account's methods are entries of their own in the body (ADR 0178); the
+  // An account's methods are entries of their own in the body (ADR 0179); the
   // snapshot a surface reads is the resolved view.
   const body = { ...emptyBody(), items: extractEmbeddedMethods(items) };
   stampedEdit((draft) => writeItem(draft, next))(body);

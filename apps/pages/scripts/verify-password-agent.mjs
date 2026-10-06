@@ -47,7 +47,7 @@ try {
       .waitFor();
     await openSettingsCategory(page, "Vaults");
     // An account offers only the credential types this vault switched on
-    // (ADR 0178): Account brings Password with it, the other two are asked for.
+    // (ADR 0179): Account brings Password with it, the other two are asked for.
     for (const pack of ["Account", "API key", "Token"]) {
       const control = page.getByRole("switch", { name: pack, exact: true });
       if ((await control.getAttribute("aria-checked")) === "false")

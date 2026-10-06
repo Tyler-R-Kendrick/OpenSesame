@@ -6,6 +6,7 @@
  * connector, under which policy, until when.
  */
 
+import { type Named, name } from "@gdp-ts/core";
 import {
   type BoundaryValue,
   isJsonObject,
@@ -17,6 +18,11 @@ import { kvRefresh } from "./kv.js";
 import { recordAccessAuditEvent } from "./local-access-audit.js";
 import { LocalDirectoryError } from "./local-directory.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
+import {
+  type ShareWriteAuthority,
+  requireManageGrants,
+  systemShareWrite,
+} from "./proofs/share-write.js";
 import { listDeviceVaults } from "./vaults.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
@@ -153,14 +159,9 @@ export type CreateLocalShareInput = {
 };
 
 type ShareWriteOptions = {
-  readonly bypassAccessCheck?: boolean;
   /** Host session mirrors may use any TTL inside the 1 minute…7 day envelope. */
   readonly freeDuration?: boolean;
 };
-
-const SYSTEM_SHARE_WRITE = {
-  bypassAccessCheck: true,
-} as const satisfies ShareWriteOptions;
 
 function durationAllowed(
   seconds: number,
@@ -175,15 +176,29 @@ function durationAllowed(
   );
 }
 
-export async function createLocalShare(
+/** A person writing a share: the `manage_grants` check, then the write. */
+export function createLocalShare(
   tomb: string,
   input: CreateLocalShareInput,
   options?: ShareWriteOptions,
 ): Promise<LocalShare[]> {
-  if (!options?.bypassAccessCheck) {
-    const { assertAccessCapability } = await import("./local-rbac.js");
-    await assertAccessCapability(tomb, "manage_grants");
-  }
+  return name(tomb, async (named) =>
+    createLocalShareAs(named, input, await requireManageGrants(named), options),
+  );
+}
+
+/**
+ * Write a share under an authority for this tomb: `ManageGrants` (a person's
+ * write, trailed when it grants a connector) or `SystemShareWrite` (system
+ * code, never trailed).
+ */
+export async function createLocalShareAs<T>(
+  named: Named<T, string>,
+  input: CreateLocalShareInput,
+  authority: ShareWriteAuthority<T>,
+  options?: ShareWriteOptions,
+): Promise<LocalShare[]> {
+  const tomb = named.value;
   if (!text(input.principalId, 64))
     throw new LocalDirectoryError("Choose an identity.");
   if (
@@ -220,7 +235,7 @@ export async function createLocalShare(
   // earlier revocation newest, so the standing grant stays off (the safe way)
   // and the grant the person made still stands — failing here would only
   // invite a retry that grants twice.
-  if (share.resourceKind === "connection" && !options?.bypassAccessCheck)
+  if (share.resourceKind === "connection" && authority.kind === "ManageGrants")
     await recordConnectionShareEvent(
       tomb,
       "access.connection.granted",
@@ -254,15 +269,12 @@ async function recordConnectionShareEvent(
   });
 }
 
-export async function revokeSharesForSession(
-  tomb: string,
+export async function revokeSharesForSession<T>(
+  named: Named<T, string>,
   sessionId: string,
-  options?: ShareWriteOptions,
+  _authority: ShareWriteAuthority<T>,
 ): Promise<LocalShare[]> {
-  if (!options?.bypassAccessCheck) {
-    const { assertAccessCapability } = await import("./local-rbac.js");
-    await assertAccessCapability(tomb, "manage_grants");
-  }
+  const tomb = named.value;
   if (!text(sessionId, 36))
     throw new LocalDirectoryError("This session is unavailable.");
   const current = await readAll(tomb);
@@ -289,12 +301,9 @@ async function dropShare(tomb: string, id: string): Promise<void> {
 export async function revokeLocalShare(
   tomb: string,
   id: string,
-  options?: ShareWriteOptions,
 ): Promise<LocalShare[]> {
-  if (!options?.bypassAccessCheck) {
-    const { assertAccessCapability } = await import("./local-rbac.js");
-    await assertAccessCapability(tomb, "manage_grants");
-  }
+  const { assertAccessCapability } = await import("./local-rbac.js");
+  await assertAccessCapability(tomb, "manage_grants");
   if (!text(id, 36))
     throw new LocalDirectoryError("This share is unavailable.");
   const current = await readAll(tomb);
@@ -354,7 +363,10 @@ export async function ensureLocalShare(
     durationSeconds,
   };
   if (input.sessionId) share.sessionId = input.sessionId;
-  return createLocalShare(tomb, share, SYSTEM_SHARE_WRITE);
+  // The standing share is the vault's own: system code, no person's grant.
+  return name(tomb, (named) =>
+    createLocalShareAs(named, share, systemShareWrite(named)),
+  );
 }
 
 export function listShareTargets(): ShareTarget[] {

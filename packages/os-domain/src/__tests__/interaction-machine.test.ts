@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DomainError } from "../errors.js";
-import type {
-  ApprovalProof,
-  Interaction,
-  InteractionStatus,
-} from "../interaction.js";
+import type { Interaction, InteractionStatus } from "../interaction.js";
 import {
   approve,
   awaitApproval,
@@ -16,6 +12,10 @@ import {
   present,
   revoke,
 } from "../machines/interaction.js";
+import {
+  type ServerEstablishedApproval,
+  sealApprovalProof,
+} from "../proofs/approval-seal.js";
 
 const T0 = new Date("2026-08-31T12:00:00Z");
 const LATER = new Date("2026-08-31T12:04:00Z");
@@ -51,14 +51,14 @@ function withoutDigest(overrides: Partial<Interaction> = {}): Interaction {
   return rest;
 }
 
-function proof(overrides: Partial<ApprovalProof> = {}): ApprovalProof {
-  return {
+function proof(overrides: Partial<ServerEstablishedApproval> = {}) {
+  return sealApprovalProof({
     mechanism: "webauthn",
     boundDigest: DIGEST,
     assurance: "phishing_resistant",
     verifiedAt: LATER,
     ...overrides,
-  };
+  });
 }
 
 const ALL: InteractionStatus[] = [

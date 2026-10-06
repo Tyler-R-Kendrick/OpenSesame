@@ -69,7 +69,7 @@ export function normalizeItems(
   );
 }
 
-/** True when `body` still holds an item from before ADR 0172 or 0178. */
+/** True when `body` still holds an item from before ADR 0172 or 0179. */
 export function hasLegacyItems(body: Pick<VaultBody, "items">): boolean {
   // An export is whatever its author wrote: a body with no list has none.
   return (
@@ -86,7 +86,7 @@ export function hasLegacyItems(body: Pick<VaultBody, "items">): boolean {
 
 /**
  * `body` with no legacy item left in it, and no login method held inside an
- * account: each is a credential of its own (ADR 0178). `body` itself when it
+ * account: each is a credential of its own (ADR 0179). `body` itself when it
  * had neither.
  */
 export function normalizeVaultBody(body: VaultBody): VaultBody {

@@ -151,7 +151,7 @@ fn item_paths(body: &OpenedBody, extension_of: ExtensionOf<'_>) -> HashMap<Strin
 }
 
 /// The items a file lists. A credential bound to an account in the same body is
-/// part of that account's file (ADR 0178), not a file of its own; one kept on
+/// part of that account's file (ADR 0179), not a file of its own; one kept on
 /// its own, or bound to an account that is not there, is listed.
 fn listed(body: &OpenedBody) -> impl Iterator<Item = &ItemMeta> {
     let accounts: HashSet<&str> = body

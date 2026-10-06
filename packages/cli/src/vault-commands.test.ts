@@ -203,7 +203,7 @@ describe("opensesame-id vault verify / ls over the golden vectors", () => {
       );
       const { body } = await openVaultBody(sealed, raw);
       // An id is listed, so a reference to one (a credential's account) shows
-      // nothing the listing does not (ADR 0178).
+      // nothing the listing does not (ADR 0179).
       const ids = new Set(body.items.map((item) => item.id));
       const values = body.items.flatMap(
         ({ id: _id, name: _name, kind: _kind, ...rest }) =>

@@ -124,7 +124,7 @@ describe("hiding items leaves nothing of them behind", () => {
       returnCode: pkg.returnCode,
     });
     if (!opened.ok) throw new Error(opened.code);
-    // The two accounts go with the credentials bound to them (ADR 0178).
+    // The two accounts go with the credentials bound to them (ADR 0179).
     const statuses = opened.opened.preview.items.map((i) => i.status);
     expect(statuses.length).toBeGreaterThan(s.hidden.length);
     expect(new Set(statuses)).toEqual(new Set(["returns"]));
