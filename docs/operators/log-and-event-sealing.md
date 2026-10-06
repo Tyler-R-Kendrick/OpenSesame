@@ -100,3 +100,20 @@ Each is idempotent. A legacy plaintext that begins with the exact lowercase
 `osev1.` prefix cannot be told from a sealed value and is not swept.
 Rolling back to a build before this change reads a sealed log or event as
 corrupt data.
+
+### One-time trusted legacy import
+
+Ordinary Identity control-plane and worker startup validates existing current
+secret envelopes. It refuses plaintext or `osev1` event records and legacy
+secret/session/OIDC records rather than assigning them to the current row's
+customer again. A failed validation does not rewrite the rejected record.
+
+When upgrading a database from a release that stored legacy records, first
+verify the database's provenance and ownership metadata from a trusted backup.
+Set `OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION=true` for the upgrade startup to
+import those records into customer- and record-bound envelopes. Remove the flag
+immediately after the import completes and restart normally. The flag is an
+operator assertion of trusted legacy ownership, not a way to recover missing
+keys or authenticate ownership from legacy ciphertext. Never leave it enabled
+for routine restarts: saved legacy ciphertext does not bind a customer and must
+not be imported again under changed ownership metadata.

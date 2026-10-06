@@ -1,6 +1,6 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
-import { createEventSealer } from "../src/event-seal.js";
+import { EventSealError, createEventSealer } from "../src/event-seal.js";
 import { createPostgresOrgFederationStores } from "../src/org-federation-store.js";
 import { createPostgresOrganizationStores } from "../src/repos/postgres.js";
 import { sealLegacySecrets } from "../src/repos/sealed-secrets-sweep.js";
@@ -95,6 +95,7 @@ it("migrates every reversible domain secret and remains idempotent", async () =>
   expect(await sealLegacySecrets(ctx.db, sealer)).toBe(0);
   await verifyDomainSecrets(orgId);
   await verifyIdentitySecrets();
+  await verifyStrictRestartColumns();
 });
 
 async function verifyDomainSecrets(orgId: string) {
@@ -206,3 +207,50 @@ it("preserves a concurrent session ownership change during migration", async () 
     openSecretText(sealer, purpose, "owner-before", envelope),
   ).toThrow();
 });
+
+async function verifyStrictRestartColumns() {
+  const fields = [
+    { table: "organizations", column: "sso_client_secret", id: "id" },
+    {
+      table: "org_ldap_config",
+      column: "service_bind_secret",
+      id: "organization_id",
+    },
+    { table: "byo_upstreams", column: "client_secret", id: "id" },
+    { table: "webhook_endpoints", column: "secret", id: "id" },
+    { table: "push_subscriptions", column: "endpoint", id: "id" },
+    { table: "push_subscriptions", column: "auth_secret", id: "id" },
+    ...["access_token", "refresh_token", "id_token", "password"].map(
+      (column) => ({ table: "better_auth_accounts", column, id: "id" }),
+    ),
+  ];
+  for (const field of fields) {
+    const table = sql.identifier(field.table);
+    const column = sql.identifier(field.column);
+    const id = sql.identifier(field.id);
+    const [row] = await ctx.db
+      .select({ id: sql<string>`${id}`, value: sql<string>`${column}` })
+      .from(sql`${table}`)
+      .limit(1);
+    if (!row) throw new Error(`missing ${field.table} fixture`);
+    const replacement = `legacy-replayed-${field.column}`;
+    try {
+      await ctx.db.execute(
+        sql`update ${table} set ${column} = ${replacement} where ${id} = ${row.id}`,
+      );
+      await expect(
+        sealLegacySecrets(ctx.db, sealer, false),
+      ).rejects.toBeInstanceOf(EventSealError);
+      const [unchanged] = await ctx.db
+        .select({ value: sql<string>`${column}` })
+        .from(sql`${table}`)
+        .where(sql`${id} = ${row.id}`);
+      expect(unchanged?.value).toBe(replacement);
+    } finally {
+      await ctx.db.execute(
+        sql`update ${table} set ${column} = ${row.value} where ${id} = ${row.id}`,
+      );
+    }
+    expect(await sealLegacySecrets(ctx.db, sealer, false)).toBe(0);
+  }
+}

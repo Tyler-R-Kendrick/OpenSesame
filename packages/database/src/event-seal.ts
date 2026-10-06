@@ -48,11 +48,18 @@ export interface EventSealer {
   /** Seal a payload for the named column, e.g. `audit_events.metadata`. */
   seal(purpose: string, value: JsonObject, scope?: string): JsonObject;
   /**
-   * Open a payload. A payload an older release left in the clear is returned
-   * as it is; a sealed one that fails authentication throws rather than read
-   * as empty.
+   * Open a current customer-bound envelope. Legacy inputs are accepted only
+   * by the explicit startup migration reader.
    */
   open(purpose: string, value: JsonObject, scope?: string): JsonObject;
+  /** Explicit startup migration compatibility for plaintext and osev1. */
+  openLegacyForMigration(
+    purpose: string,
+    value: JsonObject,
+    scope?: string,
+  ): JsonObject;
+  /** Runtime event reads require the current customer-bound envelope. */
+  openCurrent(purpose: string, value: JsonObject, scope?: string): JsonObject;
   isSealed(value: JsonObject): boolean;
 }
 
@@ -119,6 +126,15 @@ export function createEventSealer(secret: string): EventSealer {
     seal: (purpose, value, scope = "deployment") =>
       sealEnvelope(key, purpose, value, scope),
     open(purpose, value, scope = "deployment") {
+      return this.openCurrent(purpose, value, scope);
+    },
+    openCurrent(purpose, value, scope = "deployment") {
+      const token = sealedToken(value);
+      if (token === undefined || !token.startsWith(ENVELOPE_PREFIX))
+        throw new EventSealError(purpose);
+      return this.openLegacyForMigration(purpose, value, scope);
+    },
+    openLegacyForMigration(purpose, value, scope = "deployment") {
       const token = sealedToken(value);
       if (token === undefined) {
         if (SEALED_FIELD in value) throw new EventSealError(purpose);

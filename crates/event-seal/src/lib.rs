@@ -11,7 +11,7 @@
 //! and a purpose- and customer-derived key wraps that data key. The base64url
 //! body is wrap nonce (24), wrapped DEK (48), data nonce (24), ciphertext/tag.
 //! Both AEAD operations authenticate the customer and column/record context. Legacy
-//! `osev1.` values remain readable. The default process sealer serves deployment
+//! `osev1.` values are readable only through explicit startup migration. The default process sealer serves deployment
 //! events; customer vault events should use an explicit customer sealer.
 //!
 //! Without an installed sealer, writes remain plaintext for development and
@@ -160,12 +160,28 @@ impl EventSealer {
         format!("{PREFIX}{}", URL_SAFE_NO_PAD.encode(packed))
     }
 
-    /// Open a sealed value. A value that is not sealed is returned as it is.
+    /// Open a current envelope; refuse plaintext and legacy downgrades.
     ///
     /// # Errors
     ///
     /// Returns [`Unreadable`] for a sealed value that does not authenticate.
     pub fn open(&self, column: &str, stored: &str) -> Result<String, Unreadable> {
+        let body = stored.strip_prefix(PREFIX).ok_or_else(|| Unreadable {
+            column: column.to_owned(),
+        })?;
+        self.open_envelope(column, body)
+    }
+
+    /// Open older stored values during an explicitly authorized startup migration.
+    /// Legacy ciphertext authenticates only the deployment column, not a customer or record.
+    ///
+    /// # Errors
+    /// Returns [`Unreadable`] for malformed or unauthenticated ciphertext.
+    pub fn open_legacy_for_migration(
+        &self,
+        column: &str,
+        stored: &str,
+    ) -> Result<String, Unreadable> {
         if let Some(body) = stored.strip_prefix(PREFIX) {
             return self.open_envelope(column, body);
         }
@@ -299,7 +315,7 @@ fn scoped_column(column: &str, record: &str) -> String {
 }
 
 /// Open a customer envelope using trusted customer and record context.
-/// Legacy `osev1` values use the deployment key and column-only AAD for migration.
+/// Configured runtimes refuse plaintext and legacy `osev1` values.
 ///
 /// # Errors
 /// Returns [`Unreadable`] when a sealed value fails authentication.
@@ -325,19 +341,32 @@ pub fn seal_opt(column: &str, plaintext: Option<&str>) -> Option<String> {
     plaintext.map(|text| seal(column, text))
 }
 
-/// Open a stored value: plaintext (an older build's, or no sealer installed)
-/// as it is, a sealed value opened.
+/// Open a current envelope. Plaintext is accepted only in unconfigured development.
 ///
 /// # Errors
 ///
 /// Returns [`Unreadable`] for a sealed value that does not open, or one found
 /// when no sealer is installed to open it.
 pub fn open(column: &str, stored: &str) -> Result<String, Unreadable> {
-    if !is_sealed(stored) {
-        return Ok(stored.to_owned());
-    }
     match active() {
         Some(sealer) => sealer.open(column, stored),
+        None if !is_sealed(stored) => Ok(stored.to_owned()),
+        None => Err(Unreadable {
+            column: column.to_owned(),
+        }),
+    }
+}
+
+/// Read legacy rows solely for explicit startup migration, before serving requests.
+/// Never use this reader for runtime requests: legacy data has no customer/record binding.
+///
+/// # Errors
+/// Plaintext remains readable in unconfigured development. Returns [`Unreadable`]
+/// for encrypted values without a migration key, or failed authentication.
+pub fn open_legacy_for_migration(column: &str, stored: &str) -> Result<String, Unreadable> {
+    match active() {
+        Some(sealer) => sealer.open_legacy_for_migration(column, stored),
+        None if !is_sealed(stored) => Ok(stored.to_owned()),
         None => Err(Unreadable {
             column: column.to_owned(),
         }),

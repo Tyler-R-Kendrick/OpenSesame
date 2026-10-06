@@ -15,8 +15,8 @@ export function sealSecretText(
   return JSON.stringify(sealer.seal(purpose, { value }, scope));
 }
 
-/** Legacy plaintext remains readable until its next write migrates it. */
-export function openSecretText(
+/** Explicit migration reader for legacy plaintext and column-bound ciphertext. */
+export function openLegacySecretText(
   sealer: EventSealer,
   purpose: string,
   scope: string,
@@ -32,10 +32,40 @@ export function openSecretText(
   if (!isJsonObject(parsed) || !("$sealed" in parsed)) return value;
   try {
     if (!sealer.isSealed(parsed)) throw new EventSealError(purpose);
-    const opened = sealer.open(purpose, parsed, scope);
+    const opened = sealer.openLegacyForMigration(purpose, parsed, scope);
     if (!isString(opened.value)) throw new EventSealError(purpose);
     return opened.value;
   } catch {
     throw new EventSealError(purpose);
+  }
+}
+
+/** Runtime reads accept only current customer/record-bound envelopes. */
+export function openSecretText(
+  sealer: EventSealer,
+  purpose: string,
+  scope: string,
+  value: string,
+): string {
+  try {
+    const parsed: BoundaryValue = JSON.parse(value);
+    if (!isJsonObject(parsed)) throw new EventSealError(purpose);
+    const opened = sealer.openCurrent(purpose, parsed, scope);
+    if (!isString(opened.value)) throw new EventSealError(purpose);
+    return opened.value;
+  } catch {
+    throw new EventSealError(purpose);
+  }
+}
+export function isCurrentSecretText(value: string): boolean {
+  try {
+    const parsed: BoundaryValue = JSON.parse(value);
+    return (
+      isJsonObject(parsed) &&
+      isString(parsed.$sealed) &&
+      parsed.$sealed.startsWith("osev2.")
+    );
+  } catch {
+    return false;
   }
 }
