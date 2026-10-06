@@ -62,6 +62,18 @@ export const defaultTransport: DriveTransport = {
   write: writeDrive,
 };
 
+/** This device rotated the vault key past the copy on the drive. */
+function supersedes(
+  local: DriveSnapshot,
+  remote: DriveSnapshot | null,
+): boolean {
+  return (
+    remote !== null &&
+    remote.header.createdAt === local.header.createdAt &&
+    (local.rootEpoch ?? 0) > (remote.rootEpoch ?? 0)
+  );
+}
+
 export async function syncOnce(
   vault: SyncableVault,
   pairing: DrivePairing,
@@ -70,14 +82,25 @@ export async function syncOnce(
   let pulled = false;
   for (let attempt = 0; attempt < MAX_SYNC_ATTEMPTS; attempt += 1) {
     const remote = await transport.read(pairing);
+    let local: DriveSnapshot | null = null;
     if (remote.snapshot) {
-      const merge = await vault.mergeSnapshot(snapshotInput(remote.snapshot));
-      pulled = pulled || merge.localChanged;
-      if (!merge.remoteBehind) {
-        return { pulled, pushed: false, generation: remote.generation };
+      const merge = await vault
+        .mergeSnapshot(snapshotInput(remote.snapshot))
+        .catch(async (error: Error) => {
+          // A copy sealed under the key this device rotated away from cannot
+          // be merged; this device's copy replaces it. Anything else stops.
+          local = buildDriveSnapshot(await vault.sealedSnapshot());
+          if (!supersedes(local, remote.snapshot)) throw error;
+          return null;
+        });
+      if (merge) {
+        pulled = pulled || merge.localChanged;
+        if (!merge.remoteBehind) {
+          return { pulled, pushed: false, generation: remote.generation };
+        }
       }
     }
-    const local = buildDriveSnapshot(await vault.sealedSnapshot());
+    local ??= buildDriveSnapshot(await vault.sealedSnapshot());
     const written = await transport.write(pairing, remote.generation, local);
     if (written.ok) {
       return { pulled, pushed: true, generation: written.generation };

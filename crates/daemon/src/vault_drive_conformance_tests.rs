@@ -113,3 +113,87 @@ fn the_daemon_enforces_the_limits_and_format_the_spec_records() {
     );
     assert_eq!(spec["limits"]["maxSlots"].as_u64(), Some(MAX_SLOTS as u64));
 }
+
+#[tokio::test]
+async fn the_drive_answers_every_part_exchange_the_spec_records() {
+    let spec = spec();
+    let parts = &spec["parts"];
+    let dir = std::env::temp_dir().join(format!(
+        "opensesame-vault-drive-parts-conformance-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    let store = Arc::new(DriveStore::new(dir.clone()));
+    let (view, key) = store.create("Laptop").unwrap();
+    let mut state = crate::tests::test_state("http://127.0.0.1:1");
+    state.vault_drive = Some(store);
+    let app = routes().with_state(state);
+    let base = parts["path"]
+        .as_str()
+        .unwrap()
+        .replace("{slot}", &view.slot);
+    let wrong = "w".repeat(43);
+    let b64 = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+
+    for exchange in parts["exchanges"].as_array().unwrap() {
+        let name = exchange["name"].as_str().unwrap();
+        let request = &exchange["request"];
+        let bearer = match request["key"].as_str().unwrap() {
+            "slot" => key.as_str(),
+            _ => wrong.as_str(),
+        };
+        let uri = request["part"]
+            .as_str()
+            .map_or_else(|| base.clone(), |part| format!("{base}/{part}"));
+        let body = request["bytesB64"]
+            .as_str()
+            .map(|text| b64.decode(text).unwrap())
+            .unwrap_or_default();
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(request["method"].as_str().unwrap())
+                    .uri(&uri)
+                    .header("authorization", format!("Bearer {bearer}"))
+                    .header("content-type", "application/octet-stream")
+                    .body(Body::from(body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let status = response.status().as_u16();
+        let bytes = to_bytes(response.into_body(), 1 << 21).await.unwrap();
+        let expected = &exchange["response"];
+        assert_eq!(
+            u64::from(status),
+            expected["status"].as_u64().unwrap(),
+            "{name}: status"
+        );
+        if let Some(raw) = expected["bytesB64"].as_str() {
+            assert_eq!(bytes.to_vec(), b64.decode(raw).unwrap(), "{name}: bytes");
+        } else if !expected["body"].is_null() {
+            let answer: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
+            assert_eq!(answer, expected["body"], "{name}: body");
+        }
+    }
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
+fn the_daemon_checks_part_keys_and_sizes_as_the_spec_records() {
+    let spec = spec();
+    let parts = &spec["parts"];
+    assert_eq!(
+        parts["limits"]["maxPartBytes"].as_u64(),
+        Some(crate::vault_drive::parts::MAX_PART_BYTES as u64)
+    );
+    for key in parts["keys"]["valid"].as_array().unwrap() {
+        assert!(crate::vault_drive::parts::valid_part(key.as_str().unwrap()));
+    }
+    for key in parts["keys"]["invalid"].as_array().unwrap() {
+        assert!(!crate::vault_drive::parts::valid_part(
+            key.as_str().unwrap()
+        ));
+    }
+}

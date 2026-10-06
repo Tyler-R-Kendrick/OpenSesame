@@ -1,0 +1,26 @@
+{
+  "capabilities-desktop": {
+    "sections": 15,
+    "security-checks section": false
+  },
+  "checks-desktop": {
+    "switch offered": false,
+    "panel": false,
+    "marks": []
+  },
+  "waiting-desktop": {
+    "marks": ["Failed to fetch"]
+  },
+  "capabilities-phone": {
+    "sections": 15,
+    "security-checks section": false
+  },
+  "checks-phone": {
+    "switch offered": false,
+    "panel": false,
+    "marks": []
+  },
+  "waiting-phone": {
+    "marks": ["Failed to fetch"]
+  }
+}

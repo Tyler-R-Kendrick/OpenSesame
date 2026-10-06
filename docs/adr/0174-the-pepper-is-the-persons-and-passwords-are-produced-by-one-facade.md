@@ -104,8 +104,10 @@ checked, so the converted password is shown before it is kept.
 
 ## Tests
 
-`pepper-position.test.ts`, `produce.test.ts` and `produce-vectors.test.ts`
-(vault-core); `produce.rs` and the daemon's `sealed_tests.rs` (native);
+`pepper-position.test.ts`, `pepper-position.vectors.test.ts` (which also fails when
+the vectors are not what the Python reference writes), `produce.test.ts` and
+`produce-vectors.test.ts` (vault-core); `legacy.test.ts` (app-core, the one-time
+conversion); `produce.rs` and the daemon's `sealed_tests.rs` (native);
 `derived-accounts.test.ts`, `store-sync-account.test.ts` and `produce-facade.test.ts`
 (app-core); the CLI's `account-secret.test.ts`; the extension's service, daemon,
 guard and popup tests; the editor's and the detail page's tests, including the

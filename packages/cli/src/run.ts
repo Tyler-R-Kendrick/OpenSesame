@@ -22,12 +22,16 @@ import {
 } from "./parse.js";
 import { type VaultDependencies, runVaultCommand } from "./vault-commands.js";
 import { type VaultItemDependencies, runVaultItems } from "./vault-items.js";
+import { type VaultSyncDependencies, runVaultSync } from "./vault-sync.js";
 
 function defaultIssuer(): string {
   return process.env.OPENSESAME_ISSUER ?? "http://127.0.0.1:8788";
 }
 
-interface RunDependencies extends VaultDependencies, VaultItemDependencies {
+interface RunDependencies
+  extends VaultDependencies,
+    VaultItemDependencies,
+    VaultSyncDependencies {
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   openBrowser?: (url: string) => void;
@@ -320,6 +324,9 @@ async function dispatch(
     case "vault-copy":
     case "vault-share":
       return runVaultItems(command, deps);
+
+    case "vault-sync":
+      return runVaultSync(command, deps);
 
     default: {
       const _exhaustive: never = command;

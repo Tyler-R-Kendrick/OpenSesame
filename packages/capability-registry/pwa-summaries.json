@@ -216,6 +216,14 @@
     }
   },
   {
+    "id": "vault.health.security_check",
+    "title": "Check the vault's logins against known breaches and two-step sites",
+    "plane": "client_local",
+    "surfaces": {
+      "pwa": "lib/vault/security-checks.ts:runSecurityChecks"
+    }
+  },
+  {
     "id": "model_plane.read",
     "title": "Read which plane runs the password-reset model",
     "plane": "client_local",

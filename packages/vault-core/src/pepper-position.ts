@@ -15,7 +15,11 @@
  *   brackets of `[2:5]` are accepted.
  *
  * Bounds clamp the way Python's do and never raise, so an expression is valid or
- * it is not text a person can have meant; there is no step.
+ * it is not text a person can have meant; there is no step. Positions count
+ * characters as Python does (code points, not UTF-16 units), only ASCII
+ * whitespace is dropped, and `end` is read in ASCII case alone, so the Rust twin
+ * and the Python reference in `scripts/test/pepper-position-reference.py` agree
+ * with this file on every expression (`spec/conformance/pepper-position-vectors.json`).
  */
 
 export type PepperPosition =
@@ -25,18 +29,32 @@ export type PepperPosition =
 /** A password cut where the pepper goes: `head + pepper + tail` is the whole. */
 export type PepperSplit = { head: string; tail: string };
 
-const INTEGER = /^[+-]?\d+$/u;
+const INTEGER = /^[+-]?[0-9]+$/u;
+const ASCII_SPACE = /[ \t\n\v\f\r]+/gu;
+const END = "end";
 
 function bound(text: string): number | null | undefined {
   if (text === "") return null;
   return INTEGER.test(text) ? Number.parseInt(text, 10) : undefined;
 }
 
+/** `end` in any ASCII case, and nothing else (no locale, no Unicode folding). */
+function isEnd(text: string): boolean {
+  return (
+    text.length === END.length &&
+    Array.from(text).every(
+      (char, i) => char === END[i] || char === END[i]?.toUpperCase(),
+    )
+  );
+}
+
 /** The position an expression names, or `null` when it is not one. */
 export function parsePepperPosition(expression: string): PepperPosition | null {
-  let text = expression.replaceAll(/\s+/gu, "");
-  if (text.startsWith("[") && text.endsWith("]")) text = text.slice(1, -1);
-  if (text === "" || text.toLowerCase() === "end") {
+  let text = expression.replaceAll(ASCII_SPACE, "");
+  if (text.length >= 2 && text.startsWith("[") && text.endsWith("]")) {
+    text = text.slice(1, -1);
+  }
+  if (text === "" || isEnd(text)) {
     return { kind: "insert", index: Number.POSITIVE_INFINITY };
   }
   if (!text.includes(":")) {
@@ -68,20 +86,24 @@ export function splitAtPepper(
   password: string,
   expression: string | undefined,
 ): PepperSplit {
-  const length = password.length;
+  const points = Array.from(password);
+  const length = points.length;
   const position = parsePepperPosition(expression ?? "") ?? {
     kind: "insert" as const,
     index: Number.POSITIVE_INFINITY,
   };
   if (position.kind === "insert") {
     const at = clamp(position.index, length);
-    return { head: password.slice(0, at), tail: password.slice(at) };
+    return {
+      head: points.slice(0, at).join(""),
+      tail: points.slice(at).join(""),
+    };
   }
   const start = position.start === null ? 0 : clamp(position.start, length);
   const stop = position.stop === null ? length : clamp(position.stop, length);
   return {
-    head: password.slice(0, start),
-    tail: password.slice(Math.max(start, stop)),
+    head: points.slice(0, start).join(""),
+    tail: points.slice(Math.max(start, stop)).join(""),
   };
 }
 

@@ -22,7 +22,12 @@ import {
   resetInvocationArrivalForTests,
 } from "@opensesame/app-core/lib/invoke-link.js";
 import { takeCapturedInvite } from "@opensesame/app-core/lib/join/invite.js";
-import { kvDelete, kvGet, kvSet } from "@opensesame/app-core/lib/kv.js";
+import {
+  kvDelete,
+  kvGet,
+  kvSeams,
+  kvSet,
+} from "@opensesame/app-core/lib/kv.js";
 import { LAST_VAULT_KEY } from "@opensesame/app-core/lib/last-vault.js";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -67,18 +72,12 @@ const touched = vi.hoisted(() => ({ keys: new Set<string>(), crypto: 0 }));
  * tell a boot that hydrates the guest tomb from one that does not. The
  * request is the observable, so it is recorded.
  */
-const hydrated = vi.hoisted(() => ({ keys: [] as string[] }));
-vi.mock("@opensesame/app-core/lib/kv.js", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@opensesame/app-core/lib/kv.js")>();
-  return {
-    ...actual,
-    kvHydrate: async (keys: readonly string[]) => {
-      hydrated.keys.push(...keys);
-      return actual.kvHydrate([...keys]);
-    },
-  };
-});
+const hydrated = { keys: Array.of<string>() };
+const originalHydrate = kvSeams.kvHydrate;
+kvSeams.kvHydrate = async (keys) => {
+  hydrated.keys.push(...keys);
+  return originalHydrate(keys);
+};
 
 const originalVfsSeams = { ...vfsSeams };
 Object.assign(vfsSeams, {

@@ -125,5 +125,73 @@
         "body": { "generation": 2, "snapshot": "$phone" }
       }
     }
-  ]
+  ],
+  "parts": {
+    "$comment": "A slot's file parts: the encrypted chunks of attachments, kept beside the snapshot under the keys their manifests name. Immutable — a second put of a key is a no-op. 'bytesB64' is a request's or answer's raw octet-stream body; 'part' fills {part}.",
+    "path": "/v1/vault-drive/slots/{slot}/parts",
+    "limits": { "maxPartBytes": 1049600 },
+    "keys": {
+      "valid": ["AbCdEfGhIjKl-_09"],
+      "invalid": ["short", "../../etc/passwd", "AbCdEfGhIjKl.-09"]
+    },
+    "exchanges": [
+      {
+        "name": "a new slot lists no parts",
+        "request": { "method": "GET", "key": "slot" },
+        "response": { "status": 200, "body": { "parts": [] } }
+      },
+      {
+        "name": "a part is put",
+        "request": {
+          "method": "PUT",
+          "key": "slot",
+          "part": "AbCdEfGhIjKl-_09",
+          "bytesB64": "c2VhbGVkIHBhcnQ"
+        },
+        "response": { "status": 204 }
+      },
+      {
+        "name": "a second put of the same key changes nothing",
+        "request": {
+          "method": "PUT",
+          "key": "slot",
+          "part": "AbCdEfGhIjKl-_09",
+          "bytesB64": "c29tZXRoaW5nIGVsc2U"
+        },
+        "response": { "status": 204 }
+      },
+      {
+        "name": "the part reads back as first put",
+        "request": {
+          "method": "GET",
+          "key": "slot",
+          "part": "AbCdEfGhIjKl-_09"
+        },
+        "response": { "status": 200, "bytesB64": "c2VhbGVkIHBhcnQ" }
+      },
+      {
+        "name": "the slot lists the part",
+        "request": { "method": "GET", "key": "slot" },
+        "response": { "status": 200, "body": { "parts": ["AbCdEfGhIjKl-_09"] } }
+      },
+      {
+        "name": "a part never put is not found",
+        "request": {
+          "method": "GET",
+          "key": "slot",
+          "part": "ZZZZZZZZZZZZZZZZ"
+        },
+        "response": { "status": 404, "body": { "error": "no_such_part" } }
+      },
+      {
+        "name": "the wrong key reads nothing",
+        "request": {
+          "method": "GET",
+          "key": "wrong",
+          "part": "AbCdEfGhIjKl-_09"
+        },
+        "response": { "status": 401, "body": { "error": "unauthorized" } }
+      }
+    ]
+  }
 }
