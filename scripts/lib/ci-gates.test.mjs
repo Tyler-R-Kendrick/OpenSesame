@@ -1,0 +1,83 @@
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { repoRootFromHere } from "./ci-changed-areas.mjs";
+import {
+  ALL_GATES,
+  DRIVER_GATES,
+  bundleMatrix,
+  driverReach,
+  gateOfShard,
+  gatesForPath,
+  gatesForPaths,
+  loadShards,
+} from "./ci-gates.mjs";
+
+const root = repoRootFromHere();
+const reach = driverReach(root);
+const gatesOf = (...paths) => [...gatesForPaths(paths, reach)].sort();
+
+describe("ci gates", () => {
+  it("names a gate row for every verify script, so a new one is classified on purpose", () => {
+    const dir = join(root, "apps/pages/scripts");
+    const scripts = readdirSync(dir).filter((name) =>
+      /^verify-.*(?<!\.test)\.mjs$/.test(name),
+    );
+    for (const name of scripts) {
+      expect(name in DRIVER_GATES, `${name} has no DRIVER_GATES row`).toBe(
+        true,
+      );
+    }
+  });
+
+  it("gives every shard a gate the selector knows", () => {
+    for (const { shard } of loadShards(root)) {
+      expect(ALL_GATES).toContain(gateOfShard(shard));
+    }
+  });
+
+  it("selects nothing for prose, tests and deleted paths", () => {
+    expect(gatesOf("docs/adr/0001-x.md", "README.md")).toEqual([]);
+    expect(gatesOf("apps/pages/src/lib/foo.test.ts")).toEqual([]);
+    expect(gatesOf()).toEqual([]);
+  });
+
+  it("runs every gate for a path it cannot place", () => {
+    expect(gatesOf("apps/pages/vite.config.ts")).toEqual([...ALL_GATES].sort());
+    expect(gatesOf("packages/never-heard-of/src/x.ts")).toEqual(
+      [...ALL_GATES].sort(),
+    );
+  });
+
+  it("keeps a settings panel to the gates that can see it", () => {
+    const gates = gatesOf("apps/pages/src/sections/settings/security/Row.tsx");
+    expect(gates).toContain("auth");
+    expect(gates).not.toContain("tutorials");
+    expect(gates).not.toContain("push");
+  });
+
+  it("sends a stylesheet to the budget and phone gates, not the key gates", () => {
+    const gates = gatesOf("apps/pages/src/styles/shell.css");
+    expect(gates).toContain("mobile");
+    expect(gates).toContain("budgets");
+    expect(gates).not.toContain("auth");
+  });
+
+  it("gives a workflow edit enough to prove the matrix it writes", () => {
+    expect(gatesForPath(".github/workflows/ci.yml", reach)).toEqual(
+      new Set(["budgets", "static", "push"]),
+    );
+  });
+
+  it("writes matrix legs in the shard file's order and only for wanted gates", () => {
+    const shards = loadShards(root);
+    const legs = bundleMatrix(["mobile", "budgets"], shards).map(
+      (leg) => leg.shard,
+    );
+    expect(legs).toEqual([
+      "budgets",
+      ...shards.map((s) => s.shard).filter((s) => s.startsWith("mobile-")),
+    ]);
+    expect(bundleMatrix([], shards)).toEqual([]);
+  });
+});

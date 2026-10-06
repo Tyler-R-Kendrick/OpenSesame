@@ -10,6 +10,8 @@ import {
   planPackages,
   repoRootFromHere,
 } from "./ci-affected-graph.mjs";
+import { isDocPath } from "./ci-gates.mjs";
+import { planUnitTests } from "./ci-scoped-tests.mjs";
 
 export {
   loadCrateNodes,
@@ -60,10 +62,11 @@ function emit(plan) {
   for (const line of lines) console.log(line);
 }
 
-function runListed(command, args) {
+function runListed(command, args, options = {}) {
   const result = spawnSync(command, args, {
     stdio: "inherit",
     env: process.env,
+    ...options,
   });
   if (result.error) {
     console.error(result.error.message);
@@ -92,10 +95,88 @@ function runTs(plan) {
     "turbo",
     "run",
     "typecheck",
-    "test",
     "--concurrency=4",
     ...filters,
   ]);
+  runUnitTests(plan);
+}
+
+/** Every changed path, deleted ones included, or undefined when unreadable. */
+function allChangedPaths(root) {
+  try {
+    return changedPaths(root);
+  } catch {
+    return undefined;
+  }
+}
+
+function runUnitTests(plan) {
+  const root = repoRootFromHere();
+  const paths = allChangedPaths(root);
+  const plans =
+    paths === undefined
+      ? undefined
+      : planUnitTests({
+          root,
+          nodes: loadPackageNodes(root),
+          packages: plan.packages,
+          paths,
+          isDoc: isDocPath,
+        });
+  const whole = (plans ?? [])
+    .filter((entry) => entry.mode === "full")
+    .map((entry) => entry.name);
+  if (plans === undefined) whole.push(...plan.packages);
+  for (const entry of plans ?? []) {
+    console.error(
+      `unit tests: ${entry.name} ${entry.mode}${entry.why ? ` (${entry.why})` : ""}`,
+    );
+  }
+  if (whole.length > 0) {
+    runListed("pnpm", [
+      "exec",
+      "turbo",
+      "run",
+      "test",
+      "--concurrency=4",
+      ...whole.map((name) => `--filter=${name}`),
+    ]);
+  }
+  for (const entry of plans ?? []) {
+    if (entry.mode === "scoped") runScoped(root, entry);
+  }
+}
+
+function runScoped(root, entry) {
+  const vitest = ["--filter", entry.name, "exec", "vitest"];
+  if (entry.related.length > 0) {
+    runListed("pnpm", [
+      ...vitest,
+      "related",
+      ...entry.related.map((path) => resolve(root, path)),
+      "--run",
+      "--passWithNoTests",
+    ]);
+  }
+  const named = [...new Set([...entry.structural, ...entry.hubTests])];
+  if (entry.hubs.length > 0) {
+    console.error(
+      `unit tests: ${entry.name} follows ${entry.hubs.join(", ")} ${entry.hubTests.length} tests deep, not the whole suite`,
+    );
+  }
+  if (named.length > 0) {
+    runListed("pnpm", [...vitest, "run", ...named, "--passWithNoTests"]);
+  }
+  if (entry.extra !== undefined && entry.extraRuns) {
+    runListed("pnpm", [
+      "--filter",
+      entry.name,
+      "exec",
+      "sh",
+      "-c",
+      entry.extra,
+    ]);
+  }
 }
 
 function runCargo(plan) {
