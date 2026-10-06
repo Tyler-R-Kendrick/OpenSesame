@@ -69,6 +69,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-05-confirm-sheets/`](2026-10-05-confirm-sheets/README.md) | Confirmation sheets: the shape the design contract asks for, enforced |
 | [`2026-10-05-add-button-slide/`](2026-10-05-add-button-slide/README.md) | The Add button: a sharp square, held and slid |
 | [`2026-10-05-accounts/`](2026-10-05-accounts/README.md) | An account owns its login methods; a password is one of them |
+| [`2026-10-04-unlock-bell/`](2026-10-04-unlock-bell/README.md) | The unlock screen has a bell now |
 | [`2026-10-04-tutorial-mode/`](2026-10-04-tutorial-mode/README.md) | Tutorial mode — before / after |
 | [`2026-10-04-sops-document-panel/`](2026-10-04-sops-document-panel/README.md) | SOPS document key under Settings › Security — before and after |
 | [`2026-10-04-siop-op/`](2026-10-04-siop-op/README.md) | The Self-issued OpenID card is unchanged (ADR 0161) |
