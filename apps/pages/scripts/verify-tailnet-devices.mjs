@@ -39,7 +39,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { expect } from "@playwright/test";
-import "./lib/expect-timeout.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
 import {
