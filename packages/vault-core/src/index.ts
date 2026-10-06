@@ -4,6 +4,7 @@
  * every reader — the PWA, the CLI, an Android isolate — shares it.
  */
 export * from "./account.js";
+export * from "./account-lines.js";
 export * from "./bytes.js";
 export * from "./character-rules.js";
 export * from "./derive.js";

@@ -58,6 +58,7 @@ Every runtime asks it and none knows how a password is made:
 | Surface | How it uses the answer |
 | --- | --- |
 | Copy in the app, the command bar, the list | puts out `head`; a second key (`copy rest for …`) puts out `tail` |
+| A row's menu (`⋯`, right-click, long-press) | `Copy` asks which credential: a row named for it when the account holds one, a submenu of each (the password and the rest of it after a mid-password slot, an API key and its `Header: key` line, a token and its `Authorization: Bearer` line, an OAuth client secret and refresh token, an authenticator code) when it holds several; on a phone the choices replace the list. `y` copies the password, else the API key's line, else the token's (`credentialLine`) |
 | Terminal (`vault copy`, `--field rest`, `pass show`) | the same; `pass show` produces line one of an algorithmic entry |
 | Daemon fill and the browser extension | fills `head`, reports `pepper_next`; a `legacy` entry is refused with `legacy_password` |
 | Live sessions, duress copies, history | the whole password only; a partial is not shared |

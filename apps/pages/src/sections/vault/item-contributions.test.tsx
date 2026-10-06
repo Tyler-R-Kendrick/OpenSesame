@@ -40,7 +40,7 @@ describe("what the vault's item pages draw from other capabilities", () => {
   it("draws no drop surface and no model suggestion while neither is on", () => {
     const { container } = draw(
       <>
-        <SecretShares item={secret} />
+        <SecretShares item={secret} open onClose={() => {}} />
         <DropForm />
         <Suggestions />
       </>,
@@ -48,22 +48,23 @@ describe("what the vault's item pages draw from other capabilities", () => {
     expect(container.textContent).toBe("");
   });
 
-  it("draws the share offer once sharing.drops is on, and no drop form", async () => {
+  it("draws the share ceremony once sharing.drops is on and it is open, and no drop form", async () => {
     const revoke = await activateForTest(drops);
-    draw(
+    const { rerender } = draw(
       <>
-        <SecretShares item={secret} />
+        <SecretShares item={secret} open={false} onClose={() => {}} />
         <DropForm />
       </>,
     );
-    const key = screen.getByRole("button", { name: "Share once" });
-    expect(key.getAttribute("title")).toBe("Share once");
-    // The key rides in a headed group's bar, never alone between groups.
-    const bar = key.closest(".detail__groupbar");
-    expect(bar?.querySelector(".detail__grouphead")?.textContent).toBe(
-      "Share once",
+    // Closed, it draws nothing: the key lives in the item's toolbar.
+    expect(screen.queryByRole("heading", { name: "Share once" })).toBeNull();
+    rerender(
+      <MemoryRouter>
+        <SecretShares item={secret} open onClose={() => {}} />
+        <DropForm />
+      </MemoryRouter>,
     );
-    expect(bar?.closest("section.detail__group")).not.toBeNull();
+    expect(screen.getByRole("heading", { name: "Share once" })).toBeTruthy();
     expect(screen.queryByDisplayValue("Deploy token")).toBeNull();
     revoke();
   });

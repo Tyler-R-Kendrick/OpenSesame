@@ -33,7 +33,8 @@
   left: calc(100% - 0.25rem);
 }
 
-.ctxmenu--sheet .ctxmenu__sub {
+.ctxmenu--sheet .ctxmenu__sub,
+.ctxmenu--drill .ctxmenu__sub {
   position: static;
   left: auto;
   margin: 0;
@@ -46,7 +47,9 @@
    back row names where you are, so the choices are never a box hung below a
    row that scrolled out of reach. */
 .ctxmenu--sheet.is-drilled > .ctxmenu__item,
-.ctxmenu--sheet.is-drilled > .ctxmenu__sep {
+.ctxmenu--sheet.is-drilled > .ctxmenu__sep,
+.ctxmenu--drill.is-drilled > .ctxmenu__item,
+.ctxmenu--drill.is-drilled > .ctxmenu__sep {
   display: none;
 }
 

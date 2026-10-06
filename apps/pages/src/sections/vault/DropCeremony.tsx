@@ -35,7 +35,7 @@ import { IconDownload } from "../../components/Icons.js";
 import { QrCode } from "../../components/QrCode.js";
 import { useVaultStore } from "../../lib/vault/hooks.js";
 import { DROP_TTL_OPTIONS } from "./DropTtl.js";
-import { ShareForm, ShareOffer, useShareFocus } from "./ShareOffer.js";
+import { ShareForm } from "./ShareForm.js";
 import { formatExpiry } from "./expiry.js";
 
 /** What a finished ceremony shows: link, code, QR, expiry — never the payload. */
@@ -89,21 +89,31 @@ export function DropCard({ drop }: { drop: SharedOnce }) {
   );
 }
 
-/** Share ceremony on a stored item. The item is untouched. */
+/**
+ * Share ceremony on a stored item, drawn while the toolbar's Share key is
+ * pressed. The item is untouched. Closing it, by the key or Cancel, forgets a
+ * finished drop's card, so the next press starts a new share.
+ */
 export function ShareSecretDrop({
   item,
-  initialOpen = false,
+  open,
+  onClose,
 }: {
   item: VaultItem;
-  initialOpen?: boolean;
+  open: boolean;
+  onClose: () => void;
 }) {
   const text = shareText(item);
-  const [open, setOpen] = useState(initialOpen);
   const [ttlMs, setTtlMs] = useState<number>(DROP_TTL_OPTIONS[1].ms);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drop, setDrop] = useState<SharedOnce | null>(null);
-  const focus = useShareFocus(open);
+
+  useEffect(() => {
+    if (open) return;
+    setDrop(null);
+    setError(null);
+  }, [open]);
 
   async function share() {
     if (text === null) return;
@@ -123,7 +133,7 @@ export function ShareSecretDrop({
     }
   }
 
-  if (text === null) return null;
+  if (text === null || !open) return null;
 
   if (drop) {
     return (
@@ -133,23 +143,10 @@ export function ShareSecretDrop({
     );
   }
 
-  if (!open) {
-    return (
-      <ShareOffer
-        keyRef={focus.keyRef}
-        onOpen={() => {
-          focus.expect("ttl");
-          setOpen(true);
-        }}
-      />
-    );
-  }
-
   return (
     <ShareForm
       ttlMs={ttlMs}
       onTtl={setTtlMs}
-      ttlRef={focus.ttlRef}
       notice={
         error ? (
           <p className="note note--err" role="alert">
@@ -159,10 +156,7 @@ export function ShareSecretDrop({
       }
       busy={busy}
       onSeal={() => void share()}
-      onCancel={() => {
-        focus.expect("key");
-        setOpen(false);
-      }}
+      onCancel={onClose}
     />
   );
 }
