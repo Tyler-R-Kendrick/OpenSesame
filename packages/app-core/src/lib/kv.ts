@@ -191,6 +191,7 @@ async function kvSetDurableDefault(key: string, value: string): Promise<void> {
 export const kvSeams = {
   kvGet: kvGetDefault,
   kvSetDurable: kvSetDurableDefault,
+  kvHydrate: (keys: string[]) => kvHydrateDefault(keys),
 };
 
 export function kvGet(key: string): string | null {
@@ -247,6 +248,10 @@ export async function kvDeleteDurable(key: string): Promise<void> {
 
 /** Load keys from OPFS into memory before first paint. */
 export async function kvHydrate(keys: string[]): Promise<void> {
+  return kvSeams.kvHydrate(keys);
+}
+
+async function kvHydrateDefault(keys: string[]): Promise<void> {
   // Settle durability even with nothing to load, so the first render already
   // knows whether anything written here can survive a reload.
   await opfsRoot();

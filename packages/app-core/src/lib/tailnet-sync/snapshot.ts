@@ -36,7 +36,18 @@ export type DriveSnapshot = {
   header: VaultHeader;
   body: SealedBlob;
   rev: number;
+  /**
+   * How many times the vault key has been rotated (the protection manifest's
+   * root epoch). A device that rotated it replaces a copy sealed under the
+   * old key, which nothing can merge (`engine.ts`).
+   */
+  rootEpoch?: number;
 };
+
+/** The root epoch a header records; 0 before any rotation. */
+export function rootEpochOf(header: VaultHeader): number {
+  return header.protection?.rootEpoch ?? 0;
+}
 
 /** The header a second device may adopt: no PIN wrap, no hint, no device manifest. */
 export function portableHeader(header: VaultHeader, rev: number): VaultHeader {
@@ -76,6 +87,7 @@ export function buildDriveSnapshot(sealed: SealedSnapshot): DriveSnapshot {
     header: portableHeader(sealed.header, sealed.rev),
     body: sealed.body,
     rev: sealed.rev,
+    rootEpoch: rootEpochOf(sealed.header),
   };
 }
 
@@ -116,6 +128,9 @@ export function parseDriveSnapshot(value: BoundaryValue): DriveSnapshot {
     header: overlapCast(value.header),
     body: { ivB64: value.body.ivB64, ctB64: value.body.ctB64 },
     rev: value.rev,
+    ...(isNumber(value.rootEpoch) && Number.isSafeInteger(value.rootEpoch)
+      ? { rootEpoch: value.rootEpoch }
+      : undefined),
   };
 }
 

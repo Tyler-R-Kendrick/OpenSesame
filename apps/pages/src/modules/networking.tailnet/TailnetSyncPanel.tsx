@@ -14,6 +14,7 @@ import {
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
 import {
+  type SyncRequest,
   type TailnetSyncState,
   forgetTailnetDrive,
   pairTailnetDrive,
@@ -42,7 +43,7 @@ export type TailnetPanelSeams = {
   state: () => TailnetSyncState;
   subscribe: (listener: () => void) => () => void;
   pair: (code: string) => Promise<"paired" | "adopted">;
-  sync: () => Promise<void>;
+  sync: (request: SyncRequest) => Promise<void>;
   forget: () => Promise<void>;
 };
 
@@ -63,6 +64,12 @@ function mark(state: TailnetSyncState): Standing {
   if (state.phase === "syncing") return { tone: "idle", label: "Syncing" };
   if (state.phase === "error") {
     return { tone: "err", label: state.error ?? "Sync failed" };
+  }
+  if (state.phase === "blocked") {
+    return {
+      tone: "warn",
+      label: state.error ?? "Waiting for local network access",
+    };
   }
   if (state.lastSyncedAt) {
     const at = new Date(state.lastSyncedAt).toLocaleTimeString();
@@ -110,7 +117,8 @@ function DriveRow({
         aria-label="Sync now"
         title="Sync now"
         disabled={busy || state.phase === "syncing"}
-        onClick={() => run(tailnetPanelSeams.sync)}
+        // A person pressed it: it may raise the browser's local network prompt.
+        onClick={() => run(() => tailnetPanelSeams.sync({ interactive: true }))}
       >
         <IconRefresh size={16} />
       </button>

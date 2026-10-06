@@ -116,6 +116,14 @@ export const FEATURE_TARGETS: readonly GuideTargetDescriptor[] = [
     capabilityId: null,
   },
   {
+    id: "feature.security-checks",
+    description:
+      "The Breach and two-step checks section of Settings › Capabilities: its switch adds a check of logins against known breaches and sites that take an authenticator code.",
+    role: "surface",
+    routes: ["/settings"],
+    capabilityId: null,
+  },
+  {
     id: "feature.autofill",
     description:
       "The Browser autofill section of Settings › Capabilities: its switch shows and changes the companion autofill extension on a paired daemon.",

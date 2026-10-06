@@ -15,6 +15,16 @@ import { type AuthoredDescriptor, optional } from "./descriptor.js";
 export const LIVE_CARRIER_PURPOSE =
   "only STUN/TURN servers and code carriers (Nostr, MQTT, NATS, ntfy) the owner names in Routes; joiners see them first";
 
+/**
+ * What `vault.security-checks` declares for its two external services. The
+ * checks (`lib/vault/security-checks.ts`) import these rather than retype
+ * them: egress matches a purpose exactly.
+ */
+export const PWNED_PURPOSE =
+  "Have I Been Pwned's password range API: five hex characters of a password's SHA-1, never the password";
+export const TWO_FACTOR_PURPOSE =
+  "2fa.directory's public list of sites that take an authenticator code, fetched whole";
+
 export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "vault.derived-records",
@@ -66,6 +76,25 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       keyAccess: ["item-plaintext", "protector-wrap"],
       offlineLimits:
         "Works offline. The databases belong to this device and this browser profile: they are not synced, and are unreadable without the device key.",
+    },
+  ),
+  optional(
+    "vault.security-checks",
+    "Breach and two-step checks",
+    "When you press Check, find logins whose password has appeared in a known breach and logins on sites that take an authenticator code you have not stored. Only five characters of each password's hash leave the browser; the list of two-step sites is fetched whole and matched here.",
+    {
+      operationIds: ["vault.health.security_check"],
+      egress: [
+        { class: "external-service", purpose: PWNED_PURPOSE, automatic: false },
+        {
+          class: "external-service",
+          purpose: TWO_FACTOR_PURPOSE,
+          automatic: false,
+        },
+      ],
+      keyAccess: "item-plaintext",
+      offlineLimits:
+        "A check needs both services; offline, the last results stay until the tab closes.",
     },
   ),
   optional(

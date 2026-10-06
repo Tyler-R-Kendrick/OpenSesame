@@ -1,6 +1,5 @@
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
 import { AUDIT_METADATA_ALLOWLIST, verifyAuditChain } from "@opensesame/audit";
 import {
   type Database,
@@ -12,15 +11,17 @@ import {
 import * as schema from "@opensesame/database/schema";
 import { type AuditEvent, overlapCast } from "@opensesame/os-domain";
 import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { afterAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createControlPlane } from "../create-app.js";
+import { migratedPGlite, warmMigratedPGlite } from "./migrated-pglite.js";
 
-// Each PGlite test here boots a database and applies every migration inside
-// the test itself; on a loaded CI runner that alone took most of the
-// package's 15s budget (legacy-agent-durability timed out on it). Same 60s
-// budget the beforeAll-based PGlite suites give the identical setup.
+// Each PGlite test here starts its own database. They used to boot one and
+// apply every migration inside the test, which on a loaded CI runner took most
+// of the package's 15s budget (legacy-agent-durability timed out on it); now
+// the migrations run once per file, in the hook below, and each test loads a
+// copy (migrated-pglite.ts). The 60s budget stays as the margin for load.
 vi.setConfig({ testTimeout: 60_000 });
+beforeAll(warmMigratedPGlite, 60_000);
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -84,13 +85,10 @@ afterAll(async () => {
  * route suites' Postgres counterpart to the default memory stores.
  */
 async function pgControlPlane() {
-  const client = new PGlite();
+  const client = await migratedPGlite();
   await client.waitReady;
   cleanups.push(() => client.close());
   const db = drizzle(client, { schema });
-  await migrate(db, {
-    migrationsFolder: join(here, "../../../../packages/database/drizzle"),
-  });
   // SAFETY: drizzle(PGlite) is the same schema-typed Database as postgres-js;
   // the query-result HKT differs, so TypeScript requires the unknown step.
   const database: Database = overlapCast(db);

@@ -141,7 +141,17 @@
       "produces a password calls it: producePassword, the algorithmic generator's",
       "HKDF and rejection sampler, and the pepper position parser, about five",
       "kibibytes together. Measured 674.0 KiB, so the ceiling is that plus four,",
-      "as before."
+      "as before.",
+      "2026-10-06: largestAsset 678 -> 686 for both hardened profiles (ADR",
+      "0144 items 11-18, tailnet sync), on main at 13592038. The entry",
+      "measures 681.8 KiB, 7.8 over main's 674.0; attributed by sourcemap",
+      "against main, all of it is on the store's synchronous write path or",
+      "core: skew-safe stamps on every edit (vault-core/stamps.ts), the",
+      "field-level item merge (item-merge.ts, merge.ts), the table-driven",
+      "base64 every sealed read and write uses (bytes.ts), the master-password",
+      "record (vault/master-wrap.ts) and the security checks' capability",
+      "descriptor. None of it can load on demand. Four kibibytes over the",
+      "measurement, as before."
     ],
     "builds": {
       "minimal-local-hardened": {
@@ -151,7 +161,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 678
+          "largestAsset": 686
         }
       },
       "family-local-hardened": {
@@ -161,7 +171,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 678
+          "largestAsset": 686
         }
       }
     }

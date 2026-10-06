@@ -1,20 +1,17 @@
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it, vi } from "vitest";
-
-// The SDK is exclusive to this capability and must not be touched unless
-// the capability is activated. The mock records any access to it.
-const sdk = vi.hoisted(() => ({
-  detect: vi.fn(() => null),
-  createRegistrar: vi.fn(() => ({ register: () => () => {} })),
-}));
-vi.mock("@opensesame/webmcp", () => ({
-  detectModelContext: sdk.detect,
-  createWebMcpRegistrar: sdk.createRegistrar,
-}));
-
 import { resetContributionsForTest } from "@opensesame/app-core/lib/contributions.js";
 import { webmcpNavigationSeam } from "@opensesame/app-core/webmcp/navigation.js";
-import type { ContextWithPorts } from "../ports-b.js";
+import { overlapCast } from "@opensesame/os-domain";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import { type ContextWithPorts, readOperationIds } from "../ports-b.js";
 import {
   NO_SIDE_EFFECTS,
   expectLifecycle,
@@ -22,13 +19,39 @@ import {
   runtimeOf,
 } from "../runtime-test-kit.js";
 import { createTestContext } from "../test-context.js";
+import { webMcpSdkSeams } from "./registrar.js";
 import type * as Runtime from "./runtime.js";
 
 let runtime: typeof Runtime;
 
+// The SDK is exclusive to this capability and must not be touched unless
+// the capability is activated. The seam stands in for it and records any
+// access, both to loading it and to its two entry points.
+const sdk = {
+  load: vi.fn(),
+  detect: vi.fn(() => null),
+  createRegistrar: vi.fn(() => ({ register: () => () => {} })),
+};
+const originalLoad = webMcpSdkSeams.load;
+
+beforeAll(() => {
+  webMcpSdkSeams.load = async () => {
+    sdk.load();
+    return overlapCast({
+      detectModelContext: sdk.detect,
+      createWebMcpRegistrar: sdk.createRegistrar,
+    });
+  };
+});
+
+afterAll(() => {
+  webMcpSdkSeams.load = originalLoad;
+});
+
 describe("agents.webmcp runtime", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+    sdk.load.mockClear();
     sdk.detect.mockClear();
     sdk.createRegistrar.mockClear();
     resetContributionsForTest();
@@ -42,6 +65,7 @@ describe("agents.webmcp runtime", () => {
   });
 
   it("never touches the WebMCP SDK on import", () => {
+    expect(sdk.load).not.toHaveBeenCalled();
     expect(sdk.detect).not.toHaveBeenCalled();
     expect(sdk.createRegistrar).not.toHaveBeenCalled();
   });
@@ -69,9 +93,7 @@ describe("agents.webmcp runtime", () => {
       "opensesame_navigate",
       "opensesame_health",
     ]);
-    expect(
-      tools.map((tool) => (tool as { operationId?: string }).operationId),
-    ).toEqual(
+    expect(tools.map((tool) => readOperationIds(tool)?.[0])).toEqual(
       expect.arrayContaining([
         "app.status",
         "app.navigate",
@@ -89,11 +111,12 @@ describe("agents.webmcp runtime", () => {
     }
     // Every one carries its operations, or the core could not filter it.
     for (const tool of tools) {
-      expect((tool as { operationId?: string }).operationId).toBeTruthy();
+      expect(readOperationIds(tool)?.[0]).toBeTruthy();
     }
     expect(t.entries("background-job").map((job) => job.id)).toEqual([
       "webmcp-boot",
     ]);
+    expect(sdk.load).not.toHaveBeenCalled();
     expect(sdk.detect).not.toHaveBeenCalled();
     await handle.dispose();
   });
@@ -117,9 +140,7 @@ describe("agents.webmcp runtime", () => {
 
   it("contributes the session binding as a shell wrapper and revokes it", async () => {
     const t = createTestContext();
-    const handle = await runtime.capabilityRuntime.activate(
-      t.ctx as ContextWithPorts,
-    );
+    const handle = await runtime.capabilityRuntime.activate(t.ctx);
     const record = t.registered.find((entry) => entry.kind === "shell-wrapper");
     expect(record?.entry).toMatchObject({ id: "webmcp-session", order: 20 });
     expect(t.liveKinds()).toContain("shell-wrapper");

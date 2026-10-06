@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { serialize } from "node:v8";
-import { PGlite } from "@electric-sql/pglite";
 import {
   createEventSealer,
   oidcLookup,
@@ -11,26 +10,22 @@ import * as schema from "@opensesame/database/schema";
 import { overlapCast } from "@opensesame/os-domain";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
-import { expect, it, vi } from "vitest";
+import { beforeAll, expect, it, vi } from "vitest";
 import { DurableMap } from "../repos/durable-map.js";
+import { migratedPGlite, warmMigratedPGlite } from "./migrated-pglite.js";
 
-// Each PGlite test here boots a database and applies every migration inside
-// the test itself; on a loaded CI runner that alone took most of the
-// package's 15s budget (legacy-agent-durability timed out on it). Same 60s
-// budget the beforeAll-based PGlite suites give the identical setup.
+// Each PGlite test here starts its own database. They used to boot one and
+// apply every migration inside the test, which on a loaded CI runner took most
+// of the package's 15s budget (legacy-agent-durability timed out on it); now
+// the migrations run once per file, in the hook below, and each test loads a
+// copy (migrated-pglite.ts). The 60s budget stays as the margin for load.
 vi.setConfig({ testTimeout: 60_000 });
+beforeAll(warmMigratedPGlite, 60_000);
 
 it("shares exact typed state, hashes bearer keys, and consumes once across replicas", async () => {
-  const client = new PGlite();
+  const client = await migratedPGlite();
   try {
     const db = drizzle(client, { schema });
-    await migrate(db, {
-      migrationsFolder: new URL(
-        "../../../../packages/database/drizzle",
-        import.meta.url,
-      ).pathname,
-    });
     const first = new DurableMap<{ expiresAt: Date; proof: Uint8Array }>(
       overlapCast(db),
       "OpenSesame:Test",
@@ -129,15 +124,9 @@ it("shares exact typed state, hashes bearer keys, and consumes once across repli
 });
 
 it("preserves numeric expiry and refuses non-string persisted envelopes", async () => {
-  const client = new PGlite();
+  const client = await migratedPGlite();
   try {
     const db = drizzle(client, { schema });
-    await migrate(db, {
-      migrationsFolder: new URL(
-        "../../../../packages/database/drizzle",
-        import.meta.url,
-      ).pathname,
-    });
     const model = "OpenSesame:EnvelopeBoundary";
     const store = new DurableMap<{ expiresAt: number }>(
       overlapCast(db),
@@ -171,15 +160,9 @@ it("preserves numeric expiry and refuses non-string persisted envelopes", async 
 });
 
 it("migrates legacy TOTP and prehashed provisional tokens into owner-bound envelopes", async () => {
-  const client = new PGlite();
+  const client = await migratedPGlite();
   try {
     const db = drizzle(client, { schema });
-    await migrate(db, {
-      migrationsFolder: new URL(
-        "../../../../packages/database/drizzle",
-        import.meta.url,
-      ).pathname,
-    });
     const sealer = createEventSealer("durable-security-fixture-key");
     const principalId = "principal-customer-a";
     const totp = "totp-private-seed";

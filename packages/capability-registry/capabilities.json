@@ -3473,6 +3473,33 @@
     }
   },
   {
+    "id": "vault.health.security_check",
+    "title": "Check the vault's logins against known breaches and two-step sites",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/security-checks.ts:runSecurityChecks",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "the check reads every login's password to hash it and sends hash prefixes to a third party; only the person whose vault it is decides to run it",
+        "adr": "0080-security-event-hooks.md"
+      },
+      "mcp_host": {
+        "reason": "the check reads every login's password to hash it and sends hash prefixes to a third party; only the person whose vault it is decides to run it",
+        "adr": "0080-security-event-hooks.md"
+      },
+      "mcp_client": {
+        "reason": "the check reads every login's password to hash it and sends hash prefixes to a third party; only the person whose vault it is decides to run it",
+        "adr": "0080-security-event-hooks.md"
+      }
+    }
+  },
+  {
     "id": "agent_hooks.intercept",
     "title": "Answer an agent-hooks interception with a verdict: tool rules and the secret guard, and — with an approver configured — an escalation put to a person",
     "plane": "host",
@@ -4772,7 +4799,7 @@
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id vault sync",
       "pwa": "lib/tailnet-sync/observer.ts:pairTailnetDrive",
       "mcp_host": null,
       "mcp_client": null,
