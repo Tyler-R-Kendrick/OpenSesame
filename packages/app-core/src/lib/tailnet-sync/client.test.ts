@@ -1,8 +1,10 @@
 import type { JsonObject } from "@opensesame/os-domain";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  DRIVE_TIMEOUT_MS,
   DriveError,
   driveClientSeams,
+  driveRequest,
   readDrive,
   writeDrive,
 } from "./client.js";
@@ -91,5 +93,17 @@ describe("drive client", () => {
   it("names an oversized vault", async () => {
     answer(413, null);
     await expect(writeDrive(PAIRING, 0, SNAPSHOT)).rejects.toThrow(/larger/);
+  });
+
+  it("hints the address space only where it exempts plain http", () => {
+    const init = { method: "GET" };
+    expect(driveRequest("https://desk.tail1.ts.net", init)).toMatchObject({
+      ciphertextDrive: true,
+      skipAddressSpace: true,
+      timeoutMs: DRIVE_TIMEOUT_MS,
+    });
+    expect(driveRequest("http://100.64.0.1:18790", init)).toMatchObject({
+      skipAddressSpace: false,
+    });
   });
 });

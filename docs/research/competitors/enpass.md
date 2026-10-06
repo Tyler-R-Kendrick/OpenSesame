@@ -165,10 +165,13 @@ The desktop app can act as the drive:
 ## Sync: where OpenSesame stood, and what ADR 0144 changes
 
 Proof: [`spec/conformance/vault-drive-protocol.json`](../../../spec/conformance/vault-drive-protocol.json)
-(replayed by the daemon and the Pages client), the two-device suite
-`packages/app-core/src/lib/tailnet-sync/two-devices.test.ts`, and
-`pnpm --filter @opensesame/pages verify:tailnet-sync` (a real daemon and two
-browsers).
+(snapshots and attachment parts, replayed by the daemon and the Pages
+client), the device suites in `packages/app-core/src/lib/tailnet-sync/`
+(two devices, clock skew and field merge, passwords, project vaults,
+attachments), `pnpm --filter @opensesame/pages verify:tailnet-sync` (a real
+daemon behind a `*.ts.net` TLS name and two browsers with Chrome's Local
+Network Access check on) and `pnpm test:tailnet-sync:real` (the same over a
+real WireGuard tailnet: headscale, two `tailscaled` nodes, `tailscale serve`).
 
 | Enpass capability | OpenSesame before | OpenSesame after ADR 0144 |
 |-------------------|-------------------|---------------------------|
@@ -183,10 +186,14 @@ browsers).
 | Set up a new device from sync | — | **Closed** for the personal vault: pairing on an empty device (or from a guest session) writes the sealed vault in and asks for the master password or a synced passkey |
 | Sync status | — | **Closed.** A status glyph on the Tailnet sync panel: in step at a time, syncing, or the reason it failed |
 | Keyfile | Passkey PRF and PIN unlocks instead | **Deliberately different.** The PIN wrap never leaves its device (a short PIN is guessable offline); a passkey that syncs through the platform is the carried second secret |
-| Master password change propagates | — | **Gap.** Each device keeps its own header; only bodies merge. A changed password must be changed on each device |
-| Several vaults, each with its own sync | Several vaults per device (ADR 0089) | **Gap.** Only the personal vault can be set up on a new device from the drive, so it is the one that syncs; project vaults need adoption into their own tomb |
-| Attachments sync separately | — | **Gap.** Anything stored outside the vault body is not on the drive yet |
-| Cloud storage providers (iCloud, Drive, Dropbox, OneDrive, WebDAV, Nextcloud) | Git remotes only, push-only | **Gap by choice for now.** The drive protocol is two routes over one opaque snapshot, so a WebDAV or object-store adapter is a transport, not a redesign |
+| Master password change propagates | — | **Closed.** The wrap travels inside the sealed body and each device takes the newer one into its header; a drive cannot plant one (ADR 0144 §14) |
+| Several vaults, each with its own sync | Several vaults per device (ADR 0089) | **Closed.** A project vault pairs with its own slot and is set up on another device beside its vaults (§15) |
+| Attachments sync separately | — | **Closed.** Encrypted parts sit beside the snapshot, immutable, behind the slot key; a device fetches what it lacks and keeps it (§16) |
+| Conflicting edits on two devices | Whole-item: the newer copy won | **Surpassed.** Field by field, stamped after everything the device has seen, so two devices' edits to different fields both survive and a slow clock loses nothing it edited later (§13) |
+| Sync in a stock browser | — | **Closed.** Chrome's Local Network Access prompt is asked for only by a person's own action, and a refusal says where to undo it (§11) |
+| Sync from a terminal | Enpass CLI is read-only community tooling | **Surpassed.** `opensesame-id vault sync` (§17) |
+| Sync while the app is closed | Enpass syncs on its own schedule | **Deliberately different.** The vault key is sealed until a person opens the vault, so nothing can merge in the background; the next open catches up, as does coming back online (§12) |
+| Cloud storage providers (iCloud, Drive, Dropbox, OneDrive, WebDAV, Nextcloud) | Git remotes only, push-only | **Deliberately different.** The tailnet drive is the fabric: a machine the person owns, reached only inside their tailnet. A third-party cloud would hold the ciphertext and the slot's history; the protocol (two routes, opaque snapshots) would let one be added as a transport if that ever changes |
 | Business sharing / recovery (Enpass Hub) | Identity shares, recovery codes, duress (ADRs 0079, 0091, 0131) | See *Beyond sync* below |
 
 ## Beyond sync: where OpenSesame stands
@@ -196,15 +203,15 @@ browsers).
 | Master password + keyfile | Master password (600k-round PBKDF2-SHA256), passkey PRF and PIN wraps of one vault key; an authenticator, email or text code as a second step (ADR 0091) | **Different by design.** The second secret is a passkey or a second step, not a file |
 | Quick unlock keeps the master password in the keystore | Quick unlock wraps the *vault key* (passkey PRF, PIN); the password is never stored | **Stronger.** Nothing that re-derives the root key is kept |
 | Diceware generator, zxcvbn strength | Character and passphrase generators from one spec (`spec/conformance/password-policy.json`), strength estimate on the item and health report | **Matched** (the word list and bands differ) |
-| HIBP k-anonymity breach check | Host plane: Pwned Passwords range API with k-anonymity (`crates/breach-intel`, ADR 0080); Pages health report flags weak, reused, old and no-2FA locally | **Matched on the Host plane; the Pages vault does not query HIBP** |
-| "Which of my sites support 2FA / passkeys" | Health report flags logins with no TOTP; no catalogue of which sites support it | **Gap** |
+| HIBP k-anonymity breach check | Host plane: Pwned Passwords range API with k-anonymity (`crates/breach-intel`, ADR 0080). Pages: the optional *Breach and two-step checks* capability (`vault.security-checks`) queries the same range API — five hex characters of a SHA-1, padded — when a person presses Check | **Matched on both planes** |
+| "Which of my sites support 2FA / passkeys" | The same check reads 2fa.directory's list of sites that take an authenticator code, fetched whole and matched on the device, and marks logins that store none | **Matched for authenticator codes**; passkey support is not catalogued |
 | Passkeys and TOTP in the vault | Passkey items (vault-custodied ones can sign), TOTP from one set of conformance cases | **Matched** |
 | Browser extension, SRP pairing, host-matched fill | WXT browser extension; keepassxc-protocol and browserpass bridges on the device plane (ADR 0052/0053) | **Craft bar only** — autofill habits, not a clone |
 | Wearables | None | **Out of scope** |
 | Item sharing by pre-shared key | Secret drops (sealed, one-time, with a TTL) and Identity share grants that can be revoked (ADR 0115) | **Matched, and revocable where Enpass's is not** |
 | Business access recovery through a recovery key | Recovery codes stand in for a second step only; nothing can recover a lost master password or passkey | **Deliberate gap.** No party holds a way to unwrap a person's vault |
 | Several vaults, categories, tags | Several vaults per device (ADR 0089); item types are manifests, installable at runtime (ADR 0087) | **Matched** |
-| Import from other managers and CSV | Bitwarden, 1Password, KDBX/KeePass, KeePassXC, LastPass, Dashlane, NordPass, Proton Pass, browsers, CXF, `.env` | **Gap: no Enpass import.** Someone leaving Enpass has to go through CSV. An Enpass JSON importer needs a real export to build against, not a guessed shape |
+| Import from other managers and CSV | Bitwarden, 1Password, KDBX/KeePass, KeePassXC, LastPass, Dashlane, NordPass, Proton Pass, **Enpass (JSON)**, browsers, CXF, `.env` | **Matched.** The Enpass importer (`vault/import/formats/enpass.ts`) reads Enpass 6's JSON export — logins, cards, notes, folders, typed fields, trash — and names attachments it leaves behind. Its fixture is built from Enpass's documented export shape, not a captured export |
 
 ## Deliberate non-goals vs Enpass
 
@@ -233,7 +240,9 @@ browsers).
 | Access password | Slot key (bearer, SHA-256 at rest) |
 | Verification code | Not needed: Serve's certificate is real |
 | QR pairing | `opensesame daemon drive create` → link to Settings › Vaults |
-| Client-side merge | `mergeVaultBodies` + tombstones, `syncOnce` |
+| Client-side merge | `mergeVaultBodies` (field by field) + tombstones, `syncOnce` |
+| Attachments beside the vault | Slot parts (`/v1/vault-drive/slots/{slot}/parts/{key}`) |
+| Watchtower (breaches, 2FA available) | `vault.security-checks` |
 
 Related: [bitwarden.md](bitwarden.md), [keepass.md](keepass.md) (§ Sync, such
 as it is), [tailscale-identity.md](tailscale-identity.md),

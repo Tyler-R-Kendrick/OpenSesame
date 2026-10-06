@@ -30,7 +30,7 @@ pub const SNAPSHOT_FORMAT: &str = "opensesame-vault-drive-snapshot";
 pub const ENV_DIR: &str = "OPENSESAME_VAULT_DRIVE_DIR";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct SlotMeta {
+pub(crate) struct SlotMeta {
     slot: String,
     label: String,
     key_sha256: String,
@@ -38,6 +38,9 @@ struct SlotMeta {
     created_at: String,
     updated_at: Option<String>,
     bytes: u64,
+    /// Bytes of file parts held beside the snapshot (`vault_drive_parts.rs`).
+    #[serde(default)]
+    pub(crate) parts_bytes: u64,
 }
 
 /// What an operator may see about a slot: never its key or its contents.
@@ -72,6 +75,8 @@ pub enum DriveError {
     Conflict(u64),
     TooLarge,
     Full,
+    /// The slot's file parts would pass their quota.
+    PartsFull,
     Invalid(&'static str),
     Io(io::Error),
 }
@@ -83,7 +88,7 @@ impl From<io::Error> for DriveError {
 }
 
 pub struct DriveStore {
-    dir: PathBuf,
+    pub(crate) dir: PathBuf,
     lock: Mutex<()>,
 }
 
@@ -136,7 +141,7 @@ fn now() -> String {
     chrono::Utc::now().to_rfc3339()
 }
 
-fn write_private(path: &Path, bytes: &[u8]) -> io::Result<()> {
+pub(crate) fn write_private(path: &Path, bytes: &[u8]) -> io::Result<()> {
     let tmp = path.with_extension("tmp");
     let mut options = fs::OpenOptions::new();
     options.write(true).create(true).truncate(true);
@@ -167,13 +172,13 @@ impl DriveStore {
         self.dir.join(format!("{slot}.{generation}.snapshot.json"))
     }
 
-    fn guard(&self) -> std::sync::MutexGuard<'_, ()> {
+    pub(crate) fn guard(&self) -> std::sync::MutexGuard<'_, ()> {
         self.lock
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    fn ensure_dir(&self) -> io::Result<()> {
+    pub(crate) fn ensure_dir(&self) -> io::Result<()> {
         fs::create_dir_all(&self.dir)?;
         #[cfg(unix)]
         {
@@ -191,12 +196,12 @@ impl DriveStore {
         serde_json::from_slice(&bytes).ok()
     }
 
-    fn save(&self, meta: &SlotMeta) -> io::Result<()> {
+    pub(crate) fn save(&self, meta: &SlotMeta) -> io::Result<()> {
         let bytes = serde_json::to_vec_pretty(meta).map_err(io::Error::other)?;
         write_private(&self.meta_path(&meta.slot), &bytes)
     }
 
-    fn authorized(&self, slot: &str, key: &str) -> Result<SlotMeta, DriveError> {
+    pub(crate) fn authorized(&self, slot: &str, key: &str) -> Result<SlotMeta, DriveError> {
         let meta = self.load(slot).ok_or(DriveError::Unauthorized)?;
         if same(&meta.key_sha256, &digest_hex(key)) {
             Ok(meta)
@@ -249,6 +254,7 @@ impl DriveStore {
             created_at: now(),
             updated_at: None,
             bytes: 0,
+            parts_bytes: 0,
         };
         self.save(&meta)?;
         Ok((SlotView::from(&meta), key))
@@ -262,6 +268,7 @@ impl DriveStore {
         };
         fs::remove_file(self.meta_path(slot))?;
         let _ = fs::remove_file(self.snapshot_path(slot, meta.generation));
+        let _ = fs::remove_dir_all(self.parts_dir(slot));
         Ok(true)
     }
 
@@ -308,6 +315,9 @@ impl DriveStore {
         Ok(meta.generation)
     }
 }
+
+#[path = "vault_drive_parts.rs"]
+pub mod parts;
 
 #[cfg(test)]
 #[path = "vault_drive_tests.rs"]

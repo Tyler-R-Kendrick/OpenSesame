@@ -1,0 +1,38 @@
+{
+  "capabilities-desktop": {
+    "sections": 16,
+    "security-checks section": true
+  },
+  "checks-desktop": {
+    "switch offered": true,
+    "panel": true,
+    "marks": [
+      "1 of 2 passwords found in breaches, checked at 4:01:23 AM",
+      "Found in breaches 9,545,824 times: change this password",
+      "This site takes an authenticator code; none is stored"
+    ]
+  },
+  "waiting-desktop": {
+    "marks": [
+      "Sync is waiting for local network access. Sync now, and allow it when the browser asks."
+    ]
+  },
+  "capabilities-phone": {
+    "sections": 16,
+    "security-checks section": true
+  },
+  "checks-phone": {
+    "switch offered": true,
+    "panel": true,
+    "marks": [
+      "1 of 2 passwords found in breaches, checked at 4:02:17 AM",
+      "Found in breaches 9,545,824 times: change this password",
+      "This site takes an authenticator code; none is stored"
+    ]
+  },
+  "waiting-phone": {
+    "marks": [
+      "Sync is waiting for local network access. Sync now, and allow it when the browser asks."
+    ]
+  }
+}
