@@ -7,10 +7,11 @@ let package = Package(
     products: [
         .library(name: "OpenSesameAuthenticator", targets: ["OpenSesameAuthenticator"]),
     ],
+    dependencies: [.package(path: "EnvelopeCore")],
     targets: [
         .binaryTarget(
             name: "Multipaz",
-            url: "https://github.com/openwallet-foundation/multipaz/releases/download/0.100.0/Multipaz-0.100.0.xcframework.zip",
+            url: "https://apps.multipaz.org/xcf/Multipaz-0.100.0.xcframework.zip",
             checksum: "6098070b02dfe416f27146b9ca43d7867182caf93d5f872aaf560c1af9764452"
         ),
         .binaryTarget(
@@ -23,9 +24,13 @@ let package = Package(
             path: "Sources/OpenSesameAuthenticatorCore",
             sources: ["opensesame_authenticator_core.swift"]
         ),
+        .testTarget(name: "WalletEnvelopeStorageTests", dependencies: ["WalletEnvelopeStorage", "Multipaz", .product(name: "WalletEnvelopeCore", package: "EnvelopeCore")]),
+        .target(name: "IdentityDocumentProvider", dependencies: ["Multipaz", "WalletEnvelopeStorage", .product(name: "WalletEnvelopeCore", package: "EnvelopeCore")], path: "IdentityDocumentProvider", exclude: ["IdentityDocumentProvider.entitlements", "Info.plist"]),
+        .target(name: "WalletEnvelopeStorage", dependencies: ["Multipaz", .product(name: "WalletEnvelopeCore", package: "EnvelopeCore")]),
         .target(
             name: "OpenSesameAuthenticator",
-            dependencies: ["Multipaz", "OpenSesameAuthenticatorCore"]
+            dependencies: ["Multipaz", "OpenSesameAuthenticatorCore", "WalletEnvelopeStorage", .product(name: "WalletEnvelopeCore", package: "EnvelopeCore")]
         ),
-    ]
+    ],
+    swiftLanguageModes: [.v5]
 )

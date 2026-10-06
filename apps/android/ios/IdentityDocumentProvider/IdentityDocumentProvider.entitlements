@@ -3,4 +3,6 @@
 <plist version="1.0"><dict>
   <key>com.apple.security.application-groups</key>
   <array><string>group.dev.opensesame.authenticator</string></array>
+  <key>keychain-access-groups</key>
+  <array><string>$(AppIdentifierPrefix)group.dev.opensesame.authenticator</string></array>
 </dict></plist>
