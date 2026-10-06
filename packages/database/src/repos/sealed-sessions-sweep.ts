@@ -13,6 +13,7 @@ import type { Database } from "./postgres.js";
 export async function sealLegacySessions(
   db: Database,
   sealer: EventSealer,
+  allowLegacy = true,
 ): Promise<number> {
   let cursor = "";
   let changed = 0;
@@ -54,6 +55,7 @@ export async function sealLegacySessions(
           throw new Error("Session token index authentication failed");
         continue;
       }
+      if (!allowLegacy) throw new EventSealError("better_auth_sessions.token");
       const digest = sealer.lookupToken(
         "better_auth_sessions.token",
         row.token,

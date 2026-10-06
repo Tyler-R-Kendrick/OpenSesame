@@ -11,6 +11,7 @@ import type {
   HistoryRowStore,
   ProvisionalHistoryAccount,
 } from "../history-backup-types.js";
+import { DEVICE_EDB_NAMESPACE } from "./names.js";
 import { type EdbRow, defineSchema } from "./schema.js";
 import { withEncryptedDb } from "./with-db.js";
 
@@ -67,7 +68,12 @@ export function createHistoryStore(
 ): HistoryRowStore {
   const run = async <T>(work: Parameters<typeof withEncryptedDb<T>>[2]) => {
     await ready();
-    return withEncryptedDb(HISTORY_DATABASE, historySchema, work);
+    return withEncryptedDb(
+      HISTORY_DATABASE,
+      historySchema,
+      work,
+      DEVICE_EDB_NAMESPACE,
+    );
   };
   return {
     putAccount: (account) =>

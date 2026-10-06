@@ -1,9 +1,9 @@
-import { randomUUID } from "node:crypto";
+import { createCipheriv, hkdfSync, randomBytes, randomUUID } from "node:crypto";
 import { PGlite } from "@electric-sql/pglite";
 import { verifyAuditChain } from "@opensesame/audit";
 import { SEALED_FIELD } from "@opensesame/database";
 import * as schema from "@opensesame/database/schema";
-import { overlapCast } from "@opensesame/os-domain";
+import { type JsonObject, overlapCast } from "@opensesame/os-domain";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
@@ -148,5 +148,91 @@ describe("the control plane over Postgres", () => {
       .from(schema.auditEvents)
       .where(eq(schema.auditEvents.id, legacy));
     expect(row?.metadata).toEqual({ reason: SENTINEL });
+    await db
+      .delete(schema.auditEvents)
+      .where(eq(schema.auditEvents.id, legacy));
   });
 });
+
+function legacyMetadata(plain: JsonObject): JsonObject {
+  const key = Buffer.from(
+    hkdfSync("sha256", PEPPER, "", "opensesame:event-seal:v1", 32),
+  );
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", key, iv);
+  cipher.setAAD(Buffer.from("audit_events.metadata"));
+  const body = Buffer.concat([
+    iv,
+    cipher.update(JSON.stringify(plain)),
+    cipher.final(),
+    cipher.getAuthTag(),
+  ]);
+  return { $sealed: `osev1.${body.toString("base64url")}` };
+}
+
+it.each(["plaintext", "osev1"])(
+  "refuses %s replay during an ordinary restart after trusted migration",
+  async (format) => {
+    const id = randomUUID();
+    const ownerA = randomUUID();
+    const ownerB = randomUUID();
+    await db.insert(schema.principals).values(
+      [ownerA, ownerB].map((owner) => ({
+        id: owner,
+        state: "active",
+        assurance: "self_asserted",
+      })),
+    );
+    const plain = { reason: "restart-replay-canary" };
+    const metadata = format === "plaintext" ? plain : legacyMetadata(plain);
+    await db.insert(schema.auditEvents).values({
+      id,
+      occurredAt: new Date(),
+      eventType: "test.restart",
+      outcome: "succeeded",
+      correlationId: randomUUID(),
+      principalId: ownerA,
+      metadata,
+    });
+    const env = {
+      ...process.env,
+      OPENSESAME_CLAIM_PEPPER: PEPPER,
+      OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION: "false",
+    };
+    const refused = createControlPlane({
+      database: overlapCast(db),
+      processEnv: env,
+    });
+    await expect(refused.ctx.systemPrincipalReady).rejects.toThrow();
+    const trusted = createControlPlane({
+      database: overlapCast(db),
+      processEnv: { ...env, OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION: "true" },
+    });
+    await trusted.ctx.systemPrincipalReady;
+    const [migrated] = await db
+      .select()
+      .from(schema.auditEvents)
+      .where(eq(schema.auditEvents.id, id));
+    expect(migrated?.metadata.$sealed).toMatch(/^osev2\./);
+    const current = createControlPlane({
+      database: overlapCast(db),
+      processEnv: env,
+    });
+    await current.ctx.systemPrincipalReady;
+    await db
+      .update(schema.auditEvents)
+      .set({ metadata, principalId: ownerB })
+      .where(eq(schema.auditEvents.id, id));
+    const restarted = createControlPlane({
+      database: overlapCast(db),
+      processEnv: env,
+    });
+    await expect(restarted.ctx.systemPrincipalReady).rejects.toThrow();
+    const [replayed] = await db
+      .select()
+      .from(schema.auditEvents)
+      .where(eq(schema.auditEvents.id, id));
+    expect(replayed?.metadata).toEqual(metadata);
+    await db.delete(schema.auditEvents).where(eq(schema.auditEvents.id, id));
+  },
+);

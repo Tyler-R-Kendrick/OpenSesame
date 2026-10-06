@@ -6,9 +6,11 @@ The Host's SQLite file holds what happened: the outbox, security deliveries,
 connection events, signing events, approval comments, runner steps, intents,
 invocations and receipts. Each such value is sealed before it is written, under
 a key derived (HKDF-SHA256) from the Host sealing key, with `table.column` in the
-associated data so a value moved to another column does not open. A sealed value
-is text, `osev1.` + base64url(24-byte nonce ‖ XChaCha20-Poly1305 ciphertext and
-tag), so the schema and every query that does not read the value are unchanged.
+associated data so a value moved to another column does not open. Current
+`osev2.` envelopes use a fresh data key per value, wrapped under the customer
+key, and authenticate the trusted customer and record context. Configured
+runtime readers refuse plaintext and `osev1.` downgrades. The explicit startup
+migration reader can import older rows before the Host serves requests.
 
 ## Where it fits
 
@@ -30,7 +32,9 @@ tag), so the schema and every query that does not read the value are unchanged.
 |---|---|
 | `install(&[u8; 32])` / `clear()` / `is_active()` | Install, remove and query the process's sealer. |
 | `seal(column, text)` / `seal_opt` | Seal for `table.column`; the input when none is installed. |
-| `open(column, stored)` / `open_opt` | A sealed value opened; plaintext (an older build's) as it is; a sealed value that does not open, or one found with no sealer installed, is `Unreadable` and never ciphertext handed on. |
+| `open(column, stored)` / `open_opt` | Current envelopes only when configured; plaintext only in unconfigured development. |
+| `open_in(customer, column, record, stored)` | Current envelopes bound to trusted customer and row; legacy values fail closed. |
+| `open_legacy_for_migration(column, stored)` | Explicit startup migration only; legacy values have no authenticated customer or row identity. |
 | `is_sealed(text)` / `PREFIX` | Whether a value is already sealed. |
 | `EventSealer` | The sealer itself, for tests and for callers that hold their own. |
 
@@ -40,3 +44,12 @@ tag), so the schema and every query that does not read the value are unchanged.
 cargo +1.88.0 test -p opensesame-event-seal
 cargo +1.88.0 test -p opensesame-storage --test sealed_events   # against the real schema
 ```
+
+Host startup refuses plaintext and `osev1` event rows by default, including on
+restart. For a one-time upgrade of a trusted database, set
+`OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION=true` (only the exact value `true`
+enables import). Stop writers and verify database provenance before importing;
+legacy ciphertext cannot prove its customer or record ownership. Disable this
+flag immediately after upgrade. Leaving it enabled permits legacy replay on
+restart. Ordinary startup validates current envelope prefixes without legacy
+decryption or rewriting.

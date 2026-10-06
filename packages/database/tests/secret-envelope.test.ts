@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import { EventSealError, createEventSealer } from "../src/event-seal.js";
 import { MemoryRepositories } from "../src/repos/memory.js";
 import { withSealedSecrets } from "../src/repos/sealed-secrets.js";
-import { openSecretText, sealSecretText } from "../src/secret-seal.js";
+import {
+  openLegacySecretText,
+  openSecretText,
+  sealSecretText,
+} from "../src/secret-seal.js";
 
 const secret = "a durable deployment key for envelope tests";
 const sealer = createEventSealer(secret);
@@ -44,7 +48,7 @@ describe("customer secret envelopes", () => {
       cipher.getAuthTag(),
     ]);
     expect(
-      sealer.open(
+      sealer.openLegacyForMigration(
         "audit_events.metadata:record",
         { $sealed: `osev1.${packed.toString("base64url")}` },
         "customer-a",
@@ -68,7 +72,12 @@ describe("customer secret envelopes", () => {
     expect(() =>
       openSecretText(sealer, "secret:one", "a", '{"$sealed":"unknown"}'),
     ).toThrow(EventSealError);
-    expect(openSecretText(sealer, "secret:one", "a", "legacy")).toBe("legacy");
+    expect(() => openSecretText(sealer, "secret:one", "a", "legacy")).toThrow(
+      EventSealError,
+    );
+    expect(openLegacySecretText(sealer, "secret:one", "a", "legacy")).toBe(
+      "legacy",
+    );
   });
 
   it("seals webhook keys beneath repositories and rejects another customer's row", async () => {

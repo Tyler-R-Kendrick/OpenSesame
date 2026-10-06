@@ -23,6 +23,7 @@ import {
 import { deriveEdbKeys } from "./keys.js";
 import { type Context, dropLayer, ensureReady, readMeta } from "./layers.js";
 import { MetaStore, layerKey, livePlans } from "./meta.js";
+import { DEVICE_EDB_NAMESPACE } from "./names.js";
 import { EdbQueryError, type FindOptions, type Where } from "./query.js";
 import { openRow, sealRow } from "./rows.js";
 import type { EdbRow, Layer, LayerPlan, Schema } from "./schema.js";
@@ -183,10 +184,15 @@ class Database {
   }
 }
 
-/** Open the database a logical name stands for, under the device's at-rest key. */
+/**
+ * Open under a trusted customer namespace supplied by the caller, never by a stored row.
+ * The reserved device namespace preserves existing device-owned database names and keys.
+ * Customer keys are segmented derivatives of the shared device root, not independent custody.
+ */
 export async function openEncryptedDb(
   logicalName: string,
   schema: Schema,
+  customerNamespace = DEVICE_EDB_NAMESPACE,
 ): Promise<EncryptedDb> {
   let atRest: Awaited<ReturnType<typeof atRestReady>>;
   try {
@@ -198,7 +204,7 @@ export async function openEncryptedDb(
   if (!atRest.durable) {
     throw new EncryptedDbUnavailable("this device keeps no durable key");
   }
-  const keys = deriveEdbKeys(atRest.key, logicalName);
+  const keys = deriveEdbKeys(atRest.key, logicalName, customerNamespace);
   let db: IDBDatabase;
   try {
     db = await openDatabase(keys.databaseName);

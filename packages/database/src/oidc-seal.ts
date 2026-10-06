@@ -74,7 +74,7 @@ export function openOidcRow(sealer: EventSealer, row: OidcSealRow): JsonObject {
     !row.payload.$sealed.startsWith("osev2.")
   )
     throw new EventSealError("oidc_payloads.payload");
-  const payload = sealer.open(
+  const payload = sealer.openCurrent(
     purpose(row.model, row.id),
     row.payload,
     row.sealScope,

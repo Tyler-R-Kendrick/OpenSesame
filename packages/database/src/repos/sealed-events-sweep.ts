@@ -41,7 +41,7 @@ async function sweep(
           ? JSON.stringify([row.aggregateType, row.aggregateId])
           : (row.scope ?? "deployment");
       const context = `${purpose}:${row.id}`;
-      const plain = sealer.open(context, row.value, scope);
+      const plain = sealer.openLegacyForMigration(context, row.value, scope);
       // Authentication above also refuses malformed/unknown markers at startup.
       if (
         isString(row.value[SEALED_FIELD]) &&
@@ -191,10 +191,14 @@ async function sweepNotification(
 export async function sealLegacyEvents(
   db: Database,
   sealer: EventSealer,
+  allowLegacy = true,
 ): Promise<SweepCounts> {
-  const audit = await sweepAudit(db, sealer);
-  const outbox = await sweepOutbox(db, sealer);
-  const webhook = await sweepWebhook(db, sealer);
-  const notification = await sweepNotification(db, sealer);
+  const eventSealer = allowLegacy
+    ? sealer
+    : { ...sealer, openLegacyForMigration: sealer.openCurrent.bind(sealer) };
+  const audit = await sweepAudit(db, eventSealer);
+  const outbox = await sweepOutbox(db, eventSealer);
+  const webhook = await sweepWebhook(db, eventSealer);
+  const notification = await sweepNotification(db, eventSealer);
   return { audit, outbox, webhook, notification };
 }

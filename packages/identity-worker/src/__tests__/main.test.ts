@@ -7,6 +7,8 @@ const ENV_KEYS = [
   "OPENSESAME_WORKER_INTERVAL_MS",
   "OPENSESAME_TASKBUS",
   "NATS_URL",
+  "OPENSESAME_EVENT_KEY",
+  "OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION",
 ] as const;
 
 describe("worker entrypoint", () => {
@@ -53,6 +55,35 @@ describe("worker entrypoint", () => {
       else process.env[key] = value;
     }
   });
+
+  it.each([undefined, "false", "1", "true"])(
+    "requires the exact true opt-in for legacy import (%s)",
+    async (flag) => {
+      process.env.DATABASE_URL = "postgres://localhost/test";
+      process.env.OPENSESAME_EVENT_KEY =
+        "worker-startup-test-root-with-at-least-32-characters";
+      if (flag !== undefined)
+        process.env.OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION = flag;
+      const sealLegacySecrets = vi.fn(async () => 0);
+      const sealLegacyEvents = vi.fn(async () => ({
+        audit: 0,
+        outbox: 0,
+        webhook: 0,
+        notification: 0,
+      }));
+      await runWorker({ ...runtime(), sealLegacySecrets, sealLegacyEvents });
+      expect(sealLegacyEvents).toHaveBeenCalledWith(
+        {},
+        expect.anything(),
+        flag === "true",
+      );
+      expect(sealLegacySecrets).toHaveBeenCalledWith(
+        {},
+        expect.anything(),
+        flag === "true",
+      );
+    },
+  );
 
   it("builds the notification adapters from the repositories and the logger", async () => {
     process.env.DATABASE_URL = "postgres://localhost/test";

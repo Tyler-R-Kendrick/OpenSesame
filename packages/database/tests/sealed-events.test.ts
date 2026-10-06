@@ -63,8 +63,9 @@ describe("the sealer", () => {
     expect(() => sealer.open("t.c", bad)).toThrow(EventSealError);
   });
 
-  it("returns a legacy plaintext payload as it is", () => {
-    expect(sealer.open("t.c", { a: 1 })).toEqual({ a: 1 });
+  it("permits legacy plaintext only in explicit migration", () => {
+    expect(() => sealer.open("t.c", { a: 1 })).toThrow(EventSealError);
+    expect(sealer.openLegacyForMigration("t.c", { a: 1 })).toEqual({ a: 1 });
   });
 
   it("refuses an empty secret, and never defaults one", () => {

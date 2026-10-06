@@ -1,6 +1,11 @@
 import { sql } from "drizzle-orm";
 import type { EventSealer } from "../event-seal.js";
-import { openSecretText, sealSecretText } from "../secret-seal.js";
+import {
+  isCurrentSecretText,
+  openLegacySecretText,
+  openSecretText,
+  sealSecretText,
+} from "../secret-seal.js";
 import type { Database } from "./postgres.js";
 import { sealLegacyOidc } from "./sealed-oidc-sweep.js";
 import { sealLegacySessions } from "./sealed-sessions-sweep.js";
@@ -80,6 +85,7 @@ const COLUMNS: readonly SecretColumn[] = [
 export async function sealLegacySecrets(
   db: Database,
   sealer: EventSealer,
+  allowLegacy = true,
 ): Promise<number> {
   let changed = 0;
   for (const column of COLUMNS) {
@@ -122,9 +128,21 @@ export async function sealLegacySecrets(
           : column.recordBound
             ? `${column.table}.${column.column}:${row.bindingId}`
             : `${column.table}.${column.column}`;
+        if (!allowLegacy) {
+          openSecretText(sealer, purpose, row.scope, row.value);
+          continue;
+        }
         // Authenticate any existing envelope before leaving it in place.
-        const plain = openSecretText(sealer, purpose, row.scope, row.value);
-        if (plain !== row.value) continue;
+        const plain = openLegacySecretText(
+          sealer,
+          purpose,
+          row.scope,
+          row.value,
+        );
+        if (isCurrentSecretText(row.value)) {
+          openSecretText(sealer, purpose, row.scope, row.value);
+          continue;
+        }
         const sealed = sealSecretText(sealer, purpose, row.scope, plain);
         await db.execute(
           sql`update ${table} set ${value} = ${sealed} where ${id} = ${row.id} and ${value} = ${row.value}`,
@@ -135,7 +153,7 @@ export async function sealLegacySecrets(
   }
   return (
     changed +
-    (await sealLegacySessions(db, sealer)) +
-    (await sealLegacyOidc(db, sealer))
+    (await sealLegacySessions(db, sealer, allowLegacy)) +
+    (await sealLegacyOidc(db, sealer, allowLegacy))
   );
 }

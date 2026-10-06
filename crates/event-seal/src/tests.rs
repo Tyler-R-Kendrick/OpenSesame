@@ -40,12 +40,16 @@ fn a_torn_or_altered_value_is_refused_not_read_as_empty() {
 }
 
 #[test]
-fn plaintext_is_returned_as_it_is() {
+fn plaintext_is_available_only_to_explicit_migration() {
+    assert!(sealer().open("t.c", "an older build's text").is_err());
     assert_eq!(
-        sealer().open("t.c", "an older build's text").unwrap(),
+        sealer()
+            .open_legacy_for_migration("t.c", "an older build's text")
+            .unwrap(),
         "an older build's text"
     );
-    assert_eq!(sealer().open("t.c", "").unwrap(), "");
+    assert!(sealer().open("t.c", "").is_err());
+    assert_eq!(sealer().open_legacy_for_migration("t.c", "").unwrap(), "");
 }
 
 #[test]
@@ -105,7 +109,11 @@ fn legacy_value(column: &str, text: &str) -> String {
 fn legacy_ciphertext_remains_readable_and_recognized() {
     let legacy = legacy_value("t.c", "old secret");
     assert!(is_sealed(&legacy));
-    assert_eq!(sealer().open("t.c", &legacy).unwrap(), "old secret");
+    assert!(sealer().open("t.c", &legacy).is_err());
+    assert_eq!(
+        sealer().open_legacy_for_migration("t.c", &legacy).unwrap(),
+        "old secret"
+    );
     assert!(sealer().open("t.other", &legacy).is_err());
     assert!(sealer().open("t.c", "osev1.").is_err());
 }
@@ -138,10 +146,26 @@ fn scoped_process_envelopes_bind_customer_record_and_column() {
     assert!(open_in("first", "t.c", "record2", &sealed).is_err());
     assert!(open_in("first", "t.other", "record1", &sealed).is_err());
     assert!(open("t.c", &sealed).is_err());
+    let legacy = legacy_value("t.c", "old");
+    for customer in ["first", "second"] {
+        for record in ["record1", "record2"] {
+            assert!(open_in(customer, "t.c", record, &legacy).is_err());
+            assert!(open_in(customer, "t.c", record, "old plaintext").is_err());
+        }
+    }
+    assert_eq!(open_legacy_for_migration("t.c", &legacy).unwrap(), "old");
+    let migrated = seal_in(
+        "first",
+        "t.c",
+        "record1",
+        &open_legacy_for_migration("t.c", &legacy).unwrap(),
+    );
     assert_eq!(
-        open_in("first", "t.c", "record1", &legacy_value("t.c", "old")).unwrap(),
+        open_in("first", "t.c", "record1", &migrated).unwrap(),
         "old"
     );
+    assert!(open_in("second", "t.c", "record1", &migrated).is_err());
+    assert!(open_in("first", "t.c", "record2", &migrated).is_err());
     clear();
     assert!(open_in("first", "t.c", "record1", &sealed).is_err());
 }
@@ -176,4 +200,23 @@ fn unknown_envelope_versions_are_not_plaintext() {
         assert!(is_sealed(stored));
         assert!(sealer().open("t.c", stored).is_err());
     }
+}
+
+#[test]
+fn explicit_migration_without_a_key_accepts_only_development_plaintext() {
+    let _turn = SERIAL.lock().unwrap_or_else(PoisonError::into_inner);
+    clear();
+    for plain in ["development value", ""] {
+        assert_eq!(open_legacy_for_migration("t.c", plain).unwrap(), plain);
+    }
+    for sealed in [
+        legacy_value("t.c", "old"),
+        sealer().seal("t.c", "new"),
+        "osev1.malformed".to_owned(),
+    ] {
+        assert!(open_legacy_for_migration("t.c", &sealed).is_err());
+    }
+    install(&[5; 32]);
+    assert!(open_in("first", "t.c", "record", "development value").is_err());
+    clear();
 }

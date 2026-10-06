@@ -17,7 +17,12 @@ import { hmac } from "@noble/hashes/hmac";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex } from "@noble/hashes/utils";
 import { atRestBinding } from "../at-rest/cipher.js";
-import { EDB_SALT, edbDatabaseName, edbMasterKey } from "./names.js";
+import {
+  DEVICE_EDB_NAMESPACE,
+  EDB_SALT,
+  edbDatabaseName,
+  edbMasterKey,
+} from "./names.js";
 
 const encoder = new TextEncoder();
 
@@ -69,16 +74,22 @@ function hex128(key: Uint8Array, message: Uint8Array): string {
   return bytesToHex(hmac(sha256, key, message)).slice(0, 32);
 }
 
-/** Derive a database's keys from the device's at-rest key. */
+/** Derive keys from the device root and a trusted customer/database context. */
 export function deriveEdbKeys(
   atRestKey: Uint8Array,
   logicalName: string,
+  customerNamespace = DEVICE_EDB_NAMESPACE,
 ): EdbKeys {
+  if (customerNamespace.length === 0)
+    throw new Error("Empty customer namespace");
   const master = edbMasterKey(atRestKey);
-  const databaseName = edbDatabaseName(master, logicalName);
+  const databaseName = edbDatabaseName(master, logicalName, customerNamespace);
   // Everything below is also bound to this database: the same device key and
   // schema in two databases share no pseudonym and no token.
-  const root = sub(master, "database", logicalName);
+  const root =
+    customerNamespace === DEVICE_EDB_NAMESPACE
+      ? sub(master, "database", logicalName)
+      : sub(master, "customer", customerNamespace, "database", logicalName);
   master.fill(0);
   const sealKey = sub(root, "seal");
   const rowKey = sub(root, "row");

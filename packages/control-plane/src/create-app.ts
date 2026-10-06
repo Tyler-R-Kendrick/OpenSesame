@@ -234,7 +234,13 @@ export function createControlPlane(options: CreateControlPlaneOptions = {}) {
       await runMigrations(config.databaseUrl);
     }
     if (drizzleBundle) await verifySecurityDatabase(drizzleBundle.db);
-    if (drizzleBundle) await sealExistingEvents(drizzleBundle.db, eventSealer);
+    if (drizzleBundle) {
+      await sealExistingEvents(
+        drizzleBundle.db,
+        eventSealer,
+        processEnv.OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION === "true",
+      );
+    }
     await ensureSystemOwnerPrincipal(repos, clock);
   })();
   systemPrincipalReady.catch(() => {

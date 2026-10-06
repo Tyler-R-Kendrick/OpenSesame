@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { EventSealError, createEventSealer } from "../src/event-seal.js";
 import { createPostgresOrganizationStores } from "../src/repos/postgres.js";
+import { sealLegacySecrets } from "../src/repos/sealed-secrets-sweep.js";
 import { organizations } from "../src/schema/index.js";
 import { sealSecretText } from "../src/secret-seal.js";
 import { makePrincipal } from "./factories.js";
@@ -96,9 +97,10 @@ describe("organization SSO credential envelopes", () => {
       createEventSealer("wrong fixture key"),
     ).organizations;
     await expect(wrongKey.get(first.id)).rejects.toBeInstanceOf(EventSealError);
+    await store.set(second.id, second);
   });
 
-  it("reads legacy plaintext and migrates it on write without retaining removed credentials", async () => {
+  it("requires explicit legacy migration and preserves removed credential behavior", async () => {
     const legacy = createPostgresOrganizationStores(ctx.db).organizations;
     const store = createPostgresOrganizationStores(
       ctx.db,
@@ -107,6 +109,8 @@ describe("organization SSO credential envelopes", () => {
     const org = await organization();
     await legacy.set(org.id, org);
     expect(await storedSecret(org.id)).toBe(org.ssoClientSecret);
+    await expect(store.get(org.id)).rejects.toBeInstanceOf(EventSealError);
+    await sealLegacySecrets(ctx.db, sealer);
     expect(await store.get(org.id)).toEqual(org);
     await store.set(org.id, org);
     expect(await storedSecret(org.id)).toContain("osev2.");
