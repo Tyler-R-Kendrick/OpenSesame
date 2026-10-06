@@ -66,7 +66,10 @@ pub enum Produced {
 /// Cut `password` where a Python-style position expression says a pepper goes
 /// (`pepper-position.ts`): empty or `end` is after the last character; `3` and
 /// `-2` insert before that index; `2:5`, `:4` and `-3:` stand in for a slice.
-/// Text that is not a position cuts at the end.
+/// Text that is not a position cuts at the end. Characters are counted as
+/// Python counts them (code points), only ASCII whitespace is dropped and `end`
+/// is read in ASCII case alone, so this agrees with the TypeScript reader on
+/// every expression in `spec/conformance/pepper-position-vectors.json`.
 #[must_use]
 pub fn split_at_pepper(password: &str, expression: &str) -> (String, String) {
     let chars: Vec<char> = password.chars().collect();
@@ -94,7 +97,10 @@ enum Position {
 }
 
 fn parse_position(expression: &str) -> Position {
-    let mut text: String = expression.chars().filter(|c| !c.is_whitespace()).collect();
+    let mut text: String = expression
+        .chars()
+        .filter(|c| !matches!(c, ' ' | '\t' | '\n' | '\u{b}' | '\u{c}' | '\r'))
+        .collect();
     if text.starts_with('[') && text.ends_with(']') && text.len() >= 2 {
         text = text[1..text.len() - 1].to_owned();
     }
@@ -123,7 +129,15 @@ fn integer(text: &str) -> Option<i64> {
     if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit()) {
         return None;
     }
-    text.parse().ok()
+    // A figure past 64 bits still names a place: it clamps to either end, as
+    // Python's does, so it saturates rather than being refused.
+    Some(text.parse().unwrap_or_else(|_| {
+        if text.starts_with('-') {
+            i64::MIN
+        } else {
+            i64::MAX
+        }
+    }))
 }
 
 fn clamp(index: i64, length: usize) -> usize {
