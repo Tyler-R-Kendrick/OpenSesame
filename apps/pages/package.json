@@ -47,6 +47,7 @@
     "verify:mutations": "node scripts/verify-mutations.mjs",
     "verify:tailnet-sync": "node scripts/verify-tailnet-sync.mjs",
     "verify:tailnet-devices": "node scripts/verify-tailnet-devices.mjs",
+    "verify:password-agent": "node scripts/verify-password-agent.mjs",
     "verify:encrypted-search": "node scripts/verify-encrypted-search.mjs"
   },
   "dependencies": {
