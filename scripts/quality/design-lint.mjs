@@ -21,7 +21,6 @@ import { fileURLToPath } from "node:url";
 import { checkCopy } from "./design-lint-copy.mjs";
 import { checkCorners } from "./design-lint-corners.mjs";
 import { checkFailureCss, checkInPageErrors } from "./design-lint-failures.mjs";
-import { checkControlInk, checkDangerClasses } from "./design-lint-ink.mjs";
 import { checkCommitKeys, checkFieldWidths } from "./design-lint-layout.mjs";
 import { checkSheets } from "./design-lint-sheets.mjs";
 import { wordVerbHits } from "./design-lint-verbs.mjs";
@@ -185,7 +184,6 @@ function checkTsx(file, source) {
   checkSheets(file, source, report, lineOf);
   checkWordVerbs(file, source);
   checkCorners(root, file, source, report, lineOf);
-  checkDangerClasses(file, source, report, lineOf);
 }
 
 const BUTTON_BASELINE = join(
@@ -275,7 +273,6 @@ function entranceKeyframes() {
 function checkCss(file, source) {
   checkDropdowns(file, source);
   checkCorners(root, file, blankComments(source), report, lineOf);
-  checkControlInk(file, source, report, lineOf);
   checkFailureCss(file, source, report, lineOf);
   // Comments blanked to the same number of lines, so a reported line
   // number still points at the rule.

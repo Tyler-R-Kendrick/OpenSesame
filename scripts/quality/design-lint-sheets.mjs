@@ -33,6 +33,7 @@
  * `report` and `lineOf` are passed in, so this module owns no sweep state.
  */
 
+import { checkDangerClasses } from "./design-lint-ink.mjs";
 import { wordsAreChoice } from "./design-lint-verbs.mjs";
 
 /** Index just past the `>` that ends the tag opened at `from`. */
@@ -242,4 +243,5 @@ export function checkSheets(file, source, report, lineOf) {
   checkSheetCaptions(file, source, report, lineOf);
   checkCeremonies(file, source, report, lineOf);
   checkOneWayOut(file, source, report, lineOf);
+  checkDangerClasses(file, source, report, lineOf);
 }

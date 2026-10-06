@@ -28,7 +28,7 @@ const DANGER_CLASS =
 
 /** A selector that names a control, or a danger or armed state of one. */
 const CONTROL =
-  /(?:^|[\s>+~(,])(?:button|\.(?:btn|go|icon-btn|icon-key|choice|road|scrim|fab)(?![\w-]))|--danger|\.is-armed(?![\w-])|__nav-link(?![\w-])|__(?:go|mic|key|keys|btn|button|switch|toggle|close)(?![\w-])/;
+  /(?:^|[\s>+~(,])(?:button|\.(?:btn|go|icon-btn|icon-key|choice|road|scrim|fab)(?![\w-]))|--danger|\.is-armed(?![\w-])|__nav-link(?![\w-])|\.is-danger(?![\w-])|__(?:go|mic|key|keys|btn|button|switch|toggle|close|item)(?![\w-])/;
 
 /** An error token read by a declaration. */
 const ERROR_INK = /var\(\s*--(?:err|err-wash|err-ink|danger)\b/;
@@ -43,7 +43,12 @@ function blankComments(source) {
 /** A class string in a .tsx/.ts file that names a danger modifier. */
 export function checkDangerClasses(file, source, report, lineOf) {
   for (const match of source.matchAll(DANGER_CLASS)) {
-    report(file, lineOf(source, match.index ?? 0), "no-danger-control", MESSAGE);
+    report(
+      file,
+      lineOf(source, match.index ?? 0),
+      "no-danger-control",
+      MESSAGE,
+    );
   }
 }
 

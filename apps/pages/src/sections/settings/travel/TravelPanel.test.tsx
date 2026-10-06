@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -246,7 +247,7 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
     ).toBeTruthy();
   });
 
-  it("goes back to the plan from 'Keep them here' without removing anything", async () => {
+  it("leaves the sheet by its close key without removing anything", async () => {
     render(<TravelPanel />);
     fireEvent.click(
       screen.getByRole("button", { name: "Turn on travel mode" }),
@@ -255,10 +256,10 @@ describe("Settings › Vaults › Travel (ADR 0143)", () => {
       screen.getByRole("button", { name: "Pack the rest for travel" }),
     );
     await screen.findByText(/^([A-Z2-7]{4}-){7}[A-Z2-7]{4}$/);
-    fireEvent.click(screen.getByRole("button", { name: "Keep them here" }));
-    expect(
-      screen.getByRole("button", { name: "Pack the rest for travel" }),
-    ).toBeTruthy();
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Close" }),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(origin.tombs.has(WORK)).toBe(true);
   });
 

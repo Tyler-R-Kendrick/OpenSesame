@@ -26,6 +26,8 @@
  * (`apps/pages/src/components/FailureNotice.tsx`) or `StatusNote`.
  */
 
+import { checkControlInk } from "./design-lint-ink.mjs";
+
 const MESSAGE =
   "A failure is a StatusMark on the thing that failed, or a notice in the tray — never a red box or alert in the page. Mount <FailureNotice id title message /> (apps/pages/src/components/FailureNotice.tsx) or use StatusNote. See DESIGN.md § Status is a symbol and docs/design/controls.md.";
 
@@ -158,6 +160,7 @@ const FILLS_ERROR =
   /(?:^|;)\s*background(?:-color)?\s*:[^;]*var\(--err(?:-wash)?\)/;
 
 export function checkFailureCss(file, source, report, lineOf) {
+  checkControlInk(file, source, report, lineOf);
   const css = blankComments(source);
   for (const block of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     const selector = block[1].trim();

@@ -267,23 +267,6 @@ const STEPS = {
     console.log(`  measure ${selector}: ${boxes.join(" | ") || "none"}`);
   },
   /**
-   * Print computed styles of every match, so a colour or a corner is read from
-   * the browser and not from the stylesheet: `{ selector, props: [...] }`.
-   */
-  async style(page, { selector, props }) {
-    const rows = await page.locator(selector).evaluateAll(
-      (nodes, names) =>
-        nodes.map((node) => {
-          const computed = getComputedStyle(node);
-          const label = node.getAttribute("aria-label") ?? node.tagName;
-          return `${label}: ${names.map((name) => `${name}=${computed.getPropertyValue(name)}`).join("; ")}`;
-        }),
-      props,
-    );
-    console.log(`  style ${selector}:`);
-    for (const row of rows) console.log(`    ${row}`);
-  },
-  /**
    * Arrive at an address under the base, the way a person opens a link —
    * an invite's fragment included. A cold load: a fragment-only change is a
    * same-document navigation, which `visit` is for.

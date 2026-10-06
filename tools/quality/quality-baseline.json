@@ -18,7 +18,7 @@
   "totals": {
     "files": 427,
     "violations": 666,
-    "oversizedLines": 217906
+    "oversizedLines": 217898
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -141,7 +141,7 @@
       "max-lines": 816
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
-      "max-lines": 1969,
+      "max-lines": 1963,
       "max-lines-per-function": 8
     },
     "apps/pages/src/sections/SettingsSection.tsx": {
@@ -197,7 +197,7 @@
     },
     "apps/pages/src/sections/settings/security/SecondStepCeremonies.tsx": {
       "complexity": 2,
-      "max-lines": 877,
+      "max-lines": 875,
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/HealthPanel.tsx": {
