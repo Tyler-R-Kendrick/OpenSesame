@@ -42,8 +42,8 @@ importers:
         specifier: 2.1.0
         version: 2.1.0(hono@4.13.10)
       '@modelcontextprotocol/sdk':
-        specifier: 1.30.0
-        version: 1.30.0(zod@3.25.67)
+        specifier: 1.31.0
+        version: 1.31.0(zod@3.25.67)
       '@oxlint/plugins':
         specifier: 1.79.0
         version: 1.79.0
@@ -1276,8 +1276,8 @@ importers:
   packages/mcp-client:
     dependencies:
       '@modelcontextprotocol/sdk':
-        specifier: 1.30.0
-        version: 1.30.0(zod@3.25.67)
+        specifier: 1.31.0
+        version: 1.31.0(zod@3.25.67)
       '@opensesame/agent-client':
         specifier: workspace:*
         version: link:../agent-client
@@ -1316,8 +1316,8 @@ importers:
   packages/mcp-host:
     dependencies:
       '@modelcontextprotocol/sdk':
-        specifier: 1.30.0
-        version: 1.30.0(zod@3.25.67)
+        specifier: 1.31.0
+        version: 1.31.0(zod@3.25.67)
       '@opensesame/agent-client':
         specifier: workspace:*
         version: link:../agent-client
@@ -2000,8 +2000,8 @@ importers:
         version: link:../../packages/os-domain
     devDependencies:
       '@modelcontextprotocol/sdk':
-        specifier: 1.30.0
-        version: 1.30.0(zod@4.4.3)
+        specifier: 1.31.0
+        version: 1.31.0(zod@4.4.3)
       '@opensesame/capability-registry':
         specifier: workspace:*
         version: link:../../packages/capability-registry
@@ -4018,8 +4018,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@modelcontextprotocol/sdk@1.30.0':
-    resolution: {integrity: sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==}
+  '@modelcontextprotocol/sdk@1.31.0':
+    resolution: {integrity: sha512-UvTMgnNlnIBO/22ob2RcVGDlcvOslQs8T59+FTGdA0L27a39fdGF/EDETNtDVK4DZGpwomlsYpRdA8UXcVL/pw==}
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
@@ -5499,6 +5499,11 @@ packages:
     engines: {node: '>=0.4.0'}
     hasBin: true
 
+  acorn@8.19.0:
+    resolution: {integrity: sha512-oJlA3XiRm7Cyk6qFD2Jn8ak9B7jSy0qy00ADO3+8dpT0LSjFihQYv4C02LFCSYJV3Q37xYwwRy5m+IpIiUzqWw==}
+    engines: {node: '>=0.4.0'}
+    hasBin: true
+
   adm-zip@0.6.1:
     resolution: {integrity: sha512-Xwrja8nx9e5o2N1my4DsKCeKpdrnACyr1wtbPxBDgGzKzKyE9kRtBFA8mWldI+RVlD7CBZNWY/wQ2+ydwOR6kQ==}
     engines: {node: '>=14.0'}
@@ -6547,8 +6552,8 @@ packages:
   electron-to-chromium@1.5.439:
     resolution: {integrity: sha512-qu6QIPXhsb+CRcAiTMNjR4A1y/7tCYKkKjr5CZXRVih6qkDf79peZ2BpEU3qoDBNCRrcy3Mra3X9nG5oruuA7Q==}
 
-  electron-to-chromium@1.5.444:
-    resolution: {integrity: sha512-5ss/uJfoDYDHT0lfJzT6FbcskIzROIOPf0BbbFkGcvDzoJU7i//9GDrwwIHQVmIsrAGiF3ihpADBRIsrEFt1rQ==}
+  electron-to-chromium@1.5.446:
+    resolution: {integrity: sha512-kWlGMPHzuitCKx0O+MbY1ZGvQmP14JtckrnGjD4JsusTxh2cX9wu4bb4rOYZqLSvENjFFrHzlqY8kXhseucR/w==}
 
   emoji-regex@10.6.0:
     resolution: {integrity: sha512-toUI84YS5YmxW219erniWD0CIVOo46xGKColeNQRgOzDorgBi1v4D71/OFzgD9GO2UGKIv1C3Sp8DAn0+j5w7A==}
@@ -6749,8 +6754,8 @@ packages:
     resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
     engines: {node: '>=12.0.0'}
 
-  express-rate-limit@8.7.0:
-    resolution: {integrity: sha512-hOwV7WOxXfjRpAM1DSJWZDXx3GhplwD8IfwuwvogD8i1Qnkgosw/H45s4ZnFAUHDAhPjlY9hLBvJhKmGMyY26g==}
+  express-rate-limit@8.7.1:
+    resolution: {integrity: sha512-2FXbqkygil3mZiXzEtM0IjE/UBmBNot0J1GEVrJT4JbrvwOSoEtqtO+wHbiMQELWe1eNvHoYRg2dkjOid+6JkA==}
     engines: {node: '>= 16'}
     peerDependencies:
       express: '>= 4.11'
@@ -7274,6 +7279,10 @@ packages:
 
   ip-address@10.7.2:
     resolution: {integrity: sha512-7H/2gFSIitxc0hG3nOI1glS8QLo/EHBFFLk8vEUjXY/xu0AdL8jZ9U1IzO2PUm0d2D/ofQcAifb0g6OBkt8U7w==}
+    engines: {node: '>= 12'}
+
+  ip-address@10.7.3:
+    resolution: {integrity: sha512-A1kdq/tSb5QjvKvAMgIoEvDBIgL7qaqVP/jkvSwYYRZ9iEzvPpopxp2wQfu3SuZRHtpHNxMn8Fs0bS+gf5Xmwg==}
     engines: {node: '>= 12'}
 
   ipaddr.js@1.9.1:
@@ -8803,19 +8812,19 @@ packages:
     resolution: {integrity: sha512-00o4I+DVrefhv+nX0ulyi3biSHCPDe+yLv5o/p6d/UVlirijB8E16FtfwSAi4g3tcqrQ4lRAqQSoFEZJehYEcw==}
     engines: {node: '>= 0.4'}
 
-  regenerate-unicode-properties@10.2.2:
-    resolution: {integrity: sha512-m03P+zhBeQd1RGnYxrGyDAPpWX/epKirLrp8e3qevZdVkKtnCrjjWczIbYc8+xd6vcTStVlqfycTx1KR4LOr0g==}
+  regenerate-unicode-properties@10.3.0:
+    resolution: {integrity: sha512-9ns8odR8e9q3otKeHj3DE80jZYKg6zVeZKE+zQmRKXFoVUcuiTGeO6iusDhPRoIQQPVPRvH+SfBhrTud4eczuw==}
     engines: {node: '>=4'}
 
-  regenerate@1.4.2:
-    resolution: {integrity: sha512-zrceR/XhGYU/d/opr2EKO7aRHUeiBI8qjtfHqADTwZd6Szfy16la6kqD0MIUs5z5hx6AaKa+PixpPrR289+I0A==}
+  regenerate@1.5.0:
+    resolution: {integrity: sha512-1s+CxXjJ71i7LNVy8nYwg47XV4y6lAnOEhsMtSKq3WpmPfhl9LuKlTqKIn/3yUpE8lBz+W+TT88Bxyhnr0U4yw==}
 
   regexp.prototype.flags@1.5.4:
     resolution: {integrity: sha512-dYqgNSZbDwkaJ2ceRd9ojCGjBq+mOm9LmtXnAnEGyHhN/5R7iDW2TRw3h+o/jCFxus3P2LfWIIiwowAjANm7IA==}
     engines: {node: '>= 0.4'}
 
-  regexpu-core@6.4.0:
-    resolution: {integrity: sha512-0ghuzq67LI9bLXpOX/ISfve/Mq33a4aFRzoQYhnnok1JOFpmE/A2TBGkNVenOGEeSBCjIiWcc6MVOG5HEQv0sA==}
+  regexpu-core@6.5.3:
+    resolution: {integrity: sha512-E8VgUoSK+LMQrLboDxavm76MTBGrQhx9RiNuomRmYnZ10Uw12HrI8fkxOOncktb2hBpzIZ9SV/347euQHG5z+g==}
     engines: {node: '>=4'}
 
   registry-auth-token@5.1.1:
@@ -8829,8 +8838,8 @@ packages:
   regjsgen@0.8.0:
     resolution: {integrity: sha512-RvwtGe3d7LvWiDQXeQw8p5asZUmfU1G/l6WbUXeHta7Y2PEIvBTwH6E2EfmYUK8pxcxEdEmaomqyp0vZZ7C+3Q==}
 
-  regjsparser@0.13.3:
-    resolution: {integrity: sha512-ycwFAS14Jw4mppvmK4GR/J6u3WpWpjkEApehuHtLc/8VpPNpDMbQ4WjqwplXifGeyKOzHSFLmSPqzksDQE2Sfg==}
+  regjsparser@0.13.4:
+    resolution: {integrity: sha512-EWV80YgFaVgFrjGCAsV7oybp4GOxbls5RzBg8OB0nKEVXsBJR1JlV8Di1JhCROg3MzTfe1RI8yitIm1eOs68iA==}
     hasBin: true
 
   require-directory@2.1.1:
@@ -10185,10 +10194,10 @@ snapshots:
   '@anthropic-ai/claude-agent-sdk-win32-x64@0.3.220':
     optional: true
 
-  '@anthropic-ai/claude-agent-sdk@0.3.220(@anthropic-ai/sdk@0.115.0(zod@4.4.3))(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(zod@4.4.3)':
+  '@anthropic-ai/claude-agent-sdk@0.3.220(@anthropic-ai/sdk@0.115.0(zod@4.4.3))(@modelcontextprotocol/sdk@1.31.0(zod@4.4.3))(zod@4.4.3)':
     dependencies:
       '@anthropic-ai/sdk': 0.115.0(zod@4.4.3)
-      '@modelcontextprotocol/sdk': 1.30.0(zod@4.4.3)
+      '@modelcontextprotocol/sdk': 1.31.0(zod@4.4.3)
       zod: 4.4.3
     optionalDependencies:
       '@anthropic-ai/claude-agent-sdk-darwin-arm64': 0.3.220
@@ -10860,7 +10869,7 @@ snapshots:
     dependencies:
       '@babel/core': 7.29.7
       '@babel/helper-annotate-as-pure': 7.29.7
-      regexpu-core: 6.4.0
+      regexpu-core: 6.5.3
       semver: 6.3.1
 
   '@babel/helper-define-polyfill-provider@0.6.8(@babel/core@7.29.7)':
@@ -11644,7 +11653,7 @@ snapshots:
       '@better-fetch/fetch': 1.3.1
       '@opentelemetry/semantic-conventions': 1.43.0
       '@standard-schema/spec': 1.1.0
-      better-call: 1.3.7(zod@3.25.67)
+      better-call: 1.3.7(zod@4.4.3)
       jose: 6.2.8
       kysely: 0.29.6
       nanostores: 1.5.4
@@ -12395,7 +12404,7 @@ snapshots:
   '@libsql/win32-x64-msvc@0.5.29':
     optional: true
 
-  '@modelcontextprotocol/sdk@1.30.0(zod@3.25.67)':
+  '@modelcontextprotocol/sdk@1.31.0(zod@3.25.67)':
     dependencies:
       '@hono/node-server': 2.1.0(hono@4.13.10)
       ajv: 8.20.0
@@ -12406,7 +12415,7 @@ snapshots:
       eventsource: 3.0.7
       eventsource-parser: 3.1.1
       express: 5.2.1
-      express-rate-limit: 8.7.0(express@5.2.1)
+      express-rate-limit: 8.7.1(express@5.2.1)
       hono: 4.13.10
       jose: 6.2.8
       json-schema-typed: 8.0.2
@@ -12417,7 +12426,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@modelcontextprotocol/sdk@1.30.0(zod@4.4.3)':
+  '@modelcontextprotocol/sdk@1.31.0(zod@4.4.3)':
     dependencies:
       '@hono/node-server': 2.1.0(hono@4.13.10)
       ajv: 8.20.0
@@ -12428,7 +12437,7 @@ snapshots:
       eventsource: 3.0.7
       eventsource-parser: 3.1.1
       express: 5.2.1
-      express-rate-limit: 8.7.0(express@5.2.1)
+      express-rate-limit: 8.7.1(express@5.2.1)
       hono: 4.13.10
       jose: 6.2.8
       json-schema-typed: 8.0.2
@@ -12582,7 +12591,7 @@ snapshots:
       debug: 4.4.3
       openai: 6.49.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.4)(ws@8.21.3)(zod@4.4.3)
     optionalDependencies:
-      '@modelcontextprotocol/sdk': 1.30.0(zod@4.4.3)
+      '@modelcontextprotocol/sdk': 1.31.0(zod@4.4.3)
       zod: 4.4.3
     transitivePeerDependencies:
       - '@aws-sdk/credential-provider-node'
@@ -13762,7 +13771,7 @@ snapshots:
       obug: 2.2.1
       std-env: 4.2.0
       tinyrainbow: 3.1.1
-      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@22.15.29)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@22.15.29)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.8.4))
+      vitest: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@25.9.8)(@vitest/coverage-v8@4.1.11)(jsdom@26.1.0)(vite@6.4.3(@types/node@25.9.8)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.8.4))
 
   '@vitest/expect@4.1.11':
     dependencies:
@@ -13902,6 +13911,8 @@ snapshots:
       negotiator: 1.1.0
 
   acorn@8.18.0: {}
+
+  acorn@8.19.0: {}
 
   adm-zip@0.6.1: {}
 
@@ -14174,15 +14185,6 @@ snapshots:
       - '@cloudflare/workers-types'
       - '@opentelemetry/api'
 
-  better-call@1.3.7(zod@3.25.67):
-    dependencies:
-      '@better-auth/utils': 0.4.2
-      '@better-fetch/fetch': 1.3.1
-      rou3: 0.7.12
-      set-cookie-parser: 3.1.2
-    optionalDependencies:
-      zod: 3.25.67
-
   better-call@1.3.7(zod@4.4.3):
     dependencies:
       '@better-auth/utils': 0.4.2
@@ -14282,7 +14284,7 @@ snapshots:
     dependencies:
       baseline-browser-mapping: 2.11.27
       caniuse-lite: 1.0.30001814
-      electron-to-chromium: 1.5.444
+      electron-to-chromium: 1.5.446
       node-releases: 2.0.57
       update-browserslist-db: 1.3.3(browserslist@4.29.3)
 
@@ -14830,7 +14832,7 @@ snapshots:
 
   electron-to-chromium@1.5.439: {}
 
-  electron-to-chromium@1.5.444: {}
+  electron-to-chromium@1.5.446: {}
 
   emoji-regex@10.6.0: {}
 
@@ -15114,11 +15116,11 @@ snapshots:
 
   expect-type@1.4.0: {}
 
-  express-rate-limit@8.7.0(express@5.2.1):
+  express-rate-limit@8.7.1(express@5.2.1):
     dependencies:
       debug: 4.4.3
       express: 5.2.1
-      ip-address: 10.7.2
+      ip-address: 10.7.3
     transitivePeerDependencies:
       - supports-color
 
@@ -15758,6 +15760,8 @@ snapshots:
       side-channel: 1.1.1
 
   ip-address@10.7.2: {}
+
+  ip-address@10.7.3: {}
 
   ipaddr.js@1.9.1: {}
 
@@ -17285,7 +17289,7 @@ snapshots:
       ws: 8.21.3
       zod: 4.4.3
     optionalDependencies:
-      '@anthropic-ai/claude-agent-sdk': 0.3.220(@anthropic-ai/sdk@0.115.0(zod@4.4.3))(@modelcontextprotocol/sdk@1.30.0(zod@4.4.3))(zod@4.4.3)
+      '@anthropic-ai/claude-agent-sdk': 0.3.220(@anthropic-ai/sdk@0.115.0(zod@4.4.3))(@modelcontextprotocol/sdk@1.31.0(zod@4.4.3))(zod@4.4.3)
       '@aws-sdk/client-bedrock-agent-runtime': 3.1141.0
       '@aws-sdk/client-bedrock-runtime': 3.1141.0
       '@aws-sdk/client-s3': 3.1141.0
@@ -17300,7 +17304,7 @@ snapshots:
       '@googleapis/sheets': 13.0.2
       '@ibm-cloud/watsonx-ai': 1.7.16
       '@langfuse/client': 5.11.1(@opentelemetry/api@1.9.1)
-      '@modelcontextprotocol/sdk': 1.30.0(zod@4.4.3)
+      '@modelcontextprotocol/sdk': 1.31.0(zod@4.4.3)
       '@openai/agents': 0.11.8(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.4)(ws@8.21.3)(zod@4.4.3)
       '@openai/codex-sdk': 0.144.6
       '@opencode-ai/sdk': 1.18.33
@@ -17581,11 +17585,11 @@ snapshots:
       get-proto: 1.0.1
       which-builtin-type: 1.2.1
 
-  regenerate-unicode-properties@10.2.2:
+  regenerate-unicode-properties@10.3.0:
     dependencies:
-      regenerate: 1.4.2
+      regenerate: 1.5.0
 
-  regenerate@1.4.2: {}
+  regenerate@1.5.0: {}
 
   regexp.prototype.flags@1.5.4:
     dependencies:
@@ -17596,12 +17600,12 @@ snapshots:
       gopd: 1.2.0
       set-function-name: 2.0.2
 
-  regexpu-core@6.4.0:
+  regexpu-core@6.5.3:
     dependencies:
-      regenerate: 1.4.2
-      regenerate-unicode-properties: 10.2.2
+      regenerate: 1.5.0
+      regenerate-unicode-properties: 10.3.0
       regjsgen: 0.8.0
-      regjsparser: 0.13.3
+      regjsparser: 0.13.4
       unicode-match-property-ecmascript: 2.0.0
       unicode-match-property-value-ecmascript: 2.2.1
 
@@ -17615,7 +17619,7 @@ snapshots:
 
   regjsgen@0.8.0: {}
 
-  regjsparser@0.13.3:
+  regjsparser@0.13.4:
     dependencies:
       jsesc: 3.1.0
 
@@ -18253,7 +18257,7 @@ snapshots:
   terser@5.51.2:
     dependencies:
       '@jridgewell/source-map': 0.3.11
-      acorn: 8.18.0
+      acorn: 8.19.0
       commander: 2.20.3
       source-map-support: 0.5.21
 
