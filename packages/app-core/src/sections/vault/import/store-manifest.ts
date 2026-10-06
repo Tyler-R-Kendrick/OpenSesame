@@ -165,7 +165,7 @@ export function storeManifestFile(
   folders: Folder[],
   now: Date = new Date(),
 ): StoreManifestFile {
-  // A credential bound to an account rides in that account's entry (ADR 0177).
+  // A credential bound to an account rides in that account's entry (ADR 0178).
   const entries = outsideAccounts(
     items.filter((item) => item.deletedAt === null),
   ).map((item) => vaultItemToEntry(item, folders));

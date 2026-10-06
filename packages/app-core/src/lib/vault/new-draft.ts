@@ -100,7 +100,7 @@ export function newItemDraft(rawTypeId: string, name?: string): VaultItem {
   const legacy = LEGACY_KINDS.find((kind) => kind === typeId);
   if (legacy !== undefined)
     return newNativeDraft(legacy, { ...labels, name: title });
-  // A credential of its own, bound to no account until a person says (ADR 0177).
+  // A credential of its own, bound to no account until a person says (ADR 0178).
   const loginType = loginMethodTypeOf(typeId);
   if (loginType !== undefined) {
     const method = newLoginMethod(loginType, "credential");

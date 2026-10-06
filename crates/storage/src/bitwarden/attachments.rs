@@ -78,6 +78,8 @@ impl Db {
         &self,
         user_id: &str,
     ) -> anyhow::Result<Vec<BitwardenAttachment>> {
+        // Only compile-time column lists are interpolated; all caller values use bound parameters.
+        // ast-grep-ignore: sql-format-injection
         let rows = sqlx::query(&format!(
             "SELECT {ATTACHMENT_COLUMNS} FROM bitwarden_attachments WHERE user_id = ? \
              ORDER BY created_at, id"
@@ -96,6 +98,8 @@ impl Db {
         &self,
         org_id: &str,
     ) -> anyhow::Result<Vec<BitwardenAttachment>> {
+        // Only compile-time column lists are interpolated; all caller values use bound parameters.
+        // ast-grep-ignore: sql-format-injection
         let rows = sqlx::query(&format!(
             "SELECT {ATTACHMENT_COLUMNS} FROM bitwarden_attachments WHERE cipher_id IN \
              (SELECT id FROM bitwarden_ciphers WHERE organization_id = ?) ORDER BY created_at, id"
@@ -117,6 +121,8 @@ impl Db {
         cipher_id: &str,
         id: &str,
     ) -> anyhow::Result<Option<BitwardenAttachment>> {
+        // Only compile-time column lists are interpolated; all caller values use bound parameters.
+        // ast-grep-ignore: sql-format-injection
         let row = sqlx::query(&format!(
             "SELECT {ATTACHMENT_COLUMNS} FROM bitwarden_attachments WHERE cipher_id = ? AND id = ?"
         ))

@@ -24,8 +24,6 @@ import {
   type AgeWebauthnCrypto,
   openAgeWebauthn,
 } from "./adapters/age-webauthn.js";
-import { createAwsKmsProtector } from "./adapters/aws-kms.js";
-import { createGcpKmsProtector } from "./adapters/gcp-kms.js";
 import type { AwsKmsConnection, GcpKmsConnection } from "./cloud-connection.js";
 import { cloudEvidence, rootsEqual } from "./enroll-external.js";
 import { ProtectionError } from "./errors.js";
@@ -116,6 +114,7 @@ async function openRoot(
           "The saved AWS KMS connection names a different key than this protector.",
         );
       }
+      const { createAwsKmsProtector } = await import("./adapters/aws-kms.js");
       return createAwsKmsProtector({
         transport: aws.transport,
         authorization: "authorized",
@@ -132,6 +131,7 @@ async function openRoot(
           "The saved Google Cloud KMS connection names a different key than this protector.",
         );
       }
+      const { createGcpKmsProtector } = await import("./adapters/gcp-kms.js");
       return createGcpKmsProtector({
         transport: gcp.transport,
         authorization: "authorized",

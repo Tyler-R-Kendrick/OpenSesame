@@ -4,8 +4,14 @@
  * (ADR 0130, SB-069).
  */
 
-import type { Folder, VaultBody, VaultItem } from "@opensesame/vault-core";
+import {
+  type Folder,
+  type VaultBody,
+  type VaultItem,
+  resolveAccounts,
+} from "@opensesame/vault-core";
 import { noteSavedItems } from "./item-activity.js";
+import { itemText } from "./item-departure.js";
 import { writeItem } from "./item-path.js";
 import {
   preparePasswordRetirement,
@@ -25,10 +31,40 @@ export async function writeSavedItems(
 ): Promise<void> {
   if (items.length === 0) return;
   const priorIds = new Set(host.items.map((item) => item.id));
+  const expected = expectedUpdates(host.items, items);
   const retired = await preparePasswordRetirement(host.tomb, host.items, items);
   await host.mutate((body) => {
+    assertExpectedUpdates(body.items, expected);
     for (const item of items) writeItem(body, item, folder);
   });
   noteSavedItems(priorIds, items);
   await rememberRetiredDigests(retired);
+}
+
+function expectedUpdates(
+  prior: readonly VaultItem[],
+  incoming: readonly VaultItem[],
+): ReadonlyMap<string, string> {
+  const previous = new Map(prior.map((item) => [item.id, item]));
+  const expected = new Map<string, string>();
+  for (const item of incoming) {
+    const current = previous.get(item.id);
+    if (current) expected.set(item.id, itemText(current));
+  }
+  return expected;
+}
+function assertExpectedUpdates(
+  items: readonly VaultItem[],
+  expected: ReadonlyMap<string, string>,
+): void {
+  // The body keeps an account's methods as credentials of their own; the
+  // items a caller read are the resolved ones (ADR 0178).
+  const current = new Map(
+    resolveAccounts(items).map((item) => [item.id, item]),
+  );
+  for (const [id, text] of expected) {
+    const item = current.get(id);
+    if (!item || itemText(item) !== text)
+      throw new Error("The item changed or left the vault before this update.");
+  }
 }

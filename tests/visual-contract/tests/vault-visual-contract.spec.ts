@@ -96,7 +96,10 @@ async function openLocalOnlySeal(page: Page): Promise<void> {
   await page.locator("#master").waitFor({ state: "visible" });
 }
 
-async function completeFirstRunSeal(page: Page): Promise<void> {
+async function completeFirstRunSeal(
+  page: Page,
+  mobile: boolean,
+): Promise<void> {
   await openLocalOnlySeal(page);
 
   await page.locator("#master").fill(MASTER_PASSWORD);
@@ -104,25 +107,38 @@ async function completeFirstRunSeal(page: Page): Promise<void> {
   await page.getByLabel("I understand this vault cannot be recovered.").check();
   await page.getByRole("button", { name: "Seal this device" }).click();
 
-  const vault = page.locator(".vault");
-  await vault.waitFor({ state: "visible" });
-  // Phones enter the section tree; the baseline names the list reached from it.
-  if (
-    (await vault.getAttribute("data-pane")) === "tree" &&
-    !(await page
-      .getByRole("heading", { name: "Nothing here", exact: true })
-      .isVisible())
-  ) {
-    await page.getByRole("treeitem", { name: /^all\b/i }).click();
+  await page.locator(".vault").waitFor({ state: "visible" });
+  await expect(
+    page.getByRole("button", { name: "Lock vault", exact: true }),
+  ).toBeVisible();
+  const empty = page.getByRole("heading", {
+    name: "Nothing here",
+    exact: true,
+    includeHidden: true,
+  });
+  await expect(empty).toHaveCount(1);
+  if (mobile) {
+    // Main's phone landing draws its section tree; the empty list stays mounted behind it.
+    await expect(empty).toBeHidden();
+    const sections = page.getByRole("tree", { name: "Sections", exact: true });
+    await expect(sections).toBeVisible();
+    await expect(
+      sections.getByRole("treeitem", { name: "Vault", exact: true }),
+    ).toHaveAttribute("aria-expanded", "true");
+    await expect(
+      sections.getByRole("treeitem", { name: "all", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(
+      page.getByRole("link", { name: "New item", exact: true }),
+    ).toBeVisible();
+    await sections.getByRole("treeitem", { name: "all", exact: true }).click();
     await page
       .locator(".vault[data-pane='list']")
       .waitFor({ state: "visible" });
+    await expect(empty).toBeVisible();
+  } else {
+    await expect(empty).toBeVisible();
   }
-  // The pane has no heading; a fresh vault lands on the empty state
-  // (apps/pages/src/sections/VaultSection.tsx).
-  await page
-    .getByRole("heading", { name: "Nothing here", exact: true })
-    .waitFor({ state: "visible" });
 }
 
 test.describe("Pages visual contract", () => {
@@ -169,8 +185,9 @@ test.describe("Pages visual contract", () => {
 
   test("vault-list: vault landing page after sealing", async ({
     page,
+    isMobile,
   }, testInfo) => {
-    await completeFirstRunSeal(page);
+    await completeFirstRunSeal(page, isMobile ?? false);
     await capture(
       page,
       page.locator(".vault"),

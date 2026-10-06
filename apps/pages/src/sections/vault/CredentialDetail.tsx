@@ -6,7 +6,7 @@ import type { MethodRowPorts } from "./AccountMethodRows.js";
 import { MethodRow } from "./MethodRow.js";
 
 /**
- * A credential kept as an entry of its own (ADR 0177): the account it opens, or
+ * A credential kept as an entry of its own (ADR 0178): the account it opens, or
  * none, and its values as rows, the same ones an account draws for the login
  * method it holds.
  */

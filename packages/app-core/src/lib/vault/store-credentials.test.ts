@@ -1,5 +1,5 @@
 /**
- * Credentials are entries of their own (ADR 0177), through a real store: an
+ * Credentials are entries of their own (ADR 0178), through a real store: an
  * account saved with methods keeps each as a credential bound to it, the
  * credential follows its account into the trash and out of it, a credential
  * kept on its own binds and unbinds, and nothing a person removed comes back

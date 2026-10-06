@@ -1,5 +1,5 @@
 /**
- * Writing an account's credentials (ADR 0177): `splitAccount` keeps the methods
+ * Writing an account's credentials (ADR 0178): `splitAccount` keeps the methods
  * an account was written with as credentials bound to it, and
  * `extractEmbeddedMethods` does the same for an account that still carries them
  * (a body from before this ADR, or from a device that has not moved to it).
@@ -182,7 +182,7 @@ export function hasEmbeddedMethods(items: readonly VaultItem[]): boolean {
 
 /**
  * Move every method an account still carries into a credential. This is how a
- * vault written before ADR 0177 opens, and how an account arriving from a
+ * vault written before ADR 0178 opens, and how an account arriving from a
  * device that has not yet is read: the credential takes the method's id, the
  * account's times and its folder, so two devices that do it make the same
  * credentials and a merge sees no difference. An existing credential of the

@@ -94,10 +94,8 @@ fn assert_listing(name: &str, opened: &OpenedVaultFile) {
             .collect();
         assert_eq!(logins.len(), 1, "{name}: one legacy login");
         assert_eq!(
-            std::path::Path::new(logins[0].2)
-                .extension()
-                .and_then(std::ffi::OsStr::to_str),
-            Some("login"),
+            std::path::Path::new(logins[0].2).extension(),
+            Some(std::ffi::OsStr::new("login")),
             "{name}: {}",
             logins[0].2
         );
@@ -171,7 +169,7 @@ fn every_vector_opens_to_its_recorded_summary_and_lists_no_value() {
         let printed = format!("{opened:?}");
         let mut values = Vec::new();
         // An id is listed, so a reference to one (a credential's account) shows
-        // nothing the listing does not (ADR 0177).
+        // nothing the listing does not (ADR 0178).
         let ids: Vec<String> = body["items"]
             .as_array()
             .expect("items")

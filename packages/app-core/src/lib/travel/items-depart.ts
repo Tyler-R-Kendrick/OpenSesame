@@ -166,7 +166,7 @@ export async function packItemDeparture(
   if (gate) return refused(gate);
   const vault = deps.vault();
   if (!vault) return refused("owner_not_present");
-  // An account leaves with the credentials bound to it (ADR 0177): left behind
+  // An account leaves with the credentials bound to it (ADR 0178): left behind
   // they would still be there to open while the account was gone.
   const ids = withBoundCredentials(vault.items, [...new Set(input.ids)]);
   const blocked = await whyNot(deps, vault, ids);

@@ -170,7 +170,7 @@ function wholePassword(item: AccountItem | CredentialItem): string {
 
 /**
  * Live accounts whose whole password the product can produce, and passwords
- * kept on their own (ADR 0177): a breached password is as breached for no
+ * kept on their own (ADR 0178): a breached password is as breached for no
  * account at all.
  */
 function logins(items: readonly VaultItem[]): (AccountItem | CredentialItem)[] {

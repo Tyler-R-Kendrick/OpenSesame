@@ -1,6 +1,6 @@
 /**
  * Binding a credential to an account, releasing it, and saving one written on
- * its own (ADR 0177).
+ * its own (ADR 0178).
  */
 
 import type { AccountItem } from "./account.js";

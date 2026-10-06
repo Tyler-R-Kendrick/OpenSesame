@@ -110,6 +110,11 @@ export const ALWAYS_ON_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "The Access section: local grants, requests and the requests addressed to your Identity session, sessions, resources and policies, receipts, browser pairing and transport status.",
     {
       operationIds: [
+        "password_provider.request",
+        "password_provider.lease_approve",
+        "password_provider.lease_status",
+        "password_provider.lease_revoke",
+
         "agent_identities.read",
         "authority.portal.templates.manage",
         "authority.portal.templates.read",

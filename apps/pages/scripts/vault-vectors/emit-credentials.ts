@@ -1,5 +1,5 @@
 /**
- * The golden vector for credentials that are entries of their own (ADR 0177).
+ * The golden vector for credentials that are entries of their own (ADR 0178).
  *
  * One body holds an account with two credentials bound to it, a password kept
  * on its own, and an API key whose account is not in the body. A listing names

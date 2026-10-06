@@ -58,6 +58,9 @@ const LOCAL_RECORDS = [
   "local-request-store",
   "local-sessions",
   "local-share-grants",
+  // Core vault workflows and WebMCP enforce standing shares even while the
+  // optional Access administration surface is absent.
+  "local-share-reach",
   "local-vault-session-issue",
   "local-vault-sessions",
   "pages-dogfood",

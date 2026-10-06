@@ -9,7 +9,7 @@ use opensesame_human_vault::pages_vault::vault_seal_binding;
 use serde_json::Value;
 use sha2::Sha256;
 
-/// The vector added by ADR 0177: credentials that are entries of their own, bound and not.
+/// The vector added by ADR 0178: credentials that are entries of their own, bound and not.
 pub const CREDENTIAL_VECTORS: [&str; 1] = ["backup-personal-credentials"];
 
 /// Words the format itself stores as strings: a method's type, and so the
@@ -116,7 +116,7 @@ pub fn assert_derived_listing(name: &str, listed: &[(&str, &str, &str)]) {
     assert_eq!(listed, want, "{name}");
 }
 
-/// What the credentials vector lists (ADR 0177): the account, a password kept on
+/// What the credentials vector lists (ADR 0178): the account, a password kept on
 /// its own and an API key whose account is not in the body. The two credentials
 /// bound to the account are part of its file and are not listed.
 pub fn assert_credentials_listing(name: &str, listed: &[(&str, &str, &str)]) {

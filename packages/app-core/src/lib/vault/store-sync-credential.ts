@@ -1,5 +1,5 @@
 /**
- * A credential kept on its own as one sealed-store entry (ADR 0177, ADR 0037
+ * A credential kept on its own as one sealed-store entry (ADR 0178, ADR 0037
  * §6). Line one is the value `pass show` reads: a password kept in the clear,
  * an API key, a token or a client secret. A credential bound to an account is
  * not an entry of its own; it rides in the account's `values.methods`, so a

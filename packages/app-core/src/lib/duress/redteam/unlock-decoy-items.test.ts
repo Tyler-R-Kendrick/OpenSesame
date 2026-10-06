@@ -41,7 +41,13 @@ const shipped = duressContinueSeams.runEffects;
 const PASSWORD = "correct horse battery staple";
 const CODE = "739104628";
 const OWN = "Real bank login";
-const ITEMS = ["Netflix", "Wi-Fi at home", "Library card", "Gym"];
+// Spaces distinguish full plaintext labels from chance Base64 substrings.
+const ITEMS = [
+  "Netflix account",
+  "Wi-Fi at home",
+  "Library card",
+  "Gym membership",
+];
 const tombs = [GUEST_TOMB, PERSONAL_TOMB, DECOY_SCRATCH_TOMB];
 
 function resetFence(): void {

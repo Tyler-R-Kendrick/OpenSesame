@@ -103,10 +103,6 @@ export const MIXED_SCREENS_AND_SECTIONS: readonly MixedModule[] = [
         capability: "wallet.spending",
         what: "WALLET_TOOLS spread → webmcp-tool contributions",
       },
-      {
-        capability: "access.authority",
-        what: "local-share-reach dynamic imports",
-      },
     ],
   },
   {

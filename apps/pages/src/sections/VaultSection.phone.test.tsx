@@ -21,6 +21,7 @@ import { stubScreen } from "../lib/use-narrow.test-support.js";
 import { vaultHooksSeams } from "../lib/vault/hooks.js";
 import { VaultSection } from "./VaultSection.js";
 import { ItemDetail } from "./vault/ItemDetail.js";
+import { slideZones } from "./vault/add-slide.js";
 import "./vault/commands.test-support.js";
 import { vaultTreeSeams } from "./vault/VaultTree.js";
 import { makeAccount } from "./vault/section-items.test-support.js";
@@ -141,6 +142,23 @@ describe("the vault on a phone", () => {
     expect(
       screen.queryByRole("button", { name: "More ways to add" }),
     ).toBeNull();
+  });
+
+  it("keeps workflows in the keyboard menu and import/export in the hold zones", async () => {
+    renderVault("/vault");
+    const plus = screen.getByRole("link", { name: "New item" });
+    fireEvent.contextMenu(plus);
+    expect(
+      screen.getAllByRole("menuitem").map((entry) => entry.textContent),
+    ).toEqual(["Import items", "Export items", "Password workflows"]);
+    expect(slideZones().up?.id).toBe("import");
+    expect(slideZones().down?.id).toBe("export");
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "Password workflows" }),
+    );
+    expect(
+      await screen.findByRole("dialog", { name: "Password workflows" }),
+    ).toBeTruthy();
   });
 
   it("the list's header is back and the view it shows, named; nothing else is a key", () => {

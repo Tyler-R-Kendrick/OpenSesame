@@ -52,12 +52,15 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-06-pages-are-pages/`](2026-10-06-pages-are-pages/README.md) | A page's own files are the page |
 | [`2026-10-06-credentials-as-entries/`](2026-10-06-credentials-as-entries/README.md) | Credentials are entries of their own, bound to an account |
 | [`2026-10-06-credential-lines/`](2026-10-06-credential-lines/README.md) | A credential is one line, like a website |
+| [`2026-10-06-account-credentials/`](2026-10-06-account-credentials/README.md) | Account credential workflows |
+| [`2026-10-06-account-credential-lines/`](2026-10-06-account-credential-lines/README.md) | Account credential workflows |
 | [`2026-10-05-travel-hidden-items/`](2026-10-05-travel-hidden-items/README.md) | Leave items at home — before and after |
 | [`2026-10-05-tailnet-sync-finished/`](2026-10-05-tailnet-sync-finished/README.md) | Tailnet sync, finished — visual evidence (2026-10-05) |
 | [`2026-10-05-tailnet-devices/`](2026-10-05-tailnet-devices/README.md) | Identity › Devices manages the real tailnet (ADR 0169) |
 | [`2026-10-05-sops-gone-prompt-lines/`](2026-10-05-sops-gone-prompt-lines/README.md) | SOPS row removed from Security; the prompt's two identities on two lines |
 | [`2026-10-05-security-rows-for-guests/`](2026-10-05-security-rows-for-guests/README.md) | Security › Duress and Travel for a guest with no key yet |
 | [`2026-10-05-remove-visual-source-toggle/`](2026-10-05-remove-visual-source-toggle/README.md) | Remove the Visual / Source toggle |
+| [`2026-10-05-password-workflows/`](2026-10-05-password-workflows/README.md) | Password workflows |
 | [`2026-10-05-nats-live-route/`](2026-10-05-nats-live-route/README.md) | A NATS server as a live session's route — Settings › Live sessions › Routes |
 | [`2026-10-05-glyph-desktop-prompt/`](2026-10-05-glyph-desktop-prompt/README.md) | The glyph beside the name on desktop (ADR 0164) |
 | [`2026-10-05-generator-form/`](2026-10-05-generator-form/README.md) | The password form: one field and one Options line |
@@ -73,6 +76,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-05-confirm-sheets/`](2026-10-05-confirm-sheets/README.md) | Confirmation sheets: the shape the design contract asks for, enforced |
 | [`2026-10-05-add-button-slide/`](2026-10-05-add-button-slide/README.md) | The Add button: a sharp square, held and slid |
 | [`2026-10-05-accounts/`](2026-10-05-accounts/README.md) | An account owns its login methods; a password is one of them |
+| [`2026-10-05-account-credentials/`](2026-10-05-account-credentials/README.md) | Account credential workflows |
 | [`2026-10-04-unlock-bell/`](2026-10-04-unlock-bell/README.md) | The unlock screen has a bell now |
 | [`2026-10-04-tutorial-mode/`](2026-10-04-tutorial-mode/README.md) | Tutorial mode — before / after |
 | [`2026-10-04-sops-document-panel/`](2026-10-04-sops-document-panel/README.md) | SOPS document key under Settings › Security — before and after |

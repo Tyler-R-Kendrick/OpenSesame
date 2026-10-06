@@ -1,5 +1,5 @@
 /**
- * What a credential shows and gives (ADR 0177): its list subtitle and search
+ * What a credential shows and gives (ADR 0178): its list subtitle and search
  * words, the fields its type declares, what copying it puts on the clipboard,
  * and a new empty method of a type.
  */

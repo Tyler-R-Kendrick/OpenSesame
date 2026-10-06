@@ -3,7 +3,8 @@
 //! Each case is written as an attempt rather than a happy path: read a private
 //! session you were not invited to, revoke a grant on somebody else's session,
 //! admit one person and grant another, learn the roster by asking to join.
-
+use crate::app_state::{self, AppState};
+use crate::config::Args;
 use axum::{
     body::{to_bytes, Body},
     http::{Request, StatusCode},
@@ -13,10 +14,6 @@ use chrono::{Duration, Utc};
 use opensesame_domain::{OrganizationId, OrganizationRole, PrincipalId, VaultId, VaultItemId};
 use serde_json::{json, Value};
 use tower::ServiceExt;
-
-use crate::app_state::{self, AppState};
-use crate::config::Args;
-
 /// A caller: a principal, the bearer that speaks for them, and their org.
 pub(crate) struct Actor {
     pub(crate) principal: PrincipalId,
@@ -1167,3 +1164,6 @@ async fn item_activity_reaches_only_the_participants_who_can_reach_that_item() {
         "a row-scoped participant was told about an item they cannot reach: {rendered}"
     );
 }
+
+#[path = "stream_closure_tests.rs"]
+mod stream_closure_tests;

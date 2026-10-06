@@ -14,6 +14,7 @@ import {
   sessionFor,
 } from "./identity-session.js";
 import { emit, errorLine } from "./output.js";
+import { type ParityDependencies, runParity } from "./parity.js";
 import {
   type ParsedCommand,
   SessionFileSchema,
@@ -31,7 +32,8 @@ function defaultIssuer(): string {
 interface RunDependencies
   extends VaultDependencies,
     VaultItemDependencies,
-    VaultSyncDependencies {
+    VaultSyncDependencies,
+    ParityDependencies {
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   openBrowser?: (url: string) => void;
@@ -91,6 +93,8 @@ async function dispatch(
   const { issuer, api, clientId, fetchImpl, deps } = ctx;
 
   switch (command.name) {
+    case "parity":
+      return runParity(command, deps);
     case "login": {
       if (command.mode === "anonymous") {
         // Guest on-ramp: a provisional principal with no upstream identity.

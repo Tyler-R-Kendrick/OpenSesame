@@ -2,7 +2,7 @@ import { dropLink } from "@opensesame/app-core/lib/vault/drop.js";
 import { overlapCast } from "@opensesame/os-domain";
 import { redactSecrets } from "@opensesame/sdk-cli";
 import { describe, expect, it, vi } from "vitest";
-import { emit, errorLine } from "./output.js";
+import { emit, emitHumanValue, emitMetadata, errorLine } from "./output.js";
 
 function printed(
   flags: Parameters<typeof emit>[0],
@@ -85,4 +85,54 @@ describe("errorLine", () => {
     expect(line).not.toContain("abcdef123456789");
     expect(line.endsWith("\n")).toBe(true);
   });
+});
+
+describe("password workflow output boundaries", () => {
+  it("redacts metadata while an explicit human read preserves exact bytes", () => {
+    const write = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+    try {
+      emitMetadata({
+        ref: "op://vault/item/password",
+        access_token: "private-metadata-canary",
+      });
+      expect(JSON.parse(String(write.mock.calls[0]?.[0]))).toEqual({
+        ref: "op://vault/item/password",
+        access_token: "[redacted]",
+      });
+      const value = " exact-human-value\n\t";
+      emitHumanValue(value);
+      expect(write.mock.calls[1]?.[0]).toBe(value);
+    } finally {
+      write.mockRestore();
+    }
+  });
+});
+
+it("preserves only top-level safe numeric secret echo counts in JSON and human metadata", () => {
+  const write = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+  try {
+    for (const json of [true, false]) {
+      emit({ json }, JSON.stringify({ secretEchoes: 2 }), {
+        secretEchoes: 2,
+        password: "private",
+      });
+      expect(JSON.parse(String(write.mock.calls.at(-1)?.[0]))).toEqual({
+        secretEchoes: 2,
+        password: "[redacted]",
+      });
+    }
+    for (const secretEchoes of [
+      "secret-canary",
+      { private: "secret-canary" },
+      -1,
+      Number.MAX_SAFE_INTEGER + 1,
+    ]) {
+      emitMetadata({ secretEchoes });
+      expect(
+        JSON.parse(String(write.mock.calls.at(-1)?.[0])).secretEchoes,
+      ).toBe("[redacted]");
+    }
+  } finally {
+    write.mockRestore();
+  }
 });

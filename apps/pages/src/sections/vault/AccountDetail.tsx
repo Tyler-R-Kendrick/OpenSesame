@@ -1,10 +1,11 @@
+import { updateLocalAccountPasswordMethod } from "@opensesame/app-core/lib/vault/account-password-write.js";
 import {
   type AccountItem,
   type PasswordMethod,
   passwordMethod,
 } from "@opensesame/vault-core";
 import { CopyButton, FieldRow } from "../../components/FieldRow.js";
-import { useVaultStore } from "../../lib/vault/hooks.js";
+import { useVault } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import type { MethodRowPorts } from "./AccountMethodRows.js";
 import { AccountWebsiteRows } from "./AccountWebsiteRows.js";
@@ -59,7 +60,7 @@ export function AccountDetail({
   failed,
   copy,
 }: { item: AccountItem } & Ports) {
-  const store = useVaultStore();
+  const { tomb } = useVault();
   const usernameRef = useGuideTarget<HTMLButtonElement>("item.copy-username");
   const ports = { name: item.name, revealed, toggle, copied, failed, copy };
   const firstPassword = item.methods.find(
@@ -67,13 +68,14 @@ export function AccountDetail({
   );
 
   const saveMethod = async (next: PasswordMethod) => {
-    await store.saveItem({
-      ...item,
-      updatedAt: new Date().toISOString(),
-      methods: item.methods.map((method) =>
-        method.id === next.id ? next : method,
-      ),
-    });
+    try {
+      if (!tomb) throw new Error("The vault is unavailable.");
+      await updateLocalAccountPasswordMethod(tomb, item, next);
+    } catch {
+      throw new Error(
+        "Password write is unverified. Do not retry automatically.",
+      );
+    }
   };
 
   return (

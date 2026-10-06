@@ -68,7 +68,7 @@ function summarize(body: VaultBody, bound: boolean, tomb: string): Expectation {
     tomb,
     bound,
     rev: body.rev ?? null,
-    // A credential bound to an account is part of that account's file (ADR 0177).
+    // A credential bound to an account is part of that account's file (ADR 0178).
     items: outsideAccounts(body.items).map((item) => ({
       id: item.id,
       name: item.name,

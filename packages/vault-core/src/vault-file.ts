@@ -126,7 +126,7 @@ export function summarizeVaultBody(
   body: VaultBody,
   bound: boolean,
 ): OpenedVaultFile {
-  // A credential bound to an account is part of that account's file (ADR 0177).
+  // A credential bound to an account is part of that account's file (ADR 0178).
   const items = outsideAccounts(normalizeVaultBody(body).items);
   const rows = buildRows(items, body.folders ?? [], new Set(), "");
   const paths = new Map<string, string>();

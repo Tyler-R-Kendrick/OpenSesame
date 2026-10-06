@@ -32,7 +32,7 @@ pub(super) struct ItemMeta {
     pub(super) type_id: Option<String>,
     #[serde(rename = "folderId", default)]
     pub(super) folder_id: Option<String>,
-    /// A credential's account (ADR 0177); `null` for one kept on its own.
+    /// A credential's account (ADR 0178); `null` for one kept on its own.
     #[serde(rename = "accountId", default)]
     pub(super) account_id: Option<String>,
     /// A credential's method, reduced to its type: never a value.

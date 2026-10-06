@@ -1,8 +1,9 @@
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { isFunction } from "@opensesame/os-domain";
 import { defineConfig, devices } from "@playwright/test";
+import { resolveChromium } from "./src/browser.js";
 
 // Pages development owns 5180. Visual tests preview the Pages build on a
 // dedicated strict port so Playwright never reuses an unrelated long-running
@@ -24,20 +25,6 @@ const BASE_URL = `http://${HOST}:${PORT}`;
  * invented here.
  */
 const PREVIEW_ENV = { VITE_BASE: "/" };
-const previewCommand = `pnpm --filter @opensesame/pages exec vite preview --host ${HOST} --port ${PORT} --strictPort`;
-// Opt in only after a current VITE_BASE=/ build; defaults still build dependencies.
-const usePrebuilt = process.env.PAGES_VISUAL_PREBUILT === "1";
-if (usePrebuilt) {
-  const index = new URL("../../apps/pages/dist/index.html", import.meta.url);
-  if (
-    !existsSync(index) ||
-    !readFileSync(index, "utf8").includes('src="/assets/')
-  ) {
-    throw new Error(
-      "PAGES_VISUAL_PREBUILT requires an existing Pages build with VITE_BASE=/",
-    );
-  }
-}
 
 /**
  * Prefer a pinned Chromium at /opt/pw-browsers (container image). Otherwise
@@ -46,28 +33,29 @@ if (usePrebuilt) {
  */
 const PINNED_CHROMIUM = "/opt/pw-browsers/chromium";
 
-function resolveChromium(): string | undefined {
-  if (process.env.PLAYWRIGHT_CHROMIUM) return process.env.PLAYWRIGHT_CHROMIUM;
-  if (existsSync(PINNED_CHROMIUM)) return PINNED_CHROMIUM;
-  const root =
-    process.env.PLAYWRIGHT_BROWSERS_PATH ??
-    join(homedir(), ".cache", "ms-playwright");
-  if (!existsSync(root)) return undefined;
-  const dirs = readdirSync(root)
-    .filter((name) => /^chromium-\d+$/.test(name))
-    .sort(
-      (a, b) =>
-        Number(b.slice("chromium-".length)) -
-        Number(a.slice("chromium-".length)),
+const chromiumPath = resolveChromium(
+  process.env.PLAYWRIGHT_CHROMIUM,
+  PINNED_CHROMIUM,
+  process.env.PLAYWRIGHT_BROWSERS_PATH ??
+    join(homedir(), ".cache", "ms-playwright"),
+);
+const VISUAL_OUT_DIR = "../../work/visual-contract-dist";
+const previewCommand = `pnpm --filter @opensesame/pages exec vite preview --outDir ${VISUAL_OUT_DIR} --host ${HOST} --port ${PORT} --strictPort`;
+const usePrebuilt = process.env.PAGES_VISUAL_PREBUILT === "1";
+if (usePrebuilt) {
+  const index = new URL(
+    "../../work/visual-contract-dist/index.html",
+    import.meta.url,
+  );
+  if (
+    !existsSync(index) ||
+    !readFileSync(index, "utf8").includes('src="/assets/')
+  ) {
+    throw new Error(
+      "PAGES_VISUAL_PREBUILT requires an isolated Pages build with VITE_BASE=/",
     );
-  for (const dir of dirs) {
-    const chrome = join(root, dir, "chrome-linux", "chrome");
-    if (existsSync(chrome)) return chrome;
   }
-  return undefined;
 }
-
-const chromiumPath = resolveChromium();
 
 /**
  * Chromium's own process sandbox refuses to start when the launching process
@@ -119,7 +107,7 @@ export default defineConfig({
     // dependencies have never been built.
     command: usePrebuilt
       ? previewCommand
-      : `pnpm exec turbo run build --filter=@opensesame/pages && ${previewCommand}`,
+      : `pnpm exec turbo run build --filter=@opensesame/pages^... && pnpm --filter @opensesame/pages exec node scripts/stamped-build.mjs 'vite build --outDir ${VISUAL_OUT_DIR} --emptyOutDir && PAGES_OUT_DIR=${VISUAL_OUT_DIR} node scripts/build-workers.mjs' && pnpm --filter @opensesame/pages exec vite preview --outDir ${VISUAL_OUT_DIR} --host ${HOST} --port ${PORT} --strictPort`,
     // Playwright 1.55.1 rejects a webServer config specifying both `port`
     // and `url` ("Either 'port' or 'url' should be specified"); `url` alone
     // both pins the readiness check and matches `use.baseURL` above, so it's

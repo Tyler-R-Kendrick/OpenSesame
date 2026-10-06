@@ -48,6 +48,11 @@ const CLOUD_ADAPTERS = [
 ];
 
 export const VAULT_LIB_RULES = [
+  core(
+    "src/lib/password-agent/",
+    ITEMS,
+    "provider-independent credential workflow algorithms and native CLI ports; the local vault reuses discovery and template handling",
+  ),
   core(V, ITEMS, "items, kinds, TOTP, health, drafts, website matching"),
   ...each(V, UNLOCK_FILES, (p) =>
     core(p, UNLOCK, "vault key, protectors, store lifecycle"),
@@ -109,6 +114,15 @@ export const VAULT_LIB_RULES = [
 
 export const TUTORIAL_RULES = [
   shared(
+    `${T}support-context`,
+    "nullable React context seam read by core sheets; imports the optional controller only as an erased type",
+  ),
+  optional(
+    `${T}password-workflow-tour.test`,
+    HELP,
+    "password workflow walkthrough runtime verification",
+  ),
+  shared(
     `${T}gate-seat`,
     "the seat a gate screen keeps for the help key, and the host that holds it; core screens import it, the capability draws into it (ADR 0166)",
   ),
@@ -123,6 +137,7 @@ export const TUTORIAL_RULES = [
       "catalog-more",
       "capability-tutorials",
       "goals",
+      "password-workflow-goals",
       "identity-catalog",
       "identity-goals",
       "setup-catalog",
@@ -142,6 +157,8 @@ export const TUTORIAL_RULES = [
     [
       "coach/",
       "engine",
+      "lazy-engine-agent",
+      "refresh-engine",
       "tour-runner",
       "ui/",
       "__tests__/",
@@ -150,7 +167,6 @@ export const TUTORIAL_RULES = [
       "ask-guard",
       "choose-agent",
       "support-access",
-      "support-context",
       "support.css",
     ],
     (p) =>

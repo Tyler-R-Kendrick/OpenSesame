@@ -1,0 +1,54 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault?workflow=password"
+        },
+        {
+          "shot": "desktop-workflows"
+        }
+      ],
+      "desktop": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault?workflow=password"
+        },
+        {
+          "shot": "phone-workflows"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "desktop-workflows",
+      "width": 1280,
+      "title": "Password workflows \u2014 desktop",
+      "caption": "Local credential discovery and private-input workflows open from the vault.",
+      "before": "No password workflow dialog",
+      "after": "One dialog, five workflow sections"
+    },
+    {
+      "shot": "phone-workflows",
+      "width": 390,
+      "title": "Password workflows \u2014 phone",
+      "caption": "The same workflow opens through the phone Add menu or a deep link.",
+      "before": "No password workflow dialog",
+      "after": "One scrollable dialog, five workflow sections"
+    }
+  ]
+}

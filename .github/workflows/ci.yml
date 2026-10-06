@@ -40,6 +40,7 @@ jobs:
       # Quoted so the keyboard contract's job-id split does not match here.
       "bundle": ${{ steps.areas.outputs.bundle }}
       "rust": ${{ steps.areas.outputs.rust }}
+      native_mobile: ${{ steps.native.outputs.native_mobile }}
       mtls: ${{ steps.areas.outputs.mtls }}
       "push": ${{ steps.areas.outputs.push }}
       # The browser gates this diff reaches (scripts/lib/ci-gates.mjs): the
@@ -67,6 +68,12 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: node scripts/lib/ci-changed-areas.mjs
+      - name: Select native mobile checks
+        id: native
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash scripts/test/mobile-changed.sh
 
   typescript-tests:
     name: TypeScript tests
@@ -527,6 +534,73 @@ jobs:
         if: steps.affected.outputs.bitwarden == 'true'
         run: cargo test -p opensesame-gateway -p opensesame-cli --features bitwarden-compat bitwarden
 
+  android-native:
+    name: Android crypto and application build
+    needs: changes
+    if: needs.changes.outputs.native_mobile == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: 2
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          targets: aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android
+      - name: Install pinned Android build tools
+        run: |
+          echo "JAVA_HOME=$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0" "build-tools;36.0.0" "ndk;28.0.13004108"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.0.13004108" >> "$GITHUB_ENV"
+          curl --fail --location --retry 3 https://services.gradle.org/distributions/gradle-8.13-bin.zip -o "$RUNNER_TEMP/gradle.zip"
+          echo "20f1b1176237254a6fc204d8434196fa11a4cfb387567519c61556e8710aed78  $RUNNER_TEMP/gradle.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/gradle.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/gradle-8.13/bin" >> "$GITHUB_PATH"
+      - name: Build packaged Android Rust libraries
+        run: |
+          cargo install cargo-ndk --version 4.1.2 --locked
+          apps/android/scripts/build-core.sh android
+      - name: Test real JVM crypto and FFI, then assemble the app
+        run: bash scripts/test/mobile-android.sh
+      - name: Verify all four native architectures in the APK
+        run: bash scripts/test/mobile-android-apk.sh
+      - name: Preserve Android test results and APK
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: android-native-tests
+          path: |
+            apps/android/android/app/build/test-results/testDebugUnitTest/
+            apps/android/android/app/build/outputs/apk/debug/
+
+  apple-native:
+    name: Swift crypto and iOS application build
+    needs: changes
+    if: needs.changes.outputs.native_mobile == 'true'
+    runs-on: macos-26
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: 2
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim,x86_64-apple-ios
+      - name: Test Swift envelopes and compile all iOS package targets
+        run: bash scripts/test/mobile-apple.sh ios
+      - name: Preserve iOS simulator XCTest results
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: ios-native-tests
+          path: ${{ runner.temp }}/mobile-ios/tests.xcresult
+
   mtls:
     # Optional mTLS / workload identity (ADR 0132): the fast suite, then the
     # real-protocol suite against pinned, checksum-verified fixtures
@@ -639,7 +713,7 @@ jobs:
 
   rust-check:
     name: Rust
-    needs: [changes, rust]
+    needs: [changes, rust, android-native, apple-native]
     if: always() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -648,8 +722,15 @@ jobs:
         run: |
           changes="${{ needs.changes.result }}"
           heavy="${{ needs.rust.result }}"
+          native="${{ needs.changes.outputs.native_mobile }}"
+          android="${{ needs.android-native.result }}"
+          apple="${{ needs.apple-native.result }}"
           if [ "$changes" != "success" ]; then
             echo "change detection result: $changes"
+            exit 1
+          fi
+          if [ "$native" = "true" ] && { [ "$android" != "success" ] || [ "$apple" != "success" ]; }; then
+            echo "native mobile checks: Android=$android Apple=$apple"
             exit 1
           fi
           case "$heavy" in

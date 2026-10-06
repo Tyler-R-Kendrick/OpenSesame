@@ -29,7 +29,7 @@ export function stampedEdit(
     const before = captureBefore(body);
     change(body);
     // A write that left an account carrying methods (an import, a replaced
-    // list) keeps each as a credential of its own (ADR 0177).
+    // list) keeps each as a credential of its own (ADR 0178).
     if (hasEmbeddedMethods(body.items)) {
       body.items = extractEmbeddedMethods(body.items);
     }
@@ -44,7 +44,7 @@ function now(): string {
 /**
  * An account's credentials go to the trash with it, at the same instant, so
  * restoring the account brings back those that went with it and not one the
- * person had already removed from it (ADR 0177).
+ * person had already removed from it (ADR 0178).
  */
 export function trashItem(body: VaultBody, id: string): void {
   const at = now();
@@ -197,7 +197,7 @@ function isLegacySample(item: VaultItem): boolean {
  */
 export function retireLegacySample(body: VaultBody): void {
   const flagged = new Set(body.items.filter(isLegacySample).map((i) => i.id));
-  // An account's credentials go with it (ADR 0177).
+  // An account's credentials go with it (ADR 0178).
   const isGone = (item: VaultItem) =>
     flagged.has(item.id) ||
     (item.kind === "credential" &&
@@ -236,7 +236,7 @@ export function applyManifestPlan(
   body.folders = [...body.folders, ...plan.newFolders];
   for (const item of plan.updates) {
     const next = { ...item, updatedAt: at };
-    // An account is rewritten with the methods the manifest names (ADR 0177).
+    // An account is rewritten with the methods the manifest names (ADR 0178).
     body.items =
       next.kind === "account"
         ? splitAccount(body.items, next, at)

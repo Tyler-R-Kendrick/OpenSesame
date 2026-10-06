@@ -201,7 +201,7 @@ function purgedSince(at: string | undefined, item: VaultItem): boolean {
 }
 
 /**
- * A credential goes with the account it was bound to (ADR 0177): one a stale
+ * A credential goes with the account it was bound to (ADR 0178): one a stale
  * copy of a purged account brings back, extracted from its methods, has no
  * tombstone of its own and must not outlive it as a password nothing opens. One
  * changed after the purge, or kept on its own, stays.

@@ -1,4 +1,4 @@
-# ADR 0177 — Credentials are entries of their own, bound to an account by reference
+# ADR 0178 — Credentials are entries of their own, bound to an account by reference
 
 - **Status:** Accepted — implemented
 - **Date:** 2026-10-06

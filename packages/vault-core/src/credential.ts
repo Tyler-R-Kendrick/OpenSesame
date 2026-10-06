@@ -1,5 +1,5 @@
 /**
- * Credentials are entries of their own (ADR 0177).
+ * Credentials are entries of their own (ADR 0178).
  *
  * A password, an API key, a token, an OAuth client and an authenticator are
  * each an item in the vault, with the type's own list row, detail page and

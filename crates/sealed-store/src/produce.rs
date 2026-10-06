@@ -294,7 +294,7 @@ fn is_password(method: &Value) -> bool {
 }
 
 /// The password method an entry holds: an account's first, or the one method of
-/// a credential kept on its own (ADR 0177).
+/// a credential kept on its own (ADR 0178).
 fn first_password(meta: &Value) -> Option<&Value> {
     let values = meta.get("values")?;
     if let Some(method) = values.get("method").filter(|method| is_password(method)) {

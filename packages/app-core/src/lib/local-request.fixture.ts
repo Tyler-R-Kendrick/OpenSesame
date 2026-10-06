@@ -92,3 +92,21 @@ export async function localRequestFixture() {
     device,
   };
 }
+
+/** Shared authorization policy fixture; request-code capacity tests use this same policy. */
+export function authorizationConfiguration(
+  applicationId: string,
+  organizationId: string,
+  redirectUri: string,
+) {
+  return {
+    applicationId,
+    organizationId,
+    redirectUris: [redirectUri],
+    scopes: ["openid", "resource:read", "resource:write"],
+    scopeRoles: ["openid", "resource:read", "resource:write"].map((scope) => ({
+      scope,
+      roles: ["owner" as const],
+    })),
+  };
+}

@@ -61,7 +61,7 @@ function apiKey(accountId: string | null): CredentialItem {
   );
 }
 
-describe("a credential's own page (ADR 0177)", () => {
+describe("a credential's own page (ADR 0178)", () => {
   beforeEach(() => {
     vault.current = { items: [], folders: [] };
     copySecret.mockResolvedValue("copied");

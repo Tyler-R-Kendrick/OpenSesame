@@ -102,7 +102,7 @@ function heldSecrets(
   } else if (item.kind === "credential") {
     // History follows the password, wherever it is written from: one bound to
     // an account is kept in that account's scope, as the account reads it
-    // (ADR 0177), and one kept on its own in its own.
+    // (ADR 0178), and one kept on its own in its own.
     if (item.method.type === "password") {
       held.set(
         item.accountId === null

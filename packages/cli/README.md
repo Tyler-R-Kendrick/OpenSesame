@@ -46,6 +46,39 @@ The library entry exports `runCli`, `parseArgs` and `helpText`.
 | `OPENSESAME_CLAIM_TOKEN` | none; used by `claim poll` |
 | `OPENSESAME_STATE_DIR` | then `XDG_RUNTIME_DIR`, then `~/.config/opensesame`; holds `identity-session.json` |
 
+## 1Password workflows
+
+The top-level `find`, `inventory`, `audit`, `create api-credential`, `password`,
+`read`, `run`, `env` and `service-account` commands use the shared
+`app-core/lib/password-agent` workflow engine and the installed `op` CLI.
+
+```bash
+opensesame-id find openai stripe
+opensesame-id create api-credential --title "OpenAI API Key" --vault Automation --stdin
+opensesame-id password "Example Login" --vault Automation --stdin --apply
+opensesame-id run --env "OPENAI_API_KEY=op://Automation/OpenAI API Key/credential" -- node app.js
+opensesame-id env write .env.tpl "OPENAI_API_KEY=op://Automation/OpenAI API Key/credential"
+opensesame-id env run .env.tpl -- node app.js
+opensesame-id service-account setup --vault Automation --create-vault --write --save-vault Personal
+```
+
+Creation and password changes accept secrets from a pipe or `--clipboard`,
+verify every write by reading it back, and never retry a write. Passwords retain
+exact bytes; `password` compares unless `--apply` is supplied. Discovery and
+receipts contain metadata and references. `read` intentionally prints plaintext;
+`env resolve <file> --output <file>` or `--in-place` intentionally writes an
+owner-only plaintext file. The selected child receives injected secrets and
+its exit status is preserved; the provider service token is removed before
+that child starts.
+
+Authentication selects `OP_SERVICE_ACCOUNT_TOKEN`, then a saved service account,
+then desktop authentication. `--desktop` bypasses tokens. An unreadable saved
+account fails closed. `service-account connect --stdin`, `status`, `recover` and
+`forget` manage local unattended access; forgetting does not revoke the remote
+account. macOS stores the token in Keychain, Windows uses DPAPI, and Linux uses
+an encrypted file with the existing owner-only at-rest key. `doctor` checks
+installation and settings without opening the token store or accessing vaults.
+
 ## Develop
 
 ```bash
@@ -66,3 +99,28 @@ a registry entry.
   app-core host
 - [ADR 0065](../../docs/adr/0065-agent-surface-parity.md) — agent-surface parity
 - [`skills/opensesame-clis`](../../skills/opensesame-clis/SKILL.md)
+
+Private HTTPS requests use a human-approved lease. In an interactive terminal,
+review the exact destination and credential before approving with desktop authentication:
+
+```sh
+opensesame-id lease approve https://api.example.com/v1/me --secret op://Automation/Example/credential --desktop --expires-in 10m --uses 1
+opensesame-id request https://api.example.com/v1/me --secret op://Automation/Example/credential --lease <lease-id>
+opensesame-id lease status <lease-id>
+opensesame-id lease list
+opensesame-id lease revoke <lease-id>
+```
+
+The durable SQLite store contains authority metadata and budgets, never credential
+values or response bodies. Grants bind the exact URL fingerprint, reference,
+header, prefix, local principal, and credential version. Every attempt claims a use
+atomically before reading, rechecks the version, and consumes that use even if the
+read or request fails. There are no automatic retries. Defaults are ten minutes
+and one use; maximums are one hour and ten uses. Requests require HTTPS on port
+443, exclusively public DNS answers, pinned TLS, and bounded responses and time.
+Output contains only a receipt, including a safe numeric echo count.
+
+Credential helpers resolve through absolute executable PATH entries outside the
+current directory. Their working directory and interpreter startup environment
+are controlled before credentials enter the process. The explicitly selected
+child runs in the caller's working directory after the provider token is removed.

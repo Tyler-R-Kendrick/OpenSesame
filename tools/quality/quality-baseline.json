@@ -18,7 +18,7 @@
   "totals": {
     "files": 427,
     "violations": 662,
-    "oversizedLines": 216905
+    "oversizedLines": 216698
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -34,7 +34,7 @@
       "max-lines": 1467
     },
     "apps/cli/src/main.rs": {
-      "max-lines": 1902
+      "max-lines": 1898
     },
     "apps/cli/src/providers_native.rs": {
       "max-lines": 466
@@ -432,7 +432,7 @@
       "max-lines": 838
     },
     "crates/gateway/src/routes/shared_sessions.rs": {
-      "max-lines": 750
+      "max-lines": 632
     },
     "crates/gateway/src/routes/shared_sessions/tests.rs": {
       "max-lines": 1169
@@ -534,7 +534,7 @@
       "max-lines": 1595
     },
     "crates/storage/src/shared_sessions.rs": {
-      "max-lines": 661
+      "max-lines": 576
     },
     "crates/storage/src/tests.rs": {
       "max-lines": 2996
