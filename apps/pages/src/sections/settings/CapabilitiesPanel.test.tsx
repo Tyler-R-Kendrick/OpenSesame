@@ -7,10 +7,6 @@ import {
 } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import { installDoublePorts } from "@opensesame/app-core/lib/configuration/doubles/test-support.js";
 import {
-  POLICY_FILE,
-  SELECTION_FILE,
-} from "@opensesame/app-core/sections/settings/capability-files.js";
-import {
   cleanup,
   fireEvent,
   render,
@@ -137,7 +133,7 @@ describe("switches — the reviewed change, from a section or a tile", () => {
     expect(capabilitiesPanelSeams.reload).toHaveBeenCalled();
   });
 
-  it("has no Visual / Source / Effective toggle; its documents open as files", () => {
+  it("has no Visual / Source / Effective toggle and no key to a text view of itself", () => {
     const openFile = vi.fn();
     render(
       <MemoryRouter>
@@ -150,15 +146,12 @@ describe("switches — the reviewed change, from a section or a tile", () => {
     expect(
       screen.queryByTestId("capability-source-installation-selection"),
     ).toBeNull();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Open installation-selection.yaml" }),
-    );
-    expect(openFile).toHaveBeenLastCalledWith(SELECTION_FILE);
-    // The operator's policy is a file beside it, opened from its own section.
-    fireEvent.click(
-      screen.getByRole("button", { name: "Open instance-policy.yaml" }),
-    );
-    expect(openFile).toHaveBeenLastCalledWith(POLICY_FILE);
+    // The page is how its documents are seen; neither it nor the operator's
+    // policy section carries a key that opens their YAML.
+    expect(
+      screen.queryByRole("button", { name: /^Open .*\.yaml$/ }),
+    ).toBeNull();
+    expect(openFile).not.toHaveBeenCalled();
   });
 });
 

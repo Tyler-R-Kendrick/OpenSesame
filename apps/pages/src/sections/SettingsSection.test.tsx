@@ -231,7 +231,8 @@ describe("SettingsSection", () => {
     // No representation switch: the file is addressed like a page.
     expect(screen.queryByRole("button", { name: "YAML" })).toBeNull();
     const files = screen.getByRole("navigation", { name: "Files" });
-    expect(files.textContent).toContain("config.yaml");
+    // The directory's own document is the page, not a row in this list.
+    expect(files.textContent).not.toContain("config.yaml");
     expect(files.textContent).toContain("marketplaces.json");
     expect(
       screen.getByRole("textbox", {
@@ -281,7 +282,14 @@ describe("SettingsSection", () => {
   it("puts every provider on Capabilities, with no Connections tab", () => {
     renderSettings("#connectivity");
     expect(screen.queryByRole("heading", { name: /^Core/ })).toBeNull();
-    expect(screen.queryByRole("heading", { name: "Endpoints" })).toBeNull();
+    // Endpoints is a panel on this page (the addresses its config.yaml holds),
+    // never a tab of its own.
+    expect(screen.getByRole("heading", { name: "Endpoints" })).toBeTruthy();
+    expect(
+      within(
+        screen.getByRole("navigation", { name: "Settings sections" }),
+      ).queryByRole("link", { name: "Endpoints" }),
+    ).toBeNull();
     expect(screen.getByRole("region", { name: "Identity" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Identity" })).toBeTruthy();
   });

@@ -832,16 +832,20 @@ Do not add new top-level directories or loose root files — find the group.
   configure the thing, no static status a person cannot change. A control
   whose precondition is unmet is absent; the row that needs a setting opens the
   sheet that sets it. A setting is not removable while something depends on it.
-- **Settings is files, and the Form is a view of them**
+- **Settings is files, and a page is how a file is seen**
   ([ADR 0134](docs/adr/0134-item-type-marketplaces-and-settings-files.md)).
-  Configuration a Settings panel edits lives in a virtual file a
-  `VirtualFileProvider` stores; the page's source view is a file viewer over
-  those paths, and every Form key is a write to one of them. Do not add a
-  per-panel Visual/Source toggle or a paste box: add a provider and let the
-  file viewer show it. An item-type marketplace is a git repository read
-  through its forge's anonymous raw-file route; it confers no trust — every
-  definition it offers meets ADR 0087's parser and registry — and it is read
-  only when a person opens it.
+  Configuration a Settings panel edits lives in a virtual file; a directory's
+  `config.yaml` and the capability documents are those files, and **opening one
+  draws the designed page that writes it, never its text** — the same as every
+  other page. Never draw YAML as a view, never add a Form/Visual/Source toggle
+  or a paste box, and when a key has no designed row, add the row (Capabilities
+  draws an Endpoints panel for the addresses `config.yaml` holds). Only a file
+  a provider keeps for authoring (an item type's JSON, `marketplaces.json`, a
+  routing file) opens in the file viewer, painted in the same colours, from a
+  row's key. An item-type marketplace is a git repository read through its
+  forge's anonymous raw-file route; it confers no trust — every definition it
+  offers meets ADR 0087's parser and registry — and it is read only when a
+  person opens it.
 - **Built-in item types beyond the core are packs, switched on to download**
   ([ADR 0165](docs/adr/0165-item-type-packs-on-demand.md)). Only `secret`,
   `file`, `passkey`, `certificate` and `drop` are embedded in the bundle; the

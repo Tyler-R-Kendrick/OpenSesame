@@ -65,17 +65,17 @@ function manifest(id: string) {
 
 function Viewer({
   category = "vaults",
-  initial = null,
+  initial = "",
 }: {
   category?: string;
-  initial?: string | null;
+  initial?: string;
 }) {
-  const [selected, setSelected] = useState<string | null>(initial);
+  const [selected, setSelected] = useState<string>(initial);
   return (
     <SettingsFiles
       category={category}
       selected={selected}
-      onSelect={setSelected}
+      onSelect={(path) => setSelected(path ?? "")}
     />
   );
 }
@@ -111,20 +111,22 @@ const editor = (path: string) =>
   screen.getByRole("textbox", { name: path }) as HTMLTextAreaElement;
 
 describe("Settings' file viewer", () => {
-  it("lists the category's document and its files, opening on the document", () => {
+  it("lists the files a provider keeps, and not the page's own document", () => {
     installItemType(manifest("vtest"));
     render(<Viewer />);
     const list = screen.getByRole("navigation", { name: "Files" });
-    expect(list.textContent).toContain("config.yaml");
+    expect(list.textContent).not.toContain("config.yaml");
     expect(list.textContent).toContain("marketplaces.json");
     expect(list.textContent).toContain("vtest.json");
     expect(list.textContent).toContain("wifi.json");
-    expect(screen.getByLabelText("settings/vaults/config.yaml")).toBeTruthy();
+    // Nothing asked for is in the list: the first file opens.
+    expect(screen.getAllByRole("textbox").length).toBe(1);
   });
 
-  it("shows a category with no files as its document alone", () => {
+  it("draws nothing for a category that keeps no files", () => {
     render(<Viewer category={"general" as never} />);
     expect(screen.queryByRole("navigation", { name: "Files" })).toBeNull();
+    expect(screen.queryByRole("textbox")).toBeNull();
   });
 
   it("edits marketplaces.json and refuses what it cannot read", async () => {
@@ -326,29 +328,21 @@ describe("a refused write", () => {
   });
 });
 
-describe("Capabilities as files", () => {
-  it("lists config.yaml first, then the capability documents in the same directory", () => {
-    render(<Viewer category="capabilities" />);
-    const names = [...document.querySelectorAll(".vfiles__file")].map(
-      (row) => row.textContent,
-    );
-    expect(names[0]).toBe("config.yaml");
-    expect(names).toContain("installation-selection.yaml");
-    expect(names).toContain("effective-plan.yaml");
-    expect(screen.getAllByText("capabilities/")).toHaveLength(1);
-  });
-
-  it("opens a document as a file, with no Visual / Source / Effective toggle", async () => {
+describe("Capabilities' documents", () => {
+  it("are the page, so the viewer lists none of them and opens none as text", () => {
     render(
       <Viewer
         category="capabilities"
-        initial="settings/capabilities/effective-plan.yaml"
+        initial="settings/capabilities/installation-selection.yaml"
       />,
     );
-    // The effective plan is read-only: a lock on its row and on its head.
-    expect(
-      (await screen.findAllByRole("img", { name: /read-only/ })).length,
-    ).toBeGreaterThanOrEqual(2);
+    const names = [...document.querySelectorAll(".vfiles__file")].map(
+      (row) => row.textContent,
+    );
+    expect(names).not.toContain("installation-selection.yaml");
+    expect(names).not.toContain("effective-plan.yaml");
+    expect(names).not.toContain("config.yaml");
+    expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByRole("radiogroup")).toBeNull();
   });
 });

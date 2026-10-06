@@ -334,11 +334,12 @@ link, key and command bar, and the trash row is drawn while you stand in it.
 Each settings directory is also a file. `settings/<category>/config.yaml`
 (route `/settings/<category>?file=config.yaml` — never a `.yaml` path, which a
 static host answers as a missing file) is that page spelled as YAML: the
-form and the file are one set of values, so a write of the file changes the
-page and a change on the page rewrites the file in place, keeping the
-person's comments. State a ceremony owns (unlock methods, approved
-capabilities) is listed read-only and a file that rewrites it is refused.
-There is no Form/YAML/TOML switch.
+form and the file are one set of values, and the file's view **is the page**.
+Opening it draws the page the directory already draws, with the rail's row
+selected, exactly as every other page is drawn; it never draws its text. State
+a ceremony owns (unlock methods, approved capabilities) is listed read-only
+and a file that rewrites it is refused. There is no Form/YAML/TOML switch, and
+no page is a text editor.
 
 The keyboard lands on arrival, every time. A page load, an unlock, a route
 change, a browser Back, a switched tab — each leaves focus on `<body>` unless
@@ -654,19 +655,27 @@ with Save and Cancel after the fields. Drop retention stays an explicit,
 unchecked custody choice; payload and expiry remain visible.
 
 ### Settings is files
-Settings' files are a file viewer, not a second form, and there is no
-Form/source switch: a file is addressed like a page, `?file=<path>` on its
-directory's route, reached from the rail, the command bar or a row's open key,
-and Back returns to the form. A category is its document
-(`settings/<category>/config.yaml`) plus the virtual files its providers
-keep. For Vaults those are `settings/item-types/marketplaces.json`,
-`installed/<id>.json` and read-only `builtin/<id>.json`. The files sit as a mono
-tree, indented a step per directory, beside the open file. Selection is inverse
-video. A new file starts from the `+` key on the directory it belongs in. A
-built-in file carries the lock glyph and never a save key. The Form is drawn
-from the same files, and every Form key writes one of them. A row carries a
-key that opens its file. Do not draw a per-panel Visual/Source toggle or a
-paste box: give the configuration a file, and the viewer shows it
+A settings page and its files are one thing, and the page is how a person sees
+them. A directory's own document (`settings/<category>/config.yaml`) and the
+capability documents behind Capabilities (`installation-selection.yaml`,
+`instance-policy.yaml`, `effective-plan.yaml`) are real files in the tree that
+the rail, the command bar and an old link open by path, and opening any of them
+draws the designed page that writes it: the same tiles, switches and fields as
+the page itself, never the file's text. There is no Form/source switch and no
+page that is a text editor. Where a configuration has no designed row, give it
+one (Capabilities draws an Endpoints panel for the addresses `config.yaml`
+holds); do not fall back to showing YAML.
+
+Only a file a provider keeps *for authoring* opens in the file viewer: an item
+type's `installed/<id>.json` and read-only `builtin/<id>.json`,
+`settings/item-types/marketplaces.json`, a routing file. They are addressed
+like pages, `?file=<path>` on their directory's route, reached from a row's
+open key, and Back returns to the page. The files sit as a mono tree, indented
+a step per directory, beside the open file; the painted text is the same
+colour-coded copy in every one. Selection is inverse video. A new file starts
+from the `+` key on the directory it belongs in. A built-in file carries the
+lock glyph and never a save key. The Form is drawn from the same files, and
+every Form key writes one of them
 ([ADR 0134](docs/adr/0134-item-type-marketplaces-and-settings-files.md)).
 
 ### Keybindings are keycaps
