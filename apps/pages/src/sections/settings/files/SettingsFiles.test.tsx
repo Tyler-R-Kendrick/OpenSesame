@@ -138,7 +138,6 @@ describe("Settings' file viewer", () => {
     });
     expect(screen.getByRole("img", { name: /marketplaces\[0\]/ })).toBeTruthy();
     expect(editor(MARKETPLACES_PATH).getAttribute("aria-invalid")).toBe("true");
-    await expectInTray(/marketplaces\[0\]/);
     const save = screen.getByRole("button", {
       name: `Save ${MARKETPLACES_PATH}`,
     });

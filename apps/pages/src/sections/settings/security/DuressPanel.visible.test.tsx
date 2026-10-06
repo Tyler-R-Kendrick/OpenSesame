@@ -6,6 +6,7 @@ import { createItem } from "@opensesame/vault-core";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { expectInTray } from "../../../components/tray.test-support.js";
 import { withPassword } from "../../vault/account.test-support.js";
 import { DuressPanel } from "./DuressPanel.js";
 import {
@@ -205,12 +206,8 @@ describe("DuressPanel, show my vault without the items I hide", () => {
     await typeCode("739104628");
     await userEvent.click(tick());
     await userEvent.click(go());
-    expect(
-      (
-        await screen.findAllByText(
-          "Those items are too large to keep with a code. Show fewer.",
-        )
-      ).length,
-    ).toBeGreaterThan(0);
+    await expectInTray(
+      "Those items are too large to keep with a code. Show fewer.",
+    );
   });
 });

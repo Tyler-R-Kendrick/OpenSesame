@@ -186,10 +186,11 @@ export function VirtualFileEditor({
   };
 
   const refusal = check.ok ? null : check.message;
-  // A refusal or a failed write goes to the tray; the mark in the head keeps
-  // the sentence as its label. A cautioned write ("kept for this session
-  // only") is a disclosure and stays where it was.
-  const failure = refusal ?? (outcome?.tone === "err" ? outcome.text : null);
+  // A failed write goes to the tray; the mark in the head keeps the sentence
+  // as its label. A draft that would be refused is live validation, a mark on
+  // the field and nothing in the tray; a cautioned write ("kept for this
+  // session only") is a disclosure and stays where it was.
+  const failure = outcome?.tone === "err" ? outcome.text : null;
 
   return (
     <section className="panel set-raw vfile" aria-label={file.path}>

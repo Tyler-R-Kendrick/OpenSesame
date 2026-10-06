@@ -99,6 +99,6 @@ describe("a refused commit in the settings file", () => {
     const ids = listNotices()
       .filter((notice) => notice.body === REFUSAL)
       .map((notice) => notice.id);
-    expect(ids).toEqual([`settings-raw:${PATH}`]);
+    expect(ids).toEqual([`settings-file:${PATH}`]);
   });
 });
