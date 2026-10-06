@@ -44,13 +44,13 @@ describe("the item-type list", () => {
   });
 
   it("says what each costs to switch on", () => {
-    expect(rowOf(base, "login")?.facts).toMatch(/^\d+ fields? · \d\.\d KB$/);
+    expect(rowOf(base, "account")?.facts).toMatch(/^\d+ fields? · \d\.\d KB$/);
     expect(formatBytes(512)).toBe("512 B");
     expect(formatBytes(2048)).toBe("2.0 KB");
   });
 
   it("puts a switch on a pack that is off, unchecked", () => {
-    expect(rowOf(base, "login")).toMatchObject({
+    expect(rowOf(base, "account")).toMatchObject({
       control: "switch",
       checked: false,
       busy: false,
@@ -60,7 +60,7 @@ describe("the item-type list", () => {
 
   it("shows a pack on its way as checked and busy", () => {
     for (const phase of ["queued", "downloading", "installing"] as const) {
-      const row = rowOf({ ...base, status: { login: { phase } } }, "login");
+      const row = rowOf({ ...base, status: { account: { phase } } }, "account");
       expect(row).toMatchObject({
         checked: true,
         busy: true,
@@ -71,11 +71,11 @@ describe("the item-type list", () => {
 
   it("shows a failure as off with its reason", () => {
     const row = rowOf(
-      { ...base, status: { login: { phase: "failed", reason: "Offline." } } },
-      "login",
+      { ...base, status: { account: { phase: "failed", reason: "Offline." } } },
+      "account",
     );
     expect(row).toMatchObject({ checked: false, reason: "Offline." });
-    expect(row?.sentence).toBe("Login did not install: Offline.");
+    expect(row?.sentence).toBe("Account did not install: Offline.");
   });
 
   it("takes the switch away from a type the vault holds items of", () => {
@@ -116,7 +116,7 @@ describe("the item-type list", () => {
     expect(
       packTally({
         ...base,
-        status: { login: { phase: "on" }, card: { phase: "installing" } },
+        status: { account: { phase: "on" }, card: { phase: "installing" } },
       }),
     ).toBe("1 of 18 on");
   });

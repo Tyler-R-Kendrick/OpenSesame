@@ -48,7 +48,7 @@ describe("default extensions", () => {
     }
     expect(plan.capabilities["identity.ambient-sso"]?.approved).toBe(false);
     expect(plan.capabilities["support.local-ai"]?.approved).toBe(false);
-    expect(plan.approvedItemKinds).toContain("login");
+    expect(plan.approvedItemKinds).toContain("account");
     expect(plan.approvedItemKinds).toContain("secret");
   });
 });

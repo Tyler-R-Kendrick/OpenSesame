@@ -24,6 +24,7 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
     "The base secret and the file. Item list, editor, TOTP codes, website matching and the health report. Other item types are optional.",
     {
       operationIds: [
+        "vault.account.pepper",
         "vault.item.create",
         "vault.item.set",
         "vault.item.share",
@@ -66,6 +67,7 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "vaults.duress_code",
         "vaults.switch",
         "vaults.travel",
+        "vaults.travel_items",
       ],
       egress: [
         {

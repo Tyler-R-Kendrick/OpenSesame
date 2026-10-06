@@ -37,11 +37,12 @@ export const BUILTIN_TYPE_IDS: readonly string[] = [
 
 /**
  * The seven ids that predate ADR 0087 and are still spelled out in
- * `apps/pages` storage. Kept here so the legacy union and the corpus cannot
- * drift apart without a test noticing.
+ * `apps/pages` storage (`login` is `account` since ADR 0172; the old name
+ * resolves through `legacy-aliases.ts`). Kept here so the legacy union and the
+ * corpus cannot drift apart without a test noticing.
  */
 export const LEGACY_TYPE_IDS: readonly string[] = [
-  "login",
+  "account",
   "passkey",
   "card",
   "secret",

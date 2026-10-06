@@ -1,11 +1,13 @@
 import type { IssuedCertificate } from "@opensesame/app-core/lib/certs.js";
 import { registerLegacyItemKinds } from "@opensesame/app-core/lib/contributions.test-support.js";
 import {
+  type AccountItem,
   type CertificateItem,
   type Folder,
-  type LoginItem,
+  type PasswordMethod,
   type VaultItem,
   createItem,
+  passwordMethod,
 } from "@opensesame/vault-core";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -59,9 +61,13 @@ Object.assign(certsSeams, {
 
 import { expectInTray } from "../../components/tray.test-support.js";
 import { ItemEditor } from "./ItemEditor.js";
+import {
+  type AccountSeed,
+  makeAccount as makeAccountBase,
+} from "./account.test-support.js";
 
 /** The editor at `path`, new or edit, with a catch-all for where saving goes. */
-function renderEditor(path = "/vault/new/login") {
+function renderEditor(path = "/vault/new/account") {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
@@ -76,17 +82,14 @@ function renderEditor(path = "/vault/new/login") {
   );
 }
 
-function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
-  return {
-    ...createItem("login", "Webmail"),
+function makeAccount(overrides: AccountSeed = {}): AccountItem {
+  return makeAccountBase({
     id: "itm_1",
-    createdAt: "2026-08-01T00:00:00Z",
-    updatedAt: "2026-08-01T00:00:00Z",
-    username: "me@example.com",
+    name: "Webmail",
     password: "old-password",
     passwordChangedAt: "2026-08-01T00:00:00Z",
     ...overrides,
-  };
+  });
 }
 
 function makeCertificate(
@@ -122,6 +125,13 @@ function inputByLabel(label: string | RegExp): HTMLInputElement {
   return element;
 }
 
+function passwordOf(item: VaultItem): PasswordMethod {
+  if (item.kind !== "account") throw new Error("expected a saved account");
+  const method = passwordMethod(item);
+  if (!method) throw new Error("expected a password method");
+  return method;
+}
+
 function savedItem(): VaultItem {
   const item = saveItem.mock.calls[0]?.[0];
   if (!item) throw new Error("missing saved vault item");
@@ -149,15 +159,15 @@ describe("ItemEditor", () => {
     expect(saveItem).not.toHaveBeenCalled();
   });
 
-  it("creates a new login and navigates to its detail", async () => {
+  it("creates a new account and navigates to its detail", async () => {
     renderEditor();
     expect(screen.queryByLabelText(/^Type$/i)).toBeNull();
-    expect(screen.getByText(".login")).toBeTruthy();
+    expect(screen.getByText(".account")).toBeTruthy();
     await userEvent.clear(screen.getByLabelText(/^Name$/i));
     await userEvent.type(screen.getByLabelText(/^Name$/i), "Webmail");
-    await userEvent.clear(screen.getByLabelText(/^Username$/i));
+    await userEvent.clear(screen.getByLabelText(/^Username \/ ID$/i));
     await userEvent.type(
-      screen.getByLabelText(/^Username$/i),
+      screen.getByLabelText(/^Username \/ ID$/i),
       "me@example.com",
     );
     await userEvent.clear(screen.getByLabelText(/^Password$/i));
@@ -165,10 +175,15 @@ describe("ItemEditor", () => {
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     const saved = savedItem();
-    if (saved.kind !== "login") throw new Error("expected saved login");
+    if (saved.kind !== "account") throw new Error("expected saved account");
     expect(saved.name).toBe("Webmail");
     expect(saved.username).toBe("me@example.com");
-    expect(saved.password).toBe("s3cret-s3cret");
+    // Typing a password is choosing to type it: the generator is Manual.
+    expect(passwordOf(saved)).toMatchObject({
+      secret: "s3cret-s3cret",
+      generator: { id: "manual" },
+      pepper: true,
+    });
     expect(await screen.findByText("navigated away")).toBeTruthy();
   });
 
@@ -311,8 +326,8 @@ describe("ItemEditor", () => {
     expect(issueCertificateFromHost).not.toHaveBeenCalled();
   });
 
-  it("prefills a new login from the save-prompt query", () => {
-    renderEditor("/vault/new/login?name=Mail&uri=https://mail.example.com");
+  it("prefills a new account from the save-prompt query", () => {
+    renderEditor("/vault/new/account?name=Mail&uri=https://mail.example.com");
     expect(inputByLabel(/^Name$/i).value).toBe("Mail");
     expect(screen.getByDisplayValue("https://mail.example.com")).toBeTruthy();
   });
@@ -360,7 +375,7 @@ describe("ItemEditor", () => {
     expect(inputByLabel(/^Number$/i).value).toBe("411111114242");
   });
   it("adds, edits, and removes website addresses", async () => {
-    renderEditor("/vault/new/login?uri=https://old.example.com");
+    renderEditor("/vault/new/account?uri=https://old.example.com");
     await userEvent.click(screen.getByRole("button", { name: /Add address/i }));
     const address = screen.getByLabelText("Address 2");
     await userEvent.type(address, "https://mail.example.com");
@@ -373,7 +388,7 @@ describe("ItemEditor", () => {
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
     expect(savedItem()).toMatchObject({
-      kind: "login",
+      kind: "account",
       uris: [{ uri: "https://mail.example.com", match: "exact" }],
     });
   });
@@ -384,9 +399,9 @@ describe("ItemEditor", () => {
     expect(screen.queryByLabelText("Address 1")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    expect(savedItem()).toMatchObject({ kind: "login", uris: [] });
+    expect(savedItem()).toMatchObject({ kind: "account", uris: [] });
   });
-  it("reveals the password field and uses the generator", async () => {
+  it("reveals the password field and generates another", async () => {
     renderEditor();
     const password = inputByLabel(/^Password$/i);
     expect(password.type).toBe("password");
@@ -398,26 +413,13 @@ describe("ItemEditor", () => {
       screen.getByRole("button", { name: /Hide password/i }),
     );
     expect(password.type).toBe("password");
+    const before = password.value;
     await userEvent.click(
-      screen.getByRole("button", { name: /Password generator/i }),
-    );
-    await userEvent.click(
-      await screen.findByRole("button", { name: /Use this password/i }),
+      screen.getByRole("button", { name: /Generate another password/i }),
     );
     expect(password.value.length).toBeGreaterThan(0);
+    expect(password.value).not.toBe(before);
     expect(password.type).toBe("text");
-  });
-  it("dismisses the generator without applying", async () => {
-    renderEditor();
-    await userEvent.click(
-      screen.getByRole("button", { name: /Password generator/i }),
-    );
-    await userEvent.click(
-      await screen.findByRole("button", { name: /Close generator/i }),
-    );
-    expect(
-      screen.queryByRole("button", { name: /Use this password/i }),
-    ).toBeNull();
   });
 
   it("says there is nothing to edit for a missing item", () => {
@@ -434,52 +436,29 @@ describe("ItemEditor", () => {
     expect(screen.getByText("Nothing to edit")).toBeTruthy();
   });
 
-  it("edits an existing login and bumps passwordChangedAt on password change", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
-    render(
-      <MemoryRouter initialEntries={["/vault/itm_1/edit"]}>
-        <Routes>
-          <Route
-            path="/vault/:itemId/edit"
-            element={<ItemEditor mode="edit" />}
-          />
-          <Route path="*" element={<div>navigated away</div>} />
-        </Routes>
-      </MemoryRouter>,
-    );
+  it("edits an existing account and bumps changedAt on password change", async () => {
+    vault.current = { items: [makeAccount()], folders: [] };
+    renderEditor("/vault/itm_1/edit");
     expect(screen.queryByLabelText(/^Type$/i)).toBeNull();
     const password = screen.getByLabelText(/^Password$/i);
     await userEvent.clear(password);
     await userEvent.type(password, "brand-new-password");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const saved = savedItem();
-    if (saved.kind !== "login") throw new Error("expected saved login");
-    expect(saved.password).toBe("brand-new-password");
-    expect(saved.passwordChangedAt).not.toBe("2026-08-01T00:00:00Z");
+    const method = passwordOf(savedItem());
+    expect(method.secret).toBe("brand-new-password");
+    expect(method.changedAt).not.toBe("2026-08-01T00:00:00Z");
   });
 
-  it("keeps passwordChangedAt when the password is untouched", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
-    render(
-      <MemoryRouter initialEntries={["/vault/itm_1/edit"]}>
-        <Routes>
-          <Route
-            path="/vault/:itemId/edit"
-            element={<ItemEditor mode="edit" />}
-          />
-          <Route path="*" element={<div>navigated away</div>} />
-        </Routes>
-      </MemoryRouter>,
-    );
-    const username = screen.getByLabelText(/^Username$/i);
+  it("keeps changedAt when the password is untouched", async () => {
+    vault.current = { items: [makeAccount()], folders: [] };
+    renderEditor("/vault/itm_1/edit");
+    const username = screen.getByLabelText(/^Username \/ ID$/i);
     await userEvent.clear(username);
     await userEvent.type(username, "other@example.com");
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));
     await waitFor(() => expect(saveItem).toHaveBeenCalled());
-    const saved = savedItem();
-    if (saved.kind !== "login") throw new Error("expected saved login");
-    expect(saved.passwordChangedAt).toBe("2026-08-01T00:00:00Z");
+    expect(passwordOf(savedItem()).changedAt).toBe("2026-08-01T00:00:00Z");
   });
 
   it("saves a secret value and leaves the connection reference empty", async () => {

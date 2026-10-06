@@ -83,10 +83,12 @@ describe("crumbsFor", () => {
       { label: "Vault", to: "/vault" },
       { label: "Password health" },
     ]);
-    expect(crumbsFor("/vault/new/login")).toEqual([
-      { label: "Vault", to: "/vault" },
-      { label: "New login" },
-    ]);
+    for (const path of ["/vault/new/account", "/vault/new/login"]) {
+      expect(crumbsFor(path)).toEqual([
+        { label: "Vault", to: "/vault" },
+        { label: "New account" },
+      ]);
+    }
     expect(
       crumbsFor("/vault/itm_1", "", {
         itemName: "Work SSH",
@@ -108,10 +110,17 @@ describe("crumbsFor", () => {
   });
 
   it("links vault filters and folders", () => {
-    expect(crumbsFor("/vault", "?f=login")).toEqual([
+    expect(crumbsFor("/vault", "?f=account")).toEqual([
       { label: "Vault", to: "/vault" },
-      { label: "Logins" },
+      { label: "Accounts" },
     ]);
+    // Links handed out before accounts still land on them.
+    for (const legacy of ["?f=login", "?f=logins"]) {
+      expect(crumbsFor("/vault", legacy)).toEqual([
+        { label: "Vault", to: "/vault" },
+        { label: "Accounts" },
+      ]);
+    }
     expect(
       crumbsFor("/vault", "?folder=fld_1", {
         folderName: "Work",

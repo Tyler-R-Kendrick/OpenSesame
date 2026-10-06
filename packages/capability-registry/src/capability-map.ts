@@ -25,6 +25,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "vault.item.create": "vault.passwords",
     "vault.item.set": "vault.passwords",
     "vault.item.share": "vault.passwords",
+    "vault.account.pepper": "vault.passwords",
     "vault.items.search": "vault.passwords",
     "vault.items.read_meta": "vault.passwords",
     "vault.items.write_meta": "vault.passwords",
@@ -38,6 +39,7 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     // --- core: unlock and vaults ----------------------------------------
     "vaults.switch": "vault.local-unlock",
     "vaults.travel": "vault.local-unlock",
+    "vaults.travel_items": "vault.local-unlock",
     "vaults.duress_code": "vault.local-unlock",
     "vault.second_step.code": "vault.local-unlock",
     "vault.recovery_codes": "vault.local-unlock",
@@ -131,6 +133,9 @@ export const OPERATION_CAPABILITY: Readonly<Record<string, string>> =
     "identity.notification.channels.read": "notifications.routing",
     "identity.notification.bindings.manage": "notifications.routing",
     "identity.notification.preferences.manage": "notifications.routing",
+
+    // --- optional: breach and two-step checks (ADR 0080 §5) ------------
+    "vault.health.security_check": "vault.security-checks",
 
     // --- optional: tailnet networking -----------------------------------
     "vault.drive.sync": "networking.tailnet",

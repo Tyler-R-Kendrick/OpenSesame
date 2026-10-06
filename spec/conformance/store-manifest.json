@@ -4,12 +4,12 @@
     {
       "path": "Dev/GitHub",
       "secret": "correct-horse-7",
-      "trailer": "{\"kind\":\"login\",\"v\":2,\"username\":\"octo\",\"uris\":[\"https://github.com\",\"gist.github.com\"],\"uriMatches\":[\"domain\",\"host\"],\"values\":{\"passwordChangedAt\":\"2026-01-02T03:04:05.000Z\"}}\notpauth://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP&issuer=GitHub\n"
+      "trailer": "{\"kind\":\"account\",\"v\":2,\"username\":\"octo\",\"uris\":[\"https://github.com\",\"gist.github.com\"],\"uriMatches\":[\"domain\",\"host\"],\"values\":{\"methods\":[{\"id\":\"acct_github:password\",\"type\":\"password\",\"generator\":{\"id\":\"manual\"},\"pepper\":false,\"secret\":\"\",\"changedAt\":\"2026-01-02T03:04:05.000Z\"},{\"id\":\"acct_github:authenticator\",\"type\":\"authenticator\",\"secret\":\"\"}]}}\notpauth://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP&issuer=GitHub\n"
     },
     {
       "path": "Bank",
       "secret": "Fjord-Lantern-9",
-      "trailer": "{\"kind\":\"login\",\"v\":2,\"notes\":\"Branch 12\",\"username\":\"avery\",\"totp\":\"JBSWY3DPEHPK3PXP\",\"uris\":[],\"uriMatches\":[],\"values\":{\"passwordChangedAt\":\"2026-01-02T03:04:05.000Z\"}}\n"
+      "trailer": "{\"kind\":\"account\",\"v\":2,\"notes\":\"Branch 12\",\"username\":\"avery\",\"uris\":[],\"uriMatches\":[],\"values\":{\"methods\":[{\"id\":\"acct_bank:password\",\"type\":\"password\",\"generator\":{\"id\":\"manual\"},\"pepper\":false,\"secret\":\"\",\"changedAt\":\"2026-01-02T03:04:05.000Z\"},{\"id\":\"acct_bank:authenticator\",\"type\":\"authenticator\",\"secret\":\"JBSWY3DPEHPK3PXP\"}]}}\n"
     },
     {
       "path": "Dev/Deploy hook",
@@ -40,12 +40,12 @@
   "sealed": [
     {
       "name": "Dev/GitHub",
-      "kind": "login",
+      "kind": "account",
       "otp": true
     },
     {
       "name": "Bank",
-      "kind": "login",
+      "kind": "account",
       "otp": false
     },
     {

@@ -14,7 +14,8 @@
  * code at the unlock screen.
  */
 
-const state = { forbidden: false, reached: [] as string[] };
+const reached: string[] = [];
+const state = { forbidden: false, reached };
 
 export const wipeGuard = {
   /** Refuse, and remember, until `allow`. Called by the test setups. */

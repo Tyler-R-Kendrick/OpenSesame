@@ -4,23 +4,24 @@ import {
   randomBytes,
   sign,
 } from "node:crypto";
-import { PGlite } from "@electric-sql/pglite";
 import * as schema from "@opensesame/database/schema";
 import { overlapCast } from "@opensesame/os-domain";
 import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import { importJWK, jwtVerify } from "jose";
-import { expect, it, vi } from "vitest";
+import { beforeAll, expect, it, vi } from "vitest";
 import {
   type CreateControlPlaneOptions,
   createControlPlane,
 } from "../create-app.js";
+import { migratedPGlite, warmMigratedPGlite } from "./migrated-pglite.js";
 
-// Each PGlite test here boots a database and applies every migration inside
-// the test itself; on a loaded CI runner that alone took most of the
-// package's 15s budget (legacy-agent-durability timed out on it). Same 60s
-// budget the beforeAll-based PGlite suites give the identical setup.
+// Each PGlite test here starts its own database. They used to boot one and
+// apply every migration inside the test, which on a loaded CI runner took most
+// of the package's 15s budget (legacy-agent-durability timed out on it); now
+// the migrations run once per file, in the hook below, and each test loads a
+// copy (migrated-pglite.ts). The 60s budget stays as the margin for load.
 vi.setConfig({ testTimeout: 60_000 });
+beforeAll(warmMigratedPGlite, 60_000);
 
 async function fixture(options: CreateControlPlaneOptions = {}) {
   const signingKey = generateKeyPairSync("rsa", {
@@ -31,6 +32,10 @@ async function fixture(options: CreateControlPlaneOptions = {}) {
     config: { ...options.config, publicUrl: "http://localhost:8788" },
     processEnv: {
       ...process.env,
+      // Replicas sharing this database must retain the same sealing root.
+      OPENSESAME_EVENT_KEY: "host-authorization-shared-database-sealing-root",
+      OPENSESAME_CLAIM_PEPPER:
+        "host-authorization-shared-database-claim-pepper",
       OPENSESAME_HOST_AUTHORIZATION_AUDIENCES: "http://127.0.0.1:8787",
       OPENSESAME_JWKS_JSON: JSON.stringify({
         keys: [
@@ -228,15 +233,9 @@ it("refuses caller assurance, unknown audiences, wrong transaction, and removed 
 });
 
 it("verifies a real passkey on another app instance and consumes the pending grant atomically", async () => {
-  const client = new PGlite();
+  const client = await migratedPGlite();
   try {
     const db = drizzle(client, { schema });
-    await migrate(db, {
-      migrationsFolder: new URL(
-        "../../../../packages/database/drizzle",
-        import.meta.url,
-      ).pathname,
-    });
     const first = await fixture({ database: overlapCast(db) });
     const pending = await first.begin();
     const second = createControlPlane(first.planeOptions);

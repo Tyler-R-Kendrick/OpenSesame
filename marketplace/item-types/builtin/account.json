@@ -1,0 +1,46 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "account",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "Account",
+    "plural": "Accounts",
+    "extension": ".account",
+    "summary": "A username or id, the sites it signs into, and the ways it logs in.",
+    "categories": ["access"],
+    "sections": [
+      {
+        "id": "sites",
+        "title": "Websites",
+        "fields": [
+          { "id": "uris", "type": "url", "label": "Website", "multiple": true }
+        ]
+      },
+      {
+        "id": "credentials",
+        "title": "Credentials",
+        "fields": [
+          { "id": "username", "type": "string", "label": "Username / ID" },
+          { "id": "password", "type": "password", "label": "Password" },
+          { "id": "totp", "type": "totp", "label": "Authenticator code" }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "password",
+      "trailer": [
+        { "key": "login", "field": "username" },
+        { "key": "url", "field": "uris" },
+        { "key": "otpauth", "field": "totp" }
+      ]
+    },
+    "cxf": { "credential": "basic-auth" },
+    "subtitle": ["username"],
+    "search": ["username", "uris"],
+    "handler": "account"
+  }
+}

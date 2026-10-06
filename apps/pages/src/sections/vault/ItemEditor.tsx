@@ -26,13 +26,14 @@ import { IconKey } from "../../components/IconKey.js";
 import { IconEye, IconEyeOff } from "../../components/Icons.js";
 import { useVaultAllTo } from "../../lib/vault-list-path.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
+import { AccountFields } from "./AccountFields.js";
 import { EditorActions } from "./EditorActions.js";
 import { EditorExtras } from "./EditorExtras.js";
 import { EditorTitle } from "./EditorTitle.js";
 import { UnknownItemType } from "./EditorType.js";
-import { LoginFields } from "./LoginFields.js";
 import { NativeItemFields } from "./NativeItemFields.js";
 import { TypedFieldInputs } from "./TypedFields.js";
+import { settleForSave } from "./account-secrets.js";
 import { useEditorContributions } from "./item-contributions.js";
 import { seedDraft } from "./seed-draft.js";
 import { useEditorPath } from "./useEditorPath.js";
@@ -61,7 +62,6 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   );
 
   const [draft, setDraft] = useState<VaultItem | null>(initial.item);
-  const [showGenerator, setShowGenerator] = useState(false);
   const [reveal, setReveal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(initial.error);
@@ -71,7 +71,6 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   useEffect(() => {
     setDraft(initial.item);
     setError(initial.error);
-    setShowGenerator(false);
     setReveal(false);
     setPendingDeliveryId(undefined);
     setIssuanceKey(crypto.randomUUID());
@@ -127,7 +126,6 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
       notes: draft.notes,
     });
     setError(null);
-    setShowGenerator(false);
     setReveal(false);
   };
   const onTypeChange =
@@ -198,7 +196,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
     let deliveryId = pendingDeliveryId;
     try {
       const location = path.resolve();
-      if (draft.kind === "login") await validateWebsitePatterns(draft.uris);
+      if (draft.kind === "account") await validateWebsitePatterns(draft.uris);
       let next = { ...draft, name: location.name, folderId: location.folderId };
       if (next.kind === "certificate" && !next.certificatePem) {
         const issued = await issueCertificate({
@@ -231,12 +229,12 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         // saves this exact issuance instead of minting another certificate.
         setDraft(next);
       }
-      if (
-        next.kind === "login" &&
-        existing?.kind === "login" &&
-        existing.password !== next.password
-      ) {
-        next = { ...next, passwordChangedAt: new Date().toISOString() };
+      if (next.kind === "account") {
+        // `changedAt` moves with the password it describes (ADR 0174).
+        next = settleForSave(
+          next,
+          existing?.kind === "account" ? existing : undefined,
+        );
       }
       await store.saveItem(next, location.folder);
       if (deliveryId) {
@@ -280,26 +278,23 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         />
         {mode === "new" && Suggestions ? (
           <Suggestions
-            key={`${draftTypeId}:${draft.kind === "login" ? draft.uris[0]?.uri : ""}`}
+            key={`${draftTypeId}:${draft.kind === "account" ? draft.uris[0]?.uri : ""}`}
             typeId={draftTypeId}
-            website={draft.kind === "login" ? draft.uris[0]?.uri : undefined}
+            website={draft.kind === "account" ? draft.uris[0]?.uri : undefined}
             onApply={(labels) => {
               patch({ name: labels.name });
-              if (draft.kind === "login" || draft.kind === "passkey")
+              if (draft.kind === "account" || draft.kind === "passkey")
                 patch({ username: labels.username });
               if (draft.kind === "typed" && acceptsDraftUsername(draftTypeId))
                 patchValue("username", labels.username);
             }}
           />
         ) : null}
-        {draft.kind === "login" ? (
-          <LoginFields
+        {draft.kind === "account" ? (
+          <AccountFields
             draft={draft}
-            reveal={reveal}
-            showGenerator={showGenerator}
+            liveRoll={mode === "new"}
             onPatch={patch}
-            onReveal={setReveal}
-            onShowGenerator={setShowGenerator}
           />
         ) : null}
 

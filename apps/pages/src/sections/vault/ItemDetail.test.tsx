@@ -14,14 +14,15 @@ import {
 import { planeHookSeams } from "../../bindings/planes.js";
 
 import type {
+  AccountItem,
   CardItem,
   Folder,
-  LoginItem,
   NoteItem,
   PasskeyItem,
   SecretItem,
   VaultItem,
 } from "@opensesame/vault-core";
+import { manualPassword } from "@opensesame/vault-core";
 
 type VaultFixture = { current: { items: VaultItem[]; folders: Folder[] } };
 
@@ -56,8 +57,11 @@ const originalConnectionSeams = { ...connectionSeams };
 Object.assign(connectionSeams, { listConnections });
 afterAll(() => Object.assign(connectionSeams, originalConnectionSeams));
 
-import { expectInTray } from "../../components/tray.test-support.js";
 import { ItemDetail } from "./ItemDetail.js";
+import {
+  type AccountSeed,
+  makeAccount as makeAccountBase,
+} from "./account.test-support.js";
 
 function base<K extends VaultItem["kind"]>(kind: K, id: string, name: string) {
   return {
@@ -74,16 +78,12 @@ function base<K extends VaultItem["kind"]>(kind: K, id: string, name: string) {
   };
 }
 
-function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
-  return {
-    ...base("login", "itm_login", "Webmail"),
-    username: "me@example.com",
+function makeAccount(overrides: AccountSeed = {}): AccountItem {
+  return makeAccountBase({
+    id: "itm_login",
     password: "hunter2hunter2",
-    totp: "",
-    uris: [],
-    passwordChangedAt: "2026-08-01T00:00:00Z",
     ...overrides,
-  };
+  });
 }
 
 function savedItem(): VaultItem {
@@ -125,12 +125,12 @@ describe("ItemDetail", () => {
     ).toBeTruthy();
   });
 
-  it("renders a login with concealed password and reveals it on demand", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+  it("renders an account with concealed password and reveals it on demand", async () => {
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login");
     expect(screen.getByRole("heading", { name: "Webmail" })).toBeTruthy();
     expect(screen.getByText("me@example.com")).toBeTruthy();
-    expect(screen.getByText(/Login/)).toBeTruthy();
+    expect(screen.getByText(/Account/)).toBeTruthy();
     // Concealed until asked.
     expect(screen.queryByText("hunter2hunter2")).toBeNull();
     await userEvent.click(
@@ -147,7 +147,7 @@ describe("ItemDetail", () => {
   });
 
   it("copies fields through the clipboard feedback", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login");
     await userEvent.click(
       screen.getByRole("button", { name: /Copy username/i }),
@@ -160,7 +160,7 @@ describe("ItemDetail", () => {
 
   it("surfaces clipboard failures", async () => {
     copySecret.mockResolvedValue("unavailable");
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login");
     await userEvent.click(
       screen.getByRole("button", { name: /Copy username/i }),
@@ -172,7 +172,7 @@ describe("ItemDetail", () => {
 
   it("shows folder membership and update time", () => {
     vault.current = {
-      items: [makeLogin({ folderId: "fld_1" })],
+      items: [makeAccount({ folderId: "fld_1" })],
       folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
     };
     renderAt("itm_login");
@@ -185,7 +185,7 @@ describe("ItemDetail", () => {
   it("lists websites with external links only for browsable URLs", () => {
     vault.current = {
       items: [
-        makeLogin({
+        makeAccount({
           uris: [
             { id: "u1", uri: "https://mail.example.com", match: "domain" },
             { id: "u2", uri: "chrome-extension://abc", match: "never" },
@@ -204,9 +204,9 @@ describe("ItemDetail", () => {
     expect(screen.queryByRole("link", { name: /Open chrome/ })).toBeNull();
   });
 
-  it("shows the authenticator section and QR reveal for TOTP logins", async () => {
+  it("shows the authenticator section and QR reveal for TOTP accounts", async () => {
     vault.current = {
-      items: [makeLogin({ totp: "JBSWY3DPEHPK3PXP" })],
+      items: [makeAccount({ totp: "JBSWY3DPEHPK3PXP" })],
       folders: [],
     };
     renderAt("itm_login");
@@ -231,66 +231,10 @@ describe("ItemDetail", () => {
     ).toBeTruthy();
   });
 
-  it("generates a replacement password through the update panel", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
-    renderAt("itm_login");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Update password/i }),
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: /Save new value/i }),
-    );
-    await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
-    const saved = savedItem();
-    if (saved.kind !== "login") throw new Error("expected saved login");
-    expect(saved.password).not.toBe("hunter2hunter2");
-    expect(saved.password).toHaveLength(32);
-    expect(saved.passwordChangedAt).not.toBe("2026-08-01T00:00:00Z");
-  });
-
-  it("requires a value in provide mode and saves what is typed", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
-    renderAt("itm_login");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Update password/i }),
-    );
-    await userEvent.click(screen.getByRole("button", { name: /^Enter$/i }));
-    await userEvent.click(
-      screen.getByRole("button", { name: /Save new value/i }),
-    );
-    await expectInTray("Enter a new value.");
-    expect(store.saveItem).not.toHaveBeenCalled();
-    await userEvent.type(
-      screen.getByPlaceholderText("New password"),
-      "typed-secret-value",
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: /Save new value/i }),
-    );
-    await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
-    const saved = savedItem();
-    if (saved.kind !== "login") throw new Error("expected saved login");
-    expect(saved.password).toBe("typed-secret-value");
-  });
-
-  it("cancels the update panel without saving", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
-    renderAt("itm_login");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Update password/i }),
-    );
-    await userEvent.click(screen.getByRole("button", { name: /Cancel/i }));
-    expect(store.saveItem).not.toHaveBeenCalled();
-    // Panel collapses back to the trigger button.
-    expect(
-      screen.getByRole("button", { name: /Update password/i }),
-    ).toBeTruthy();
-  });
-
   it("renders custom fields with conceal and copy controls", async () => {
     vault.current = {
       items: [
-        makeLogin({
+        makeAccount({
           fields: [
             { id: "f1", name: "API key", value: "ak_123", hidden: true },
             { id: "f2", name: "Region", value: "eu-1", hidden: false },
@@ -311,7 +255,7 @@ describe("ItemDetail", () => {
 
   it("shows notes for non-note items", () => {
     vault.current = {
-      items: [makeLogin({ notes: "recovery codes in the safe" })],
+      items: [makeAccount({ notes: "recovery codes in the safe" })],
       folders: [],
     };
     renderAt("itm_login");
@@ -319,7 +263,7 @@ describe("ItemDetail", () => {
   });
 
   it("toggles favorites", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login");
     await userEvent.click(
       screen.getByRole("button", { name: /Add to favorites/i }),
@@ -328,7 +272,7 @@ describe("ItemDetail", () => {
   });
 
   it("moves an item to trash", async () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login");
     await userEvent.click(
       screen.getByRole("button", { name: /Move to trash/i }),
@@ -338,7 +282,7 @@ describe("ItemDetail", () => {
 
   it("restores or purges a trashed item with confirmation", async () => {
     vault.current = {
-      items: [makeLogin({ deletedAt: "2026-08-10T00:00:00Z" })],
+      items: [makeAccount({ deletedAt: "2026-08-10T00:00:00Z" })],
       folders: [],
     };
     renderAt("itm_login");
@@ -433,8 +377,9 @@ describe("ItemDetail", () => {
   });
 
   it("never looks up receipts, whatever the Host or connection state", async () => {
-    // Pages keeps no Host fetch (ADR 0128): the line is the same whatever the
-    // Host did (no connection, degraded, no receipts, failed); nothing is asked.
+    // Pages keeps no Host fetch (ADR 0128): the line is the same whether the
+    // Host would have had no connection, been degraded, had no receipts or
+    // failed, and nothing is asked of it.
     const sent = vi.spyOn(globalThis, "fetch");
     const worlds = [
       () => listConnections.mockResolvedValue([]),
@@ -524,7 +469,7 @@ describe("ItemDetail", () => {
   });
 
   it("keeps the list filter when navigating back", () => {
-    vault.current = { items: [makeLogin()], folders: [] };
+    vault.current = { items: [makeAccount()], folders: [] };
     renderAt("itm_login", "?f=trash");
     const back = screen.getByRole("link", { name: /Back to list/i });
     expect(back.getAttribute("href")).toBe("/vault?f=trash");
@@ -545,18 +490,24 @@ describe("ItemDetail edge branches", () => {
     vi.clearAllMocks();
   });
 
-  it("renders an untitled login without username or password", () => {
+  it("renders an untitled account without username or password", () => {
     vault.current = {
       items: [
-        makeLogin({ name: "", username: "", password: "", totp: "" }),
-        makeLogin({ id: "itm_other", name: "Other" }),
+        makeAccount({
+          name: "",
+          username: "",
+          methods: [
+            manualPassword("itm_login:password", "", "2026-08-01T00:00:00Z"),
+          ],
+        }),
+        makeAccount({ id: "itm_other", name: "Other" }),
       ],
       folders: [],
     };
     renderAt("itm_login");
     expect(screen.getByRole("heading", { name: "Untitled" })).toBeTruthy();
     // No username row, and the update affordance stands alone.
-    expect(screen.queryByText("Username")).toBeNull();
+    expect(screen.queryByText("Username / ID")).toBeNull();
     expect(
       screen.getByRole("button", { name: /Update password/i }),
     ).toBeTruthy();
@@ -565,7 +516,7 @@ describe("ItemDetail edge branches", () => {
 
   it("copies the current TOTP code", async () => {
     vault.current = {
-      items: [makeLogin({ totp: "JBSWY3DPEHPK3PXP" })],
+      items: [makeAccount({ totp: "JBSWY3DPEHPK3PXP" })],
       folders: [],
     };
     renderAt("itm_login");

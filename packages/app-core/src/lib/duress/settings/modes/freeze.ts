@@ -1,4 +1,5 @@
 import { extendHold } from "../../hold/record.js";
+import { isJsonObject } from "../../json-boundary.js";
 import type { EffectRunner } from "./effects.js";
 import type { DuressMode } from "./mode.js";
 
@@ -13,7 +14,7 @@ export const FREEZE = {
   opens:
     "nothing; it reads as a wrong password, then real credentials are refused for a while",
   consent:
-    "I understand that after this code is typed this device refuses my real password and other real credentials for the time I chose, that I cannot shorten it from this device, and that it relies on this device's clock.",
+    "I understand that after this code is typed this device refuses my real password and other real credentials for the time I chose, that I cannot shorten it from this device, and that it relies on this device's clock. The code itself is refused, which leaves me with nothing to show, and a refused unlock may be read as refusing to comply and can escalate the situation.",
   presentation: "locked",
   input: {
     kind: "choice",
@@ -40,10 +41,6 @@ export const FREEZE = {
 export const FREEZE_RUNNER: EffectRunner = {
   phase: "on_match",
   run: async (body) => {
-    const hours =
-      typeof body === "object" && body !== null && "hours" in body
-        ? body.hours
-        : undefined;
-    await extendHold(hours);
+    await extendHold(isJsonObject(body) ? body.hours : undefined);
   },
 };

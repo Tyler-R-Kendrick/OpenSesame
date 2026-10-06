@@ -6,13 +6,40 @@
 export function vaultSteps({ press, visit }) {
   return {
     /**
-     * Add logins through the editor, one per name, the way a person fills a
+     * Add accounts through the editor, one per name, the way a person fills a
      * vault: the lists in a sheet are then long enough to scroll and search.
      */
     async seed(page, names) {
       for (const name of names) {
-        await visit(page, "vault/new/login");
+        await visit(page, "vault/new/account");
         await page.getByLabel("Name", { exact: true }).first().fill(name);
+        await press(page.getByRole("button", { name: "Save item" }).first());
+        await page.waitForTimeout(900);
+      }
+    },
+    /**
+     * Bring the first match to the top of its scroller, when this build draws
+     * it: a sheet longer than the screen shows its foot, and the part a pair
+     * is about may be above it. A base build without it is skipped.
+     */
+    async bringIntoViewOptional(page, selector) {
+      const target = page.locator(selector).first();
+      if (!(await target.count())) return;
+      await target.evaluate((node) => {
+        node.scrollIntoView({ block: "start", behavior: "instant" });
+      });
+      await page.waitForTimeout(500);
+    },
+    /**
+     * Add secrets through the editor, one per `{ name, secret }`: the default
+     * kind of a new item. A vault with items in it is what a list, a trip's
+     * choice of what stays home and a search all need.
+     */
+    async secrets(page, items) {
+      for (const { name, secret } of items) {
+        await visit(page, "vault/new");
+        await page.getByLabel("Name", { exact: true }).fill(name);
+        await page.getByLabel("Secret value", { exact: true }).fill(secret);
         await press(page.getByRole("button", { name: "Save item" }).first());
         await page.waitForTimeout(900);
       }

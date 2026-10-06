@@ -5,18 +5,21 @@
  * is the raw 32-byte key or 33-byte share; nothing OpenSesame-specific is
  * added, so upstream opens what this writes and vice versa.
  *
- * Recipients and identities are validated by the pinned `age-encryption`
- * parser, never by prefix. Only X25519 identities are supported here; a
- * plugin, SSH, or other form is refused with its own diagnostic.
+ * Recipients and identities are validated by their bech32 checksum and
+ * shape (`bech32.ts`), never by prefix alone, so a configuration parses without
+ * loading `age-encryption`; the library loads (`loadAge`) when an envelope is
+ * wrapped or opened. Only X25519 identities are supported here; a plugin, SSH,
+ * or other form is refused with its own diagnostic.
  */
 
-import * as age from "age-encryption";
+import { loadAge } from "../../age-lib.js";
 import { SopsError } from "../errors.js";
 import {
   DATA_KEY_BYTES,
   MAX_AGE_PAYLOAD_BYTES,
   SHARE_BYTES,
 } from "../limits.js";
+import { isBech32 } from "./bech32.js";
 
 const RECIPIENT = /^age1[02-9ac-hj-np-z]{58}$/u;
 const IDENTITY = /^AGE-SECRET-KEY-1[02-9AC-HJ-NP-Z]{58}$/u;
@@ -36,9 +39,7 @@ export function parseAgeRecipient(line: string): string {
       "A recipient is not an age recipient.",
     );
   }
-  try {
-    new age.Encrypter().addRecipient(recipient);
-  } catch {
+  if (!isBech32(recipient, "age", 52)) {
     throw new SopsError("invalid_recipient", "A recipient did not parse.");
   }
   return recipient;
@@ -53,15 +54,14 @@ export function parseAgeIdentity(line: string): string {
       "Only X25519 age identities are supported here.",
     );
   }
-  try {
-    new age.Decrypter().addIdentity(identity);
-  } catch {
+  if (!isBech32(identity, "AGE-SECRET-KEY-", 52)) {
     throw new SopsError("unsupported_identity", "The identity did not parse.");
   }
   return identity;
 }
 
 export async function recipientOfIdentity(identity: string): Promise<string> {
+  const age = await loadAge();
   return age.identityToRecipient(parseAgeIdentity(identity));
 }
 
@@ -83,6 +83,7 @@ export async function wrapAge(
   recipient: string,
 ): Promise<string> {
   assertPayload(payload);
+  const age = await loadAge();
   const encrypter = new age.Encrypter();
   encrypter.addRecipient(parseAgeRecipient(recipient));
   const ciphertext = await encrypter.encrypt(payload);
@@ -104,6 +105,7 @@ export async function unwrapAge(
   identities: readonly string[],
 ): Promise<UnwrapResult> {
   if (enc.length > MAX_AGE_PAYLOAD_BYTES) return { status: "malformed" };
+  const age = await loadAge();
   let decoded: Uint8Array;
   try {
     decoded = age.armor.decode(enc.trim());

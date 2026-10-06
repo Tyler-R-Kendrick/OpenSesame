@@ -137,7 +137,7 @@ function KindFilter({
       <PageTreeLeafRow
         node={{
           ...vaultLeaf(segment, `/vault?f=${id}`, count, false, id),
-          guide: id === "login" ? "vault.filter.logins" : undefined,
+          guide: id === "account" ? "vault.filter.logins" : undefined,
         }}
         level={2}
         current={selectedTo}

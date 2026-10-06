@@ -5,6 +5,7 @@
  */
 import { overlapCast } from "@opensesame/os-domain";
 import {
+  type AccountItem,
   DEVICE_IDENTITY_KEY_PATH,
   type SealedVaultFile,
   type VaultBody,
@@ -13,6 +14,8 @@ import {
   WrongPasswordError,
   b64ToBytes,
   openVaultBody,
+  passwordMethod,
+  produceAccountPassword,
   readDeviceIdentityKeyRecord,
   readVaultFile,
   unwrapRawVaultKeyFromPassword,
@@ -76,6 +79,21 @@ function summarize(body: VaultBody, bound: boolean, tomb: string): Expectation {
 
 const vectors = Object.entries(fixture.vectors);
 
+/**
+ * The vectors record what was written. A `login` item (ADR 0172 §1) is read
+ * and normalized to an account, so every other part of an expectation holds
+ * and the kind it names comes out as `account`.
+ */
+function normalized(expectation: Expectation): Expectation {
+  return {
+    ...expectation,
+    items: expectation.items.map((item) => ({
+      ...item,
+      kind: item.kind === "login" ? "account" : item.kind,
+    })),
+  };
+}
+
 describe("golden vault vectors", () => {
   it.each(vectors)("%s opens with the password", async (_name, vector) => {
     const opened = openEnvelope(vector.file);
@@ -84,7 +102,55 @@ describe("golden vault vectors", () => {
       fixture.password,
     );
     const { body, bound } = await openBody(raw, opened);
-    expect(summarize(body, bound, opened.tomb)).toEqual(vector.expect);
+    expect(summarize(body, bound, opened.tomb)).toEqual(
+      normalized(vector.expect),
+    );
+  });
+
+  it("opens every legacy login vector as accounts, none left as login", async () => {
+    const legacy = vectors.filter(([, vector]) =>
+      vector.expect.items.some((item) => item.kind === "login"),
+    );
+    expect(legacy.length).toBeGreaterThan(0);
+    for (const [name, vector] of legacy) {
+      const opened = openEnvelope(vector.file);
+      const raw = await unwrapRawVaultKeyFromPassword(
+        opened.header,
+        fixture.password,
+      );
+      const { body } = await openBody(raw, opened);
+      const kinds = body.items.map((item) => item.kind);
+      expect(kinds, name).toContain("account");
+      expect(kinds, name).not.toContain("login");
+      expect(JSON.stringify(body), name).not.toContain('"kind":"login"');
+    }
+  });
+
+  it("opens the derived vector: a computed password, and one with a pepper slot it is never given", async () => {
+    const opened = openEnvelope(
+      fixture.vectors["backup-personal-derived"].file,
+    );
+    const raw = await unwrapRawVaultKeyFromPassword(
+      opened.header,
+      fixture.password,
+    );
+    const { body } = await openBody(raw, opened);
+    const accounts = body.items.filter(
+      (item): item is AccountItem => item.kind === "account",
+    );
+    const [clear, slotted] = accounts;
+    if (clear === undefined || slotted === undefined) throw new Error("two");
+    const whole = produceAccountPassword(clear);
+    expect(whole.status).toBe("ok");
+    expect(passwordMethod(clear)?.generator).toMatchObject({
+      id: "derived",
+      counter: 2,
+    });
+    const partial = produceAccountPassword(slotted);
+    expect(partial.status).toBe("slotted");
+    if (partial.status !== "slotted") return;
+    expect(partial.tail).toHaveLength(4);
+    expect(JSON.stringify(slotted)).not.toContain(partial.head);
   });
 
   it("normalizes the password with NFKC before deriving", async () => {
@@ -140,7 +206,9 @@ describe("golden vault vectors", () => {
     if (!pin) throw new Error("vector has no PIN wrap");
     const raw = await unwrapVaultKeyWithPin(pin, fixture.pin);
     const { body, bound } = await openBody(raw, opened);
-    expect(summarize(body, bound, opened.tomb)).toEqual(vector.expect);
+    expect(summarize(body, bound, opened.tomb)).toEqual(
+      normalized(vector.expect),
+    );
   });
 
   it("opens the project body through its passkey PRF wrap", async () => {
@@ -151,7 +219,9 @@ describe("golden vault vectors", () => {
     const prf = b64ToBytes(fixture.prfOutputB64);
     const raw = await unwrapVaultKeyWithPrf(record, prf.slice().buffer);
     const { body, bound } = await openBody(raw, opened);
-    expect(summarize(body, bound, opened.tomb)).toEqual(vector.expect);
+    expect(summarize(body, bound, opened.tomb)).toEqual(
+      normalized(vector.expect),
+    );
   });
 
   it("imports the personal export through the real store", async () => {
@@ -164,6 +234,27 @@ describe("golden vault vectors", () => {
     expect(merged).toBe(2);
     const names = store.getSnapshot().items.map((item) => item.name);
     expect(names).toEqual(["Personal login", "Personal note"]);
+    // The imported login is an account in memory, and what the store seals
+    // from here never says `login`.
+    expect(store.getSnapshot().items.map((item) => item.kind)).toEqual([
+      "account",
+      "note",
+    ]);
+    await store.flushPendingWrites();
+    const sealed = JSON.parse(store.exportSealed());
+    const opened = await openBody(
+      await unwrapRawVaultKeyFromPassword(
+        sealed.header,
+        "an unrelated master passphrase 2026",
+      ),
+      {
+        format: "opensesame-vault-export",
+        tomb: sealed.tomb,
+        header: sealed.header,
+        body: sealed.body,
+      },
+    );
+    expect(JSON.stringify(opened.body)).not.toContain('"kind":"login"');
     store.lock();
   });
 

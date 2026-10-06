@@ -113,7 +113,45 @@
       "793, which is main's own measurement and not keybindings'. A hardened",
       "build on this branch measures 2807 total, 2390 javascript, 749 gzip and",
       "783 largestAsset, so nothing in the keybindings code needs to be cut",
-      "to fit; the ceilings are a ceiling to fall from, never to raise."
+      "to fit; the ceilings are a ceiling to fall from, never to raise.",
+      "2026-10-05: largestAsset 793 -> 798 for both hardened profiles (ADR",
+      "0172, accounts). The entry chunk measured 794.2 KiB here and in CI;",
+      "main's own is 780.6, so the accounts branch adds 13.5. Attributed to",
+      "source by sourcemap, about 10 of those are the RFC 9497 OPRF that",
+      "Sphinx uses (noble's abstract/oprf, the ristretto255 half of ed25519,",
+      "hash-to-curve, edwards) and 1.7 are the account model and its",
+      "migration. Making the OPRF a dynamic import changes nothing: the",
+      "ed25519 module is also imported statically by age-encryption (the age",
+      "unlock adapters), so Rollup keeps it, all of its exports, in `main`.",
+      "Four kibibytes over the measurement, as before. The way back under is",
+      "to load the age adapters on demand, which moves the whole noble",
+      "ed25519 module (about 55 KiB) out of the entry; that touches the",
+      "unlock path and is a change of its own, not this one's.",
+      "2026-10-05: largestAsset 798 -> 673 for both hardened profiles. That",
+      "change of its own is made: `age-encryption` and the noble curves it",
+      "carries no longer load with the app. `lib/age-lib.ts` is the one door and",
+      "imports the library on first use (an age protector at unlock, the SOPS",
+      "engine, the age keys panel); SOPS recipients and identities are checked",
+      "by their bech32 checksum (`sops/keys/bech32.ts`) without it. The entry",
+      "chunk measured 813.3 KiB before and 669.3 KiB after, so the ceiling is",
+      "the measurement plus four kibibytes, as before. The OPRF's 13.5 KiB that",
+      "raised it to 798 left the entry with the same module.",
+      "2026-10-05: largestAsset 673 -> 678 for both hardened profiles. The one",
+      "password facade (ADR 0174) is in the entry because every surface that",
+      "produces a password calls it: producePassword, the algorithmic generator's",
+      "HKDF and rejection sampler, and the pepper position parser, about five",
+      "kibibytes together. Measured 674.0 KiB, so the ceiling is that plus four,",
+      "as before.",
+      "2026-10-06: largestAsset 678 -> 686 for both hardened profiles (ADR",
+      "0144 items 11-18, tailnet sync), on main at 13592038. The entry",
+      "measures 681.8 KiB, 7.8 over main's 674.0; attributed by sourcemap",
+      "against main, all of it is on the store's synchronous write path or",
+      "core: skew-safe stamps on every edit (vault-core/stamps.ts), the",
+      "field-level item merge (item-merge.ts, merge.ts), the table-driven",
+      "base64 every sealed read and write uses (bytes.ts), the master-password",
+      "record (vault/master-wrap.ts) and the security checks' capability",
+      "descriptor. None of it can load on demand. Four kibibytes over the",
+      "measurement, as before."
     ],
     "builds": {
       "minimal-local-hardened": {
@@ -123,7 +161,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 793
+          "largestAsset": 686
         }
       },
       "family-local-hardened": {
@@ -133,7 +171,7 @@
           "javascript": 4164,
           "javascriptGzip": 1259,
           "css": 171,
-          "largestAsset": 793
+          "largestAsset": 686
         }
       }
     }

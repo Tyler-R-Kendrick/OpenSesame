@@ -49,8 +49,8 @@ function vault(): VaultBody {
     v: 1,
     items: [
       {
-        ...item("login", "login-1", "Example Mail"),
-        kind: "login",
+        ...item("account", "login-1", "Example Mail"),
+        kind: "account",
         folderId: "folder-work",
         favorite: true,
         notes: "Shared with the team.",
@@ -59,10 +59,23 @@ function vault(): VaultBody {
           { id: "f2", name: "Support PIN", value: "0000", hidden: true },
         ],
         username: "fixture@example.com",
-        password: "fixture-password",
-        totp: "otpauth://totp/Example:fixture?secret=JBSWY3DPEHPK3PXP&issuer=Example",
         uris: [{ id: "u1", uri: "https://mail.example.com", match: "domain" }],
-        passwordChangedAt: NOW,
+        methods: [
+          {
+            id: "login-1:password",
+            type: "password",
+            generator: { id: "manual" },
+            pepper: false,
+            secret: "fixture-password",
+            changedAt: NOW,
+          },
+          {
+            id: "login-1:authenticator",
+            type: "authenticator",
+            secret:
+              "otpauth://totp/Example:fixture?secret=JBSWY3DPEHPK3PXP&issuer=Example",
+          },
+        ],
       },
       {
         ...item("passkey", "passkey-1", "example.org passkey"),

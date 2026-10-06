@@ -2,11 +2,11 @@ import type { Capability } from "./index.js";
 
 const FORM_ONLY: Capability["excluded"] = {
   mcp_host: {
-    reason: "the login editor is a browser form; headless MCP cannot fill it",
+    reason: "the account editor is a browser form; headless MCP cannot fill it",
     adr: "0065-agent-surface-parity.md",
   },
   mcp_client: {
-    reason: "the login editor is a browser form; headless MCP cannot fill it",
+    reason: "the account editor is a browser form; headless MCP cannot fill it",
     adr: "0065-agent-surface-parity.md",
   },
 };
@@ -14,7 +14,8 @@ const FORM_ONLY: Capability["excluded"] = {
 export const vaultLoginDraftCapabilities: readonly Capability[] = [
   {
     id: "vault.login_draft",
-    title: "Read and fill the on-screen login editor (metadata only)",
+    title:
+      "Read and fill the on-screen account editor (metadata only: name, username, sites, method types; never a password, pepper or method secret)",
     plane: "client_local",
     kind: "act",
     surfaces: {

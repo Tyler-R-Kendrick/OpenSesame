@@ -40,6 +40,7 @@ export type FeatureId =
   | "connections"
   | "item-types"
   | "environments"
+  | "security-checks"
   | "directory"
   | "encryption"
   | "certificates"
@@ -47,6 +48,7 @@ export type FeatureId =
   | "password-managers"
   | "cloud-secret-storage"
   | "local-storage"
+  | "encrypted-search"
   | "autofill"
   | "sharing"
   | "payments"
@@ -130,6 +132,12 @@ export const FEATURES: readonly Feature[] = [
   ),
   section("local-storage", "Local storage", [], ["local_storage"]),
   section(
+    "encrypted-search",
+    "Encrypted search",
+    ["storage.encrypted-search"],
+    [],
+  ),
+  section(
     "item-types",
     "Item types",
     [
@@ -140,6 +148,12 @@ export const FEATURES: readonly Feature[] = [
     [],
   ),
   section("environments", "Environments", ["vault.environments"], []),
+  section(
+    "security-checks",
+    "Breach and two-step checks",
+    ["vault.security-checks"],
+    [],
+  ),
   // Runtime-installed plugins (ADR 0150 §7): advanced, default off, and
   // nothing of the plugin itself is in the bundle — the section shows what
   // the paired daemon has installed and switches it there.

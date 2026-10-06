@@ -1,8 +1,11 @@
 import {
   type Repositories,
   createDrizzle,
+  createEventSealer,
   createPostgresOidcStore,
   createRepositories,
+  eventSealSecret,
+  sealLegacySecrets,
 } from "@opensesame/database";
 import { describeError } from "@opensesame/log-scrub";
 import { type Logger, createLogger } from "@opensesame/observability";
@@ -32,12 +35,14 @@ export type WorkerRuntime = {
     repos: Repositories;
     log: Logger;
   }) => ChannelAdapterRegistry;
+  sealLegacySecrets?: typeof sealLegacySecrets;
   exit: (code: number) => void;
 };
 
 const defaultRuntime: WorkerRuntime = {
   createLogger,
   createRepositories,
+  sealLegacySecrets,
   createDrizzle,
   createPostgresOidcStore,
   startCleanupLoop,
@@ -71,7 +76,13 @@ export async function runWorker(
   }
   const repos = runtime.createRepositories({ databaseUrl });
   const { db } = runtime.createDrizzle(databaseUrl);
-  const oidcStore = runtime.createPostgresOidcStore(db);
+  const secret = eventSealSecret(process.env);
+  const sealer = secret ? createEventSealer(secret) : undefined;
+  if (runtime.sealLegacySecrets) {
+    if (!sealer) throw new Error("A durable event sealing key is required");
+    await runtime.sealLegacySecrets(db, sealer);
+  }
+  const oidcStore = runtime.createPostgresOidcStore(db, sealer);
   const taskBus = await runtime.createTaskBusFromEnv();
   const notificationAdapters =
     runtime.createNotificationAdapters?.({ repos, log }) ??

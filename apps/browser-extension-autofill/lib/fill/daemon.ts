@@ -30,10 +30,20 @@ export class FillError extends Error {
   }
 }
 
+/** What the daemon gave: the value, and whether the person's own pepper follows it. */
+export interface FilledValue {
+  readonly value: string;
+  readonly pepper: boolean;
+}
+
 export interface DaemonClient {
   pair(): Promise<PairState>;
   match(origin: string): Promise<readonly string[]>;
-  value(reference: string, origin: string, field: FillField): Promise<string>;
+  value(
+    reference: string,
+    origin: string,
+    field: FillField,
+  ): Promise<FilledValue>;
 }
 
 /** A string-valued store; whatever else a key holds reads as absent. */
@@ -145,7 +155,9 @@ export function createDaemonClient(options: DaemonClientOptions): DaemonClient {
         daemonValue,
       );
       if (body.field !== field) throw new FillError("unexpected_response");
-      return body.value;
+      // A password with a pepper slot arrives as what comes before the slot;
+      // the pepper is the person's, typed where they use it (ADR 0174).
+      return { value: body.value, pepper: body.pepper === true };
     },
   };
 }

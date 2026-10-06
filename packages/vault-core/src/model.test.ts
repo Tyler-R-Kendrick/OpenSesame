@@ -22,11 +22,11 @@ import {
 
 describe("createItem", () => {
   it("builds each kind with its own shape over a common base", () => {
-    const login = createItem("login", "Site");
-    expect(login.kind).toBe("login");
-    if (login.kind === "login") {
-      expect(login.username).toBe("");
-      expect(login.passwordChangedAt).toBe(login.createdAt);
+    const account = createItem("account", "Site");
+    expect(account.kind).toBe("account");
+    if (account.kind === "account") {
+      expect(account.username).toBe("");
+      expect(account.methods).toHaveLength(1);
     }
 
     const passkey = createItem("passkey");
@@ -50,7 +50,7 @@ describe("createItem", () => {
     if (cert.kind !== "certificate") throw new Error("expected certificate");
     expect(cert.commonName).toBe("localhost");
 
-    for (const item of [login, passkey, card, secret, note, cert]) {
+    for (const item of [account, passkey, card, secret, note, cert]) {
       expect(item.id).toBeTruthy();
       expect(item.deletedAt).toBeNull();
       expect(item.favorite).toBe(false);
@@ -105,8 +105,8 @@ describe("id and body helpers", () => {
 
 describe("itemSubtitle", () => {
   it("shows the username for logins, then the first host, then a fallback", () => {
-    const login = createItem("login");
-    if (login.kind !== "login") throw new Error("expected login");
+    const login = createItem("account");
+    if (login.kind !== "account") throw new Error("expected account");
     expect(itemSubtitle(login)).toBe("No username");
     login.uris = [newUri("https://mail.example.com/inbox")];
     expect(itemSubtitle(login)).toBe("mail.example.com");
@@ -199,8 +199,8 @@ describe("initialOf", () => {
   });
 
   it("falls back to the subtitle, then to a placeholder", () => {
-    const login = createItem("login", "");
-    if (login.kind !== "login") throw new Error("expected login");
+    const login = createItem("account", "");
+    if (login.kind !== "account") throw new Error("expected account");
     login.username = "ada";
     expect(initialOf(login)).toBe("A");
 
@@ -223,8 +223,8 @@ describe("searchMatches", () => {
   });
 
   it("searches login usernames and URIs", () => {
-    const login = createItem("login", "Mail");
-    if (login.kind !== "login") throw new Error("expected login");
+    const login = createItem("account", "Mail");
+    if (login.kind !== "account") throw new Error("expected account");
     login.username = "ada@example.com";
     login.uris = [newUri("https://mail.example.com")];
     expect(searchMatches(login, "ada@")).toBe(true);
@@ -292,7 +292,7 @@ describe("passkey custody", () => {
   it("excludes deleted and retired credentials from provider surfaces", () => {
     const active = createItem("passkey", "Active");
     const retired = createItem("passkey", "Retired");
-    const deleted = createItem("login", "Deleted");
+    const deleted = createItem("account", "Deleted");
     if (retired.kind !== "passkey") throw new Error("expected passkey");
     retired.retiredAt = new Date().toISOString();
     deleted.deletedAt = new Date().toISOString();
@@ -303,7 +303,7 @@ describe("passkey custody", () => {
 describe("kind labels", () => {
   it("has a singular and plural label for every kind", () => {
     for (const kind of [
-      "login",
+      "account",
       "passkey",
       "card",
       "secret",

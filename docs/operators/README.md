@@ -14,6 +14,7 @@ see [architecture](../architecture/README.md); for every environment variable,
 | [Logs and events at rest](log-and-event-sealing.md) | The sealed log file, the keys that seal logs and event rows, what refuses to start without one, and how to read a sealed log. |
 | [Pages origin](pages-origin.md) | What the GitHub Pages build can and cannot do from a shared origin, and how to give it its own. |
 | [Capability composition](capability-composition.md) | Deciding which optional features a deployment contains, permits and lets a device run. |
+| [Encrypted search](encrypted-search.md) | Keeping the browser's identifier databases encrypted with no readable name, id or field and still searchable (ADR 0175); using the library. |
 | [Optional plugins](plugins.md) | Installing, pinning and switching on runtime plugins such as the surrogate proxy; the boundary gate. |
 
 ## Identity
@@ -61,6 +62,7 @@ see [architecture](../architecture/README.md); for every environment variable,
 | Guide | When you need it |
 |---|---|
 | [Vault key protection](vault-key-protection.md) | Unlock methods, recovery keys, age recipients and cloud KMS for a vault. |
+| [Customer key segmentation](customer-key-segmentation.md) | Separate customer vaults, envelope encryption across secret stores, and deployment-root custody. |
 | [Duress profiles](duress-profiles.md) | Presets, consent, delays and rehearsal for coerced unlocks. |
 | [Duress inventory and recovery](duress-inventory-recovery.md) | Inventorying unlock paths, migrating, recovering and retiring duress setups. |
 | [Duress troubleshooting](duress-troubleshooting.md) | PRF support, RP-ID changes and other failure modes. |

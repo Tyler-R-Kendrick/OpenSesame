@@ -3,7 +3,6 @@ import {
   applySourceEdit,
   createDraft,
   draftMatchesScope,
-  switchDraftMode,
   undoDraft,
 } from "./draft.js";
 import { patchYamlTopLevel } from "./yaml-patch.js";
@@ -14,19 +13,6 @@ autoLockMinutes: 0
 `;
 
 describe("draft lifecycle", () => {
-  it("keeps exact bytes when switching Visual/Source with no edit", () => {
-    const draft = createDraft({
-      resourceKey: "client_local:vault:prefs",
-      revisionToken: "1",
-      source: SOURCE,
-      actorKey: "actor-a",
-      scopeKey: "tomb:personal",
-    });
-    const switched = switchDraftMode(draft, "source");
-    expect(switched.currentSource).toBe(SOURCE);
-    expect(switched.originalSource).toBe(SOURCE);
-  });
-
   it("preserves comments through a visual field patch and undo", () => {
     const draft = createDraft({
       resourceKey: "client_local:vault:prefs",

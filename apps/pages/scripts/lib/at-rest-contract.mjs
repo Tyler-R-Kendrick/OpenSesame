@@ -5,6 +5,8 @@
 // the key that opens them cannot be exported, and none of the given
 // plaintexts appears anywhere a value rests.
 
+import { isRecordRestEnvelope } from "./at-rest-envelope-format.mjs";
+
 /** App-owned Web Storage keys (`lib/storage-ownership.ts`). */
 const OWNED = {
   prefixes: [
@@ -105,7 +107,7 @@ export async function checkNothingInTheClear(
     ...idb.values,
   ];
   const where = (list) => list.map((value) => value.where).join(", ");
-  const clear = values.filter(({ text }) => !String(text).startsWith("osr1."));
+  const clear = values.filter(({ text }) => !isRecordRestEnvelope(text));
   const leaked = values.filter(({ text }) =>
     plaintexts.some((needle) => new RegExp(needle).test(String(text))),
   );

@@ -1,6 +1,6 @@
 // Playwright journeys for product-experience paths the built Pages app
-// can drive without Host/Identity. Starts with J-CONFIG (Visual/Source
-// prefs save surviving lock/unlock/reload).
+// can drive without Host/Identity. Starts with J-CONFIG (prefs save
+// surviving lock/unlock/reload).
 //
 //   VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build
 //   PLAYWRIGHT_CHROMIUM=... node apps/pages/scripts/verify-experience-journeys.mjs
@@ -11,21 +11,25 @@ import { walkJAppRecipe } from "./lib/j-app-recipe-journey.mjs";
 import { walkJApproval } from "./lib/j-approval-journey.mjs";
 import { walkJConfig } from "./lib/j-config-journey.mjs";
 import { walkJConflict } from "./lib/j-conflict-journey.mjs";
+import { walkJDuressGuest } from "./lib/j-duress-guest-journey.mjs";
 import { walkJDuress } from "./lib/j-duress-journey.mjs";
 import { walkJDuressFreeze } from "./lib/j-duress-mode-freeze-journey.mjs";
 import { walkJDuressItems } from "./lib/j-duress-mode-items-journey.mjs";
+import { walkJDuressVisible } from "./lib/j-duress-mode-visible-journey.mjs";
 import { walkJDuressModeWipe } from "./lib/j-duress-mode-wipe-journey.mjs";
 import { walkJExplain } from "./lib/j-explain-journey.mjs";
 import { walkJFile } from "./lib/j-file-journey.mjs";
 import { walkJNav } from "./lib/j-nav-journey.mjs";
 import { walkJRecovery } from "./lib/j-recovery-journey.mjs";
 import { walkJSupport } from "./lib/j-support-journey.mjs";
+import { walkJTravelItems } from "./lib/j-travel-items-journey.mjs";
 import { walkJTravel } from "./lib/j-travel-journey.mjs";
 import { walkJTypes } from "./lib/j-types-journey.mjs";
+import { inTurn, parseShard } from "./lib/shard.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const DIST = path.resolve(here, "..", "dist");
+const DIST = process.env.PAGES_VERIFY_DIST ?? path.resolve(here, "..", "dist");
 const ORIGIN = process.env.PAGES_ORIGIN ?? "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const OUT = path.resolve(
@@ -47,7 +51,23 @@ const { log, failures, check, setStep, launch, newPage, snap } = createHarness({
   out: OUT,
 });
 
+// EXPERIENCE_ONLY=J-TRAVEL-ITEMS,J-TRAVEL runs just those walks (a rebuilt
+// app with a step switched off is proved against the one walk it must fail).
+const ONLY = (process.env.EXPERIENCE_ONLY ?? "")
+  .split(",")
+  .map((name) => name.trim())
+  .filter(Boolean);
+
+// EXPERIENCE_SHARD=k/n runs every nth walk, in the order below, from the kth:
+// each walk runs in exactly one shard, and a walk added later joins the next.
+const SHARD = parseShard(process.env.EXPERIENCE_SHARD, "EXPERIENCE_SHARD");
+let walkIndex = 0;
+
 async function runWalk(name, walk) {
+  if (ONLY.length > 0 && !ONLY.includes(name)) return;
+  const mine = inTurn(walkIndex, SHARD);
+  walkIndex += 1;
+  if (!mine) return;
   const { page, context } = await newPage(browser);
   setStep(name);
   try {
@@ -85,10 +105,13 @@ try {
   await runWalk("J-RECOVERY", walkJRecovery);
   await runWalk("J-SUPPORT", walkJSupport);
   await runWalk("J-DURESS", walkJDuress);
+  await runWalk("J-DURESS-GUEST", walkJDuressGuest);
   await runWalk("J-DURESS-ITEMS", walkJDuressItems);
+  await runWalk("J-DURESS-VISIBLE", walkJDuressVisible);
   await runWalk("J-DURESS-MODE-WIPE", walkJDuressModeWipe);
   await runWalk("J-DURESS-FREEZE", walkJDuressFreeze);
   await runWalk("J-TRAVEL", walkJTravel);
+  await runWalk("J-TRAVEL-ITEMS", walkJTravelItems);
 } finally {
   await browser.close();
 }

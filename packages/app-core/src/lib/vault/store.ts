@@ -13,11 +13,8 @@ import {
   installItemType,
   installedDefinitions,
   mintVaultKey,
-  rewrapVaultKey,
   syncInstalledTypes,
   uninstallItemType,
-  withTombstone,
-  wrapVaultKeyWithPassword,
 } from "@opensesame/vault-core";
 import {
   activitySeams,
@@ -57,14 +54,33 @@ import {
 import {
   applyManifestPlan,
   bodyBeforeWrite,
+  deleteFolder,
+  emptyTrash,
+  purgeItem,
   recordItemTypes,
   renameFolder,
   restoreItem,
+  stampedEdit,
   toggleFavorite,
+  trashItem,
 } from "./body-edits.js";
 import { headerCarriesGate } from "./header-gate.js";
+import {
+  type ItemReturn,
+  type ItemWithdrawal,
+  restoreIntoBody,
+  withdrawFromBody,
+} from "./item-departure.js";
 import { type ItemWriteHost, writeSavedItems } from "./item-writes.js";
 import { emitVaultLock } from "./lock-events.js";
+import {
+  adoptedMasterWrap,
+  headerWithNewPassword,
+  headerWithPassword,
+  headerWithoutPassword,
+  noteMasterWrap,
+  wrapMoved,
+} from "./master-wrap.js";
 import {
   probePasskeyCeremony,
   unlockVaultWithHeldPrf,
@@ -870,6 +886,9 @@ export class VaultStore {
     }
     this.#ephemeral = false;
     this.#emit();
+    // A password set, changed or removed is carried to every device (ADR 0144).
+    if (this.#vaultKey && wrapMoved(previous, next, this.#body))
+      await this.#mutate((body) => noteMasterWrap(body, next));
   }
 
   #requireUnlocked() {
@@ -918,23 +937,13 @@ export class VaultStore {
 
   async enrollPassword(password: string): Promise<void> {
     const { header } = this.#requireUnlocked();
-    await assertNewPassword(password);
-    const { kdf, wrap } = await wrapVaultKeyWithPassword(
-      this.#requireRaw(),
-      password,
-    );
-    await this.#persistHeader({ ...header, kdf, wrap });
+    const raw = this.#requireRaw();
+    await this.#persistHeader(await headerWithPassword(header, raw, password));
   }
 
   async removePassword(): Promise<void> {
-    if (!this.#header?.wrap) return;
-    assertKeepsPrimaryUnlock(this.#header, "password");
-    const { wrap: _w, kdf: _k, ...rest } = this.#header;
-    await this.#persistHeader({
-      ...rest,
-      wrap: undefined,
-      kdf: undefined,
-    });
+    if (this.#header?.wrap)
+      await this.#persistHeader(headerWithoutPassword(this.#header));
   }
 
   /**
@@ -1193,14 +1202,10 @@ export class VaultStore {
     hint?: string,
   ): Promise<void> {
     if (!this.#header) throw new Error("There is no vault to re-key.");
-    if (!this.#header.wrap || !this.#header.kdf) {
-      throw new Error(
-        "This vault has no master password. Add one under Unlock methods first.",
-      );
-    }
-    await assertNewPassword(next);
-    const header = await rewrapVaultKey(this.#header, current, next, hint);
-    await this.#persistHeader(header);
+    const header = this.#header;
+    await this.#persistHeader(
+      await headerWithNewPassword(header, current, next, hint),
+    );
   }
 
   // —— persistence ——————————————————————————————————————————
@@ -1227,7 +1232,12 @@ export class VaultStore {
   async mergeSnapshot(input: DriveSnapshotInput): Promise<SnapshotMerge> {
     const { vaultKey, header } = this.#requireUnlocked();
     await this.flushPendingWrites();
-    return mergeSnapshotInto(this.#bodyPort(), vaultKey, header, input);
+    const port = this.#bodyPort();
+    const merged = await mergeSnapshotInto(port, vaultKey, header, input);
+    // Another device's password change arrives in the body (`master-wrap.ts`).
+    const adopted = this.#header && adoptedMasterWrap(this.#body, this.#header);
+    if (adopted) await this.#persistHeader(adopted);
+    return merged;
   }
 
   /** This vault's header and sealed body as stored, once pending writes land. */
@@ -1241,7 +1251,7 @@ export class VaultStore {
 
   /** Apply a mutation and seal it, in the order requested (a rename per keystroke). */
   #mutate(change: (body: VaultBody) => void): Promise<void> {
-    return this.#exclusive((apply) => apply(change));
+    return this.#exclusive((apply) => apply(stampedEdit(change)));
   }
 
   /**
@@ -1349,13 +1359,7 @@ export class VaultStore {
   }
 
   async trashItem(id: string): Promise<void> {
-    await this.#mutate((body) => {
-      body.items = body.items.map((item) =>
-        item.id === id
-          ? { ...item, deletedAt: new Date().toISOString() }
-          : item,
-      );
-    });
+    await this.#mutate((body) => trashItem(body, id));
   }
 
   async restoreItem(id: string): Promise<void> {
@@ -1363,22 +1367,21 @@ export class VaultStore {
   }
 
   async purgeItem(id: string): Promise<void> {
-    await this.#mutate((body) => {
-      body.items = body.items.filter((item) => item.id !== id);
-      body.tombstones = withTombstone(body.tombstones, "items", [id]);
-    });
+    await this.#mutate((body) => purgeItem(body, id));
   }
 
   async emptyTrash(): Promise<void> {
-    await this.#mutate((body) => {
-      const gone = body.items.filter((item) => item.deletedAt !== null);
-      body.items = body.items.filter((item) => item.deletedAt === null);
-      body.tombstones = withTombstone(
-        body.tombstones,
-        "items",
-        gone.map((item) => item.id),
-      );
-    });
+    await this.#mutate((body) => emptyTrash(body));
+  }
+
+  /** Take items out of the body without a trace: no tombstone, trash or note (ADR 0171). */
+  async withdrawItems(plan: ItemWithdrawal): Promise<void> {
+    await this.#mutate((body) => withdrawFromBody(body, plan));
+  }
+
+  /** Put withdrawn items back as they were, ids and times intact (ADR 0171). */
+  async restoreWithdrawn(back: ItemReturn): Promise<void> {
+    await this.#mutate((body) => restoreIntoBody(body, back));
   }
 
   async toggleFavorite(id: string): Promise<void> {
@@ -1448,13 +1451,7 @@ export class VaultStore {
   }
 
   async deleteFolder(id: string): Promise<void> {
-    await this.#mutate((body) => {
-      body.folders = body.folders.filter((folder) => folder.id !== id);
-      body.tombstones = withTombstone(body.tombstones, "folders", [id]);
-      body.items = body.items.map((item) =>
-        item.folderId === id ? { ...item, folderId: null } : item,
-      );
-    });
+    await this.#mutate((body) => deleteFolder(body, id));
   }
 
   // —— export / import ——————————————————————————————————————
@@ -1506,8 +1503,7 @@ export class VaultStore {
     // unlock screen back to the personal vault — destroy leaves guest, it
     // does not lock guest for re-entry.
     const scope = this.#scope;
-    // Deleting is at least as final as locking, so it runs the same teardown:
-    // clipboard, Identity session, staged claims.
+    // As final as locking: the same teardown (clipboard, Identity, claims).
     this.lock();
     if (isGuestSessionTomb(scope.tomb)) {
       this.#scope = scopedVaultScope();

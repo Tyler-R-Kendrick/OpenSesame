@@ -1,0 +1,72 @@
+{
+  "out": ".",
+  "clock": "2026-10-05T10:00:00.000Z",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        { "guest": null },
+        { "visit": "settings/capabilities" },
+        { "count": [".capsection", "[role=switch]"] },
+        { "report": ".capsection h2, .capsection h3" },
+        { "centerOptional": "Encrypted search" },
+        { "shot": "1280-section-off" },
+        { "featureOptional": "Encrypted search" },
+        { "centerOptional": "Encrypted search" },
+        { "count": ["[role=switch][aria-checked=true]"] },
+        { "shot": "1280-section-on" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "guest": null },
+        { "visit": "settings/capabilities" },
+        { "count": [".capsection", "[role=switch]"] },
+        { "centerOptional": "Encrypted search" },
+        { "shot": "390-section-off" },
+        { "featureOptional": "Encrypted search" },
+        { "centerOptional": "Encrypted search" },
+        { "count": ["[role=switch][aria-checked=true]"] },
+        { "shot": "390-section-on" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-section-off",
+      "width": 1280,
+      "title": "Settings › Capabilities — 1280 × 900",
+      "caption": "Before, the page had no section about the databases the browser keeps. After, Encrypted search is a section like the others: one switch, off until it is chosen.",
+      "before": "no Encrypted search section",
+      "after": "Encrypted search section, switch off"
+    },
+    {
+      "shot": "1280-section-on",
+      "width": 1280,
+      "title": "Switched on — 1280 × 900",
+      "caption": "Switching it on commits in place, with no review: the history-backup and retired-password databases are encrypted and the readable ones are deleted. Nothing else on the page changes.",
+      "before": "no switch to press",
+      "after": "Encrypted search switch on"
+    },
+    {
+      "shot": "390-section-off",
+      "width": 390,
+      "title": "Settings › Capabilities — 390 × 844",
+      "caption": "The same section on a phone, at the touch sizes the section list already uses.",
+      "before": "no Encrypted search section",
+      "after": "Encrypted search section, switch off"
+    },
+    {
+      "shot": "390-section-on",
+      "width": 390,
+      "title": "Switched on — 390 × 844",
+      "caption": "On a phone the switch is a 44px row, pressed in place.",
+      "before": "no switch to press",
+      "after": "Encrypted search switch on"
+    }
+  ]
+}

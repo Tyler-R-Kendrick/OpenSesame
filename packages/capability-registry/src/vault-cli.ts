@@ -1,4 +1,4 @@
-import { NEVER_AGENT_SECRET } from "./exclusions.js";
+import { NEVER_AGENT_SECRET, PEPPER_IS_HUMAN } from "./exclusions.js";
 import type { Capability } from "./index.js";
 
 /**
@@ -15,7 +15,7 @@ const HUMAN_VAULT_VALUE = {
 export const vaultCliCapabilities: readonly Capability[] = [
   {
     id: "vault.item.create",
-    title: "Create a vault item",
+    title: "Create a vault item (an account, secret, note or card)",
     plane: "client_local",
     kind: "act",
     surfaces: {
@@ -29,7 +29,8 @@ export const vaultCliCapabilities: readonly Capability[] = [
   },
   {
     id: "vault.item.set",
-    title: "Edit a vault item's name, username, or secret",
+    title:
+      "Edit a vault item's name, username, or secret (an account's login methods are edited in the Pages editor)",
     plane: "client_local",
     kind: "act",
     surfaces: {
@@ -40,6 +41,26 @@ export const vaultCliCapabilities: readonly Capability[] = [
       webmcp: null,
     },
     excluded: HUMAN_VAULT_VALUE,
+  },
+  {
+    id: "vault.account.pepper",
+    title:
+      "Type the earlier pepper (or Sphinx master input) that converts a password an older version made, once, into a stored one",
+    plane: "client_local",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: "route:/vault",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      cli: PEPPER_IS_HUMAN,
+      mcp_host: PEPPER_IS_HUMAN,
+      mcp_client: PEPPER_IS_HUMAN,
+      webmcp: PEPPER_IS_HUMAN,
+    },
   },
   {
     id: "vault.item.share",

@@ -49,7 +49,7 @@ fn installs_and_uninstalls_a_community_type() {
     assert!(!registry.has("field-notes"));
     assert!(!registry.uninstall("field-notes"));
     // Uninstalling one type leaves every other alone.
-    assert!(registry.has("login"));
+    assert!(registry.has("account"));
 }
 
 #[test]
@@ -57,14 +57,14 @@ fn refuses_to_shadow_a_built_in_id() {
     let mut registry = ItemTypeRegistry::with_builtins();
     let errors = registry
         .install(
-            &community("login", "https://community.test", "9.0.0"),
+            &community("account", "https://community.test", "9.0.0"),
             Source::Vault,
         )
         .expect_err("a built-in id is reserved");
     assert!(errors.has(ErrorCode::Id));
     assert_eq!(
-        registry.get("login").map(|d| d.spec.title.clone()),
-        Some("Login".to_owned())
+        registry.get("account").map(|d| d.spec.title.clone()),
+        Some("Account".to_owned())
     );
 }
 
@@ -155,6 +155,7 @@ fn an_invalid_file_in_the_directory_fails_the_load() {
 #[test]
 fn an_empty_registry_knows_nothing() {
     let registry = ItemTypeRegistry::new();
+    assert!(registry.get("account").is_none());
     assert!(registry.get("login").is_none());
     assert!(registry.list().is_empty());
 }
@@ -162,11 +163,11 @@ fn an_empty_registry_knows_nothing() {
 #[test]
 fn refuses_an_install_that_claims_another_types_extension() {
     let mut registry = ItemTypeRegistry::with_builtins();
-    // `.login` is how the VFS tree spells a login. A type that could claim it
-    // could dress its items as logins.
+    // `.account` is how the VFS tree spells an account. A type that could
+    // claim it could dress its items as accounts.
     let errors = registry
         .install(
-            &community("impostor", "https://community.test", "1.0.0").replace(".ct", ".login"),
+            &community("impostor", "https://community.test", "1.0.0").replace(".ct", ".account"),
             Source::Vault,
         )
         .expect_err("a built-in extension is taken");
@@ -202,7 +203,7 @@ fn a_type_keeps_its_own_extension_across_an_upgrade() {
 fn derives_a_directory_from_the_plural() {
     let registry = ItemTypeRegistry::with_builtins();
     let directory = |id: &str| registry.get(id).map(directory_name);
-    assert_eq!(directory("login").as_deref(), Some("logins"));
+    assert_eq!(directory("account").as_deref(), Some("accounts"));
     assert_eq!(directory("wifi").as_deref(), Some("wi-fi-networks"));
     assert_eq!(
         directory("api-credential").as_deref(),
@@ -236,11 +237,11 @@ fn every_built_in_has_its_own_title_and_directory() {
 #[test]
 fn refuses_an_install_that_claims_another_types_names() {
     let mut registry = ItemTypeRegistry::with_builtins();
-    // `Logins` is the directory every login already lives in.
+    // `Accounts` is the directory every account already lives in.
     let errors = registry
         .install(
             &community("impostor", "https://community.test", "1.0.0")
-                .replace("Community types", " LOGINS "),
+                .replace("Community types", " ACCOUNTS "),
             Source::Vault,
         )
         .expect_err("a built-in directory is taken");
@@ -308,7 +309,7 @@ fn compares_titles_without_case_or_surrounding_ascii_space() {
     let errors = registry
         .install(
             &community("impostor", "https://community.test", "1.0.0")
-                .replace("\"Community type\"", "\"\\t LOGIN \\n\""),
+                .replace("\"Community type\"", "\"\\t ACCOUNT \\n\""),
             Source::Vault,
         )
         .expect_err("a padded built-in title is taken");
@@ -318,8 +319,45 @@ fn compares_titles_without_case_or_surrounding_ascii_space() {
     registry
         .install(
             &community("marked", "https://community.test", "1.0.0")
-                .replace("\"Community type\"", "\"\\ufeffLogin\""),
+                .replace("\"Community type\"", "\"\\ufeffAccount\""),
             Source::Vault,
         )
         .expect("a marked title is its own");
+}
+
+#[test]
+fn the_legacy_login_names_still_resolve_to_account() {
+    let registry = ItemTypeRegistry::with_builtins();
+    assert_eq!(registry.get("login"), registry.get("account"));
+    assert_eq!(
+        registry.get("login").map(|d| d.metadata.id.as_str()),
+        Some("account")
+    );
+    assert!(registry.has("login"));
+    assert!(registry.is_builtin("login"));
+    assert_eq!(registry.source_of("login"), Some(Source::Builtin));
+    assert!(registry
+        .list()
+        .iter()
+        .all(|entry| entry.definition.metadata.id != "login"));
+}
+
+#[test]
+fn refuses_an_install_that_takes_a_retired_id_or_extension() {
+    let mut registry = ItemTypeRegistry::with_builtins();
+    let errors = registry
+        .install(
+            &community("login", "https://community.test", "1.0.0"),
+            Source::Vault,
+        )
+        .expect_err("a retired id is still reserved");
+    assert!(errors.has(ErrorCode::Id));
+
+    let errors = registry
+        .install(
+            &community("impostor", "https://community.test", "1.0.0").replace(".ct", ".login"),
+            Source::Vault,
+        )
+        .expect_err("a retired extension still belongs to account");
+    assert!(errors.has(ErrorCode::Extension));
 }

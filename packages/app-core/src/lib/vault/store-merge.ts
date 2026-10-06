@@ -15,6 +15,7 @@ import {
   type VaultHeader,
   deviceKeyTimeBounds,
   mergeVaultBodies,
+  normalizeVaultBody,
   openJson,
   sameVaultContent,
   syncInstalledTypes,
@@ -23,6 +24,9 @@ import {
 import { BODY_PATH } from "../vfs.js";
 import { adoptMerged } from "./body-edits.js";
 import { type VaultBodyPort, levelDeviceKey } from "./store-device-key.js";
+
+export const SEALED_UNDER_ANOTHER_KEY =
+  "the drive's copy does not open with this device's vault key. If the vault key was rotated on another device, remove the vault from this device (Settings › Danger) and set it up from the drive again.";
 
 /** What a device reads back from a drive before merging. */
 export type DriveSnapshotInput = {
@@ -63,7 +67,11 @@ export async function openSnapshotBody(
     vaultKey,
     input.body,
     vaultSealBinding(input.tomb, BODY_PATH),
-  );
+  ).catch(() => {
+    // The same vault (its creation time matched) under a key this device does
+    // not hold: its key was rotated on another device, or the copy was altered.
+    throw new VaultCorruptError(SEALED_UNDER_ANOTHER_KEY);
+  });
   if (
     body.v !== 1 ||
     !Array.isArray(body.items) ||
@@ -76,7 +84,8 @@ export async function openSnapshotBody(
       "that snapshot's revision does not match its body",
     );
   }
-  return body;
+  // Another device may not have opened its vault since ADR 0172.
+  return normalizeVaultBody(body);
 }
 
 /** `body` with `key` as its device identity key, or none. */

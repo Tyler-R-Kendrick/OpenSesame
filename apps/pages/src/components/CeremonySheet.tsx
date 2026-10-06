@@ -1,4 +1,4 @@
-import { type ReactNode, useRef } from "react";
+import { type ReactNode, type RefObject, useRef } from "react";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { IconX } from "./Icons.js";
 
@@ -16,16 +16,19 @@ export function CeremonySheet({
   title,
   mark,
   onClose,
+  initialFocus,
   children,
 }: {
   title: string;
   mark: ReactNode;
   onClose: () => void;
+  /** Where focus lands on open, when it should be a field rather than Close. */
+  initialFocus?: RefObject<HTMLElement | null>;
   children: ReactNode;
 }) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  useModalFocus(true, sheetRef, closeRef, onClose);
+  useModalFocus(true, sheetRef, initialFocus ?? closeRef, onClose);
   return (
     <div className="sheet-layer">
       <button

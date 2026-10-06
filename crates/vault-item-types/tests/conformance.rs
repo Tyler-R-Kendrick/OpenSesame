@@ -14,7 +14,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use opensesame_sealed_store::Entry;
 use opensesame_vault_item_types::{
     from_entry, parse_definition, to_entry, ErrorCode, FieldValue, FieldValues, ItemTypeDefinition,
-    ItemTypeRegistry, Trust, BUILTIN_DEFINITIONS, LEGACY_TYPE_IDS, PLATFORM_PUBLISHER,
+    ItemTypeRegistry, Trust, BUILTIN_DEFINITIONS, LEGACY_EXTENSION_ALIASES, LEGACY_TYPE_ALIASES,
+    LEGACY_TYPE_IDS, PLATFORM_PUBLISHER,
 };
 use serde_json::Value;
 
@@ -222,6 +223,29 @@ fn the_corpus_still_carries_every_legacy_kind() {
     for legacy in LEGACY_TYPE_IDS {
         assert!(ids.contains(legacy), "the corpus lost `{legacy}`");
     }
+}
+
+#[test]
+fn the_legacy_alias_table_is_the_shared_one() {
+    let shared = &cases()["legacyAliases"];
+    let read = |value: &Value, what: &str| -> BTreeMap<String, String> {
+        value
+            .as_object()
+            .unwrap_or_else(|| panic!("{what} is an object"))
+            .iter()
+            .map(|(old, current)| (old.clone(), text(current, what).to_owned()))
+            .collect()
+    };
+    let table = |rows: &[(&str, &str)]| -> BTreeMap<String, String> {
+        rows.iter()
+            .map(|(old, current)| ((*old).to_owned(), (*current).to_owned()))
+            .collect()
+    };
+    assert_eq!(read(&shared["types"], "types"), table(LEGACY_TYPE_ALIASES));
+    assert_eq!(
+        read(&shared["extensions"], "extensions"),
+        table(LEGACY_EXTENSION_ALIASES)
+    );
 }
 
 #[test]

@@ -69,7 +69,6 @@ const IDENTITY_PIECES = [
   "ApplicationDiagnostics",
   "ApplicationRecipePanel",
   "ApplicationSetupCard",
-  "ApplicationSourceEditor",
   "LocalAgentAuthentication",
   "LocalAgentEnrollment",
   "LocalAgentKeys",

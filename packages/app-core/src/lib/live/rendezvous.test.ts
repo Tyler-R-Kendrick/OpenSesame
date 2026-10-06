@@ -1,10 +1,10 @@
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 /**
  * Carriers passing the pairing codes (ADR 0150 §6): the frames, and a whole
  * session paired with nobody pasting anything — over a fake carrier service
  * that anyone may post junk to.
  */
-import { createItem } from "@opensesame/vault-core";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { plainAccount } from "../account.test-support.js";
 import type { LiveHost } from "./host.js";
 import { FakeBus, FakeNet, fakeSdp } from "./live-fakes.js";
 import { makeRequestCode, openRequestCode } from "./pairing.js";
@@ -22,8 +22,7 @@ import {
 import type { LiveTransport } from "./transport.js";
 
 const SECRET = "correct horse battery staple";
-const github = createItem("login", "GitHub");
-github.password = SECRET;
+const github = plainAccount("GitHub", SECRET);
 
 async function settle(rounds = 80): Promise<void> {
   for (let round = 0; round < rounds; round += 1)

@@ -12,10 +12,29 @@ import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 const PATH = "config/identity-requests";
 const MAX_BYTES = 512_000;
 
+/**
+ * Digests already computed, by the exact text they cover. Every read checks
+ * every row's binding, so a ledger of n rows read on each step costs n hashes
+ * a step; a row's text maps to one digest forever, so a repeat is looked up.
+ */
+const digestOf = new Map<string, Promise<string>>();
+const DIGESTS_KEPT = 2048;
+
+function cachedDigest(text: string): Promise<string> {
+  const known = digestOf.get(text);
+  if (known) return known;
+  if (digestOf.size >= DIGESTS_KEPT) digestOf.clear();
+  const digest = sha256Base64Url(text);
+  digestOf.set(text, digest);
+  // A failed digest is not remembered.
+  digest.catch(() => digestOf.delete(text));
+  return digest;
+}
+
 export function localRequestDigest(
   row: Omit<LocalAccessRequestRecord, "requestDigest">,
 ) {
-  return sha256Base64Url(
+  return cachedDigest(
     JSON.stringify([
       "opensesame:local-access-request:v1",
       row.id,
@@ -96,9 +115,12 @@ export async function readLocalRequestRecords(tomb: string) {
     const parsed = LocalAccessRequestStoreSchema.parse(
       JSON.parse(new TextDecoder().decode(bytes)),
     );
-    for (const row of parsed.requests)
-      if ((await localRequestDigest(row)) !== row.requestDigest)
-        throw new LocalDirectoryError("The local request binding is invalid.");
+    // Every row's binding is checked; the digests run together, not in turn.
+    const digests = await Promise.all(parsed.requests.map(localRequestDigest));
+    if (
+      digests.some((digest, i) => digest !== parsed.requests[i]?.requestDigest)
+    )
+      throw new LocalDirectoryError("The local request binding is invalid.");
     return parsed.requests;
   } catch (error) {
     if (error instanceof VfsError && error.code === "not-found") return [];

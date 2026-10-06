@@ -42,7 +42,15 @@ export const PASSWORD_HISTORY_DATABASE = "opensesame-password-history";
 /** Directory of encrypted file parts in origin private storage. */
 export const FILE_PARTS_DIRECTORY = "opensesame-pages-file-parts";
 
-/** Every IndexedDB database the app opens. */
+/**
+ * Encrypted databases (`encrypted-db/`, ADR 0175) are named by a keyed hash,
+ * so they cannot be listed here: the prefix is the ownership rule, and the
+ * 128 bits after it are the pseudonym.
+ */
+export const EDB_DATABASE_PREFIX = "opensesame-edb-";
+const EDB_DATABASE_NAME = /^opensesame-edb-[0-9a-f]{32}$/;
+
+/** Every IndexedDB database the app opens by a fixed name. */
 export const APP_DATABASES: readonly string[] = [
   HISTORY_BACKUP_DATABASE,
   AT_REST_DATABASE,
@@ -82,7 +90,7 @@ export function ownsOriginFile(name: string): boolean {
 }
 
 export function ownsDatabase(name: string): boolean {
-  return APP_DATABASES.includes(name);
+  return APP_DATABASES.includes(name) || EDB_DATABASE_NAME.test(name);
 }
 
 /**

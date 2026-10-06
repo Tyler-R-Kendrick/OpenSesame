@@ -1,7 +1,10 @@
 import { isString } from "@opensesame/os-domain";
 import {
   type VaultItem,
+  accountTotp,
   definitionFor,
+  handoff,
+  produceAccountPassword,
   readItemField,
 } from "@opensesame/vault-core";
 import {
@@ -49,7 +52,6 @@ export function matchItem(
 }
 
 function concealedValue(item: VaultItem): string | null {
-  if (item.kind === "login") return item.password;
   if (item.kind === "secret") return item.value;
   if (item.kind === "card") return item.number;
   if (item.kind === "certificate") return item.privateKeyPem;
@@ -70,21 +72,58 @@ function concealedValue(item: VaultItem): string | null {
   return isString(value) && value !== "" ? value : null;
 }
 
-function fieldValue(
+/** What a copy reads: a value, or the reason there is none to copy. */
+type Read = { value: string | null } | { refusal: CommandOutcome };
+
+/**
+ * A password through the facade (ADR 0174). With a pepper in it, the first copy
+ * is what comes before the pepper and `rest` is what comes after; the person
+ * supplies the pepper where they paste, and the product is never asked for it.
+ */
+function accountPassword(
+  item: Extract<VaultItem, { kind: "account" }>,
+  part: "now" | "later",
+): Read {
+  const produced = produceAccountPassword(item);
+  if (produced.status === "legacy") {
+    return {
+      refusal: {
+        ok: false,
+        message: `${item.name} was made with an earlier pepper: open it to convert it.`,
+      },
+    };
+  }
+  const out = handoff(produced);
+  return { value: out === null ? null : out[part] };
+}
+
+async function fieldValue(
+  item: VaultItem,
+  field: Extract<AppCommand, { action: "copy_field" }>["field"],
+): Promise<Read> {
+  if (field === "password" || field === "rest") {
+    if (item.kind === "account") {
+      return accountPassword(item, field === "rest" ? "later" : "now");
+    }
+    return { value: field === "rest" ? null : concealedValue(item) };
+  }
+  return { value: plainFieldValue(item, field) };
+}
+
+function plainFieldValue(
   item: VaultItem,
   field: Extract<AppCommand, { action: "copy_field" }>["field"],
 ): string | null {
-  if (field === "password") return concealedValue(item);
   if (field === "username") {
-    return item.kind === "login" || item.kind === "passkey"
+    return item.kind === "account" || item.kind === "passkey"
       ? item.username
       : null;
   }
   if (field === "otp") {
-    return item.kind === "login" ? item.totp : null;
+    return item.kind === "account" ? accountTotp(item) : null;
   }
   if (field === "url") {
-    if (item.kind === "login") {
+    if (item.kind === "account") {
       const uri = item.uris[0]?.uri;
       return uri !== undefined && uri !== "" ? uri : null;
     }
@@ -126,7 +165,9 @@ async function copyField(
   const subject = subjectOf(ports, command.query);
   if ("refusal" in subject) return subject.refusal;
   const { item } = subject;
-  const value = fieldValue(item, command.field);
+  const read = await fieldValue(item, command.field);
+  if ("refusal" in read) return read.refusal;
+  const { value } = read;
   if (value === null || value === "") {
     return {
       ok: false,
@@ -136,6 +177,17 @@ async function copyField(
   const result = await ports.copy(value);
   if (result !== "copied") {
     return { ok: false, message: "Clipboard unavailable." };
+  }
+  const produced =
+    item.kind === "account" ? produceAccountPassword(item) : undefined;
+  if (command.field === "password" && produced?.status === "slotted") {
+    return {
+      ok: true,
+      message:
+        produced.tail === ""
+          ? `Copied password for ${item.name}: add your pepper after it`
+          : `Copied the start of the password for ${item.name}: add your pepper, then copy the rest`,
+    };
   }
   return { ok: true, message: `Copied ${command.field} for ${item.name}` };
 }

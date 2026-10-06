@@ -19,6 +19,21 @@ export function capabilitySteps({ press, openSettings }) {
 
   return {
     /**
+     * `scrollToOptional`, with the heading in the middle of the viewport: a
+     * sticky strip above the list hides a heading brought to the top, and a
+     * phone's strip is tall.
+     */
+    async centerOptional(page, name) {
+      const heading = page
+        .getByRole("heading", { name: new RegExp(name, "i") })
+        .first();
+      if (!(await heading.count())) return;
+      await heading.evaluate((node) => {
+        node.scrollIntoView({ block: "center", behavior: "instant" });
+      });
+      await page.waitForTimeout(600);
+    },
+    /**
      * Switch an optional capability on, by its catalog title. An always-on
      * one has no switch: skipped.
      */

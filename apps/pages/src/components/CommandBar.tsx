@@ -1,13 +1,12 @@
 import { executeCommand } from "@opensesame/app-core/lib/command-bar/execute.js";
 import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
 import type { SlashSuggestion } from "@opensesame/app-core/lib/command-bar/slash.js";
-import { type FormEvent, useCallback, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useContributions } from "../bindings/contributions.js";
 import { useFieldSearch } from "../lib/command-bar/use-field-search.js";
 import { useCopySecret, useVault } from "../lib/vault/hooks.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
-import { useSupportIfMounted } from "../tutorial/support-access.js";
 import {
   COMMAND_LIST_ID,
   CommandSuggestions,
@@ -15,6 +14,7 @@ import {
   useCommandSuggestions,
 } from "./CommandSuggestions.js";
 import { IconArrowRight } from "./Icons.js";
+import { useSupportRoad } from "./command-bar-support.js";
 import { useCoarsePointer } from "./use-coarse-pointer.js";
 import "./command-bar.css";
 
@@ -27,19 +27,8 @@ function useCommandRunner() {
   const [value, setValue] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // A model capability registers command-assist. Without one, the bar
-  // parses commands only: navigate, search, copy. With one, a sentence no
-  // verb claims is a question. Support learns whether that model can answer
-  // only once it is opened, so an unknown availability is still a road in;
-  // a known absence keeps the honest no-match.
-  const supportAccess = useSupportIfMounted();
-  const availability = supportAccess?.view.availability ?? null;
-  const canAsk =
-    assist != null &&
-    supportAccess !== null &&
-    (availability === null || availability.kind === "ready") &&
-    !supportAccess.view.thinking;
-  const support = supportAccess?.support ?? null;
+  const input = useRef<HTMLInputElement>(null);
+  const { canAsk, support } = useSupportRoad(assist != null);
 
   const names = useMemo(
     () =>
@@ -96,6 +85,7 @@ function useCommandRunner() {
     busy,
     run,
     names,
+    input,
     Voice: assist?.Voice,
     asks: assist != null,
   };
@@ -133,8 +123,8 @@ function RunKey({ off }: { off: boolean }) {
  * copy. A model adds interpretation, the mic, and the ask road.
  */
 export function CommandBar() {
-  const { value, setValue, notice, setNotice, busy, run, names, Voice, asks } =
-    useCommandRunner();
+  const runner = useCommandRunner();
+  const { value, setValue, notice, setNotice, busy, run, names } = runner;
   const touch = useCoarsePointer();
   const barRef = useGuideTarget<HTMLElement>("shell.command-bar");
   const suggestions = useCommandSuggestions(value, names);
@@ -175,6 +165,7 @@ export function CommandBar() {
           Command
         </label>
         <input
+          ref={runner.input}
           id="command-bar-input"
           className="command-bar__input"
           type="text"
@@ -188,7 +179,7 @@ export function CommandBar() {
           aria-activedescendant={
             suggestions.open ? commandOptionId(suggestions.active) : undefined
           }
-          placeholder={commandPlaceholder(asks, touch)}
+          placeholder={commandPlaceholder(runner.asks, touch)}
           value={value}
           disabled={busy}
           onFocus={() => suggestions.setFocused(true)}
@@ -203,8 +194,8 @@ export function CommandBar() {
             setValue(event.target.value);
           }}
         />
-        {Voice ? (
-          <Voice
+        {runner.Voice ? (
+          <runner.Voice
             setValue={setValue}
             setNotice={setNotice}
             run={run}

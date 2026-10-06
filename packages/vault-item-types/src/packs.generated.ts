@@ -18,6 +18,7 @@ export type PackEntry = {
 };
 
 export const PACK_INDEX: readonly PackEntry[] = [
+  {"id":"account","title":"Account","plural":"Accounts","extension":".account","summary":"A username or id, the sites it signs into, and the ways it logs in.","categories":["access"],"version":"1.0.0","fields":4,"bytes":1276,"sha256":"a5db2e0c1f3c444368dddc3ade3ff96b310b2c4cc403ff24056e9d5430e8e746"},
   {"id":"address","title":"Address","plural":"Addresses","extension":".address","summary":"A postal address, for filling in the forms that keep asking for one.","categories":["identity"],"version":"1.0.0","fields":3,"bytes":1115,"sha256":"fc5ce9d6cbdb73780a60d2917c38ff46cac352ed5076581a6cfcaaeb98d8f479"},
   {"id":"api-credential","title":"API credential","plural":"API credentials","extension":".api","summary":"An API key or client credential, and the endpoint and scopes it is good for.","categories":["developer","access"],"version":"1.0.0","fields":9,"bytes":2196,"sha256":"c4fcadfa143ee6cca870832816c83092ab547e6e4af59c2c254ec461dd501edd"},
   {"id":"bank-account","title":"Bank account","plural":"Bank accounts","extension":".bank","summary":"Account and routing numbers, the branch they belong to, and the PIN that goes with them.","categories":["finance"],"version":"1.0.0","fields":11,"bytes":2641,"sha256":"dbf04eaac7f8eadc709cf32af837391aa1b7f64acb06066200c24c943149e7db"},
@@ -28,7 +29,6 @@ export const PACK_INDEX: readonly PackEntry[] = [
   {"id":"drivers-license","title":"Driving licence","plural":"Driving licences","extension":".dl","summary":"A driving licence, following the mandatory data fields of ISO 18013-1.","categories":["identity","documents"],"version":"1.0.0","fields":10,"bytes":2411,"sha256":"fc3b80b8eec06f35985402839c551a1161d77c386b407fbc472ca9637d478c6d"},
   {"id":"health-insurance","title":"Health insurance","plural":"Health insurance","extension":".health","summary":"A member id, the plan it belongs to, and who to call about it.","categories":["identity","documents"],"version":"1.0.0","fields":11,"bytes":2307,"sha256":"a81da5503837ecfb9b2f832860bcb510c9bc15e5dc10ddb03af16145a628f23f"},
   {"id":"identity-document","title":"Identity document","plural":"Identity documents","extension":".id","summary":"A national ID, resident card, tax identification or social security number.","categories":["identity","documents"],"version":"1.0.0","fields":9,"bytes":2213,"sha256":"cfc82a7ee17c2cce7efb43796eba11e70101ff8b9035f09767725d1d3c2dd4d3"},
-  {"id":"login","title":"Login","plural":"Logins","extension":".login","summary":"A username, a password, the sites it signs into, and its authenticator code.","categories":["access"],"version":"1.0.0","fields":4,"bytes":1270,"sha256":"8e833d5f1d665e09304d4c6c1804bb22d0db06b202c390d017911266c0d530c6"},
   {"id":"membership","title":"Membership","plural":"Memberships","extension":".member","summary":"A loyalty, club or professional membership and the number that proves it.","categories":["identity"],"version":"1.0.0","fields":8,"bytes":1897,"sha256":"6981f61d74456b6b807c2dde3a266f3592531d10a465f4630162a90cd26e7a0f"},
   {"id":"note","title":"Secure note","plural":"Secure notes","extension":".note","summary":"Free text, sealed with everything else in the vault.","categories":["documents"],"version":"1.0.0","fields":1,"bytes":728,"sha256":"17cba906a561c0561629b886450def2e2608500ce6c94066f6be362cad0456d1"},
   {"id":"passport","title":"Passport","plural":"Passports","extension":".passport","summary":"A travel document, following the data elements of ICAO Doc 9303.","categories":["identity","documents"],"version":"1.0.0","fields":11,"bytes":2637,"sha256":"913e7ed2c11100634e72a684af6407760fb88b99a69ceeaefd7554fc18e89084"},
@@ -40,6 +40,7 @@ export const PACK_INDEX: readonly PackEntry[] = [
 
 /** One dynamic import per pack, so each is its own chunk. */
 export const PACK_LOADERS = new Map([
+  ["account", () => import("./packs/account.generated.js")],
   ["address", () => import("./packs/address.generated.js")],
   ["api-credential", () => import("./packs/api-credential.generated.js")],
   ["bank-account", () => import("./packs/bank-account.generated.js")],
@@ -50,7 +51,6 @@ export const PACK_LOADERS = new Map([
   ["drivers-license", () => import("./packs/drivers-license.generated.js")],
   ["health-insurance", () => import("./packs/health-insurance.generated.js")],
   ["identity-document", () => import("./packs/identity-document.generated.js")],
-  ["login", () => import("./packs/login.generated.js")],
   ["membership", () => import("./packs/membership.generated.js")],
   ["note", () => import("./packs/note.generated.js")],
   ["passport", () => import("./packs/passport.generated.js")],

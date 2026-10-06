@@ -1,19 +1,36 @@
-import { overlapCast } from "@opensesame/os-domain";
 import {
-  type LoginItem,
+  type AccountItem,
   type VaultItem,
   createItem,
+  manualPassword,
 } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
+import { pepperedAccount } from "../account.test-support.js";
 import { buildHealthReport } from "./health.js";
+
+type Overrides = { totp?: string; passwordChangedAt?: string };
 
 function login(
   name: string,
   password: string,
-  overrides: Partial<LoginItem> = {},
-): LoginItem {
-  const item: LoginItem = overlapCast(createItem("login", name));
-  return { ...item, password, ...overrides };
+  overrides: Overrides = {},
+): AccountItem {
+  const item = createItem("account", name);
+  item.methods = [
+    manualPassword(
+      `${item.id}:password`,
+      password,
+      overrides.passwordChangedAt ?? item.createdAt,
+    ),
+  ];
+  if (overrides.totp !== undefined) {
+    item.methods.push({
+      id: `${item.id}:authenticator`,
+      type: "authenticator",
+      secret: overrides.totp,
+    });
+  }
+  return item;
 }
 
 function daysAgo(days: number): string {
@@ -76,7 +93,7 @@ describe("password health", () => {
     expect(report.findings[0]?.issues).toContain("no-2fa");
   });
 
-  it("clears a login that is strong, unique, recent, and has 2FA", () => {
+  it("clears an account that is strong, unique, recent, and has 2FA", () => {
     const report = buildHealthReport([
       login("Bank", "Fjord-Lantern-Cobalt-7-Quintal", {
         totp: "JBSWY3DPEHPK3PXP",
@@ -87,7 +104,7 @@ describe("password health", () => {
     expect(report.clean).toBe(1);
   });
 
-  it("ignores trashed items and non-logins", () => {
+  it("ignores trashed items and non-accounts", () => {
     const trashed = login("Trashed", "summer2019");
     const items: VaultItem[] = [
       { ...trashed, deletedAt: new Date().toISOString() },
@@ -96,8 +113,52 @@ describe("password health", () => {
     expect(buildHealthReport(items).scored).toBe(0);
   });
 
-  it("ignores logins with no password stored", () => {
+  it("ignores accounts with no password stored", () => {
     expect(buildHealthReport([login("Passwordless", "")]).scored).toBe(0);
+  });
+
+  it("skips a peppered password and counts it as unchecked", async () => {
+    const peppered = await pepperedAccount("Vaulted", "summer2019", "pepper");
+    const report = buildHealthReport([peppered, login("Plain", "summer2019")]);
+    // The peppered duplicate is neither read nor compared: no reuse, no weak.
+    expect(report.scored).toBe(1);
+    expect(report.unchecked).toBe(1);
+    expect(report.counts.reused).toBe(0);
+    expect(report.findings.map((finding) => finding.item.name)).toEqual([
+      "Plain",
+    ]);
+  });
+
+  it("skips a Sphinx password too", () => {
+    const sphinx = createItem("account", "Sphinxed");
+    sphinx.methods = [
+      {
+        id: `${sphinx.id}:password`,
+        type: "password",
+        generator: {
+          id: "sphinx",
+          rules: {
+            length: 20,
+            lower: true,
+            upper: true,
+            digits: true,
+            symbols: false,
+            avoidAmbiguous: false,
+            minDigits: 0,
+            minSymbols: 0,
+          },
+          realm: "example.com",
+          counter: 0,
+          oprfKeyB64: "AAAA",
+        },
+        pepper: true,
+        secret: "",
+        changedAt: sphinx.createdAt,
+      },
+    ];
+    const report = buildHealthReport([sphinx]);
+    expect(report.scored).toBe(0);
+    expect(report.unchecked).toBe(1);
   });
 
   it("sorts the worst offenders first", () => {

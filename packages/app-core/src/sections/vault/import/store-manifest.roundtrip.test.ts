@@ -16,10 +16,12 @@ import {
 import {
   type Folder,
   type VaultItem,
+  accountTotp,
   createItem,
   definitionFor,
   itemSubtitle,
   itemTypeId,
+  manualPassword,
   newUri,
   readItemField,
 } from "@opensesame/vault-core";
@@ -29,6 +31,7 @@ import {
   definitionFields,
 } from "@opensesame/vault-item-types";
 import { describe, expect, it } from "vitest";
+import { producedPassword } from "../../../lib/account.test-support.js";
 import { planManifestMerge } from "../../../lib/vault/store-sync.js";
 import { type FixtureVault, everyKindVault } from "./store-manifest.fixture.js";
 import {
@@ -183,7 +186,7 @@ describe("store path manifest round trip, every kind", () => {
 
 /**
  * Exactly what Pages saved before kinds round-tripped (trailer format 1, no
- * `v`): a login, a secret, a note and a typed item whole; a card's holder and
+ * `v`): an account, a secret, a note and a typed item whole; a card's holder and
  * a certificate's name and PEM folded into notes; a drop with nothing.
  */
 const KEY_PEM =
@@ -224,12 +227,18 @@ const OLD_MANIFEST = [
 /** The vault the old manifest above was saved from, with what it left out. */
 function oldVault(): FixtureVault {
   const work: Folder = { id: "fld_work", name: "Work", createdAt: "x" };
-  const github = createItem("login", "GitHub");
+  const github = createItem("account", "GitHub");
   Object.assign(github, {
     folderId: work.id,
-    password: "hunter2",
     username: "ada",
-    totp: "JBSWY3DPEHPK3PXP",
+    methods: [
+      manualPassword(`${github.id}:password`, "hunter2", github.createdAt),
+      {
+        id: `${github.id}:authenticator`,
+        type: "authenticator",
+        secret: "JBSWY3DPEHPK3PXP",
+      },
+    ],
     uris: [newUri("https://a.example", "host")],
     notes: "n",
     fields: [{ id: "f", name: "PIN", value: "9999", hidden: true }],
@@ -275,7 +284,7 @@ describe("a manifest an older Pages saved (trailer format 1)", () => {
       plan.adds.map((item) => [item.name, item.kind]),
     );
     expect(kinds).toEqual({
-      GitHub: "login",
+      GitHub: "account",
       "Travel card": "card",
       Key: "passkey",
       "dev.local": "certificate",
@@ -284,13 +293,15 @@ describe("a manifest an older Pages saved (trailer format 1)", () => {
       "Shared wifi": "drop",
     });
     const by = new Map(plan.adds.map((item) => [item.name, item]));
-    expect(by.get("GitHub")).toMatchObject({
-      password: "hunter2",
+    const github = by.get("GitHub");
+    if (github?.kind !== "account") throw new Error("expected an account");
+    expect(github).toMatchObject({
       username: "ada",
-      totp: "JBSWY3DPEHPK3PXP",
       notes: "n",
       uris: [{ uri: "https://a.example", match: "host" }],
     });
+    expect(producedPassword(github)).toBe("hunter2");
+    expect(accountTotp(github)).toBe("JBSWY3DPEHPK3PXP");
     // What format 1 folded into notes stays readable there.
     expect(by.get("Travel card")).toMatchObject({
       number: "4111111111111111",
@@ -337,11 +348,13 @@ describe("a manifest an older Pages saved (trailer format 1)", () => {
     );
     const plan = planStoreManifest(rotated, items, folders);
     expect(plan.updates).toHaveLength(1);
-    expect(plan.updates[0]).toMatchObject({
-      id: items[0]?.id,
-      password: "rotated",
-      fields: [{ name: "PIN", value: "9999", hidden: true }],
-    });
+    const updated = plan.updates[0];
+    if (updated?.kind !== "account") throw new Error("expected an account");
+    expect(updated.id).toBe(items[0]?.id);
+    expect(producedPassword(updated)).toBe("rotated");
+    expect(updated.fields).toMatchObject([
+      { name: "PIN", value: "9999", hidden: true },
+    ]);
   });
 });
 

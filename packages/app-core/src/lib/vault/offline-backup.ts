@@ -11,7 +11,7 @@ import {
   parseOfflineBackupEnvelope,
   serializeOfflineBackupEnvelope,
 } from "@opensesame/vault-core";
-import { kvGet, kvSet } from "../kv.js";
+import { kvDeleteDurable, kvGet, kvSet } from "../kv.js";
 
 export {
   MAX_OFFLINE_BACKUP_BYTES,
@@ -178,4 +178,11 @@ export function dequeueOfflineMutation(id: string): void {
 
 export function clearOfflineMutations(): void {
   saveMutationQueue([]);
+}
+
+/** Forget the last cached ciphertext of a vault; it is a copy, never the vault. */
+export function dropCachedCiphertextSnapshot(
+  projectId: string | null = null,
+): Promise<void> {
+  return kvDeleteDurable(cacheKey(projectId));
 }

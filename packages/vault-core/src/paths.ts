@@ -8,7 +8,7 @@ import type { Folder, LegacyItemKind, VaultItem } from "./model.js";
     definition (ADR 0087 §1); this table is the fallback for a caller holding
     a legacy kind and no item. */
 export const KIND_EXT = {
-  login: ".login",
+  account: ".account",
   passkey: ".passkey",
   card: ".card",
   secret: ".secret",

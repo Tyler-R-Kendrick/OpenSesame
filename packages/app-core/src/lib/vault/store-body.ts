@@ -11,6 +11,7 @@ import {
   VaultCorruptError,
   type VaultHeader,
   emptyBody,
+  normalizeVaultBody,
   openJson,
   vaultSealBinding,
 } from "@opensesame/vault-core";
@@ -21,6 +22,28 @@ const ROLLED_BACK =
   "this vault file is older than the last write recorded on this device. " +
   "If you restored a backup, import it from Settings instead; " +
   "the vault here was not opened, so nothing has been lost yet";
+
+/** What a body carries beyond its items and folders, as it was sealed. */
+function syncedFields(body: VaultBody): Partial<VaultBody> {
+  return {
+    ...(body.itemTypes !== undefined
+      ? { itemTypes: body.itemTypes }
+      : undefined),
+    ...(body.itemTypesAt !== undefined
+      ? { itemTypesAt: body.itemTypesAt }
+      : undefined),
+    ...(body.tombstones !== undefined
+      ? { tombstones: body.tombstones }
+      : undefined),
+    // `null` or anything but an object is no key: it is not carried on.
+    ...(isJsonObject(body.deviceIdentityKey)
+      ? { deviceIdentityKey: body.deviceIdentityKey }
+      : undefined),
+    ...(body.masterWrap !== undefined
+      ? { masterWrap: body.masterWrap }
+      : undefined),
+  };
+}
 
 /**
  * The body of `tomb`, opened with `vaultKey`. A missing body is an empty vault
@@ -54,19 +77,7 @@ export async function loadVaultBody(
       v: 1,
       items: body.items ?? [],
       folders: body.folders ?? [],
-      ...(body.itemTypes !== undefined
-        ? { itemTypes: body.itemTypes }
-        : undefined),
-      ...(body.itemTypesAt !== undefined
-        ? { itemTypesAt: body.itemTypesAt }
-        : undefined),
-      ...(body.tombstones !== undefined
-        ? { tombstones: body.tombstones }
-        : undefined),
-      // `null` or anything but an object is no key: it is not carried on.
-      ...(isJsonObject(body.deviceIdentityKey)
-        ? { deviceIdentityKey: body.deviceIdentityKey }
-        : undefined),
+      ...syncedFields(body),
       rev,
     };
     // What the retired sample-data feature wrote is not shown, exported or
@@ -74,7 +85,9 @@ export async function loadVaultBody(
     // the sealed file, tombstoned so a device that still holds it cannot
     // bring it back.
     retireLegacySample(opened);
-    return opened;
+    // A body written before ADR 0172 holds `login` items: they are accounts
+    // from here on, and the next write seals them as such.
+    return normalizeVaultBody(opened);
   } catch (error) {
     throw error instanceof VaultCorruptError
       ? error

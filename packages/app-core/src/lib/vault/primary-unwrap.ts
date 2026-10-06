@@ -14,6 +14,15 @@ import {
 } from "@opensesame/vault-core";
 import { unwrapVaultKeyWithPin } from "./unlock-methods.js";
 
+/**
+ * The two unwrapping primitives, behind a seam so a test can watch the raw key
+ * a credential opened without replacing either module.
+ */
+export const unwrapSeams = {
+  password: unwrapRawVaultKeyFromPassword,
+  pin: unwrapVaultKeyWithPin,
+};
+
 /** What a wrong PIN says, here and when a held device refuses a right one. */
 export const PIN_MISS = "That PIN did not unlock the vault.";
 
@@ -27,7 +36,7 @@ export async function unwrapPassword(
     throw new WrongPasswordError();
   }
   try {
-    return await unwrapRawVaultKeyFromPassword(header, password);
+    return await unwrapSeams.password(header, password);
   } catch (error) {
     if (error instanceof WrongPasswordError) recordFailedUnlock();
     throw error;
@@ -45,7 +54,7 @@ export async function unwrapPin(
     throw new WrongPasswordError(PIN_MISS);
   }
   try {
-    return await unwrapVaultKeyWithPin(record, pin);
+    return await unwrapSeams.pin(record, pin);
   } catch (error) {
     if (!(error instanceof WrongPasswordError)) throw error;
     recordFailedUnlock();

@@ -116,6 +116,10 @@ async function useCode({ page, check, snap }) {
     (await page.locator("#duress-profiles").count()) === 0,
     "a decoy session is drawn no Duress row",
   );
+  check(
+    (await page.locator("#duress-after-key, #travel-after-key").count()) === 0,
+    "a decoy session is drawn no after-a-key Duress or Travel rows either",
+  );
   const security = await pageText(page);
   check(
     TELLS.every((tell) => !tell.test(security)),

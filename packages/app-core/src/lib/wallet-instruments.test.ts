@@ -1,4 +1,8 @@
-import type { CardItem, TypedItem } from "@opensesame/vault-core";
+import {
+  type CardItem,
+  type TypedItem,
+  manualPassword,
+} from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import {
   isPaymentInstrument,
@@ -41,13 +45,11 @@ describe("wallet instruments", () => {
     const login = {
       ...stamp,
       id: "l1",
-      kind: "login" as const,
+      kind: "account" as const,
       name: "Mail",
       username: "a",
-      password: "b",
-      totp: "",
       uris: [],
-      passwordChangedAt: stamp.createdAt,
+      methods: [manualPassword("l1:password", "b", stamp.createdAt)],
     };
     expect(isPaymentInstrument(login)).toBe(false);
     expect(

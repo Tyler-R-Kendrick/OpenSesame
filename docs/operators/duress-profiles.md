@@ -9,10 +9,12 @@ Evidence: `docs/evidence/2026-09-21-duress/`.
 ## Turning it on in Pages
 
 **Settings › Security › Duress** (ADR 0155). There is no switch to find first:
-the row is there for the owner of an open vault, and it is not drawn in a guest
-session — which is what a decoy is.
+the row is there for the owner of an open vault, and it is not drawn in a decoy.
+A guest who has not made a key yet sees a Duress and a Travel section marked
+"After a key"; **Add** there opens the key sheet, and once a key exists the real
+rows appear.
 
-1. Press **Add**. Choose what the code does (the five modes below).
+1. Press **Add**. Choose what the code does (the six modes below).
 2. Type a code of 8 to 12 digits twice. It may not be a PIN that opens a vault on
    this device; you are told now, not at the border.
 3. Tick that you understand, then turn it on. The browser must keep files for
@@ -29,7 +31,7 @@ What it does **not** do: it is one code per device, and it sends no alert to
 anyone. The holds, custodians and removal described further below are not
 applied by this road.
 
-### The five modes
+### The six modes
 
 Each is chosen from the situation, and each has its own consent sentence. None
 is protection from coercion: each changes what a forced unlock reveals on this
@@ -38,13 +40,18 @@ device and nothing more (ADR 0168).
 | Mode | When | What the code does | What to know |
 | --- | --- | --- | --- |
 | **Decoy vault** | Made to unlock, and something must be shown | Opens an empty vault that reads as a normal unlock | An empty vault is itself a tell |
+| **Show my vault without the items I hide** | Made to unlock, and refusing could be read as refusing to comply | A decoy holding copies of the items you left shown, taken from your open vault when you arm. Every item starts hidden; you switch off *Hidden* on the ones to show, and at least one must be shown | Offered only while you are in your real vault and it has an item it can show. Logins, notes, secrets, cards and typed items; never passkeys, certificates, drops, files, one-time-code seeds, history, folders or deleted items. The copies are sealed under your short code, so anyone with this browser's storage and effort can read them: choose only items you could afford to show. Items added after arming stay hidden; edits show the old content until you arm again |
 | **Decoy with everyday items** | Same, and an empty vault would look wrong | The same decoy, holding 3 to 12 ordinary logins you typed or took from the starter set (Netflix, Wi-Fi at home, Library card, Gym, Spotify, Electric bill) | Items are written, never copied from your real vault. Each gets a random 20-character secret made when you arm. Names are up to 40 characters. They show with no username |
 | **Wrong password** | Made to unlock, and nothing may be shown | Refused exactly like a mistyped password | The refusal text is the same as an ordinary wrong password's |
 | **Freeze for a while** | The device is taken and the unlock is being forced or guessed | Refused like a wrong password, and for 1, 24 or 72 hours the device refuses the vault's real credentials too | You choose the duration, there is no default. It cannot be shortened from the device, only extended. **It holds you as well**: you cannot open the real vault, or press Clear, until it ends. Guest and decoy sessions are not held. Uses the device clock |
 | **Wipe this device's copy** | The device is about to be surrendered for good | Refused like a wrong password, and this browser's copy of every vault except the guest vault is removed | Restorable only from a backup you made. Asks you to type `WIPE`. Removes this browser's storage, not what the disk may still hold. Leaves file parts, the history backup, settings and the Identity session |
 
 Pick a mode by what you can afford to lose. A freeze costs a stretch of time; a
-wipe costs the on-device copy for good.
+wipe costs the on-device copy for good. The three that refuse (wrong password,
+freeze, wipe) leave you with nothing to show, which may be read as refusing to
+comply and can escalate the situation; the sheet says so before you tick them. If
+you may be made to open the vault, a mode that shows something comes first in the
+list for that reason.
 
 ## When to use this
 

@@ -14,12 +14,17 @@
 
 import {
   type VaultItem,
+  accountTotp,
   activeItems,
+  completePassword,
   definitionFor,
   itemTypeId,
+  produceAccountPassword,
   readItemField,
 } from "@opensesame/vault-core";
 import {
+  type FieldDefinition,
+  type FieldValue,
   definitionFields,
   displayText,
   isConcealedFieldType,
@@ -54,11 +59,30 @@ function clip(text: string, max: number): string {
   return chars.length <= max ? text : chars.slice(0, max).join("");
 }
 
+/**
+ * An account keeps its password and seed in methods, not in properties named
+ * for the definition's fields. The password is offered only when it needs no
+ * question (ADR 0172 §4): a peppered or Sphinx one is absent here, never read
+ * from its sealed form, so a live session cannot be shown or asked to reveal it.
+ */
+function heldValue(
+  item: VaultItem,
+  field: FieldDefinition,
+): FieldValue | undefined {
+  if (item.kind === "account") {
+    if (field.id === "password") {
+      return completePassword(produceAccountPassword(item)) ?? "";
+    }
+    if (field.id === "totp") return accountTotp(item);
+  }
+  return readItemField(item, field);
+}
+
 function heldFields(item: VaultItem): Held[] {
   const held: Held[] = [];
   const definition = definitionFor(item);
   for (const field of definition ? definitionFields(definition) : []) {
-    const text = displayText(field, readItemField(item, field));
+    const text = displayText(field, heldValue(item, field));
     if (text === "") continue;
     held.push({
       key: field.id,

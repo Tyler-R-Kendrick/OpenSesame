@@ -35,12 +35,15 @@ export async function toTheList(page) {
     .or(all)
     .first()
     .waitFor({ state: "visible", timeout: 15000 });
-  if (await create.isVisible()) return;
+  // The pane, not the New item key: the + is drawn on the tree pane too.
+  const pane = () => page.locator(".vault").first().getAttribute("data-pane");
+  if ((await pane()) === "list") return;
   if (await back.isVisible()) {
     await back.click();
     await create.or(all).first().waitFor({ state: "visible", timeout: 15000 });
+    if ((await pane()) === "list") return;
   }
-  if (!(await create.isVisible()) && (await all.isVisible())) await all.click();
+  if (await all.isVisible()) await all.click();
 }
 
 /**

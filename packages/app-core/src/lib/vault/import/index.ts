@@ -17,6 +17,7 @@ import {
   genericCsv,
 } from "./formats/browsers.js";
 import { fidoCxf } from "./formats/cxf.js";
+import { enpassJson } from "./formats/enpass.js";
 import { envFile } from "./formats/env.js";
 import { keepassKdbx } from "./formats/kdbx.js";
 import {
@@ -68,6 +69,7 @@ export const ADAPTERS: ImportAdapter[] = [
   bitwardenJson,
   fidoCxf,
   protonpassJson,
+  enpassJson,
   onepasswordPux,
   keepassKdbx,
   bitwardenCsv,
@@ -308,9 +310,11 @@ export function summarise(items: DraftItem[]): ImportSummary {
 
   for (const item of items) {
     if (item.folder) folders.add(item.folder);
-    if (item.kind === "login") {
+    if (item.kind === "account") {
       logins += 1;
-      if (item.totp) withTotp += 1;
+      if (item.totp || item.methods.some((m) => m.type === "authenticator")) {
+        withTotp += 1;
+      }
       if (!item.password) withoutPassword += 1;
     } else if (item.kind === "passkey") passkeys += 1;
     else if (item.kind === "card") cards += 1;

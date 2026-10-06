@@ -19,15 +19,18 @@ import {
   IconUpload,
   IconVault,
 } from "../../../components/Icons.js";
+import { useVault } from "../../../lib/vault/hooks.js";
 import { CeremonyRow } from "../CeremonyRow.js";
+import { TravelItemsSheet } from "./TravelItemsSheet.js";
 import { TravelLeaveSheet } from "./TravelLeaveSheet.js";
 import { TravelReturnSheet } from "./TravelReturnSheet.js";
 import { plural, travelRefusalText } from "./TravelViews.js";
+import { hideableItems } from "./items-text.js";
 import { useTravelFlow } from "./useTravelFlow.js";
 import { useTravelRemnants } from "./useTravelRemnants.js";
 import "../travel.css";
 
-type Sheet = "leave" | "return" | null;
+type Sheet = "leave" | "items" | "return" | null;
 
 /** What the receipt row's glyph says; the row's own name is the sentence. */
 const RECEIPT_MARK = {
@@ -102,6 +105,57 @@ function RemnantsRow({
   );
 }
 
+/** The ceremonies this panel can open, each drawn only where it can act. */
+function ModeRows({
+  owner,
+  busy,
+  carried,
+  canLeave,
+  hideable,
+  onOpen,
+}: {
+  owner: boolean;
+  busy: boolean;
+  carried: number;
+  canLeave: boolean;
+  hideable: number;
+  onOpen: (sheet: Exclude<Sheet, null>) => void;
+}) {
+  const blocked = travelRefusalText("owner_not_present");
+  return (
+    <>
+      {canLeave ? (
+        <ModeRow
+          icon={<IconUpload size={16} />}
+          label="Leave for a trip"
+          sub={owner ? `${plural(carried, "vault")} on this device` : blocked}
+          keyLabel="Turn on travel mode"
+          disabled={!owner || busy}
+          onOpen={() => onOpen("leave")}
+        />
+      ) : null}
+      {hideable > 0 ? (
+        <ModeRow
+          icon={<IconVault size={16} />}
+          label="Leave items at home"
+          sub={owner ? plural(hideable, "item") : blocked}
+          keyLabel="Choose items to leave at home"
+          disabled={!owner || busy}
+          onOpen={() => onOpen("items")}
+        />
+      ) : null}
+      <ModeRow
+        icon={<IconDownload size={16} />}
+        label="Come home from a trip"
+        sub={owner ? "Needs the bundle and its return code" : blocked}
+        keyLabel="Turn off travel mode"
+        disabled={!owner || busy}
+        onOpen={() => onOpen("return")}
+      />
+    </>
+  );
+}
+
 type TravelNotice = ReturnType<typeof useTravelFlow>["notice"];
 
 /** A failed or cautioned travel step goes to the tray; nothing is drawn. */
@@ -133,12 +187,13 @@ export function TravelPanel() {
   // with none, packing refuses ("nothing would leave") and the key is a dead
   // end — it is not drawn (ADR 0158).
   const canLeave = sealed.some((vault) => vault.state !== "open");
+  const hideable = hideableItems(useVault().items).length;
   const files = remnants.reduce((sum, r) => sum + r.files.length, 0);
-  const blocked = travelRefusalText("owner_not_present");
 
   const open = (next: Exclude<Sheet, null>) => {
     flow.reset();
     if (next === "return") flow.startReturn();
+    if (next === "items") flow.setMode({ kind: "items" });
     setSheet(next);
   };
   const close = () => {
@@ -171,23 +226,13 @@ export function TravelPanel() {
             action={null}
           />
         ) : null}
-        {canLeave ? (
-          <ModeRow
-            icon={<IconUpload size={16} />}
-            label="Leave for a trip"
-            sub={owner ? `${plural(carried, "vault")} on this device` : blocked}
-            keyLabel="Turn on travel mode"
-            disabled={!owner || busy}
-            onOpen={() => open("leave")}
-          />
-        ) : null}
-        <ModeRow
-          icon={<IconDownload size={16} />}
-          label="Come home from a trip"
-          sub={owner ? "Needs the bundle and its return code" : blocked}
-          keyLabel="Turn off travel mode"
-          disabled={!owner || busy}
-          onOpen={() => open("return")}
+        <ModeRows
+          owner={owner}
+          busy={busy}
+          carried={carried}
+          canLeave={canLeave}
+          hideable={hideable}
+          onOpen={open}
         />
         {owner && remnants.length > 0 ? (
           <RemnantsRow
@@ -199,6 +244,9 @@ export function TravelPanel() {
       </div>
       {sheet === "leave" ? (
         <TravelLeaveSheet flow={flow} onClose={close} />
+      ) : null}
+      {sheet === "items" ? (
+        <TravelItemsSheet flow={flow} onClose={close} />
       ) : null}
       {sheet === "return" ? (
         <TravelReturnSheet flow={flow} onClose={close} />

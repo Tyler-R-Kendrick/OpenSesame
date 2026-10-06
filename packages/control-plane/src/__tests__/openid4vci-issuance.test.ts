@@ -1,15 +1,4 @@
-/**
- * The mounted OpenID4VCI issuer: F10 protected redemption (T-24) and durable,
- * non-process-local grants (T-25), driven through the real routes.
- *
- * Nothing is stubbed. The issuer key and the holder key are generated in this
- * process, the key proof is a real signature, and the durable case runs
- * against an in-process Postgres (PGlite) with the real migrations — the same
- * `DurableMap` a deployment uses. What the routes refuse, they refuse for the
- * reason the package refuses it.
- */
-
-import { PGlite } from "@electric-sql/pglite";
+import { createEventSealer } from "@opensesame/database";
 import type { Database } from "@opensesame/database";
 import * as schema from "@opensesame/database/schema";
 import { Openid4vciError, createCredentialOffer } from "@opensesame/openid4vci";
@@ -20,7 +9,6 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import { Hono } from "hono";
 import { type JWK, SignJWT, exportJWK, generateKeyPair } from "jose";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -37,6 +25,7 @@ import {
   type Openid4vciIssuerRuntime,
   createOpenid4vciRoutes,
 } from "../routes/openid4vci.js";
+import { migratedPGlite, warmMigratedPGlite } from "./migrated-pglite.js";
 
 const ISSUER = "https://issuer.example.test";
 const VCT = "https://credentials.example.test/opensesame-holder-binding/v1";
@@ -306,15 +295,8 @@ describe("T-24: F10 — a by-reference offer is protected or it does not mint", 
 });
 
 async function migratedDb() {
-  const client = new PGlite();
-  const drizzled = drizzle(client, { schema });
-  await migrate(drizzled, {
-    migrationsFolder: new URL(
-      "../../../../packages/database/drizzle",
-      import.meta.url,
-    ).pathname,
-  });
-  const db: Database = overlapCast(drizzled);
+  const client = await migratedPGlite();
+  const db: Database = overlapCast(drizzle(client, { schema }));
   return { client, db };
 }
 
@@ -324,11 +306,16 @@ function grantReplica(db: Database): DurablePreAuthorizedCodeStore {
       db,
       "OpenSesame:Oid4vciGrants",
       true,
+      undefined,
+      undefined,
+      createEventSealer("durable-security-fixture-key"),
     ),
   );
 }
 
 describe("T-25: grants are durable and not process-local", () => {
+  beforeAll(warmMigratedPGlite);
+
   it("registers on one replica, redeems on another, exactly once", async () => {
     const { client, db } = await migratedDb();
     try {

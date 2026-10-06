@@ -2,7 +2,7 @@
  * Durable OpenID4VP request-session store (ADR 0125).
  */
 
-import type { Database } from "@opensesame/database";
+import type { Database, EventSealer } from "@opensesame/database";
 import {
   type AuthorizationRequest,
   Openid4vpError,
@@ -14,8 +14,15 @@ import { DurableMap } from "./durable-map.js";
 export class DurableOpenid4vpSessionStore implements RequestSessionStore {
   private readonly rows: DurableMap<RequestSessionRecord>;
 
-  constructor(db: Database) {
-    this.rows = new DurableMap(db, "OpenSesame:Openid4vpSession", false, null);
+  constructor(db: Database, sealer: EventSealer) {
+    this.rows = new DurableMap(
+      db,
+      "OpenSesame:Openid4vpSession",
+      false,
+      null,
+      10_000,
+      sealer,
+    );
   }
 
   async create(request: AuthorizationRequest): Promise<void> {

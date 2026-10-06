@@ -64,10 +64,11 @@ export type ParsedCommand =
   | {
       name: "vault-copy";
       query: string;
-      field: "secret" | "username";
+      field: "secret" | "rest" | "username";
       flags: GlobalFlags;
     }
-  | { name: "vault-share"; query: string; flags: GlobalFlags };
+  | { name: "vault-share"; query: string; flags: GlobalFlags }
+  | { name: "vault-sync"; code?: string; flags: GlobalFlags };
 
 function takeFlag(args: string[], name: string): boolean {
   const idx = args.indexOf(name);
@@ -185,7 +186,8 @@ export function parseArgs(argv: string[]): ParsedCommand {
   throw new Error(`Unknown command: ${cmd}`);
 }
 
-const ITEM_KINDS = new Set(["login", "secret", "note", "card"]);
+/** `login` is the pre-ADR 0172 name of `account`; it is still accepted as input. */
+const ITEM_KINDS = new Set(["account", "login", "secret", "note", "card"]);
 
 function leftover(args: readonly string[], verb: string): void {
   const extra = args[0];
@@ -227,6 +229,14 @@ function parseVaultShare(args: string[], flags: GlobalFlags): ParsedCommand {
   return { name: "vault-share", query, flags };
 }
 
+function parseVaultSync(args: string[], flags: GlobalFlags): ParsedCommand {
+  const code = takeOption(args, "--pair");
+  leftover(args, "sync");
+  return code === undefined
+    ? { name: "vault-sync", flags }
+    : { name: "vault-sync", code, flags };
+}
+
 function parseVaultList(args: string[], flags: GlobalFlags): ParsedCommand {
   leftover(args, "list");
   return { name: "vault-list", flags };
@@ -255,21 +265,24 @@ function parseVault(args: string[], flags: GlobalFlags): ParsedCommand {
       return parseVaultCopy(args, flags);
     case "share":
       return parseVaultShare(args, flags);
+    case "sync":
+      return parseVaultSync(args, flags);
     default:
       throw new Error(`Unknown command: vault ${verb}`);
   }
 }
 
 function parseVaultNew(args: string[], flags: GlobalFlags): ParsedCommand {
-  const kind = args.shift();
+  const word = args.shift();
   const itemName = takeOption(args, "--name");
   const username = takeOption(args, "--username");
-  if (!kind || !itemName) {
+  if (!word || !itemName) {
     throw new Error("vault new requires <kind> and --name");
   }
-  if (!ITEM_KINDS.has(kind)) {
-    throw new Error("vault new kind must be login, secret, note, or card");
+  if (!ITEM_KINDS.has(word)) {
+    throw new Error("vault new kind must be account, secret, note, or card");
   }
+  const kind = word === "login" ? "account" : word;
   leftover(args, "new");
   if (username === undefined) {
     return { name: "vault-new", kind, itemName, flags };
@@ -307,8 +320,12 @@ function parseVaultCopy(args: string[], flags: GlobalFlags): ParsedCommand {
   const query = args.shift();
   const fieldWord = takeOption(args, "--field") ?? "secret";
   if (!query) throw new Error("vault copy requires an item name or id");
-  if (fieldWord !== "secret" && fieldWord !== "username") {
-    throw new Error("vault copy --field must be secret or username");
+  if (
+    fieldWord !== "secret" &&
+    fieldWord !== "rest" &&
+    fieldWord !== "username"
+  ) {
+    throw new Error("vault copy --field must be secret, rest or username");
   }
   leftover(args, "copy");
   return { name: "vault-copy", query, field: fieldWord, flags };
@@ -345,7 +362,7 @@ Commands:
   vault verify <file>          Open a vault export or offline backup
                                (master password from the terminal only)
   vault ls <file>              List that file: path and kind, never values
-  vault new <kind> --name <n>  Create a login, secret, note, or card
+  vault new <kind> --name <n>  Create an account, secret, note, or card
   vault list                   List the local vault: id, kind, and name
   vault import <file>          Merge a sealed export into the local vault
   vault export [--out <file>]  Write a sealed export of the local vault
@@ -353,6 +370,8 @@ Commands:
   vault copy <item> [--field secret|username]
                                Copy a field to the clipboard, never print it
   vault share <item>           Share a secret once; prints the link and code
+  vault sync [--pair <code>]   Sync with a tailnet drive (ADR 0144); with no
+                               vault here, set it up from the drive first
   mcp host|client              Serve the host- or client-facing MCP tools
                                (stdio; OPENSESAME_MCP_TRANSPORT=http for HTTP)
 

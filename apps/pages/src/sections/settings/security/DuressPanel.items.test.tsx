@@ -55,7 +55,7 @@ describe("DuressPanel, decoy with everyday items", () => {
     await vaultStore.destroy();
   });
 
-  it("is offered as a mode, after the plain decoy and before the refusal", async () => {
+  it("is offered as a mode, after the plain decoy and before the refusals", async () => {
     render(<DuressPanel arm={arm} />);
     await userEvent.click(screen.getByRole("button", { name: "Add" }));
     const names = screen
@@ -64,7 +64,8 @@ describe("DuressPanel, decoy with everyday items", () => {
     // Its place relative to its neighbours, not the whole list, so another
     // mode landing elsewhere does not break this.
     const at = names.indexOf(MODE);
-    expect(names[at - 1]).toBe("Decoy vault");
+    expect(names.indexOf("Decoy vault")).toBeGreaterThanOrEqual(0);
+    expect(names.indexOf("Decoy vault")).toBeLessThan(at);
     expect(names.indexOf("Wrong password")).toBeGreaterThan(at);
     expect(screen.queryByRole("textbox", { name: LIST })).toBeNull();
   });

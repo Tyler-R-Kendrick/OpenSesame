@@ -38,7 +38,7 @@ describe("bounded on-device label suggestions", () => {
     draftSuggestionSeams.userActivated = () => false;
     await expect(
       suggestDraftLabels(
-        { typeId: "login" },
+        { typeId: "account" },
         new AbortController().signal,
         true,
       ),
@@ -47,7 +47,7 @@ describe("bounded on-device label suggestions", () => {
     draftSuggestionSeams.userActivated = () => true;
     expect(
       await suggestDraftLabels(
-        { typeId: "login" },
+        { typeId: "account" },
         new AbortController().signal,
         true,
       ),
@@ -58,12 +58,12 @@ describe("bounded on-device label suggestions", () => {
     const fake = model();
     expect(
       await suggestDraftLabels(
-        { typeId: "login", website: "https://example.com/private-path" },
+        { typeId: "account", website: "https://example.com/private-path" },
         new AbortController().signal,
       ),
     ).toEqual({ name: "Example login", username: "quiet_fox" });
     expect(fake.prompt).toHaveBeenCalledWith(
-      '{"category":"login","website":"https://example.com"}',
+      '{"category":"account","website":"https://example.com"}',
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
     expect(fake.destroy).toHaveBeenCalledOnce();
@@ -77,7 +77,7 @@ describe("bounded on-device label suggestions", () => {
         create: fake.create,
       });
       await expect(
-        suggestDraftLabels({ typeId: "login" }, new AbortController().signal),
+        suggestDraftLabels({ typeId: "account" }, new AbortController().signal),
       ).rejects.toThrow("local_model_not_ready");
       expect(fake.create).not.toHaveBeenCalled();
     },
@@ -86,11 +86,11 @@ describe("bounded on-device label suggestions", () => {
     expect(originalActivation()).toBe(false);
     draftSuggestionSeams.model = () => null;
     await expect(
-      suggestDraftLabels({ typeId: "login" }, new AbortController().signal),
+      suggestDraftLabels({ typeId: "account" }, new AbortController().signal),
     ).rejects.toThrow("local_model_not_ready");
     const fake = model();
     await expect(
-      suggestDraftLabels({ typeId: "login" }, AbortSignal.abort()),
+      suggestDraftLabels({ typeId: "account" }, AbortSignal.abort()),
     ).rejects.toThrow();
     expect(fake.create).not.toHaveBeenCalled();
   });
@@ -105,7 +105,7 @@ describe("bounded on-device label suggestions", () => {
   ])("refuses malformed, extra and executable output", async (answer) => {
     const fake = model(answer);
     await expect(
-      suggestDraftLabels({ typeId: "login" }, new AbortController().signal),
+      suggestDraftLabels({ typeId: "account" }, new AbortController().signal),
     ).rejects.toThrow();
     expect(fake.destroy).toHaveBeenCalledOnce();
   });
@@ -113,7 +113,7 @@ describe("bounded on-device label suggestions", () => {
     const fake = model();
     await expect(
       suggestDraftLabels(
-        { typeId: "login", website: "https://example.com/?token=SENTINEL" },
+        { typeId: "account", website: "https://example.com/?token=SENTINEL" },
         new AbortController().signal,
       ),
     ).rejects.toThrow();
@@ -131,7 +131,7 @@ describe("bounded on-device label suggestions", () => {
     expect(
       await suggestItemMetadata({
         action: "suggest",
-        kind: "login",
+        kind: "account",
         source: "browser",
         url: "https://example.com",
       }),
@@ -154,7 +154,7 @@ describe("bounded on-device label suggestions", () => {
     await expect(
       suggestItemMetadata({
         action: "suggest",
-        kind: "login",
+        kind: "account",
         password: "SENTINEL",
       }),
     ).rejects.toThrow("invalid_suggestion_arguments");

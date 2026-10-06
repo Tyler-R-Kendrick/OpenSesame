@@ -26,6 +26,22 @@ import {
   completeDeparture,
   packDeparture,
 } from "./depart.js";
+import { duressActive } from "./duress-gate.js";
+import {
+  type ItemsCompleteOutcome,
+  type ItemsPackOutcome,
+  type ItemsPackage,
+  completeItemDeparture,
+  packItemDeparture,
+} from "./items-depart.js";
+import { travelItemSeams } from "./items-deps.js";
+import {
+  type CompleteItemsReturnOutcome,
+  type OpenItemsReturnOutcome,
+  type OpenedItemsReturn,
+  completeItemsReturn,
+  openItemsReturn,
+} from "./items-return.js";
 import {
   type ClearRemnantsOutcome,
   type TravelRemnant,
@@ -54,6 +70,27 @@ export type {
   TravelVaultInfo,
 } from "./depart.js";
 export type { TravelGrants } from "./grants.js";
+export type {
+  HidingItem,
+  ItemsCompleteOutcome,
+  ItemsCopy,
+  ItemsDepartureReceipt,
+  ItemsPackOutcome,
+  ItemsPackage,
+  ItemsRefusal,
+} from "./items-depart.js";
+export type {
+  CompleteItemsReturnOutcome,
+  ItemReturnStatus,
+  ItemsReturnPreview,
+  ItemsReturnReceipt,
+  ItemsReturnRefusal,
+  OpenItemsReturnOutcome,
+  OpenedItemsReturn,
+  ReturningItem,
+} from "./items-return.js";
+export { isItemsBundle } from "./items-bundle.js";
+export { cannotBeHidden } from "./items-depart.js";
 export type { TravelPlan, TravelPlanRefusal } from "./plan.js";
 export type { ClearRemnantsOutcome, TravelRemnant } from "./remnants.js";
 export type {
@@ -67,12 +104,6 @@ export type {
   ReturnStatus,
   ReturningVault,
 } from "./return.js";
-
-async function duressActive(): Promise<boolean> {
-  const { duressSessionFence } = await import("../duress/session/fence.js");
-  const fence = duressSessionFence.readFence();
-  return fence.activeIncidentIds.length > 0 || fence.retiredDevice;
-}
 
 const defaultDeps: TravelDeps = {
   storage: originTravelStorage,
@@ -162,4 +193,34 @@ export function travelRemnants(): Promise<TravelRemnant[]> {
 /** Clear those files; they can never be opened here. */
 export function clearTravelRemnants(): Promise<ClearRemnantsOutcome> {
   return clearRemnants(travelSeams.deps);
+}
+
+/** Seal chosen items of the open vault into a bundle. Removes nothing (ADR 0171). */
+export function packTravelItemDeparture(ids: readonly string[]) {
+  return packItemDeparture(travelItemSeams.deps, {
+    ids,
+  }) satisfies Promise<ItemsPackOutcome>;
+}
+
+/** Take the packed items out of the open vault once both halves are elsewhere. */
+export function hideItemsForTravel(
+  pkg: ItemsPackage,
+  ack: { bundleSaved: boolean; codeRecorded: boolean },
+): Promise<ItemsCompleteOutcome> {
+  return completeItemDeparture(travelItemSeams.deps, pkg, ack);
+}
+
+/** Open an items bundle with its return code and say what would come back. */
+export function openTravelItemsReturn(input: {
+  bundleJson: string;
+  returnCode: string;
+}): Promise<OpenItemsReturnOutcome> {
+  return openItemsReturn(travelItemSeams.deps, input);
+}
+
+/** Put the items back into the open vault, as they left. */
+export function returnItemsFromTravel(
+  opened: OpenedItemsReturn,
+): Promise<CompleteItemsReturnOutcome> {
+  return completeItemsReturn(travelItemSeams.deps, opened);
 }

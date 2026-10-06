@@ -3473,6 +3473,33 @@
     }
   },
   {
+    "id": "vault.health.security_check",
+    "title": "Check the vault's logins against known breaches and two-step sites",
+    "plane": "client_local",
+    "kind": "act",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/vault/security-checks.ts:runSecurityChecks",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "webmcp": {
+        "reason": "the check reads every login's password to hash it and sends hash prefixes to a third party; only the person whose vault it is decides to run it",
+        "adr": "0080-security-event-hooks.md"
+      },
+      "mcp_host": {
+        "reason": "the check reads every login's password to hash it and sends hash prefixes to a third party; only the person whose vault it is decides to run it",
+        "adr": "0080-security-event-hooks.md"
+      },
+      "mcp_client": {
+        "reason": "the check reads every login's password to hash it and sends hash prefixes to a third party; only the person whose vault it is decides to run it",
+        "adr": "0080-security-event-hooks.md"
+      }
+    }
+  },
+  {
     "id": "agent_hooks.intercept",
     "title": "Answer an agent-hooks interception with a verdict: tool rules and the secret guard, and — with an approver configured — an escalation put to a person",
     "plane": "host",
@@ -4772,7 +4799,7 @@
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id vault sync",
       "pwa": "lib/tailnet-sync/observer.ts:pairTailnetDrive",
       "mcp_host": null,
       "mcp_client": null,
@@ -6371,7 +6398,7 @@
   },
   {
     "id": "vault.login_draft",
-    "title": "Read and fill the on-screen login editor (metadata only)",
+    "title": "Read and fill the on-screen account editor (metadata only: name, username, sites, method types; never a password, pepper or method secret)",
     "plane": "client_local",
     "kind": "act",
     "surfaces": {
@@ -6383,11 +6410,11 @@
     },
     "excluded": {
       "mcp_host": {
-        "reason": "the login editor is a browser form; headless MCP cannot fill it",
+        "reason": "the account editor is a browser form; headless MCP cannot fill it",
         "adr": "0065-agent-surface-parity.md"
       },
       "mcp_client": {
-        "reason": "the login editor is a browser form; headless MCP cannot fill it",
+        "reason": "the account editor is a browser form; headless MCP cannot fill it",
         "adr": "0065-agent-surface-parity.md"
       }
     }
@@ -6526,7 +6553,7 @@
   },
   {
     "id": "vault.item.create",
-    "title": "Create a vault item",
+    "title": "Create a vault item (an account, secret, note or card)",
     "plane": "client_local",
     "kind": "act",
     "surfaces": {
@@ -6553,7 +6580,7 @@
   },
   {
     "id": "vault.item.set",
-    "title": "Edit a vault item's name, username, or secret",
+    "title": "Edit a vault item's name, username, or secret (an account's login methods are edited in the Pages editor)",
     "plane": "client_local",
     "kind": "act",
     "surfaces": {
@@ -6575,6 +6602,37 @@
       "webmcp": {
         "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
         "adr": "0005-authority-handle-connectionref.md"
+      }
+    }
+  },
+  {
+    "id": "vault.account.pepper",
+    "title": "Type the earlier pepper (or Sphinx master input) that converts a password an older version made, once, into a stored one",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "route:/vault",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "cli": {
+        "reason": "a pepper is the person's own and never asked for or stored; the earlier pepper typed to convert an older password is a human act; an agent surface must not carry, accept, log or ask for one",
+        "adr": "0172-accounts-and-login-methods.md"
+      },
+      "mcp_host": {
+        "reason": "a pepper is the person's own and never asked for or stored; the earlier pepper typed to convert an older password is a human act; an agent surface must not carry, accept, log or ask for one",
+        "adr": "0172-accounts-and-login-methods.md"
+      },
+      "mcp_client": {
+        "reason": "a pepper is the person's own and never asked for or stored; the earlier pepper typed to convert an older password is a human act; an agent surface must not carry, accept, log or ask for one",
+        "adr": "0172-accounts-and-login-methods.md"
+      },
+      "webmcp": {
+        "reason": "a pepper is the person's own and never asked for or stored; the earlier pepper typed to convert an older password is a human act; an agent surface must not carry, accept, log or ask for one",
+        "adr": "0172-accounts-and-login-methods.md"
       }
     }
   },
@@ -6741,6 +6799,33 @@
       "webmcp": {
         "reason": "sending vaults off the device and bringing them home is the traveller's own decision; an agent in one open vault never moves tombs or holds a return code",
         "adr": "0143-travel-mode.md"
+      }
+    }
+  },
+  {
+    "id": "vaults.travel_items",
+    "title": "Travel mode: leave chosen items of the open vault at home in a bundle under a return code, and bring them back",
+    "plane": "client_local",
+    "kind": "ceremony",
+    "surfaces": {
+      "cli": null,
+      "pwa": "lib/travel/index.ts:packTravelItemDeparture",
+      "mcp_host": null,
+      "mcp_client": null,
+      "webmcp": null
+    },
+    "excluded": {
+      "mcp_host": {
+        "reason": "choosing which items leave an open vault for a trip, and bringing them back, is the traveller's own decision; an agent that could do either could strip a vault or undo the protection the traveller chose, and never holds a return code",
+        "adr": "0171-hide-items-while-traveling.md"
+      },
+      "mcp_client": {
+        "reason": "choosing which items leave an open vault for a trip, and bringing them back, is the traveller's own decision; an agent that could do either could strip a vault or undo the protection the traveller chose, and never holds a return code",
+        "adr": "0171-hide-items-while-traveling.md"
+      },
+      "webmcp": {
+        "reason": "choosing which items leave an open vault for a trip, and bringing them back, is the traveller's own decision; an agent that could do either could strip a vault or undo the protection the traveller chose, and never holds a return code",
+        "adr": "0171-hide-items-while-traveling.md"
       }
     }
   },
@@ -7082,7 +7167,7 @@
   },
   {
     "id": "vault.totp.code",
-    "title": "Read a current TOTP code (never the seed)",
+    "title": "Read a current TOTP code from an account (never the seed)",
     "plane": "client_local",
     "kind": "read",
     "surfaces": {

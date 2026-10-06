@@ -38,7 +38,7 @@ where
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case")]
 pub enum HandlerId {
-    Login,
+    Account,
     Passkey,
     Secret,
     Certificate,

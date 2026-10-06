@@ -11,21 +11,20 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 174,
-    "violations": 578,
+    "files": 171,
+    "violations": 571,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
       "anti-slop/no-conditional-empty-object-spread": 18,
       "anti-slop/no-known-value-widening": 205,
-      "anti-slop/no-module-mocking": 2,
       "anti-slop/no-object-parameters": 11,
       "anti-slop/no-reflect-get": 6,
       "anti-slop/no-runtime-typeof": 162,
       "anti-slop/no-shape-in-symbol-names": 13,
       "anti-slop/no-unknown-parameters": 34,
-      "anti-slop/no-unknown-returns": 3,
+      "anti-slop/no-unknown-returns": 2,
       "anti-slop/no-unsafe-dictionary-type": 12,
-      "anti-slop/require-safety-comment-for-type-assertion": 108
+      "anti-slop/require-safety-comment-for-type-assertion": 104
     }
   },
   "files": {
@@ -116,10 +115,6 @@
     "apps/pages/src/App.test.tsx": {
       "anti-slop/require-safety-comment-for-type-assertion": 3
     },
-    "apps/pages/src/bootstrap/boot.test.ts": {
-      "anti-slop/no-module-mocking": 1,
-      "anti-slop/require-safety-comment-for-type-assertion": 1
-    },
     "apps/pages/src/components/AppShell.route-fallback.test.tsx": {
       "anti-slop/no-known-value-widening": 1
     },
@@ -142,10 +137,6 @@
     },
     "apps/pages/src/lib/strip.ts": {
       "anti-slop/no-runtime-typeof": 2
-    },
-    "apps/pages/src/modules/agents.webmcp/runtime.test.tsx": {
-      "anti-slop/no-module-mocking": 1,
-      "anti-slop/require-safety-comment-for-type-assertion": 3
     },
     "apps/pages/src/modules/connectors.external/runtime.test.tsx": {
       "anti-slop/require-safety-comment-for-type-assertion": 2
@@ -586,9 +577,6 @@
     },
     "packages/ingress-evidence/src/fields.ts": {
       "anti-slop/require-safety-comment-for-type-assertion": 1
-    },
-    "packages/ingress-evidence/src/node.test.ts": {
-      "anti-slop/no-unknown-returns": 1
     },
     "packages/ingress-evidence/src/parse.ts": {
       "anti-slop/require-safety-comment-for-type-assertion": 3

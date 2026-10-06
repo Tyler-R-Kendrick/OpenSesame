@@ -9,7 +9,7 @@ use super::{
     now_rfc3339, stored_signing_access_record, stored_signing_event, validate_json_document,
     Context, Db, StoredSigningAccessRecord, StoredSigningEvent,
 };
-use crate::sealed::{open_opt, seal_opt};
+use crate::sealed::{open_opt_in, seal_opt_in};
 
 impl Db {
     /// # Errors
@@ -138,12 +138,12 @@ impl Db {
         .bind(&event.signer_id)
         .bind(&event.access_record_id)
         .bind(&event.outcome)
-        .bind(seal_opt("signing_events.command", event.command.as_deref()))
+        .bind(seal_opt_in(&event.organization_id, "signing_events.command", &event.id, event.command.as_deref()))
         .bind(&event.application_name)
         .bind(&event.application_sha256)
-        .bind(seal_opt("signing_events.hostname", event.hostname.as_deref()))
-        .bind(seal_opt("signing_events.os_username", event.os_username.as_deref()))
-        .bind(seal_opt("signing_events.ip", event.ip.as_deref()))
+        .bind(seal_opt_in(&event.organization_id, "signing_events.hostname", &event.id, event.hostname.as_deref()))
+        .bind(seal_opt_in(&event.organization_id, "signing_events.os_username", &event.id, event.os_username.as_deref()))
+        .bind(seal_opt_in(&event.organization_id, "signing_events.ip", &event.id, event.ip.as_deref()))
         .bind(&event.data_hash)
         .bind(&event.occurred_at)
         .bind(event.version)
@@ -172,10 +172,30 @@ impl Db {
         rows.iter()
             .map(|row| {
                 let mut event = stored_signing_event(row);
-                event.command = open_opt("signing_events.command", event.command)?;
-                event.hostname = open_opt("signing_events.hostname", event.hostname)?;
-                event.os_username = open_opt("signing_events.os_username", event.os_username)?;
-                event.ip = open_opt("signing_events.ip", event.ip)?;
+                event.command = open_opt_in(
+                    &event.organization_id,
+                    "signing_events.command",
+                    &event.id,
+                    event.command,
+                )?;
+                event.hostname = open_opt_in(
+                    &event.organization_id,
+                    "signing_events.hostname",
+                    &event.id,
+                    event.hostname,
+                )?;
+                event.os_username = open_opt_in(
+                    &event.organization_id,
+                    "signing_events.os_username",
+                    &event.id,
+                    event.os_username,
+                )?;
+                event.ip = open_opt_in(
+                    &event.organization_id,
+                    "signing_events.ip",
+                    &event.id,
+                    event.ip,
+                )?;
                 Ok(event)
             })
             .collect()

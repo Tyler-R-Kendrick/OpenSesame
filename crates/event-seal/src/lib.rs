@@ -7,17 +7,15 @@
 //! under a key derived from the Host sealing key, with the table and column in
 //! the associated data so a value moved to another column does not open.
 //!
-//! A sealed value is a text string, `osev1.` + base64url(24-byte nonce ‖
-//! XChaCha20-Poly1305 ciphertext and tag), so the schema, the migrations and
-//! every query that does not read the value stay as they were.
+//! New values use `osev2.` envelopes: a random data key encrypts each value,
+//! and a purpose- and customer-derived key wraps that data key. The base64url
+//! body is wrap nonce (24), wrapped DEK (48), data nonce (24), ciphertext/tag.
+//! Both AEAD operations authenticate the customer and column/record context. Legacy
+//! `osev1.` values remain readable. The default process sealer serves deployment
+//! events; customer vault events should use an explicit customer sealer.
 //!
-//! There is one sealer for the process, installed once at start-up
-//! ([`install`]). Free functions inside transactions write these rows, and a
-//! sealer plumbed through every call would ripple through all of them; the Host
-//! is one process with one database and one key. With none installed (tests,
-//! an in-memory development database) [`seal`] returns its input and [`open`]
-//! accepts plaintext, which is also what lets a value an older build left in the
-//! clear read as it is until [`is_sealed`] says the sweep has reached it.
+//! Without an installed sealer, writes remain plaintext for development and
+//! legacy plaintext reads remain supported. Recognized sealed values fail closed.
 
 use std::sync::{Arc, PoisonError, RwLock};
 
@@ -30,7 +28,10 @@ use sha2::Sha256;
 use zeroize::Zeroizing;
 
 /// Every sealed value starts with this.
-pub const PREFIX: &str = "osev1.";
+pub const PREFIX: &str = "osev2.";
+const LEGACY_PREFIX: &str = "osev1.";
+const ENVELOPE_INFO: &[u8] = b"opensesame:event-seal:kek:v2";
+const WRAPPED_KEY_LEN: usize = 48;
 const KEY_INFO: &[u8] = b"opensesame:event-seal:v1";
 const NONCE_LEN: usize = 24;
 
@@ -50,7 +51,10 @@ impl std::error::Error for Unreadable {}
 
 /// The key events are sealed under, derived from the Host sealing key.
 pub struct EventSealer {
+    root: Zeroizing<[u8; 32]>,
     key: Zeroizing<[u8; 32]>,
+    wrapping_key: Zeroizing<[u8; 32]>,
+    context: Vec<u8>,
 }
 
 impl EventSealer {
@@ -63,7 +67,54 @@ impl EventSealer {
         Hkdf::<Sha256>::new(None, host_key)
             .expand(KEY_INFO, derived.as_mut())
             .expect("32 bytes is a valid HKDF-SHA256 output length");
-        Self { key: derived }
+        Self::with_context(host_key, derived, b"deployment")
+    }
+
+    /// Build a sealer for a trusted customer identifier and its root key.
+    ///
+    /// Distinct customer roots permit independent key custody and revocation.
+    /// Sharing a root derives distinct customer KEKs but retains shared root custody.
+    /// Legacy deployment values are deliberately refused by customer sealers.
+    ///
+    /// # Panics
+    ///
+    /// Never: HKDF-SHA256 can always produce 32 bytes.
+    #[must_use]
+    pub fn from_customer_key(customer_key: &[u8; 32], customer_id: &str) -> Self {
+        let mut context = b"customer:".to_vec();
+        context.extend_from_slice(customer_id.as_bytes());
+        Self::with_context(customer_key, Zeroizing::new([0; 32]), &context)
+    }
+
+    fn with_context(root: &[u8; 32], key: Zeroizing<[u8; 32]>, context: &[u8]) -> Self {
+        let mut wrapping_key = Zeroizing::new([0u8; 32]);
+        let mut info = ENVELOPE_INFO.to_vec();
+        info.extend_from_slice(context);
+        Hkdf::<Sha256>::new(None, root)
+            .expand(&info, wrapping_key.as_mut())
+            .expect("32 bytes is a valid HKDF-SHA256 output length");
+        Self {
+            root: Zeroizing::new(*root),
+            key,
+            wrapping_key,
+            context: context.to_vec(),
+        }
+    }
+
+    fn aad(&self, column: &str) -> Vec<u8> {
+        let mut aad = ENVELOPE_INFO.to_vec();
+        aad.extend_from_slice(&(self.context.len() as u64).to_be_bytes());
+        aad.extend_from_slice(&self.context);
+        aad.extend_from_slice(column.as_bytes());
+        aad
+    }
+
+    fn wrapping_cipher(&self, column: &str) -> XChaCha20Poly1305 {
+        let mut purpose_key = Zeroizing::new([0u8; 32]);
+        Hkdf::<Sha256>::new(Some(ENVELOPE_INFO), self.wrapping_key.as_ref())
+            .expand(column.as_bytes(), purpose_key.as_mut())
+            .expect("32 bytes is a valid HKDF-SHA256 output length");
+        XChaCha20Poly1305::new(purpose_key.as_ref().into())
     }
 
     fn cipher(&self) -> XChaCha20Poly1305 {
@@ -77,18 +128,34 @@ impl EventSealer {
     /// Never in practice: encrypting a buffer cannot fail.
     #[must_use]
     pub fn seal(&self, column: &str, plaintext: &str) -> String {
+        let data_key = Zeroizing::new(<[u8; 32]>::from(XChaCha20Poly1305::generate_key(
+            &mut OsRng,
+        )));
+        let wrap_nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
         let nonce = XChaCha20Poly1305::generate_nonce(&mut OsRng);
-        let ciphertext = self
-            .cipher()
+        let aad = self.aad(column);
+        let wrapped_key = self
+            .wrapping_cipher(column)
+            .encrypt(
+                &wrap_nonce,
+                Payload {
+                    msg: data_key.as_slice(),
+                    aad: &aad,
+                },
+            )
+            .expect("encryption of event data key");
+        let ciphertext = XChaCha20Poly1305::new(data_key.as_ref().into())
             .encrypt(
                 &nonce,
                 Payload {
                     msg: plaintext.as_bytes(),
-                    aad: column.as_bytes(),
+                    aad: &aad,
                 },
             )
-            .expect("XChaCha20-Poly1305 encryption of an event value");
-        let mut packed = nonce.to_vec();
+            .expect("encryption of event value");
+        let mut packed = wrap_nonce.to_vec();
+        packed.extend_from_slice(&wrapped_key);
+        packed.extend_from_slice(&nonce);
         packed.extend_from_slice(&ciphertext);
         format!("{PREFIX}{}", URL_SAFE_NO_PAD.encode(packed))
     }
@@ -99,9 +166,23 @@ impl EventSealer {
     ///
     /// Returns [`Unreadable`] for a sealed value that does not authenticate.
     pub fn open(&self, column: &str, stored: &str) -> Result<String, Unreadable> {
-        let Some(body) = stored.strip_prefix(PREFIX) else {
-            return Ok(stored.to_owned());
+        if let Some(body) = stored.strip_prefix(PREFIX) {
+            return self.open_envelope(column, body);
+        }
+        let Some(body) = stored.strip_prefix(LEGACY_PREFIX) else {
+            return if is_sealed(stored) {
+                Err(Unreadable {
+                    column: column.to_owned(),
+                })
+            } else {
+                Ok(stored.to_owned())
+            };
         };
+        if self.context != b"deployment" {
+            return Err(Unreadable {
+                column: column.to_owned(),
+            });
+        }
         let unreadable = || Unreadable {
             column: column.to_owned(),
         };
@@ -110,17 +191,54 @@ impl EventSealer {
             return Err(unreadable());
         }
         let (nonce, ciphertext) = packed.split_at(NONCE_LEN);
-        let plain = self
-            .cipher()
-            .decrypt(
-                XNonce::from_slice(nonce),
-                Payload {
-                    msg: ciphertext,
-                    aad: column.as_bytes(),
-                },
-            )
-            .map_err(|_| unreadable())?;
-        String::from_utf8(plain).map_err(|_| unreadable())
+        let plain = Zeroizing::new(
+            self.cipher()
+                .decrypt(
+                    XNonce::from_slice(nonce),
+                    Payload {
+                        msg: ciphertext,
+                        aad: column.as_bytes(),
+                    },
+                )
+                .map_err(|_| unreadable())?,
+        );
+        String::from_utf8(plain.to_vec()).map_err(|_| unreadable())
+    }
+
+    fn open_envelope(&self, column: &str, body: &str) -> Result<String, Unreadable> {
+        let unreadable = || Unreadable {
+            column: column.to_owned(),
+        };
+        let packed = URL_SAFE_NO_PAD.decode(body).map_err(|_| unreadable())?;
+        let header_len = NONCE_LEN + WRAPPED_KEY_LEN + NONCE_LEN;
+        if packed.len() < header_len + 16 {
+            return Err(unreadable());
+        }
+        let aad = self.aad(column);
+        let data_key = Zeroizing::new(
+            self.wrapping_cipher(column)
+                .decrypt(
+                    XNonce::from_slice(&packed[..NONCE_LEN]),
+                    Payload {
+                        msg: &packed[NONCE_LEN..NONCE_LEN + WRAPPED_KEY_LEN],
+                        aad: &aad,
+                    },
+                )
+                .map_err(|_| unreadable())?,
+        );
+        let plain = Zeroizing::new(
+            XChaCha20Poly1305::new_from_slice(&data_key)
+                .map_err(|_| unreadable())?
+                .decrypt(
+                    XNonce::from_slice(&packed[NONCE_LEN + WRAPPED_KEY_LEN..header_len]),
+                    Payload {
+                        msg: &packed[header_len..],
+                        aad: &aad,
+                    },
+                )
+                .map_err(|_| unreadable())?,
+        );
+        String::from_utf8(plain.to_vec()).map_err(|_| unreadable())
     }
 }
 
@@ -153,7 +271,7 @@ pub fn is_active() -> bool {
 /// Is `stored` already a sealed value?
 #[must_use]
 pub fn is_sealed(stored: &str) -> bool {
-    stored.starts_with(PREFIX)
+    stored.starts_with("osev")
 }
 
 /// Seal `plaintext` for `column`, or return it unchanged when no sealer is
@@ -161,6 +279,44 @@ pub fn is_sealed(stored: &str) -> bool {
 #[must_use]
 pub fn seal(column: &str, plaintext: &str) -> String {
     active().map_or_else(|| plaintext.to_owned(), |s| s.seal(column, plaintext))
+}
+
+/// Seal under the installed root's customer KEK, binding the trusted record ID.
+/// Customer identity must come from authorization/storage context, never ciphertext.
+#[must_use]
+pub fn seal_in(customer: &str, column: &str, record: &str, plaintext: &str) -> String {
+    active().map_or_else(
+        || plaintext.to_owned(),
+        |s| {
+            let scoped = EventSealer::from_customer_key(&s.root, customer);
+            scoped.seal(&scoped_column(column, record), plaintext)
+        },
+    )
+}
+
+fn scoped_column(column: &str, record: &str) -> String {
+    format!("{}:{column}{record}", column.len())
+}
+
+/// Open a customer envelope using trusted customer and record context.
+/// Legacy `osev1` values use the deployment key and column-only AAD for migration.
+///
+/// # Errors
+/// Returns [`Unreadable`] when a sealed value fails authentication.
+pub fn open_in(
+    customer: &str,
+    column: &str,
+    record: &str,
+    stored: &str,
+) -> Result<String, Unreadable> {
+    if !stored.starts_with(PREFIX) {
+        return open(column, stored);
+    }
+    let sealer = active().ok_or_else(|| Unreadable {
+        column: column.to_owned(),
+    })?;
+    EventSealer::from_customer_key(&sealer.root, customer)
+        .open(&scoped_column(column, record), stored)
 }
 
 /// [`seal`] for a value that may be absent.

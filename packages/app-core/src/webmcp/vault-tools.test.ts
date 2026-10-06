@@ -1,7 +1,9 @@
-import { type LoginItem, createItem } from "@opensesame/vault-core";
+import type { AccountItem } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { plainAccount } from "../lib/account.test-support.js";
 import { shareReachSeams } from "../lib/local-share-reach.js";
 import { vaultStore } from "../lib/vault/store.js";
+import { LOGIN_DRAFT_TOOLS } from "./login-tools.js";
 import { webmcpNavigationSeam } from "./navigation.js";
 import {
   OPEN_REVEAL_TOOL,
@@ -15,13 +17,11 @@ function tool(name: string) {
   return found;
 }
 
-function loginWithTotp(): LoginItem {
-  const item = createItem("login", "Bank");
-  item.totp = "JBSWY3DPEHPK3PXP";
-  return item;
+function loginWithTotp(): AccountItem {
+  return plainAccount("Bank", "hunter2", { totp: "JBSWY3DPEHPK3PXP" });
 }
 
-function openVault(items: LoginItem[]): void {
+function openVault(items: AccountItem[]): void {
   const snapshot = vaultStore.getSnapshot();
   vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
     ...snapshot,
@@ -127,5 +127,27 @@ describe("item-addressed vault tools honor share reach", () => {
         );
       }
     }
+  });
+});
+
+describe("the retired login name", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("still filters a search to accounts, and the draft tool keeps its id", async () => {
+    const item = loginWithTotp();
+    openVault([item]);
+    vi.spyOn(shareReachSeams, "resolveCurrentAccessRole").mockResolvedValue(
+      "operator",
+    );
+    vi.spyOn(shareReachSeams, "canAccess").mockReturnValue(true);
+    const found = await tool("opensesame_vault_search").execute({
+      kind: "login",
+    });
+    expect(JSON.stringify(found)).toContain(item.id);
+    expect(LOGIN_DRAFT_TOOLS.map((entry) => entry.name)).toEqual([
+      "opensesame_login_draft",
+    ]);
   });
 });

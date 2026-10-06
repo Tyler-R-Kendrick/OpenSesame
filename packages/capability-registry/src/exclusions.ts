@@ -25,12 +25,26 @@ export const ADR_DEVICE_VAULTS = "0089-device-vault-switching.md";
 export const ADR_PAGES_WITHOUT_HOST = "0128-pages-without-host.md";
 export const ADR_PAGES_CEREMONIES = "0140-pages-hosts-every-ceremony.md";
 export const ADR_TAILNET_SYNC = "0144-tailnet-vault-sync.md";
+export const ADR_ACCOUNTS = "0172-accounts-and-login-methods.md";
 export const ADR_TAILNET_DEVICES = "0169-tailnet-device-management.md";
 
 export const NEVER_AGENT_SECRET: CapabilityExclusion = {
   reason:
     "raw secret material must never transit agent context; agents hold ConnectionRefs only",
   adr: ADR_AUTHORITY_HANDLE,
+};
+
+/**
+ * A pepper is the person's own secret: no surface asks for one or stores one
+ * (ADR 0174). The one place an earlier pepper (or Sphinx master input) is typed
+ * is converting a password an older version sealed under it, once, and that is
+ * a human act. No agent surface may carry, accept or log one, and none may
+ * prompt for one.
+ */
+export const PEPPER_IS_HUMAN: CapabilityExclusion = {
+  reason:
+    "a pepper is the person's own and never asked for or stored; the earlier pepper typed to convert an older password is a human act; an agent surface must not carry, accept, log or ask for one",
+  adr: ADR_ACCOUNTS,
 };
 
 export const AUTH_CEREMONY: CapabilityExclusion = {
@@ -151,6 +165,13 @@ export const BITWARDEN_IMPORT_IS_HUMAN: CapabilityExclusion = {
 export const BREACH_CHECK_TAKES_A_SECRET: CapabilityExclusion = {
   reason:
     "the only route that accepts a secret value; an agent surface must never be the thing that carries one, even to have it vetted",
+  adr: ADR_SECURITY_EVENTS,
+};
+
+/** The Pages check reads every login's password; a person starts it, never an agent. */
+export const VAULT_CHECK_READS_PASSWORDS: CapabilityExclusion = {
+  reason:
+    "the check reads every login's password to hash it and sends hash prefixes to a third party; only the person whose vault it is decides to run it",
   adr: ADR_SECURITY_EVENTS,
 };
 

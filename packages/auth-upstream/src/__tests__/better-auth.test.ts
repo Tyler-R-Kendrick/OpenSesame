@@ -24,6 +24,19 @@ function baseOptions(sent: MagicLinkDelivery[] = []) {
 }
 
 describe("createUpstreamAuth", () => {
+  it("rejects durable storage without account secret encryption", () => {
+    expect(() =>
+      createUpstreamAuth({
+        ...baseOptions(),
+        mappingStore: new MemoryPrincipalMappingStore(),
+        database: {
+          drizzle: {},
+          schema: { user: {}, session: {}, account: {}, verification: {} },
+        },
+      }),
+    ).toThrow("requires account secret encryption");
+  });
+
   it("builds a Better Auth instance with email/password disabled", () => {
     const bundle = createUpstreamAuth({
       ...baseOptions(),

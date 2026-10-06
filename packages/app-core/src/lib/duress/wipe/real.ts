@@ -22,39 +22,42 @@ import {
 import { originTravelStorage } from "../../travel/storage.js";
 import { vaultStore } from "../../vault/store.js";
 import { lockTomb } from "../../vfs.js";
+import {
+  type BoundaryValue,
+  type JsonValue,
+  isJsonObject,
+} from "../json-boundary.js";
 import { wipeGuard } from "./guard.js";
 import { wipeIntentPending } from "./intent.js";
 import { type WipeDeps, resumeWipe, wipeDevice } from "./wipe.js";
 
-export const wipeSeams: { deps: WipeDeps } = {
-  deps: {
-    storage: originTravelStorage,
-    knownIds: () => listProjects().map((project) => project.id),
-    settle: kvFlush,
-    async exclusive(work) {
-      const locks = lockManager();
-      // The travel lock: a departure, a return and a wipe never interleave.
-      return locks ? locks.request("opensesame.travel", work) : work();
-    },
-    async afterRemoval(gone) {
-      // A vault opened earlier in the session keeps its key in memory.
-      for (const id of gone) lockTomb(id);
-      // The boot pointer never names a vault that is gone; the personal vault
-      // is the one the device always has. Written, not announced.
-      const boot: BootRecord = { v: 1, activeId: PERSONAL_PROJECT_ID };
-      await kvSetDurable(PROJECTS_KEY, JSON.stringify(boot));
-    },
-    now: () => new Date(),
+const deps: WipeDeps = {
+  storage: originTravelStorage,
+  knownIds: () => listProjects().map((project) => project.id),
+  settle: kvFlush,
+  async exclusive(work) {
+    const locks = lockManager();
+    // The travel lock: a departure, a return and a wipe never interleave.
+    return locks ? locks.request("opensesame.travel", work) : work();
   },
+  async afterRemoval(gone) {
+    // A vault opened earlier in the session keeps its key in memory.
+    for (const id of gone) lockTomb(id);
+    // The boot pointer never names a vault that is gone; the personal vault
+    // is the one the device always has. Written, not announced.
+    const boot: BootRecord = { v: 1, activeId: PERSONAL_PROJECT_ID };
+    await kvSetDurable(PROJECTS_KEY, JSON.stringify(boot));
+  },
+  now: () => new Date(),
 };
 
+export const wipeSeams = { deps };
+
 /** A plan body this build understands: `{ v: 1 }` and nothing else. */
-export function isWipeBody(body: unknown): boolean {
-  if (typeof body !== "object" || body === null || Array.isArray(body)) {
-    return false;
-  }
+export function isWipeBody(body: BoundaryValue): boolean {
+  if (!isJsonObject(body)) return false;
   const keys = Object.keys(body);
-  return keys.length === 1 && (body as { v?: unknown }).v === 1;
+  return keys.length === 1 && body.v === 1;
 }
 
 /** Bring the lists and the store up to what storage now holds. */
@@ -86,7 +89,7 @@ function syncAtNextTouch(): void {
 }
 
 /** The mode's runner. A body it does not understand does nothing at all. */
-export async function runWipeEffect(body: unknown): Promise<void> {
+export async function runWipeEffect(body: JsonValue): Promise<void> {
   if (!isWipeBody(body)) return;
   if (!wipeGuard.permits("runWipeEffect")) return;
   try {

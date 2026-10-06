@@ -73,7 +73,7 @@ export async function checkGatedSectionsAbsent(page, check) {
     "secret: the base kind is there with nothing chosen",
   );
   for (const kind of [
-    "login",
+    "account",
     "note",
     "card",
     "passkey",

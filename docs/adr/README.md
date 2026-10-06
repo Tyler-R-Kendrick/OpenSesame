@@ -212,3 +212,9 @@ looks arbitrary, the ADR it cites explains it.
 | [0168](0168-duress-modes-from-scenarios.md) | Duress modes, derived from the scenarios people meet | Accepted |
 | [0169](0169-tailnet-device-management.md) | Tailnet device management through the paired daemon | Accepted |
 | [0170](0170-gesture-loadout.md) | The keymap has two loadouts, and a phone leads with gestures | Accepted |
+| [0171](0171-hide-items-while-traveling.md) | Hide items while traveling | Accepted |
+| [0172](0172-accounts-and-login-methods.md) | Accounts own login methods; a password is one of them | Accepted |
+| [0173](0173-algorithmic-passwords-by-default.md) | Algorithmic passwords by default | Accepted |
+| [0174](0174-the-pepper-is-the-persons-and-passwords-are-produced-by-one-facade.md) | The pepper is the person's; one facade produces every password | Accepted |
+| [0175](0175-searchable-encryption-over-indexeddb.md) | Searchable encryption over IndexedDB | Accepted |
+| [0176](0176-ci-runs-what-a-diff-can-reach.md) | CI runs what a diff can reach, and a push to main runs everything | Accepted |

@@ -20,22 +20,22 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectVaultCommands } from "./vault/commands.test-support.js";
 import {
+  makeAccount,
   makeDrop,
-  makeLogin,
   makeNote,
 } from "./vault/section-items.test-support.js";
 
 import type {
+  AccountItem,
   DropItem,
   Folder,
-  LoginItem,
   NoteItem,
 } from "@opensesame/vault-core";
 import { createKeymapHandler } from "../lib/keymap.js";
 
 type VaultHarness = {
   current: {
-    items: Array<LoginItem | NoteItem | DropItem>;
+    items: Array<AccountItem | NoteItem | DropItem>;
     folders: Folder[];
     header: JsonObject | null;
   };
@@ -151,7 +151,7 @@ describe("VaultSection", () => {
 
   it("lists items as files with kind extensions and a status line", () => {
     vault.current = {
-      items: [makeLogin(), makeNote()],
+      items: [makeAccount(), makeNote()],
       folders: [],
       header: null,
     };
@@ -159,14 +159,14 @@ describe("VaultSection", () => {
     const rows = screen.getAllByRole("treeitem");
     expect(rows.map((row) => row.textContent)).toEqual([
       "Scratch pad.note",
-      "Webmail.login",
+      "Webmail.account",
     ]);
     expect(screen.getByText(/2\/2 · All items/)).toBeTruthy();
   });
 
   it("owns a visible cursor that the keymap moves", () => {
     vault.current = {
-      items: [makeLogin(), makeNote()],
+      items: [makeAccount(), makeNote()],
       folders: [],
       header: null,
     };
@@ -175,13 +175,13 @@ describe("VaultSection", () => {
     // The cursor lands on the first row without any input.
     expect(cursorRow().textContent).toBe("Scratch pad.note");
     press(handler, "j");
-    expect(cursorRow().textContent).toBe("Webmail.login");
+    expect(cursorRow().textContent).toBe("Webmail.account");
     // The status line follows the cursor with the tomb-rooted path.
-    expect(screen.getByText("personal:/Webmail.login")).toBeTruthy();
+    expect(screen.getByText("personal:/Webmail.account")).toBeTruthy();
     press(handler, "k");
     expect(cursorRow().textContent).toBe("Scratch pad.note");
     press(handler, "G");
-    expect(cursorRow().textContent).toBe("Webmail.login");
+    expect(cursorRow().textContent).toBe("Webmail.account");
     press(handler, "g");
     press(handler, "g");
     expect(cursorRow().textContent).toBe("Scratch pad.note");
@@ -191,9 +191,9 @@ describe("VaultSection", () => {
     vault.current = {
       items: [
         makeNote({ id: "a", name: "A note" }),
-        makeLogin({ id: "b", name: "B mail" }),
+        makeAccount({ id: "b", name: "B mail" }),
         makeNote({ id: "c", name: "C pad" }),
-        makeLogin({ id: "d", name: "D web" }),
+        makeAccount({ id: "d", name: "D web" }),
         makeNote({ id: "e", name: "E scratch" }),
       ],
       folders: [],
@@ -204,7 +204,7 @@ describe("VaultSection", () => {
     expect(cursorRow().textContent).toBe("A note.note");
     press(handler, "3");
     press(handler, "j");
-    expect(cursorRow().textContent).toBe("D web.login");
+    expect(cursorRow().textContent).toBe("D web.account");
     press(handler, "G");
     expect(cursorRow().textContent).toBe("E scratch.note");
     press(handler, "1");
@@ -214,7 +214,7 @@ describe("VaultSection", () => {
 
   it("shows a timer with the expiry on hover for items with temporality", () => {
     vault.current = {
-      items: [makeLogin(), makeDrop()],
+      items: [makeAccount(), makeDrop()],
       folders: [],
       header: null,
     };
@@ -228,7 +228,7 @@ describe("VaultSection", () => {
 
   it("narrows to the query the command bar left in the address, and Esc clears it", () => {
     vault.current = {
-      items: [makeLogin(), makeNote()],
+      items: [makeAccount(), makeNote()],
       folders: [],
       header: null,
     };
@@ -237,18 +237,18 @@ describe("VaultSection", () => {
     expect(screen.queryByLabelText("Search items")).toBeNull();
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
-    ).toEqual(["Webmail.login"]);
+    ).toEqual(["Webmail.account"]);
     expect(screen.getByText(/1\/2 · \/web/)).toBeTruthy();
     press(keymap(), "Escape");
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
-    ).toEqual(["Scratch pad.note", "Webmail.login"]);
+    ).toEqual(["Scratch pad.note", "Webmail.account"]);
   });
 
   it("matches a folder by name and keeps its whole directory", () => {
     vault.current = {
       items: [
-        makeLogin({ folderId: "f1" }),
+        makeAccount({ folderId: "f1" }),
         makeNote({ id: "itm_2", folderId: "f1" }),
       ],
       folders: [{ id: "f1", name: "Work", createdAt: "2026-08-01T00:00:00Z" }],
@@ -259,11 +259,11 @@ describe("VaultSection", () => {
     // of its children rather than vanishing from the tree.
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
-    ).toEqual(["Work/2", "Scratch pad.note", "Webmail.login"]);
+    ).toEqual(["Work/2", "Scratch pad.note", "Webmail.account"]);
   });
 
   it("returns no rows for a fruitless search", () => {
-    vault.current = { items: [makeLogin()], folders: [], header: null };
+    vault.current = { items: [makeAccount()], folders: [], header: null };
     renderSection("/vault?q=zzzzzz");
     expect(screen.queryAllByRole("treeitem")).toHaveLength(0);
     expect(screen.getByText(/-\/1 · \/zzzzzz/)).toBeTruthy();
@@ -271,7 +271,7 @@ describe("VaultSection", () => {
 
   it("filters to favorites", () => {
     vault.current = {
-      items: [makeLogin({ favorite: true }), makeNote()],
+      items: [makeAccount({ favorite: true }), makeNote()],
       folders: [],
       header: null,
     };
@@ -279,14 +279,14 @@ describe("VaultSection", () => {
     const rows = screen.getAllByRole("treeitem");
     expect(rows).toHaveLength(1);
     expect(rows[0]?.querySelector(".vtree__name")?.textContent).toBe(
-      "Webmail.login",
+      "Webmail.account",
     );
     expect(screen.getByText(/1\/2 · Favorites/)).toBeTruthy();
   });
 
   it("filters by kind", () => {
     vault.current = {
-      items: [makeLogin(), makeNote()],
+      items: [makeAccount(), makeNote()],
       folders: [],
       header: null,
     };
@@ -298,7 +298,7 @@ describe("VaultSection", () => {
 
   it("shows only trashed items under the trash filter", () => {
     vault.current = {
-      items: [makeLogin({ deletedAt: "2026-08-10T00:00:00Z" }), makeNote()],
+      items: [makeAccount({ deletedAt: "2026-08-10T00:00:00Z" }), makeNote()],
       folders: [],
       header: null,
     };
@@ -306,18 +306,18 @@ describe("VaultSection", () => {
     expect(screen.getByText(/1\/1 · Trash/)).toBeTruthy();
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
-    ).toEqual(["Webmail.login"]);
+    ).toEqual(["Webmail.account"]);
   });
 
   it("shows the trash empty state", () => {
-    vault.current = { items: [makeLogin()], folders: [], header: null };
+    vault.current = { items: [makeAccount()], folders: [], header: null };
     renderSection("/vault?f=trash");
     expect(screen.getByText("Trash is empty")).toBeTruthy();
   });
 
   it("filters to a folder", () => {
     vault.current = {
-      items: [makeLogin({ folderId: "fld_1" }), makeNote()],
+      items: [makeAccount({ folderId: "fld_1" }), makeNote()],
       folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
       header: null,
     };
@@ -325,24 +325,24 @@ describe("VaultSection", () => {
     expect(screen.getByText(/1\/2 · Folder/)).toBeTruthy();
     expect(
       screen.getAllByRole("treeitem").map((row) => row.textContent),
-    ).toEqual(["Webmail.login"]);
+    ).toEqual(["Webmail.account"]);
   });
 
   it("puts the cursor on the open item", () => {
     vault.current = {
-      items: [makeLogin({ favorite: true }), makeNote()],
+      items: [makeAccount({ favorite: true }), makeNote()],
       folders: [],
       header: null,
     };
     renderSection("/vault/itm_1?f=favorites");
     expect(screen.getByText("detail pane")).toBeTruthy();
     expect(cursorRow().id).toBe("vtree-row-itm_1");
-    expect(screen.getByText("personal:/Webmail.login")).toBeTruthy();
+    expect(screen.getByText("personal:/Webmail.account")).toBeTruthy();
   });
 
   it("moves browser focus into the tree after collapse state is restored", async () => {
     vault.current = {
-      items: [makeLogin()],
+      items: [makeAccount()],
       folders: [],
       header: null,
     };
@@ -355,7 +355,7 @@ describe("VaultSection", () => {
 
   it("shows the favorite marker on a row", () => {
     vault.current = {
-      items: [makeLogin(), makeNote({ favorite: true })],
+      items: [makeAccount(), makeNote({ favorite: true })],
       folders: [],
       header: null,
     };
@@ -365,7 +365,7 @@ describe("VaultSection", () => {
 
   it("routes the new verb to the active item-kind ceremony", () => {
     for (const kind of [
-      "login",
+      "account",
       "passkey",
       "card",
       "secret",
@@ -373,7 +373,7 @@ describe("VaultSection", () => {
       "note",
       "certificate",
     ]) {
-      vault.current = { items: [makeLogin()], folders: [], header: null };
+      vault.current = { items: [makeAccount()], folders: [], header: null };
       const view = renderSection(`/vault?f=${kind}`);
       // Non-empty filters carry the path-strip verb; empty ones offer the
       // same kind through the empty state's New item link.
@@ -387,7 +387,7 @@ describe("VaultSection", () => {
 
   it("keyboard movement previews the item it lands on", () => {
     vault.current = {
-      items: [makeLogin(), makeNote()],
+      items: [makeAccount(), makeNote()],
       folders: [],
       header: null,
     };
@@ -400,7 +400,7 @@ describe("VaultSection", () => {
 
   it("never yanks the pane while an editor owns it", () => {
     vault.current = {
-      items: [makeLogin(), makeNote()],
+      items: [makeAccount(), makeNote()],
       folders: [],
       header: null,
     };
@@ -422,22 +422,20 @@ describe("VaultSection", () => {
   });
 
   it("routes focused-item keys through the existing vault actions", () => {
-    const item = makeLogin();
+    const item = makeAccount();
     vault.current = { items: [item], folders: [], header: null };
     renderSection();
     const handler = keymap();
 
-    press(handler, "y");
     press(handler, ".");
     press(handler, "x");
 
-    expect(copySecret).toHaveBeenCalledWith(item.password);
     expect(store.toggleFavorite).toHaveBeenCalledWith(item.id);
     expect(store.trashItem).toHaveBeenCalledWith(item.id);
   });
 
   it("offers the row actions menu as a pointer twin of the verbs", () => {
-    const item = makeLogin();
+    const item = makeAccount();
     vault.current = { items: [item], folders: [], header: null };
     renderSection();
     fireEvent.click(
@@ -450,7 +448,7 @@ describe("VaultSection", () => {
 
   it("folders render as directories, expanded until collapsed by hand", async () => {
     vault.current = {
-      items: [makeLogin({ folderId: "fld_1" })],
+      items: [makeAccount({ folderId: "fld_1" })],
       folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
       header: null,
     };
@@ -470,7 +468,7 @@ describe("VaultSection", () => {
 
   it("restores the persisted collapse set per tomb", async () => {
     vault.current = {
-      items: [makeLogin({ folderId: "fld_1" })],
+      items: [makeAccount({ folderId: "fld_1" })],
       folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
       header: null,
     };
@@ -488,7 +486,7 @@ describe("VaultSection", () => {
 
   it("climbs and dives directories with h and l", async () => {
     vault.current = {
-      items: [makeLogin({ folderId: "fld_1" })],
+      items: [makeAccount({ folderId: "fld_1" })],
       folders: [{ id: "fld_1", name: "Work", createdAt: "2026-08-01" }],
       header: null,
     };
@@ -497,7 +495,7 @@ describe("VaultSection", () => {
     await waitFor(() => expect(cursorRow().textContent).toContain("Work"));
     // l on an expanded directory steps onto its first child.
     press(handler, "l");
-    expect(cursorRow().textContent).toBe("Webmail.login");
+    expect(cursorRow().textContent).toBe("Webmail.account");
     // h climbs back to the directory row.
     press(handler, "h");
     expect(cursorRow().textContent).toContain("Work");
@@ -535,7 +533,7 @@ describe("VaultWelcome", () => {
   it("states the seal and hands over the keys — no dashboard", () => {
     vault.current = {
       items: [
-        makeLogin({
+        makeAccount({
           totp: "JBSWY3DPEHPK3PXP",
           password: "X9!vQ2#mL8$pR4&zK7*wE1",
         }),
@@ -559,7 +557,7 @@ describe("VaultWelcome", () => {
 
   it("does not render password-health warnings in the vault pane", () => {
     vault.current = {
-      items: [makeLogin({ password: "letmein" })],
+      items: [makeAccount({ password: "letmein" })],
       folders: [],
       header: {},
     };
@@ -605,7 +603,7 @@ function renderWithHistory(entries: string[]) {
 describe("VaultSection — where the keyboard lands", () => {
   beforeEach(() => {
     vault.current = {
-      items: [makeLogin(), makeNote()],
+      items: [makeAccount(), makeNote()],
       folders: [],
       header: null,
     };

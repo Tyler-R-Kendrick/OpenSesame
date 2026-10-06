@@ -7,11 +7,20 @@
 # gate jobs always run and pass when their suite succeeded or was skipped
 # because the diff does not touch it (scripts/lib/ci-changed-areas.mjs).
 # A suite that runs tests the changed packages or crates and their
-# dependents (scripts/lib/ci-affected-tests.mjs), not the whole workspace.
+# dependents (scripts/lib/ci-affected-tests.mjs), and of those the tests the
+# diff reaches (scripts/lib/ci-scoped-tests.mjs), not the whole workspace. A
+# push to main, or a manual run, has no diff and runs everything.
 name: CI
 
 on:
   pull_request:
+  # A merged diff runs whole: a pull request runs only what its diff can reach
+  # (the changed-areas and affected-tests scripts fall back to every area, every
+  # gate and every package when they are given no base to diff against), so this
+  # run is what proves the scoping dropped nothing.
+  push:
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -33,6 +42,12 @@ jobs:
       "rust": ${{ steps.areas.outputs.rust }}
       mtls: ${{ steps.areas.outputs.mtls }}
       "push": ${{ steps.areas.outputs.push }}
+      # The browser gates this diff reaches (scripts/lib/ci-gates.mjs): the
+      # bundle job's legs as a matrix, and the gates that are jobs of their own.
+      bundle_matrix: ${{ steps.areas.outputs.bundle_matrix }}
+      tutorials: ${{ steps.areas.outputs.tutorials }}
+      device_inbox: ${{ steps.areas.outputs.device_inbox }}
+      device_identity: ${{ steps.areas.outputs.device_identity }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -40,6 +55,7 @@ jobs:
           # The classifier diffs the pull request against its merge base.
           fetch-depth: 0
       - name: Verify merge-required commit signatures
+        if: github.event_name == 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
@@ -128,43 +144,35 @@ jobs:
         # One block across the experience packages. It runs when the
         # affected set includes any of them.
         if: steps.affected.outputs.verify_experience == 'true'
+        # Only the blocks of the experience packages the diff reached.
+        env:
+          EXPERIENCE_PACKAGES: ${{ steps.affected.outputs.verify_packages }}
         run: pnpm verify:experience
 
   bundle:
-    # Shards of one job, run in parallel: each builds Pages (about a minute) and
-    # walks its own gates. One serial job grew to the whole twenty minutes, then
-    # past them (a run on #717 took 19m52s, the next on #718 was cancelled at
-    # the limit with every walk passing), because each journey added lengthened
-    # it. The slowest gate, `verify:mobile`, is split by viewport (MOBILE_SIZES).
-    # Every gate named below runs in exactly one shard (the workflow test
-    # `ci-bundle-shards.test.mjs` fails on one that runs in none or in two), and
-    # `bundle-check` reads this job's result across all shards, so a failed
-    # shard fails the required "Bundle budgets" check.
+    # Shards of one job, run in parallel, and only the ones the diff reaches:
+    # `changes` writes the matrix (`bundle_matrix`) from the shard list in
+    # `scripts/lib/ci-bundle-shards.json`, narrowed by `scripts/lib/ci-gates.mjs`
+    # to the gates the changed files can break. A stylesheet starts the budget
+    # and phone shards; a settings panel starts the walks that open it; a docs
+    # or test-only diff starts none. A path the rules cannot place starts every
+    # shard. Each shard builds Pages (without the typecheck, which the
+    # TypeScript job owns) and walks its own gates. Every gate named below runs
+    # in exactly one shard (`ci-bundle-shards.test.mjs` fails on one that runs
+    # in none or in two), and `bundle-check` reads this job's result across the
+    # shards that ran, so a failed shard fails the required "Bundle budgets"
+    # check and a diff that needed none passes it.
     name: Bundle budget tests (${{ matrix.shard }})
     needs: changes
-    if: needs.changes.outputs.bundle == 'true'
+    if: needs.changes.outputs.bundle_matrix != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
+      # The legs are listed once, in scripts/lib/ci-bundle-shards.json; `changes`
+      # writes the ones this diff reaches (scripts/lib/ci-gates.mjs).
       matrix:
-        include:
-          - shard: budgets
-          - shard: keyboard
-          - shard: sign-in
-          - shard: static
-          - shard: auth
-          - shard: journeys
-          # One phone each (about a minute and three quarters apiece); the
-          # tablets walk in half a minute and ride with the first.
-          - shard: mobile-320
-            sizes: "320,tablet-portrait,tablet-landscape"
-          - shard: mobile-390
-            sizes: "390"
-          - shard: mobile-430
-            sizes: "430"
-          - shard: mobile-landscape
-            sizes: "landscape"
+        include: ${{ fromJSON(needs.changes.outputs.bundle_matrix) }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -180,7 +188,7 @@ jobs:
         if: matrix.shard != 'budgets'
         env:
           VITE_BASE: /OpenSesame/
-        run: pnpm exec turbo run build --filter=@opensesame/pages
+        run: node scripts/lib/ci-pages-build.mjs
       - name: Build and measure shipped bundles
         if: matrix.shard == 'budgets'
         # apps/pages precaches its whole dist for offline use, so growth here is
@@ -189,7 +197,7 @@ jobs:
         # module reachable from an entry (ADR 0130), and the gate measures them
         # only when their dist-profiles directory exists.
         run: |
-          pnpm exec turbo run build --filter=@opensesame/pages
+          node scripts/lib/ci-pages-build.mjs
           for profile in minimal-local family-local; do
             VITE_BASE=/OpenSesame/ pnpm --filter @opensesame/pages build:profile \
               --profile "capability-profiles/$profile.json" --mode hardened
@@ -275,6 +283,17 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:static
+      - name: Encrypted search in the built app
+        if: matrix.shard == 'static'
+        # ADR 0175: with the capability on, retiring a password writes only an
+        # encrypted database. A sweep of every record of every database finds
+        # no item id, no store, index or field name, and no digest; the sealed
+        # database the capability replaced was readable until it was switched
+        # on, and is gone; a password retired before the switch is still found.
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:encrypted-search
       - name: Unlock methods and second steps
         if: matrix.shard == 'auth'
         # ADR 0091: key first, then scan, then a code; lock → PIN → code.
@@ -282,17 +301,24 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
         run: pnpm --filter @opensesame/pages verify:auth
+      - name: Customer vault and file envelopes in real WebCrypto
+        if: matrix.shard == 'customer-crypto'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+        run: pnpm verify:customer-vault-browser
       - name: Experience journeys
-        if: matrix.shard == 'journeys'
+        # Half the walks per leg (EXPERIENCE_SHARD), in turn, so each runs once.
+        if: startsWith(matrix.shard, 'journeys')
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
+          EXPERIENCE_SHARD: ${{ matrix.journeys }}
         run: node apps/pages/scripts/verify-experience-journeys.mjs
 
   device-inbox:
     name: Device inbox and local notifications
     needs: changes
-    if: needs.changes.outputs.bundle == 'true'
+    if: needs.changes.outputs.device_inbox == 'true'
     runs-on: ubuntu-latest
     # Its own job, so the bundle job's 20 minutes are not spent on it: a build
     # (about a minute) and the journey at two widths (about a minute). It is
@@ -312,7 +338,7 @@ jobs:
       - name: Build the static front end
         env:
           VITE_BASE: /OpenSesame/
-        run: pnpm exec turbo run build --filter=@opensesame/pages
+        run: node scripts/lib/ci-pages-build.mjs
       - name: Receipts, inbox and local notifications with no backend
         # ADR 0162: a request raised, shown on the tab and told to a second
         # tab, approved and refused with the keyboard and the passkey, every
@@ -330,8 +356,9 @@ jobs:
     # "Bundle budgets" check, so it gates merges without another required name.
     name: Web Push end to end
     needs: changes
-    # The Pages build (bundle) and the server code verify:push runs (push).
-    if: needs.changes.outputs.bundle == 'true' || needs.changes.outputs.push == 'true'
+    # The server code verify:push runs (the push area) and the changes the gate
+    # rules send to it (scripts/lib/ci-gates.mjs).
+    if: needs.changes.outputs.push == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -372,7 +399,7 @@ jobs:
     needs: changes
     # What it drives is the Pages build and the packages that build ships
     # (app-core, vault-core and what they depend on), which is the bundle area.
-    if: needs.changes.outputs.bundle == 'true'
+    if: needs.changes.outputs.device_identity == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -389,7 +416,7 @@ jobs:
       - name: Build Pages
         env:
           VITE_BASE: /OpenSesame/
-        run: pnpm exec turbo run build --filter=@opensesame/pages
+        run: node scripts/lib/ci-pages-build.mjs
       - name: Device is the Identity plane with no Identity API
         # ADR 0160: a guest on the static build, at desktop and phone widths.
         # The sign-out row appears only once the device has a session, the
@@ -405,7 +432,9 @@ jobs:
         run: pnpm --filter @opensesame/pages verify:device-identity
 
   tutorials-e2e:
-    # Its own job, one per width: every tutorial is walked end to end (the
+    # Its own job, one per width and third of the library (`TUTORIALS_SHARD`;
+    # the first third also walks Escape, the move and the gates, so every
+    # tutorial and pass runs in exactly one leg): every tutorial is walked end to end (the
     # shell's, each started, walked, gone back through, replayed and walked
     # again, and the gates', ADR 0166, each started from the help key its
     # screen draws). Measured locally that is about four minutes a width for
@@ -415,16 +444,17 @@ jobs:
     # the Bundle budget job's twenty minutes beside its builds and gates. `bundle-check` below folds the
     # result into the required "Bundle budgets" check, so it gates merges
     # without another required name.
-    name: Every tutorial, walked (${{ matrix.width }}px)
+    name: Every tutorial, walked (${{ matrix.width }}px, ${{ matrix.shard }})
     needs: changes
     # The Pages build, the app core and the guide runtime that build ships.
-    if: needs.changes.outputs.bundle == 'true'
+    if: needs.changes.outputs.tutorials == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
         width: [1280, 390]
+        shard: ["1/3", "2/3", "3/3"]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -439,7 +469,7 @@ jobs:
       - name: Build Pages
         env:
           VITE_BASE: /OpenSesame/
-        run: pnpm exec turbo run build --filter=@opensesame/pages
+        run: node scripts/lib/ci-pages-build.mjs
       - name: Every tutorial, walked end to end
         # ADR 0163: the Support sheet's Tutorials tab lists them, each is
         # started from its row and walked with Next alone at this width, on
@@ -455,6 +485,7 @@ jobs:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
           VITE_BASE: /OpenSesame/
           TUTORIALS_WIDTHS: ${{ matrix.width }}
+          TUTORIALS_SHARD: ${{ matrix.shard }}
         run: pnpm --filter @opensesame/pages verify:tutorials
 
   rust:
@@ -463,6 +494,11 @@ jobs:
     if: needs.changes.outputs.rust == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:

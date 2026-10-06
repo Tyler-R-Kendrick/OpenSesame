@@ -3,11 +3,12 @@
  *
  * The merge is what makes a dumb drive safe to sync through: it runs on the
  * device, it is deterministic (either argument order converges on the same
- * content), and it never loses a write — the newer copy of each item wins,
- * and a purge or a folder delete travels as a tombstone so the other side's
- * older copy cannot bring it back.
+ * content), and it never loses a write — each field of an item keeps the copy
+ * that changed it later (`item-merge.ts`), and a purge or a folder delete
+ * travels as a tombstone so the other side's older copy cannot bring it back.
  */
 import { mergeDeviceKeyFields } from "./device-key.js";
+import { changedAt, mergeItem } from "./item-merge.js";
 import type {
   Folder,
   InstalledItemTypes,
@@ -15,6 +16,8 @@ import type {
   VaultItem,
   VaultTombstones,
 } from "./model.js";
+import { normalizeVaultBody } from "./seal-open.js";
+import type { MasterWrap } from "./sync-model.js";
 
 /**
  * Tombstones kept per kind. Ids and times only, so this bounds the body at a
@@ -25,8 +28,19 @@ export const MAX_TOMBSTONES = 10_000;
 
 const TOMBSTONE_KINDS = ["items", "folders", "itemTypes"] as const;
 
-/** Deterministic, no-data-loss merge for two encrypted whole-vault snapshots. */
-export function mergeVaultBodies(left: VaultBody, right: VaultBody): VaultBody {
+/**
+ * Deterministic, no-data-loss merge for two encrypted whole-vault snapshots.
+ * Either side may still hold a legacy `login` (a device that has not opened
+ * its vault since ADR 0172); both are normalized first, so a login and the
+ * account another device made of it are one item with one set of methods and
+ * the newer copy of it wins as it always did.
+ */
+export function mergeVaultBodies(
+  leftBody: VaultBody,
+  rightBody: VaultBody,
+): VaultBody {
+  const left = normalizeVaultBody(leftBody);
+  const right = normalizeVaultBody(rightBody);
   const tombstones = mergeTombstones(left.tombstones, right.tombstones);
   const deadFolders = tombstones?.folders ?? {};
   const deadItems = tombstones?.items ?? {};
@@ -35,13 +49,14 @@ export function mergeVaultBodies(left: VaultBody, right: VaultBody): VaultBody {
     right,
     tombstones?.itemTypes ?? {},
   );
+  const masterWrap = laterWrap(left.masterWrap, right.masterWrap);
   const deviceIdentityKey = mergeDeviceKeyFields(
     left.deviceIdentityKey,
     right.deviceIdentityKey,
   );
   return {
     v: 1,
-    items: newest(left.items, right.items, itemVersion)
+    items: mergeItems(left.items, right.items)
       .filter((item) => !purgedSince(deadItems[item.id], item))
       .map((item) => rehomed(item, deadFolders)),
     folders: newest(left.folders, right.folders, folderVersion).filter(
@@ -51,8 +66,22 @@ export function mergeVaultBodies(left: VaultBody, right: VaultBody): VaultBody {
     ...(Object.keys(itemTypesAt).length > 0 ? { itemTypesAt } : undefined),
     ...(tombstones ? { tombstones } : undefined),
     ...(deviceIdentityKey ? { deviceIdentityKey } : undefined),
+    ...(masterWrap ? { masterWrap } : undefined),
     rev: Math.max(left.rev ?? 0, right.rev ?? 0),
   };
+}
+
+/** Union by id; two copies of one item merge field by field. */
+function mergeItems(
+  left: readonly VaultItem[],
+  right: readonly VaultItem[],
+): VaultItem[] {
+  const byId = new Map(left.map((item) => [item.id, item]));
+  for (const incoming of right) {
+    const current = byId.get(incoming.id);
+    byId.set(incoming.id, current ? mergeItem(current, incoming) : incoming);
+  }
+  return [...byId.values()];
 }
 
 /** Union by id; on a clash the larger version wins, so either order agrees. */
@@ -120,6 +149,16 @@ function laterInstall(
     : left;
 }
 
+/** The password set or removed last wins; content breaks a tie, so either order agrees. */
+function laterWrap(
+  left: MasterWrap | undefined,
+  right: MasterWrap | undefined,
+): MasterWrap | undefined {
+  if (!left || !right) return left ?? right;
+  const key = (wrap: MasterWrap) => `${wrap.at}\0${JSON.stringify(wrap)}`;
+  return key(right) > key(left) ? right : left;
+}
+
 /** An item whose folder was deleted anywhere moves to the root everywhere. */
 function rehomed(
   item: VaultItem,
@@ -132,7 +171,10 @@ function rehomed(
 
 /** True when both bodies hold the same vault, whatever their write counters say. */
 export function sameVaultContent(left: VaultBody, right: VaultBody): boolean {
-  return contentKey(left) === contentKey(right);
+  return (
+    contentKey(normalizeVaultBody(left)) ===
+    contentKey(normalizeVaultBody(right))
+  );
 }
 
 /** Record a purge or delete in a body's tombstones, returning the new set. */
@@ -145,16 +187,6 @@ export function withTombstone(
   const next = { ...current?.[kind] };
   for (const id of ids) next[id] = at;
   return cap({ ...current, [kind]: next });
-}
-
-function changedAt(item: VaultItem): string {
-  return item.deletedAt && item.deletedAt > item.updatedAt
-    ? item.deletedAt
-    : item.updatedAt;
-}
-
-function itemVersion(item: VaultItem): string {
-  return `${changedAt(item)}\0${JSON.stringify(item)}`;
 }
 
 /** A renamed folder carries when; one never renamed dates from its creation. */
@@ -213,5 +245,6 @@ function contentKey(body: VaultBody): string {
     sortedEntries(body.itemTypesAt),
     ...TOMBSTONE_KINDS.map((kind) => sortedEntries(body.tombstones?.[kind])),
     body.deviceIdentityKey ?? null,
+    body.masterWrap ?? null,
   ]);
 }

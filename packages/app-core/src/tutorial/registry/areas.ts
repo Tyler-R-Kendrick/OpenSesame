@@ -100,6 +100,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "host.health.check",
       "feature.item-types",
       "feature.environments",
+      "feature.security-checks",
     ],
   },
   {
@@ -127,6 +128,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "settings.backup",
       "settings.tailnet-sync",
       "feature.local-storage",
+      "feature.encrypted-search",
       "feature.cloud-secret-storage",
       "feature.password-managers",
     ],

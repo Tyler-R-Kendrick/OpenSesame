@@ -82,8 +82,22 @@ export type AuthenticatorPort = {
   readonly publicKeyCredential?: typeof PublicKeyCredential;
 };
 
+/**
+ * Chrome's Local Network Access permission for this page: whether a request
+ * to a private or loopback address (a tailnet drive, a local daemon) may go
+ * out, will wait on a prompt, or is refused. `unsupported` where the browser
+ * has no such permission and requests go out as before.
+ */
+export type LocalNetworkPermission =
+  | "granted"
+  | "prompt"
+  | "denied"
+  | "unsupported";
+
 /** What the device is doing: connectivity, activation, identification. */
 export type EnvironmentPort = {
+  /** The Local Network Access permission; absent where the host has none. */
+  localNetworkPermission?(): Promise<LocalNetworkPermission>;
   readonly online: boolean;
   onOnlineChange(listener: (online: boolean) => void): () => void;
   readonly userAgent: string;
@@ -128,6 +142,12 @@ export type WorkerConstructor = new (
   options?: WorkerOptions,
 ) => Worker;
 
+/** The two `IDBKeyRange` constructors the core uses. */
+export type KeyRangeFactory = {
+  only(value: IDBValidKey): IDBKeyRange;
+  bound(lower: IDBValidKey, upper: IDBValidKey): IDBKeyRange;
+};
+
 export type Ports = {
   readonly storage?: StoragePorts;
   readonly atRestKeys?: AtRestKeyPort;
@@ -142,6 +162,8 @@ export type Ports = {
   /** The origin-private file system root (`navigator.storage.getDirectory`). */
   readonly originFiles?: () => Promise<FileSystemDirectoryHandle>;
   readonly indexedDB?: IDBFactory;
+  /** Builds the key ranges an IndexedDB index is queried with. */
+  readonly keyRange?: KeyRangeFactory;
   /**
    * Resolves a peer hostname before a duress peer request. A host that
    * cannot resolve leaves this unset, and a name is then refused.
@@ -257,6 +279,13 @@ export function maybeEnvironment(): EnvironmentPort | undefined {
   return host().environment;
 }
 
+/** The Local Network Access permission; `unsupported` where the host has none. */
+export async function localNetworkPermission(): Promise<LocalNetworkPermission> {
+  return (
+    (await maybeEnvironment()?.localNetworkPermission?.()) ?? "unsupported"
+  );
+}
+
 /** Online unless the host says otherwise: a host with no network signal. */
 export function isOnline(): boolean {
   return maybeEnvironment()?.online ?? true;
@@ -313,6 +342,13 @@ export function openOwnedDatabase(
 
 export function maybeIndexedDatabases(): IDBFactory | undefined {
   return host().indexedDB;
+}
+
+/** The host's `IDBKeyRange`; throws where the host keeps none. */
+export function keyRanges(): KeyRangeFactory {
+  const factory = host().keyRange;
+  if (!factory) throw missing("IDBKeyRange");
+  return factory;
 }
 
 export function maybeCacheStorage(): CacheStorage | undefined {

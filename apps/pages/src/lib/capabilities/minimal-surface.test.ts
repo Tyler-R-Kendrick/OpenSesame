@@ -24,6 +24,8 @@ const SECTION_FLAGS = [
   "vault.passkey-records",
   "vault.certificate-records",
   "vault.environments",
+  "storage.encrypted-search",
+  "vault.security-checks",
 ] as const satisfies readonly CapabilityId[];
 
 describe("minimal surface", () => {
@@ -58,7 +60,7 @@ describe("minimal surface", () => {
       expect(plan.approvedModules, id).toContain(`${id}/runtime`);
     }
     expect(plan.approvedItemKinds).toContain("secret");
-    expect(plan.approvedItemKinds).toContain("login");
+    expect(plan.approvedItemKinds).toContain("account");
     expect(plan.approvedItemKinds).toContain("passkey");
     expect(plan.approvedItemKinds).not.toContain("drop");
   });

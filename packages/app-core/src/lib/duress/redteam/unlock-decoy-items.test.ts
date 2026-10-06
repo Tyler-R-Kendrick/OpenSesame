@@ -13,6 +13,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { duressContinueSeams } from "../../../screens/unlock/unlock-duress-continue.js";
 import { unlockWithPasswordAfterDuressGate } from "../../../screens/unlock/unlock-password-duress.js";
+import { visiblePassword } from "../../account.test-support.js";
 import { forgetDeviceIdentityKeyInFlightForTests } from "../../device-identity-key.js";
 import { kvDelete, kvGet } from "../../kv.js";
 import { ATTEMPTS_KEY, VaultStore } from "../../vault/store.js";
@@ -58,7 +59,7 @@ function raw(tomb: string): readonly [string | null, string | null] {
 async function armedVault(items: string): Promise<VaultStore> {
   const store = new VaultStore();
   await store.create(PASSWORD);
-  await store.saveItem(createItem("login", OWN));
+  await store.saveItem(createItem("account", OWN));
   await store.flushPendingWrites();
   store.lock();
   await vfsFlush();
@@ -123,7 +124,7 @@ describe("decoy with everyday items, through unlock", () => {
     expect(open.items.map((item) => item.name)).not.toContain(OWN);
     // Ordinary items of an ordinary type, live and listed like any other.
     for (const item of open.items) {
-      expect(item.kind).toBe("login");
+      expect(item.kind).toBe("account");
       expect(item.deletedAt).toBeNull();
     }
     // The real tomb is byte-for-byte what it was: never read into, never written.
@@ -139,16 +140,20 @@ describe("decoy with everyday items, through unlock", () => {
     const items = store.getSnapshot().items;
     expect(items).toHaveLength(ITEMS.length);
     for (const item of items) {
-      if (item.kind !== "login") throw new Error("expected logins");
-      expect(item.password.length).toBeGreaterThanOrEqual(12);
-      expect(item.name).not.toContain(item.password);
-      expect(itemSubtitle(item)).not.toContain(item.password);
-      expect(searchMatches(item, item.password)).toBe(false);
+      if (item.kind !== "account") throw new Error("expected accounts");
+      const password = visiblePassword(item);
+      expect(password.length).toBeGreaterThanOrEqual(12);
+      expect(item.name).not.toContain(password);
+      expect(itemSubtitle(item)).not.toContain(password);
+      expect(searchMatches(item, password)).toBe(false);
       expect(searchMatches(item, item.name)).toBe(true);
     }
     expect(
-      new Set(items.flatMap((i) => (i.kind === "login" ? [i.password] : [])))
-        .size,
+      new Set(
+        items.flatMap((i) =>
+          i.kind === "account" ? [visiblePassword(i)] : [],
+        ),
+      ).size,
     ).toBe(ITEMS.length);
     store.lock();
   });
@@ -158,7 +163,9 @@ describe("decoy with everyday items, through unlock", () => {
     const passwords = () =>
       store
         .getSnapshot()
-        .items.map((item) => (item.kind === "login" ? item.password : ""));
+        .items.map((item) =>
+          item.kind === "account" ? visiblePassword(item) : "",
+        );
     await typeCode(store);
     const first = passwords();
     store.lock();
@@ -191,7 +198,7 @@ describe("decoy with everyday items, through unlock", () => {
     const shown = store
       .getSnapshot()
       .items.flatMap((item) =>
-        item.kind === "login" ? [item.name, item.password] : [],
+        item.kind === "account" ? [item.name, visiblePassword(item)] : [],
       );
     expect(shown).toHaveLength(ITEMS.length * 2);
     store.lock();
@@ -222,7 +229,7 @@ describe("decoy with everyday items, through unlock", () => {
     const store = new VaultStore();
     await store.createGuest();
     await store.enrollPin("48291037");
-    await store.saveItem(createItem("login", "Guest keeps this"));
+    await store.saveItem(createItem("account", "Guest keeps this"));
     await store.flushPendingWrites();
     store.lock();
     await vfsFlush();

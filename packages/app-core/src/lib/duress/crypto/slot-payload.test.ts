@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { fromB64 } from "./slot-bytes.js";
 import {
   MAX_SLOT_PAYLOAD_BYTES,
   createIndependentCompartmentKey,
@@ -87,5 +88,52 @@ describe("slot payload", () => {
     });
     expect(await openProfileSlot("87654321", slot, ctx)).toBeNull();
     expect(slot.ciphertextB64).not.toContain("wipe");
+  });
+
+  it("carries up to 64 KiB, the cap the visible-items plan needs, and refuses a byte more", async () => {
+    expect(MAX_SLOT_PAYLOAD_BYTES).toBe(65_536);
+    const payload = crypto.getRandomValues(
+      new Uint8Array(MAX_SLOT_PAYLOAD_BYTES),
+    );
+    const slot = await seal({
+      compartmentKey: createIndependentCompartmentKey(),
+      actionCapability: null,
+      presentation: "decoy",
+      payload,
+    });
+    const opened = await openProfileSlot("12345678", slot, ctx);
+    expect(opened?.presentation).toBe("decoy");
+    expect([...(opened?.payload ?? [])]).toEqual([...payload]);
+    await expect(
+      seal({
+        compartmentKey: createIndependentCompartmentKey(),
+        actionCapability: null,
+        presentation: "decoy",
+        payload: new Uint8Array(MAX_SLOT_PAYLOAD_BYTES + 1),
+      }),
+    ).rejects.toThrow(/too large/);
+  });
+
+  it("lays out a slot as it always did, whatever the cap: only a payload adds bytes", async () => {
+    const sealedLength = async (
+      payload: Uint8Array | undefined,
+    ): Promise<number> => {
+      const slot = await seal({
+        compartmentKey: new Uint8Array(32),
+        actionCapability: null,
+        presentation: "decoy",
+        payload,
+      });
+      return fromB64(slot.ciphertextB64).length;
+    };
+    // 4 + 32 key + 4 + 0 capability + "decoy", plus the 16-byte GCM tag.
+    const none = 4 + 32 + 4 + 0 + 5 + 16;
+    expect(await sealedLength(undefined)).toBe(none);
+    expect(await sealedLength(new Uint8Array(0))).toBe(none);
+    // A payload adds the NUL that ends the presentation and its own bytes.
+    expect(await sealedLength(new Uint8Array(10))).toBe(none + 1 + 10);
+    expect(await sealedLength(new Uint8Array(1500))).toBe(none + 1 + 1500);
+    // The 8 KiB plans of before still fit and read back unchanged.
+    expect(await sealedLength(new Uint8Array(8192))).toBe(none + 1 + 8192);
   });
 });

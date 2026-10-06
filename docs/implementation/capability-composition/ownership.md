@@ -59,7 +59,7 @@ and are the only definitions.
 | **S01** pure semantics | `packages/capability-composition/**` | `resolveComposition`, `explainCapability`, `reviewCompositionChange`, document parsers/validators, `exposureDigest`, `planDigest`, `receiptDigest`, `canonicalize`, reason codes, fixtures |
 | **S02** inventory | `packages/app-core/src/lib/capabilities/catalog.ts`, `ownership.ts`, `presets.ts`, `apps/pages/capability-profiles/*.json`, `packages/capability-registry/src/capability-map.ts` | descriptors, module ownership map, presets, profile fixtures, operation→capability map |
 | **S03** trust | `packages/app-core/src/lib/capabilities/trust/**` | policy envelope verification, provenance, join/import review, revision/rollback checks |
-| **S04** configuration resources | `packages/app-core/src/lib/configuration/capabilities-*.ts` | instance-policy / installation-selection / vault-restriction resources, Visual/Source/Effective round trips, export |
+| **S04** configuration resources | `packages/app-core/src/lib/configuration/capabilities-*.ts` | instance-policy / installation-selection / vault-restriction resources, file round trips, export |
 | **S05** bootstrap | `apps/pages/src/main.tsx`, `src/bootstrap/**`, `src/lib/runtime-config.ts`, `src/app-root.tsx` (the former `App.tsx` body) | core-only boot, parsed runtime config, core routes, unavailable/denied route |
 | **S06** loader/runtime | `packages/app-core/src/lib/capabilities/{store,loader,registry,authority,lease}.ts` | store, `loadApprovedModule`, `activateApprovedCapability`, registrars, `assertCurrentOperationAuthority`, `admitOperation` |
 | **S07** build | `apps/pages/scripts/capability-compose-plugin.mjs`, `scripts/build-profile.mjs`, `scripts/verify-capability-graph.mjs`, `vite.config.ts` (plugin wiring only), `tools/quality/bundle-budgets.json` (profile budgets) | virtual modules, hardened/selective builds, `dist/capability-graph.json`, `dist/capability-distribution.json`, forbidden-reachability gate |
@@ -264,7 +264,7 @@ installation, hydrated by the core boot.
 
 Core (`tier: "core"`, always present), 7: `shell.navigation` (the rail,
 routes, crumbs, command bar, keymap and statusline every other capability
-contributes into), `vault.passwords` (items, editor, login/note/card/secret
+contributes into), `vault.passwords` (items, editor, account/note/card/secret
 kinds, health), `vault.local-unlock` (password, PIN, passkey-PRF protectors
 and the second-step ceremony), `backup.local-encrypted` (encrypted file
 export/import/recovery), `identity.brokered-signin` (compiled-in broker +

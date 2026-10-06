@@ -28,17 +28,18 @@ import {
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import { withPassword } from "../../sections/vault/account.test-support.js";
 import { LiveHostPanel } from "./LiveHostPanel.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
 const SECRET = "correct horse battery staple";
-const github = createItem("login", "GitHub");
+const github = createItem("account", "GitHub");
 github.username = "octo";
-github.password = SECRET;
-const bank = createItem("login", "Bank");
-bank.password = "not shared";
+withPassword(github, SECRET);
+const bank = createItem("account", "Bank");
+withPassword(bank, "not shared");
 
 const originalHooks = { ...vaultHooksSeams };
 const originalLive = { ...liveSeams };

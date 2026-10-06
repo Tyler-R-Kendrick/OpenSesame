@@ -3,6 +3,7 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
+import { resolveTypeId } from "@opensesame/vault-item-types";
 import { maybeEnvironment } from "../../ports.js";
 import { detectLocalLanguageModel } from "../../tutorial/agents/prompt-api/detect.js";
 import {
@@ -52,10 +53,10 @@ export async function suggestDraftLabels(
     const text = await session.prompt(
       JSON.stringify({
         // Installed type IDs may themselves be private. Only closed categories leave the draft.
-        category: ["login", "secret", "note", "passkey"].includes(
-          context.typeId,
+        category: ["account", "secret", "note", "passkey"].includes(
+          resolveTypeId(context.typeId),
         )
-          ? context.typeId
+          ? resolveTypeId(context.typeId)
           : "item",
         website,
       }),

@@ -31,7 +31,9 @@ CLI, `opensesame` in [`apps/cli`](../../apps/cli).
 | `claim poll <claimId> --token <osc_clm_…>` | Poll a claim |
 | `agent init --anonymous [--name <name>]` | Register an anonymous agent |
 | `host health [--host <url>]`, `host discover [--host <url>]` | Host API health and discovery |
-| `vault verify <file>`, `vault ls <file>` | Open a vault export or offline backup |
+| `vault verify <file>`, `vault ls <file>` | Open a vault export or offline backup; lists `account` items (a legacy `login` file lists as `account`) by name and path, never a method secret |
+| `vault new <account\|secret\|note\|card> --name <n>` | Create an item (`login` is accepted as `account`). An account's password is typed here as a stored (`manual`) method; typing one over a method keeps where its pepper goes |
+| `vault copy <item> [--field secret\|rest\|username]` | Copy through the one password facade (ADR 0174): the whole password, or what comes before a pepper slot; `--field rest` copies what follows it. A pepper is never asked for or stored. A password an earlier version sealed under a pepper (`legacy_password`) is converted in the vault app |
 
 Global flags: `--json`, `--issuer <url>`, `--api <url>`, `--client-id <id>`.
 The library entry exports `runCli`, `parseArgs` and `helpText`.

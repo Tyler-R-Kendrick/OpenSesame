@@ -11,7 +11,7 @@ import {
   vi,
 } from "vitest";
 
-import type { LoginItem, VaultItem } from "@opensesame/vault-core";
+import type { AccountItem, VaultItem } from "@opensesame/vault-core";
 
 type VaultFixture = { current: { items: VaultItem[] } };
 
@@ -27,29 +27,23 @@ Object.assign(vaultHooksSeams, { useVault: () => vault.current });
 afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
 
 import { HealthPanel } from "./HealthPanel.js";
+import {
+  type AccountSeed,
+  makeAccount as makeAccountBase,
+} from "./account.test-support.js";
 
 let seq = 0;
 
-function makeLogin(overrides: Partial<LoginItem> = {}): LoginItem {
+function makeAccount(overrides: AccountSeed = {}): AccountItem {
   seq += 1;
-  return {
+  return makeAccountBase({
     id: `itm_${seq}`,
-    kind: "login",
-    name: `Login ${seq}`,
-    folderId: null,
-    favorite: false,
-    notes: "",
-    fields: [],
-    createdAt: "2026-08-01T00:00:00Z",
-    updatedAt: "2026-08-01T00:00:00Z",
-    deletedAt: null,
-    username: "me@example.com",
+    name: `Account ${seq}`,
     password: "correct horse battery staple 99!",
     totp: "JBSWY3DPEHPK3PXP",
-    uris: [],
     passwordChangedAt: new Date().toISOString(),
     ...overrides,
-  };
+  });
 }
 
 function renderPanel() {
@@ -74,15 +68,15 @@ describe("HealthPanel", () => {
     renderPanel();
     expect(screen.getByText("No passwords to review")).toBeTruthy();
     expect(
-      screen.getByRole("link", { name: /New login/i }).getAttribute("href"),
-    ).toBe("/vault/new/login");
+      screen.getByRole("link", { name: /New account/i }).getAttribute("href"),
+    ).toBe("/vault/new/account");
   });
 
-  it("ignores trashed and password-less logins", () => {
+  it("ignores trashed and password-less accounts", () => {
     vault.current = {
       items: [
-        makeLogin({ deletedAt: "2026-08-10T00:00:00Z" }),
-        makeLogin({ password: "" }),
+        makeAccount({ deletedAt: "2026-08-10T00:00:00Z" }),
+        makeAccount({ password: "" }),
       ],
     };
     renderPanel();
@@ -90,7 +84,7 @@ describe("HealthPanel", () => {
   });
 
   it("reports a fully clean vault", () => {
-    vault.current = { items: [makeLogin()] };
+    vault.current = { items: [makeAccount()] };
     renderPanel();
     expect(screen.getByText(/1 reviewed · 1 clean/)).toBeTruthy();
     expect(
@@ -98,18 +92,33 @@ describe("HealthPanel", () => {
     ).toBeTruthy();
   });
 
+  it("counts a password with a pepper slot as unchecked, never as clean or weak", () => {
+    const peppered = makeAccount({ id: "itm_pep", name: "Sealed" });
+    const method = peppered.methods[0];
+    if (method?.type !== "password") throw new Error("fixture");
+    vault.current = {
+      items: [
+        makeAccount(),
+        { ...peppered, methods: [{ ...method, pepper: true }] },
+      ],
+    };
+    renderPanel();
+    expect(screen.getByText(/1 reviewed · 1 clean/)).toBeTruthy();
+    expect(screen.getByText(/· 1 unchecked/)).toBeTruthy();
+  });
+
   it("flags weak, reused, old, and 2FA-less passwords", () => {
     const old = new Date(Date.now() - 400 * 86_400_000).toISOString();
     vault.current = {
       items: [
-        makeLogin({
+        makeAccount({
           id: "itm_a",
           name: "Webmail",
           password: "letmein",
           totp: "",
           passwordChangedAt: old,
         }),
-        makeLogin({
+        makeAccount({
           id: "itm_b",
           name: "Forum",
           password: "letmein",

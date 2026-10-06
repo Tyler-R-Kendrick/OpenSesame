@@ -332,13 +332,16 @@ async fn a_preset_is_applied_by_the_ordinary_put_and_reads_back_byte_for_byte() 
     assert_eq!(written.status, StatusCode::OK, "{}", written.body);
     assert_eq!(written.body["policy"], strict["policy"]);
     // The audit's digest is the one the listing publishes.
-    let audit: String =
-        sqlx::query_scalar("SELECT payload_json FROM outbox_events WHERE event_type = ?")
-            .bind(crate::agent_hooks::EVENT_POLICY_UPDATED)
-            .fetch_one(st.db.pool())
-            .await
+    let (id, organization, audit): (String, String, String) = sqlx::query_as(
+        "SELECT id, organization_id, payload_json FROM outbox_events WHERE event_type = ?",
+    )
+    .bind(crate::agent_hooks::EVENT_POLICY_UPDATED)
+    .fetch_one(st.db.pool())
+    .await
+    .unwrap();
+    let audit =
+        opensesame_event_seal::open_in(&organization, "outbox_events.payload_json", &id, &audit)
             .unwrap();
-    let audit = opensesame_event_seal::open("outbox_events.payload_json", &audit).unwrap();
     let audit: Value = serde_json::from_str(&audit).unwrap();
     assert_eq!(audit["policy_sha256"], strict["policy_sha256"]);
 }

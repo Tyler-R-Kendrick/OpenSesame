@@ -1,28 +1,28 @@
-import { overlapCast } from "@opensesame/os-domain";
 import {
+  type AccountItem,
   type Folder,
-  type LoginItem,
   type VaultItem,
   createItem,
+  passwordMethod,
 } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import { defaultMergeOptions, planMerge } from "./merge.js";
-import { type DraftItem, draftCard, draftLogin, draftNote } from "./types.js";
+import { type DraftItem, draftAccount, draftCard, draftNote } from "./types.js";
 
-function login(
+function account(
   name: string,
   username = "",
   folder: string | null = null,
 ): DraftItem {
-  const draft = draftLogin(name);
+  const draft = draftAccount(name);
   draft.username = username;
   draft.password = "hunter2";
   draft.folder = folder;
   return draft;
 }
 
-function existingLogin(name: string, username: string): LoginItem {
-  const item: LoginItem = overlapCast(createItem("login", name));
+function existingAccount(name: string, username: string): AccountItem {
+  const item = createItem("account", name);
   item.username = username;
   return item;
 }
@@ -30,7 +30,7 @@ function existingLogin(name: string, username: string): LoginItem {
 describe("planMerge", () => {
   it("gives every item and folder a fresh id", () => {
     const plan = planMerge(
-      [login("GitHub", "ada", "Work")],
+      [account("GitHub", "ada", "Work")],
       [],
       [],
       defaultMergeOptions,
@@ -48,7 +48,7 @@ describe("planMerge", () => {
       createdAt: "2024-01-01T00:00:00Z",
     };
     const plan = planMerge(
-      [login("GitHub", "ada", "work")],
+      [account("GitHub", "ada", "work")],
       [],
       [existing],
       defaultMergeOptions,
@@ -59,16 +59,16 @@ describe("planMerge", () => {
 
   it("creates each source folder once across many items", () => {
     const drafts = [
-      login("A", "a", "Work"),
-      login("B", "b", "Work"),
-      login("C", "c", "Home"),
+      account("A", "a", "Work"),
+      account("B", "b", "Work"),
+      account("C", "c", "Home"),
     ];
     const plan = planMerge(drafts, [], [], defaultMergeOptions);
     expect(plan.newFolders.map((f) => f.name).sort()).toEqual(["Home", "Work"]);
   });
 
   it("drops source folders when asked not to keep them", () => {
-    const plan = planMerge([login("GitHub", "ada", "Work")], [], [], {
+    const plan = planMerge([account("GitHub", "ada", "Work")], [], [], {
       ...defaultMergeOptions,
       keepFolders: false,
     });
@@ -77,7 +77,7 @@ describe("planMerge", () => {
   });
 
   it("funnels everything into one folder and records where each came from", () => {
-    const plan = planMerge([login("GitHub", "ada", "Work")], [], [], {
+    const plan = planMerge([account("GitHub", "ada", "Work")], [], [], {
       ...defaultMergeOptions,
       intoFolder: "From LastPass",
     });
@@ -88,9 +88,9 @@ describe("planMerge", () => {
   });
 
   it("skips an item the vault already holds", () => {
-    const existing: VaultItem[] = [existingLogin("GitHub", "ada")];
+    const existing: VaultItem[] = [existingAccount("GitHub", "ada")];
     const plan = planMerge(
-      [login("GitHub", "ada")],
+      [account("GitHub", "ada")],
       existing,
       [],
       defaultMergeOptions,
@@ -100,9 +100,9 @@ describe("planMerge", () => {
   });
 
   it("treats a different username on the same site as a separate account", () => {
-    const existing: VaultItem[] = [existingLogin("GitHub", "ada")];
+    const existing: VaultItem[] = [existingAccount("GitHub", "ada")];
     const plan = planMerge(
-      [login("GitHub", "bob")],
+      [account("GitHub", "bob")],
       existing,
       [],
       defaultMergeOptions,
@@ -112,8 +112,8 @@ describe("planMerge", () => {
   });
 
   it("reports duplicates but still imports them when told to", () => {
-    const existing: VaultItem[] = [existingLogin("GitHub", "ada")];
-    const plan = planMerge([login("GitHub", "ada")], existing, [], {
+    const existing: VaultItem[] = [existingAccount("GitHub", "ada")];
+    const plan = planMerge([account("GitHub", "ada")], existing, [], {
       ...defaultMergeOptions,
       skipDuplicates: false,
     });
@@ -123,7 +123,7 @@ describe("planMerge", () => {
 
   it("deduplicates within the file itself, not just against the vault", () => {
     const plan = planMerge(
-      [login("GitHub", "ada"), login("GitHub", "ada")],
+      [account("GitHub", "ada"), account("GitHub", "ada")],
       [],
       [],
       defaultMergeOptions,
@@ -132,10 +132,10 @@ describe("planMerge", () => {
   });
 
   it("does not count a trashed item as a duplicate", () => {
-    const trashed = existingLogin("GitHub", "ada");
+    const trashed = existingAccount("GitHub", "ada");
     trashed.deletedAt = "2024-01-01T00:00:00Z";
     const plan = planMerge(
-      [login("GitHub", "ada")],
+      [account("GitHub", "ada")],
       [trashed],
       [],
       defaultMergeOptions,
@@ -144,10 +144,10 @@ describe("planMerge", () => {
   });
 
   it("keeps source timestamps and falls back to now when there are none", () => {
-    const draft = login("GitHub", "ada");
+    const draft = account("GitHub", "ada");
     draft.createdAt = "2020-03-04T05:06:07.000Z";
     const plan = planMerge(
-      [draft, login("Other", "bob")],
+      [draft, account("Other", "bob")],
       [],
       [],
       defaultMergeOptions,
@@ -157,13 +157,13 @@ describe("planMerge", () => {
   });
 
   it("dates a password from the export rather than claiming it is brand new", () => {
-    const draft = draftLogin("GitHub");
+    const draft = draftAccount("GitHub");
     draft.username = "ada";
     draft.passwordChangedAt = "2019-01-01T00:00:00.000Z";
     const plan = planMerge([draft], [], [], defaultMergeOptions);
-    expect(overlapCast(plan.items[0]).passwordChangedAt).toBe(
-      "2019-01-01T00:00:00.000Z",
-    );
+    const landed = plan.items[0];
+    if (landed?.kind !== "account") throw new Error("expected account");
+    expect(passwordMethod(landed)?.changedAt).toBe("2019-01-01T00:00:00.000Z");
   });
 
   it("carries cards and notes across with their kind intact", () => {
@@ -176,7 +176,7 @@ describe("planMerge", () => {
   });
 
   it("names an item that arrived with no name", () => {
-    const plan = planMerge([login("")], [], [], defaultMergeOptions);
+    const plan = planMerge([account("")], [], [], defaultMergeOptions);
     expect(plan.items[0]?.name).toBe("Untitled");
   });
 });

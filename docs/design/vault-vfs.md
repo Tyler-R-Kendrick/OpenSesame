@@ -24,7 +24,7 @@ The canonical path space, mirroring the VFS tombs (ADR 0063):
 First-party, light-DOM, everything mono:
 
 - **Rows.** Directories first (trailing `/`, chevron, child count), then
-  root items; items are `name` + dimmed kind pseudo-extension: `.login`,
+  root items; items are `name` + dimmed kind pseudo-extension: `.account`,
   `.passkey`, `.card`, `.secret`, `.drop`, `.note`, `.cert`. Row order is
   the section's `sortItems` order per folder.
 - **Cursor.** One row is always the cursor (accent wash + hairline inset
@@ -44,7 +44,7 @@ First-party, light-DOM, everything mono:
 - **Decorations.** Drop expiry clock (`Expires …` title), favorite star. Pointer verbs live in a per-row `⋯` menu (Open,
   Favorite/Unfavorite, Share once on secrets, Edit, Trash).
 - **Status line.** Ranger-style `<output>`: focused tomb path left
-  (`personal:/Work/GitHub.login`), `visible/total · filter` right —
+  (`personal:/Work/GitHub.account`), `visible/total · filter` right —
   or `matches/total · /query` while searching.
 - Seams: `vaultTreeSeams = { activeTomb, loadCollapsed, saveCollapsed }`;
   tests drive the real DOM, not a model fake.
@@ -79,7 +79,7 @@ The rail renders the same filesystem one level up, mono:
 - Sections as directories: `vault/ 7 gv`, `connections/ gc`, `access/ ga`,
   `identity/ gi`, `settings/ gs` — count on vault, `g`-jump key chip on all.
 - The active section is the open directory. Under `vault/`: `all`,
-  `favorites`, kind views (`logins`, `passkeys`, `cards`, `secrets`,
+  `favorites`, kind views (`accounts`, `passkeys`, `cards`, `secrets`,
   `drops`, `notes`, `certs`), `trash`, the real folders (`Work/`),
   and `health`, each with live counts, indent-guided. Under `settings/`:
   the five categories.

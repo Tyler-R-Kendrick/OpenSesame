@@ -8,7 +8,7 @@
  */
 
 import { generateKeyPairSync } from "node:crypto";
-import type { Database } from "@opensesame/database";
+import type { Database, EventSealer } from "@opensesame/database";
 import { overlapCast } from "@opensesame/os-domain";
 import {
   InMemoryWalletRegistrationStore,
@@ -36,6 +36,7 @@ import type { WalletNativeMounts } from "./routes/wallet-native.js";
 import { createWalletRegistrationRoutes } from "./routes/wallet-registration.js";
 
 export interface ResolveWalletNativeMountsInput {
+  readonly sealer: EventSealer;
   readonly config: ControlPlaneConfig;
   readonly processEnv: NodeJS.ProcessEnv;
   readonly clock: () => Date;
@@ -71,8 +72,11 @@ function oid4vciStore<T>(
   database: Database | undefined,
   model: string,
   secretKeys: boolean,
+  sealer: EventSealer,
 ): SecurityMap<T> {
-  return database ? new DurableMap<T>(database, model, secretKeys) : new Map();
+  return database
+    ? new DurableMap<T>(database, model, secretKeys, 86_400_000, 10_000, sealer)
+    : new Map();
 }
 
 /**
@@ -96,7 +100,11 @@ export function resolveWalletNativeMounts(
     createWalletRegistrationRoutes({
       provider: createWalletLauncherProvider(input.processEnv),
       store: input.database
-        ? new DurableWalletRegistrationStore(input.database, input.clock)
+        ? new DurableWalletRegistrationStore(
+            input.database,
+            input.clock,
+            input.sealer,
+          )
         : new InMemoryWalletRegistrationStore(input.clock),
     }),
   );
@@ -113,7 +121,10 @@ export function resolveWalletNativeMounts(
         : undefined),
       ...(input.database
         ? {
-            sessionStore: new DurableOpenid4vpSessionStore(input.database),
+            sessionStore: new DurableOpenid4vpSessionStore(
+              input.database,
+              input.sealer,
+            ),
             // TTL is a GC backstop only; binding expiry uses bindingExpiresAt
             // so an overdue row still classifies as presentation_expired.
             pendingStore: new DurableMap(
@@ -121,40 +132,65 @@ export function resolveWalletNativeMounts(
               "OpenSesame:Openid4vpPending",
               false,
               15 * 60_000,
+              10_000,
+              input.sealer,
             ),
           }
         : undefined),
     });
   }
 
-  if (input.config.protocolFeatures.oid4vci) {
-    const issuer = input.config.issuer.replace(/\/$/, "");
-    mounts.openid4vciIssuer = createOpenid4vciRoutes({
-      issuer,
-      vct: OPENSESAME_VCT,
-      credentialConfigurationId: OPENSESAME_CREDENTIAL_CONFIGURATION_ID,
-      signing: { key: ephemeralIssuerKey(), algorithm: "ES256" },
-      subjectPepper: input.config.claimPepper,
-      credentialLifetimeSeconds: 86_400,
-      offerTtlSeconds: 300,
-      nonceTtlSeconds: 120,
-      accessTokenTtlSeconds: 120,
-      grants: new DurablePreAuthorizedCodeStore(
-        oid4vciStore(input.database, "OpenSesame:Oid4vciGrant", true),
-      ),
-      nonces: new DurableNonceStore(
-        oid4vciStore(input.database, "OpenSesame:Oid4vciNonce", true),
-        120,
-      ),
-      offers: new DurableOfferStore(
-        oid4vciStore(input.database, "OpenSesame:Oid4vciOffer", false),
-      ),
-      accessTokens: new DurableAccessTokenStore(
-        oid4vciStore(input.database, "OpenSesame:Oid4vciAccessToken", true),
-      ),
-      clock: input.clock,
-    });
-  }
+  if (input.config.protocolFeatures.oid4vci)
+    mounts.openid4vciIssuer = createIssuanceMount(input);
 
   return mounts;
+}
+
+function createIssuanceMount(input: ResolveWalletNativeMountsInput) {
+  const issuer = input.config.issuer.replace(/\/$/, "");
+  return createOpenid4vciRoutes({
+    issuer,
+    vct: OPENSESAME_VCT,
+    credentialConfigurationId: OPENSESAME_CREDENTIAL_CONFIGURATION_ID,
+    signing: { key: ephemeralIssuerKey(), algorithm: "ES256" },
+    subjectPepper: input.config.claimPepper,
+    credentialLifetimeSeconds: 86_400,
+    offerTtlSeconds: 300,
+    nonceTtlSeconds: 120,
+    accessTokenTtlSeconds: 120,
+    grants: new DurablePreAuthorizedCodeStore(
+      oid4vciStore(
+        input.database,
+        "OpenSesame:Oid4vciGrant",
+        true,
+        input.sealer,
+      ),
+    ),
+    nonces: new DurableNonceStore(
+      oid4vciStore(
+        input.database,
+        "OpenSesame:Oid4vciNonce",
+        true,
+        input.sealer,
+      ),
+      120,
+    ),
+    offers: new DurableOfferStore(
+      oid4vciStore(
+        input.database,
+        "OpenSesame:Oid4vciOffer",
+        false,
+        input.sealer,
+      ),
+    ),
+    accessTokens: new DurableAccessTokenStore(
+      oid4vciStore(
+        input.database,
+        "OpenSesame:Oid4vciAccessToken",
+        true,
+        input.sealer,
+      ),
+    ),
+    clock: input.clock,
+  });
 }

@@ -1,10 +1,7 @@
 import {
   type BoundaryObject,
   type BoundaryValue,
-  isNumber,
   isString,
-  isTypeofObject,
-  overlapCast,
 } from "@opensesame/os-domain";
 /**
  * Credential Exchange Format (CXF) import.
@@ -31,8 +28,10 @@ import {
  * `string`, `concealed-string`, `email`, `date`, and so on — `concealed-string`
  * is what marks a field the UI must not show in the clear.
  *
- * One item can hold several credentials, which is how a login with a second
- * factor is expressed: a `basic-auth` and a `totp` under one item. The mapping
+ * One item can hold several credentials, which is how an account with a second
+ * factor is expressed: a `basic-auth` and a `totp` under one item. An account
+ * (ADR 0172) maps each credential to a login method: `basic-auth` to a
+ * password, `totp` to an authenticator, `api-key` to an API-key method. The mapping
  * below therefore reads an item as a whole and decides its kind from the set
  * of credentials it carries, rather than emitting one draft per credential.
  */
@@ -43,17 +42,26 @@ import {
   type SkippedRecord,
   type TextImportAdapter,
   addField,
-  addUri,
+  draftAccount,
   draftCard,
-  draftLogin,
   draftNote,
   draftPasskey,
   draftSecret,
-  normaliseTotp,
-  toIso,
 } from "../types.js";
 
-import { CXF_EXTENSION, CXF_TYPES, urlToB64 } from "../../export/cxf.js";
+import { CXF_TYPES, urlToB64 } from "../../export/cxf.js";
+import { applyAccount } from "./cxf-account.js";
+import {
+  type Bucket,
+  arr,
+  fieldLabel,
+  fieldValue,
+  first,
+  obj,
+  ourExtension,
+  str,
+  timestamp,
+} from "./cxf-fields.js";
 
 /**
  * Exporters differ on casing — the specification's prose names the types
@@ -77,81 +85,6 @@ const TYPE_ALIASES = new Map([
   ["credit-card-number", CXF_TYPES.creditCard],
 ]);
 
-function obj(value: BoundaryValue): BoundaryObject | null {
-  return isTypeofObject(value) && value !== null && !Array.isArray(value)
-    ? overlapCast(value)
-    : null;
-}
-
-function arr(value: BoundaryValue): BoundaryValue[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function str(value: BoundaryValue): string {
-  return isString(value) ? value : "";
-}
-
-/** An `EditableField`, or a bare string where an exporter took the shortcut. */
-function fieldValue(value: BoundaryValue) {
-  if (isString(value)) return { text: value, hidden: false };
-  const row = obj(value);
-  if (row === null) return { text: "", hidden: false };
-  return {
-    text: str(row.value),
-    hidden: str(row.fieldType) === "concealed-string",
-  };
-}
-
-function fieldLabel(value: BoundaryValue, fallback: string): string {
-  const row = obj(value);
-  const label = row === null ? "" : str(row.label);
-  return label === "" ? fallback : label;
-}
-
-/** `creationAt`/`modifiedAt` are epoch seconds; `toIso` already handles both. */
-function timestamp(value: BoundaryValue): string | null {
-  return isNumber(value) && value > 0 ? toIso(value) : null;
-}
-
-function ourExtension(credential: BoundaryObject): BoundaryObject | null {
-  for (const raw of arr(credential.extensions)) {
-    const row = obj(raw);
-    if (row !== null && str(row.name) === CXF_EXTENSION) return row;
-  }
-  return null;
-}
-
-/** Rebuild the vault's TOTP value from CXF's separate parameters. */
-function totpFrom(credential: BoundaryObject, title: string): string {
-  const kept = str(ourExtension(credential)?.otpauth ?? "");
-  if (kept !== "") return kept;
-  const secret = normaliseTotp(str(credential.secret));
-  if (secret === "") return "";
-  const period = isNumber(credential.period) ? credential.period : 30;
-  const digits = isNumber(credential.digits) ? credential.digits : 6;
-  const algorithm = str(credential.algorithm).toLowerCase();
-  const issuer = str(credential.issuer);
-  if (
-    period === 30 &&
-    digits === 6 &&
-    algorithm !== "sha256" &&
-    algorithm !== "sha512" &&
-    issuer === ""
-  ) {
-    return secret;
-  }
-  const params = new URLSearchParams({ secret });
-  if (issuer !== "") params.set("issuer", issuer);
-  if (period !== 30) params.set("period", String(period));
-  if (digits !== 6) params.set("digits", String(digits));
-  if (algorithm === "sha256" || algorithm === "sha512") {
-    params.set("algorithm", algorithm.toUpperCase());
-  }
-  const account = str(credential.username);
-  const label = account === "" ? title : `${title}:${account}`;
-  return `otpauth://totp/${encodeURIComponent(label)}?${params.toString()}`;
-}
-
 /** `2031-07` → month and year, the two fields a card item actually holds. */
 function splitExpiry(raw: string) {
   const match = /^(\d{4})-(\d{1,2})$/u.exec(raw.trim());
@@ -159,15 +92,8 @@ function splitExpiry(raw: string) {
   return { month: String(Number(match[2])).padStart(2, "0"), year: match[1] };
 }
 
-type Bucket = {
-  byType: Map<string, BoundaryObject>;
-  /** Custom-field credentials, which may appear more than once per item. */
-  customFields: BoundaryObject[];
-  unsupported: string[];
-};
-
 function bucketCredentials(item: BoundaryObject): Bucket {
-  const byType = new Map<string, BoundaryObject>();
+  const byType = new Map<string, BoundaryObject[]>();
   const customFields: BoundaryObject[] = [];
   const unsupported: string[] = [];
   for (const raw of arr(item.credentials)) {
@@ -178,7 +104,7 @@ function bucketCredentials(item: BoundaryObject): Bucket {
       customFields.push(credential);
       continue;
     }
-    if (!byType.has(type)) byType.set(type, credential);
+    byType.set(type, [...(byType.get(type) ?? []), credential]);
     if (
       type !== CXF_TYPES.basicAuth &&
       type !== CXF_TYPES.passkey &&
@@ -198,7 +124,7 @@ function baseFor(bucket: Bucket, title: string): DraftItem | null {
   const { byType } = bucket;
   if (byType.has(CXF_TYPES.passkey)) return draftPasskey(title);
   if (byType.has(CXF_TYPES.basicAuth) || byType.has(CXF_TYPES.totp)) {
-    return draftLogin(title);
+    return draftAccount(title);
   }
   if (byType.has(CXF_TYPES.creditCard)) return draftCard(title);
   if (byType.has(CXF_TYPES.sshKey) || byType.has(CXF_TYPES.apiKey)) {
@@ -208,26 +134,9 @@ function baseFor(bucket: Bucket, title: string): DraftItem | null {
   return null;
 }
 
-function applyLogin(
-  item: DraftItem,
-  bucket: Bucket,
-  title: string,
-  urls: string[],
-): void {
-  if (item.kind !== "login") return;
-  const basic = bucket.byType.get(CXF_TYPES.basicAuth);
-  if (basic !== undefined) {
-    item.username = fieldValue(basic.username).text;
-    item.password = fieldValue(basic.password).text;
-  }
-  const totp = bucket.byType.get(CXF_TYPES.totp);
-  if (totp !== undefined) item.totp = totpFrom(totp, title);
-  for (const url of urls) addUri(item, url);
-}
-
 function applyPasskey(item: DraftItem, bucket: Bucket): void {
   if (item.kind !== "passkey") return;
-  const passkey = bucket.byType.get(CXF_TYPES.passkey);
+  const passkey = first(bucket, CXF_TYPES.passkey);
   if (passkey === undefined) return;
   const extension = ourExtension(passkey);
   item.rpId = str(passkey.rpId);
@@ -247,7 +156,7 @@ function applyPasskey(item: DraftItem, bucket: Bucket): void {
 
 function applyCard(item: DraftItem, bucket: Bucket): void {
   if (item.kind !== "card") return;
-  const card = bucket.byType.get(CXF_TYPES.creditCard);
+  const card = first(bucket, CXF_TYPES.creditCard);
   if (card === undefined) return;
   item.number = fieldValue(card.number).text;
   item.cardholder = fieldValue(card.fullName).text;
@@ -260,7 +169,7 @@ function applyCard(item: DraftItem, bucket: Bucket): void {
 
 function applySecret(item: DraftItem, bucket: Bucket): void {
   if (item.kind !== "secret") return;
-  const apiKey = bucket.byType.get(CXF_TYPES.apiKey);
+  const apiKey = first(bucket, CXF_TYPES.apiKey);
   if (apiKey !== undefined) {
     item.value = fieldValue(apiKey.key).text;
     const connectionRef = str(ourExtension(apiKey)?.connectionRef ?? "");
@@ -271,7 +180,7 @@ function applySecret(item: DraftItem, bucket: Bucket): void {
     if (username !== "") addField(item, "Username", username);
     return;
   }
-  const sshKey = bucket.byType.get(CXF_TYPES.sshKey);
+  const sshKey = first(bucket, CXF_TYPES.sshKey);
   if (sshKey === undefined) return;
   // The private key is the secret; the rest is metadata that would be lost
   // entirely if it were not typed onto the item.
@@ -381,12 +290,12 @@ export const fidoCxf: TextImportAdapter = {
           .map(str)
           .filter((url) => url !== "");
 
-        applyLogin(item, bucket, title, urls);
+        applyAccount(item, bucket, title, urls);
         applyPasskey(item, bucket);
         applyCard(item, bucket);
         applySecret(item, bucket);
 
-        const note = bucket.byType.get(CXF_TYPES.note);
+        const note = first(bucket, CXF_TYPES.note);
         if (note !== undefined) item.notes = fieldValue(note.content).text;
 
         for (const credential of bucket.customFields) {
@@ -396,9 +305,9 @@ export const fidoCxf: TextImportAdapter = {
           }
         }
 
-        // A URL on an item this vault models as something other than a login
+        // A URL on an item this vault models as something other than an account
         // would otherwise be dropped outright.
-        if (item.kind !== "login") {
+        if (item.kind !== "account") {
           for (const url of urls) addField(item, "Website", url);
         }
 
@@ -420,7 +329,7 @@ export const fidoCxf: TextImportAdapter = {
         }
         if (
           item.kind === "passkey" &&
-          str(bucket.byType.get(CXF_TYPES.passkey)?.key ?? "") !== ""
+          str(first(bucket, CXF_TYPES.passkey)?.key ?? "") !== ""
         ) {
           referencedPrivateKey = true;
         }

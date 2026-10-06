@@ -1,5 +1,10 @@
-import { type VaultItem, createItem } from "@opensesame/vault-core";
+import type { VaultItem } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
+import {
+  legacySealedAccount,
+  pepperedAccount,
+  plainAccount,
+} from "../account.test-support.js";
 import { registerLegacyShellData } from "../contributions.test-support.js";
 import {
   type CommandPorts,
@@ -150,8 +155,7 @@ describe("parseCommand", () => {
 
 describe("executeCommand copy_field", () => {
   it("copies the password without returning the secret in the message", async () => {
-    const login = createItem("login", "GitHub");
-    login.password = "s3cret-value";
+    const login = plainAccount("GitHub", "s3cret-value");
     const copied: string[] = [];
     const navigated: string[] = [];
     const outcome = await executeCommand(
@@ -176,6 +180,95 @@ describe("executeCommand copy_field", () => {
     expect(copied).toEqual(["s3cret-value"]);
     expect(matchItem([login], "git")?.name).toBe("GitHub");
     expect(navigated).toEqual([]);
+  });
+
+  const portsFor = (
+    items: readonly VaultItem[],
+    copied: string[],
+  ): CommandPorts => ({
+    navigate: () => undefined,
+    copy: async (value) => {
+      copied.push(value);
+      return "copied";
+    },
+    items: () => items,
+    vaultLocked: () => false,
+  });
+
+  it("copies what comes before a pepper's slot and never asks for the pepper", async () => {
+    const account = pepperedAccount("GitHub", "abcdefgh", "-2");
+    const copied: string[] = [];
+    const ports = portsFor([account], copied);
+    expect(Object.keys(ports).sort()).toEqual([
+      "copy",
+      "items",
+      "navigate",
+      "vaultLocked",
+    ]);
+    const first = await executeCommand(
+      { action: "copy_field", field: "password", query: "git" },
+      ports,
+    );
+    expect(first).toEqual({
+      ok: true,
+      message:
+        "Copied the start of the password for GitHub: add your pepper, then copy the rest",
+    });
+    const rest = await executeCommand(
+      { action: "copy_field", field: "rest", query: "git" },
+      ports,
+    );
+    expect(rest.ok).toBe(true);
+    expect(copied).toEqual(["abcdef", "gh"]);
+  });
+
+  it("says to add the pepper after the password when it goes last", async () => {
+    const account = pepperedAccount("GitHub", "abcdefgh");
+    const copied: string[] = [];
+    const outcome = await executeCommand(
+      { action: "copy_field", field: "password", query: "git" },
+      portsFor([account], copied),
+    );
+    expect(outcome).toEqual({
+      ok: true,
+      message: "Copied password for GitHub: add your pepper after it",
+    });
+    expect(copied).toEqual(["abcdefgh"]);
+    const rest = await executeCommand(
+      { action: "copy_field", field: "rest", query: "git" },
+      portsFor([account], copied),
+    );
+    expect(rest).toEqual({
+      ok: false,
+      message: "GitHub has no rest to copy.",
+    });
+  });
+
+  it("sends an account an older version sealed to be converted, copying nothing", async () => {
+    const account = await legacySealedAccount("GitHub", "old-secret", "pepper");
+    const copied: string[] = [];
+    const outcome = await executeCommand(
+      { action: "copy_field", field: "password", query: "git" },
+      portsFor([account], copied),
+    );
+    expect(outcome.ok).toBe(false);
+    expect(copied).toEqual([]);
+  });
+
+  it("copies an account's username, authenticator seed and first site", async () => {
+    const account = plainAccount("GitHub", "pw", {
+      username: "octo",
+      totp: "JBSWY3DPEHPK3PXP",
+    });
+    account.uris = [{ id: "u1", uri: "https://github.com", match: "domain" }];
+    const copied: string[] = [];
+    for (const field of ["username", "otp", "url"] as const) {
+      await executeCommand(
+        { action: "copy_field", field, query: "git" },
+        portsFor([account], copied),
+      );
+    }
+    expect(copied).toEqual(["octo", "JBSWY3DPEHPK3PXP", "https://github.com"]);
   });
 
   it("refuses when the vault is locked", async () => {

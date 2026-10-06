@@ -55,7 +55,7 @@ describe("vault.derived-records runtime", () => {
     const named = Object.fromEntries(
       kinds.map((k) => [k.kind, [k.label, k.segment, k.order]]),
     );
-    expect(named.login).toEqual(["Login", "logins", 0]);
+    expect(named.account).toEqual(["Account", "accounts", 0]);
     expect(named.card).toEqual(["Card", "cards", 30]);
     expect(named.note).toEqual(["Secure note", "notes", 60]);
     expect(named.wifi?.[1]).toBe("wi-fi-networks");
@@ -68,9 +68,9 @@ describe("vault.derived-records runtime", () => {
     const t = createTestContext();
     const handle = await runtime.capabilityRuntime.activate(t.ctx);
     expect(getPackSnapshot().pending).toBeGreaterThan(0);
-    expect(isBusy(statusOf("login").phase)).toBe(true);
+    expect(isBusy(statusOf("account").phase)).toBe(true);
     await vi.waitFor(() => expect(getPackSnapshot().pending).toBe(0));
-    expect(statusOf("login").phase).toBe("on");
+    expect(statusOf("account").phase).toBe("on");
     expect(statusOf("wifi").phase).toBe("on");
     await handle.dispose();
   });

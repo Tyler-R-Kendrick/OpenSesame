@@ -191,7 +191,7 @@ describe("Import key", () => {
       items: [
         overlapCast({
           id: "itm_1",
-          kind: "login",
+          kind: "account",
           name: "Mail",
           username: "me@example.com",
           deletedAt: null,

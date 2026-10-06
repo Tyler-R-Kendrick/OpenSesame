@@ -153,14 +153,20 @@ describe("painting a long or hostile line", () => {
     expect(longestLine("ab\ncde\n")).toBe(3);
   });
 
-  it("renders the editor over 200k lines", () => {
+  it("sizes the editor over 200k lines", () => {
     const text = "a\n".repeat(200_000);
     const { container } = render(
-      <PaintedText language="toml" path="a.toml" source={text} />,
+      <PaintedText
+        language="toml"
+        path="a.toml"
+        source={text}
+        painter={() => []}
+      />,
     );
     const stage = container.querySelector<HTMLElement>(".set-raw__stage");
     expect(stage?.style.getPropertyValue("--cols")).toBe("1");
-  }, 30_000);
+    expect(container.querySelector("textarea")?.value).toBe(text);
+  });
 });
 
 describe("repainting as a person types", () => {

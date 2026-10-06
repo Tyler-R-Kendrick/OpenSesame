@@ -1,5 +1,8 @@
 /** @vitest-environment jsdom */
-import { MODES } from "@opensesame/app-core/lib/duress/settings/modes/index.js";
+import {
+  MODES,
+  offeredModes,
+} from "@opensesame/app-core/lib/duress/settings/modes/index.js";
 import { kvFlush } from "@opensesame/app-core/lib/kv.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
@@ -160,7 +163,7 @@ describe("DuressPanel outcome choice", () => {
     const group = screen.getByRole("group", { name: "Entering it shows" });
     const radios = within(group).getAllByRole("radio");
     expect(radios.map((radio) => radio.getAttribute("type"))).toEqual(
-      MODES.map(() => "radio"),
+      offeredModes(MODES, { items: [] }).map(() => "radio"),
     );
     // ARIA: a radiogroup owns radios. Any other child makes the role invalid.
     for (const owner of document.querySelectorAll("[role=radiogroup]")) {
@@ -172,16 +175,19 @@ describe("DuressPanel outcome choice", () => {
     expect(document.querySelector("[role=dialog] [aria-pressed]")).toBeNull();
   });
 
-  it("draws one radio, one Opens line and one consent per registered mode", async () => {
+  it("draws one radio, one Opens line and one consent per mode this vault can act on", async () => {
+    // A vault with no item to show offers every mode but the one that shows some.
+    const offered = offeredModes(MODES, { items: [] });
+    expect(offered.length).toBe(MODES.length - 1);
     render(<DuressPanel arm={arm} />);
     await userEvent.click(screen.getByRole("button", { name: "Add" }));
     const group = screen.getByRole("group", { name: "Entering it shows" });
-    expect(group.querySelectorAll("ul > li")).toHaveLength(MODES.length);
-    for (const mode of MODES) {
+    expect(group.querySelectorAll("ul > li")).toHaveLength(offered.length);
+    for (const mode of offered) {
       await userEvent.click(screen.getByRole("radio", { name: mode.label }));
       expect(screen.getByText(mode.opens)).toBeTruthy();
       expect(screen.getByText(mode.consent)).toBeTruthy();
-      for (const other of MODES) {
+      for (const other of offered) {
         if (other.id === mode.id) continue;
         expect(screen.queryByText(other.consent)).toBeNull();
       }

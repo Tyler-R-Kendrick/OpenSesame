@@ -71,7 +71,9 @@ export function TravelRow({
   );
 }
 
-export function saveBundle(pkg: DeparturePackage): void {
+export function saveBundle(
+  pkg: Pick<DeparturePackage, "bundleJson" | "bundleFileName">,
+): void {
   const blob = new Blob([pkg.bundleJson], { type: "application/octet-stream" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

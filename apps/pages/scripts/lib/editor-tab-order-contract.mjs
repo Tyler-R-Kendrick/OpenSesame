@@ -10,12 +10,25 @@ export async function checkEditorTabOrder(page, check) {
   await page.getByRole("link", { name: "Cancel", exact: true }).click();
   for (const kind of kinds) {
     await page.getByRole("link", { name: "New item", exact: true }).click();
-    if (kind !== "login")
+    if (kind !== "account")
       await page.getByLabel("Type", { exact: true }).selectOption(kind);
     const form = page.locator("form.editor");
-    if (kind === "login") {
+    if (kind === "account") {
+      // An authenticator is a login method: the + beside "Login methods"
+      // offers it, and the new block takes focus on its field.
+      await form
+        .getByRole("button", { name: "Add login method", exact: true })
+        .click();
+      await form
+        .getByRole("button", { name: "Authenticator", exact: true })
+        .click();
+      check(
+        await form
+          .getByLabel("Authenticator secret", { exact: true })
+          .evaluate((node) => node === document.activeElement),
+        "Add login method › Authenticator reveals and focuses its field",
+      );
       for (const [command, label] of [
-        ["Add authenticator secret", "Authenticator secret"],
         ["Add notes", "Notes"],
         ["Add custom field", "Field name"],
       ]) {
@@ -37,7 +50,7 @@ export async function checkEditorTabOrder(page, check) {
     }
     await form.getByLabel("Folder", { exact: true }).focus();
     const controls = form.locator(
-      "input:visible, select:visible, textarea:visible, button:enabled:visible, a[href]:visible",
+      "input:visible, select:visible, textarea:visible, summary:visible, button:enabled:visible, a[href]:visible",
     );
     const count = await controls.count();
     check(

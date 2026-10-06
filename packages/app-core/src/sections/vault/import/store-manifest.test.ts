@@ -1,5 +1,10 @@
-import { type Folder, createItem } from "@opensesame/vault-core";
+import {
+  type Folder,
+  createItem,
+  manualPassword,
+} from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
+import { producedPassword } from "../../../lib/account.test-support.js";
 import { vaultItemToEntry } from "../../../lib/vault/store-sync.js";
 import {
   STORE_MANIFEST_LABEL,
@@ -62,9 +67,9 @@ describe("readStoreManifest", () => {
 });
 
 describe("planStoreManifest", () => {
-  it("rewrites a login at its path in place, and adds what is new", () => {
-    const current = { ...createItem("login", "a"), folderId: DEV.id };
-    current.password = "old";
+  it("rewrites an account at its path in place, and adds what is new", () => {
+    const current = { ...createItem("account", "a"), folderId: DEV.id };
+    current.methods = [manualPassword(`${current.id}:password`, "old", "x")];
     const plan = planStoreManifest(
       [
         { path: "Dev/a", secret: "new", trailer: '{"kind":"login"}\n' },
@@ -75,15 +80,18 @@ describe("planStoreManifest", () => {
     );
     expect(plan.adds.map((item) => item.name)).toEqual(["b"]);
     expect(plan.updates).toHaveLength(1);
-    expect(plan.updates[0]).toMatchObject({ id: current.id, password: "new" });
+    const updated = plan.updates[0];
+    if (updated?.kind !== "account") throw new Error("expected an account");
+    expect(updated.id).toBe(current.id);
+    expect(producedPassword(updated)).toBe("new");
     expect(plan.kept).toBe(0);
     expect(manifestCommitLabel(plan)).toBe("Merge 2 entries");
   });
 
   it("counts a trailer that says the same thing in other words as unchanged", () => {
-    const current = createItem("login", "GitHub");
+    const current = createItem("account", "GitHub");
     current.username = "octo";
-    current.password = "pw";
+    current.methods = [manualPassword(`${current.id}:password`, "pw", "x")];
     const plan = planStoreManifest(
       [
         {
@@ -116,10 +124,10 @@ describe("planStoreManifest", () => {
     });
   });
 
-  it("never turns a card at a path into a login", () => {
+  it("never turns a card at a path into an account", () => {
     const card = createItem("card", "Travel card");
     card.number = "4111111111111111";
-    // A bare `pass` entry names no kind, so it reads as a login.
+    // A bare `pass` entry names no kind, so it reads as an account.
     const entry = { path: "Travel card", secret: "4000", trailer: "" };
     const plan = planStoreManifest([entry], [card], []);
     expect(plan.updates).toEqual([]);
@@ -148,7 +156,7 @@ describe("storeManifestFile", () => {
     const real = createItem("secret", "Token");
     real.value = "t0k3n"; // gitleaks:allow -- fixture
     const trashed = {
-      ...createItem("login", "Old"),
+      ...createItem("account", "Old"),
       deletedAt: "2026-01-01T00:00:00Z",
     };
     const file = storeManifestFile(

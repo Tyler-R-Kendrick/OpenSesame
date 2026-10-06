@@ -186,7 +186,15 @@ describe("the portable core in a bare V8 context", () => {
         ...("concealed" in vector.expect
           ? { concealed: opened.concealed }
           : undefined),
-      }).toEqual(vector.expect);
+      }).toEqual({
+        ...vector.expect,
+        // The golden files hold legacy logins; the core reads them as accounts
+        // (ADR 0172), where the Rust reader still lists them as written.
+        items: vector.expect.items.map((item) => ({
+          ...item,
+          kind: item.kind === "login" ? "account" : item.kind,
+        })),
+      });
     },
     120_000,
   );
@@ -230,7 +238,7 @@ describe("the portable core in a bare V8 context", () => {
     const result = await inside(
       context,
       `OpenSesameCore.configureHost(OpenSesameCore.createSandboxHost());
-       const item = OpenSesameCore.createItem("login", "Example Bank");
+       const item = OpenSesameCore.createItem("account", "Example Bank");
        return {
          found: OpenSesameCore.searchMatches(item, "bank"),
          missed: OpenSesameCore.searchMatches(item, "zzz"),

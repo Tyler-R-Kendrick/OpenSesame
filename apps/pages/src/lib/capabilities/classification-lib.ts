@@ -38,6 +38,8 @@ const CORE_INFRA = [
   "pane-trail",
   "use-narrow",
   "vault-list-path",
+  // `?f=login` is the retired name of `?f=account` (ADR 0172): the vault list and rail read it.
+  "vault-filter-slug",
   "modal-focus",
   "strip",
   "scroll-panel",
@@ -133,7 +135,8 @@ const GIT_FILES = [
   "saved-git-backup",
   "embedded-git",
 ];
-const CLOUD_FILES = ["age-keys", "aws-kms-config", "gcp-kms-config", "sops/"];
+const AGE_FILES = ["age-keys", "age-lib"];
+const CLOUD_FILES = [...AGE_FILES, "aws-kms-config", "gcp-kms-config", "sops/"];
 const ACCESS_FILES = [
   "access-book",
   "local-access-requests",
