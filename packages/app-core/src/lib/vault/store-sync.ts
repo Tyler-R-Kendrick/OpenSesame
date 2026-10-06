@@ -7,7 +7,12 @@
  * `store-sync-values.ts`. This module merges a whole manifest into a vault
  * and re-exports the rest, so importers keep one path.
  */
-import { type Folder, type VaultItem, newId } from "@opensesame/vault-core";
+import {
+  type Folder,
+  type VaultItem,
+  newId,
+  outsideAccounts,
+} from "@opensesame/vault-core";
 import { entryToVaultItem, itemToStoreEntry } from "./store-sync-codec.js";
 import {
   type StorePlainEntry,
@@ -96,8 +101,10 @@ function planManifestMergeDefault(
   existingFolders: Folder[],
 ): ManifestMergePlan {
   const byPath = new Map<string, VaultItem>();
-  for (const item of existingItems) {
-    if (item.deletedAt !== null) continue;
+  // A credential bound to an account is in that account's entry (ADR 0177).
+  for (const item of outsideAccounts(
+    existingItems.filter((candidate) => candidate.deletedAt === null),
+  )) {
     const entry = vaultItemToEntry(item, existingFolders);
     byPath.set(normalizedStorePath(entry.path), item);
   }

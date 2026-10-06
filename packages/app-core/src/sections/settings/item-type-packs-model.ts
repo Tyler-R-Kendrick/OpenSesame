@@ -8,6 +8,7 @@
  */
 
 import { type PackEntry, packEntries } from "@opensesame/vault-item-types";
+import { neededBy } from "../../lib/type-packs/requires.js";
 import {
   type PackPhase,
   type PackSnapshot,
@@ -18,7 +19,7 @@ import {
 export type PackControl =
   /** A switch a person may press. */
   | "switch"
-  /** On, and not theirs to turn off: the vault holds items of it. */
+  /** On, and not theirs to turn off: the vault holds items of it, or another type needs it. */
   | "held"
   /** On because a capability put it there; its own switch is the one to press. */
   | "managed";
@@ -90,7 +91,11 @@ function sentenceFor(
   control: PackControl,
   held: number,
   reason: string | null,
+  needing: string | null,
 ): string {
+  if (control === "held" && held === 0 && needing !== null) {
+    return `${title} stays on: ${needing} needs it.`;
+  }
   if (control === "held") {
     return held === 1
       ? `${title} stays on: this vault has 1 item of it.`
@@ -123,8 +128,16 @@ function rowFor(
   const status = statusOf(entry.id, snapshot);
   const held = snapshot.counts.get(entry.id) ?? 0;
   const on = status.phase === "on";
+  const needing = neededBy(
+    entry.id,
+    (pack) => statusOf(pack, snapshot).phase === "on",
+  );
   const control: PackControl =
-    on && held > 0 ? "held" : managed.has(entry.id) ? "managed" : "switch";
+    on && (held > 0 || needing !== null)
+      ? "held"
+      : managed.has(entry.id)
+        ? "managed"
+        : "switch";
   const reason = status.reason ?? null;
   return {
     id: entry.id,
@@ -138,7 +151,14 @@ function rowFor(
     control,
     held,
     reason,
-    sentence: sentenceFor(entry.title, status.phase, control, held, reason),
+    sentence: sentenceFor(
+      entry.title,
+      status.phase,
+      control,
+      held,
+      reason,
+      needing,
+    ),
   };
 }
 

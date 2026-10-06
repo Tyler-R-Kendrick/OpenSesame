@@ -108,7 +108,8 @@ export const travelItemSeams: TravelItemSeams = {
       return {
         tomb: snapshot.tomb,
         createdAt: snapshot.header.createdAt,
-        items: snapshot.items,
+        // As sealed: an account without its methods, and its credentials beside it.
+        items: snapshot.rawItems ?? snapshot.items,
         folders: snapshot.folders,
       };
     },

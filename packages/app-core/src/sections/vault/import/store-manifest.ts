@@ -14,7 +14,11 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import type { Folder, VaultItem } from "@opensesame/vault-core";
+import {
+  type Folder,
+  type VaultItem,
+  outsideAccounts,
+} from "@opensesame/vault-core";
 import {
   type ManifestMergePlan,
   type StorePlainEntry,
@@ -161,9 +165,10 @@ export function storeManifestFile(
   folders: Folder[],
   now: Date = new Date(),
 ): StoreManifestFile {
-  const entries = items
-    .filter((item) => item.deletedAt === null)
-    .map((item) => vaultItemToEntry(item, folders));
+  // A credential bound to an account rides in that account's entry (ADR 0177).
+  const entries = outsideAccounts(
+    items.filter((item) => item.deletedAt === null),
+  ).map((item) => vaultItemToEntry(item, folders));
   return {
     fileName: `opensesame-store-manifest-${now.toISOString().slice(0, 10)}.json`,
     text: `${JSON.stringify(entries, null, 2)}\n`,

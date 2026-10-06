@@ -13,6 +13,7 @@ import {
   installItemType,
   installedDefinitions,
   mintVaultKey,
+  resolveAccounts,
   syncInstalledTypes,
   uninstallItemType,
 } from "@opensesame/vault-core";
@@ -52,6 +53,7 @@ import {
   writePlaintextFile,
 } from "../vfs.js";
 import {
+  appendItems,
   applyManifestPlan,
   bodyBeforeWrite,
   deleteFolder,
@@ -59,6 +61,7 @@ import {
   purgeItem,
   recordItemTypes,
   renameFolder,
+  replaceItems,
   restoreItem,
   stampedEdit,
   toggleFavorite,
@@ -427,7 +430,8 @@ export class VaultStore {
       guest: this.#ephemeral && this.#vaultKey !== null,
       decoy: this.#ephemeral && this.#vaultKey !== null && isDecoySession(),
       header: this.#header,
-      items: this.#body.items,
+      items: resolveAccounts(this.#body.items),
+      rawItems: this.#body.items,
       folders: this.#body.folders,
       prefs: this.#prefs,
       lockedOutUntil: attempts.until > Date.now() ? attempts.until : null,
@@ -1353,7 +1357,7 @@ export class VaultStore {
   #writes(): ItemWriteHost {
     return {
       tomb: this.#scope.tomb,
-      items: this.#body.items,
+      items: resolveAccounts(this.#body.items),
       mutate: (change) => this.#mutate(change),
     };
   }
@@ -1389,16 +1393,11 @@ export class VaultStore {
   }
 
   async replaceAll(items: VaultItem[], folders: Folder[]): Promise<void> {
-    await this.#mutate((body) => {
-      body.items = items;
-      body.folders = folders;
-    });
+    await this.#mutate((body) => replaceItems(body, items, folders));
   }
 
   async addItems(items: VaultItem[]): Promise<void> {
-    await this.#mutate((body) => {
-      body.items = [...body.items, ...items];
-    });
+    await this.#mutate((body) => appendItems(body, items, []));
   }
 
   /**
@@ -1425,10 +1424,9 @@ export class VaultStore {
     newFolders: Folder[];
   }): Promise<number> {
     if (plan.items.length === 0 && plan.newFolders.length === 0) return 0;
-    await this.#mutate((body) => {
-      body.folders = [...body.folders, ...plan.newFolders];
-      body.items = [...body.items, ...plan.items];
-    });
+    await this.#mutate((body) =>
+      appendItems(body, plan.items, plan.newFolders),
+    );
     return plan.items.length;
   }
 

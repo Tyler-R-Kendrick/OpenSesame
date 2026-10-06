@@ -4,7 +4,11 @@
  * beside the personal vault (real VaultStore, real VFS).
  */
 
-import { createItem, createVault } from "@opensesame/vault-core";
+import {
+  createItem,
+  createVault,
+  outsideAccounts,
+} from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { unlockWithPinAfterDuressGate } from "../../../screens/unlock/unlock-pin-duress.js";
 import { kvDelete, kvGet, kvSet } from "../../kv.js";
@@ -125,9 +129,9 @@ describe("duress decoy beside a sealed guest", () => {
     // The guest's own PIN still opens the original items.
     clearEnrollmentStateForUnlock();
     await store.unlockWithPin(GUEST_PIN);
-    expect(store.getSnapshot().items.map((item) => item.name)).toEqual([
-      "Guest keeps this",
-    ]);
+    expect(
+      outsideAccounts(store.getSnapshot().items).map((item) => item.name),
+    ).toEqual(["Guest keeps this"]);
   });
 
   it("keeps a sealed guest whole when the trigger fires beside the personal vault", async () => {
@@ -153,7 +157,7 @@ describe("duress decoy beside a sealed guest", () => {
     writeLastVaultId(GUEST_TOMB);
     store.rehydrate();
     await store.unlockWithPin(GUEST_PIN);
-    expect(store.getSnapshot().items).toHaveLength(1);
+    expect(outsideAccounts(store.getSnapshot().items)).toHaveLength(1);
     expect(kvGet(PERSONAL_HEADER)).toBe(JSON.stringify(header));
   });
 

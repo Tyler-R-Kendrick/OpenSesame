@@ -11,6 +11,7 @@ import {
   type VaultBody,
   type VaultItem,
   openJson,
+  outsideAccounts,
   unlockVaultKey,
   vaultSealBinding,
 } from "@opensesame/vault-core";
@@ -70,9 +71,11 @@ describe("hiding items leaves nothing of them behind", () => {
 
     // The open store: items, trash, folders, what a search would index.
     const open = vaultStore.getSnapshot();
-    expect(open.items.map((i) => i.name).sort()).toEqual(
-      [KEEP.name, KEEP.note].sort(),
-    );
+    expect(
+      outsideAccounts(open.items)
+        .map((i) => i.name)
+        .sort(),
+    ).toEqual([KEEP.name, KEEP.note].sort());
     expect(JSON.stringify([open.items, open.folders])).not.toMatch(
       new RegExp(Object.values(S).join("|")),
     );
@@ -110,7 +113,7 @@ describe("hiding items leaves nothing of them behind", () => {
     const key = await unlockVaultKey(header, PASSWORD);
     const { surfaces } = await readableSurfaces(tomb, key);
     expect(leaks(surfaces, needlesOf(s))).toEqual([]);
-    expect(vaultStore.getSnapshot().items).toHaveLength(2);
+    expect(outsideAccounts(vaultStore.getSnapshot().items)).toHaveLength(2);
   });
 
   it("returns them whole: ids, times, passwords, trash state, the folder", async () => {
@@ -121,11 +124,10 @@ describe("hiding items leaves nothing of them behind", () => {
       returnCode: pkg.returnCode,
     });
     if (!opened.ok) throw new Error(opened.code);
-    expect(opened.opened.preview.items.map((i) => i.status)).toEqual([
-      "returns",
-      "returns",
-      "returns",
-    ]);
+    // The two accounts go with the credentials bound to them (ADR 0177).
+    const statuses = opened.opened.preview.items.map((i) => i.status);
+    expect(statuses.length).toBeGreaterThan(s.hidden.length);
+    expect(new Set(statuses)).toEqual(new Set(["returns"]));
     const back = await returnItemsFromTravel(opened.opened);
     expect(back).toMatchObject({ ok: true });
     await flushActivityLog();
@@ -189,7 +191,7 @@ describe("what the hide cannot reach, it refuses to run beside", () => {
       code: "copies_in_play",
       copies: ["history_snapshot"],
     });
-    expect(vaultStore.getSnapshot().items).toHaveLength(5);
+    expect(outsideAccounts(vaultStore.getSnapshot().items)).toHaveLength(5);
   });
 
   it("brings them back through a merge with a snapshot that still has them, the reason a paired drive refuses", async () => {
@@ -197,7 +199,7 @@ describe("what the hide cannot reach, it refuses to run beside", () => {
     const tomb = vaultStore.getSnapshot().tomb;
     const snapshot = await vaultStore.sealedSnapshot();
     await hideThem(s.hide);
-    expect(vaultStore.getSnapshot().items).toHaveLength(2);
+    expect(outsideAccounts(vaultStore.getSnapshot().items)).toHaveLength(2);
     const merge = await vaultStore.mergeSnapshot({
       tomb,
       createdAt: snapshot.header.createdAt,
@@ -205,7 +207,7 @@ describe("what the hide cannot reach, it refuses to run beside", () => {
       rev: snapshot.rev,
     });
     expect(merge.localChanged).toBe(true);
-    expect(vaultStore.getSnapshot().items).toHaveLength(5);
+    expect(outsideAccounts(vaultStore.getSnapshot().items)).toHaveLength(5);
   });
 });
 

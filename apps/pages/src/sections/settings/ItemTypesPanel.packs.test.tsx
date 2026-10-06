@@ -71,11 +71,11 @@ describe("ItemTypesPanel switches", () => {
     renderPanel();
     expect(screen.queryAllByRole("tab")).toEqual([]);
     const switches = screen.getAllByRole("switch");
-    expect(switches).toHaveLength(18);
+    expect(switches).toHaveLength(23);
     expect(
       switches.every((node) => node.getAttribute("aria-checked") === "false"),
     ).toBe(true);
-    expect(screen.getByText("0 of 18 on")).toBeTruthy();
+    expect(screen.getByText("0 of 23 on")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /^Remove / })).toBeNull();
     // Nothing of yours says nothing: one key to write a type, no sentence.
     expect(screen.queryByText(/No installed types yet/)).toBeNull();
@@ -102,12 +102,12 @@ describe("ItemTypesPanel switches", () => {
     expect(screen.queryAllByRole("switch")).toEqual([]);
     expect(screen.getByText(/No item type matches/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
-    expect(screen.getAllByRole("switch")).toHaveLength(18);
+    expect(screen.getAllByRole("switch")).toHaveLength(23);
   });
 
   it("downloads and installs a type when its switch goes on, and tells the live region", async () => {
     renderPanel();
-    const account = screen.getByRole("switch", { name: "Account" });
+    const account = screen.getByRole("switch", { name: "Address" });
     fireEvent.click(account);
     // On its way the switch is already set and marked busy.
     expect(account.getAttribute("aria-checked")).toBe("true");
@@ -115,26 +115,26 @@ describe("ItemTypesPanel switches", () => {
     await waitFor(() =>
       expect(account.getAttribute("aria-busy")).toBe("false"),
     );
-    expect(isPackLoaded("account")).toBe(true);
-    expect(screen.getByText("1 of 18 on")).toBeTruthy();
-    expect(screen.getByText("Account installed.")).toBeTruthy();
+    expect(isPackLoaded("address")).toBe(true);
+    expect(screen.getByText("1 of 23 on")).toBeTruthy();
+    expect(screen.getByText("Address installed.")).toBeTruthy();
   });
 
   it("shows a failure on the row and retries when the switch is pressed again", async () => {
     packSeams.fetchText = () => Promise.reject(new Error("Offline."));
     renderPanel();
-    fireEvent.click(screen.getByRole("switch", { name: "Account" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Address" }));
     await screen.findByRole("img", {
-      name: "Account did not install: Offline.",
+      name: "Address did not install: Offline.",
     });
     expect(
       screen
-        .getByRole("switch", { name: "Account" })
+        .getByRole("switch", { name: "Address" })
         .getAttribute("aria-checked"),
     ).toBe("false");
     packSeams.fetchText = originalPacks.fetchText;
-    fireEvent.click(screen.getByRole("switch", { name: "Account" }));
-    await waitFor(() => expect(isPackLoaded("account")).toBe(true));
+    fireEvent.click(screen.getByRole("switch", { name: "Address" }));
+    await waitFor(() => expect(isPackLoaded("address")).toBe(true));
   });
 
   it("switches a type off again, and keeps one the vault holds items of", async () => {
@@ -154,5 +154,20 @@ describe("ItemTypesPanel switches", () => {
         name: "Secure note stays on: this vault has 4 items of it.",
       }),
     ).toBeTruthy();
+  });
+});
+
+describe("ItemTypesPanel: a type another needs", () => {
+  it("holds Password on while Account is on, with the reason and no count", async () => {
+    renderPanel();
+    fireEvent.click(screen.getByRole("switch", { name: "Account" }));
+    await waitFor(() =>
+      expect(
+        screen.getByRole("img", {
+          name: "Password stays on: Account needs it.",
+        }),
+      ).toBeTruthy(),
+    );
+    expect(screen.queryByRole("switch", { name: "Password" })).toBeNull();
   });
 });

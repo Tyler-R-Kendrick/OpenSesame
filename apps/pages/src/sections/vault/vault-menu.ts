@@ -129,7 +129,15 @@ function copyRows(
     actions.copyUsername,
     { disabled: !username(item) },
   );
-  if (item.kind !== "account") {
+  // A credential kept on its own asks the same question an account does, of the
+  // one method it holds, and has no username to copy (ADR 0177).
+  const holder =
+    item.kind === "account"
+      ? item
+      : item.kind === "credential"
+        ? { methods: [item.method] }
+        : null;
+  if (holder === null) {
     return [
       verb("copy-secret", "Copy secret", "y", actions.copySecret, {
         disabled: !canCopySecret(item),
@@ -137,7 +145,8 @@ function copyRows(
       username_,
     ];
   }
-  const choices = credentialChoices(item);
+  const rest = item.kind === "account" ? [username_] : [];
+  const choices = credentialChoices(holder);
   const entry = (
     choice: (typeof choices)[number],
     label: string,
@@ -149,7 +158,7 @@ function copyRows(
   });
   const [only] = choices;
   if (only !== undefined && choices.length === 1) {
-    return [entry(only, `Copy ${only.label.toLowerCase()}`), username_];
+    return [entry(only, `Copy ${only.label.toLowerCase()}`), ...rest];
   }
   if (only === undefined) {
     return [
@@ -159,7 +168,7 @@ function copyRows(
         disabled: true,
         run: () => undefined,
       },
-      username_,
+      ...rest,
     ];
   }
   return [
@@ -169,7 +178,7 @@ function copyRows(
       submenu: [choices.map((choice) => entry(choice, choice.label))],
       run: () => undefined,
     },
-    username_,
+    ...rest,
   ];
 }
 

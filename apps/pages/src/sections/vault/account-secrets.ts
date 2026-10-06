@@ -96,16 +96,6 @@ export function setPepperAt(
   return text.trim() === "" ? rest : { ...rest, pepperAt: text.trim() };
 }
 
-function savedMethod(
-  existing: AccountItem | undefined,
-  id: string,
-): PasswordMethod | undefined {
-  return existing?.methods.find(
-    (candidate): candidate is PasswordMethod =>
-      candidate.type === "password" && candidate.id === id,
-  );
-}
-
 /** The password a method produces whole, or what it leaves of it, as text to compare. */
 function producedKey(method: PasswordMethod): string {
   const produced = producePassword(method);
@@ -113,20 +103,33 @@ function producedKey(method: PasswordMethod): string {
 }
 
 /**
- * The account as it is saved: `changedAt` moves when a password did, whether
- * it was typed, made again or computed under a new counter.
+ * Methods as they are saved: `changedAt` moves when a password did, whether it
+ * was typed, made again or computed under a new counter.
  */
-export function settleForSave(
-  account: AccountItem,
-  existing: AccountItem | undefined,
-): AccountItem {
+export function settleMethods(
+  methods: readonly LoginMethod[],
+  saved: readonly LoginMethod[],
+): LoginMethod[] {
   const now = new Date().toISOString();
-  const methods = account.methods.map((method): LoginMethod => {
+  return methods.map((method): LoginMethod => {
     if (method.type !== "password") return method;
-    const before = savedMethod(existing, method.id);
+    const before = saved.find(
+      (candidate): candidate is PasswordMethod =>
+        candidate.type === "password" && candidate.id === method.id,
+    );
     const changed =
       before === undefined || producedKey(before) !== producedKey(method);
     return changed ? { ...method, changedAt: now } : method;
   });
-  return { ...account, methods };
+}
+
+/** The account as it is saved (`settleMethods`). */
+export function settleForSave(
+  account: AccountItem,
+  existing: AccountItem | undefined,
+): AccountItem {
+  return {
+    ...account,
+    methods: settleMethods(account.methods, existing?.methods ?? []),
+  };
 }

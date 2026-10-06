@@ -10,6 +10,7 @@ import {
 import { validateWebsitePatterns } from "@opensesame/app-core/lib/vault/website-pattern.js";
 import { overlapCast } from "@opensesame/os-domain";
 import {
+  type AccountItem,
   type Folder,
   type VaultItem,
   definitionFor,
@@ -27,13 +28,14 @@ import { IconEye, IconEyeOff } from "../../components/Icons.js";
 import { useVaultAllTo } from "../../lib/vault-list-path.js";
 import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { AccountFields } from "./AccountFields.js";
+import { CredentialFields } from "./CredentialFields.js";
 import { EditorActions } from "./EditorActions.js";
 import { EditorExtras } from "./EditorExtras.js";
 import { EditorTitle } from "./EditorTitle.js";
 import { UnknownItemType } from "./EditorType.js";
 import { NativeItemFields } from "./NativeItemFields.js";
 import { TypedFieldInputs } from "./TypedFields.js";
-import { settleForSave } from "./account-secrets.js";
+import { settleForSave, settleMethods } from "./account-secrets.js";
 import { useEditorContributions } from "./item-contributions.js";
 import { seedDraft } from "./seed-draft.js";
 import { useEditorPath } from "./useEditorPath.js";
@@ -56,6 +58,14 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   const { items, folders } = useVault();
   const store = useVaultStore();
   const existing = items.find((candidate) => candidate.id === itemId);
+  const liveAccounts = useMemo(
+    () =>
+      items.filter(
+        (item): item is AccountItem =>
+          item.kind === "account" && item.deletedAt === null,
+      ),
+    [items],
+  );
   const initial = useMemo(
     () => seedDraft(mode, existing, kindParam, search),
     [mode, existing, kindParam, search],
@@ -236,6 +246,13 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
           existing?.kind === "account" ? existing : undefined,
         );
       }
+      if (next.kind === "credential") {
+        const [method = next.method] = settleMethods(
+          [next.method],
+          existing?.kind === "credential" ? [existing.method] : [],
+        );
+        next = { ...next, method };
+      }
       await store.saveItem(next, location.folder);
       if (deliveryId) {
         await acknowledgeCertificateDelivery(deliveryId);
@@ -293,6 +310,15 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         {draft.kind === "account" ? (
           <AccountFields
             draft={draft}
+            liveRoll={mode === "new"}
+            onPatch={patch}
+          />
+        ) : null}
+
+        {draft.kind === "credential" ? (
+          <CredentialFields
+            draft={draft}
+            accounts={liveAccounts}
             liveRoll={mode === "new"}
             onPatch={patch}
           />

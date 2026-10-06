@@ -17,13 +17,14 @@ type Lines<T extends LoginMethod> = {
   /** The type's title, numbered when there are several: `API key 2`. */
   title: string;
   onChange: (next: T) => void;
-  onRemove: () => void;
+  /** The × at the end of the first line; a credential written on its own has none. */
+  onRemove?: (() => void) | undefined;
 };
 
-const removal = (title: string, onRemove: () => void) => ({
-  label: `Remove ${title.toLowerCase()}`,
-  onRemove,
-});
+const removal = (title: string, onRemove: (() => void) | undefined) =>
+  onRemove === undefined
+    ? undefined
+    : { label: `Remove ${title.toLowerCase()}`, onRemove };
 
 /** An API key: the header it travels in, then its value, one line each. */
 export function ApiKeyLines({

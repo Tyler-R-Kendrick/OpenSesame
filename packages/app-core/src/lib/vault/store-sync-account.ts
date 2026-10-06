@@ -105,7 +105,7 @@ function legacyLoginFromEntry(
 }
 
 /** A first password with no pepper takes line one back when its trailer left it out. */
-function withLineOne(methods: LoginMethod[], entry: StorePlainEntry) {
+export function withLineOne(methods: LoginMethod[], entry: StorePlainEntry) {
   const otpauth = extractOtpauthFromTrailer(entry.trailer);
   const firstPassword = methods.find((m) => m.type === "password");
   const firstSeed = methods.find((m) => m.type === "authenticator");

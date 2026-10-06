@@ -1,34 +1,4 @@
-/**
- * Leaving items home: pack chosen items of the open vault, then take them
- * out of it (ADR 0171).
- *
- * The vault is open and its key is in memory, so this is a different act
- * from a vault's departure (`depart.ts`, which moves files at rest). It has
- * the same two steps. `packItemDeparture` writes nothing: it reads the items,
- * seals them under a fresh return code and proves the code opens the bundle
- * and the bundle holds exactly what was read. `completeItemDeparture` runs
- * only once the person says bundle and code are somewhere else, and takes the
- * items out in one sealed mutation that leaves no tombstone, no trash entry,
- * no activity line and no password digest behind.
- *
- * Hiding is only hiding while nothing else holds a copy this device would
- * hand back: a backup target, a paired drive, a held history snapshot, a
- * queued offline write, a share of the item. Those refuse, rather than
- * leaving the person to believe an item is gone while a merge brings it back.
- */
-
-import {
-  type BoundaryValue,
-  isJsonObject,
-  isString,
-  overlapCast,
-} from "@opensesame/os-domain";
-import {
-  type Folder,
-  type VaultItem,
-  fileSummary,
-} from "@opensesame/vault-core";
-import { sha256Hex } from "../capabilities/trust/digest.js";
+import type { Folder, VaultItem } from "@opensesame/vault-core";
 import {
   ItemDepartureError,
   type ItemWithdrawal,
@@ -47,6 +17,13 @@ import {
   openItemsBundle,
   sealItemsBundle,
 } from "./items-bundle.js";
+import {
+  cannotBeHidden,
+  digestsOf,
+  foldersOf,
+  label,
+  withBoundCredentials,
+} from "./items-depart-parts.js";
 import {
   formatReturnCode,
   mintReturnSecret,
@@ -158,55 +135,6 @@ function refused(
   return { ok: false, code, ids, copies };
 }
 
-function stringsIn(value: BoundaryValue, out: string[] = []): string[] {
-  if (isString(value)) out.push(value);
-  else if (Array.isArray(value))
-    for (const entry of value) stringsIn(entry, out);
-  else if (isJsonObject(value)) {
-    for (const entry of Object.values(value)) stringsIn(entry, out);
-  }
-  return out;
-}
-
-/**
- * An item that cannot leave whole: a drop is a claim in flight, and a file's
- * ciphertext sits in parts outside the vault that a bundle does not carry.
- */
-export function cannotBeHidden(item: VaultItem): boolean {
-  return (
-    item.kind === "drop" ||
-    stringsIn(overlapCast(item)).some((text) => fileSummary(text) !== null)
-  );
-}
-
-function label(item: VaultItem): string {
-  return item.name.trim() === "" ? "Untitled" : item.name.trim();
-}
-
-type FolderPlan = { named: Folder[]; emptied: string[] };
-
-/** The folders `items` sat in, and those they would leave empty. */
-function foldersOf(vault: OpenVault, chosen: ReadonlySet<string>): FolderPlan {
-  const naming = new Set(
-    vault.items.flatMap((i) => (chosen.has(i.id) ? (i.folderId ?? []) : [])),
-  );
-  const staying = new Set(
-    vault.items.flatMap((i) => (chosen.has(i.id) ? [] : (i.folderId ?? []))),
-  );
-  return {
-    named: vault.folders.filter((folder) => naming.has(folder.id)),
-    emptied: [...naming].filter((id) => !staying.has(id)),
-  };
-}
-
-async function digestsOf(items: readonly VaultItem[]): Promise<string[]> {
-  return Promise.all(
-    items.map((item) =>
-      sha256Hex(new TextEncoder().encode(`${item.id}\u0000${itemText(item)}`)),
-    ),
-  );
-}
-
 /** What stops these items being hidden, before anything is read into a bundle. */
 async function whyNot(
   deps: ItemsDeps,
@@ -238,7 +166,9 @@ export async function packItemDeparture(
   if (gate) return refused(gate);
   const vault = deps.vault();
   if (!vault) return refused("owner_not_present");
-  const ids = [...new Set(input.ids)];
+  // An account leaves with the credentials bound to it (ADR 0177): left behind
+  // they would still be there to open while the account was gone.
+  const ids = withBoundCredentials(vault.items, [...new Set(input.ids)]);
   const blocked = await whyNot(deps, vault, ids);
   if (blocked) return blocked;
   const chosen = new Set(ids);
@@ -397,3 +327,5 @@ async function withdrawPacked(
     },
   };
 }
+
+export { cannotBeHidden } from "./items-depart-parts.js";

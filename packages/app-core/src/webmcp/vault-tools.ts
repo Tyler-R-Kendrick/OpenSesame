@@ -16,6 +16,7 @@ import {
   type VaultItem,
   accountTotp,
   activeItems,
+  itemTypeId,
   newUri,
   parseTotp,
   passwordMethod,
@@ -98,6 +99,8 @@ export type VaultItemMeta = {
   state?: DropState;
   expiresAt?: string;
   typeId?: string;
+  /** A credential: whether an account opens with it. Never a value. */
+  bound?: boolean;
 };
 
 /**
@@ -150,6 +153,12 @@ export function projectVaultItemMeta(item: VaultItem): VaultItemMeta {
     // vault into agent context by declaring a field (ADR 0087 §5).
     case "typed":
       return { ...base, typeId: item.typeId };
+    case "credential":
+      return {
+        ...base,
+        typeId: itemTypeId(item),
+        bound: item.accountId !== null,
+      };
   }
 }
 

@@ -1,0 +1,75 @@
+{
+  "apiVersion": "opensesame.dev/v1alpha1",
+  "kind": "VaultItemType",
+  "metadata": {
+    "id": "oauth-client",
+    "version": "1.0.0",
+    "publisher": "https://opensesame.dev"
+  },
+  "spec": {
+    "title": "OAuth client",
+    "plural": "OAuth clients",
+    "extension": ".oauth",
+    "summary": "An OAuth client id and secret, its token endpoint and scopes, kept on its own or bound to an account.",
+    "categories": ["developer", "access"],
+    "sections": [
+      {
+        "id": "credential",
+        "title": "OAuth client",
+        "fields": [
+          {
+            "id": "clientId",
+            "type": "string",
+            "label": "Client id"
+          },
+          {
+            "id": "clientSecret",
+            "type": "concealed",
+            "label": "Client secret"
+          },
+          {
+            "id": "tokenUrl",
+            "type": "url",
+            "label": "Token URL"
+          },
+          {
+            "id": "scopes",
+            "type": "string",
+            "label": "Scopes"
+          },
+          {
+            "id": "refreshToken",
+            "type": "concealed",
+            "label": "Refresh token"
+          }
+        ]
+      }
+    ],
+    "native": {
+      "secret": "clientSecret",
+      "trailer": [
+        {
+          "key": "client_id",
+          "field": "clientId"
+        },
+        {
+          "key": "token_url",
+          "field": "tokenUrl"
+        },
+        {
+          "key": "scope",
+          "field": "scopes"
+        },
+        {
+          "key": "refresh_token",
+          "field": "refreshToken"
+        }
+      ]
+    },
+    "cxf": {
+      "credential": "api-key"
+    },
+    "subtitle": ["clientId"],
+    "search": ["clientId", "tokenUrl"]
+  }
+}

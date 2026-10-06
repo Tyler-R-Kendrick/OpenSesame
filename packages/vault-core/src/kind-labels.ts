@@ -6,6 +6,7 @@
  */
 export const KIND_LABEL = {
   account: "Account",
+  credential: "Credential",
   passkey: "Passkey",
   card: "Card",
   secret: "Secret",
@@ -17,6 +18,7 @@ export const KIND_LABEL = {
 
 export const KIND_PLURAL = {
   account: "Accounts",
+  credential: "Credentials",
   passkey: "Passkeys",
   card: "Cards",
   secret: "Secrets",

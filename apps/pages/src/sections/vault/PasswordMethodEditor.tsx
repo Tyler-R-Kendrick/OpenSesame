@@ -38,13 +38,14 @@ export function PasswordMethodEditor({
   onEdit,
   onRemove,
 }: {
-  account: AccountItem;
+  /** Only these are read: an older pepper seal is bound to them. */
+  account: Pick<AccountItem, "id" | "username">;
   method: PasswordMethod;
   /** A draft that has never been saved makes a new password as its options change. */
   liveRoll: boolean;
   onEdit: (next: PasswordMethod) => void;
   /** The line's remove key, at its end like a website's. */
-  onRemove: () => void;
+  onRemove?: (() => void) | undefined;
 }) {
   const [open, setOpen] = useState(false);
   if (isLegacyMethod(method)) {
@@ -74,7 +75,11 @@ export function PasswordMethodEditor({
       <CredentialLine
         label="Password"
         htmlFor={`${method.id}-password`}
-        remove={{ label: "Remove password", onRemove }}
+        remove={
+          onRemove === undefined
+            ? undefined
+            : { label: "Remove password", onRemove }
+        }
         field={
           <PasswordControl
             method={method}

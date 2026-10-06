@@ -144,8 +144,15 @@ export function VaultSection() {
         if (value) void copySecret(value);
       },
       copyCredential: (item: VaultItem, choiceId: string) => {
-        if (item.kind !== "account") return;
-        const choice = credentialChoices(item).find(
+        // An account's credential, or a credential kept on its own (ADR 0177).
+        const holder =
+          item.kind === "account"
+            ? item
+            : item.kind === "credential"
+              ? { methods: [item.method] }
+              : null;
+        if (holder === null) return;
+        const choice = credentialChoices(holder).find(
           (candidate) => candidate.id === choiceId,
         );
         void Promise.resolve(choice?.read()).then((value) => {

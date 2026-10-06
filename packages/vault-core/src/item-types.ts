@@ -34,6 +34,8 @@ import {
   subtitleFor,
 } from "@opensesame/vault-item-types";
 import { type AccountItem, accountTotp } from "./account.js";
+import { credentialField } from "./credential-read.js";
+import { credentialTypeId } from "./credential.js";
 import type { InstalledItemTypes, VaultItem } from "./model.js";
 import { accountFilePassword } from "./produce.js";
 
@@ -120,7 +122,9 @@ export function installedDefinitions(): InstalledItemTypes {
 
 /** The type id an item was created with, whichever storage shape it uses. */
 export function itemTypeId(item: VaultItem): string {
-  return item.kind === "typed" ? item.typeId : item.kind;
+  if (item.kind === "typed") return item.typeId;
+  if (item.kind === "credential") return credentialTypeId(item.method.type);
+  return item.kind;
 }
 
 export function definitionFor(item: VaultItem): ItemTypeDefinition | undefined {
@@ -139,6 +143,7 @@ export function readItemField(
   field: FieldDefinition,
 ): FieldValue | undefined {
   if (item.kind === "typed") return item.values[field.id];
+  if (item.kind === "credential") return credentialField(item, field.id);
   if (item.kind === "account") {
     const derived = accountField(item, field.id);
     if (derived !== undefined) return derived === "" ? undefined : derived;

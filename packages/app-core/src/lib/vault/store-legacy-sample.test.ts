@@ -2,7 +2,11 @@
  * A vault that loaded the retired sample data, against a real vault store:
  * the synthetic items leave on the next unlock, and no manifest carries them.
  */
-import { type VaultItem, createItem } from "@opensesame/vault-core";
+import {
+  type VaultItem,
+  createItem,
+  outsideAccounts,
+} from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it } from "vitest";
 import { storeManifestFile } from "../../sections/vault/import/store-manifest.js";
 import { kvDelete } from "../kv.js";
@@ -57,13 +61,15 @@ describe("a vault that loaded the retired sample data", () => {
       } as VaultItem;
       await store.saveItem(demo);
     }
-    expect(store.getSnapshot().items).toHaveLength(3);
+    expect(outsideAccounts(store.getSnapshot().items)).toHaveLength(3);
     await store.flushPendingWrites();
     store.lock();
 
     await store.unlock(PASSWORD);
     const after = store.getSnapshot();
-    expect(after.items.map((item) => item.name)).toEqual(["Payroll"]);
+    expect(outsideAccounts(after.items).map((item) => item.name)).toEqual([
+      "Payroll",
+    ]);
     expect(after.folders).toEqual([]);
     expect(storeManifestFile(after.items, after.folders).count).toBe(1);
   });

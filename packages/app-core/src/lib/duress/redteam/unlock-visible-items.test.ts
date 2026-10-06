@@ -12,6 +12,7 @@ import {
   accountTotp,
   createItem,
   manualPassword,
+  outsideAccounts,
 } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { duressContinueSeams } from "../../../screens/unlock/unlock-duress-continue.js";
@@ -83,12 +84,12 @@ describe("visible items, through unlock", () => {
     expect(open.status).toBe("unlocked");
     expect(open.guest).toBe(true);
     expect(open.decoy).toBe(true);
-    expect(open.items.map((item) => item.name)).toEqual([
+    expect(outsideAccounts(open.items).map((item) => item.name)).toEqual([
       "Netflix",
       "Mail with 2FA",
     ]);
 
-    const [first, second] = open.items;
+    const [first, second] = outsideAccounts(open.items);
     if (first?.kind !== "account" || second?.kind !== "account") {
       throw new Error("expected two accounts");
     }
@@ -110,7 +111,7 @@ describe("visible items, through unlock", () => {
     ]);
     // New ids everywhere, and nothing that ties a copy to the real item.
     const realIds = new Set(seeded.all.map((item) => item.id));
-    for (const item of open.items) {
+    for (const item of outsideAccounts(open.items)) {
       expect(realIds.has(item.id)).toBe(false);
       expect(item.folderId).toBeNull();
       expect(item.deletedAt).toBeNull();
@@ -166,7 +167,9 @@ describe("visible items, through unlock", () => {
     clearEnrollmentStateForUnlock();
     seeded.store.loadActiveProjectScope();
     await seeded.store.unlock(PASSWORD);
-    const names = seeded.store.getSnapshot().items.map((item) => item.name);
+    const names = outsideAccounts(seeded.store.getSnapshot().items).map(
+      (item) => item.name,
+    );
     expect(names).toContain(HIDDEN.name);
     expect(names).toContain(HIDDEN_NOTE.name);
     expect(seeded.store.getSnapshot().guest).toBe(false);
@@ -192,7 +195,7 @@ describe("visible items, through unlock", () => {
     await lockIt(store);
 
     await typeCode(store);
-    const open = store.getSnapshot().items;
+    const open = outsideAccounts(store.getSnapshot().items);
     expect(open.map((item) => item.name)).toEqual(["Netflix"]);
     expect(JSON.stringify(open)).toContain("netflix-pw-4417");
     expect(JSON.stringify(open)).not.toContain("netflix-edited-pw");

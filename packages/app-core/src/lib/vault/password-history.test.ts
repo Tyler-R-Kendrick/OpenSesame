@@ -4,6 +4,7 @@ import {
   createItem,
   createVault,
   manualPassword,
+  outsideAccounts,
 } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { configureHost } from "../../host.js";
@@ -351,6 +352,8 @@ describe("VaultStore password retirement", () => {
     await expect(store.saveItems([item, extra])).rejects.toBeInstanceOf(
       PasswordUsedBeforeError,
     );
-    expect(store.getSnapshot().items.map((row) => row.name)).toEqual(["Bank"]);
+    expect(
+      outsideAccounts(store.getSnapshot().items).map((row) => row.name),
+    ).toEqual(["Bank"]);
   });
 });

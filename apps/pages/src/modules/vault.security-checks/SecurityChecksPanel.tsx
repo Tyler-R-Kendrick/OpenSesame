@@ -108,32 +108,36 @@ export function securityChecksPanel(
               </IconKey>
             }
           />
-          {report?.findings.map((finding) => (
-            <div className="vault-row" key={finding.item.id}>
-              <div className="vault-row__body">
-                <span className="vault-row__text">
-                  <span className="vault-row__name">
-                    {finding.item.name || hostOf(finding.item.uris[0]?.uri)}
+          {report?.findings.map((finding) => {
+            const site =
+              finding.item.kind === "account"
+                ? hostOf(finding.item.uris[0]?.uri)
+                : "";
+            return (
+              <div className="vault-row" key={finding.item.id}>
+                <div className="vault-row__body">
+                  <span className="vault-row__text">
+                    <span className="vault-row__name">
+                      {finding.item.name || site}
+                    </span>
+                    <span className="vault-row__meta">{site}</span>
                   </span>
-                  <span className="vault-row__meta">
-                    {hostOf(finding.item.uris[0]?.uri)}
-                  </span>
-                </span>
+                </div>
+                {finding.breaches > 0 ? (
+                  <StatusMark
+                    tone="err"
+                    label={`Found in breaches ${plural(finding.breaches, "time", "times")}: change this password`}
+                  />
+                ) : null}
+                {finding.twoFactorAvailable ? (
+                  <StatusMark
+                    tone="warn"
+                    label="This site takes an authenticator code; none is stored"
+                  />
+                ) : null}
               </div>
-              {finding.breaches > 0 ? (
-                <StatusMark
-                  tone="err"
-                  label={`Found in breaches ${plural(finding.breaches, "time", "times")}: change this password`}
-                />
-              ) : null}
-              {finding.twoFactorAvailable ? (
-                <StatusMark
-                  tone="warn"
-                  label="This site takes an authenticator code; none is stored"
-                />
-              ) : null}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
     );

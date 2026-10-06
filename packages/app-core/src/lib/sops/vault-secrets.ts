@@ -16,6 +16,7 @@ import {
 import {
   type VaultItem,
   normalizeLegacyItems,
+  outsideAccounts,
   producePassword,
 } from "@opensesame/vault-core";
 import { SopsError } from "./errors.js";
@@ -31,6 +32,7 @@ import type { SopsRunner } from "./runner.js";
 type DocKind = string;
 const KINDS: readonly DocKind[] = [
   "account",
+  "credential",
   "login",
   "passkey",
   "card",
@@ -66,7 +68,10 @@ export async function exportVaultSecrets(input: {
       "Vault exports are JSON documents.",
     );
   }
-  const { items, omitted } = withoutPepperedPasswords(input.items);
+  // A credential bound to an account travels in that account's methods (ADR 0177).
+  const { items, omitted } = withoutPepperedPasswords(
+    outsideAccounts(input.items),
+  );
   if (omitted > 0) input.onOmitted?.(omitted);
   const plaintext = JSON.stringify({ items });
   return input.runner.encryptNew(plaintext, input.plan, input.permit);
@@ -81,15 +86,24 @@ type PepperFiltered = { items: VaultItem[]; omitted: number };
  */
 function withoutPepperedPasswords(items: readonly VaultItem[]): PepperFiltered {
   let omitted = 0;
-  const kept = items.map((item) => {
-    if (item.kind !== "account") return item;
+  const kept = items.flatMap((item): VaultItem[] => {
+    if (item.kind === "credential") {
+      const legacy =
+        item.method.type === "password" &&
+        producePassword(item.method).status === "legacy";
+      omitted += legacy ? 1 : 0;
+      return legacy ? [] : [item];
+    }
+    if (item.kind !== "account") return [item];
     const methods = item.methods.filter(
       (method) =>
         method.type !== "password" ||
         producePassword(method).status !== "legacy",
     );
     omitted += item.methods.length - methods.length;
-    return methods.length === item.methods.length ? item : { ...item, methods };
+    return [
+      methods.length === item.methods.length ? item : { ...item, methods },
+    ];
   });
   return { items: kept, omitted };
 }
@@ -134,6 +148,8 @@ function extraFields(kind: DocKind): readonly string[] {
         "retiredAt",
         "reenrollState",
       ];
+    case "credential":
+      return ["method", "accountId", "order"];
     case "login":
       return [
         "username",
@@ -242,6 +258,11 @@ function assertKindPayload(value: JsonObject, kind: DocKind): void {
   if (kind === "secret") assertString(value, "value");
   if (kind === "login") assertString(value, "password");
   if (kind === "account") assertMethods(value.methods);
+  if (kind === "credential") {
+    assertMethods([value.method]);
+    if (!(value.accountId === null || isString(value.accountId)))
+      throw fail("A credential's account is not a vault record.");
+  }
   if (kind === "drop") assertString(value, "bearerToken");
   if (kind === "certificate") assertString(value, "privateKeyPem");
   if (kind === "passkey" && value.privateKeyPkcs8B64 !== undefined)

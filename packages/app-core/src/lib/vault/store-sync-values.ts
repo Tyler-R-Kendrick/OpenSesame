@@ -29,6 +29,7 @@ import {
   newId,
 } from "@opensesame/vault-core";
 import { graftAccountFormatOne } from "./store-sync-account.js";
+import { credentialLineOne } from "./store-sync-credential.js";
 import type { StoreCustomField } from "./store-sync-entry.js";
 
 type Check = (value: JsonValue) => boolean;
@@ -152,6 +153,7 @@ const FORMAT_ONE = {
   secret: ["value", "connectionRef", "notes"],
   note: ["notes"],
   typed: ["typeId", "values", "notes"],
+  credential: [],
   passkey: ["credentialIdB64", "notes"],
   card: ["number"],
   certificate: ["privateKeyPem"],
@@ -192,6 +194,7 @@ function propsOf(item: VaultItem): JsonObject {
 /** The text an item promotes to line one, whatever its line breaks. */
 export function lineOneValue(item: VaultItem): string {
   if (item.kind === "typed") return "";
+  if (item.kind === "credential") return credentialLineOne(item.method);
   if (item.kind === "account") return accountFilePassword(item);
   const key = LINE_ONE[item.kind];
   const value = key === null ? undefined : propsOf(item)[key];
@@ -216,7 +219,7 @@ function withoutIds(key: string, value: JsonValue): JsonValue {
  * Line one joins them when it holds a line break, since line one cannot.
  */
 export function namedValues(item: VaultItem): JsonObject | undefined {
-  if (item.kind === "typed") return undefined;
+  if (item.kind === "typed" || item.kind === "credential") return undefined;
   const props = propsOf(item);
   const fresh = propsOf(createItem(item.kind, item.name));
   const keys = Object.keys(NAMED[item.kind]);
@@ -257,7 +260,8 @@ export function applyNamedValues(
   item: VaultItem,
   values: JsonValue | undefined,
 ): void {
-  if (item.kind === "typed" || !isJsonObject(values)) return;
+  if (item.kind === "typed" || item.kind === "credential") return;
+  if (!isJsonObject(values)) return;
   const checks = new Map<string, Check>(Object.entries(NAMED[item.kind]));
   const lineOne = LINE_ONE[item.kind];
   if (lineOne !== null && item.kind !== "note") checks.set(lineOne, text);
@@ -335,6 +339,11 @@ export function graftOnto(
   }
   if (whole) {
     const next: VaultItem = { ...incoming, ...kept };
+    // A manifest never says which account a credential is bound to.
+    if (next.kind === "credential" && current.kind === "credential") {
+      next.accountId = current.accountId;
+      next.order = current.order;
+    }
     if (next.kind === "passkey" && current.kind === "passkey") {
       next.unlocksVault = current.unlocksVault;
     }

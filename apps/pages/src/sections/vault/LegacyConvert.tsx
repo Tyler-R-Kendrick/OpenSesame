@@ -27,7 +27,7 @@ export function LegacyConvert({
   onConvert,
   onRemove,
 }: {
-  account: AccountItem;
+  account: Pick<AccountItem, "id" | "username">;
   method: PasswordMethod;
   onConvert: (next: PasswordMethod) => void | Promise<void>;
   /** Drawn in the editor, where the line ends in a remove ×; absent on the page. */

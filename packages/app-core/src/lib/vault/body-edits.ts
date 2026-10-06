@@ -8,8 +8,12 @@ import {
   type Folder,
   type VaultBody,
   type VaultItem,
+  boundCredentials,
   captureBefore,
+  extractEmbeddedMethods,
+  hasEmbeddedMethods,
   restampEdits,
+  splitAccount,
   withTombstone,
 } from "@opensesame/vault-core";
 
@@ -24,6 +28,11 @@ export function stampedEdit(
   return (body) => {
     const before = captureBefore(body);
     change(body);
+    // A write that left an account carrying methods (an import, a replaced
+    // list) keeps each as a credential of its own (ADR 0177).
+    if (hasEmbeddedMethods(body.items)) {
+      body.items = extractEmbeddedMethods(body.items);
+    }
     restampEdits(before, body);
   };
 }
@@ -32,15 +41,31 @@ function now(): string {
   return new Date().toISOString();
 }
 
+/**
+ * An account's credentials go to the trash with it, at the same instant, so
+ * restoring the account brings back those that went with it and not one the
+ * person had already removed from it (ADR 0177).
+ */
 export function trashItem(body: VaultBody, id: string): void {
+  const at = now();
+  const alongside = new Set(
+    boundCredentials(body.items, id).map((credential) => credential.id),
+  );
   body.items = body.items.map((item) =>
-    item.id === id ? { ...item, deletedAt: now() } : item,
+    item.id === id || alongside.has(item.id)
+      ? { ...item, deletedAt: at }
+      : item,
   );
 }
 
+/** An account's credentials are purged with it; a credential purged alone leaves the account. */
 export function purgeItem(body: VaultBody, id: string): void {
-  body.items = body.items.filter((item) => item.id !== id);
-  body.tombstones = withTombstone(body.tombstones, "items", [id]);
+  const gone = new Set([id]);
+  for (const item of body.items) {
+    if (item.kind === "credential" && item.accountId === id) gone.add(item.id);
+  }
+  body.items = body.items.filter((item) => !gone.has(item.id));
+  body.tombstones = withTombstone(body.tombstones, "items", [...gone]);
 }
 
 export function emptyTrash(body: VaultBody): void {
@@ -63,9 +88,17 @@ export function deleteFolder(body: VaultBody, id: string): void {
 
 export function restoreItem(body: VaultBody, id: string): void {
   const at = now();
-  body.items = body.items.map((item) =>
-    item.id === id ? { ...item, deletedAt: null, updatedAt: at } : item,
-  );
+  const trashedWith = body.items.find((item) => item.id === id)?.deletedAt;
+  body.items = body.items.map((item) => {
+    if (item.id === id) return { ...item, deletedAt: null, updatedAt: at };
+    const together =
+      item.kind === "credential" &&
+      item.accountId === id &&
+      trashedWith !== undefined &&
+      trashedWith !== null &&
+      item.deletedAt === trashedWith;
+    return together ? { ...item, deletedAt: null, updatedAt: at } : item;
+  });
 }
 
 export function toggleFavorite(body: VaultBody, id: string): void {
@@ -163,9 +196,16 @@ function isLegacySample(item: VaultItem): boolean {
  * and nothing is moved.
  */
 export function retireLegacySample(body: VaultBody): void {
-  const gone = body.items.filter(isLegacySample);
+  const flagged = new Set(body.items.filter(isLegacySample).map((i) => i.id));
+  // An account's credentials go with it (ADR 0177).
+  const isGone = (item: VaultItem) =>
+    flagged.has(item.id) ||
+    (item.kind === "credential" &&
+      item.accountId !== null &&
+      flagged.has(item.accountId));
+  const gone = body.items.filter(isGone);
   if (gone.length === 0) return;
-  const kept = body.items.filter((item) => !isLegacySample(item));
+  const kept = body.items.filter((item) => !isGone(item));
   const folders = new Set(gone.flatMap((item) => item.folderId ?? []));
   for (const item of kept) if (item.folderId) folders.delete(item.folderId);
   const at = now();
@@ -193,12 +233,34 @@ export function applyManifestPlan(
   plan: { adds: VaultItem[]; updates: VaultItem[]; newFolders: Folder[] },
 ): void {
   const at = now();
-  const updated = new Map(
-    plan.updates.map((item) => [item.id, { ...item, updatedAt: at }]),
-  );
   body.folders = [...body.folders, ...plan.newFolders];
-  body.items = [
-    ...body.items.map((item) => updated.get(item.id) ?? item),
-    ...plan.adds,
-  ];
+  for (const item of plan.updates) {
+    const next = { ...item, updatedAt: at };
+    // An account is rewritten with the methods the manifest names (ADR 0177).
+    body.items =
+      next.kind === "account"
+        ? splitAccount(body.items, next, at)
+        : body.items.map((held) => (held.id === item.id ? next : held));
+  }
+  body.items = [...body.items, ...plan.adds];
+}
+
+/** Add items, and the folders they need, in one write. */
+export function appendItems(
+  body: VaultBody,
+  items: readonly VaultItem[],
+  folders: readonly Folder[],
+): void {
+  body.folders = [...body.folders, ...folders];
+  body.items = [...body.items, ...items];
+}
+
+/** Replace every item and folder, as a restore does. */
+export function replaceItems(
+  body: VaultBody,
+  items: VaultItem[],
+  folders: Folder[],
+): void {
+  body.items = items;
+  body.folders = folders;
 }

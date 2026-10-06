@@ -45,7 +45,7 @@ export function AccountPasswordRow({
   guide,
   onSave,
 }: {
-  item: AccountItem;
+  item: Pick<AccountItem, "id" | "username">;
   method: PasswordMethod;
   title: string;
   copying: Copying;

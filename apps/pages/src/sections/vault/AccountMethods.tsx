@@ -1,9 +1,13 @@
-import type {
-  AccountItem,
-  LoginMethod,
-  LoginMethodType,
+import { isPackOn } from "@opensesame/app-core/lib/type-packs/state.js";
+import {
+  type AccountItem,
+  LOGIN_METHOD_TYPES,
+  type LoginMethod,
+  type LoginMethodType,
+  credentialTypeId,
 } from "@opensesame/vault-core";
 import { useEffect, useRef, useState } from "react";
+import { usePackSnapshot } from "../../bindings/type-packs.js";
 import { IconPlus } from "../../components/Icons.js";
 import { MethodPicker, methodTitle, newMethod } from "./MethodPicker.js";
 import {
@@ -76,6 +80,12 @@ export function AccountMethods({
 }) {
   const [picking, setPicking] = useState(false);
   const [added, setAdded] = useState<string | null>(null);
+  // Only the credential types this vault has switched on may be added; the
+  // ones its accounts already hold are on by being held (ADR 0165, ADR 0177).
+  const packs = usePackSnapshot();
+  const types = LOGIN_METHOD_TYPES.filter((type) =>
+    isPackOn(credentialTypeId(type), packs),
+  );
   const opener = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const { methods } = account;
@@ -107,21 +117,24 @@ export function AccountMethods({
       <div className="field method__group">
         <span className="label editor__grouplabel">
           Login methods
-          <button
-            ref={opener}
-            type="button"
-            className="icon-btn icon-btn--sm"
-            aria-label="Add login method"
-            title="Add login method"
-            aria-expanded={picking}
-            onClick={() => setPicking((open) => !open)}
-          >
-            <IconPlus size={15} />
-          </button>
+          {types.length > 0 ? (
+            <button
+              ref={opener}
+              type="button"
+              className="icon-btn icon-btn--sm"
+              aria-label="Add login method"
+              title="Add login method"
+              aria-expanded={picking}
+              onClick={() => setPicking((open) => !open)}
+            >
+              <IconPlus size={15} />
+            </button>
+          ) : null}
         </span>
-        {picking ? (
+        {picking && types.length > 0 ? (
           <MethodPicker
             opener={opener}
+            types={types}
             onPick={add}
             onClose={() => setPicking(false)}
           />

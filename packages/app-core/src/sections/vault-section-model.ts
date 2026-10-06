@@ -6,6 +6,7 @@ import { isString } from "@opensesame/os-domain";
 import {
   type AccountItem,
   type VaultItem,
+  credentialConcealed,
   credentialLine,
   definitionFor,
   handoff,
@@ -59,6 +60,7 @@ export function concealedValue(item: VaultItem): string | null {
   if (item.kind === "account") {
     return sharedPassword(item) ?? credentialLine(item);
   }
+  if (item.kind === "credential") return credentialConcealed(item);
   if (item.kind === "secret") return item.value;
   if (item.kind === "card") return item.number;
   if (item.kind === "certificate") return item.privateKeyPem;

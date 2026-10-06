@@ -14,10 +14,12 @@ import {
   WrongPasswordError,
   b64ToBytes,
   openVaultBody,
+  outsideAccounts,
   passwordMethod,
   produceAccountPassword,
   readDeviceIdentityKeyRecord,
   readVaultFile,
+  resolveAccounts,
   unwrapRawVaultKeyFromPassword,
 } from "@opensesame/vault-core";
 import { describe, expect, it, vi } from "vitest";
@@ -66,7 +68,8 @@ function summarize(body: VaultBody, bound: boolean, tomb: string): Expectation {
     tomb,
     bound,
     rev: body.rev ?? null,
-    items: body.items.map((item) => ({
+    // A credential bound to an account is part of that account's file (ADR 0177).
+    items: outsideAccounts(body.items).map((item) => ({
       id: item.id,
       name: item.name,
       kind: item.kind,
@@ -135,7 +138,7 @@ describe("golden vault vectors", () => {
       fixture.password,
     );
     const { body } = await openBody(raw, opened);
-    const accounts = body.items.filter(
+    const accounts = resolveAccounts(body.items).filter(
       (item): item is AccountItem => item.kind === "account",
     );
     const [clear, slotted] = accounts;
@@ -232,14 +235,14 @@ describe("golden vault vectors", () => {
       fixture.password,
     );
     expect(merged).toBe(2);
-    const names = store.getSnapshot().items.map((item) => item.name);
-    expect(names).toEqual(["Personal login", "Personal note"]);
+    const listed = outsideAccounts(store.getSnapshot().items);
+    expect(listed.map((item) => item.name)).toEqual([
+      "Personal login",
+      "Personal note",
+    ]);
     // The imported login is an account in memory, and what the store seals
     // from here never says `login`.
-    expect(store.getSnapshot().items.map((item) => item.kind)).toEqual([
-      "account",
-      "note",
-    ]);
+    expect(listed.map((item) => item.kind)).toEqual(["account", "note"]);
     await store.flushPendingWrites();
     const sealed = JSON.parse(store.exportSealed());
     const opened = await openBody(

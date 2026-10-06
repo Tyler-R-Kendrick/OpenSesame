@@ -7,6 +7,7 @@ import {
   importVaultKey,
   openJson,
   pepperBinding,
+  resolveAccounts,
   sealWithPepper,
   unwrapRawVaultKeyFromPassword,
   vaultSealBinding,
@@ -153,12 +154,14 @@ it("protects every new account secret across independent customer vaults with eq
   const beta = await persistCustomer(32, account);
   const binding = vaultSealBinding(PERSONAL_TOMB, BODY_PATH);
   const opened = await openJson<VaultBody>(alpha.key, alpha.body, binding);
-  expect(opened.items[0]).toMatchObject({
+  expect(resolveAccounts(opened.items)[0]).toMatchObject({
     id: account.id,
     methods: account.methods,
   });
   expect(
-    (await openJson<VaultBody>(beta.key, beta.body, binding)).items[0],
+    resolveAccounts(
+      (await openJson<VaultBody>(beta.key, beta.body, binding)).items,
+    )[0],
   ).toMatchObject({ id: account.id, methods: account.methods });
   expect(alpha.body).not.toEqual(beta.body);
   await expect(openJson(beta.key, alpha.body, binding)).rejects.toThrow();

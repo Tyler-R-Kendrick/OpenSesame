@@ -93,6 +93,7 @@ const VOCABULARY = new Set([
   "api-key",
   "token",
   "oauth",
+  "oauth-client",
   "authenticator",
   "rules",
   "passphrase",
@@ -201,10 +202,13 @@ describe("opensesame-id vault verify / ls over the golden vectors", () => {
         fixture.password,
       );
       const { body } = await openVaultBody(sealed, raw);
+      // An id is listed, so a reference to one (a credential's account) shows
+      // nothing the listing does not (ADR 0177).
+      const ids = new Set(body.items.map((item) => item.id));
       const values = body.items.flatMap(
         ({ id: _id, name: _name, kind: _kind, ...rest }) =>
           stringLeaves(overlapCast(rest)).filter(
-            (v) => v.length >= 6 && !VOCABULARY.has(v),
+            (v) => v.length >= 6 && !VOCABULARY.has(v) && !ids.has(v),
           ),
       );
       expect(values.length).toBeGreaterThan(0);

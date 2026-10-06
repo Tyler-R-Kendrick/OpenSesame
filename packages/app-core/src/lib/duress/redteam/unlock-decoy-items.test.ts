@@ -8,6 +8,7 @@
 import {
   createItem,
   itemSubtitle,
+  outsideAccounts,
   searchMatches,
 } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -120,10 +121,12 @@ describe("decoy with everyday items, through unlock", () => {
     expect(open.status).toBe("unlocked");
     expect(open.guest).toBe(true);
     expect(open.decoy).toBe(true);
-    expect(open.items.map((item) => item.name)).toEqual(ITEMS);
-    expect(open.items.map((item) => item.name)).not.toContain(OWN);
+    expect(outsideAccounts(open.items).map((item) => item.name)).toEqual(ITEMS);
+    expect(outsideAccounts(open.items).map((item) => item.name)).not.toContain(
+      OWN,
+    );
     // Ordinary items of an ordinary type, live and listed like any other.
-    for (const item of open.items) {
+    for (const item of outsideAccounts(open.items)) {
       expect(item.kind).toBe("account");
       expect(item.deletedAt).toBeNull();
     }
@@ -137,7 +140,7 @@ describe("decoy with everyday items, through unlock", () => {
   it("keeps secrets out of titles, subtitles and search, and out of the real vault", async () => {
     const store = await armedVault(ITEMS.join("\n"));
     await typeCode(store);
-    const items = store.getSnapshot().items;
+    const items = outsideAccounts(store.getSnapshot().items);
     expect(items).toHaveLength(ITEMS.length);
     for (const item of items) {
       if (item.kind !== "account") throw new Error("expected accounts");
@@ -214,14 +217,16 @@ describe("decoy with everyday items, through unlock", () => {
         expect(kvGet(tombFileKey(GUEST_TOMB, key)) ?? "").not.toContain(text);
       }
     }
-    expect(store.getSnapshot().items).toHaveLength(0);
+    expect(outsideAccounts(store.getSnapshot().items)).toHaveLength(0);
     expect(raw(PERSONAL_TOMB)).toEqual(realBefore);
 
     clearEnrollmentStateForUnlock();
     store.loadActiveProjectScope();
     await store.unlock(PASSWORD);
     expect(store.getSnapshot().guest).toBe(false);
-    expect(store.getSnapshot().items.map((item) => item.name)).toEqual([OWN]);
+    expect(
+      outsideAccounts(store.getSnapshot().items).map((item) => item.name),
+    ).toEqual([OWN]);
     store.lock();
   });
 
@@ -247,10 +252,12 @@ describe("decoy with everyday items, through unlock", () => {
 
     store.rehydrate();
     await expect(typeCode(store)).resolves.toBe("duress_session");
-    expect(store.getSnapshot().items.map((item) => item.name)).toEqual(ITEMS);
-    expect(store.getSnapshot().items.map((item) => item.name)).not.toContain(
-      "Guest keeps this",
-    );
+    expect(
+      outsideAccounts(store.getSnapshot().items).map((item) => item.name),
+    ).toEqual(ITEMS);
+    expect(
+      outsideAccounts(store.getSnapshot().items).map((item) => item.name),
+    ).not.toContain("Guest keeps this");
     await store.flushPendingWrites();
     await vfsFlush();
     expect(raw(GUEST_TOMB)).toEqual(guestBefore);
@@ -265,7 +272,7 @@ describe("decoy with everyday items, through unlock", () => {
     const store = await armedVault(ITEMS.join("\n"));
     await expect(typeCode(store)).resolves.toBe("duress_session");
     expect(store.getSnapshot().decoy).toBe(true);
-    expect(store.getSnapshot().items).toHaveLength(0);
+    expect(outsideAccounts(store.getSnapshot().items)).toHaveLength(0);
     store.lock();
   });
 });

@@ -24,6 +24,7 @@ import {
   accountTotp,
   createItem,
   parseTotp,
+  resolveAccounts,
   totpCode,
   totpSetupUri,
 } from "@opensesame/vault-core";
@@ -117,7 +118,7 @@ export async function selfAuthenticatorRegistration(
   const secret = await openTotpSecret(vaultKey, gate);
   const canon = (value: string) =>
     value.normalize("NFKC").replace(/\s+/g, "").toUpperCase();
-  const existing = body.items.find(
+  const existing = resolveAccounts(body.items).find(
     (item): item is AccountItem =>
       item.kind === "account" &&
       item.deletedAt === null &&
@@ -168,7 +169,7 @@ export async function heldTotpCode(
   gate: TotpGateRecord,
   body: VaultBody,
 ): Promise<string | null> {
-  const item = body.items.find(
+  const item = resolveAccounts(body.items).find(
     (candidate) =>
       candidate.id === gate.selfItemId && candidate.deletedAt === null,
   );

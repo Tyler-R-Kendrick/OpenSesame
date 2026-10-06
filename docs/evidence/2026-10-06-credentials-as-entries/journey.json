@@ -1,0 +1,249 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 1500,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "scrollToOptional": "Item types"
+        },
+        {
+          "shot": "390-types"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "press": "Add login method"
+        },
+        {
+          "measure": ".method__picker button"
+        },
+        {
+          "shot": "390-picker"
+        },
+        {
+          "escape": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "API key"
+        },
+        {
+          "switchOptional": "Token"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "press": "Add login method"
+        },
+        {
+          "measure": ".method__picker button"
+        },
+        {
+          "shot": "390-picker-on"
+        },
+        {
+          "escape": null
+        },
+        {
+          "visit": "vault/new/api-key"
+        },
+        {
+          "fillOptional": {
+            "label": "X-Api-Key value",
+            "text": "demo-api-key-0001"
+          }
+        },
+        {
+          "measure": ".method"
+        },
+        {
+          "shot": "390-credential"
+        },
+        {
+          "pressOptional": "Save item"
+        },
+        {
+          "shot": "390-credential-detail"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 1100,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "scrollToOptional": "Item types"
+        },
+        {
+          "shot": "1280-types"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "press": "Add login method"
+        },
+        {
+          "measure": ".method__picker button"
+        },
+        {
+          "shot": "1280-picker"
+        },
+        {
+          "escape": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "API key"
+        },
+        {
+          "switchOptional": "Token"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "press": "Add login method"
+        },
+        {
+          "measure": ".method__picker button"
+        },
+        {
+          "shot": "1280-picker-on"
+        },
+        {
+          "escape": null
+        },
+        {
+          "visit": "vault/new/api-key"
+        },
+        {
+          "fillOptional": {
+            "label": "X-Api-Key value",
+            "text": "demo-api-key-0001"
+          }
+        },
+        {
+          "measure": ".method"
+        },
+        {
+          "shot": "1280-credential"
+        },
+        {
+          "pressOptional": "Save item"
+        },
+        {
+          "shot": "1280-credential-detail"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-types",
+      "width": 390,
+      "title": "Settings \u203a Vaults \u203a Item types \u2014 390 wide",
+      "caption": "Accounts need Password, so it is switched on with them and held; the credential types are switches of their own.",
+      "before": "Credentials inside the account; every type offered",
+      "after": "Credentials as entries of their own; only the types switched on"
+    },
+    {
+      "shot": "390-picker",
+      "width": 390,
+      "title": "The + on an account \u2014 390 wide",
+      "caption": "Only the credential types this vault has switched on.",
+      "before": "Credentials inside the account; every type offered",
+      "after": "Credentials as entries of their own; only the types switched on"
+    },
+    {
+      "shot": "390-picker-on",
+      "width": 390,
+      "title": "The + after API key and Token are switched on \u2014 390 wide",
+      "caption": "Each type switched on is offered, and no other.",
+      "before": "Credentials inside the account; every type offered",
+      "after": "Credentials as entries of their own; only the types switched on"
+    },
+    {
+      "shot": "390-credential",
+      "width": 390,
+      "title": "A credential written on its own \u2014 390 wide",
+      "caption": "An API key as its own entry: the header and its value, with the Account it opens (none, here).",
+      "before": "Credentials inside the account; every type offered",
+      "after": "Credentials as entries of their own; only the types switched on"
+    },
+    {
+      "shot": "390-credential-detail",
+      "width": 390,
+      "title": "The credential's own page \u2014 390 wide",
+      "caption": "The account it opens, or none, and its values as rows.",
+      "before": "Credentials inside the account; every type offered",
+      "after": "Credentials as entries of their own; only the types switched on"
+    },
+    {
+      "shot": "1280-types",
+      "width": 1280,
+      "title": "Settings \u203a Vaults \u203a Item types \u2014 1280 wide",
+      "caption": "Accounts need Password, so it is switched on with them and held; the credential types are switches of their own.",
+      "before": "Credentials inside the account; every type offered",
+      "after": "Credentials as entries of their own; only the types switched on"
+    },
+    {
+      "shot": "1280-picker",
+      "width": 1280,
+      "title": "The + on an account \u2014 1280 wide",
+      "caption": "Only the credential types this vault has switched on.",
+      "before": "Credentials inside the account; every type offered",
+      "after": "Credentials as entries of their own; only the types switched on"
+    },
+    {
+      "shot": "1280-picker-on",
+      "width": 1280,
+      "title": "The + after API key and Token are switched on \u2014 1280 wide",
+      "caption": "Each type switched on is offered, and no other.",
+      "before": "Credentials inside the account; every type offered",
+      "after": "Credentials as entries of their own; only the types switched on"
+    },
+    {
+      "shot": "1280-credential",
+      "width": 1280,
+      "title": "A credential written on its own \u2014 1280 wide",
+      "caption": "An API key as its own entry: the header and its value, with the Account it opens (none, here).",
+      "before": "Credentials inside the account; every type offered",
+      "after": "Credentials as entries of their own; only the types switched on"
+    },
+    {
+      "shot": "1280-credential-detail",
+      "width": 1280,
+      "title": "The credential's own page \u2014 1280 wide",
+      "caption": "The account it opens, or none, and its values as rows.",
+      "before": "Credentials inside the account; every type offered",
+      "after": "Credentials as entries of their own; only the types switched on"
+    }
+  ]
+}

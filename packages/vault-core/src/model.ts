@@ -1,13 +1,12 @@
 /** Vault item model. Everything here lives inside the sealed body — never in plaintext storage. */
 import type { JsonObject } from "@opensesame/os-domain";
-import type {
-  FieldValues,
-  ItemTypeDefinition,
-} from "@opensesame/vault-item-types";
+import type { FieldValues } from "@opensesame/vault-item-types";
 // Type-only in the other direction, so this stays a leaf at runtime.
 import { typedSearchText, typedSubtitle } from "./item-types.js";
 
-import { type AccountItem, newPasswordMethod } from "./account.js";
+import type { AccountItem } from "./account.js";
+import { credentialSearchText, credentialSubtitle } from "./credential-read.js";
+import type { CredentialItem } from "./credential.js";
 import type { LoginUri, UriMatch } from "./login-uri.js";
 import type { ItemTypeInstallTimes, VaultTombstones } from "./sync-model.js";
 export type { AccountItem } from "./account.js";
@@ -19,6 +18,7 @@ export type { ItemTypeInstallTimes, VaultTombstones } from "./sync-model.js";
  */
 export type ItemKind =
   | "account"
+  | "credential"
   | "passkey"
   | "card"
   | "secret"
@@ -28,7 +28,7 @@ export type ItemKind =
   | "typed";
 
 /** Every kind whose fields are named properties on the item. */
-export type LegacyItemKind = Exclude<ItemKind, "typed">;
+export type LegacyItemKind = Exclude<ItemKind, "typed" | "credential">;
 
 export type CustomField = {
   id: string;
@@ -178,6 +178,7 @@ export type CertificateItem = BaseItem & {
 
 export type VaultItem =
   | AccountItem
+  | CredentialItem
   | PasskeyItem
   | CardItem
   | SecretItem
@@ -224,6 +225,7 @@ export type VaultBody = {
 };
 
 import { KIND_LABEL } from "./kind-labels.js";
+export { createItem, createTypedItem } from "./item-factory.js";
 export { KIND_LABEL, KIND_PLURAL } from "./kind-labels.js";
 
 export function newId(): string {
@@ -232,20 +234,6 @@ export function newId(): string {
 
 export function emptyBody(): VaultBody {
   return { v: 1, items: [], folders: [], rev: 0 };
-}
-
-/** Build an item of a plugin-defined type from its definition. */
-export function createTypedItem(
-  definition: ItemTypeDefinition,
-  values: FieldValues,
-  name = "",
-): TypedItem {
-  return {
-    ...base("typed", name),
-    kind: "typed",
-    typeId: definition.metadata.id,
-    values: { ...values },
-  };
 }
 
 /** True only when OpenSesame has complete signing material for the passkey. */
@@ -284,108 +272,13 @@ export function newGrant(action = "", resource = ""): CapabilityGrant {
   return { id: newId(), action, resource };
 }
 
-function base(kind: ItemKind, name: string): BaseItem {
-  const now = new Date().toISOString();
-  return {
-    id: newId(),
-    kind,
-    name,
-    folderId: null,
-    favorite: false,
-    notes: "",
-    fields: [],
-    createdAt: now,
-    updatedAt: now,
-    deletedAt: null,
-  };
-}
-
-export function createItem(kind: "account", name?: string): AccountItem;
-export function createItem(kind: "passkey", name?: string): PasskeyItem;
-export function createItem(kind: "card", name?: string): CardItem;
-export function createItem(kind: "secret", name?: string): SecretItem;
-export function createItem(kind: "note", name?: string): NoteItem;
-export function createItem(kind: "certificate", name?: string): CertificateItem;
-export function createItem(kind: "drop", name?: string): DropItem;
-export function createItem(kind: LegacyItemKind, name?: string): VaultItem;
-export function createItem(kind: LegacyItemKind, name = ""): VaultItem {
-  const b = base(kind, name);
-  switch (kind) {
-    case "account":
-      return {
-        ...b,
-        kind: "account",
-        username: "",
-        uris: [],
-        methods: [newPasswordMethod(b.id, b.createdAt)],
-      };
-    case "passkey":
-      return {
-        ...b,
-        kind: "passkey",
-        rpId: "",
-        username: "",
-        credentialIdB64: "",
-        publicKeyB64: "",
-        authenticator: "platform",
-        unlocksVault: false,
-      };
-    case "card":
-      return {
-        ...b,
-        kind: "card",
-        cardholder: "",
-        brand: "",
-        number: "",
-        expMonth: "",
-        expYear: "",
-        code: "",
-      };
-    case "secret":
-      return {
-        ...b,
-        kind: "secret",
-        value: "",
-        ceiling: [],
-        grantees: [],
-        connectionRef: "",
-      };
-    case "note":
-      return { ...b, kind: "note" };
-    case "certificate":
-      return {
-        ...b,
-        kind: "certificate",
-        commonName: name || "localhost",
-        dnsNames: "localhost",
-        ipAddrs: "127.0.0.1",
-        ttlHours: "24",
-        certificatePem: "",
-        privateKeyPem: "",
-        caPem: "",
-        serial: "",
-        notAfter: "",
-      };
-    case "drop":
-      // A stub for switch exhaustiveness: the +new Drop ceremony builds the
-      // real record from the claim session it created — claimId, bearerToken,
-      // and expiresAt are never blank in a saved drop.
-      return {
-        ...b,
-        kind: "drop",
-        state: "pending",
-        claimId: "",
-        bearerToken: "",
-        expiresAt: b.createdAt,
-      };
-  }
-}
-
 /** Subtitle shown in the item list — never a secret value. */
 export function itemSubtitle(item: VaultItem): string {
   switch (item.kind) {
     case "account":
       return item.username || hostOf(item.uris[0]?.uri) || "No username";
+    case "credential":
+      return credentialSubtitle(item);
     case "passkey":
       return item.username ? `${item.username} · ${item.rpId}` : item.rpId;
     case "card":
@@ -457,6 +350,7 @@ export function searchMatches(item: VaultItem, query: string): boolean {
   if (item.kind === "account") {
     haystack.push(item.username, ...item.uris.map((u) => u.uri));
   }
+  if (item.kind === "credential") haystack.push(...credentialSearchText(item));
   if (item.kind === "passkey") haystack.push(item.username, item.rpId);
   if (item.kind === "card") haystack.push(item.brand, item.cardholder);
   if (item.kind === "secret") {

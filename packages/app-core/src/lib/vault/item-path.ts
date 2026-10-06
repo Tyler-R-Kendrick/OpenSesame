@@ -2,7 +2,10 @@ import {
   type Folder,
   type VaultBody,
   type VaultItem,
+  bindRefusalMessage,
   normalizeItems,
+  saveCredential,
+  splitAccount,
 } from "@opensesame/vault-core";
 
 export function itemCreatePath(
@@ -76,7 +79,21 @@ export function writeItem(body: VaultBody, item: VaultItem, folder?: Folder) {
     folderId = existing?.id ?? folder.id;
   }
   const [account = item] = normalizeItems([item]);
-  const next = { ...account, folderId, updatedAt: new Date().toISOString() };
+  const at = new Date().toISOString();
+  const next = { ...account, folderId, updatedAt: at };
+  // An account is written with the methods it now has: each is a credential of
+  // its own and one it dropped goes to the trash (ADR 0177).
+  if (next.kind === "account") {
+    body.items = splitAccount(body.items, next, at);
+    return;
+  }
+  // A credential written on its own is bound, moved or released (ADR 0177).
+  if (next.kind === "credential") {
+    const saved = saveCredential(body.items, next, at);
+    if (!saved.ok) throw new Error(bindRefusalMessage(saved.refusal));
+    body.items = saved.items;
+    return;
+  }
   const index = body.items.findIndex((candidate) => candidate.id === item.id);
   body.items =
     index === -1
