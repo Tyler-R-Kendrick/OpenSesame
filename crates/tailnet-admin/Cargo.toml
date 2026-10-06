@@ -39,5 +39,7 @@ default = []
 upstream-override = []
 
 [dev-dependencies]
+chacha20poly1305 = { workspace = true }
+hkdf = { workspace = true }
 axum = { workspace = true }
 tempfile = { workspace = true }

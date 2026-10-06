@@ -7,7 +7,7 @@
 //! and a role.
 //!
 //! - [`AdminStore`] — the directory the daemon and `opensesame tailnet`
-//!   share: which tailnet, the credential (a `0600` file), the pairings and
+//!   share: which tailnet, the enveloped credential and private bootstrap root, the pairings and
 //!   the audit trail. Read whole on every call, so the CLI and the daemon see
 //!   each other's changes without a restart.
 //! - [`RolePairings`] — one-time codes for an origin and a role, traded once

@@ -20,7 +20,7 @@ pub use file::{
     rotated_path, SealedLogFile, SealedLogSink, SealedLogWriter, DEFAULT_KEEP, DEFAULT_MAX_BYTES,
 };
 pub use read::{read_tail, seal_existing, UNREADABLE};
-pub use seal::{open_line, seal_line, LogKey, LINE_PREFIX};
+pub use seal::{is_sealed_line, open_line, seal_line, LogKey, LINE_PREFIX};
 
 /// Where the key for `log` lives: `OPENSESAME_LOG_KEY_FILE` when set, else
 /// `<log>.key` beside it.
@@ -40,9 +40,13 @@ pub fn key_path_for(log: &Path, override_path: Option<&str>) -> PathBuf {
 ///
 /// Returns an error when the key or the file cannot be read, created or opened.
 pub fn open_sink(log: &Path, key_override: Option<&str>) -> std::io::Result<SealedLogSink> {
-    let key = LogKey::load_or_create(&key_path_for(log, key_override))?;
-    // A log an older build wrote in the clear is sealed before it is appended to.
-    seal_existing(log, &key)?;
+    let key_path = key_path_for(log, key_override);
+    let key = if read::has_sealed_lines(log)? {
+        LogKey::load(&key_path)?
+    } else {
+        LogKey::load_or_create(&key_path)?
+    };
+    // The file constructor validates and migrates every known generation.
     Ok(SealedLogSink::new(SealedLogFile::open(log, key)?))
 }
 
@@ -50,3 +54,6 @@ pub fn open_sink(log: &Path, key_override: Option<&str>) -> std::io::Result<Seal
 mod tests;
 #[cfg(test)]
 mod tests_shared;
+
+#[cfg(test)]
+mod envelope_tests;

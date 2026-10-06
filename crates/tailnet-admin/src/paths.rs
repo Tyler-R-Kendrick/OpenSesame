@@ -4,7 +4,8 @@
 //!
 //! ```text
 //! <dir>/tailnet-admin.json         which tailnet, which kind of credential
-//! <dir>/tailnet-admin.secret       the credential itself
+//! <dir>/tailnet-admin.secret       scoped credential envelope
+//! <dir>/tailnet-admin.key          private local bootstrap root
 //! <dir>/tailnet-pairings.json      code and bearer digests, origin, role
 //! <dir>/tailnet-admin-audit.jsonl  one line per change, no values
 //! ```

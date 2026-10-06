@@ -158,7 +158,8 @@ describe("createLogger with OPENSESAME_LOG_FILE (ADR 0157)", () => {
     const log = join(dir(), "svc.log");
     process.env.OPENSESAME_LOG_FILE = log;
     const logger = createLogger({ name: "sealed-test", level: "info" });
-    logger.info({ user: "ada" }, "vault unlocked");
+    const user = "customer_ada_canary_4b5e69f18f084118";
+    logger.info({ user }, "vault unlocked");
     logger.error(
       { password: "hunter2" },
       "failed: https://a.example/claim#token=osc_clm_AbC.s3cr3tpart",
@@ -167,7 +168,7 @@ describe("createLogger with OPENSESAME_LOG_FILE (ADR 0157)", () => {
     const raw = readFileSync(log, "utf8");
     for (const shown of [
       "vault unlocked",
-      "ada",
+      user,
       "hunter2",
       "osc_clm_",
       "s3cr3tpart",
@@ -176,6 +177,7 @@ describe("createLogger with OPENSESAME_LOG_FILE (ADR 0157)", () => {
     }
     const read = readSealedTail(log, loadLogKey(`${log}.key`), 10).join("\n");
     expect(read).toContain("vault unlocked");
+    expect(read).toContain(user);
     expect(read).toMatch(/failed/);
     for (const leaked of ["hunter2", "osc_clm_", "s3cr3tpart"]) {
       expect(read).not.toContain(leaked);
@@ -211,8 +213,8 @@ describe("the format is one definition (spec/conformance/sealed-log-vectors.json
         Buffer.from(sealed.slice(SEALED_LINE_PREFIX.length), "base64url")
           .length,
       ).toBe(
-        Buffer.from(vector.sealed.slice(SEALED_LINE_PREFIX.length), "base64url")
-          .length,
+        Buffer.from(vector.sealed.slice("osl1.".length), "base64url").length +
+          72,
       );
       expect(openLogLine(vectorKey, sealed)).toBe(vector.plain);
     }

@@ -24,3 +24,13 @@ export function isRecordRestEnvelope(value) {
 export function isClientRestEnvelope(value) {
   return envelope(value, "osc2.", "base64", 88);
 }
+
+// Sealed-log envelopes use the same XChaCha wrapped-DEK header.
+export function isLogRestEnvelope(value) {
+  return envelope(value, "osl2.", "base64url", 112);
+}
+
+// Native managed credential envelopes use the event-seal XChaCha format.
+export function isManagedRestEnvelope(value) {
+  return envelope(value, "osev2.", "base64url", 112);
+}

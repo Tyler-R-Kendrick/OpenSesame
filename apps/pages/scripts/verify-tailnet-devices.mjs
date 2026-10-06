@@ -39,6 +39,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { expect } from "@playwright/test";
+import {
+  isLogRestEnvelope,
+  isManagedRestEnvelope,
+} from "./lib/at-rest-envelope-format.mjs";
 import "./lib/expect-timeout.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
 import { sealWithPassword } from "./lib/pages-journey.mjs";
@@ -65,20 +69,17 @@ const stack = await startStack({
 });
 const { base, state, stub, shot } = stack;
 
-/**
- * The daemon's state, but its credential file: the one file the API token may
- * be in (0600 in a 0700 directory). Nothing else it writes holds a token, a
- * minted key or a bearer.
- */
+/** Every managed state file is inspected, including the credential envelope. */
 function stateFiles() {
   const secret = path.join(state, "tailnet-admin.secret");
   if ((fs.statSync(secret).mode & 0o077) !== 0)
     throw new Error("the credential file is readable by others");
   if ((fs.statSync(state).mode & 0o077) !== 0)
     throw new Error("the state directory is open to others");
+  if (!isManagedRestEnvelope(fs.readFileSync(secret, "utf8")))
+    throw new Error("the managed credential is not a complete osev2 envelope");
   return fs
     .readdirSync(state)
-    .filter((name) => name !== "tailnet-admin.secret")
     .map((name) => fs.readFileSync(path.join(state, name), "utf8"))
     .join("\n");
 }
@@ -128,7 +129,7 @@ try {
     .readFileSync(path.join(state, "tailnet-admin-audit.jsonl"), "utf8")
     .trim()
     .split("\n");
-  if (!rest.every((line) => line.startsWith("osl1.")))
+  if (!rest.every(isLogRestEnvelope))
     throw new Error("TD-AUDIT: the audit trail rests in the clear");
   if (kept.includes(minted) || kept.includes(API_TOKEN) || /tskey-/.test(kept))
     throw new Error("TD-AUDIT: a key or credential is in the daemon's state");

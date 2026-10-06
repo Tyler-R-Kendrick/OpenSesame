@@ -2,8 +2,8 @@
 //! `spec/conformance/sealed-log-vectors.json` were sealed once and every
 //! implementation must open them. `packages/observability` runs the same file.
 //!
-//! `UPDATE_SEALED_LOG_VECTORS=1` rewrites the file. Do that only when the format
-//! itself changes; a vector is never regenerated to make a test pass.
+//! `UPDATE_SEALED_LOG_VECTORS=1` writes the separate current-envelope fixture.
+//! The legacy fixture stays immutable so compatibility cannot be rewritten away.
 
 use opensesame_sealed_log::{open_line, seal_line, LogKey};
 use serde_json::{json, Value};
@@ -11,6 +11,10 @@ use serde_json::{json, Value};
 const PATH: &str = concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../spec/conformance/sealed-log-vectors.json"
+);
+const ENVELOPE_PATH: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../spec/conformance/sealed-log-envelope-vectors.json"
 );
 const KEY_HEX: &str = "0707070707070707070707070707070707070707070707070707070707070707";
 const PLAIN: &[&str] = &[
@@ -32,14 +36,15 @@ fn generate() -> Value {
         .collect();
     json!({
         "$comment": "Sealed log lines: every implementation of the format (crates/sealed-log, packages/observability) must open each `sealed` to its `plain` under `key`, and refuse each `notOpening`. Regenerated only when the format changes: UPDATE_SEALED_LOG_VECTORS=1 cargo test -p opensesame-sealed-log --test conformance.",
-        "format": "osl1. + base64url(24-byte nonce || XChaCha20-Poly1305 ciphertext and tag); associated data opensesame.log.v1",
+        "format": "osl2. wrapped-DEK envelope; trusted key namespace empty; purpose sealed-log.line",
+        "namespace": "",
         "key": KEY_HEX,
         "lines": lines,
         "notOpening": [
             { "why": "not sealed", "line": "plain text" },
-            { "why": "prefix only", "line": "osl1." },
-            { "why": "shorter than a nonce", "line": "osl1.AAAA" },
-            { "why": "wrong prefix", "line": "osl2.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" }
+            { "why": "prefix only", "line": "osl2." },
+            { "why": "shorter than an envelope", "line": "osl2.AAAA" },
+            { "why": "unsupported prefix", "line": "osl3.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" }
         ]
     })
 }
@@ -48,7 +53,7 @@ fn generate() -> Value {
 fn every_vector_opens_and_every_refusal_refuses() {
     if std::env::var_os("UPDATE_SEALED_LOG_VECTORS").is_some() {
         std::fs::write(
-            PATH,
+            ENVELOPE_PATH,
             format!("{}\n", serde_json::to_string_pretty(&generate()).unwrap()),
         )
         .unwrap();

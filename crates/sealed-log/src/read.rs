@@ -7,7 +7,7 @@ use std::path::Path;
 use opensesame_redaction::redact_text;
 
 use crate::file::rotated_path;
-use crate::seal::{create_private, open_line, seal_line, LogKey, LINE_PREFIX};
+use crate::seal::{create_private, is_sealed_line, open_line, seal_line, LogKey, LINE_PREFIX};
 
 /// What stands in for a sealed line that does not open.
 pub const UNREADABLE: &str = "[sealed line: not readable with this key]";
@@ -26,7 +26,7 @@ fn lines_of(path: &Path) -> io::Result<Vec<String>> {
 /// One stored line as text: a sealed line opened, or [`UNREADABLE`]; a line an
 /// older build wrote in the clear is scrubbed rather than trusted.
 fn present(key: &LogKey, line: &str) -> String {
-    if line.starts_with(LINE_PREFIX) {
+    if is_sealed_line(line.trim()) {
         open_line(key, line).unwrap_or_else(|| UNREADABLE.to_owned())
     } else {
         redact_text(line)
@@ -58,10 +58,26 @@ pub fn read_tail(path: &Path, key: &LogKey, count: usize) -> io::Result<Vec<Stri
 /// keeps a handful; the scan does not stop at a gap, so an odd history is sealed too.
 const MAX_ROTATED_SCAN: u32 = 64;
 
+/// Existing ciphertext never authorizes minting a replacement bootstrap root.
+pub(crate) fn has_sealed_lines(path: &Path) -> io::Result<bool> {
+    for candidate in std::iter::once(path.to_owned())
+        .chain((1..=MAX_ROTATED_SCAN).map(|generation| rotated_path(path, generation)))
+    {
+        if lines_of(&candidate)?
+            .iter()
+            .any(|line| is_sealed_line(line.trim()))
+        {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 /// Seal every line of `path` that an older build wrote in the clear, in place
 /// and atomically (a sibling file is written owner-only, then renamed over),
 /// and do the same for every rotated generation beside it (`path.1`, `path.2`,
-/// ...). Already-sealed lines are left as they are. Returns how many were sealed.
+/// ...). Current envelopes are authenticated and left as they are; valid legacy
+/// sealed lines are upgraded to envelopes. Returns how many were sealed.
 ///
 /// # Errors
 ///
@@ -77,6 +93,14 @@ pub fn seal_existing(path: &Path, key: &LogKey) -> io::Result<usize> {
 
 fn seal_one(path: &Path, key: &LogKey) -> io::Result<usize> {
     let lines = lines_of(path)?;
+    for line in &lines {
+        if is_sealed_line(line.trim()) && open_line(key, line).is_none() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "unreadable sealed log line",
+            ));
+        }
+    }
     let legacy = lines
         .iter()
         .filter(|line| !line.is_empty() && !line.starts_with(LINE_PREFIX))
@@ -96,7 +120,15 @@ fn seal_one(path: &Path, key: &LogKey) -> io::Result<usize> {
         let sealed = if line.starts_with(LINE_PREFIX) {
             line.clone()
         } else {
-            seal_line(key, &redact_text(line))
+            let plain = if is_sealed_line(line.trim()) {
+                open_line(key, line).ok_or(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "unreadable legacy log line",
+                ))?
+            } else {
+                line.clone()
+            };
+            seal_line(key, &redact_text(&plain))
         };
         writeln!(out, "{sealed}")?;
     }
