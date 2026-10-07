@@ -2,6 +2,7 @@ import {
   dismissNotice,
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
+import { decoyControlsAvailable } from "@opensesame/app-core/lib/retired-credentials/availability.js";
 import { useEffect, useRef, useState } from "react";
 import { IconKey } from "../../../components/IconKey.js";
 import { IconEdit, IconShield } from "../../../components/Icons.js";
@@ -28,11 +29,10 @@ export function useRetiredCredentialPanelShown(): boolean {
   if (guest || decoy || awaitingSecondStep || status !== "unlocked")
     return false;
   const records = readStatus(tomb);
-  return (
-    retiredCredentialUiPorts.retiredCredentialEnrollmentSupported(tomb) ||
-    !records ||
-    records.traps.length > 0 ||
-    records.events.length > 0
+  return decoyControlsAvailable(
+    { guest, decoy: Boolean(decoy), awaitingSecondStep, status },
+    retiredCredentialUiPorts.retiredCredentialEnrollmentSupported(tomb),
+    records,
   );
 }
 
