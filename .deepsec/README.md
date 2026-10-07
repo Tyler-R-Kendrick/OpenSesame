@@ -32,6 +32,23 @@ pnpm deepsec revalidate  --concurrency 5                  # cuts FP rate
 pnpm deepsec export      --format md-dir --out ./findings
 ```
 
+### Grok Build (subscription, `grok-4.7`)
+
+deepsec 2.3.6 has no built-in Grok agent. This workspace registers
+`--agent grok` via `grok-agent-plugin.ts` (headless `grok -p`, unset
+`XAI_API_KEY` so billing stays on the Grok Build CLI subscription).
+
+```bash
+unset XAI_API_KEY && grok login --device-auth   # once per VM
+../scripts/audit/deepsec-grok-scan.sh scan
+DEEPSEC_LIMIT=50 ../scripts/audit/deepsec-grok-scan.sh process
+../scripts/audit/deepsec-grok-scan.sh revalidate
+../scripts/audit/deepsec-grok-scan.sh export
+```
+
+Default Pi + Vercel AI Gateway (`pnpm audit:deepsec` with
+`DEEPSEC_PROCESS=1`) is unchanged.
+
 `--project-id` is auto-resolved while there's only one project in
 `deepsec.config.ts`. Once you've added a second project, pass
 `--project-id opensesame` (or whichever id you want) explicitly.
