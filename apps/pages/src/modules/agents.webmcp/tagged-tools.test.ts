@@ -9,8 +9,10 @@
  * capability, and the first owned by the registering capability or by one
  * with no module (the core an operator cannot withdraw, ADR 0142).
  */
+import { composeHost, configureHost, host } from "@opensesame/app-core/host.js";
 import { CAPABILITY_CATALOG } from "@opensesame/app-core/lib/capabilities/catalog.js";
 import type { CapabilityModule } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
+import { freshIndexedDb } from "@opensesame/app-core/lib/encrypted-db/edb.test-support.js";
 import { describe, expect, it } from "vitest";
 import { readOperationIds } from "../ports-b.js";
 import { runtimeOf } from "../runtime-test-kit.js";
@@ -46,8 +48,21 @@ describe("every contributed WebMCP tool is tagged", () => {
       if (!load) throw new Error(`no loader for ${path}`);
       const runtime = runtimeOf(await load());
       const t = createTestContext();
-      const handle = await runtime.activate(t.ctx);
+      const previousHost =
+        path === "../storage.encrypted-search/runtime.ts" ? host() : undefined;
+      if (previousHost) {
+        const indexedDB = freshIndexedDb();
+        configureHost(
+          composeHost(previousHost, {
+            env: previousHost.env,
+            indexedDB,
+            keyRange: host().keyRange,
+          }),
+        );
+      }
+      let handle: Awaited<ReturnType<typeof runtime.activate>> | undefined;
       try {
+        handle = await runtime.activate(t.ctx);
         for (const tool of t.entries("webmcp-tool")) {
           const ids = readOperationIds(tool);
           expect(ids, tool.name).not.toBeNull();
@@ -60,7 +75,11 @@ describe("every contributed WebMCP tool is tagged", () => {
             expect(OWNED.has(id), `${tool.name}: ${id}`).toBe(true);
         }
       } finally {
-        await handle.dispose();
+        try {
+          await handle?.dispose();
+        } finally {
+          if (previousHost) configureHost(previousHost);
+        }
       }
     },
   );

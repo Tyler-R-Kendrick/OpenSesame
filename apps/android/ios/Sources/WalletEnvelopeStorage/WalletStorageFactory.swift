@@ -19,11 +19,13 @@ public enum WalletStorageFactory {
         guard let value = parts.string else { throw WalletEnvelopeError.invalidScope }
         return value
     }
-    public static func open(root: URL, namespace: String, keys: KeychainWalletKeys) throws -> EnvelopeWalletStorage {
+    public static func open(root: URL, namespace: String, keys: KeychainWalletKeys,
+                            decorateRaw: (any Storage) -> any Storage = { $0 }) throws -> EnvelopeWalletStorage {
         let filename = "wallet-" + WalletEnvelope.identifier(WalletScope.frame([namespace])) + ".db"
         let legacy = root.appendingPathComponent("wallet.db")
         // Legacy database has no authenticated backend owner. Never silently assign its bearers to a new customer.
         if FileManager.default.fileExists(atPath: legacy.path) { throw WalletEnvelopeError.legacy }
-        return EnvelopeWalletStorage(raw: IosStorage(storageFileUrl: root.appendingPathComponent(filename), excludeFromBackup: true), namespace: namespace, keys: keys, lockPath: root.appendingPathComponent(filename + ".lock").path)
+        let raw = IosStorage(storageFileUrl: root.appendingPathComponent(filename), excludeFromBackup: true)
+        return EnvelopeWalletStorage(raw: decorateRaw(raw), namespace: namespace, keys: keys, lockPath: root.appendingPathComponent(filename + ".lock").path)
     }
 }

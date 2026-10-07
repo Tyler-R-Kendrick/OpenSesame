@@ -203,9 +203,10 @@ function RelayOnly({
       <input
         type="checkbox"
         checked={transport.relay}
-        onChange={(event) =>
-          void change((now) => ({ ...now, relay: event.target.checked }))
-        }
+        onChange={(event) => {
+          const relay = event.currentTarget.checked;
+          void change((now) => ({ ...now, relay }));
+        }}
       />
       <span>Relay only, through TURN</span>
     </label>

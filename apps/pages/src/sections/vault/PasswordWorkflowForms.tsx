@@ -200,22 +200,24 @@ export function TemplateWorkflow({ busy, perform }: Props) {
   );
   const [assignments, setAssignments] = useState("");
   const [allowPlaintext, setAllowPlaintext] = useState(false);
-  async function saveTemplate() {
+  async function saveTemplate(check: () => void) {
     const rows = assignments
       .split(/\n/)
       .map((line) => line.trim())
       .filter(Boolean)
       .map(parseAssignment);
     const text = renderEnv(rows);
+    check();
     downloadSeams.save(".env.tpl", text, "text/plain");
     return { saved: ".env.tpl", references: envAssignments(text).length };
   }
-  async function resolveTemplate() {
+  async function resolveTemplate(check: () => void) {
     if (!allowPlaintext)
       throw new Error(
         "Confirm that the downloaded file will contain plaintext credentials.",
       );
     const resolved = await resolveLocalEnvTemplate(assignments);
+    check();
     downloadSeams.save(".env", resolved.content, "text/plain");
     return { saved: ".env", references: resolved.count };
   }
@@ -265,9 +267,10 @@ export function ReadWorkflow({ busy, perform }: Props) {
   const readRef = useGuideTarget<HTMLButtonElement>("vault.workflow.read");
   const [reference, setReference] = useState("");
   const [allowPlaintext, setAllowPlaintext] = useState(false);
-  async function read() {
+  async function read(check: () => void) {
     if (!allowPlaintext) throw new Error("Confirm plaintext download first.");
     const value = await resolveLocalReference(reference);
+    check();
     downloadSeams.save("credential.txt", value, "text/plain");
     return { saved: "credential.txt" };
   }

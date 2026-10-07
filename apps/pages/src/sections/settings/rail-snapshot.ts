@@ -9,6 +9,7 @@ import { useInstallPanelShown } from "./InstallPanel.js";
 import type { SettingsRailSnapshot } from "./page-tree.js";
 import { featureDraws } from "./provider-tile-items.js";
 import { useDuressPanelShown } from "./security/DuressPanel.js";
+import { useRetiredCredentialPanelShown } from "./security/RetiredCredentialRow.js";
 import { useAccountFactorsOffered } from "./security/account-offered.js";
 import { useDeviceOperator } from "./useDeviceOperator.js";
 
@@ -23,6 +24,7 @@ export function useSettingsPanels(): SettingsRailSnapshot {
   const instancePolicy = useDeviceOperator();
   const account = useAccountFactorsOffered();
   const duress = useDuressPanelShown();
+  const decoy = useRetiredCredentialPanelShown();
   const panels = useContributions("settings-panel");
   const roads = useConnectorRoads();
   const { plan } = useComposition();
@@ -47,6 +49,7 @@ export function useSettingsPanels(): SettingsRailSnapshot {
     account,
     contributed,
     duress,
+    decoy,
     emptyFeatures,
   };
 }

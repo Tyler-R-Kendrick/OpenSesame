@@ -10,6 +10,11 @@ const CAPABILITIES_JSON: &str =
 
 const CLI_SOURCES: &[&str] = &[
     include_str!("../src/main.rs"),
+    include_str!("../src/canary_cli.rs"),
+    include_str!("../src/canary_issuer.rs"),
+    include_str!("../src/pass_security.rs"),
+    include_str!("../src/pass_canary.rs"),
+    include_str!("../src/pass_receiver.rs"),
     include_str!("../src/daemon_cmd.rs"),
     include_str!("../src/daemon_toolbar.rs"),
     include_str!("../src/daemon_fill.rs"),

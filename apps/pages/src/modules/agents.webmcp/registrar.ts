@@ -19,6 +19,7 @@
  */
 
 import { assertAgentMayNotUnwrapHumanRoot } from "@opensesame/app-core/lib/vault/protection/agent-boundary.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   noteWebMcpAccepted,
   noteWebMcpFailure,
@@ -38,18 +39,41 @@ export const webMcpSdkSeams = {
     import("@opensesame/webmcp"),
 };
 
-function fenced(tools: readonly WebMcpToolSpec[]): WebMcpToolSpec[] {
+function fenced(
+  tools: readonly WebMcpToolSpec[],
+  assertLive: () => void,
+): WebMcpToolSpec[] {
   return tools.map((tool) => ({
     ...tool,
-    execute: async (args) => {
-      assertAgentMayNotUnwrapHumanRoot({
-        alias: tool.name,
-        purpose: "workload-root",
-      });
-      // Offered is not authorized: the call re-resolves its owner's lease and
-      // the plan, and a mutating tool is admitted across tabs (authority.ts).
-      await authorizeToolCall(tool);
-      return tool.execute(args);
+    execute: async (args, ceiling) => {
+      const check = vaultStore.pinContinuation();
+      let assertCurrent = () => {
+        check();
+        ceiling?.();
+        assertLive();
+      };
+      try {
+        assertAgentMayNotUnwrapHumanRoot({
+          alias: tool.name,
+          purpose: "workload-root",
+        });
+        assertCurrent();
+        // Keep the exact admitted lease across authorization and publication.
+        const leaseCheck = await authorizeToolCall(tool);
+        assertCurrent = () => {
+          check();
+          leaseCheck();
+          ceiling?.();
+          assertLive();
+        };
+        assertCurrent();
+        const result = await tool.execute(args, assertCurrent);
+        assertCurrent();
+        return result;
+      } catch (error) {
+        assertCurrent();
+        throw error;
+      }
     },
   }));
 }
@@ -84,8 +108,11 @@ export async function registerWebMcpScope(
       scope,
     })),
   );
-  const unregister = registrar.register(fenced(tools));
   let done = false;
+  const assertLive = () => {
+    if (done || signal.aborted) throw new Error("webmcp_registration_retired");
+  };
+  const unregister = registrar.register(fenced(tools, assertLive));
   return () => {
     if (done) return;
     done = true;

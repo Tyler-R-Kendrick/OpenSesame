@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http: https:; object-src 'none'; base-uri 'none'; form-action 'self'"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http: https:; object-src 'none'; base-uri 'none'; form-action 'self'"
     />
     <meta name="referrer" content="no-referrer" />
     <title>OpenSesame</title>
@@ -16,6 +16,9 @@
       <p class="brand">OpenSesame</p>
       <h1>Extension</h1>
       <p class="lede">Host API health and sealed sync cursor. No secrets.</p>
+      <section id="security" aria-label="Vault security"></section>
+      <div id="production-controls" hidden>
+      <button id="security-open" type="button">Security settings</button>
       <ul id="status" class="status" aria-live="polite">
         <li>Checking…</li>
       </ul>
@@ -31,20 +34,21 @@
       <section aria-label="Vault tasks">
         <h2>Credentials</h2>
         <p class="hint">Continue in your vault. Unlock and confirm private actions there.</p>
-        <a class="workflow-link" href="https://tyler-r-kendrick.github.io/OpenSesame/vault?workflow=password" target="_blank" rel="noopener noreferrer">Find references, inventory and audit</a>
+        <button class="workflow-link" type="button" data-workflow="inventory">Find references, inventory and audit</button>
         <ul class="workflow-actions">
-          <li><a href="https://tyler-r-kendrick.github.io/OpenSesame/vault?workflow=password&amp;workflowAction=create" target="_blank" rel="noopener noreferrer">Create a credential</a></li>
-          <li><a href="https://tyler-r-kendrick.github.io/OpenSesame/vault?workflow=password&amp;workflowAction=compare" target="_blank" rel="noopener noreferrer">Compare a login password</a></li>
-          <li><a href="https://tyler-r-kendrick.github.io/OpenSesame/vault?workflow=password&amp;workflowAction=update" target="_blank" rel="noopener noreferrer">Update a login password</a></li>
-          <li><a href="https://tyler-r-kendrick.github.io/OpenSesame/vault?workflow=password&amp;workflowAction=read" target="_blank" rel="noopener noreferrer">Read a credential privately</a></li>
-          <li><a href="https://tyler-r-kendrick.github.io/OpenSesame/vault?workflow=password&amp;workflowAction=env-resolve" target="_blank" rel="noopener noreferrer">Resolve an environment template</a></li>
+          <li><button type="button" data-workflow="create">Create a credential</button></li>
+          <li><button type="button" data-workflow="compare">Compare a login password</button></li>
+          <li><button type="button" data-workflow="update">Update a login password</button></li>
+          <li><button type="button" data-workflow="read">Read a credential privately</button></li>
+          <li><button type="button" data-workflow="env-resolve">Resolve an environment template</button></li>
         </ul>
       </section>
       <section aria-label="Authorization tasks">
         <h2>Requests</h2>
-        <a class="workflow-link" href="https://tyler-r-kendrick.github.io/OpenSesame/access/requests" target="_blank" rel="noopener noreferrer">Review access requests</a>
+        <button class="workflow-link" type="button" data-workflow="requests">Review access requests</button>
         <p class="hint">Identity and local-vault approvals. Native provider requests stay with their native approver.</p>
       </section>
+      </div>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>

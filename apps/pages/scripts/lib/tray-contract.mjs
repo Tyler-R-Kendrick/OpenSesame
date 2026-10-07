@@ -6,12 +6,14 @@ import { expect } from "@playwright/test";
  * it — the desktop statusline key, the phone's More menu, or the corner bell a
  * screen with no shell gets — read the sentence there, and close it again.
  */
-export async function expectInTray(page, text) {
+export async function expectInTray(page, text, timeout) {
   const bell = page.getByRole("button", { name: /^Notifications — / });
   const more = page.getByRole("button", { name: /^More — / });
   // The corner bell of a screen with no shell appears only once the notice is
   // raised, so wait for whichever road this screen draws before taking it.
-  await expect(bell.or(more).filter({ visible: true }).first()).toBeVisible();
+  await expect(bell.or(more).filter({ visible: true }).first()).toBeVisible({
+    timeout,
+  });
   if (await bell.filter({ visible: true }).count()) {
     await bell.filter({ visible: true }).first().click();
   } else {
@@ -22,9 +24,9 @@ export async function expectInTray(page, text) {
       .click();
   }
   const sheet = page.getByRole("dialog", { name: "Notifications" });
-  await expect(sheet).toContainText(text);
+  await expect(sheet).toContainText(text, { timeout });
   await sheet.getByRole("button", { name: "Close", exact: true }).click();
-  await expect(sheet).toBeHidden();
+  await expect(sheet).toBeHidden({ timeout });
 }
 
 /**

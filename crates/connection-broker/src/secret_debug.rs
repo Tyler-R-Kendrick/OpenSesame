@@ -62,7 +62,7 @@ mod tests {
                 expires_at: "2030-01-01T00:00:00Z".into(),
                 items: Vec::new(),
             },
-            claim_token: "osc_claim-12345".into(),
+            claim_token: "osc_claim-12345".into(), // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
             user_code: "WXYZ-6789".into(),
         };
         let shown = format!("{minted:?}");
@@ -78,7 +78,7 @@ mod tests {
     #[test]
     fn a_claim_request_prints_no_token() {
         let request = ClaimOfferRequest {
-            claim_token: "osc_claim-12345".into(),
+            claim_token: "osc_claim-12345".into(), // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
             user_code: "WXYZ-6789".into(),
             accepted_item_ids: vec!["item-1".into()],
         };
@@ -98,7 +98,7 @@ mod tests {
             connection_id: "conn-1".into(),
             provider_id: "github".into(),
             kind: "github_app_installation".into(),
-            derived_token: "ghs_derived-12345".into(),
+            derived_token: "ghs_derived-12345".into(), // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
             expires_at: "2030-01-01T00:00:00Z".into(),
             subject: "user:a".into(),
             actor: "agent:b".into(),

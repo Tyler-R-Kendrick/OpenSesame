@@ -1,6 +1,5 @@
 //! Server-blind E2EE human vault envelopes.
 //! Server stores ciphertext only; VRK never leaves the client.
-
 use base64::{engine::general_purpose::STANDARD, Engine};
 use chacha20poly1305::{
     aead::{Aead, KeyInit, Payload},
@@ -15,18 +14,29 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(test)]
 mod chunk_tests;
+pub mod credential_canaries;
 pub mod kdf_policy;
+mod nonce;
+pub mod otp;
 pub mod pages_vault;
 mod password_wrap;
+use nonce::decode_nonce;
+pub mod retired_credentials;
 pub mod root_protection;
+#[cfg(windows)]
+mod windows_acl;
+#[cfg(windows)]
+pub mod windows_io;
+#[cfg(windows)]
+mod windows_private;
+#[cfg(windows)]
+pub mod windows_publish;
 #[cfg(not(target_arch = "wasm32"))]
 pub use password_wrap::migrate_password_wrapper_offline;
 pub use password_wrap::{
     assert_argon_params_accepted, unwrap_vrk_with_password, wrap_vrk_with_password, PasswordWrapper,
 };
-
 pub const ENVELOPE_VERSION: u32 = 1;
-
 #[derive(Debug, Error)]
 pub enum VaultCryptoError {
     #[error("aead failure")]
@@ -361,17 +371,6 @@ pub fn open_chunk(
             },
         )
         .map_err(|_| VaultCryptoError::Aead)
-}
-
-/// Decode a stored nonce, refusing any length `XChaCha20` would panic on.
-fn decode_nonce(encoded: &str) -> Result<[u8; 24], VaultCryptoError> {
-    let bytes = STANDARD
-        .decode(encoded)
-        .map_err(|_| VaultCryptoError::Aead)?;
-    let nonce: [u8; 24] = bytes
-        .try_into()
-        .map_err(|_| VaultCryptoError::NonceLength)?;
-    Ok(nonce)
 }
 
 pub(crate) fn hkdf_expand(ikm: &[u8], info: &[u8]) -> Result<[u8; 32], VaultCryptoError> {

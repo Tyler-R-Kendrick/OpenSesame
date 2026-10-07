@@ -1,5 +1,6 @@
 import { registerLegacyItemKinds } from "@opensesame/app-core/lib/contributions.test-support.js";
 import { switchCredentialPacksOn } from "@opensesame/app-core/lib/type-packs/credential-packs.test-support.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem } from "@opensesame/vault-core";
 /** @vitest-environment jsdom */
 import {
@@ -39,7 +40,10 @@ beforeEach(async () => {
   revokeDrops = await activateForTest(drops, ["item-kind"]);
   Object.assign(vaultHooksSeams, {
     useVault: () => ({ items: [existing], folders }),
-    useVaultStore: () => ({ saveItem }),
+    useVaultStore: () => ({
+      saveItem,
+      pinContinuation: vaultStore.pinContinuation,
+    }),
   });
 });
 afterEach(() => {

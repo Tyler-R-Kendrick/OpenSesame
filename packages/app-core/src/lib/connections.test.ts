@@ -20,6 +20,7 @@ import {
 } from "./connections.js";
 import { forgetDeviceConnectors } from "./device-connectors.js";
 import { identitySeams } from "./identity.js";
+import { vaultStore } from "./vault/store.js";
 
 const originalIdentity = { ...identitySeams };
 const hostFetch = vi.fn();
@@ -46,17 +47,19 @@ function installPage() {
   );
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   hostFetch.mockReset();
   installPage();
+  await vaultStore.createGuest({ resume: false });
   // A Host is named and a grant is live: it still takes no connection call.
   identitySeams.hostBase = () => "https://host.example.test";
   identitySeams.hostLocalSessionEligible = () => true;
   identitySeams.hostFetch = hostFetch;
 });
 
-afterEach(() => {
-  forgetDeviceConnectors();
+afterEach(async () => {
+  await forgetDeviceConnectors();
+  vaultStore.lock();
   Object.assign(identitySeams, originalIdentity);
   configureHost(createTestHost());
   vi.useRealTimers();

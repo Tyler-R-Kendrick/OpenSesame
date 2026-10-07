@@ -20,6 +20,7 @@
 
 import type { NetworkPolicy } from "@opensesame/capability-composition";
 import { compositionStore } from "./capabilities/store.js";
+import { isRealAuthorityBlocked } from "./decoy-session.js";
 
 const CAPABILITY = "backup.git-remote";
 
@@ -29,8 +30,9 @@ export const backupEgressGate = {
     compositionStore.getSnapshot().plan?.network ?? null,
   /** Whether this plan runs git backup at all. */
   running: (): boolean =>
+    !isRealAuthorityBlocked() &&
     compositionStore.getSnapshot().plan?.capabilities[CAPABILITY]?.approved ===
-    true,
+      true,
   /** Whether git backup may make a call on its own now. */
   allowed: (): boolean =>
     backupEgressGate.running() &&

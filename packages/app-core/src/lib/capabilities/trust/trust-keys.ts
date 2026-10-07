@@ -297,7 +297,9 @@ export async function rotatePolicyKey(
   const keys: Record<string, PolicyPublicJwk> = {};
   for (const kid of Object.keys(current)) {
     if (rotation.retire && kid === rotation.signedBy) continue;
-    keys[kid] = current[kid];
+    const key = current[kid];
+    if (key === undefined) return { ok: false, reason: "malformed-rotation" };
+    keys[kid] = key;
   }
   keys[rotation.kid] = rotation.key;
   return {

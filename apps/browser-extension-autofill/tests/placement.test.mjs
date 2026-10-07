@@ -118,3 +118,17 @@ test("the default extension carries no fill code and no standing new permission"
   const deps = { ...pkg.dependencies, ...pkg.devDependencies };
   assert.equal(deps["@opensesame/browser-extension-autofill"], undefined);
 });
+
+test("popup policy permits only same-origin scripts and compiled WASM", () => {
+  const html = read(companion, "entrypoints", "popup", "index.html");
+  const policy = html.match(/content="([^"]*script-src[^"]*)"/)?.[1];
+  assert.ok(policy);
+  assert.equal(
+    policy
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith("script-src ")),
+    "script-src 'self' 'wasm-unsafe-eval'",
+  );
+  assert.doesNotMatch(policy, /'unsafe-eval'/);
+});

@@ -6,6 +6,8 @@ let package = Package(
     platforms: [.iOS(.v26)],
     products: [
         .library(name: "OpenSesameAuthenticator", targets: ["OpenSesameAuthenticator"]),
+        .library(name: "MultipazRuntime", targets: ["Multipaz"]),
+        .library(name: "WalletEnvelopeStorage", targets: ["WalletEnvelopeStorage"]),
     ],
     dependencies: [.package(path: "EnvelopeCore")],
     targets: [
@@ -25,11 +27,14 @@ let package = Package(
             sources: ["opensesame_authenticator_core.swift"]
         ),
         .testTarget(name: "WalletEnvelopeStorageTests", dependencies: ["WalletEnvelopeStorage", "Multipaz", .product(name: "WalletEnvelopeCore", package: "EnvelopeCore")]),
-        .target(name: "IdentityDocumentProvider", dependencies: ["Multipaz", "WalletEnvelopeStorage", .product(name: "WalletEnvelopeCore", package: "EnvelopeCore")], path: "IdentityDocumentProvider", exclude: ["IdentityDocumentProvider.entitlements", "Info.plist"]),
         .target(name: "WalletEnvelopeStorage", dependencies: ["Multipaz", .product(name: "WalletEnvelopeCore", package: "EnvelopeCore")]),
         .target(
             name: "OpenSesameAuthenticator",
             dependencies: ["Multipaz", "OpenSesameAuthenticatorCore", "WalletEnvelopeStorage", .product(name: "WalletEnvelopeCore", package: "EnvelopeCore")]
+        ),
+        .testTarget(
+            name: "OpenSesameAuthenticatorTests",
+            dependencies: ["OpenSesameAuthenticator"]
         ),
     ],
     swiftLanguageModes: [.v5]

@@ -5,6 +5,8 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+opensesame-human-vault = { path = "../human-vault" }
+base64 = { workspace = true }
 opensesame-domain = { path = "../domain" }
 opensesame-event-seal = { path = "../event-seal" }
 opensesame-lifecycle = { path = "../lifecycle" }

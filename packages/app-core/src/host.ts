@@ -61,6 +61,8 @@ export type StaticAuthRelease = {
 export type Host = Ports & {
   readonly env: RuntimeEnv;
   readonly capabilities?: CapabilityArtifacts;
+  /** Transport environment for closed observation metadata only; no production authority. */
+  readonly observationRuntime?: "human-node-cli";
   /**
    * The security profile the shell's build stamped. Absent means the safe
    * default: a shared-origin demo that may not pair a local authority.

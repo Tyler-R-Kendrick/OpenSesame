@@ -189,6 +189,6 @@ input:focus-visible {
 .workflow-actions li {
   margin: 0.5rem 0;
 }
-.workflow-actions a {
+.workflow-actions button {
   color: var(--accent);
 }

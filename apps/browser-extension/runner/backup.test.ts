@@ -9,6 +9,7 @@ import {
   openBackup,
   sealBackup,
 } from "./backup";
+import { testOperationOwner } from "./test-support/operation-owner";
 
 let pair: RecoveryKeyPair;
 beforeAll(async () => {
@@ -45,9 +46,13 @@ describe("the envelope", () => {
   it("opens to the secret for the holder of the private key, and to nothing else", async () => {
     const bytes = await sealBackup(pair.recipient, BINDING, "s3cret-value");
     expect(new TextDecoder().decode(bytes)).not.toContain("s3cret-value");
-    expect(await openBackup(pair.privateJwk, bytes)).toBe("s3cret-value");
+    expect(await openBackup(pair.privateJwk, bytes, testOperationOwner())).toBe(
+      "s3cret-value",
+    );
     const other = await createRecoveryKey();
-    await expect(openBackup(other.privateJwk, bytes)).rejects.toThrow();
+    await expect(
+      openBackup(other.privateJwk, bytes, testOperationOwner()),
+    ).rejects.toThrow();
   });
 
   it("is bound to its handle and origin, so it opens as no other candidate's", async () => {
@@ -61,6 +66,7 @@ describe("the envelope", () => {
         openBackup(
           pair.privateJwk,
           new TextEncoder().encode(JSON.stringify(swapped)),
+          testOperationOwner(),
         ),
       ).rejects.toThrow();
     }

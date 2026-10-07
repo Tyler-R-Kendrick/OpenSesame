@@ -9,6 +9,7 @@ name = "opensesame_connection_broker"
 path = "src/lib.rs"
 
 [dependencies]
+opensesame-storage = { path = "../storage" }
 opensesame-claims = { path = "../claims" }
 opensesame-connection-detect = { path = "../connection-detect" }
 opensesame-domain = { path = "../domain" }
@@ -50,7 +51,6 @@ uuid = { workspace = true }
 
 [dev-dependencies]
 axum = { workspace = true }
-opensesame-storage = { path = "../storage" }
 # Disposable PKI and a real mTLS listener for the connector transport tests.
 opensesame-transport-security = { path = "../transport-security", features = ["testkit"] }
 rustls = { version = "0.23.43", default-features = false, features = ["std"] }

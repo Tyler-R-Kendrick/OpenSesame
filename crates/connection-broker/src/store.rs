@@ -1,7 +1,4 @@
-//! sqlx persistence for the five connection tables.
-//!
-//! Everything here is row plumbing except `consume_authorization`, which enforces
-//! the single-use, TTL-bound `state` the whole flow rests on.
+//! Connection table persistence; `consume_authorization` enforces single-use, TTL-bound state.
 
 #[path = "store_backup.rs"]
 mod backup;
@@ -334,6 +331,9 @@ pub async fn revoke_local(pool: &SqlitePool, id: &str) -> Result<()> {
         .bind(id)
         .execute(&mut *transaction)
         .await?;
+    opensesame_storage::credential_canaries::retire_aliases_for_connection(&mut transaction, id)
+        .await
+        .map_err(|_| BrokerError::Invalid("Controlled generation retirement failed".into()))?;
     append_backup_outbox(
         &mut transaction,
         "connection.credential.revoked",

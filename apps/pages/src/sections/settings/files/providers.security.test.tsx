@@ -9,6 +9,7 @@ import { useCategoryFiles } from "./providers.js";
 
 const TRAVEL = "settings/security/travel/safe.json";
 const DURESS = "settings/security/duress/status.json";
+const RETIRED = "settings/security/decoy/retired-passwords.json";
 const originalHooks = { ...vaultHooksSeams };
 
 function session(status: "unlocked" | "locked", guest: boolean) {
@@ -25,7 +26,11 @@ describe("Security's files in Settings' viewer (ADR 0134)", () => {
     session("unlocked", false);
     const { result } = renderHook(() => useCategoryFiles("security"));
     const files = result.current;
-    expect(files?.list().map((file) => file.path)).toEqual([TRAVEL, DURESS]);
+    expect(files?.list().map((file) => file.path)).toEqual([
+      TRAVEL,
+      DURESS,
+      RETIRED,
+    ]);
     expect(files?.list().find((file) => file.path === DURESS)?.readOnly).toBe(
       true,
     );

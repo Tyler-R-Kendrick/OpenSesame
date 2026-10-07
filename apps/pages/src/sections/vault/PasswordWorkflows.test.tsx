@@ -1,21 +1,24 @@
 /** @vitest-environment jsdom */
-import { shareReachSeams } from "@opensesame/app-core/lib/local-share-reach.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
-import type { VaultState } from "@opensesame/app-core/lib/vault/store-state.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem, manualPassword } from "@opensesame/vault-core";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { downloadSeams } from "../../screens/capabilities/download.js";
+import {
+  admitConnectorOwner,
+  releaseConnectorOwner,
+} from "../settings/connector-owner.test-support.js";
 import { PasswordWorkflowsPanel } from "./PasswordWorkflows.js";
-import { persistPasswordTestItem } from "./account-password-test-context.js";
 
-afterEach(() => {
+beforeEach(admitConnectorOwner);
+afterEach(async () => {
   cleanup();
   clearNotices();
+  await releaseConnectorOwner();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 describe("PWA password workflows", () => {
   it("selects an account password method explicitly and keeps sibling methods intact", async () => {
@@ -32,24 +35,8 @@ describe("PWA password workflows", () => {
         pepper: true,
       },
     ];
-    const state: VaultState = {
-      ...vaultStore.getSnapshot(),
-      status: "unlocked",
-      awaitingSecondStep: false,
-      tomb: "personal",
-      items: [account],
-    };
-    vi.spyOn(vaultStore, "getSnapshot").mockImplementation(() => state);
-    vi.spyOn(vaultHooksSeams, "useVault").mockImplementation(() => state);
-    vi.spyOn(shareReachSeams, "resolveCurrentAccessRole").mockResolvedValue(
-      "operator",
-    );
-    vi.spyOn(shareReachSeams, "canAccess").mockReturnValue(true);
-    const save = vi
-      .spyOn(vaultStore, "saveItem")
-      .mockImplementation(async (next) => {
-        state.items = persistPasswordTestItem(state.items, next);
-      });
+    await vaultStore.addItems([account]);
+    const save = vi.spyOn(vaultStore, "saveItem");
     const user = userEvent.setup();
     render(<PasswordWorkflowsPanel />);
     await user.selectOptions(
@@ -71,7 +58,7 @@ describe("PWA password workflows", () => {
     );
     await user.click(screen.getByRole("button", { name: "Update and verify" }));
     await screen.findByText(/"verified": true/);
-    const saved = state.items[0];
+    const saved = vaultStore.getSnapshot().items[0];
     if (saved?.kind !== "account")
       throw new Error("Expected the updated account.");
     expect(saved.methods[0]).toEqual(account.methods[0]);
@@ -90,22 +77,7 @@ describe("PWA password workflows", () => {
     login.methods = [
       manualPassword("password-primary", "old", login.createdAt),
     ];
-    const state: VaultState = {
-      ...vaultStore.getSnapshot(),
-      status: "unlocked",
-      awaitingSecondStep: false,
-      tomb: "personal",
-      items: [credential, login],
-    };
-    vi.spyOn(vaultStore, "getSnapshot").mockImplementation(() => state);
-    vi.spyOn(vaultHooksSeams, "useVault").mockImplementation(() => state);
-    vi.spyOn(shareReachSeams, "resolveCurrentAccessRole").mockResolvedValue(
-      "operator",
-    );
-    vi.spyOn(shareReachSeams, "canAccess").mockReturnValue(true);
-    vi.spyOn(vaultStore, "saveItem").mockImplementation(async (item) => {
-      state.items = persistPasswordTestItem(state.items, item);
-    });
+    await vaultStore.addItems([credential, login]);
     const save = vi.spyOn(downloadSeams, "save").mockImplementation(() => {});
     const user = userEvent.setup();
     render(<PasswordWorkflowsPanel />);
@@ -209,17 +181,16 @@ describe("PWA password workflows", () => {
     expect(
       (await screen.findByLabelText("Workflow result")).textContent,
     ).toContain('"verified": true');
-    expect(state.items.find((item) => item.id === login.id)).toMatchObject({
+    expect(
+      vaultStore.getSnapshot().items.find((item) => item.id === login.id),
+    ).toMatchObject({
       methods: [
         expect.objectContaining({ id: "password-primary", secret: "new" }),
       ],
     });
   });
   it("shows the unlock gate rather than private inputs when locked", () => {
-    vi.spyOn(vaultHooksSeams, "useVault").mockReturnValue({
-      ...vaultStore.getSnapshot(),
-      status: "locked",
-    });
+    vaultStore.lock();
     render(<PasswordWorkflowsPanel />);
     expect(
       screen.getByText("Unlock the vault to use password workflows."),
@@ -231,19 +202,7 @@ describe("PWA password workflows", () => {
     login.methods = [
       manualPassword("password-primary", "old", login.createdAt),
     ];
-    const state: VaultState = {
-      ...vaultStore.getSnapshot(),
-      status: "unlocked",
-      awaitingSecondStep: false,
-      tomb: "personal",
-      items: [login],
-    };
-    vi.spyOn(vaultStore, "getSnapshot").mockReturnValue(state);
-    vi.spyOn(vaultHooksSeams, "useVault").mockReturnValue(state);
-    vi.spyOn(shareReachSeams, "resolveCurrentAccessRole").mockResolvedValue(
-      "operator",
-    );
-    vi.spyOn(shareReachSeams, "canAccess").mockReturnValue(true);
+    await vaultStore.addItems([login]);
     const save = vi
       .spyOn(vaultStore, "saveItem")
       .mockRejectedValue(new Error("PRIVATE_FAILURE_SENTINEL"));

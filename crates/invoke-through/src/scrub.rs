@@ -161,7 +161,7 @@ mod dialect_tests;
 mod tests {
     use super::*;
 
-    const TOKEN: &str = "ghs_16C7e42F292c6912E7710c838347Ae178B4a";
+    const TOKEN: &str = "ghs_16C7e42F292c6912E7710c838347Ae178B4a"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 
     fn scrubbed(input: &str) -> (String, bool) {
         let (out, hit) = Needles::new(TOKEN).scrub(Bytes::from(input.to_string()));

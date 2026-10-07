@@ -27,7 +27,9 @@ const originalQueueSeams = { ...queueSeams };
 Object.assign(queueSeams, { clearStagedClaimTokens });
 afterAll(() => Object.assign(queueSeams, originalQueueSeams));
 
+import { persistentBrowserOwner } from "@opensesame/app-core/browser/security-integration/management-host.fixture.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { releaseConnectorOwner } from "../../sections/settings/connector-owner.test-support.js";
 import {
   clearCopiedSecret,
   useCopySecret,
@@ -182,6 +184,14 @@ describe("useSessionGuards", () => {
 });
 
 describe("useCopySecret", () => {
+  beforeEach(async () => {
+    const owner = await persistentBrowserOwner();
+    await vaultStore.unlock(owner.password);
+  });
+  afterEach(async () => {
+    await releaseConnectorOwner();
+    vi.unstubAllGlobals();
+  });
   it("copies and schedules a clipboard clear", async () => {
     vi.useFakeTimers();
     const clipboard = stubClipboard();
@@ -279,6 +289,14 @@ describe("useCopySecret", () => {
 });
 
 describe("clearCopiedSecret", () => {
+  beforeEach(async () => {
+    const owner = await persistentBrowserOwner();
+    await vaultStore.unlock(owner.password);
+  });
+  afterEach(async () => {
+    await releaseConnectorOwner();
+    vi.unstubAllGlobals();
+  });
   it("is a no-op when nothing was copied", () => {
     const clipboard = stubClipboard();
     clearCopiedSecret();
@@ -313,7 +331,7 @@ describe("clearCopiedSecret", () => {
     expect(clipboard.writeText).not.toHaveBeenCalled();
   });
 
-  it("falls back to an unconditional clear when reads are denied", async () => {
+  it("preserves unknown clipboard ownership when reads are denied", async () => {
     const clipboard = stubClipboard({
       readText: vi.fn().mockRejectedValue(new Error("denied")),
     });
@@ -330,7 +348,7 @@ describe("clearCopiedSecret", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(clipboard.writeText).toHaveBeenLastCalledWith("");
+    expect(clipboard.writeText).not.toHaveBeenCalled();
   });
 
   it("swallows a clipboard that rejects every touch", async () => {

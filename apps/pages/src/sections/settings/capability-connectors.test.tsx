@@ -13,7 +13,6 @@ import {
 import { isGitBackupProvider } from "@opensesame/app-core/lib/git-backup-forges.js";
 import { forgetAllLocalGitRemotes } from "@opensesame/app-core/lib/git-remote-local.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCapabilityFeature } from "../../lib/capability-feature-operation.js";
@@ -30,6 +29,11 @@ import {
   saveListed,
   selectedScopes,
 } from "./capability-connector-harness.js";
+
+import {
+  admitConnectorOwner,
+  releaseConnectorOwner,
+} from "./connector-owner.test-support.js";
 
 installDoublePorts();
 installPanelFixture();
@@ -50,17 +54,17 @@ describe("capability connectors the page lists", () => {
   beforeEach(async () => {
     identitySeams.hostBase = () => "";
     identitySeams.hostLocalSessionEligible = () => false;
-    vi.spyOn(vaultStore, "isUnlocked").mockReturnValue(true);
-    vi.spyOn(vaultStore, "addItems").mockResolvedValue(undefined);
-    vi.spyOn(vaultStore, "trashItem").mockResolvedValue(undefined);
+    await admitConnectorOwner();
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("no network"));
     await forgetAllLocalGitRemotes();
-    forgetDeviceConnectors();
+    await forgetDeviceConnectors();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     Object.assign(identitySeams, originalIdentity);
+    await releaseConnectorOwner();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("saves every listed connector and the feature operation uses that configuration", async () => {

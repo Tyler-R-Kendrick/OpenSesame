@@ -3567,14 +3567,17 @@ dependencies = [
 name = "opensesame-authenticator-core"
 version = "0.1.0"
 dependencies = [
- "hmac 0.12.1",
+ "base64 0.22.1",
+ "chrono",
+ "opensesame-human-vault",
+ "rand 0.8.7",
  "serde",
  "serde_json",
- "sha1 0.10.7",
- "sha2 0.10.9",
  "thiserror 2.0.19",
  "uniffi",
  "url",
+ "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -3721,6 +3724,7 @@ dependencies = [
  "hyper-util",
  "insta",
  "jsonwebtoken",
+ "libc",
  "opensesame-agent-hooks",
  "opensesame-authn",
  "opensesame-bitwarden-server",
@@ -3760,6 +3764,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "windows-sys 0.59.0",
  "zeroize",
 ]
 
@@ -4050,6 +4055,7 @@ dependencies = [
  "opensesame-domain",
  "opensesame-event-seal",
  "opensesame-host-core",
+ "opensesame-human-vault",
  "opensesame-ingress-evidence",
  "opensesame-lifecycle",
  "opensesame-nats-callout",
@@ -4148,11 +4154,15 @@ dependencies = [
  "rand 0.8.7",
  "serde",
  "serde_json",
+ "sha1 0.10.7",
  "sha2 0.10.9",
+ "subtle",
  "tempfile",
  "thiserror 2.0.19",
  "unicode-normalization",
+ "url",
  "uuid",
+ "windows-sys 0.59.0",
  "zeroize",
 ]
 
@@ -4555,11 +4565,11 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "blake3",
+ "chrono",
  "directories",
  "hkdf",
  "insta",
  "libc",
- "opensesame-authenticator-core",
  "opensesame-human-vault",
  "proptest",
  "rand 0.8.7",
@@ -4570,6 +4580,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.19",
  "url",
+ "uuid",
  "zeroize",
 ]
 
@@ -4630,11 +4641,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "base64 0.22.1",
  "chrono",
  "futures",
  "insta",
  "opensesame-domain",
  "opensesame-event-seal",
+ "opensesame-human-vault",
  "opensesame-lifecycle",
  "opensesame-redaction",
  "proptest",

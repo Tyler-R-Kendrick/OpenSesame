@@ -184,6 +184,7 @@ describe("settingsPageTree", () => {
       childIds(
         settingsPageTree({
           duress: true,
+          decoy: true,
           account: true,
           contributed: [FORMATS, AMBIENT],
         }),
@@ -197,6 +198,7 @@ describe("settingsPageTree", () => {
       "account-factors",
       "duress-profiles",
       "travel",
+      "decoy",
       "ambient-auth",
       "formats-interoperability",
     ]);

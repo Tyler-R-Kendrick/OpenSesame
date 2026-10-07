@@ -1,3 +1,4 @@
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 /** @vitest-environment jsdom */
 
 /**
@@ -42,16 +43,22 @@ import {
   vi,
 } from "vitest";
 
-const vault = vi.hoisted(() => ({
-  current: { items: [] as VaultItem[], folders: [] as Folder[] },
-}));
+type VaultFixture = { current: { items: VaultItem[]; folders: Folder[] } };
+const vault = vi.hoisted(
+  (): VaultFixture => ({
+    current: { items: [], folders: [] },
+  }),
+);
 const saveItem = vi.hoisted(() => vi.fn(async () => undefined));
 
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
   useVault: () => vault.current,
-  useVaultStore: () => ({ saveItem }),
+  useVaultStore: () => ({
+    saveItem,
+    pinContinuation: vaultStore.pinContinuation,
+  }),
   useCopySecret: () => vi.fn().mockResolvedValue("copied"),
 });
 

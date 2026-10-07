@@ -4,6 +4,11 @@ import { contributionsSnapshot } from "@opensesame/app-core/lib/contributions.js
 import { itemKindsSnapshot } from "@opensesame/app-core/lib/item-kinds.js";
 import { saveShowHidden } from "@opensesame/app-core/lib/show-hidden.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import {
+  navigationContext,
+  runSessionNavigation,
+  sessionNavigationAllowed,
+} from "../../lib/decoy-navigation.js";
 import type { MenuGroup, MenuItem } from "./menu-model.js";
 import { copyText, navigationGroup, shellGroup } from "./page-menu.js";
 
@@ -28,7 +33,15 @@ function describe(row: HTMLElement) {
 function openGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
   const entry = describe(row);
   const items: MenuItem[] = [
-    { id: "open", label: "Open", hint: "Enter", run: () => navigate(entry.to) },
+    {
+      id: "open",
+      label: "Open",
+      hint: "Enter",
+      disabled: !sessionNavigationAllowed(entry.href || entry.to),
+      run: () => {
+        runSessionNavigation(entry.href || entry.to, () => navigate(entry.to));
+      },
+    },
   ];
   // A section row flips only while it is where you are; anywhere else a
   // click takes you there and opens it. The menu offers what a click does.
@@ -39,7 +52,14 @@ function openGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
       id: "toggle",
       label: open ? "Collapse" : "Expand",
       hint: open ? "←" : "→",
-      run: () => row.click(),
+      disabled: !!entry.href && !sessionNavigationAllowed(entry.href),
+      run: () => {
+        runSessionNavigation(
+          row.getAttribute("href") || entry.to,
+          () => row.click(),
+          navigationContext(row.getAttribute("target")),
+        );
+      },
     });
   }
   if (entry.config) {
@@ -54,7 +74,16 @@ function openGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
     items.push({
       id: "tab",
       label: "Open in new tab",
-      run: () => window.open(entry.href, "_blank", "noopener"),
+      disabled: !sessionNavigationAllowed(entry.href, "new_context"),
+      run: () => {
+        runSessionNavigation(
+          entry.href,
+          () => {
+            window.open(entry.href, "_blank", "noopener");
+          },
+          "new_context",
+        );
+      },
     });
   }
   return items;

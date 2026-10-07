@@ -7,19 +7,28 @@ import {
   createCredential,
   createItem,
 } from "@opensesame/vault-core";
-import { screen, waitFor, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { credentialPackSeams } from "./account-secrets.js";
 import {
+  awaitSavedAdoption,
+  awaitSavedCredential,
   installEditorHarness,
   open,
   saveItem,
   saveItems,
   vault,
-} from "./account-editor.test-support.js";
-import { credentialPackSeams } from "./account-secrets.js";
+} from "./credential-owner.test-support.js";
 
-const enablePack = vi.spyOn(credentialPackSeams, "enable");
+// Only pack download is substituted; owner admission and sealed writes remain real.
+const enablePack = vi
+  .fn<typeof credentialPackSeams.enable>()
+  .mockResolvedValue(undefined);
+beforeEach(() => {
+  enablePack.mockClear();
+  vi.spyOn(credentialPackSeams, "enable").mockImplementation(enablePack);
+});
 
 function savedCredential(): CredentialItem {
   const item = saveItem.mock.calls[0]?.[0];
@@ -34,7 +43,7 @@ describe("an account can always take a credential", () => {
 
   it("draws the + and offers every credential type, whichever are switched on", async () => {
     resetPackStateForTests();
-    open("/vault/new/account");
+    await open("/vault/new/account");
     await userEvent.click(
       screen.getByRole("button", { name: "Add login method" }),
     );
@@ -55,7 +64,7 @@ describe("an account can always take a credential", () => {
   it("adds a method of a type the vault had not switched on, and switches it on", async () => {
     resetPackStateForTests();
     enablePack.mockClear();
-    open("/vault/new/account");
+    await open("/vault/new/account");
     await userEvent.click(
       screen.getByRole("button", { name: "Add login method" }),
     );
@@ -68,7 +77,7 @@ describe("an account can always take a credential", () => {
     resetPackStateForTests();
     setStatus("api-key", { phase: "on" });
     enablePack.mockClear();
-    open("/vault/new/account");
+    await open("/vault/new/account");
     await userEvent.click(
       screen.getByRole("button", { name: "Add login method" }),
     );
@@ -102,7 +111,7 @@ describe("a credential kept on its own can be bound from the account", () => {
       deletedAt: "2026-01-01T00:00:00.000Z",
     };
     vault.current.items = [billing, elsewhere, spare, other, gone];
-    open(`/vault/${billing.id}/edit`);
+    await open(`/vault/${billing.id}/edit`);
     await userEvent.click(
       screen.getByRole("button", { name: "Add login method" }),
     );
@@ -116,7 +125,7 @@ describe("a credential kept on its own can be bound from the account", () => {
 
   it("binds the chosen one in the same write as the account, never as a copy", async () => {
     vault.current.items = [billing, spare];
-    open(`/vault/${billing.id}/edit`);
+    await open(`/vault/${billing.id}/edit`);
     await userEvent.click(
       screen.getByRole("button", { name: "Add login method" }),
     );
@@ -125,7 +134,7 @@ describe("a credential kept on its own can be bound from the account", () => {
     await userEvent.click(
       screen.getAllByRole("button", { name: "Save item" })[0],
     );
-    await waitFor(() => expect(saveItems).toHaveBeenCalledTimes(1));
+    await awaitSavedAdoption();
     expect(saveItem).not.toHaveBeenCalled();
     const [written] = saveItems.mock.calls[0] ?? [];
     const [account, bound] = written ?? [];
@@ -145,7 +154,7 @@ describe("a credential written on its own", () => {
   installEditorHarness();
 
   it("draws an API key like an account's: header and value, with no ×", async () => {
-    open("/vault/new/api-key");
+    await open("/vault/new/api-key");
     const group = within(screen.getByRole("group", { name: "API key method" }));
     expect(group.getByLabelText("API header")).toBeTruthy();
     expect(group.getByLabelText("X-Api-Key value")).toBeTruthy();
@@ -154,10 +163,10 @@ describe("a credential written on its own", () => {
   });
 
   it("saves unbound by default, with the value it was given", async () => {
-    open("/vault/new/api-key");
+    await open("/vault/new/api-key");
     await userEvent.type(screen.getByLabelText("X-Api-Key value"), "ak_9");
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));
-    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    await awaitSavedCredential();
     const credential = savedCredential();
     expect(credential.accountId).toBeNull();
     expect(credential.method).toMatchObject({ type: "api-key", key: "ak_9" });
@@ -168,7 +177,7 @@ describe("a credential written on its own", () => {
       items: [billing, { ...createItem("account", "Trashed"), deletedAt: "x" }],
       folders: [],
     };
-    open("/vault/new/token");
+    await open("/vault/new/token");
     const select = screen.getByLabelText("Account");
     expect(
       within(select)
@@ -177,7 +186,7 @@ describe("a credential written on its own", () => {
     ).toEqual(["None", "Billing"]);
     await userEvent.selectOptions(select, billing.id);
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));
-    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    await awaitSavedCredential();
     expect(savedCredential().accountId).toBe(billing.id);
   });
 
@@ -188,12 +197,12 @@ describe("a credential written on its own", () => {
       billing.id,
     );
     vault.current = { items: [billing, bound], folders: [] };
-    open("/vault/t1/edit");
+    await open("/vault/t1/edit");
     const select = screen.getByLabelText<HTMLSelectElement>("Account");
     expect(select.value).toBe(billing.id);
     await userEvent.selectOptions(select, "");
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));
-    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    await awaitSavedCredential();
     expect(savedCredential().accountId).toBeNull();
   });
 
@@ -216,7 +225,7 @@ describe("a credential written on its own", () => {
       billing.id,
     );
     vault.current = { items: [billing, sealed], folders: [] };
-    open("/vault/p1/edit");
+    await open("/vault/p1/edit");
     expect(screen.queryByLabelText("Account")).toBeNull();
   });
 });

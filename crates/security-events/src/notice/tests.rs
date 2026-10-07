@@ -148,7 +148,7 @@ fn nested_secret_keys_and_secret_values_do_not_survive_the_payload() {
 fn free_text_is_scrubbed_before_it_is_bounded_and_sent() {
     let mut leaky = notice();
     leaky.summary =
-        "delivery failed: https://app.example/claim#token=osc_clm_AbC.s3cr3tpart".into();
+        "delivery failed: https://app.example/claim#token=osc_clm_AbC.s3cr3tpart".into(); // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
     leaky.label = Some("hook postgres://app:pw0rd@db/x".into());
     leaky.detail = Some("Authorization: Bearer abc.def.ghi".into());
     leaky.subject_id = "https://feed.example/x?api_key=k123".into();
