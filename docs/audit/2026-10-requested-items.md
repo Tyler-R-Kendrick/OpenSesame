@@ -6,7 +6,7 @@ Audited against `origin/main` at `8f70cf43` (2026-10-07), then follow-up fixes o
 
 | # | Item (summary) | Initial | Evidence | Final | Follow-up |
 |---|----------------|---------|----------|-------|-----------|
-| P1 | GHCR container images | NOT DONE | No publish workflow on main | PARTIAL | Workflow in #776; agent VM has no Docker — [dry-run log](2026-10-publishing-dry-run.md) |
+| P1 | GHCR container images | NOT DONE | No publish workflow on main | PARTIAL | Publish workflow in #776 ([dry-run log](2026-10-publishing-dry-run.md)). Pull requests build `ops/compose/Dockerfile` in [`.github/workflows/container-build-pr.yml`](../../.github/workflows/container-build-pr.yml) with `push: false` and `contents: read` only. |
 | P2 | npm publish | NOT DONE | No workflow on main | PARTIAL | Workflow in #776; `npm publish --dry-run` OK for `@opensesame/os-domain` — [dry-run log](2026-10-publishing-dry-run.md) |
 | P3 | Vercel + default services | PARTIAL | `apps/pages/vercel.json`; Pages on GH Actions (`deploy-pages.yml` success on main) | PARTIAL | Pages build OK on agent; Vercel link still **BLOCKED** — [dry-run log](2026-10-publishing-dry-run.md) |
 | A1 | Host as relay + default capability bindings | NOT DONE | Gateway remains full Host API | PARTIAL | [ADR 0181](../adr/0181-relay-host-org-vaults-and-join-sync.md) — decision only; gateway is still the full Host API |

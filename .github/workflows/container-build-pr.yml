@@ -1,0 +1,28 @@
+# Build the native image on a pull request and do not push it.
+# The publish workflow is the one that writes to GHCR. This job only checks
+# that ops/compose/Dockerfile still builds.
+name: Container build (pull request)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build opensesame image
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - name: Build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: ops/compose/Dockerfile
+          push: false
+          tags: ${{ github.event_name == 'pull_request' && format('opensesame:pr-{0}', github.event.pull_request.number) || 'opensesame:ci' }}
