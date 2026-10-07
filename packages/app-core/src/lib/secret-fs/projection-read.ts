@@ -71,7 +71,12 @@ function readListed(
     }
     return {
       item: payload.item,
-      entry: { file, rev, json: JSON.stringify(payload.item) },
+      entry: {
+        file,
+        rev,
+        json: JSON.stringify(payload.item),
+        revision: stored.revision,
+      },
     };
   });
 }

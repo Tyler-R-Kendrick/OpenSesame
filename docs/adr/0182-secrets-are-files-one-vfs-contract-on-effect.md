@@ -138,6 +138,17 @@ emulation keeps hiding shape (ADR 0149, ADR 0175); nothing here changes it.
   next save settles it. A failed save forgets what it wrote so the next save
   rewrites every document. Orphans (a new secret's file, written, never listed)
   can remain until that secret is saved again.
+- **A document never replaces a file the committed manifest lists for another
+  secret**, and replaces its own only if it is still the revision this process
+  wrote; a rival's change to the same secret is refused, not overwritten. A save
+  that dies after some documents and before its manifest can still show on the
+  next open as if it had landed (each file is whole; the vault is not atomic).
+- **Leftovers are clutter, not loss, but they can be a deleted secret's sealed
+  document.** A removal that fails is not retried, and a `.part` file from an
+  interrupted write is hidden, not swept.
+- **A stale lock** left by a crashed process is waited out (15 s). Taking over
+  a lock two waiters both judged stale is not atomic; the revision check on the
+  manifest is what still catches the second writer.
 - **A key rotation rewrites every document** (the projection notices the key
   changed) and, like rotation of the flat body before it, is not crash-atomic.
 - **Two writers are detected, not merged.** Across processes the lock file and

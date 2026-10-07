@@ -86,7 +86,8 @@ export function checkPath(
   path: string,
   options: PathCheck = NO_CHECK_OPTIONS,
 ): Effect.Effect<string, SecretFsRejected> {
-  const trimmed = path.endsWith("/") ? path.slice(0, -1) : path;
+  const trimmed =
+    options.allowEmpty && path.endsWith("/") ? path.slice(0, -1) : path;
   if (trimmed === "" && options.allowEmpty) return Effect.succeed("");
   const refuse = (reason: string) =>
     Effect.fail(new SecretFsRejected({ path, kind: "invalid-path", reason }));

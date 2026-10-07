@@ -155,19 +155,19 @@ function guardedWrite(
   return (path, bytes, options) => {
     const landed = revisionOf(bytes);
     return Effect.suspend(() => {
-      let ambiguous = false;
+      // Only an unreachable store is retried (a timeout is one), so a second
+      // try means the first may have landed with its answer lost.
+      let tries = 0;
       return guarded(
         circuit,
         policy,
         path,
-        files.write(path, bytes, options).pipe(
-          Effect.tapError((error) =>
-            Effect.sync(() => {
-              ambiguous = ambiguous || isTransient(error);
-            }),
-          ),
+        Effect.suspend(() => {
+          tries += 1;
+          return files.write(path, bytes, options);
+        }).pipe(
           Effect.catchTag("SecretFsConflict", (conflict) =>
-            ambiguous && conflict.actual === landed
+            tries > 1 && conflict.actual === landed
               ? Effect.succeed(landed)
               : Effect.fail(conflict),
           ),

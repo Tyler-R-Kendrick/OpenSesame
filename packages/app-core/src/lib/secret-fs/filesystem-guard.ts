@@ -17,9 +17,10 @@ import type { SecretFsError } from "./errors.js";
 export const FILE_MODE = 0o600;
 export const DIRECTORY_MODE = 0o700;
 /** A lock older than this was left by a process that died holding it. */
-const LOCK_STALE_MS = 30_000;
+const LOCK_STALE_MS = 15_000;
 const LOCK_EVERY = "20 millis";
-const LOCK_TRIES = 250;
+// Long enough to outlast a stale lock left by a process that died.
+const LOCK_TRIES = 800;
 
 export const dirname = (path: string) => path.slice(0, path.lastIndexOf("/"));
 export const basename = (path: string) => path.slice(path.lastIndexOf("/") + 1);
@@ -121,6 +122,7 @@ export function withLock<A>(
   work: Effect.Effect<A, SecretFsError>,
 ): Effect.Effect<A, SecretFsError> {
   const lock = `${dirname(target)}/.${basename(target)}.lock`;
+  const token = new TextEncoder().encode(crypto.randomUUID());
   const acquire = Effect.gen(function* () {
     yield* confine(fs, root, path, target);
     yield* platform(
@@ -132,22 +134,29 @@ export function withLock<A>(
     );
     yield* platform(
       path,
-      fs
-        .writeFile(lock, new Uint8Array(), { flag: "wx", mode: FILE_MODE })
-        .pipe(
-          Effect.tapError(() => breakStale(fs, lock)),
-          Effect.retry({
-            schedule: Schedule.spaced(LOCK_EVERY),
-            times: LOCK_TRIES,
-            while: (error) => error.reason._tag === "AlreadyExists",
-          }),
-        ),
+      fs.writeFile(lock, token, { flag: "wx", mode: FILE_MODE }).pipe(
+        Effect.tapError(() => breakStale(fs, lock)),
+        Effect.retry({
+          schedule: Schedule.spaced(LOCK_EVERY),
+          times: LOCK_TRIES,
+          while: (error) => error.reason._tag === "AlreadyExists",
+        }),
+      ),
     );
     return lock;
   });
   return Effect.acquireUseRelease(
     acquire,
     () => work,
-    (held) => fs.remove(held, { force: true }).pipe(Effect.ignore),
+    // Only a lock still ours: one taken over as stale is another writer's now.
+    (held) =>
+      fs.readFile(held).pipe(
+        Effect.flatMap((content) =>
+          new TextDecoder().decode(content) === new TextDecoder().decode(token)
+            ? fs.remove(held, { force: true })
+            : Effect.void,
+        ),
+        Effect.ignore,
+      ),
   );
 }

@@ -109,13 +109,21 @@ type Wire = Readonly<{
 
 function makeWire(config: HttpFilesConfig): Wire {
   const origin = new URL(config.baseUrl);
-  if (origin.protocol !== "https:" && origin.protocol !== "http:") {
-    throw new TypeError("a storage server is reached over http or https");
+  const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(
+    origin.hostname,
+  );
+  if (
+    origin.protocol !== "https:" &&
+    !(origin.protocol === "http:" && loopback)
+  ) {
+    throw new TypeError(
+      "a storage server is reached over https; plain http only to this machine",
+    );
   }
   const send = config.fetch ?? ((...args) => fetch(...args));
   const max = config.maxBytes ?? MAX_FILE_BYTES;
   return {
-    base: `${origin.origin}${FILES_ROUTE}`,
+    base: `${origin.origin}${origin.pathname.replace(/\/+$/, "")}${FILES_ROUTE}`,
     max,
     send,
     request: (path, url, init) =>

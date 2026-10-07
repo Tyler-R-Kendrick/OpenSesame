@@ -61,7 +61,11 @@ async function migrateLegacySnapshot(stateDir: string): Promise<void> {
   if (legacy === null) return;
   // A directory that already holds a vault is the vault; the old file is left alone.
   if (vfsSeams.readRaw("tombs.v1") !== null) return;
-  for (const [key, value] of legacy) await vfsSeams.writeRaw(key, value);
+  // The registry last: a migration cut short leaves no vault that claims to be one.
+  const ordered = [...legacy].sort(
+    ([a], [b]) => Number(a === "tombs.v1") - Number(b === "tombs.v1"),
+  );
+  for (const [key, value] of ordered) await vfsSeams.writeRaw(key, value);
   await rename(
     join(stateDir, LEGACY_SNAPSHOT),
     join(stateDir, MIGRATED_SNAPSHOT),

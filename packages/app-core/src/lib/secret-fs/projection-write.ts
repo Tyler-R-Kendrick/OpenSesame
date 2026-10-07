@@ -24,7 +24,11 @@ import {
   secretBinding,
 } from "./secret-docs.js";
 
-type Changed = Readonly<{ item: VaultItem; entry: Projected }>;
+type Changed = Readonly<{
+  item: VaultItem;
+  entry: Projected;
+  expect: Revision | undefined;
+}>;
 
 /** Decide every item's file, and which of them differ from what is on disk. */
 type Plan = Readonly<{
@@ -37,14 +41,15 @@ function plan(body: VaultBody, prev: TombProjection): Plan {
   const folders = new Map(
     body.folders.map((folder) => [folder.id, folder.name]),
   );
-  const held = new Set<string>();
+  const claimed = new Set<string>();
+  const reserved = new Set([...prev.items.values()].map((entry) => entry.file));
   const next = new Map<string, Projected>();
   const changed: Changed[] = [];
   for (const item of body.items) {
     const folder = item.folderId ? (folders.get(item.folderId) ?? null) : null;
     const prior = prev.items.get(item.id);
-    const file = chooseFile(item, folder, prior, held);
-    held.add(file);
+    const file = chooseFile(item, folder, prior, claimed, reserved);
+    claimed.add(file);
     const json = JSON.stringify(item);
     if (prior && prior.file === file && prior.json === json) {
       next.set(item.id, prior);
@@ -52,7 +57,12 @@ function plan(body: VaultBody, prev: TombProjection): Plan {
     }
     const entry = { file, rev, json };
     next.set(item.id, entry);
-    changed.push({ item, entry });
+    changed.push({
+      item,
+      entry,
+      // The file this document replaces, if it is the one we last wrote.
+      expect: prior?.file === file ? prior.revision : undefined,
+    });
   }
   return { next, changed };
 }
@@ -84,8 +94,8 @@ function writeDocument(
   tomb: string,
   key: CryptoKey,
   rev: number,
-  { item, entry }: Changed,
-): Effect.Effect<void, SecretFsError> {
+  { item, entry, expect }: Changed,
+): Effect.Effect<Revision, SecretFsError> {
   return Effect.gen(function* () {
     const path = `${tomb}/${entry.file}`;
     const blob = yield* sealed(
@@ -94,7 +104,7 @@ function writeDocument(
       secretBinding(tomb, item.id),
       path,
     );
-    yield* files.write(
+    return yield* files.write(
       path,
       encode({
         format: SECRET_FORMAT,
@@ -102,6 +112,8 @@ function writeDocument(
         kind: kindOf(item),
         sealed: blob,
       }),
+      // Another writer's change to this secret since we read it is theirs to keep.
+      expect === undefined ? {} : { ifRevision: expect },
     );
   });
 }
@@ -173,11 +185,14 @@ export function writeProjection(
   return Effect.gen(function* () {
     yield* assertStanding(files, tomb, prev);
     const { next, changed } = plan(body, prev);
-    yield* Effect.forEach(
+    const written = yield* Effect.forEach(
       changed,
       (one) => writeDocument(files, tomb, key, body.rev ?? 0, one),
-      { concurrency: CONCURRENCY, discard: true },
+      { concurrency: CONCURRENCY },
     );
+    changed.forEach(({ item, entry }, at) => {
+      next.set(item.id, { ...entry, revision: written[at] });
+    });
     const manifestRevision = yield* commitManifest(
       files,
       tomb,

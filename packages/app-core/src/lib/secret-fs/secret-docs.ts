@@ -62,7 +62,13 @@ export type ManifestPayload = Omit<VaultBody, "items"> & {
 export type SecretPayload = { v: 1; rev: number; item: VaultItem };
 
 /** What this process knows is on disk for one vault, so a write sends only what changed. */
-export type Projected = Readonly<{ file: string; rev: number; json: string }>;
+export type Projected = Readonly<{
+  file: string;
+  rev: number;
+  json: string;
+  /** The document file's revision as last read or written; the next write must find it so. */
+  revision?: Revision | undefined;
+}>;
 export type TombProjection = Readonly<{
   /** The manifest's revision as last read or written; the next write must find it so. */
   manifestRevision: Revision | null;
@@ -141,17 +147,22 @@ export const manifestBinding = (tomb: string) =>
 export const kindOf = (item: VaultItem) =>
   item.kind === "typed" ? item.typeId : item.kind;
 
-/** The file an item keeps: its own if its name still fits it, else a fresh one. */
+/**
+ * The file an item keeps: its own if its name still fits it, else a fresh one.
+ * A file the committed manifest lists for another secret is never offered, so
+ * a document cannot overwrite a file a failed save would leave still listed.
+ */
 export function chooseFile(
   item: VaultItem,
   folder: string | null,
   prior: Projected | undefined,
-  held: ReadonlySet<string>,
+  claimed: ReadonlySet<string>,
+  reserved: ReadonlySet<string>,
 ): string {
   const label = { folder, name: item.name, kind: kindOf(item), id: item.id };
   const plain = secretFilePath(label, new Set());
   const suffixed = secretFilePath(label, new Set([plain]));
-  const lower = new Set([...held].map((path) => path.toLowerCase()));
+  const lower = new Set([...claimed].map((path) => path.toLowerCase()));
   if (
     prior &&
     (prior.file === plain || prior.file === suffixed) &&
@@ -159,5 +170,6 @@ export function chooseFile(
   ) {
     return prior.file;
   }
-  return secretFilePath(label, held);
+  const others = [...reserved].filter((file) => file !== prior?.file);
+  return secretFilePath(label, new Set([...claimed, ...others]));
 }

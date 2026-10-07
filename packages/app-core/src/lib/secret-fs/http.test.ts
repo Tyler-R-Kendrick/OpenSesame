@@ -65,6 +65,35 @@ describe("a storage server over HTTP", () => {
     expect(bare.headers.get("www-authenticate")).toBe("Bearer");
   });
 
+  it("sends a credential over https, or over http only to this machine", () => {
+    const token = Redacted.make(TOKEN);
+    expect(() =>
+      makeHttpSecretFiles({ baseUrl: "http://nas.local", token }),
+    ).toThrow(/https/);
+    expect(() =>
+      makeHttpSecretFiles({ baseUrl: "http://localhost:8080", token }),
+    ).not.toThrow();
+    expect(() =>
+      makeHttpSecretFiles({ baseUrl: "https://nas.local", token }),
+    ).not.toThrow();
+  });
+
+  it("keeps a path prefix on the server's address, for a reverse proxy", async () => {
+    const urls: string[] = [];
+    const spy: typeof fetch = async (input) => {
+      urls.push(String(input instanceof Request ? input.url : input));
+      return new Response(null, { status: 404 });
+    };
+    await failureOf(wire().client(TOKEN, spy).read("a.json"));
+    const prefixed = makeHttpSecretFiles({
+      baseUrl: "https://nas.example/vaults/me/",
+      token: Redacted.make(TOKEN),
+      fetch: spy,
+    });
+    await failureOf(prefixed.read("a.json"));
+    expect(urls[1]).toBe("https://nas.example/vaults/me/v1/files/a.json");
+  });
+
   it("will not be built with a token too short to be a secret", () => {
     expect(() =>
       makeFilesHandler(makeMemorySecretFiles(), {

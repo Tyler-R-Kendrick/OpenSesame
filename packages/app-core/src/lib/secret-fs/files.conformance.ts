@@ -41,6 +41,7 @@ const BAD_PATHS = [
   "trailing.",
   "con",
   "a b",
+  "a/trailing/",
 ];
 
 type WithFiles = (body: (files: SecretFiles) => Promise<void>) => Promise<void>;
