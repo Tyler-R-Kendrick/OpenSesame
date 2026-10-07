@@ -63,6 +63,15 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import {
+  type ControlledReferenceResolver,
+  operationInvoker,
+} from "./invoke.js";
+export type {
+  InvokeInput,
+  ControlledReferenceResolver,
+  ControlledReferenceAdmission,
+} from "./invoke.js";
 import { agentRunsApi } from "./agent-runs.js";
 import { backupApi } from "./backup.js";
 import { certsApi } from "./certs.js";
@@ -83,14 +92,7 @@ export interface ApiClientOptions {
   /** Supply the key used when pairing a bound token; true generates a new key. */
   dpop?: boolean | Awaited<ReturnType<typeof createDpopKeyPair>>;
   fetchImpl?: typeof fetch;
-}
-
-export interface InvokeInput {
-  connectionRef: string;
-  operation: string;
-  resource: string;
-  invokeLevel?: number;
-  input?: unknown;
+  controlledReferences?: ControlledReferenceResolver;
 }
 
 export interface DaemonProbe {
@@ -668,24 +670,7 @@ export function createApiClient(options: ApiClientOptions) {
       );
     },
 
-    /** L1 invoke via Host API. Never sends SecretRef. */
-    async invoke(input: InvokeInput): Promise<BoundaryValue> {
-      const res = await request("/api/v1/intents", {
-        method: "POST",
-        body: JSON.stringify({
-          connection_ref: input.connectionRef,
-          operation: input.operation,
-          resource: input.resource,
-          invoke_level: input.invokeLevel ?? 1,
-          input: input.input ?? {},
-        }),
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`invoke_failed:${res.status}:${text}`);
-      }
-      return res.json();
-    },
+    invoke: operationInvoker(request, options.controlledReferences),
 
     async syncPush(blobs: SyncBlob[]): Promise<BoundaryValue> {
       return pushSyncBlobs(request, blobs);

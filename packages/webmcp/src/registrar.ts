@@ -9,18 +9,8 @@ import {
   isTypeofObject,
   overlapCast,
 } from "@opensesame/os-domain";
-import type {
-  ModelContextApi,
-  Unregister,
-  WebMcpToolDescriptor,
-  WebMcpToolResult,
-} from "./detect.js";
-import {
-  AgentPayloadRefused,
-  fenceForAgent,
-  looksLikeCredential,
-  scrubLocalSecrets,
-} from "./fence.js";
+import type { ModelContextApi, Unregister } from "./detect.js";
+import { safeLine, wrapTool } from "./registration-execution.js";
 
 /**
  * How much of a tool an in-page agent may have. `discoverable` is metadata
@@ -48,7 +38,11 @@ export type WebMcpToolSpec = {
    * is what decides what happens.
    */
   readOnly?: boolean;
-  execute: (args: JsonObject) => BoundaryValue | Promise<BoundaryValue>;
+  /** Trusted registration lifetime ceiling; never supplied through agent JSON. */
+  execute: (
+    args: JsonObject,
+    assertCurrent?: () => void,
+  ) => BoundaryValue | Promise<BoundaryValue>;
 };
 
 /**
@@ -98,30 +92,11 @@ const TOOL_PREFIX = "opensesame_";
  */
 const live = new Map<string, Unregister>();
 const acknowledged = new Set<string>();
+let liveContext: Unregister | null = null;
 
 /** The names currently registered through this package, sorted. */
 export function liveWebMcpToolNames(): readonly string[] {
   return [...acknowledged].sort();
-}
-
-function textResult(text: string, isError = false): WebMcpToolResult {
-  const result: WebMcpToolResult = { content: [{ type: "text", text }] };
-  if (isError) result.isError = true;
-  return result;
-}
-
-/** One scrubbed line, or a fixed word when the line itself looks like a secret. */
-function safeLine(message: string, fallback: string): string {
-  const line = scrubLocalSecrets(message).split("\n")[0]?.trim() ?? "";
-  return line.length === 0 || looksLikeCredential(line) ? fallback : line;
-}
-
-/**
- * Errors cross to the agent as scrubbed one-line messages — never stacks,
- * never class names, and never anything the fence flags as credential-shaped.
- */
-function errorResult(message: string): WebMcpToolResult {
-  return textResult(safeLine(message, "tool_failed"), true);
 }
 
 function messageOf(cause: BoundaryValue): string {
@@ -157,27 +132,6 @@ function isThenable(value: BoundaryValue): boolean {
   return isFunction(record.then);
 }
 
-function wrapTool(tool: WebMcpToolSpec): WebMcpToolDescriptor {
-  const descriptor: WebMcpToolDescriptor = {
-    name: tool.name,
-    description: tool.description,
-    inputSchema: tool.inputSchema,
-    execute: async (args) => {
-      try {
-        const value = await tool.execute(args ?? {});
-        return textResult(fenceForAgent(value));
-      } catch (error) {
-        if (error instanceof AgentPayloadRefused) {
-          return textResult(error.message, true);
-        }
-        return errorResult(error instanceof Error ? error.message : "");
-      }
-    },
-  };
-  if (tool.readOnly === true) descriptor.annotations = { readOnlyHint: true };
-  return descriptor;
-}
-
 function retire(name: string): void {
   const previous = live.get(name);
   if (previous) previous();
@@ -186,13 +140,14 @@ function retire(name: string): void {
 function registerOne(
   api: ModelContextApi,
   registerTool: NonNullable<ModelContextApi["registerTool"]>,
-  descriptor: WebMcpToolDescriptor,
+  tool: WebMcpToolSpec,
   onFailure: (failure: WebMcpRegistrationFailure) => void,
   onRegistered: (name: string) => void,
 ): Unregister {
-  const { name } = descriptor;
+  const { name } = tool;
   retire(name);
   const controller = new AbortController();
+  const descriptor = wrapTool(tool, controller.signal);
   let handle: Unregister | null = null;
   let accepted = false;
   const accept = () => {
@@ -267,21 +222,27 @@ export function createWebMcpRegistrar(
       assertsNoSecretNames(names);
       if (!api) return () => {};
 
-      const descriptors = tools.map(wrapTool);
       const handles: Unregister[] = [];
       const registerTool = api.registerTool;
       if (registerTool) {
-        for (const descriptor of descriptors) {
+        for (const tool of tools) {
           handles.push(
-            registerOne(api, registerTool, descriptor, onFailure, onRegistered),
+            registerOne(api, registerTool, tool, onFailure, onRegistered),
           );
         }
       } else if (api.provideContext) {
+        liveContext?.();
+        const controller = new AbortController();
+        const descriptors = tools.map((tool) =>
+          wrapTool(tool, controller.signal),
+        );
         for (const name of names) retire(name);
         let cleared = false;
         const clear: Unregister = () => {
           if (cleared) return;
           cleared = true;
+          controller.abort();
+          if (liveContext === clear) liveContext = null;
           for (const name of names) {
             if (live.get(name) === clear) {
               live.delete(name);
@@ -290,6 +251,7 @@ export function createWebMcpRegistrar(
           }
           api.provideContext?.({ description: appId, tools: [] });
         };
+        liveContext = clear;
         try {
           const returned = api.provideContext({
             description: appId,
