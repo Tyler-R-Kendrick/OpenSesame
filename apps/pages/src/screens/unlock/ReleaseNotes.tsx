@@ -13,9 +13,23 @@ import {
  * UI impact, never plane names, ADRs, or implementer jargon. Shown on the
  * front door and the unlock form, never past them.
  *
- * One accordion row per build, collapsed on arrival. Choosing a row
- * toggles it and collapses the rest.
+ * One accordion row per build. The notes sit beside the card on a wide
+ * screen and the newest row is open on arrival; stacked under the card on a
+ * phone or narrow window they start collapsed so the form stays first.
+ * Choosing a row toggles it and collapses the rest.
  */
+
+/** The width below which the gate stacks (the `max-width: 1099px` block in unlock.css). */
+const STACKED_GATE_QUERY = "(max-width: 1099px)";
+
+function gateIsStacked(): boolean {
+  if (globalThis.window === undefined) return false;
+  try {
+    return window.matchMedia?.(STACKED_GATE_QUERY).matches === true;
+  } catch {
+    return false;
+  }
+}
 
 type ReleaseNote = {
   readonly version: string;
@@ -135,7 +149,9 @@ function ReleasePanel({
 }
 
 export function ReleaseNotes() {
-  const [active, setActive] = useState<string | null>(null);
+  const [active, setActive] = useState<string | null>(() =>
+    gateIsStacked() ? null : (RELEASES[0]?.version ?? null),
+  );
   return (
     <aside className="unlock__notes" aria-label="Release notes">
       <div className="unlock__notes-stack">
