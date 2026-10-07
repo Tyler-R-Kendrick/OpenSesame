@@ -21,6 +21,7 @@ import { createHarness } from "./lib/static-origin-harness.mjs";
 import {
   captureCommand,
   captureGuestShare,
+  captureMissingControl,
   captureReset,
   captureSessionRoots,
   captureSettings,
@@ -99,6 +100,7 @@ async function walkInstalled(page, shot, record, choice) {
   await captureCommand(page, shot, record);
   await captureStatusline(page, shot, record);
   await captureSupport(page, shot, record);
+  await captureMissingControl(page, shot, record);
   await captureReset(page, shot, record);
 }
 

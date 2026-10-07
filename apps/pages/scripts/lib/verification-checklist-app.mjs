@@ -46,6 +46,8 @@ export async function captureSessionRoots(page, shot, record) {
     .waitFor({ state: "visible", timeout: 8_000 })
     .then(() => true)
     .catch(() => false);
+  if (backed) await shot("settings-back", back);
+  else await shot("settings-back");
   if (backed) await back.click();
   mark(
     record,
@@ -56,7 +58,19 @@ export async function captureSessionRoots(page, shot, record) {
   await openSessionSection(page, "Activity");
   await shot("activity");
   const backAgain = page.getByRole("treeitem", { name: "Back to vault" });
-  if (await backAgain.isVisible().catch(() => false)) await backAgain.click();
+  const activityBacked = await backAgain
+    .waitFor({ state: "visible", timeout: 8_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (activityBacked) await shot("activity-back", backAgain);
+  else await shot("activity-back");
+  mark(
+    record,
+    "U11-activity-back",
+    activityBacked,
+    activityBacked ? "Back to vault" : "no back",
+  );
+  if (activityBacked) await backAgain.click();
 }
 
 async function readName(page) {
@@ -77,14 +91,18 @@ export async function createSecret(page, shot, record, editorStep) {
   await name.waitFor({ state: "visible", timeout: 15_000 });
   const generated = await readName(page);
   if (editorStep && record.profile === "minimal-local") {
+    await shot("secret-name", name);
     mark(record, "S7-secret-name", /^Secret /.test(generated), generated);
   }
   const type = page.getByLabel("Type", { exact: true });
   if ((await type.count()) > 0 && (await type.isVisible().catch(() => false))) {
     await type.selectOption("secret");
   }
-  const values = await page.locator("#secret-value").count();
+  const secretField = page.locator("#secret-value");
+  const values = await secretField.count();
   if (editorStep) {
+    if (values === 1) await shot("secret-field", secretField);
+    else await shot("secret-field");
     mark(record, "S8-single-secret", values === 1, `secret inputs: ${values}`);
     await shot(editorStep);
   }
@@ -98,6 +116,17 @@ export async function createSecret(page, shot, record, editorStep) {
     .locator(".vtree__row", { hasText: "Example" })
     .first()
     .waitFor({ timeout: 15_000 });
+  if (editorStep) {
+    const row = page.locator(".vtree__row", { hasText: "Example" }).first();
+    const shared = await row.getByRole("img", { name: /^Shared with/ }).count();
+    await shot("secret-shared-icon", row);
+    mark(
+      record,
+      "S9-shared-icon",
+      shared === 0,
+      `unshared row; shared icons ${shared}`,
+    );
+  }
   return true;
 }
 
@@ -129,6 +158,7 @@ export async function openShare(page, shot, record, step, checkId) {
   if (dropSeen) await shot(step);
   mark(record, checkId, dropSeen, dropSeen ? "Share submenu" : "no submenu");
   if (checkId === "S5-share") {
+    await shot("share-not-once");
     mark(
       record,
       "S6-not-share-once",
@@ -223,6 +253,7 @@ export async function captureSettings(page, shot, record, trashed) {
   mark(record, "U9-sealed-store", !/Sealed store/.test(vaults));
   await showCategory(page, "Danger", "#settings-trash");
   const danger = await shot("settings-danger");
+  await shot("danger-trash", page.locator("#settings-trash"));
   const restore = await page.getByRole("button", { name: /Restore / }).count();
   mark(
     record,
@@ -242,7 +273,8 @@ export async function captureCommand(page, shot, record) {
     .then(() => true)
     .catch(() => false);
   const options = open ? await page.getByRole("option").count() : 0;
-  if (open) await shot("command-typeahead");
+  if (open) await shot("command-typeahead", list);
+  else await shot("command-typeahead", input);
   mark(record, "S2-typeahead", options > 0, `${options} slash options`);
   await page.keyboard.press("Escape");
   await input.fill("");
@@ -302,13 +334,88 @@ export async function captureStatusline(page, shot, record) {
     );
   await shot("statusline", footer);
   const joined = labels.join(" | ");
+  await shot("statusline-no-identity", footer);
   mark(record, "S3-no-identity-icon", !/identity/i.test(joined), joined);
+  await shot("statusline-no-webcrypto", footer);
   mark(
     record,
     "S4-no-webcrypto-icon",
     !/webcrypto|web crypto/i.test(joined),
     joined,
   );
+}
+
+/**
+ * Start Lock the vault with the lock control disconnected, then step onto
+ * the focus. The tour says the control is not on screen instead of lighting
+ * a box that is not there.
+ */
+export async function captureMissingControl(page, shot, record) {
+  const hideLock = () =>
+    page.locator("[data-guide-targets~='shell.lock']").evaluateAll((nodes) => {
+      for (const node of nodes) {
+        node.style.setProperty("display", "none", "important");
+      }
+      return nodes.length;
+    });
+  const showLock = () =>
+    page.locator("[data-guide-targets~='shell.lock']").evaluateAll((nodes) => {
+      for (const node of nodes) node.style.removeProperty("display");
+    });
+  let recorded = false;
+  const note = (ok, detail) => {
+    recorded = true;
+    mark(record, "H2-missing-control", ok, detail);
+  };
+  try {
+    const opened = await visibleClick(page, "button", "Support", 8_000);
+    if (!opened) {
+      note(false, "Support button absent");
+      return;
+    }
+    const sheet = page.getByRole("dialog", { name: "Support" });
+    await sheet.waitFor({ timeout: 15_000 });
+    await sheet.getByRole("tab", { name: "Tutorials", exact: true }).click();
+    const row = sheet.locator("[data-tutorial='vault.lock']");
+    const seen = await row
+      .waitFor({ state: "visible", timeout: 8_000 })
+      .then(() => true)
+      .catch(() => false);
+    if (!seen) {
+      note(false, "lock tutorial absent");
+      await sheet.getByRole("button", { name: "Close", exact: true }).click();
+      return;
+    }
+    await hideLock();
+    await row.click();
+    const card = page.locator(".coach__card");
+    await card.waitFor({ timeout: 15_000 });
+    await hideLock();
+    await card.getByRole("button", { name: /^Next/ }).click();
+    const cue = card.locator(".coach__cue");
+    const noted = await cue
+      .getByText("not on screen")
+      .waitFor({ timeout: 8_000 })
+      .then(() => true)
+      .catch(() => false);
+    const text = await shot("missing-control", card);
+    note(
+      noted && /not on screen/.test(text),
+      noted ? "not on screen" : text.slice(0, 120),
+    );
+    const exit = page.getByRole("button", { name: "Exit tutorial" });
+    if (await exit.isVisible().catch(() => false)) await exit.click();
+    await card
+      .waitFor({ state: "hidden", timeout: 8_000 })
+      .catch(() => undefined);
+  } catch (error) {
+    if (!recorded) {
+      note(false, String(error?.message || error).slice(0, 180));
+    }
+    await page.keyboard.press("Escape").catch(() => undefined);
+  } finally {
+    await showLock().catch(() => undefined);
+  }
 }
 
 export async function captureReset(page, shot, record) {
@@ -323,10 +430,10 @@ export async function captureReset(page, shot, record) {
     mark(record, "U13-reset", false, "reset control absent");
     return;
   }
-  await page
-    .getByRole("dialog", { name: "Reset this browser" })
-    .waitFor({ timeout: 8_000 });
-  const text = await shot("reset-device");
+  const dialog = page.getByRole("dialog", { name: "Reset this browser" });
+  await dialog.waitFor({ timeout: 8_000 });
+  const text = await shot("reset-modal", dialog);
+  await shot("reset-device");
   mark(record, "U13-reset", /Reset this browser/.test(text));
   await page
     .getByRole("dialog", { name: "Reset this browser" })
