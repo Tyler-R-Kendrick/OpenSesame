@@ -296,27 +296,38 @@ export async function rotateCompromisedRoot(
   const base = requireManifest(header);
   const { rawVaultKey } = await mintVaultKey();
   const wrapped = await wrapRotatedKey(header, rawVaultKey, input);
-  await host.replaceRawVaultKey(rawVaultKey);
-  const nextHeader: VaultHeader = {
-    ...header,
-    kdf: wrapped.kdf,
-    wrap: wrapped.wrap,
-    unlocks: wrapped.unlocks,
-    protection: undefined,
-  };
-  const nextManifest: Omit<RootProtectionManifest, "authB64"> = {
-    ...migrateLegacyHeaderToManifest({
-      header: nextHeader,
-      vaultId: base.vaultId,
-      rootKeyId: newOpaqueId("root"),
-      rootEpoch: base.rootEpoch + 1,
-    }).manifest,
-    revision: base.revision + 1,
-    purpose: base.purpose,
-  };
-  const sealed = await sealAuthenticatedManifest(
-    host.requireRawRoot(),
-    nextManifest,
-  );
-  await host.persistHeader({ ...nextHeader, protection: sealed });
+  // The store zeroes the key it replaces, so a way back is kept before the swap.
+  const previousRoot = host.requireRawRoot().slice();
+  try {
+    await host.replaceRawVaultKey(rawVaultKey);
+    const { protection: _old, ...kept } = header;
+    const nextHeader: VaultHeader = {
+      ...kept,
+      kdf: wrapped.kdf,
+      wrap: wrapped.wrap,
+      unlocks: wrapped.unlocks,
+    };
+    const nextManifest: Omit<RootProtectionManifest, "authB64"> = {
+      ...migrateLegacyHeaderToManifest({
+        header: nextHeader,
+        vaultId: base.vaultId,
+        rootKeyId: newOpaqueId("root"),
+        rootEpoch: base.rootEpoch + 1,
+      }).manifest,
+      revision: base.revision + 1,
+      purpose: base.purpose,
+    };
+    const sealed = await sealAuthenticatedManifest(
+      host.requireRawRoot(),
+      nextManifest,
+    );
+    await host.persistHeader({ ...nextHeader, protection: sealed });
+  } catch (error) {
+    // The header still holds the old wraps, so the data must go back under the
+    // old key or the vault would open to nothing.
+    await host.replaceRawVaultKey(previousRoot.slice()).catch(() => undefined);
+    throw error;
+  } finally {
+    previousRoot.fill(0);
+  }
 }

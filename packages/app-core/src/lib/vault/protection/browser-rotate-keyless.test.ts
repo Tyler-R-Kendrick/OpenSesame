@@ -1,6 +1,14 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { randomBytes } from "@opensesame/vault-core";
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { kvDelete } from "../../kv.js";
 import {
   BODY_PATH,
@@ -11,6 +19,7 @@ import {
   readFile,
   tombFileKey,
   vfsFlush,
+  vfsSeams,
   writeFile,
 } from "../../vfs.js";
 import { ATTEMPTS_KEY, VaultStore } from "../store.js";
@@ -205,5 +214,60 @@ describe("the files of a vault survive a rotation of its key", () => {
     const reopened = new VaultStore();
     await reopened.unlock(password);
     expect(await readFile(PERSONAL_TOMB, "settings/probe")).toEqual(bytes);
+  });
+});
+
+describe("a rotation that fails part-way puts the vault back", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Make one stored key refuse to be written, as a full disk would. */
+  function failWritesTo(suffix: string): void {
+    const write = vfsSeams.writeRaw;
+    vi.spyOn(vfsSeams, "writeRaw").mockImplementation(async (key, value) => {
+      if (key.endsWith(suffix)) throw new Error("disk full");
+      return write(key, value);
+    });
+  }
+
+  async function pinVaultWithFile(bytes: Uint8Array): Promise<VaultStore> {
+    const store = new VaultStore();
+    await store.createWithPin(OLD_PIN);
+    await writeFile(PERSONAL_TOMB, "settings/probe", bytes);
+    await store.protection.ensureProtectionProjected();
+    return store;
+  }
+
+  async function stillOpensWithTheOldPin(bytes: Uint8Array): Promise<void> {
+    vi.restoreAllMocks();
+    const reopened = new VaultStore();
+    await reopened.unlockWithPin(OLD_PIN);
+    expect(reopened.getSnapshot().status).toBe("unlocked");
+    expect(await readFile(PERSONAL_TOMB, "settings/probe")).toEqual(bytes);
+  }
+
+  it("keeps the old key when the new header cannot be written", async () => {
+    const bytes = new Uint8Array([4, 4, 4]);
+    const store = await pinVaultWithFile(bytes);
+    failWritesTo("/header");
+    await expect(
+      store.protection.rotateCompromisedRoot({ pin: NEW_PIN }),
+    ).rejects.toThrow(/disk full/);
+    // The session that failed still reads what it had.
+    expect(await readFile(PERSONAL_TOMB, "settings/probe")).toEqual(bytes);
+    store.lock();
+    await stillOpensWithTheOldPin(bytes);
+  });
+
+  it("keeps the old key when the index cannot be written after a file was, with no file left under the new one", async () => {
+    const bytes = new Uint8Array([5, 5]);
+    const store = await pinVaultWithFile(bytes);
+    failWritesTo("/index");
+    await expect(
+      store.protection.rotateCompromisedRoot({ pin: NEW_PIN }),
+    ).rejects.toThrow(/disk full/);
+    store.lock();
+    await stillOpensWithTheOldPin(bytes);
   });
 });

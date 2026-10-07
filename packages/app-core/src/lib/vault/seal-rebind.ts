@@ -124,8 +124,9 @@ export async function rebindTombSeals(
  * rotation, then point the tomb at `to`. The body is the store's to seal from
  * memory, so it is left alone here. Every file is opened and re-sealed before
  * any is written, so one that cannot be read stops the rotation with the tomb
- * as it was. A file left under the old key would be unreadable the moment the
- * old key is gone. Returns the imported new key.
+ * as it was, and a write that fails part-way is put back. A file left under
+ * the old key would be unreadable the moment the old key is gone. Returns the
+ * imported new key.
  */
 export async function rekeyTomb(
   tomb: string,
@@ -159,9 +160,21 @@ export async function rekeyTomb(
     INDEX_PATH,
     await vfsSeams.seal(to, index, vaultSealBinding(tomb, INDEX_PATH)),
   ]);
-  for (const [path, blob] of sealed) {
-    assertSealed(blob);
-    await vfsSeams.writeRaw(tombFileKey(tomb, path), JSON.stringify(blob));
+  const written: [string, string | null][] = [];
+  try {
+    for (const [path, blob] of sealed) {
+      assertSealed(blob);
+      const key = tombFileKey(tomb, path);
+      const previous = vfsSeams.readRaw(key);
+      await vfsSeams.writeRaw(key, JSON.stringify(blob));
+      written.push([key, previous]);
+    }
+  } catch (error) {
+    // A write that fails part-way must not leave some files under each key.
+    for (const [key, previous] of written.reverse()) {
+      if (previous !== null) await vfsSeams.writeRaw(key, previous);
+    }
+    throw error;
   }
   unlockTomb(tomb, to);
   return to;
