@@ -27,7 +27,7 @@ final class StorageTests: XCTestCase {
     }
     func fixture() throws -> (URL, IosStorage, FixtureKeys, EnvelopeWalletStorage) {
         // Multipaz exposes no close operation; let simulator teardown remove these UUID fixtures after handles exit.
-        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(Foundation.UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let raw = IosStorage(storageFileUrl: root.appendingPathComponent("wallet.db"), excludeFromBackup: true)
         let keys = FixtureKeys()
