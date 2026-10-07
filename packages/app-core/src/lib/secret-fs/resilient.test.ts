@@ -115,6 +115,10 @@ describe("a resilient store", () => {
   it("counts a write that landed and then hung as done, not as a conflict", async () => {
     const inner = makeMemorySecretFiles();
     let calls = 0;
+    const countCall = () => {
+      calls += 1;
+      return calls;
+    };
     const slow: SecretFiles = {
       ...inner,
       write: (path, data, options) =>
@@ -122,7 +126,7 @@ describe("a resilient store", () => {
           .write(path, data, options)
           .pipe(
             Effect.andThen(
-              (calls += 1) === 1
+              countCall() === 1
                 ? Effect.never
                 : Effect.succeed(revisionOf(data)),
             ),
