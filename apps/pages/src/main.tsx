@@ -21,6 +21,7 @@ import "./components/connections-tree.css";
 import "./components/statusline.css";
 import "./components/wordmark.css";
 import "./sections/vault.css";
+import "./sections/vault/path-field.css";
 import "./styles.css";
 
 const root = document.getElementById("root");

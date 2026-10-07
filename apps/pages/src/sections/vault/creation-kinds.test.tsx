@@ -57,6 +57,7 @@ Object.assign(vaultHooksSeams, {
 
 import { VaultRail } from "../../components/VaultRail.js";
 import { ItemEditor } from "./ItemEditor.js";
+import { listedKeys } from "./path-field.test-support.js";
 
 /**
  * The item kinds a Personal plan's capabilities contribute: the always-on
@@ -102,9 +103,8 @@ function renderEditor(path: string) {
   );
 }
 
-function typeOptions(): string[] {
-  const select = screen.getByLabelText<HTMLSelectElement>("Type");
-  return [...select.options].map((option) => option.value);
+function typeOptions(): Promise<string[]> {
+  return listedKeys("Type");
 }
 
 let revokePlan = () => {};
@@ -127,9 +127,9 @@ describe("what a Personal plan offers when an item is created", () => {
     expect(PERSONAL_SELECTED.has("wallet.spending")).toBe(false);
   });
 
-  it("offers the base secret and the file, and no derived type in the new-item picker", () => {
+  it("offers the base secret and the file, and no derived type in the new-item picker", async () => {
     renderEditor("/vault/new");
-    const offered = typeOptions();
+    const offered = await typeOptions();
     for (const core of CORE_ITEM_KINDS) {
       expect(offered, core.id).toContain(core.id);
     }

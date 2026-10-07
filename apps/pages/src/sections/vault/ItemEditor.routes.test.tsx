@@ -1,6 +1,6 @@
 import { registerLegacyItemKinds } from "@opensesame/app-core/lib/contributions.test-support.js";
 import { switchCredentialPacksOn } from "@opensesame/app-core/lib/type-packs/credential-packs.test-support.js";
-import { createItem } from "@opensesame/vault-core";
+import { createItem, typeExtension } from "@opensesame/vault-core";
 /** @vitest-environment jsdom */
 import {
   cleanup,
@@ -17,6 +17,7 @@ import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { activateForTest } from "../../modules/runtime-test-kit.js";
 import * as drops from "../../modules/sharing.drops/runtime.js";
 import { ItemEditor } from "./ItemEditor.js";
+import { choose, shown } from "./path-field.test-support.js";
 
 const original = { ...vaultHooksSeams };
 const saveItem = vi.fn();
@@ -83,9 +84,7 @@ describe("vault editor route types", () => {
       expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
         "Example",
       );
-      expect(screen.getByLabelText<HTMLSelectElement>("Folder").value).toBe(
-        "work",
-      );
+      expect(shown("Folder")).toBe("Work/");
       expect(container.querySelector("[tabindex]")).toBeNull();
       if (kind === "note") expect(screen.getByLabelText("Notes")).toBeTruthy();
       else {
@@ -232,21 +231,21 @@ describe("vault editor route types", () => {
     await expectInTray("pattern");
     expect(saveItem).not.toHaveBeenCalled();
   });
-  it("moves a relative path into the title folder on blur and saves both together", async () => {
+  it("moves a typed path into the folder segment as each slash is typed and saves both together", async () => {
     const { container } = open("/vault/new/login?folder=work");
-    const title = container.querySelector(".editor__titlerow");
-    expect(title?.firstElementChild?.getAttribute("aria-label")).toBe("Folder");
-    await userEvent.clear(screen.getByLabelText("Name"));
-    await userEvent.type(screen.getByLabelText("Name"), "./test/login");
-    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
-      "./test/login",
+    const row = container.querySelector(".pathfield");
+    expect(row?.querySelector("input")?.getAttribute("aria-label")).toBe(
+      "Folder",
     );
+    expect(shown("Folder")).toBe("Work/");
+    await userEvent.clear(screen.getByLabelText("Name"));
+    await userEvent.type(screen.getByLabelText("Name"), "./test/");
+    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe("");
+    expect(shown("Folder")).toBe("Work/test/");
+    await userEvent.type(screen.getByLabelText("Name"), "login");
     await userEvent.tab();
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe("login");
-    expect(
-      screen.getByLabelText<HTMLSelectElement>("Folder").selectedOptions[0]
-        ?.textContent,
-    ).toBe("Work/test/");
+    expect(shown("Folder")).toBe("Work/test/");
     expect(saveItem).not.toHaveBeenCalled();
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));
     await waitFor(() => expect(saveItem).toHaveBeenCalledTimes(1));
@@ -289,18 +288,13 @@ describe("vault editor route types", () => {
     await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "./test/item");
     await userEvent.tab();
-    await userEvent.selectOptions(screen.getByLabelText("Type"), "secret");
-    expect(
-      screen.getByLabelText<HTMLSelectElement>("Folder").selectedOptions[0]
-        ?.textContent,
-    ).toBe("test/");
+    await choose("Type", "secret");
+    expect(shown("Folder")).toBe("test/");
     await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "../Work/entry");
     await userEvent.tab();
-    await userEvent.selectOptions(screen.getByLabelText("Type"), "note");
-    expect(screen.getByLabelText<HTMLSelectElement>("Folder").value).toBe(
-      "work",
-    );
+    await choose("Type", "note");
+    expect(shown("Folder")).toBe("Work/");
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe("entry");
   });
   it.each([
@@ -337,17 +331,17 @@ describe("vault editor route types", () => {
     open("/vault/new");
     await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "Draft name");
-    await userEvent.selectOptions(screen.getByLabelText("Type"), "secret");
+    await choose("Type", "secret");
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
       "Draft name",
     );
     await userEvent.clear(screen.getByLabelText("Name"));
     await userEvent.type(screen.getByLabelText("Name"), "Renamed secret");
-    await userEvent.selectOptions(screen.getByLabelText("Type"), "note");
+    await choose("Type", "note");
     expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
       "Renamed secret",
     );
-    expect(screen.getByLabelText<HTMLSelectElement>("Type").value).toBe("note");
+    expect(shown("Type")).toBe(typeExtension("note"));
   });
 
   it("resets the draft when navigation supplies a different type", async () => {
