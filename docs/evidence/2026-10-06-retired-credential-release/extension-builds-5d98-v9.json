@@ -1,0 +1,753 @@
+{
+  "scope": "Both MV3 extension production app inputs; shared package production inputs are covered by pwa-build-5d98-v9.json",
+  "capturedAt": "2026-10-07T00:59:01.473590+00:00",
+  "verifiedAt": "2026-10-07T01:00:50.756233+00:00",
+  "sourceAggregateSha256": "a066bd63f14d6a05bb4803226421263917985efb8317c9016f7671add9b37a3c",
+  "sourceChangesDuringVerification": [],
+  "sourceFiles": [
+    {
+      "path": "apps/browser-extension/entrypoints/background.ts",
+      "sha256": "7b43a2ca17491f665daa6f026bb470570d5b05a16abd2f742e2da6ceae16f5f9"
+    },
+    {
+      "path": "apps/browser-extension/entrypoints/options/index.html",
+      "sha256": "c98020039d81ceea6cff12ba0b4d5de7f880ef1ba0589dee24fc0d350304b53e"
+    },
+    {
+      "path": "apps/browser-extension/entrypoints/options/main.ts",
+      "sha256": "d46d62626d6a1f2bbfae99d2fa5866abeeeca6b8675b5597b16b57701aa254ca"
+    },
+    {
+      "path": "apps/browser-extension/entrypoints/options/style.css",
+      "sha256": "bd403a41e68be703fc340e83390394223cb944f9db47d6316e728154667d0f25"
+    },
+    {
+      "path": "apps/browser-extension/entrypoints/popup/index.html",
+      "sha256": "c3fe45c0224a72d9c11d2a232c3b98d60ae1eaf181a1a867f56f41c0be730db0"
+    },
+    {
+      "path": "apps/browser-extension/entrypoints/popup/main.ts",
+      "sha256": "bcbf53c7449b03a9b9c5d99baf11d1eef3ae599d4fcfa839921ab1bde5e57748"
+    },
+    {
+      "path": "apps/browser-extension/entrypoints/popup/style.css",
+      "sha256": "4fba95df11aabcdab8235ded7329fdb37db055288e4879ba83715d5d29dfdc8a"
+    },
+    {
+      "path": "apps/browser-extension/package.json",
+      "sha256": "c6d6d81e8f9a6c2611310a577fbb2cac43c03bedcde14e45b15c60adc62bf0a9"
+    },
+    {
+      "path": "apps/browser-extension/playwright.config.ts",
+      "sha256": "1f1e883ed8305f81cb86d92ba460cd08e897fcecb45c515dd1ab5e4720af4967"
+    },
+    {
+      "path": "apps/browser-extension/runner/backup.ts",
+      "sha256": "3a67060fb505cbd0aaa13a8bfc72779f7c2c3a7ac1ac2241b9d2c66181b340e7"
+    },
+    {
+      "path": "apps/browser-extension/runner/browser.ts",
+      "sha256": "ce2d172cd5aef0d1a381ec1eeaf7699fad238fb69eff6355fe3d1d8b3cde6bed"
+    },
+    {
+      "path": "apps/browser-extension/runner/bytes.ts",
+      "sha256": "4272627b04a28a6c30f082fa35ae9d21776ecd845935cada3486ac2fccbf079a"
+    },
+    {
+      "path": "apps/browser-extension/runner/context.ts",
+      "sha256": "2755c2adddf6ef9ad2375f562fe0c95215658562bf8919ea95baf67f7b4e80fc"
+    },
+    {
+      "path": "apps/browser-extension/runner/credential-form.ts",
+      "sha256": "61685b78ba04388ab0541d7f7cda4c83d18374621e81267aa2c615094ed4dc61"
+    },
+    {
+      "path": "apps/browser-extension/runner/drive.ts",
+      "sha256": "53201287593d3dedd635835819dfd3239b21f86e7c99f52ce500d410808affd3"
+    },
+    {
+      "path": "apps/browser-extension/runner/driver.ts",
+      "sha256": "0a4602413bb78291beebca26d0cb70659ebb158d2b9c5dac1512f469bb8cbc10"
+    },
+    {
+      "path": "apps/browser-extension/runner/guarded-health.ts",
+      "sha256": "6ac1dfcb201de7f1e2419bca2567cffe3898c3ae02c24e6a293166a5ec3cfd70"
+    },
+    {
+      "path": "apps/browser-extension/runner/host-base.ts",
+      "sha256": "021c0010cc062c1ae11f47964a01befbdc0f6b4445865106bf4f61a3dadf6625"
+    },
+    {
+      "path": "apps/browser-extension/runner/host.ts",
+      "sha256": "d5148358c4c28ca2d8fe7b2c737368e0705ada679ed752fa5dd225d325ed1471"
+    },
+    {
+      "path": "apps/browser-extension/runner/loop-types.ts",
+      "sha256": "161c2c6813d1e7e4006c787597b5b045ab245fc21c6cd7d91845785087c9c6d9"
+    },
+    {
+      "path": "apps/browser-extension/runner/loop.ts",
+      "sha256": "ba478ed098bc68c61b514d00fc0c09fe16aaf09922c661eec2d2decb14cc3258"
+    },
+    {
+      "path": "apps/browser-extension/runner/options-operations.ts",
+      "sha256": "fe192774685af2edc43bc5991d8982d871f7dbc73b52e51b01bd1c82396967bb"
+    },
+    {
+      "path": "apps/browser-extension/runner/options-recovery.test-support.ts",
+      "sha256": "6f2fe822a7021c9c9b6a866c8d12f2739e42719dc7ba5553cace87bea3312e8e"
+    },
+    {
+      "path": "apps/browser-extension/runner/options-recovery.ts",
+      "sha256": "16d0cacac30cfbad82a5ae40d17a36d9ed596d97c35bb2254b1072c1506a77a0"
+    },
+    {
+      "path": "apps/browser-extension/runner/origin.ts",
+      "sha256": "93e367515eb12f92963d4d06e90fdc776b6256367507189551e55e0a9d6e45fc"
+    },
+    {
+      "path": "apps/browser-extension/runner/original-owner.ts",
+      "sha256": "2ec4b34a728e739014ff737ec9ab3d5934a0f006150d6fcc7bcbaa3d8b16ca8d"
+    },
+    {
+      "path": "apps/browser-extension/runner/page-fns.ts",
+      "sha256": "d49ff1f047480276890d3f3592f6c6539522842763c7f3820a2da0e9521eb32a"
+    },
+    {
+      "path": "apps/browser-extension/runner/password-workflow-handoff.ts",
+      "sha256": "62c66da20b7672919958c2829441e87a85fe84399c4297c36e76e2c31de5ffdb"
+    },
+    {
+      "path": "apps/browser-extension/runner/password.ts",
+      "sha256": "147e39a56ceb140290a4efe7300b6e41b13116e664ec6537e5c8e5e337160fc8"
+    },
+    {
+      "path": "apps/browser-extension/runner/ports.ts",
+      "sha256": "7964d9c92ad202c69721929b39fa69532f1488be4efc58f23c804a29500421d0"
+    },
+    {
+      "path": "apps/browser-extension/runner/readiness.ts",
+      "sha256": "eccbb91f57832f786736cace6d82733124658a46046c5bcf41225488c56ac332"
+    },
+    {
+      "path": "apps/browser-extension/runner/security-listener.ts",
+      "sha256": "22b1456bf8816818f3ae94a6488d5d02150f360580c248a6598b070cb04a6d74"
+    },
+    {
+      "path": "apps/browser-extension/runner/sender.ts",
+      "sha256": "94aae121f9f6cc54723eb6b7caf40703853f1d525eaf7d3cf049235c80e641da"
+    },
+    {
+      "path": "apps/browser-extension/runner/service.ts",
+      "sha256": "1ecf81b358afe9a5b484038887dd0760157455ab8c4156071d2cbbddf9084a70"
+    },
+    {
+      "path": "apps/browser-extension/runner/settings.ts",
+      "sha256": "d49918158fd5e69ad50031bfc66307e1b789d38ce6ef3ef22b438240cff6e66b"
+    },
+    {
+      "path": "apps/browser-extension/runner/store.ts",
+      "sha256": "8dafd75e680947a0e5c5861e8a517f584d4846314d6ccee29e855f32be4e4462"
+    },
+    {
+      "path": "apps/browser-extension/runner/tab.ts",
+      "sha256": "e836d51f6c84f52a78d8855a8b953c4a4f45256204dd8c0f127a13d5d38fa185"
+    },
+    {
+      "path": "apps/browser-extension/runner/test-support/driver-rig.ts",
+      "sha256": "1e0cf40982ea3a07a11a6f5542d216cfadf2a3926a61ffff5e7280119b31aa8f"
+    },
+    {
+      "path": "apps/browser-extension/runner/test-support/executor.ts",
+      "sha256": "6f38a09bc3b0914c6a914e9f60fb796cd8ae31eb67adbd93b327ab69eefc5665"
+    },
+    {
+      "path": "apps/browser-extension/runner/test-support/fake-browser.ts",
+      "sha256": "69b113697bf0c24dc4ffabdcdc4132d9df241c1111ea34febe2e3e28c4cf1af7"
+    },
+    {
+      "path": "apps/browser-extension/runner/test-support/fake-host.ts",
+      "sha256": "e4dd816785de743622f82151858008d83f70ec055c3a4ea18f83cb6e9f3d9eec"
+    },
+    {
+      "path": "apps/browser-extension/runner/test-support/jsdom-pages.ts",
+      "sha256": "46155f8606b8da68298b57c85173ff7780933330b696707cf97b18567db1d0f3"
+    },
+    {
+      "path": "apps/browser-extension/runner/test-support/jsdom.d.ts",
+      "sha256": "89f72a2e3360e7b984162123daaa3c897d73eadda3f3fe7442486f3cd0534e2d"
+    },
+    {
+      "path": "apps/browser-extension/runner/test-support/memory.ts",
+      "sha256": "d49a516e5729331e5acd5700888dec66da8d721510685c2452bd520c9b17ea8f"
+    },
+    {
+      "path": "apps/browser-extension/runner/test-support/operation-owner.ts",
+      "sha256": "94a1eedd0ce8e2f1eef15c5e1347bf83a76e38475d6fb92f05a7baeec1aef8fa"
+    },
+    {
+      "path": "apps/browser-extension/runner/test-support/rig.ts",
+      "sha256": "52f3381b5f8ae14afb9692ebfa97eeca2b5153f12722a5e48cba4e3008f46530"
+    },
+    {
+      "path": "apps/browser-extension/runner/test-support/security-port.ts",
+      "sha256": "8323a8e2669d1b6d40306a30a8436f029333de37e97090b4f9ab366a1b160715"
+    },
+    {
+      "path": "apps/browser-extension/runner/test-support/site.ts",
+      "sha256": "750dd5c17cb5f18927eb4583fc6a6ce126152eb5e5606ee443be51816503b10d"
+    },
+    {
+      "path": "apps/browser-extension/runner/vault.ts",
+      "sha256": "ebdfc18503fce1ef6958a51c6a44e9c210a6bdb35ccb1928df6d2c76c836ed01"
+    },
+    {
+      "path": "apps/browser-extension/runner/verify.ts",
+      "sha256": "ed348ce3f7ea5f7990e55479e7c73afd2f89f9de5462fb2af1dfc819acc805bf"
+    },
+    {
+      "path": "apps/browser-extension/runner/wire.ts",
+      "sha256": "b1f7c1fb87ae6c1abbf77c3c7427f26216140e56ec3ddcbd9fff2fc4392b4efa"
+    },
+    {
+      "path": "apps/browser-extension/vitest.config.ts",
+      "sha256": "7635867683c17698ac901a21c8bbd937675ecd72c0386d9b2e4fa40d1851db48"
+    },
+    {
+      "path": "apps/browser-extension/wxt.config.ts",
+      "sha256": "d1a3601e118bcb56b20b3d8600836510c6de4a4c372d758a7dd894060f2a54f2"
+    },
+    {
+      "path": "apps/browser-extension-autofill/entrypoints/background.ts",
+      "sha256": "2536ae2c506ce22a5e16274e9edda43ff2260e163d0b437fcd857d9ba076e0f3"
+    },
+    {
+      "path": "apps/browser-extension-autofill/entrypoints/fill-guard.ts",
+      "sha256": "25c52eac45d572486b4000528c6be07b88616c5a5f79ffd5898537b75ae980c2"
+    },
+    {
+      "path": "apps/browser-extension-autofill/entrypoints/popup/index.html",
+      "sha256": "fc881178583e25eea84ff682ce4a9e6129e0e4c260e8f918370f1c6f83325f9d"
+    },
+    {
+      "path": "apps/browser-extension-autofill/entrypoints/popup/main.ts",
+      "sha256": "6016cdd1eb49e49a902fcfb3e1b086b189bacc9f504c2f7b7f542ae1a2ab7f64"
+    },
+    {
+      "path": "apps/browser-extension-autofill/entrypoints/popup/style.css",
+      "sha256": "13406d2ada92af8f67564a77859dd382077bfef61b1e654c25078122650d2b31"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/fill/admit.ts",
+      "sha256": "61bc4998ee10bcf24a141376b09e47b668999fdc6de7513f977e7c94ab11d52a"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/fill/browser-ports.ts",
+      "sha256": "ad8f3699ce0b4761009c906e5487dd1cb14ca720e9afb5831e1e5698bb526cb6"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/fill/daemon.ts",
+      "sha256": "fd214c9c60740bc0671db3900f66de17829ff0f337b604694d4881c4d843a777"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/fill/facts.ts",
+      "sha256": "7f7d359a82a9f2f096dbef1e8c84bf5e77efc5f479ca3bbddf16eab2cb585f92"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/fill/flat-tree.ts",
+      "sha256": "06be4ee6325386756767c8339f3500df460d6fcd364ec6e5fe5c6b71367f0a4e"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/fill/flow.ts",
+      "sha256": "752add41826733aa0b083ebf2b7c4940aa41e4f0858356a2ad5b176cfc2ef8c4"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/fill/guard-runtime.ts",
+      "sha256": "a9c4429b9853f291bb86ecbf8da2afaa52760bd6174634abda599840d65463a7"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/fill/guard.ts",
+      "sha256": "d72e2d84dc82e9e3911c401e6d3b982dce5f409693be3210492a2c68fc0b7aa4"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/fill/ports.ts",
+      "sha256": "82bc747a2d5871227b0eed21777a00c170e89cc2262575a5ceecd6a6852185d9"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/fill/protocol.ts",
+      "sha256": "07e75c4ffac57c99ef270e8ae7af9aa8e4e1a098a2b7e98da16c5fcca9dd0c62"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/fill/service-harness.ts",
+      "sha256": "ea80164aa5a7cb801113d3969000d34d9aa95f564186f7f6056ae43cdcbd33b3"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/fill/service.ts",
+      "sha256": "013a291a5149413372f2d39c1837fe80bd03da2fb62f4a48761d1ed8e8751692"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/fill/wire.ts",
+      "sha256": "0a43a31bae9283ed0474cc2bb1cb45f1f13f5ac5ee5deab3cd418e278c9b2fdc"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/fill/write.ts",
+      "sha256": "86c40f6cceef5ac899aecbf6fc2501f13960a0f77c8aabcfecb9d2643ddaba03"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/popup/panel.ts",
+      "sha256": "e7714d9ef41fbb29b3f4f6c03cfe684e70e2e7144c8d8a335478f47591926790"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/popup/say.ts",
+      "sha256": "088b0f96ae1767d2640730cccff998ac14871cc8cdee7b2dc6271969217dfa91"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/sites/patterns.ts",
+      "sha256": "a83bfafdcd952d006261a827bd7f0db062e8cefb67f2fd6a96aa961f8fb3771f"
+    },
+    {
+      "path": "apps/browser-extension-autofill/lib/sites/sites.ts",
+      "sha256": "a122675b1447c7cc098b3e53cc8382df077fbca7e39d159d20d6cfadf7d46b6d"
+    },
+    {
+      "path": "apps/browser-extension-autofill/package.json",
+      "sha256": "785a33e166087e512f1725a953a9c8f3b1148dd3dcd6fbfa66d93dd9a8aa1603"
+    },
+    {
+      "path": "apps/browser-extension-autofill/vitest.config.ts",
+      "sha256": "61176471f1d5c0aae33721e9eaf5ec35132b0207de5c851f41c61e002465da83"
+    },
+    {
+      "path": "apps/browser-extension-autofill/wxt.config.ts",
+      "sha256": "bb97d3ebbb17987f1ab18607ddacd20167a46ef9bdfb0de30eda11579e723c6b"
+    }
+  ],
+  "builds": [
+    {
+      "target": "apps/browser-extension",
+      "manifestSha256": "510bcbe2d263e7c6b1cebb035a9ad87f49d0d37bcad845361519199fdbe92748",
+      "buildAggregateSha256": "eec1efa35904585e5a42d339425300bffee2ef60e4c05d6ca178a1864e1553a6",
+      "buildFiles": [
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/assets/bootstrap-DL6TtDp1.css",
+          "bytes": 820,
+          "sha256": "8d58f5793e119584879280a7b490197a9dbb2f20c634176f84a837e6b6cb3cf9"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/assets/options-DNJkGoht.css",
+          "bytes": 3416,
+          "sha256": "bc0d0d61d422a8305236255981adbb8a1ef4cee303fd1d1ad26a7ff643a81034"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/assets/popup-BvNynmlL.css",
+          "bytes": 2695,
+          "sha256": "434592b527186e89d3f48bb68badd0a91bdd01578080c2d727e62c347f156b36"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/background.js",
+          "bytes": 899764,
+          "sha256": "9c11e710fe8c654cdfb8427afd1d492fb13638687a8d3969f896a57099b8a7e1"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/age-keys-Dx7JH2yA.js",
+          "bytes": 1123,
+          "sha256": "fe4aa3e06d348431dedbed75ba63abd14af71ba004475d20ef2aff5c13b8984f"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/age-lib-B4USBsAz.js",
+          "bytes": 132,
+          "sha256": "2971744d13e29ccdb87fcef50fc386a98e38455f75ec11fe095f495db648ca20"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/age-recipient-Bg3fDDeB.js",
+          "bytes": 2752,
+          "sha256": "e5df3929995bffdbe66d360a01eb95a76aea963fa8b2f9bcfe34a1674d457c53"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/age-webauthn-Conw5vZe.js",
+          "bytes": 3334,
+          "sha256": "58a04c2ebbf2c7323610b3419db1f26cc34de7febf7da783fb537e130f79f21d"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/argon-verifier-BiV0CIET.js",
+          "bytes": 28371,
+          "sha256": "95adae019e42b147cafbdef8566b4e0ce2f74aca5cb1c7da1b559dce5d15b7e1"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/aws-kms-C-7q8bpj.js",
+          "bytes": 2718,
+          "sha256": "7cbbce7348312af24339e01e33618f15ddc85965b26cbe240a6b1c64e220b8d5"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/bootstrap-DT862ImK.js",
+          "bytes": 435089,
+          "sha256": "e0c8f2ace3ffc5db1cf8b23c148bae77829c177d8470127a55d3c268be176c8a"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/browser-enroll-LweqdKOu.js",
+          "bytes": 1621,
+          "sha256": "cd53c686a2998581925338ef66c36cd0a3ead601bb0e7d23177123080146ce15"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/browser-lifecycle-ops-BhZ4PsQs.js",
+          "bytes": 6788,
+          "sha256": "8fe2fa4a52d435da816f7e5e3f617c31803524e90397b773ce160f9afaddc485"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/canary-panel-3jCm6MTR.js",
+          "bytes": 4110,
+          "sha256": "5883c6b232464c5fa7b873d8d74caa5bbc5e6ce553eb44ca7acc6860e3aef293"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/cloud-wrapping-secret-2ebFXfyb.js",
+          "bytes": 3543,
+          "sha256": "b85ef1e4378d80df9d60b8247e3f48e33a0679bd632ba5d75cfc43c5f821b90d"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/compartment-guard-DxsGn0Dy.js",
+          "bytes": 4992,
+          "sha256": "03745b37caa4b4937df6eb931cc53dd553bd34fed545bbae4848771be4f8275f"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/delivery-BR85CoPN.js",
+          "bytes": 92995,
+          "sha256": "856680466645793c2c7fac10c874dc645d3f02cdd94d061a9bbbfc0afc2e4175"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/device-connector-legacy-storage-Brt2Vsmg.js",
+          "bytes": 817,
+          "sha256": "d9e2d08c4dc51fd2ffae1e9c6ed5d3ab4b46b1c6b6c820ccb9214aacbd66e626"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/device-identity-carry-Ba-nGIwy.js",
+          "bytes": 2850,
+          "sha256": "97874f58f2c058a18f9d7938124ef340e149645dcc1365907d01fd2fbb131111"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/device-identity-host-CJ4upaZP.js",
+          "bytes": 15596,
+          "sha256": "54b9d7c2892df2876b16d26939f2ce8cf0f52514e49c1127831cee66b3844bea"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/device-identity-key-DyL4bo1i.js",
+          "bytes": 2715,
+          "sha256": "6cac0859d045f359de164faca4d2eb775d9484d0e4d9a9d32012e70e535de789"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/device-identity-trust-CYSUGLYJ.js",
+          "bytes": 1356,
+          "sha256": "e0653b7a4a4fbb27063eb404df5a66dcaaba7b8de9e39a97497b314e4b9c9d5d"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/enroll-external-Bq8wZtLB.js",
+          "bytes": 7563,
+          "sha256": "9814c4b0a51b87eeb521f82fd26dc77811eff8648fbc1c05aa5ed8bb7b963b4c"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/feature-request-send-JaNv_xiG.js",
+          "bytes": 99020,
+          "sha256": "ffc67d9880d76d09f6a9f60dc2c3e5905e218df880dfa08621639d123d425cd3"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/gcp-kms-C4ub4WDX.js",
+          "bytes": 3569,
+          "sha256": "f08b03b23b7b165cb943b3a117ea9f60e79ae4bb6455e9950f5a5775c8b079de"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/index-BvXI52fc.js",
+          "bytes": 117872,
+          "sha256": "8ad7d4e7a45133db2e4d21eb8a444a44777686e44945d21b02f6a76bb978959a"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/index-CEh489QS.js",
+          "bytes": 3296,
+          "sha256": "8711ac285ccc875850e206c58c908365ca386e813af3e23fddc60aa53d39009e"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/kv-file-errors-BA-UHNaK.js",
+          "bytes": 213,
+          "sha256": "910ecf774901ca7265c6811a478aae154126ced75a1ea4c888f67bfde50eb16a"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/legacy-panel-B-NmX6K8.js",
+          "bytes": 3021,
+          "sha256": "c2bc8127b7d994cac1089fcc04b629c45e0da9ed0bb31babc780f6c10772f93a"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/options-MnQl3OdB.js",
+          "bytes": 22215,
+          "sha256": "3d2763186919b104684db139a92092f8d4298cc62807fc2cf017f6a8ba2a11d5"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/owner-iA4_-H2d.js",
+          "bytes": 705,
+          "sha256": "3e54de841cb7a157367f0f1b7d7d5fa59a1cba46effde8c8b8db10b0e24e1c5a"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/password-history-legacy-D8qF8JYQ.js",
+          "bytes": 3587,
+          "sha256": "e747d4816427f2b3f00f12c7470eb12866a40c575c7c0ad8abef4f24dfc07f3b"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/pkce-Csh8d7xo.js",
+          "bytes": 368,
+          "sha256": "5796d6d5ff00e92d718dadae239cc29a86f6e37143fda41d787dcb5b2894af05"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/popup-GT0kqfv_.js",
+          "bytes": 3851,
+          "sha256": "0342f894c59d5001e8fb3da595e2293c2df869eb4672da610f33fffd5ab4f66b"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/queue-CZeFaFsE.js",
+          "bytes": 9776,
+          "sha256": "1c3c91bd554fff30f4796b713963ba7f6489f3fbc5fcd57480818914676d01c9"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/receiver-panel-DfbFKUYT.js",
+          "bytes": 3140,
+          "sha256": "117773c6a6705639734bb915a79bcbd650a67493d7673498b442098edfe89cb0"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/records-DyNkpeEN.js",
+          "bytes": 909,
+          "sha256": "3345c1f76dcaf14c7fc118745eb10d0aa72083280e2a17842bc01fd877a70e89"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/store-import-DSxwZPS7.js",
+          "bytes": 4030,
+          "sha256": "a2d8ef28681571e5981cfe031445de1363b4a921aab91f3af8d067ffac5a724b"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/store-root-rotation-b8ZerTYN.js",
+          "bytes": 4620,
+          "sha256": "bd86982b87adcd761e5033e76d08c985ad959908727471bfa80b40c032fd7fbb"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/chunks/vfs-root-proof-B8E4Swqu.js",
+          "bytes": 526,
+          "sha256": "13861589b655a3f3432514dc9b0a54a26dfdc20a0ae628984974a4404050db4d"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/manifest.json",
+          "bytes": 616,
+          "sha256": "510bcbe2d263e7c6b1cebb035a9ad87f49d0d37bcad845361519199fdbe92748"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/options.html",
+          "bytes": 4624,
+          "sha256": "29ff6ae5695e56ae110ae2c9828d5169892b6e312557b0e49cb18d3e593927aa"
+        },
+        {
+          "path": "apps/browser-extension/.output/chrome-mv3/popup.html",
+          "bytes": 2820,
+          "sha256": "df7a7110385480d549196038ae7b514988f41a49bc15f7dc9601732df6c05643"
+        }
+      ]
+    },
+    {
+      "target": "apps/browser-extension-autofill",
+      "manifestSha256": "1a55b3a18cbd8385f2fa0e9180ec2c660d14b1fea840cc500db6e23e709e36b0",
+      "buildAggregateSha256": "9df3b2e6503bd78d41e7803eb65a8626fbda39993eb33e49816e545bb94f0076",
+      "buildFiles": [
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/assets/popup-BDUxh209.css",
+          "bytes": 3189,
+          "sha256": "88a4e2cbaa308034c40a80cea717354e3674c32d66b12fe50fed360e592ba471"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/background.js",
+          "bytes": 857308,
+          "sha256": "54d93efebd9e4b3d051202fde75c790f6f6fb4c71355e9db30325579561c34fd"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/age-keys-BKVT6qC8.js",
+          "bytes": 1119,
+          "sha256": "54fc58381e13382e7031c00638b4ec2e80474fb1501322b277ba397cfe2d4765"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/age-lib-CF1qu8ji.js",
+          "bytes": 128,
+          "sha256": "82a2eab4029e81ab9b16131dabeaf99d2a97b4bea9381111f3879d40acf9db12"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/age-recipient-CJ_uHQhI.js",
+          "bytes": 2753,
+          "sha256": "4e87cca94ab1c2ca2c908b274c32a4d9036d56bbd616b0687785a67c03901796"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/age-webauthn-DKZO3CN7.js",
+          "bytes": 3325,
+          "sha256": "8d7d85bcdcef98c7f5c8a5315ca629d271d1bb37b35c83295adf1c8fd1a81f4e"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/argon-verifier-BiV0CIET.js",
+          "bytes": 28371,
+          "sha256": "95adae019e42b147cafbdef8566b4e0ce2f74aca5cb1c7da1b559dce5d15b7e1"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/aws-kms-C7od-WDX.js",
+          "bytes": 2714,
+          "sha256": "2e1ba78da92ee9ac78812fae8dd574faae9862befe0017584abed37078f4e1cb"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/browser-enroll-C2bEUw3C.js",
+          "bytes": 1617,
+          "sha256": "72573c346d78bfb38be799d1e6210a7bca9706b73fcffbd206069f5fe1495826"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/browser-lifecycle-ops-BN2K40de.js",
+          "bytes": 6776,
+          "sha256": "c2760ebf8406e50bb283ad2e18a7a108b9def22f383a5354559550ee664ef926"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/canary-panel-CywFu2zR.js",
+          "bytes": 4106,
+          "sha256": "593ad0e145122bef915c69900735e0126577bcafd81834fb4e88499415a54264"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/cloud-wrapping-secret-BvxTE0Zo.js",
+          "bytes": 3539,
+          "sha256": "0d7796d85d86e4e83e921d57b0a8318d033becfeec1e4e46d3fae3520bbcd545"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/compartment-guard-fr4Y0Ker.js",
+          "bytes": 4986,
+          "sha256": "072678bee1eb464cf95378c957e15c6ad6c595b2948ecd5a52fc5d310de5584e"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/delivery-B4AYzesG.js",
+          "bytes": 92984,
+          "sha256": "3ce988cb626a382b530a5e68cc7fe5705a55ec331d4345674c82c66a224eb864"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/device-connector-legacy-storage-w3IqBOEL.js",
+          "bytes": 808,
+          "sha256": "ba268da08c06da5ba6aba1db9e176b1ecb02e35914e843b3f4535b3d69465663"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/device-identity-carry-CzW0Thts.js",
+          "bytes": 2843,
+          "sha256": "d5adf773aa944c619f6cf1175871ee5dac8897d37322e14d439eb8537a902554"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/device-identity-host-CL8RGC_7.js",
+          "bytes": 15591,
+          "sha256": "2669a178fe09334ccf283998828feb42f2359b0ca665f6f434d1f1a7274b2469"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/device-identity-key-DsxGQnYt.js",
+          "bytes": 2710,
+          "sha256": "0d31504844dcb449dec1a0b7aaaed40fdcc4acab67be675f297c636a488364cf"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/device-identity-trust-BEgfvFkB.js",
+          "bytes": 1352,
+          "sha256": "415212ec540184f66e19d8ce9a989afcbd97b09c877b2e89304ea736822f2e22"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/enroll-external-BhleoxeW.js",
+          "bytes": 7541,
+          "sha256": "4fae099168f760a2ae4ed56f17d768e99f46bf28b33df83ad49586a6616f8333"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/feature-request-send-BJ3UeywH.js",
+          "bytes": 157774,
+          "sha256": "1165cb8c5e43616c61fa61501b038ece07596b2b2e50f26790aa158e69d7579e"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/gcp-kms-CU9zWmSF.js",
+          "bytes": 3565,
+          "sha256": "af84a28bdbacd1de4b4bd25c10c24adefaf6800401ff541043f4d3dfd3415f43"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/index-BvXI52fc.js",
+          "bytes": 117872,
+          "sha256": "8ad7d4e7a45133db2e4d21eb8a444a44777686e44945d21b02f6a76bb978959a"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/index-NFRmnLov.js",
+          "bytes": 3293,
+          "sha256": "217c617ea7c4b8bc582a279c46aa929f9fc579942c081cd4fc5314621ed0e00d"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/kv-file-errors-7AQQTHAL.js",
+          "bytes": 209,
+          "sha256": "af71b54e9a78e74c030d020707582745f7a4d3195399c02900634657b6312e7e"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/legacy-panel-BwSbA3jw.js",
+          "bytes": 3017,
+          "sha256": "9c27cc50bf829ea29dc44d28f371709216a7cb873b99af09ee43aa2875589672"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/owner-DV-4d59u.js",
+          "bytes": 702,
+          "sha256": "5c570f9a545ead89a1e0980fadcfc7deeeda9dfabfbf383b708954f312e2f28c"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/password-history-legacy-DsVsTO7t.js",
+          "bytes": 3583,
+          "sha256": "ecf99018d034cf9df1ee5dcf825aec1a1a9750e7d4605e7052361d060b855109"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/pkce-Csh8d7xo.js",
+          "bytes": 368,
+          "sha256": "5796d6d5ff00e92d718dadae239cc29a86f6e37143fda41d787dcb5b2894af05"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/popup-DfgvDyxY.js",
+          "bytes": 361152,
+          "sha256": "682eb6e48cf6a93f3e757964463d9ed6947ccf941ea73cb7a60a8971fbee0447"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/queue-Dc64hdyS.js",
+          "bytes": 9769,
+          "sha256": "13702f38c6df699653fa80f2606b3e16e152a16325df4a6d47f674a900680203"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/receiver-panel-uivrF-g1.js",
+          "bytes": 3133,
+          "sha256": "0e7b4d034381d98a511c8428f8c5842820185f032dcb26e9bcf6fd96d204051b"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/records-DRUWDahA.js",
+          "bytes": 905,
+          "sha256": "48de9e082f644b808161cc806da304d0cd59c86ddcaabbca90cffd599426babc"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/store-import-bt4aUxdk.js",
+          "bytes": 4012,
+          "sha256": "fc6b03ebca64799354f62ce27bed67d895c97441d490782962f48fce5d10f5a1"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/store-root-rotation-C0BWlzrG.js",
+          "bytes": 4610,
+          "sha256": "efbe9903e13584dc5acfb4913b989d533e64c271712e748229ef9956e983791d"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/chunks/vfs-root-proof-sWSgHWQ0.js",
+          "bytes": 521,
+          "sha256": "75f5ccd2f3c27145b22532e7c521d538d025dbc0b53a9a16e700deee7839165c"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/fill-guard.js",
+          "bytes": 22470,
+          "sha256": "bceceb338162ca91899081075c92bdfb0212d157324d77cc3b6926627ba9e48b"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/manifest.json",
+          "bytes": 695,
+          "sha256": "1a55b3a18cbd8385f2fa0e9180ec2c660d14b1fea840cc500db6e23e709e36b0"
+        },
+        {
+          "path": "apps/browser-extension-autofill/.output/chrome-mv3/popup.html",
+          "bytes": 3728,
+          "sha256": "37e5bd8656a253f39c63032ee8ffda64eb6ba8a8f92c2f0b17ae12179d7cd2cd"
+        }
+      ]
+    }
+  ],
+  "actualInstalledFeatureAssertionsExecuted": false,
+  "localRuntimeBlocker": "Explicit managed Chromium wildcard extension installation policy; required unmanaged CI gates remain mandatory"
+}

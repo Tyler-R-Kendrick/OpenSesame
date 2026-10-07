@@ -1,0 +1,199 @@
+{
+  "status": "actual-executions-passed",
+  "verifiedAt": "2026-10-07T01:05:17.335918+00:00",
+  "baseCommit": "5d98d1e906f8547cd369e15d8125bb28a1c79fdf",
+  "runCount": 6,
+  "freshScreenshots": 20,
+  "capturedCounts": {
+    "driver": 4,
+    "beforeHarness": 9,
+    "afterHarness": 9,
+    "beforeAsset": 243,
+    "afterAsset": 268,
+    "beforeSource": 5389,
+    "afterSource": 3525
+  },
+  "globalNonEvidenceInputsUnchanged": 10835,
+  "all18HarnessHashesUnchanged": true,
+  "all4DriverHashesUnchanged": true,
+  "allCapturedByteAndModeRecordsUnchanged": true,
+  "allRecordedDocumentWidthsWithinViewport": true,
+  "rootViewedAndApprovedEightFullPixelSheetsAndFeatureOnly360": true,
+  "sourcePublicationExecuted": false,
+  "originalPrivateRawProofSha256": "a3e813f01d4f40eecdae3f3bcd61bbf22b0728e1cbf972fb9ee1ad8ec74333a5",
+  "runs": [
+    {
+      "scope": "before-eight",
+      "actualExit": 0,
+      "captureCount": 8,
+      "rawReportSha256": "35a9e36aa495a765e1f9913c19990435c58fb11787c3a5f2d55160340b01020f"
+    },
+    {
+      "scope": "after-eight",
+      "actualExit": 0,
+      "captureCount": 8,
+      "rawReportSha256": "97a267bb52c07d333f12cd85a72fe6ac671a37868dd819c458c7bfe63afb0036"
+    },
+    {
+      "scope": "before-overview390",
+      "actualExit": 0,
+      "captureCount": 1,
+      "rawReportSha256": "8424799f4dc8abcec6c76e4f5cbf28e79c21db3fb2fced1e95ee8c095a9a32e1"
+    },
+    {
+      "scope": "after-overview390",
+      "actualExit": 0,
+      "captureCount": 1,
+      "rawReportSha256": "f23ba1f8251b26f2f524e1f447fe0d91a93e95398a1b69df1ac92343f0344eca"
+    },
+    {
+      "scope": "after-observation1280",
+      "actualExit": 0,
+      "captureCount": 1,
+      "rawReportSha256": "2764fa38203b1e63de53adc2bfd269ae00ce3cda4ad8099afb6669f1cb211154"
+    },
+    {
+      "scope": "after-observation360",
+      "actualExit": 0,
+      "captureCount": 1,
+      "rawReportSha256": "86bb14d5e71566216628bc2bdc45f8cfd079855781ac093d239225bd6d6db927"
+    }
+  ],
+  "actualDriverHashes": [
+    {
+      "scope": "driver",
+      "path": "eight-scenes.mjs",
+      "sha256": "d21e045d5b9cf56386a2af6b81426d66045cdb574f86ebd69c4a41c938e3353b",
+      "mode": "0o600"
+    },
+    {
+      "scope": "driver",
+      "path": "observations-1280.mjs",
+      "sha256": "e14338f2c81682fb0dcc9e439d2fced24342bf42d70c95a8c93579610d0df95b",
+      "mode": "0o600"
+    },
+    {
+      "scope": "driver",
+      "path": "observations-360.mjs",
+      "sha256": "a49bd70be6436db5e15ce0d211749e40ba51d39712c9274e6cf766c69a4ee24f",
+      "mode": "0o600"
+    },
+    {
+      "scope": "driver",
+      "path": "overview-390.mjs",
+      "sha256": "28e5a7d0d92b6be5fe5b6e78467a333357f7c12a924d7136bc062caacd233e10",
+      "mode": "0o600"
+    }
+  ],
+  "actualBeforeAfterHarnessHashes": [
+    {
+      "scope": "beforeHarness",
+      "path": "apps/pages/scripts/lib/always-on.mjs",
+      "sha256": "f7085d407d055e41aaaf4f657d3471b541c62f4e811826964ebed7c5e0a5f59f",
+      "mode": "0o600"
+    },
+    {
+      "scope": "beforeHarness",
+      "path": "apps/pages/scripts/lib/expect-timeout.mjs",
+      "sha256": "8f1672c3926aeb3341355bb91c3690c8bbdb7d18ef44f75b1a15c7e52ae1d7ad",
+      "mode": "0o600"
+    },
+    {
+      "scope": "beforeHarness",
+      "path": "apps/pages/scripts/lib/front-door.mjs",
+      "sha256": "e3fb44293710ddb77a025c4c542da212c740a901b8b12a208ae814b73422ec62",
+      "mode": "0o600"
+    },
+    {
+      "scope": "beforeHarness",
+      "path": "apps/pages/scripts/lib/http-failures.mjs",
+      "sha256": "e49f1a40e38674dd4670f2fc7fe63e05385f303d62ec0940e4119360751f0ca1",
+      "mode": "0o600"
+    },
+    {
+      "scope": "beforeHarness",
+      "path": "apps/pages/scripts/lib/layout-contract.mjs",
+      "sha256": "bcc853f3da1bc311f21cf691f88f56afa6764c5e6731609cc22dae0b15a30639",
+      "mode": "0o600"
+    },
+    {
+      "scope": "beforeHarness",
+      "path": "apps/pages/scripts/lib/mobile-contract.mjs",
+      "sha256": "88ea347738cd0bc328164bb61fb6271d94e21863cfe707fd99c818e56b1a7a50",
+      "mode": "0o600"
+    },
+    {
+      "scope": "beforeHarness",
+      "path": "apps/pages/scripts/lib/pages-journey.mjs",
+      "sha256": "aa18dc69b588cc0a1ba0bf3c8f6ce5b1ec7a31cc7988e99d5bb0494bc0a377a2",
+      "mode": "0o600"
+    },
+    {
+      "scope": "beforeHarness",
+      "path": "apps/pages/scripts/lib/session-section.mjs",
+      "sha256": "480a9084ff1bab89a132ee71a6b1315cf7d0713c568b1c70f38dbecef3beba70",
+      "mode": "0o600"
+    },
+    {
+      "scope": "beforeHarness",
+      "path": "apps/pages/scripts/lib/static-origin-harness.mjs",
+      "sha256": "095ee6a92e39e9aaa003d4f397ef4e8a46180718bfde0a64835ddd8d0dd7d5af",
+      "mode": "0o600"
+    },
+    {
+      "scope": "afterHarness",
+      "path": "apps/pages/scripts/lib/always-on.mjs",
+      "sha256": "f7085d407d055e41aaaf4f657d3471b541c62f4e811826964ebed7c5e0a5f59f",
+      "mode": "0o600"
+    },
+    {
+      "scope": "afterHarness",
+      "path": "apps/pages/scripts/lib/expect-timeout.mjs",
+      "sha256": "8f1672c3926aeb3341355bb91c3690c8bbdb7d18ef44f75b1a15c7e52ae1d7ad",
+      "mode": "0o600"
+    },
+    {
+      "scope": "afterHarness",
+      "path": "apps/pages/scripts/lib/front-door.mjs",
+      "sha256": "e3fb44293710ddb77a025c4c542da212c740a901b8b12a208ae814b73422ec62",
+      "mode": "0o600"
+    },
+    {
+      "scope": "afterHarness",
+      "path": "apps/pages/scripts/lib/http-failures.mjs",
+      "sha256": "e49f1a40e38674dd4670f2fc7fe63e05385f303d62ec0940e4119360751f0ca1",
+      "mode": "0o600"
+    },
+    {
+      "scope": "afterHarness",
+      "path": "apps/pages/scripts/lib/layout-contract.mjs",
+      "sha256": "bcc853f3da1bc311f21cf691f88f56afa6764c5e6731609cc22dae0b15a30639",
+      "mode": "0o600"
+    },
+    {
+      "scope": "afterHarness",
+      "path": "apps/pages/scripts/lib/mobile-contract.mjs",
+      "sha256": "88ea347738cd0bc328164bb61fb6271d94e21863cfe707fd99c818e56b1a7a50",
+      "mode": "0o600"
+    },
+    {
+      "scope": "afterHarness",
+      "path": "apps/pages/scripts/lib/pages-journey.mjs",
+      "sha256": "aa18dc69b588cc0a1ba0bf3c8f6ce5b1ec7a31cc7988e99d5bb0494bc0a377a2",
+      "mode": "0o600"
+    },
+    {
+      "scope": "afterHarness",
+      "path": "apps/pages/scripts/lib/session-section.mjs",
+      "sha256": "480a9084ff1bab89a132ee71a6b1315cf7d0713c568b1c70f38dbecef3beba70",
+      "mode": "0o600"
+    },
+    {
+      "scope": "afterHarness",
+      "path": "apps/pages/scripts/lib/static-origin-harness.mjs",
+      "sha256": "095ee6a92e39e9aaa003d4f397ef4e8a46180718bfde0a64835ddd8d0dd7d5af",
+      "mode": "0o600"
+    }
+  ],
+  "qualification": "Actual V9 production build of the locally staged retired-credential implementation on signed 5d98d1e906f8547cd369e15d8125bb28a1c79fdf. Source publication was not executed. Finite browser-flow and visual evidence does not establish installed extensions, native/signing/physical-device behavior, formal security or production readiness."
+}

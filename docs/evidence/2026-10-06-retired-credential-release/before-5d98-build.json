@@ -1,0 +1,33 @@
+{
+  "sourceCommit": "5d98d1e906f8547cd369e15d8125bb28a1c79fdf",
+  "scope": "Conservative tracked package src, Pages src/scripts/public/capability profiles, root/package build config and dependency manifests; includes tests, no claim all are runtime-reachable",
+  "capturedAt": "2026-10-06T23:32:40.824990+00:00",
+  "verifiedAt": "2026-10-06T23:33:44.684748+00:00",
+  "inputsUnchanged": true,
+  "installedLockEqualsSource": true,
+  "inputCount": 5389,
+  "installedDependencyCount": 121041,
+  "installedDependenciesUnchanged": true,
+  "installedDependencyCatalogSha256": "5318a5e70e27ccefea6fcf361787d0588ab24331579f37a9a88e39285392119a",
+  "defaultProfileSha256": "da5fe95fa9eee73685f5209486c1efba0fbbe1547e8ed77de825ccd1aad5f8c0",
+  "assetCount": 243,
+  "indexSha256": "3f6d0e5832ef79870431f435243a275422847d4bb03ada4f9671de5370b4f87a",
+  "buildExit": 0,
+  "securityControls": {
+    "exit": 0,
+    "pass": 17,
+    "fail": 0,
+    "skip": 0
+  },
+  "sourceTrackedClean": true,
+  "actualInstalledDependencyVersions": {
+    "@modelcontextprotocol/sdk": "1.31.0",
+    "sharp": "0.35.5"
+  },
+  "privateBuildProofSha256": "57afe346f47a4a5d91a3cb8a3a1a19aece4e7d8d088e923bb6584498cf657481",
+  "inputCatalogSha256": "fde7c64c717afb73e06e32188f84183cb0a047e512d1739a30ef4d99c0568a67",
+  "buildLogSha256": "62318ef78c377244f6a6975f51d4a1aa0c43ed8971821ea5b9f500df22d77c2d",
+  "featureOrBrowserOrGalleryExecuted": false,
+  "ownWorkspaceLinkCount": 15,
+  "qualification": "Actual clean signed-main baseline controls and production build. Private source/dependency/asset catalogs are retained; this build proof does not claim a browser execution."
+}

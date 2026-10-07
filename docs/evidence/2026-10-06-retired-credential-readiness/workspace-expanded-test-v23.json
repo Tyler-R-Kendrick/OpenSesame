@@ -1,0 +1,110 @@
+{
+  "status": "actual-recorded5d98-final-fixture-workspace-test-tasks-passed",
+  "recordedAt": "2026-10-07T00:57:50.966230+00:00",
+  "attempt": "v23",
+  "baseCommit": "5d98d1e906f8547cd369e15d8125bb28a1c79fdf",
+  "featureAdr": "docs/adr/0180-retired-credential-traps.md",
+  "stages": [
+    {
+      "stage": "serial",
+      "command": "pnpm exec turbo run test --concurrency=1",
+      "actualExit": 0,
+      "privateRawLogSha256": "b5eab6411c890b824b5c87a505ca3220986332902e3a84e58bf83bba67cbc5f4",
+      "privateExitRecordSha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "stage": "canonical",
+      "command": "pnpm test",
+      "actualExit": 0,
+      "privateRawLogSha256": "4239cc3da55ec2cacb19a46fd315baf125e1eeb1797792a75c657c64ac36dc38",
+      "privateExitRecordSha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    }
+  ],
+  "capturedInputs": 10835,
+  "inputManifestSha256": "31971237e62ab902f9c846f5f916b8acd1d9be4b5fe571ffcd52bb1296121096",
+  "inputCheckSha256": "4ddd71a3d352fca6779b8eee9b856f26c25b8754cee85e34d0e5af182f6035ef",
+  "changedInputs": [],
+  "serial": {
+    "tasksSuccessful": 70,
+    "tasksCached": 64,
+    "tasksExecutedFresh": 6,
+    "elapsedMilliseconds": 774306,
+    "freshPackages": [
+      "@opensesame/app-core",
+      "@opensesame/pages",
+      "@opensesame/browser-extension-autofill",
+      "@opensesame/fuzz",
+      "@opensesame/browser-extension",
+      "@opensesame/cli"
+    ],
+    "allTasksExecutedFresh": false
+  },
+  "canonical": {
+    "tasksSuccessful": 70,
+    "tasksCached": 70,
+    "tasksExecutedFresh": 0,
+    "elapsedMilliseconds": 893,
+    "allTasksExecutedFresh": false
+  },
+  "freshCaseResults": {
+    "appCore": {
+      "vitestPassed": 6238,
+      "existingTestsSkipped": 24,
+      "vitestFilesPassed": 770,
+      "existingFilesSkipped": 2
+    },
+    "pages": {
+      "vitestPassed": 4186,
+      "vitestFilesPassed": 539,
+      "nodePassed": 94,
+      "nodeSkipped": 0
+    },
+    "clientCli": {
+      "vitestPassed": 253,
+      "vitestFilesPassed": 35
+    },
+    "mainExtension": {
+      "vitestPassed": 167,
+      "vitestFilesPassed": 21,
+      "nodePassed": 20,
+      "nodeSkipped": 0
+    },
+    "autofillExtension": {
+      "vitestPassed": 141,
+      "vitestFilesPassed": 13,
+      "nodePassed": 17,
+      "nodeSkipped": 0
+    },
+    "fuzzPackageUnitControls": {
+      "vitestPassed": 93,
+      "vitestFilesPassed": 10,
+      "degradedUncoverageGuidedFallbackObserved": true,
+      "coverageFeedback": false,
+      "genuineNativeJazzerCampaign": false
+    }
+  },
+  "selectedCachedResults": {
+    "webmcpSdk": {
+      "vitestPassed": 63,
+      "vitestFilesPassed": 7,
+      "executedFreshInV23": false
+    },
+    "androidSourceCollectorControls": {
+      "nodePassed": 19,
+      "executedFreshInV23": false,
+      "androidSdkOrDeviceExecutionClaimed": false
+    }
+  },
+  "sourceDiffManifest": {
+    "paths": 1101,
+    "sha256": "4ea7e17c1c3353bff7bc2f6e8180889f70808dead1f5c4bfa428b5982c51be18"
+  },
+  "earlierFailurePreserved": {
+    "attempt": "V22",
+    "workspaceExit": 1,
+    "coreFailedCases": 1,
+    "failureSummarySha256": "502e4b22bbf4d94849adc994f4c96566d48f0f04b6b56f02930a84daa73d62a1",
+    "originalFailureRelabeled": false
+  },
+  "qualification": "Actual workspace tasks passed on10835 unchanged inputs. Six of70 tasks ran fresh in the serial run; literal pnpm test reused all70 cached results. Existing core skips and cached SDK/Android collector controls remain explicit. Fuzz93 unit controls used degraded random-byte fallback without coverage feedback; this does not meet genuine Jazzer/native campaign admission. V14 security is running, not claimed passed. Current V9 builds/gallery and Windows89/native/device/hosted/depth/signing acceptance remain pending; no production or formal-proof claim. Publication remains blocked pending approval. Raw logs and findings remain private."
+}

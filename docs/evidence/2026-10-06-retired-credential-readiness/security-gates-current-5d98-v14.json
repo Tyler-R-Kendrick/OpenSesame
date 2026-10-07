@@ -1,0 +1,84 @@
+{
+  "status": "actual-recorded5d98-all-six-configured-security-gates-passed",
+  "recordedAt": "2026-10-07T01:00:38.399253+00:00",
+  "attempt": "v14",
+  "baseCommit": "5d98d1e906f8547cd369e15d8125bb28a1c79fdf",
+  "featureAdr": "docs/adr/0180-retired-credential-traps.md",
+  "stages": [
+    {
+      "gate": "ast-grep",
+      "command": "pnpm audit:ast-grep",
+      "actualExit": 0,
+      "privateRawLogSha256": "361cb4298cae46417d0861b813c51e8769c399a7ea6f1cc1ad416940882cedd6",
+      "privateExitRecordSha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "gate": "gitleaks",
+      "command": "pnpm audit:gitleaks",
+      "actualExit": 0,
+      "privateRawLogSha256": "7fc95a651d3ad3b4caa22674566b6da965d2042c33a91d1e73f8099eff696c4a",
+      "privateExitRecordSha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "gate": "cve-lite",
+      "command": "pnpm audit:cve-lite",
+      "actualExit": 0,
+      "privateRawLogSha256": "d48df858aa72f2246edb1c5861d9d065ccca1c5676a79742e680f0ebf3736a05",
+      "privateExitRecordSha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "gate": "osv",
+      "command": "pnpm audit:osv",
+      "actualExit": 0,
+      "privateRawLogSha256": "5e1a44532540061b8597ca4b4a9b8aebbd7ee647398d695e3fb4a6eed6ed2af1",
+      "privateExitRecordSha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "gate": "semgrep",
+      "command": "pnpm audit:semgrep",
+      "actualExit": 0,
+      "privateRawLogSha256": "0c27f8e1e5861961127110e7676243914614befadedf2aae2a210ae1f90994f0",
+      "privateExitRecordSha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "gate": "cargo-audit",
+      "command": "pnpm audit:cargo-audit",
+      "actualExit": 0,
+      "privateRawLogSha256": "bd1d88ae9607d87d5b25fbcbd6ab0947119bbaac90a602fe7204808f604d4fd4",
+      "privateExitRecordSha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    }
+  ],
+  "capturedSourceInputs": 10835,
+  "capturedSourceInputsSha256": "31971237e62ab902f9c846f5f916b8acd1d9be4b5fe571ffcd52bb1296121096",
+  "inputCheckSha256": "4ddd71a3d352fca6779b8eee9b856f26c25b8754cee85e34d0e5af182f6035ef",
+  "changedInputs": [],
+  "existingPolicyQualifications": {
+    "gitleaksWorkingTree": "Clean in configured scan scope",
+    "gitleaksHistoryFindings": 68,
+    "gitleaksHistoryCommitsScanned": 673,
+    "gitleaksHistoryPolicy": "Existing nonfatal warning; history is not claimed clean",
+    "rsaAdvisory": "RUSTSEC-2023-0071",
+    "rsaPolicySources": [
+      {
+        "path": ".cargo/audit.toml",
+        "sha256": "64103092ad99122cec9a30c4dec8a47deb33e824f4dd6b26fdc203dddace95b7"
+      },
+      {
+        "path": "osv-scanner.toml",
+        "sha256": "e3741ceb1e10d2614332db8a0685306564f101e1fb34149121a642fca847541b"
+      }
+    ],
+    "rsaExceptionUnchangedFromPriorFac3": true,
+    "rsaException": "Existing configured cargo-audit and OSV exceptions remain; RSA is not claimed fixed or constant-time",
+    "rsaDeploymentConstraint": "Do not expose the RustCrypto-backed RSA signer as an attacker-timable service; retain the existing reachability assessment",
+    "cargoAuditMeasuredDependencies": 793,
+    "cargoAuditLoadedAdvisories": 1290,
+    "cargoAuditOutcome": "Configured gate exited zero; existing RSA advisory exception remains unchanged"
+  },
+  "qualification": "All six configured scanner gates exited zero on the recorded V6/5d98 source. All 10,835 captured inputs were unchanged. Existing RSA exceptions and 68 nonfatal historical findings across 673 commits remain explicit. These scanner outcomes do not establish absence of every vulnerability, clean git history, runtime/device/hosted admission, native fuzz, mutation adequacy, formal proof or production acceptance. At this receipt, V9 production builds were running and the fresh reviewed gallery and remote approval remained pending. Raw reports, findings and logs remain private. Earlier V12 and V13 records retain their original source scope.",
+  "sourceCatalog": {
+    "version": "V6",
+    "changedPaths": 1101,
+    "sha256": "4ea7e17c1c3353bff7bc2f6e8180889f70808dead1f5c4bfa428b5982c51be18"
+  }
+}

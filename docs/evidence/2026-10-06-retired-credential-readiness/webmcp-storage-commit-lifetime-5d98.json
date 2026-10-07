@@ -1,0 +1,133 @@
+{
+  "v": 1,
+  "baseCommit": "5d98d1e906f8547cd369e15d8125bb28a1c79fdf",
+  "scope": "Withdrawn WebMCP tool lifetime through actual encrypted storage commit",
+  "recordedAt": "2026-10-07T00:34:48.264508+00:00",
+  "originalProductRed": {
+    "failedCases": 2,
+    "passedCases": 0,
+    "productionUnmodifiedAtReproduction": true,
+    "privateRawLogSha256": "2805fe660ee3aa70aad2842d7cf4251551b5f70ab19c2a6a7dcb88fa8a8209ba",
+    "behavior": "An original tool lifetime was withdrawn while storage encryption was pending; a rejected tool result still accompanied changed storage."
+  },
+  "finalSourceManifest": {
+    "sha256": "fe9cd91da76966174410efd02fcc1f2fa16e228e4ef9194f820841ba870812ad",
+    "capturedPaths": 9,
+    "allCurrentHashesMatch": true,
+    "files": [
+      {
+        "path": "packages/app-core/src/lib/vault/store.ts",
+        "sha256": "25400a7dcfb068a566e8fdaa073c579fab672b93282885950810d720d330a541",
+        "lines": 1572
+      },
+      {
+        "path": "packages/app-core/src/lib/vault/store-seal.ts",
+        "sha256": "701a6e2b72ea34592a81f4bca1fcb7dc771ae4c3261e2e62297ab676be0f3d07",
+        "lines": 97
+      },
+      {
+        "path": "packages/app-core/src/lib/vault/store-idle.ts",
+        "sha256": "6ca89f06c29c50d2c6263f7229e3a7e63f53e9a97bb16b8850ebfb0776cefb5d",
+        "lines": 18
+      },
+      {
+        "path": "packages/app-core/src/lib/vault/store-item-write-host.ts",
+        "sha256": "fe3eb20994bfc23c689c27c2cb30d7c11d35860650635d97a9cc1be1a6219c5e",
+        "lines": 41
+      },
+      {
+        "path": "packages/app-core/src/lib/vault/store-destroy-queue.ts",
+        "sha256": "14233fc7dd1e052387c570fc299cddf3a17e0dd7fc53992f5e4519d40e1754d7",
+        "lines": 30
+      },
+      {
+        "path": "packages/app-core/src/lib/vfs.ts",
+        "sha256": "5884a5fda3ca7aaf0cad996c4b1109ab088b376616aea109769971779d871823",
+        "lines": 438
+      },
+      {
+        "path": "packages/app-core/src/lib/vfs-write-contract.ts",
+        "sha256": "57bf92afffbe78d66d657db236813c8ad626face3e7db2dbbdd8d68eeb0c7219",
+        "lines": 10
+      },
+      {
+        "path": "packages/app-core/src/webmcp/vault-tools.ts",
+        "sha256": "e3cc0c0a8e9faa86b22f1285e3d510dabccf797817225dd7279793effc86abae",
+        "lines": 400
+      },
+      {
+        "path": "apps/pages/src/modules/agents.webmcp/continuation-late-commit.test.ts",
+        "sha256": "c332953527820326cf5eff51f56f0b87c6cdec0affdffe3f6ea9c6c998f7517d",
+        "lines": 247
+      }
+    ]
+  },
+  "actualPassingCohorts": [
+    {
+      "cohort": "core",
+      "filesPassed": 6,
+      "casesPassed": 75,
+      "privateRawLogSha256": "dabc234e5875fddc8fd6fb389a10c7d774fb311c053370e4e30d2474f2ece655"
+    },
+    {
+      "cohort": "pages before final test-factor",
+      "filesPassed": 3,
+      "casesPassed": 19,
+      "privateRawLogSha256": "6ff67390833abe6173df950a2a5e7b5f2be3e201f3596a409f79b1d9f9baa1af"
+    },
+    {
+      "cohort": "same19 pages after final test-factor",
+      "filesPassed": 3,
+      "casesPassed": 19,
+      "privateRawLogSha256": "1b08b6b1521272e160405ff32363c4013fe10303b90e8cc0fc067036ec4902b5",
+      "additionalDistinctCasesClaimed": false
+    }
+  ],
+  "verificationMechanism": "Genuine owner fixture, original registered-tool and scope lifetimes, actual native WebCrypto encryption and real storage writes. Delegating latches pause the original operations; guard or cryptographic verdicts are not substituted. Durable reopen, fresh-owner positive and queued-write controls preserve real storage behavior.",
+  "commitBoundaryAndLimits": "Additional operation ceilings remain enforced until raw storage write dispatch. Already-admitted native I/O may complete after later withdrawal and must finish root/header/index bookkeeping. This is not an undo guarantee. A separate already-authorized queued write may change the body while the withdrawn item remains absent.",
+  "typeAndLintChecks": {
+    "coreTypesReportedExit": 0,
+    "coreTypesPrivateLogSha256": "ed89b7c587ba29d23ec3bf68062c74d0bdc2f755ba991b6cef1e43ad27e56a56",
+    "pagesTypesReportedExit": 0,
+    "pagesTypesPrivateLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "strictReportedExit": 0,
+    "strictPrivateLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "retainedIntermediateFailures": {
+    "pageFixtureTypeRepair": {
+      "retainedPrivately": true,
+      "privateRawLogSha256": "3ddb6de9467e8a7bc9f825e195429da92854ff9e20ca446bca083de3e4c47b3e"
+    },
+    "firstCanonicalRatchetUpdate": {
+      "actualExit": 1,
+      "reason": "New fixture complexity was refused; assertions were preserved in a subsequent test-only extraction",
+      "privateRawLogSha256": "d36401efe72d01608f9f35e8b8312f5671c7cfb172554e9abab9afd59ac14345"
+    }
+  },
+  "finalCanonicalRatchetUpdate": {
+    "actualExit": 0,
+    "baselineSha256": "a82f036e8384d35cc9cf00a7c1abf1562df2c2250dd9edcae92a7c7b07e9d210",
+    "onlyFileDebtChanges": [
+      {
+        "path": "packages/app-core/src/lib/vault/store.ts",
+        "before": 1586,
+        "after": 1572
+      },
+      {
+        "path": "packages/app-core/src/lib/vfs.ts",
+        "before": 441,
+        "after": 438
+      }
+    ],
+    "derivedOversizedLinesReduction": 17,
+    "thresholdsUnchanged": true
+  },
+  "recordedCandidateSourceCatalog": {
+    "paths": 1101,
+    "sha256": "4b7edfcf2381e666af65e3aa63013bc74626df428595c78a53432940d56c62e9",
+    "scope": "Historical V5 candidate at focused capture; final one-test-fixture correction is reflected in separate V6/current status."
+  },
+  "qualification": "Finite genuine regressions and durable controls, not formal proof. All focused counts, log hashes and source-capture receipts retain their original scope. Repeated19-case pages proof is a same-case rerun, not38 distinct cases. At this focused preparation, V44/V22 global gates were pending and V14/V8 had not executed; this historical text does not relabel later results. Consult the separate current-source-status-5d98.md and final individual prepush/workspace/security/build receipts for later V45/V23/V14/V9 outcomes. Recorded source catalog is historical V5; V6 records the later one-test-only correction. Windows89/native/device/depth/hosted acceptance and publication approval require their actual separate evidence. No raw exploits, credentials, stacks or logs are included.",
+  "captureTimeGateQualification": "At focused capture V44/V22 were pending and V14/V8 had not run. These are preparation-time facts, not assertions of current gate status.",
+  "laterReadinessStatus": "current-source-status-5d98.md"
+}

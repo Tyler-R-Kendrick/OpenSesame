@@ -1,0 +1,56 @@
+{
+  "status": "local-validation-passed-platform-and-depth-acceptance-pending",
+  "baseCommit": "5d98d1e906f8547cd369e15d8125bb28a1c79fdf",
+  "sourceCatalog": {
+    "version": "V6",
+    "changedPaths": 1101,
+    "sha256": "4ea7e17c1c3353bff7bc2f6e8180889f70808dead1f5c4bfa428b5982c51be18",
+    "globalCapturedInputs": 10835,
+    "metadataDoesNotProveRemotePublication": true
+  },
+  "linuxNative": {
+    "currentRerun": "not-executed",
+    "reason": "Potential 140 MB relink exceeds approximately 102 MB available workspace",
+    "earlierSingleCasePass": "Historical fixture and lock; not current native acceptance"
+  },
+  "windows": {
+    "authoredSelectedRustCases": 89,
+    "engine": 77,
+    "cli": 12,
+    "currentActualExecution": "pending",
+    "required": "Actual hosted MSVC storage/engine, generated FFI and CLI terminal execution; authoring is not execution"
+  },
+  "otherRequiredValidation": [
+    "Android hosted/device execution",
+    "Apple hosted/device execution",
+    "Installed MV3 runtime validation",
+    "Production signing and physical-device admission"
+  ],
+  "depth": {
+    "historicalManagementMutation": {
+      "mutants": 109,
+      "assertionKills": 61,
+      "timeouts": 14,
+      "survivors": 34,
+      "scorePercent": 68.81,
+      "thresholdPercent": 100,
+      "thresholdOutcome": "failed"
+    },
+    "laterRegressions": "Finite model and genuine host tests are not a fresh mutation campaign or a claim that historical survivors were killed",
+    "fuzzUnitOutcome": "Degraded random-byte fallback without coverage feedback; not a native Jazzer campaign",
+    "currentGenuineMutationFuzzAcceptance": "pending",
+    "formalProof": "not claimed"
+  },
+  "optionalReceiver": "Owner provisioning and verification are required only before connected delivery is enabled; local-only operation needs no receiver",
+  "publication": {
+    "authorizedByUser": true,
+    "currentRemotePublicationExecuted": true,
+    "currentHostedDispatchExecuted": true,
+    "historicalPartialPublication": "retained separately",
+    "sourceSha": "c0f8c299e472ba56f434796263c12cf1aa78ff6c",
+    "sourcePr": 764,
+    "hostedRun": 37565578573,
+    "hostedAcceptance": "pending"
+  },
+  "qualification": "Finite local results are not production approval. No raw findings, logs, downloaded canary material, receiver pairing data or submitted passwords are included."
+}

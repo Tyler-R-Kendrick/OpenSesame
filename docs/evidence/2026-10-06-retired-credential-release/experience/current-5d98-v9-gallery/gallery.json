@@ -1,0 +1,625 @@
+{
+  "status": "approved-after-root-original-pixel-review",
+  "reviewedPairSheets": 8,
+  "reviewedFeatureOnlySheets": 1,
+  "freshActualScreenshots": 20,
+  "baseCommit": "5d98d1e906f8547cd369e15d8125bb28a1c79fdf",
+  "beforeBuildProof": "../../before-5d98-build.json",
+  "afterBuildProof": "../../pwa-build-5d98-v9.json",
+  "afterBuildProofSha256": "a3dec73abdb122aa32b506fb9c03e70b4b47c5274a6c926ddf643ead0b923240",
+  "afterWorkingTreeProductionSourceAggregateSha256": "ca7cc1c947fe72eb9faab81aad2c3c11ce76746e48a8a02280678ddeb60a3c19",
+  "approvedSourcePublicationCatalogSha256": "4ea7e17c1c3353bff7bc2f6e8180889f70808dead1f5c4bfa428b5982c51be18",
+  "sourcePublicationExecuted": false,
+  "profile": "standard",
+  "profileSha256": "da5fe95fa9eee73685f5209486c1efba0fbbe1547e8ed77de825ccd1aad5f8c0",
+  "basePath": "/OpenSesame/",
+  "theme": "light",
+  "captureAndComposition": {
+    "freshUserJourneysExecuted": true,
+    "indexVerifiedBeforeLaunchAndEachCapture": true,
+    "noAuthenticationStorageOrSDKRegistrationInjection": true,
+    "labelsOutsideScreenshots": true,
+    "screenshotPixelsUnscaledUncropped": true,
+    "savedPngScreenshotRegionsComparedByteExact": true,
+    "cssViewportAndPhysicalPngPixelsReportedSeparately": true,
+    "noRecordedHorizontalOverflow": true,
+    "oldHistoricalGalleriesUntouched": true
+  },
+  "qualification": "Actual V9 production build of the locally staged retired-credential implementation on signed 5d98d1e906f8547cd369e15d8125bb28a1c79fdf. Source publication was not executed. Finite browser-flow and visual evidence does not establish installed extensions, native/signing/physical-device behavior, formal security or production readiness.",
+  "privateRawReviewSha256": "3ce6b1ed049e0979529743a03580e0212225cb68058183bfffa62a37790951e1",
+  "privateRawExecutionProofSha256": "a3e813f01d4f40eecdae3f3bcd61bbf22b0728e1cbf972fb9ee1ad8ec74333a5",
+  "rootVisualApprovalReceiptSha256": "711ab97bff3289434ac09eaef5fdece71c3595f3c2b06ce3c1f441c96a83f127",
+  "sheets": [
+    {
+      "id": "390-security-overview",
+      "file": "390-security-overview.png",
+      "sha256": "8bda0ba5a7bf1235c9f0aa57cb601f8697ac2a09ba22326cfc129b13aee33573",
+      "canvasPixels": [2496, 2808],
+      "fullUncroppedUnscaledScreenshotPixelsVerified": true,
+      "actualFlowAssertion": "The actual Decoy heading and Manage retired passwords control were visible within the captured phone viewport.",
+      "before": {
+        "caption": "Closest actual Duress section; retired-credential Decoy feature absent",
+        "measurement": {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "documentWidth": 390,
+          "dialog": [],
+          "visibleButtons": 21,
+          "scrollTarget": "Duress",
+          "targetRect": {
+            "x": 16,
+            "y": 419.984375,
+            "width": 59.078125,
+            "height": 25.5
+          }
+        },
+        "indexSha256": "3f6d0e5832ef79870431f435243a275422847d4bb03ada4f9671de5370b4f87a",
+        "originalSha256": "57d9041046608ba33a52fcbd466937715e3ea7ee06dcd0965469604242304dbc",
+        "rasterPixels": [1170, 2532],
+        "pastePosition": [52, 224],
+        "cssViewport": {
+          "width": 390,
+          "height": 844
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 3.0,
+          "y": 3.0
+        },
+        "routePattern": "/OpenSesame/settings/security",
+        "actualCapturedAt": "2026-10-07T01:04:23.423993+00:00"
+      },
+      "after": {
+        "caption": "Actual Decoy section with retired passwords, controlled canaries and optional receiver",
+        "measurement": {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "documentWidth": 390,
+          "dialog": [],
+          "visibleButtons": 24,
+          "scrollTarget": "Decoy",
+          "targetRect": {
+            "x": 16,
+            "y": 448.265625,
+            "width": 49.234375,
+            "height": 25.5
+          }
+        },
+        "indexSha256": "014c94d1fe2399acc01a02d25be5f45727b3c4294bb1fbf42485be04cd4ad447",
+        "originalSha256": "fd3962b15acc9dd5348ed5a83ee6e7dfca7ced5cf28d22fd50d0f5c02449720e",
+        "rasterPixels": [1170, 2532],
+        "pastePosition": [1274, 224],
+        "cssViewport": {
+          "width": 390,
+          "height": 844
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 3.0,
+          "y": 3.0
+        },
+        "routePattern": "/OpenSesame/settings/security",
+        "actualCapturedAt": "2026-10-07T01:04:28.731789+00:00"
+      }
+    },
+    {
+      "id": "390-owner-enrollment",
+      "file": "390-owner-enrollment.png",
+      "sha256": "85940f386c22e6858bc0c02ebc13339247b991b3dddf1af27cda57442d8a1be4",
+      "canvasPixels": [2496, 2808],
+      "fullUncroppedUnscaledScreenshotPixelsVerified": true,
+      "actualFlowAssertion": "Record and reject was selected by default. This capture precedes entering an owner password or selected retired password.",
+      "before": {
+        "caption": "Closest actual Security settings; no retired-password enrollment sheet",
+        "measurement": {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "documentWidth": 390,
+          "dialog": [],
+          "visibleButtons": 13
+        },
+        "indexSha256": "3f6d0e5832ef79870431f435243a275422847d4bb03ada4f9671de5370b4f87a",
+        "originalSha256": "586a44f94de25b4f12dfe91826ef86a5bb71b298b2c6be860f765a847d5b677b",
+        "rasterPixels": [1170, 2532],
+        "pastePosition": [52, 224],
+        "cssViewport": {
+          "width": 390,
+          "height": 844
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 3.0,
+          "y": 3.0
+        },
+        "routePattern": "/OpenSesame/settings/security",
+        "actualCapturedAt": "2026-10-07T01:02:59.799214+00:00"
+      },
+      "after": {
+        "caption": "Fresh-owner enrollment with record-and-reject selected; no secrets entered in capture",
+        "measurement": {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "documentWidth": 390,
+          "dialog": [
+            {
+              "width": 390,
+              "height": 742.71875
+            }
+          ],
+          "visibleButtons": 28
+        },
+        "indexSha256": "014c94d1fe2399acc01a02d25be5f45727b3c4294bb1fbf42485be04cd4ad447",
+        "originalSha256": "37408dd1242fbc95bba6e2c91b1a2d7e2e0388c1398f70b7b303c7f0757d8dc7",
+        "rasterPixels": [1170, 2532],
+        "pastePosition": [1274, 224],
+        "cssViewport": {
+          "width": 390,
+          "height": 844
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 3.0,
+          "y": 3.0
+        },
+        "routePattern": "/OpenSesame/settings/security",
+        "actualCapturedAt": "2026-10-07T01:03:37.453765+00:00"
+      }
+    },
+    {
+      "id": "390-retired-reject",
+      "file": "390-retired-reject.png",
+      "sha256": "5584d588b7da0b56325c68804da1207aea00f4b8dfc81e9d60caa1a745abf85f",
+      "canvasPixels": [2496, 2808],
+      "fullUncroppedUnscaledScreenshotPixelsVerified": true,
+      "actualFlowAssertion": "The enrolled retired password was rejected; Password remained visible and empty, Unlock finished without remaining busy, and the actual rejection notice was observed.",
+      "before": {
+        "caption": "Ordinary wrong-password rejection; no trap semantics",
+        "measurement": {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "documentWidth": 390,
+          "dialog": [],
+          "visibleButtons": 12
+        },
+        "indexSha256": "3f6d0e5832ef79870431f435243a275422847d4bb03ada4f9671de5370b4f87a",
+        "originalSha256": "9f067798a4a88053e14e9a23beaaa73157c54ceae8fc047737f2b4dc6a8fafba",
+        "rasterPixels": [1170, 2532],
+        "pastePosition": [52, 224],
+        "cssViewport": {
+          "width": 390,
+          "height": 844
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 3.0,
+          "y": 3.0
+        },
+        "routePattern": "/OpenSesame/settings/security",
+        "actualCapturedAt": "2026-10-07T01:03:05.323001+00:00"
+      },
+      "after": {
+        "caption": "Owner-enrolled retired match rejected, real vault still sealed",
+        "measurement": {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "documentWidth": 390,
+          "dialog": [],
+          "visibleButtons": 12
+        },
+        "indexSha256": "014c94d1fe2399acc01a02d25be5f45727b3c4294bb1fbf42485be04cd4ad447",
+        "originalSha256": "ca6e9325ce51cba73c0b1f6e3fe3553e6ab30c52d4b25f176d52720a3c2fa465",
+        "rasterPixels": [1170, 2532],
+        "pastePosition": [1274, 224],
+        "cssViewport": {
+          "width": 390,
+          "height": 844
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 3.0,
+          "y": 3.0
+        },
+        "routePattern": "/OpenSesame/settings/security",
+        "actualCapturedAt": "2026-10-07T01:03:45.073471+00:00"
+      }
+    },
+    {
+      "id": "390-synthetic-detail",
+      "file": "390-synthetic-detail.png",
+      "sha256": "d97eb3903c098eda4ec5ef50890948ecd2a0463851db1d3657aa006918fdca84",
+      "canvasPixels": [2496, 2808],
+      "fullUncroppedUnscaledScreenshotPixelsVerified": true,
+      "actualFlowAssertion": "The synthetic account was present, the owner fixture name was absent, and its external action had aria-disabled=true and no href.",
+      "before": {
+        "caption": "Ordinary wrong-password rejection; no synthetic vault exists",
+        "measurement": {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "documentWidth": 390,
+          "dialog": [],
+          "visibleButtons": 12
+        },
+        "indexSha256": "3f6d0e5832ef79870431f435243a275422847d4bb03ada4f9671de5370b4f87a",
+        "originalSha256": "9f067798a4a88053e14e9a23beaaa73157c54ceae8fc047737f2b4dc6a8fafba",
+        "rasterPixels": [1170, 2532],
+        "pastePosition": [52, 224],
+        "cssViewport": {
+          "width": 390,
+          "height": 844
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 3.0,
+          "y": 3.0
+        },
+        "routePattern": "/OpenSesame/settings/security",
+        "actualCapturedAt": "2026-10-07T01:03:10.858789+00:00"
+      },
+      "after": {
+        "caption": "Synthetic account detail, external action disabled and owner note absent",
+        "measurement": {
+          "viewport": {
+            "width": 390,
+            "height": 844
+          },
+          "documentWidth": 390,
+          "dialog": [],
+          "visibleButtons": 18
+        },
+        "indexSha256": "014c94d1fe2399acc01a02d25be5f45727b3c4294bb1fbf42485be04cd4ad447",
+        "originalSha256": "589fc83b8f21c9936052e39b9e7882081d7b6c793158469cdf3a0f717b1428ea",
+        "rasterPixels": [1170, 2532],
+        "pastePosition": [1274, 224],
+        "cssViewport": {
+          "width": 390,
+          "height": 844
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 3.0,
+          "y": 3.0
+        },
+        "routePattern": "/OpenSesame/vault/:item",
+        "actualCapturedAt": "2026-10-07T01:03:52.341191+00:00"
+      }
+    },
+    {
+      "id": "1280-local-observations",
+      "file": "1280-local-observations.png",
+      "sha256": "8a7e24da3853d0fd366f8bd15d814ff2869dd3fa061e6ea72d104e711174cd13",
+      "canvasPixels": [2716, 1076],
+      "fullUncroppedUnscaledScreenshotPixelsVerified": true,
+      "actualFlowAssertion": "A rejected retired-password observation, Observed use metadata, and intent-is-unknown explanation were visible within the captured viewport after fresh real-owner authentication.",
+      "before": {
+        "caption": "Closest actual Security settings; no retired-password observations",
+        "measurement": {
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "documentWidth": 1280,
+          "dialog": [],
+          "visibleButtons": 16
+        },
+        "indexSha256": "3f6d0e5832ef79870431f435243a275422847d4bb03ada4f9671de5370b4f87a",
+        "originalSha256": "169763abbee7ef013f5fdf7c4425a8779e121ef57ab66e9e2109a5e938aefbac",
+        "rasterPixels": [1280, 800],
+        "pastePosition": [52, 224],
+        "cssViewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 1.0,
+          "y": 1.0
+        },
+        "routePattern": "/OpenSesame/settings/security",
+        "actualCapturedAt": "2026-10-07T01:03:14.962631+00:00"
+      },
+      "after": {
+        "caption": "Fresh owner reviews locally recorded retired-password observation",
+        "measurement": {
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "documentWidth": 1280,
+          "dialog": [
+            {
+              "width": 424,
+              "height": 800
+            }
+          ],
+          "visibleButtons": 27,
+          "scrollTarget": "actual rejected observation",
+          "targetRects": [
+            {
+              "x": 930.78125,
+              "y": 653,
+              "width": 315.4375,
+              "height": 42
+            },
+            {
+              "x": 890.78125,
+              "y": 430.953125,
+              "width": 355.4375,
+              "height": 22.5
+            },
+            {
+              "x": 994,
+              "y": 486.53125,
+              "width": 252.21875,
+              "height": 39
+            }
+          ]
+        },
+        "indexSha256": "014c94d1fe2399acc01a02d25be5f45727b3c4294bb1fbf42485be04cd4ad447",
+        "originalSha256": "d6f684afd8571578e2887ebe002e8859a2a5e6d1d29e06ed2a7affd3399af1e7",
+        "rasterPixels": [1280, 800],
+        "pastePosition": [1384, 224],
+        "cssViewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 1.0,
+          "y": 1.0
+        },
+        "routePattern": "/OpenSesame/settings/security",
+        "actualCapturedAt": "2026-10-07T01:04:38.455415+00:00"
+      }
+    },
+    {
+      "id": "1280-fresh-owner-recovery",
+      "file": "1280-fresh-owner-recovery.png",
+      "sha256": "096a30a124159f4ecd641d06882665078627ed9b8369f5e4965d03af4f7402c1",
+      "canvasPixels": [2716, 1076],
+      "fullUncroppedUnscaledScreenshotPixelsVerified": true,
+      "actualFlowAssertion": "After entering the synthetic vault, locking it and authenticating with the current owner password restored the same real-owner fixture item.",
+      "before": {
+        "caption": "Actual lock and fresh real-password unlock, owner fixture note retained",
+        "measurement": {
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "documentWidth": 1280,
+          "dialog": [],
+          "visibleButtons": 11
+        },
+        "indexSha256": "3f6d0e5832ef79870431f435243a275422847d4bb03ada4f9671de5370b4f87a",
+        "originalSha256": "b2a6bac3efc289bc7986f15cec52b1c05df745106979011db6bf9e33366a8eac",
+        "rasterPixels": [1280, 800],
+        "pastePosition": [52, 224],
+        "cssViewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 1.0,
+          "y": 1.0
+        },
+        "routePattern": "/OpenSesame/vault",
+        "actualCapturedAt": "2026-10-07T01:03:20.146431+00:00"
+      },
+      "after": {
+        "caption": "Synthetic session locked, fresh real-password unlock restores same owner fixture note",
+        "measurement": {
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "documentWidth": 1280,
+          "dialog": [],
+          "visibleButtons": 11
+        },
+        "indexSha256": "014c94d1fe2399acc01a02d25be5f45727b3c4294bb1fbf42485be04cd4ad447",
+        "originalSha256": "19a35e49c5a4af94efe12a0c5f8db1fedb7b0294f0649337d0f3caca2be06243",
+        "rasterPixels": [1280, 800],
+        "pastePosition": [1384, 224],
+        "cssViewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 1.0,
+          "y": 1.0
+        },
+        "routePattern": "/OpenSesame/vault",
+        "actualCapturedAt": "2026-10-07T01:04:09.124544+00:00"
+      }
+    },
+    {
+      "id": "1280-controlled-export",
+      "file": "1280-controlled-export.png",
+      "sha256": "d25a3c3fb71fea127e2fe5442601ff3fb3030727dee6f9f29aa6325e09045f59",
+      "canvasPixels": [2716, 1076],
+      "fullUncroppedUnscaledScreenshotPixelsVerified": true,
+      "actualFlowAssertion": "A genuine opensesame-canary.json download completed without a download error; the canary count reached 1 of 16 and the owner-password field was cleared.",
+      "before": {
+        "caption": "Closest actual Security settings; no controlled-canary export",
+        "measurement": {
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "documentWidth": 1280,
+          "dialog": [],
+          "visibleButtons": 16
+        },
+        "indexSha256": "3f6d0e5832ef79870431f435243a275422847d4bb03ada4f9671de5370b4f87a",
+        "originalSha256": "169763abbee7ef013f5fdf7c4425a8779e121ef57ab66e9e2109a5e938aefbac",
+        "rasterPixels": [1280, 800],
+        "pastePosition": [52, 224],
+        "cssViewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 1.0,
+          "y": 1.0
+        },
+        "routePattern": "/OpenSesame/settings/security",
+        "actualCapturedAt": "2026-10-07T01:03:24.034282+00:00"
+      },
+      "after": {
+        "caption": "Genuine download completed and one controlled MCP artifact retained; raw export never shown",
+        "measurement": {
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "documentWidth": 1280,
+          "dialog": [
+            {
+              "width": 424,
+              "height": 800
+            }
+          ],
+          "visibleButtons": 27
+        },
+        "indexSha256": "014c94d1fe2399acc01a02d25be5f45727b3c4294bb1fbf42485be04cd4ad447",
+        "originalSha256": "2f114f3a77834e330248706ca232f94fd12b543338669c69da5d72603ddd59d2",
+        "rasterPixels": [1280, 800],
+        "pastePosition": [1384, 224],
+        "cssViewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 1.0,
+          "y": 1.0
+        },
+        "routePattern": "/OpenSesame/settings/security",
+        "actualCapturedAt": "2026-10-07T01:04:13.824363+00:00"
+      }
+    },
+    {
+      "id": "1280-receiver-default",
+      "file": "1280-receiver-default.png",
+      "sha256": "8336088281f40178184d05dd852612951934aced8b0ba362f7bbbdfee089d339",
+      "canvasPixels": [2716, 1076],
+      "fullUncroppedUnscaledScreenshotPixelsVerified": true,
+      "actualFlowAssertion": "The receiver remained unprovisioned, untested and disabled; no pairing file was supplied.",
+      "before": {
+        "caption": "Closest actual Security settings; observation receiver feature absent",
+        "measurement": {
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "documentWidth": 1280,
+          "dialog": [],
+          "visibleButtons": 16
+        },
+        "indexSha256": "3f6d0e5832ef79870431f435243a275422847d4bb03ada4f9671de5370b4f87a",
+        "originalSha256": "169763abbee7ef013f5fdf7c4425a8779e121ef57ab66e9e2109a5e938aefbac",
+        "rasterPixels": [1280, 800],
+        "pastePosition": [52, 224],
+        "cssViewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 1.0,
+          "y": 1.0
+        },
+        "routePattern": "/OpenSesame/settings/security",
+        "actualCapturedAt": "2026-10-07T01:03:27.966130+00:00"
+      },
+      "after": {
+        "caption": "Standard-profile receiver disabled, unconfigured and unverified; no supplied receiver or pairing JSON",
+        "measurement": {
+          "viewport": {
+            "width": 1280,
+            "height": 800
+          },
+          "documentWidth": 1280,
+          "dialog": [
+            {
+              "width": 424,
+              "height": 800
+            }
+          ],
+          "visibleButtons": 28
+        },
+        "indexSha256": "014c94d1fe2399acc01a02d25be5f45727b3c4294bb1fbf42485be04cd4ad447",
+        "originalSha256": "b25468941bb02759c9d4781234654bffa2ae3430edd4625a7d0e564461a35033",
+        "rasterPixels": [1280, 800],
+        "pastePosition": [1384, 224],
+        "cssViewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "rasterScaleRelativeToCssViewport": {
+          "x": 1.0,
+          "y": 1.0
+        },
+        "routePattern": "/OpenSesame/settings/security",
+        "actualCapturedAt": "2026-10-07T01:04:18.320190+00:00"
+      }
+    }
+  ],
+  "featureOnlySupplement": {
+    "file": "feature-only-observation360.png",
+    "sha256": "908561c7808d3c086068c1d5c557e8d96b250c9acacfbf74a27e8ed4326ad0c1",
+    "featureOnly": true,
+    "noCorrespondingBaselineInvented": true,
+    "originalSha256": "6a58846ba23db6ee4d6eb944e740a6e1b6525507e3b1853d2d292601a3231baa",
+    "fullUncroppedUnscaledScreenshotPixelsVerified": true,
+    "rasterPixels": [1080, 2532],
+    "cssViewport": {
+      "width": 360,
+      "height": 844
+    },
+    "rasterScaleRelativeToCssViewport": {
+      "x": 3.0,
+      "y": 3.0
+    },
+    "caption": "Fresh owner reviews locally recorded retired-password observation",
+    "measurement": {
+      "viewport": {
+        "width": 360,
+        "height": 844
+      },
+      "documentWidth": 360,
+      "dialog": [
+        {
+          "width": 360,
+          "height": 742.71875
+        }
+      ],
+      "visibleButtons": 29,
+      "scrollTarget": "actual rejected observation",
+      "targetRects": [
+        {
+          "x": 73.78125,
+          "y": 675.4375,
+          "width": 252.4375,
+          "height": 63
+        },
+        {
+          "x": 33.78125,
+          "y": 433.890625,
+          "width": 292.4375,
+          "height": 22.5
+        },
+        {
+          "x": 137,
+          "y": 489.46875,
+          "width": 189.21875,
+          "height": 58.5
+        }
+      ]
+    },
+    "routePattern": "/OpenSesame/settings/security",
+    "indexSha256": "014c94d1fe2399acc01a02d25be5f45727b3c4294bb1fbf42485be04cd4ad447",
+    "actualCapturedAt": "2026-10-07T01:04:48.403033+00:00"
+  }
+}
