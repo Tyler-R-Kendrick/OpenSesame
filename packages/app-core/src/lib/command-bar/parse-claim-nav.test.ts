@@ -6,10 +6,19 @@ function ports(navigated: string[]): CommandPorts {
   return {
     navigate: (path) => {
       navigated.push(path);
+<<<<<<< HEAD
     },
     copy: async () => "unavailable",
     items: () => [],
     vaultLocked: () => false,
+=======
+      return Promise.resolve();
+    },
+    openPath: () => Promise.resolve({ ok: true }),
+    copyPassword: () => Promise.resolve({ ok: false, message: "n/a" }),
+    fillPassword: () => Promise.resolve({ ok: false, message: "n/a" }),
+    search: () => [],
+>>>>>>> 7834b969 (test: split claim navigation tests for quality gate)
   };
 }
 
