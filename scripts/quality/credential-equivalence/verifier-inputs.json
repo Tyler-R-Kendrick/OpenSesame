@@ -1,0 +1,27 @@
+{
+  "v": 1,
+  "files": {
+    "proof.py": "36be3d93a0497477d6b7cc4285e73a7ad989bb432823ad519c8af91893a7f93f",
+    "inputs.py": "f5559d604ae04db41d6b8342109dba4f675630810be4fcaacb63cf01c8ab7fbf",
+    "provenance.py": "b9108bdedbe409b77e18f64d45ad24c79fe8bd0fa20f3219249306772e5beaaf",
+    "portable.py": "5fbbe5de71aafb85e0414e02e18dd358c139bd54a1024f71131ecf3da31d81fa",
+    "contract.py": "a41984848cf4ca13edd87b8303df7aaf24130a4d54b143a355f8985c85929d0e",
+    "capture.py": "35e72ff6e5b2aa0b7d33304eef3b642f89e1881c3b83556160dab0a6982e3c98",
+    "capture_setup.py": "b30a91f691e79ddf35b52c13adc1573309478eb8a871ec267483dfe40c78b01f",
+    "collect.py": "09de166302bb450e2b9dab6ee67255c111f1567db15abf0bb822bfc20c743dbc",
+    "policy.json": "fd1da7bb441ede84c468fbb3e168a12a6b9fda7146d4c94f5bba736cdf15fb9b",
+    "cfg-inventory.json": "3a3a8e71907cb02681c836e3e9396575ed5e71296ced646844d74074e9eb4c7d",
+    "outer/verify.py": "058bd6fa61abad3324f21a14f6f182395e75ce70433fc2cf314ba846dd52c860",
+    "outer/source-pins.json": "9a9154ef72fa680be16c11892894049d1a143354500207c3b2ce7c18895e4f37",
+    "libc-probe.rs": "b577dde4b5d1bd9503b8bdbfbbaf91640ac78c2e184b621ac465aeb385321b8b",
+    "failure_contract.py": "501dd21a7810809f15edb922b17b28420a66a5b7f992ca6b926bc3820fd70032",
+    "classification.py": "2bc6b49df2ba6550e9241323a86823ad21b3301ebe5cf6d26b75170dea500ebe",
+    "adapter_classified_run.py": "0279b9893952922f4e4266ad559298ee8c545a6b00bee28330848c08dfdaeed2",
+    "classified_collect.py": "5b3bc945d5089f34739a82bcdc684ecd23842f9e7104607f44b55a4205595994",
+    "requirement-policy.json": "bbb517970e76085ae3ff0b7c94658370f39592335ad572fe53282d68e32a648a",
+    "repository-code-pins.json": "6ffba615ebf2658966c53a7c52a9887c59c1858259fbb2e811ba618ba5ee412b",
+    "runner-source.py": "6f465c227d68f37aed3d901858cc3225a7be4d2fd54d7c4f65c58530386fec89",
+    "runner_invocation.py": "8b210a1aea573630855d2fb0835df1a09966e767c85517c3e0ebc77cbd78703a",
+    "raw_collector_contract.py": "a1bc432c5a656660967f3daa9ab26f8ccf95cfb77c24387ed5d65c46a0624106"
+  }
+}

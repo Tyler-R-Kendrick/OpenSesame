@@ -1,0 +1,13 @@
+{
+  "v": 1,
+  "requirement": "exact-adapter-non-equivalent-v1",
+  "group": "adapters",
+  "platforms": ["linux", "windows", "macos"],
+  "shards": 8,
+  "proofPolicySha256": "fd1da7bb441ede84c468fbb3e168a12a6b9fda7146d4c94f5bba736cdf15fb9b",
+  "classes": { "disjoint-flags": 15, "supported-cfg": 2, "outer-size": 4 },
+  "rawResultsImmutable": true,
+  "timeoutsAllowed": false,
+  "unviableIsCaught": false,
+  "requiresActualCaught": true
+}
