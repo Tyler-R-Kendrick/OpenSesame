@@ -1,0 +1,123 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 900,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/password"
+        },
+        {
+          "measure": "#credential-account"
+        },
+        {
+          "measure": ".method"
+        },
+        {
+          "shot": "390-new-password"
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "API key"
+        },
+        {
+          "visit": "vault/new/api-key"
+        },
+        {
+          "measure": "#credential-account"
+        },
+        {
+          "shot": "390-new-api-key"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/password"
+        },
+        {
+          "measure": "#credential-account"
+        },
+        {
+          "measure": ".method"
+        },
+        {
+          "shot": "1280-new-password"
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "API key"
+        },
+        {
+          "visit": "vault/new/api-key"
+        },
+        {
+          "measure": "#credential-account"
+        },
+        {
+          "shot": "1280-new-api-key"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-new-password",
+      "width": 390,
+      "title": "A new password \u2014 390 wide",
+      "caption": "The password form names no account: one password may open many.",
+      "before": "Account dropdown under the password",
+      "after": "No Account row"
+    },
+    {
+      "shot": "390-new-api-key",
+      "width": 390,
+      "title": "A new API key \u2014 390 wide (unchanged)",
+      "caption": "Other credential types keep their Account row.",
+      "before": "Account row",
+      "after": "Account row, unchanged"
+    },
+    {
+      "shot": "1280-new-password",
+      "width": 1280,
+      "title": "A new password \u2014 1280 wide",
+      "caption": "The password form names no account: one password may open many.",
+      "before": "Account dropdown under the password",
+      "after": "No Account row"
+    },
+    {
+      "shot": "1280-new-api-key",
+      "width": 1280,
+      "title": "A new API key \u2014 1280 wide (unchanged)",
+      "caption": "Other credential types keep their Account row.",
+      "before": "Account row",
+      "after": "Account row, unchanged"
+    }
+  ]
+}

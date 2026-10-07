@@ -49,6 +49,7 @@ evidence for a programme that ran across many pull requests.
 |---|---|
 | [`2026-10-07-rotate-without-password/`](2026-10-07-rotate-without-password/README.md) | Rotating the vault key without inventing a password — before / after |
 | [`2026-10-07-path-field/`](2026-10-07-path-field/README.md) | The editor's title row is one path control |
+| [`2026-10-07-password-no-account/`](2026-10-07-password-no-account/README.md) | A password's form names no account |
 | [`2026-10-07-no-hint-captions/`](2026-10-07-no-hint-captions/README.md) | Hint captions removed (2026-10-07) |
 | [`2026-10-07-mobile-toolbar/`](2026-10-07-mobile-toolbar/README.md) | Mobile toolbar and share icon |
 | [`2026-10-07-mobile-gates/`](2026-10-07-mobile-gates/README.md) | Mobile lock screen and front door |
