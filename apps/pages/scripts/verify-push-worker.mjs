@@ -63,6 +63,25 @@ const same = (a, b) =>
   new URL(a).origin === new URL(b).origin &&
   new URL(a).pathname === new URL(b).pathname;
 
+/**
+ * A later tab, and a reload, land on the keyless guest tomb this walk
+ * already opened. Unlock resumes that tomb. "Skip to the guest vault" is
+ * drawn only beside a sealed vault that is not that tomb, so a click that
+ * waits for it alone times out. The front door's Skip remains the first entry.
+ */
+async function openGuestAgain(page) {
+  const skip = page.getByRole("button", { name: "Skip to the guest vault" });
+  const resume = page.getByRole("button", { name: "Unlock", exact: true });
+  const door = doorGuest(page);
+  await skip.or(resume).or(door).first().waitFor({
+    state: "visible",
+    timeout: 20_000,
+  });
+  if (await door.isVisible()) await door.click();
+  else if (await skip.isVisible()) await skip.click();
+  else await resume.click();
+}
+
 const failures = [];
 const check = (condition, what) => {
   console.log(condition ? "PASS" : "FAIL", what);
@@ -207,7 +226,7 @@ try {
     (s) => same(s.controller, core),
     "the second tab should be controlled by the core worker",
   );
-  await other.getByRole("button", { name: "Skip to the guest vault" }).click();
+  await openGuestAgain(other);
   await waitOpen(other);
   await other.waitForTimeout(500);
   const otherBefore = await other.evaluate(() => performance.timeOrigin);
@@ -325,7 +344,7 @@ try {
 
   // Taking the capability away reverts to the core worker. A load locks the
   // vault, so come back in as the guest the walk began as.
-  await page.getByRole("button", { name: "Skip to the guest vault" }).click();
+  await openGuestAgain(page);
   await waitOpen(page);
   await openSettingsCategory(page, "Capabilities");
   await capabilityOnSwitch(page, TITLE).waitFor({ timeout: 15_000 });
