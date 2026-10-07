@@ -5,11 +5,6 @@ Multipaz 0.100.0; the web app never receives OID4VP presentations or OID4VCI
 credentials. Password, OTP, and passkey provider behavior is intentionally not
 part of this application.
 
-Password workflow parity is available to mobile users in the browser or
-installed PWA. Native authenticator apps have neither the PWA vault nor a
-native password-provider session and do not claim those operations; see
-[ADR 0177](../../docs/adr/0177-password-workflow-surface-boundaries.md).
-
 ## Android
 
 The Android 14+ wallet entry points are under `android/`. Build with JDK 17 and

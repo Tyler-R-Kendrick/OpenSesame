@@ -67,7 +67,8 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-05-sops-gone-prompt-lines/`](2026-10-05-sops-gone-prompt-lines/README.md) | SOPS row removed from Security; the prompt's two identities on two lines |
 | [`2026-10-05-security-rows-for-guests/`](2026-10-05-security-rows-for-guests/README.md) | Security › Duress and Travel for a guest with no key yet |
 | [`2026-10-05-remove-visual-source-toggle/`](2026-10-05-remove-visual-source-toggle/README.md) | Remove the Visual / Source toggle |
-| [`2026-10-05-password-workflows/`](2026-10-05-password-workflows/README.md) | Password workflows |
+| [`2026-10-05-password-workflows/`](2026-10-05-password-workflows/README.md) | Password workflows (superseded: the standalone dialog was removed) |
+| [`2026-10-07-password-workflows-in-place/`](2026-10-07-password-workflows-in-place/README.md) | Password workflows on the item, its password row and Password health |
 | [`2026-10-05-nats-live-route/`](2026-10-05-nats-live-route/README.md) | A NATS server as a live session's route — Settings › Live sessions › Routes |
 | [`2026-10-05-glyph-desktop-prompt/`](2026-10-05-glyph-desktop-prompt/README.md) | The glyph beside the name on desktop (ADR 0164) |
 | [`2026-10-05-generator-form/`](2026-10-05-generator-form/README.md) | The password form: one field and one Options line |

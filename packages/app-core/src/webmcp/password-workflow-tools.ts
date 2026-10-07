@@ -111,7 +111,7 @@ export const PASSWORD_WORKFLOW_TOOLS: readonly PagesWebMcpTool[] = [
     ],
     scope: "session",
     description:
-      "Open the local human password workflow for private credential creation, password comparison or update, explicit credential read, or env resolution. Only the human UI accepts private values and plaintext-download consent; this tool never accepts or returns secrets.",
+      "Take the person to where they do a private credential task themselves: a new API credential, or an item's own page for comparing or replacing a password, copying a reference, reading a value or writing a plaintext .env. Takes an action and, optionally, an item id; never accepts or returns a secret.",
     inputSchema: {
       type: "object",
       properties: {
@@ -119,6 +119,7 @@ export const PASSWORD_WORKFLOW_TOOLS: readonly PagesWebMcpTool[] = [
           type: "string",
           enum: ["create", "compare", "update", "read", "env-resolve"],
         },
+        item: { type: "string", pattern: "^[A-Za-z0-9_-]{1,128}$" },
       },
       required: ["action"],
       additionalProperties: false,
@@ -130,13 +131,15 @@ export const PASSWORD_WORKFLOW_TOOLS: readonly PagesWebMcpTool[] = [
         !["create", "compare", "update", "read", "env-resolve"].includes(action)
       )
         throw new Error("Unknown human password workflow");
-      if (Object.keys(args).some((key) => key !== "action"))
+      if (Object.keys(args).some((key) => key !== "action" && key !== "item"))
         throw new Error(
-          "Human password workflows accept an action only; private input stays in the UI",
+          "Human password workflows accept an action and an item id only; private input stays in the UI",
         );
-      return ceremonyOpened(
-        `/vault?workflow=password&workflowAction=${action}`,
-      );
+      const item = args.item === undefined ? "" : str(args, "item");
+      if (item && !/^[A-Za-z0-9_-]{1,128}$/.test(item))
+        throw new Error("Unknown item");
+      if (action === "create") return ceremonyOpened("/vault/new/secret");
+      return ceremonyOpened(item ? `/vault/${item}` : "/vault");
     },
   },
 ];
