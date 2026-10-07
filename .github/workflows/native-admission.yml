@@ -149,6 +149,7 @@ jobs:
           target: ${{ matrix.target }}
           arch: x86_64
           profile: pixel_7
+          ram-size: 4096M
           disable-animations: true
           emulator-boot-timeout: 600
           pre-emulator-launch-script: python3 scripts/test/emulator-boot-diagnostics.py start "$EMULATOR_BOOT_EVIDENCE"

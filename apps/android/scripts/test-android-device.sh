@@ -38,7 +38,13 @@ device_visual_dir="$device_report_dir/visual/$visual_run"
 mkdir -p "$device_visual_dir"
 device_diagnostics_dir="$device_report_dir/diagnostics"
 mkdir -p "$device_diagnostics_dir"
+collect_device_memory() {
+  local phase="$1"
+  timeout 5s adb shell cat /proc/meminfo | head -c 1048576 > "$device_diagnostics_dir/memory-$phase.log" || true
+  timeout 5s adb shell cat /proc/pressure/memory | head -c 1048576 > "$device_diagnostics_dir/pressure-$phase.log" || true
+}
 collect_device_diagnostics() {
+  collect_device_memory after-failure
   timeout 5s adb logcat -b crash -d | head -c 1048576 > "$device_diagnostics_dir/crash-buffer.log" || true
   timeout 5s adb logcat -d -s AndroidRuntime:E libc:F DEBUG:F | head -c 1048576 > "$device_diagnostics_dir/runtime.log" || true
   timeout 5s adb logcat -d -s ActivityManager:I ActivityTaskManager:I lmkd:W AndroidJUnitRunner:V System.err:V | head -c 1048576 > "$device_diagnostics_dir/process.log" || true
@@ -64,6 +70,7 @@ collect_device_visual() {
 device_capture_ready=true
 device_output="$device_report_dir/instrumentation.log"
 printf '%s\n' "$actual_pages" > "$device_report_dir/page-size.txt"
+collect_device_memory before-instrumentation
 adb shell am instrument -w -r \
   -e visualSourceSha "$visual_source" -e visualRunId "$visual_run" -e visualPages "$actual_pages" \
   -e class dev.opensesame.authenticator.NativeAdmissionDeviceTest,dev.opensesame.authenticator.NativeSettingsDeviceJourneyTest,dev.opensesame.authenticator.NativeCanaryDeviceTest \

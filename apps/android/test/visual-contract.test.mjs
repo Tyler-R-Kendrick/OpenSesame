@@ -64,6 +64,16 @@ test("native capture admission binds exact source and retains failed attempts", 
   assert.match(apple, /xcresulttool export attachments --help/u);
   assert.match(apple, /xcresulttool export attachments --path/u);
   assert.match(apple, /shasum -a 256 "\$executable"/u);
+  const workflow = await read("../../.github/workflows/native-admission.yml");
+  assert.match(workflow, /target: google_apis\s+pages: 4096/u);
+  assert.match(workflow, /target: google_apis_ps16k\s+pages: 16384/u);
+  assert.match(workflow, /target: \$\{\{ matrix\.target \}\}/u);
+  assert.equal(workflow.match(/ram-size: 4096M/gu)?.length, 1);
+  assert.match(
+    android,
+    /collect_device_memory before-instrumentation\s+adb shell am instrument/u,
+  );
+  assert.match(android, /collect_device_memory after-failure/u);
   const project = await read("ios/project.yml");
   assert.match(
     project,

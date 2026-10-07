@@ -162,14 +162,18 @@ class VisualResultsTest(unittest.TestCase):
         # A failing tool fixture proves only EXIT-trap retention, never device or authority admission.
         binary = self.root / "bin"; binary.mkdir()
         fixture_png = self.root / "fixture.png"; fixture_png.write_bytes(image())
+        recording = self.root / "adb-commands.jsonl"
         adb = binary / "adb"
         adb.write_text("#!" + sys.executable + "\n" +
-                       "import pathlib,sys\nargs=sys.argv[1:]\n" +
+                       "import pathlib,sys,json\nargs=sys.argv[1:]\n" +
+                       "with pathlib.Path(" + repr(str(recording)) + ").open('a') as record: record.write(json.dumps(args)+'\\n')\n" +
                        "if args[:3] == ['shell','getconf','PAGE_SIZE']: print('4096')\n" +
                        "elif args[:3] == ['shell','am','instrument']: sys.exit(7)\n" +
                        "elif args[0] == 'logcat': print('Public crash fixture')\n" +
                        "elif args == ['shell','dumpsys','window','policy']: print('Public keyguard fixture')\n" +
                        "elif args == ['shell','dumpsys','activity','exit-info','dev.opensesame.authenticator']: print('Public actual-command exit-info fixture')\n" +
+                       "elif args == ['shell','cat','/proc/meminfo']: print('MemAvailable: 512000 kB')\n" +
+                       "elif args == ['shell','cat','/proc/pressure/memory']: print('some avg10=0.10 total=20')\n" +
                        "elif args[:2] == ['exec-out','run-as']:\n" +
                        " if args[-1].endswith('/security-empty.png'): sys.stdout.buffer.write(pathlib.Path(" + repr(str(fixture_png)) + ").read_bytes())\n" +
                        " else: print('cat: public missing fixture'); sys.exit(0)\n")
@@ -193,6 +197,15 @@ class VisualResultsTest(unittest.TestCase):
         self.assertEqual((diagnostics / "process.log").read_text(), "Public crash fixture\n")
         self.assertEqual((diagnostics / "exit-info.log").read_text(), "Public actual-command exit-info fixture\n")
         self.assertEqual((diagnostics / "window-policy.log").read_text(), "Public keyguard fixture\n")
+        for phase in ["before-instrumentation", "after-failure"]:
+            self.assertEqual((diagnostics / ("memory-" + phase + ".log")).read_text(), "MemAvailable: 512000 kB\n")
+            self.assertEqual((diagnostics / ("pressure-" + phase + ".log")).read_text(), "some avg10=0.10 total=20\n")
+        commands = [json.loads(line) for line in recording.read_text().splitlines()]
+        instrumentation = next(index for index, args in enumerate(commands) if args[:3] == ["shell", "am", "instrument"])
+        memory = [index for index, args in enumerate(commands) if args == ["shell", "cat", "/proc/meminfo"]]
+        self.assertEqual(len(memory), 2)
+        self.assertLess(memory[0], instrumentation)
+        self.assertGreater(memory[1], instrumentation)
         self.assertIn("cat: public missing fixture", (diagnostics / "fresh-owner-png.rejected.log").read_text())
         self.assertFalse((report / "verified.json").exists())
         self.assertEqual(list((report / "visual").glob("*-verified.json")), [])
