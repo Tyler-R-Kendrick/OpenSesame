@@ -11,6 +11,7 @@
  * another vault, or something that fails its seal, stops the pass with an
  * error instead of being replaced.
  */
+import { assertNotDecoySession } from "../decoy-session.js";
 import type { FeatureOperation } from "../feature-connector-operation.js";
 import type {
   DriveSnapshotInput,
@@ -79,9 +80,12 @@ export async function syncOnce(
   pairing: DrivePairing,
   transport: DriveTransport = defaultTransport,
 ): Promise<SyncOutcome> {
+  const authorityGeneration = assertNotDecoySession();
   let pulled = false;
   for (let attempt = 0; attempt < MAX_SYNC_ATTEMPTS; attempt += 1) {
+    assertNotDecoySession(authorityGeneration);
     const remote = await transport.read(pairing);
+    assertNotDecoySession(authorityGeneration);
     let local: DriveSnapshot | null = null;
     if (remote.snapshot) {
       const merge = await vault
@@ -89,10 +93,13 @@ export async function syncOnce(
         .catch(async (error: Error) => {
           // A copy sealed under the key this device rotated away from cannot
           // be merged; this device's copy replaces it. Anything else stops.
+          assertNotDecoySession(authorityGeneration);
           local = buildDriveSnapshot(await vault.sealedSnapshot());
+          assertNotDecoySession(authorityGeneration);
           if (!supersedes(local, remote.snapshot)) throw error;
           return null;
         });
+      assertNotDecoySession(authorityGeneration);
       if (merge) {
         pulled = pulled || merge.localChanged;
         if (!merge.remoteBehind) {
@@ -101,7 +108,9 @@ export async function syncOnce(
       }
     }
     local ??= buildDriveSnapshot(await vault.sealedSnapshot());
+    assertNotDecoySession(authorityGeneration);
     const written = await transport.write(pairing, remote.generation, local);
+    assertNotDecoySession(authorityGeneration);
     if (written.ok) {
       return { pulled, pushed: true, generation: written.generation };
     }

@@ -9,6 +9,8 @@ import {
  */
 import { sessionStore } from "../ports.js";
 import { readBoundedObject } from "./bounded-response.js";
+import { decoyGuardedFetch } from "./decoy-fetch.js";
+import { assertNotDecoySession } from "./decoy-session.js";
 import {
   type LocalGithubApp,
   forgetLocalGithubApp,
@@ -49,23 +51,28 @@ async function applyInstallationsPayload(
 export async function refreshGithubAppInstallations(
   app: LocalGithubApp | null = readLocalGithubApp(),
 ): Promise<LocalGithubApp | null> {
+  const authorityGeneration = assertNotDecoySession();
   if (!app) return null;
   const pem = pemFromVault(app);
   if (!pem) return refreshGithubAppOwner(app);
   const base = githubAppRelayBase();
   if (base === "") return app;
   try {
-    const response = await fetch(`${base}/api/github-app/installations`, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
+    const response = await decoyGuardedFetch(
+      `${base}/api/github-app/installations`,
+      {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ appId: app.id, pem }),
       },
-      body: JSON.stringify({ appId: app.id, pem }),
-    });
+    );
     const payload = overlapCast(
       await readBoundedObject(response, 65536, 8000).catch(() => null),
     );
+    assertNotDecoySession(authorityGeneration);
     if (!response.ok) {
       if (response.status === 401 || response.status === 404) {
         if (hasPendingGithubAppSecret(app.id)) {
@@ -76,8 +83,10 @@ export async function refreshGithubAppInstallations(
       }
       return refreshGithubAppOwner(app);
     }
+    assertNotDecoySession(authorityGeneration);
     return applyInstallationsPayload(app, payload);
   } catch {
+    assertNotDecoySession(authorityGeneration);
     return refreshGithubAppOwner(app);
   }
 }
@@ -86,13 +95,14 @@ export async function claimGithubAppCode(
   code: string,
   state: string,
 ): Promise<"registered" | "ignored" | "failed"> {
+  const authorityGeneration = assertNotDecoySession();
   const expected = sessionStore().getItem("opensesame.github-app.state");
   if (!expected || expected !== state || code.trim() === "") return "ignored";
   sessionStore().removeItem("opensesame.github-app.state");
   try {
     const base = githubAppRelayBase();
     if (base === "") return "failed";
-    const response = await fetch(`${base}/api/github-app/convert`, {
+    const response = await decoyGuardedFetch(`${base}/api/github-app/convert`, {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -103,6 +113,7 @@ export async function claimGithubAppCode(
     const payload = overlapCast(
       await readBoundedObject(response, 65536, 8000).catch(() => null),
     );
+    assertNotDecoySession(authorityGeneration);
     if (!response.ok || !isString(payload.client_id)) return "failed";
     const id = isNumber(payload.id) ? String(payload.id) : payload.client_id;
     const name = isString(payload.name) ? payload.name : "GitHub App";
@@ -129,6 +140,7 @@ export async function claimGithubAppCode(
     if (refreshed?.ownerLogin) rememberLocalGithubApp(refreshed);
     return "registered";
   } catch {
+    assertNotDecoySession(authorityGeneration);
     return "failed";
   }
 }

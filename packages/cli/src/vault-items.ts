@@ -5,12 +5,9 @@
  * Share prints the one-time link, not the value.
  */
 import { chmod, readFile, writeFile } from "node:fs/promises";
-import { configureHost } from "@opensesame/app-core/host.js";
+import { assertNotDecoySession } from "@opensesame/app-core/lib/decoy-session.js";
+import { flushRetiredCredentialTelemetry } from "@opensesame/app-core/lib/retired-credentials/index.js";
 import type { VaultStore } from "@opensesame/app-core/lib/vault/store.js";
-import {
-  createNodeHost,
-  defaultStateDir,
-} from "@opensesame/app-core/node/host.js";
 import { username } from "@opensesame/app-core/sections/vault-section-model.js";
 import {
   type VaultItem,
@@ -26,7 +23,7 @@ import { emit } from "./output.js";
 import type { ParsedCommand } from "./parse.js";
 import { readPasswordFromTty } from "./tty-password.js";
 import { writeClipboard } from "./vault-clipboard.js";
-import { useVaultKv } from "./vault-kv.js";
+import { openLocalVault, unlockLocalVault } from "./vault-session.js";
 
 type ItemCommand = Extract<
   ParsedCommand,
@@ -67,18 +64,6 @@ const EXPORT_PASSWORD = "Export password: ";
 
 type Store = VaultStore;
 
-async function openStore(deps: VaultItemDependencies): Promise<Store> {
-  const stateDir = deps.stateDir ?? defaultStateDir();
-  await useVaultKv(stateDir);
-  configureHost(createNodeHost({ stateDir }));
-  const { vaultStore } = await import(
-    "@opensesame/app-core/lib/vault/store.js"
-  );
-  vaultStore.lock();
-  vaultStore.rehydrate();
-  return vaultStore;
-}
-
 async function ensureVault(
   store: Store,
   deps: VaultItemDependencies,
@@ -96,7 +81,7 @@ async function ensureVault(
     await store.create(password);
     return;
   }
-  await store.unlock(await readPassword(MASTER));
+  await unlockLocalVault(store, await readPassword(MASTER));
 }
 
 function findItem(items: readonly VaultItem[], query: string): VaultItem {
@@ -219,6 +204,7 @@ async function runCopy(
   store: Store,
   deps: VaultItemDependencies,
 ): Promise<number> {
+  assertNotDecoySession();
   const item = findItem(store.getSnapshot().items, command.query);
   const text =
     command.field === "username"
@@ -245,6 +231,7 @@ async function runShare(
   store: Store,
   deps: VaultItemDependencies,
 ): Promise<number> {
+  assertNotDecoySession();
   const item = findItem(store.getSnapshot().items, command.query);
   if (item.kind !== "secret")
     throw new Error("Only a secret can be shared once.");
@@ -269,6 +256,7 @@ async function runImport(
   store: Store,
   deps: VaultItemDependencies,
 ): Promise<number> {
+  assertNotDecoySession();
   const readPassword = deps.readPassword ?? readPasswordFromTty;
   const fileText = await readFile(command.file, "utf8");
   const count = await store.importSealed(
@@ -286,6 +274,7 @@ async function runExport(
   command: Extract<ItemCommand, { name: "vault-export" }>,
   store: Store,
 ): Promise<number> {
+  assertNotDecoySession();
   const text = store.exportSealed();
   if (command.out) {
     await writeFile(command.out, text, { mode: 0o600 });
@@ -306,7 +295,7 @@ export async function runVaultItems(
   deps: VaultItemDependencies | undefined,
 ): Promise<number> {
   const given = deps ?? {};
-  const store = await openStore(given);
+  const store = await openLocalVault(given.stateDir);
   try {
     await ensureVault(store, given, command.name === "vault-new");
     switch (command.name) {
@@ -339,6 +328,7 @@ export async function runVaultItems(
       }
     }
   } finally {
+    await flushRetiredCredentialTelemetry();
     store.lock();
   }
 }

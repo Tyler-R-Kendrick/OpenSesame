@@ -31,6 +31,7 @@ export type DuressContinueStore = Readonly<{
   createGuest: (options?: {
     resume?: boolean;
     decoy?: boolean;
+    isolated?: boolean;
   }) => Promise<void>;
   cancelTotpChallenge?: () => void;
   /** The open session's items; a plan's runner adds to it (`modes/effects.ts`). */

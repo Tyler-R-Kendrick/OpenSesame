@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@env-spec/parser": "0.4.1",
+    "@opensesame/app-core": "workspace:*",
     "@opensesame/audit": "workspace:*",
     "@opensesame/auth-upstream": "workspace:*",
     "@opensesame/capability-composition": "workspace:*",

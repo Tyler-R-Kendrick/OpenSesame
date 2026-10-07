@@ -17,8 +17,16 @@ fi
 echo "==> cargo +${TOOLCHAIN} audit"
 set +e
 cargo "+${TOOLCHAIN}" audit --json >"$OPENSESAME_AUDIT_DIR/cargo-audit.json"
+json_status=$?
 cargo "+${TOOLCHAIN}" audit 2>&1 | tee "$OPENSESAME_AUDIT_DIR/cargo-audit.txt"
+text_status=${PIPESTATUS[0]}
 set -e
+
+# Never interpret absent findings as clean when either scanner invocation failed.
+if [[ "$json_status" -ne 0 || "$text_status" -ne 0 ]]; then
+  echo "cargo-audit gate: FAIL (scanner statuses JSON=$json_status text=$text_status)" >&2
+  exit 1
+fi
 
 python3 - <<'PY'
 import json, os

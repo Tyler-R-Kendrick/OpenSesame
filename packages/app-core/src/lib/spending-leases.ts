@@ -1,9 +1,5 @@
-/**
- * Browser-local spending leases (ADR 0123).
- *
- * A lease redistributes an existing allocation — it never mints budget.
- * Issuance requires a digest-bound approval assessment that refuses forged
- * assurance. Same-origin only; not independent execution enforcement.
+/** Browser-local leases redistribute allocations with digest-bound approval (ADR 0123).
+ * Same-origin only; not independent execution enforcement.
  */
 
 import {
@@ -23,6 +19,7 @@ import {
 } from "./spending-consent.js";
 import { getSpendingLedger } from "./spending-ledger.js";
 import {
+  assertWalletStorageMutation,
   onWalletTombChange,
   readWalletStorage,
   walletStorageKey,
@@ -60,11 +57,8 @@ let cache: LeaseRecord[] | null = null;
 let cacheScope = -1;
 
 /**
- * Follow the active tomb: a switch drops the process cache so a guest never
- * reads the personal vault's leases. Subscribed by the `wallet.spending`
- * runtime while it is active (never at import), and the cache is keyed by
- * the scope epoch as well, so a read after an unobserved switch still
- * misses.
+ * Follow the active tomb and scope epoch, including unobserved switches.
+ * The wallet.spending runtime subscribes while active, never at import.
  */
 export function watchSpendingLeaseScope(): () => void {
   return onWalletTombChange(() => {
@@ -163,6 +157,7 @@ function readAll(): LeaseRecord[] {
 }
 
 function writeAll(rows: readonly LeaseRecord[]): void {
+  assertWalletStorageMutation();
   const next = cacheRows([...rows]);
   try {
     localStore().setItem(leaseKey(), JSON.stringify(next));
@@ -219,6 +214,7 @@ export function removeSpendingLease(id: string): void {
 }
 
 export function clearSpendingLeases(): void {
+  assertWalletStorageMutation();
   cacheRows([]);
   try {
     const keys = [leaseKey(), walletStorageKey(SPENT_ASSERTIONS_KEY)];
@@ -283,6 +279,8 @@ function leaseIntentBinding(
 export async function issueSpendingLease(
   input: IssueSpendingLeaseInput,
 ): Promise<IssueSpendingLeaseResult> {
+  const scope = walletStorageScope();
+  assertWalletStorageMutation(scope);
   const bound = leaseIntentBinding(input);
   if (bound !== null) return bound;
 
@@ -295,6 +293,7 @@ export async function issueSpendingLease(
     intent: input.intent,
     proof: input.proof,
   });
+  assertWalletStorageMutation(scope);
   if (!assessment.ok) {
     return { ok: false, reason: assessment.reason };
   }
@@ -316,6 +315,7 @@ export async function issueSpendingLease(
   const amount = BigInt(input.intent.amount);
 
   const approvalDigest = await buildLocalPaymentApprovalDigest(input.intent);
+  assertWalletStorageMutation(scope);
   if (readSpentAssertions().has(assertionFingerprint(approvalDigest))) {
     return { ok: false, reason: "assertion_replay" };
   }

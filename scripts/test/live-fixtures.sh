@@ -9,7 +9,7 @@
 #   live-turn   — the TURN server for the relayed walks (scripts/test/live-turn,
 #                 pion/turn v4.1.4 pinned in go.mod, checksums in go.sum): UDP,
 #                 TCP and TLS on one loopback address, with per-transport
-#                 counters, which node-turn (UDP only) cannot give.
+#                 counters for every relay transport.
 #
 # Output: .cache/mtls-fixtures/nats-server-*/nats-server and
 #         .cache/live-fixtures/bin/{ntfy,live-turn}. Fails, never skips.

@@ -1,6 +1,9 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import * as activityLog from "@opensesame/app-core/lib/activity-log.js";
+import { lockManager } from "@opensesame/app-core/ports.js";
 import type { VaultItem } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseArgs } from "./parse.js";
@@ -50,6 +53,11 @@ async function run(argv: string[], stateDir: string, extra: ItemRun = {}) {
     stdout.mockRestore();
     stderr.mockRestore();
   }
+}
+
+async function removeVaultFixture(directory: string) {
+  await releaseVaultKv();
+  await rm(directory, { recursive: true, force: true });
 }
 
 describe("opensesame-id vault item commands", () => {
@@ -222,8 +230,15 @@ describe("opensesame-id vault item commands", () => {
         });
         expect(reopened.out).toContain("Deploy key");
         expect(reopened.out).not.toContain(CANARY);
-        const stored = await readFile(join(stateDir, "vault-kv.json"), "utf8");
-        expect(stored).not.toContain(CANARY);
+        const files = await readdir(join(stateDir, "origin-files"));
+        expect(files.length).toBeGreaterThan(0);
+        for (const file of files) {
+          const stored = await readFile(
+            join(stateDir, "origin-files", file),
+            "utf8",
+          );
+          expect(stored).not.toContain(CANARY);
+        }
 
         const out = join(stateDir, "export.json");
         const exported = await run(
@@ -255,7 +270,92 @@ describe("opensesame-id vault item commands", () => {
         expect(listed.out).toContain("Deploy key");
         expect(listed.out).not.toContain(CANARY);
       } finally {
-        await rm(other, { recursive: true, force: true });
+        await removeVaultFixture(other);
+      }
+    },
+  );
+
+  it(
+    "joins a real late activity lock before removing its generated vault directory",
+    { timeout: 60_000 },
+    async () => {
+      stateDir = await mkdtemp(join(tmpdir(), "os-vault-cli-"));
+      expect(
+        (
+          await run(
+            ["vault", "new", "note", "--name", "Late writer"],
+            stateDir,
+            {
+              readPassword: prompts([PASSWORD, PASSWORD, "Generated note"]),
+            },
+          )
+        ).code,
+      ).toBe(0);
+      await activityLog.flushActivityLog();
+      const locks = lockManager();
+      if (!locks) throw new Error("Expected the real Node lock manager.");
+      const originalRequest = locks.request.bind(locks);
+      let reached = () => {};
+      let release = () => {};
+      const started = new Promise<void>((resolve) => {
+        reached = resolve;
+      });
+      const blocked = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      type Granted<T> = (lock: Lock | null) => T | PromiseLike<T>;
+      async function gatedRequest<T>(
+        name: string,
+        ...args: [Granted<T>] | [LockOptions, Granted<T>]
+      ): Promise<T> {
+        if (name === "opensesame:activity-log:personal") {
+          reached();
+          await blocked;
+        }
+        return args.length === 1
+          ? originalRequest(name, args[0])
+          : originalRequest(name, args[0], args[1]);
+      }
+      const request = vi
+        .spyOn(locks, "request")
+        .mockImplementation(gatedRequest);
+      let teardown: Promise<void> | undefined;
+      let flush = () => {};
+      try {
+        const listed = await run(["vault", "list"], stateDir, {
+          readPassword: prompts([PASSWORD]),
+        });
+        expect(listed.code).toBe(0);
+        await started;
+        const draining = new Promise<void>((resolve) => {
+          flush = resolve;
+        });
+        const originalFlush = activityLog.flushActivityLog;
+        const drain = vi
+          .spyOn(activityLog, "flushActivityLog")
+          .mockImplementation(async () => {
+            flush();
+            await originalFlush();
+          });
+        teardown = removeVaultFixture(stateDir);
+        const phase = await Promise.race([
+          teardown.then(() => "removed"),
+          draining.then(() => "joining"),
+        ]);
+        release();
+        await teardown;
+        await releaseVaultKv();
+        expect({ phase, recreated: existsSync(stateDir) }).toEqual({
+          phase: "joining",
+          recreated: false,
+        });
+        drain.mockRestore();
+      } finally {
+        release();
+        await teardown;
+        await releaseVaultKv();
+        request.mockRestore();
+        vi.restoreAllMocks();
       }
     },
   );

@@ -235,7 +235,7 @@ describe("a pepper seal and a Sphinx key cross the whole path untouched", () => 
             },
             realm: "example.com",
             counter: 3,
-            oprfKeyB64: "q83vEjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJA=",
+            oprfKeyB64: "q83vEjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJA=", // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
           },
           pepper: true,
           secret: "",

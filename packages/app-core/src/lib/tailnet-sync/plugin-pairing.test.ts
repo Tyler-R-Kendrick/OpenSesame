@@ -35,7 +35,7 @@ type Spec = Readonly<{
 
 const SPEC: Spec = spec;
 
-const TOKEN = "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMSE";
+const TOKEN = "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMSE"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 
 describe("the plugin pairing code, as the CLI prints it", () => {
   it("shares the prefix and the exchange route with the daemon", () => {

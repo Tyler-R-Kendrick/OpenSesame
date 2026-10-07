@@ -18,6 +18,7 @@ import {
   type Folder,
   type VaultItem,
   outsideAccounts,
+  resolveAccounts,
 } from "@opensesame/vault-core";
 import {
   type ManifestMergePlan,
@@ -167,7 +168,7 @@ export function storeManifestFile(
 ): StoreManifestFile {
   // A credential bound to an account rides in that account's entry (ADR 0179).
   const entries = outsideAccounts(
-    items.filter((item) => item.deletedAt === null),
+    resolveAccounts(items.filter((item) => item.deletedAt === null)),
   ).map((item) => vaultItemToEntry(item, folders));
   return {
     fileName: `opensesame-store-manifest-${now.toISOString().slice(0, 10)}.json`,

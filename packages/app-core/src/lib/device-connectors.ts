@@ -3,7 +3,7 @@
  *
  * An api-key or configuration connector saves on this device (Pages speaks no
  * Host, ADR 0128). The connection record and `publicFields` hold only non-secret
- * values. Secret material stays in a second record and is copied only onto
+ * values. Secret material stays in an owner-vault item and is copied only onto
  * the feature operation (`runFeatureConnector`).
  */
 
@@ -13,13 +13,19 @@ import {
 } from "./connections-local-git.js";
 import type { Connection, Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
+import { assertNotDecoySession } from "./decoy-session.js";
+import {
+  assertDeviceConnectorPrincipal,
+  requireDeviceConnectorPrincipal,
+} from "./device-connector-principal.js";
 import {
   type PublicRow,
   type StringFields,
   clearDeviceConnectorStore,
+  mutateDeviceRows,
   readDeviceRows,
   readDeviceSecrets,
-  writeDeviceRows,
+  removeDeviceConnectorRecords,
   writeDeviceSecrets,
 } from "./device-connector-records.js";
 import type { GitRemoteConfiguration } from "./git-auth-modes.js";
@@ -68,8 +74,8 @@ export function isDeviceConnectorId(id: string): boolean {
   return id.startsWith(ID_PREFIX);
 }
 
-export function forgetDeviceConnectors(): void {
-  clearDeviceConnectorStore();
+export function forgetDeviceConnectors(): Promise<void> {
+  return clearDeviceConnectorStore();
 }
 
 function findId(id: string): PublicRow | undefined {
@@ -129,19 +135,26 @@ function toConnection(row: PublicRow): Connection {
   };
 }
 
-function upsert(row: PublicRow, secrets: StringFields): void {
-  const rows = readDeviceRows().filter(
-    (item) => item.connectionId !== row.connectionId,
+async function upsert(row: PublicRow, secrets: StringFields): Promise<void> {
+  const principal = requireDeviceConnectorPrincipal();
+  await mutateDeviceRows((rows) =>
+    rows.map((current) =>
+      current.connectionId === row.connectionId
+        ? {
+            ...current,
+            fields: { ...current.fields, ...row.fields },
+            updatedAt: row.updatedAt,
+          }
+        : current,
+    ),
   );
-  rows.push(row);
-  writeDeviceRows(rows);
-  const map = readDeviceSecrets();
-  if (Object.keys(secrets).length === 0) delete map[row.connectionId];
-  else map[row.connectionId] = secrets;
-  writeDeviceSecrets(map);
+  assertDeviceConnectorPrincipal(principal);
+  await writeDeviceSecrets({ [row.connectionId]: secrets });
+  assertDeviceConnectorPrincipal(principal);
 }
 
 export function deviceConnection(id: string): Connection | null {
+  assertNotDecoySession();
   const row = findId(id);
   if (!row || isLocalGitRemoteId(id)) return null;
   return toConnection(row);
@@ -180,7 +193,8 @@ export function renderedConnectorRecord(
   };
 }
 
-export function createDeviceConnection(body: SaveBody): Connection {
+export function createDeviceConnection(body: SaveBody): Promise<Connection> {
+  assertNotDecoySession();
   const stamp = nowIso();
   const row: PublicRow = {
     connectionId: randomId(),
@@ -191,26 +205,32 @@ export function createDeviceConnection(body: SaveBody): Connection {
     createdAt: stamp,
     updatedAt: stamp,
   };
-  upsert(row, {});
-  return toConnection(row);
+  return mutateDeviceRows((rows) => [...rows, row]).then(() =>
+    toConnection(row),
+  );
 }
 
-export function sealDeviceCredential(
+export async function sealDeviceCredential(
   id: string,
   value: string,
-): Connection | null {
+): Promise<Connection | null> {
+  assertNotDecoySession();
+  const principal = requireDeviceConnectorPrincipal();
   const row = findId(id);
   if (!row || isLocalGitRemoteId(id)) return null;
   const secrets: StringFields = { ...(readDeviceSecrets()[id] ?? {}) };
   secrets.credential = value;
-  upsert({ ...row, updatedAt: nowIso() }, secrets);
+  await upsert({ ...row, updatedAt: nowIso() }, secrets);
+  assertDeviceConnectorPrincipal(principal);
   return toConnection({ ...row, updatedAt: nowIso() });
 }
 
-export function sealDeviceConfiguration(
+export async function sealDeviceConfiguration(
   id: string,
   values: Record<string, string>,
-): Connection | null {
+): Promise<Connection | null> {
+  assertNotDecoySession();
+  const principal = requireDeviceConnectorPrincipal();
   const row = findId(id);
   if (!row) return null;
   const hidden = secretNames(row.providerId);
@@ -221,20 +241,21 @@ export function sealDeviceConfiguration(
     else fields[key] = value;
   }
   const next = { ...row, fields, updatedAt: nowIso() };
-  upsert(next, secrets);
+  await upsert(next, secrets);
+  assertDeviceConnectorPrincipal(principal);
   return isLocalGitRemoteId(id) ? null : toConnection(next);
 }
 
-export function revokeDeviceConnection(id: string): {
+export function revokeDeviceConnection(id: string): Promise<{
   revoked: boolean;
   providerRevocation: "ok";
-} | null {
+}> | null {
+  assertNotDecoySession();
   if (!findId(id) || isLocalGitRemoteId(id)) return null;
-  writeDeviceRows(readDeviceRows().filter((row) => row.connectionId !== id));
-  const map = readDeviceSecrets();
-  delete map[id];
-  writeDeviceSecrets(map);
-  return { revoked: true, providerRevocation: "ok" };
+  return removeDeviceConnectorRecords([id]).then(() => ({
+    revoked: true,
+    providerRevocation: "ok",
+  }));
 }
 
 interface SplitFields {
@@ -262,31 +283,39 @@ export async function saveForgeConnector(
   provider: Provider,
   input: { displayName: string; configuration: GitRemoteConfiguration },
 ): Promise<Connection> {
+  const realm = assertNotDecoySession();
+  const principal = requireDeviceConnectorPrincipal();
   const displayName = input.displayName.trim() || provider.displayName;
   const remote = await rememberLocalGitRemote({
     displayName,
     configuration: input.configuration,
   });
+  assertNotDecoySession(realm);
+  assertDeviceConnectorPrincipal(principal);
   bindHistoryConnection(provider.id, remote.id, input.configuration.remote_url);
   const split = splitValues(provider.id, input.configuration);
   const stamp = nowIso();
-  upsert(
-    {
-      connectionId: remote.id,
-      providerId: provider.id,
-      displayName,
-      scopes: [],
-      fields: split.fields,
-      createdAt: stamp,
-      updatedAt: stamp,
-    },
-    split.secrets,
-  );
+  const row: PublicRow = {
+    connectionId: remote.id,
+    providerId: provider.id,
+    displayName,
+    scopes: [],
+    fields: split.fields,
+    createdAt: stamp,
+    updatedAt: stamp,
+  };
+  await mutateDeviceRows((rows) => [...rows, row]);
+  assertNotDecoySession(realm);
+  assertDeviceConnectorPrincipal(principal);
+  await upsert(row, split.secrets);
+  assertNotDecoySession(realm);
+  assertDeviceConnectorPrincipal(principal);
   return localGitToConnection(remote);
 }
 
 /** The catalog operation the owning feature runs from the saved configuration. */
 export function runFeatureConnector(provider: Provider): ConnectorRun {
+  assertNotDecoySession();
   const row = latestFor(provider.id);
   if (!row) return { ok: false, providerId: provider.id };
   const fields: StringFields = { ...row.fields };

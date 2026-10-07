@@ -1,0 +1,48 @@
+[package]
+name = "opensesame-credential-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+license = "MIT"
+rust-version = "1.88"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+base64 = "=0.22.1"
+chrono = { version = "=0.4.45", features = ["serde"] }
+serde_json = "=1.0.151"
+libfuzzer-sys = { version = "=0.4.13", features = ["arbitrary-derive"] }
+opensesame-human-vault = { path = "../../../crates/human-vault" }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "retired_records_parse"
+path = "fuzz_targets/retired_records_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "canary_registry_validator"
+path = "fuzz_targets/canary_registry_validator.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "observation_wire"
+path = "fuzz_targets/observation_wire.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "observation_outbox_fsm"
+path = "fuzz_targets/observation_outbox_fsm.rs"
+test = false
+doc = false
+bench = false

@@ -27,7 +27,7 @@ import {
 
 const AT = "2026-03-04T05:06:07.000Z";
 const PEM_KEY =
-  "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIFixtureOnlyNotARealKey000000000000\n-----END PRIVATE KEY-----";
+  "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIFixtureOnlyNotARealKey000000000000\n-----END PRIVATE KEY-----"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 const PEM_CERT =
   "-----BEGIN CERTIFICATE-----\nMIIBfixtureCertificateBody\n-----END CERTIFICATE-----";
 const PEM_CA =

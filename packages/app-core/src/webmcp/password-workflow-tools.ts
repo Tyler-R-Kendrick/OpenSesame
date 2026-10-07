@@ -5,6 +5,7 @@ import {
   passwordWorkflowFind,
   passwordWorkflowInventory,
 } from "../lib/vault/password-workflows.js";
+import { continueToolRead } from "./tool-shared.js";
 import {
   type PagesWebMcpTool,
   ceremonyOpened,
@@ -28,7 +29,8 @@ export const PASSWORD_WORKFLOW_TOOLS: readonly PagesWebMcpTool[] = [
       required: ["queries"],
       additionalProperties: false,
     },
-    execute: async (args) => {
+    execute: async (args, ceiling) => {
+      requireUnlocked();
       if (
         !Array.isArray(args.queries) ||
         args.queries.some((query) => !isString(query))
@@ -38,7 +40,10 @@ export const PASSWORD_WORKFLOW_TOOLS: readonly PagesWebMcpTool[] = [
         if (!isString(query)) throw new Error("Invalid query");
         return query;
       });
-      const found = await passwordWorkflowFind(queries);
+      const found = await continueToolRead(
+        () => passwordWorkflowFind(queries),
+        ceiling,
+      );
       const result: JsonObject = {
         matches: found.matches.map((match) => ({ ...match })),
       };
@@ -59,9 +64,14 @@ export const PASSWORD_WORKFLOW_TOOLS: readonly PagesWebMcpTool[] = [
       properties: {},
       additionalProperties: false,
     },
-    execute: async () => ({
-      items: (await passwordWorkflowInventory()).map((item) => ({ ...item })),
-    }),
+    execute: async (_args, ceiling) => {
+      requireUnlocked();
+      return {
+        items: (
+          await continueToolRead(() => passwordWorkflowInventory(), ceiling)
+        ).map((item) => ({ ...item })),
+      };
+    },
   },
   {
     name: "opensesame_vault_audit_organization",
@@ -75,7 +85,10 @@ export const PASSWORD_WORKFLOW_TOOLS: readonly PagesWebMcpTool[] = [
       properties: {},
       additionalProperties: false,
     },
-    execute: () => passwordWorkflowAudit(),
+    execute: (_args, ceiling) => {
+      requireUnlocked();
+      return continueToolRead(() => passwordWorkflowAudit(), ceiling);
+    },
   },
   {
     name: "opensesame_vault_env_template",

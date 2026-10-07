@@ -6,7 +6,9 @@
 
 import type { Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
+import { assertNotDecoySession } from "./decoy-session.js";
 import { runFeatureConnector } from "./device-connectors.js";
+import { bindFeatureAuthority } from "./feature-request-authority.js";
 
 export type FeatureOperation =
   | { ok: false; providerId: string }
@@ -40,16 +42,18 @@ function providerOf(provider: Provider | string): Provider | null {
 export function runListedFeature(
   provider: Provider | string,
 ): FeatureOperation {
-  const row = providerOf(provider);
+  assertNotDecoySession();
   const providerId = isListedProvider(provider) ? provider.id : provider;
+  if (providerId.startsWith("oscanary:")) return { ok: false, providerId };
+  const row = providerOf(provider);
   if (!row) return { ok: false, providerId };
   const run = runFeatureConnector(row);
   if (!run.ok) return { ok: false, providerId: row.id };
-  return {
+  return bindFeatureAuthority({
     ok: true,
     providerId: row.id,
     operation: run.operation,
     action: { ...run.fields },
     secrets: { ...run.secrets },
-  };
+  });
 }

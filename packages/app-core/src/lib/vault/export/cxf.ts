@@ -31,7 +31,11 @@
 
 import { isString } from "@opensesame/os-domain";
 import type { TypedItem, VaultBody, VaultItem } from "@opensesame/vault-core";
-import { definitionFor, outsideAccounts } from "@opensesame/vault-core";
+import {
+  definitionFor,
+  outsideAccounts,
+  resolveAccounts,
+} from "@opensesame/vault-core";
 import {
   FIELD_TYPES,
   type FieldValue,
@@ -295,7 +299,9 @@ function buildCxfExportDefault(
   const byFolder = new Map<string, { item: string }[]>();
 
   // A credential bound to an account is in that account's credentials (ADR 0179).
-  for (const item of outsideAccounts(body.items)) {
+  for (const item of outsideAccounts(
+    resolveAccounts(body.items.filter((item) => item.deletedAt === null)),
+  )) {
     if (item.deletedAt !== null) continue;
     const { cxf, skipped: rejected, withheld: held } = itemFor(item);
     withheld += held;

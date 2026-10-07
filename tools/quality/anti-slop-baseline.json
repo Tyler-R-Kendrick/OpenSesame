@@ -11,26 +11,23 @@
     "(pnpm lint:anti-slop:files), so a file someone touches leaves this ledger."
   ],
   "totals": {
-    "files": 170,
-    "violations": 569,
+    "files": 163,
+    "violations": 557,
     "byRule": {
       "anti-slop/no-chained-type-assertions": 4,
       "anti-slop/no-conditional-empty-object-spread": 18,
-      "anti-slop/no-known-value-widening": 203,
+      "anti-slop/no-known-value-widening": 198,
       "anti-slop/no-object-parameters": 11,
       "anti-slop/no-reflect-get": 6,
-      "anti-slop/no-runtime-typeof": 162,
+      "anti-slop/no-runtime-typeof": 160,
       "anti-slop/no-shape-in-symbol-names": 13,
       "anti-slop/no-unknown-parameters": 34,
       "anti-slop/no-unknown-returns": 2,
       "anti-slop/no-unsafe-dictionary-type": 12,
-      "anti-slop/require-safety-comment-for-type-assertion": 104
+      "anti-slop/require-safety-comment-for-type-assertion": 99
     }
   },
   "files": {
-    "apps/browser-extension/tests/capability-parity.test.mjs": {
-      "anti-slop/no-runtime-typeof": 1
-    },
     "apps/pages/api/git-backup/put.mjs": {
       "anti-slop/no-runtime-typeof": 1
     },
@@ -135,9 +132,6 @@
     "apps/pages/src/lib/strip.ts": {
       "anti-slop/no-runtime-typeof": 2
     },
-    "apps/pages/src/modules/connectors.external/runtime.test.tsx": {
-      "anti-slop/require-safety-comment-for-type-assertion": 2
-    },
     "apps/pages/src/modules/identity.ceremonies/ApproveScreen.test.tsx": {
       "anti-slop/no-known-value-widening": 1
     },
@@ -171,9 +165,6 @@
     "apps/pages/src/sections/access/HostedRequestsPanel.test.tsx": {
       "anti-slop/no-known-value-widening": 1
     },
-    "apps/pages/src/sections/connections/GitConnectForm.test.tsx": {
-      "anti-slop/require-safety-comment-for-type-assertion": 1
-    },
     "apps/pages/src/sections/connections/GithubAppPresence.test.tsx": {
       "anti-slop/require-safety-comment-for-type-assertion": 1
     },
@@ -195,9 +186,6 @@
     },
     "apps/pages/src/sections/settings/files/SettingsFiles.test.tsx": {
       "anti-slop/require-safety-comment-for-type-assertion": 3
-    },
-    "apps/pages/src/sections/settings/files/providers.ts": {
-      "anti-slop/no-runtime-typeof": 1
     },
     "apps/pages/src/sections/settings/item-types/useMarketplaces.ts": {
       "anti-slop/no-unknown-parameters": 1
@@ -316,9 +304,6 @@
       "anti-slop/no-known-value-widening": 7,
       "anti-slop/require-safety-comment-for-type-assertion": 1
     },
-    "packages/app-core/src/lib/local-passkeys.test.ts": {
-      "anti-slop/require-safety-comment-for-type-assertion": 2
-    },
     "packages/app-core/src/lib/local-passkeys.ts": {
       "anti-slop/no-conditional-empty-object-spread": 2,
       "anti-slop/no-known-value-widening": 1
@@ -405,14 +390,8 @@
     "packages/app-core/src/lib/vault/password-conformance.test.ts": {
       "anti-slop/require-safety-comment-for-type-assertion": 1
     },
-    "packages/app-core/src/lib/vault/protection/adapters/webauthn-prf-ops.ts": {
-      "anti-slop/no-known-value-widening": 1
-    },
     "packages/app-core/src/lib/vault/protection/adapters/webauthn-prf.ts": {
       "anti-slop/no-known-value-widening": 3
-    },
-    "packages/app-core/src/lib/vault/protection/browser-enroll.ts": {
-      "anti-slop/no-known-value-widening": 4
     },
     "packages/app-core/src/lib/wallet-assignments.ts": {
       "anti-slop/no-known-value-widening": 3

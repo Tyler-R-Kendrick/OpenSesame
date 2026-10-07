@@ -7,13 +7,17 @@
  * touch no platform global, and the golden vault vectors must open unchanged.
  */
 import { randomFillSync } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createContext, runInContext } from "node:vm";
 import { type JsonValue, overlapCast } from "@opensesame/os-domain";
 import { build } from "esbuild";
 import { beforeAll, describe, expect, it } from "vitest";
+import trapVectors from "../lib/retired-credentials/protocol-vectors.json";
+import { createNodeHost } from "../node/host.js";
+import type { SandboxHostOptions } from "./host.js";
 import type { RuntimeContractOptions } from "./runtime-contract.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -80,6 +84,8 @@ let core = "";
 
 /** What the test hands into an isolate's global scope, and nothing else. */
 type Isolate = {
+  __persistence?: SandboxHostOptions["persistence"];
+  __trapRecords?: string;
   __options?: RuntimeContractOptions;
   __file?: string;
   __password?: string;
@@ -120,6 +126,54 @@ beforeAll(async () => {
 }, 60_000);
 
 describe("the portable core in a bare V8 context", () => {
+  it("observes retired credentials through durable native ports after a fresh isolate opens", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "retired-isolate-proof-"));
+    try {
+      const node = createNodeHost({ stateDir: directory });
+      if (!node.atRestKeys || !node.originFiles || !node.locks)
+        throw new Error("Missing durable ports.");
+      const persistence = {
+        atRestKeys: node.atRestKeys,
+        originFiles: node.originFiles,
+        locks: node.locks,
+      };
+      const vector = trapVectors.vectors[0];
+      if (!vector) throw new Error("Missing trap vector.");
+      const first = Object.assign(isolate(), {
+        __persistence: persistence,
+        __trapRecords: JSON.stringify({
+          v: 1,
+          tomb: "native",
+          events: [],
+          traps: [
+            {
+              id: "vector",
+              createdAt: new Date().toISOString(),
+              response: "reject",
+              salt: vector.saltB64,
+              verifier: vector.verifierB64,
+            },
+          ],
+        }),
+      });
+      await inside(
+        first,
+        `OpenSesameCore.configureHost(OpenSesameCore.createSandboxHost({persistence: __persistence})); await OpenSesameCore.kvSetDurable('tomb/native/retired-credentials.v1', __trapRecords); return true;`,
+      );
+      const reopened = Object.assign(isolate(), {
+        __persistence: persistence,
+        __password: vector.password,
+      });
+      expect(
+        await inside(
+          reopened,
+          `OpenSesameCore.configureHost(OpenSesameCore.createSandboxHost({persistence: __persistence})); const match = await OpenSesameCore.probeRetiredCredential(__password, 'native'); return {id: match?.id, durable: OpenSesameCore.retiredCredentialStatus('native').durable};`,
+        ),
+      ).toEqual({ id: "vector", durable: true });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
   it("starts from a context with no platform globals", () => {
     const empty = createContext({});
     const missing = runInContext(

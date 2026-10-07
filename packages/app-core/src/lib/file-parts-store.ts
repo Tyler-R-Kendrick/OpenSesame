@@ -5,6 +5,7 @@
 
 import type { ObjectStore } from "@opensesame/vault-core";
 import { originFiles } from "../ports.js";
+import { assertNotDecoySession } from "./decoy-session.js";
 import { FILE_PARTS_DIRECTORY } from "./storage-ownership.js";
 
 function partName(key: string): string {
@@ -13,9 +14,11 @@ function partName(key: string): string {
 }
 
 async function directory() {
+  const generation = assertNotDecoySession();
   const open = originFiles();
   if (open === undefined) throw new Error("file needs a store");
   const root = await open();
+  assertNotDecoySession(generation);
   return root.getDirectoryHandle(FILE_PARTS_DIRECTORY, { create: true });
 }
 
@@ -34,26 +37,41 @@ export function addFileStoreSource(source: FileStoreSource): () => void {
 
 /** This browser's own parts, first in every list; a read tries it first. */
 export async function defaultFileStores(): Promise<readonly ObjectStore[]> {
+  const generation = assertNotDecoySession();
   const local = await localFileStore();
+  assertNotDecoySession(generation);
   return [local, ...[...sources].flatMap((source) => source(local))];
 }
 
 /** Where this browser keeps parts; throws where it has no private files. */
 export async function localFileStore(): Promise<ObjectStore> {
+  const generation = assertNotDecoySession();
   const dir = await directory();
+  assertNotDecoySession(generation);
   return {
     async putObject(key, body) {
+      assertNotDecoySession(generation);
       const handle = await dir.getFileHandle(partName(key), { create: true });
+      assertNotDecoySession(generation);
       const writable = await handle.createWritable();
+      assertNotDecoySession(generation);
       await writable.write(body);
+      assertNotDecoySession(generation);
       await writable.close();
+      assertNotDecoySession(generation);
     },
     async getObject(key) {
+      assertNotDecoySession(generation);
       try {
         const handle = await dir.getFileHandle(partName(key));
+        assertNotDecoySession(generation);
         const file = await handle.getFile();
-        return new Uint8Array(await file.arrayBuffer());
+        assertNotDecoySession(generation);
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        assertNotDecoySession(generation);
+        return bytes;
       } catch (error) {
+        assertNotDecoySession(generation);
         if (error instanceof DOMException && error.name === "NotFoundError")
           return null;
         throw error;

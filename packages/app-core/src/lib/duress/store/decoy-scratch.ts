@@ -16,7 +16,14 @@ import {
   discardVaultBody,
   wipeTombOnDestroy,
 } from "../../vault/tomb-migration.js";
-import { GUEST_TOMB, TOMBS_REGISTRY_KEY, listTombs } from "../../vfs.js";
+import { enqueueVfsWrite } from "../../vfs-write-queue.js";
+import {
+  GUEST_TOMB,
+  HEADER_PATH,
+  TOMBS_REGISTRY_KEY,
+  deletePlaintextFile,
+  listTombs,
+} from "../../vfs.js";
 
 /** Plaintext name only; nothing in it says what the session was. */
 export const DECOY_SCRATCH_TOMB = "guest-scratch";
@@ -42,19 +49,7 @@ export function isGuestSessionTomb(tomb: string | null): boolean {
   return tomb === GUEST_TOMB || tomb === DECOY_SCRATCH_TOMB;
 }
 
-let decoySession = false;
-
-/** True while the open session is a duress decoy (guest in isolation, drawn as the vault). */
-export function isDecoySession(): boolean {
-  return decoySession;
-}
-
-/** Mark or end the decoy session; answers what it was, so a lock can hand back. */
-export function markDecoySession(on: boolean): boolean {
-  const was = decoySession;
-  decoySession = on;
-  return was;
-}
+export { isDecoySession, markDecoySession } from "../../decoy-session.js";
 
 /** What the snapshot reports: the scratch tomb presents as the guest road. */
 export function presentedTomb(tomb: string): string {
@@ -74,6 +69,23 @@ export function forgetDecoyScratch(tomb: string): void {
   kvSet(TOMBS_REGISTRY_KEY, JSON.stringify({ v: 1, tombs: rest }));
 }
 
+/** Scratch creation and lock drain the same queue before a successor admits its key. */
+export function clearDecoyScratch(assertCurrent?: () => void): Promise<void> {
+  return enqueueVfsWrite(
+    DECOY_SCRATCH_TOMB,
+    async () => {
+      assertCurrent?.();
+      await discardVaultBody(DECOY_SCRATCH_TOMB);
+      assertCurrent?.();
+      await wipeTombOnDestroy(DECOY_SCRATCH_TOMB);
+      assertCurrent?.();
+      await deletePlaintextFile(DECOY_SCRATCH_TOMB, HEADER_PATH);
+      assertCurrent?.();
+    },
+    true,
+  );
+}
+
 /** End an ephemeral session's tomb: the scratch tomb goes whole, guest keeps its wipe. */
 export async function endEphemeralTomb(tomb: string): Promise<void> {
   if (tomb !== DECOY_SCRATCH_TOMB) {
@@ -81,5 +93,5 @@ export async function endEphemeralTomb(tomb: string): Promise<void> {
     return;
   }
   forgetDecoyScratch(tomb);
-  await Promise.all([discardVaultBody(tomb), wipeTombOnDestroy(tomb)]);
+  await clearDecoyScratch();
 }

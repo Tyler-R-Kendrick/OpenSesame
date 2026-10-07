@@ -1,0 +1,13 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/scripts/fuzz/fuzz-pr-gate.sh",
+        "$TURBO_ROOT$/scripts/fuzz/fuzz-batch.sh",
+        "$TURBO_ROOT$/tests/fuzz/clusterfuzzlite/build.sh"
+      ]
+    }
+  }
+}

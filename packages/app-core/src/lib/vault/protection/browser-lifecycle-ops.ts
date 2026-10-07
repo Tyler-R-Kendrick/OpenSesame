@@ -12,11 +12,12 @@ import {
   unwrapRawVaultKeyFromPassword,
   wrapVaultKeyWithPassword,
 } from "@opensesame/vault-core";
+import { activeProject } from "../../projects.js";
 import {
   protectorIsHeaderWrap,
   protectorUnlocksVault,
 } from "../unlock-preference.js";
-import { assertNewPassword } from "../unlock-secret-guard.js";
+import { withNewPassword } from "../unlock-secret-guard.js";
 import { ProtectionError } from "./errors.js";
 import { newOpaqueId, newProtectorId } from "./ids.js";
 import {
@@ -32,11 +33,12 @@ import {
 } from "./protector-proof.js";
 
 export type LifecycleHost = {
+  assertCurrent?(): void;
   getHeader(): VaultHeader | null;
   requireRawRoot(): Uint8Array;
   persistHeader(next: VaultHeader): Promise<void>;
   /** Replace in-memory raw VK + re-seal body under the new key. */
-  replaceRawVaultKey(next: Uint8Array): Promise<void>;
+  replaceRawVaultKey(next: Uint8Array, header: VaultHeader): Promise<void>;
 };
 
 function requireManifest(header: VaultHeader): RootProtectionManifest {
@@ -192,6 +194,7 @@ export async function testProtector(
     context: contextFor(base, record.protectorId),
     rootKey: host.requireRawRoot(),
     material,
+    check: () => host.assertCurrent?.(),
   });
   const { authB64: _drop, ...rest } = base;
   const nextBody: Omit<RootProtectionManifest, "authB64"> = {
@@ -224,55 +227,61 @@ export async function rotateCompromisedRoot(
   host: LifecycleHost,
   input: { password: string },
 ): Promise<void> {
-  await assertNewPassword(input.password);
-  const header = host.getHeader();
-  if (!header) {
-    throw new ProtectionError(
-      "unavailable",
-      "There is no vault header on this device.",
-    );
-  }
-  if (header.wrap && header.kdf) {
-    // Throws WrongPasswordError, before any key changes.
-    await unwrapRawVaultKeyFromPassword(header, input.password);
-  }
-  const base = requireManifest(header);
-  const { rawVaultKey } = await mintVaultKey();
-  await host.replaceRawVaultKey(rawVaultKey);
-  const wrapped = await wrapVaultKeyWithPassword(
-    host.requireRawRoot(),
-    input.password,
-  );
-  const passwordRecord: PasswordProtectorRecord = {
-    kind: "password",
-    protectorId: newProtectorId("password"),
-    legacy: true,
-    kdf: {
-      alg: "PBKDF2-SHA256",
-      saltB64: wrapped.kdf.saltB64,
-      iterations: wrapped.kdf.iterations,
-    },
-    wrap: wrapped.wrap,
-    proofStatus: "verified",
-  };
-  const nextManifest: Omit<RootProtectionManifest, "authB64"> = {
-    schemaVersion: MANIFEST_SCHEMA_VERSION,
-    vaultId: base.vaultId,
-    rootKeyId: newOpaqueId("root"),
-    rootEpoch: base.rootEpoch + 1,
-    revision: base.revision + 1,
-    purpose: base.purpose,
-    records: [passwordRecord],
-  };
-  const sealed = await sealAuthenticatedManifest(
-    host.requireRawRoot(),
-    nextManifest,
-  );
-  await host.persistHeader({
-    ...header,
-    kdf: wrapped.kdf,
-    wrap: wrapped.wrap,
-    unlocks: undefined,
-    protection: sealed,
+  return withNewPassword(input.password, activeProject().id, async () => {
+    const header = host.getHeader();
+    if (!header) {
+      throw new ProtectionError(
+        "unavailable",
+        "There is no vault header on this device.",
+      );
+    }
+    if (header.wrap && header.kdf) {
+      // Throws WrongPasswordError, before any key changes.
+      const proven = await unwrapRawVaultKeyFromPassword(
+        header,
+        input.password,
+      );
+      proven.fill(0);
+    }
+    const base = requireManifest(header);
+    const { rawVaultKey } = await mintVaultKey();
+    try {
+      const wrapped = await wrapVaultKeyWithPassword(
+        rawVaultKey,
+        input.password,
+      );
+      const passwordRecord: PasswordProtectorRecord = {
+        kind: "password",
+        protectorId: newProtectorId("password"),
+        legacy: true,
+        kdf: {
+          alg: "PBKDF2-SHA256",
+          saltB64: wrapped.kdf.saltB64,
+          iterations: wrapped.kdf.iterations,
+        },
+        wrap: wrapped.wrap,
+        proofStatus: "verified",
+      };
+      const nextManifest: Omit<RootProtectionManifest, "authB64"> = {
+        schemaVersion: MANIFEST_SCHEMA_VERSION,
+        vaultId: base.vaultId,
+        rootKeyId: newOpaqueId("root"),
+        rootEpoch: base.rootEpoch + 1,
+        revision: base.revision + 1,
+        purpose: base.purpose,
+        records: [passwordRecord],
+      };
+      const sealed = await sealAuthenticatedManifest(rawVaultKey, nextManifest);
+      await host.replaceRawVaultKey(rawVaultKey, {
+        ...header,
+        kdf: wrapped.kdf,
+        wrap: wrapped.wrap,
+        unlocks: undefined,
+        protection: sealed,
+      });
+    } catch (error) {
+      rawVaultKey.fill(0);
+      throw error;
+    }
   });
 }

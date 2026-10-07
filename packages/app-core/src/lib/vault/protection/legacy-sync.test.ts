@@ -43,9 +43,11 @@ describe("the manifest follows the header's own wraps", () => {
   it("lists a PIN enrolled after the first projection, and drops it when removed", async () => {
     expect(kinds(store)).toEqual(["password"]);
     await store.enrollPin(PIN);
-    expect(kinds(store)).toEqual(["password"]);
+    expect(kinds(store)).toEqual(["password", "pin"]);
+    const revision = store.getSnapshot().header?.protection?.revision;
     await store.protection.ensureProtectionProjected();
     expect(kinds(store)).toEqual(["password", "pin"]);
+    expect(store.getSnapshot().header?.protection?.revision).toBe(revision);
 
     await store.removePin();
     await store.protection.ensureProtectionProjected();

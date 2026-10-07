@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "The Client CLI, opensesame-id: Identity sign-in, claims, Host probes, and the Pages vault commands",
+  "engines": { "node": ">=22.13.0" },
   "bin": {
     "opensesame-id": "./src/bin.ts",
     "opensesame-identity": "./src/bin.ts"

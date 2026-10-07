@@ -6,7 +6,9 @@
  * trigger is refused when it equals an existing secret.
  */
 
+import { assertNotDecoySession } from "../decoy-session.js";
 import { assertNotDuressCode } from "../duress/store/duress-code-probe.js";
+import { activeProject } from "../projects.js";
 import { assertMasterPasswordPolicy } from "./prefs.js";
 import { assertPinPolicy } from "./unlock-methods.js";
 
@@ -15,7 +17,43 @@ export async function assertNewPin(pin: string): Promise<void> {
   await assertNotDuressCode(pin);
 }
 
-export async function assertNewPassword(password: string): Promise<void> {
+export async function assertNewPassword(
+  password: string,
+  tomb: string = activeProject().id,
+): Promise<void> {
+  const generation = assertNotDecoySession();
   assertMasterPasswordPolicy(password);
   await assertNotDuressCode(password);
+  assertNotDecoySession(generation);
+  const { assertNotRetiredCredential } = await retiredGuards(generation);
+  await assertNotRetiredCredential(password, tomb);
+  assertNotDecoySession(generation);
+}
+
+/** Serialize trap classification with the complete password header write. */
+export async function withNewPassword<T>(
+  password: string,
+  tomb: string,
+  work: () => Promise<T>,
+): Promise<T> {
+  const generation = assertNotDecoySession();
+  assertMasterPasswordPolicy(password);
+  await assertNotDuressCode(password);
+  assertNotDecoySession(generation);
+  const { withRetiredCredentialChange } = await retiredGuards(generation);
+  const result = await withRetiredCredentialChange(password, tomb, async () => {
+    assertNotDecoySession(generation);
+    const value = await work();
+    assertNotDecoySession(generation);
+    return value;
+  });
+  assertNotDecoySession(generation);
+  return result;
+}
+
+/** Collision checking loads only for a password operation admitted in this realm. */
+async function retiredGuards(generation: number) {
+  const guards = await import("../retired-credentials/index.js");
+  assertNotDecoySession(generation);
+  return guards;
 }

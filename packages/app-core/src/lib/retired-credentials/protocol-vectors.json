@@ -1,0 +1,31 @@
+{
+  "protocol": "retired-credentials-v1",
+  "kdf": {
+    "algorithm": "argon2id",
+    "version": 19,
+    "memoryKiB": 65536,
+    "iterations": 3,
+    "parallelism": 1,
+    "hashLength": 32
+  },
+  "vectors": [
+    {
+      "name": "ascii",
+      "password": "Retired vector password",
+      "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+      "verifierB64": "lF4CYhE/M319Ne3ZL58n9f15oXGjfYdF8TdmQkbeLmg="
+    },
+    {
+      "name": "composed",
+      "password": "é",
+      "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+      "verifierB64": "Svrnm0NbynXcv+AOADvcLD9ZtS9zfAgKsATQuOLhu/4="
+    },
+    {
+      "name": "decomposed",
+      "password": "é",
+      "saltB64": "AAECAwQFBgcICQoLDA0ODw==",
+      "verifierB64": "G6qJ1Y+XvLqVQz7XyZoyopoQBpvz5hEP8Ns9BLsjerc="
+    }
+  ]
+}
