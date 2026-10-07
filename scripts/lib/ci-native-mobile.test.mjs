@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
@@ -76,11 +76,43 @@ describe("native mobile required checks", () => {
     const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
     const gate = ci.split("  rust-check:")[1];
     expect(gate).toContain(
-      "needs: [changes, rust, android-native, apple-native]",
+      "needs: [changes, rust, native, android-native, apple-native]",
     );
-    expect(gate).toContain('[ "$android" != "success" ]');
-    expect(gate).toContain('[ "$apple" != "success" ]');
+    expect(gate).toContain('case "$mobile_expected:$android:$apple" in');
+    expect(gate).toContain("true:success:success|false:skipped:skipped)");
     expect(ci).toContain("bash scripts/test/mobile-android.sh");
     expect(ci).toContain("bash scripts/test/mobile-apple.sh ios");
+  });
+});
+
+function collectMobile(expected, android, apple) {
+  const ci = readFileSync(join(root, ".github/workflows/ci.yml"), "utf8");
+  const script = ci
+    .split("  rust-check:")[1]
+    .split("        run: |\n")[1]
+    .replace(/^ {10}/gm, "")
+    .replaceAll("${{ needs.changes.result }}", "success")
+    .replaceAll("${{ needs.rust.result }}", "success")
+    .replaceAll("${{ needs.changes.outputs.native }}", "false")
+    .replaceAll("${{ needs.native.result }}", "skipped")
+    .replaceAll("${{ needs.changes.outputs.native_mobile }}", expected)
+    .replaceAll("${{ needs.android-native.result }}", android)
+    .replaceAll("${{ needs.apple-native.result }}", apple);
+  return spawnSync("bash", ["-c", script], { stdio: "ignore" }).status;
+}
+
+describe("native mobile collector executes fail closed", () => {
+  it.each(["failure", "skipped", "cancelled", "", "unknown"])(
+    "rejects an affected mobile family result %s",
+    (result) => {
+      expect(collectMobile("true", result, "success")).toBe(1);
+      expect(collectMobile("true", "success", result)).toBe(1);
+    },
+  );
+  it("accepts only successful required families or proven unaffected skips", () => {
+    expect(collectMobile("true", "success", "success")).toBe(0);
+    expect(collectMobile("false", "skipped", "skipped")).toBe(0);
+    expect(collectMobile("false", "failure", "skipped")).toBe(1);
+    expect(collectMobile("", "success", "success")).toBe(1);
   });
 });

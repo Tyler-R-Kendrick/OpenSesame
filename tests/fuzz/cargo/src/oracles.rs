@@ -48,14 +48,22 @@ pub fn assert_attenuation_did_not_widen(parent: &Grant, child: &Grant) {
             .all(|r| parent.resources.iter().any(|p| p == r)),
         "child resources must be a subset of parent resources"
     );
-    assert!(
-        child
-            .constraints
-            .audiences
-            .iter()
-            .all(|a| parent.constraints.audiences.iter().any(|p| p == a)),
-        "child audiences must be a subset of parent audiences"
-    );
+    // An empty audience constraint denotes unrestricted authority, whereas an
+    // empty resource/action list denotes no authority. Preserve that distinction.
+    if !parent.constraints.audiences.is_empty() {
+        assert!(
+            !child.constraints.audiences.is_empty(),
+            "restricted audiences cannot be cleared"
+        );
+        assert!(
+            child
+                .constraints
+                .audiences
+                .iter()
+                .all(|a| parent.constraints.audiences.contains(a)),
+            "child audiences must be a subset of restricted parent audiences"
+        );
+    }
     assert!(
         child.constraints.expires_at <= parent.constraints.expires_at,
         "child lifetime must not expand"
@@ -78,17 +86,17 @@ pub fn assert_attenuation_did_not_widen(parent: &Grant, child: &Grant) {
 
 pub fn assert_bindings_preserved(original: &Grant, decoded: &Grant) {
     assert_eq!(original.organization_id, decoded.organization_id);
-    assert_eq!(
-        original.issuer_principal_id,
-        decoded.issuer_principal_id
-    );
+    assert_eq!(original.issuer_principal_id, decoded.issuer_principal_id);
     assert_eq!(
         original.beneficiary_principal_id,
         decoded.beneficiary_principal_id
     );
     assert_eq!(original.actions, decoded.actions);
     assert_eq!(original.resources, decoded.resources);
-    assert_eq!(original.constraints.audiences, decoded.constraints.audiences);
+    assert_eq!(
+        original.constraints.audiences,
+        decoded.constraints.audiences
+    );
     assert_eq!(original.revoked_at, decoded.revoked_at);
 }
 

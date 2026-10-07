@@ -216,3 +216,11 @@ under `mcp`, or the tool-calling loop doesn't actually execute against the
 live server, check the current `providers/anthropic` and `integrations/mcp`
 docs on promptfoo.dev — this is the one part of the config that couldn't be
 exercised end-to-end here.
+
+The workspace omits Promptfoo’s optional `jks-js` dependency because it requires
+an unpatched vulnerable `node-forge`. The configured MCP and Anthropic providers
+do not use Java keystores. Normal HTTPS verification and PEM/native PFX settings
+remain available. Supported JKS signature configuration fails with Promptfoo’s
+missing-package error before transport. JKS TLS fields are not accepted by the
+pinned provider schema and must not be used; do not install `jks-js` or
+disable TLS verification to bypass that refusal.

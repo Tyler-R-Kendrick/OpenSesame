@@ -1,7 +1,7 @@
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { repoRootFromHere } from "./ci-changed-areas.mjs";
+import { repoRootFromHere, selectGates } from "./ci-changed-areas.mjs";
 import {
   ALL_GATES,
   DRIVER_GATES,
@@ -146,5 +146,58 @@ describe("ci gate selection", () => {
       pushPackageDirs(root),
     );
     expect([...gates].sort()).toEqual(["budgets", "journeys", "sign-in"]);
+  });
+});
+
+describe("required retired credential and relay gate reachability", () => {
+  it.each([
+    ["apps/pages/scripts/verify-retired-credentials.mjs", ["auth"]],
+    ["apps/pages/scripts/lib/retired-offline-harness.mjs", ["auth"]],
+    ["apps/pages/scripts/verify-duress-browser.mjs", ["duress"]],
+    ["apps/pages/scripts/duress/journeys/ui-and-scenarios.mjs", ["duress"]],
+    ["apps/pages/scripts/verify-live-join.mjs", ["live-transports"]],
+    ["scripts/test/live-turn/main.go", ["keyboard", "live-transports"]],
+    ["apps/browser-extension/lib/background/service-security.ts", ["auth"]],
+    ["apps/browser-extension-autofill/lib/fill/service-security.ts", ["auth"]],
+  ])("runs the required gate for %s", (path, expected) => {
+    expect(gatesOf(path)).toEqual([...expected].sort());
+  });
+
+  it("runs synthetic isolation journeys for security panels and shared controls", () => {
+    for (const path of [
+      "apps/pages/src/sections/settings/security/DecoyPanel.tsx",
+      "apps/pages/src/components/DecoyNavigationAnchor.tsx",
+    ]) {
+      expect(gatesOf(path)).toEqual(expect.arrayContaining(["auth", "duress"]));
+    }
+  });
+
+  it("selects actual matrix legs for extension and protocol source changes", () => {
+    for (const [path, wanted] of [
+      ["apps/browser-extension/lib/background/service-security.ts", ["auth"]],
+      [
+        "apps/browser-extension-autofill/lib/fill/service-security.ts",
+        ["auth"],
+      ],
+      ["scripts/test/live-turn/main.go", ["keyboard", "live-transports"]],
+    ]) {
+      const selected = selectGates(root, [path], [], []);
+      expect(
+        bundleMatrix(selected, loadShards(root)).map((leg) => leg.shard),
+      ).toEqual(wanted);
+    }
+  });
+});
+
+describe("browser gate registry changes", () => {
+  it("runs all gates when the extracted driver registry changes", () => {
+    const selected = selectGates(
+      root,
+      ["scripts/lib/ci-gate-drivers.mjs"],
+      [],
+      [],
+    );
+    expect([...selected].sort()).toEqual([...ALL_GATES].sort());
+    expect(bundleMatrix(selected, loadShards(root))).toEqual(loadShards(root));
   });
 });

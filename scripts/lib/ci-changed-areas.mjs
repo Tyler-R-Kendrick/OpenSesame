@@ -16,9 +16,10 @@ import {
   gatesForPaths,
   loadShards,
 } from "./ci-gates.mjs";
+import { isNativeInput } from "./ci-native-area.mjs";
 import { bundlePackageDirs, pushPackageDirs } from "./ci-package-dirs.mjs";
 
-export const AREAS = ["typescript", "bundle", "rust", "mtls", "push"];
+export const AREAS = ["typescript", "bundle", "rust", "mtls", "push", "native"];
 
 const DOC_ROOTS = ["docs", "skills", ".agents", ".claude"];
 const RUST_ROOTS = [
@@ -93,7 +94,14 @@ const NODE_INSTALL = new Set([
 ]);
 
 export function everyArea() {
-  return { typescript: true, bundle: true, rust: true, mtls: true, push: true };
+  return {
+    typescript: true,
+    bundle: true,
+    rust: true,
+    mtls: true,
+    push: true,
+    native: true,
+  };
 }
 
 function blank() {
@@ -103,6 +111,7 @@ function blank() {
     rust: false,
     mtls: false,
     push: false,
+    native: false,
   };
 }
 
@@ -176,6 +185,19 @@ function isTypescript(path) {
 }
 
 function isBundle(path, bundleDirs) {
+  if (
+    anyUnder(path, [
+      "apps/browser-extension",
+      "apps/browser-extension-autofill",
+      "scripts/test/live-turn",
+    ])
+  )
+    return true;
+  if (
+    path.startsWith("scripts/lib/ci-gate") ||
+    path === "scripts/lib/ci-bundle-shards.json"
+  )
+    return true;
   if (bundleDirs.some((dir) => under(path, dir))) return true;
   if (path === "tools/quality/bundle-budgets.json") return true;
   if (path === "turbo.json" || NODE_INSTALL.has(path)) return true;
@@ -208,6 +230,9 @@ function isPush(path, pushDirs) {
 
 function mark(path, bundleDirs, pushDirs, out) {
   let known = false;
+  if (isNativeInput(path)) {
+    out.native = true;
+  }
   if (isRust(path)) {
     out.rust = true;
     known = true;

@@ -28,6 +28,25 @@ import { TEST_FILE } from "./app-core-boundary.mjs";
 /** @type {RestrictedSeam[]} */
 export const RESTRICTED_SEAMS = [
   {
+    module: "packages/app-core/src/lib/device-connector-principal-state",
+    names: ["notifyDeviceConnectorPrincipalTransfer"],
+    owners: [
+      "packages/app-core/src/lib/device-connector-principal-state.ts",
+      "packages/app-core/src/lib/vault/store.ts",
+      "packages/app-core/src/lib/vault/store-header-persist.ts",
+    ],
+    why: "only the vault store can attest that a guest body became a sealed member vault",
+  },
+  {
+    module: "packages/app-core/src/lib/vault/store-header-persist",
+    names: ["persistStoreHeaderWithConnectorTransfer"],
+    owners: [
+      "packages/app-core/src/lib/vault/store-header-persist.ts",
+      "packages/app-core/src/lib/vault/store.ts",
+    ],
+    why: "only the owning store supplies the admitted guest body and the committed member snapshot",
+  },
+  {
     module: "packages/app-core/src/lib/vault/store-device-key",
     names: ["bodyPortOf", "registerBodyPort", "installDeviceKeyCarrier"],
     owners: [

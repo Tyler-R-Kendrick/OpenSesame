@@ -13,6 +13,12 @@
 use libfuzzer_sys::fuzz_target;
 use opensesame_storage::{CertificateFilter, MAX_FILTER_PATTERN_LEN};
 
+enum BoundKind {
+    Exact,
+    Like,
+    Metadata,
+}
+
 /// Split arbitrary bytes into up to eight NUL-separated filter fields.
 fn field(parts: &[&str], index: usize) -> Option<String> {
     parts
@@ -33,9 +39,7 @@ fuzz_target!(|data: &[u8]| {
         expiring_before: field(&parts, 5),
         metadata_key: field(&parts, 6),
         metadata_value: field(&parts, 7),
-        limit: data
-            .first()
-            .map(|byte| i64::from(*byte) * 1_000 - 50_000),
+        limit: data.first().map(|byte| i64::from(*byte) * 1_000 - 50_000),
     };
 
     let query = filter.to_query();
@@ -61,19 +65,66 @@ fuzz_target!(|data: &[u8]| {
     let expected_placeholders = 1 + query.text_binds.len() + usize::from(query.limit.is_some());
     assert_eq!(query.sql.matches('?').count(), expected_placeholders);
 
-    // No caller value appears inline in the statement.
-    for bound in &query.text_binds {
-        let inline = bound.trim_matches('%');
-        if inline.len() > 8 {
-            assert!(!query.sql.contains(inline));
-        }
-    }
-
     // Patterns are clamped at a character boundary and the limit is clamped to
     // a sane page, so no input can make the query unbounded or too complex.
     // Escaping can at most double a clamped needle, plus the two wildcards.
-    for bound in &query.text_binds {
-        assert!(bound.chars().count() <= 2 * MAX_FILTER_PATTERN_LEN + 2);
+    let inputs = [
+        filter
+            .status
+            .as_deref()
+            .map(|value| (value, BoundKind::Exact)),
+        filter
+            .common_name_contains
+            .as_deref()
+            .map(|value| (value, BoundKind::Like)),
+        filter
+            .san_contains
+            .as_deref()
+            .map(|value| (value, BoundKind::Like)),
+        filter
+            .profile_id
+            .as_deref()
+            .map(|value| (value, BoundKind::Exact)),
+        filter
+            .application_id
+            .as_deref()
+            .map(|value| (value, BoundKind::Exact)),
+        filter
+            .expiring_before
+            .as_deref()
+            .map(|value| (value, BoundKind::Exact)),
+        filter
+            .metadata_key
+            .as_deref()
+            .map(|value| (value, BoundKind::Metadata)),
+        filter
+            .metadata_value
+            .as_deref()
+            .map(|value| (value, BoundKind::Metadata)),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>();
+    assert_eq!(inputs.len(), query.text_binds.len());
+    for (bound, (value, kind)) in query.text_binds.iter().zip(inputs) {
+        match kind {
+            BoundKind::Like => {
+                assert!(bound.chars().count() <= 2 * MAX_FILTER_PATTERN_LEN + 2);
+            }
+            BoundKind::Metadata => {
+                let expected: String = value.chars().take(MAX_FILTER_PATTERN_LEN).collect();
+                assert_eq!(
+                    bound, &expected,
+                    "metadata binds preserve exactly the clamped value"
+                );
+            }
+            BoundKind::Exact => {
+                assert_eq!(
+                    bound, value,
+                    "an equality bind preserves the exact caller value"
+                );
+            }
+        }
     }
     if let Some(limit) = query.limit {
         assert!((0..=1_000).contains(&limit));

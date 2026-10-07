@@ -42,8 +42,8 @@ status=$?
 set -e
 
 # Semgrep: 0 = clean, 1 = findings, 2 = fatal
-if [[ "$status" -eq 2 ]]; then
-  echo "semgrep gate: FAIL (scanner error)" >&2
+if [[ "$status" -ne 0 && "$status" -ne 1 ]]; then
+  echo "semgrep gate: FAIL (scanner status $status)" >&2
   cat "$OPENSESAME_AUDIT_DIR/semgrep.err" >&2 || true
   exit 1
 fi

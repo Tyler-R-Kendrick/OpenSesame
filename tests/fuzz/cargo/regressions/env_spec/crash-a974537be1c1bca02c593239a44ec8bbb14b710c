@@ -1,0 +1,1 @@
+{"schema_path":".env.schema","parser":"env-spec","items":[{"key":"SECRET","sensitive":true,"required":true}]}
