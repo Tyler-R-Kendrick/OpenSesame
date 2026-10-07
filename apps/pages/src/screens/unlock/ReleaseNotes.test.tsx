@@ -14,7 +14,7 @@ afterEach(() => {
   cleanup();
 });
 
-it("opens the newest release and keeps only one row expanded", () => {
+it("starts collapsed, toggles releases, and keeps at most one row expanded", () => {
   render(<ReleaseNotes />);
   expect(
     screen.getByRole("complementary", { name: "Release notes" }),
@@ -23,6 +23,11 @@ it("opens the newest release and keeps only one row expanded", () => {
     name: `Release notes · ${version}`,
   });
   const priorBtn = screen.getByRole("button", { name: "0.0.1" });
+  expect(newestBtn.getAttribute("aria-expanded")).toBe("false");
+  expect(priorBtn.getAttribute("aria-expanded")).toBe("false");
+  expect(screen.queryByRole("heading", { name: "Works" })).toBeNull();
+
+  fireEvent.click(newestBtn);
   expect(newestBtn.getAttribute("aria-expanded")).toBe("true");
   expect(priorBtn.getAttribute("aria-expanded")).toBe("false");
   const newestPanel = document.getElementById(
@@ -47,6 +52,19 @@ it("opens the newest release and keeps only one row expanded", () => {
   fireEvent.click(newestBtn);
   expect(newestBtn.getAttribute("aria-expanded")).toBe("true");
   expect(priorBtn.getAttribute("aria-expanded")).toBe("false");
+
+  fireEvent.click(newestBtn);
+  expect(newestBtn.getAttribute("aria-expanded")).toBe("false");
+  expect(priorBtn.getAttribute("aria-expanded")).toBe("false");
+  expect(screen.queryByRole("heading", { name: "Works" })).toBeNull();
+  expect(
+    document.getElementById(newestBtn.getAttribute("aria-controls") ?? ""),
+  ).toBeNull();
+
+  fireEvent.click(priorBtn);
+  fireEvent.click(priorBtn);
+  expect(priorBtn.getAttribute("aria-expanded")).toBe("false");
+  expect(screen.queryByText("Sealed vault on this device")).toBeNull();
 
   expect(screen.queryByRole("link")).toBeNull();
   expect(screen.queryByText(/ADR|Host|Vercel Connect|backend/i)).toBeNull();

@@ -13,8 +13,8 @@ import {
  * UI impact, never plane names, ADRs, or implementer jargon. Shown on the
  * front door and the unlock form, never past them.
  *
- * One accordion row per build. Exactly one row is open: the newest on
- * arrival; choosing another opens it and collapses the rest.
+ * One accordion row per build, collapsed on arrival. Choosing a row
+ * toggles it and collapses the rest.
  */
 
 type ReleaseNote = {
@@ -88,12 +88,12 @@ function ReleasePanel({
   release,
   newest,
   open,
-  onOpen,
+  onToggle,
 }: {
   release: ReleaseNote;
   newest: boolean;
   open: boolean;
-  onOpen: () => void;
+  onToggle: () => void;
 }) {
   const label = newest ? `Release notes · ${release.version}` : release.version;
   const panelId = `unlock-notes-${release.version}`;
@@ -110,7 +110,7 @@ function ReleasePanel({
         className="unlock__notes-summary"
         aria-expanded={open}
         aria-controls={panelId}
-        onClick={onOpen}
+        onClick={onToggle}
       >
         <span className="unlock__notes-summary-label">{label}</span>
         <IconChevronRight className="unlock__notes-caret" size={12} />
@@ -135,8 +135,7 @@ function ReleasePanel({
 }
 
 export function ReleaseNotes() {
-  const newest = RELEASES[0]?.version ?? "";
-  const [active, setActive] = useState(newest);
+  const [active, setActive] = useState<string | null>(null);
   return (
     <aside className="unlock__notes" aria-label="Release notes">
       <div className="unlock__notes-stack">
@@ -146,7 +145,11 @@ export function ReleaseNotes() {
             release={release}
             newest={index === 0}
             open={active === release.version}
-            onOpen={() => setActive(release.version)}
+            onToggle={() =>
+              setActive((current) =>
+                current === release.version ? null : release.version,
+              )
+            }
           />
         ))}
       </div>
