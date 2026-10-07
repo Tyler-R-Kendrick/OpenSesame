@@ -2,6 +2,7 @@ import {
   acknowledgeCertificateDelivery,
   issueCertificate,
 } from "@opensesame/app-core/lib/certs.js";
+import { FIELD_LIMITS } from "@opensesame/app-core/lib/vault/field-limits.js";
 import {
   acceptsDraftUsername,
   isGeneratedDraftName,
@@ -289,8 +290,8 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         <EditorTitle
           value={draft}
           folders={path.choices}
-          onName={(name) => patch({ name })}
-          onFolder={(folderId) => patch({ folderId })}
+          onName={path.typed}
+          onFolder={(folder) => path.select(folder ?? undefined)}
           onBlur={path.blur}
           typeId={draftTypeId}
           onTypeChange={onTypeChange}
@@ -338,6 +339,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
                   type={reveal ? "text" : "password"}
                   autoComplete="off"
                   spellCheck={false}
+                  maxLength={FIELD_LIMITS.secret}
                   value={draft.value}
                   onChange={(event) => patch({ value: event.target.value })}
                 />

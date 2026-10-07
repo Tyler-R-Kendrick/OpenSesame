@@ -1,3 +1,4 @@
+import { FIELD_LIMITS } from "@opensesame/app-core/lib/vault/field-limits.js";
 import { testWebsitePattern } from "@opensesame/app-core/lib/vault/website-pattern.js";
 import { type LoginUri, type UriMatch, newUri } from "@opensesame/vault-core";
 import { useState } from "react";
@@ -30,6 +31,7 @@ function PatternTest({ uri }: { uri: LoginUri }) {
       <div className="editor__inline">
         <input
           aria-label="Test website"
+          maxLength={FIELD_LIMITS.uri}
           value={website}
           placeholder="https://app.example.com"
           onChange={(event) => {
@@ -80,6 +82,7 @@ export function AccountWebsites({
             <input
               value={uri.uri}
               aria-label={`Address ${index + 1}`}
+              maxLength={FIELD_LIMITS.uri}
               placeholder={
                 uri.match === "wildcard"
                   ? "*.example.com"
