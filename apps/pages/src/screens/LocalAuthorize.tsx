@@ -86,7 +86,27 @@ function LocalConsent({
         <p>
           Requested permissions: <code>{request.scopes.join(" ")}</code>
         </p>
-        <p className="hint">Shares no vault contents.</p>
+        <dl aria-label="Authorization boundaries">
+          <dt>Identity</dt>
+          <dd>
+            {request.agent
+              ? "Named agent, not your identity."
+              : "Your local subject identifier."}
+          </dd>
+          {request.agent ? (
+            <>
+              <dt>Lifetime</dt>
+              <dd>Ends when either session expires or is revoked.</dd>
+            </>
+          ) : (
+            <>
+              <dt>Resource access</dt>
+              <dd>Requires the application&apos;s own policy.</dd>
+            </>
+          )}
+          <dt>Shared material</dt>
+          <dd>No vault contents or upstream token.</dd>
+        </dl>
         <FailureNotice
           id="local-authorize:consent"
           title="Application sign-in"

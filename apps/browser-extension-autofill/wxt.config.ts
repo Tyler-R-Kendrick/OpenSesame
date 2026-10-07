@@ -16,9 +16,22 @@ import { DAEMON_PATTERN } from "./lib/sites/patterns";
  * is looking at; it grants nothing on its own.
  */
 export default defineConfig({
+  hooks: {
+    "prepare:tsconfig": (_wxt, { tsconfig }) => {
+      tsconfig.compilerOptions.lib = [
+        "ESNext",
+        "DOM",
+        "DOM.Iterable",
+        "DOM.AsyncIterable",
+      ];
+    },
+  },
   vite: () => ({
     // MV3 runs on Chromium and Firefox only; see apps/browser-extension.
     build: { target: ["chrome111", "firefox115"] },
+    optimizeDeps: {
+      esbuildOptions: { target: ["chrome111", "firefox115"] },
+    },
   }),
   // The artifact `opensesame plugins install browser-autofill --from` pins.
   zip: { artifactTemplate: "browser-autofill-{{version}}-{{browser}}.zip" },
@@ -35,7 +48,8 @@ export default defineConfig({
       },
     },
     content_security_policy: {
-      extension_pages: "script-src 'self'; object-src 'self'",
+      extension_pages:
+        "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
     },
   },
 });

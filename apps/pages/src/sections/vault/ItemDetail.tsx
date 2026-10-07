@@ -100,7 +100,9 @@ export function ItemDetail() {
         copied={copied}
         failed={failed}
         copy={copy}
-        onUpdateSecret={(next) => updateItemSecret(item, next, store.saveItem)}
+        onUpdateSecret={(next) =>
+          updateItemSecret(item, next, (updated) => store.saveItem(updated))
+        }
       />
       {ceremony}
 

@@ -1,3 +1,7 @@
+import {
+  authorityStillCurrent,
+  captureRealAuthority,
+} from "@opensesame/app-core/lib/member-authority.js";
 /**
  * The interaction approval as React state (ADR 0140 plan step 9). The steps
  * are `createInteractionApproval`'s (ceremony-kit, bound to Pages in
@@ -24,14 +28,17 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useIdentitySession } from "../../bindings/identity.js";
 
-export const interactionHookSeams = {
-  approval: (ref: string): InteractionApproval => interactionApproval(ref),
-};
+const defaultFactory = (ref: string): InteractionApproval =>
+  interactionApproval(ref);
+export const interactionHookSeams = { approval: defaultFactory };
 
 const LOADING: InteractionStep = { phase: { kind: "loading" }, message: null };
 
 export function useInteraction(ref: string) {
-  const [ceremony] = useState(() => interactionHookSeams.approval(ref));
+  const [{ model: ceremony, originalDefault }] = useState(() => ({
+    model: interactionHookSeams.approval(ref),
+    originalDefault: interactionHookSeams.approval === defaultFactory,
+  }));
   const session = useIdentitySession();
   const [step, setStep] = useState<InteractionStep>(LOADING);
   const [busy, setBusy] = useState(false);
@@ -46,19 +53,27 @@ export function useInteraction(ref: string) {
 
   const run = useCallback(
     async (work: () => Promise<InteractionStep | null>) => {
+      let check: () => void;
+      try {
+        check = originalDefault ? captureRealAuthority() : () => {};
+      } catch {
+        return;
+      }
       setBusy(true);
       try {
         const next = await work();
-        if (!next || !live.current) return;
+        if (!next || !live.current || !authorityStillCurrent(check)) return;
         setStep(next);
         const words = interactionStepWords(next);
         if (words) reportInteraction(words);
         else clearInteractionNotice();
+      } catch (error) {
+        if (authorityStillCurrent(check)) throw error;
       } finally {
         if (live.current) setBusy(false);
       }
     },
-    [],
+    [originalDefault],
   );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: one load per ceremony

@@ -29,8 +29,8 @@ const SHOWN = [
   { name: "Gym locker", secret: "shown-secret-6612" },
 ];
 const HIDDEN = [
-  { name: "Hidden Bank 7731", secret: "hidden-secret-7731" },
-  { name: "Hidden Passport 5520", secret: "hidden-secret-5520" },
+  { name: "Hidden Bank 7731", secret: "hidden-secret-7731" }, // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
+  { name: "Hidden Passport 5520", secret: "hidden-secret-5520" }, // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 ];
 const ALL = [HIDDEN[0], SHOWN[0], HIDDEN[1], SHOWN[1]];
 

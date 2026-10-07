@@ -6,6 +6,7 @@ import type {
   SettledRunnerStep,
 } from "@opensesame/api-client";
 import type { BackupStore } from "./backup";
+import type { OriginalOwner } from "./original-owner";
 import type { Grants, PagesFactory } from "./ports";
 import type { RunnerSettings } from "./settings";
 import type { RunnerVault } from "./vault";
@@ -34,7 +35,8 @@ export interface RunnerDeps {
   /** Close the tab a finished run was driven in. */
   closePage: (tabId: number | null) => Promise<void>;
   /** The Host session, or null when the person has not given one. */
-  connect: () => Promise<Connection | null>;
+  connect: (owner?: OriginalOwner) => Promise<Connection | null>;
+  originAllowed?: (origin: string) => boolean;
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
   /** Pause between polls of an idle run. */

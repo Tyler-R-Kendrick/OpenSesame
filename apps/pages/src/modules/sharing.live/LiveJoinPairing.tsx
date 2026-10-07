@@ -10,11 +10,12 @@ import { useState } from "react";
 import {
   CopyButton,
   FieldRow,
-  useCopyFeedback,
+  useCopyFeedbackWith,
 } from "../../components/FieldRow.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import { IconArrowRight, IconShare } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
+import { useLiveRequestClipboard } from "./live-copy.js";
 import { useLandWhenSettled } from "./live-focus.js";
 
 /** The first few characters, so the person can tell codes apart. */
@@ -29,7 +30,8 @@ export function RequestStep({
   guest: LiveGuest;
   code: string;
 }) {
-  const { copied, failed, copy } = useCopyFeedback();
+  const clipboard = useLiveRequestClipboard(guest, code);
+  const { copied, failed, copy } = useCopyFeedbackWith(clipboard.copy);
   const [reply, setReply] = useState("");
   const [wrong, setWrong] = useState(false);
   const [busy, setBusy] = useState(false);

@@ -1,3 +1,4 @@
+import { runSessionNavigation } from "../../lib/decoy-navigation.js";
 type Host = Readonly<{
   reason?: string | undefined;
   fixUrl?: string | null | undefined;
@@ -18,7 +19,11 @@ export function PasskeyHostNote({ host }: { host: Host }) {
             <button
               type="button"
               className="unlock__switch"
-              onClick={() => window.location.assign(host.fixUrl ?? "")}
+              onClick={() => {
+                runSessionNavigation(host.fixUrl ?? "", () =>
+                  window.location.assign(host.fixUrl ?? ""),
+                );
+              }}
             >
               Continue on localhost
             </button>{" "}

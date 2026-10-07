@@ -65,6 +65,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { SessionAnchor } from "../components/DecoyNavigationAnchor.js";
 import { EmptyTip } from "../components/EmptyTip.js";
 import { FailureNotice } from "../components/FailureNotice.js";
 import { IconKey, ReloadKey } from "../components/IconKey.js";
@@ -109,9 +110,8 @@ import {
 import { useIdentitySession } from "../bindings/identity.js";
 import { FormCommit } from "../components/FormCommit.js";
 import { useHashTarget } from "../lib/hash-target.js";
-/**
- * Browser-local identity management, with optional hosted Identity
- * surfaces. Provider registration is an explicit ceremony, not an entry gate.
+/** Browser-local identity management with optional hosted Identity surfaces.
+ * Provider registration requires an explicit ceremony.
  */
 function IdentityTabPanels({
   tab,
@@ -1520,14 +1520,14 @@ function ServiceAccountsPanel({
       />
 
       <p className="hint">
-        <a
+        <SessionAnchor
           href={`${identityBase()}/.well-known/openid-configuration`}
           title="Open OIDC discovery to configure this issuer in your application"
           target="_blank"
           rel="noreferrer"
         >
           Open OIDC discovery
-        </a>
+        </SessionAnchor>
       </p>
     </>
   );

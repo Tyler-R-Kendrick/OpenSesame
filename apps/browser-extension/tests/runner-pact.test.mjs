@@ -54,7 +54,19 @@ test("nothing the runner keeps rests in the clear (ADR 0149)", () => {
     "if (sealed === null) throw new AtRestUnavailable()",
     "await this.raw.set(key, sealed)",
   ]);
-  assert.equal((store.match(/this\.raw\.set\(/g) ?? []).length, 1);
+  const scoped = store.slice(
+    store.indexOf("withAuthority(owner: OriginalOwner)"),
+    store.indexOf("async get(name:"),
+  );
+  const writes = store.slice(store.indexOf("async set(name:"));
+  assert.match(
+    scoped,
+    /set: \(key, value\) => ownedIO\(owner, \(\) => this\.raw\.set\(key, value\)\)/,
+  );
+  assert.equal((scoped.match(/this\.raw\.set\(/g) ?? []).length, 1);
+  assert.equal((writes.match(/this\.raw\.set\(/g) ?? []).length, 1);
+  assert.equal((store.match(/this\.raw\.set\(/g) ?? []).length, 2);
+  assert.match(scoped, /new SealedKv\(raw, this\.sealer,/);
   // (`host-base.ts` and the popup write the one Host-base setting, which
   // `pact.test.mjs` pins to a sealed value.)
   const doors = [
@@ -197,16 +209,21 @@ test("the runner only ever acts inside the run's origin", () => {
 
 test("only this extension's own pages may arm, disarm or ask about the runner", () => {
   const background = code(read("entrypoints/background.ts"));
+  const listener = code(read("runner/security-listener.ts"));
+  assertSourceOrder(listener, [
+    "return (",
+    "if (!ownPage(sender)) return undefined",
+    "security.allows(message.securityPermit)",
+    "runner.status(message.securityPermit)",
+  ]);
   for (const type of ["status", "arm", "disarm"]) {
-    const at = background.indexOf(
-      `message?.type === "opensesame.runner.${type}"`,
+    assert.ok(
+      listener.includes(`"opensesame.runner.${type}"`),
+      `handles ${type}`,
     );
-    assert.notEqual(at, -1, `handles ${type}`);
-    const branch = background.slice(at, at + 160);
-    assert.match(branch, /if \(!fromOwnPage\(sender\)\) return undefined/);
   }
   assertSourceOrder(background, [
-    "function fromOwnPage(",
+    "runnerListener(",
     'isOwnPage(sender, browser.runtime.id, browser.runtime.getURL(""))',
   ]);
   assertSourceOrder(code(read("runner/sender.ts")), [
@@ -269,8 +286,32 @@ test("the options page asks the browser for one origin on the person's own click
   const options = code(read("entrypoints/options/main.ts"));
   assertSourceOrder(options, [
     'el("drive-arm").addEventListener("click"',
-    "browser.permissions",
-    '.request({ permissions: ["scripting"], origins: [matchPattern(origin)] })',
-    "arm(origin)",
+    "const owner = originalPageOperation(security)",
+    ".requireProduction()",
+    "owner.check()",
+    "browser.permissions.request({",
+    'permissions: ["scripting"]',
+    "origins: [matchPattern(origin)]",
+    "if (granted) await arm(origin, owner)",
   ]);
+  // Whitespace and a trailing comma do not change the browser grant. The
+  // entire argument must still contain only this permission and this origin.
+  assert.match(
+    options,
+    /browser\.permissions\.request\(\{\s*permissions:\s*\["scripting"\],\s*origins:\s*\[matchPattern\(origin\)\],?\s*\}\)/,
+  );
+});
+
+test("popup policy permits only same-origin scripts and compiled WASM", () => {
+  const html = read("entrypoints", "popup", "index.html");
+  const policy = html.match(/content="([^"]*script-src[^"]*)"/)?.[1];
+  assert.ok(policy);
+  assert.equal(
+    policy
+      .split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith("script-src ")),
+    "script-src 'self' 'wasm-unsafe-eval'",
+  );
+  assert.doesNotMatch(policy, /'unsafe-eval'/);
 });

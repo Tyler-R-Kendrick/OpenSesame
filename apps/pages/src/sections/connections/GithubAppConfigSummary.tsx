@@ -4,6 +4,7 @@ import { localAppConnection } from "@opensesame/app-core/sections/connections/gi
 import { buildGithubAppSummaryModel } from "@opensesame/app-core/sections/connections/githubAppSummaryModel.js";
 import type { Flash } from "@opensesame/app-core/sections/connections/shared.js";
 import { useMemo } from "react";
+import { SessionAnchor } from "../../components/DecoyNavigationAnchor.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { BackupSyncControls } from "./BackupSyncControls.js";
 import {
@@ -121,9 +122,9 @@ function AppNameRow({
     <div className="conn-github-fact" data-testid="github-app-name">
       <span className="conn-github-presence__k">App</span>
       {htmlUrl ? (
-        <a href={htmlUrl} target="_blank" rel="noreferrer noopener">
+        <SessionAnchor href={htmlUrl} target="_blank" rel="noreferrer noopener">
           {name}
-        </a>
+        </SessionAnchor>
       ) : (
         <span>{name}</span>
       )}

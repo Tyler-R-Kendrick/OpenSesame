@@ -22,6 +22,18 @@ async function openApplications(page) {
   }
 }
 
+async function waitSavedCallback(row, callback) {
+  const exact = new RegExp(
+    `^${callback.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+  );
+  // This is the committed registration, separate from the editable draft.
+  await row
+    .locator("dt", { hasText: /^Callbacks$/ })
+    .locator("+ dd")
+    .filter({ hasText: exact })
+    .waitFor({ timeout: 10000 });
+}
+
 async function registerApp(page, name) {
   const panel = page.getByRole("region", {
     name: "Local applications",
@@ -52,11 +64,7 @@ async function registerApp(page, name) {
   await row
     .getByRole("button", { name: "Save registration", exact: true })
     .click();
-  await row
-    .getByText("Registered locally. Access still requires authorization.", {
-      exact: true,
-    })
-    .waitFor({ timeout: 10000 });
+  await waitSavedCallback(row, "https://rp.example.test/callback");
   return row;
 }
 
@@ -91,24 +99,27 @@ export async function walkJConflict({
   await rowB
     .locator("summary", { hasText: "Application registration" })
     .click();
+  await waitSavedCallback(rowB, "https://rp.example.test/callback");
+  const draftB = rowB.getByRole("textbox", {
+    name: "Redirect URIs (one per line)",
+    exact: true,
+  });
+  check(
+    (await draftB.inputValue()) === "https://rp.example.test/callback",
+    "tab B loads the original registration before editing",
+  );
+  await draftB.fill("https://rp.example.test/b");
   await rowA
     .getByRole("textbox", { name: "Redirect URIs (one per line)", exact: true })
     .fill("https://rp.example.test/a");
   await rowA
     .getByRole("button", { name: "Save registration", exact: true })
     .click();
-  await rowA
-    .getByText("Registered locally. Access still requires authorization.", {
-      exact: true,
-    })
-    .waitFor({ timeout: 10000 });
-  await rowB
-    .getByRole("textbox", { name: "Redirect URIs (one per line)", exact: true })
-    .fill("https://rp.example.test/b");
+  await waitSavedCallback(rowA, "https://rp.example.test/a");
   await rowB
     .getByRole("button", { name: "Save registration", exact: true })
     .click();
-  await expectInTray(pageB, /changed\. Reload before saving/i);
+  await expectInTray(pageB, /changed\. Reload before saving/i, 10000);
   check(true, "stale tab is refused, in the tray");
   await snap(pageB, "J-CONFLICT-stale");
   // Return to the original tab and verify the stale save left its registration intact.

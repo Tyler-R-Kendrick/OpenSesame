@@ -16,16 +16,27 @@ import { isJsonObject } from "@opensesame/os-domain";
 import type { BackupStore } from "./backup";
 import { fromB64, toB64 } from "./bytes";
 import type { Connection } from "./loop";
+import { type OriginalOwner, ownerFetch } from "./original-owner";
 import type { RunnerSettings } from "./settings";
+import { ownedIO } from "./worker-authority";
 
 /** Pages of ciphertext read back while proving a backup: more than a Host holds. */
 const MAX_PAGES = 64;
 
 /** The blob under `id` in the Host's ciphertext store, if it holds one. */
-async function findBlob(client: ApiClient, id: string) {
+async function findBlob(client: ApiClient, id: string, owner?: OriginalOwner) {
   let after: SyncPageCursor = { epoch: 1, id: "" };
   for (let page = 0; page < MAX_PAGES; page += 1) {
+    if (owner) {
+      await owner.authorize();
+      owner.check();
+    }
     const read = await client.syncReadPage(after);
+    if (owner) {
+      owner.check();
+      await owner.authorize();
+      owner.check();
+    }
     const held = read.blobs.find((blob) => blob.id === id);
     if (held) return held;
     if (!read.has_more || !read.next_after) return undefined;
@@ -38,8 +49,10 @@ async function findBlob(client: ApiClient, id: string) {
 export async function recoverBackup(
   client: ApiClient,
   id: string,
+  owner: OriginalOwner,
 ): Promise<Uint8Array | null> {
-  const held = await findBlob(client, id);
+  const held = await findBlob(client, id, owner);
+  owner.check();
   return held ? fromB64(held.ciphertext_b64) : null;
 }
 
@@ -79,17 +92,18 @@ export function hostConnection(client: ApiClient): Connection {
 /** A connection under the person's session, or null when they have none. */
 export function connector(
   settings: RunnerSettings,
-  resolveBase: () => Promise<string>,
+  resolveBase: (owner?: OriginalOwner) => Promise<string>,
   fetchImpl?: typeof fetch,
-): () => Promise<Connection | null> {
-  return async () => {
-    const accessToken = await settings.token();
+): (owner?: OriginalOwner) => Promise<Connection | null> {
+  return async (owner?: OriginalOwner) => {
+    const accessToken = await ownedIO(owner, () => settings.token());
     if (accessToken === null) return null;
     const options: ApiClientOptions = {
-      baseUrl: await resolveBase(),
+      baseUrl: await ownedIO(owner, () => resolveBase(owner)),
       accessToken,
     };
-    if (fetchImpl) options.fetchImpl = fetchImpl;
+    if (owner) options.fetchImpl = ownerFetch(owner, fetchImpl);
+    else if (fetchImpl) options.fetchImpl = fetchImpl;
     return hostConnection(createApiClient(options));
   };
 }

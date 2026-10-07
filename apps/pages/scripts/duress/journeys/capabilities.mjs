@@ -35,7 +35,6 @@ export async function walkCapabilities({ page, context, check, record }) {
     );
     virtualAuthenticator = {
       supported: true,
-      authenticatorId,
       note: "virtual authenticator only — not physical biometrics/PRF hardware",
     };
     await client.send("WebAuthn.removeVirtualAuthenticator", {

@@ -29,7 +29,7 @@ export function DuressPresentationOverlay() {
 
   // A locked view has nothing to show, and drawing "unavailable" would tell
   // whoever is watching that this session is not an ordinary unlock.
-  if (!active || active.view.locked) return null;
+  if (!active || active.view.locked || active.storeOwnsView) return null;
 
   const view =
     search.trim().length > 0

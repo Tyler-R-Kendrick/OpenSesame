@@ -149,6 +149,30 @@ describe("SOURCE_CLASSIFICATION (S02-A)", () => {
     );
   });
 
+  it("owns connector recovery separately from its shared authority records", () => {
+    for (const path of [
+      "src/lib/device-connector-legacy.ts",
+      "src/lib/device-connector-legacy.test.ts",
+    ]) {
+      expect(classify(path)).toMatchObject({
+        classification: "core",
+        capability: "vault.local-unlock",
+      });
+    }
+    for (const path of [
+      "src/lib/device-connector-legacy-storage.ts",
+      "src/lib/device-connector-lock.ts",
+      "src/lib/device-connector-principal.ts",
+      "src/lib/device-connector-principal-state.ts",
+    ]) {
+      expect(classify(path)).toMatchObject({
+        classification: "shared",
+        capability: null,
+      });
+    }
+    expect(classify("src/lib/device-connector-unreviewed.ts")).toBeNull();
+  });
+
   it("prefix matching continues only on '.', '-' or '/'", () => {
     expect(ruleMatches("src/lib/push", "src/lib/push.ts")).toBe(true);
     expect(ruleMatches("src/lib/push", "src/lib/push.test.ts")).toBe(true);

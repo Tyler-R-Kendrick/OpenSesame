@@ -10,6 +10,7 @@
  */
 import type { RunnerStepOutcome } from "@opensesame/api-client";
 import { isJsonObject, isNumber, isString } from "@opensesame/os-domain";
+import type { OriginalOwner } from "./original-owner";
 import type { SealedKv } from "./store";
 import { decodeOutcome } from "./wire";
 
@@ -32,6 +33,10 @@ export class RunnerSettings {
     private readonly kv: SealedKv,
     private readonly now: () => number = Date.now,
   ) {}
+
+  withAuthority(owner: OriginalOwner): RunnerSettings {
+    return new RunnerSettings(this.kv.withAuthority(owner), this.now);
+  }
 
   // --- the Host session ---------------------------------------------------
 

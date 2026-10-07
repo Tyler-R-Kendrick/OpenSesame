@@ -8,24 +8,29 @@ import {
   forgetAllLocalGitRemotes,
   listLocalGitRemotes,
 } from "@opensesame/app-core/lib/git-remote-local.js";
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  admitConnectorOwner,
+  releaseConnectorOwner,
+} from "../settings/connector-owner.test-support.js";
 import { GitConnectForm } from "./GitConnectForm.js";
 
 const original = { ...connectionSeams };
 const originalBackup = { ...backupSeams };
 
+beforeEach(admitConnectorOwner);
+
 afterEach(async () => {
   cleanup();
   Object.assign(connectionSeams, original);
   Object.assign(backupSeams, originalBackup);
-  vi.spyOn(vaultStore, "isUnlocked").mockReturnValue(true);
-  vi.spyOn(vaultStore, "trashItem").mockResolvedValue(undefined);
   await forgetAllLocalGitRemotes();
+  await releaseConnectorOwner();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function gitProvider(id = "git"): Provider {
@@ -49,8 +54,6 @@ function gitProvider(id = "git"): Provider {
 
 describe("GitConnectForm", () => {
   it("seals an HTTPS token remote locally and binds backup", async () => {
-    vi.spyOn(vaultStore, "isUnlocked").mockReturnValue(true);
-    vi.spyOn(vaultStore, "addItems").mockResolvedValue(undefined);
     const putBackupTarget = vi.fn(async (input) => ({
       kind: "git_remote",
       providerId: input.providerId ?? "git",
@@ -161,6 +164,8 @@ describe("GitConnectForm", () => {
     const remote = screen.getByLabelText(/Remote URL/i);
     expect(remote.getAttribute("type")).toBe("text");
     await userEvent.type(remote, "git@host:org/repo.git");
-    expect((remote as HTMLInputElement).value).toBe("git@host:org/repo.git");
+    if (!(remote instanceof HTMLInputElement))
+      throw new Error("Expected the remote URL input");
+    expect(remote.value).toBe("git@host:org/repo.git");
   });
 });

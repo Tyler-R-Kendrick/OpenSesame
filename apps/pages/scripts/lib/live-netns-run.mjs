@@ -26,7 +26,7 @@ const ORIGIN = "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const DIST = path.resolve(here, "../../dist");
 const OUT = path.resolve(ROOT, "artifacts/live-netns");
-const SECRET = "correct-horse-battery-staple-2026";
+const SECRET = "correct-horse-battery-staple-2026"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 
 /**
  * The app is served through Playwright's router, so the page has no address

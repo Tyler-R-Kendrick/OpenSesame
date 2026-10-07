@@ -1,33 +1,60 @@
+import "@opensesame/app-core/browser/security/security.css";
 /**
- * The local runner's options page: the person's own credential store, their
- * Host session, the recovery key a candidate is backed up to, and the one site
- * they let the runner drive right now.
- *
- * Everything written here goes through the same sealed store the background
- * reads (`runner/store.ts`, ADR 0149). A secret is only ever typed into a
- * write-only field and cleared once saved; nothing on this page shows a stored
- * value. The one reveal is the recovery of a backed-up candidate, which needs
- * the private key the person holds and shows the value to them alone.
+ * The owner's local runner settings and candidate recovery UI.
+ * Settings stay device-sealed; each operation retains its original page ticket.
+ * Legacy no-vault settings remain usable without upgrading into a real session.
+ * Backup plaintext and generated private keys require fresh real owner authority;
+ * a bare install must create or unlock its vault before generating a key.
  */
-import { createApiClient } from "@opensesame/api-client";
+import { startSecurityPanel } from "@opensesame/app-core/browser/security/bootstrap.js";
 import { overlapCast } from "@opensesame/os-domain";
-import { backupId, createRecoveryKey, openBackup } from "../../runner/backup";
 import {
   type CredentialForm,
   type FormError,
   entryFromForm,
 } from "../../runner/credential-form";
-import { recoverBackup } from "../../runner/host";
 import { resolveHostBase } from "../../runner/host-base";
+import { pageOperations } from "../../runner/options-operations";
+import { optionsRecovery } from "../../runner/options-recovery";
 import { matchPattern } from "../../runner/origin";
+import {
+  type OriginalOwner,
+  originalPageOperation,
+} from "../../runner/original-owner";
 import type { RunnerStatus } from "../../runner/service";
-import { RunnerSettings } from "../../runner/settings";
-import { SealedKv, browserStore } from "../../runner/store";
-import { RunnerVault } from "../../runner/vault";
+import { browserStore } from "../../runner/store";
 
-const kv = new SealedKv(browserStore());
-const settings = new RunnerSettings(kv);
-const vault = new RunnerVault(kv);
+const security = startSecurityPanel(
+  el("security"),
+  browser.runtime,
+  (allowed) => {
+    el("production-controls").hidden = !allowed;
+    if (allowed)
+      setTimeout(() => {
+        void render().catch(() => {});
+      }, 0);
+    else {
+      el("revealed").textContent = "";
+      el<HTMLTextAreaElement>("recovery-private").value = "";
+      el<HTMLTextAreaElement>("reveal-key").value = "";
+      say("");
+      for (const id of [
+        "ready",
+        "pass",
+        "credentials",
+        "armed",
+        "held",
+        "drive-origin",
+      ])
+        el(id).replaceChildren();
+      for (const id of ["token", "recovery-public"])
+        el<HTMLInputElement | HTMLTextAreaElement>(id).value = "";
+      el<HTMLFormElement>("credential").reset();
+      el("recovery-private-field").hidden = true;
+    }
+  },
+);
+const mutate = pageOperations({ security, raw: browserStore, say });
 
 function el<T extends HTMLElement>(id: string): T {
   const found = document.getElementById(id);
@@ -69,38 +96,58 @@ function rows(list: HTMLElement, items: Row[]) {
   );
 }
 
-async function status(): Promise<RunnerStatus | null> {
+async function status(owner: OriginalOwner): Promise<RunnerStatus | null> {
+  await owner.authorize();
+  owner.check();
   const reply = overlapCast(
-    await browser.runtime.sendMessage({ type: "opensesame.runner.status" }),
+    await browser.runtime.sendMessage({
+      securityPermit: owner.permit,
+      type: "opensesame.runner.status",
+    }),
   );
+  owner.check();
+  await owner.authorize();
+  owner.check();
   return reply && !reply.error ? overlapCast(reply) : null;
 }
 
-async function arm(origin: string) {
+async function arm(origin: string, owner: OriginalOwner) {
+  await owner.authorize();
+  owner.check();
   const reply = overlapCast(
     await browser.runtime.sendMessage({
+      securityPermit: owner.permit,
       type: "opensesame.runner.arm",
       origin,
     }),
   );
+  owner.check();
+  await owner.authorize();
+  owner.check();
   say(
     reply.result === "armed"
       ? `Driving ${origin} for 30 minutes.`
       : `Not armed: ${reply.result ?? reply.error}.`,
   );
-  await render();
+  owner.check();
+  await render(owner);
 }
 
-async function disarm(origin: string) {
+async function disarm(origin: string, owner: OriginalOwner) {
+  await owner.authorize();
+  owner.check();
   await browser.runtime.sendMessage({
+    securityPermit: owner.permit,
     type: "opensesame.runner.disarm",
     origin,
   });
-  await render();
+  owner.check();
+  await render(owner);
 }
 
-async function render() {
-  const now = await status();
+async function render(owner = originalPageOperation(security)) {
+  const now = await status(owner);
+  owner.check();
   if (!now) {
     say("The background worker did not answer.");
     return;
@@ -131,7 +178,19 @@ async function render() {
     el("credentials"),
     now.credentials.map((origin) => ({
       text: origin,
-      action: ["Remove", () => void vault.removeEntry(origin).then(render)],
+      action: [
+        "Remove",
+        () =>
+          void mutate(
+            async (operation, scoped) => {
+              await scoped.vault.removeEntry(origin);
+              operation.check();
+              await render(operation);
+            },
+            undefined,
+            owner,
+          ),
+      ],
     })),
   );
   const choice = el<HTMLSelectElement>("drive-origin");
@@ -143,49 +202,40 @@ async function render() {
     now.armed.map((row) => ({
       text: `${row.origin} until ${new Date(row.expiresAt).toLocaleTimeString()}${row.granted ? "" : " (browser grant removed)"}`,
       ok: row.granted,
-      action: ["Stop", () => void disarm(row.origin)],
+      action: [
+        "Stop",
+        () =>
+          void mutate(
+            async (operation) => disarm(row.origin, operation),
+            undefined,
+            owner,
+          ),
+      ],
     })),
   );
   rows(
     el("held"),
     now.candidates.map((candidate) => ({
       text: `${candidate.origin} · ${candidate.state} · ${candidate.handle}`,
-      action: ["Recover", () => void recover(candidate.handle)],
+      action: [
+        "Recover",
+        () =>
+          void mutate(async () => recover(candidate.handle), undefined, owner),
+      ],
     })),
   );
 }
 
-/** Open a candidate's backup with the private key the person pasted. */
-async function recover(handle: string) {
-  const out = el("revealed");
-  out.textContent = "";
-  const token = await settings.token();
-  if (!token) {
-    say("Needs a Host session.");
-    return;
-  }
-  try {
-    const client = createApiClient({
-      baseUrl: await resolveHostBase(),
-      accessToken: token,
-    });
-    const bytes = await recoverBackup(client, backupId(handle));
-    if (!bytes) {
-      say("The Host holds no backup for that candidate.");
-      return;
-    }
-    const key: JsonWebKey = JSON.parse(
-      el<HTMLTextAreaElement>("reveal-key").value,
-    );
-    out.textContent = await openBackup(key, bytes);
-    say("Shown for 30 seconds.");
-    setTimeout(() => {
-      out.textContent = "";
-    }, 30_000);
-  } catch {
-    say("That key does not open this backup.");
-  }
-}
+const recovery = optionsRecovery({
+  security,
+  raw: browserStore,
+  resolveBase: resolveHostBase,
+  element: el,
+  say,
+  render,
+});
+export const recover = recovery.recover;
+export const createOwnerRecoveryKey = recovery.createOwnerRecoveryKey;
 
 function describe(error: FormError): string {
   switch (error) {
@@ -227,81 +277,101 @@ const parses = (selector: string) => {
   }
 };
 
+export async function saveCredential(form: HTMLFormElement) {
+  await mutate(async (owner, scoped) => {
+    const result = entryFromForm(readForm(form), parses);
+    if (!result.ok) {
+      say(describe(result.error));
+      return;
+    }
+    await scoped.vault.putEntry(result.entry);
+    owner.check();
+    form.reset();
+    say("Credential saved.");
+    await render(owner);
+  }, "This browser cannot keep the credential.");
+}
 el("credential").addEventListener("submit", (event) => {
   event.preventDefault();
   const form: HTMLFormElement = overlapCast(event.currentTarget);
-  const result = entryFromForm(readForm(form), parses);
-  if (!result.ok) {
-    say(describe(result.error));
-    return;
-  }
-  void vault
-    .putEntry(result.entry)
-    .then(() => {
-      form.reset();
-      say("Credential saved.");
-      return render();
-    })
-    .catch(() => say("This browser cannot keep the credential."));
+  void saveCredential(form);
 });
-
-el("token-save").addEventListener("click", () => {
-  const input = el<HTMLInputElement>("token");
-  if (input.value.trim() === "") return;
-  void settings
-    .setToken(input.value)
-    .then(() => {
-      input.value = "";
-      say("Session saved.");
-      return render();
-    })
-    .catch(() => say("This browser cannot keep the session."));
-});
-el("token-clear").addEventListener("click", () => {
-  void settings.clearToken().then(render);
-});
-
-el("recovery-pin").addEventListener("click", () => {
-  const field = el<HTMLTextAreaElement>("recovery-public");
-  let jwk: JsonWebKey;
-  try {
-    jwk = JSON.parse(field.value);
-  } catch {
-    say("That is not JSON.");
-    return;
-  }
-  void vault.setRecipient(jwk).then((pinned) => {
+export async function saveToken() {
+  await mutate(async (owner, scoped) => {
+    const input = el<HTMLInputElement>("token");
+    if (input.value.trim() === "") return;
+    await scoped.settings.setToken(input.value);
+    owner.check();
+    input.value = "";
+    say("Session saved.");
+    await render(owner);
+  }, "This browser cannot keep the session.");
+}
+el("token-save").addEventListener("click", () => void saveToken());
+el("token-clear").addEventListener(
+  "click",
+  () =>
+    void mutate(async (owner, scoped) => {
+      await scoped.settings.clearToken();
+      owner.check();
+      await render(owner);
+    }),
+);
+export async function pinRecovery() {
+  await mutate(async (owner, scoped) => {
+    const field = el<HTMLTextAreaElement>("recovery-public");
+    let jwk: JsonWebKey;
+    try {
+      jwk = JSON.parse(field.value);
+    } catch {
+      say("That is not JSON.");
+      return;
+    }
+    const pinned = await scoped.vault.setRecipient(jwk);
+    owner.check();
     say(
       pinned
         ? "Recovery key pinned."
         : "That is not a public RSA-OAEP key of 3072 bits or more.",
     );
     if (pinned) field.value = "";
-    return render();
+    await render(owner);
   });
-});
+}
+el("recovery-pin").addEventListener("click", () => void pinRecovery());
 
-el("recovery-create").addEventListener("click", () => {
-  void createRecoveryKey().then(async (pair) => {
-    await vault.setRecipient(pair.recipient.jwk);
-    el<HTMLTextAreaElement>("recovery-private").value = JSON.stringify(
-      pair.privateJwk,
-    );
-    el("recovery-private-field").hidden = false;
-    say("Recovery key pinned. Save the private key now; it is not kept.");
-    await render();
-  });
-});
+el("recovery-create").addEventListener(
+  "click",
+  () => void createOwnerRecoveryKey(),
+);
 
 el("drive-arm").addEventListener("click", () => {
+  const owner = originalPageOperation(security);
   const origin = el<HTMLSelectElement>("drive-origin").value;
   if (origin === "") return;
   // The browser's own prompt, on this click and for this one origin.
-  void browser.permissions
-    .request({ permissions: ["scripting"], origins: [matchPattern(origin)] })
-    .then((granted) =>
-      granted ? arm(origin) : say("The browser did not grant that site."),
-    );
+  void security
+    .requireProduction()
+    .then(() => {
+      owner.check();
+      return browser.permissions.request({
+        permissions: ["scripting"],
+        origins: [matchPattern(origin)],
+      });
+    })
+    .then(async (granted) => {
+      owner.check();
+      await owner.authorize();
+      owner.check();
+      if (granted) await arm(origin, owner);
+      else say("The browser did not grant that site.");
+    })
+    .catch(() => {
+      /* Revoked consent cannot arm or publish successor UI. */
+    });
 });
 
-void render();
+void security.ready.catch(() => {
+  el("production-controls").hidden = true;
+  say("Security settings could not be initialized.");
+});

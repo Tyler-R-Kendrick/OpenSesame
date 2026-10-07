@@ -178,6 +178,13 @@ describe("the run's page", () => {
     expect(fake.tabs.size).toBe(before);
   });
 
+  it("returns no fresh session when the browser supplies no window", async () => {
+    const p = await pages();
+    vi.spyOn(browser.windows, "create").mockResolvedValue(undefined);
+    expect(await p.fresh()).toBeNull();
+    expect(fake.tabs.size).toBe(1);
+  });
+
   it("opens none when private windows are not allowed", async () => {
     const p = await pages();
     fake.incognitoAllowed = false;

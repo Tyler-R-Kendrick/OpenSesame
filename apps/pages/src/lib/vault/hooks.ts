@@ -15,6 +15,12 @@ import {
   setTheme,
   useThemePreference,
 } from "../theme.js";
+import {
+  type ClipboardCopy,
+  acceptClipboardCopy,
+  beginClipboardCopy,
+  clearClipboardCopy,
+} from "./clipboard-ownership.js";
 
 function useVaultDefault(): VaultState {
   // A built-in type switched on or off changes how every item draws, and the
@@ -138,23 +144,12 @@ function useSessionGuardsDefault(): void {
 export type CopyResult = "copied" | "unavailable";
 
 /** Last value this app put on the clipboard, so lock can wipe it. */
-let lastCopied: string | null = null;
+let lastCopied: ClipboardCopy | null = null;
 let pendingClear: number | null = null;
 
-async function clearIfOurs(value: string): Promise<void> {
-  try {
-    const current = await navigator.clipboard.readText();
-    if (current === value) await navigator.clipboard.writeText("");
-  } catch {
-    // Clipboard read is often denied. Clearing unconditionally is the safer
-    // failure mode for a secret we ourselves just wrote.
-    try {
-      await navigator.clipboard.writeText("");
-    } catch {
-      /* clipboard unavailable — nothing further we can do */
-    }
-  }
-  if (lastCopied === value) lastCopied = null;
+async function clearIfOurs(copy: ClipboardCopy): Promise<void> {
+  await clearClipboardCopy(copy, navigator.clipboard);
+  if (lastCopied?.id === copy.id) lastCopied = null;
 }
 
 /** Wipe anything this app copied. Called on vault lock. */
@@ -170,31 +165,56 @@ function clearCopiedSecretDefault(): void {
 
 /**
  * Copy a secret and schedule a clipboard clear. Also cleared when the vault
- * locks, so a copied password does not outlive the unlocked session.
+ * locks. Platform writes cannot be canceled; conditional clearing is best effort.
  */
 function useCopySecretDefault(): (value: string) => Promise<CopyResult> {
-  const { prefs } = useVault();
+  const { prefs, status } = useVault();
+  let check: (() => void) | null = null;
+  try {
+    check = vaultStore.pinContinuation();
+  } catch {
+    // A retired key can coexist briefly with the previous rendered snapshot.
+  }
   return useCallback(
     async (value: string) => {
-      if (!navigator.clipboard?.writeText) return "unavailable";
+      try {
+        if (!check) return "unavailable";
+        check();
+        if (status !== "unlocked" || !navigator.clipboard?.writeText)
+          return "unavailable";
+      } catch {
+        return "unavailable";
+      }
+      const copy = beginClipboardCopy(value);
       try {
         await navigator.clipboard.writeText(value);
       } catch {
         return "unavailable";
       }
-      lastCopied = value;
+      try {
+        if (!check) throw new Error("The vault session changed.");
+        check();
+      } catch {
+        await clearIfOurs(copy);
+        return "unavailable";
+      }
+      if (!acceptClipboardCopy(copy)) {
+        await clearIfOurs(copy);
+        return "unavailable";
+      }
+      lastCopied = copy;
       if (pendingClear !== null) window.clearTimeout(pendingClear);
       pendingClear = null;
       const clearAfter = prefs?.clipboardClearSeconds ?? 0;
       if (clearAfter > 0) {
         pendingClear = window.setTimeout(() => {
           pendingClear = null;
-          void clearIfOurs(value);
+          void clearIfOurs(copy);
         }, clearAfter * 1000);
       }
       return "copied";
     },
-    [prefs?.clipboardClearSeconds],
+    [prefs?.clipboardClearSeconds, status, check],
   );
 }
 

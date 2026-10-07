@@ -64,6 +64,7 @@ function fake(answers: Answers): Fake {
   return {
     calls,
     asked,
+    check: () => {},
     status: async () => {
       calls.push("status");
       return answers.status;
@@ -96,7 +97,7 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 describe("the companion popup", () => {
   it("puts a passkey first: the fill key is disabled and the mark says so", async () => {
     const els = elements();
-    await mountPanel(els, fake({ status: { ...ON, passkey: true } }));
+    await mountPanel(els, () => fake({ status: { ...ON, passkey: true } }));
     expect(els.go.disabled).toBe(true);
     expect(els.mark.getAttribute("aria-label")).toContain("passkey");
     expect(els.mark.dataset.tone).toBe("warn");
@@ -105,7 +106,7 @@ describe("the companion popup", () => {
   it("switching a site on asks the browser for that one host, then tells the background", async () => {
     const els = elements();
     const p = fake({ status: OFF });
-    await mountPanel(els, p);
+    await mountPanel(els, () => p);
     expect(els.site.getAttribute("aria-checked")).toBe("false");
     els.site.click();
     await settle();
@@ -117,7 +118,7 @@ describe("the companion popup", () => {
   it("a grant the browser refused switches nothing on", async () => {
     const els = elements();
     const p = fake({ status: OFF, granted: false });
-    await mountPanel(els, p);
+    await mountPanel(els, () => p);
     els.site.click();
     await settle();
     expect(p.calls).toEqual(["status"]);
@@ -129,7 +130,7 @@ describe("the companion popup", () => {
   it("switching off tells the background and asks the browser for nothing", async () => {
     const els = elements();
     const p = fake({ status: ON });
-    await mountPanel(els, p);
+    await mountPanel(els, () => p);
     els.site.click();
     await settle();
     expect(p.asked).toEqual([]);
@@ -143,7 +144,7 @@ describe("the companion popup", () => {
       status: { ...ON, references: [], error: "not_paired" },
       pair: { state: "pending", code: "ABCDEFGH" },
     });
-    await mountPanel(els, p);
+    await mountPanel(els, () => p);
     expect(els.pair.hidden).toBe(false);
     els.pair.click();
     await settle();
@@ -153,8 +154,7 @@ describe("the companion popup", () => {
 
   it("says the plugin is off, and offers no fill", async () => {
     const els = elements();
-    await mountPanel(
-      els,
+    await mountPanel(els, () =>
       fake({ status: { ...ON, references: [], error: "plugin_off" } }),
     );
     expect(els.go.hidden).toBe(true);
@@ -165,7 +165,7 @@ describe("the companion popup", () => {
   it("fills with the chosen entry and reports only an outcome", async () => {
     const els = elements();
     const p = fake({ status: { ...ON, references: ["Web/a", "Web/b"] } });
-    await mountPanel(els, p);
+    await mountPanel(els, () => p);
     expect(els.refs.hidden).toBe(false);
     els.refs.querySelector<HTMLInputElement>('input[value="Web/b"]')?.click();
     els.go.click();
@@ -176,8 +176,7 @@ describe("the companion popup", () => {
 
   it("offers no switch for a tab with no web page", async () => {
     const els = elements();
-    await mountPanel(
-      els,
+    await mountPanel(els, () =>
       fake({
         status: {
           origin: null,
@@ -196,7 +195,9 @@ describe("the companion popup", () => {
 
   it("marks a background it cannot reach", async () => {
     const els = elements();
-    await mountPanel(els, fake({ status: { error: "daemon_unreachable" } }));
+    await mountPanel(els, () =>
+      fake({ status: { error: "daemon_unreachable" } }),
+    );
     expect(els.mark.dataset.tone).toBe("warn");
     expect(els.go.hidden).toBe(true);
   });

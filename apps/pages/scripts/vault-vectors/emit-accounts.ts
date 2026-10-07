@@ -97,7 +97,7 @@ async function accountItems(label: string): Promise<VaultBody["items"]> {
     {
       id: `${plain.id}:authenticator`,
       type: "authenticator",
-      secret: "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      secret: "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
     },
   ];
 
@@ -138,7 +138,7 @@ async function accountItems(label: string): Promise<VaultBody["items"]> {
     {
       id: `${sphinx.id}:authenticator`,
       type: "authenticator",
-      secret: "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+      secret: "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
     },
   ];
 

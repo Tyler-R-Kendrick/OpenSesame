@@ -7,54 +7,64 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
+import { releaseConnectorOwner } from "../settings/connector-owner.test-support.js";
+import { passwordRowOwner } from "./SecretUpdate.authority.test-support.js";
 import { UpdateSecretPanel } from "./SecretUpdate.js";
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
   clearNotices();
+  await releaseConnectorOwner();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
-const refusing = (message: string) => async () => {
-  throw new Error(message);
-};
-
-describe("UpdateSecretPanel", () => {
-  it("keeps two items' refusals apart: the notice is keyed by item", async () => {
-    const view = render(
-      <UpdateSecretPanel
-        itemId="item-a"
-        label="password"
-        onUpdate={refusing("First was refused.")}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Update password" }));
-    fireEvent.click(screen.getByRole("button", { name: "Save new value" }));
-    await waitFor(() =>
-      expect(listNotices().map((notice) => notice.id)).toEqual([
-        "vault:secret-update:item-a:password",
-      ]),
-    );
-
-    // Another item's panel takes the screen; the first notice outlives it.
-    view.unmount();
-    render(
-      <UpdateSecretPanel
-        itemId="item-b"
-        label="password"
-        onUpdate={refusing("Second was refused.")}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Update password" }));
-    fireEvent.click(screen.getByRole("button", { name: "Save new value" }));
-    await waitFor(() => expect(listNotices()).toHaveLength(2));
-    expect(
-      listNotices()
-        .map((notice) => `${notice.id} ${notice.body}`)
-        .sort(),
-    ).toEqual([
-      "vault:secret-update:item-a:password First was refused.",
-      "vault:secret-update:item-b:password Second was refused.",
-    ]);
-  });
+it("keys each row's safe failure by item without copying either underlying browser cause", async () => {
+  const f = await passwordRowOwner(false);
+  const get = f.root.getFileHandle.bind(f.root);
+  vi.spyOn(f.root, "getFileHandle").mockImplementation(
+    async (name, options) => {
+      if (name.startsWith("controlled-private-cause")) throw new Error(name);
+      return get(name, options);
+    },
+  );
+  const view = render(
+    <UpdateSecretPanel
+      itemId="item-a"
+      label="password"
+      onUpdate={async () => {
+        await f.root.getFileHandle("controlled-private-cause-a");
+      }}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Update password" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save new value" }));
+  await waitFor(() => expect(listNotices()).toHaveLength(1));
+  view.unmount();
+  render(
+    <UpdateSecretPanel
+      itemId="item-b"
+      label="password"
+      onUpdate={async () => {
+        await f.root.getFileHandle("controlled-private-cause-b");
+      }}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Update password" }));
+  fireEvent.click(screen.getByRole("button", { name: "Save new value" }));
+  await waitFor(() => expect(listNotices()).toHaveLength(2));
+  expect(
+    listNotices()
+      .map((notice) => `${notice.id} ${notice.body}`)
+      .sort(),
+  ).toEqual([
+    "vault:secret-update:item-a:password Update failed.",
+    "vault:secret-update:item-b:password Update failed.",
+  ]);
+  expect(JSON.stringify(listNotices())).not.toContain(
+    "controlled-private-cause",
+  );
+  await f.recover();
+  expect(listNotices()).toEqual([]);
 });

@@ -14,15 +14,61 @@ export const WATCH_RTC = () => {
   const Native = window.RTCPeerConnection;
   window.__rtcConfigs = [];
   window.__rtcPeers = [];
+  window.__rtcErrors = [];
   // A subclass, not a wrapper function: it must stay a constructor.
   window.RTCPeerConnection = class extends Native {
     constructor(config) {
       super(config);
       window.__rtcConfigs.push(JSON.stringify(config ?? {}));
       window.__rtcPeers.push(this);
+      const errors = [];
+      window.__rtcErrors.push(errors);
+      this.addEventListener("icecandidateerror", (event) => {
+        if (errors.length < 16 && Number.isSafeInteger(event.errorCode))
+          errors.push(event.errorCode);
+      });
     }
   };
 };
+
+/** Metadata only: never export ICE addresses, URLs, credentials or SDP. */
+export async function peerDiagnostics(page) {
+  return page.evaluate(() =>
+    (window.__rtcPeers ?? []).map((pc, index) => {
+      const config = pc.getConfiguration();
+      const servers = config.iceServers ?? [];
+      const types = (description) =>
+        (description?.sdp ?? "")
+          .split("\r\n")
+          .filter((line) => line.startsWith("a=candidate:"))
+          .map((line) => line.split(" ")[7])
+          .filter((type) => ["host", "srflx", "prflx", "relay"].includes(type));
+      const localCandidateTypes = types(pc.localDescription);
+      const remoteCandidateTypes = types(pc.remoteDescription);
+      return {
+        serverCount: servers.length,
+        turnUrlCount: servers
+          .flatMap((server) =>
+            Array.isArray(server.urls) ? server.urls : [server.urls],
+          )
+          .filter((url) => String(url).startsWith("turn")).length,
+        credentialedServerCount: servers.filter(
+          (server) => !!server.username && !!server.credential,
+        ).length,
+        iceTransportPolicy: config.iceTransportPolicy ?? "all",
+        localCandidateCount: localCandidateTypes.length,
+        remoteCandidateCount: remoteCandidateTypes.length,
+        localCandidateTypes,
+        remoteCandidateTypes,
+        errorCodes: window.__rtcErrors?.[index] ?? [],
+        connection: pc.connectionState,
+        ice: pc.iceConnectionState,
+        gathering: pc.iceGatheringState,
+        signaling: pc.signalingState,
+      };
+    }),
+  );
+}
 
 /**
  * A tunnel between two machines, played on one: the other side's mDNS names

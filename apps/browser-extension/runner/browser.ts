@@ -1,3 +1,4 @@
+import { matchPattern } from "./origin";
 /**
  * The runner's ports over the browser: the tab a run is driven in, the page
  * functions injected into it, and the per-origin grants that let it.
@@ -15,51 +16,63 @@
  *   before it is attempted, and the browser would refuse it anyway for want of
  *   a grant.
  */
-import { matchPattern } from "./origin";
+import type { OriginalOwner } from "./original-owner";
 import { pfFill, pfLayout, pfPresence, pfReadDom, pfWaitFor } from "./page-fns";
 import type { Grants, Landed, PagesFactory, StepPages } from "./ports";
 import type { RunnerSettings } from "./settings";
 import { type Tab, injectorFor, loaded, press, stillOf } from "./tab";
+import { RunnerAuthorityEnded, ownedIO } from "./worker-authority";
 
 const LOAD_MS = 30_000;
 const SCRIPTING = "scripting" as const;
 
 export function browserGrants(): Grants {
   return {
-    async has(origin) {
-      return browser.permissions.contains({
-        permissions: [SCRIPTING],
-        origins: [matchPattern(origin)],
-      });
+    async has(origin, owner) {
+      return ownedIO(owner, () =>
+        browser.permissions.contains({
+          permissions: [SCRIPTING],
+          origins: [matchPattern(origin)],
+        }),
+      );
     },
-    async revoke(origin) {
+    async revoke(origin, owner) {
       try {
-        await browser.permissions.remove({ origins: [matchPattern(origin)] });
-        const rest = await browser.permissions.getAll();
+        await ownedIO(owner, () =>
+          browser.permissions.remove({ origins: [matchPattern(origin)] }),
+        );
+        const rest = await ownedIO(owner, () => browser.permissions.getAll());
         const optional = (rest.origins ?? []).filter(
           (pattern) => !/^https?:\/\/(127\.0\.0\.1|localhost)\//.test(pattern),
         );
         if (optional.length === 0) {
-          await browser.permissions.remove({ permissions: [SCRIPTING] });
+          await ownedIO(owner, () =>
+            browser.permissions.remove({ permissions: [SCRIPTING] }),
+          );
         }
-      } catch {
+      } catch (error) {
+        if (error instanceof RunnerAuthorityEnded) throw error;
         // A manifest-declared host (this machine's loopback) is not removable.
       }
     },
-    async privateAllowed() {
-      return browser.extension.isAllowedIncognitoAccess();
+    async privateAllowed(owner) {
+      return ownedIO(owner, () => browser.extension.isAllowedIncognitoAccess());
     },
   };
 }
 
-function pagesForTab(tab: Tab, origin: string): StepPages {
+function pagesForTab(
+  tab: Tab,
+  origin: string,
+  owner?: OriginalOwner,
+): StepPages {
   const { tabId } = tab;
-  const injector = injectorFor(tabId, origin);
+  const injector = injectorFor(tabId, origin, owner);
   const { inject, onOrigin } = injector;
   return {
     async navigate(url) {
       const done = await loaded(tabId, LOAD_MS, async () => {
-        await browser.tabs.update(tabId, { url });
+        await ownedIO(owner, () => browser.tabs.update(tabId, { url }));
       });
       if (!(await onOrigin())) return "navigation";
       return done ? "ok" : "timeout";
@@ -75,12 +88,26 @@ function pagesForTab(tab: Tab, origin: string): StepPages {
     layout: () => inject(pfLayout, [], 1),
     capture: (maskSelectors) => stillOf(tabId, injector, maskSelectors),
     async fresh() {
-      if (!(await browser.extension.isAllowedIncognitoAccess())) return null;
-      const window = await browser.windows.create({
-        incognito: true,
-        url: "about:blank",
-        focused: false,
-      });
+      if (
+        !(await ownedIO(owner, () =>
+          browser.extension.isAllowedIncognitoAccess(),
+        ))
+      )
+        return null;
+      const window = await ownedIO(
+        owner,
+        () =>
+          browser.windows.create({
+            incognito: true,
+            url: "about:blank",
+            focused: false,
+          }),
+        async (created) => {
+          if (created?.id !== undefined)
+            await browser.windows.remove(created.id);
+        },
+      );
+      if (!window) return null;
       const privateTab = window.tabs?.[0]?.id;
       if (window.id === undefined || privateTab === undefined) return null;
       const windowId = window.id;
@@ -90,6 +117,7 @@ function pagesForTab(tab: Tab, origin: string): StepPages {
           dispose: () => browser.windows.remove(windowId),
         },
         origin,
+        owner,
       );
     },
     close: () => tab.dispose(),
@@ -101,28 +129,53 @@ function pagesForTab(tab: Tab, origin: string): StepPages {
  * after a worker restart, or a new background one on the run's origin.
  */
 export function browserPages(settings: RunnerSettings): PagesFactory {
-  return async (run) => {
-    const held = (await settings.active()).get(run.id);
+  return async (run, owner) => {
+    const scopedSettings = owner ? settings.withAuthority(owner) : settings;
+    const held = (await ownedIO(owner, () => scopedSettings.active())).get(
+      run.id,
+    );
     let tabId: number | null = null;
     if (held?.tabId != null) {
-      tabId = await browser.tabs
-        .get(held.tabId)
+      tabId = await ownedIO(owner, () => browser.tabs.get(held.tabId ?? 0))
         .then((tab) => tab.id ?? null)
-        .catch(() => null);
+        .catch((error: unknown) => {
+          if (error instanceof RunnerAuthorityEnded) throw error;
+          return null;
+        });
     }
     if (tabId === null) {
-      const created = await browser.tabs.create({
-        url: "about:blank",
-        active: false,
-      });
+      const created = await ownedIO(
+        owner,
+        () =>
+          browser.tabs.create({
+            url: "about:blank",
+            active: false,
+          }),
+        async (created) => {
+          if (created.id !== undefined) await browser.tabs.remove(created.id);
+        },
+      );
       tabId = created.id ?? null;
       if (tabId === null) return null;
-      await settings.markActive(run.id, { origin: run.origin, tabId });
+      const acceptedTab = tabId;
+      try {
+        await ownedIO(owner, () =>
+          scopedSettings.markActive(run.id, {
+            origin: run.origin,
+            tabId: acceptedTab,
+          }),
+        );
+      } catch (error) {
+        // Retire only the blank tab THIS call created; never query successor state.
+        await browser.tabs.remove(acceptedTab).catch(() => undefined);
+        throw error;
+      }
     }
     const id = tabId;
     return pagesForTab(
       { tabId: id, dispose: () => browser.tabs.remove(id) },
       run.origin,
+      owner,
     );
   };
 }

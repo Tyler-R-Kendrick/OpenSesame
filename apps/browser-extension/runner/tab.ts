@@ -1,3 +1,4 @@
+import { originOf } from "./origin";
 /**
  * One tab, and what the runner does inside it.
  *
@@ -5,9 +6,10 @@
  * tab that is not on the run's origin; a click is never retried; a still is
  * taken only with the selectors covered and the covers taken down after.
  */
-import { originOf } from "./origin";
+import type { OriginalOwner } from "./original-owner";
 import { pfLayout, pfMask, pfSubmit, pfUnmask } from "./page-fns";
 import type { Capture } from "./ports";
+import { RunnerAuthorityEnded, ownedIO } from "./worker-authority";
 
 export interface Tab {
   tabId: number;
@@ -42,8 +44,17 @@ export function loaded(tabId: number, ms: number, start: () => Promise<void>) {
 }
 
 /** Wait until `tabId` is not mid-navigation, for at most `ms`. */
-async function quiet(tabId: number, ms: number): Promise<void> {
-  const tab = await browser.tabs.get(tabId).catch(() => null);
+async function quiet(
+  tabId: number,
+  ms: number,
+  owner?: OriginalOwner,
+): Promise<void> {
+  const tab = await ownedIO(owner, () => browser.tabs.get(tabId)).catch(
+    (error: unknown) => {
+      if (error instanceof RunnerAuthorityEnded) throw error;
+      return null;
+    },
+  );
   if (tab?.status !== "loading") return;
   await loaded(tabId, ms, async () => undefined);
 }
@@ -51,6 +62,7 @@ async function quiet(tabId: number, ms: number): Promise<void> {
 export interface Injector {
   /** Whether the tab is still on the run's origin. */
   onOrigin(): Promise<boolean>;
+  owner?: OriginalOwner;
   /** Run `func` in the top frame, if the tab is still on the run's origin. */
   inject<A extends unknown[], R>(
     func: (...args: A) => R,
@@ -59,12 +71,17 @@ export interface Injector {
   ): Promise<Awaited<R>>;
 }
 
-export function injectorFor(tabId: number, origin: string): Injector {
+export function injectorFor(
+  tabId: number,
+  origin: string,
+  owner?: OriginalOwner,
+): Injector {
   async function onOrigin(): Promise<boolean> {
     try {
-      const current = await browser.tabs.get(tabId);
+      const current = await ownedIO(owner, () => browser.tabs.get(tabId));
       return originOf(current.url ?? "") === origin;
-    } catch {
+    } catch (error) {
+      if (error instanceof RunnerAuthorityEnded) throw error;
       return false;
     }
   }
@@ -77,23 +94,26 @@ export function injectorFor(tabId: number, origin: string): Injector {
     for (let attempt = 0; ; attempt += 1) {
       if (!(await onOrigin())) throw new Error("off_origin");
       try {
-        const [first] = await browser.scripting.executeScript({
-          target: { tabId, frameIds: [0] },
-          world: "ISOLATED",
-          func,
-          args,
-        });
+        const [first] = await ownedIO(owner, () =>
+          browser.scripting.executeScript({
+            target: { tabId, frameIds: [0] },
+            world: "ISOLATED",
+            func,
+            args,
+          }),
+        );
         // SAFETY: executeScript returns what func returned, so its declared type is the contract.
         return first?.result as Awaited<R>;
       } catch (error) {
+        if (error instanceof RunnerAuthorityEnded) throw error;
         // A page that is mid-navigation loses its frame; wait it out and look again.
         if (attempt >= retries) throw error;
-        await quiet(tabId, 10_000);
+        await quiet(tabId, 10_000, owner);
       }
     }
   }
 
-  return { onOrigin, inject };
+  return { onOrigin, inject, owner };
 }
 
 /**
@@ -116,7 +136,9 @@ export async function press(
   try {
     return await injector.inject(pfSubmit, [selector], 0);
   } catch (error) {
+    if (error instanceof RunnerAuthorityEnded) throw error;
     await delay(500);
+    injector.owner?.check();
     if (navigated) return "ok" as const;
     throw error;
   } finally {
@@ -130,18 +152,20 @@ export async function stillOf(
   injector: Injector,
   maskSelectors: string[],
 ): Promise<Capture | null> {
-  const { inject } = injector;
-  const current = await browser.tabs.get(tabId);
-  await browser.tabs.update(tabId, { active: true });
+  const { inject, owner } = injector;
+  const current = await ownedIO(owner, () => browser.tabs.get(tabId));
+  await ownedIO(owner, () => browser.tabs.update(tabId, { active: true }));
   const covered = await inject(pfMask, [maskSelectors], 0);
   try {
     const before = await inject(pfLayout, [], 0);
     let image: Uint8Array | null = null;
     for (const quality of QUALITIES) {
-      const url = await browser.tabs.captureVisibleTab(current.windowId, {
-        format: "jpeg",
-        quality,
-      });
+      const url = await ownedIO(owner, () =>
+        browser.tabs.captureVisibleTab(current.windowId, {
+          format: "jpeg",
+          quality,
+        }),
+      );
       const bytes = Uint8Array.from(atob(url.split(",")[1] ?? ""), (c) =>
         c.charCodeAt(0),
       );

@@ -42,18 +42,28 @@ export type ValueRequest = z.infer<typeof valueRequest>;
 
 /** Popup → background. None of these carries or returns a value. */
 export const popupRequest = z.discriminatedUnion("op", [
-  z.object({ type: z.literal(FILL_MESSAGE), op: z.literal("status") }),
+  z.object({
+    type: z.literal(FILL_MESSAGE),
+    op: z.literal("status"),
+    securityPermit: z.optional(CODE),
+  }),
   z.object({
     type: z.literal(FILL_MESSAGE),
     op: z.literal("trigger"),
+    securityPermit: z.optional(CODE),
     reference: z.optional(REFERENCE),
   }),
   z.object({
     type: z.literal(FILL_MESSAGE),
     op: z.literal("enable"),
+    securityPermit: z.optional(CODE),
     origin: ORIGIN,
   }),
-  z.object({ type: z.literal(FILL_MESSAGE), op: z.literal("disable") }),
+  z.object({
+    type: z.literal(FILL_MESSAGE),
+    op: z.literal("disable"),
+    securityPermit: z.optional(CODE),
+  }),
 ]);
 export type PopupRequest = z.infer<typeof popupRequest>;
 
@@ -61,7 +71,10 @@ export type PopupRequest = z.infer<typeof popupRequest>;
 export const fillRequest = z.union([valueRequest, popupRequest]);
 export type FillRequest = z.infer<typeof fillRequest>;
 
-export const pairRequest = z.object({ type: z.literal(PAIR_MESSAGE) });
+export const pairRequest = z.object({
+  type: z.literal(PAIR_MESSAGE),
+  securityPermit: z.optional(CODE),
+});
 export type PairRequest = z.infer<typeof pairRequest>;
 
 /** The guard's answer to an arm: an outcome code, or a passkey probe. */

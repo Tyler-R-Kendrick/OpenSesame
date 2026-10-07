@@ -1,3 +1,7 @@
+import {
+  authorityStillCurrent,
+  captureRealAuthority,
+} from "@opensesame/app-core/lib/member-authority.js";
 /**
  * One routing session per activation: the state Settings › Notifications'
  * Form is drawn from and its files are read from (ADR 0134). The Form's keys
@@ -97,53 +101,127 @@ function settled(step: RoutingStep): RoutingView {
   };
 }
 
+type SessionContext = {
+  identity: RoutingIdentity;
+  transport: RoutingTransport;
+  model: NotificationRouting;
+  store: ReturnType<typeof viewStore>;
+  /** The identity the state was read for; a new one reads again. */
+  readFor: string | null | undefined;
+  epoch: number;
+};
+
+async function runRoutingOperation(
+  context: SessionContext,
+  work: () => Promise<RoutingStep>,
+): Promise<RoutingStep | null> {
+  const view = context.store.view();
+  if (view.busy || context.store.closed()) return null;
+  const operation = ++context.epoch;
+  const originalModel = context.model;
+  const who = context.identity();
+  const check =
+    context.transport === identityRoutingTransport
+      ? captureRealAuthority()
+      : () => {};
+  const current = () =>
+    !context.store.closed() &&
+    operation === context.epoch &&
+    originalModel === context.model &&
+    who === context.identity() &&
+    authorityStillCurrent(check);
+  context.store.publish({
+    ...view,
+    busy: true,
+    status: null,
+    error: null,
+    begun: null,
+  });
+  let step: RoutingStep;
+  try {
+    step = await work();
+  } catch (error) {
+    if (current()) throw error;
+    if (
+      !context.store.closed() &&
+      operation === context.epoch &&
+      originalModel === context.model
+    )
+      context.store.publish({ ...IDLE, error: "Session changed. Try again." });
+    return null;
+  }
+  if (!current()) {
+    if (
+      !context.store.closed() &&
+      operation === context.epoch &&
+      originalModel === context.model
+    )
+      context.store.publish({ ...IDLE, error: "Session changed. Try again." });
+    return null;
+  }
+  context.store.publish(settled(step));
+  return step;
+}
+
+/** Read (again) when the identity changed; forget when there is none. */
+function ensureRoutingSession(context: SessionContext): void {
+  if (context.store.closed()) return;
+  const who = context.identity();
+  if (who === context.readFor) return;
+  context.readFor = who;
+  const operation = ++context.epoch;
+  context.model = createNotificationRouting(context.transport);
+  if (who === null) {
+    context.store.publish({ ...IDLE, signedOut: true });
+    return;
+  }
+  let check: () => void;
+  try {
+    check =
+      context.transport === identityRoutingTransport
+        ? captureRealAuthority()
+        : () => {};
+  } catch {
+    context.store.publish({ ...IDLE, signedOut: true });
+    return;
+  }
+  const originalModel = context.model;
+  context.store.publish({ ...IDLE, busy: true });
+  void context.model.load().then((step) => {
+    if (
+      context.readFor !== who ||
+      operation !== context.epoch ||
+      originalModel !== context.model
+    )
+      return;
+    if (!authorityStillCurrent(check)) {
+      context.store.publish({ ...IDLE, error: "Session changed. Try again." });
+      return;
+    }
+    const view = settled(step);
+    context.store.publish({
+      ...view,
+      state: step.error === null ? view.state : null,
+    });
+  });
+}
+
 export function createRoutingSession(
   identity: RoutingIdentity,
   transport: RoutingTransport = identityRoutingTransport,
 ) {
-  let model: NotificationRouting = createNotificationRouting(transport);
-  const store = viewStore();
-  /** The identity the state was read for; a new one reads again. */
-  let readFor: string | null | undefined;
-
-  async function run(
-    work: () => Promise<RoutingStep>,
-  ): Promise<RoutingStep | null> {
-    const view = store.view();
-    if (view.busy || store.closed()) return null;
-    store.publish({
-      ...view,
-      busy: true,
-      status: null,
-      error: null,
-      begun: null,
-    });
-    const step = await work();
-    store.publish(settled(step));
-    return step;
-  }
-
-  /** Read (again) when the identity changed; forget when there is none. */
-  function ensure(): void {
-    if (store.closed()) return;
-    const who = identity();
-    if (who === readFor) return;
-    readFor = who;
-    model = createNotificationRouting(transport);
-    if (who === null) {
-      store.publish({ ...IDLE, signedOut: true });
-      return;
-    }
-    store.publish({ ...IDLE, busy: true });
-    void model.load().then((step) => {
-      if (readFor !== who) return;
-      const view = settled(step);
-      store.publish({
-        ...view,
-        state: step.error === null ? view.state : null,
-      });
-    });
-  }
+  const context: SessionContext = {
+    identity,
+    transport,
+    model: createNotificationRouting(transport),
+    store: viewStore(),
+    readFor: undefined,
+    epoch: 0,
+  };
+  const { store } = context;
+  const run = (work: () => Promise<RoutingStep>) =>
+    runRoutingOperation(context, work);
+  const ensure = () => ensureRoutingSession(context);
 
   const files: VirtualFileProvider = notificationRoutingFiles({
     current: () => {
@@ -153,10 +231,10 @@ export function createRoutingSession(
       return store.view().state;
     },
     replace: async (document: NotificationRoutingDocument) => {
-      const step = await run(() => model.replace(document));
+      const step = await run(() => context.model.replace(document));
       return (
         step ?? {
-          state: model.state(),
+          state: context.model.state(),
           status: null,
           error: "Another change is still being saved. Try again.",
         }
@@ -171,15 +249,20 @@ export function createRoutingSession(
     subscribe: store.subscribe,
     /** Read again, whoever it is for. */
     reload(): void {
-      readFor = undefined;
+      context.readFor = undefined;
       ensure();
     },
-    edit: (edit: RoutingEdit) => run(() => model.edit(edit)),
-    bind: (kind: NotificationChannelKind) => run(() => model.bind(kind)),
-    unbind: (id: string) => run(() => model.unbind(id)),
-    showRoute: (cls: NotificationClass) => run(() => model.showRoute(cls)),
+    edit: (edit: RoutingEdit) => run(() => context.model.edit(edit)),
+    bind: (kind: NotificationChannelKind) =>
+      run(() => context.model.bind(kind)),
+    unbind: (id: string) => run(() => context.model.unbind(id)),
+    showRoute: (cls: NotificationClass) =>
+      run(() => context.model.showRoute(cls)),
     /** Drop the state and every listener; nothing is sent. */
-    dispose: store.close,
+    dispose: () => {
+      context.epoch += 1;
+      store.close();
+    },
   };
 }
 

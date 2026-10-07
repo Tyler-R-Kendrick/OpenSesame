@@ -1,6 +1,14 @@
+import "@opensesame/app-core/browser/security/security.css";
 import { normalizeLoopbackBaseUrl } from "@opensesame/api-client";
+import { startSecurityPanel } from "@opensesame/app-core/browser/security/bootstrap.js";
 import { openFromRest, sealForRest } from "@opensesame/browser-at-rest";
-import { ENDPOINTS, isString, overlapCast } from "@opensesame/os-domain";
+import {
+  type BoundaryObject,
+  ENDPOINTS,
+  isString,
+  overlapCast,
+} from "@opensesame/os-domain";
+import { requireWorkflowOwner } from "../../runner/password-workflow-handoff";
 
 type HealthResponse = {
   health?: { ok?: boolean };
@@ -11,27 +19,67 @@ type HealthResponse = {
 };
 
 const DEFAULT_HOST = ENDPOINTS.host.default;
+const securityRoot = document.getElementById("security");
+const production = document.getElementById("production-controls");
+if (!securityRoot || !production)
+  throw new Error("Missing popup security controls.");
+let real = false;
+const security = startSecurityPanel(
+  securityRoot,
+  browser.runtime,
+  (allowed) => {
+    real = allowed && security.permit() !== undefined;
+    production.hidden = !real;
+    if (real) void loadOwnerControls();
+  },
+);
+function failure() {
+  const hint = document.getElementById("hint");
+  if (hint) {
+    hint.hidden = false;
+    hint.textContent = "Unlock the real vault to continue.";
+  }
+}
+async function loadOwnerControls() {
+  try {
+    await security.requireProduction();
+    await loadHostInput();
+    await loadStatus();
+  } catch {
+    failure();
+  }
+}
+void security.ready.catch(() => {
+  real = false;
+  production.hidden = true;
+});
 /** Where `hostApiBase` rests, sealed (ADR 0149). */
 const STORE = "chrome.storage.local";
 
 async function loadHostInput() {
+  const check = await requireWorkflowOwner(security, () => real);
   const input: HTMLInputElement | null = overlapCast(
     document.getElementById("host"),
   );
   if (!input) return;
   try {
-    const stored = await browser.storage.local.get("hostApiBase");
+    const stored =
+      await browser.storage.local.get<BoundaryObject>("hostApiBase");
+    check();
     // Sealed at rest (ADR 0149); a value from an older build reads as it is.
     const value = isString(stored.hostApiBase)
       ? await openFromRest(STORE, "hostApiBase", stored.hostApiBase)
       : null;
+    check();
     input.value = value?.trim() ? value : DEFAULT_HOST;
   } catch {
+    check();
     input.value = DEFAULT_HOST;
   }
 }
 
 async function saveHost() {
+  const check = await requireWorkflowOwner(security, () => real);
   const input: HTMLInputElement | null = overlapCast(
     document.getElementById("host"),
   );
@@ -48,6 +96,7 @@ async function saveHost() {
   }
   input.value = value;
   const sealed = await sealForRest(STORE, "hostApiBase", value);
+  check();
   if (sealed === null) {
     // Nothing is stored in the clear: with no key to seal under, not at all.
     if (hint) {
@@ -56,7 +105,9 @@ async function saveHost() {
     }
     return;
   }
+  check();
   await browser.storage.local.set({ hostApiBase: sealed });
+  check();
   if (hint) {
     hint.hidden = false;
     hint.textContent = "Host API saved.";
@@ -74,7 +125,22 @@ function setStatusItems(list: HTMLElement, items: string[]) {
   );
 }
 
+function healthStatusItems(res: HealthResponse): string[] {
+  const host = res.health?.ok ? "up" : "down";
+  const daemon = res.daemon?.available ? "available" : "unavailable (optional)";
+  const cursor = res.cursor
+    ? `${res.cursor.deviceId ?? "?"} @ epoch ${res.cursor.epoch ?? 0}`
+    : "n/a";
+  const base = res.hostBase ?? DEFAULT_HOST;
+  return [
+    `Host API (${base}): ${host}`,
+    `Daemon: ${daemon}`,
+    `Sync cursor: ${cursor}`,
+  ];
+}
+
 async function loadStatus() {
+  const check = await requireWorkflowOwner(security, () => real);
   const list = document.getElementById("status");
   const hint = document.getElementById("hint");
   if (!list) return;
@@ -87,25 +153,16 @@ async function loadStatus() {
     const res: HealthResponse = overlapCast(
       await browser.runtime.sendMessage({
         type: "opensesame.health",
+        securityPermit: security.permit(),
       }),
     );
+    check();
     if (res?.error) {
       throw new Error(res.error);
     }
-    const host = res.health?.ok ? "up" : "down";
-    const daemon = res.daemon?.available
-      ? "available"
-      : "unavailable (optional)";
-    const cursor = res.cursor
-      ? `${res.cursor.deviceId ?? "?"} @ epoch ${res.cursor.epoch ?? 0}`
-      : "n/a";
     const base = res.hostBase ?? DEFAULT_HOST;
-    setStatusItems(list, [
-      `Host API (${base}): ${host}`,
-      `Daemon: ${daemon}`,
-      `Sync cursor: ${cursor}`,
-    ]);
-    if (host === "down" && hint) {
+    setStatusItems(list, healthStatusItems(res));
+    if (!res.health?.ok && hint) {
       hint.hidden = false;
       hint.textContent = `Start the Host API on ${base}, then retry.`;
     }
@@ -120,13 +177,17 @@ async function loadStatus() {
 }
 
 document.getElementById("retry")?.addEventListener("click", () => {
-  void loadStatus();
+  void loadStatus().catch(failure);
 });
 document.getElementById("save")?.addEventListener("click", () => {
-  void saveHost();
+  void saveHost().catch(failure);
 });
 
-void (async () => {
-  await loadHostInput();
-  await loadStatus();
-})();
+document.getElementById("security-open")?.addEventListener("click", () => {
+  void requireWorkflowOwner(security, () => real)
+    .then((check) => {
+      check();
+      return browser.runtime.openOptionsPage();
+    })
+    .catch(failure);
+});

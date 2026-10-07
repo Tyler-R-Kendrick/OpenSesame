@@ -33,7 +33,7 @@ export async function seedVault(page, base) {
   await addAccount(page, base, {
     name: "Tutorial login",
     username: "walker",
-    password: "correct-horse-battery-staple-9",
+    password: "correct-horse-battery-staple-9", // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
   });
   await addAccount(page, base, {
     name: "Tutorial trash",

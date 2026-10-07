@@ -14,16 +14,18 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import {
+  admitConnectorOwner,
+  releaseConnectorOwner,
+} from "../settings/connector-owner.test-support.js";
 import { AccountDetail } from "./AccountDetail.js";
-import { bindAccountPasswordCore } from "./account-password-test-context.js";
 import { makeAccount } from "./account.test-support.js";
 
 type AccountView = { current: { items: VaultItem[] } };
 const vault: AccountView = { current: { items: [] } };
 const store = { saveItem: vi.fn<(item: VaultItem) => Promise<void>>() };
-let withdrawAuthoritative: (items: VaultItem[]) => void;
-function renderAt(id: string) {
+async function renderAt(id: string) {
+  await vaultStore.replaceAll(vault.current.items, []);
   const item = vault.current.items.find((entry) => entry.id === id);
   if (item?.kind !== "account") throw new Error("Expected account fixture.");
   return render(
@@ -39,20 +41,15 @@ function renderAt(id: string) {
     </MemoryRouter>,
   );
 }
-beforeEach(() => {
+beforeEach(async () => {
+  await admitConnectorOwner();
   vault.current.items = [];
-  store.saveItem.mockReset().mockResolvedValue(undefined);
-  withdrawAuthoritative = bindAccountPasswordCore(
-    () => vault.current.items,
-    store.saveItem,
-  );
-  vi.spyOn(vaultHooksSeams, "useVault").mockImplementation(() =>
-    vaultStore.getSnapshot(),
-  );
+  store.saveItem = vi.spyOn(vaultStore, "saveItem");
 });
-afterEach(() => {
+afterEach(async () => {
   cleanup();
   clearNotices();
+  await releaseConnectorOwner();
   vi.restoreAllMocks();
 });
 describe("account password workflow boundary", () => {
@@ -65,7 +62,7 @@ describe("account password workflow boundary", () => {
     store.saveItem.mockRejectedValue(
       new Error("PRIVATE_PASSWORD_PERSISTENCE_SENTINEL"),
     );
-    renderAt(account.id);
+    await renderAt(account.id);
     await userEvent.click(
       screen.getByRole("button", { name: "Update password" }),
     );
@@ -79,7 +76,7 @@ describe("account password workflow boundary", () => {
     );
     await waitFor(() =>
       expect(
-        listNotices().some((notice) => notice.body.includes("unverified")),
+        listNotices().some((notice) => notice.body === "Update failed."),
       ).toBe(true),
     );
     expect(JSON.stringify(listNotices())).not.toContain(
@@ -100,7 +97,7 @@ describe("account password workflow boundary", () => {
       password: "original-password",
     });
     vault.current = { items: [account] };
-    renderAt(account.id);
+    await renderAt(account.id);
     await userEvent.click(
       screen.getByRole("button", { name: "Update password" }),
     );
@@ -114,13 +111,13 @@ describe("account password workflow boundary", () => {
       items: { [account.id]: itemText(account) },
       folderIds: [],
     });
-    withdrawAuthoritative(body.items);
+    await vaultStore.replaceAll(body.items, []);
     await userEvent.click(
       screen.getByRole("button", { name: "Save new value" }),
     );
     await waitFor(() =>
       expect(
-        listNotices().some((notice) => notice.body.includes("unverified")),
+        listNotices().some((notice) => notice.body === "Update failed."),
       ).toBe(true),
     );
     expect(JSON.stringify(listNotices())).not.toContain(

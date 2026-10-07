@@ -27,6 +27,7 @@ import {
   importRecipient,
 } from "./backup";
 import { sha256Hex } from "./bytes";
+import type { OriginalOwner } from "./original-owner";
 import { generatePassword } from "./password";
 import type { SealedKv } from "./store";
 
@@ -176,6 +177,13 @@ export class RunnerVault {
   ) {
     this.now = options.now ?? Date.now;
     this.random = options.random ?? ((bytes) => crypto.getRandomValues(bytes));
+  }
+
+  withAuthority(owner: OriginalOwner): RunnerVault {
+    return new RunnerVault(this.kv.withAuthority(owner), {
+      now: this.now,
+      random: this.random,
+    });
   }
 
   // --- entries -----------------------------------------------------------

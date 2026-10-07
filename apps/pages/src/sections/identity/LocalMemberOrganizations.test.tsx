@@ -1,3 +1,4 @@
+import { webLocksDouble } from "@opensesame/app-core/lib/__tests__/web-locks-double.js";
 import { beginLocalAgentAuthentication } from "@opensesame/app-core/lib/local-agent-auth.js";
 import {
   readLocalAgentKeys,
@@ -80,7 +81,6 @@ beforeEach(async () => {
   vi.stubGlobal("ArrayBuffer", new TextEncoder().encode("").buffer.constructor);
   tomb = `member-orgs-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
   vi.stubGlobal("isSecureContext", true);
   vi.stubGlobal("location", { origin, hostname: rpID });
   vi.stubGlobal("navigator", {
@@ -88,16 +88,7 @@ beforeEach(async () => {
       create: (options: CredentialCreationOptions) => device.create(options),
       get: (options: CredentialRequestOptions) => device.get(options),
     },
-    locks: {
-      request: <T,>(_name: string, run: () => Promise<T>) => {
-        const next = queue.then(run);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
+    locks: webLocksDouble(),
   });
   for (const name of ["Owner", "Admin", "Member", "Outsider"])
     await create("person", name);

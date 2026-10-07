@@ -5,6 +5,7 @@ import { connector, hostBackup, recoverBackup } from "./host";
 import { RunnerSettings } from "./settings";
 import { SealedKv } from "./store";
 import { MemoryStore, useTestDeviceKey } from "./test-support/memory";
+import { testOperationOwner } from "./test-support/operation-owner";
 
 interface SyncOptions {
   /** How many of a pushed batch the Host says it accepted. */
@@ -123,10 +124,18 @@ describe("the Host's ciphertext store as a backup", () => {
     const host = syncHost();
     await hostBackup(client(host.fetchImpl)).push("runner-candidate.a", bytes);
     expect(
-      await recoverBackup(client(host.fetchImpl), "runner-candidate.a"),
+      await recoverBackup(
+        client(host.fetchImpl),
+        "runner-candidate.a",
+        testOperationOwner(),
+      ),
     ).toEqual(bytes);
     expect(
-      await recoverBackup(client(host.fetchImpl), "runner-candidate.none"),
+      await recoverBackup(
+        client(host.fetchImpl),
+        "runner-candidate.none",
+        testOperationOwner(),
+      ),
     ).toBeNull();
     expect(b64.from(toB64(bytes))).toEqual(bytes);
   });

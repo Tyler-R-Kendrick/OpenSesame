@@ -18,7 +18,7 @@ import {
   itemTypeId,
   itemTypeRegistry,
 } from "@opensesame/vault-core";
-import { type FieldValue, missingRequired } from "@opensesame/vault-item-types";
+import type { FieldValue } from "@opensesame/vault-item-types";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { useWebMcpLoginDraft } from "../../bindings/webmcp-login-draft.js";
@@ -41,6 +41,8 @@ import {
   settleForSave,
   settleMethods,
 } from "./account-secrets.js";
+import { publishEditorContinuation } from "./editor-continuation.js";
+import { editorDraftError } from "./editor-validation.js";
 import { useEditorContributions } from "./item-contributions.js";
 import { seedDraft } from "./seed-draft.js";
 import { useEditorPath } from "./useEditorPath.js";
@@ -86,6 +88,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   useEffect(() => {
     setDraft(initial.item);
     setError(initial.error);
+    setSaving(false);
     setReveal(false);
     setPendingDeliveryId(undefined);
     setIssuanceKey(crypto.randomUUID());
@@ -183,35 +186,21 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!draft) return;
-    if (!draft.name.trim() && draft.kind !== "certificate") {
-      setError("Give this item a name so you can find it again.");
+    const invalid = editorDraftError(draft, typedDefinition);
+    if (invalid) {
+      setError(invalid);
       return;
-    }
-    if (
-      draft.kind === "certificate" &&
-      !draft.certificatePem &&
-      !draft.commonName.trim()
-    ) {
-      setError("Enter the certificate's common name before issuing it.");
-      return;
-    }
-    // The editor marks a required field with a star. Saying so and then
-    // saving anyway is worse than not marking it at all.
-    if (draft.kind === "typed" && typedDefinition !== undefined) {
-      const missing = missingRequired(typedDefinition, draft.values);
-      if (missing.length > 0) {
-        setError(
-          `Fill in ${missing.map((field) => field.label).join(", ")} before saving.`,
-        );
-        return;
-      }
     }
     setSaving(true);
     setError(null);
     let deliveryId = pendingDeliveryId;
+    let check: (() => void) | undefined;
     try {
+      check = store.pinContinuation();
+      check();
       const location = path.resolve();
       if (draft.kind === "account") await validateWebsitePatterns(draft.uris);
+      check();
       let next = { ...draft, name: location.name, folderId: location.folderId };
       if (next.kind === "certificate" && !next.certificatePem) {
         const issued = await issueCertificate({
@@ -227,6 +216,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
           ttlHours: Number(next.ttlHours) || 24,
           idempotencyKey: issuanceKey,
         });
+        check();
         deliveryId = issued.deliveryId;
         setPendingDeliveryId(deliveryId);
         next = {
@@ -240,8 +230,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
           serial: issued.serial,
           notAfter: issued.notAfter,
         };
-        // Keep one-time material in memory if vault sealing fails. A retry
-        // saves this exact issuance instead of minting another certificate.
+        // A sealing retry saves the same issuance, without minting another.
         setDraft(next);
       }
       if (next.kind === "account") {
@@ -258,18 +247,27 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         );
         next = { ...next, method };
       }
+      check();
       await saveWithCredentials(store, items, next, location.folder);
+      check();
       if (deliveryId) {
         await acknowledgeCertificateDelivery(deliveryId);
+        check();
         setPendingDeliveryId(undefined);
       }
       navigate(`/vault/${next.id}`);
     } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : "Could not save this item.",
-      );
+      const publish = () =>
+        setError(
+          caught instanceof Error
+            ? caught.message
+            : "Could not save this item.",
+        );
+      if (check) publishEditorContinuation(check, publish);
+      else publish();
     } finally {
-      setSaving(false);
+      if (check) publishEditorContinuation(check, () => setSaving(false));
+      else setSaving(false);
     }
   }
 

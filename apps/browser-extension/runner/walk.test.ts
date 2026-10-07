@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { backupId, openBackup } from "./backup";
 import { RECIPE, changePassword } from "./test-support/executor";
+import { testOperationOwner } from "./test-support/operation-owner";
 import { CURRENT, rig } from "./test-support/rig";
 import { RP } from "./test-support/site";
 
@@ -75,9 +76,13 @@ describe("a full change-password recipe walk through the runner", () => {
     const text = new TextDecoder().decode(stored);
     expect(text).not.toContain(r.site.password);
     // The person's key opens it to exactly the password the site now holds.
-    expect(await openBackup(r.privateKey, stored ?? new Uint8Array())).toBe(
-      r.site.password,
-    );
+    expect(
+      await openBackup(
+        r.privateKey,
+        stored ?? new Uint8Array(),
+        testOperationOwner(),
+      ),
+    ).toBe(r.site.password);
   });
 
   it("proves the login in a private window and closes it", async () => {

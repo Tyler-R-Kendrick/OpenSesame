@@ -1,24 +1,26 @@
 /** @vitest-environment jsdom */
-import { shareReachSeams } from "@opensesame/app-core/lib/local-share-reach.js";
-import { clearNotices } from "@opensesame/app-core/lib/notices.js";
-import type { VaultState } from "@opensesame/app-core/lib/vault/store-state.js";
+import { persistentBrowserOwner } from "@opensesame/app-core/browser/security-integration/management-host.fixture.js";
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem, manualPassword } from "@opensesame/vault-core";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
-import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { downloadSeams } from "../../screens/capabilities/download.js";
+import { releaseConnectorOwner } from "../settings/connector-owner.test-support.js";
 import { AccountPasswordRow } from "./AccountPasswordRow.js";
 import { ReferenceKeys } from "./ReferenceKeys.js";
-import { persistPasswordTestItem } from "./account-password-test-context.js";
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
   clearNotices();
+  await releaseConnectorOwner();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
-function fixture() {
+async function fixture() {
+  const owner = await persistentBrowserOwner();
+  await vaultStore.unlock(owner.password);
   const item = createItem("account", "Example");
   item.methods = [
     manualPassword(
@@ -44,28 +46,14 @@ function fixture() {
       match: "domain",
     },
   ];
-  const state: VaultState = {
-    ...vaultStore.getSnapshot(),
-    status: "unlocked",
-    awaitingSecondStep: false,
-    tomb: "personal",
-    items: [item],
-  };
-  vi.spyOn(vaultStore, "getSnapshot").mockImplementation(() => state);
-  vi.spyOn(vaultHooksSeams, "useVault").mockImplementation(() => state);
-  vi.spyOn(shareReachSeams, "resolveCurrentAccessRole").mockResolvedValue(
-    "operator",
-  );
-  vi.spyOn(shareReachSeams, "canAccess").mockReturnValue(true);
-  const save = vi
-    .spyOn(vaultStore, "saveItem")
-    .mockImplementation(async (next) => {
-      state.items = persistPasswordTestItem(state.items, next);
-    });
-  return { item, state, save };
+  await vaultStore.addItems([item]);
+  // Observe the actual sealed writer. Only a deliberately failed write is
+  // substituted in its dedicated failure-presentation case.
+  const save = vi.spyOn(vaultStore, "saveItem");
+  return { item, save, password: owner.password };
 }
 it("writes the reference-only template for the item", async () => {
-  const { item } = fixture();
+  const { item } = await fixture();
   const download = vi.spyOn(downloadSeams, "save").mockImplementation(() => {});
   const user = userEvent.setup();
   render(<ReferenceKeys item={item} />);
@@ -85,7 +73,7 @@ it("writes the reference-only template for the item", async () => {
 });
 
 it("asks twice before a plaintext environment file, and writes it only the second time", async () => {
-  const { item } = fixture();
+  const { item } = await fixture();
   const download = vi.spyOn(downloadSeams, "save").mockImplementation(() => {});
   const user = userEvent.setup();
   render(<ReferenceKeys item={item} />);
@@ -107,11 +95,12 @@ it("asks twice before a plaintext environment file, and writes it only the secon
 });
 
 it("draws no group, and no failure, for an item with nothing to reference", async () => {
-  const { item } = fixture();
+  const { item } = await fixture();
   item.fields = [];
   const method = item.methods[0];
   if (method?.type !== "password") throw new Error("fixture");
   method.pepper = true;
+  await vaultStore.replaceAll([item], []);
   render(<ReferenceKeys item={item} />);
   await waitFor(() =>
     expect(
@@ -122,16 +111,19 @@ it("draws no group, and no failure, for an item with nothing to reference", asyn
 });
 
 it("draws nothing while the vault is locked", async () => {
-  const { item, state } = fixture();
+  const { item } = await fixture();
   const { rerender } = render(<ReferenceKeys item={item} />);
   await screen.findByRole("button", { name: "Download reference template" });
-  state.status = "locked";
+  act(() => vaultStore.lock());
   rerender(<ReferenceKeys item={item} />);
   expect(screen.queryByRole("button")).toBeNull();
 });
 
-function passwordRow(item: ReturnType<typeof fixture>["item"]) {
-  const method = item.methods[0];
+function passwordRow(
+  item: Awaited<ReturnType<typeof fixture>>["item"],
+  index = 0,
+) {
+  const method = item.methods[index];
   if (method?.type !== "password") throw new Error("fixture");
   return (
     <AccountPasswordRow
@@ -156,7 +148,7 @@ async function openUpdate(user: ReturnType<typeof userEvent.setup>) {
 }
 
 it("compares a typed password with the saved one by a mark, writing nothing", async () => {
-  const { item, save } = fixture();
+  const { item, save } = await fixture();
   const user = userEvent.setup();
   render(passwordRow(item));
   await openUpdate(user);
@@ -177,7 +169,7 @@ it("compares a typed password with the saved one by a mark, writing nothing", as
 });
 
 it("updates the selected method through the verified write and suppresses an uncertain one's cause", async () => {
-  const { item, save } = fixture();
+  const { item, save } = await fixture();
   save.mockRejectedValue(new Error("PRIVATE_CONTEXT_SENTINEL"));
   const user = userEvent.setup();
   render(passwordRow(item));
@@ -185,6 +177,77 @@ it("updates the selected method through the verified write and suppresses an unc
   await user.type(screen.getByLabelText("New password"), "replacement");
   await user.click(screen.getByRole("button", { name: "Save new value" }));
   await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+  await waitFor(() =>
+    expect(
+      listNotices().some(
+        (notice) =>
+          notice.id ===
+          `vault:secret-update:${item.id}:password-primary:password`,
+      ),
+    ).toBe(true),
+  );
+  expect(JSON.stringify(listNotices())).not.toContain(
+    "PRIVATE_CONTEXT_SENTINEL",
+  );
   expect(document.body.textContent).not.toContain("PRIVATE_CONTEXT_SENTINEL");
   expect(screen.queryByRole("alert")).toBeNull();
+});
+
+it("persists only the selected secondary password and preserves primary and protected siblings", async () => {
+  const { item, save, password } = await fixture();
+  const secondary = manualPassword(
+    "password-secondary",
+    "SECONDARY_PRIVATE_SENTINEL",
+    item.createdAt,
+  );
+  const protectedMethod = {
+    ...manualPassword(
+      "password-protected",
+      "PROTECTED_PRIVATE_SENTINEL",
+      item.createdAt,
+    ),
+    pepper: true,
+  };
+  item.methods.push(secondary, protectedMethod);
+  await vaultStore.replaceAll([item], []);
+  const primary = structuredClone(item.methods[0]);
+  const protectedSibling = structuredClone(item.methods[2]);
+  const user = userEvent.setup();
+  render(passwordRow(item, 1));
+  await openUpdate(user);
+  await user.type(
+    screen.getByLabelText("New password"),
+    "replacement-private-password",
+  );
+  await user.click(screen.getByRole("button", { name: "Save new value" }));
+  await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+  const written = save.mock.results[0];
+  if (written?.type !== "return")
+    throw new Error("Expected actual sealed write.");
+  await written.value;
+  await waitFor(() =>
+    expect(screen.queryByLabelText("New password")).toBeNull(),
+  );
+  expect(document.body.textContent).not.toContain(
+    "replacement-private-password",
+  );
+  expect(document.body.textContent).not.toContain("SECONDARY_PRIVATE_SENTINEL");
+  expect(document.body.textContent).not.toContain("PROTECTED_PRIVATE_SENTINEL");
+  cleanup();
+  // Read the persisted ciphertext in a freshly authenticated owner session.
+  vaultStore.lock();
+  await vaultStore.unlock(password);
+  const saved = vaultStore
+    .getSnapshot()
+    .items.find((entry) => entry.id === item.id);
+  if (saved?.kind !== "account") throw new Error("Expected persisted account.");
+  expect(saved.methods).toHaveLength(3);
+  expect(saved.methods[0]).toEqual(primary);
+  expect(saved.methods[1]).toMatchObject({
+    id: secondary.id,
+    secret: "replacement-private-password",
+  });
+  expect(saved.methods[2]).toEqual(protectedSibling);
+  expect(saved.fields).toEqual(item.fields);
+  expect(saved.username).toBe(item.username);
 });

@@ -4,7 +4,7 @@
  */
 
 import type { ReactNode } from "react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { FieldRow } from "../../components/FieldRow.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import { IconCheck, IconEdit } from "../../components/Icons.js";
@@ -14,6 +14,7 @@ export function EditableRow({
   fieldLabel,
   editLabel,
   canEdit,
+  pin,
   save,
   onSaved,
   actions,
@@ -22,6 +23,7 @@ export function EditableRow({
   fieldLabel: string;
   editLabel: string;
   canEdit: boolean;
+  pin: () => () => void;
   save?: (value: string) => Promise<string | null>;
   onSaved?: (value: string) => void;
   actions?: ReactNode;
@@ -38,18 +40,18 @@ export function EditableRow({
     document.getElementById(id)?.focus();
   }, [editing, id]);
 
-  async function commit(): Promise<void> {
-    if (!save) return;
-    const value = await save(draft);
-    if (value === null) {
-      setDenied(true);
-      return;
-    }
-    setDenied(false);
-    setOpen(false);
-    setDraft("");
-    onSaved?.(value);
-  }
+  const commit = useLiveFieldCommit({
+    pin,
+    save,
+    draft,
+    onSaved,
+    onRefused: () => setDenied(true),
+    onAccepted: () => {
+      setDenied(false);
+      setOpen(false);
+      setDraft("");
+    },
+  });
 
   return (
     <FieldRow
@@ -100,4 +102,52 @@ export function EditableRow({
       ) : null}
     </FieldRow>
   );
+}
+
+function useLiveFieldCommit({
+  pin,
+  save,
+  draft,
+  onSaved,
+  onRefused,
+  onAccepted,
+}: {
+  pin: () => () => void;
+  save?: (value: string) => Promise<string | null>;
+  draft: string;
+  onSaved?: (value: string) => void;
+  onRefused: () => void;
+  onAccepted: () => void;
+}) {
+  const lifetime = useRef({ active: true, operation: 0 });
+  useEffect(() => {
+    lifetime.current.active = true;
+    return () => {
+      lifetime.current.active = false;
+      lifetime.current.operation += 1;
+    };
+  }, []);
+  return async (): Promise<void> => {
+    if (!save) return;
+    const operation = ++lifetime.current.operation;
+    let value: string | null;
+    try {
+      const check = pin();
+      check();
+      value = await save(draft);
+      if (!lifetime.current.active || operation !== lifetime.current.operation)
+        return;
+      check();
+    } catch {
+      if (lifetime.current.active && operation === lifetime.current.operation)
+        onRefused();
+      return;
+    }
+    if (value === null) {
+      onRefused();
+      return;
+    }
+    onAccepted();
+    onSaved?.(value);
+  };
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { chooseType } from "./editor-type.mjs";
 
 async function visit(page, base, route) {
   await page.evaluate((target) => {
@@ -35,7 +36,8 @@ function envValues(text) {
  * written out by reference on the toolbar, and as a plaintext .env asked for twice.
  */
 export async function verifySecretItem(page, base, width, out, sentinel) {
-  await visit(page, base, "vault/new/secret");
+  await visit(page, base, "vault/new");
+  await chooseType(page, "secret");
   await page.getByLabel("Name", { exact: true }).first().fill("Gauntlet API");
   const input = page.locator("#secret-value");
   assert.equal(await input.getAttribute("type"), "password");
@@ -45,7 +47,7 @@ export async function verifySecretItem(page, base, width, out, sentinel) {
   const id = new URL(page.url()).pathname.split("/").pop();
   const tools = page.locator(".detail__tools");
   await tools.waitFor();
-  const reference = `os://guest/${id}/value`;
+  const reference = `os://personal/${id}/value`;
   assert.ok(!(await page.locator("body").textContent()).includes(sentinel));
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"], {
     origin: new URL(page.url()).origin,
@@ -185,7 +187,7 @@ export async function verifyAccountPassword(
   ])
     assert.ok(
       refs.includes(
-        `os://guest/${accountId}/${encodeURIComponent(`method:${methodIds[label]}:${suffix}`)}`,
+        `os://personal/${accountId}/${encodeURIComponent(`method:${methodIds[label]}:${suffix}`)}`,
       ),
       `the template names the ${label}`,
     );
