@@ -124,6 +124,7 @@ const EXPECTED = {
     "vault.certificate-records",
   ],
   "rich-explicit": [...optionalCapabilityIds()].sort(),
+  full: [...optionalCapabilityIds()].sort(),
   "managed-prohibited": [],
 } satisfies Record<string, readonly string[]>;
 

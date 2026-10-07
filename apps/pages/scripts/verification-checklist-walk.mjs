@@ -4,8 +4,9 @@
  *
  * Builds Pages at VITE_BASE=/OpenSesame/ (security-profile.mjs, then vite,
  * the same shape as build-profile.mjs) and walks the checklist UI on
- * minimal-local, default (stock build when no fixture exists), custom, and
- * full. Screenshots land in
+ * minimal-local, default (stock build; no fixture), custom (stock build;
+ * the capabilities ceremony), and full (`capability-profiles/full.json`).
+ * Screenshots land in
  * /opt/cursor/artifacts/verification-2026-10/<profile>/<step>.png.
  *
  *   PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \

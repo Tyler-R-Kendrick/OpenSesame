@@ -3,10 +3,11 @@
  *
  * Same two steps as `build-profile.mjs`: `security-profile.mjs`, then
  * `vite build` with `VITE_BASE=/OpenSesame/`. A name that has a file in
- * `capability-profiles/` is that fixture. `default` has none, so it is the
- * stock build (no `OPENSESAME_CAPABILITY_PROFILE`). `custom` and `full`
- * are setup choices on that stock build unless a fixture is added later.
- * The capability-graph gate is not repeated here — this walk is UI evidence.
+ * `capability-profiles/` is that fixture (`minimal-local`, `full`).
+ * `default` and `custom` have none, so both are the stock build.
+ * `custom` stays on the stock build: its setup choice is the capabilities
+ * ceremony, and there is no `custom.json`. The capability-graph gate is
+ * not repeated here — this walk is UI evidence.
  */
 
 import { execFileSync } from "node:child_process";

@@ -60,9 +60,9 @@ export function supportLifecycleSeams() {
 }
 
 /** Render the launcher with whatever seams the suite has already installed. */
-export function renderLauncher() {
+export function renderLauncher(route = "/vault") {
   return render(
-    <MemoryRouter initialEntries={["/vault"]}>
+    <MemoryRouter initialEntries={[route]}>
       <SupportProvider>
         <SupportLauncher />
       </SupportProvider>
@@ -74,6 +74,7 @@ export function mount(
   agent: FakeSupportAgent,
   transport: SupportTransport = "on-device",
   warning: string | null = null,
+  route = "/vault",
 ) {
   revokeRealm?.();
   revokeRealm = registerTutorialRealm();
@@ -82,7 +83,7 @@ export function mount(
     loadEngine: () => Promise.resolve(built),
     ...supportLifecycleSeams(),
   });
-  return { ...renderLauncher(), engine: built };
+  return { ...renderLauncher(route), engine: built };
 }
 
 export function lockTheVault(): void {

@@ -265,6 +265,35 @@ describe("what a tutorial needs before it is offered", () => {
     expect(drawn).toContain("settings.tailnet-sync");
   });
 
+  it("hides a tour until one capability it names is installed", () => {
+    const health = guideGoal("vault.health.review");
+    const install = guideGoal("vault.item-types.install");
+    expect(health).not.toBeNull();
+    expect(install).not.toBeNull();
+    if (!health || !install) return;
+    expect(health.capabilities).toEqual(["vault.security-checks"]);
+    expect(install.capabilities).toEqual([
+      "vault.derived-records",
+      "vault.passkey-records",
+      "vault.certificate-records",
+    ]);
+    const absent = () => false;
+    expect(goalOffered(health, { installed: absent })).toBe(false);
+    expect(
+      goalOffered(health, {
+        installed: (id) => id === "vault.security-checks",
+      }),
+    ).toBe(true);
+    expect(goalOffered(install, { installed: absent })).toBe(false);
+    expect(
+      goalOffered(install, {
+        installed: (id) => id === "vault.passkey-records",
+      }),
+    ).toBe(true);
+    expect(goalOffered(health)).toBe(true);
+    expect(goalOffered(install)).toBe(true);
+  });
+
   it("applies one gate to the library and to any other list of goals", () => {
     const tour = guideGoal("settings.model-provider");
     expect(tour).not.toBeNull();

@@ -54,7 +54,7 @@ async function openLibrary(route = "/vault") {
 }
 
 describe("the Tutorials tab", () => {
-  it("opens on Ask, and the tabs are a named, selectable pair", async () => {
+  it("opens on Search when no AI capability is approved, and the tabs are a named, selectable pair", async () => {
     const user = userEvent.setup();
     mountSupport({
       agent: fakeAgentAlwaysUnavailable("no_local_model"),
@@ -62,7 +62,7 @@ describe("the Tutorials tab", () => {
     });
     const sheet = await openPanel(user);
     const tabs = within(sheet).getAllByRole("tab");
-    expect(tabs.map((tab) => tab.textContent)).toEqual(["Ask", "Tutorials"]);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Search", "Tutorials"]);
     expect(tabs[0]?.getAttribute("aria-selected")).toBe("true");
     expect(tabs[1]?.getAttribute("aria-selected")).toBe("false");
     await user.click(only(tabs[1]));

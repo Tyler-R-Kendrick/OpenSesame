@@ -264,11 +264,23 @@ export async function captureSupport(page, shot, record) {
   const ask = await page
     .getByRole("button", { name: "Ask", exact: true })
     .count();
+  const askTab = await page
+    .getByRole("tab", { name: "Ask", exact: true })
+    .count();
+  const searchTab = await page
+    .getByRole("tab", { name: "Search", exact: true })
+    .count();
+  // Search tab when this build can only read the written help. Ask tab
+  // when local or remote AI is approved, even while the model is still
+  // absent and the composer button still says Search.
+  const writtenOnly =
+    searchTab === 1 && askTab === 0 && search >= 1 && ask === 0;
+  const asking = askTab === 1 && searchTab === 0 && (ask === 1 || search >= 1);
   mark(
     record,
     "H6-search",
-    search === 1 && ask === 0,
-    `Search ${search} Ask ${ask}`,
+    writtenOnly || asking,
+    `tab Ask ${askTab} Search ${searchTab}; button Ask ${ask} Search ${search}`,
   );
   mark(record, "U12-no-webmcp", !/WebMCP/.test(text));
   mark(record, "H1-support", !/WebMCP/.test(text) && /Support/.test(text));

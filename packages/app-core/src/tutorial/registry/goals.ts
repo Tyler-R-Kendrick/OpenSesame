@@ -122,6 +122,7 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     id: "vault.recovery-codes",
     title: "Save the recovery codes",
     routes: [],
+    requires: ["vault.recovery-made"],
     guide: [
       "guide/1",
       'goal "vault.recovery-codes"',
@@ -137,6 +138,11 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     id: "vault.item-types.install",
     title: "Install a vault item type",
     routes: [],
+    capabilities: [
+      "vault.derived-records",
+      "vault.passkey-records",
+      "vault.certificate-records",
+    ],
     guide: [
       "guide/1",
       'goal "vault.item-types.install"',
