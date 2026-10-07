@@ -121,6 +121,10 @@ export const CONNECTIONS_GOALS: readonly GuideGoalDescriptor[] = [
     id: "settings.model-provider",
     title: "Choose voice and inference models",
     routes: [],
+    // The picks are the on-device model's panel. WebMCP can leave the AI
+    // section drawn while that model, and the remote support model, are off.
+    requires: ["support.model-picks"],
+    capabilities: ["support.local-ai"],
     guide: [
       "guide/1",
       'goal "settings.model-provider"',

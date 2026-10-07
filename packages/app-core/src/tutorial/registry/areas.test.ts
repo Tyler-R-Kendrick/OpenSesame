@@ -254,6 +254,17 @@ describe("what a tutorial needs before it is offered", () => {
     expect(ids({ holds: () => true })).toContain("vault.second-step.code");
   });
 
+  it("offers the model tour only while the on-device model draws the picks", () => {
+    const holds = (predicate: string) => predicate !== "support.model-picks";
+    const sectionDrawn = () => true;
+    expect(ids({ holds, sectionDrawn })).not.toContain(
+      "settings.model-provider",
+    );
+    expect(ids({ holds: () => true, sectionDrawn })).toContain(
+      "settings.model-provider",
+    );
+  });
+
   it("points the model and tailnet tours at their sections, so an undrawn one hides them", () => {
     const sectionDrawn = (feature: string) =>
       feature !== "ai" && feature !== "networking";
@@ -301,6 +312,8 @@ describe("what a tutorial needs before it is offered", () => {
     expect(goalOffered(tour, { sectionDrawn: () => false })).toBe(false);
     expect(goalOffered(tour, { sectionDrawn: () => true })).toBe(true);
     expect(goalOffered(tour)).toBe(true);
+    expect(tour.capabilities).toEqual(["support.local-ai"]);
+    expect(goalOffered(tour, { installed: () => false })).toBe(false);
   });
 });
 

@@ -97,6 +97,18 @@ function pluginPanelDrawn(plugin: string): boolean {
   return pluginPanels.get(plugin)?.() === true;
 }
 
+/**
+ * Whether Settings draws the voice and inference picks. The shell says so,
+ * because that panel is the on-device model's contribution: the AI section
+ * can still be drawn (WebMCP, or the remote support model) while the picks
+ * are not. Absent, they are not drawn.
+ */
+let supportModelPicks: () => boolean = () => false;
+
+export function provideGuideSupportModelPicks(read: () => boolean): void {
+  supportModelPicks = read;
+}
+
 function currentRoute(): GuideRouteId {
   return guideRouteForPath(page().location.pathname);
 }
@@ -253,6 +265,12 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
     description:
       "Settings › Capabilities draws the autofill extension's panel: a daemon is paired, or this device may pair one.",
     read: () => pluginPanelDrawn("browser-autofill"),
+  },
+  {
+    id: "support.model-picks",
+    description:
+      "Settings › Capabilities draws the voice and inference picks under AI. The on-device model contributes that panel, so the picks are absent while it is unapproved.",
+    read: () => supportModelPicks(),
   },
 ];
 
