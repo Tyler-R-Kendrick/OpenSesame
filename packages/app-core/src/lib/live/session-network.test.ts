@@ -8,10 +8,10 @@
  */
 
 import type { EffectivePlan } from "@opensesame/capability-composition";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeNet } from "./live-fakes.js";
 import { plan } from "./live-plan.fixture.js";
-import type { Carrier, CarrierFactory } from "./rendezvous.js";
+import { type Carrier, type CarrierFactory, Rendezvous } from "./rendezvous.js";
 import {
   currentHost,
   currentHostCarriers,
@@ -40,13 +40,63 @@ const listeners = new Set<() => void>();
 let net: FakeNet;
 let opened: string[] = [];
 let closed: string[] = [];
+let attempts: Promise<Carrier>[] = [];
 
 function publish(next: EffectivePlan): void {
   current = next;
   for (const listener of [...listeners]) listener();
 }
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 40));
+function signal() {
+  let resolve = () => {};
+  const promise = new Promise<void>((ready) => {
+    resolve = ready;
+  });
+  return { promise, resolve };
+}
+
+/** Observe the real guarded opening promise returned to Rendezvous. */
+function observeAttempts(): void {
+  const open = Rendezvous.open;
+  vi.spyOn(Rendezvous, "open").mockImplementation(
+    (specs, secret, factory, onCode, role) =>
+      open(
+        specs,
+        secret,
+        (...args) => {
+          const attempt = factory(...args);
+          attempts.push(attempt);
+          return attempt;
+        },
+        onCode,
+        role,
+      ),
+  );
+}
+
+function attempt(): Promise<Carrier> {
+  const opening = attempts.at(-1);
+  if (!opening)
+    throw new Error("The actual carrier factory has not been invoked");
+  return opening;
+}
+
+/** The real state subscription fires immediately too; dispose in either case. */
+function allCarriersReady(): Promise<void> {
+  const rendezvous = currentHostCarriers();
+  if (!rendezvous) throw new Error("The host has no rendezvous");
+  return new Promise((resolve) => {
+    let stop = () => {};
+    let ready = false;
+    stop = rendezvous.subscribe((states) => {
+      if (!states.every((state) => state.status === "ready")) return;
+      ready = true;
+      stop();
+      resolve();
+    });
+    if (ready) stop();
+  });
+}
 
 const carriers: CarrierFactory = async (spec: CarrierSpec) => {
   const name = spec.kind === "broadcast" ? "broadcast" : spec.url;
@@ -78,7 +128,7 @@ async function host(specs: CarrierSpec[]) {
     transport,
     carriers,
   });
-  await settle();
+  await allCarriersReady();
   return hosted;
 }
 
@@ -89,6 +139,8 @@ beforeEach(() => {
   net = new FakeNet();
   opened = [];
   closed = [];
+  attempts = [];
+  observeAttempts();
   current = plan(true, false, allow());
   listeners.clear();
   Object.assign(liveSeams, {
@@ -105,7 +157,8 @@ beforeEach(() => {
 afterEach(async () => {
   leaveLive();
   endHosting();
-  await settle();
+  await Promise.allSettled(attempts);
+  vi.restoreAllMocks();
   Object.assign(liveSeams, originalSeams);
 });
 
@@ -152,10 +205,12 @@ describe("a policy that changes under a running session", () => {
   });
 
   it("does not turn a refused carrier's later failure into a connection fault", async () => {
+    const invoked = signal();
     let fail: (reason: Error) => void = () => {};
     const failing: CarrierFactory = () =>
       new Promise((_resolve, reject) => {
         fail = reject;
+        invoked.resolve();
       });
     await startHosting({
       title: "Team",
@@ -172,31 +227,42 @@ describe("a policy that changes under a running session", () => {
       },
       carriers: failing,
     });
-    await settle();
-    publish(plan(true, false, deny));
-    expect(statuses()).toEqual(["blocked"]);
-    fail(new Error("socket closed"));
-    await settle();
-    expect(statuses()).toEqual(["blocked"]);
+    try {
+      await invoked.promise;
+      publish(plan(true, false, deny));
+      expect(statuses()).toEqual(["blocked"]);
+      fail(new Error("socket closed"));
+      // Rendezvous attached its real rejection handler before this await.
+      await expect(attempt()).rejects.toThrow("socket closed");
+      expect(statuses()).toEqual(["blocked"]);
+    } finally {
+      fail(new Error("socket closed"));
+    }
   });
 
   it("does not reopen a closed carrier when the policy allows it again", async () => {
     await host([{ kind: "nostr", url: RELAY }]);
     publish(plan(true, false, deny));
     publish(plan(true, false, allow()));
-    await settle();
+    await Promise.allSettled(attempts);
     expect(opened).toEqual([RELAY]);
     expect(statuses()).toEqual(["blocked"]);
   });
 
   it("closes one that arrives after the policy withdrew it", async () => {
+    const invoked = signal();
+    const closure = signal();
+    let released = false;
     let release: (carrier: Carrier) => void = () => {};
     const slow: CarrierFactory = (spec) =>
       new Promise((resolve) => {
         release = (carrier) => {
+          if (released) return;
+          released = true;
           opened.push(spec.kind === "broadcast" ? "broadcast" : spec.url);
           resolve(carrier);
         };
+        invoked.resolve();
       });
     const transport: LiveTransport = {
       addresses: [],
@@ -214,19 +280,26 @@ describe("a policy that changes under a running session", () => {
       transport,
       carriers: slow,
     });
-    await settle();
-    expect(statuses()).toEqual(["connecting"]);
-    publish(plan(true, false, deny));
-    expect(statuses()).toEqual(["blocked"]);
-    release({
+    const late: Carrier = {
       post: async () => {},
       listen: () => () => {},
       close: () => {
         closed.push(RELAY);
+        closure.resolve();
       },
-    });
-    await settle();
-    expect(closed).toEqual([RELAY]);
-    expect(statuses()).toEqual(["blocked"]);
+    };
+    try {
+      await invoked.promise;
+      expect(statuses()).toEqual(["connecting"]);
+      publish(plan(true, false, deny));
+      expect(statuses()).toEqual(["blocked"]);
+      release(late);
+      await attempt();
+      await closure.promise;
+      expect(closed).toEqual([RELAY]);
+      expect(statuses()).toEqual(["blocked"]);
+    } finally {
+      release(late);
+    }
   });
 });

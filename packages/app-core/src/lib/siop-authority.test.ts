@@ -6,6 +6,7 @@ import {
 } from "@opensesame/siop-v2";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import { listReceipts } from "./device-receipts.js";
 import { configureLocalApplication } from "./local-applications.js";
 import { authenticator, origin, rpID } from "./local-authenticator.fixture.js";
@@ -81,36 +82,11 @@ describe("siop-authority", () => {
     vi.spyOn(Date, "now").mockReturnValue(fixedNow * 1000);
     tomb = `siop-authority-${crypto.randomUUID()}`;
     unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-    const tails = new Map<string, Promise<void>>();
     vi.stubGlobal("isSecureContext", true);
     vi.stubGlobal("location", { origin, hostname: rpID });
     vi.stubGlobal("navigator", {
       credentials: await authenticator(),
-      locks: {
-        request: async <T>(name: string, run: () => Promise<T>) => {
-          // Per-name queues: nested distinct locks must not deadlock (Web Locks).
-          const previous = tails.get(name) ?? Promise.resolve();
-          let release!: () => void;
-          const gate = new Promise<void>((resolve) => {
-            release = resolve;
-          });
-          tails.set(
-            name,
-            previous
-              .then(() => gate)
-              .then(
-                () => undefined,
-                () => undefined,
-              ),
-          );
-          await previous;
-          try {
-            return await run();
-          } finally {
-            release();
-          }
-        },
-      },
+      locks: webLocksDouble(),
     });
     person = await create("person", "Owner");
     org = await create("organization", "Organization");

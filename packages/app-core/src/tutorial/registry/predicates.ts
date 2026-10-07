@@ -16,6 +16,11 @@
 import { describeAccount } from "../../lib/account.js";
 import { isRemoteIdentityConfigured } from "../../lib/device-identity.js";
 import { currentSession } from "../../lib/identity.js";
+import { decoyControlsAvailable } from "../../lib/retired-credentials/availability.js";
+import {
+  retiredCredentialEnrollmentSupported,
+  retiredCredentialStatus,
+} from "../../lib/retired-credentials/index.js";
 import { vaultStore } from "../../lib/vault/store.js";
 import { listAvailableUnlockMethods } from "../../lib/vault/unlock-methods.js";
 import { isOnline, page } from "../../ports.js";
@@ -109,7 +114,35 @@ function vaultUnlocked(): boolean {
   return vaultStore.getSnapshot().status === "unlocked";
 }
 
+function decoyControlsVisible(): boolean {
+  const state = vaultStore.getSnapshot();
+  if (
+    state.status !== "unlocked" ||
+    state.guest ||
+    state.decoy ||
+    state.awaitingSecondStep
+  )
+    return false;
+  let records: ReturnType<typeof retiredCredentialStatus> | null = null;
+  try {
+    records = retiredCredentialStatus(state.tomb);
+  } catch {
+    /* visible recovery state */
+  }
+  return decoyControlsAvailable(
+    { ...state, decoy: Boolean(state.decoy) },
+    retiredCredentialEnrollmentSupported(state.tomb),
+    records,
+  );
+}
+
 export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
+  {
+    id: "vault.decoy-controls-visible",
+    description:
+      "The current real owner can see the Decoy controls on Security.",
+    read: decoyControlsVisible,
+  },
   {
     id: "vault.unlocked",
     description: "The vault is open and its key is held in memory.",

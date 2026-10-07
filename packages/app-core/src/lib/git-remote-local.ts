@@ -1,14 +1,24 @@
 import {
   type BoundaryValue,
+  isJsonObject,
   isString,
-  overlapCast,
 } from "@opensesame/os-domain";
 import { createItem } from "@opensesame/vault-core";
+import { lockManager, maybeLocalStore } from "../ports.js";
 /**
  * Browser-held forge-agnostic git remotes (ADR 0090).
  * Public metadata stays in localStorage; credentials seal in the vault.
  */
-import { maybeLocalStore } from "../ports.js";
+import {
+  assertNotDecoySession,
+  isRealAuthorityBlocked,
+} from "./decoy-session.js";
+import { onDeviceConnectorPrincipalTransfer } from "./device-connector-principal-state.js";
+import {
+  activeDeviceConnectorPrincipal,
+  assertDeviceConnectorPrincipal,
+  requireDeviceConnectorPrincipal,
+} from "./device-connector-principal.js";
 import type { GitAuthMode, GitRemoteConfiguration } from "./git-auth-modes.js";
 import { isGitAuthMode } from "./git-auth-modes.js";
 import { vaultStore } from "./vault/store.js";
@@ -31,7 +41,8 @@ export type LocalGitRemote = {
 };
 
 /** Tests / private mode when localStorage is missing. */
-let memoryRemotes: LocalGitRemote[] = [];
+type OwnedGitRemote = LocalGitRemote & { owner: string | null };
+let memoryRemotes: BoundaryValue[] = [];
 
 export function subscribeLocalGitRemotes(listener: () => void): () => void {
   listeners.add(listener);
@@ -58,14 +69,16 @@ function optionalTrim(value: BoundaryValue): string | null {
   return isString(value) && value.trim() !== "" ? value.trim() : null;
 }
 
-function parseOneRemote(item: BoundaryValue): LocalGitRemote | null {
-  const row = overlapCast(item);
+function parseOneRemote(item: BoundaryValue): OwnedGitRemote | null {
+  if (!isJsonObject(item)) return null;
+  const row = item;
   if (!isString(row.id) || !isLocalGitRemoteId(row.id)) return null;
   if (!isString(row.displayName) || row.displayName.trim() === "") return null;
   if (!isString(row.remoteUrl) || row.remoteUrl.trim() === "") return null;
   if (!isString(row.authMode) || !isGitAuthMode(row.authMode)) return null;
   if (!isString(row.createdAt) || !isString(row.updatedAt)) return null;
   return {
+    owner: optionalTrim(row.owner),
     id: row.id,
     displayName: row.displayName.trim(),
     remoteUrl: row.remoteUrl.trim(),
@@ -77,9 +90,9 @@ function parseOneRemote(item: BoundaryValue): LocalGitRemote | null {
   };
 }
 
-function parseRows(parsed: BoundaryValue): LocalGitRemote[] {
+function parseRows(parsed: BoundaryValue): OwnedGitRemote[] {
   if (!Array.isArray(parsed)) return [];
-  const rows: LocalGitRemote[] = [];
+  const rows: OwnedGitRemote[] = [];
   for (const item of parsed) {
     const remote = parseOneRemote(item);
     if (remote) rows.push(remote);
@@ -87,21 +100,43 @@ function parseRows(parsed: BoundaryValue): LocalGitRemote[] {
   return rows;
 }
 
-function readRaw(): LocalGitRemote[] {
+function storedEntries(): BoundaryValue[] {
   const store = maybeLocalStore();
-  if (!store) return memoryRemotes.map((row) => ({ ...row }));
+  if (!store) return [...memoryRemotes];
   const raw = store.getItem(PUBLIC_KEY);
   if (!raw) return [];
   try {
     const parsed: BoundaryValue = JSON.parse(raw);
-    return parseRows(parsed);
+    if (!Array.isArray(parsed)) throw new Error("Invalid saved Git records.");
+    return parsed;
   } catch {
-    return [];
+    throw new Error("Saved Git connector records are unreadable.");
   }
 }
 
+function readRaw(): LocalGitRemote[] {
+  if (isRealAuthorityBlocked()) return [];
+  const principal = activeDeviceConnectorPrincipal();
+  if (!principal) return [];
+  return parseRows(storedEntries())
+    .filter((row) => row.owner === principal.id)
+    .map(({ owner: _owner, ...row }) => row);
+}
+
 function writeRaw(rows: LocalGitRemote[]): void {
-  memoryRemotes = rows.map((row) => ({ ...row }));
+  assertNotDecoySession();
+  const principal = requireDeviceConnectorPrincipal();
+  const next = [
+    ...storedEntries().filter(
+      (row) => parseOneRemote(row)?.owner !== principal.id,
+    ),
+    ...rows.map((row) => ({ ...row, owner: principal.id })),
+  ];
+  writeStored(next);
+}
+
+function writeStored(rows: BoundaryValue[]): void {
+  memoryRemotes = rows;
   const store = maybeLocalStore();
   if (store) {
     if (rows.length === 0) {
@@ -112,6 +147,47 @@ function writeRaw(rows: LocalGitRemote[]): void {
   }
   notify();
 }
+
+function withGitMetadata<T>(work: () => Promise<T>): Promise<T> {
+  const realm = assertNotDecoySession();
+  const principal = requireDeviceConnectorPrincipal();
+  const locks = lockManager();
+  if (!locks) throw new Error("Connector storage locking is required.");
+  return locks.request(
+    "opensesame.git-remotes",
+    { mode: "exclusive" },
+    async (lock) => {
+      if (!lock) throw new Error("Connector storage is busy. Try again.");
+      assertNotDecoySession(realm);
+      assertDeviceConnectorPrincipal(principal);
+      const result = await work();
+      assertNotDecoySession(realm);
+      assertDeviceConnectorPrincipal(principal);
+      return result;
+    },
+  );
+}
+
+onDeviceConnectorPrincipalTransfer(async (from, to) => {
+  await withGitMetadata(async () => {
+    assertDeviceConnectorPrincipal(to);
+    const items = vaultStore.getSnapshot().items;
+    const rows = storedEntries().map((entry) => {
+      const row = parseOneRemote(entry);
+      if (!row || row.owner !== from.id) return entry;
+      if (
+        row.secretItemId !== null &&
+        !items.some(
+          (item) => item.id === row.secretItemId && item.deletedAt === null,
+        )
+      )
+        return entry;
+      return isJsonObject(entry) ? { ...entry, owner: to.id } : entry;
+    });
+    assertDeviceConnectorPrincipal(to);
+    writeStored(rows);
+  });
+});
 
 export function listLocalGitRemotes(): LocalGitRemote[] {
   return readRaw();
@@ -170,11 +246,15 @@ export async function rememberLocalGitRemote(input: {
   displayName: string;
   configuration: GitRemoteConfiguration;
 }): Promise<LocalGitRemote> {
+  const realm = assertNotDecoySession();
+  const principal = requireDeviceConnectorPrincipal();
   const displayName = input.displayName.trim() || "Git remote";
   const now = new Date().toISOString();
   const secretItemId = needsSecrets(input.configuration)
     ? await sealSecrets(displayName, input.configuration)
     : null;
+  assertNotDecoySession(realm);
+  assertDeviceConnectorPrincipal(principal);
   const username =
     input.configuration.username !== undefined &&
     input.configuration.username.trim() !== ""
@@ -190,17 +270,22 @@ export async function rememberLocalGitRemote(input: {
     createdAt: now,
     updatedAt: now,
   };
-  writeRaw([...readRaw(), remote]);
+  await withGitMetadata(async () => {
+    assertDeviceConnectorPrincipal(principal);
+    writeRaw([...readRaw(), remote]);
+  });
   return remote;
 }
 
 async function trashSecret(secretItemId: string | null): Promise<void> {
+  const realm = assertNotDecoySession();
   if (!secretItemId) return;
   try {
     await vaultStore.trashItem(secretItemId);
   } catch {
     /* vault may already lack the item */
   }
+  assertNotDecoySession(realm);
 }
 
 function assertUnlockedForSecrets(rows: LocalGitRemote[]): void {
@@ -213,20 +298,29 @@ function assertUnlockedForSecrets(rows: LocalGitRemote[]): void {
 }
 
 export async function forgetLocalGitRemote(id: string): Promise<boolean> {
-  const rows = readRaw();
-  const target = rows.find((row) => row.id === id);
-  if (!target) return false;
-  assertUnlockedForSecrets([target]);
-  await trashSecret(target.secretItemId);
-  writeRaw(rows.filter((row) => row.id !== id));
-  return true;
+  return withGitMetadata(async () => {
+    const realm = assertNotDecoySession();
+    const rows = readRaw();
+    const target = rows.find((row) => row.id === id);
+    if (!target) return false;
+    assertUnlockedForSecrets([target]);
+    await trashSecret(target.secretItemId);
+    assertNotDecoySession(realm);
+    writeRaw(rows.filter((row) => row.id !== id));
+    return true;
+  });
 }
 
 export async function forgetAllLocalGitRemotes(): Promise<void> {
-  const rows = readRaw();
-  assertUnlockedForSecrets(rows);
-  for (const row of rows) {
-    await trashSecret(row.secretItemId);
-  }
-  writeRaw([]);
+  await withGitMetadata(async () => {
+    const realm = assertNotDecoySession();
+    const rows = readRaw();
+    assertUnlockedForSecrets(rows);
+    for (const row of rows) {
+      await trashSecret(row.secretItemId);
+      assertNotDecoySession(realm);
+    }
+    assertNotDecoySession(realm);
+    writeRaw([]);
+  });
 }

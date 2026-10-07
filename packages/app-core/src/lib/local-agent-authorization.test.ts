@@ -3,6 +3,7 @@ import { createPkcePair } from "@opensesame/sdk-browser";
 import { createLocalAgentKey } from "@opensesame/static-auth";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import { beginLocalAgentAuthentication } from "./local-agent-auth.js";
 import { verifyAgentApplicationChannel } from "./local-agent-channel.fixture.js";
 import {
@@ -107,21 +108,11 @@ beforeEach(async () => {
   vi.spyOn(Date, "now").mockReturnValue(1788998400000);
   tomb = `agent-authorization-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
   vi.stubGlobal("isSecureContext", true);
   vi.stubGlobal("location", { origin, hostname: rpID });
   vi.stubGlobal("navigator", {
     credentials: await authenticator(),
-    locks: {
-      request: <T>(_name: string, action: () => Promise<T>) => {
-        const next = queue.then(action);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
+    locks: webLocksDouble(),
   });
   human = await create("person");
   const backup = await create("person", "backup");

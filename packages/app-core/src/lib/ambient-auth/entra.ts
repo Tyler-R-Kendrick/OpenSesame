@@ -1,4 +1,6 @@
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
+import { guardedFetchUsing } from "../decoy-fetch.js";
+import { assertNotDecoySession } from "../decoy-session.js";
 
 /**
  * Entra / MSAL Browser v5 adapter. Lazy-loaded only for a selected Entra
@@ -157,6 +159,7 @@ export async function acquireEntraSilent(
       }
     >
 > {
+  const authorityGeneration = assertNotDecoySession();
   if (request.connection.protocol !== "entra") {
     return { kind: "unsupported", reason: "unsupported" };
   }
@@ -168,6 +171,7 @@ export async function acquireEntraSilent(
     authority: entraAuthority(request.connection),
     redirectUri: request.redirectUri,
   });
+  assertNotDecoySession(authorityGeneration);
   // MSAL's cache lives in memory (ADR 0149), so this sees only the accounts
   // this document signed in; across loads, Entra itself answers a hintless
   // silent request over several sessions with interaction_required, which
@@ -195,6 +199,7 @@ export async function acquireEntraSilent(
   if (!matchesAuthGeneration(request.generation)) {
     return { kind: "rejected", reason: "stale_generation" };
   }
+  assertNotDecoySession(authorityGeneration);
   const jwksUri = entraJwksUri(request.connection.issuer);
   const claims = await verifyBrowserIdTokenClaims({
     token: result.idToken,
@@ -202,8 +207,9 @@ export async function acquireEntraSilent(
     issuer: request.connection.issuer,
     clientId: request.connection.clientId,
     jwksUri,
-    fetchImpl,
+    fetchImpl: (...args) => guardedFetchUsing(fetchImpl, ...args),
   });
+  assertNotDecoySession(authorityGeneration);
   const identity: UpstreamIdentity = {
     issuer: claims.iss,
     upstreamId: request.connection.key,
@@ -233,12 +239,14 @@ export async function clearEntraAdapter(
   connection: ProviderConnection,
   redirectUri: string,
 ): Promise<void> {
+  const authorityGeneration = assertNotDecoySession();
   try {
     const sdk = await entraSeams.loadSdk({
       clientId: connection.clientId,
       authority: entraAuthority(connection),
       redirectUri,
     });
+    assertNotDecoySession(authorityGeneration);
     await sdk.clearCache();
   } catch {
     /* adapter may not have been loaded */

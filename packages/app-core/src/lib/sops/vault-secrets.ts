@@ -18,6 +18,7 @@ import {
   normalizeLegacyItems,
   outsideAccounts,
   producePassword,
+  resolveAccounts,
 } from "@opensesame/vault-core";
 import { SopsError } from "./errors.js";
 import { emitJsonTree, parseJsonTree } from "./json-codec.js";
@@ -70,7 +71,7 @@ export async function exportVaultSecrets(input: {
   }
   // A credential bound to an account travels in that account's methods (ADR 0179).
   const { items, omitted } = withoutPepperedPasswords(
-    outsideAccounts(input.items),
+    outsideAccounts(resolveAccounts(input.items)),
   );
   if (omitted > 0) input.onOmitted?.(omitted);
   const plaintext = JSON.stringify({ items });

@@ -5,7 +5,7 @@ import { itemText, withdrawFromBody } from "./item-departure.js";
 import { writeSavedItems } from "./item-writes.js";
 import { resetPasswordHistoryForTest } from "./password-history.js";
 import { comparePrivatePassword } from "./password-workflows.js";
-import type { VaultState } from "./store-state.js";
+import { openWorkflowVault } from "./password-workflows.test-support.js";
 import { vaultStore } from "./store.js";
 
 afterEach(() => {
@@ -23,14 +23,7 @@ it("rejects a contextual password update when travel withdrawal wins the queued 
     ),
   ];
   const body = { ...emptyBody(), items: [original] };
-  const state: VaultState = {
-    ...vaultStore.getSnapshot(),
-    status: "unlocked",
-    awaitingSecondStep: false,
-    tomb: "personal",
-    items: body.items,
-  };
-  vi.spyOn(vaultStore, "getSnapshot").mockImplementation(() => state);
+  const state = openWorkflowVault(body.items);
   vi.spyOn(shareReachSeams, "resolveCurrentAccessRole").mockResolvedValue(
     "operator",
   );

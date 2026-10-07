@@ -17,6 +17,12 @@ import { bytesToB64url } from "@opensesame/sdk-browser";
 import { env } from "../../host.js";
 import { type WebStorage, maybeLocalStore, maybePage } from "../../ports.js";
 import { kvDelete, kvGet, kvSet } from "../kv.js";
+import { captureLocalClaimAuthority } from "./local-drop-claim-authority.js";
+import {
+  LocalDropClaimError,
+  refuseLocalDropClaim,
+} from "./local-drop-claim-errors.js";
+export { LocalDropClaimError } from "./local-drop-claim-errors.js";
 
 const STORAGE_KEY = "opensesame.local-drop-claims.v1";
 const PEPPER_KEY = "opensesame.local-drop-pepper.v1";
@@ -31,25 +37,6 @@ export const LOCAL_DROP_CLAIM_KEYS: readonly string[] = [
   PEPPER_KEY,
 ];
 const MAX_ATTEMPTS = 5;
-
-export class LocalDropClaimError extends Error {
-  readonly code: "unreachable" | "refused";
-  /**
-   * The Identity API's error code for the same refusal, so a drop opened on
-   * this device is read by the one wording (ceremony-kit `dropRefusal`).
-   */
-  readonly wire: string;
-  constructor(
-    code: "unreachable" | "refused",
-    message: string,
-    wire: string = code,
-  ) {
-    super(message);
-    this.name = "LocalDropClaimError";
-    this.code = code;
-    this.wire = wire;
-  }
-}
 
 type LocalClaimRecord = {
   id: string;
@@ -162,12 +149,6 @@ async function devicePepper(): Promise<string> {
   return next;
 }
 
-async function sha256Url(parts: string[]): Promise<string> {
-  const joined = new TextEncoder().encode(parts.join("\0"));
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", joined));
-  return bytesToB64url(digest);
-}
-
 function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -236,7 +217,9 @@ export async function createLocalDropClaim(
   targetManifest: JsonObject,
   ttlMs: number,
 ): Promise<LocalDropSession> {
-  const pepper = await devicePepper();
+  const authority = captureLocalClaimAuthority();
+  const pepper = await authority.wait(devicePepper());
+  authority.check();
   const id = `clm_${bytesToB64url(crypto.getRandomValues(new Uint8Array(16)))}`;
   const secret = bytesToB64url(crypto.getRandomValues(new Uint8Array(24)));
   const bearerToken = `osc_clm_${id}.${secret}`;
@@ -244,17 +227,20 @@ export async function createLocalDropClaim(
   const now = Date.now();
   const record: LocalClaimRecord = {
     id,
-    tokenDigest: await sha256Url([pepper, "token", bearerToken]),
-    userCodeDigest: await sha256Url([pepper, "code", id, userCode]),
+    tokenDigest: await authority.digest([pepper, "token", bearerToken]),
+    userCodeDigest: await authority.digest([pepper, "code", id, userCode]),
     targetManifest: structuredClone(targetManifest),
     state: "pending",
     expiresAtMs: now + Math.max(1_000, ttlMs),
     attempts: 0,
     version: 1,
   };
+  authority.check();
   const store = readStore();
   store.claims[id] = record;
+  authority.check();
   writeStore(store);
+  authority.check();
   return {
     claimId: id,
     bearerToken,
@@ -268,7 +254,9 @@ export async function pollLocalDropClaim(
   claimId: string,
   bearerToken: string,
 ): Promise<LocalDropPollState> {
-  const pepper = await devicePepper();
+  const authority = captureLocalClaimAuthority();
+  const pepper = await authority.wait(devicePepper());
+  authority.check();
   const store = readStore();
   const raw = store.claims[claimId];
   if (!raw) {
@@ -280,15 +268,18 @@ export async function pollLocalDropClaim(
   const record = freshen(raw, Date.now());
   if (record !== raw) {
     store.claims[claimId] = record;
+    authority.check();
     writeStore(store);
   }
-  const digest = await sha256Url([pepper, "token", bearerToken]);
+  const digest = await authority.digest([pepper, "token", bearerToken]);
+  authority.check();
   if (!timingSafeEqual(digest, record.tokenDigest)) {
     throw new LocalDropClaimError(
       "refused",
       "This drop's claim token was refused.",
     );
   }
+  authority.check();
   return toPollState(record.state);
 }
 
@@ -298,56 +289,73 @@ export type PresentedLocalDrop = {
   targetManifest: JsonObject;
 };
 
-export async function presentLocalDropClaim(
+function readPresentableClaim(
   bearerToken: string,
-  userCode: string,
-): Promise<PresentedLocalDrop> {
-  const pepper = await devicePepper();
-  const refuse = (wire: string, message: string) =>
-    new LocalDropClaimError("refused", message, wire);
+  authority: ReturnType<typeof captureLocalClaimAuthority>,
+) {
+  authority.check();
   const malformed = "This drop link's claim token is not well formed.";
   const parts = bearerToken.split(".");
   if (parts.length !== 2 || !parts[0]?.startsWith("osc_clm_")) {
-    throw refuse("invalid_token", malformed);
+    throw refuseLocalDropClaim("invalid_token", malformed);
   }
   const claimId = parts[0].slice("osc_clm_".length);
-  if (!claimId) throw refuse("invalid_token", malformed);
+  if (!claimId) throw refuseLocalDropClaim("invalid_token", malformed);
   const store = readStore();
   const raw = store.claims[claimId];
   if (!raw) {
-    throw refuse(
+    throw refuseLocalDropClaim(
       "not_found",
       "This drop is not on this device. Open the link in the browser that sealed it, or connect a sign-in service for cross-device drops.",
     );
   }
-  let record = freshen(raw, Date.now());
+  const record = freshen(raw, Date.now());
   if (record.state === "expired") {
     store.claims[claimId] = record;
+    authority.check();
     writeStore(store);
-    throw refuse("EXPIRED", "This drop has expired.");
+    throw refuseLocalDropClaim("EXPIRED", "This drop has expired.");
   }
   if (record.state === "presented") {
-    throw refuse(
+    throw refuseLocalDropClaim(
       "INVALID_TRANSITION",
       "This drop was already opened and cannot be opened again.",
     );
   }
-  const tokenDigest = await sha256Url([pepper, "token", bearerToken]);
+  return { claimId, store, record };
+}
+
+export async function presentLocalDropClaim(
+  bearerToken: string,
+  userCode: string,
+): Promise<PresentedLocalDrop> {
+  const authority = captureLocalClaimAuthority();
+  const pepper = await authority.wait(devicePepper());
+  authority.check();
+  const current = readPresentableClaim(bearerToken, authority);
+  const { claimId, store } = current;
+  let record = current.record;
+  const tokenDigest = await authority.digest([pepper, "token", bearerToken]);
+  authority.check();
   if (!timingSafeEqual(tokenDigest, record.tokenDigest)) {
-    throw refuse("invalid_token", "This drop's claim token was refused.");
+    throw refuseLocalDropClaim(
+      "invalid_token",
+      "This drop's claim token was refused.",
+    );
   }
   if (record.attempts >= MAX_ATTEMPTS) {
-    throw refuse(
+    throw refuseLocalDropClaim(
       "too_many_attempts",
       "Too many wrong codes for this drop. Seal a new one.",
     );
   }
-  const codeDigest = await sha256Url([
+  const codeDigest = await authority.digest([
     pepper,
     "code",
     claimId,
     userCode.trim(),
   ]);
+  authority.check();
   if (!timingSafeEqual(codeDigest, record.userCodeDigest)) {
     record = {
       ...record,
@@ -355,8 +363,12 @@ export async function presentLocalDropClaim(
       version: record.version + 1,
     };
     store.claims[claimId] = record;
+    authority.check();
     writeStore(store);
-    throw refuse("invalid_user_code", "That code does not match this drop.");
+    throw refuseLocalDropClaim(
+      "invalid_user_code",
+      "That code does not match this drop.",
+    );
   }
   record = {
     ...record,
@@ -365,7 +377,9 @@ export async function presentLocalDropClaim(
     version: record.version + 1,
   };
   store.claims[claimId] = record;
+  authority.check();
   writeStore(store);
+  authority.check();
   return {
     claimId,
     state: toPollState(record.state),

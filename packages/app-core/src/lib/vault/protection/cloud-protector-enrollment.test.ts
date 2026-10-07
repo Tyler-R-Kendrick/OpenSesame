@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { writeAwsKmsConfig } from "../../aws-kms-config.js";
 import { kvGet } from "../../kv.js";
 import { PERSONAL_TOMB } from "../../vfs.js";
@@ -154,4 +154,35 @@ describe("what Test is offered for", () => {
       expect(protectorCanBeTested(kind)).toBe(false);
     }
   });
+});
+
+it("never dispatches a cloud proof after its actual host locks during lazy adapter admission", async () => {
+  await clearVaultSurface();
+  const store = await openStore();
+  const transport = awsFake(KEY_ARN);
+  const enrolled = await store.protection.enrollExternal(aws(transport));
+  await store.protection.commitEnrollment(enrolled.operationId);
+  const decrypt = vi.spyOn(transport, "decrypt");
+  try {
+    await expect(
+      store.protection.testProtector(enrolled.record.protectorId, {
+        aws: aws(transport),
+      }),
+    ).resolves.toMatchObject({ proofStatus: "verified" });
+    decrypt.mockClear();
+    const material = {
+      get aws() {
+        queueMicrotask(() => store.lock());
+        return aws(transport);
+      },
+    };
+    await expect(
+      store.protection.testProtector(enrolled.record.protectorId, material),
+    ).rejects.toThrow();
+    expect(decrypt).not.toHaveBeenCalled();
+  } finally {
+    decrypt.mockRestore();
+    store.lock();
+    await store.flushPendingWrites();
+  }
 });

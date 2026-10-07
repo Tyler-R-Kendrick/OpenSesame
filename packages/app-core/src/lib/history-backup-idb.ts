@@ -1,8 +1,5 @@
 import { bytesToB64 } from "@opensesame/vault-core";
-import {
-  legacyHistoryStore,
-  resetLegacyHistorySweep,
-} from "./history-backup-legacy.js";
+import { assertNotDecoySession, withRealAuthority } from "./decoy-session.js";
 import type {
   HistoryEntryRecord,
   HistoryRowStore,
@@ -30,20 +27,38 @@ const memoryAccounts = new Map<string, ProvisionalHistoryAccount>();
 const memoryEntries = new Map<string, HistoryEntryRecord>();
 let installed: HistoryRowStore | null = null;
 
-/** The store rows rest in: the encrypted one while it is installed. */
-function store(): HistoryRowStore {
-  return installed ?? legacyHistoryStore;
+let resetLegacySweep: (() => void) | undefined;
+let legacySweepResetPending = false;
+
+/** Capture the store before loading its device-sealed fallback. */
+
+async function store(): Promise<HistoryRowStore> {
+  const selected = installed;
+  if (selected) return selected;
+  const legacy = await import("./history-backup-legacy.js");
+  resetLegacySweep = legacy.resetLegacyHistorySweep;
+  if (legacySweepResetPending) {
+    resetLegacySweep();
+    legacySweepResetPending = false;
+  }
+  return legacy.legacyHistoryStore;
 }
 
 /** Route rows to `next`, or back to the device-sealed database with null. */
-export function installHistoryRowStore(next: HistoryRowStore | null): void {
+export function installHistoryRowStore(
+  next: HistoryRowStore | null,
+): () => void {
   installed = next;
+  return () => {
+    if (installed === next) installed = null;
+  };
 }
 
 export function resetHistoryBackupMemory(): void {
   memoryAccounts.clear();
   memoryEntries.clear();
-  resetLegacyHistorySweep();
+  if (resetLegacySweep) resetLegacySweep();
+  else legacySweepResetPending = true;
 }
 
 export function randomHistoryId(prefix: string): string {
@@ -52,61 +67,94 @@ export function randomHistoryId(prefix: string): string {
   return `${prefix}_${hex}`;
 }
 
+async function withHistoryRows<T>(
+  work: (selected: HistoryRowStore, check: () => void) => Promise<T>,
+): Promise<T> {
+  return withRealAuthority(async () => {
+    const generation = assertNotDecoySession();
+    const selected = await store();
+    const check = () => {
+      assertNotDecoySession(generation);
+    };
+    check();
+    return work(selected, check);
+  });
+}
+
 export async function putHistoryAccount(
   account: ProvisionalHistoryAccount,
 ): Promise<void> {
-  const persisted = await store().putAccount(account);
-  if (persisted === true) memoryAccounts.delete(account.id);
-  else memoryAccounts.set(account.id, account);
+  return withHistoryRows(async (selected, check) => {
+    const persisted = await selected.putAccount(account);
+    check();
+    if (persisted === true) memoryAccounts.delete(account.id);
+    else memoryAccounts.set(account.id, account);
+  });
 }
 
 export async function getHistoryAccount(
   id: string,
 ): Promise<ProvisionalHistoryAccount | undefined> {
-  return (await store().getAccount(id)) ?? memoryAccounts.get(id);
+  return withHistoryRows(async (selected, check) => {
+    const row = await selected.getAccount(id);
+    check();
+    return row ?? memoryAccounts.get(id);
+  });
 }
 
 export async function listHistoryAccounts(): Promise<
   ProvisionalHistoryAccount[]
 > {
-  const rows = await store().listAccounts();
-  if (!rows) return [...memoryAccounts.values()];
-  const merged = new Map(rows.map((row) => [row.id, row]));
-  for (const [id, account] of memoryAccounts) {
-    if (!merged.has(id)) merged.set(id, account);
-  }
-  return [...merged.values()];
+  return withHistoryRows(async (selected, check) => {
+    const rows = await selected.listAccounts();
+    check();
+    if (!rows) return [...memoryAccounts.values()];
+    const merged = new Map(rows.map((row) => [row.id, row]));
+    for (const [id, account] of memoryAccounts) {
+      if (!merged.has(id)) merged.set(id, account);
+    }
+    return [...merged.values()];
+  });
 }
 
 export async function listHistoryEntries(
   accountId: string,
 ): Promise<HistoryEntryRecord[]> {
-  const rows = await store().listEntries(accountId);
-  const memoryRows = [...memoryEntries.values()].filter(
-    (row) => row.accountId === accountId,
-  );
-  if (!rows) return memoryRows;
-  const seen = new Set(rows.map((row) => row.id));
-  return [...rows, ...memoryRows.filter((row) => !seen.has(row.id))];
+  return withHistoryRows(async (selected, check) => {
+    const rows = await selected.listEntries(accountId);
+    check();
+    const memoryRows = [...memoryEntries.values()].filter(
+      (row) => row.accountId === accountId,
+    );
+    if (!rows) return memoryRows;
+    const seen = new Set(rows.map((row) => row.id));
+    return [...rows, ...memoryRows.filter((row) => !seen.has(row.id))];
+  });
 }
 
 /** Whether any sealed snapshot is held here, whichever account it belongs to. */
 export async function holdsAnyHistoryEntry(): Promise<boolean> {
-  return (await store().holdsAnyEntry()) === true || memoryEntries.size > 0;
+  return withHistoryRows(async (selected, check) => {
+    const held = await selected.holdsAnyEntry();
+    check();
+    return held === true || memoryEntries.size > 0;
+  });
 }
 
 export async function appendHistoryEntry(
   accountId: string,
   ciphertext: Uint8Array,
 ): Promise<HistoryEntryRecord> {
-  const entry: HistoryEntryRecord = {
-    id: randomHistoryId("hent"),
-    accountId,
-    ciphertextB64: bytesToB64(ciphertext),
-    createdAt: new Date().toISOString(),
-  };
-  if ((await store().putEntry(entry)) !== true) {
-    memoryEntries.set(entry.id, entry);
-  }
-  return entry;
+  return withHistoryRows(async (selected, check) => {
+    const entry: HistoryEntryRecord = {
+      id: randomHistoryId("hent"),
+      accountId,
+      ciphertextB64: bytesToB64(ciphertext),
+      createdAt: new Date().toISOString(),
+    };
+    const persisted = await selected.putEntry(entry);
+    check();
+    if (persisted !== true) memoryEntries.set(entry.id, entry);
+    return entry;
+  });
 }

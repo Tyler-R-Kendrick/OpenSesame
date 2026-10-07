@@ -27,17 +27,17 @@
  */
 
 import {
-  HostPeer,
-  type LogEntry,
-  type ReadField,
-  type WriteField,
-} from "./host-peer.js";
+  captureHostAuthority,
+  guardedHostPorts,
+  guardedHostSeat,
+  retiredHostState,
+} from "./host-authority.js";
+import { HostPeer, type LogEntry } from "./host-peer.js";
 import type { LiveLink } from "./link.js";
-import type { Catalog } from "./messages.js";
 import { makeReplyCode, openRequestCode } from "./pairing.js";
-import { type IceSettings, PAIRING_MS, type PeerFactory } from "./peer.js";
-import type { Carrier } from "./rendezvous.js";
-import { type LiveRoutes, NO_ROUTES, routesSegment } from "./routes.js";
+import { PAIRING_MS } from "./peer.js";
+import { watchLiveRealmAuthority } from "./realm-authority.js";
+import { NO_ROUTES, routesSegment } from "./routes.js";
 import { type Keypair, newCode, newKeypair, newLinkSecret } from "./seal.js";
 import { seatName } from "./seat-channel.js";
 
@@ -51,85 +51,29 @@ const MISSED_MAX = 256;
 const CLOSED_MAX = 256;
 export const MAX_SESSION_MS = 8 * 60 * 60 * 1000;
 
-export type Admission = "invite" | "open";
-
-export type GuestState = "asking" | "replied" | "joined" | "refused" | "gone";
-
-export type Guest = Readonly<{
-  /** The request id. */
-  key: string;
-  name: string;
-  note: string;
-  state: GuestState;
-  askedAt: number;
-  /** The reply code to hand back, once the owner has let them in. */
-  reply: string | null;
-}>;
-
-export type HostState = Readonly<{
-  status: "live" | "ended";
-  endedBecause: "owner" | "expired" | null;
-  guests: readonly Guest[];
-  log: readonly LogEntry[];
-  misses: number;
-  /** Too many wrong codes: no new request is taken; the people in stay. */
-  locked: boolean;
-}>;
-
-/** What pasting one request code did. */
-export type Received =
-  /** Not a request for this session, or one that has already closed. */
-  | Readonly<{ kind: "not-a-request" }>
-  | Readonly<{ kind: "not-this-session"; misses: number }>
-  /** The session is locked: it takes no new request. */
-  | Readonly<{ kind: "locked" }>
-  | Readonly<{ kind: "full" }>
-  | Readonly<{ kind: "ended" }>
-  | Readonly<{ kind: "guest"; key: string }>;
-
-export type HostOptions = Readonly<{
-  admission: Admission;
-  ice: IceSettings;
-  /** Epoch ms; clamped to eight hours from now. */
-  expiresAt: number;
-  catalog: () => Catalog;
-  readField: ReadField;
-  /** Present when the session may write a shared field back. Absent denies. */
-  writeField?: WriteField;
-  peers: PeerFactory;
-  /** What the link carries for joiners: ICE servers, relay only, carriers. */
-  routes?: LiveRoutes;
-  /** Where a reply code goes besides the owner's screen (a carrier). */
-  post?: (code: string) => void;
-  /**
-   * A seat's channel on a carrier that may carry the session (NATS), or
-   * null when none can; asked at each admission (ADR 0167).
-   */
-  relay?: (name: string) => Carrier | null;
-  /** The link secret, when the caller minted credentials for its topic. */
-  secret?: string;
-  now?: () => number;
-}>;
-
-type Seat = {
-  guest: Guest;
-  offer: string;
-  /** The joiner's public key: its reply is sealed to it. */
-  joiner: string;
-  peer: HostPeer | null;
-  /** An admit is waiting on its peer's answer: a second must not start. */
-  admitting: boolean;
-  /** The seat's expiry while it waits, or its removal once it has ended. */
-  timer: ReturnType<typeof setTimeout> | null;
-};
-
+export type {
+  Admission,
+  Guest,
+  GuestState,
+  HostOptions,
+  HostState,
+  Received,
+} from "./host-types.js";
+import type {
+  Guest,
+  GuestState,
+  HostOptions,
+  HostState,
+  Received,
+  Seat,
+} from "./host-types.js";
 const OPEN = new Set<GuestState>(["asking", "replied", "joined"]);
 
 /** One live session, hosted by this tab. */
 export class LiveHost {
-  readonly link: LiveLink;
+  readonly #link: LiveLink;
   /** The out-of-band code, in an invite session. */
-  readonly code: string | null;
+  readonly #code: string | null;
   readonly expiresAt: number;
   readonly #owner: Keypair;
   readonly #seats = new Map<string, Seat>();
@@ -144,20 +88,25 @@ export class LiveHost {
   readonly #closed = new Set<string>();
   #ended: HostState["endedBecause"] = null;
   #timer: ReturnType<typeof setTimeout> | null = null;
+  #stopRealm: (() => void) | null = null;
+  readonly #ports: ReturnType<typeof guardedHostPorts>;
 
   private constructor(
     private readonly options: HostOptions,
     owner: Keypair,
+    private readonly assertAuthority: () => void,
   ) {
+    this.#ports = guardedHostPorts(options, () => this.#current());
+    this.#stopRealm = watchLiveRealmAuthority(() => this.end());
     this.#now = options.now ?? Date.now;
     this.#owner = owner;
-    this.link = {
+    this.#link = {
       admission: options.admission,
       owner: owner.pub,
       secret: options.secret ?? newLinkSecret(),
       routes: routesSegment(options.routes ?? NO_ROUTES),
     };
-    this.code = options.admission === "invite" ? newCode() : null;
+    this.#code = options.admission === "invite" ? newCode() : null;
     this.expiresAt = Math.min(options.expiresAt, this.#now() + MAX_SESSION_MS);
     this.#timer = setTimeout(
       () => this.end("expired"),
@@ -167,10 +116,37 @@ export class LiveHost {
 
   /** Start a session: a fresh owner key, link secret and code. */
   static async start(options: HostOptions): Promise<LiveHost> {
-    return new LiveHost(options, await newKeypair());
+    const check = captureHostAuthority(options.assertAuthority);
+    const owner = await newKeypair();
+    check();
+    return new LiveHost(options, owner, check);
+  }
+
+  #current(): boolean {
+    try {
+      this.assertAuthority();
+      return true;
+    } catch {
+      this.end();
+      return false;
+    }
+  }
+
+  #requireCurrent(): void {
+    if (!this.#current()) throw new Error("The original live host retired.");
+  }
+
+  get link(): LiveLink {
+    this.#requireCurrent();
+    return this.#link;
+  }
+  get code(): string | null {
+    this.#requireCurrent();
+    return this.#code;
   }
 
   get state(): HostState {
+    if (!this.#current()) return retiredHostState();
     return {
       status: this.#ended ? "ended" : "live",
       endedBecause: this.#ended,
@@ -182,6 +158,7 @@ export class LiveHost {
   }
 
   subscribe(listener: (state: HostState) => void): () => void {
+    this.#requireCurrent();
     this.#listeners.add(listener);
     listener(this.state);
     return () => this.#listeners.delete(listener);
@@ -202,7 +179,9 @@ export class LiveHost {
   /** Run `fire` after `ms`, in place of whatever the seat was waiting on. */
   #arm(seat: Seat, ms: number, fire: () => void): void {
     if (seat.timer) clearTimeout(seat.timer);
-    seat.timer = setTimeout(fire, ms);
+    seat.timer = setTimeout(() => {
+      if (this.#current()) fire();
+    }, ms);
   }
 
   #disarm(seat: Seat): void {
@@ -212,14 +191,14 @@ export class LiveHost {
 
   /** A request code the owner pasted, or a carrier passed on. */
   async receive(text: string): Promise<Received> {
-    if (this.#ended) return { kind: "ended" };
+    if (!this.#current() || this.#ended) return { kind: "ended" };
     const opened = await openRequestCode(
-      this.link,
-      this.code,
+      this.#link,
+      this.#code,
       this.#owner,
       text,
     );
-    if (this.#ended) return { kind: "ended" };
+    if (!this.#current() || this.#ended) return { kind: "ended" };
     if (opened.kind === "not-a-request") return opened;
     // An open session has no code, so nothing was guessed: a request that
     // the link opens but the inner seal does not is not one, and no miss.
@@ -230,7 +209,7 @@ export class LiveHost {
     if (known) {
       // Asked again (a carrier dropped the reply): hand the same reply back.
       if (known.guest.reply && known.joiner === joiner)
-        this.options.post?.(known.guest.reply);
+        this.#ports.post(known.guest.reply);
       return { kind: "guest", key: request.id };
     }
     if (this.#closed.has(request.id)) return { kind: "not-a-request" };
@@ -274,6 +253,7 @@ export class LiveHost {
       joiner,
       peer: null,
       admitting: false,
+      carrier: null,
       timer: null,
     };
     this.#seats.set(key, seat);
@@ -285,31 +265,46 @@ export class LiveHost {
 
   /** Let an asker in: only now is their offer answered. */
   async admit(key: string): Promise<void> {
+    if (!this.#current()) return;
     const seat = this.#seats.get(key);
     if (!seat || seat.guest.state !== "asking" || this.#ended) return;
     // `peer.open` waits on the browser: a second admit must not start beside it.
     if (seat.admitting) return;
     seat.admitting = true;
-    const relay = this.options.relay?.(seatName(key)) ?? null;
+    const source = this.options.relay?.(seatName(key)) ?? null;
+    seat.carrier = source;
+    if (!this.#current()) {
+      source?.close();
+      seat.carrier = null;
+      return;
+    }
+    const { relay, ports } = guardedHostSeat(
+      this.options,
+      source,
+      () => this.#current() && !this.#ended && seat.peer === peer,
+    );
     const peer = new HostPeer({
       relayed: relay !== null,
       guest: key,
       ice: this.options.ice,
       peers: this.options.peers,
-      catalog: this.options.catalog,
-      readField: this.options.readField,
-      writeField: this.options.writeField,
+      catalog: ports.catalog,
+      readField: ports.readField,
+      writeField: ports.writeField,
       expiresAt: this.expiresAt,
       now: this.#now,
       onJoined: () => {
+        if (!this.#current()) return;
         if (seat.peer !== peer) return;
         this.#disarm(seat);
         this.#set(key, { state: "joined", reply: null });
       },
       onClosed: () => {
+        if (!this.#current()) return;
         if (seat.peer === peer) this.#drop(key, "gone");
       },
       onLog: (entry) => {
+        if (!this.#current()) return;
         this.#log = [...this.#log.slice(-199), entry];
         this.#emit();
       },
@@ -317,20 +312,23 @@ export class LiveHost {
     seat.peer = peer;
     try {
       const answer = await peer.open(seat.offer);
+      this.#requireCurrent();
       if (relay)
         await peer.relayVia(relay, this.#owner, {
-          link: this.link,
-          code: this.code,
+          link: this.#link,
+          code: this.#code,
           joiner: seat.joiner,
           id: key,
         });
+      this.#requireCurrent();
       const reply = await makeReplyCode(
-        this.link,
-        this.code,
+        this.#link,
+        this.#code,
         this.#owner,
         seat.joiner,
         relay ? { id: key, answer, relay: "nats" } : { id: key, answer },
       );
+      this.#requireCurrent();
       if (seat.peer !== peer) {
         // Refused, ended or replaced while it was answering: nobody owns it.
         peer.close();
@@ -339,7 +337,7 @@ export class LiveHost {
       // The window to connect runs from the reply, not from the request.
       this.#arm(seat, PAIRING_MS, () => this.#drop(key, "gone"));
       this.#set(key, { state: "replied", reply });
-      this.options.post?.(reply);
+      this.#ports.post(reply);
     } catch {
       peer.close();
       if (seat.peer === peer) this.#drop(key, "gone");
@@ -350,12 +348,15 @@ export class LiveHost {
 
   /** Turn an asker away, or send a guest out. */
   refuse(key: string): void {
+    if (!this.#current()) return;
     this.#drop(key, "refused");
   }
 
   #drop(key: string, state: "gone" | "refused"): void {
     const seat = this.#seats.get(key);
     if (!seat || !OPEN.has(seat.guest.state)) return;
+    seat.carrier?.close();
+    seat.carrier = null;
     seat.peer?.close();
     seat.peer = null;
     // The offer is the seat's one big thing, and nothing reads it again.
@@ -379,11 +380,15 @@ export class LiveHost {
 
   /** End the session for everyone. */
   end(because: NonNullable<HostState["endedBecause"]> = "owner"): void {
+    this.#stopRealm?.();
+    this.#stopRealm = null;
     if (this.#ended) return;
     this.#ended = because;
     if (this.#timer) clearTimeout(this.#timer);
     for (const seat of this.#seats.values()) {
       this.#disarm(seat);
+      seat.carrier?.close();
+      seat.carrier = null;
       seat.peer?.close();
       seat.peer = null;
       if (OPEN.has(seat.guest.state))

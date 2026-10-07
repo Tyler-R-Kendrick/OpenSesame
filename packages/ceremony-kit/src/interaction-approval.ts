@@ -3,6 +3,7 @@ import type {
   InteractionSummary,
   JsonObject,
 } from "@opensesame/os-domain";
+import { activateInteraction } from "./interaction-activation.js";
 import type { InteractionClient } from "./interaction-client.js";
 import { InteractionError } from "./interaction-error.js";
 import {
@@ -16,6 +17,10 @@ import {
   outcomeOfStatus,
   viewOf,
 } from "./interaction-outcome.js";
+import {
+  beginSurfaceOperation,
+  surfaceOperationCurrent,
+} from "./surface-operation.js";
 
 /**
  * The cross-device approval ceremony (ADR 0086; ADR 0140 plan step 5):
@@ -85,6 +90,8 @@ export interface InteractionAuthenticator {
 }
 
 export interface InteractionApprovalDeps {
+  /** Optional surface authority, captured once per decision, never globally. */
+  beginOperation?: () => () => void;
   client: InteractionClient;
   authenticator: InteractionAuthenticator;
   /** Whether the surface holds a session to read the approver's view with. */
@@ -232,29 +239,6 @@ function echoable(
   return shown !== null && detail.requestDigest === shown ? shown : undefined;
 }
 
-/**
- * Begin an activation bound to the digest and the verb, run the
- * authenticator, and have the authority verify the raw assertion. `null`
- * when the authority confirmed an activation other than the one begun.
- */
-async function activate(
-  ceremony: Ceremony,
-  digest: string,
-): Promise<string | null> {
-  const { client, authenticator } = ceremony.deps;
-  const challenge = await client.beginInteractionActivation(ceremony.ref, {
-    requestDigest: digest,
-  });
-  const assertion = await authenticator.assert(challenge.options);
-  const confirmed = await client.completeInteractionActivation(ceremony.ref, {
-    activationId: challenge.activationId,
-    ...assertion,
-  });
-  return confirmed.activationId === challenge.activationId
-    ? challenge.activationId
-    : null;
-}
-
 function settledBy(detail: InteractionDetail, fallback: Outcome) {
   const outcome = outcomeOfStatus(detail.status) ?? fallback;
   return step({ kind: "done", outcome }, null);
@@ -265,25 +249,37 @@ async function answer(
   verb: "approve" | "deny",
   review: Review,
   digest: string,
+  check: () => void,
 ): Promise<InteractionStep> {
   const { client } = ceremony.deps;
   try {
+    check();
     if (verb === "deny") {
       // No proof: refusing costs nothing to prove, and authority shrinks.
       const denied = await client.denyInteraction(ceremony.ref, {
         requestDigest: digest,
       });
+      check();
       return settledBy(denied, "denied");
     }
-    const activationId = await activate(ceremony, digest);
+    const activationId = await activateInteraction(
+      ceremony.deps.client,
+      ceremony.deps.authenticator,
+      ceremony.ref,
+      digest,
+      check,
+    );
+    check();
     // Never a bare approve: without the activation begun here, stop.
     if (activationId === null) return step(review, INTERACTION_WORDS.stepup);
     const approved = await client.approveInteraction(ceremony.ref, {
       requestDigest: digest,
       activationId,
     });
+    check();
     return settledBy(approved, "approved");
   } catch (error) {
+    check();
     if (error instanceof InteractionStepUpError) {
       return step(review, error.message);
     }
@@ -308,10 +304,17 @@ async function decide(
   if (verb === "approve" && review.mechanism === undefined) {
     return commit(ceremony, step(review, STEP_UP_WORDS.unavailable));
   }
+  const check = beginSurfaceOperation(ceremony.deps.beginOperation);
+  if (!check) return null;
   ceremony.deciding = true;
   ceremony.run++;
   try {
-    return commit(ceremony, await answer(ceremony, verb, review, digest));
+    const next = await answer(ceremony, verb, review, digest, check);
+    check();
+    return commit(ceremony, next);
+  } catch (error) {
+    if (!surfaceOperationCurrent(check)) return null;
+    throw error;
   } finally {
     ceremony.deciding = false;
   }

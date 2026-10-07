@@ -1,3 +1,4 @@
+import { withRealAuthority } from "../decoy-session.js";
 /**
  * Drop claim transport — Identity plane (remote or device-native, ADR 0118):
  * the sender's side, creating and polling a drop's claim session. Opening
@@ -52,64 +53,66 @@ async function createClaimDefault(
   manifest: JsonObject,
   ttlMs: number,
 ): Promise<DropTransportSession> {
-  try {
-    await ensureIdentitySession();
-  } catch {
-    throw new DropTransportError(
-      "unreachable",
-      `The Identity plane at ${identityBase()} could not mint a session for this drop.`,
-    );
-  }
-  let res: Response;
-  try {
-    res = await identityFetch("/v1/claims", {
-      method: "POST",
-      body: JSON.stringify({
-        type: DROP_CLAIM_TYPE,
-        targetManifest: manifest,
-        ttlSeconds: Math.max(1, Math.round(ttlMs / 1000)),
-      }),
-    });
-  } catch {
-    throw new DropTransportError(
-      "unreachable",
-      `The Identity plane at ${identityBase()} could not be reached. Connect and try again.`,
-    );
-  }
-  if (!res.ok) {
-    const detail = obj(await res.json().catch(() => null));
-    throw new DropTransportError(
-      "refused",
-      isString(detail.hint)
-        ? detail.hint
-        : res.status === 401 || res.status === 403
-          ? "The Identity plane refused the drop session. Try again in a moment."
-          : `The Identity plane answered ${res.status} — the drop was not created.`,
-    );
-  }
-  const body = obj(await res.json());
-  const claimId = body.claimId;
-  const bearerToken = body.claimToken;
-  const userCode = body.userCode;
-  const expiresAt = body.expiresAt;
-  if (
-    !isString(claimId) ||
-    !isString(bearerToken) ||
-    !isString(userCode) ||
-    !isString(expiresAt)
-  ) {
-    throw new DropTransportError(
-      "refused",
-      "The Identity plane's answer did not look like a claim session.",
-    );
-  }
-  return {
-    claimId,
-    bearerToken,
-    userCode,
-    verifyUrl: pagesClaimUrl(dropSeams.claimBase()),
-    expiresAt,
-  };
+  return withRealAuthority(async () => {
+    try {
+      await ensureIdentitySession();
+    } catch {
+      throw new DropTransportError(
+        "unreachable",
+        `The Identity plane at ${identityBase()} could not mint a session for this drop.`,
+      );
+    }
+    let res: Response;
+    try {
+      res = await identityFetch("/v1/claims", {
+        method: "POST",
+        body: JSON.stringify({
+          type: DROP_CLAIM_TYPE,
+          targetManifest: manifest,
+          ttlSeconds: Math.max(1, Math.round(ttlMs / 1000)),
+        }),
+      });
+    } catch {
+      throw new DropTransportError(
+        "unreachable",
+        `The Identity plane at ${identityBase()} could not be reached. Connect and try again.`,
+      );
+    }
+    if (!res.ok) {
+      const detail = obj(await res.json().catch(() => null));
+      throw new DropTransportError(
+        "refused",
+        isString(detail.hint)
+          ? detail.hint
+          : res.status === 401 || res.status === 403
+            ? "The Identity plane refused the drop session. Try again in a moment."
+            : `The Identity plane answered ${res.status} — the drop was not created.`,
+      );
+    }
+    const body = obj(await res.json());
+    const claimId = body.claimId;
+    const bearerToken = body.claimToken;
+    const userCode = body.userCode;
+    const expiresAt = body.expiresAt;
+    if (
+      !isString(claimId) ||
+      !isString(bearerToken) ||
+      !isString(userCode) ||
+      !isString(expiresAt)
+    ) {
+      throw new DropTransportError(
+        "refused",
+        "The Identity plane's answer did not look like a claim session.",
+      );
+    }
+    return {
+      claimId,
+      bearerToken,
+      userCode,
+      verifyUrl: pagesClaimUrl(dropSeams.claimBase()),
+      expiresAt,
+    };
+  });
 }
 
 async function pollClaimDefault(

@@ -31,7 +31,7 @@ import {
 const PASSWORD = "correct horse battery staple";
 const PAIRED: PluginDaemonPairing = {
   url: "https://desk.tail4c2e.ts.net",
-  token: "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMSE",
+  token: "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMSE", // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
   origin: "https://tyler-r-kendrick.github.io",
   label: "Desk",
 };

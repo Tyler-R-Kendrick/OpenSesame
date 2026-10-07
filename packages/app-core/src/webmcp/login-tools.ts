@@ -2,6 +2,7 @@ import { type JsonObject, isBoolean, isString } from "@opensesame/os-domain";
 import type { WebMcpToolSpec } from "@opensesame/webmcp";
 import { requireLoginDraft } from "../lib/vault/login-draft.js";
 import { suggestItemMetadata } from "./draft-suggestions.js";
+import { continueToolRead } from "./tool-shared.js";
 
 type LoginTool = WebMcpToolSpec & {
   capabilityIds: readonly string[];
@@ -37,14 +38,18 @@ export const LOGIN_DRAFT_TOOLS: readonly LoginTool[] = [
       },
       additionalProperties: false,
     },
-    execute: async (args) => {
+    execute: async (args, ceiling) => {
       const action = optStr(args, "action") ?? "read";
       if (action === "suggest") {
-        return suggestItemMetadata({
-          ...args,
-          kind: "account",
-          action: "suggest",
-        });
+        return continueToolRead(
+          () =>
+            suggestItemMetadata({
+              ...args,
+              kind: "account",
+              action: "suggest",
+            }),
+          ceiling,
+        );
       }
       const draft = requireLoginDraft();
       if (action === "read") return draft.read();

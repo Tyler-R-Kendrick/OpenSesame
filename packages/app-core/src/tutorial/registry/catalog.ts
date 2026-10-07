@@ -56,6 +56,22 @@ export const CORE_GUIDE_TARGETS: readonly GuideTargetDescriptor[] = [
     routes: ["/settings"],
     capabilityId: null,
   },
+  {
+    id: "settings.security.canaries",
+    description:
+      "Owner-controlled instrumented references and synthetic MCP artifacts.",
+    role: "navigation",
+    routes: ["/settings/security"],
+    capabilityId: null,
+  },
+  {
+    id: "settings.security.receiver",
+    description:
+      "Optional sealed metadata delivery to an independently supplied receiver.",
+    role: "navigation",
+    routes: ["/settings/security"],
+    capabilityId: null,
+  },
   // Settings › Capabilities draws these in core, before any module lands.
   {
     id: "settings.connectivity",

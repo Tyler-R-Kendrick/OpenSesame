@@ -1,20 +1,24 @@
+import { createPkce, decodeJwtClaims } from "./federation-crypto.js";
+export { decodeJwtClaims, derivedSubjectFor } from "./federation-crypto.js";
+import { FederationError } from "./federation-error.js";
+export { FederationError } from "./federation-error.js";
 import {
   type BoundaryValue,
-  type JsonObject,
   isNumber,
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
-import {
-  decodeJwtEnvelope,
-  randomString,
-  sha256Base64Url,
-} from "@opensesame/sdk-browser";
+import { randomString } from "@opensesame/sdk-browser";
 import type { VerifiedIdTokenClaims } from "@opensesame/sdk-browser";
 import { env } from "../host.js";
 import { page, pageOrigin } from "../ports.js";
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
 import type { AuthenticationIntent } from "./ambient-auth/types.js";
+import {
+  assertNotDecoySession,
+  isRealAuthorityBlocked,
+  withRealAuthority,
+} from "./decoy-session.js";
 import { parseAuthCallback } from "./federation-callback.js";
 import {
   type PendingAuth,
@@ -248,44 +252,6 @@ export type UpstreamIdentity = {
   picture?: string | undefined;
 };
 
-export class FederationError extends Error {
-  readonly code: string;
-  constructor(code: string, message: string) {
-    super(message);
-    this.name = "FederationError";
-    this.code = code;
-  }
-}
-
-export function decodeJwtClaims(token: string): JsonObject {
-  const payload = token.split(".")[1];
-  if (!payload) throw new FederationError("invalid_token", "Not a JWT.");
-  try {
-    return decodeJwtEnvelope(token).claims;
-  } catch {
-    throw new FederationError("invalid_token", "Token payload is not JSON.");
-  }
-}
-
-/**
- * The subject a relying party at `origin` derives for itself, per
- * docs/architecture/federated-signin.md §3. Computed the same way here only so
- * the consent screen can show what an origin will learn.
- */
-export async function derivedSubjectFor(
-  pairwiseSub: string,
-  origin: string,
-): Promise<string> {
-  return sha256Base64Url(`${pairwiseSub}:${origin}`);
-}
-
-type Pkce = { verifier: string; challenge: string };
-
-async function createPkce(): Promise<Pkce> {
-  const verifier = randomString(32);
-  return { verifier, challenge: await sha256Base64Url(verifier) };
-}
-
 export async function discover(issuer: string): Promise<OidcDiscovery> {
   const url = `${issuer.replace(/\/+$/, "")}/.well-known/openid-configuration`;
   let response: Response;
@@ -384,7 +350,9 @@ async function beginSignInDefault(
   upstream: TrustedUpstream,
   options: BeginSignInOptions = {},
 ): Promise<void> {
+  const authorityGeneration = assertNotDecoySession();
   const { performSavedCategory } = await import("./feature-request-send.js");
+  assertNotDecoySession(authorityGeneration);
   performSavedCategory(["identity"]);
   // A brokered upstream built from an unconfigured Identity API carries an
   // empty issuer. Refusing here, before any navigation, is what keeps the
@@ -398,6 +366,7 @@ async function beginSignInDefault(
   ambientAuthSeams.clearAutoAuthSuppression();
   const discovery = await discoveryFor(upstream);
   const { verifier, challenge } = await createPkce();
+  assertNotDecoySession(authorityGeneration);
   const state = randomString(16);
   // An operator's own provider needs a subject and a name to be worth signing
   // in with; the origin-profile brokers have always answered `openid` alone.
@@ -542,6 +511,7 @@ async function requireActiveUpstreamSession(
  * not an upstream response, so it is safe to call on every startup.
  */
 async function completeSignInDefault(): Promise<CompletedSignIn | null> {
+  const authorityGeneration = assertNotDecoySession();
   const parsed = parseAuthCallback(page().location.search);
   if (parsed.kind === "none") return null;
   if (parsed.kind === "malformed") {
@@ -643,12 +613,14 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
   }
 
   const identity = readIdentity(tokens.id_token, pending);
+  assertNotDecoySession(authorityGeneration);
   // "We actually have an authorized user": where the broker offers a session
   // check (shoo does; its JWKS serves no CORS, so this is the one signature-
   // and revocation-backed answer a static page can get), ask it before the
   // identity is saved or handed to anyone. A refusal here is a refusal of the
   // whole sign-in.
   await requireActiveUpstreamSession(identity.idToken, pending);
+  assertNotDecoySession(authorityGeneration);
   // Org SSO/SAML is a one-shot assertion for Identity join, not a durable
   // Pages federation session. Saving it would collide with Shoo/mock sign-in.
   if (!pending.orgSlug) saveSession(identity);
@@ -680,6 +652,7 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
 async function adoptBrokeredSessionDefault(
   accessToken: string,
 ): Promise<IdentitySession> {
+  const authorityGeneration = assertNotDecoySession();
   const base = remoteIdentityApi();
   if (!base) {
     throw new FederationError(
@@ -719,6 +692,7 @@ async function adoptBrokeredSessionDefault(
     accessToken?: BoundaryValue;
     expiresAt?: BoundaryValue;
   } = overlapCast(await response.json());
+  assertNotDecoySession(authorityGeneration);
   if (!isString(body.principalId) || !isString(body.accessToken)) {
     throw new FederationError(
       "session_adoption_failed",
@@ -849,6 +823,7 @@ export function clearAuthResponseFromUrl(): void {
  * revocation after that takes effect only when `exp` passes.
  */
 export function saveSession(identity: UpstreamIdentity): void {
+  assertNotDecoySession();
   writeFederationSessionJson(JSON.stringify(identity));
   rememberLastSignIn(identity.upstreamId);
 }
@@ -881,9 +856,11 @@ function displayNameDefault(identity: UpstreamIdentity): string {
 }
 
 async function completeSignInWired(): Promise<CompletedSignIn | null> {
+  const authorityGeneration = assertNotDecoySession();
   const ambient = await ambientAuthSeams.completeIfPresent(
     page().location.search,
   );
+  assertNotDecoySession(authorityGeneration);
   if (ambient) {
     clearAuthResponseFromUrl();
     return ambient;
@@ -909,20 +886,25 @@ export async function beginSignIn(
   upstream: TrustedUpstream,
   options: BeginSignInOptions = {},
 ): Promise<void> {
-  return federationSeams.beginSignIn(upstream, options);
+  return withRealAuthority(() =>
+    federationSeams.beginSignIn(upstream, options),
+  );
 }
 
 export async function completeSignIn(): Promise<CompletedSignIn | null> {
-  return federationSeams.completeSignIn();
+  return withRealAuthority(() => federationSeams.completeSignIn());
 }
 
 export async function adoptBrokeredSession(
   accessToken: string,
 ): Promise<IdentitySession> {
-  return federationSeams.adoptBrokeredSession(accessToken);
+  return withRealAuthority(() =>
+    federationSeams.adoptBrokeredSession(accessToken),
+  );
 }
 
 export function loadSession(): UpstreamIdentity | null {
+  if (isRealAuthorityBlocked()) return null;
   return federationSeams.loadSession();
 }
 

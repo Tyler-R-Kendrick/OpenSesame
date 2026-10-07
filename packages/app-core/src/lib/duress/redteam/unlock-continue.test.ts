@@ -3,13 +3,28 @@
  */
 
 import type { BoundaryValue } from "@opensesame/os-domain";
-import { WrongPasswordError } from "@opensesame/vault-core";
-import { describe, expect, it, vi } from "vitest";
+import { WrongPasswordError, createItem } from "@opensesame/vault-core";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   continueAfterDuressMatch,
+  duressContinueSeams,
   resolveDuressPresentation,
 } from "../../../screens/unlock/unlock-duress-continue.js";
 import { UNLOCK_PIN_MISS } from "../../../screens/unlock/unlock-duress-refuse.js";
+
+import { kvDelete, kvGet } from "../../kv.js";
+import { VaultStore } from "../../vault/store.js";
+import {
+  BODY_PATH,
+  GUEST_TOMB,
+  HEADER_PATH,
+  tombFileKey,
+  vfsFlush,
+} from "../../vfs.js";
+import { clearActivePresentation } from "../compartment/presentation-runtime.js";
+import { HOUR_MS, readHold } from "../hold/record.js";
+import { encodePlan } from "../settings/modes/payload.js";
+import { HOLD_KEY } from "../store/boot-keys.js";
 
 function continueMatch(presentation: string, profileId = "p-test") {
   return {
@@ -171,4 +186,114 @@ it("unknown presentation maps to restricted guest continue", async () => {
   expect(
     readActivePresentation()?.outcome.session.suppressSensitiveLabels,
   ).toBe(true);
+});
+
+const realStores = new Set<VaultStore>();
+afterEach(async () => {
+  vi.restoreAllMocks();
+  clearActivePresentation();
+  for (const store of realStores) store.lock();
+  realStores.clear();
+  await vfsFlush();
+  kvDelete(HOLD_KEY);
+});
+
+it("records the owner's freeze before refusing, with the original effect host", async () => {
+  kvDelete(HOLD_KEY);
+  const store = new VaultStore();
+  realStores.add(store);
+  const effects = vi.spyOn(duressContinueSeams, "runEffects");
+  const before = Date.now();
+  await expect(
+    continueAfterDuressMatch(
+      store,
+      {
+        ...continueMatch("locked"),
+        plaintext: {
+          ...continueMatch("locked").plaintext,
+          payload: encodePlan({ effect: "freeze", body: { hours: 1 } }),
+        },
+      },
+      UNLOCK_PIN_MISS,
+    ),
+  ).rejects.toBeInstanceOf(WrongPasswordError);
+  const hold = readHold();
+  expect(hold?.setAt).toBeGreaterThanOrEqual(before);
+  expect(hold?.until).toBe(hold ? hold.setAt + HOUR_MS : -1);
+  expect(effects).toHaveBeenCalledOnce();
+  expect(effects.mock.calls[0]?.[2].store).toBe(store);
+  expect(store.getSnapshot().status).not.toBe("unlocked");
+});
+
+it("populates a fresh decoy while preserving the sealed guest and its PIN", async () => {
+  for (const path of [HEADER_PATH, BODY_PATH])
+    kvDelete(tombFileKey(GUEST_TOMB, path));
+  const store = new VaultStore();
+  realStores.add(store);
+  await store.createGuest();
+  await store.enrollPin("48291037");
+  await store.saveItem(createItem("note", "Owner-only saved note"));
+  await store.flushPendingWrites();
+  store.lock();
+  await vfsFlush();
+  const header = kvGet(tombFileKey(GUEST_TOMB, HEADER_PATH));
+  const body = kvGet(tombFileKey(GUEST_TOMB, BODY_PATH));
+  expect(header).not.toBeNull();
+  expect(body).not.toBeNull();
+  const matched = continueMatch("decoy");
+  await continueAfterDuressMatch(
+    store,
+    {
+      ...matched,
+      plaintext: {
+        ...matched.plaintext,
+        payload: encodePlan({
+          effect: "decoy_items",
+          body: {
+            items: [
+              {
+                title: "Planted library account",
+                secret: "synthetic-only-password",
+              },
+              {
+                title: "Planted gym account",
+                secret: "synthetic-only-password-two",
+              },
+              {
+                title: "Planted media account",
+                secret: "synthetic-only-password-three",
+              },
+            ],
+          },
+        }),
+      },
+    },
+    UNLOCK_PIN_MISS,
+  );
+  expect(
+    store
+      .getSnapshot()
+      .items.some((item) => item.name === "Planted library account"),
+  ).toBe(true);
+  expect(
+    store
+      .getSnapshot()
+      .items.some((item) => item.name === "Owner-only saved note"),
+  ).toBe(false);
+  await store.flushPendingWrites();
+  await vfsFlush();
+  expect(kvGet(tombFileKey(GUEST_TOMB, HEADER_PATH))).toBe(header);
+  expect(kvGet(tombFileKey(GUEST_TOMB, BODY_PATH))).toBe(body);
+  store.lock();
+  await store.unlockWithPin("48291037");
+  expect(
+    store
+      .getSnapshot()
+      .items.some((item) => item.name === "Owner-only saved note"),
+  ).toBe(true);
+  expect(
+    store
+      .getSnapshot()
+      .items.some((item) => item.name === "Planted library account"),
+  ).toBe(false);
 });

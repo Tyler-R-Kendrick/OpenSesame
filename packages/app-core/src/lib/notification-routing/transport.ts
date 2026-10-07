@@ -21,6 +21,7 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { currentSession, identityFetch } from "../identity.js";
+import { authenticatedResult } from "../member-authority.js";
 import {
   type BindingRow,
   type ChannelRow,
@@ -231,7 +232,21 @@ export function routingClient(
   transport: RoutingTransport = identityRoutingTransport,
 ) {
   const call = caller(transport);
-  return { ...readsAndPreferences(call), ...destinations(call) };
+  const client = { ...readsAndPreferences(call), ...destinations(call) };
+  if (transport !== identityRoutingTransport) return client;
+  return {
+    channels: () => authenticatedResult(() => client.channels()),
+    bindings: () => authenticatedResult(() => client.bindings()),
+    preferences: () => authenticatedResult(() => client.preferences()),
+    savePreferences: (...args: Parameters<typeof client.savePreferences>) =>
+      authenticatedResult(() => client.savePreferences(...args)),
+    effectiveRoute: (...args: Parameters<typeof client.effectiveRoute>) =>
+      authenticatedResult(() => client.effectiveRoute(...args)),
+    beginBinding: (...args: Parameters<typeof client.beginBinding>) =>
+      authenticatedResult(() => client.beginBinding(...args)),
+    revokeBinding: (...args: Parameters<typeof client.revokeBinding>) =>
+      authenticatedResult(() => client.revokeBinding(...args)),
+  };
 }
 
 export type RoutingClient = ReturnType<typeof routingClient>;

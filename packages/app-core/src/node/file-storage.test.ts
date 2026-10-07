@@ -1,4 +1,6 @@
+import { execFileSync } from "node:child_process";
 import {
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -28,6 +30,95 @@ describe("createFileStorage", () => {
     expect(second.getItem("opensesame.a")).toBeNull();
     expect(second.getItem("opensesame.b")).toBe("2");
     expect(second.length).toBe(1);
+  });
+
+  it("keeps separately constructed Hosts current without losing other keys", () => {
+    const first = createNodeHost({ stateDir: dir }).storage?.local;
+    const second = createNodeHost({ stateDir: dir }).storage?.local;
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+    first?.setItem("owner-remote", "remote-a");
+    second?.setItem("another-key", "retained");
+    expect(first?.getItem("another-key")).toBe("retained");
+    expect(second?.getItem("owner-remote")).toBe("remote-a");
+    expect(first?.length).toBe(2);
+    expect(second?.key(0)).toBe("owner-remote");
+    second?.removeItem("owner-remote");
+    first?.setItem("new-key", "fresh");
+    expect(second?.getItem("owner-remote")).toBeNull();
+    expect(
+      JSON.parse(readFileSync(join(dir, "local-storage.json"), "utf8")),
+    ).toEqual({
+      "another-key": "retained",
+      "new-key": "fresh",
+    });
+  });
+
+  it("refreshes a stale parent after a separate process publishes disk changes", () => {
+    const path = join(dir, "local-storage.json");
+    const store = createFileStorage(path);
+    store.setItem("remove-me", "initial");
+    execFileSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        `import { readFileSync, writeFileSync, renameSync } from "node:fs";
+       const path = process.argv[1];
+       const entries = JSON.parse(readFileSync(path, "utf8"));
+       entries["external-owner-metadata"] = "external";
+       const pending = path + ".external.tmp";
+       writeFileSync(pending, JSON.stringify(entries), { mode: 0o600 });
+       renameSync(pending, path);`,
+        path,
+      ],
+      { timeout: 10_000 },
+    );
+    expect(store.getItem("external-owner-metadata")).toBe("external");
+    store.removeItem("remove-me");
+    store.setItem("parent-key", "new");
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({
+      "external-owner-metadata": "external",
+      "parent-key": "new",
+    });
+  });
+
+  it("propagates unreadable paths before creating or replacing storage", () => {
+    const store = createFileStorage(join(dir, "state.json"));
+    mkdirSync(join(dir, "state.json"));
+    for (const action of [
+      () => store.getItem("k"),
+      () => store.length,
+      () => store.key(0),
+      () => store.setItem("k", "v"),
+      () => store.removeItem("k"),
+    ]) {
+      expect(action).toThrow();
+      expect(statSync(join(dir, "state.json")).isDirectory()).toBe(true);
+    }
+    writeFileSync(join(dir, "file-parent"), "preserved");
+    expect(() =>
+      createFileStorage(join(dir, "file-parent", "state.json")),
+    ).toThrow();
+    expect(readFileSync(join(dir, "file-parent"), "utf8")).toBe("preserved");
+  });
+
+  it("refuses malformed changed disk state without replacing its bytes", () => {
+    const path = join(dir, "local-storage.json");
+    const store = createFileStorage(path);
+    store.setItem("existing", "valid");
+    const corrupt = "{malformed";
+    writeFileSync(path, corrupt);
+    for (const action of [
+      () => store.getItem("existing"),
+      () => store.length,
+      () => store.key(0),
+      () => store.setItem("k", "v"),
+      () => store.removeItem("existing"),
+    ]) {
+      expect(action).toThrow();
+      expect(readFileSync(path, "utf8")).toBe(corrupt);
+    }
   });
 
   it.skipIf(process.platform === "win32")(

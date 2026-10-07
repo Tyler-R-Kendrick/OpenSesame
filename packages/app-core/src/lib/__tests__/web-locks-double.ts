@@ -7,6 +7,11 @@
 
 export type WebLocksDouble = {
   request<T>(name: string, run: () => Promise<T>): Promise<T>;
+  request<T>(
+    name: string,
+    options: LockOptions,
+    run: (lock: Lock | null) => Promise<T>,
+  ): Promise<T>;
   /** Names requested, in order. */
   readonly requested: string[];
   /** The most holders ever inside one name together. */
@@ -21,17 +26,29 @@ export function webLocksDouble(): WebLocksDouble {
   return {
     requested,
     peak: () => peak,
-    async request<T>(name: string, run: () => Promise<T>): Promise<T> {
+    async request<T>(
+      ...args:
+        | [name: string, run: () => Promise<T>]
+        | [
+            name: string,
+            options: LockOptions,
+            callback: (lock: Lock | null) => Promise<T>,
+          ]
+    ): Promise<T> {
+      const name = args[0];
+      const options = args.length === 3 ? args[1] : {};
+      const callback =
+        args.length === 3 ? args[2] : async (_lock: Lock | null) => args[1]();
+      const run = () => callback({ name, mode: options.mode ?? "exclusive" });
+      if (options.ifAvailable && tails.has(name)) return callback(null);
       requested.push(name);
       const previous = tails.get(name) ?? Promise.resolve();
       let release!: () => void;
       const gate = new Promise<void>((resolve) => {
         release = resolve;
       });
-      tails.set(
-        name,
-        previous.then(() => gate),
-      );
+      const tail = previous.then(() => gate);
+      tails.set(name, tail);
       await previous;
       inside.set(name, (inside.get(name) ?? 0) + 1);
       peak = Math.max(peak, inside.get(name) ?? 0);
@@ -40,6 +57,7 @@ export function webLocksDouble(): WebLocksDouble {
       } finally {
         inside.set(name, (inside.get(name) ?? 1) - 1);
         release();
+        if (tails.get(name) === tail) tails.delete(name);
       }
     },
   };

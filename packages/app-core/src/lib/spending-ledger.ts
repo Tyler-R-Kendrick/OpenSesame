@@ -24,6 +24,7 @@ import {
   createInMemoryBudgetStore,
 } from "@opensesame/wallet-budget";
 import { localStore } from "../ports.js";
+import { isRealAuthorityBlocked } from "./decoy-session.js";
 import {
   SPENDING_LEDGER_STORAGE_KEY,
   readPersisted,
@@ -31,6 +32,7 @@ import {
 } from "./spending-ledger-persist.js";
 import { unbindBudget } from "./wallet-assignments.js";
 import {
+  assertWalletStorageMutation,
   onWalletTombChange,
   walletStorageKey,
   walletStorageScope,
@@ -45,18 +47,22 @@ const LABELS_KEY = "opensesame.wallet.budget.labels.v1";
  */
 class PersistingBudgetStore implements BudgetStore {
   private readonly inner: BudgetStore;
+  private readonly scope = walletStorageScope();
 
   constructor(initial?: BudgetSnapshot) {
     this.inner = createInMemoryBudgetStore(initial);
   }
 
   transact<T>(body: (tx: BudgetTx) => T): T {
+    assertWalletStorageMutation(this.scope);
     const result = this.inner.transact(body);
     writePersisted(this.inner.snapshot());
     return result;
   }
 
   snapshot(): BudgetSnapshot {
+    if (this.scope !== walletStorageScope())
+      throw new Error("Wallet session changed. Acquire a new owner handle.");
     return this.inner.snapshot();
   }
 }
@@ -99,6 +105,7 @@ export function resetSpendingLedgerCache(): void {
 }
 
 export function clearSpendingLedgerStorage(): void {
+  assertWalletStorageMutation();
   try {
     localStore().removeItem(walletStorageKey(SPENDING_LEDGER_STORAGE_KEY));
     localStore().removeItem(walletStorageKey(LABELS_KEY));
@@ -182,6 +189,7 @@ function dropLabel(nodeId: string): void {
 export function listBudgetRows(
   ledger: BudgetLedger = getSpendingLedger(),
 ): readonly BudgetRow[] {
+  if (isRealAuthorityBlocked()) return [];
   const labels = readLabels();
   return ledger
     .listNodes()

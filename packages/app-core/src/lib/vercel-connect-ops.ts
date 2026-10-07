@@ -1,3 +1,4 @@
+import { assertNotDecoySession } from "./decoy-session.js";
 /**
  * Connect list/create/authorize/revoke — relay preferred, sealed token fallback.
  */
@@ -68,6 +69,7 @@ export async function connectFetch(
   path: string,
   init: RequestInit = {},
 ): Promise<BoundaryValue> {
+  const authorityGeneration = assertNotDecoySession();
   if (path.includes("/connect/token")) {
     throw new ConnectError(0, "refused", "Connect tokens stay in Connect.");
   }
@@ -98,6 +100,7 @@ export async function connectFetch(
       );
     }
     const body: BoundaryValue = await response.json().catch(() => null);
+    assertNotDecoySession(authorityGeneration);
     if (!response.ok) {
       const error =
         isJsonObject(body) && isJsonObject(body.error) ? body.error : {};
@@ -110,6 +113,7 @@ export async function connectFetch(
     return body;
   } finally {
     clearTimeout(timer);
+    assertNotDecoySession(authorityGeneration);
   }
 }
 
@@ -148,6 +152,7 @@ export async function listVercelConnections(): Promise<Connection[]> {
 }
 
 export async function getVercelConnection(id: string): Promise<Connection> {
+  const authorityGeneration = assertNotDecoySession();
   if (connectRelayConfigured()) {
     const listed = await listVercelConnections();
     const found = listed.find(
@@ -165,6 +170,7 @@ export async function getVercelConnection(id: string): Promise<Connection> {
     id,
     sdkOptions(auth),
   );
+  assertNotDecoySession(authorityGeneration);
   const mapped = toConnectConnection(
     {
       id: meta.id,
@@ -262,6 +268,7 @@ export async function authorizeVercelConnection(
   id: string,
   scopes?: string[],
 ): Promise<VercelAuthorizeResult> {
+  const authorityGeneration = assertNotDecoySession();
   const relay = connectCallbackBase().replace(/\/+$/, "");
   const callbackUrl = relay
     ? `${relay}/api/connect/callback?return_to=${encodeURIComponent(connectReturnTo(id))}`
@@ -294,6 +301,7 @@ export async function authorizeVercelConnection(
     appSubject(scopes),
     callbackUrl ? { ...sdkOptions(auth), callbackUrl } : sdkOptions(auth),
   );
+  assertNotDecoySession(authorityGeneration);
   if (!reply.url) {
     throw new ConnectError(
       0,
@@ -317,6 +325,7 @@ export type VercelRevokeResult = {
 export async function revokeVercelConnection(
   id: string,
 ): Promise<VercelRevokeResult> {
+  const authorityGeneration = assertNotDecoySession();
   const guest = isGuestSession();
   if (guest) releaseGuestConnection(id);
   if (connectRelayConfigured()) {
@@ -325,8 +334,10 @@ export async function revokeVercelConnection(
         "/api/connect/revoke",
         relayMutation({ connectorId: id }),
       );
+      assertNotDecoySession(authorityGeneration);
       return { revoked: true, providerRevocation: "ok" };
     } catch (error) {
+      assertNotDecoySession(authorityGeneration);
       if (!guest) throw error;
       return { revoked: true, providerRevocation: "failed" };
     }
@@ -338,8 +349,10 @@ export async function revokeVercelConnection(
       { subject: { type: "app" } },
       sdkOptions(auth),
     );
+    assertNotDecoySession(authorityGeneration);
     return { revoked: true, providerRevocation: "ok" };
   } catch (error) {
+    assertNotDecoySession(authorityGeneration);
     if (!guest) throw error;
     return { revoked: true, providerRevocation: "failed" };
   }

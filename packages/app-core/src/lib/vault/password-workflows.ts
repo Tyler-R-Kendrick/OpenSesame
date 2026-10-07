@@ -11,6 +11,7 @@ import {
   definitionFields,
   isConcealedFieldType,
 } from "@opensesame/vault-item-types";
+import { assertNotDecoySession } from "../decoy-session.js";
 import { assertShareReach } from "../local-share-reach.js";
 import {
   type InventoryItem,
@@ -20,6 +21,7 @@ import {
   metadataOrigin,
 } from "../password-agent/discover.js";
 import { resolveEnv } from "../password-agent/env.js";
+import { pinTombAuthority } from "../vfs.js";
 import {
   accountFieldMetadata,
   accountSecretField,
@@ -138,14 +140,17 @@ function declaredFieldMetadata(
   });
 }
 
-function unlocked() {
+function unlocked(generation?: number) {
+  assertNotDecoySession(generation);
   const state = vaultStore.getSnapshot();
   if (state.status !== "unlocked" || state.awaitingSecondStep)
     throw new Error("Unlock the vault first.");
   return state;
 }
 async function reachableItems() {
-  const state = unlocked();
+  const generation = assertNotDecoySession();
+  const state = unlocked(generation);
+  const check = pinTombAuthority(state.tomb);
   const items: VaultItem[] = [];
   // A credential bound to an account is that account's method, referenced
   // through it (`method:<id>:secret`), not an item of its own to find (ADR 0179).
@@ -158,7 +163,8 @@ async function reachableItems() {
       /* Unreachable items stay out of discovery. */
     }
   }
-  const current = unlocked();
+  check();
+  const current = unlocked(generation);
   if (current.tomb !== state.tomb)
     throw new Error("The vault changed. Try again.");
   const stillPresent = outsideAccounts(current.items).filter(
@@ -188,15 +194,18 @@ export async function comparePrivatePassword(
   apply = false,
   methodId?: string,
 ) {
-  const state = unlocked();
+  const generation = assertNotDecoySession();
+  const state = unlocked(generation);
+  const check = pinTombAuthority(state.tomb);
   await assertShareReach(
     state.tomb,
     { kind: "item", id },
     apply ? "write" : "read",
   );
-  if (unlocked().tomb !== state.tomb)
+  check();
+  if (unlocked(generation).tomb !== state.tomb)
     throw new Error("The vault changed. Try again.");
-  const item = unlocked().items.find(
+  const item = unlocked(generation).items.find(
     (entry) => entry.id === id && entry.deletedAt === null,
   );
   if (item?.kind !== "account")
@@ -207,8 +216,10 @@ export async function comparePrivatePassword(
   if (!apply || matches) return { matches, applied: false, id };
   const now = new Date().toISOString();
   const expected = withPrivatePassword(item, method, candidate, now);
+  check();
   await savePrivateItem(expected);
-  const saved = privateWriteSnapshot(state.tomb).items.find(
+  check();
+  const saved = privateWriteSnapshot(state.tomb, generation).items.find(
     (entry) => entry.id === id,
   );
   if (
@@ -221,8 +232,8 @@ export async function comparePrivatePassword(
   return { matches: true, applied: true, verified: true, id };
 }
 
-function privateWriteSnapshot(tomb: string) {
-  const current = unlocked();
+function privateWriteSnapshot(tomb: string, generation: number) {
+  const current = unlocked(generation);
   if (current.tomb !== tomb)
     throw new Error(
       "The credential write is unverified because the vault changed. Do not retry automatically.",
@@ -244,7 +255,9 @@ async function savePrivateItem(item: VaultItem): Promise<void> {
 export async function resolveLocalReference(
   reference: string,
 ): Promise<string> {
-  const state = unlocked();
+  const generation = assertNotDecoySession();
+  const state = unlocked(generation);
+  const check = pinTombAuthority(state.tomb);
   const match = /^os:\/\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(reference);
   if (!match)
     throw new Error(
@@ -256,9 +269,10 @@ export async function resolveLocalReference(
   if (tomb !== state.tomb)
     throw new Error("The reference belongs to a different vault.");
   await assertShareReach(tomb, { kind: "item", id }, "read");
-  if (unlocked().tomb !== tomb)
+  check();
+  if (unlocked(generation).tomb !== tomb)
     throw new Error("The vault changed. Try again.");
-  const item = unlocked().items.find(
+  const item = unlocked(generation).items.find(
     (entry) => entry.id === id && entry.deletedAt === null,
   );
   if (!item) throw new Error("The referenced item was not found.");
@@ -288,8 +302,13 @@ function secretFieldValue(item: VaultItem, field: string): string {
 }
 
 export async function resolveLocalEnvTemplate(content: string) {
-  unlocked();
-  return resolveEnv(content, (references) =>
+  const generation = assertNotDecoySession();
+  const state = unlocked(generation);
+  const check = pinTombAuthority(state.tomb);
+  const resolved = await resolveEnv(content, (references) =>
     Promise.all(references.map(resolveLocalReference)),
   );
+  check();
+  unlocked(generation);
+  return resolved;
 }

@@ -1,3 +1,4 @@
+import { continueToolRead } from "./tool-shared.js";
 /**
  * Read-only settings summary. It reports which model plane runs the
  * password-reset ceremony, so it reads the model-provider record and the
@@ -30,14 +31,14 @@ export const SETTINGS_READ_TOOL: PagesWebMcpTool = {
     properties: {},
     additionalProperties: false,
   },
-  execute: async () => {
+  execute: async (_args, ceiling) => {
     const settings = loadSettings();
     // Reported so an agent does not offer a ceremony that cannot run. Which
     // plane, and whether it is on — never the endpoint, which would tell a
     // caller where to aim a redirect it is not allowed to make (ADR 0087).
     const plane = resolveModelPlane(
       loadModelProvider(),
-      await browserInference(),
+      await continueToolRead(() => browserInference(), ceiling),
     );
     return {
       identityApi: settings.identityApi,

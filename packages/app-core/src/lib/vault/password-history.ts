@@ -6,7 +6,6 @@ import {
 } from "@opensesame/vault-core";
 import { listLocalBackupTargets } from "../backup-target-local.js";
 import { loadHistorySelections } from "../history-backups.js";
-import { legacyPasswordDigestStore } from "./password-history-legacy.js";
 import type { PasswordDigestStore } from "./password-history-types.js";
 
 export class PasswordUsedBeforeError extends Error {
@@ -25,15 +24,23 @@ const memory = new Map<string, Set<string>>();
 let installed: PasswordDigestStore | null = null;
 
 /** The store digests rest in: the encrypted one while it is installed. */
-function store(): PasswordDigestStore {
-  return installed ?? legacyPasswordDigestStore;
+async function store(
+  selected: PasswordDigestStore | null,
+): Promise<PasswordDigestStore> {
+  return (
+    selected ??
+    (await import("./password-history-legacy.js")).legacyPasswordDigestStore
+  );
 }
 
 /** Route digests to `next`, or back to the device-sealed database with null. */
 export function installPasswordDigestStore(
   next: PasswordDigestStore | null,
-): void {
+): () => void {
   installed = next;
+  return () => {
+    if (installed === next) installed = null;
+  };
 }
 
 export function resetPasswordHistoryForTest(): void {
@@ -49,12 +56,13 @@ export async function forgetRetiredPasswords(
   tomb: string,
   itemIds: readonly string[],
 ): Promise<number> {
+  const selected = installed;
   let gone = 0;
   for (const id of itemIds) {
     const scope = `${tomb}\u0000${id}`;
     gone += memory.get(scope)?.size ?? 0;
     memory.delete(scope);
-    gone += (await store().forget(scope)) ?? 0;
+    gone += (await (await store(selected)).forget(scope)) ?? 0;
   }
   return gone;
 }
@@ -159,31 +167,49 @@ export async function preparePasswordRetirement(
   tomb: string,
   current: readonly VaultItem[],
   next: readonly VaultItem[],
+  check?: () => void,
 ): Promise<RetiredDigest[]> {
+  const selected = installed;
   const changes = passwordChanges(tomb, current, next);
   if (changes.length === 0 || persistenceProvided()) return [];
   for (const change of changes) {
     if (!change.next) continue;
-    if (await passwordPreviouslyUsed(change.scope, change.next)) {
+    check?.();
+    const used = await previouslyUsed(
+      change.scope,
+      change.next,
+      selected,
+      check,
+    );
+    check?.();
+    if (used) {
       throw new PasswordUsedBeforeError();
     }
   }
   const retired: RetiredDigest[] = [];
   for (const change of changes) {
     if (!change.previous) continue;
+    check?.();
     retired.push({
       scope: change.scope,
       digest: await digestPassword(change.previous),
     });
+    check?.();
   }
   return retired;
 }
 
 export async function rememberRetiredDigests(
   notes: readonly RetiredDigest[],
+  check?: () => void,
 ): Promise<void> {
+  const selected = installed;
   if (notes.length === 0 || persistenceProvided()) return;
-  for (const note of notes) await rememberDigest(note.scope, note.digest);
+  for (const note of notes) {
+    check?.();
+    await rememberDigest(note.scope, note.digest, selected, check);
+    check?.();
+  }
 }
 
 /** Record a retired password's digest. No-op when a backup is configured. */
@@ -191,8 +217,9 @@ export async function noteRetiredPassword(
   scope: string,
   password: string,
 ): Promise<void> {
+  const selected = installed;
   if (!password || persistenceProvided()) return;
-  await rememberDigest(scope, await digestPassword(password));
+  await rememberDigest(scope, await digestPassword(password), selected);
 }
 
 /** Hash equality only. Never reads a historical password record. */
@@ -200,10 +227,22 @@ export async function passwordPreviouslyUsed(
   scope: string,
   password: string,
 ): Promise<boolean> {
+  return previouslyUsed(scope, password, installed);
+}
+
+async function previouslyUsed(
+  scope: string,
+  password: string,
+  selected: PasswordDigestStore | null,
+  check?: () => void,
+): Promise<boolean> {
   if (!password || persistenceProvided()) return false;
+  check?.();
   const digest = await digestPassword(password);
+  check?.();
   if (memory.get(scope)?.has(digest)) return true;
-  const stored = await digestsFor(scope);
+  const stored = await digestsFor(scope, selected, check);
+  check?.();
   return stored.includes(digest);
 }
 
@@ -215,13 +254,31 @@ function scopeSet(scope: string): Set<string> {
   return created;
 }
 
-async function rememberDigest(scope: string, digest: string): Promise<void> {
+async function rememberDigest(
+  scope: string,
+  digest: string,
+  selected: PasswordDigestStore | null,
+  check?: () => void,
+): Promise<void> {
+  check?.();
+  const backend = await store(selected);
+  check?.();
   const known = scopeSet(scope);
   if (known.has(digest)) return;
+  await backend.add(scope, digest);
+  check?.();
   known.add(digest);
-  await store().add(scope, digest);
 }
 
-async function digestsFor(scope: string): Promise<string[]> {
-  return (await store().digestsFor(scope)) ?? [];
+async function digestsFor(
+  scope: string,
+  selected: PasswordDigestStore | null,
+  check?: () => void,
+): Promise<string[]> {
+  check?.();
+  const backend = await store(selected);
+  check?.();
+  const result = await backend.digestsFor(scope);
+  check?.();
+  return result ?? [];
 }

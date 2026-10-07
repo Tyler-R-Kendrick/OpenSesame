@@ -38,6 +38,10 @@ import {
 } from "@opensesame/ceremony-kit";
 import { currentSession, identityFetch } from "./identity.js";
 import { hostInteractionAuthenticator } from "./interactions.js";
+import {
+  authenticatedResult,
+  captureRealAuthority,
+} from "./member-authority.js";
 
 export interface ApprovalTransport {
   /** An approver's Identity API call; `path` is relative to the base. */
@@ -56,10 +60,27 @@ export const identityApprovalTransport: ApprovalTransport = {
 export function approvalClient(
   transport: ApprovalTransport = identityApprovalTransport,
 ): AuthorizationRequestClient {
-  return createAuthorizationRequestClient({
+  const client = createAuthorizationRequestClient({
     // `identityFetch` attaches the session itself: no bearer here.
     fetchImpl: (path, init) => transport.fetch(path, init),
   });
+  if (transport !== identityApprovalTransport) return client;
+  return {
+    listPending: () => authenticatedResult(() => client.listPending()),
+    read: (...args: Parameters<typeof client.read>) =>
+      authenticatedResult(() => client.read(...args)),
+    requirement: (...args: Parameters<typeof client.requirement>) =>
+      authenticatedResult(() => client.requirement(...args)),
+    beginActivation: (...args: Parameters<typeof client.beginActivation>) =>
+      authenticatedResult(() => client.beginActivation(...args)),
+    completeActivation: (
+      ...args: Parameters<typeof client.completeActivation>
+    ) => authenticatedResult(() => client.completeActivation(...args)),
+    settle: (...args: Parameters<typeof client.settle>) =>
+      authenticatedResult(() => client.settle(...args)),
+    report: (...args: Parameters<typeof client.report>) =>
+      authenticatedResult(() => client.report(...args)),
+  };
 }
 
 export interface ApprovalBinding {
@@ -81,6 +102,9 @@ export function approvalReview(
     {
       client: approvalClient(binding.transport),
       authenticator: binding.authenticator,
+      ...(binding.transport === identityApprovalTransport
+        ? { beginOperation: captureRealAuthority }
+        : {}),
     },
     id,
   );

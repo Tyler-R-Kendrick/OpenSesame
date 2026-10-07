@@ -10,11 +10,17 @@
  */
 
 import { maybePage } from "../../ports.js";
+import { isRealAuthorityBlocked } from "../decoy-session.js";
 import { kvHydrate } from "../kv.js";
 import { onVaultLock } from "../vault/lock-events.js";
+import { vaultIdentity } from "../vault/store-vault-identity.js";
 import { type VaultState, vaultStore } from "../vault/store.js";
 import { subscribeCapabilitiesChanged } from "./channel.js";
 import { vaultSelectionKey } from "./keys.js";
+import {
+  configureLeaseIssuerScope,
+  resolveRetiredLeaseIdentifier,
+} from "./lease-canary-issuer.js";
 import type { CompositionStore } from "./store.js";
 
 /** The tomb whose plan applies: the unlocked one, or none. */
@@ -68,6 +74,25 @@ export function startInvalidationWatch(store: CompositionStore): () => void {
   }
 
   const vault = invalidationSeams.vaultStore();
+  stops.push(
+    configureLeaseIssuerScope(() => {
+      const state = vault.getSnapshot();
+      const identity = vaultIdentity(state.header);
+      return !isRealAuthorityBlocked() &&
+        state.status === "unlocked" &&
+        identity
+        ? { tomb: state.tomb, vaultIdentity: identity }
+        : null;
+    }),
+  );
+  // Owner registry code stays outside the eager capability activation graph.
+  void import("../credential-canaries/registry.js").then(
+    ({ configureCredentialCanaryIssuer }) => {
+      configureCredentialCanaryIssuer({
+        resolveRetiredIdentifier: resolveRetiredLeaseIdentifier,
+      });
+    },
+  );
   let lastVault = vaultIdOf(vault.getSnapshot());
   stops.push(
     vault.subscribe(() => {

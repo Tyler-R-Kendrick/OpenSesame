@@ -1,3 +1,4 @@
+import { assertNotDecoySession } from "../lib/decoy-session.js";
 /**
  * Helpers every WebMCP tool group shares: argument readers, the unlocked
  * gate, the ceremony opener, and the support seam. Nothing here names a
@@ -41,6 +42,7 @@ export function optStr(args: JsonObject, key: string): string | null {
 }
 
 export function requireUnlocked(): void {
+  assertNotDecoySession();
   if (vaultStore.getSnapshot().status !== "unlocked") {
     throw new Error("vault_locked");
   }
@@ -84,15 +86,42 @@ export function reachedItem(
   itemId: string,
   wanted: "read" | "write",
 ): Promise<VaultItem> {
-  return name(itemId, async (named) =>
-    findItem(
-      named,
-      await (wanted === "read" ? reachItemRead(named) : reachItemWrite(named)),
-    ),
-  );
+  const check = vaultStore.pinContinuation();
+  return name(itemId, async (named) => {
+    const reach = await (wanted === "read"
+      ? reachItemRead(named)
+      : reachItemWrite(named));
+    check();
+    return findItem(named, reach);
+  });
 }
 
 export function ceremonyOpened(location: string) {
   webmcpNavigationSeam.navigate(location);
   return { status: "ceremony_opened", location } as const;
+}
+
+/** Await a read without admitting a successor session to its result. */
+export async function continueToolRead<T>(
+  read: () => Promise<T>,
+  ceiling?: () => void,
+): Promise<T> {
+  const check = pinToolContinuation(ceiling);
+  try {
+    const result = await read();
+    check();
+    return result;
+  } catch (error) {
+    check();
+    throw error;
+  }
+}
+
+/** A caller can impose an extra ceiling, never replace store admission. */
+export function pinToolContinuation(ceiling?: () => void): () => void {
+  const check = vaultStore.pinContinuation();
+  return () => {
+    check();
+    ceiling?.();
+  };
 }

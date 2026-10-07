@@ -1,3 +1,4 @@
+import { isRealAuthorityBlocked } from "./decoy-session.js";
 /**
  * Minimum Access RBAC for the local Identity/Access plane.
  *
@@ -136,6 +137,7 @@ function guestUnderActiveFence(
 export async function resolveCurrentAccessRole(
   tomb: string,
 ): Promise<AccessRole> {
+  if (isRealAuthorityBlocked()) return "guest";
   const duress = await readDuressFenceView();
   if (duress && guestUnderActiveFence(duress.fence, duress.ctx)) {
     return "guest";

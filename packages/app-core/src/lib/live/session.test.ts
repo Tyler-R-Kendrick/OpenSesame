@@ -8,13 +8,15 @@
  */
 
 import type { EffectivePlan } from "@opensesame/capability-composition";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeNet } from "./live-fakes.js";
 import { plan } from "./live-plan.fixture.js";
-import type { Carrier, CarrierFactory } from "./rendezvous.js";
+import { type Carrier, type CarrierFactory, Rendezvous } from "./rendezvous.js";
 import {
   currentGuest,
+  currentGuestCarriers,
   currentHost,
+  currentHostCarriers,
   endHosting,
   joinLive,
   leaveLive,
@@ -30,6 +32,8 @@ const listeners = new Set<() => void>();
 let net: FakeNet;
 let opened = 0;
 let closed = 0;
+type Opening = { invoked: Promise<void>; attempts: Promise<Carrier>[] };
+let openings: Opening[] = [];
 
 /** The composition store publishing `next` to whoever listens. */
 function publish(next: EffectivePlan | null): void {
@@ -37,8 +41,63 @@ function publish(next: EffectivePlan | null): void {
   for (const listener of [...listeners]) listener();
 }
 
-/** Let carriers still deriving their topic (WebCrypto) open, or be closed. */
-const settle = () => new Promise((resolve) => setTimeout(resolve, 40));
+/** Observe topic completion through each actual guarded factory invocation. */
+function observeOpenings(): void {
+  const open = Rendezvous.open;
+  vi.spyOn(Rendezvous, "open").mockImplementation(
+    (specs, secret, factory, onCode, role) => {
+      let invoked = () => {};
+      let remaining = specs.length;
+      const opening: Opening = {
+        invoked: new Promise<void>((resolve) => {
+          invoked = resolve;
+        }),
+        attempts: [],
+      };
+      openings.push(opening);
+      if (remaining === 0) invoked();
+      return open(
+        specs,
+        secret,
+        (...args) => {
+          const attempt = factory(...args);
+          opening.attempts.push(attempt);
+          remaining -= 1;
+          if (remaining === 0) invoked();
+          return attempt;
+        },
+        onCode,
+        role,
+      );
+    },
+  );
+}
+
+/** Topic work may still be pending after an already-ended join returns. */
+async function drainOpenings(): Promise<void> {
+  for (const opening of openings) {
+    await opening.invoked;
+    // Rendezvous attached its real ready/failure reaction before this await.
+    await Promise.allSettled(opening.attempts);
+  }
+}
+
+/** Positive hosting/joining waits for a nonempty real all-ready state. */
+function allCarriersReady(rendezvous: Rendezvous | null): Promise<void> {
+  if (!rendezvous || rendezvous.states.length === 0)
+    throw new Error("Expected the session's broadcast rendezvous");
+  return new Promise((resolve) => {
+    let stop = () => {};
+    let ready = false;
+    stop = rendezvous.subscribe((states) => {
+      if (!states.every((state) => state.status === "ready")) return;
+      ready = true;
+      stop();
+      resolve();
+    });
+    if (ready) stop();
+  });
+}
 
 const carriers: CarrierFactory = async () => {
   opened += 1;
@@ -60,7 +119,7 @@ const transport: LiveTransport = {
 };
 
 async function host() {
-  return startHosting({
+  const hosted = await startHosting({
     title: "Team",
     scope: { kind: "vault" },
     policy: "read",
@@ -70,6 +129,9 @@ async function host() {
     transport,
     carriers,
   });
+  if (currentHost() === hosted) await allCarriersReady(currentHostCarriers());
+  await drainOpenings();
+  return hosted;
 }
 
 async function join() {
@@ -83,6 +145,8 @@ async function join() {
     useRoutes: true,
     carriers,
   });
+  if (currentGuest() === guest) await allCarriersReady(currentGuestCarriers());
+  await drainOpenings();
   return { hosted, guest };
 }
 
@@ -90,6 +154,8 @@ beforeEach(() => {
   net = new FakeNet();
   opened = 0;
   closed = 0;
+  openings = [];
+  observeOpenings();
   current = plan(true);
   listeners.clear();
   Object.assign(liveSeams, {
@@ -106,7 +172,8 @@ beforeEach(() => {
 afterEach(async () => {
   leaveLive();
   endHosting();
-  await settle();
+  await drainOpenings();
+  vi.restoreAllMocks();
   Object.assign(liveSeams, originalSeams);
 });
 
@@ -121,7 +188,7 @@ describe("planApprovesLive", () => {
 describe("withdrawing Live sessions ends what is running", () => {
   it("ends a hosted session, its carriers and its peer, when the person switches it off", async () => {
     const hosted = await host();
-    await settle();
+    await drainOpenings();
     expect(opened).toBe(1);
     expect(currentHost()).toBe(hosted);
     expect(listeners.size).toBe(1);
@@ -134,7 +201,7 @@ describe("withdrawing Live sessions ends what is running", () => {
 
   it("ends a joined session and its carriers when the operator prohibits it", async () => {
     const { hosted, guest } = await join();
-    await settle();
+    await drainOpenings();
     expect(currentGuest()).toBe(guest);
     expect(opened).toBe(2);
     publish(plan(true, true));
@@ -157,10 +224,11 @@ describe("a session started after the plan withdrew Live sessions", () => {
   it("never stands: a host comes back ended and is not the current one", async () => {
     current = plan(false);
     const hosted = await host();
-    await settle();
+    await drainOpenings();
     expect(hosted.state.status).toBe("ended");
     expect(currentHost()).toBeNull();
     expect(opened).toBe(0);
+    expect(openings).toHaveLength(0);
     expect(listeners.size).toBe(0);
   });
 
@@ -176,10 +244,11 @@ describe("a session started after the plan withdrew Live sessions", () => {
       useRoutes: true,
       carriers,
     });
-    await settle();
+    await drainOpenings();
     expect(currentGuest()).toBeNull();
     expect(currentHost()).toBeNull();
     expect(guest.status.at).not.toBe("request");
+    expect(closed).toBe(opened);
     expect(listeners.size).toBe(0);
   });
 });
@@ -187,7 +256,7 @@ describe("a session started after the plan withdrew Live sessions", () => {
 describe("a re-plan that still approves it drops nobody", () => {
   it("keeps both sessions through a lock, an unlock and a consent commit", async () => {
     const { hosted, guest } = await join();
-    await settle();
+    await drainOpenings();
     // A lock, an unlock and a consent commit each publish a new plan; so does
     // every activity note the store makes between them.
     publish(plan(true));

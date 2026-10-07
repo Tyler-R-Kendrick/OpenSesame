@@ -1,0 +1,54 @@
+{
+  "v": 1,
+  "description": "Public deterministic interoperability fixture; never production keys or IVs.",
+  "provision": {
+    "v": 1,
+    "receiverId": "reference-receiver",
+    "bindingId": "fixture-binding",
+    "origin": "https://receiver.example",
+    "keyEpoch": 7,
+    "expiresAt": "2026-10-07T00:00:00.000Z",
+    "allowLoopback": false
+  },
+  "ivB64": "QEFCQ0RFRkdISUpL",
+  "metadata": {
+    "v": 1,
+    "eventId": "11111111-1111-4111-8111-111111111111",
+    "vaultIdentity": "fixture-vault",
+    "event": {
+      "type": "retired_credential_observed",
+      "trapId": "fixture-trap",
+      "response": "reject"
+    },
+    "at": "2026-10-06T00:00:00.000Z"
+  },
+  "plaintext": "{\"v\":1,\"eventId\":\"11111111-1111-4111-8111-111111111111\",\"vaultIdentity\":\"fixture-vault\",\"event\":{\"type\":\"retired_credential_observed\",\"trapId\":\"fixture-trap\",\"response\":\"reject\"},\"at\":\"2026-10-06T00:00:00.000Z\"}",
+  "packageBody": "{\"v\":1,\"packageId\":\"22222222-2222-4222-8222-222222222222\",\"receiverId\":\"reference-receiver\",\"bindingId\":\"fixture-binding\",\"keyEpoch\":7,\"issuedAt\":\"2026-10-06T00:00:00.000Z\",\"expiresAt\":\"2026-10-07T00:00:00.000Z\",\"nonceB64\":\"UFFSU1RVVldYWVpbXF1eXw==\",\"ciphertextB64\":\"QEFCQ0RFRkdISUpLmZvYARwNqyGosnJY7y13eUPkY22GBD4SRnZj1KYi3PasOcKd84HuZRDZOl6gPO7r+kCbAAL2wCWjbLVxS55hpIF9ocNwpwmQdacK/eINjg1jDjO+Rx42o1WzU1p1dAZvzNEOk/hlRfpqYPDP3rmXaNfcL4vP+hwJvt/ZuwfKMabFdQuhJB1b84EaqOHYfVHs1qHL5DeBmZpbJeSNuolYP5i7iHUQwGMhExfYsfxHkaboaqwGpXRkubvvBtD20ZckZcYOy1wX/58l4iAHbghdYW+BMV/YEDBfOaSc/CfB3is9G8E=\"}",
+  "packet": {
+    "v": 1,
+    "packageId": "22222222-2222-4222-8222-222222222222",
+    "receiverId": "reference-receiver",
+    "bindingId": "fixture-binding",
+    "keyEpoch": 7,
+    "issuedAt": "2026-10-06T00:00:00.000Z",
+    "expiresAt": "2026-10-07T00:00:00.000Z",
+    "nonceB64": "UFFSU1RVVldYWVpbXF1eXw==",
+    "ciphertextB64": "QEFCQ0RFRkdISUpLmZvYARwNqyGosnJY7y13eUPkY22GBD4SRnZj1KYi3PasOcKd84HuZRDZOl6gPO7r+kCbAAL2wCWjbLVxS55hpIF9ocNwpwmQdacK/eINjg1jDjO+Rx42o1WzU1p1dAZvzNEOk/hlRfpqYPDP3rmXaNfcL4vP+hwJvt/ZuwfKMabFdQuhJB1b84EaqOHYfVHs1qHL5DeBmZpbJeSNuolYP5i7iHUQwGMhExfYsfxHkaboaqwGpXRkubvvBtD20ZckZcYOy1wX/58l4iAHbghdYW+BMV/YEDBfOaSc/CfB3is9G8E=",
+    "macB64": "T5kSHlvdVsNrhi/q+87WYPiGAWlajSpqrO+PUXf3hh4="
+  },
+  "ackBody": "{\"v\":1,\"packageId\":\"22222222-2222-4222-8222-222222222222\",\"bindingId\":\"fixture-binding\",\"keyEpoch\":7,\"acceptedAt\":\"2026-10-06T00:00:01.000Z\"}",
+  "ack": {
+    "v": 1,
+    "packageId": "22222222-2222-4222-8222-222222222222",
+    "bindingId": "fixture-binding",
+    "keyEpoch": 7,
+    "acceptedAt": "2026-10-06T00:00:01.000Z",
+    "macB64": "uWbIPjAtJ9jrFvAg785kWXTS97iVI46L46UaPfrPGYs="
+  },
+  "publicIndependentKeyBytes": [
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+    21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
+    40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58,
+    59, 60, 61, 62, 63
+  ]
+}

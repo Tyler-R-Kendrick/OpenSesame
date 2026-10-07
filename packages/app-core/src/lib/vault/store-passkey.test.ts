@@ -11,9 +11,10 @@ import {
   tombFileKey,
   vfsFlush,
 } from "../vfs.js";
+import { verifyManifestAuth } from "./protection/manifest-auth.js";
 import { ATTEMPTS_KEY, VaultStore } from "./store.js";
 import type { PasskeyCeremony } from "./unlock-methods.js";
-import { unlockMethodsSeams } from "./unlock-methods.js";
+import { unlockMethodsSeams, unwrapVaultKeyWithPrf } from "./unlock-methods.js";
 
 const PASSWORD = "correct horse battery staple";
 
@@ -94,6 +95,17 @@ describe("VaultStore passkey unlock", () => {
     await store.createWithPasskey();
     const header = store.getSnapshot().header;
     expect(header?.unlocks?.passkey).toBeDefined();
+    if (!header?.unlocks?.passkey || !header.protection || !ceremony.prfOutput)
+      throw new Error("Expected first authenticated passkey owner header");
+    const raw = await unwrapVaultKeyWithPrf(
+      header.unlocks.passkey,
+      ceremony.prfOutput,
+    );
+    try {
+      await verifyManifestAuth(raw, header.protection);
+    } finally {
+      raw.fill(0);
+    }
     expect(header?.wrap).toBeUndefined();
     expect(header?.kdf).toBeUndefined();
     expect(store.getSnapshot().status).toBe("unlocked");
@@ -102,6 +114,12 @@ describe("VaultStore passkey unlock", () => {
     const reopened = new VaultStore();
     await reopened.unlockWithPasskey();
     expect(reopened.getSnapshot().status).toBe("unlocked");
+    expect(reopened.getSnapshot().header?.protection?.vaultId).toBe(
+      header.protection.vaultId,
+    );
+    expect(reopened.getSnapshot().header?.protection?.rootKeyId).toBe(
+      header.protection.rootKeyId,
+    );
   });
 
   it("does not persist a vault if passkey creation fails", async () => {

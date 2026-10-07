@@ -14,6 +14,10 @@ import {
   type InteractionAuthenticator,
   InteractionStepUpError,
 } from "./interaction-approval.js";
+import {
+  beginSurfaceOperation,
+  surfaceOperationCurrent,
+} from "./surface-operation.js";
 
 /**
  * The authorization-request review (ADR 0084; ADR 0140 plan step 6): load →
@@ -46,6 +50,8 @@ import {
  */
 
 export interface ApprovalReviewDeps {
+  /** Optional surface authority, captured once per decision, never globally. */
+  beginOperation?: () => () => void;
   client: AuthorizationRequestClient;
   authenticator: InteractionAuthenticator;
 }
@@ -225,17 +231,22 @@ async function activate(
   ceremony: Ceremony,
   verb: ApprovalVerb,
   digest: string,
+  check: () => void,
 ): Promise<{ id: string } | Unusable> {
   const { client, authenticator } = ceremony.deps;
+  check();
   const challenge = await client.beginActivation(ceremony.id, verb, digest);
+  check();
   if (challenge.policyDigest !== ceremony.shown?.policy)
     return "policy_changed";
   const assertion = await authenticator.assert(challenge.options);
+  check();
   const confirmed = await client.completeActivation(
     ceremony.id,
     challenge.activationId,
     assertion,
   );
+  check();
   return confirmed === challenge.activationId
     ? { id: challenge.activationId }
     : "activation_failed";
@@ -246,12 +257,14 @@ async function settle(
   review: Review,
   verb: ApprovalVerb,
   comparison: string | undefined,
+  check: () => void,
 ): Promise<ApprovalStep> {
   const digest = review.request.requestDigest;
   const { requirement } = review;
   let activationId: string | undefined;
   if (requirement.requireTransactionBoundActivation) {
-    const begun = await activate(ceremony, verb, digest);
+    const begun = await activate(ceremony, verb, digest, check);
+    check();
     // The rules changed under the person: what they read no longer holds.
     if (begun === "policy_changed") {
       return ended(approvalWords(begun), APPROVAL_WORDS.endedOnDecide);
@@ -261,6 +274,7 @@ async function settle(
     }
     activationId = begun.id;
   }
+  check();
   await ceremony.deps.client.settle(ceremony.id, verb, {
     requestDigest: digest,
     ...(activationId ? { activationId } : undefined),
@@ -268,6 +282,7 @@ async function settle(
       ? { comparisonValue: comparison }
       : undefined),
   });
+  check();
   const ending: ApprovalEnding =
     verb === "approve"
       ? { kind: "approved", words: APPROVAL_WORDS.approved }
@@ -284,12 +299,17 @@ async function decide(
   if (review.kind !== "review" || ceremony.busy) return null;
   const stop = precheck(ceremony, review, verb, input);
   if (stop !== null) return commit(ceremony, step(review, stop));
+  const check = beginSurfaceOperation(ceremony.deps.beginOperation);
+  if (!check) return null;
   ceremony.busy = true;
   ceremony.run++;
   try {
     const comparison = input.comparison?.trim();
-    return commit(ceremony, await settle(ceremony, review, verb, comparison));
+    const next = await settle(ceremony, review, verb, comparison, check);
+    check();
+    return commit(ceremony, next);
   } catch (error) {
+    if (!surfaceOperationCurrent(check)) return null;
     if (error instanceof InteractionStepUpError) {
       return commit(ceremony, step(review, error.message));
     }
@@ -307,10 +327,14 @@ async function report(ceremony: Ceremony): Promise<ApprovalStep | null> {
   const review = ceremony.phase;
   if (review.kind !== "review" || ceremony.busy) return null;
   const digest = ceremony.shown?.digest ?? review.request.requestDigest;
+  const check = beginSurfaceOperation(ceremony.deps.beginOperation);
+  if (!check) return null;
   ceremony.busy = true;
   ceremony.run++;
   try {
+    check();
     await ceremony.deps.client.report(ceremony.id, digest);
+    check();
     const ending: ApprovalEnding = {
       kind: "reported",
       title: APPROVAL_WORDS.reportedTitle,
@@ -318,6 +342,7 @@ async function report(ceremony: Ceremony): Promise<ApprovalStep | null> {
     };
     return commit(ceremony, step({ kind: "done", ending }, null));
   } catch (error) {
+    if (!surfaceOperationCurrent(check)) return null;
     const thrown = error instanceof Error ? error : null;
     return commit(
       ceremony,

@@ -89,7 +89,7 @@ describe("what a receipt names", () => {
     });
     const [receipt] = await listReceipts(tomb, 1);
     expect(receipt?.metadata).toEqual({
-      authReqId: "9f1c1a3e-7d1d-4f56-9f6f-2f9e0a0d4c11",
+      authReqId: "9f1c1a3e-7d1d-4f56-9f6f-2f9e0a0d4c11", // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
       subject: PERSON,
       actor: PERSON,
       organizationId: ORG,

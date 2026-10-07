@@ -5,6 +5,7 @@ import {
 } from "@opensesame/sdk-browser";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import {
   readLocalPasskeys,
   revokeLocalPasskey,
@@ -39,21 +40,11 @@ beforeEach(async () => {
   vaultKey = (await mintVaultKey()).vaultKey;
   unlockTomb(tomb, vaultKey);
   device = await authenticator();
-  let queue = Promise.resolve();
   vi.stubGlobal("isSecureContext", true);
   vi.stubGlobal("location", { origin, hostname: rpID });
   vi.stubGlobal("navigator", {
     credentials: device,
-    locks: {
-      request: <T>(_name: string, run: () => Promise<T>) => {
-        const next = queue.then(run);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
+    locks: webLocksDouble(),
   });
   const directory = await changeLocalDirectory(tomb, 0, {
     action: "create",
@@ -92,8 +83,8 @@ describe("browser local identity passkeys using real cryptographic verification"
     expect(get.mock.calls[0]?.[0].publicKey?.challenge).toEqual(
       b64urlToBytes(expected),
     );
-    const prfInput = get.mock.calls[0]?.[0].publicKey?.extensions?.prf?.eval
-      ?.first as Uint8Array | undefined;
+    const prfInput =
+      get.mock.calls[0]?.[0].publicKey?.extensions?.prf?.eval?.first;
     expect(prfInput).toBeInstanceOf(Uint8Array);
     expect(prfInput).toHaveLength(32);
   });
@@ -101,8 +92,8 @@ describe("browser local identity passkeys using real cryptographic verification"
   it("requests a 32-byte PRF input and does not offer vault unlock when PRF is absent", async () => {
     const create = vi.spyOn(device, "create");
     const result = await enrollLocalPasskey(tomb, principalId);
-    const first = create.mock.calls[0]?.[0].publicKey?.extensions?.prf?.eval
-      ?.first as Uint8Array | undefined;
+    const first =
+      create.mock.calls[0]?.[0].publicKey?.extensions?.prf?.eval?.first;
     expect(first).toBeInstanceOf(Uint8Array);
     expect(first).toHaveLength(32);
     expect(result.prfSupported).toBe(false);
