@@ -112,7 +112,9 @@ export function AccountDetail({
       <AccountWebsiteRows item={item} copying={{ copied, failed, copy }} />
 
       {firstPassword ? (
-        <p className="hint">Password last changed {formatDate(firstPassword.changedAt)}.</p>
+        <p className="hint">
+          Password last changed {formatDate(firstPassword.changedAt)}.
+        </p>
       ) : null}
     </>
   );
