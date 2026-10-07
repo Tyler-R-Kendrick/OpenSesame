@@ -162,7 +162,7 @@ describe("createLogger with OPENSESAME_LOG_FILE (ADR 0157)", () => {
     logger.info({ user }, "vault unlocked");
     logger.error(
       { password: "hunter2" },
-      "failed: https://a.example/claim#token=osc_clm_AbC.s3cr3tpart",
+      "failed: https://a.example/claim#token=osc_clm_AbC.s3cr3tpart", // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
     );
 
     const raw = readFileSync(log, "utf8");

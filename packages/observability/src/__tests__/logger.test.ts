@@ -52,7 +52,7 @@ describe("createLogger", () => {
     const { chunks, destination } = capture();
     const log = createLogger({ name: "test", level: "info", destination });
     const child = log.child({
-      url: "https://example.test/cb?token=BIND-LEAK-1234567890",
+      url: "https://example.test/cb?token=BIND-LEAK-1234567890", // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
       client_secret: "BIND-SECRET",
       nested: { password: "BIND-PW" },
       route: "/ok",
@@ -127,7 +127,7 @@ describe("createLogger scrubs values, not just keys (ADR 0157)", () => {
   it("scrubs a bearer in the message string", async () => {
     const out = await line((log) =>
       log.info(
-        "claim opened https://app.example/claim#token=osc_clm_AbC.s3cr3tpart",
+        "claim opened https://app.example/claim#token=osc_clm_AbC.s3cr3tpart", // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
       ),
     );
     expect(out).not.toMatch(/osc_clm_|s3cr3tpart/);
