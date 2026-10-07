@@ -91,12 +91,12 @@ run_apple_phase() {
   xcrun simctl boot "$apple_clone"
   xcrun simctl bootstatus "$apple_clone" -b
   if [[ "$phase" == cold ]]; then
-    python3 "$native_root/scripts/apple-biometric-fixture.py" configure "$apple_clone" 0
+    python3 "$native_root/scripts/apple-biometric-fixture.py" configure "$apple_clone" 0 "$apple_output/sensor-$phase-diagnostics.json"
     selectors=(-only-testing:NativeAdmissionTests
       -only-testing:NativeEnvelopeStorageTests -only-testing:NativeEnvelopeCoreTests
       -only-testing:NativeAdmissionUITests/NativeAdmissionUITests/testColdLaunchAndUnavailableOwnerAuthenticationNeverExposeProductionUi)
   else
-    python3 "$native_root/scripts/apple-biometric-fixture.py" configure "$apple_clone" 1
+    python3 "$native_root/scripts/apple-biometric-fixture.py" configure "$apple_clone" 1 "$apple_output/sensor-$phase-diagnostics.json"
     python3 "$native_root/scripts/apple-biometric-fixture.py" serve "$apple_clone" "$sensor_port" \
       > "$apple_output/sensor-$phase.log" 2>&1 &
     apple_sensor_pid=$!

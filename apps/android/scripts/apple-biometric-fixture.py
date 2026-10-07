@@ -13,14 +13,70 @@ ENROLLMENT = "com.apple.BiometricKit.enrollmentChanged"
 MATCH = "com.apple.BiometricKit_Sim.pearl.match"
 
 
-def set_enrollment(device, enabled):
+def command_output(value):
+    if isinstance(value, bytes):
+        value = value.decode("utf-8", errors="replace")
+    return (value or "")[:4096]
+
+
+def sensor_command(args, stage, diagnostics):
+    started = time.monotonic()
+    record = {"stage": stage, "timeoutSeconds": 5}
+    try:
+        result = subprocess.run(args, check=True, timeout=5, capture_output=True, text=True)
+        record.update(status="completed", exitCode=result.returncode,
+                      stdout=command_output(result.stdout), stderr=command_output(result.stderr))
+        return result
+    except subprocess.TimeoutExpired as error:
+        record.update(status="timed_out", stdout=command_output(error.stdout),
+                      stderr=command_output(error.stderr))
+        raise
+    except subprocess.CalledProcessError as error:
+        record.update(status="failed", exitCode=error.returncode,
+                      stdout=command_output(error.stdout), stderr=command_output(error.stderr))
+        raise
+    except OSError as error:
+        record.update(status="launch_failed", errno=error.errno)
+        raise
+    finally:
+        record["elapsedSeconds"] = round(time.monotonic() - started, 6)
+        diagnostics.append(record)
+
+
+def set_enrollment(device, enabled, diagnostics=None):
+    if diagnostics is None:
+        diagnostics = []
     value = "1" if enabled else "0"
     prefix = ["xcrun", "simctl", "spawn", device, "notifyutil"]
-    subprocess.run(prefix + ["-s", ENROLLMENT, value, "-p", ENROLLMENT], check=True, timeout=5)
-    result = subprocess.run(prefix + ["-g", ENROLLMENT], check=True, timeout=5, capture_output=True, text=True)
+    sensor_command(prefix + ["-s", ENROLLMENT, value, "-p", ENROLLMENT], "set_and_post", diagnostics)
+    result = sensor_command(prefix + ["-g", ENROLLMENT], "readback", diagnostics)
     fields = result.stdout.strip().split()
     if fields not in [[ENROLLMENT, value], [ENROLLMENT, "=", value]]:
         raise ValueError("Simulator enrollment state did not match its required OS fixture")
+
+
+def configure(device, enabled, output=None):
+    diagnostics = {"v": 1, "scope": "Simulator sensor bootstrap; not app admission", "stages": []}
+    failed = False
+    try:
+        # -h exits before libnotify registration/RPC. This proves the actual
+        # simulator process launched, independently of notification-broker state.
+        sensor_command(["xcrun", "simctl", "spawn", device, "notifyutil", "-h"],
+                       "process_readiness", diagnostics["stages"])
+        set_enrollment(device, enabled, diagnostics["stages"])
+        diagnostics["readbackMatched"] = True
+    except BaseException:
+        failed = True
+        diagnostics["readbackMatched"] = False
+        raise
+    finally:
+        if output is not None:
+            try:
+                output.write_text(json.dumps(diagnostics, sort_keys=True) + "\n")
+            except OSError:
+                if not failed:
+                    raise
+                print("Sensor diagnostic preservation failed; original failure retained", file=sys.stderr)
 
 
 def main():
@@ -28,7 +84,8 @@ def main():
     if sys.argv[1] == "configure":
         if sys.argv[3] not in ["0", "1"]:
             raise ValueError("unsupported enrollment state")
-        set_enrollment(device, sys.argv[3] == "1")
+        output = Path(sys.argv[4]) if len(sys.argv) == 5 else None
+        configure(device, sys.argv[3] == "1", output)
         return
     if sys.argv[1] != "serve":
         raise ValueError("unsupported sensor fixture command")
