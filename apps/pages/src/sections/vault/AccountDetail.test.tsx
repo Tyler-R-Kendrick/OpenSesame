@@ -208,13 +208,13 @@ describe("account detail", () => {
     ).toBeTruthy();
   });
 
-  it("marks where the person's pepper goes, copies what comes before it, then the rest, and never asks for one", async () => {
+  it("reveals the pepper slot and copies its parts without a separate lock marker", async () => {
     const account = slottedAccount("abcdefghij", "-4");
     vault.current = { items: [account], folders: [] };
     renderAt("itm_slot");
     expect(
-      screen.getByRole("img", { name: "Your pepper goes at -4" }),
-    ).toBeTruthy();
+      screen.queryByRole("img", { name: "Your pepper goes at -4" }),
+    ).toBeNull();
     expect(screen.queryByText(/abcdef/)).toBeNull();
     await userEvent.click(
       screen.getByRole("button", { name: "Reveal password" }),
@@ -236,8 +236,8 @@ describe("account detail", () => {
     vault.current = { items: [slottedAccount("abcdefghij")], folders: [] };
     renderAt("itm_slot");
     expect(
-      screen.getByRole("img", { name: "Your pepper goes after it" }),
-    ).toBeTruthy();
+      screen.queryByRole("img", { name: "Your pepper goes after it" }),
+    ).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Copy rest of password" }),
     ).toBeNull();

@@ -1,0 +1,165 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Example account"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "measure": ".detail .frow"
+        },
+        {
+          "measure": ".detail .status-mark"
+        },
+        {
+          "measure": ".detail .password-workflows"
+        },
+        {
+          "shot": "390-wildcard"
+        },
+        {
+          "open": "Edit"
+        },
+        {
+          "fillOptional": {
+            "label": "Address 1",
+            "text": "https://example.com/login"
+          }
+        },
+        {
+          "select": {
+            "label": "Match rule 1",
+            "option": "domain"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "measure": ".detail .frow"
+        },
+        {
+          "shot": "390-domain"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Example account"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "measure": ".detail .frow"
+        },
+        {
+          "measure": ".detail .status-mark"
+        },
+        {
+          "measure": ".detail .password-workflows"
+        },
+        {
+          "shot": "1280-wildcard"
+        },
+        {
+          "open": "Edit"
+        },
+        {
+          "fillOptional": {
+            "label": "Address 1",
+            "text": "https://example.com/login"
+          }
+        },
+        {
+          "select": {
+            "label": "Match rule 1",
+            "option": "domain"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "measure": ".detail .frow"
+        },
+        {
+          "shot": "1280-domain"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-wildcard",
+      "width": 390,
+      "title": "Account wildcard \u2014 390 wide",
+      "caption": "Saved account password and website matching.",
+      "before": "Separate password lock and credential explanation; website match mode without its domain.",
+      "after": "Password controls, no lock or empty credential explanation; explicit wildcard or saved domain."
+    },
+    {
+      "shot": "390-domain",
+      "width": 390,
+      "title": "Account domain \u2014 390 wide",
+      "caption": "Saved account password and website matching.",
+      "before": "Separate password lock and credential explanation; website match mode without its domain.",
+      "after": "Password controls, no lock or empty credential explanation; explicit wildcard or saved domain."
+    },
+    {
+      "shot": "1280-wildcard",
+      "width": 1280,
+      "title": "Account wildcard \u2014 1280 wide",
+      "caption": "Saved account password and website matching.",
+      "before": "Separate password lock and credential explanation; website match mode without its domain.",
+      "after": "Password controls, no lock or empty credential explanation; explicit wildcard or saved domain."
+    },
+    {
+      "shot": "1280-domain",
+      "width": 1280,
+      "title": "Account domain \u2014 1280 wide",
+      "caption": "Saved account password and website matching.",
+      "before": "Separate password lock and credential explanation; website match mode without its domain.",
+      "after": "Password controls, no lock or empty credential explanation; explicit wildcard or saved domain."
+    }
+  ]
+}

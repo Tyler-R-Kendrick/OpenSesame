@@ -13,7 +13,6 @@ import {
   FieldRow,
   RevealButton,
 } from "../../components/FieldRow.js";
-import { StatusMark } from "../../components/StatusMark.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { LegacyConvert } from "./LegacyConvert.js";
 import { UpdateSecretPanel } from "./SecretUpdate.js";
@@ -24,11 +23,6 @@ type Copying = {
   failed: string | null;
   copy: (key: string, value: string) => Promise<void>;
 };
-
-/** Where the person's own pepper goes, said plainly for a mark. */
-function slotSaid(at: string): string {
-  return at === "" ? "Your pepper goes after it" : `Your pepper goes at ${at}`;
-}
 
 /**
  * One password method on the detail page, produced through the one facade
@@ -121,9 +115,6 @@ export function AccountPasswordRow({
         label="password"
         revealed={revealed}
       />
-      {produced.status === "slotted" ? (
-        <StatusMark tone="idle" label={slotSaid(produced.at)} />
-      ) : null}
       {revealed && whole !== null ? <StrengthBar password={whole} /> : null}
       {update}
     </FieldRow>

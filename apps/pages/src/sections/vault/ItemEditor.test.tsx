@@ -392,9 +392,9 @@ describe("ItemEditor", () => {
       uris: [{ uri: "https://mail.example.com", match: "exact" }],
     });
   });
-  it("starts with an empty address, never an all-domains rule, and saves its removal", async () => {
+  it("starts with the every-site wildcard and saves its removal", async () => {
     renderEditor();
-    expect(inputByLabel("Address 1").value).toBe("");
+    expect(inputByLabel("Address 1").value).toBe("*");
     await userEvent.click(screen.getByLabelText("Remove address 1"));
     expect(screen.queryByLabelText("Address 1")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /Save item/i }));

@@ -238,7 +238,7 @@ it("updates the selected account password method and preserves protected and sib
   expect(
     screen.queryByRole("group", { name: "Compare password 3" }),
   ).toBeNull();
-  expect(screen.getByText(/Password 3 needs private input/)).toBeTruthy();
+  expect(screen.queryByText(/needs private input/)).toBeNull();
   expect(document.body.textContent).not.toContain("SECONDARY_PRIVATE_SENTINEL");
   expect(document.body.textContent).not.toContain(
     "replacement-private-password",
@@ -271,4 +271,17 @@ it("keeps references and the comparison guide on the first usable password when 
   expect(
     screen.queryByRole("group", { name: "Compare password 1" }),
   ).toBeNull();
+});
+
+it("omits the empty references section for a password with a pepper slot", async () => {
+  const { item } = fixture();
+  item.fields = [];
+  const method = item.methods[0];
+  if (method?.type !== "password") throw new Error("fixture");
+  method.pepper = true;
+  const { container } = render(<ItemCredentialActions item={item} />);
+  await waitFor(() => expect(container.querySelector("section")).toBeNull());
+  expect(screen.queryByText("Credential references")).toBeNull();
+  expect(screen.queryByText("No stored concealed fields.")).toBeNull();
+  expect(screen.queryByText(/needs private input/)).toBeNull();
 });

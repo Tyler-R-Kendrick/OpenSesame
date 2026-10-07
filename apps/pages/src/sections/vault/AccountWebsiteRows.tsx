@@ -25,7 +25,7 @@ export function AccountWebsiteRows({
           return (
             <FieldRow
               key={uri.id}
-              label={`Match: ${uri.match}`}
+              label={`Match: ${uri.match === "domain" || uri.match === "host" ? hostOf(uri.uri) : uri.match}`}
               actions={
                 <>
                   {href ? (
