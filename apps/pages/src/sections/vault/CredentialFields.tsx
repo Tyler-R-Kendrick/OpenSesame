@@ -16,6 +16,10 @@ import { PasswordMethodEditor } from "./PasswordMethodEditor.js";
  * A credential written on its own (ADR 0179): its lines are the ones an
  * account's login method draws, with no × because the item is the credential,
  * and one more row says which account it opens, or none.
+ *
+ * A password has no such row: one password may open many accounts, so the
+ * password's own form never names one (ADR 0179 §2, amended). The form does not
+ * touch `accountId`, so a password already bound to an account keeps it.
  */
 export function CredentialFields({
   draft,
@@ -36,8 +40,6 @@ export function CredentialFields({
     title: methodTitle([method], method),
     onChange: (next: LoginMethod) => onPatch({ method: next }),
   };
-  // A password an earlier pepper sealed opens only on the account it was on.
-  const sealed = method.type === "password" && method.sealed !== undefined;
   return (
     <>
       <fieldset
@@ -65,7 +67,7 @@ export function CredentialFields({
           <AuthenticatorLines {...lines} method={method} />
         )}
       </fieldset>
-      {sealed && draft.accountId !== null ? null : (
+      {method.type === "password" ? null : (
         <div className="field">
           <label htmlFor="credential-account">Account</label>
           <div className="editor__inline">
