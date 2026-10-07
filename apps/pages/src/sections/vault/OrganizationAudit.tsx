@@ -6,7 +6,6 @@ import { Link } from "react-router";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { useVault } from "../../lib/vault/hooks.js";
-import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 
 type Audit = Awaited<ReturnType<typeof passwordWorkflowAudit>>;
 type AuditSnapshot = {
@@ -72,7 +71,6 @@ export function OrganizationAudit() {
       ? snapshot.report
       : null;
   const [error, setError] = useState("");
-  const target = useGuideTarget<HTMLElement>("vault.health.organization");
   useEffect(() => {
     let active = true;
     setSnapshot(null);
@@ -101,11 +99,7 @@ export function OrganizationAudit() {
         message={error}
       />
       {findings.length > 0 ? (
-        <section
-          className="detail__group"
-          ref={target}
-          aria-label="Organization"
-        >
+        <section className="detail__group" aria-label="Organization">
           <h2 className="detail__grouphead">
             {findings.length} {findings.length === 1 ? "item" : "items"} to file
             or rename

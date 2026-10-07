@@ -148,12 +148,4 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
     routes: ["/vault/item"],
     capabilityId: "vault.workflow.compare_private",
   },
-  {
-    id: "vault.health.organization",
-    description:
-      "Items to file or rename, drawn as health findings that link to the item. Titles and origins only, never a value.",
-    role: "surface",
-    routes: ["/vault/health"],
-    capabilityId: "vault.workflow.audit_organization",
-  },
 ];
