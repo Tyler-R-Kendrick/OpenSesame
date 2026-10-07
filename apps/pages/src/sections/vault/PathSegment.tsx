@@ -44,7 +44,11 @@ export function PathSegment({
         spellCheck={false}
         maxLength={maxLength}
         value={state.shown}
-        style={{ width: `calc(${Math.max(state.shown.length, 1)}ch + 0.5rem)` }}
+        title={state.shown}
+        // The text's own width, plus both paddings and a hair for the caret.
+        style={{
+          width: `calc(${Math.max(state.shown.length, 1)}ch + 1.25rem)`,
+        }}
         {...state.input}
       />
       {state.expanded ? (

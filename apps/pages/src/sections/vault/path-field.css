@@ -125,6 +125,12 @@
     min-height: 2.75rem;
   }
 
+  /* The name is the item's identity: on a phone a long folder yields to it
+     instead of leaving it a few characters of a scrolling field. */
+  .pathfield__seg--folder {
+    max-width: 30%;
+  }
+
   .pathfield__ext {
     display: flex;
     align-items: center;
