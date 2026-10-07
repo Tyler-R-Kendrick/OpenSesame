@@ -33,13 +33,12 @@ export function LocalMemberships(props: MembershipProps) {
   const summary = useRef<HTMLElement>(null);
   return (
     <details>
-      <summary ref={summary}>Members</summary>
-      <p className="hint">
-        Organization roles map to Access RBAC: Owner/Admin are Operators, Member
-        is Member, and Guest N stays Guest. Guests cannot be operators once
-        another person is assigned. Role changes require local sessions to sign
-        in again.
-      </p>
+      <summary
+        ref={summary}
+        title="Owner and Admin map to Operator, Member to Member, Guest to Guest. Role changes need a new local sign-in."
+      >
+        Members
+      </summary>
       <ul className="identity-passkeys">
         {members.map((member) => (
           <li key={member.principalId}>
@@ -100,13 +99,9 @@ export function LocalMemberships(props: MembershipProps) {
           </li>
         ))}
       </ul>
-      {!members.length ? (
-        <p className="hint">No members. Add the first owner below.</p>
-      ) : null}
+      {!members.length ? <p className="hint">No members yet.</p> : null}
       {!people.length ? (
-        <p className="hint">
-          Create a person in Identity → People before assigning an owner.
-        </p>
+        <p className="hint">No people yet.</p>
       ) : (
         <MembershipForm {...props} />
       )}

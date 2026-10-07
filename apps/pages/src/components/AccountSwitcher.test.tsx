@@ -241,9 +241,7 @@ describe("AccountSwitcher", () => {
       authMethods: [],
     });
     fireEvent.click(screen.getByRole("button", { name: "Look up" }));
-    expect(
-      await screen.findByText(/has not configured SSO or SAML/),
-    ).toBeTruthy();
+    expect(await screen.findByText("No sign-in methods.")).toBeTruthy();
   });
 });
 

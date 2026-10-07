@@ -18,7 +18,7 @@
   "totals": {
     "files": 426,
     "violations": 659,
-    "oversizedLines": 216037
+    "oversizedLines": 215985
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -101,11 +101,11 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/UnlockScreen.test.tsx": {
-      "max-lines": 1294
+      "max-lines": 1292
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 1,
-      "max-lines": 842,
+      "max-lines": 841,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -141,7 +141,7 @@
       "max-lines": 816
     },
     "apps/pages/src/sections/IdentitySection.tsx": {
-      "max-lines": 1963,
+      "max-lines": 1920,
       "max-lines-per-function": 8
     },
     "apps/pages/src/sections/SettingsSection.tsx": {
@@ -194,7 +194,7 @@
     },
     "apps/pages/src/sections/settings/security/SecondStepCeremonies.tsx": {
       "complexity": 2,
-      "max-lines": 875,
+      "max-lines": 869,
       "max-lines-per-function": 3
     },
     "apps/pages/src/sections/vault/HealthPanel.tsx": {

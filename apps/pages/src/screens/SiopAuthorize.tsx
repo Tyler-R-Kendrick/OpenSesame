@@ -186,6 +186,12 @@ function SiopConsent({
     void refuse();
   }
 
+  const status = finished
+    ? "Finishing sign-in…"
+    : session
+      ? "Passkey verified."
+      : "Verify to continue.";
+
   return (
     <section
       className="panel"
@@ -207,12 +213,7 @@ function SiopConsent({
         <p>
           Requested permissions: <code>openid</code>
         </p>
-        <p className="hint">
-          This returns a Self-Issued ID Token signed in your vault. The relying
-          party verifies your public key from the response. No vault contents or
-          upstream token are shared. SIOPv2 is an OpenID Implementer&apos;s
-          Draft.
-        </p>
+        <p className="hint">Shares no vault contents.</p>
         <FailureNotice
           id="siop-authorize:consent"
           title="Self-issued sign-in"
@@ -259,13 +260,7 @@ function SiopConsent({
             </>
           ) : null}
           <p className="hint">
-            <output aria-label="Self-issued sign-in status">
-              {finished
-                ? "Finishing Self-Issued sign-in…"
-                : session
-                  ? "Passkey verified. Review the site before allowing access."
-                  : "Verify your local identity to continue."}
-            </output>
+            <output aria-label="Self-issued sign-in status">{status}</output>
           </p>
         </div>
       </div>

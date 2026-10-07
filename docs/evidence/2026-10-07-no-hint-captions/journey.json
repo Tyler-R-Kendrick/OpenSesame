@@ -1,0 +1,84 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "switchOn": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "measure": ".editor"
+        },
+        {
+          "measure": ".editor .hint, .editor__uri, [aria-label=\"Test website\"]"
+        },
+        {
+          "shot": "390-new-account"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "tab": "settings"
+        },
+        {
+          "open": "Vaults"
+        },
+        {
+          "switchOn": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "measure": ".editor"
+        },
+        {
+          "measure": ".editor .hint, .editor__uri, [aria-label=\"Test website\"]"
+        },
+        {
+          "shot": "1280-new-account"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-new-account",
+      "width": 1280,
+      "title": "New account \u2014 1280 \u00d7 800",
+      "caption": "The Websites row was a rule, then a paragraph explaining wildcards, then the test field. The paragraph is gone: the match rule's tooltip carries the sentence, and the row is the address, its rule and the test field.",
+      "before": "editor 458px tall; explainer row 38px under the address",
+      "after": "editor 421px tall (\u221237px); no explainer row"
+    },
+    {
+      "shot": "390-new-account",
+      "width": 390,
+      "title": "New account \u2014 390 \u00d7 844",
+      "caption": "Same editor on a phone: the explainer wrapped to three lines in front of the test field; it is no longer drawn.",
+      "before": "editor 742px tall; explainer row 57px (three lines)",
+      "after": "editor 686px tall (\u221256px); no explainer row"
+    }
+  ]
+}

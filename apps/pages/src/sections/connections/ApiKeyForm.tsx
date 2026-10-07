@@ -74,12 +74,10 @@ export function ApiKeyForm({
           </label>
           <input
             id={nameId}
+            title="Only changes the label in OpenSesame; the provider never sees it."
             value={name}
             onChange={(event) => onName(event.target.value)}
           />
-          <p className="hint">
-            Only changes the label in OpenSesame; the provider never sees it.
-          </p>
         </div>
       </details>
       <FormCommit

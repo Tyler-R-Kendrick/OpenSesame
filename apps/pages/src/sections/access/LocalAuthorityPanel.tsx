@@ -104,10 +104,7 @@ function ConfirmRevocation({
       <p>
         Revoke {row.kind} for {row.name}?
       </p>
-      <p className="hint">
-        Record {row.id}. This cannot be undone; new access requires another
-        sign-in or approval.
-      </p>
+      <p className="hint">Record {row.id}. Cannot be undone.</p>
       <div className="actions">
         <IconKey
           label="Confirm revocation"
@@ -139,13 +136,7 @@ function AuthorityRows({
   select: (row: LocalAuthorityRow, button: HTMLButtonElement) => void;
 }) {
   if (!rows.length)
-    return (
-      <p className="hint">
-        {grantsOnly
-          ? "No unexpired local application grants."
-          : "No unexpired local sessions."}
-      </p>
-    );
+    return <p className="hint">{grantsOnly ? "No grants." : "No sessions."}</p>;
   return (
     <ul className="access-local-records">
       {rows.map((row) => (

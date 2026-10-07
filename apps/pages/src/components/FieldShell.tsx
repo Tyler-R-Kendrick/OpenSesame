@@ -33,7 +33,6 @@ export function FieldShell({
   lead,
   tail,
   status,
-  hint,
   fills,
   mono = false,
   disabled = false,
@@ -60,7 +59,6 @@ export function FieldShell({
   tail?: ReactNode;
   /** Rendered beside the label — a `.chip` saying Saved, Reachable, Not set. */
   status?: ReactNode;
-  hint?: ReactNode;
   fills?: FieldFill[];
   /** URLs and secrets set in the mono face; prose stays in the UI face. */
   mono?: boolean;
@@ -69,7 +67,6 @@ export function FieldShell({
 }) {
   const generated = useId();
   const inputId = id ?? generated;
-  const hintId = hint ? `${inputId}-hint` : undefined;
 
   return (
     <div className="f">
@@ -101,7 +98,6 @@ export function FieldShell({
           inputMode={inputMode}
           disabled={disabled}
           readOnly={readOnly}
-          aria-describedby={hintId}
           onChange={(event) => onValueChange?.(event.target.value)}
           onBlur={(event) => onCommit?.(event.target.value)}
           onKeyDown={(event) => {
@@ -133,11 +129,6 @@ export function FieldShell({
             </button>
           ))}
         </div>
-      ) : null}
-      {hint ? (
-        <p className="hint" id={hintId}>
-          {hint}
-        </p>
       ) : null}
     </div>
   );

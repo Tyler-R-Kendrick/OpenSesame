@@ -51,9 +51,7 @@ export function SupportTutorials({
   );
   return (
     <section className="support__library" aria-label="Tutorials">
-      {groups.length === 0 ? (
-        <p className="hint">Nothing written matches that yet.</p>
-      ) : null}
+      {groups.length === 0 ? <p className="hint">No matches.</p> : null}
       {groups.map((group) => (
         <div key={group.id} className="support__group">
           <h3 className="support__section-label">{group.title}</h3>

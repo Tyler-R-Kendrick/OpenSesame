@@ -15,7 +15,7 @@ function ResourceList({
   names: Map<string, string>;
 }) {
   if (rows.length === 0) {
-    return <p className="hint">Unlock a vault to see local resources.</p>;
+    return <p className="hint">Vault locked.</p>;
   }
   return (
     <ul className="access-resources">

@@ -466,9 +466,7 @@ describe("UnlockScreen — first run", () => {
     });
     render(<UnlockScreen />);
     submitIdentifier("acme");
-    expect(
-      await screen.findByText(/no sign-in methods configured yet/),
-    ).toBeTruthy();
+    expect(await screen.findByText(/No sign-in methods/)).toBeTruthy();
   });
 
   it("surfaces an unknown organization without starting anything", async () => {
@@ -525,7 +523,7 @@ describe("UnlockScreen — first run", () => {
     submitIdentifier("ada@example.com");
     // The identifier's fallback state takes over the step — the hub's
     // same-named link disappears once the lookup resolves.
-    await screen.findByText(/No organization uses that email domain/);
+    await screen.findByText(/No organization found/);
     await waitFor(() =>
       expect(
         screen.getAllByRole("button", { name: "Email me a sign-in link" }),
@@ -566,7 +564,7 @@ describe("UnlockScreen — first run", () => {
     await waitFor(() =>
       expect(requestEmailMagicLink).toHaveBeenCalledWith("ada@example.com"),
     );
-    expect(await screen.findByText(/Check your email/)).toBeTruthy();
+    expect(await screen.findByText(/Link sent/)).toBeTruthy();
   });
 
   it("surfaces a deployment with no email sign-in", async () => {

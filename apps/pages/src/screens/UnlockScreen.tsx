@@ -651,16 +651,15 @@ function UnlockForm({
                   inputMode="numeric"
                   autoComplete={firstRun ? "new-password" : "one-time-code"}
                   value={pin}
+                  title={
+                    firstRun
+                      ? `${MIN_PIN_LENGTH}–12 characters, no repeated character, no sequential digits`
+                      : undefined
+                  }
                   aria-invalid={pinProblem ? true : undefined}
                   disabled={busy || lockedFor > 0}
                   onChange={(e) => setPin(e.target.value)}
                 />
-                {firstRun ? (
-                  <p className="hint">
-                    {MIN_PIN_LENGTH}–12 characters · no repeated character · no
-                    sequential digits.
-                  </p>
-                ) : null}
                 {pinProblem ? (
                   <p className="hint" aria-live="polite">
                     {pinProblem}

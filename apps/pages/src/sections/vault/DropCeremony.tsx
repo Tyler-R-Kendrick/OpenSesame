@@ -235,9 +235,6 @@ export function DropRecordFields({ item }: { item: DropItem }) {
               : ""}
           </span>
         </FieldRow>
-        <p className="hint">
-          This record is purged as soon as the drop is opened or lapses.
-        </p>
       </section>
 
       {kept ? (

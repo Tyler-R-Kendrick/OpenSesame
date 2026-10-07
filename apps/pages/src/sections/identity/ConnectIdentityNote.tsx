@@ -24,7 +24,9 @@ export function ConnectIdentityNote({
     <section className="panel">
       <div className="panel__head">
         <div>
-          <h2>
+          <h2
+            title={`Manage ${what} through your organisation’s sign-in service when one is connected`}
+          >
             {configured
               ? "Connect to manage identities"
               : "Connect a sign-in service"}
@@ -32,16 +34,6 @@ export function ConnectIdentityNote({
         </div>
       </div>
       <div className="panel__body">
-        <p className="hint">
-          Manage {what} through your organisation’s sign-in service when one is
-          connected. The vault on this device works without it.
-        </p>
-        {!configured ? (
-          <p className="hint">
-            Add the address of a sign-in service if your organisation provides
-            one. Upstream providers alone are not enough for this panel.
-          </p>
-        ) : null}
         <div className="actions">
           {!configured ? (
             <IdentityAddress />
@@ -90,7 +82,6 @@ function IdentityAddress() {
           identityApi: raw.trim().replace(/\/$/, ""),
         })
       }
-      hint="Saves when you leave the field; connect here to continue."
     />
   );
 }

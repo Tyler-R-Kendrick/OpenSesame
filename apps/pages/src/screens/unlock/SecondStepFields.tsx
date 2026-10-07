@@ -79,10 +79,8 @@ function RecoveryCodeField({
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         placeholder="xxxx-xxxx"
+        title="One of the codes you saved. It opens the vault once."
       />
-      <p className="hint">
-        One of the codes you saved. It opens the vault once, then it is spent.
-      </p>
       <button type="button" className="unlock__switch" onClick={onUseCode}>
         Use the code instead
       </button>
@@ -147,11 +145,6 @@ function CodeStep({
           onChange={onTotp}
           onComplete={onComplete}
         />
-        <p className="hint">
-          {sentByChannel
-            ? "Six digits. Use the newest one you were sent."
-            : "The code your app shows for OpenSesame."}
-        </p>
         {sentByChannel ? (
           <button
             type="button"

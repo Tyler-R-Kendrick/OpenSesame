@@ -98,9 +98,7 @@ describe("IdentifierField", () => {
     submit();
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/No organization uses that email domain/),
-      ).toBeTruthy();
+      expect(screen.getByText(/No organization found/)).toBeTruthy();
     });
 
     fireEvent.click(

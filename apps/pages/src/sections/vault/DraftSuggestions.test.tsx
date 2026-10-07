@@ -4,7 +4,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { expectInTray } from "../../components/tray.test-support.js";
-import { DraftSuggestions } from "./DraftSuggestions.js";
+import { DraftSuggestions, suggestionOrigin } from "./DraftSuggestions.js";
 
 const original = draftSuggestionSeams.model;
 afterEach(() => {
@@ -31,9 +31,6 @@ describe("draft suggestion consent and lifetime", () => {
       />,
     );
     expect(create).not.toHaveBeenCalled();
-    expect(screen.getByText(/Uses only/).textContent).not.toContain(
-      "private-path",
-    );
     await userEvent.click(
       screen.getByRole("button", { name: "Suggest names on device" }),
     );
@@ -45,23 +42,14 @@ describe("draft suggestion consent and lifetime", () => {
       username: "quiet_fox",
     });
   });
-  it("names a plain origin and never a pattern in the consent line", () => {
-    render(<DraftSuggestions typeId="login" website="*" onApply={vi.fn()} />);
+  it("hands the model a plain origin, never a pattern or a path", () => {
     // A login's Websites row defaults to a wildcard; the URL parser used to
-    // percent-encode it into a hostname and the hint read `https://%2A`.
-    expect(screen.getByText(/Uses only/).textContent).toBe(
-      "Uses only the item type. No vault contents. Your browser may download its model.",
-    );
-    cleanup();
-    render(
-      <DraftSuggestions
-        typeId="login"
-        website="app.example.com"
-        onApply={vi.fn()}
-      />,
-    );
-    expect(screen.getByText(/Uses only/).textContent).toContain(
-      "and https://app.example.com.",
+    // percent-encode it into a hostname that read `https://%2A`.
+    expect(suggestionOrigin("*")).toBe("");
+    expect(suggestionOrigin("*.example.com")).toBe("");
+    expect(suggestionOrigin("app.example.com")).toBe("https://app.example.com");
+    expect(suggestionOrigin("https://example.com/private-path")).toBe(
+      "https://example.com",
     );
   });
   it("leaves the draft alone when the model is unavailable", async () => {

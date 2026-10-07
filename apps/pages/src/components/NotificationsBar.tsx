@@ -236,8 +236,7 @@ function NotificationsBarDefault({
               )}
               {queued > 0 ? (
                 <p className="hint">
-                  {queued} staged device or claim action
-                  {queued === 1 ? "" : "s"} wait on Identity.
+                  {queued} staged action{queued === 1 ? "" : "s"}
                 </p>
               ) : null}
             </div>

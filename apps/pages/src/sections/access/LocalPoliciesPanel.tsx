@@ -89,10 +89,7 @@ export function LocalPolicyEditor({ tomb }: { tomb: string }) {
                     <code className="access-ref">{application.id}</code>
                   </p>
                   {!application.enabled ? (
-                    <p className="hint">
-                      Disabled application. Enable it in Identity before
-                      changing its policy.
-                    </p>
+                    <p className="hint">Disabled.</p>
                   ) : null}
                   <LocalApplicationSettings
                     tomb={tomb}

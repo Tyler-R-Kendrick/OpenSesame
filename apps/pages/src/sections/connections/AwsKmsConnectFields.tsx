@@ -63,14 +63,10 @@ function KeyAndRegionFields({
           spellCheck={false}
           placeholder={keyArnHelp.placeholder}
           title={keyArnHelp.help}
-          aria-describedby={`${keyArnId}-help`}
           value={form.keyArn}
           readOnly={locked}
           onChange={(event) => onChange("keyArn", event.target.value)}
         />
-        <p className="hint" id={`${keyArnId}-help`}>
-          {keyArnHelp.help}
-        </p>
       </div>
       <div className="field">
         <label className="label conn-field-label" htmlFor={regionId}>

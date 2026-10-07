@@ -226,7 +226,7 @@ describe("vault editor route types", () => {
       screen.getByLabelText("Match rule 1"),
       "regex",
     );
-    expect(screen.getByText(/No \/ delimiters or flags/)).toBeTruthy();
+    expect(screen.getByLabelText("Test website")).toBeTruthy();
     await userEvent.type(screen.getByLabelText("Name"), "Example");
     await userEvent.click(screen.getByRole("button", { name: "Save item" }));
     await expectInTray("pattern");

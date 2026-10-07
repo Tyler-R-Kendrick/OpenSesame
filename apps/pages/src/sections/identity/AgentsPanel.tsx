@@ -127,10 +127,6 @@ export function AgentsPanel({ online }: { online: boolean }) {
         </fieldset>
       </div>
       <div className="panel__body">
-        <p className="hint">
-          Register an agent against its own proof key; registration alone grants
-          no resource access.
-        </p>
         <FailureNotice id="identity:agents" title="Agents" message={error} />
         {loading ? <output>Loading agents…</output> : null}
         {!loading && !error && agents.length === 0 ? (
@@ -183,12 +179,8 @@ function AgentsForm({
             onChange={(event) =>
               setDraft({ ...draft, jkt: event.target.value })
             }
-            aria-describedby="identity-agent-key-help"
+            title="Paste the SHA-256 JWK thumbprint from the agent runtime, never its private key"
           />
-          <p className="hint" id="identity-agent-key-help">
-            Paste the SHA-256 JWK thumbprint from the agent runtime, never its
-            private key.
-          </p>
         </div>
       ) : null}
       <FormCommit
