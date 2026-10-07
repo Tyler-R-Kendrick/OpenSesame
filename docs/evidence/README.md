@@ -49,6 +49,7 @@ evidence for a programme that ran across many pull requests.
 |---|---|
 | [`2026-10-07-rotate-without-password/`](2026-10-07-rotate-without-password/README.md) | Rotating the vault key without inventing a password — before / after |
 | [`2026-10-07-mobile-gates/`](2026-10-07-mobile-gates/README.md) | Mobile lock screen and front door |
+| [`2026-10-07-account-detail/`](2026-10-07-account-detail/README.md) | Account password and website rows |
 | [`2026-10-06-sharp-plain-sheets/`](2026-10-06-sharp-plain-sheets/README.md) | Sharp corners, no red controls, one way out |
 | [`2026-10-06-share-key-and-api-rows/`](2026-10-06-share-key-and-api-rows/README.md) | Share once as a toolbar key, and an account's credentials that all copy |
 | [`2026-10-06-passkey-only-unlock/`](2026-10-06-passkey-only-unlock/README.md) | Passkey-only sealing — before / after |

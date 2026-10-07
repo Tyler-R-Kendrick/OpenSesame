@@ -1,18 +1,24 @@
 /** @vitest-environment jsdom */
 
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { registerContributionForTest } from "@opensesame/app-core/lib/contributions.js";
 import type { ItemKindRow } from "@opensesame/app-core/lib/item-kinds.js";
+import { newItemDraft } from "@opensesame/app-core/lib/vault/new-draft.js";
 import { registerTutorialRealm } from "@opensesame/app-core/tutorial/registry/optional-tutorials.test-support.js";
 import { registerGuidePredicates } from "@opensesame/app-core/tutorial/registry/predicates.js";
 import {
   isMountedGuideTarget,
   resolveGuideTargetElement,
 } from "@opensesame/app-core/tutorial/registry/targets.js";
-import type { AccountItem, VaultItem } from "@opensesame/vault-core";
+import {
+  type AccountItem,
+  type VaultItem,
+  createCredential,
+  passwordMethod,
+} from "@opensesame/vault-core";
 import { VaultRail } from "../../components/VaultRail.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { ShareSecretDrop } from "../../sections/vault/DropCeremony.js";
@@ -78,6 +84,37 @@ function renderPane(item: VaultItem) {
 }
 
 describe("the pane of an open item", () => {
+  it.each(["account", "credential"] as const)(
+    "points at actual %s credentials when a password has no reference tools",
+    (kind) => {
+      const account = newItemDraft("account", "Example");
+      if (account.kind !== "account") throw new Error("Expected an account");
+      const method = passwordMethod(account);
+      if (!method) throw new Error("Expected the generated password");
+      const item =
+        kind === "account"
+          ? account
+          : createCredential(method, "Example password", account.id);
+      const { container, unmount } = renderPane(item);
+      const target = resolveGuideTargetElement("item.credentials.references");
+      expect(target).not.toBeNull();
+      expect(
+        target?.contains(
+          screen.getByRole("button", { name: "Reveal password" }),
+        ),
+      ).toBe(true);
+      expect(
+        target?.contains(screen.getByRole("button", { name: "Copy password" })),
+      ).toBe(true);
+      expect(container.querySelector(".password-workflows")).toBeNull();
+      expect(screen.queryByText("No stored concealed fields.")).toBeNull();
+      expect(screen.queryByText(/needs private input/)).toBeNull();
+      expect(container.textContent).not.toContain(method.secret);
+      unmount();
+      expect(isMountedGuideTarget("item.credentials.references")).toBe(false);
+    },
+  );
+
   it("binds the keys of a live account, and the copy keys of what it holds", () => {
     renderPane(login());
     for (const id of [
@@ -106,7 +143,12 @@ describe("the pane of an open item", () => {
 
   it("binds none of the live keys on an item that is in the trash", () => {
     renderPane(login({ deletedAt: "2026-09-01T00:00:00Z" }));
-    for (const id of ["item.favorite", "item.edit", "item.trash"]) {
+    for (const id of [
+      "item.favorite",
+      "item.edit",
+      "item.trash",
+      "item.credentials.references",
+    ]) {
       expect(isMountedGuideTarget(id), id).toBe(false);
     }
   });

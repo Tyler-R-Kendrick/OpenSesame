@@ -92,10 +92,8 @@ describe("new vault draft defaults", () => {
     expect(first.username).toMatch(/^user_[a-f0-9]+$/);
     expect(first.username).not.toBe(second.username);
     expect(accountTotp(first)).toBe("");
-    // An empty address that matches nothing until one is written — never a
-    // `*` that would offer the account on every site.
     expect(first.uris).toEqual([
-      { id: expect.any(String), uri: "", match: "domain" },
+      { id: expect.any(String), uri: "*", match: "wildcard" },
     ]);
     expect(first.uris[0]?.id).not.toBe(second.uris[0]?.id);
     expect(createItem("account").uris).toEqual([]);

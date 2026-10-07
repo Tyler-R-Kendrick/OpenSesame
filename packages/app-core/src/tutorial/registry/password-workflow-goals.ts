@@ -3,7 +3,7 @@ import type { GuideGoalDescriptor, HelpTopic } from "./goal-types.js";
 export const PASSWORD_WORKFLOW_GOALS: readonly GuideGoalDescriptor[] = [
   {
     id: "vault.item.credentials",
-    title: "Use credential references on an item",
+    title: "Use credentials on an item",
     routes: [],
     libraryOnly: true,
     requires: ["vault.has-items"],
@@ -11,7 +11,7 @@ export const PASSWORD_WORKFLOW_GOALS: readonly GuideGoalDescriptor[] = [
       "guide/1",
       'goal "vault.item.credentials"',
       'navigate "/vault/item"',
-      'focus "item.credentials.references" "Copy references or download a reference-only environment template beside this item. Reading plaintext requires your explicit confirmation. A login also offers private comparison and a verified password update; this guide submits nothing." side=bottom',
+      'focus "item.credentials.references" "Credential fields have reveal and copy controls beside their values. An account uses the credentials bound to it. When reference tools are available, you can copy references or download a reference-only environment template; reading plaintext requires your explicit confirmation. This guide reveals and submits nothing." side=bottom',
       "end",
     ].join("\n"),
   },

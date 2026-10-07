@@ -73,10 +73,22 @@ export function ItemCredentialActions({ item }: { item: VaultItem }) {
             method.type === "password" && !requiresPrivateInput(method),
         )
       : undefined;
+  if (references.length === 0 && !firstComparable)
+    return (
+      <FailureNotice
+        id={`credential-references:${item.id}`}
+        title="Credential references"
+        message={error}
+      />
+    );
   return (
     <section
       className="detail__group password-workflows"
-      ref={target}
+      ref={
+        item.kind === "account" || item.kind === "credential"
+          ? undefined
+          : target
+      }
       aria-label="Credential references"
     >
       <h2 className="detail__grouphead">Credential references</h2>
@@ -85,9 +97,6 @@ export function ItemCredentialActions({ item }: { item: VaultItem }) {
         title="Credential references"
         message={error}
       />
-      {inventory && references.length === 0 ? (
-        <p>No stored concealed fields.</p>
-      ) : null}
       {references.map((field) =>
         field.ref ? (
           <ItemReference
@@ -260,13 +269,7 @@ function ItemPasswordCheck({
       setBusy(false);
     }
   }
-  if (requiresPrivateInput(method))
-    return (
-      <p>
-        {methodTitle(item.methods, method)} needs private input. Use this
-        account's password controls.
-      </p>
-    );
+  if (requiresPrivateInput(method)) return null;
   return (
     <fieldset disabled={busy} ref={guide ? target : undefined}>
       <legend>Compare {methodTitle(item.methods, method).toLowerCase()}</legend>

@@ -131,15 +131,12 @@ describe("ItemDetail", () => {
     expect(screen.getByRole("heading", { name: "Webmail" })).toBeTruthy();
     expect(screen.getByText("me@example.com")).toBeTruthy();
     expect(screen.getByText(/Account/)).toBeTruthy();
-    // Concealed until asked.
     expect(screen.queryByText("hunter2hunter2")).toBeNull();
     await userEvent.click(
       screen.getByRole("button", { name: /Reveal password/i }),
     );
     expect(screen.getByText("hunter2hunter2")).toBeTruthy();
-    // Strength bar appears once the password is visible.
     expect(screen.getByText(/bits/)).toBeTruthy();
-    // Hide again.
     await userEvent.click(
       screen.getByRole("button", { name: /Hide password/i }),
     );
@@ -189,6 +186,7 @@ describe("ItemDetail", () => {
           uris: [
             { id: "u1", uri: "https://mail.example.com", match: "domain" },
             { id: "u2", uri: "chrome-extension://abc", match: "never" },
+            { id: "u3", uri: "*", match: "wildcard" },
           ],
         }),
       ],
@@ -196,6 +194,9 @@ describe("ItemDetail", () => {
     };
     renderAt("itm_login");
     expect(screen.getByText("https://mail.example.com")).toBeTruthy();
+    expect(screen.getByText("Match: mail.example.com")).toBeTruthy();
+    expect(screen.queryByText("Match: domain")).toBeNull();
+    expect(screen.getByText("*")).toBeTruthy();
     expect(
       screen.getByRole("link", { name: /Open mail.example.com/i }),
     ).toBeTruthy();
@@ -211,7 +212,6 @@ describe("ItemDetail", () => {
     };
     renderAt("itm_login");
     expect(screen.getByText("Authenticator code")).toBeTruthy();
-    // QR hidden until asked.
     expect(
       screen.getByText(/Hidden — shows the otpauth enrollment QR/),
     ).toBeTruthy();
