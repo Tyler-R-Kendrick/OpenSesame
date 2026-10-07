@@ -41,7 +41,7 @@ function enter(event: KeyboardEvent<HTMLInputElement>, ctx: SegmentKeyContext) {
   else ctx.show();
 }
 
-function escape(
+function dismiss(
   event: KeyboardEvent<HTMLInputElement>,
   ctx: SegmentKeyContext,
 ) {
@@ -61,7 +61,7 @@ const KEYS = new Map<string, KeyHandler>([
   ["ArrowDown", arrow],
   ["ArrowUp", arrow],
   ["Enter", enter],
-  ["Escape", escape],
+  ["Escape", dismiss],
   ["Tab", tab],
 ]);
 
