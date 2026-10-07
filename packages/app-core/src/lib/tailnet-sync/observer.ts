@@ -1,3 +1,5 @@
+import type { ObjectStore } from "@opensesame/vault-core";
+import { maybeEnvironment, maybePage } from "../../ports.js";
 /**
  * Keeps the open vault in step with its tailnet drive (ADR 0144): a pass on
  * unlock, a pass shortly after each change, one a minute while the vault
@@ -9,9 +11,7 @@
  * Passes nobody asked for never raise the browser's Local Network Access
  * prompt; they wait, `blocked`, until a person syncs (`network-access.ts`).
  */
-import { isString } from "@opensesame/os-domain";
-import type { ObjectStore } from "@opensesame/vault-core";
-import { maybeEnvironment, maybePage } from "../../ports.js";
+import { assertNotDecoySession } from "../decoy-session.js";
 import { addFileStoreSource, localFileStore } from "../file-parts-store.js";
 import { refreshProjectsView } from "../projects.js";
 import { GUEST_TOMB, vaultStore } from "../vault/store.js";
@@ -25,7 +25,7 @@ import {
   writeDriveConfig,
 } from "./config.js";
 import { type DriveTransport, defaultTransport, syncOnce } from "./engine.js";
-import { explainNetworkFailure, networkGate } from "./network-access.js";
+import { failureMessage, openTheWay } from "./observer-network.js";
 import { type DrivePairing, parsePairingCode } from "./pairing.js";
 import { driveFileStore, putMissingParts } from "./parts.js";
 
@@ -120,52 +120,58 @@ function describe(drive: DrivePairing | null) {
   return drive ? { label: drive.label, url: drive.url } : null;
 }
 
-/** What a failed pass tells the person: the gate's reason when it caused it. */
-async function failureMessage(error: Error | string): Promise<string> {
-  if (isString(error)) return error;
-  return (await explainNetworkFailure(error)) ?? error.message;
-}
-
-/**
- * Let `drive` be reached: the gate refuses (blocked) or allows, and a person's
- * own pass waits out the browser's prompt on its first request.
- */
-async function openTheWay(
-  drive: DrivePairing,
-  interactive: boolean,
-): Promise<string | null> {
-  const gate = await networkGate(interactive);
-  if (!gate.go) return gate.reason;
-  if (gate.waitMs) await tailnetSyncSeams.reach(drive, gate.waitMs);
-  return null;
-}
-
 /** The parts this vault's files name that the drive still lacks, put. */
-async function putParts(drive: DrivePairing): Promise<void> {
+async function putParts(
+  drive: DrivePairing,
+  generation: number,
+): Promise<void> {
+  assertNotDecoySession(generation);
   const local = await tailnetSyncSeams.localFiles().catch(() => null);
+  assertNotDecoySession(generation);
   if (!local) return;
   await tailnetSyncSeams.putParts(drive, vaultStore.getSnapshot().items, local);
+  assertNotDecoySession(generation);
 }
 
 async function pass(interactive: boolean): Promise<void> {
   const drive = pairing;
   if (!drive || !syncable() || vaultStore.activeTomb() !== pairedTomb) return;
+  const generation = assertNotDecoySession();
   set({ phase: "syncing" });
   try {
-    const blocked = await openTheWay(drive, interactive);
+    const blocked = await openTheWay(
+      drive,
+      interactive,
+      generation,
+      tailnetSyncSeams.reach,
+    );
+    assertNotDecoySession(generation);
     if (blocked) {
       set({ phase: "blocked", error: blocked });
       return;
     }
     await syncOnce(vaultStore, drive, tailnetSyncSeams.transport);
-    await putParts(drive);
+    assertNotDecoySession(generation);
+    await putParts(drive, generation);
+    assertNotDecoySession(generation);
     set({ phase: "idle", lastSyncedAt: tailnetSyncSeams.now(), error: null });
   } catch (error) {
+    try {
+      assertNotDecoySession(generation);
+    } catch {
+      return;
+    }
+    const message = await failureMessage(
+      error instanceof Error ? error : String(error),
+    );
+    try {
+      assertNotDecoySession(generation);
+    } catch {
+      return;
+    }
     set({
       phase: "error",
-      error: await failureMessage(
-        error instanceof Error ? error : String(error),
-      ),
+      error: message,
     });
   }
 }
@@ -177,6 +183,8 @@ export type SyncRequest = {
 
 /** Run a pass now, or once more after the one in flight. */
 export async function syncTailnetNow(request: SyncRequest = {}): Promise<void> {
+  if (!syncable()) return;
+  const generation = assertNotDecoySession();
   const interactive = request.interactive === true;
   if (inflight) {
     again = true;
@@ -187,6 +195,11 @@ export async function syncTailnetNow(request: SyncRequest = {}): Promise<void> {
     let asked = interactive;
     do {
       again = false;
+      try {
+        assertNotDecoySession(generation);
+      } catch {
+        break;
+      }
       await pass(asked);
       asked = againInteractive;
       againInteractive = false;
@@ -210,11 +223,14 @@ async function loadPairing(): Promise<void> {
     set(OFF);
     return;
   }
+  const generation = assertNotDecoySession();
   const key = vaultKey();
   const tomb = vaultStore.activeTomb();
   const held = takePendingPairing(tomb);
   if (held) await writeDriveConfig(tomb, held);
+  assertNotDecoySession(generation);
   const loaded = held ?? (await readDriveConfig(tomb));
+  assertNotDecoySession(generation);
   if (vaultKey() !== key) return;
   pairing = loaded;
   pairedTomb = loaded ? tomb : null;
@@ -231,7 +247,7 @@ function onVaultChange(): void {
   const key = vaultKey();
   if (key !== seenKey) {
     seenKey = key;
-    void loadPairing();
+    void loadPairing().catch(() => undefined);
     return;
   }
   if (!pairing || !syncable()) return;
@@ -252,18 +268,27 @@ function onVaultChange(): void {
 export async function pairTailnetDrive(
   code: string,
 ): Promise<"paired" | "adopted"> {
+  const generation = assertNotDecoySession();
   const next = parsePairingCode(code);
   if (!next) throw new Error("That is not a drive pairing code.");
   const snap = vaultStore.getSnapshot();
   try {
-    const blocked = await openTheWay(next, true);
+    const blocked = await openTheWay(
+      next,
+      true,
+      generation,
+      tailnetSyncSeams.reach,
+    );
+    assertNotDecoySession(generation);
     if (blocked) throw new Error(blocked);
   } catch (error) {
     throw new Error(
       await failureMessage(error instanceof Error ? error : String(error)),
     );
   }
+  assertNotDecoySession(generation);
   const theirs = (await tailnetSyncSeams.transport.read(next)).snapshot;
+  assertNotDecoySession(generation);
   // A project vault this device does not have open lands beside its vaults.
   const project =
     theirs !== null &&
@@ -276,10 +301,12 @@ export async function pairTailnetDrive(
       );
     }
     await adoptSnapshot(theirs);
+    assertNotDecoySession(generation);
     holdPendingPairing(next, theirs.tomb);
     if (project) {
       // Its unlock screen is next — or it opens, sharing this session's key.
       await refreshProjectsView();
+      assertNotDecoySession(generation);
       await switchVault(theirs.tomb);
       return "adopted";
     }
@@ -290,9 +317,11 @@ export async function pairTailnetDrive(
   if (!syncable()) throw new Error("Unlock the vault to pair it with a drive.");
   const tomb = vaultStore.activeTomb();
   await syncOnce(vaultStore, next, tailnetSyncSeams.transport);
+  assertNotDecoySession(generation);
   if (vaultStore.activeTomb() !== tomb)
     throw new Error("The vault changed while pairing; pair it again.");
   await writeDriveConfig(tomb, next);
+  assertNotDecoySession(generation);
   pairing = next;
   pairedTomb = tomb;
   set({
@@ -306,8 +335,10 @@ export async function pairTailnetDrive(
 
 /** Stop syncing this vault. The drive keeps its copy; the operator removes the slot. */
 export async function forgetTailnetDrive(): Promise<void> {
+  const generation = assertNotDecoySession();
   if (!syncable()) return;
   await writeDriveConfig(vaultStore.activeTomb(), null);
+  assertNotDecoySession(generation);
   pairing = null;
   pairedTomb = null;
   set(OFF);
@@ -343,7 +374,7 @@ export function startTailnetSync(): () => void {
     const drive = pairedDrive();
     return drive ? [driveFileStore(drive, local)] : [];
   });
-  void loadPairing();
+  void loadPairing().catch(() => undefined);
   return stopTailnetSync;
 }
 

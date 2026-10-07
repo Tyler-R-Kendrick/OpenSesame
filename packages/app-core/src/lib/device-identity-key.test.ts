@@ -128,10 +128,12 @@ describe("one key across tabs", () => {
   it("mints only inside the vault's lock, and never with two inside at once", async () => {
     const tomb = await openTomb();
     await twoTabs(tomb);
-    expect(locks.requested).toEqual([
-      `opensesame-device-identity-${tomb}`,
-      `opensesame-device-identity-${tomb}`,
+    const identityLock = `opensesame-device-identity-${tomb}`;
+    expect(locks.requested.filter((name) => name === identityLock)).toEqual([
+      identityLock,
+      identityLock,
     ]);
+    expect(locks.requested).toContain(`opensesame:vfs-rotation:${tomb}`);
     expect(locks.peak()).toBe(1);
   });
 

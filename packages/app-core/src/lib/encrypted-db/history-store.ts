@@ -11,6 +11,7 @@ import type {
   HistoryRowStore,
   ProvisionalHistoryAccount,
 } from "../history-backup-types.js";
+import type { WriteGuard } from "./db.js";
 import { DEVICE_EDB_NAMESPACE } from "./names.js";
 import { type EdbRow, defineSchema } from "./schema.js";
 import { withEncryptedDb } from "./with-db.js";
@@ -65,6 +66,7 @@ function present<T>(value: T | undefined): value is T {
 /** `ready` resolves when rows may be read: after a legacy migration has run. */
 export function createHistoryStore(
   ready: () => Promise<void> = async () => {},
+  guard?: WriteGuard,
 ): HistoryRowStore {
   const run = async <T>(work: Parameters<typeof withEncryptedDb<T>>[2]) => {
     await ready();
@@ -78,7 +80,8 @@ export function createHistoryStore(
   return {
     putAccount: (account) =>
       run(async (db) => {
-        await db.put("accounts", account);
+        if (guard) await db.putGuarded("accounts", account, guard);
+        else await db.put("accounts", account);
         return true as const;
       }),
     getAccount: async (id) => {
@@ -102,7 +105,8 @@ export function createHistoryStore(
       ),
     putEntry: (entry) =>
       run(async (db) => {
-        await db.put("entries", entry);
+        if (guard) await db.putGuarded("entries", entry, guard);
+        else await db.put("entries", entry);
         return true as const;
       }),
   };

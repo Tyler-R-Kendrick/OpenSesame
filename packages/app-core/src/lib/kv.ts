@@ -231,14 +231,13 @@ export async function kvDeleteDurable(key: string): Promise<void> {
   try {
     await root.removeEntry(fileName(key));
   } catch (error) {
-    if (error instanceof DOMException && error.name === "NotFoundError") return;
+    const { missingFileError, restrictedFileError } = await import(
+      "./kv-file-errors.js"
+    );
+    if (missingFileError.safeParse(error).success) return;
     // Restricted OPFS (CI Chrome / sandboxed profiles) refuses mutation; memory
     // already dropped the key, so treat as session-only storage.
-    if (
-      error instanceof DOMException &&
-      (error.name === "NoModificationAllowedError" ||
-        error.name === "SecurityError")
-    ) {
+    if (restrictedFileError.safeParse(error).success) {
       durability = "memory";
       return;
     }
@@ -282,7 +281,8 @@ export async function kvRefresh(key: string, maxBytes: number): Promise<void> {
     try {
       handle = await root.getFileHandle(fileName(key));
     } catch (error) {
-      if (error instanceof DOMException && error.name === "NotFoundError") {
+      const { missingFileError } = await import("./kv-file-errors.js");
+      if (missingFileError.safeParse(error).success) {
         memory.delete(key);
         return;
       }

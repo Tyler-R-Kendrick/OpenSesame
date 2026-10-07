@@ -17,11 +17,15 @@ import type {
   PasswordAgentPort,
   Scope,
 } from "@opensesame/app-core/lib/password-agent/transport.js";
-import { emitHumanValue, emitMetadata as print } from "./output.js";
+import {
+  emitHumanValue as outputHumanValue,
+  emitMetadata as outputMetadata,
+} from "./output.js";
 import type { readPrivateInput, writePrivateFile } from "./parity-node.js";
 import { exhausted, option, source, toggle } from "./parity-parse.js";
 import { runLease, runPrivateRequest } from "./parity-request.js";
 export interface ParityContext {
+  assertCurrent: () => void;
   requestTransport?: Pick<RequestPorts, "addresses" | "send"> | undefined;
   args: string[];
   child: string[];
@@ -42,6 +46,7 @@ export async function dispatchParity(
   verb: string,
   ctx: ParityContext,
 ): Promise<number> {
+  ctx.assertCurrent();
   const { args, scope, agent } = ctx;
   switch (verb) {
     case "request":
@@ -51,20 +56,20 @@ export async function dispatchParity(
     case "find":
       if (!args.length || args.some((arg) => arg.startsWith("--")))
         throw new Error("find requires title queries.");
-      print(await agent.find(args, scope));
+      print(ctx, await agent.find(args, scope));
       return 0;
     case "inventory":
       exhausted(args);
-      print({ items: await agent.inventory(scope) });
+      print(ctx, { items: await agent.inventory(scope) });
       return 0;
     case "audit":
       exhausted(args);
-      print(await agent.audit(scope));
+      print(ctx, await agent.audit(scope));
       return 0;
     case "read": {
       const ref = required(args.shift(), "read requires op://reference.");
       exhausted(args);
-      emitHumanValue(await agent.read(ref));
+      emitHumanValue(ctx, await agent.read(ref));
       return 0;
     }
     case "create":
@@ -101,6 +106,7 @@ export async function runCreate(ctx: ParityContext): Promise<number> {
   if (url !== undefined) target.url = url;
   if (notes !== undefined) target.notes = notes;
   print(
+    ctx,
     await agent.createApiCredential(target, await privateInput(inputSource)),
   );
   return 0;
@@ -125,7 +131,7 @@ export async function runPassword(ctx: ParityContext): Promise<number> {
     repairImportedFields,
   };
   if (account !== undefined) target.account = account;
-  print(await agent.password(target, await privateInput(inputSource)));
+  print(ctx, await agent.password(target, await privateInput(inputSource)));
   return 0;
 }
 
@@ -156,13 +162,16 @@ export async function runEnv(ctx: ParityContext): Promise<number> {
   if (verb === "write") {
     if (!args.length)
       throw new Error("env write requires reference assignments.");
+    ctx.assertCurrent();
     await privateFile(file, renderEnv(args.map(parseAssignment)));
-    print({ written: true, file });
+    print(ctx, { written: true, file });
     return 0;
   }
   if (verb === "run") {
     exhausted(args);
-    return agent.runFile(file, child, await readFile(file, "utf8"));
+    const content = await readFile(file, "utf8");
+    ctx.assertCurrent();
+    return agent.runFile(file, child, content);
   }
   if (verb !== "resolve")
     throw new Error("env requires write, resolve, or run.");
@@ -171,9 +180,12 @@ export async function runEnv(ctx: ParityContext): Promise<number> {
   exhausted(args);
   if (inPlace === (output !== undefined))
     throw new Error("Choose exactly one of --output or --in-place.");
-  const result = await agent.resolveEnv(await readFile(file, "utf8"));
+  const content = await readFile(file, "utf8");
+  ctx.assertCurrent();
+  const result = await agent.resolveEnv(content);
+  ctx.assertCurrent();
   await privateFile(output ?? file, result.content);
-  print({ resolved: result.count, file: output ?? file, plaintext: true });
+  print(ctx, { resolved: result.count, file: output ?? file, plaintext: true });
   return 0;
 }
 
@@ -198,7 +210,7 @@ export async function runDoctor(ctx: ParityContext): Promise<number> {
     runtime: process.version,
     auth,
   });
-  print(result);
+  print(ctx, result);
   return 0;
 }
 
@@ -212,6 +224,7 @@ export async function runService(ctx: ParityContext): Promise<number> {
     const inputSource = source(args);
     exhausted(args);
     print(
+      ctx,
       await service.connect(raw, store, await privateInput(inputSource), name),
     );
     return 0;
@@ -234,13 +247,23 @@ export async function runService(ctx: ParityContext): Promise<number> {
     };
     if (account !== undefined) target.account = account;
     if (expiresIn !== undefined) target.expiresIn = expiresIn;
-    print(await service.setup(raw, store, target));
+    print(ctx, await service.setup(raw, store, target));
     return 0;
   }
   exhausted(args);
-  if (verb === "status") print(await service.status(port, store));
-  else if (verb === "recover") print(await service.recover(raw, store, name));
-  else if (verb === "forget") print(await service.forget(store));
+  if (verb === "status") print(ctx, await service.status(port, store));
+  else if (verb === "recover")
+    print(ctx, await service.recover(raw, store, name));
+  else if (verb === "forget") print(ctx, await service.forget(store));
   else throw new Error("Unknown service-account command.");
   return 0;
+}
+
+function print<T>(ctx: ParityContext, value: T): void {
+  ctx.assertCurrent();
+  outputMetadata(value);
+}
+function emitHumanValue(ctx: ParityContext, value: string): void {
+  ctx.assertCurrent();
+  outputHumanValue(value);
 }

@@ -128,6 +128,14 @@ function planManifestMergeDefault(
     const incoming = entryToVaultItem(entry, folderId);
     const current = byPath.get(normalizedStorePath(entry.path));
     if (!current) {
+      if (
+        incoming.kind === "credential" &&
+        incoming.method.type === "password" &&
+        incoming.method.sealed
+      )
+        throw new Error(
+          "Convert this sealed password in its original account before importing it.",
+        );
       if (folderId) usedFolderIds.add(folderId);
       adds.push(withoutConferredAuthority(incoming, null));
       continue;

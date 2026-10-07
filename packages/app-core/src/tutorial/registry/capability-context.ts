@@ -17,6 +17,9 @@ const GOAL_CONTEXT_ROUTES = new Map(
   Object.entries({
     "vaults.switch": ["/vault", "/unlock", "/settings"],
     "vaults.duress-code": ["/settings/security"],
+    "vaults.controlled-canaries": ["/settings/security"],
+    "vaults.observation-receiver": ["/settings/security"],
+    "vaults.retired-credentials": ["/settings/security"],
     "vaults.travel": ["/settings/security"],
     "settings.security.review": ["/settings/security"],
     "host.health.check": [],

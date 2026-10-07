@@ -54,7 +54,13 @@ export function credentialFromEntry(
   const method = values.method === undefined ? null : readMethod(values.method);
   if (method === null) return null;
   const [filled = method] = withLineOne([method], entry);
-  const item = createCredential(withEntryValue(filled, entry), name);
+  const value = withEntryValue(filled, entry);
+  // A file's method ID is not authority to replace a local vault entry.
+  const local =
+    value.type === "password" && value.sealed
+      ? value
+      : { ...value, id: crypto.randomUUID() };
+  const item = createCredential(local, name);
   item.notes = meta.notes ?? "";
   return item;
 }
@@ -92,7 +98,12 @@ export function describeCredential(
     method.type === "authenticator" && OTPAUTH.test(method.secret.trim())
       ? method.secret.trim()
       : null;
-  const written: JsonValue = overlapCast(blanked(method, onLineOne, otpauth));
+  const canonical = readMethod(
+    overlapCast(blanked(method, onLineOne, otpauth)),
+  );
+  if (canonical === null)
+    throw new Error("Cannot export an invalid credential method.");
+  const written: JsonValue = overlapCast(canonical);
   meta.values = { method: written };
   return otpauth;
 }

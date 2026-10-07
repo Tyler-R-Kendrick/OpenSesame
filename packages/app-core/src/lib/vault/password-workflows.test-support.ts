@@ -1,3 +1,6 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   type AccountItem,
   type VaultBody,
@@ -8,7 +11,11 @@ import {
   manualPassword,
   resolveAccounts,
 } from "@opensesame/vault-core";
-import { vi } from "vitest";
+import { afterEach, beforeEach, vi } from "vitest";
+import { configureHost, host } from "../../host.js";
+import { createNodeHost } from "../../node/host.js";
+import { kvFlush, kvForgetAll } from "../kv.js";
+import { vfsFlush } from "../vfs.js";
 import { stampedEdit } from "./body-edits.js";
 import { writeItem } from "./item-path.js";
 import type { VaultState } from "./store-state.js";
@@ -45,3 +52,27 @@ export function openWorkflowVault(items: VaultItem[]): VaultState {
   });
   return state;
 }
+
+let previousHost: ReturnType<typeof host>;
+let directory: string;
+beforeEach(async () => {
+  await vfsFlush();
+  await kvFlush();
+  previousHost = host();
+  directory = await mkdtemp(join(tmpdir(), "workflow-admitted-root-"));
+  configureHost(createNodeHost({ stateDir: directory }));
+  kvForgetAll();
+  vaultStore.lock();
+  vaultStore.loadActiveProjectScope();
+  await vaultStore.create("actual admitted workflow fixture password");
+});
+afterEach(async () => {
+  vi.restoreAllMocks();
+  vaultStore.lock();
+  await vaultStore.flushPendingWrites();
+  await vfsFlush();
+  await kvFlush();
+  kvForgetAll();
+  configureHost(previousHost);
+  await rm(directory, { recursive: true, force: true });
+});

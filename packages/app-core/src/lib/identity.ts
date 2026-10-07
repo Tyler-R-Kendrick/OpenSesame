@@ -1,3 +1,11 @@
+import { HostSessionError, IdentityError } from "./identity-errors.js";
+import {
+  type HealthState,
+  type ProbeResult,
+  probeIdentityHealth,
+} from "./identity-probe.js";
+import { readIdentityError } from "./identity-response-error.js";
+export { IdentityError, HostSessionError } from "./identity-errors.js";
 import {
   type BoundaryValue,
   type JsonObject,
@@ -5,6 +13,11 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { assertNotDecoySession, withRealAuthority } from "./decoy-session.js";
+import {
+  readHostSessionEligibility,
+  readVisibleIdentitySession,
+} from "./identity-authority-readers.js";
 /**
  * Identity plane session.
  *
@@ -28,11 +41,6 @@ import {
   remoteIdentityApi,
   resolveIdentityBase,
 } from "./device-identity.js";
-import {
-  type FailureClass,
-  classifyResponse,
-  classifyThrown,
-} from "./probe-failure.js";
 import { loadSettings } from "./settings.js";
 
 export { isDeviceIdentityMode, isRemoteIdentityConfigured, remoteIdentityApi };
@@ -76,25 +84,6 @@ export type IdentitySession = {
   cookieOnly?: boolean;
 };
 
-export class IdentityError extends Error {
-  readonly status: number;
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = "IdentityError";
-    this.status = status;
-  }
-}
-
-export class HostSessionError extends Error {
-  constructor(
-    readonly code: "setup_required" | "identity_changed" | "invalid_host",
-    message: string,
-  ) {
-    super(message);
-    this.name = "HostSessionError";
-  }
-}
-
 let session: IdentitySession | null = null;
 type HostSession = BrowserGrant;
 let pendingIdentitySession: Promise<IdentitySession> | null = null;
@@ -134,9 +123,7 @@ function currentSessionDefault(): IdentitySession | null {
   if (session?.expiresAt && Date.parse(session.expiresAt) <= Date.now()) {
     session = null;
     clearHostSession();
-    // Expiry would otherwise be silent, leaving the rail claiming a session
-    // that can no longer act. Emit off-stack because this is also called from
-    // inside listeners.
+    // Report expiry off-stack: this can be called from inside listeners.
     queueMicrotask(emit);
   }
   return session;
@@ -271,6 +258,7 @@ function hostLocalSessionEligibleDefault(
 
 /** Ensure the optional Identity session without changing browser Host authority. */
 export async function ensureIdentitySession(): Promise<IdentitySession> {
+  const authorityGeneration = assertNotDecoySession();
   const existing = currentSession();
   if (existing) {
     return existing;
@@ -283,6 +271,7 @@ export async function ensureIdentitySession(): Promise<IdentitySession> {
     return await pending;
   } finally {
     if (pendingIdentitySession === pending) pendingIdentitySession = null;
+    assertNotDecoySession(authorityGeneration);
   }
 }
 
@@ -312,17 +301,6 @@ async function hostFetchDefault(
     if (error instanceof BrowserPairingError)
       throw new HostSessionError("setup_required", error.message);
     throw error;
-  }
-}
-
-async function readError(res: Response): Promise<string> {
-  try {
-    const body: JsonObject = overlapCast(await res.json());
-    if (isString(body.message)) return body.message;
-    if (isString(body.error)) return body.error;
-    return `Request failed (${res.status}).`;
-  } catch {
-    return `Request failed (${res.status}).`;
   }
 }
 
@@ -369,24 +347,29 @@ async function identityJsonDefault<T>(
   init: RequestInit = {},
 ): Promise<T> {
   const res = await identityFetch(path, init);
-  if (!res.ok) throw new IdentityError(await readError(res), res.status);
+  if (!res.ok)
+    throw new IdentityError(await readIdentityError(res), res.status);
   return overlapCast(await res.json());
 }
 
 /** Start a provisional session. This is the anonymous on-ramp the API exposes. */
 async function connectProvisionalDefault(): Promise<IdentitySession> {
+  const authorityGeneration = assertNotDecoySession();
   const resumed = await resumeCookieSession();
+  assertNotDecoySession(authorityGeneration);
   if (resumed) return resumed;
   // A cookie left by an earlier tab is only flagged once something has probed
   // for it. Connecting from Agents or Sites never probes, so look here
   // too rather than mint a second session beside one nobody is watching.
   if (!session && !orphanCookie) await probeOrphanSession();
+  assertNotDecoySession(authorityGeneration);
   // End an earlier session before starting another, so the old one does not live
   // out its TTL with a credential nobody is watching.
   if (session || orphanCookie) endSession();
   // Let any revoke finish first: its response clears the cookie by name, which
   // would otherwise land after the new one is set and take it with it.
   await settleRevokes();
+  assertNotDecoySession(authorityGeneration);
   const epoch = sessionEpoch;
   const res = await identityPlaneRequest("/v1/principals/provisional", {
     method: "POST",
@@ -395,8 +378,10 @@ async function connectProvisionalDefault(): Promise<IdentitySession> {
     body: "{}",
     timeoutMs: IDENTITY_FETCH_MS,
   });
-  if (!res.ok) throw new IdentityError(await readError(res), res.status);
+  if (!res.ok)
+    throw new IdentityError(await readIdentityError(res), res.status);
   const body: JsonObject = overlapCast(await res.json());
+  assertNotDecoySession(authorityGeneration);
   if (
     !isString(body.principalId) ||
     !isString(body.accessToken) ||
@@ -432,6 +417,7 @@ async function connectProvisionalDefault(): Promise<IdentitySession> {
 }
 
 async function resumeCookieSession(): Promise<IdentitySession | null> {
+  const authorityGeneration = assertNotDecoySession();
   if (session) return session;
   // Device-native identity has no HttpOnly cookie plane.
   if (isDeviceIdentityMode()) return null;
@@ -442,6 +428,7 @@ async function resumeCookieSession(): Promise<IdentitySession | null> {
     });
     if (!res.ok) return null;
     const body = overlapCast(await res.json());
+    assertNotDecoySession(authorityGeneration);
     if (!isString(body.id) || !body.id) return null;
     const nextSession: IdentitySession = {
       principalId: body.id,
@@ -462,10 +449,12 @@ async function resumeCookieSession(): Promise<IdentitySession | null> {
 
 /** Adopt a token the operator already holds (CLI `opensesame-id`, tests). */
 async function adoptTokenDefault(accessToken: string): Promise<void> {
+  const authorityGeneration = assertNotDecoySession();
   // Always end what came before, detected orphan or not: a cookie this tab
   // never saw would otherwise keep acting alongside the pasted token.
   endSession();
   await settleRevokes();
+  assertNotDecoySession(authorityGeneration);
   const token = accessToken.trim();
   const epoch = sessionEpoch;
   const issuerOrigin = identityOrigin();
@@ -477,8 +466,10 @@ async function adoptTokenDefault(accessToken: string): Promise<void> {
     credentials: "omit",
     timeoutMs: IDENTITY_FETCH_MS,
   });
-  if (!res.ok) throw new IdentityError(await readError(res), res.status);
+  if (!res.ok)
+    throw new IdentityError(await readIdentityError(res), res.status);
   const me: BoundaryValue = await res.json();
+  assertNotDecoySession(authorityGeneration);
   if (!isJsonObject(me) || !isString(me.id)) {
     throw new IdentityError("Identity returned an invalid principal.", 502);
   }
@@ -510,46 +501,9 @@ function restoreSessionDefault(next: IdentitySession): void {
   emit();
 }
 
-export type HealthState = "unknown" | "reachable" | "unreachable";
-
-/** A probe result that says *why*, for the connectivity monitor. */
-export type ProbeResult = {
-  health: HealthState;
-  failure: FailureClass | null;
-};
-
-export async function probeIdentityDetailed(): Promise<ProbeResult> {
-  // Device-native mode is always the local host — never probe the network.
-  if (isDeviceIdentityMode()) {
-    return { health: "reachable", failure: null };
-  }
-  const base = identityBase();
-  if (!base) return { health: "unreachable", failure: null };
-  try {
-    const res = await identityPlaneRequest("/v1/health/live", {
-      credentials: "omit",
-      timeoutMs: PROBE_MS,
-    });
-    if (!res.ok) {
-      return { health: "unreachable", failure: classifyResponse(res.status) };
-    }
-    // A foreign listener on :8788 can answer with 401 JSON and look "up".
-    // OpenSesame control-plane always returns `{ "status": "ok" }`.
-    try {
-      const body = overlapCast(await res.json());
-      return body.status === "ok"
-        ? { health: "reachable", failure: null }
-        : { health: "unreachable", failure: "not-opensesame" };
-    } catch {
-      return { health: "unreachable", failure: "not-opensesame" };
-    }
-  } catch (error) {
-    const thrown =
-      error instanceof DOMException || error instanceof Error
-        ? error
-        : String(error);
-    return { health: "unreachable", failure: classifyThrown(thrown) };
-  }
+export type { HealthState, ProbeResult } from "./identity-probe.js";
+export function probeIdentityDetailed(): Promise<ProbeResult> {
+  return probeIdentityHealth(identityBase);
 }
 
 async function probeIdentityDefault(): Promise<HealthState> {
@@ -579,28 +533,27 @@ export async function hostFetch(
   path: string,
   init: RequestInit = {},
 ): Promise<Response> {
-  return identitySeams.hostFetch(path, init);
+  const authorityGeneration = assertNotDecoySession();
+  const response = await identitySeams.hostFetch(path, init);
+  assertNotDecoySession(authorityGeneration);
+  return response;
 }
 
 export function endSession(): void {
+  assertNotDecoySession();
   identitySeams.endSession();
 }
 
 export async function ensureHostSession(): Promise<HostSession> {
-  return identitySeams.ensureHostSession();
+  return withRealAuthority(() => identitySeams.ensureHostSession());
 }
 
 export function hostLocalSessionEligible(hostApi?: string): boolean {
-  // Resolve hostBase inside the seamed implementation, not here. Evaluating
-  // hostBase() as a default argument would still run it after tests replace
-  // identitySeams.hostLocalSessionEligible.
-  return hostApi === undefined
-    ? identitySeams.hostLocalSessionEligible()
-    : identitySeams.hostLocalSessionEligible(hostApi);
+  return readHostSessionEligibility(identitySeams, hostApi);
 }
 
 export function currentSession(): IdentitySession | null {
-  return identitySeams.currentSession();
+  return readVisibleIdentitySession(identitySeams);
 }
 export async function probeOrphanSession(): Promise<boolean> {
   return identitySeams.probeOrphanSession();
@@ -614,7 +567,10 @@ export function hostBase(): string {
 export async function identityFetch(
   ...args: Parameters<typeof identityFetchDefault>
 ): ReturnType<typeof identityFetchDefault> {
-  return identitySeams.identityFetch(...args);
+  const authorityGeneration = assertNotDecoySession();
+  const response = await identitySeams.identityFetch(...args);
+  assertNotDecoySession(authorityGeneration);
+  return response;
 }
 export function noteUnauthorized(): void {
   identitySeams.noteUnauthorized();
@@ -622,21 +578,25 @@ export function noteUnauthorized(): void {
 export async function identityJson<T>(
   ...args: Parameters<typeof identityJsonDefault>
 ): Promise<T> {
-  return identitySeams.identityJson<T>(...args);
+  const authorityGeneration = assertNotDecoySession();
+  const value = await identitySeams.identityJson<T>(...args);
+  assertNotDecoySession(authorityGeneration);
+  return value;
 }
 export async function connectProvisional(): Promise<IdentitySession> {
-  return identitySeams.connectProvisional();
+  return withRealAuthority(() => identitySeams.connectProvisional());
 }
 export async function adoptToken(accessToken: string): Promise<void> {
-  return identitySeams.adoptToken(accessToken);
+  return withRealAuthority(() => identitySeams.adoptToken(accessToken));
 }
 export async function probeIdentity(): Promise<HealthState> {
   return identitySeams.probeIdentity();
 }
 export async function fetchPrincipal(): Promise<Principal> {
-  return identitySeams.fetchPrincipal();
+  return withRealAuthority(() => identitySeams.fetchPrincipal());
 }
 
 export function restoreSession(next: IdentitySession): void {
+  assertNotDecoySession();
   identitySeams.restoreSession(next);
 }

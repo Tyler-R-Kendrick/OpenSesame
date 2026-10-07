@@ -9,6 +9,11 @@ source "$ROOT/scripts/lib/fuzz-directory.sh"
 
 SECONDS_PER_TARGET="${FUZZ_SECONDS:-60}"
 BASE="${FUZZ_DIFF_BASE:-origin/main}"
+FUZZ_TOOLCHAIN="${OPENSESAME_FUZZ_TOOLCHAIN:-nightly}"
+[[ "$FUZZ_TOOLCHAIN" =~ ^nightly(-[0-9]{4}-[0-9]{2}-[0-9]{2})?$ ]] || {
+  echo "fuzz-pr-gate: expected nightly or a date-pinned nightly toolchain" >&2
+  exit 1
+}
 
 if [[ ! -d tests/fuzz/cargo/fuzz_targets ]]; then
   echo "fuzz-pr-gate: tests/fuzz/cargo/ is missing" >&2
@@ -20,14 +25,14 @@ if ! command -v cargo >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! cargo +nightly fuzz --version >/dev/null 2>&1; then
+if ! cargo "+$FUZZ_TOOLCHAIN" fuzz --version >/dev/null 2>&1; then
   echo "fuzz-pr-gate: cargo-fuzz is not installed." >&2
   echo "  cargo install cargo-fuzz" >&2
   echo "  rustup toolchain install nightly  # cargo-fuzz needs nightly rustc" >&2
   exit 1
 fi
 
-if ! cargo +nightly metadata --format-version 1 --manifest-path tests/fuzz/cargo/Cargo.toml --locked --no-deps >/dev/null; then
+if ! cargo "+$FUZZ_TOOLCHAIN" metadata --format-version 1 --manifest-path tests/fuzz/cargo/Cargo.toml --locked >/dev/null; then
   echo "fuzz-pr-gate: tests/fuzz/cargo/Cargo.lock is stale; refresh and commit it before fuzzing" >&2
   exit 1
 fi
@@ -95,8 +100,8 @@ echo "==> fuzz-pr-gate: ${SECONDS_PER_TARGET}s each — $targets"
 fail=0
 for target in $targets; do
   opensesame_fuzz_corpus "$target"
-  echo "--> cargo +nightly fuzz run $target -max_total_time=$SECONDS_PER_TARGET"
-  if ! cargo +nightly fuzz run "$target" --fuzz-dir tests/fuzz/cargo "$corpus" -- \
+  echo "--> cargo +$FUZZ_TOOLCHAIN fuzz run $target -max_total_time=$SECONDS_PER_TARGET"
+  if ! cargo "+$FUZZ_TOOLCHAIN" fuzz run "$target" --fuzz-dir tests/fuzz/cargo "$corpus" -- \
       -max_total_time="$SECONDS_PER_TARGET" \
       -timeout=10 \
       -artifact_prefix="$OPENSESAME_AUDIT_DIR/artifacts/" \

@@ -28,6 +28,22 @@ export const DURESS_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   {
+    id: "vaults.retired-credentials",
+    title: "Detect a retired password",
+    routes: [],
+    requires: ["vault.unlocked"],
+    guide: [
+      "guide/1",
+      'goal "vaults.retired-credentials"',
+      'say "Retired passwords can be enrolled on this device after you authenticate with your current password. Detection records possession of an old password, including stale autofill; it does not identify an attacker."',
+      'navigate "/settings/security"',
+      'wait route "/settings/security" timeout=15000',
+      'focus "settings.security" "Open Retired passwords in the Decoy panel. The default records and rejects a match. Synthetic decoy opens an isolated vault with invented items and no production connections. Neither response freezes or wipes your vault." side=bottom',
+      'say "Enrollment stores a password-only verifier: consider the risk if that password is reused elsewhere or your vault requires two secrets. Evidence stays on this device. Lock a decoy, then authenticate afresh with your real key to return; anything saved in the decoy is temporary."',
+      "end",
+    ].join("\n"),
+  },
+  {
     id: "vaults.travel",
     title: "Prepare a vault for travel",
     routes: [],
@@ -60,6 +76,22 @@ export const DURESS_HELP: readonly HelpTopic[] = [
       "panic",
       "second code",
       "fake vault",
+    ],
+  },
+  {
+    id: "help.vaults.retired-credentials",
+    title: "What happens when an old password is used?",
+    answer:
+      "Settings → Security → Decoy → Retired passwords. Enroll selected old passwords with your current password; matches record retired_credential_observed and are rejected by default. Synthetic decoy is an explicit alternative with invented data and no real authority. There is no freeze or wipe. Stale autofill can cause an observation. Lock the decoy and authenticate again to return to your real vault. Evidence is local and cannot protect a stolen backup.",
+    routes: [],
+    goal: "vaults.retired-credentials",
+    keywords: [
+      "retired",
+      "old password",
+      "honeyword",
+      "trap",
+      "synthetic",
+      "canary",
     ],
   },
   {

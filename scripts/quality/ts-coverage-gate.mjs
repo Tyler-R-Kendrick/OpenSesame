@@ -2,6 +2,16 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync, rmSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  ownerRuntimeCoverage,
+  unionRuntimeCoverage,
+} from "../lib/coverage-union.mjs";
+import {
+  coverageIncludePatterns,
+  runtimeSourceInventory,
+  validateRuntimeCoverage,
+} from "../lib/ts-coverage-scope.mjs";
+import { workspaceCoverageInventory } from "../lib/workspace-coverage-provider.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const outputRoot = join(root, "coverage", "typescript");
@@ -12,6 +22,7 @@ const thresholds = {
   statements: Number(process.env.TS_COVERAGE_STATEMENTS ?? 94),
 };
 const packageLinesFloor = Number(process.env.TS_COVERAGE_PACKAGE_LINES ?? 50);
+const workspaceInventory = workspaceCoverageInventory(root).inventory;
 
 rmSync(outputRoot, { recursive: true, force: true });
 
@@ -68,8 +79,11 @@ for (const directory of packages) {
       "vitest",
       "run",
       "--coverage",
-      "--coverage.provider=v8",
-      "--coverage.include=src/**/*.{ts,tsx}",
+      "--coverage.provider=custom",
+      `--coverage.customProviderModule=${join(root, "scripts/lib/workspace-coverage-provider.mjs")}`,
+      ...coverageIncludePatterns(relative(root, directory)).map(
+        (pattern) => `--coverage.include=${pattern}`,
+      ),
       "--coverage.reporter=json",
       `--coverage.reportsDirectory=${join(outputRoot, name)}`,
     ],
@@ -113,23 +127,39 @@ function percentage([covered, total]) {
   return total === 0 ? 100 : (covered / total) * 100;
 }
 
-const coverage = {};
+const reports = [];
 const perPackage = [];
 for (const directory of packages) {
   const name = relative(root, directory).replaceAll("/", "-");
   const report = join(outputRoot, name, "coverage-final.json");
   const packageCoverage = JSON.parse(readFileSync(report, "utf8"));
-  Object.assign(coverage, packageCoverage);
+  const packagePath = relative(root, directory);
+  const runtimeFiles = runtimeSourceInventory(directory, packagePath);
+  const validity = validateRuntimeCoverage(
+    ownerRuntimeCoverage(packageCoverage, runtimeFiles),
+    runtimeFiles,
+    packagePath,
+  );
+  reports.push(packageCoverage);
   perPackage.push({
-    directory: relative(root, directory),
-    lines: percentage(tally(packageCoverage).lines),
+    directory: packagePath,
+    applicable: validity.applicable,
+    runtimeFiles,
   });
 }
+const coverage = unionRuntimeCoverage(reports, workspaceInventory);
 
 let failed = false;
 
 console.log(`\nPer-package lines coverage (floor ${packageLinesFloor}%):`);
-for (const { directory, lines } of perPackage) {
+for (const { directory, runtimeFiles, applicable } of perPackage) {
+  if (!applicable) {
+    console.log(`  n/a  ${directory}: no TypeScript runtime sources`);
+    continue;
+  }
+  const lines = percentage(
+    tally(ownerRuntimeCoverage(coverage, runtimeFiles)).lines,
+  );
   const below = lines < packageLinesFloor;
   console.log(
     `  ${below ? "FAIL" : "ok  "} ${directory.padEnd(32)} ${lines.toFixed(2)}%`,

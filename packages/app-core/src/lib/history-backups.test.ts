@@ -14,6 +14,7 @@ import {
   toggleHistoryProvider,
 } from "./history-backups.js";
 import { loadSettings, saveSettings } from "./settings.js";
+import { EDB_DATABASE_PREFIX } from "./storage-ownership.js";
 
 describe("history backups", () => {
   beforeEach(() => {
@@ -66,6 +67,7 @@ type OpenRequest = {
   onsuccess?: () => void;
   onerror?: () => void;
   onupgradeneeded?: () => void;
+  transaction?: { abort: () => void };
   result?: BoundaryValue;
 };
 type ListRequest = {
@@ -82,7 +84,7 @@ type PutRequest = {
 describe("history backup IndexedDB failures", () => {
   it("propagates a failed IndexedDB write instead of falling back to memory", async () => {
     const failing = {
-      open: () => {
+      open: (name: string) => {
         const req: OpenRequest = {};
         req.result = {
           transaction: () => ({
@@ -101,7 +103,22 @@ describe("history backup IndexedDB failures", () => {
           }),
           close: () => {},
         };
-        queueMicrotask(() => req.onsuccess?.());
+        queueMicrotask(() => {
+          if (name.startsWith(EDB_DATABASE_PREFIX)) {
+            let aborted = false;
+            req.transaction = {
+              abort: () => {
+                aborted = true;
+              },
+            };
+            req.onupgradeneeded?.();
+            if (aborted) {
+              req.onerror?.();
+              return;
+            }
+          }
+          req.onsuccess?.();
+        });
         return req;
       },
     };

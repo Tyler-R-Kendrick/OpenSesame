@@ -1,3 +1,4 @@
+import { continueToolRead } from "./tool-shared.js";
 /**
  * Vercel Connect connection tools — the read view and the consent-ceremony
  * opener. Owned by `connectors.external`; contributed as `webmcp-tool`
@@ -35,14 +36,19 @@ export const CONNECTIONS_READ_TOOL: PagesWebMcpTool = {
     required: ["view"],
     additionalProperties: false,
   },
-  execute: async (args) => {
+  execute: async (args, ceiling) => {
     const view = str(args, "view");
     switch (view) {
       case "connections":
-        return { connections: await listConnections() };
+        return {
+          connections: await continueToolRead(() => listConnections(), ceiling),
+        };
       case "connection": {
         const id = str(args, "connectionId");
-        const connection = await getConnection(id);
+        const connection = await continueToolRead(
+          () => getConnection(id),
+          ceiling,
+        );
         return { connection };
       }
       default:

@@ -33,9 +33,9 @@ import {
 
 const PASSWORD = "correct horse battery staple";
 const PAGES = "https://tyler-r-kendrick.github.io";
-const KEY_X = "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMSE";
-const KEY_Y = "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMiE";
-const KEY_Z = "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMyE";
+const KEY_X = "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMSE"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
+const KEY_Y = "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMiE"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
+const KEY_Z = "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMyE"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 const CODE = "UGx1Z2luLXBhaXJpbmctY29kZS1ub3QtcmVhbC0wMSE";
 const pairingFor = (token: string): PluginDaemonPairing => ({
   url: "https://desk.tail4c2e.ts.net",

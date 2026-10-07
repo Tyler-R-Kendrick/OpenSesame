@@ -21,6 +21,7 @@ import {
 export type ItemWriteHost = {
   tomb: string;
   items: readonly VaultItem[];
+  check?: () => void;
   mutate(change: (body: VaultBody) => void): Promise<void>;
 };
 
@@ -30,15 +31,24 @@ export async function writeSavedItems(
   folder?: Folder,
 ): Promise<void> {
   if (items.length === 0) return;
+  host.check?.();
   const priorIds = new Set(host.items.map((item) => item.id));
   const expected = expectedUpdates(host.items, items);
-  const retired = await preparePasswordRetirement(host.tomb, host.items, items);
+  const retired = await preparePasswordRetirement(
+    host.tomb,
+    host.items,
+    items,
+    host.check,
+  );
+  host.check?.();
   await host.mutate((body) => {
     assertExpectedUpdates(body.items, expected);
     for (const item of items) writeItem(body, item, folder);
   });
+  host.check?.();
   noteSavedItems(priorIds, items);
-  await rememberRetiredDigests(retired);
+  await rememberRetiredDigests(retired, host.check);
+  host.check?.();
 }
 
 function expectedUpdates(

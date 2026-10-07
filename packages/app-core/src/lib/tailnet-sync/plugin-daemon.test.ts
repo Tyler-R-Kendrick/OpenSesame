@@ -19,7 +19,7 @@ import {
 
 const CAPABILITY = "agents.surrogate-credentials";
 const PAGES = "https://tyler-r-kendrick.github.io";
-const TOKEN = "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMSE";
+const TOKEN = "UGx1Z2luLWRhZW1vbi1rZXktbm90LWEtcmVhbC0wMSE"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 const CODE = "UGx1Z2luLXBhaXJpbmctY29kZS1ub3QtcmVhbC0wMSE";
 const PAIRED: PluginDaemonPairing = {
   url: "https://desk.tail4c2e.ts.net",

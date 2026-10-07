@@ -9,10 +9,10 @@
  */
 
 export const ENROLLMENT_STATE_KEY = "duress.enrollment-state.v1";
-export const INCIDENT_INTENT_KEY = "duress.incident-intent.v1";
-export const INCIDENT_RECORD_KEY = "duress.incident-record.v1";
+export const INCIDENT_INTENT_KEY = "duress.incident-intent.v1"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
+export const INCIDENT_RECORD_KEY = "duress.incident-record.v1"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 /** A wipe that began and has not been confirmed finished (ADR 0168). */
-export const WIPE_INTENT_KEY = "duress.wipe-intent.v1";
+export const WIPE_INTENT_KEY = "duress.wipe-intent.v1"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 /** The hold a freeze code leaves: read at every unlock, before any vault opens. */
 export const HOLD_KEY = "duress.hold.v1";
 

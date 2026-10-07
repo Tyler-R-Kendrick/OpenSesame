@@ -9,11 +9,9 @@ import {
   isJsonObject,
   isString,
 } from "@opensesame/os-domain";
-import { openOwnedDatabase } from "../../ports.js";
 import { type AtRestKey, atRestReady } from "../at-rest/key.js";
 import {
   ACCOUNTS,
-  DB_VERSION,
   ENTRIES,
   asAccount,
   asEntry,
@@ -25,6 +23,7 @@ import type {
   HistoryEntryRecord,
   ProvisionalHistoryAccount,
 } from "../history-backup-types.js";
+import { openLegacySource } from "../legacy-transfer.js";
 import { storageWritesHalted } from "../storage-halt.js";
 import { HISTORY_BACKUP_DATABASE } from "../storage-ownership.js";
 
@@ -32,24 +31,6 @@ export type LegacyHistory = {
   accounts: ProvisionalHistoryAccount[];
   entries: HistoryEntryRecord[];
 };
-
-/** Open the database only if it exists: opening alone would create it. */
-function openExisting(): Promise<IDBDatabase | undefined> {
-  return new Promise((resolve, reject) => {
-    const req = openOwnedDatabase(HISTORY_BACKUP_DATABASE, DB_VERSION);
-    let created = false;
-    req.onupgradeneeded = (event) => {
-      if (event.oldVersion !== 0) return;
-      created = true;
-      req.transaction?.abort();
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () =>
-      created
-        ? resolve(undefined)
-        : reject(req.error ?? new Error("indexedDB open failed"));
-  });
-}
 
 /**
  * Authenticated rows the sealed database holds, opened, for moving into the
@@ -62,40 +43,47 @@ export async function readLegacyHistory(): Promise<LegacyHistory | undefined> {
   try {
     atRest = await atRestReady();
     if (!atRest.durable) return undefined;
-    const db = await openExisting();
+    const db = await openLegacySource(HISTORY_BACKUP_DATABASE);
     if (!db) return undefined;
     try {
-      const tx = db.transaction([ACCOUNTS, ENTRIES], "readonly");
-      const accounts: BoundaryValue[] = await idbReq(
-        tx.objectStore(ACCOUNTS).getAll(),
-      );
-      const entries: BoundaryValue[] = await idbReq(
-        tx.objectStore(ENTRIES).getAll(),
-      );
-      if (
-        [...accounts, ...entries].some(
-          (row) => !isJsonObject(row) || !isString(row.sealed),
-        )
-      )
-        throw new Error(
-          "Unauthenticated legacy history requires explicit trusted import",
-        );
-      const openedAccounts = accounts.map((row) =>
-        asAccount(openRow(atRest, ACCOUNTS, row, false)),
-      );
-      const openedEntries = entries.map((row) =>
-        asEntry(openRow(atRest, ENTRIES, row, false)),
-      );
-      if ([...openedAccounts, ...openedEntries].some((row) => row === null))
-        throw new Error("Legacy history authentication failed");
-      return {
-        accounts: openedAccounts.filter(present),
-        entries: openedEntries.filter(present),
-      };
+      return await readLegacyHistoryFrom(db, atRest);
     } finally {
       db.close();
     }
   } catch {
     return undefined;
   }
+}
+
+export async function readLegacyHistoryFrom(
+  db: IDBDatabase,
+  atRest: AtRestKey,
+): Promise<LegacyHistory> {
+  const tx = db.transaction([ACCOUNTS, ENTRIES], "readonly");
+  const accounts: BoundaryValue[] = await idbReq(
+    tx.objectStore(ACCOUNTS).getAll(),
+  );
+  const entries: BoundaryValue[] = await idbReq(
+    tx.objectStore(ENTRIES).getAll(),
+  );
+  if (
+    [...accounts, ...entries].some(
+      (row) => !isJsonObject(row) || !isString(row.sealed),
+    )
+  )
+    throw new Error(
+      "Unauthenticated legacy history requires explicit trusted import",
+    );
+  const openedAccounts = accounts.map((row) =>
+    asAccount(openRow(atRest, ACCOUNTS, row, false)),
+  );
+  const openedEntries = entries.map((row) =>
+    asEntry(openRow(atRest, ENTRIES, row, false)),
+  );
+  if ([...openedAccounts, ...openedEntries].some((row) => row === null))
+    throw new Error("Legacy history authentication failed");
+  return {
+    accounts: openedAccounts.filter(present),
+    entries: openedEntries.filter(present),
+  };
 }

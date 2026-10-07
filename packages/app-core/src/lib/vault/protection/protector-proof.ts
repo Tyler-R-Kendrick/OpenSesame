@@ -76,7 +76,9 @@ async function openRoot(
   record: ProtectionRecord,
   context: ProtectionContext,
   material: ProofMaterial,
+  check: () => void,
 ): Promise<Uint8Array> {
+  check();
   switch (record.kind) {
     case "recovery-key":
       return openWithRecoveryKey({
@@ -115,6 +117,7 @@ async function openRoot(
         );
       }
       const { createAwsKmsProtector } = await import("./adapters/aws-kms.js");
+      check();
       return createAwsKmsProtector({
         transport: aws.transport,
         authorization: "authorized",
@@ -132,6 +135,7 @@ async function openRoot(
         );
       }
       const { createGcpKmsProtector } = await import("./adapters/gcp-kms.js");
+      check();
       return createGcpKmsProtector({
         transport: gcp.transport,
         authorization: "authorized",
@@ -151,10 +155,14 @@ export async function proveRecord(input: {
   context: ProtectionContext;
   rootKey: Uint8Array;
   material: ProofMaterial;
+  /** Original caller admission; pure crypto callers need no ambient session. */
+  check?: () => void;
 }): Promise<ProtectionRecord> {
   const { record, context, rootKey, material } = input;
-  const opened = await openRoot(record, context, material);
+  const check = input.check ?? (() => {});
+  const opened = await openRoot(record, context, material, check);
   try {
+    check();
     if (!rootsEqual(opened, rootKey)) {
       throw new ProtectionError(
         "enrollment_proof_failed",

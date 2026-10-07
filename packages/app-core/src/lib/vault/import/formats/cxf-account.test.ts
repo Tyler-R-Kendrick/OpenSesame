@@ -99,7 +99,7 @@ describe("CXF credentials become login methods", () => {
     expect(account.totp).toBe("JBSWY3DPEHPK3PXP");
     expect(account.methods).toEqual([
       { type: "password", secret: "pw-two" },
-      { type: "authenticator", secret: "KRSXG5CTMVRXEZLU" },
+      { type: "authenticator", secret: "KRSXG5CTMVRXEZLU" }, // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
     ]);
   });
 

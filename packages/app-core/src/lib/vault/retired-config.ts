@@ -18,11 +18,15 @@ export const RETIRED_CONFIG_PATHS = [
 
 export async function retireUnusedConnectionConfigs(
   tomb: string,
+  assertCurrent: () => void = () => {},
 ): Promise<void> {
   for (const path of RETIRED_CONFIG_PATHS) {
+    assertCurrent();
     try {
       await deleteFile(tomb, path);
+      assertCurrent();
     } catch {
+      assertCurrent();
       // A file that is not there is the usual state; one that could not be
       // removed waits for the next unlock rather than failing this one over
       // housekeeping.

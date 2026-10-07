@@ -1,3 +1,4 @@
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 /**
  * What an application's sign-in writes to the receipts (ADR 0162): a line when
  * it signs in and a line when that ends, ids only, and none when redemption
@@ -79,21 +80,11 @@ beforeEach(async () => {
   vi.spyOn(Date, "now").mockReturnValue(1788998400000);
   tomb = `authorization-receipts-${crypto.randomUUID()}`;
   unlockTomb(tomb, (await mintVaultKey()).vaultKey);
-  let queue = Promise.resolve();
   vi.stubGlobal("isSecureContext", true);
   vi.stubGlobal("location", { origin, hostname: rpID });
   vi.stubGlobal("navigator", {
     credentials: await authenticator(),
-    locks: {
-      request: <T>(_name: string, action: () => Promise<T>) => {
-        const next = queue.then(action);
-        queue = next.then(
-          () => undefined,
-          () => undefined,
-        );
-        return next;
-      },
-    },
+    locks: webLocksDouble(),
   });
   person = await create("person");
   org = await create("organization");

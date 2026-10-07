@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readVaultFile } from "@opensesame/vault-core";
@@ -62,9 +62,13 @@ it("keeps two CLI vault roots separate even under the same master password", asy
         [PASSWORD],
       );
       expect(exported.code).toBe(0);
-      expect(
-        await readFile(join(stateDir ?? "", "vault-kv.json"), "utf8"),
-      ).not.toContain(secret);
+      const storageRoot = join(stateDir ?? "", "origin-files");
+      const files = await readdir(storageRoot);
+      expect(files.length).toBeGreaterThan(0);
+      for (const file of files)
+        expect(await readFile(join(storageRoot, file), "utf8")).not.toContain(
+          secret,
+        );
     }
     const exportA = await readFile(join(customerA, "export.json"), "utf8");
     const exportB = await readFile(join(customerB, "export.json"), "utf8");

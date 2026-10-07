@@ -1,4 +1,19 @@
-import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
+import {
+  assertNotDecoySession,
+  currentSyntheticTransition,
+  isRealAuthorityBlocked,
+} from "./decoy-session.js";
+import { projectKey } from "./project-key.js";
+import {
+  persistProjectsView,
+  seedCarriedProjectsView,
+} from "./projects-carry.js";
+import {
+  hydrateSealedProjects,
+  legacyVaultsAmong,
+  migrateSealedProjects,
+  syntheticProjectsView,
+} from "./projects-hydration.js";
 /**
  * Local project registry — the top level of the client hierarchy.
  *
@@ -20,26 +35,15 @@ import { type BoundaryValue, isJsonObject } from "@opensesame/os-domain";
  * are private to this device until they are linked to a server project.
  */
 
+import { kvDeleteDurable } from "./kv.js";
 import {
-  kvDeleteDurable,
-  kvGet,
-  kvHydrate,
-  kvRefresh,
-  kvSetDurable,
-} from "./kv.js";
-import {
-  type BootRecord,
   LEGACY_VAULT_KEYS,
   PERSONAL_PROJECT_ID,
-  PROJECTS_KEY,
   PROJECT_SCOPED_KEYS,
   type PagesProject,
   type ProjectsState,
-  onDeviceView,
   personalProject,
   readBootActiveId,
-  sanitize,
-  withKnownNames,
 } from "./projects-state.js";
 import {
   BODY_PATH,
@@ -47,20 +51,17 @@ import {
   HEADER_PATH,
   INDEX_PATH,
   MIGRATION_MARKER_PATH,
-  TOMBS_REGISTRY_KEY,
   VfsError,
   deleteFile,
   deletePlaintextFile,
   listTombs,
-  readFile,
+  pinTombAuthority,
   registerTomb,
   tombUnlocked,
   unregisterTomb,
-  writeFile,
 } from "./vfs.js";
 
-/** Sealed VFS path (within a tomb) holding this tomb's projects view. */
-export const PROJECTS_CONFIG_PATH = "config/projects";
+export { PROJECTS_CONFIG_PATH } from "./projects-carry.js";
 export {
   PERSONAL_PROJECT_ID,
   PROJECTS_KEY,
@@ -98,24 +99,13 @@ function bootView(extra: readonly string[] = []): ProjectsState {
   return { v: 1, projects, activeId };
 }
 
-/**
- * Which of `ids` still keep their vault under the legacy scoped keys — on
- * this device, but not a registered tomb until phase B moves it on first
- * activation. Travel (ADR 0143) refuses these until opened once.
- */
-export async function legacyVaultsAmong(
-  ids: readonly string[],
-): Promise<string[]> {
-  const tombs = new Set(listTombs());
-  const candidates = ids.filter((id) => !tombs.has(id));
-  const keys = candidates.map((id) => scopedKey(LEGACY_VAULT_KEYS[0], id));
-  await kvHydrate(keys);
-  return candidates.filter((_, i) => kvGet(keys[i] ?? "") !== null);
-}
+export { legacyVaultsAmong } from "./projects-hydration.js";
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
 let cached: ProjectsState | null = null;
+let cachedAuthority: (() => void) | null = null;
+let projectTransition = currentSyntheticTransition();
 /**
  * Names given in this tab that no tomb has sealed yet — a project created
  * from the vault switcher before its tomb had a projects view. They ride
@@ -130,14 +120,35 @@ const unsealedNames = new Map<
 /** The tomb this session's sealed view belongs to, when hydrated on unlock. */
 let activeTomb: string | null = null;
 
+function synchronizeProjectRealm(): void {
+  if (projectTransition !== currentSyntheticTransition()) {
+    cached = null;
+    cachedAuthority = null;
+    activeTomb = null;
+    unsealedNames.clear();
+    projectTransition = currentSyntheticTransition();
+  }
+}
+
 function projectsStateDefault(): ProjectsState {
+  synchronizeProjectRealm();
+  try {
+    cachedAuthority?.();
+  } catch {
+    cached = null;
+    cachedAuthority = null;
+    activeTomb = null;
+  }
+  if (isRealAuthorityBlocked()) return syntheticProjectsView;
   if (!cached) cached = bootView();
   return cached;
 }
 
 /** Re-read the boot view (pre-unlock, and again on lock). */
 export function rehydrateProjects(): void {
+  synchronizeProjectRealm();
   cached = bootView();
+  cachedAuthority = null;
   activeTomb = null;
   emit();
 }
@@ -156,69 +167,56 @@ export async function refreshProjectsView(): Promise<void> {
  * migration has moved any legacy plaintext record. Without a sealed copy the
  * boot view stands — ids in place of names until the first write.
  */
-export async function hydrateProjectsFromVfs(tomb: string): Promise<void> {
+export async function hydrateProjectsFromVfs(
+  tomb: string,
+  origin: () => void = () => {},
+): Promise<void> {
+  synchronizeProjectRealm();
+  origin();
+  const authority = pinTombAuthority(tomb);
   activeTomb = tomb;
-  let sealed: ProjectsState;
-  try {
-    const bytes = await readFile(tomb, PROJECTS_CONFIG_PATH);
-    sealed = sanitize(JSON.parse(new TextDecoder().decode(bytes)));
-  } catch (error) {
-    if (error instanceof VfsError && error.code === "locked") throw error;
-    // No sealed copy yet — a tomb sealed moments ago from the vault switcher.
-    // The boot view carries any name typed in this tab (`unsealedNames`);
-    // seal it here now rather than leaving it to the next mutation.
-    cached = bootView();
-    if (unsealedNames.has(tomb) && tombUnlocked(tomb))
-      return writeState(cached);
-    return emit();
-  }
-  // A sibling that left while this was locked (deleted, travel ADR 0143) is
-  // scrubbed — against the registry as stored now, since another tab may
-  // have registered a vault this one has not seen. A registry that cannot
-  // be read leaves the sealed view standing: no name is dropped on a guess.
-  const ids = sealed.projects.map((project) => project.id);
-  const legacy = await kvRefresh(TOMBS_REGISTRY_KEY, 1 << 20).then(
-    () => legacyVaultsAmong(ids),
-    () => null,
-  );
-  cached = legacy ? onDeviceView(bootView(legacy), sealed) : sealed;
-  const present = new Set(cached.projects.map((project) => project.id));
-  if (ids.some((id) => !present.has(id))) {
-    const bytes = new TextEncoder().encode(JSON.stringify(cached));
-    // A failed rewrite leaves the scrub to the next write; the view is right.
-    await writeFile(tomb, PROJECTS_CONFIG_PATH, bytes).catch((error) => {
-      if (error instanceof VfsError && error.code === "locked") throw error;
-    });
-  }
-  emit();
+  const assertCurrent = () => {
+    origin();
+    authority();
+    if (activeTomb !== tomb)
+      throw new VfsError("locked", "The project session changed.");
+  };
+  await hydrateSealedProjects({
+    tomb,
+    assertCurrent,
+    bootView,
+    legacyVaultsAmong,
+    hasUnsealedName: () => unsealedNames.has(tomb),
+    install: (state) => {
+      assertCurrent();
+      cached = state;
+      cachedAuthority = pinTombAuthority(tomb);
+    },
+    write: (state) => writeState(state, assertCurrent),
+    emit,
+  });
 }
 
-/**
- * Legacy migration (phase C, on unlock): a full plaintext `projects.v1`
- * record seals into this tomb's config and the plaintext key shrinks to the
- * boot pointer. Sealed first, shrunk second — a crash between the two simply
- * re-runs.
- */
-export async function migrateProjectsToVfs(tomb: string): Promise<void> {
-  const raw = kvGet(PROJECTS_KEY);
-  if (!raw) return;
-  let parsed: BoundaryValue;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return;
-  }
-  if (!isJsonObject(parsed) || !Array.isArray(parsed.projects)) return;
-  const state = sanitize(parsed);
-  await writeFile(
-    tomb,
-    PROJECTS_CONFIG_PATH,
-    new TextEncoder().encode(JSON.stringify(state)),
-  );
-  const boot: BootRecord = { v: 1, activeId: state.activeId };
-  await kvSetDurable(PROJECTS_KEY, JSON.stringify(boot));
-  cached = state;
-  activeTomb = tomb;
+/** Move a legacy project view only within its originally admitted tomb session. */
+export async function migrateProjectsToVfs(
+  tomb: string,
+  origin: () => void = () => {},
+): Promise<void> {
+  synchronizeProjectRealm();
+  origin();
+  const authority = pinTombAuthority(tomb);
+  const previous = activeTomb;
+  const assertCurrent = () => {
+    origin();
+    authority();
+    if (activeTomb !== previous)
+      throw new VfsError("locked", "The project session changed.");
+  };
+  await migrateSealedProjects(tomb, assertCurrent, (state) => {
+    cached = state;
+    cachedAuthority = pinTombAuthority(tomb);
+    activeTomb = tomb;
+  });
 }
 
 function emit(): void {
@@ -230,23 +228,23 @@ function subscribeProjectsDefault(listener: Listener): () => void {
   return () => listeners.delete(listener);
 }
 
-async function writeState(next: ProjectsState): Promise<void> {
-  // The boot pointer is the durable, pre-unload-critical part; the sealed
-  // per-tomb copy refreshes on every mutation while a tomb is unlocked.
-  const boot: BootRecord = { v: 1, activeId: next.activeId };
-  await kvSetDurable(PROJECTS_KEY, JSON.stringify(boot));
-  cached = next;
-  const tomb = activeTomb;
-  if (tomb && tombUnlocked(tomb)) {
-    await writeFile(
-      tomb,
-      PROJECTS_CONFIG_PATH,
-      new TextEncoder().encode(JSON.stringify(next)),
-    );
-    // This tomb's own name is sealed in its own view now; a sibling's name
-    // in this view says nothing about the sibling's tomb, so it stays.
-    unsealedNames.delete(tomb);
-  }
+async function writeState(
+  next: ProjectsState,
+  assertCurrent: () => void = () => {},
+): Promise<void> {
+  await persistProjectsView(
+    next,
+    activeTomb,
+    assertCurrent,
+    () => {
+      cached = next;
+      cachedAuthority =
+        activeTomb && tombUnlocked(activeTomb)
+          ? pinTombAuthority(activeTomb)
+          : null;
+    },
+    (tomb) => unsealedNames.delete(tomb),
+  );
   emit();
 }
 
@@ -260,17 +258,18 @@ async function writeState(next: ProjectsState): Promise<void> {
 export async function carryProjectsViewInto(
   tomb: string,
   previous: ProjectsState,
+  assertCurrent: () => void,
 ): Promise<void> {
-  if (!tombUnlocked(tomb)) return;
-  try {
-    await readFile(tomb, PROJECTS_CONFIG_PATH);
-    return;
-  } catch (error) {
-    if (error instanceof VfsError && error.code === "locked") throw error;
-  }
-  activeTomb = tomb;
-  const merged = withKnownNames(bootView(), previous);
-  await writeState({ ...merged, activeId: readBootActiveId() });
+  await seedCarriedProjectsView(
+    tomb,
+    previous,
+    assertCurrent,
+    bootView,
+    (next) => {
+      activeTomb = tomb;
+      return writeState(next, assertCurrent);
+    },
+  );
 }
 
 export function listProjects(): PagesProject[] {
@@ -286,18 +285,12 @@ function activeProjectDefault(): PagesProject {
   );
 }
 
-/**
- * Key under which `base` is stored for `projectId`. The personal project owns
- * the legacy un-prefixed keys; every other project gets its own namespace.
- * Only plaintext-by-design keys still use this (lockout counters, site
- * broker); vault material lives at tomb paths now.
- */
+/** Plaintext-by-design project keys; encrypted vault data uses tomb paths. */
 export function scopedKey(
   base: string,
-  projectId: string = activeProject().id,
+  projectId = activeProject().id,
 ): string {
-  if (projectId === PERSONAL_PROJECT_ID) return base;
-  return `project.${projectId}.${base}`;
+  return projectKey(base, projectId);
 }
 
 /**
@@ -346,6 +339,7 @@ async function createProjectDefault(name: string): Promise<PagesProject> {
 }
 
 export async function renameProject(id: string, name: string): Promise<void> {
+  assertNotDecoySession();
   const trimmed = name.trim();
   if (!trimmed) throw new Error("Give the project a name.");
   const state = projectsState();
@@ -442,6 +436,7 @@ export const projectSeams = {
 };
 
 export function projectsState(): ProjectsState {
+  if (isRealAuthorityBlocked()) return syntheticProjectsView;
   return projectSeams.projectsState();
 }
 
@@ -450,17 +445,21 @@ export function subscribeProjects(listener: Listener): () => void {
 }
 
 export function activeProject(): PagesProject {
+  if (isRealAuthorityBlocked()) return personalProject();
   return projectSeams.activeProject();
 }
 
 export async function createProject(name: string): Promise<PagesProject> {
+  assertNotDecoySession();
   return projectSeams.createProject(name);
 }
 
 export async function setActiveProject(id: string): Promise<void> {
+  assertNotDecoySession();
   return projectSeams.setActiveProject(id);
 }
 
 export async function deleteProject(id: string): Promise<void> {
+  assertNotDecoySession();
   return projectSeams.deleteProject(id);
 }

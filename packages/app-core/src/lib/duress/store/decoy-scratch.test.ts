@@ -9,8 +9,10 @@ import {
   createVault,
   outsideAccounts,
 } from "@opensesame/vault-core";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { unlockWithPinAfterDuressGate } from "../../../screens/unlock/unlock-pin-duress.js";
+import { requiresFreshOwnerAuthentication } from "../../decoy-session.js";
+import { hostFetch, identitySeams } from "../../identity.js";
 import { kvDelete, kvGet, kvSet } from "../../kv.js";
 import { readLastVaultId, writeLastVaultId } from "../../last-vault.js";
 import { VaultStore } from "../../vault/store.js";
@@ -65,6 +67,8 @@ async function sealedGuest(store: VaultStore): Promise<void> {
   await store.createGuest();
   await store.enrollPin(GUEST_PIN);
   await store.saveItem(createItem("account", "Guest keeps this"));
+  await store.protection.ensureProtectionProjected();
+  expect(store.getSnapshot().header?.protection?.authB64).toBeTruthy();
   await store.flushPendingWrites();
   store.lock();
   await vfsFlush();
@@ -83,6 +87,7 @@ afterEach(() => {
   clearEnrollmentStateForUnlock();
   clearActivePresentation();
   resetFence();
+  vi.restoreAllMocks();
 });
 
 describe("duress decoy beside a sealed guest", () => {
@@ -128,19 +133,36 @@ describe("duress decoy beside a sealed guest", () => {
 
     // The guest's own PIN still opens the original items.
     clearEnrollmentStateForUnlock();
+    expect(requiresFreshOwnerAuthentication()).toBe(true);
+    await expect(store.unlockWithPin("13572468")).rejects.toThrow();
+    expect(requiresFreshOwnerAuthentication()).toBe(true);
     await store.unlockWithPin(GUEST_PIN);
+    expect(requiresFreshOwnerAuthentication()).toBe(false);
     expect(
       outsideAccounts(store.getSnapshot().items).map((item) => item.name),
     ).toEqual(["Guest keeps this"]);
   });
 
   it("keeps a sealed guest whole when the trigger fires beside the personal vault", async () => {
-    const { header } = await createVault("correct horse battery staple");
-    kvSet(PERSONAL_HEADER, JSON.stringify(header));
     const store = new VaultStore();
+    const password = "correct horse battery staple";
+    await store.create(password);
+    await store.saveItem(createItem("note", "Personal keeps this"));
+    await store.protection.ensureProtectionProjected();
+    expect(store.getSnapshot().header?.protection?.authB64).toBeTruthy();
+    await store.flushPendingWrites();
+    store.lock();
+    await vfsFlush();
+    const personalHeaderBefore = kvGet(PERSONAL_HEADER);
+    const personalBodyBefore = kvGet(tombFileKey(PERSONAL_TOMB, BODY_PATH));
+    expect(personalHeaderBefore).not.toBeNull();
+    expect(personalBodyBefore).not.toBeNull();
     await sealedGuest(store);
     const bodyBefore = kvGet(GUEST_BODY);
     await armDecoyTrigger();
+    const member = vi
+      .spyOn(identitySeams, "hostFetch")
+      .mockResolvedValue(new Response("owner data"));
 
     store.loadActiveProjectScope();
     expect(store.getSnapshot().tomb).toBe(PERSONAL_TOMB);
@@ -153,12 +175,44 @@ describe("duress decoy beside a sealed guest", () => {
     expect(kvGet(GUEST_BODY)).toBe(bodyBefore);
 
     store.lock();
+    await vfsFlush();
     clearEnrollmentStateForUnlock();
+    // A guest pointer cannot replace the original personal owner's admission.
+    writeLastVaultId(GUEST_TOMB);
+    store.rehydrate();
+    expect(store.getSnapshot().tomb).toBe(PERSONAL_TOMB);
+    await expect(store.unlockWithPin(GUEST_PIN)).rejects.toThrow();
+    expect(store.getSnapshot().status).toBe("locked");
+    expect(requiresFreshOwnerAuthentication()).toBe(true);
+    await expect(store.unlock("wrong personal password")).rejects.toThrow();
+    expect(requiresFreshOwnerAuthentication()).toBe(true);
+    await expect(hostFetch("/api/v1/member")).rejects.toThrow(
+      /authenticate again/,
+    );
+    expect(member).not.toHaveBeenCalled();
+    expect(kvGet(PERSONAL_HEADER)).toBe(personalHeaderBefore);
+    expect(kvGet(tombFileKey(PERSONAL_TOMB, BODY_PATH))).toBe(
+      personalBodyBefore,
+    );
+    expect(kvGet(GUEST_BODY)).toBe(bodyBefore);
+
+    // Current password, body and manifest proof recover the original owner first.
+    await store.unlock(password);
+    expect(requiresFreshOwnerAuthentication()).toBe(false);
+    expect(
+      outsideAccounts(store.getSnapshot().items).map((item) => item.name),
+    ).toEqual(["Personal keeps this"]);
+    await expect(hostFetch("/api/v1/member")).resolves.toBeInstanceOf(Response);
+    expect(member).toHaveBeenCalledTimes(1);
+    store.lock();
     writeLastVaultId(GUEST_TOMB);
     store.rehydrate();
     await store.unlockWithPin(GUEST_PIN);
-    expect(outsideAccounts(store.getSnapshot().items)).toHaveLength(1);
-    expect(kvGet(PERSONAL_HEADER)).toBe(JSON.stringify(header));
+    expect(
+      outsideAccounts(store.getSnapshot().items).map((item) => item.name),
+    ).toEqual(["Guest keeps this"]);
+    expect(kvGet(GUEST_BODY)).toBe(bodyBefore);
+    store.lock();
   });
 
   it("is drawn as the vault it was typed at, and locks back to it", async () => {

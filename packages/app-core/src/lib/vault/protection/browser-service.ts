@@ -10,23 +10,16 @@ import type {
   VaultHeader,
 } from "@opensesame/vault-core";
 import { assertNotCanceled, assertSessionGeneration } from "./adapter.js";
-import {
-  type EnrollableKind,
-  type HeldWebauthnPrf,
-  contextForRecord,
-  provenEnrollmentRecord,
-} from "./browser-enroll.js";
-import {
-  type RotationKey,
-  removeProtector as removeProtectorOp,
-  rotateCompromisedRoot as rotateCompromisedRootOp,
-  setPreferredProtector as setPreferredProtectorOp,
-  testProtector as testProtectorOp,
-} from "./browser-lifecycle-ops.js";
+import type { EnrollableKind, HeldWebauthnPrf } from "./browser-enroll.js";
+import type { RotationKey } from "./browser-lifecycle-ops.js";
+import { projectProtection } from "./browser-projection.js";
 import type { ExternalEnrollment } from "./enroll-external.js";
 import { ProtectionError } from "./errors.js";
+import {
+  type GuardedProtectionHost,
+  guardProtectionHost,
+} from "./guarded-browser-host.js";
 import { newOpaqueId } from "./ids.js";
-import { reconcileLegacyRecords } from "./legacy-sync.js";
 import {
   type MutationJournal,
   assertExpectedRevision,
@@ -36,9 +29,9 @@ import {
   sealAuthenticatedManifest,
   verifyManifestAuth,
 } from "./manifest-auth.js";
-import { migrateLegacyHeaderToManifest } from "./migrate-legacy.js";
 import { resolveProtectionManifest } from "./protection-view.js";
 import type { ProofMaterial } from "./protector-proof.js";
+import { contextForRecord } from "./record-context.js";
 import { openWithRecoveryKey } from "./recovery-key.js";
 import type { ProtectionSessionGuard } from "./session-guard.js";
 
@@ -48,8 +41,9 @@ export type ProtectionBrowserHost = {
   requireRawRoot(): Uint8Array;
   isUnlocked(): boolean;
   persistHeader(next: VaultHeader): Promise<void>;
-  replaceRawVaultKey(next: Uint8Array): Promise<void>;
+  replaceRawVaultKey(next: Uint8Array, header: VaultHeader): Promise<void>;
   session: ProtectionSessionGuard;
+  pinContext?(allowKeyAdmission?: boolean): () => void;
 };
 
 export type EnrollCandidateResult = {
@@ -103,48 +97,10 @@ export class VaultProtectionBrowserService {
    * wrap bytes. Idempotent when protection is already present.
    */
   async ensureProtectionProjected(): Promise<void> {
-    const run = this.#projecting.then(() => this.#project());
+    const host = guardProtectionHost(this.#host);
+    const run = this.#projecting.then(() => projectProtection(host));
     this.#projecting = run.catch(() => undefined);
     return run;
-  }
-
-  async #project(): Promise<void> {
-    const header = this.#host.getHeader();
-    if (!header || !this.#host.isUnlocked()) return;
-    const raw = this.#host.requireRawRoot();
-    if (!header.protection) {
-      const { manifest } = migrateLegacyHeaderToManifest({ header });
-      const sealed = await sealAuthenticatedManifest(raw, manifest);
-      await this.#host.persistHeader({ ...header, protection: sealed });
-      return;
-    }
-    // Password, PIN and passkey change under Unlock methods, which knows
-    // nothing of the manifest: bring its copy of those wraps back in step. A
-    // manifest that does not verify is left for the operation that acts on it
-    // to report — housekeeping must not stand between a person and unlock.
-    try {
-      await verifyManifestAuth(raw, header.protection);
-    } catch {
-      return;
-    }
-    const records = reconcileLegacyRecords(header, header.protection);
-    if (!records) return;
-    const { authB64: _drop, preferredProtectorId, ...rest } = header.protection;
-    const body: Omit<RootProtectionManifest, "authB64"> = {
-      ...rest,
-      revision: header.protection.revision + 1,
-      records,
-    };
-    if (
-      preferredProtectorId !== undefined &&
-      records.some((record) => record.protectorId === preferredProtectorId)
-    ) {
-      body.preferredProtectorId = preferredProtectorId;
-    }
-    await this.#host.persistHeader({
-      ...header,
-      protection: await sealAuthenticatedManifest(raw, body),
-    });
   }
 
   /**
@@ -179,11 +135,12 @@ export class VaultProtectionBrowserService {
     held?: HeldWebauthnPrf | undefined,
     external?: ExternalEnrollment | undefined,
   ): Promise<EnrollCandidateResult> {
+    const host = guardProtectionHost(this.#host);
     this.#assertCanMutate();
     assertNotCanceled(this.#host.session.signal);
     await this.ensureProtectionProjected();
-    await this.#assertManifestTrusted();
-    const header = this.#requireHeader();
+    await this.#assertManifestTrusted(host);
+    const header = this.#requireHeader(host);
     const base = this.#requireManifest(header);
     const expectedRevision = base.revision;
     assertExpectedRevision(base, expectedRevision);
@@ -194,10 +151,14 @@ export class VaultProtectionBrowserService {
       expectedRevision,
       operationId,
     });
+    const { provenEnrollmentRecord } = await import("./browser-enroll.js");
+    assertSessionGeneration(sessionGeneration, this.#host.session.generation);
+    assertNotCanceled(this.#host.session.signal);
+    this.#assertCanMutate();
     const built = await provenEnrollmentRecord({
       kind,
       base,
-      rootKey: this.#host.requireRawRoot(),
+      rootKey: host.requireRawRoot(),
       operationId,
       sessionGeneration,
       signal: this.#host.session.signal,
@@ -237,8 +198,9 @@ export class VaultProtectionBrowserService {
   }
 
   async commitEnrollment(operationId: string): Promise<void> {
+    const host = guardProtectionHost(this.#host);
     this.#assertCanMutate();
-    await this.#assertManifestTrusted();
+    await this.#assertManifestTrusted(host);
     const pending = this.#pending;
     if (!pending || pending.operationId !== operationId) {
       throw new ProtectionError(
@@ -252,7 +214,7 @@ export class VaultProtectionBrowserService {
     );
     assertNotCanceled(this.#host.session.signal);
 
-    const header = this.#requireHeader();
+    const header = this.#requireHeader(host);
     const current = this.#requireManifest(header);
     assertExpectedRevision(current, pending.expectedRevision);
 
@@ -263,44 +225,57 @@ export class VaultProtectionBrowserService {
       records: [...current.records, pending.record],
     };
     const sealed = await sealAuthenticatedManifest(
-      this.#host.requireRawRoot(),
+      host.requireRawRoot(),
       nextBody,
     );
     // Persist protection only — wrap / kdf / unlocks bytes stay untouched.
-    await this.#host.persistHeader({ ...header, protection: sealed });
+    await host.persistHeader({ ...header, protection: sealed });
     pending.journal.phase = "committed";
     this.#pending = null;
   }
 
   async setPreferred(protectorId: string): Promise<void> {
+    const host = guardProtectionHost(this.#host);
     this.#assertCanMutate();
     await this.ensureProtectionProjected();
-    await this.#assertManifestTrusted();
-    await setPreferredProtectorOp(this.#host, protectorId);
+    await this.#assertManifestTrusted(host);
+    const { setPreferredProtector } = await this.#mutationOps(host);
+    await setPreferredProtector(host, protectorId);
+    host.assertCurrent();
   }
 
   async removeProtector(protectorId: string): Promise<void> {
+    const host = guardProtectionHost(this.#host);
     this.#assertCanMutate();
     await this.ensureProtectionProjected();
-    await this.#assertManifestTrusted();
-    await removeProtectorOp(this.#host, protectorId);
+    await this.#assertManifestTrusted(host);
+    const { removeProtector } = await this.#mutationOps(host);
+    await removeProtector(host, protectorId);
+    host.assertCurrent();
   }
 
   async testProtector(
     protectorId: string,
     material?: ProofMaterial,
   ): Promise<ProtectionRecord> {
+    const host = guardProtectionHost(this.#host);
     this.#assertCanMutate();
     await this.ensureProtectionProjected();
-    await this.#assertManifestTrusted();
-    return testProtectorOp(this.#host, protectorId, material);
+    await this.#assertManifestTrusted(host);
+    const { testProtector } = await this.#mutationOps(host);
+    const record = await testProtector(host, protectorId, material);
+    host.assertCurrent();
+    return record;
   }
 
   async rotateCompromisedRoot(input: RotationKey): Promise<void> {
+    const host = guardProtectionHost(this.#host, true);
     this.#assertCanMutate();
     await this.ensureProtectionProjected();
-    await this.#assertManifestTrusted();
-    await rotateCompromisedRootOp(this.#host, input);
+    await this.#assertManifestTrusted(host);
+    const { rotateCompromisedRoot } = await this.#mutationOps(host);
+    await rotateCompromisedRoot(host, input);
+    host.assertCurrent();
   }
 
   /**
@@ -308,7 +283,8 @@ export class VaultProtectionBrowserService {
    * Does not switch the unlocked session; callers compare or re-import.
    */
   async openRecoveryKey(secretB64: string): Promise<Uint8Array> {
-    const header = this.#requireHeader();
+    const host = guardProtectionHost(this.#host);
+    const header = this.#requireHeader(host);
     const manifest = this.#requireManifest(header);
     const record = manifest.records.find(
       (entry): entry is RecoveryKeyProtectorRecord =>
@@ -320,11 +296,27 @@ export class VaultProtectionBrowserService {
         "No recovery-key protector is enrolled on this vault.",
       );
     }
-    return openWithRecoveryKey({
+    const root = await openWithRecoveryKey({
       context: contextForRecord(manifest, record.protectorId),
       record,
       secretB64,
     });
+    try {
+      host.assertCurrent();
+      return root;
+    } catch (error) {
+      root.fill(0);
+      throw error;
+    }
+  }
+
+  /** Loading crypto must not let a request cross a lock or session change. */
+  async #mutationOps(host: GuardedProtectionHost) {
+    const operations = await import("./browser-lifecycle-ops.js");
+    host.assertCurrent();
+    assertNotCanceled(this.#host.session.signal);
+    this.#assertCanMutate();
+    return operations;
   }
 
   #assertCanMutate(): void {
@@ -342,14 +334,17 @@ export class VaultProtectionBrowserService {
     }
   }
 
-  async #assertManifestTrusted(): Promise<void> {
-    const header = this.#host.getHeader();
+  async #assertManifestTrusted(
+    host = guardProtectionHost(this.#host),
+  ): Promise<void> {
+    const header = host.getHeader();
     if (!header?.protection) return;
-    await verifyManifestAuth(this.#host.requireRawRoot(), header.protection);
+    await verifyManifestAuth(host.requireRawRoot(), header.protection);
+    host.assertCurrent();
   }
 
-  #requireHeader(): VaultHeader {
-    const header = this.#host.getHeader();
+  #requireHeader(host = this.#host): VaultHeader {
+    const header = host.getHeader();
     if (!header) {
       throw new ProtectionError(
         "unavailable",

@@ -36,6 +36,8 @@ export class EncryptedDbUnavailable extends Error {
   }
 }
 
+export type WriteGuard = (store: IDBObjectStore) => Promise<void>;
+
 export type LayerReport = Readonly<{
   table: string;
   column: string;
@@ -47,6 +49,7 @@ export type EncryptedDb = Readonly<{
   /** What the browser lists this database as. */
   name: string;
   put: (table: string, row: EdbRow) => Promise<void>;
+  putGuarded: (table: string, row: EdbRow, guard: WriteGuard) => Promise<void>;
   get: (table: string, key: string) => Promise<EdbRow | undefined>;
   delete: (table: string, key: string) => Promise<void>;
   /** Every row of a table, opened one at a time. */
@@ -84,13 +87,38 @@ class Database {
     return key;
   }
 
-  async put(table: string, row: EdbRow): Promise<void> {
+  put(table: string, row: EdbRow): Promise<void> {
+    return this.putRow(table, row);
+  }
+
+  putGuarded(table: string, row: EdbRow, guard: WriteGuard): Promise<void> {
+    return this.putRow(table, row, guard);
+  }
+
+  private async putRow(
+    table: string,
+    row: EdbRow,
+    guard?: WriteGuard,
+  ): Promise<void> {
     const { db, keys, schema, meta } = this.ctx;
     const key = this.tableKey(table, row);
     assertInDomain(schema.layersOf(table), row);
     const tx = db.transaction(STORE, "readwrite");
     const done = finished(tx);
     const store = tx.objectStore(STORE);
+    if (guard) {
+      try {
+        await guard(store);
+      } catch (error) {
+        try {
+          tx.abort();
+        } catch {
+          /* A failed request already aborted it. */
+        }
+        await done.catch(() => {});
+        throw error;
+      }
+    }
     const plans = livePlans(await meta.read(store), schema.layersOf(table));
     const x = rowEntries(keys, plans, row);
     const c = sealRow(keys, table, key, row);

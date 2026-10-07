@@ -1,3 +1,4 @@
+import { continueToolRead } from "./tool-shared.js";
 /**
  * Hosted identity summary — whether an Identity session is active and, when
  * it is, the principal with its linked identities. Owned by
@@ -19,10 +20,10 @@ export const IDENTITY_READ_TOOL: PagesWebMcpTool = {
     properties: {},
     additionalProperties: false,
   },
-  execute: async () => {
+  execute: async (_args, ceiling) => {
     const session = currentSession();
     if (!session) return { signedIn: false };
-    const principal = await fetchPrincipal();
+    const principal = await continueToolRead(() => fetchPrincipal(), ceiling);
     return {
       signedIn: true,
       principal: {

@@ -39,11 +39,43 @@ describe("resolveSpecifier", () => {
 
 describe("the seams only the store, the generator and tests may import", () => {
   it("names the three that hand out the open vault's body", () => {
-    expect(RESTRICTED_SEAMS).toHaveLength(1);
-    expect(RESTRICTED_SEAMS[0].names).toEqual([
-      "bodyPortOf",
-      "registerBodyPort",
-      "installDeviceKeyCarrier",
+    expect(RESTRICTED_SEAMS).toHaveLength(3);
+    expect(
+      RESTRICTED_SEAMS.find((seam) => seam.module === MODULE)?.names,
+    ).toEqual(["bodyPortOf", "registerBodyPort", "installDeviceKeyCarrier"]);
+  });
+
+  it("allows only the owning store to attest connector principal transfer", () => {
+    const specifier =
+      "@opensesame/app-core/lib/device-connector-principal-state.js";
+    const source = `import { notifyDeviceConnectorPrincipalTransfer } from "${specifier}";`;
+    expect(
+      find([
+        ["packages/app-core/src/lib/vault/store.ts", source],
+        ["apps/pages/src/guest.ts", source],
+        ["packages/cli/src/guest.ts", source],
+        ["packages/app-core/src/lib/guest.ts", source],
+      ]).map((row) => row.file),
+    ).toEqual([
+      "apps/pages/src/guest.ts",
+      "packages/cli/src/guest.ts",
+      "packages/app-core/src/lib/guest.ts",
+    ]);
+  });
+
+  it("keeps committed-header principal transfer inside the owning store", () => {
+    const source =
+      'import { persistStoreHeaderWithConnectorTransfer } from "@opensesame/app-core/lib/vault/store-header-persist.js";';
+    expect(
+      find([
+        ["packages/app-core/src/lib/vault/store.ts", source],
+        ["packages/app-core/src/lib/vault/store-header-persist.ts", source],
+        ["apps/pages/src/guest.ts", source],
+        ["packages/app-core/src/lib/guest.ts", source],
+      ]).map((row) => row.file),
+    ).toEqual([
+      "apps/pages/src/guest.ts",
+      "packages/app-core/src/lib/guest.ts",
     ]);
   });
 

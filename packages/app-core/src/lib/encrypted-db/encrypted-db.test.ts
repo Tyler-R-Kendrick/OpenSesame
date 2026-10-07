@@ -1,3 +1,4 @@
+import { bytesToB64url } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { forgetAtRestKeyForTest } from "../at-rest/key.js";
 import { type EncryptedDb, openEncryptedDb } from "./db.js";
@@ -10,6 +11,7 @@ import {
   seed,
 } from "./edb.test-support.js";
 import { leakedSeedPlaintext } from "./plaintext-oracle.test-support.js";
+import { assertPrivateDisk } from "./privacy.test-support.js";
 import { EdbQueryError } from "./query.js";
 
 let factory: IDBFactory;
@@ -75,21 +77,80 @@ describe("rows", () => {
 describe("what reaches the disk", () => {
   it("holds no name, id, field or word in the clear", async () => {
     await seed(db);
+    const sentinel =
+      "Private plaintext sentinel never stored outside encryption";
+    await db.put("sessions", { id: "sentinel", userId: sentinel });
     await db.find("receipts", { userId: "user-alice" });
     await db.find("receipts", { note: { word: "vault" } });
     await db.find("receipts", {}, { order: { column: "at" } });
     const disk = await rawDisk(factory);
     // A control: the records are there, sealed, so the absence below means something.
-    expect(disk.records.length).toBe(6);
-    expect(
-      disk.records.every((r) => JSON.parse(r.value).c.startsWith("osr2.")),
-    ).toBe(true);
+    expect(disk.records.length).toBe(7);
+    expect(await db.get("sessions", "sentinel")).toEqual({
+      id: "sentinel",
+      userId: sentinel,
+    });
+    assertPrivateDisk(disk, [sentinel, "unknown device", "Vault key rotation"]);
     const everything = [
       ...disk.names.map((name) => JSON.stringify(name)),
       ...disk.records.map((r) => `${JSON.stringify(r.key)}${r.value}`),
     ].join("\n");
     expect(leakedSeedPlaintext(everything)).toEqual([]);
   });
+
+  it.each([
+    "clear-field",
+    "clear-slot",
+    "clear-index",
+    "clear-envelope",
+    "base64-plaintext",
+  ])(
+    "the privacy control rejects injected %s leakage in real stored rows",
+    async (leak) => {
+      await seed(db);
+      const disk = await rawDisk(factory);
+      const record = disk.records[0];
+      if (!record) throw new Error("Expected a persisted encrypted row");
+      if (leak === "clear-slot") record.key = "user-alice";
+      else if (leak === "base64-plaintext")
+        record.value = JSON.stringify({
+          c: `osr2.${bytesToB64url(new TextEncoder().encode("unknown device".padEnd(512, " ")))}`,
+          x: [],
+        });
+      else if (leak === "clear-index")
+        record.value = JSON.stringify({
+          c: JSON.parse(record.value).c,
+          x: ["tags"],
+        });
+      else if (leak === "clear-envelope") record.value = "unknown device";
+      else
+        record.value = JSON.stringify({
+          ...JSON.parse(record.value),
+          userId: "user-alice",
+        });
+      const raw = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = factory.open(db.name);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try {
+        const tx = raw.transaction("r", "readwrite");
+        const done = new Promise<void>((resolve, reject) => {
+          tx.oncomplete = () => resolve();
+          tx.onabort = () => reject(tx.error);
+        });
+        tx.objectStore("r").put(
+          leak === "clear-envelope" ? record.value : JSON.parse(record.value),
+          record.key,
+        );
+        await done;
+        const leaked = await rawDisk(factory);
+        expect(() => assertPrivateDisk(leaked, ["unknown device"])).toThrow();
+      } finally {
+        raw.close();
+      }
+    },
+  );
 
   it("shows one pseudonymous database with one store and one index", async () => {
     await seed(db);

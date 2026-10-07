@@ -4,11 +4,18 @@
  */
 
 import { localStore } from "../ports.js";
+import {
+  assertNotDecoySession,
+  currentRealmGeneration,
+  isRealAuthorityBlocked,
+} from "./decoy-session.js";
 import { vaultStore } from "./vault/store.js";
 
 let override: string | null = null;
 let lastTomb = "personal";
 let epoch = 0;
+let realm = -1;
+let restricted = false;
 const listeners = new Set<() => void>();
 
 function notifyIfChanged(id: string): string {
@@ -30,7 +37,21 @@ function notifyIfChanged(id: string): string {
  */
 export function walletStorageScope(): number {
   walletStorageTomb();
+  const nextRealm = currentRealmGeneration();
+  const nextRestricted = isRealAuthorityBlocked();
+  if (realm !== nextRealm || restricted !== nextRestricted) {
+    realm = nextRealm;
+    restricted = nextRestricted;
+    epoch += 1;
+  }
   return epoch;
+}
+
+/** A retained wallet handle cannot act in a successor realm or tomb. */
+export function assertWalletStorageMutation(expectedScope?: number): void {
+  assertNotDecoySession();
+  if (expectedScope !== undefined && expectedScope !== walletStorageScope())
+    throw new Error("Wallet session changed. Acquire a new owner handle.");
 }
 
 export function walletStorageTomb(): string {
@@ -56,11 +77,13 @@ export function onWalletTombChange(listener: () => void): () => void {
 }
 
 export function walletStorageKey(base: string): string {
+  assertWalletStorageMutation();
   return `${base}.${walletStorageTomb()}`;
 }
 
 /** Personal-scope fallback: unsuffixed keys from before tomb scoping. */
 export function readWalletStorage(base: string): string | null {
+  if (isRealAuthorityBlocked()) return null;
   try {
     const scopedKey = walletStorageKey(base);
     const scoped = localStore().getItem(scopedKey);

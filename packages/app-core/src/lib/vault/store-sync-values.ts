@@ -19,6 +19,7 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import {
+  type CredentialItem,
   type CustomField,
   type ItemKind,
   type LegacyItemKind,
@@ -341,6 +342,8 @@ export function graftOnto(
     const next: VaultItem = { ...incoming, ...kept };
     // A manifest never says which account a credential is bound to.
     if (next.kind === "credential" && current.kind === "credential") {
+      assertImportedCredentialBinding(current, next);
+      next.method = { ...next.method, id: current.id };
       next.accountId = current.accountId;
       next.order = current.order;
     }
@@ -353,4 +356,19 @@ export function graftOnto(
   const props = propsOf(incoming);
   for (const key of FORMAT_ONE[incoming.kind]) said[key] = props[key];
   return overlapCast({ ...current, ...said, ...kept });
+}
+
+function assertImportedCredentialBinding(
+  current: CredentialItem,
+  next: CredentialItem,
+): void {
+  if (next.method.type !== "password" || !next.method.sealed) return;
+  if (
+    next.method.id !== current.id ||
+    current.method.type !== "password" ||
+    JSON.stringify(next.method.sealed) !== JSON.stringify(current.method.sealed)
+  )
+    throw new Error(
+      "Convert this sealed password in its original account before importing it.",
+    );
 }

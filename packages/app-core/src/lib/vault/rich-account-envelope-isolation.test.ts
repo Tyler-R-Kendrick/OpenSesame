@@ -22,7 +22,7 @@ import { BODY_PATH, PERSONAL_TOMB, readSealedFile, vfsFlush } from "../vfs.js";
 import { VaultStore } from "./store.js";
 
 const PASSWORD = "same password for both independent customers";
-const OPRF_KEY = "q83vEjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJA=";
+const OPRF_KEY = "q83vEjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJA="; // gitleaks:allow — static synthetic customer-isolation fixture
 const SECRETS = [
   "plain-password-canary",
   "peppered-password-canary",

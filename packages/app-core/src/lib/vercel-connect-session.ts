@@ -11,6 +11,11 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import {
+  assertNotDecoySession,
+  currentSyntheticTransition,
+  isRealAuthorityBlocked,
+} from "./decoy-session.js";
+import {
   type VercelConnectAuth,
   setVercelConnectAuth,
 } from "./vercel-connect.js";
@@ -28,6 +33,7 @@ type SealedConnectAuth = {
 };
 
 let pending: VercelConnectAuth | null = null;
+let pendingTransition = 0;
 
 function text(value: BoundaryValue | undefined, max = 512): string {
   return isString(value) ? value.trim().slice(0, max) : "";
@@ -64,6 +70,8 @@ function toAuth(record: SealedConnectAuth): VercelConnectAuth {
 }
 
 export function pendingVercelConnectAuth(): VercelConnectAuth | null {
+  if (pendingTransition !== currentSyntheticTransition()) pending = null;
+  if (isRealAuthorityBlocked()) return null;
   return pending;
 }
 
@@ -95,6 +103,7 @@ export async function writeVercelConnectAuth(
   tomb: string,
   auth: VercelConnectAuth,
 ): Promise<void> {
+  const generation = assertNotDecoySession();
   const record = normalize(auth);
   if (!record) throw new Error("A Vercel token or management key is required.");
   const bytes = new TextEncoder().encode(JSON.stringify(record));
@@ -102,6 +111,7 @@ export async function writeVercelConnectAuth(
     throw new Error("That Connect session is too large to keep here.");
   }
   await writeFile(tomb, CONNECT_AUTH_PATH, bytes);
+  assertNotDecoySession(generation);
 }
 
 export async function forgetVercelConnectAuth(
@@ -133,6 +143,7 @@ export async function armVercelConnectAuth(
   tomb: string | null,
   opts: VercelConnectAuthOpts = {},
 ): Promise<void> {
+  const generation = assertNotDecoySession();
   const record = normalize(auth);
   if (!record) throw new Error("A Vercel token or management key is required.");
   const next = toAuth(record);
@@ -140,10 +151,12 @@ export async function armVercelConnectAuth(
   if (tomb && !opts.ephemeral) {
     pending = null;
     await writeVercelConnectAuth(tomb, next);
+    assertNotDecoySession(generation);
     return;
   }
   if (opts.ephemeral) return;
   pending = next;
+  pendingTransition = currentSyntheticTransition();
 }
 
 /**
@@ -156,15 +169,19 @@ export async function hydrateVercelConnectAuth(
   tomb: string,
   opts: VercelConnectAuthOpts & { signal?: AbortSignal } = {},
 ): Promise<boolean> {
+  const generation = assertNotDecoySession();
+  pendingVercelConnectAuth();
   if (opts.signal?.aborted) return false;
   if (pending && !opts.ephemeral) {
     await writeVercelConnectAuth(tomb, pending);
+    assertNotDecoySession(generation);
     pending = null;
   } else if (pending && opts.ephemeral) {
     setVercelConnectAuth(pending);
     return true;
   }
   const sealed = await readVercelConnectAuth(tomb);
+  assertNotDecoySession(generation);
   if (opts.signal?.aborted) return false;
   if (!sealed) {
     if (!pending) setVercelConnectAuth(null);

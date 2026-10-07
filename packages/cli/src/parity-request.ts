@@ -9,6 +9,7 @@ import {
   describeRequest,
 } from "@opensesame/app-core/lib/password-agent/request.js";
 import { emitMetadata } from "./output.js";
+import { guardedEffect } from "./parity-authority.js";
 import type { ParityContext } from "./parity-commands.js";
 import { openLeaseStore } from "./parity-lease-node.js";
 import { exhausted, option } from "./parity-parse.js";
@@ -30,12 +31,21 @@ export async function runPrivateRequest(ctx: ParityContext): Promise<number> {
   const config = options(ctx.args);
   exhausted(ctx.args);
   const request = {
-    addresses: ctx.requestTransport?.addresses ?? requestAddresses,
-    resolve: (ref: string) => ctx.agent.read(ref),
-    send: ctx.requestTransport?.send ?? sendPrivateRequest,
+    addresses: guardedEffect(
+      ctx.requestTransport?.addresses ?? requestAddresses,
+      ctx.assertCurrent,
+    ),
+    resolve: guardedEffect(
+      (ref: string) => ctx.agent.read(ref),
+      ctx.assertCurrent,
+    ),
+    send: guardedEffect(
+      ctx.requestTransport?.send ?? sendPrivateRequest,
+      ctx.assertCurrent,
+    ),
   };
   if (!lease) throw new Error("Request requires a human-approved --lease.");
-  const store = await openLeaseStore();
+  const store = await openLeaseStore(ctx.assertCurrent);
   try {
     const receipt = await leasedRequest(lease, config, {
       request,
@@ -43,6 +53,7 @@ export async function runPrivateRequest(ctx: ParityContext): Promise<number> {
       inspect: (ref) => inspectReference(ctx.port, ref),
       now: Date.now,
     });
+    ctx.assertCurrent();
     emitMetadata({
       ...receipt,
       lease: {
@@ -58,25 +69,29 @@ export async function runPrivateRequest(ctx: ParityContext): Promise<number> {
 export async function runLease(ctx: ParityContext): Promise<number> {
   const verb = ctx.args.shift();
   if (verb === "approve") return approve(ctx);
-  const store = await openLeaseStore();
+  const store = await openLeaseStore(ctx.assertCurrent);
   try {
     if (verb === "list") {
       exhausted(ctx.args);
-      emitMetadata({ leases: (await store.list()).map(leaseReceipt) });
+      const leases = await store.list();
+      ctx.assertCurrent();
+      emitMetadata({ leases: leases.map(leaseReceipt) });
     } else if (verb === "status") {
       const id = ctx.args.shift();
       exhausted(ctx.args);
       if (!id) throw new Error("Lease id required.");
-      emitMetadata(leaseReceipt(await store.get(id)));
+      const record = await store.get(id);
+      ctx.assertCurrent();
+      emitMetadata(leaseReceipt(record));
     } else if (verb === "revoke") {
       const id = ctx.args.shift();
       exhausted(ctx.args);
       if (!id) throw new Error("Lease id required.");
-      emitMetadata(
-        leaseReceipt(
-          await store.revoke(id, await store.principal(), Date.now()),
-        ),
-      );
+      const owner = await store.principal();
+      ctx.assertCurrent();
+      const record = await store.revoke(id, owner, Date.now());
+      ctx.assertCurrent();
+      emitMetadata(leaseReceipt(record));
     } else throw new Error("Lease requires approve, list, status, or revoke.");
   } catch {
     throw new Error("Lease metadata operation failed (details suppressed).");
@@ -98,7 +113,8 @@ async function approve(ctx: ParityContext): Promise<number> {
   const binding = describeRequest(config);
   let opened: Awaited<ReturnType<typeof openLeaseStore>> | undefined;
   const store = async () => {
-    if (!opened) opened = await openLeaseStore();
+    if (!opened) opened = await openLeaseStore(ctx.assertCurrent);
+    ctx.assertCurrent();
     return opened;
   };
   try {
@@ -119,6 +135,7 @@ async function approve(ctx: ParityContext): Promise<number> {
         newId: randomUUID,
       },
     );
+    ctx.assertCurrent();
     emitMetadata(leaseReceipt(record));
   } finally {
     opened?.close();
