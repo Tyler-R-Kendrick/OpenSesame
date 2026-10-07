@@ -30,11 +30,13 @@ export function fieldSteps({ press }) {
     },
     /**
      * `fill`, for a field only one of the two builds has — a tab the base does
-     * not draw is a legitimate difference, not a miss.
+     * not draw is a legitimate difference, not a miss. A native `<select>` is
+     * the same difference: the base's folder and type cannot be typed into.
      */
     async fillOptional(page, { label, text }) {
       const field = page.getByLabel(label, { exact: true }).first();
       if (!(await field.count())) return;
+      if ((await field.evaluate((node) => node.tagName)) === "SELECT") return;
       await field.fill(text);
       await page.waitForTimeout(300);
     },

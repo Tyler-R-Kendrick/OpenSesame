@@ -1,0 +1,108 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault/new"
+        },
+        {
+          "measure": ".editor__titlerow input, .editor__titlerow select"
+        },
+        {
+          "shot": "1280-row"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "./Work/Taxes/statement"
+          }
+        },
+        {
+          "measure": ".editor__titlerow input, .editor__titlerow select"
+        },
+        {
+          "shot": "1280-path"
+        },
+        {
+          "fillOptional": {
+            "label": "Folder",
+            "text": "wo"
+          }
+        },
+        {
+          "shot": "1280-folder-list"
+        },
+        {
+          "escape": null
+        },
+        {
+          "fillOptional": {
+            "label": "Type",
+            "text": ".s"
+          }
+        },
+        {
+          "shot": "1280-type-list"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "vault/new"
+        },
+        {
+          "measure": ".editor__titlerow input, .editor__titlerow select"
+        },
+        {
+          "shot": "390-row"
+        },
+        {
+          "fill": {
+            "label": "Name",
+            "text": "./Work/Taxes/statement"
+          }
+        },
+        {
+          "measure": ".editor__titlerow input, .editor__titlerow select"
+        },
+        {
+          "shot": "390-path"
+        },
+        {
+          "fillOptional": {
+            "label": "Folder",
+            "text": "wo"
+          }
+        },
+        {
+          "shot": "390-folder-list"
+        },
+        {
+          "escape": null
+        },
+        {
+          "fillOptional": {
+            "label": "Type",
+            "text": ".s"
+          }
+        },
+        {
+          "shot": "390-type-list"
+        }
+      ]
+    }
+  ],
+  "sheets": []
+}

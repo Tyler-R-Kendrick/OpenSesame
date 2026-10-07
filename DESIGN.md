@@ -369,8 +369,11 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   `(max-width: 900px)` — a foldable's cover screen, a split-screen tablet and
   a narrow desktop window draw the same small keys, and WCAG 2.5.8 does not
   ask what is pointing at them. A control that opts out of the height floor to
-  sit inline in a sentence (`.sent select`, `.editor__ext`) takes the shape of
-  a chip at that width instead, so its rule never detaches from its own word.
+  sit inline in a sentence (`.sent select`) takes the shape of a chip at that
+  width instead, so its rule never detaches from its own word. The editor's
+  title row is one path control (`.pathfield`, [ADR 0181](docs/adr/0181-the-title-row-is-one-path-control.md)):
+  folder first, name, type last, the two special parts in the accent ink and
+  each a combobox that holds only a value from its list, every part 44px.
   The mono density survives the change: the row grows, the type does not.
 - **A field's type is the one thing that does grow.** iOS Safari zooms the page
   when a focused `input`, `select` or `textarea` is set below 16px, and it does
