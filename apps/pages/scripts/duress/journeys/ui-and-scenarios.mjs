@@ -1,12 +1,13 @@
-/**
- * Production UI probe: an owner's Settings › Security draws the Duress panel.
- */
+/** Production owner enrollment and synthetic unlock, through actual forms. */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { expect } from "@playwright/test";
 import {
+  lockVault,
   openSettingsCategory,
   sealWithPassword,
+  waitOpen,
 } from "../../lib/pages-journey.mjs";
 import { createHarness } from "../../lib/static-origin-harness.mjs";
 import { SCENARIO_IDS, buildScenarioMatrix } from "./scenario-matrix.mjs";
@@ -17,53 +18,59 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const pagesRoot = path.resolve(here, "..", "..", "..");
 const DIST = path.join(pagesRoot, "dist");
 
-function settingsPanelWired() {
-  const settingsSection = path.join(
-    pagesRoot,
-    "src",
-    "sections",
-    "SettingsSection.tsx",
-  );
-  const src = fs.existsSync(settingsSection)
-    ? fs.readFileSync(settingsSection, "utf8")
-    : "";
-  return /DuressPanel/.test(src);
-}
-
-/**
- * Duress is a row of the owner's Settings › Security, never a guest's
- * (`useDuressPanelShown`): seal a vault on this device the way a person does,
- * then read what the section draws.
- */
-async function probeSecurityDuressPanel(page, snap, blockers, check) {
-  await sealWithPassword(page);
+async function probeSecurityDuressPanel(page, snap, check) {
   await openSettingsCategory(page, "Security");
-  await page.waitForTimeout(800);
-  if (snap) await snap(page, "ui-security");
-  const onScreen = (await page.locator("#duress-profiles h2").count()) > 0;
-  if (!onScreen) {
-    blockers.push("settings/security has no visible Duress panel");
-  }
+  const panel = page.locator("#duress-profiles");
+  await expect(panel).toBeVisible();
+  await panel.getByRole("button", { name: "Add", exact: true }).click();
+  const ceremony = page.getByRole("dialog", {
+    name: "Duress code",
+    exact: true,
+  });
+  await expect(ceremony).toBeVisible();
+  await ceremony.getByLabel("Duress code", { exact: true }).fill("80471629");
+  await ceremony
+    .getByLabel("Confirm duress code", { exact: true })
+    .fill("80471629");
+  await ceremony
+    .getByRole("checkbox", { name: /opens a decoy, never my vault/ })
+    .check();
+  await ceremony
+    .getByRole("button", { name: "Turn on duress code", exact: true })
+    .click();
+  await expect(ceremony).toHaveCount(0, { timeout: 30000 });
+  await expect(
+    panel.getByRole("button", { name: "Change", exact: true }),
+  ).toBeVisible();
   check(
-    onScreen,
-    onScreen
-      ? "duress panel visible in settings/security"
-      : "duress panel absent in settings/security",
+    true,
+    "owner enrolled the production synthetic duress code through its ceremony",
   );
+  await snap?.(page, "ui-owner-armed");
+  await lockVault(page);
+  await page.getByLabel("Password", { exact: true }).fill("80471629");
+  await page.getByRole("button", { name: "Unlock", exact: true }).click();
+  await waitOpen(page);
+  await openSettingsCategory(page, "Security");
+  await expect(page.locator("#duress-profiles")).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Manage retired passwords" }),
+  ).toHaveCount(0);
+  check(
+    true,
+    "duress unlock admits a guest realm without owner duress or retired-password controls",
+  );
+  await snap?.(page, "ui-synthetic-security");
 }
 
 export async function walkUiSettings({ browser, check, record, snap }) {
   const blockers = [];
-  const panelWired = settingsPanelWired();
-  if (!panelWired) {
-    blockers.push("the Duress panel is not imported in SettingsSection");
-  }
 
   if (!fs.existsSync(path.join(DIST, "index.html"))) {
     blockers.push("pages dist/ missing — run pages build before UI journey");
     record("blocker", JSON.stringify(blockers));
     check(true, `UI journey blocked: ${blockers.join("; ")}`);
-    return { status: "blocked", blockers, panelWired };
+    return { status: "blocked", blockers };
   }
 
   const ORIGIN =
@@ -80,13 +87,14 @@ export async function walkUiSettings({ browser, check, record, snap }) {
   const { page, context } = await harness.newPage(browser);
   try {
     await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
-    try {
-      await probeSecurityDuressPanel(page, snap, blockers, check);
-    } catch (error) {
-      blockers.push(
-        `settings navigation failed: ${error instanceof Error ? error.message : error}`,
-      );
-    }
+    await sealWithPassword(page);
+    await probeSecurityDuressPanel(page, snap, check);
+    const errors = harness.log.filter((entry) => entry.kind === "PAGE-ERROR");
+    for (const error of errors) record("PAGE-ERROR", error.detail);
+    check(
+      errors.length === 0,
+      "production duress journey has no uncaught page errors",
+    );
   } finally {
     await context.close();
   }
@@ -95,7 +103,9 @@ export async function walkUiSettings({ browser, check, record, snap }) {
   return {
     status: blockers.length ? "blocked" : "passed",
     blockers,
-    panelWired,
+    panelWired: true,
+    ownerEnrollment: true,
+    syntheticUnlock: true,
   };
 }
 

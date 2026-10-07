@@ -109,8 +109,24 @@ fn walk(
     segments: &mut Vec<String>,
     out: &mut SealedInventory,
 ) -> Result<(), StoreError> {
+    #[cfg(windows)]
+    let _pinned = opensesame_human_vault::windows_io::PinnedParent::open(
+        dir,
+        Path::new(".inventory-placeholder"),
+        false,
+    )
+    .map_err(StoreError::Io)?;
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::MetadataExt;
+            if entry.metadata()?.file_attributes() & 0x400 != 0 {
+                return Err(StoreError::InvalidPath(
+                    "reparse point inside the store".into(),
+                ));
+            }
+        }
         let file_type = entry.file_type()?;
         let raw_name = entry.file_name();
         let Some(name) = raw_name.to_str() else {

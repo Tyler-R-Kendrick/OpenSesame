@@ -22,11 +22,19 @@ import {
   capabilityState,
 } from "@opensesame/capability-composition";
 import { capabilityArtifacts } from "../../host.js";
+import {
+  assertNotDecoySession,
+  currentRealmGeneration,
+} from "../decoy-session.js";
 import { kvHydrate } from "../kv.js";
 import { routerSeam } from "../router-seam.js";
 import { runtimeConfigSnapshot } from "../runtime-config.js";
 import { egressSeams } from "./egress-default.js";
 import { markModuleEvaluated } from "./facts.js";
+import {
+  isIssuedLeaseReference,
+  resolveIssuedLeaseReference,
+} from "./lease-canary-issuer.js";
 import { assertLeaseCurrent, deriveLease, leaseIsCurrent } from "./lease.js";
 import {
   bindLeaseToCapability,
@@ -93,8 +101,13 @@ function table(): Promise<ModuleTable> {
 
 export async function loadApprovedModule(
   id: ModuleId,
-  lease: ActivationLease,
+  admission: ActivationLease | string,
 ): Promise<CapabilityModule> {
+  const realm = currentRealmGeneration();
+  const lease = isIssuedLeaseReference(admission)
+    ? await resolveIssuedLeaseReference(admission, currentGeneration())
+    : admission;
+  if (isIssuedLeaseReference(admission)) assertNotDecoySession(realm);
   const snapshot = compositionStore.getSnapshot();
   assertLeaseCurrent(lease, snapshot.generation, id);
   const plan = snapshot.plan;
@@ -200,8 +213,13 @@ function pageModulesOf(
 
 export async function activateApprovedCapability(
   id: CapabilityId,
-  lease: ActivationLease,
+  admission: ActivationLease | string,
 ): Promise<RuntimeHandle[]> {
+  const realm = currentRealmGeneration();
+  const lease = isIssuedLeaseReference(admission)
+    ? await resolveIssuedLeaseReference(admission, currentGeneration())
+    : admission;
+  if (isIssuedLeaseReference(admission)) assertNotDecoySession(realm);
   const snapshot = compositionStore.getSnapshot();
   assertLeaseCurrent(lease, snapshot.generation, id);
   const plan = snapshot.plan;

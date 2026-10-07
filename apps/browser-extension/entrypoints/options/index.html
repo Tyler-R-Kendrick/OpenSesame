@@ -6,7 +6,7 @@
     <meta name="manifest.open_in_tab" content="true" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http: https:; object-src 'none'; base-uri 'none'; form-action 'self'"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http: https:; object-src 'none'; base-uri 'none'; form-action 'self'"
     />
     <meta name="referrer" content="no-referrer" />
     <title>OpenSesame runner</title>
@@ -16,6 +16,8 @@
     <main class="shell">
       <p class="brand">OpenSesame</p>
       <h1>Local runner</h1>
+      <section id="security"></section>
+      <div id="production-controls">
 
       <section aria-labelledby="ready-h">
         <h2 id="ready-h">Ready</h2>
@@ -94,6 +96,7 @@
       </section>
 
       <p id="hint" class="hint" aria-live="polite" hidden></p>
+      </div>
     </main>
     <script type="module" src="./main.ts"></script>
   </body>

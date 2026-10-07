@@ -17,7 +17,7 @@
  *   disk is overwritten with a seal the next document could not open.
  */
 
-import { host } from "../../host.js";
+import { type Host, host } from "../../host.js";
 import { AT_REST_KEY_BYTES } from "./cipher.js";
 
 export type AtRestKey = Readonly<{
@@ -28,6 +28,19 @@ export type AtRestKey = Readonly<{
 
 let current: AtRestKey | null = null;
 let loading: Promise<AtRestKey> | null = null;
+let owningHost: Host | undefined;
+let generation = 0;
+function hostGeneration(): number {
+  const installed = globalThis.__opensesameAppCoreHost;
+  if (owningHost !== installed) {
+    owningHost = installed;
+    current = null;
+    loading = null;
+    readyListeners.clear();
+    generation += 1;
+  }
+  return generation;
+}
 const readyListeners = new Set<(key: AtRestKey) => void>();
 
 function ephemeral(): AtRestKey {
@@ -89,12 +102,23 @@ function withTimeout<T>(work: Promise<T>): Promise<T> {
 }
 
 function startLoading(load: () => Promise<Uint8Array>): Promise<AtRestKey> {
+  const requestedGeneration = hostGeneration();
   if (!loading) {
     loading = withTimeout(load())
       .then(checked)
       .then(
-        (key) => settle({ key, durable: true }),
-        () => settle(ephemeral()),
+        (key) => {
+          hostGeneration();
+          if (generation !== requestedGeneration)
+            throw new Error("The host changed during at-rest key loading.");
+          return settle({ key, durable: true });
+        },
+        () => {
+          hostGeneration();
+          if (generation !== requestedGeneration)
+            throw new Error("The host changed during at-rest key loading.");
+          return settle(ephemeral());
+        },
       );
   }
   return loading;
@@ -106,6 +130,7 @@ function startLoading(load: () => Promise<Uint8Array>): Promise<AtRestKey> {
  * that load).
  */
 export function atRestKeyNow(): AtRestKey | null {
+  hostGeneration();
   if (current) return current;
   const port = host().atRestKeys;
   if (!port) return settle(ephemeral());
@@ -116,12 +141,13 @@ export function atRestKeyNow(): AtRestKey | null {
       return settle(ephemeral());
     }
   }
-  void startLoading(() => port.load());
+  void startLoading(() => port.load()).catch(() => {});
   return null;
 }
 
 /** The key if it has settled, without starting a load. */
 export function atRestSettled(): AtRestKey | null {
+  hostGeneration();
   return current;
 }
 
@@ -137,6 +163,7 @@ export function atRestReady(): Promise<AtRestKey> {
 
 /** Called once, when the key settles (at once if it already has). */
 export function onAtRestReady(listener: (key: AtRestKey) => void): () => void {
+  hostGeneration();
   if (current) {
     listener(current);
     return () => {};
@@ -149,6 +176,8 @@ export function onAtRestReady(listener: (key: AtRestKey) => void): () => void {
 
 /** Forget the key (tests, and a document whose storage was just reset). */
 export function forgetAtRestKeyForTest(): void {
+  owningHost = globalThis.__opensesameAppCoreHost;
+  generation += 1;
   current = null;
   loading = null;
   readyListeners.clear();

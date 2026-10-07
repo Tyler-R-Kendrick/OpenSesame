@@ -22,6 +22,7 @@ import {
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { Link, useLocation } from "react-router";
 import { useConnectorRoads } from "../../bindings/connector-roads.js";
+import { SessionAnchor } from "../../components/DecoyNavigationAnchor.js";
 import {
   IconChevronLeft,
   IconConnection,
@@ -185,14 +186,14 @@ export function ConnectorSettingsPage({
               : `${authKindLabel(provider)} · ${CATEGORY_LABELS[provider.category]}`}
           </p>
         </div>
-        <a
+        <SessionAnchor
           className="btn btn--sm btn--ghost"
           href={provider.docsUrl}
           target="_blank"
           rel="noreferrer noopener"
         >
           Docs <IconExternal size={14} />
-        </a>
+        </SessionAnchor>
       </header>
 
       {flash ? (

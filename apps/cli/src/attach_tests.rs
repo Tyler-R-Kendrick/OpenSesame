@@ -62,7 +62,8 @@ fn revealed_plaintext_is_owner_only_from_its_first_byte() {
 fn a_failed_write_leaves_nothing_behind() {
     let dir = tempfile::tempdir().unwrap();
     let dest = dir.path().join("doc.txt");
-    // A stale partial from an earlier crash is replaced, never appended to.
+    // Unix uses a deterministic partial; Windows retains a UUID-named exact handle.
+    #[cfg(not(windows))]
     std::fs::write(dest.with_extension("partial"), b"stale").unwrap();
     let err = write_owner_only(&dest, |file| {
         file.write_all(b"half")?;
@@ -72,6 +73,7 @@ fn a_failed_write_leaves_nothing_behind() {
     assert!(err.to_string().contains("chunk failed"));
     assert!(!dest.exists());
     assert!(!dest.with_extension("partial").exists());
+    assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
 }
 
 #[test]

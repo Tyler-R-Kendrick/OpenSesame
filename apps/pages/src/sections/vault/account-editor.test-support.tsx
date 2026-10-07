@@ -1,5 +1,6 @@
 import { registerLegacyItemKinds } from "@opensesame/app-core/lib/contributions.test-support.js";
 import { switchCredentialPacksOn } from "@opensesame/app-core/lib/type-packs/credential-packs.test-support.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   type AccountItem,
   type Folder,
@@ -25,7 +26,11 @@ import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
   useVault: () => vault.current,
-  useVaultStore: () => ({ saveItem, saveItems }),
+  useVaultStore: () => ({
+    saveItem,
+    saveItems,
+    pinContinuation: vaultStore.pinContinuation,
+  }),
   useCopySecret: () => vi.fn().mockResolvedValue("copied"),
 });
 afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));

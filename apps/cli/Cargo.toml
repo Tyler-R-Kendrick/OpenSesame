@@ -43,6 +43,7 @@ opensesame-tailnet-admin = { path = "../../crates/tailnet-admin" }
 opensesame-session-observe = { path = "../../crates/session-observe" }
 anyhow = { workspace = true }
 clap = { workspace = true }
+libc = { workspace = true }
 jsonwebtoken = { workspace = true }
 reqwest = { workspace = true }
 sqlx = { workspace = true }
@@ -72,6 +73,10 @@ insta = { workspace = true, features = ["redactions"] }
 http-body-util = { workspace = true }
 hyper = { workspace = true }
 hyper-util = { workspace = true }
+
+[target.'cfg(windows)'.dev-dependencies]
+# Genuine ConPTY tests reuse the already pinned Windows SDK importer.
+windows-sys = { version = "=0.59.0", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Console", "Win32_System_Pipes", "Win32_System_Threading", "Win32_System_IO", "Win32_System_JobObjects"] }
 
 [features]
 default = []

@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { markDecoySession } from "../decoy-session.js";
 import {
   ENTRA_SCOPES,
   acquireEntraSilent,
@@ -7,6 +8,7 @@ import {
   entraSeams,
   newEntraNonce,
 } from "./entra.js";
+import { currentAuthGeneration } from "./generation.js";
 import { providerConnectionKey } from "./provider.js";
 
 const issuer =
@@ -26,9 +28,37 @@ const connection = {
 
 describe("entra adapter", () => {
   afterEach(() => {
+    markDecoySession(false);
     entraSeams.loadSdk = async () => {
       throw new Error("reset");
     };
+  });
+
+  it("does not inspect SDK accounts or acquire ambient tokens after the load crosses a realm reset", async () => {
+    const accounts = vi.fn(() => []);
+    const silent = vi.fn(async () => ({ idToken: "owner-only-token" }));
+    entraSeams.loadSdk = async () => {
+      markDecoySession(true);
+      markDecoySession(false);
+      return {
+        getAllAccounts: accounts,
+        ssoSilent: silent,
+        clearCache: async () => undefined,
+      };
+    };
+    await expect(
+      acquireEntraSilent(
+        {
+          connection,
+          redirectUri: "https://app.example/auth/redirect.html",
+          generation: currentAuthGeneration(),
+          nonce: "current-nonce",
+        },
+        fetch,
+      ),
+    ).rejects.toThrow(/authenticate again/);
+    expect(accounts).not.toHaveBeenCalled();
+    expect(silent).not.toHaveBeenCalled();
   });
 
   it("PROVIDER-SCOPES: requests openid only, never Graph", () => {

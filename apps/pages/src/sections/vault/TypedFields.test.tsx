@@ -1,3 +1,4 @@
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   type Folder,
   type VaultItem,
@@ -46,6 +47,7 @@ const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
   useVault: () => vault.current,
   useVaultStore: () => ({
+    pinContinuation: vaultStore.pinContinuation,
     saveItem,
     trashItem: vi.fn(),
     toggleFavorite: vi.fn(),

@@ -18,7 +18,9 @@ use serde_json::json;
 use super::super::intents_budget::{
     release_authority_budget_hold, settle_authority_budget_hold, AuthorityBudgetHold,
 };
-use super::{execute_invocation, not_found, ConstrainedHttpInput, ResolvedInvocation};
+use super::{
+    assert_alias_current, execute_invocation, not_found, ConstrainedHttpInput, ResolvedInvocation,
+};
 use crate::app_state::AppState;
 
 /// A permitted invoke parked by the test hold, replayed by [`drain`].
@@ -139,6 +141,14 @@ async fn finish_dispatch(
     if let Err(response) = reauthorize(st, &resolved, &invoke_input.subject).await {
         release_authority_budget_hold(st, authority_hold).await;
         return response;
+    }
+    if assert_alias_current(st, &resolved).await.is_err() {
+        release_authority_budget_hold(st, authority_hold).await;
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error":"controlled_alias_retired"})),
+        )
+            .into_response();
     }
     #[cfg(test)]
     hold::record_side_effect();

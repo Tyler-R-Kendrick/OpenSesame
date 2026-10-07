@@ -1,3 +1,4 @@
+import { isRealAuthorityBlocked } from "@opensesame/app-core/lib/decoy-session.js";
 import {
   type comparePrivatePassword,
   type createPrivateCredential,
@@ -5,6 +6,7 @@ import {
   passwordWorkflowFind,
   passwordWorkflowInventory,
 } from "@opensesame/app-core/lib/vault/password-workflows.js";
+import { pinTombAuthority } from "@opensesame/app-core/lib/vfs.js";
 import {
   useCallback,
   useContext,
@@ -21,6 +23,7 @@ import { useModalFocus } from "../../lib/modal-focus.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { SupportContext } from "../../tutorial/support-context.js";
+import { pinSecurityOwner } from "../settings/security/security-owner.js";
 import {
   CredentialWorkflow,
   PasswordWorkflow,
@@ -38,7 +41,7 @@ type WorkflowResult =
 import "./password-workflows.css";
 
 export type PerformWorkflow = (
-  operation: () => Promise<WorkflowResult>,
+  operation: (check: () => void) => Promise<WorkflowResult>,
 ) => Promise<void>;
 
 function DiscoveryWorkflow({
@@ -94,6 +97,24 @@ function DiscoveryWorkflow({
     </fieldset>
   );
 }
+type CheckedWorkflowOutput = { value: string; check: () => void };
+function readableWorkflowOutput(output: CheckedWorkflowOutput | null): string {
+  if (!output) return "";
+  try {
+    output.check();
+    return output.value;
+  } catch {
+    return "";
+  }
+}
+function pinWorkflowOwner(tomb: string): () => void {
+  const owner = pinSecurityOwner(tomb);
+  const root = pinTombAuthority(tomb);
+  return () => {
+    owner();
+    root();
+  };
+}
 export function PasswordWorkflowsPanel({
   action = "",
 }: { action?: string } = {}) {
@@ -110,23 +131,48 @@ export function PasswordWorkflowsPanel({
     target?.focus({ preventScroll: true });
   }, [action]);
   const vault = useVault();
-  const [result, setResult] = useState("");
-  const [error, setError] = useState("");
+  const [result, setResult] = useState<CheckedWorkflowOutput | null>(null);
+  const [error, setError] = useState<CheckedWorkflowOutput | null>(null);
   const [busy, setBusy] = useState(false);
-  async function perform(operation: () => Promise<WorkflowResult>) {
+  async function perform(
+    operation: (check: () => void) => Promise<WorkflowResult>,
+  ) {
     setBusy(true);
-    setError("");
-    setResult("");
+    setError(null);
+    setResult(null);
+    let check: (() => void) | undefined;
     try {
-      setResult(JSON.stringify(await operation(), null, 2));
+      check = pinWorkflowOwner(vault.tomb);
+      const value = await operation(check);
+      check();
+      setResult({ value: JSON.stringify(value, null, 2), check });
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Workflow failed.");
+      if (check) {
+        try {
+          check();
+          setError({
+            value:
+              caught instanceof Error ? caught.message : "Workflow failed.",
+            check,
+          });
+        } catch {
+          /* A successor owner never inherits this operation's result or notice. */
+        }
+      }
     } finally {
       setBusy(false);
     }
   }
-  if (vault.status !== "unlocked" || vault.awaitingSecondStep)
+  if (
+    vault.status !== "unlocked" ||
+    vault.awaitingSecondStep ||
+    vault.guest ||
+    vault.decoy ||
+    isRealAuthorityBlocked()
+  )
     return <p>Unlock the vault to use password workflows.</p>;
+  const visibleResult = readableWorkflowOutput(result);
+  const visibleError = readableWorkflowOutput(error);
   return (
     <div ref={panelRef} className="sheet__body password-workflows">
       <p>
@@ -142,14 +188,14 @@ export function PasswordWorkflowsPanel({
       <FailureNotice
         id="vault:password-workflows"
         title="Password workflows"
-        message={error}
+        message={visibleError}
       />
-      {result ? (
+      {visibleResult ? (
         <pre
           aria-label="Workflow result"
           style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
         >
-          {result}
+          {visibleResult}
         </pre>
       ) : null}
     </div>

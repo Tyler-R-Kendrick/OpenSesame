@@ -1,3 +1,5 @@
+import { persistentBrowserOwner } from "@opensesame/app-core/browser/security-integration/management-host.fixture.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 /** @vitest-environment jsdom */
 /**
  * The WebMCP execute wrapper takes operation authority before the handler
@@ -170,5 +172,53 @@ describe("the WebMCP execute wrapper", () => {
     await offer([bare]);
     expect(refusal(await call("bare"))).toMatch(/NOT_REGISTERED/);
     expect(handler).not.toHaveBeenCalled();
+  });
+  it("withholds a pending result from the original lease after withdrawal and regrant", async () => {
+    let release!: () => void;
+    let entered!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let first = true;
+    const tool = tagged(
+      "pending_lookup",
+      async () => {
+        if (first) {
+          first = false;
+          entered();
+          await held;
+        }
+        return { originalResult: true };
+      },
+      PASSKEY_OP,
+      true,
+    );
+    await offer([tool]);
+    const oldCall = call("pending_lookup");
+    await started;
+    await compositionStore.emergencyDisable(PASSKEYS);
+    await offer([tool]);
+    release();
+    expect(refusal(await oldCall)).toMatch(
+      /capability denied|registration_retired/,
+    );
+    expect((await call("pending_lookup")).isError).not.toBe(true);
+  });
+  it("pins the genuine owner before asynchronous authorization and never dispatches a successor handler", async () => {
+    const owner = await persistentBrowserOwner();
+    await vaultStore.unlock(owner.password);
+    const handler = vi.fn<Handler>(async () => ({ ownerResult: true }));
+    await offer([tagged("owner_gap", handler, PASSKEY_OP, true)]);
+    const pending = call("owner_gap");
+    vaultStore.lock();
+    expect(refusal(await pending)).toMatch(/changed|authority|session/i);
+    expect(handler).not.toHaveBeenCalled();
+    await vaultStore.unlock(owner.password);
+    expect((await call("owner_gap")).isError).not.toBe(true);
+    expect(handler).toHaveBeenCalledOnce();
+    vaultStore.lock();
   });
 });

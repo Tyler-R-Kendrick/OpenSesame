@@ -54,6 +54,7 @@ export interface RuntimeSender extends SenderFacts {
 export interface Flow {
   readonly ports: FillPorts;
   readonly ledger: ArmLedger;
+  readonly authorize?: () => Promise<boolean>;
 }
 
 /** A daemon refusal's code; anything else means the daemon did not answer. */

@@ -256,7 +256,7 @@ mod pact {
     fn a_claim_verb_prints_neither_bearer() {
         let cmd = ToolbarCmd::ApproveClaim {
             claim_id: "clm_public".into(),
-            claim_token: "osc_clm_bearer-12345".into(),
+            claim_token: "osc_clm_bearer-12345".into(), // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
             access_token: Some("access-12345".into()),
         };
         let shown = format!("{cmd:?}");

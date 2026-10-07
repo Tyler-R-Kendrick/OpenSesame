@@ -26,7 +26,7 @@ import { openSettingsCategory } from "./lib/pages-journey.mjs";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(here, "../dist");
 const base = "/OpenSesame/";
-const secret = "correct-horse-battery-staple-2026";
+const secret = "correct-horse-battery-staple-2026"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 const joinerName = "Ada";
 const mode = process.argv[2];
 

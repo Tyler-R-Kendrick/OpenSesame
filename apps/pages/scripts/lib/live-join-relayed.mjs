@@ -4,7 +4,7 @@
  * carrier passes the codes, and both browsers meet through the relay alone.
  * One walk per way to reach the server, because each is a different road:
  *
- * - **relayed** — `turn:host:port?transport=udp`, node-turn on loopback.
+ * - **relayed** — `turn:host:port?transport=udp`, Pion TURN on loopback.
  * - **relayed-tcp** — `turn:host:port?transport=tcp`, the road through a
  *   firewall that lets only TCP out.
  * - **relayed-tls** — `turns:host:port?transport=tcp`, the road through a
@@ -17,7 +17,7 @@
  *   secret. **relayed-rest-wrong** is its negative control: the server holds
  *   a different secret, authentication fails, and the browsers never meet.
  *
- * TCP, TLS and REST are served by `live-turn` (pion/turn), which counts what
+ * UDP, TCP, TLS and REST are served by `live-turn` (pion/turn), which counts what
  * each transport saw. A relay-to-relay pair says nothing of how the client reached
  * the server, so every walk also asks the server: the transport it was named
  * for authenticated and allocated for both peers, and no client traffic
@@ -49,6 +49,7 @@ let shot;
 let configs;
 let joined;
 let PHONE;
+let record;
 
 /** How long a walk that must not connect waits before it says so. */
 const NO_ROUTE_MS = 10_000;
@@ -67,7 +68,51 @@ const JOINER = "Ada Lovelace";
 
 /** The runner's harness and pages, for every walk below. */
 export function bindRelayed(walk) {
-  ({ check, setStep, failures, device, shot, configs, joined, PHONE } = walk);
+  ({ check, setStep, failures, device, shot, configs, joined, PHONE, record } =
+    walk);
+}
+
+/** Existing fixture counters contain no identities, credentials or payloads. */
+async function turnDiagnostics(turn, label) {
+  let timer;
+  try {
+    const raw = await Promise.race([
+      turn.stats(),
+      new Promise((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("Diagnostic unavailable")),
+          1000,
+        );
+      }),
+    ]);
+    const counters = [
+      "packets",
+      "conns",
+      "hellos",
+      "bytes",
+      "authOk",
+      "authFailed",
+      "allocations",
+    ];
+    const stats = Object.fromEntries(
+      ["udp", "tcp", "tls"].map((transport) => [
+        transport,
+        Object.fromEntries(
+          counters.map((key) => [
+            key,
+            Number.isSafeInteger(raw[transport]?.[key])
+              ? raw[transport][key]
+              : null,
+          ]),
+        ),
+      ]),
+    );
+    record("TURN-DIAGNOSTICS", JSON.stringify({ label, stats }));
+  } catch {
+    record("TURN-DIAGNOSTICS", JSON.stringify({ label, unavailable: true }));
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** Both peers were relay-only through `url`, and met relay to relay over `protocol`. */
@@ -165,9 +210,9 @@ async function through(browser, owner, label, hooks) {
   }
 }
 
-/** UDP, through node-turn: the road with no firewall in it. */
-export async function relayed(browser, owner) {
-  const turn = await startTurnServer();
+/** UDP, through Pion TURN: the road with no firewall in it. */
+export async function relayed(browser, owner, { binary }) {
+  const turn = await startTurnServer({ binary });
   try {
     const route = {
       url: turn.url,
@@ -176,10 +221,17 @@ export async function relayed(browser, owner) {
     };
     await through(browser, owner, "relayed", {
       prepare: (carrier) => formRoutes(owner.page, route, carrier),
-      afterwards: (pages) =>
-        checkPeers(pages, { url: turn.url, protocol: "udp", label: "relayed" }),
+      afterwards: async (pages) => {
+        await checkPeers(pages, {
+          url: turn.url,
+          protocol: "udp",
+          label: "relayed",
+        });
+        await checkServer(turn, "udp", "relayed");
+      },
     });
   } finally {
+    await turnDiagnostics(turn, "relayed");
     await turn.stop();
   }
 }
@@ -211,6 +263,7 @@ export async function relayedOver(browser, owner, transport, { binary, cert }) {
       },
     });
   } finally {
+    await turnDiagnostics(turn, label);
     await turn.stop();
   }
 }
@@ -298,6 +351,7 @@ export async function relayedRest(browser, owner, { binary, wrong = false }) {
           : checkMinted(pages, link, { secret, url, turn, label }),
     });
   } finally {
+    await turnDiagnostics(turn, label);
     await turn.stop();
   }
 }

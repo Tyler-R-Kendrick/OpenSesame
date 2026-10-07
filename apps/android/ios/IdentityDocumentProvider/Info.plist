@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
+    <key>EXAppExtensionAttributes</key>
+    <dict><key>EXExtensionPointIdentifier</key><string>com.apple.identity-document-services.document-provider-ui</string></dict>
+    <key>OpenSesameAppGroup</key><string>$(OPENSESAME_APP_GROUP)</string>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Verify the device owner before presenting real wallet credentials.</string>
   <key>OpenSesameWalletKeychainGroup</key>
   <string>$(AppIdentifierPrefix)group.dev.opensesame.authenticator</string>
 </dict></plist>

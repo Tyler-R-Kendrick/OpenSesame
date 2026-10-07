@@ -12,7 +12,7 @@
 import { unlockWithPassword } from "./pages-journey.mjs";
 
 /** 32 bytes, unpadded base64url: the shape the page accepts. Not a secret. */
-const EVIDENCE_KEY = "RXZpZGVuY2UtZGFlbW9uLWtleS1ub3QtcmVhbC0wMSE";
+const EVIDENCE_KEY = "RXZpZGVuY2UtZGFlbW9uLWtleS1ub3QtcmVhbC0wMSE"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 
 function bodyOf(request) {
   try {

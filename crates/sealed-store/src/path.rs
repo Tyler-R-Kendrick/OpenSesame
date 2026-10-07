@@ -77,23 +77,44 @@ mod confined {
         Ok(())
     }
 
-    pub fn read(root: &Path, rel: &Path) -> Result<Vec<u8>, StoreError> {
+    fn open_read_file(root: &Path, rel: &Path) -> Result<File, StoreError> {
         let (dir, name) = open_parent(root, rel, false)?;
         // SAFETY: valid directory fd/component; O_NOFOLLOW blocks a final symlink.
         let fd = unsafe {
             libc::openat(
                 dir.as_raw_fd(),
                 name.as_ptr(),
-                libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC,
+                libc::O_RDONLY | libc::O_NOFOLLOW | libc::O_CLOEXEC | libc::O_NONBLOCK,
             )
         };
         if fd < 0 {
             return Err(StoreError::Io(std::io::Error::last_os_error()));
         }
         // SAFETY: successful openat returns a new owned descriptor.
-        let mut file = unsafe { File::from_raw_fd(fd) };
+        let file = unsafe { File::from_raw_fd(fd) };
+        if !file.metadata()?.is_file() {
+            return Err(StoreError::InvalidPath(
+                "store data must be a regular file".into(),
+            ));
+        }
+        Ok(file)
+    }
+
+    pub fn read(root: &Path, rel: &Path) -> Result<Vec<u8>, StoreError> {
+        let mut file = open_read_file(root, rel)?;
         let mut bytes = Vec::new();
         file.read_to_end(&mut bytes)?;
+        Ok(bytes)
+    }
+
+    pub fn read_bounded(root: &Path, rel: &Path, max: usize) -> Result<Vec<u8>, StoreError> {
+        let mut bytes = Vec::new();
+        open_read_file(root, rel)?
+            .take(u64::try_from(max).unwrap_or(u64::MAX).saturating_add(1))
+            .read_to_end(&mut bytes)?;
+        if bytes.len() > max {
+            return Err(StoreError::Other("record exceeds storage limit".into()));
+        }
         Ok(bytes)
     }
 
@@ -109,10 +130,26 @@ mod confined {
 
 #[cfg(unix)]
 pub(crate) use confined::{
-    read as confined_read, remove as confined_remove, write as confined_write,
+    read as confined_read, read_bounded as confined_read_bounded, remove as confined_remove,
+    write as confined_write,
 };
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+pub(crate) fn confined_write(root: &Path, rel: &Path, bytes: &[u8]) -> Result<(), StoreError> {
+    opensesame_human_vault::windows_io::write(root, rel, bytes).map_err(StoreError::Io)
+}
+
+#[cfg(windows)]
+pub(crate) fn confined_read(root: &Path, rel: &Path) -> Result<Vec<u8>, StoreError> {
+    opensesame_human_vault::windows_io::read_bounded(root, rel, usize::MAX).map_err(StoreError::Io)
+}
+
+#[cfg(windows)]
+pub(crate) fn confined_remove(root: &Path, rel: &Path) -> Result<(), StoreError> {
+    opensesame_human_vault::windows_io::remove(root, rel).map_err(StoreError::Io)
+}
+
+#[cfg(not(any(unix, windows)))]
 pub(crate) fn confined_write(root: &Path, rel: &Path, bytes: &[u8]) -> Result<(), StoreError> {
     let path = root.join(rel);
     if let Some(parent) = path.parent() {
@@ -125,7 +162,7 @@ pub(crate) fn confined_write(root: &Path, rel: &Path, bytes: &[u8]) -> Result<()
     Err(StoreError::InvalidPath("path escapes store root".into()))
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 pub(crate) fn confined_read(root: &Path, rel: &Path) -> Result<Vec<u8>, StoreError> {
     let path = root.join(rel);
     if std::fs::canonicalize(&path)?.starts_with(std::fs::canonicalize(root)?) {
@@ -134,7 +171,7 @@ pub(crate) fn confined_read(root: &Path, rel: &Path) -> Result<Vec<u8>, StoreErr
     Err(StoreError::InvalidPath("path escapes store root".into()))
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 pub(crate) fn confined_remove(root: &Path, rel: &Path) -> Result<(), StoreError> {
     let path = root.join(rel);
     if std::fs::canonicalize(&path)?.starts_with(std::fs::canonicalize(root)?) {
@@ -293,4 +330,34 @@ mod pact {
         );
         assert_eq!(relative_to_logical(Path::new("a/b.age")).unwrap(), "a/b");
     }
+}
+
+#[cfg(windows)]
+pub(crate) fn confined_read_bounded(
+    root: &Path,
+    rel: &Path,
+    max: usize,
+) -> Result<Vec<u8>, StoreError> {
+    opensesame_human_vault::windows_io::read_bounded(root, rel, max).map_err(StoreError::Io)
+}
+
+#[cfg(not(any(unix, windows)))]
+pub(crate) fn confined_read_bounded(
+    root: &Path,
+    rel: &Path,
+    max: usize,
+) -> Result<Vec<u8>, StoreError> {
+    use std::io::Read;
+    let path = root.join(rel);
+    if !std::fs::canonicalize(&path)?.starts_with(std::fs::canonicalize(root)?) {
+        return Err(StoreError::InvalidPath("path escapes store root".into()));
+    }
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)?
+        .take(u64::try_from(max).unwrap_or(u64::MAX).saturating_add(1))
+        .read_to_end(&mut bytes)?;
+    if bytes.len() > max {
+        return Err(StoreError::Other("record exceeds storage limit".into()));
+    }
+    Ok(bytes)
 }

@@ -54,14 +54,17 @@ async function arm(
     armedAt: flow.ports.now(),
   };
   if (reference !== null) {
-    flow.ledger.arm({
+    const record = {
       nonce: message.nonce,
       tabId: here.tab.id,
       origin: here.origin,
       reference,
       trigger,
       armedAt: message.armedAt,
-    });
+    };
+    flow.ledger.arm(
+      flow.authorize ? { ...record, authorize: flow.authorize } : record,
+    );
   }
   try {
     return await deliver(flow, here, message);
@@ -147,16 +150,22 @@ export async function value(
   const facts: SenderFacts = { ...sender, tabId: sender.tab?.id };
   const admission = flow.ledger.take(request.nonce, facts, flow.ports.now());
   if (!admission.ok) return { refusal: admission.refusal };
+  if (admission.record.authorize && !(await admission.record.authorize()))
+    return { refusal: "vault_locked" };
   const { reference, origin } = admission.record;
   if (!(await flow.ports.sites.isEnabled(origin))) {
     return { refusal: "site_off" };
   }
+  if (admission.record.authorize && !(await admission.record.authorize()))
+    return { refusal: "vault_locked" };
   try {
     const filled = await flow.ports.daemon.value(
       reference,
       origin,
       request.field,
     );
+    if (admission.record.authorize && !(await admission.record.authorize()))
+      return { refusal: "vault_locked" };
     return filled.pepper
       ? { value: filled.value, pepper: true }
       : { value: filled.value };

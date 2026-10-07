@@ -22,10 +22,10 @@
  *    at all but a TURN server: the owner names one in Routes, relay only, and
  *    a Nostr carrier. Both peer connections are relay-only, the pair they
  *    select is relay to relay, and nobody pastes anything. One walk for each
- *    way to reach the server: `turn:` over UDP (node-turn on loopback),
+ *    way to reach the server: `turn:` over UDP (Pion TURN on loopback),
  *    `turn:` with `?transport=tcp`, and `turns:` (TLS, a throwaway
  *    self-signed certificate whose public key alone Chromium is told to
- *    trust) — the last two on `live-turn`, a real pion/turn server. Each
+ *    trust) — all three on `live-turn`, a real pion/turn server. Each
  *    also asks the server which transport carried the clients: the one
  *    named authenticated and allocated for both peers, and no client
  *    traffic reached the others.
@@ -76,7 +76,7 @@ import {
   WATCH_RTC,
   openLive,
   ownerEnters,
-  peerStates,
+  peerDiagnostics,
 } from "./lib/live-join-walk.mjs";
 import { mintTurnCert } from "./lib/live-turn.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
@@ -86,8 +86,10 @@ const ROOT = path.resolve(here, "../../..");
 const ORIGIN = "https://tyler-r-kendrick.github.io";
 const BASE = process.env.VITE_BASE ?? "/OpenSesame/";
 const DIST = path.resolve(here, "../dist");
-const OUT = path.resolve(ROOT, "artifacts/live-join");
-const SECRET = "correct-horse-battery-staple-2026";
+const OUT = path.resolve(
+  process.env.LIVE_JOIN_EVIDENCE_OUT ?? path.join(ROOT, "artifacts/live-join"),
+);
+const SECRET = "correct-horse-battery-staple-2026"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 const KINDS = (
   process.env.LIVE_CARRIERS ?? "nostr,mqtt,nats,ntfy,broadcast"
 ).split(",");
@@ -213,7 +215,7 @@ async function wreckage(browser, label) {
     await page
       .screenshot({ path: path.join(OUT, `failed-${label}-${at + 1}.png`) })
       .catch(() => {});
-    const states = await peerStates(page).catch(() => null);
+    const states = await peerDiagnostics(page).catch(() => null);
     harness.record(
       "FAILED-PAGE",
       `${label}-${at + 1} ${JSON.stringify(states)}`,
@@ -238,7 +240,17 @@ bindWalk({
   NATS,
   NTFY,
 });
-bindRelayed({ check, setStep, failures, device, shot, configs, joined, PHONE });
+bindRelayed({
+  check,
+  setStep,
+  failures,
+  device,
+  shot,
+  configs,
+  joined,
+  PHONE,
+  record: harness.record,
+});
 bindNats({ check, setStep, failures, device, shot, joined, SECRET, PHONE });
 
 // A throwaway certificate for the TLS TURN walk, and the one flag that lets
@@ -252,6 +264,13 @@ const turnFixture = { binary: TURN, cert: cert.missing ? undefined : cert };
 const browser = await launch(
   ["WebRtcHideLocalIpsWithMdns"],
   SCENARIOS.has("relayed-tls") && !cert.missing ? [cert.flag] : [],
+);
+harness.record(
+  "BROWSER",
+  JSON.stringify({
+    version: browser.version(),
+    webRtcPolicy: knownWebRtcPolicy(),
+  }),
 );
 try {
   const owner = await device(browser);
@@ -275,7 +294,7 @@ try {
     if (SCENARIOS.has("carriers"))
       for (const kind of KINDS) await carried(browser, own, kind);
     if (SCENARIOS.has("declined")) await declined(browser, own);
-    if (SCENARIOS.has("relayed")) await relayed(browser, own);
+    if (SCENARIOS.has("relayed")) await relayed(browser, own, turnFixture);
     if (SCENARIOS.has("relayed-tcp"))
       await relayedOver(browser, own, "tcp", turnFixture);
     if (SCENARIOS.has("relayed-tls"))
@@ -322,3 +341,45 @@ if (failures.length) {
 console.log(`\nALL CHECKS PASSED — artifacts in ${OUT}`);
 // A test server's handle can outlive its stop(); the walk is over.
 process.exit(0);
+
+/** Report only the known policy field, never policy-file contents. */
+function knownWebRtcPolicy() {
+  const selected = path.basename(process.env.PLAYWRIGHT_CHROMIUM ?? "");
+  const directory = selected.includes("chromium")
+    ? "/etc/chromium/policies/managed"
+    : selected.includes("chrome")
+      ? "/etc/opt/chrome/policies/managed"
+      : null;
+  if (!directory) return { classification: "unknown_browser" };
+  const allowed = [
+    "default",
+    "default_public_and_private_interfaces",
+    "default_public_interface_only",
+    "disable_non_proxied_udp",
+  ];
+  try {
+    const files = fs
+      .readdirSync(directory)
+      .filter((name) => name.endsWith(".json"));
+    if (files.length > 64) return { classification: "unavailable" };
+    const values = [];
+    for (const name of files) {
+      const file = path.join(directory, name);
+      if (fs.statSync(file).size > 65536)
+        return { classification: "unavailable" };
+      const value = JSON.parse(fs.readFileSync(file, "utf8"))?.WebRtcIPHandling;
+      if (value === undefined) continue;
+      if (!allowed.includes(value))
+        return { classification: "unsupported_value" };
+      if (!values.includes(value)) values.push(value);
+    }
+    return {
+      classification: values.length
+        ? "observed"
+        : "not_found_in_known_directory",
+      values,
+    };
+  } catch {
+    return { classification: "unavailable" };
+  }
+}

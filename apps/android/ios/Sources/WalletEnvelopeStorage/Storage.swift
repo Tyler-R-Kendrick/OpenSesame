@@ -132,7 +132,7 @@ private final class EnvelopeWalletTable: NSObject, StorageTable {
     func __insert(key: String?, data: ByteString, partitionId: String?, expiration: KotlinInstant, completionHandler: @escaping @Sendable (String?, Error?) -> Void) {
         run({
             try await self.migrate(partitionId)
-            let id = key ?? UUID().uuidString.replacingOccurrences(of: "-", with: "")
+            let id = key ?? Foundation.UUID().uuidString.replacingOccurrences(of: "-", with: "")
             if try await self.raw.get(key: id, partitionId: partitionId) != nil {
                 throw WalletStorageContractError.keyExists
             }

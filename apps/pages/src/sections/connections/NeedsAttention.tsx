@@ -24,6 +24,7 @@ import { Link } from "react-router";
 import { IconKey } from "../../components/IconKey.js";
 import { IconArrowRight } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
+import { navigateConsentWindow } from "../../lib/decoy-navigation.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ConnectorMark } from "./ConnectorMark.js";
 
@@ -47,14 +48,14 @@ export function NeedsAttention({
   if (open.length === 0) return null;
 
   async function finish(connection: Connection) {
-    const popup = openConsentPopup("about:blank");
+    let popup: Window | null = null;
     setBusy(connection.connectionId);
     try {
+      popup = openConsentPopup("about:blank");
       const { authorizationUrl } = await authorizeConnection(
         connection.connectionId,
       );
-      if (popup) popup.location.href = authorizationUrl;
-      else window.location.href = authorizationUrl;
+      navigateConsentWindow(authorizationUrl, popup);
       const outcome = await awaitConsent(connection.connectionId, popup);
       if (outcome.result === "active") {
         onFlash({

@@ -11,6 +11,7 @@ import type {
   ActivationLease,
   PlanIdentity,
 } from "@opensesame/capability-composition";
+import { recordIssuedLease } from "./lease-canary-issuer.js";
 import { CapabilityDenied } from "./runtime-contract.js";
 
 export type MintedLease = Readonly<{
@@ -39,6 +40,7 @@ export function mintLease(
     signal: controller.signal,
   });
   MINTED.add(lease);
+  recordIssuedLease(lease);
   return {
     lease,
     abort: (reason: string) => {

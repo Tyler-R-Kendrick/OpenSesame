@@ -33,7 +33,7 @@ describe("activity log", () => {
       category: "request",
       type: "request.failed",
       summary:
-        "claim failed: https://app.example/claim#token=osc_clm_AbC.s3cr3tpart",
+        "claim failed: https://app.example/claim#token=osc_clm_AbC.s3cr3tpart", // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
       targetType: "claim",
       targetId: "https://x.example/cb?code=abc123",
     });

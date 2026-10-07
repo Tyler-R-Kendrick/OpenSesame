@@ -1,10 +1,9 @@
 /** @vitest-environment jsdom */
-import { shareReachSeams } from "@opensesame/app-core/lib/local-share-reach.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
-import type { VaultState } from "@opensesame/app-core/lib/vault/store-state.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem, manualPassword } from "@opensesame/vault-core";
 import {
+  act,
   cleanup,
   render,
   screen,
@@ -13,16 +12,20 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
-import { afterEach, expect, it, vi } from "vitest";
-import { vaultHooksSeams } from "../../lib/vault/hooks.js";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { downloadSeams } from "../../screens/capabilities/download.js";
+import {
+  admitConnectorOwner,
+  releaseConnectorOwner,
+} from "../settings/connector-owner.test-support.js";
 import { ItemCredentialActions } from "./ItemCredentialActions.js";
 import { OrganizationAudit } from "./OrganizationAudit.js";
-import { persistPasswordTestItem } from "./account-password-test-context.js";
 
-afterEach(() => {
+beforeEach(admitConnectorOwner);
+afterEach(async () => {
   cleanup();
   clearNotices();
+  await releaseConnectorOwner();
   vi.restoreAllMocks();
 });
 function fixture() {
@@ -51,30 +54,14 @@ function fixture() {
       match: "domain",
     },
   ];
-  const state: VaultState = {
-    ...vaultStore.getSnapshot(),
-    status: "unlocked",
-    awaitingSecondStep: false,
-    tomb: "personal",
-    items: [item],
-  };
-  vi.spyOn(vaultStore, "getSnapshot").mockImplementation(() => state);
-  vi.spyOn(vaultHooksSeams, "useVault").mockImplementation(() => state);
-  vi.spyOn(shareReachSeams, "resolveCurrentAccessRole").mockResolvedValue(
-    "operator",
-  );
-  vi.spyOn(shareReachSeams, "canAccess").mockReturnValue(true);
-  const save = vi
-    .spyOn(vaultStore, "saveItem")
-    .mockImplementation(async (next) => {
-      state.items = persistPasswordTestItem(state.items, next);
-    });
-  return { item, state, save };
+  const save = vi.spyOn(vaultStore, "saveItem");
+  return { item, save };
 }
 it("runs contextual reference template/read and password compare/apply through shared core", async () => {
-  const { item, state, save } = fixture();
+  const { item, save } = fixture();
   const download = vi.spyOn(downloadSeams, "save").mockImplementation(() => {});
   const user = userEvent.setup();
+  await vaultStore.replaceAll([item], []);
   render(<ItemCredentialActions item={item} />);
   await screen.findByRole("button", {
     name: "Download Password reference template",
@@ -127,7 +114,7 @@ it("runs contextual reference template/read and password compare/apply through s
     screen.getByRole("button", { name: "Apply and verify this password" }),
   );
   await screen.findByText("Password updated and verified.");
-  expect(state.items[0]).toMatchObject({
+  expect(vaultStore.getSnapshot().items[0]).toMatchObject({
     username: "unchanged",
     methods: [
       expect.objectContaining({
@@ -139,7 +126,8 @@ it("runs contextual reference template/read and password compare/apply through s
   });
 });
 it("shows safe organization findings in password health with item navigation", async () => {
-  const { item, state } = fixture();
+  const { item } = fixture();
+  await vaultStore.replaceAll([item], []);
   const rendered = render(
     <MemoryRouter>
       <OrganizationAudit />
@@ -156,7 +144,9 @@ it("shows safe organization findings in password health with item navigation", a
     "user:pass",
   ])
     expect(document.body.textContent).not.toContain(sentinel);
-  state.items = [];
+  await act(async () => {
+    await vaultStore.replaceAll([], []);
+  });
   rendered.rerender(
     <MemoryRouter>
       <OrganizationAudit />
@@ -166,9 +156,10 @@ it("shows safe organization findings in password health with item navigation", a
   await screen.findByText("0 active items reviewed");
 });
 it("suppresses uncertain private write details and refuses locked contextual operations", async () => {
-  const { item, state, save } = fixture();
+  const { item, save } = fixture();
   save.mockRejectedValue(new Error("PRIVATE_CONTEXT_SENTINEL"));
   const user = userEvent.setup();
+  await vaultStore.replaceAll([item], []);
   const rendered = render(<ItemCredentialActions item={item} />);
   await user.type(
     screen.getByLabelText("Candidate password"),
@@ -188,12 +179,12 @@ it("suppresses uncertain private write details and refuses locked contextual ope
   expect(screen.queryByRole("alert")).toBeNull();
   expect(document.body.textContent).not.toContain("PRIVATE_CONTEXT_SENTINEL");
   expect(save).toHaveBeenCalledTimes(1);
-  state.status = "locked";
+  act(() => vaultStore.lock());
   rendered.rerender(<ItemCredentialActions item={item} />);
   expect(screen.queryByLabelText("Candidate password")).toBeNull();
 });
 it("updates the selected account password method and preserves protected and sibling methods", async () => {
-  const { item, state, save } = fixture();
+  const { item, save } = fixture();
   const secondary = manualPassword(
     "password-secondary",
     "SECONDARY_PRIVATE_SENTINEL",
@@ -209,6 +200,7 @@ it("updates the selected account password method and preserves protected and sib
   };
   item.methods.push(secondary, protectedMethod);
   const user = userEvent.setup();
+  await vaultStore.replaceAll([item], []);
   render(<ItemCredentialActions item={item} />);
   const selected = within(
     screen.getByRole("group", { name: "Compare password 2" }),
@@ -224,7 +216,7 @@ it("updates the selected account password method and preserves protected and sib
   expect(
     selected.getByLabelText("Candidate password").getAttribute("value"),
   ).toBe("");
-  const saved = state.items[0];
+  const saved = vaultStore.getSnapshot().items[0];
   if (saved?.kind !== "account")
     throw new Error("Expected the updated account.");
   expect(saved.methods[0]).toEqual(item.methods[0]);
@@ -254,6 +246,7 @@ it("keeps references and the comparison guide on the first usable password when 
     ),
     pepper: true,
   });
+  await vaultStore.replaceAll([item], []);
   render(<ItemCredentialActions item={item} />);
   await screen.findByRole("button", {
     name: "Download Password 2 reference template",

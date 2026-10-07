@@ -25,6 +25,7 @@ import {
   IconX,
 } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
+import { navigateConsentWindow } from "../../lib/decoy-navigation.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { GithubBackupField } from "./GithubBackupRepo.js";
 import { GithubCardDetails } from "./GithubInstallationPanel.js";
@@ -63,14 +64,14 @@ export function ConnectionCard({
         : "Re-authorize";
 
   async function reauthorize() {
-    const popup = openConsentPopup("about:blank");
+    let popup: Window | null = null;
     setBusy("authorize");
     try {
+      popup = openConsentPopup("about:blank");
       const { authorizationUrl } = await authorizeConnection(
         connection.connectionId,
       );
-      if (popup) popup.location.href = authorizationUrl;
-      else window.location.href = authorizationUrl;
+      navigateConsentWindow(authorizationUrl, popup);
       const outcome = await awaitConsent(connection.connectionId, popup);
       if (outcome.result === "active") {
         onFlash({

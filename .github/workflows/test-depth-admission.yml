@@ -1,0 +1,179 @@
+name: Test-depth admission
+
+on:
+  workflow_call:
+    inputs:
+      extension_mutation:
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      extension_mutation:
+        description: Include the separate genuine BrowserHost 66-case mutation scope
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - id: plan
+        env:
+          INCLUDE_EXTENSION: ${{ inputs.extension_mutation }}
+        run: echo "matrix=$(node scripts/lib/test-depth-plan.mjs "$INCLUDE_EXTENSION")" >> "$GITHUB_OUTPUT"
+
+  depth:
+    name: Test depth (${{ matrix.family }})
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    # Independent depth jobs reserve time; authored test deadlines stay intact.
+    timeout-minutes: 360
+    env:
+      CARGO_BUILD_JOBS: 2
+      CARGO_INCREMENTAL: 0
+      CARGO_PROFILE_DEV_DEBUG: 0
+      CARGO_PROFILE_TEST_DEBUG: 0
+      VITEST_MAX_WORKERS: 2
+      ANTI_SLOP_JOBS: 2
+      JAZZER_ALLOW_FALLBACK: 0
+      OPENSESAME_FUZZ_TOOLCHAIN: nightly-2026-10-06
+      OPENSESAME_OSV_SCANNER_VERSION: 2.5.0
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: opensesame
+          POSTGRES_PASSWORD: opensesame
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U opensesame"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - name: Initialize fresh evidence before setup
+        run: |
+          evidence="$RUNNER_TEMP/test-depth-evidence"
+          test ! -e "$evidence"
+          mkdir -m 700 "$evidence"
+          printf 'not_started\n' > "$evidence/family.status"
+          echo "TEST_DEPTH_EVIDENCE=$evidence" >> "$GITHUB_ENV"
+      - id: checkout
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Capture exact source and capacity
+        run: |
+          node scripts/lib/test-depth-inputs.mjs capture "$TEST_DEPTH_EVIDENCE/inputs.before.json"
+          git rev-parse HEAD HEAD^{tree} > "$TEST_DEPTH_EVIDENCE/source.txt"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          df -B1 "$PWD" "$RUNNER_TEMP" > "$TEST_DEPTH_EVIDENCE/capacity.before.txt"
+          uname -a > "$TEST_DEPTH_EVIDENCE/runner.txt"
+          getconf _NPROCESSORS_ONLN >> "$TEST_DEPTH_EVIDENCE/runner.txt"
+          free -b >> "$TEST_DEPTH_EVIDENCE/runner.txt"
+          test "$(sha256sum apps/pages/public/security-profile.json | cut -d' ' -f1)" = da5fe95fa9eee73685f5209486c1efba0fbbe1547e8ed77de825ccd1aad5f8c0
+      - id: pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+      - id: node
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - id: rust
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+      - id: install
+        name: Install the frozen workspace
+        run: |
+          set +e
+          pnpm install --frozen-lockfile 2>&1 | tee "$TEST_DEPTH_EVIDENCE/install.log"
+          statuses=("${PIPESTATUS[@]}")
+          printf '%s\n' "${statuses[0]}" > "$TEST_DEPTH_EVIDENCE/install.exit"
+          printf '%s\n' "${statuses[1]}" > "$TEST_DEPTH_EVIDENCE/install.log.exit"
+          test "${statuses[0]}:${statuses[1]}" = 0:0
+      - id: tools
+        name: Install and check genuine pinned tools
+        env:
+          FAMILY: ${{ matrix.family }}
+        run: |
+          set +e
+          bash scripts/test/test-depth-tools.sh "$FAMILY" 2>&1 | tee "$TEST_DEPTH_EVIDENCE/tools.log"
+          statuses=("${PIPESTATUS[@]}")
+          printf '%s\n' "${statuses[0]}" > "$TEST_DEPTH_EVIDENCE/tools.exit"
+          printf '%s\n' "${statuses[1]}" > "$TEST_DEPTH_EVIDENCE/tools.log.exit"
+          test "${statuses[0]}:${statuses[1]}" = 0:0
+      - id: execute
+        name: Run the actual family
+        env:
+          FAMILY: ${{ matrix.family }}
+        run: |
+          printf 'running\n' > "$TEST_DEPTH_EVIDENCE/family.status"
+          bash scripts/test/test-depth-run.sh "$FAMILY"
+          printf 'completed\n' > "$TEST_DEPTH_EVIDENCE/family.status"
+      - id: freshness
+        name: Check unchanged source even after failure
+        if: always()
+        run: |
+          node scripts/lib/test-depth-inputs.mjs check "$TEST_DEPTH_EVIDENCE/inputs.before.json"
+          df -B1 "$PWD" "$RUNNER_TEMP" > "$TEST_DEPTH_EVIDENCE/capacity.after.txt"
+      - name: Record prerequisite and execution outcomes
+        if: always()
+        env:
+          CHECKOUT: ${{ steps.checkout.outcome }}
+          PNPM: ${{ steps.pnpm.outcome }}
+          NODE: ${{ steps.node.outcome }}
+          RUST: ${{ steps.rust.outcome }}
+          INSTALL: ${{ steps.install.outcome }}
+          TOOLS: ${{ steps.tools.outcome }}
+          EXECUTE: ${{ steps.execute.outcome }}
+          FRESHNESS: ${{ steps.freshness.outcome }}
+        run: |
+          printf '%s\n' "checkout=$CHECKOUT" "pnpm=$PNPM" "node=$NODE" "rust=$RUST" "install=$INSTALL" "tools=$TOOLS" "execute=$EXECUTE" "freshness=$FRESHNESS" > "$TEST_DEPTH_EVIDENCE/steps.txt"
+      - name: Preserve raw execution and instrumented reports
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: test-depth-${{ matrix.family }}
+          path: |
+            ${{ runner.temp }}/test-depth-evidence/
+            coverage/
+            artifacts/mutation/
+            tests/visual-contract/output/
+          if-no-files-found: error
+          retention-days: 30
+
+  credential-rust:
+    name: Selected credential Rust depth
+    uses: ./.github/workflows/credential-rust-depth.yml
+
+  admission:
+    name: Test-depth admission
+    needs: [plan, depth, credential-rust]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every selected family to succeed
+        env:
+          PLAN: ${{ needs.plan.result }}
+          DEPTH: ${{ needs.depth.result }}
+          CREDENTIAL_RUST: ${{ needs.credential-rust.result }}
+        run: test "$PLAN:$DEPTH:$CREDENTIAL_RUST" = success:success:success

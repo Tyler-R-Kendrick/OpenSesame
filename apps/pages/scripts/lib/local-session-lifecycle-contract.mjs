@@ -22,7 +22,10 @@ export async function localSessionLifecycleContract(page, panel, tabTo) {
   await activate(page.getByRole("tab", { name: "People", exact: true }));
   await activate(summary);
   await expect(signOut).toBeEnabled();
-  await activate(panel.getByRole("button", { name: "Disable", exact: true }));
+  const disable = panel.getByRole("button", { name: "Disable", exact: true });
+  // Directory keys wait for the remounted panel's seed; session keys do not.
+  await expect(disable).toBeEnabled();
+  await activate(disable);
   await expect(signOut).toBeDisabled();
   await expect(
     panel.getByRole("status", { name: "Local session status" }),

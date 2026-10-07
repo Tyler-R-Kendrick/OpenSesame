@@ -1,32 +1,40 @@
-/**
- * `storage.encrypted-search` — the databases this browser keeps for
- * identifiers (history backups, retired-password digests) become encrypted
- * databases in which no table, field, id or name is readable, and which can
- * still be searched by blind index (ADR 0175).
- *
- * The contribution is a routing, not a surface: the core stores answer
- * through a seam (`HistoryRowStore`, `PasswordDigestStore`) that this module
- * points at the encrypted ones for as long as the capability is on, moving
- * what the device-sealed databases held and deleting them. Turning it off
- * routes back; the encrypted databases stay, unreadable without the device
- * key, until Reset this browser removes them.
- *
- * Egress: none. Everything stays in this browser profile.
- */
-
+import { atRestReady } from "@opensesame/app-core/lib/at-rest/key.js";
+/** Encrypted-search routing activates only after a complete durable handoff.
+ * Disposal waits for owned marker release before returning to legacy routing. */
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { installEncryptedStores } from "@opensesame/app-core/lib/encrypted-db/install.js";
-import { createActivation } from "../activation.js";
 
 export const CAPABILITY = "storage.encrypted-search";
 
 export const capabilityRuntime: CapabilityRuntime = {
   capability: CAPABILITY,
   async activate(ctx) {
-    const activation = createActivation(ctx, CAPABILITY);
-    if (activation.disposed()) return activation.handle();
+    if (ctx.lease.signal.aborted)
+      return { capability: CAPABILITY, dispose: () => {} };
     const stores = installEncryptedStores();
-    activation.onDispose(stores.uninstall);
-    return activation.handle();
+    let cleanup: Promise<void> | undefined;
+    const dispose = () => {
+      ctx.lease.signal.removeEventListener("abort", onAbort);
+      cleanup ??= stores.uninstall();
+      return cleanup;
+    };
+    const onAbort = () => {
+      // The loader also awaits this same cleanup promise; an abort event has
+      // no async caller and must not produce an unhandled rejection.
+      void dispose().catch(() => {});
+    };
+    ctx.lease.signal.addEventListener("abort", onAbort, { once: true });
+    try {
+      const report = await stores.migrated;
+      if (!report.complete && (await atRestReady()).durable)
+        throw new Error(
+          "Encrypted storage transfer incomplete; retry activation",
+        );
+      if (ctx.lease.signal.aborted) await dispose();
+      return { capability: CAPABILITY, dispose };
+    } catch (error) {
+      await dispose();
+      throw error;
+    }
   },
 };

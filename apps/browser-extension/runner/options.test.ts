@@ -7,6 +7,7 @@ import { createRunnerService } from "./service";
 import { RunnerSettings } from "./settings";
 import { SealedKv } from "./store";
 import { MemoryStore } from "./test-support/memory";
+import { memorySecurityPort } from "./test-support/security-port";
 import { RunnerVault } from "./vault";
 
 // Key generation and sealed storage are real here; a loaded CI runner needs more than
@@ -73,6 +74,7 @@ async function openPage(): Promise<Wired> {
       },
     },
     runtime: {
+      connect: memorySecurityPort,
       sendMessage: async (message: { type: string; origin?: string }) => {
         wired.messages.push(message);
         if (message.type === "opensesame.runner.status")
@@ -208,24 +210,20 @@ describe("the options page", () => {
     expect(document.querySelector("#armed")?.textContent).toContain(RP);
   });
 
-  it("pins a created recovery key and shows its private half once", async () => {
+  it("requires vault owner admission before creating a recovery key on a bare install", async () => {
     await openPage();
     document.querySelector<HTMLButtonElement>("#recovery-create")?.click();
-    await eventually(() => {
-      expect(
-        document.querySelector<HTMLElement>("#recovery-private-field")?.hidden,
-      ).toBe(false);
-    });
-    const privateKey = JSON.parse(
-      document.querySelector<HTMLTextAreaElement>("#recovery-private")?.value ??
-        "{}",
+    await eventually(() =>
+      expect(document.querySelector("#hint")?.textContent).toContain(
+        "Create or unlock your vault",
+      ),
     );
-    expect(privateKey.d).toBeDefined();
-    await eventually(() => {
-      expect(
-        document.querySelectorAll("#ready li")[2]?.getAttribute("data-ok"),
-      ).toBe("true");
-    });
+    expect(
+      document.querySelector<HTMLElement>("#recovery-private-field")?.hidden,
+    ).toBe(true);
+    expect(
+      document.querySelector<HTMLTextAreaElement>("#recovery-private")?.value,
+    ).toBe("");
   });
 
   it("refuses a recovery key that is not a usable public key", async () => {

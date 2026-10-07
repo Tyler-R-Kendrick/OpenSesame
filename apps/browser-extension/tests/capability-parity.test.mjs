@@ -3,30 +3,47 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { z } from "zod";
 
 // ADR 0139: the extension handles exactly the messages the capability
 // registry maps onto its surface — no handler without a registry row, no
 // row naming a message nothing handles.
 const here = dirname(fileURLToPath(import.meta.url));
 const ext = join(here, "..");
-const registry = JSON.parse(
-  readFileSync(
-    join(ext, "../../packages/capability-registry/capabilities.json"),
-    "utf8",
-  ),
-);
+const registry = z
+  .array(
+    z.object({
+      id: z.string(),
+      plugin: z.string().optional(),
+      surfaces: z.object({ extension: z.string().nullish() }),
+    }),
+  )
+  .parse(
+    JSON.parse(
+      readFileSync(
+        join(ext, "../../packages/capability-registry/capabilities.json"),
+        "utf8",
+      ),
+    ),
+  );
 
-const background = readFileSync(join(ext, "entrypoints/background.ts"), "utf8");
-const handled = new Set(
-  [...background.matchAll(/message\?\.type === "([^"]+)"/g)].map((m) => m[1]),
-);
+const background = ["entrypoints/background.ts", "runner/security-listener.ts"]
+  .map((file) => readFileSync(join(ext, file), "utf8"))
+  .join("\n");
+const listener = readFileSync(join(ext, "runner/security-listener.ts"), "utf8");
+const handled = new Set([
+  ...[...background.matchAll(/message\??\.type === "([^"]+)"/g)].map(
+    (m) => m[1],
+  ),
+  ...[...listener.matchAll(/"(opensesame\.runner\.[a-z]+)"/g)].map((m) => m[1]),
+]);
 
 // A capability carried by an optional plugin (ADR 0150 §7) speaks through
 // that plugin's own companion extension, never this one: its rows are swept
 // by the companion's parity test instead.
 const mapped = new Map(
   registry
-    .filter((c) => typeof c.surfaces.extension === "string" && !c.plugin)
+    .filter((c) => c.surfaces.extension != null && !c.plugin)
     .map((c) => [c.surfaces.extension.replace(/^message:/, ""), c.id]),
 );
 

@@ -86,6 +86,8 @@ async function handle(
     return sender.tab === undefined ? FORBIDDEN : value(flow, request, sender);
   }
   if (!fromOwnPage(flow, sender)) return FORBIDDEN;
+  if (flow.authorize && !(await flow.authorize()))
+    return { error: "vault_locked" };
   switch (request.op) {
     case "status":
       return status(flow);
@@ -101,8 +103,11 @@ async function handle(
 export function createFillService(ports: FillPorts) {
   const flow: Flow = { ports, ledger: new ArmLedger(ports.ownId) };
   return {
-    handle: (request: FillRequest, sender: RuntimeSender) =>
-      handle(flow, request, sender),
+    handle: (
+      request: FillRequest,
+      sender: RuntimeSender,
+      authorize?: () => Promise<boolean>,
+    ) => handle(authorize ? { ...flow, authorize } : flow, request, sender),
     pairFrom: (sender: RuntimeSender) => pairFrom(flow, sender),
     trigger: (how: Trigger) => trigger(flow, how),
     status: () => status(flow),

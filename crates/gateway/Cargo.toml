@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+opensesame-human-vault = { path = "../human-vault" }
 opensesame-domain = { path = "../../crates/domain" }
 opensesame-authz = { path = "../../crates/authz" }
 opensesame-broker = { path = "../../crates/broker" }

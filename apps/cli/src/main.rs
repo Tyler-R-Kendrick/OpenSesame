@@ -3,7 +3,11 @@ mod agent_run_hooks;
 mod agent_runs;
 mod attach;
 mod bridge;
+mod canary_cli;
+mod canary_issuer;
 mod ceremony;
+mod completions;
+use completions::completion_script;
 mod certs;
 mod configs;
 mod connect;
@@ -19,7 +23,13 @@ mod init_schema;
 mod lifecycle;
 mod local_authority;
 mod log_sink;
+mod pass_canary;
+mod pass_commands;
 mod pass_otp;
+mod pass_read;
+mod pass_receiver;
+mod pass_security;
+use pass_commands::PassCmd;
 mod pass_protect;
 mod password_agent;
 mod plugins;
@@ -71,6 +81,9 @@ pub(crate) struct Cli {
 }
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Dedicated detection-only controlled MCP validator.
+    #[command(subcommand)]
+    Canary(canary_cli::CanaryCmd),
     /// 1Password workflows with verified private writes.
     PasswordAgent(password_agent::Options),
     /// Interactive session and the first-run setup ceremony.
@@ -107,6 +120,7 @@ enum Commands {
     Logout,
     Doctor,
     /// Print native project configuration files.
+    #[command(name = "config-files")]
     ConfigFiles {
         #[arg(long, default_value = ".env.schema")]
         schema: PathBuf,
@@ -371,263 +385,6 @@ pub(crate) enum CryptoCmd {
     },
 }
 
-/// Sealed password-store verbs under `opensesame pass` (`pass` CLI parity).
-#[derive(Subcommand, Debug)]
-pub(crate) enum PassCmd {
-    /// Initialize a git-native sealed secret store.
-    Init {
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long = "recipient", value_name = "RECIPIENT")]
-        recipients: Vec<String>,
-        #[arg(long, default_value_t = true)]
-        git: bool,
-        /// Backup remote URL (git `origin`), e.g. a private GitHub repository.
-        #[arg(long)]
-        remote: Option<String>,
-    },
-    /// Insert a secret (human only).
-    Insert {
-        name: String,
-        #[arg(long)]
-        echo: bool,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Generate and insert a password.
-    Generate {
-        name: String,
-        #[arg(long, default_value_t = opensesame_sealed_store::default_password_length())]
-        length: usize,
-        #[arg(long)]
-        no_symbols: bool,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Show an entry (requires TTY or `--reveal`).
-    Show {
-        name: String,
-        #[arg(long)]
-        reveal: bool,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// List entries.
-    Ls {
-        prefix: Option<String>,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Find entries by name substring.
-    Find {
-        query: String,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Remove an entry.
-    Rm {
-        name: String,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Copy an entry.
-    Cp {
-        from: String,
-        to: String,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Move an entry.
-    Mv {
-        from: String,
-        to: String,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Run git in the sealed-store root.
-    Git {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-        args: Vec<String>,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Seal a Pages plaintext path manifest into encrypted store entries.
-    Seal {
-        /// JSON manifest exported by Pages Settings → "Download store path manifest".
-        manifest: PathBuf,
-        /// Overwrite entries that already exist in the store.
-        #[arg(long)]
-        replace: bool,
-        /// Overwrite and delete the plaintext manifest after sealing.
-        #[arg(long)]
-        shred: bool,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Import a `KeePass` (.kdbx) database into the store.
-    ImportKdbx {
-        /// KDBX 4.x database to read.
-        file: PathBuf,
-        /// Optional KDBX key file, if the database uses one.
-        #[arg(long)]
-        keyfile: Option<PathBuf>,
-        /// Place imported entries under this store prefix.
-        #[arg(long)]
-        prefix: Option<String>,
-        /// Overwrite store entries that already exist and differ.
-        #[arg(long)]
-        replace: bool,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Export the store as a `KeePass` (.kdbx) database.
-    ExportKdbx {
-        /// File to write the database to.
-        dest: PathBuf,
-        /// Export only entries under this store prefix.
-        #[arg(long)]
-        prefix: Option<String>,
-        /// Required off a TTY: the export is a portable copy of the store.
-        #[arg(long)]
-        reveal: bool,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Commit and push the store to its backup remote (git `origin`).
-    Backup {
-        /// Set (or replace) the backup remote before pushing.
-        #[arg(long)]
-        remote: Option<String>,
-        /// Persist auto-push: push after every store mutation from now on.
-        #[arg(long)]
-        auto_push: Option<bool>,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// File attachments stored as sealed, content-addressed chunks.
-    Attach {
-        #[command(subcommand)]
-        cmd: PassAttachCmd,
-    },
-    /// OTP tokens (pass-otp parity).
-    Otp {
-        #[command(subcommand)]
-        cmd: pass_otp::PassOtpCmd,
-    },
-    /// Update / rotate secrets (pass-update parity). Prints new secret (human TTY).
-    Update {
-        #[arg(required = true)]
-        names: Vec<String>,
-        #[arg(short = 'l', long, default_value_t = opensesame_sealed_store::default_password_length())]
-        length: usize,
-        #[arg(short = 'a', long)]
-        auto_length: bool,
-        #[arg(short = 'n', long)]
-        no_symbols: bool,
-        #[arg(short = 'p', long)]
-        provide: bool,
-        #[arg(short = 'm', long)]
-        multiline: bool,
-        #[arg(short = 'i', long)]
-        include: Option<String>,
-        #[arg(short = 'e', long)]
-        exclude: Option<String>,
-        #[arg(short = 'f', long)]
-        force: bool,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Rotate first-line secrets without printing plaintext unless `--reveal`.
-    Rotate {
-        #[arg(required = true)]
-        names: Vec<String>,
-        #[arg(short = 'l', long, default_value_t = opensesame_sealed_store::default_password_length())]
-        length: usize,
-        #[arg(short = 'a', long)]
-        auto_length: bool,
-        #[arg(short = 'n', long)]
-        no_symbols: bool,
-        #[arg(short = 'p', long)]
-        provide: bool,
-        #[arg(short = 'm', long)]
-        multiline: bool,
-        #[arg(short = 'i', long)]
-        include: Option<String>,
-        #[arg(short = 'e', long)]
-        exclude: Option<String>,
-        #[arg(short = 'f', long)]
-        force: bool,
-        /// Print the new secret (TTY / human only — never for agents).
-        #[arg(long)]
-        reveal: bool,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Show an entry's git history: sha, timestamp, subject (metadata only).
-    History {
-        name: String,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Restore an entry's content from a past commit as a NEW commit.
-    Restore {
-        name: String,
-        /// Commit sha from `pass history`.
-        #[arg(long)]
-        rev: String,
-        #[arg(long)]
-        path: Option<PathBuf>,
-        #[arg(long)]
-        tomb: Option<String>,
-    },
-    /// Root-protection protectors for `.opensesame-key` (human only).
-    Protect {
-        #[command(subcommand)]
-        cmd: pass_protect::PassProtectCmd,
-    },
-    /// Multi-tomb registry.
-    Tomb {
-        #[command(subcommand)]
-        cmd: PassTombCmd,
-    },
-    /// Open active / named tomb (Linux Tomb mount when applicable).
-    Open { name: Option<String> },
-    /// Close active / named tomb.
-    Close { name: Option<String> },
-}
-
 #[derive(Subcommand, Debug)]
 pub(crate) enum PassAttachCmd {
     /// Seal a file into the store as chunked ciphertext.
@@ -844,6 +601,7 @@ async fn real_main() -> anyhow::Result<()> {
     let cli = session::verb()?;
     serve::init_tracing(&cli.command);
     match cli.command {
+        Commands::Canary(cmd) => canary_cli::run(cmd).await?,
         Commands::PasswordAgent(options) => password_agent::execute(options).await?,
         Commands::Session => session::enter()?,
         Commands::Vault { cmd } => vault_area::run(&cli.server, &cli.output, cmd).await?,
@@ -1514,25 +1272,6 @@ async fn import_connections(server: &str, input: PathBuf) -> anyhow::Result<()> 
         json!({"imported": imported.len(), "connections": imported})
     );
     Ok(())
-}
-
-fn completion_script(shell: CompletionShell) -> &'static str {
-    match shell {
-        CompletionShell::Bash => {
-            r#"_opensesame() { COMPREPLY=( $(compgen -W 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass password-agent tui dev daemon task intent cert' -- "${COMP_WORDS[COMP_CWORD]}") ); }
-complete -F _opensesame opensesame
-"#
-        }
-        CompletionShell::Zsh => {
-            r"#compdef opensesame
-_arguments '1:command:(login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass password-agent tui dev daemon task intent cert)'
-"
-        }
-        CompletionShell::Fish => {
-            r"complete -c opensesame -f -n '__fish_use_subcommand' -a 'login logout status whoami auth invoke receipt doctor provider connect connection connector secret lease crypto sync export import config-files completion init config pass password-agent tui dev daemon task intent cert'
-"
-        }
-    }
 }
 
 fn read_bounded(path: &std::path::Path) -> anyhow::Result<Vec<u8>> {

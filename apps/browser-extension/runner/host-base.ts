@@ -11,25 +11,55 @@ import {
   openFromRest,
   sealForRest,
 } from "@opensesame/browser-at-rest";
-import { ENDPOINTS, isString } from "@opensesame/os-domain";
+import {
+  type BoundaryObject,
+  ENDPOINTS,
+  isString,
+} from "@opensesame/os-domain";
 
 export const DEFAULT_HOST = ENDPOINTS.host.default;
 /** Where `hostApiBase` rests, sealed (ADR 0149). */
 const STORE = "chrome.storage.local";
 
-export async function resolveHostBase(): Promise<string> {
+export interface HostBaseGuard {
+  authorize(): Promise<void>;
+  /** Page callers additionally pin the local ticket at synchronous dispatch. */
+  check?(): void;
+}
+function checkOriginalNow(owner: HostBaseGuard | undefined) {
+  owner?.check?.();
+}
+async function checkOriginal(owner: HostBaseGuard | undefined) {
+  if (owner) {
+    owner.check?.();
+    await owner.authorize();
+    owner.check?.();
+  }
+}
+export async function resolveHostBase(owner?: HostBaseGuard): Promise<string> {
+  await checkOriginal(owner);
+  checkOriginalNow(owner);
   try {
-    const stored = await browser.storage.local.get("hostApiBase");
+    const stored =
+      await browser.storage.local.get<BoundaryObject>("hostApiBase");
+    await checkOriginal(owner);
+    checkOriginalNow(owner);
     const raw = stored.hostApiBase;
     // Sealed at rest (ADR 0149); a value from an older build reads as it is.
     const value = isString(raw)
       ? await openFromRest(STORE, "hostApiBase", raw)
       : null;
+    await checkOriginal(owner);
+    checkOriginalNow(owner);
     if (isString(raw) && value && !isSealedForRest(raw)) {
       // Written in the clear by an older build: seal it where it lies.
       const sealed = await sealForRest(STORE, "hostApiBase", value);
+      await checkOriginal(owner);
+      checkOriginalNow(owner);
       if (sealed !== null) {
         await browser.storage.local.set({ hostApiBase: sealed });
+        await checkOriginal(owner);
+        checkOriginalNow(owner);
       }
     }
     if (value?.trim()) {
@@ -37,6 +67,8 @@ export async function resolveHostBase(): Promise<string> {
       if (normalized) return normalized;
     }
   } catch {
+    await checkOriginal(owner);
+    checkOriginalNow(owner);
     // storage may be unavailable in some test harnesses
   }
   return DEFAULT_HOST;

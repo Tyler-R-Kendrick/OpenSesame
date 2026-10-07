@@ -3,7 +3,7 @@
 
 [[IgnoredVulns]]
 id = "RUSTSEC-2023-0071"
-# No patched rsa release (patched = []). Pulled only via sqlx-postgres for
-# Postgres wire auth helpers — not used for OpenSesame JWT/DPoP (jsonwebtoken
-# uses aws_lc_rs). Revisit when sqlx drops rsa or rsa ships a constant-time fix.
-reason = "Unpatched transitive rsa via sqlx-postgres; no OpenSesame RSA private-key ops over observable timing channels"
+# Existing unpatched RSA exception; direct PKI and SQLx edges are assessed in
+# docs/security/audits/2026-10-06-rsa-marvin-reachability.md. Do not expose the
+# RustCrypto-backed RSA signer as an attacker-timable service.
+reason = "Known unpatched RSA dependency; current deployment and signer exposure limits documented in 2026-10-06-rsa-marvin-reachability.md; no constant-time guarantee"

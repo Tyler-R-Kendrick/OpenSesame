@@ -221,3 +221,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0177](0177-password-workflow-surface-boundaries.md) | Password workflows follow the vault that owns the credentials | Accepted |
 | [0178](0178-authorization-checks-are-proofs-the-compiler-can-see.md) | Authorization checks are proofs the compiler can see | Accepted |
 | [0179](0179-credentials-are-entries-bound-to-accounts.md) | Credentials are entries of their own, bound to an account by reference | Accepted |
+| [0180](0180-retired-credential-traps.md) | Retired credential traps in the offline client | Accepted |

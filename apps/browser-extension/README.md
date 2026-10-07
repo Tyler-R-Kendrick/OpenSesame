@@ -56,6 +56,12 @@ browser asks for that one origin and `scripting` on that click; the grant is
 given back when the run ends or the arm expires. Messages that arm, disarm or
 ask for status are answered only to this extension's own pages.
 
+Creating a recovery key and revealing a backed-up candidate require an unlocked
+real vault on that options page. A bare install must create or unlock its vault
+first. Each settings or recovery action retains its original page session; locking,
+entering a synthetic realm or authenticating again cancels its pending writes and
+results. Revocation clears displayed private material and prior runner metadata.
+
 The runner authenticates with a bearer session token and holds its own
 credentials. A DPoP-bound token is one the Host refuses without its proof key
 (401), so the runner claims nothing under it; it does not read the Pages vault
@@ -118,5 +124,13 @@ Playwright suite in `tests/auth-surface.spec.ts` is skipped unless
 - [ADR 0017](../../docs/adr/0017-host-client-product-topology.md) — host/client topology
 - [ADR 0082](../../docs/adr/0082-agent-run-registration-ceremonies.md) — the extension as a second ceremony runner
 - [Audit: extension Host API loopback fence](../../docs/security/audits/2026-08-08-extension-host-fence.md)
+
+WXT development uses its supported manual runner. Run the `dev` command above,
+then load the unpacked output path printed by WXT through `chrome://extensions`
+(Developer mode → Load unpacked), or Firefox’s temporary add-on loader.
+The optional `web-ext` launcher is omitted because its Android ADB dependency
+requires an unpatched vulnerable `node-forge`. Automatic browser launching and
+Firefox Android development through that launcher are unavailable; production
+builds, archives and the Playwright browser suites use no such launcher.
 
 The popup offers create, compare, update, private-read and environment-resolution handoffs that focus the matching human control in the PWA. Access Requests opens the existing local/Identity inbox. Task links carry only fixed action selectors, never the active site, credentials or native approval handles.
