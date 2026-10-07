@@ -10,24 +10,30 @@ import type {
   RequestLimits,
 } from "@opensesame/app-core/lib/password-agent/request.js";
 
+import { parityAuthority } from "./parity-authority.js";
+
 export async function requestAddresses(
   hostname: string,
 ): Promise<readonly Address[]> {
+  const check = parityAuthority();
   const family = isIP(hostname);
   if (family === 4 || family === 6) return [{ address: hostname, family }];
-  return (await boundedLookup(hostname)).map((value) => {
+  const addresses = await boundedLookup(hostname);
+  check();
+  return addresses.map((value) => {
     if (value.family !== 4 && value.family !== 6)
       throw new Error("Invalid DNS address family");
     return { address: value.address, family: value.family };
   });
 }
 
-export function sendPrivateRequest(
+export async function sendPrivateRequest(
   prepared: PreparedRequest,
   secret: string,
   address: Address,
   limits: RequestLimits,
 ): Promise<RawResponse> {
+  const check = parityAuthority();
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let bytes = 0;
@@ -52,13 +58,19 @@ export function sendPrivateRequest(
         response.on("error", () =>
           reject(new Error("Private response failed")),
         );
-        response.on("end", () =>
+        response.on("end", () => {
+          try {
+            check();
+          } catch (error) {
+            reject(error);
+            return;
+          }
           resolve({
             status: response.statusCode ?? 500,
             body: Buffer.concat(chunks).toString("utf8"),
             bytes,
-          }),
-        );
+          });
+        });
       },
     );
     const deadline = setTimeout(() => {
