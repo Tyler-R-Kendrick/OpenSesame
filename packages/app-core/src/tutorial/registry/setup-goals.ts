@@ -1,5 +1,6 @@
 import { GATE_GOALS } from "./gate-goals.js";
 import type { GuideGoalDescriptor, HelpTopic } from "./goals.js";
+import { sessionGuide } from "./session-guide.js";
 
 /**
  * Goals for the gates (`gate-goals.ts`, started from the help key each screen
@@ -29,48 +30,54 @@ export const SETUP_GOALS: readonly GuideGoalDescriptor[] = [
     id: "identity.sign-in",
     title: "Sign in with an identity provider",
     routes: ["/identity"],
-    guide: [
-      "guide/1",
-      'goal "identity.sign-in"',
-      'say "Sign-in is a ceremony against a provider this deployment already registered. Nothing here mints a vault key."',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'focus "shell.account" "Open the account menu. Sign in, or Add an account when one is already signed in, leads to the sign-in screen." side=bottom',
-      'wait target "shell.account" event=activate timeout=30000',
-      'success "Choose a provider on the Sign in tab. The vault still opens with the local unlock on this device."',
-      "end",
-    ].join("\n"),
+    get guide() {
+      return sessionGuide([
+        "guide/1",
+        'goal "identity.sign-in"',
+        'say "Sign-in is a ceremony against a provider this deployment already registered. Nothing here mints a vault key."',
+        'wait state "vault.unlocked" is=true timeout=60000',
+        'focus "shell.account" "Open the account menu. Sign in, or Add an account when one is already signed in, leads to the sign-in screen." side=bottom',
+        'wait target "shell.account" event=activate timeout=30000',
+        'success "Choose a provider on the Sign in tab. The vault still opens with the local unlock on this device."',
+        "end",
+      ]);
+    },
   },
   {
     id: "identity.sign-out",
     title: "Sign out of this device",
     routes: [],
     requires: ["account.signed-in"],
-    guide: [
-      "guide/1",
-      'goal "identity.sign-out"',
-      'say "Signing out ends the account on this device: the Identity session is revoked, the upstream sign-in is forgotten, and the vault locks. The vault key is a separate thing — locking alone keeps you signed in."',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'focus "shell.account" "The first segment of the prompt names the account. Open it; Sign out is the last entry." side=bottom',
-      'wait target "shell.account" event=activate timeout=30000',
-      'success "The unlock screen says you are signed out. Sign in again from the user menu, or continue as a guest."',
-      "end",
-    ].join("\n"),
+    get guide() {
+      return sessionGuide([
+        "guide/1",
+        'goal "identity.sign-out"',
+        'say "Signing out ends the account on this device: the Identity session is revoked, the upstream sign-in is forgotten, and the vault locks. The vault key is a separate thing — locking alone keeps you signed in."',
+        'wait state "vault.unlocked" is=true timeout=60000',
+        'focus "shell.account" "The account control names who is signed in. Open it; Sign out is the last entry." side=bottom',
+        'wait target "shell.account" event=activate timeout=30000',
+        'success "The unlock screen says you are signed out. Sign in again from the user menu, or continue as a guest."',
+        "end",
+      ]);
+    },
   },
   {
     id: "identity.switch-account",
     title: "Sign in as somebody else",
     routes: [],
     requires: ["account.signed-in"],
-    guide: [
-      "guide/1",
-      'goal "identity.switch-account"',
-      'say "Switching signs this device out and starts a fresh sign-in. An OpenID issuer is asked to authenticate again; a Google account through shoo.dev is the one shoo.dev remembers, and a different one means signing out at shoo.dev/me first."',
-      'wait state "vault.unlocked" is=true timeout=60000',
-      'focus "shell.account" "Open the account menu and choose Switch account." side=bottom',
-      'wait target "shell.account" event=activate timeout=30000',
-      'success "Choose the account to sign in with from the user menu."',
-      "end",
-    ].join("\n"),
+    get guide() {
+      return sessionGuide([
+        "guide/1",
+        'goal "identity.switch-account"',
+        'say "Switching signs this device out and starts a fresh sign-in. An OpenID issuer is asked to authenticate again; a Google account through shoo.dev is the one shoo.dev remembers, and a different one means signing out at shoo.dev/me first."',
+        'wait state "vault.unlocked" is=true timeout=60000',
+        'focus "shell.account" "Open the account menu and choose Switch account." side=bottom',
+        'wait target "shell.account" event=activate timeout=30000',
+        'success "Choose the account to sign in with from the user menu."',
+        "end",
+      ]);
+    },
   },
   {
     id: "vault.second-step.code",

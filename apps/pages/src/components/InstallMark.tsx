@@ -38,7 +38,7 @@ function IconInstallApp({ className, title, size = 20 }: IconProps) {
  * Chromium's dialog has to hang off a real gesture; this is that gesture.
  * iOS has no dialog a page may open, so the three-tap card stays in Settings.
  */
-export function InstallMark() {
+export function InstallMark({ form = "icon" }: { form?: "icon" | "row" }) {
   const { state, visible, install } = useInstall();
   const [busy, setBusy] = useState(false);
   if (!visible || state !== "prompt") return null;
@@ -46,7 +46,7 @@ export function InstallMark() {
   return (
     <button
       type="button"
-      className="icon-btn rail__install"
+      className={form === "row" ? "more__row" : "icon-btn rail__install"}
       aria-label="Install OpenSesame"
       title="Install OpenSesame"
       disabled={busy}
@@ -57,6 +57,9 @@ export function InstallMark() {
       }}
     >
       <IconInstallApp size={17} />
+      {form === "row" ? (
+        <span className="more__name">OpenSesame app</span>
+      ) : null}
     </button>
   );
 }

@@ -20,7 +20,12 @@ import { briefOrigin } from "@opensesame/os-domain";
 import { useEffect, useState } from "react";
 import { ensurePersistence as ensurePersistenceDefault } from "../lib/install.js";
 import { useInstall } from "../lib/use-install.js";
-import { IconAddSquare, IconCheck, IconDownload, IconShare } from "./Icons.js";
+import {
+  IconAddSquare,
+  IconCheck,
+  IconDownload,
+  IconIOSShare,
+} from "./Icons.js";
 
 export const installOfferDependencies = {
   ensurePersistence: ensurePersistenceDefault,
@@ -145,7 +150,7 @@ export function InstallOffer({ heading }: { heading?: string } = {}) {
             <span>
               Tap{" "}
               <span className="keep__glyph">
-                <IconShare size={15} />
+                <IconIOSShare size={15} />
               </span>{" "}
               Share, in your browser's toolbar.
             </span>

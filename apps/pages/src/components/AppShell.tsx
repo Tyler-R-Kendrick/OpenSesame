@@ -20,26 +20,19 @@ import { useTabSwipe } from "../lib/tab-swipe-hook.js";
 import { useGestures } from "../lib/use-gestures.js";
 import { useNarrow } from "../lib/use-narrow.js";
 import { useVaultStore } from "../lib/vault/hooks.js";
-import { useGuideTarget } from "../tutorial/registry/react.jsx";
-import { AccountSwitcher } from "./AccountSwitcher.js";
 import { Crumbs } from "./Crumbs.js";
-import { IconLock } from "./Icons.js";
 import { InstallMark } from "./InstallMark.js";
 import { KeymapSheet } from "./KeymapSheet.js";
-import { MoreMenu } from "./MoreMenu.js";
-import { NavDrawer } from "./NavDrawer.js";
+import { MobileToolbar } from "./MobileToolbar.js";
 import { NavTree } from "./NavTree.js";
-import { ProjectSwitcher } from "./ProjectSwitcher.js";
 import {
   type SectionRowModel,
   sectionForPath,
-  sessionSections,
   useSections,
 } from "./RailRows.js";
+import { SessionPrompt } from "./SessionPrompt.js";
 import { Statusline } from "./Statusline.js";
-import { ThemeToggle } from "./ThemeToggle.js";
 import { Wordmark } from "./Wordmark.js";
-import { openContextMenu } from "./context-menu/menu-model.js";
 import { DuressPresentationOverlay } from "./duress/DuressPresentationOverlay.js";
 
 /**
@@ -74,61 +67,6 @@ function useDeniedRouteFallback(sections: readonly SectionRowModel[]) {
     focusVaultListing();
     if (keyboardIsIdle()) landFocus(document.getElementById("main"));
   }, [location.pathname]);
-}
-
-/**
- * Account, vault switcher, and lock share one session prompt at every
- * width. The prompt is also the home of the two session-level
- * directories the rail leaves out — settings and the activity log —
- * so a right-click (or the menu key) on it roots the tree in either
- * one, the way a shell's `cd` does. The rail stacks the account over the vault;
- * the phone's top bar keeps them in one row (`.prompt__line` in glyph.css).
- */
-function SessionPrompt() {
-  const store = useVaultStore();
-  const navigate = useNavigate();
-  const sections = useSections();
-  const lockRef = useGuideTarget<HTMLButtonElement>("shell.lock");
-  const roots = sessionSections(sections);
-  return (
-    <div
-      className="rail__prompt"
-      onContextMenu={(event) => {
-        if (roots.length === 0) return;
-        openContextMenu(event, event.currentTarget, "Session", [
-          roots.map((root) => ({
-            id: root.id,
-            label: root.label,
-            hint: `g ${root.jump}`,
-            run: () => navigate(root.to),
-          })),
-        ]);
-      }}
-    >
-      <div className="prompt__line prompt__line--account">
-        <AccountSwitcher />
-        <span className="prompt__dim" aria-hidden="true">
-          @
-        </span>
-      </div>
-      <div className="prompt__line prompt__line--vault">
-        <ProjectSwitcher />
-        <span className="prompt__dim prompt__dim--path" aria-hidden="true">
-          :/
-        </span>
-        <button
-          ref={lockRef}
-          type="button"
-          className="icon-btn"
-          onClick={() => store.lock()}
-          aria-label="Lock vault"
-          title="Lock vault"
-        >
-          <IconLock size={17} />
-        </button>
-      </div>
-    </div>
-  );
 }
 
 /**
@@ -193,16 +131,7 @@ function Shell({ children }: { children?: ReactNode }) {
         {/* Phone chrome only: on a desktop the rail carries identity and the
             statusline carries plane truth, so the top bar exists where the
             rail is gone. */}
-        <header className="topbar">
-          {/* Sections at the leading edge, where a drawer's key belongs; plane
-              truth, notifications, help and the keymap at the trailing one.
-              Between them the bar a phone already had is the whole chrome. */}
-          <NavDrawer />
-          <SessionPrompt />
-          <InstallMark />
-          <ThemeToggle />
-          <MoreMenu />
-        </header>
+        <MobileToolbar />
 
         <Crumbs />
 

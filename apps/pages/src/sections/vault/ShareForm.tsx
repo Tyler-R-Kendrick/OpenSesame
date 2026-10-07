@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
-import { IconDrop, IconX } from "../../components/Icons.js";
+import { IconShare, IconX } from "../../components/Icons.js";
 import { TtlChoices } from "./DropTtl.js";
 
 /**
@@ -41,7 +41,7 @@ export function ShareForm({
           disabled={busy}
           busy={busy}
           onClick={onSeal}
-          icon={<IconDrop size={18} />}
+          icon={<IconShare size={18} />}
         />
         <IconKey label="Cancel" small disabled={busy} onClick={onCancel}>
           <IconX size={16} />

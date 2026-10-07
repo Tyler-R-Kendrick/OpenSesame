@@ -72,6 +72,34 @@ describe("AccountSwitcher", () => {
 
   afterEach(cleanup);
 
+  it.each(["opener", "popup"] as const)(
+    "Escape from the %s closes only the switcher and restores its opener",
+    (source) => {
+      const outerEscape = vi.fn();
+      render(
+        <div onKeyDown={outerEscape}>
+          <MemoryRouter>
+            <AccountSwitcher />
+          </MemoryRouter>
+        </div>,
+      );
+      const opener = screen.getByTitle("Switch account");
+      opener.focus();
+      fireEvent.click(opener);
+      const popup = document.querySelector(".account-switcher__menu");
+      const target =
+        source === "opener" ? opener : popup?.querySelector("button");
+      if (!target) throw new Error("switcher focus target missing");
+      target.focus();
+      fireEvent.keyDown(target, { key: "Escape" });
+      expect(screen.queryByLabelText("Accounts")).toBeNull();
+      expect(document.activeElement).toBe(opener);
+      expect(outerEscape).not.toHaveBeenCalled();
+      fireEvent.keyDown(opener, { key: "Escape" });
+      expect(outerEscape).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("shows guest for an anonymous session and lets them add an organization", async () => {
     renderSwitcher();
     expect(screen.queryByText("Accounts")).toBeNull();

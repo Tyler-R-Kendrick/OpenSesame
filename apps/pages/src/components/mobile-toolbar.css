@@ -1,0 +1,136 @@
+.topbar.mobile-toolbar {
+  gap: 0.25rem;
+  min-height: 56px;
+  padding: calc(0.25rem + env(safe-area-inset-top))
+    calc(0.5rem + env(safe-area-inset-right)) 0.25rem
+    calc(0.5rem + env(safe-area-inset-left));
+}
+
+.mobile-toolbar .topbar__menu,
+.mobile-toolbar .topbar__more {
+  margin: 0;
+}
+
+.mobile-toolbar > .icon-btn {
+  flex: none;
+}
+
+.mobile-toolbar__section {
+  flex: 1;
+  min-width: 0;
+  padding-inline: 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.drawer:has(.drawer__session) {
+  width: min(88vw, 340px);
+}
+
+.drawer__session {
+  flex: none;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.mobile-toolbar .drawer__session .rail__prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex: none;
+  overflow: visible;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+}
+
+.mobile-toolbar .drawer__session .prompt__line {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.mobile-toolbar .drawer__session .prompt__line::before {
+  flex: none;
+  width: 4.5rem;
+  padding-left: 0.6rem;
+  color: var(--ink-2);
+  font-size: 0.8125rem;
+}
+
+.mobile-toolbar .drawer__session .prompt__line--account::before {
+  content: "Account";
+}
+
+.mobile-toolbar .drawer__session .prompt__line--vault::before {
+  content: "Vault";
+}
+
+.mobile-toolbar .drawer__session .prompt__dim {
+  display: none;
+}
+
+.mobile-toolbar .drawer__session .account-switcher,
+.mobile-toolbar .drawer__session .project-switcher {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-toolbar .drawer__session .prompt__seg {
+  display: flex;
+  width: 100%;
+  max-width: none;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 44px;
+  gap: 0.6rem;
+}
+
+.mobile-toolbar .drawer__session .prompt__seg--glyph .prompt__name {
+  display: block;
+}
+
+.mobile-toolbar .drawer__session .account-switcher__menu,
+.mobile-toolbar .drawer__session .project-switcher__menu {
+  position: fixed;
+  inset: 5rem 0.5rem auto;
+  width: auto;
+  min-width: 0;
+  max-height: calc(100dvh - 6rem);
+  overflow-y: auto;
+  white-space: normal;
+}
+
+.more__appearance {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.more__theme {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.5rem;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.more__theme[aria-pressed="true"] {
+  background: var(--surface-3);
+  color: var(--ink);
+  border-color: var(--ink-2);
+}

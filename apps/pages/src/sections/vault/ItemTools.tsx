@@ -3,9 +3,9 @@ import { type MutableRefObject, useCallback } from "react";
 import { Link, useNavigate } from "react-router";
 import { IconKey } from "../../components/IconKey.js";
 import {
-  IconDrop,
   IconEdit,
   IconRefresh,
+  IconShare,
   IconStar,
   IconTrash,
   IconX,
@@ -46,7 +46,7 @@ function ShareKey({
       aria-label="Share once"
       title="Share once (s)"
     >
-      <IconDrop size={17} />
+      <IconShare size={17} />
     </button>
   );
 }

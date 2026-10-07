@@ -1,3 +1,4 @@
+import { sessionGuide } from "./session-guide.js";
 /**
  * Named goals, authored help, and the deterministic guides that run when no
  * model is available at all.
@@ -55,15 +56,17 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
     id: "vaults.switch",
     title: "Switch to another vault on this device",
     routes: [],
-    guide: [
-      "guide/1",
-      'goal "vaults.switch"',
-      'say "A device can hold several vaults: the personal one, one per project, and a guest session beside them. Switching locks the open vault unless the other shares its key."',
-      'focus "prompt.tomb" "This segment names the open vault. Press it to see every vault on this device." side=bottom',
-      'wait target "prompt.tomb" event=activate timeout=30000',
-      'say "Each row says when it was sealed and whether it opens without a prompt. Settings → Vaults is where a vault is sealed with a choice, or deleted."',
-      "end",
-    ].join("\n"),
+    get guide() {
+      return sessionGuide([
+        "guide/1",
+        'goal "vaults.switch"',
+        'say "A device can hold several vaults: the personal one, one per project, and a guest session beside them. Switching locks the open vault unless the other shares its key."',
+        'focus "prompt.tomb" "This control names the open vault. Press it to see every vault on this device." side=bottom',
+        'wait target "prompt.tomb" event=activate timeout=30000',
+        'say "Each row says when it was sealed and whether it opens without a prompt. Settings → Vaults is where a vault is sealed with a choice, or deleted."',
+        "end",
+      ]);
+    },
   },
   {
     id: "host.health.check",

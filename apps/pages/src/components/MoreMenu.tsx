@@ -1,32 +1,3 @@
-/**
- * The phone's status chrome, as one item in the nav it already has.
- *
- * A desktop statusline can afford five connector glyphs side by side: the row
- * is a glance that costs nothing, and the pips are the whole point of it. A
- * phone cannot, and the answer is not a shorter strip — it is no strip. A
- * second full-width bar under the tab bar is a row of the frame spent on
- * things a person looks at rarely, and every phone platform puts exactly that
- * behind the last item of the nav it already draws.
- *
- * So on a phone the statusline is not drawn at all: notifications, help, the
- * keymap and the five connectors live behind one key in the bar the phone
- * already has at the top, where an overflow belongs and where the prompt's
- * `flex: 1` leaves room for it at every width. It carries a dot whenever
- * something inside wants attention, so nothing that used to be glanceable
- * stopped being glanceable — a pip on a strip and a dot on a key say the same
- * thing for the same reason.
- *
- * It is deliberately not a sixth tab. The tab bar divides its width between
- * five labels, and a sixth column clipped "Connections" to "Connecti…" at 320,
- * 390 and 430 alike — the `cqi` clamp sizes type against the bar, which does
- * not shrink when a column is added. The top bar has the room the nav does
- * not.
- *
- * The rows are the same `.conn` tiles Settings already draws for this list, so
- * the menu introduces no pattern of its own, and it gives the keymap sheet its
- * first affordance on a phone: `?` opened it on a desktop and nothing did here.
- */
-
 import {
   type ConnectorId,
   type ConnectorStatus,
@@ -39,8 +10,10 @@ import { showKeymapHelp } from "../lib/keymap.js";
 import { useModalFocus } from "../lib/modal-focus.js";
 import { useGuideTarget } from "../tutorial/registry/react.jsx";
 import { useSupport } from "../tutorial/session.js";
+import { AppearanceChoices } from "./AppearanceChoices.js";
 import { ConnectionCeremony, connectorGlyph } from "./ConnectionCeremony.js";
 import { IconBell, IconDots, IconHelp, IconTerminal, IconX } from "./Icons.js";
+import { InstallMark } from "./InstallMark.js";
 import { NotificationsBar, useNoticeCount } from "./NotificationsBar.js";
 
 import { useConnectors } from "../bindings/connectors.js";
@@ -211,6 +184,9 @@ function MoreSheet({
             onClose={onClose}
             onNotices={onNotices}
           />
+          <InstallMark form="row" />
+          <h3 className="more__head">Appearance</h3>
+          <AppearanceChoices />
           <h3 className="more__head">Connections</h3>
           <ConnectionRows connectors={connectors} onPick={onPick} />
         </div>

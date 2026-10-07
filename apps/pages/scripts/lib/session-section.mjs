@@ -13,6 +13,14 @@ export async function openSessionMenu(page) {
 }
 
 export async function openSessionSection(page, name) {
+  const sections = page.getByRole("button", { name: "Sections", exact: true });
+  if (await sections.isVisible().catch(() => false)) {
+    const drawer = page.getByRole("dialog", { name: "Sections", exact: true });
+    if (!(await drawer.isVisible().catch(() => false))) await sections.click();
+    await drawer.getByRole("link", { name, exact: true }).click();
+    await drawer.waitFor({ state: "hidden" });
+    return;
+  }
   const rooted = page.getByRole("treeitem", { name, exact: true });
   if (
     (await rooted.count()) > 0 &&

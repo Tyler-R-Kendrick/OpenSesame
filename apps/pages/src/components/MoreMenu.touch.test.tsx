@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { loadTheme, setTheme } from "../lib/theme.js";
 import { matchMediaFor } from "../lib/use-narrow.test-fake.js";
 import { SupportProvider } from "../tutorial/session.js";
 import { touchTips } from "./EmptyTip.js";
@@ -71,5 +72,26 @@ describe("the More key as a tutorial target", () => {
       document.querySelectorAll('[data-guide-targets~="shell.connectivity"]')
         .length,
     ).toBe(2);
+  });
+});
+
+describe("appearance in the mobile menu", () => {
+  it("selects Day, Night and System without closing the context menu", () => {
+    pointer(true);
+    menuRows();
+    for (const [name, theme] of [
+      ["Day", "light"],
+      ["Night", "dark"],
+      ["System", "system"],
+    ] as const) {
+      fireEvent.click(screen.getByRole("button", { name }));
+      expect(loadTheme()).toBe(theme);
+      expect(document.documentElement.getAttribute("data-theme")).toBe(
+        theme === "system" ? null : theme,
+      );
+      expect(screen.getByRole("button", { name, pressed: true })).toBeTruthy();
+      expect(screen.getByRole("dialog", { name: "More" })).toBeTruthy();
+    }
+    setTheme("system");
   });
 });

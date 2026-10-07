@@ -1,0 +1,229 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings"
+        },
+        {
+          "press": "^Day$"
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Example account"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "measure": ".topbar"
+        },
+        {
+          "measure": ".topbar > button"
+        },
+        {
+          "measure": ".detail__tools [aria-label=\"Share once\"]"
+        },
+        {
+          "shot": "390-account"
+        },
+        {
+          "press": "Sections"
+        },
+        {
+          "measure": ".drawer__session .prompt__seg"
+        },
+        {
+          "shot": "390-sections"
+        },
+        {
+          "escape": null
+        },
+        {
+          "press": "^More \u2014"
+        },
+        {
+          "measure": ".more__theme"
+        },
+        {
+          "shot": "390-more"
+        },
+        {
+          "escape": null
+        },
+        {
+          "visit": "settings"
+        },
+        {
+          "press": "^Night$"
+        },
+        {
+          "visit": "vault"
+        },
+        {
+          "measure": ".topbar"
+        },
+        {
+          "shot": "390-night"
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "height": 740,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings"
+        },
+        {
+          "press": "^Day$"
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Example account"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "measure": ".topbar"
+        },
+        {
+          "measure": ".topbar > button"
+        },
+        {
+          "measure": ".detail__tools [aria-label=\"Share once\"]"
+        },
+        {
+          "shot": "320-account"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings"
+        },
+        {
+          "press": "^Day$"
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Example account"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "measure": ".topbar"
+        },
+        {
+          "measure": ".topbar > button"
+        },
+        {
+          "measure": ".detail__tools [aria-label=\"Share once\"]"
+        },
+        {
+          "shot": "1280-account"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-account",
+      "width": 390,
+      "title": "Account header \u2014 390px",
+      "caption": "Navigation, page context, and primary session controls.",
+      "before": "Account and vault glyphs, lock, install, theme, and overflow in one row.",
+      "after": "Sections, current section, Lock, and More; standard three-node Share icon."
+    },
+    {
+      "shot": "390-sections",
+      "width": 390,
+      "title": "Navigation and switching",
+      "caption": "Consolidated controls, reachable from the phone header.",
+      "before": "Navigation without session switching.",
+      "after": "Account and vault names together above section navigation."
+    },
+    {
+      "shot": "390-more",
+      "width": 390,
+      "title": "Context menu",
+      "caption": "Consolidated controls, reachable from the phone header.",
+      "before": "Utilities and connections.",
+      "after": "Appearance choices and app installation alongside utilities and connections."
+    },
+    {
+      "shot": "390-night",
+      "width": 390,
+      "title": "Night appearance",
+      "caption": "Consolidated controls, reachable from the phone header.",
+      "before": "Six controls, plus installation when available, in the phone header.",
+      "after": "Three controls and a readable section name in the phone header."
+    },
+    {
+      "shot": "320-account",
+      "width": 320,
+      "title": "Account header \u2014 320px",
+      "caption": "Navigation, page context, and primary session controls.",
+      "before": "Account and vault glyphs, lock, install, theme, and overflow in one row.",
+      "after": "Sections, current section, Lock, and More; standard three-node Share icon."
+    },
+    {
+      "shot": "1280-account",
+      "width": 1280,
+      "title": "Account header \u2014 1280px",
+      "caption": "Navigation, page context, and primary session controls.",
+      "before": "Account and vault glyphs, lock, install, theme, and overflow in one row.",
+      "after": "Sections, current section, Lock, and More; standard three-node Share icon."
+    }
+  ]
+}

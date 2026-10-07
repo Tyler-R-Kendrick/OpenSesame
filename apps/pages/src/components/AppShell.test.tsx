@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   registerContributedShell,
@@ -45,13 +45,18 @@ describe("AppShell on a core-only plan", () => {
     expect(jumps).toEqual(["gv"]);
   });
 
-  it("names the same two sections in the phone drawer", () => {
+  it("names the core sections and closes the phone drawer after navigation", () => {
     renderShell("/vault");
     fireEvent.click(screen.getByRole("button", { name: "Sections" }));
     const drawer = screen.getByRole("dialog", { name: "Sections" });
     expect(
       [...drawer.querySelectorAll(".drawer__name")].map((n) => n.textContent),
     ).toEqual(["Vault", "Settings"]);
+    fireEvent.click(within(drawer).getByRole("link", { name: "Settings" }));
+    expect(screen.queryByRole("dialog", { name: "Sections" })).toBeNull();
+    expect(
+      document.querySelector(".mobile-toolbar__section")?.textContent,
+    ).toBe("Settings");
   });
 
   it("lists the six core Settings categories and no contributed one", () => {
@@ -114,12 +119,17 @@ describe("AppShell", () => {
     for (const session of ["activity", "settings"]) {
       expect(screen.queryAllByText(session)).toHaveLength(0);
     }
-    expect(railLabels.flatMap((l) => screen.queryAllByText(l))).toHaveLength(0);
+    expect(document.querySelectorAll(".drawer__name")).toHaveLength(0);
+    expect(
+      document.querySelector(".mobile-toolbar__section")?.textContent,
+    ).toBe("Vault");
     const drawerLabels = [...railLabels, "Activity", "Settings"];
     fireEvent.click(screen.getByRole("button", { name: "Sections" }));
-    expect(drawerLabels.flatMap((l) => screen.queryAllByText(l))).toHaveLength(
-      7,
-    );
+    expect(
+      [...document.querySelectorAll(".drawer__name")].map(
+        (row) => row.textContent,
+      ),
+    ).toEqual(drawerLabels);
     const gone = ["Authority", "Authentication", "Sites"];
     expect(gone.flatMap((g) => screen.queryAllByText(g))).toHaveLength(0);
     expect(screen.getByText("content")).toBeTruthy();
@@ -201,23 +211,29 @@ describe("AppShell", () => {
       ).not.toBeNull();
     },
   );
-  it("groups lock with account and vault switching on desktop and phone", () => {
+  it("keeps lock in the mobile header and switching in its drawer", () => {
     const { container } = renderShell("/vault");
     const locks = screen.getAllByRole("button", { name: "Lock vault" });
     expect(locks).toHaveLength(2);
     expect(
       container.querySelector('.statusline [aria-label="Lock vault"]'),
     ).toBeNull();
-    for (const lock of locks) {
-      const prompt = lock.closest(".rail__prompt");
-      expect(
-        prompt?.querySelector('[data-testid="account-switcher"]'),
-      ).toBeTruthy();
-      expect(
-        prompt?.querySelector('[data-testid="project-switcher"]'),
-      ).toBeTruthy();
-      fireEvent.click(lock);
-    }
+    const header = container.querySelector(".mobile-toolbar");
+    expect(header?.querySelectorAll("button")).toHaveLength(3);
+    expect(
+      header?.querySelector('[data-testid="account-switcher"]'),
+    ).toBeNull();
+    expect(
+      header?.querySelector('[data-testid="project-switcher"]'),
+    ).toBeNull();
+    const desktop = container.querySelector(".rail__prompt");
+    expect(
+      desktop?.querySelector('[data-testid="account-switcher"]'),
+    ).toBeTruthy();
+    expect(
+      desktop?.querySelector('[data-testid="project-switcher"]'),
+    ).toBeTruthy();
+    for (const lock of locks) fireEvent.click(lock);
     expect(vault.lock).toHaveBeenCalledTimes(2);
   });
   it("offers a skip-to-content link as the first stop", () => {
