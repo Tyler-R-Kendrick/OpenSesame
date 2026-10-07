@@ -9,8 +9,8 @@ Audited against `origin/main` at `8f70cf43` (2026-10-07), then follow-up fixes o
 | P1 | GHCR container images | NOT DONE | No publish workflow on main | PARTIAL | PR #776 — **BLOCKED:** run workflow or push `v*` tag; confirm `packages: write` |
 | P2 | npm publish | NOT DONE | No workflow on main | PARTIAL | PR #776 — **BLOCKED:** add `NPM_TOKEN`, remove `private` on packages to publish |
 | P3 | Vercel + default services | PARTIAL | `apps/pages/vercel.json`; Pages on GH Actions (`deploy-pages.yml` success on main) | PARTIAL | PR #776 doc — **BLOCKED:** link Vercel project, set `PAGES_*` vars per `deploy-pages.yml` |
-| A1 | Host as relay + default capability bindings | NOT DONE | Gateway remains full Host API | NOT DONE | ADR-level; no relay-only product slice |
-| A2 | Vaults scoped to users/orgs like GitHub repos | PARTIAL | Project tombs + `listDeviceVaults()` | PARTIAL | Not GitHub-org parity; device + project vaults only |
+| A1 | Host as relay + default capability bindings | NOT DONE | Gateway remains full Host API | PARTIAL | [ADR 0181](../adr/0181-relay-host-org-vaults-and-join-sync.md) — decision only; gateway is still the full Host API |
+| A2 | Vaults scoped to users/orgs like GitHub repos | PARTIAL | Project tombs + `listDeviceVaults()` | PARTIAL | [ADR 0181](../adr/0181-relay-host-org-vaults-and-join-sync.md) — `OrgVaultRef` parser only; device and project tombs, no org directory |
 | A3 | Environments + prod hash reuse warning | PARTIAL | `vault.environments` module, tests | DONE | PR #776 — `notifyEnvironmentValueReuse()` + test |
 | R1 | Smart password reset email config | DONE | `ai.password-reset` capability, `PasswordResetMailPanel`, `password-reset-mail.ts` | DONE | — |
 | R2 | Auto reset from mailbox / per-item email | DONE | `resetEmailId` on account items, `ResetEmailField.tsx`, scan job | DONE | Requires login item type + capability |
@@ -32,7 +32,7 @@ Audited against `origin/main` at `8f70cf43` (2026-10-07), then follow-up fixes o
 | U13 | Reset device modal (design system) | DONE | `ResetBrowser.tsx`, danger panel tests | DONE | — |
 | U14 | Danger: trash list, empty/restore/delete | DONE | `SettingsDangerPanel.tsx` | DONE | — |
 | U15 | Setup "full" profile | DONE | `SetupConfiguration.tsx` `full` choice + `apply-configuration.ts` | DONE | — |
-| S1 | Join-session durable vault sync (Syncthing-like) | NOT DONE | Live join exists; no post-join vault replica | NOT DONE | Large feature; relay peer model |
+| S1 | Join-session durable vault sync (Syncthing-like) | NOT DONE | Live join exists; no post-join vault replica | PARTIAL | [ADR 0181](../adr/0181-relay-host-org-vaults-and-join-sync.md) — decision only; no durable replica |
 | S2 | Minimal slash-command typeahead | DONE | `CommandBar.test.tsx` | DONE | — |
 | S3 | Remove identity status icon | DONE | `Statusline.tsx` — no identity glyph | DONE | — |
 | S4 | Remove WebCrypto status icon | DONE | `Statusline.tsx` | DONE | — |
