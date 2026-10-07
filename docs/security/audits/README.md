@@ -160,3 +160,4 @@ here. The architecture-level documents they refine live one level up in
 | 2026-10-06 | [MCP OAuth issuer binding](2026-10-06-mcp-oauth-issuer-binding.md) |
 | 2026-10-06 | [CLI dependency remediation](2026-10-06-password-parity-cli-dependencies.md) |
 | 2026-10-06 | [Password parity dependency reconciliation, 2026-10-06](2026-10-06-password-parity-dependencies.md) |
+| 2026-10-06 | [RSA Marvin advisory reachability — October 6, 2026](2026-10-06-rsa-marvin-reachability.md) |

@@ -223,3 +223,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0179](0179-credentials-are-entries-bound-to-accounts.md) | Credentials are entries of their own, bound to an account by reference | Accepted |
 | [0180](0180-vaults-are-sealed-by-passkey-not-password.md) | A new vault is sealed by a passkey, never a master password | Accepted |
 | [0181](0181-the-title-row-is-one-path-control.md) | The editor's title row is one path control, and every field has a cap | Accepted |
+| [0182](0182-retired-credential-traps.md) | Retired credential traps in the offline client | Accepted |

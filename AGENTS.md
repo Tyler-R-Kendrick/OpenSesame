@@ -44,7 +44,7 @@ Canonical principals live in OpenSesame domain models
 
 ## 2. Toolchain
 
-- Node ≥ 22 (via `engines` in `package.json`)
+- Node ≥ 22.22.0 (via `engines` in `package.json`)
 - pnpm `9.15.0` via Corepack (`packageManager` field)
 - Rust `1.88` pinned for the host/authority plane (`cargo +1.88.0 ...`)
 - Turbo `2.9.14` (task orchestration across the workspace)
