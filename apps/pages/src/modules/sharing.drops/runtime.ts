@@ -27,7 +27,7 @@ import {
   DROPS_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/drops-catalog.js";
 import { KIND_LABEL } from "@opensesame/vault-core";
-import { IconDrop } from "../../components/Icons.js";
+import { IconShare } from "../../components/Icons.js";
 import {
   DropRecord,
   ShareSecretDrop,
@@ -58,7 +58,7 @@ export const capabilityRuntime: CapabilityRuntime = {
       kind: "drop",
       label: KIND_LABEL.drop,
       segment: "drops",
-      Icon: IconDrop,
+      Icon: IconShare,
       order: 50,
       creatable: false,
       Record: DropRecord,

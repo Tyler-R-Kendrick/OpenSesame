@@ -252,6 +252,18 @@ export function IconPhone(props: IconProps) {
   );
 }
 
+/** Share — three connected nodes. */
+export function IconShare(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m8.6 10.5 6.8-4m-6.8 7 6.8 4" />
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+    </Svg>
+  );
+}
+
 /* —— Install ————————————————————————————————————————————————— */
 
 /**
@@ -259,7 +271,7 @@ export function IconPhone(props: IconProps) {
  * Drawn rather than described, because "the share button" is three different
  * shapes across the platforms this app runs on.
  */
-export function IconShare(props: IconProps) {
+export function IconIOSShare(props: IconProps) {
   return (
     <Svg {...props}>
       <path d="M12 3.5v10.5" />

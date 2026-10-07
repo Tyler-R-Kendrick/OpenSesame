@@ -190,9 +190,11 @@ function checkArrangement(geometry, width, check) {
 }
 
 async function checkProfileLock(page, check, width) {
-  const prompt = page.locator(
-    width > 900 ? ".rail .rail__prompt" : ".topbar .rail__prompt",
-  );
+  if (width <= 900) {
+    await checkMobileLock(page, check, width);
+    return;
+  }
+  const prompt = page.locator(".rail .rail__prompt");
   const lockBox = await prompt
     .getByRole("button", { name: "Lock vault" })
     .boundingBox();
@@ -207,5 +209,34 @@ async function checkProfileLock(page, check, width) {
         lockBox.y + lockBox.height / 2 - vaultBox.y - vaultBox.height / 2,
       ) < 1,
     `one visible lock beside the vault switcher at ${width}px`,
+  );
+}
+
+async function checkMobileLock(page, check, width) {
+  const toolbar = page.locator(".topbar.mobile-toolbar");
+  const [barBox, sectionBox, lockBox, moreBox] = await Promise.all([
+    toolbar.boundingBox(),
+    toolbar.locator(".mobile-toolbar__section").boundingBox(),
+    toolbar.getByRole("button", { name: "Lock vault" }).boundingBox(),
+    toolbar.getByRole("button", { name: /^More — / }).boundingBox(),
+  ]);
+  check(
+    (await page.getByRole("button", { name: "Lock vault" }).count()) === 1 &&
+      barBox &&
+      sectionBox &&
+      lockBox &&
+      moreBox &&
+      lockBox.width >= 44 &&
+      lockBox.height >= 44 &&
+      lockBox.x >= sectionBox.x + sectionBox.width &&
+      moreBox.x >= lockBox.x + lockBox.width &&
+      moreBox.x - lockBox.x - lockBox.width <= 24 &&
+      lockBox.y >= barBox.y &&
+      lockBox.y + lockBox.height <= barBox.y + barBox.height &&
+      moreBox.x + moreBox.width <= barBox.x + barBox.width &&
+      Math.abs(
+        lockBox.y + lockBox.height / 2 - moreBox.y - moreBox.height / 2,
+      ) < 1,
+    `one touch-sized lock beside More in the mobile toolbar at ${width}px`,
   );
 }

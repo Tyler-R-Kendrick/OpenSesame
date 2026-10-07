@@ -48,6 +48,7 @@ evidence for a programme that ran across many pull requests.
 | Directory | What it shows |
 |---|---|
 | [`2026-10-07-rotate-without-password/`](2026-10-07-rotate-without-password/README.md) | Rotating the vault key without inventing a password — before / after |
+| [`2026-10-07-mobile-toolbar/`](2026-10-07-mobile-toolbar/README.md) | Mobile toolbar and share icon |
 | [`2026-10-07-mobile-gates/`](2026-10-07-mobile-gates/README.md) | Mobile lock screen and front door |
 | [`2026-10-07-account-detail/`](2026-10-07-account-detail/README.md) | Account password and website rows |
 | [`2026-10-06-sharp-plain-sheets/`](2026-10-06-sharp-plain-sheets/README.md) | Sharp corners, no red controls, one way out |

@@ -4,23 +4,32 @@
  * computed geometry in the touch context the walk already runs in.
  */
 
-/** The top bar's prompt keeps its lock key and ends a long name in an ellipsis. */
+/** Header controls stay inside the bar without overlapping the section name. */
 export async function topbarPromptFits(page, stop, { harness }) {
   const fit = await page.evaluate(() => {
-    const prompt = document.querySelector(".topbar .rail__prompt");
+    const prompt = document.querySelector(".topbar");
     const lock = prompt?.querySelector('[aria-label="Lock vault"]');
     if (!prompt || !lock) return null;
     const p = prompt.getBoundingClientRect();
     const k = lock.getBoundingClientRect();
-    const names = [...prompt.querySelectorAll(".prompt__seg")].map((n) => {
-      const r = n.getBoundingClientRect();
-      return { right: r.right, left: r.left };
-    });
+    const names = [...prompt.children]
+      .filter(
+        (n) =>
+          n.getBoundingClientRect().width > 0 && !n.matches(".sheet-layer"),
+      )
+      .map((n) => {
+        const r = n.getBoundingClientRect();
+        return { right: r.right, left: r.left };
+      });
     const overlap = names.some(
       (n, i) => i > 0 && n.left < names[i - 1].right - 0.5,
     );
     return { keyRight: k.right, promptRight: p.right, overlap, vw: innerWidth };
   });
+  harness.check(
+    fit !== null,
+    `${stop("topbar-prompt")}: the header and lock are on screen`,
+  );
   if (!fit) return;
   harness.check(
     fit.keyRight <= fit.promptRight + 0.5 && fit.keyRight <= fit.vw,
@@ -28,7 +37,7 @@ export async function topbarPromptFits(page, stop, { harness }) {
   );
   harness.check(
     !fit.overlap,
-    `${stop("topbar-prompt")}: the two names do not run into each other`,
+    `${stop("topbar-prompt")}: the header controls and section name do not overlap`,
   );
 }
 

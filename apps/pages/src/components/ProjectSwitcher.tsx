@@ -121,7 +121,16 @@ function ProjectSwitcherDefault() {
   }
 
   return (
-    <div className="project-switcher">
+    <div
+      className="project-switcher"
+      onKeyDown={(event) => {
+        if (!open || event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.querySelector("button")?.focus();
+        close();
+      }}
+    >
       <button
         ref={bindSegment}
         type="button"
@@ -166,9 +175,6 @@ function ProjectSwitcherDefault() {
           <div
             className="project-switcher__menu"
             aria-label="Vaults on this device"
-            onKeyDown={(event) => {
-              if (event.key === "Escape") close();
-            }}
           >
             <div className="project-switcher__head">
               <p className="project-switcher__label">Vaults on this device</p>

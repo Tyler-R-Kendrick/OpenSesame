@@ -193,9 +193,11 @@ so nothing else in the frame asks to be typed into. The vault adds
 a 21rem list column between rail and detail, giving ranger's three panes;
 the other sections read as a single 60rem flowing document of chapters.
 
-Below 900px the rail gives way to a slim top bar (the account and the lock),
-the statusline keeps the command, a section drawer key closes the
-frame, and the vault collapses to one pane at a time, each with a back key and
+Below 900px the rail gives way to a slim top bar: Sections, the current section
+name, Lock, and More. The Sections drawer groups account and vault switching
+with navigation; More holds appearance, installation, and secondary utilities.
+The statusline keeps the command, and the vault collapses to one pane at a
+time, each with a back key and
 a back swipe: the **section tree** (the rail's own `NavTree`, drawn in the
 buffer where a finger can reach it, and the screen the vault opens on), the
 **list** a tree entry opens (`/vault?f=…`, with `/vault?f=all` as the tree's
@@ -420,8 +422,9 @@ A finger is not a mouse pointer, and the phone is not a narrow desktop.
   home indicator.
 - **The chrome earns its height.** Below 900px the phone keeps the top bar and
   one statusline row and nothing else: the sections are a drawer behind one
-  top-bar key, and notifications, help, the keymap and the connection rows
-  are named rows behind the top bar's overflow key. The statusline runs edge to edge, one row of 44px keys,
+  top-bar key alongside account and vault switching. Notifications, help,
+  the keymap, installation, appearance, and connections sit behind More.
+  The statusline runs edge to edge, one row of 44px keys,
   and may never fold onto a second row, which costs a 568px screen a sixth of
   itself. The top bar and the statusline together stay under a third of the
   screen, rotated included.

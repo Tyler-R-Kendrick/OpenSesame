@@ -120,7 +120,16 @@ function AccountSwitcherDefault() {
   );
 
   return (
-    <div className="account-switcher">
+    <div
+      className="account-switcher"
+      onKeyDown={(event) => {
+        if (!open || event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.currentTarget.querySelector("button")?.focus();
+        close();
+      }}
+    >
       <button
         ref={bindSegment}
         type="button"
@@ -158,13 +167,7 @@ function AccountSwitcherDefault() {
             }}
             aria-hidden="true"
           />
-          <div
-            className="account-switcher__menu"
-            aria-label="Accounts"
-            onKeyDown={(event) => {
-              if (event.key === "Escape") close();
-            }}
-          >
+          <div className="account-switcher__menu" aria-label="Accounts">
             {account ? (
               <div className="account-switcher__who">
                 <span className="who__mark" aria-hidden="true">
