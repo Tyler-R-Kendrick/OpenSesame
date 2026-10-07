@@ -194,9 +194,7 @@ describe("App", () => {
       "/activity",
     ]) {
       const { unmount } = renderApp(route);
-      expect(
-        screen.getByText("Not available on this installation."),
-      ).toBeTruthy();
+      expect(screen.getByText("Not available here.")).toBeTruthy();
       expect(screen.getByRole("link", { name: "Vault" })).toBeTruthy();
       expect(screen.queryByText("vault welcome")).toBeNull();
       unmount();

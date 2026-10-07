@@ -508,12 +508,6 @@ button.conn-tile__link {
   gap: 0.3rem;
 }
 
-.conn-field-label span {
-  display: inline-flex;
-  color: var(--ink-3);
-  cursor: help;
-}
-
 .conn-tile__body .field > .hint {
   margin: 0.25rem 0 0;
   max-width: 65ch;

@@ -13,18 +13,20 @@ const MATCHES: UriMatch[] = [
   "never",
 ];
 
+/** What a rule matches, on the select that picks it — never a line under it. */
+const RULE_TITLES: Partial<Record<UriMatch, string>> = {
+  wildcard:
+    "Whole hostname, case-insensitive. *.example.com matches subdomains; * matches any characters, ? matches one.",
+  regex:
+    "Whole hostname, case-insensitive. Use example\\.com or (.*\\.)?example\\.com, without / delimiters or flags.",
+};
+
 function PatternTest({ uri }: { uri: LoginUri }) {
   const [website, setWebsite] = useState("");
   const [result, setResult] = useState("");
   const [busy, setBusy] = useState(false);
   return (
     <div>
-      <p className="hint">
-        Whole hostname only, case-insensitive.{" "}
-        {uri.match === "wildcard"
-          ? "*.example.com matches subdomains; * matches any characters, ? matches one."
-          : "Use example\\.com or (.*\\.)?example\\.com. No / delimiters or flags."}{" "}
-      </p>
       <div className="editor__inline">
         <input
           aria-label="Test website"
@@ -92,6 +94,7 @@ export function AccountWebsites({
             <select
               value={uri.match}
               aria-label={`Match rule ${index + 1}`}
+              title={RULE_TITLES[uri.match]}
               onChange={(event) => {
                 const match = MATCHES.find(
                   (candidate) => candidate === event.target.value,

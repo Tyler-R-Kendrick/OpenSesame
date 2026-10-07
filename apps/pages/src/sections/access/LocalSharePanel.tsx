@@ -151,12 +151,7 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
         />
       </div>
       <div className="panel__body">
-        {!canGrant ? (
-          <p className="hint">
-            An operator identity is assigned. Guests and members can view shares
-            but cannot grant or revoke them.
-          </p>
-        ) : null}
+        {!canGrant ? <p className="hint">View only.</p> : null}
         <FailureNotice id="access:shares" title="Shares" message={error} />
         {draft && canGrant ? (
           <GuideTarget id="access.grant-ceremony">

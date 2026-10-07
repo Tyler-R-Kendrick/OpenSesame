@@ -62,10 +62,6 @@ export function ApplicationDiagnostics(props: {
         </div>
       </div>
       <div className="panel__body">
-        <p className="hint">
-          Simulation uses the same scope-role check as local admission. It does
-          not issue tokens, send mail, or approve requests.
-        </p>
         <label>
           Role{" "}
           <select

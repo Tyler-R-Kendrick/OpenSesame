@@ -71,13 +71,8 @@ describe("UnlockScreen — guidance is drawn in the page, not trayed", () => {
     };
     v.methods = [];
     render(<UnlockScreen />);
-    const note = screen.getByText(
-      /no passkey, PIN or password to open it with/,
-    );
+    const note = screen.getByText("No key opens it.");
     expect(note.className).toBe("hint");
-    expect(note.textContent).toContain(
-      "Delete it and seal it again, or continue as a guest.",
-    );
     expect(statusNotices()).toEqual([]);
     expect(screen.queryByRole("tab", { name: "Password" })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Unlock/ })).toBeNull();

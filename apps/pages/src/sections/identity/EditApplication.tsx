@@ -169,10 +169,6 @@ function HostedApplicationForm(props: {
       }}
     >
       <h3>Edit application</h3>
-      <p className="hint">
-        This is a hosted OIDC client on your sign-in service. Registration is
-        not consent. Pages is not a SAML IdP or LDAP server.
-      </p>
       <ApplicationFields
         name={props.name}
         redirects={props.redirects}
@@ -182,10 +178,6 @@ function HostedApplicationForm(props: {
         onRedirects={props.onRedirects}
         onWorkload={props.onWorkload}
       />
-      <p className="hint">
-        Authorization code with PKCE S256; exact redirects remain enforced.
-        Public clients cannot use client_credentials.
-      </p>
       <FailureNotice
         id={`identity:application:${props.client.id}`}
         title="Application"
