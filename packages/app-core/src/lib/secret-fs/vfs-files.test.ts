@@ -189,3 +189,84 @@ describe("the VFS over a secret file store", () => {
     expect(vfs.seams.readRaw(BODY_KEY)).toBeNull();
   });
 });
+
+describe("the VFS's other sealed files as config documents", () => {
+  const sealedValue = JSON.stringify({ ivB64: "aXY=", ctB64: "Y3Q=" });
+
+  it("keeps a settings page's file at the address the page shows it under, with its language", async () => {
+    const { files, vfs } = await adapter();
+    await vfs.seams.writeRaw("tomb/t/config/live-transport", sealedValue);
+    await vfs.seams.writeRaw("tomb/t/config/prefs.source.yaml", sealedValue);
+    await vfs.seams.writeRaw("tomb/t/config/aws-kms", sealedValue);
+    expect(await run(files.list("t"))).toEqual([
+      "t/config/aws-kms.json",
+      "t/settings/live/transport.json",
+      "t/settings/prefs.yaml.json",
+    ]);
+    const doc = JSON.parse(
+      new TextDecoder().decode(
+        (await run(files.read("t/settings/prefs.yaml.json"))).bytes,
+      ),
+    );
+    expect(doc).toEqual({
+      format: "opensesame.config",
+      version: 1,
+      path: "config/prefs.source.yaml",
+      language: "yaml",
+      sealed: { ivB64: "aXY=", ctB64: "Y3Q=" },
+    });
+  });
+
+  it("gives every config back under its VFS key after a restart, wherever it is filed", async () => {
+    const { files, vfs } = await adapter();
+    for (const path of [
+      "config/live-transport",
+      "config/aws-kms",
+      "index",
+      "config/item-types/marketplaces.json",
+    ]) {
+      await vfs.seams.writeRaw(`tomb/t/${path}`, sealedValue);
+    }
+    const next = createFileBackedVfs(files);
+    await next.hydrate();
+    for (const path of [
+      "config/live-transport",
+      "config/aws-kms",
+      "index",
+      "config/item-types/marketplaces.json",
+    ]) {
+      expect(next.seams.readRaw(`tomb/t/${path}`)).toBe(sealedValue);
+    }
+    await next.seams.deleteRaw("tomb/t/config/live-transport");
+    expect(await run(files.list("t/settings"))).toEqual([
+      "t/settings/item-types/marketplaces.json",
+    ]);
+  });
+
+  it("keeps the header and markers as the plain text they are", async () => {
+    const { files, vfs } = await adapter();
+    await vfs.seams.writeRaw("tomb/t/header", '{"v":1}');
+    await vfs.seams.writeRaw("tomb/t/migrated.v1", "1");
+    expect(
+      new TextDecoder().decode((await run(files.read("t/header.json"))).bytes),
+    ).toBe('{"v":1}');
+    expect(
+      new TextDecoder().decode(
+        (await run(files.read("t/migrated.v1.json"))).bytes,
+      ),
+    ).toBe("1");
+  });
+
+  it("still reads a bare sealed blob from before the envelope, and a stray file in settings is not a vault file", async () => {
+    const files = makeMemorySecretFiles([
+      ["t/config/old.json", new TextEncoder().encode(sealedValue)],
+      ["t/settings/notes.json", new TextEncoder().encode('{"hello":1}')],
+    ]);
+    const { vfs } = await adapter(files);
+    expect(vfs.seams.readRaw("tomb/t/config/old")).toBe(sealedValue);
+    expect(vfs.seams.readRaw("tomb/t/settings/notes")).toBeNull();
+    await expect(
+      vfs.seams.writeRaw("tomb/t/settings/notes", sealedValue),
+    ).rejects.toMatchObject({ _tag: "SecretFsRejected" });
+  });
+});

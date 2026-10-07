@@ -31,6 +31,13 @@ import {
 import { Cause, Effect, Exit } from "effect";
 import type { VfsSeams } from "../vfs-seams.js";
 import { BODY_PATH, TOMBS_REGISTRY_KEY } from "../vfs.js";
+import {
+  SETTINGS_DIR,
+  configFileFor,
+  decodeConfig,
+  encodeConfig,
+  isPlainPath,
+} from "./config-docs.js";
 import { SecretFsRejected } from "./errors.js";
 import type { SecretFsError } from "./errors.js";
 import type { SecretFiles } from "./files.js";
@@ -48,12 +55,14 @@ const TOMBS_FILE = "tombs.json";
 const TOMB_KEY = /^tomb\/([^/]+)\/(.+)$/;
 
 type Location =
-  | Readonly<{ kind: "file"; file: string }>
+  | Readonly<{ kind: "file"; file: string; path: string }>
   | Readonly<{ kind: "body"; tomb: string }>;
 
 /** The file a VFS key is stored in, or why it cannot be. */
 function locate(key: string): Location {
-  if (key === TOMBS_REGISTRY_KEY) return { kind: "file", file: TOMBS_FILE };
+  if (key === TOMBS_REGISTRY_KEY) {
+    return { kind: "file", file: TOMBS_FILE, path: TOMBS_REGISTRY_KEY };
+  }
   const match = TOMB_KEY.exec(key);
   const [, tomb, path] = match ?? [];
   if (!tomb || !path) throw rejected(key, "is not a vault file");
@@ -62,11 +71,14 @@ function locate(key: string): Location {
   if (
     path === "vault" ||
     path === "secrets" ||
-    path.startsWith(`${SECRETS_DIR}/`)
+    path.startsWith(`${SECRETS_DIR}/`) ||
+    path.startsWith(`${SETTINGS_DIR}/`)
   ) {
     throw rejected(key, "is a name the secret layout keeps for itself");
   }
-  return { kind: "file", file: `${tomb}/${path}.json` };
+  // Header and markers are read before the vault opens: plain text, plain name.
+  const file = isPlainPath(path) ? `${path}.json` : configFileFor(path);
+  return { kind: "file", file: `${tomb}/${file}`, path };
 }
 
 function locatable(key: string): Location | null {
@@ -141,7 +153,7 @@ async function sealedUnder(
   }
 }
 
-/** The VFS key a stored file answers to, or `null` for one that is not a plain vault file. */
+/** The VFS key a stored file answers to by its name alone, or `null` for one that is not a vault file. */
 function keyOfFile(
   path: string,
 ): { key: string; flatBody: string | null } | null {
@@ -167,13 +179,23 @@ async function hydrateAll({ files, mirror, projections }: Held): Promise<void> {
   for (const path of await settle(files.list(""))) {
     const found = keyOfFile(path);
     if (found === null) continue;
+    const bytes = (await settle(files.read(path))).bytes;
     if (found.flatBody !== null) {
       projections.set(found.flatBody, {
         ...EMPTY_PROJECTION,
         legacyBody: true,
       });
     }
-    mirror.set(found.key, decode((await settle(files.read(path))).bytes));
+    // A config document names its own VFS path; any other file is the text it is.
+    const config = decodeConfig(bytes);
+    if (config !== null) {
+      const tomb = path.split("/")[0];
+      mirror.set(`tomb/${tomb}/${config.path}`, config.value);
+    } else if (
+      !path.split("/").slice(1).join("/").startsWith(`${SETTINGS_DIR}/`)
+    ) {
+      mirror.set(found.key, decode(bytes));
+    }
   }
 }
 
@@ -292,7 +314,9 @@ export function createFileBackedVfs(
           if (where.kind === "body") {
             return writeBody(held, where.tomb, value, vaultKey);
           }
-          await settle(files.write(where.file, encode(value)));
+          // A sealed value is a declarative document; header and markers are text.
+          const doc = encodeConfig(where.path, value);
+          await settle(files.write(where.file, doc ?? encode(value)));
           held.mirror.set(key, value);
         }),
       deleteRaw: (key) =>

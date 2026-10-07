@@ -80,6 +80,14 @@ a bounded retry and an honest account of what a lost answer meant.
      empty folder is a directory you can see, renaming one moves its directory
      and its secrets' files, and deleting one removes its marker (the empty
      directory itself is left; the contract has no directory removal).
+   - **Settings and extension state are documents too.** Every other sealed
+     VFS file (a page's preferences, a transport, a drive pairing, a
+     connector's settings) is a `config` document: the VFS path and the file's
+     language outside, the VFS's own seal inside, at the address its Settings
+     page shows it under where it has one (`settings/live/transport.json`) and
+     under `config/` where it does not. They stay sealed — editing one by hand
+     is not supported, and each page keeps its own language (YAML or JSON); no
+     page uses TOML today.
    - **The manifest is the commit point.** A write puts the changed documents
      first and the manifest last (a revision-checked write), then removes what is
      no longer listed. An edit to one secret rewrites that secret's file and the

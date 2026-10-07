@@ -14,7 +14,8 @@ any other plane that reads or writes a vault directory follows this.
     vault.json                                  the manifest: the commit point
     secrets/<folder>/<name>.<kind>.json         one sealed document per secret
     secrets/<folder>/folder.dir.json            one sealed document per folder: its directory, empty or not
-    config/…, index.json, …                     every other vault file, one file each
+    settings/<page>/<name>.<lang>.json          a Settings page's file, at the address the page shows it under
+    config/<name>.json, index.json, …           every other sealed vault file, one document each
 ```
 
 `<root>` is a directory, a path on a privately hosted store, or the browser's
@@ -27,7 +28,8 @@ name (`files.ts`: `checkPath`). A store refuses any other path.
 
 Both are JSON, pretty-printed with a trailing newline. The schemas are
 [`secret-file.schema.json`](secret-file.schema.json) and
-[`folder-file.schema.json`](folder-file.schema.json) and
+[`folder-file.schema.json`](folder-file.schema.json),
+[`config-file.schema.json`](config-file.schema.json) and
 [`vault-manifest.schema.json`](vault-manifest.schema.json), generated from the
 TypeScript reader and held to it by a drift test.
 
@@ -40,6 +42,16 @@ A folder file is `{ "format": "opensesame.folder", "version": 1, "sealed": … }
 bound as `vaultSealBinding(tomb, "folder/<id>")`, over `{ "v": 1, "rev", "folder" }`.
 Its directory is the folder's name, a `/` in the name making nested directories,
 so an empty folder is a directory you can see.
+
+A config file is `{ "format": "opensesame.config", "version": 1, "path": <VFS
+path>, "language": "json"|"yaml"|"toml", "sealed": … }`, the VFS's own seal
+(bound to the tomb and the VFS path) over the file's text. `path` says which VFS
+file it is; the file name is a label, chosen from a short table of Settings
+addresses (`config/prefs.source.yaml` → `settings/prefs.yaml.json`,
+`config/live-transport` → `settings/live/transport.json`) and otherwise the VFS
+path itself. `header`, `migrated.v1` and `seal-bound.v1` are read before the
+vault opens and are plain text at `<tomb>/<name>.json`. A bare sealed blob in a
+config file's place (before this envelope) is still read.
 
 The manifest is `{ "format": "opensesame.vault", "version": 1, "sealed": … }`,
 bound as `vaultSealBinding(tomb, "manifest")`, over the vault body without its

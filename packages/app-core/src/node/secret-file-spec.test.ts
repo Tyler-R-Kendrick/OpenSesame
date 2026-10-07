@@ -9,6 +9,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
+import { ConfigDoc } from "../lib/secret-fs/config-docs.js";
 import {
   FolderDoc,
   ManifestDoc,
@@ -22,6 +23,7 @@ const specPath = (name: string) =>
 
 const documents = {
   "secret-file.schema.json": SecretDoc,
+  "config-file.schema.json": ConfigDoc,
   "folder-file.schema.json": FolderDoc,
   "vault-manifest.schema.json": ManifestDoc,
 } as const;

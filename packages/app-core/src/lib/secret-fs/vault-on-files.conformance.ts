@@ -46,6 +46,15 @@ function layoutCases(inProcess: InProcess): void {
         ]),
       );
       expect(paths).not.toContain("personal/body.json");
+      // The vault's settings are documents too, not opaque blobs.
+      const prefs = JSON.parse(
+        text((await run(files.read("personal/index.json"))).bytes),
+      );
+      expect(prefs).toMatchObject({
+        format: "opensesame.config",
+        path: "index",
+        language: "json",
+      });
       const doc = JSON.parse(
         text(
           (await run(files.read("personal/secrets/wifi.secret.json"))).bytes,
