@@ -191,10 +191,15 @@ class NativeCanaryDeviceTest {
         field.performTextInput(current)
     }
     private fun click(label: String) {
+        // Security publishes configured controls after its real protected-state read.
+        // Await that exact node and enabled state within the existing action budget.
+        app.waitUntil(30_000) {
+            val nodes = app.onAllNodesWithText(label).fetchSemanticsNodes()
+            nodes.size == 1 && !nodes.single().config.contains(SemanticsProperties.Disabled)
+        }
         val node = app.onNodeWithText(label)
         if (label == "Security settings") node.assertIsDisplayed()
         else node.performScrollTo().assertIsDisplayed()
-        app.waitUntil(30_000) { !node.fetchSemanticsNode().config.contains(SemanticsProperties.Disabled) }
         node.performClick()
     }
     private fun waitText(text: String) { app.waitUntil(30_000) { app.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty() } }

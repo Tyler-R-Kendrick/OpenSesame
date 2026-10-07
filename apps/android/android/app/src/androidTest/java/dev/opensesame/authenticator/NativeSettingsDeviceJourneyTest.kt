@@ -114,9 +114,12 @@ class NativeSettingsDeviceJourneyTest {
 
         submit(current)
         waitOwnerPrompt()
-        device.pressBack()
-        waitText("Wallet could not be unlocked")
+        val cancellation = cancelActualOwnerPrompt(device)
+        app.waitUntil(cancellation.remaining()) {
+            app.onAllNodesWithText("Wallet could not be unlocked").fetchSemanticsNodes().isNotEmpty()
+        }
         assertEquals(NativeSession.Locked, NativeGate.session)
+        cancellation.remaining()
         submit(current)
         verifyOwnerPin()
         waitText("Security settings")
