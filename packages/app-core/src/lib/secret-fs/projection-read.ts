@@ -3,7 +3,7 @@
  * every secret it lists, each held to what the manifest says of it. The rules
  * a read enforces are `secret-docs.ts`'s to state.
  */
-import type { VaultBody } from "@opensesame/vault-core";
+import type { Folder, VaultBody, VaultItem } from "@opensesame/vault-core";
 import { Effect } from "effect";
 import type { SecretFsError } from "./errors.js";
 import { checkPath } from "./files.js";
@@ -11,6 +11,7 @@ import type { SecretFiles } from "./files.js";
 import { SECRETS_DIR } from "./layout.js";
 import {
   CONCURRENCY,
+  type FolderPayload,
   LEGACY_BODY_FILE,
   type Listing,
   MANIFEST_FILE,
@@ -19,8 +20,10 @@ import {
   type SecretPayload,
   type TombProjection,
   corrupt,
+  decodeFolderDoc,
   decodeManifestDoc,
   decodeSecretDoc,
+  folderBinding,
   manifestBinding,
   opened,
   secretBinding,
@@ -30,56 +33,111 @@ export type ReadProjection = Readonly<{
   body: VaultBody;
   state: TombProjection;
 }>;
-type Listed = Readonly<{ item: SecretPayload["item"]; entry: Projected }>;
+type Listed<T> = Readonly<{ value: T; entry: Projected }>;
 
-/** One listed secret, opened and held to what the manifest says of it. */
-function readListed(
-  files: SecretFiles,
-  tomb: string,
-  key: CryptoKey,
-  manifestRev: number,
-  { id, file, rev }: Listing,
-): Effect.Effect<Listed, SecretFsError> {
+/** The stored bytes of a listed document, from a path the manifest may name. */
+function readStored(files: SecretFiles, tomb: string, file: string) {
+  const path = `${tomb}/${file}`;
   return Effect.gen(function* () {
-    const path = `${tomb}/${file}`;
     if (!file.startsWith(`${SECRETS_DIR}/`)) {
       return yield* corrupt(path, "is listed outside the secrets directory");
     }
     yield* checkPath(file);
-    const stored = yield* files
+    return yield* files
       .read(path)
       .pipe(
         Effect.catchTag("SecretFsNotFound", () =>
           Effect.fail(corrupt(path, "is listed in the manifest but missing")),
         ),
       );
-    const envelope = yield* decodeSecretDoc(stored.bytes, path);
-    const payload = yield* opened<SecretPayload>(
-      key,
-      envelope.sealed,
-      secretBinding(tomb, id),
-      path,
-    );
-    // Older than the manifest says is a restored copy; newer by more than the
-    // one write that may have died before its manifest is not ours.
-    if (
-      payload.item.id !== id ||
-      payload.rev < rev ||
-      payload.rev > manifestRev + 1
-    ) {
-      return yield* corrupt(path, "is not the revision the manifest lists");
-    }
-    return {
-      item: payload.item,
-      entry: {
-        file,
-        rev,
-        json: JSON.stringify(payload.item),
-        revision: stored.revision,
-      },
-    };
   });
 }
+
+/**
+ * Hold what a document says to what the manifest says of it. Older than listed
+ * is a restored copy; newer by more than the one write that may have died
+ * before its manifest is not ours.
+ */
+type Stored = Readonly<{ revision: string }>;
+type Held<T> = Readonly<{ rev: number; value: T }>;
+
+function held<T extends { id: string }>(
+  tomb: string,
+  { id, file, rev }: Listing,
+  manifestRev: number,
+  stored: Stored,
+  document: Held<T>,
+): Effect.Effect<Listed<T>, SecretFsError> {
+  if (
+    document.value.id !== id ||
+    document.rev < rev ||
+    document.rev > manifestRev + 1
+  ) {
+    return Effect.fail(
+      corrupt(`${tomb}/${file}`, "is not the revision the manifest lists"),
+    );
+  }
+  return Effect.succeed({
+    value: document.value,
+    entry: {
+      file,
+      rev,
+      json: JSON.stringify(document.value),
+      revision: stored.revision,
+    },
+  });
+}
+
+function readItem(
+  files: SecretFiles,
+  tomb: string,
+  key: CryptoKey,
+  manifestRev: number,
+  listing: Listing,
+): Effect.Effect<Listed<VaultItem>, SecretFsError> {
+  const path = `${tomb}/${listing.file}`;
+  return Effect.gen(function* () {
+    const stored = yield* readStored(files, tomb, listing.file);
+    const doc = yield* decodeSecretDoc(stored.bytes, path);
+    const payload = yield* opened<SecretPayload>(
+      key,
+      doc.sealed,
+      secretBinding(tomb, listing.id),
+      path,
+    );
+    return yield* held(tomb, listing, manifestRev, stored, {
+      rev: payload.rev,
+      value: payload.item,
+    });
+  });
+}
+
+function readFolder(
+  files: SecretFiles,
+  tomb: string,
+  key: CryptoKey,
+  manifestRev: number,
+  listing: Listing,
+): Effect.Effect<Listed<Folder>, SecretFsError> {
+  const path = `${tomb}/${listing.file}`;
+  return Effect.gen(function* () {
+    const stored = yield* readStored(files, tomb, listing.file);
+    const doc = yield* decodeFolderDoc(stored.bytes, path);
+    const payload = yield* opened<FolderPayload>(
+      key,
+      doc.sealed,
+      folderBinding(tomb, listing.id),
+      path,
+    );
+    return yield* held(tomb, listing, manifestRev, stored, {
+      rev: payload.rev,
+      value: payload.folder,
+    });
+  });
+}
+
+const isListing = (entry: Listing | Folder): entry is Listing =>
+  "file" in entry;
 
 /** Rebuild the body from its documents, or `null` when the vault has no manifest. */
 export function readProjection(
@@ -100,20 +158,41 @@ export function readProjection(
       manifestBinding(tomb),
       manifestPath,
     );
-    const found = yield* Effect.forEach(
+    const rev = manifest.rev ?? 0;
+    const foundItems = yield* Effect.forEach(
       manifest.items,
-      (listing) => readListed(files, tomb, key, manifest.rev ?? 0, listing),
+      (listing) => readItem(files, tomb, key, rev, listing),
       { concurrency: CONCURRENCY },
     );
-    const { items: _listing, ...rest } = manifest;
+    // A manifest from before folders were files holds them whole.
+    const listedFolders = manifest.folders.filter(isListing);
+    const foundFolders = yield* Effect.forEach(
+      listedFolders,
+      (listing) => readFolder(files, tomb, key, rev, listing),
+      { concurrency: CONCURRENCY },
+    );
+    const wholeFolders = manifest.folders.filter(
+      (entry): entry is Folder => !isListing(entry),
+    );
+    const { items: _items, folders: _folders, ...rest } = manifest;
     const legacy = yield* files
       .read(`${tomb}/${LEGACY_BODY_FILE}`)
       .pipe(Effect.match({ onFailure: () => false, onSuccess: () => true }));
     return {
-      body: { ...rest, v: 1, items: found.map((entry) => entry.item) },
+      body: {
+        ...rest,
+        v: 1,
+        items: foundItems.map((found) => found.value),
+        folders: [...foundFolders.map((found) => found.value), ...wholeFolders],
+      },
       state: {
         manifestRevision: manifestFile.revision,
-        items: new Map(found.map(({ item, entry }) => [item.id, entry])),
+        items: new Map(
+          [...foundItems, ...foundFolders].map((found) => [
+            found.value.id,
+            found.entry,
+          ]),
+        ),
         legacyBody: legacy,
       },
     };

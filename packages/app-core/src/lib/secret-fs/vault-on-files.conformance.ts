@@ -250,6 +250,60 @@ function lifecycleCases(inProcess: InProcess): void {
     }));
 }
 
+function folderCases(inProcess: InProcess): void {
+  it("makes a folder a directory, empty or not, and brings it back", () =>
+    inProcess(async (files, restart) => {
+      const store = new VaultStore();
+      await store.create(PASSWORD);
+      const empty = await store.addFolder("clients/acme");
+      const full = await store.addFolder("home");
+      await store.saveItem(secret("wifi", "pw", full.id), full);
+      const paths = await run(files.list("personal/secrets"));
+      expect(paths).toContain("personal/secrets/clients/acme/folder.dir.json");
+      expect(paths).toContain("personal/secrets/home/folder.dir.json");
+      expect(paths).toContain("personal/secrets/home/wifi.secret.json");
+      const reopened = await restart();
+      const folders = reopened.getSnapshot().folders;
+      expect(folders.map((folder) => folder.name).sort()).toEqual([
+        "clients/acme",
+        "home",
+      ]);
+      expect(folders.find((folder) => folder.id === empty.id)).toBeDefined();
+    }));
+
+  it("moves a folder's directory and its secrets when it is renamed, and removes it when deleted", () =>
+    inProcess(async (files, restart) => {
+      const store = new VaultStore();
+      await store.create(PASSWORD);
+      const folder = await store.addFolder("old");
+      await store.saveItem(secret("wifi", "pw", folder.id), folder);
+      await store.renameFolder(folder.id, "new");
+      expect(await run(files.list("personal/secrets"))).toEqual([
+        "personal/secrets/new/folder.dir.json",
+        "personal/secrets/new/wifi.secret.json",
+      ]);
+      const reopened = await restart();
+      expect(reopened.getSnapshot().items[0]?.folderId).toBe(folder.id);
+      await reopened.deleteFolder(folder.id);
+      const left = await run(files.list("personal/secrets"));
+      expect(left.filter((path) => path.endsWith("folder.dir.json"))).toEqual(
+        [],
+      );
+    }));
+
+  it("keeps two folders that spell one directory in two marker files", () =>
+    inProcess(async (files) => {
+      const store = new VaultStore();
+      await store.create(PASSWORD);
+      await store.addFolder("Work Stuff");
+      await store.addFolder("Work-Stuff");
+      const markers = (await run(files.list("personal/secrets"))).filter(
+        (path) => path.includes("folder"),
+      );
+      expect(markers).toHaveLength(2);
+    }));
+}
+
 export function describeVaultOnFiles(
   name: string,
   make: () => Promise<FilesHarness>,
@@ -258,6 +312,7 @@ export function describeVaultOnFiles(
     const inProcess = processOver(make);
     layoutCases(inProcess);
     editCases(inProcess);
+    folderCases(inProcess);
     tamperCases(inProcess, make);
     raceAndFailureCases(inProcess);
     lifecycleCases(inProcess);

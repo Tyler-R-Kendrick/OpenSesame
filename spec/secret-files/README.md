@@ -13,6 +13,7 @@ any other plane that reads or writes a vault directory follows this.
     header.json                                 KDF parameters and key wraps (plaintext, as in vault format v1)
     vault.json                                  the manifest: the commit point
     secrets/<folder>/<name>.<kind>.json         one sealed document per secret
+    secrets/<folder>/folder.dir.json            one sealed document per folder: its directory, empty or not
     config/…, index.json, …                     every other vault file, one file each
 ```
 
@@ -26,6 +27,7 @@ name (`files.ts`: `checkPath`). A store refuses any other path.
 
 Both are JSON, pretty-printed with a trailing newline. The schemas are
 [`secret-file.schema.json`](secret-file.schema.json) and
+[`folder-file.schema.json`](folder-file.schema.json) and
 [`vault-manifest.schema.json`](vault-manifest.schema.json), generated from the
 TypeScript reader and held to it by a drift test.
 
@@ -34,10 +36,16 @@ A secret file is `{ "format": "opensesame.secret", "version": 1, "kind": …,
 (vault format v1) with associated data `vaultSealBinding(tomb, "secret/<id>")`,
 over `{ "v": 1, "rev": <body revision it was written at>, "item": <the item> }`.
 
+A folder file is `{ "format": "opensesame.folder", "version": 1, "sealed": … }`,
+bound as `vaultSealBinding(tomb, "folder/<id>")`, over `{ "v": 1, "rev", "folder" }`.
+Its directory is the folder's name, a `/` in the name making nested directories,
+so an empty folder is a directory you can see.
+
 The manifest is `{ "format": "opensesame.vault", "version": 1, "sealed": … }`,
 bound as `vaultSealBinding(tomb, "manifest")`, over the vault body without its
 items — `rev`, `folders`, `itemTypes`, `tombstones`, `deviceIdentityKey`,
-`masterWrap` — plus `items: [{ "id", "file", "rev" }]` in order.
+`masterWrap` — plus `items` and `folders`, each `[{ "id", "file", "rev" }]` in order. A manifest
+that holds `folders` whole (written before folders were files) is still read.
 
 The **file name is a label, never an identity**: the manifest says which file
 holds which id. Where a file goes is fixed by `secretFilePath`, whose cases are

@@ -75,6 +75,11 @@ a bounded retry and an honest account of what a lost answer meant.
    the manifest, not the name, says which file holds which secret. The body the
    store keeps in memory is unchanged, so merge, sync, export and backup are
    untouched; the layout is a way of *resting* it.
+   - **A folder is a directory.** Each folder is a small sealed document,
+     `folder.dir.json`, in its own directory (a `/` in its name nests), so an
+     empty folder is a directory you can see, renaming one moves its directory
+     and its secrets' files, and deleting one removes its marker (the empty
+     directory itself is left; the contract has no directory removal).
    - **The manifest is the commit point.** A write puts the changed documents
      first and the manifest last (a revision-checked write), then removes what is
      no longer listed. An edit to one secret rewrites that secret's file and the

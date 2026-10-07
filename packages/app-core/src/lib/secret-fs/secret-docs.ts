@@ -20,6 +20,7 @@
  * (a restored copy) or absent.
  */
 import {
+  type Folder,
   type SealedBlob,
   type VaultBody,
   type VaultItem,
@@ -30,12 +31,13 @@ import {
 import { Effect, Schema } from "effect";
 import { SecretFsRejected } from "./errors.js";
 import type { Revision } from "./files.js";
-import { secretFilePath } from "./layout.js";
+import { type SecretFileName, secretFilePath } from "./layout.js";
 
 export const MANIFEST_FILE = "vault.json";
 export const LEGACY_BODY_FILE = "body.json";
 export const SECRET_FORMAT = "opensesame.secret";
 export const MANIFEST_FORMAT = "opensesame.vault";
+export const FOLDER_FORMAT = "opensesame.folder";
 export const CONCURRENCY = 8;
 
 const SealedSchema = Schema.Struct({
@@ -49,6 +51,11 @@ export const SecretDoc = Schema.Struct({
   kind: Schema.String,
   sealed: SealedSchema,
 });
+export const FolderDoc = Schema.Struct({
+  format: Schema.Literal(FOLDER_FORMAT),
+  version: Schema.Literal(1),
+  sealed: SealedSchema,
+});
 export const ManifestDoc = Schema.Struct({
   format: Schema.Literal(MANIFEST_FORMAT),
   version: Schema.Literal(1),
@@ -56,9 +63,12 @@ export const ManifestDoc = Schema.Struct({
 });
 
 export type Listing = { id: string; file: string; rev: number };
-export type ManifestPayload = Omit<VaultBody, "items"> & {
+/** A folder is listed like an item; a manifest written before folders were files holds them whole. */
+export type ManifestPayload = Omit<VaultBody, "items" | "folders"> & {
   items: Listing[];
+  folders: Array<Listing | Folder>;
 };
+export type FolderPayload = { v: 1; rev: number; folder: Folder };
 export type SecretPayload = { v: 1; rev: number; item: VaultItem };
 
 /** What this process knows is on disk for one vault, so a write sends only what changed. */
@@ -95,7 +105,7 @@ export const corrupt = (path: string, reason: string) =>
 
 export const sealed = (
   key: CryptoKey,
-  value: ManifestPayload | SecretPayload,
+  value: ManifestPayload | SecretPayload | FolderPayload,
   binding: string,
   path: string,
 ) =>
@@ -121,17 +131,24 @@ export const opened = <T>(
 
 type SecretDocBody = typeof SecretDoc.Type;
 type ManifestDocBody = typeof ManifestDoc.Type;
+type FolderDocBody = typeof FolderDoc.Type;
 
-export const encode = (doc: SecretDocBody | ManifestDocBody) =>
+export const encode = (doc: SecretDocBody | ManifestDocBody | FolderDocBody) =>
   new TextEncoder().encode(`${JSON.stringify(doc, null, 2)}\n`);
 
 const secretDocFile = Schema.fromJsonString(SecretDoc);
 const manifestDocFile = Schema.fromJsonString(ManifestDoc);
+const folderDocFile = Schema.fromJsonString(FolderDoc);
 const notOfThisFormat = (path: string) => () =>
   corrupt(path, "is not a file of this format");
 
 export const decodeSecretDoc = (bytes: Uint8Array, path: string) =>
   Schema.decodeUnknownEffect(secretDocFile)(
+    new TextDecoder().decode(bytes),
+  ).pipe(Effect.mapError(notOfThisFormat(path)));
+
+export const decodeFolderDoc = (bytes: Uint8Array, path: string) =>
+  Schema.decodeUnknownEffect(folderDocFile)(
     new TextDecoder().decode(bytes),
   ).pipe(Effect.mapError(notOfThisFormat(path)));
 
@@ -142,6 +159,8 @@ export const decodeManifestDoc = (bytes: Uint8Array, path: string) =>
 
 export const secretBinding = (tomb: string, id: string) =>
   vaultSealBinding(tomb, `secret/${id}`);
+export const folderBinding = (tomb: string, id: string) =>
+  vaultSealBinding(tomb, `folder/${id}`);
 export const manifestBinding = (tomb: string) =>
   vaultSealBinding(tomb, "manifest");
 export const kindOf = (item: VaultItem) =>
@@ -153,13 +172,11 @@ export const kindOf = (item: VaultItem) =>
  * a document cannot overwrite a file a failed save would leave still listed.
  */
 export function chooseFile(
-  item: VaultItem,
-  folder: string | null,
+  label: SecretFileName,
   prior: Projected | undefined,
   claimed: ReadonlySet<string>,
   reserved: ReadonlySet<string>,
 ): string {
-  const label = { folder, name: item.name, kind: kindOf(item), id: item.id };
   const plain = secretFilePath(label, new Set());
   const suffixed = secretFilePath(label, new Set([plain]));
   const lower = new Set([...claimed].map((path) => path.toLowerCase()));
