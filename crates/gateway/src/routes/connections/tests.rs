@@ -45,6 +45,7 @@ async fn operator_can_select_org_but_session_cannot_spoof_it() {
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .unwrap();
@@ -369,6 +370,7 @@ async fn harness() -> (AppState, AuthServer) {
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .expect("app state");
@@ -1534,6 +1536,7 @@ async fn github_harness(api_base: &str) -> AppState {
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .expect("app state");

@@ -14,6 +14,7 @@
 import {
   type DeviceVault,
   describeSealedAt,
+  vaultAddressLabel,
 } from "@opensesame/app-core/lib/vaults.js";
 import type { ReactNode } from "react";
 import { GlyphMark } from "./GlyphMark.js";
@@ -42,6 +43,8 @@ export function describeVaultRow(vault: DeviceVault): string {
   if (vault.state === "empty") parts.push("not sealed yet");
   else if (vault.sharedKey) parts.push("opens without a prompt");
   else if (!vault.named) parts.push("name is inside the vault");
+  const address = vault.named ? vaultAddressLabel(vault) : null;
+  if (address) parts.push(address);
   return parts.join(" · ");
 }
 

@@ -56,6 +56,17 @@ export type VaultHeader = {
    */
   unlocks?: import("./unlock-records.js").VaultUnlocks | undefined;
   createdAt: string;
+  /**
+   * Published address `owner/slug` (ADR 0181). Not the sealed display name.
+   * Absent until this device publishes the vault. A guest tomb never sets it.
+   */
+  publishedAddress?:
+    | {
+        ownerKind: "user" | "organization";
+        owner: string;
+        slug: string;
+      }
+    | undefined;
   /** Optional self-authored reminder. Never the password itself. */
   hint?: string;
   /**
@@ -292,6 +303,9 @@ export async function rewrapVaultKey(
     // The body is untouched by a re-key, so how far it has got carries over. A
     // fresh header would forget it and take the rollback check with it.
     ...(header.bodyRev !== undefined ? { bodyRev: header.bodyRev } : undefined),
+    ...(header.publishedAddress
+      ? { publishedAddress: header.publishedAddress }
+      : undefined),
   };
 }
 

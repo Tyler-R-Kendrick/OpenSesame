@@ -26,6 +26,8 @@ pub enum BindingPurpose {
     IdentityMappingClient,
     TrustedIngress,
     UpstreamConnector,
+    /// Vault-relay snapshot read and write (ADR 0181). Nothing else.
+    VaultRelay,
     // There is deliberately no probe purpose. The enforcement probe
     // (`crates/gateway/src/transport/probe.rs`) is an outbound client only: it
     // dials one of three fixed target words and asks the *unauthenticated*
@@ -145,6 +147,32 @@ fn validate_list(
             return Err(TransportError::malformed(format!(
                 "{field}: duplicate entry"
             )));
+        }
+    }
+    Ok(())
+}
+
+/// Relay profile loads an empty set, or bindings whose only purpose is
+/// `vault_relay` and whose operations are the two snapshot calls.
+///
+/// # Errors
+///
+/// `MalformedConfiguration` when a binding names another purpose or operation.
+pub fn validate_relay_profile(set: &ServiceBindingSet) -> Result<(), TransportError> {
+    for binding in &set.bindings {
+        if binding.purpose != BindingPurpose::VaultRelay {
+            return Err(TransportError::malformed(
+                "relay profile accepts only purpose vault_relay",
+            ));
+        }
+        let allowed = binding.allowed_operations.iter().all(|op| {
+            op == super::operations::VAULT_RELAY_SNAPSHOT_READ
+                || op == super::operations::VAULT_RELAY_SNAPSHOT_WRITE
+        });
+        if !allowed {
+            return Err(TransportError::malformed(
+                "relay profile accepts only vault.relay.snapshot.read and vault.relay.snapshot.write",
+            ));
         }
     }
     Ok(())

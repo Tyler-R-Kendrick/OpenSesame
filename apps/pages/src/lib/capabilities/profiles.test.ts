@@ -228,6 +228,13 @@ describe("capability profiles", () => {
     }
   });
 
+  it("minimal-local leaves sharing.relay unapproved", () => {
+    const plan = resolve("minimal-local");
+    expect(plan.capabilities["sharing.relay"]?.tier).toBe("optional");
+    expect(plan.capabilities["sharing.relay"]?.approved).toBe(false);
+    expect(plan.approvedModules).not.toContain("sharing.relay/runtime");
+  });
+
   it("minimal-local proves tailnet device management absent: no module, no operation", () => {
     const plan = resolve("minimal-local");
     const id = "networking.tailnet-devices";

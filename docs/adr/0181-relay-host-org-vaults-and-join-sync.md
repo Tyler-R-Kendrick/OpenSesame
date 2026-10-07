@@ -22,7 +22,7 @@
 ## Context
 
 Three rows in [the 2026-10 checklist](../audit/2026-10-requested-items.md)
-describe one deployment, and none of them is shipped:
+describe one deployment:
 
 - **A1.** `crates/gateway` is the full Host API. An operator cannot start
   that process as a relay whose default capabilities and service bindings are
@@ -194,12 +194,29 @@ way.
 
 ### 5. What this slice ships
 
-This ADR, the checklist rows for A1, A2, and S1, and the address parser
-`parseOrgVaultRef` / `formatOrgVaultRef` in
-`packages/os-domain/src/org-vault-ref.ts`. The parser is on the package's
-Node entry and its browser entry. It performs no I/O. No gateway route, no
-`BindingPurpose` variant, no catalog entry, no `listDeviceVaults()` field,
-and no replica are in this slice.
+The decision, the address parser `parseOrgVaultRef` / `formatOrgVaultRef`,
+and the first working code for phases 1–3:
+
+- Relay profile (`OPENSESAME_GATEWAY_PROFILE=relay` or `opensesame host run
+  --profile relay`) serves `GET /health/live`, the slot routes, and
+  `GET /v1/org-vaults`. Other routes, including `POST /api/v1/sync/pull`,
+  are absent. An empty binding set is the default. A document that is not
+  entirely purpose `vault_relay` with the two snapshot operations refuses
+  to start. The slot key is stored as SHA-256. Native mTLS admission of a
+  certificated peer, beyond that startup check, is still the full Host's
+  resolver.
+- `sharing.relay` is an optional Pages capability, off in the default plan.
+- A tomb header may carry `publishedAddress`. `listDeviceVaults()` exposes
+  it as `address`. A locked unnamed row is labeled `owner/slug`. A named
+  row keeps its sealed name and shows the address on the meta line. Guest
+  stays null. The portable snapshot header does not copy the address.
+- `packages/app-core/src/lib/vault-relay/client.ts` pushes and pulls a
+  sealed snapshot. Live join does not call it. A pages integration test
+  shows a second device receiving the first device's ciphertext metadata.
+
+Not in this slice: an Identity-issuer registration check, a membership
+test that refuses a member's publish, the vault-drive conformance replay,
+attachment parts, and `opensesame-id vault sync`.
 
 ## Phased implementation
 
@@ -250,15 +267,19 @@ commit.
 
 ## Consequences
 
-- A1, A2, and S1 are decided here and not shipped. The checklist stays
-  PARTIAL. A reader who needs a relay, an org vault, or a post-join replica
-  will not find them in the gateway or in Pages on this commit.
-- Until phase 1, `opensesame host run` is the full gateway, and an empty
-  service-binding set still denies every native peer under ADR 0132.
-- Until phase 2, the device list is still personal, project, and guest.
-  `OrgVaultRef` is a parser with no directory behind it.
-- Until phase 3, joining leaves no replica. Tailnet sync remains the only
-  durable merge, and it still runs only while the vault is unlocked.
+- A1, A2, and S1 have a first working slice. The checklist can cite the
+  relay profile, the address on the device list, and the replica client.
+  The issuer directory, the member-publish refusal, and the conformance
+  replay are still open, so those rows stay short of the whole phase.
+- `opensesame host run` without `--profile relay` is still the full
+  gateway. Relay profile loads an empty binding set unless the operator
+  writes one that is entirely `vault_relay`.
+- The device list reads `publishedAddress` from the tomb header. Nothing
+  in this slice publishes that field from the UI, and there is still no
+  check that a member cannot publish an organization vault.
+- Live join still writes nothing. The replica client runs only when a
+  caller pushes or pulls. Tailnet sync remains the merge while a vault
+  is unlocked. The relay stores the snapshot and does not merge it.
 - The relay learns the address, the generation, and the ciphertext length.
   It does not learn item names or secret values. That is the disclosure the
   tailnet drive already makes.
