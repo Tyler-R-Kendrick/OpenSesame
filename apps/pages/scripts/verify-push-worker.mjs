@@ -207,7 +207,7 @@ try {
     (s) => same(s.controller, core),
     "the second tab should be controlled by the core worker",
   );
-  await other.getByRole("button", { name: "Continue as guest" }).click();
+  await other.getByRole("button", { name: "Skip to the guest vault" }).click();
   await waitOpen(other);
   await other.waitForTimeout(500);
   const otherBefore = await other.evaluate(() => performance.timeOrigin);
@@ -325,7 +325,7 @@ try {
 
   // Taking the capability away reverts to the core worker. A load locks the
   // vault, so come back in as the guest the walk began as.
-  await page.getByRole("button", { name: "Continue as guest" }).click();
+  await page.getByRole("button", { name: "Skip to the guest vault" }).click();
   await waitOpen(page);
   await openSettingsCategory(page, "Capabilities");
   await capabilityOnSwitch(page, TITLE).waitFor({ timeout: 15_000 });

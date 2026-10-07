@@ -151,6 +151,9 @@ describe("the front door", () => {
       screen.queryByRole("button", { name: "Continue as guest" }),
     ).toBeNull();
     expect(
+      screen.queryByRole("button", { name: "Skip to the guest vault" }),
+    ).toBeNull();
+    expect(
       screen.queryByRole("button", { name: "Use without an account" }),
     ).toBeNull();
     expect(screen.queryByText("or sign in")).toBeNull();

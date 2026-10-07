@@ -276,7 +276,7 @@ export const AUDIT =
   // 7. Nothing floating covers a control. A screen with no statusline seats
   //    the support mark as a fixed corner overlay, and on a phone the card
   //    beneath it runs nearly edge to edge — so the mark landed on top of
-  //    "Continue as guest", a road that must never be hard to take. Geometry
+  //    "Skip to the guest vault", a road that must never be hard to take. Geometry
   //    alone never shows this: both elements measure perfectly.
   for (const float of document.querySelectorAll("body *")) {
     if (getComputedStyle(float).position !== "fixed") continue;

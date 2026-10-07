@@ -1,5 +1,5 @@
 /**
- * The guest road's placements on the sign-in and unlock screens.
+ * The guest road's placements on the front door and the unlock form.
  *
  * Guest is the most common road in, and it has been lost by accident more
  * than once — by gating it on an Identity API, by withholding it beside an
@@ -10,11 +10,12 @@
  * Capabilities (`guest-access.ts`), which is on unless somebody turned it
  * off. Every placement reads that switch here, so none can drift from it.
  *
- * The guest road lives in two places now — the front door's corner "Skip"
- * and the unlock form's footer "Continue as guest" — and both read the switch.
- * The sign-in panel used to carry a third and fourth copy (a full-size button
- * and a corner Skip); those are gone, so the panel's only no-account road is
- * the local seal ("Use without an account").
+ * One pattern, two placements, both reading the switch. The front door's
+ * corner says "Skip". Beside a sealed vault the unlock footer says "Skip to
+ * the guest vault" — the same tomb, not a second sign-in phrase. The sign-in
+ * panel carries neither: its only no-account road is the local seal ("Use
+ * without an account"). A keyless guest tomb does not draw the footer link
+ * either; Unlock on that screen already resumes the tomb.
  */
 
 import {
@@ -26,6 +27,9 @@ import { useCallback, useEffect, useRef } from "react";
 import { useGuestsAllowed } from "../../bindings/guest-access.js";
 import { landFocus } from "../../lib/focus.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
+
+/** Beside a sealed vault: the guest tomb, in the unlock form's footer. */
+export const GUEST_VAULT_LINK = "Skip to the guest vault";
 
 /**
  * A `/guest` link (ADR 0140 D12) lands the keyboard on the guest road the
@@ -90,19 +94,27 @@ export function GuestSkip({
 /**
  * The unlock form's footer link: whoever holds this device without its key
  * still gets in, as a guest in an isolated tomb, and the sealed vault stays
- * exactly as it is — including beside the guest tomb, where it resumes.
+ * exactly as it is. A guest tomb that enrolled a key keeps the link; a
+ * keyless one does not, because Unlock on that screen resumes the tomb.
  */
 export function GuestUnlockSwitch({
   busy,
   setBusy,
   setError,
+  hidden = false,
 }: {
   busy: boolean;
   setBusy: (busy: boolean) => void;
   setError: (message: string | null) => void;
+  /**
+   * Keyless guest tomb: Unlock resumes that tomb, so drawing this link
+   * beside it would be a second guest road. The arrival is still taken, so
+   * a `/guest` link cannot surface later on another screen.
+   */
+  hidden?: boolean;
 }) {
   const ref = useGuestArrivalFocus();
-  if (!useGuestsAllowed()) return null;
+  if (!useGuestsAllowed() || hidden) return null;
   return (
     <button
       ref={ref}
@@ -121,7 +133,7 @@ export function GuestUnlockSwitch({
           .finally(() => setBusy(false));
       }}
     >
-      Continue as guest
+      {GUEST_VAULT_LINK}
     </button>
   );
 }

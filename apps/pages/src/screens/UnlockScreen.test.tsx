@@ -232,6 +232,9 @@ describe("UnlockScreen — first run", () => {
     expect(
       screen.queryByRole("button", { name: /continue as guest/i }),
     ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Skip to the guest vault" }),
+    ).toBeNull();
   });
 
   it("drops the skip link on the local-only road and beside an existing vault", () => {
@@ -602,21 +605,30 @@ describe("UnlockScreen — first run", () => {
     expect(
       screen.getByRole("button", { name: /Email me a sign-in link/ }),
     ).toBeTruthy();
-    // No no-account road sits in this panel.
+    // No no-account road and no guest tomb sit in this panel.
     expect(
       screen.queryByRole("button", { name: "Use without an account" }),
     ).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Continue as guest" }),
     ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Skip to the guest vault" }),
+    ).toBeNull();
   });
 
-  it("offers guest on the unlock form of an existing vault (AGENTS.md §5)", async () => {
+  it("offers the guest tomb beside an existing vault (AGENTS.md §5)", async () => {
     v.state.status = "locked";
     render(<UnlockScreen />);
     // Whoever holds the device without its key still gets in as a guest; the
-    // sealed vault is not touched, so nothing here is destructive.
-    fireEvent.click(screen.getByRole("button", { name: "Continue as guest" }));
+    // sealed vault is not touched, so nothing here is destructive. The label
+    // is the guest tomb, not a second "Continue as guest" on sign-in.
+    expect(
+      screen.queryByRole("button", { name: "Continue as guest" }),
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Skip to the guest vault" }),
+    );
     await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
     expect(v.store.destroy).not.toHaveBeenCalled();
   });

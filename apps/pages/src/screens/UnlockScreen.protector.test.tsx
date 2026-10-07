@@ -160,7 +160,7 @@ describe("UnlockScreen — tabs for enrolled protectors", () => {
     lockedWith("recovery");
     render(<UnlockScreen />);
     expect(
-      screen.getByRole("button", { name: /Continue as guest/ }),
+      screen.getByRole("button", { name: "Skip to the guest vault" }),
     ).toBeTruthy();
   });
 
