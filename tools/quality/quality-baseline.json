@@ -18,11 +18,11 @@
   "totals": {
     "files": 422,
     "violations": 654,
-    "oversizedLines": 213899
+    "oversizedLines": 213884
   },
   "files": {
     "apps/cli/src/bridge.rs": {
-      "max-lines": 514
+      "max-lines": 499
     },
     "apps/cli/src/configs.rs": {
       "max-lines": 587
