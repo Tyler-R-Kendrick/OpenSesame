@@ -3,6 +3,7 @@ import { expect } from "vitest";
 import type { createControlPlane } from "../create-app.js";
 export async function verifiedPrincipal(
   app: ReturnType<typeof createControlPlane>["app"],
+  subject = "authentication-service-owner",
 ) {
   const created = await app.request("/v1/principals/provisional", {
     method: "POST",
@@ -19,7 +20,7 @@ export async function verifiedPrincipal(
     body: JSON.stringify({
       kind: "oidc",
       issuer: "https://mock.example",
-      subject: "authentication-service-owner",
+      subject,
       assurance: "verified",
     }),
   });

@@ -100,14 +100,13 @@ export async function generatePasskeyAuthenticationOptions(
     id,
     transports: AUTHENTICATOR_TRANSPORTS,
   }));
-  return generateAuthenticationOptions({
+  const hints = input.hints?.length ? [...input.hints] : undefined;
+  const options = await generateAuthenticationOptions({
     rpID: input.rp.rpID,
     userVerification: input.userVerification ?? "required",
-    ...(input.hints && input.hints.length > 0
-      ? { hints: input.hints }
-      : undefined),
     ...(allowCredentials ? { allowCredentials } : undefined),
   });
+  return hints ? { ...options, hints } : options;
 }
 
 /**

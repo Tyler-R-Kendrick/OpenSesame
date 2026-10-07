@@ -6,14 +6,18 @@
  * is the state `new PGlite()` plus `migrate` leaves, in a third of the time.
  * Warm it in `beforeAll` so no test's own budget pays for the first one.
  */
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 
-const MIGRATIONS = new URL(
+// Resolve a filesystem path explicitly: Vite rewrites static asset URLs in
+// jsdom tests, but Drizzle needs the actual migration directory on disk.
+const MIGRATIONS = resolve(
+  dirname(fileURLToPath(import.meta.url)),
   "../../../../packages/database/drizzle",
-  import.meta.url,
-).pathname;
+);
 
 let template: Promise<Blob> | null = null;
 
