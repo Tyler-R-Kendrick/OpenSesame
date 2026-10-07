@@ -52,6 +52,7 @@ evidence for a programme that ran across many pull requests.
 | [`2026-10-07-no-hint-captions/`](2026-10-07-no-hint-captions/README.md) | Hint captions removed (2026-10-07) |
 | [`2026-10-07-mobile-toolbar/`](2026-10-07-mobile-toolbar/README.md) | Mobile toolbar and share icon |
 | [`2026-10-07-mobile-gates/`](2026-10-07-mobile-gates/README.md) | Mobile lock screen and front door |
+| [`2026-10-07-release-notes-default/`](2026-10-07-release-notes-default/README.md) | Release notes open by default on wide screens |
 | [`2026-10-07-item-timestamps/`](2026-10-07-item-timestamps/README.md) | Item timestamps |
 | [`2026-10-07-account-detail/`](2026-10-07-account-detail/README.md) | Account password and website rows |
 | [`2026-10-06-sharp-plain-sheets/`](2026-10-06-sharp-plain-sheets/README.md) | Sharp corners, no red controls, one way out |
