@@ -131,6 +131,9 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  // Boot accepts lazy issuer registration outside VFS writes. Finish that
+  // real module work before this fixture clears storage or jsdom tears down.
+  await vi.dynamicImportSettled();
   await vfsFlush();
   lockAllTombs();
   clearBootKeys();
@@ -148,7 +151,14 @@ afterEach(async () => {
  */
 async function boot(): Promise<void> {
   const { stopWatching } = await bootCore();
-  stopWatching();
+  try {
+    // stopWatching unsubscribes observers; it does not cancel an accepted
+    // import. A production document stays alive, but this fixture must own
+    // completion before ending the boot session and its test environment.
+    await vi.dynamicImportSettled();
+  } finally {
+    stopWatching();
+  }
 }
 
 describe("pre-unlock boot path", () => {
