@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 
 /**
- * A control is never red, and a sheet has one way out.
+ * A control is never red, a sheet has one way out, and a hint is a fact.
  *
  * "Reset this browser" shipped with a red bin on the erase key, a second X
  * beside the erase key ("Keep it") under the close key in the head, and round
@@ -24,6 +24,42 @@ const lint = join(root, "scripts", "quality", "design-lint.mjs");
 type Case = { rule: string; file: string; why: string; text: string };
 
 const SHOULD_FAIL: readonly Case[] = [
+  {
+    rule: "no-hint-caption",
+    file: "hint-sentence.tsx",
+    why: "a sentence of explainer prose under a field",
+    text: `export const x = (
+  <p className="hint">
+    Whole hostname only, case-insensitive. *.example.com matches subdomains.
+  </p>
+);\n`,
+  },
+  {
+    rule: "no-hint-caption",
+    file: "hint-ternary.tsx",
+    why: "explainer prose chosen by a ternary inside a hint",
+    text: `export const x = (
+  <span className="hint">{copied ? "Copied. Add it to your provider." : "Register this exact redirect URI."}</span>
+);\n`,
+  },
+  {
+    rule: "no-hint-caption",
+    file: "hint-help-property.tsx",
+    why: "a definition's help text drawn as a hint",
+    text: `export const x = <p className="hint">{field.help}</p>;\n`,
+  },
+  {
+    rule: "no-hint-caption",
+    file: "hint-bem.tsx",
+    why: "a block-scoped hint carrying a sentence",
+    text: `export const x = <p className="account-switcher__hint">This organization has not configured SSO or SAML yet.</p>;\n`,
+  },
+  {
+    rule: "no-hint-caption",
+    file: "field-shell-hint.tsx",
+    why: "a FieldShell given a hint line",
+    text: `export const x = <FieldShell label="Token" value="" hint="Held in this tab only." />;\n`,
+  },
   {
     rule: "no-danger-control",
     file: "danger-class.tsx",
@@ -99,6 +135,30 @@ const SHOULD_FAIL: readonly Case[] = [
 ];
 
 const SHOULD_PASS: readonly Case[] = [
+  {
+    rule: "no-hint-caption",
+    file: "hint-fact.tsx",
+    why: "a hint that states a dated fact",
+    text: `export const x = <span className="hint">Enrolled {date}</span>;\n`,
+  },
+  {
+    rule: "no-hint-caption",
+    file: "hint-empty-state.tsx",
+    why: "a short empty state",
+    text: `export const x = <p className="hint">No receipts yet.</p>;\n`,
+  },
+  {
+    rule: "no-hint-caption",
+    file: "hint-data.tsx",
+    why: "a hint that is a labelled value",
+    text: `export const x = <p className="hint">Callback: {row.redirectUri}</p>;\n`,
+  },
+  {
+    rule: "no-hint-caption",
+    file: "field-shell-plain.tsx",
+    why: "a FieldShell with no hint",
+    text: `export const x = <FieldShell label="Token" value="" />;\n`,
+  },
   {
     rule: "no-control-error-ink",
     file: "status-mark.css",
@@ -180,7 +240,7 @@ function flagged(file: string, rule: string): boolean {
     );
 }
 
-describe("a red control or a second way out fails design lint", () => {
+describe("a red control, a second way out or a hint caption fails design lint", () => {
   it.each(SHOULD_FAIL.map((item) => [item.why, item] as const))(
     "rejects %s",
     (_, item) => {

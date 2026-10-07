@@ -236,10 +236,7 @@ function RequestApplicationFields({
           />
         </div>
       </div>
-      <p className="hint">
-        Available: {application?.scopes.join(", ") || "-"}. Current role policy
-        still applies; approval does not bypass it.
-      </p>
+      <p className="hint">Available: {application?.scopes.join(", ") || "-"}</p>
     </>
   );
 }

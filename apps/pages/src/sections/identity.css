@@ -65,11 +65,6 @@
   color: var(--ink);
 }
 
-.identity-ceremony__later-note {
-  margin-top: 0.375rem;
-  text-align: center;
-}
-
 .identity-byoidc {
   display: grid;
   gap: 0.75rem;

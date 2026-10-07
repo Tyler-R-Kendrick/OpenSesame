@@ -204,9 +204,11 @@ function UnlockMethodsBody() {
           {guest && !decoy && enrolled.length === 0 ? (
             // A line in the list's own voice, not a boxed note pressed
             // against the first row (DESIGN.md: no in-page note box).
-            <p className="hint">
-              You are a guest. Until this vault has a key it is not kept on this
-              device. Start with a {webauthnHost.ok ? "passkey" : "PIN"}.
+            <p
+              className="hint"
+              title={`Until this vault has a key it is not kept on this device. Start with a ${webauthnHost.ok ? "passkey" : "PIN"}.`}
+            >
+              You are a guest.
             </p>
           ) : null}
           {keyRow(

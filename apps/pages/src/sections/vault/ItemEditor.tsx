@@ -369,11 +369,7 @@ function EditorForm({ mode }: { mode: "new" | "edit" }) {
         ) : null}
 
         {draft.kind === "typed" && typedDefinition === undefined ? (
-          <p className="hint">
-            The definition for this type is not installed on this device. Its
-            stored values are untouched; install the type from Settings to edit
-            them.
-          </p>
+          <p className="hint">Definition not installed.</p>
         ) : null}
 
         <EditorExtras key={draft.id} draft={draft} onChange={patch} />

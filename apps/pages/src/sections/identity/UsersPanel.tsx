@@ -139,19 +139,11 @@ export function UsersPanel({ online }: { online: boolean }) {
         </fieldset>
       </div>
       <div className="panel__body">
-        <p className="hint">
-          Create directory users here; their first verified organization sign-in
-          establishes their OIDC identity.
-        </p>
         <FailureNotice id="identity:users" title="Users" message={error} />
         {loading ? <output>Loading directory…</output> : null}
         {!loading && organizations.length === 0 ? (
           <p className="hint">
-            User provisioning requires an organization you own —{" "}
-            <Link to="/identity?view=organization">
-              create or manage an organization
-            </Link>
-            .
+            <Link to="/identity?view=organization">Create an organization</Link>
           </p>
         ) : null}
         <div className="field">
@@ -207,6 +199,7 @@ function UsersForm({
           id="identity-user-name"
           required
           maxLength={320}
+          title="Match the verified subject from your organization's sign-in provider; this does not set a password or mark an email as verified"
           value={draft.userName}
           disabled={busy}
           onChange={(event) =>
@@ -241,10 +234,6 @@ function UsersForm({
           Allow organization sign-in
         </label>
       ) : null}
-      <p className="hint">
-        Match the verified subject from your organization's sign-in provider;
-        this does not set a password or mark an email as verified.
-      </p>
       <FormCommit
         label="Save user"
         disabled={busy || !online || !draft.userName.trim()}

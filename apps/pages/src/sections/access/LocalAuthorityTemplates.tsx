@@ -52,9 +52,8 @@ function TemplateDetail({ template }: { template: AudienceTemplate }) {
         {template.supportMatrix.map((claim) => (
           <li key={claim.id} className="access-domain-row">
             <div>
-              <strong>{claim.label}</strong>
+              <strong title={claim.note}>{claim.label}</strong>
               <SupportStatus status={claim.status} />
-              <p className="hint">{claim.note}</p>
             </div>
           </li>
         ))}

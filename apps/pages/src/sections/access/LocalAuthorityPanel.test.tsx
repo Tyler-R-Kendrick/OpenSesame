@@ -125,7 +125,7 @@ it("shows only application grants and revokes through the same encrypted-store o
   await userEvent.click(
     screen.getByRole("button", { name: "Confirm revocation" }),
   );
-  await screen.findByText("No unexpired local application grants.");
+  await screen.findByText("No grants.");
   expect(revokeRecordedLocalGrant).toHaveBeenCalledExactlyOnceWith(
     "vault-a",
     "grant-record",
@@ -176,9 +176,7 @@ it("does not turn a failed read into an empty list", async () => {
   render(<LocalAuthorityPanel tomb="vault-a" records="grant" />);
   await waitFor(() => expect(trayFailures()).toHaveLength(1));
   expect(screen.queryByRole("alert")).toBeNull();
-  expect(
-    screen.queryByText("No unexpired local application grants."),
-  ).toBeNull();
+  expect(screen.queryByText("No grants.")).toBeNull();
   expect(document.body.textContent).not.toContain("private diagnostic");
   expect(JSON.stringify(listNotices())).not.toContain("private diagnostic");
   await userEvent.click(
@@ -220,7 +218,7 @@ it("refreshes external changes to one empty line, never a dash counter", async (
   await screen.findByRole("button", { name: "Revoke session" });
   vi.mocked(listLocalIdentitySessions).mockResolvedValue([]);
   act(() => notifyLocalIamChange());
-  await screen.findByText("No unexpired local sessions.");
+  await screen.findByText("No sessions.");
   expect(screen.queryByText(/: -/)).toBeNull();
   // Sessions never lists the Grants tab's records.
   expect(screen.queryByText("Test person → Test application")).toBeNull();

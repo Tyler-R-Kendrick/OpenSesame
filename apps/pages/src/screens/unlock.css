@@ -742,12 +742,6 @@
   background: #f5f5f5;
 }
 
-.signin__provider-note {
-  text-align: left;
-  font-size: 0.75rem;
-  color: var(--ink-3);
-}
-
 .signin__divider {
   display: flex;
   align-items: center;

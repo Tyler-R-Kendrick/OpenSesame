@@ -240,9 +240,7 @@ export function ConnectorSettingsPage({
             </div>
           </div>
           <div className="panel__body">
-            <p className="hint">
-              {provider.displayName} is built in. Nothing to authorize.
-            </p>
+            <p className="hint">Built in.</p>
           </div>
         </section>
       ) : connection ? (

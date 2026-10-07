@@ -234,7 +234,6 @@ export function IdentitySection() {
       {ceremonyOpen ? (
         <IdpCeremony
           online={online}
-          gated={false}
           onRegistered={registered}
           onDismiss={closeCeremony}
         />
@@ -267,12 +266,10 @@ export function IdentitySection() {
  */
 function IdpCeremony({
   online,
-  gated,
   onRegistered,
   onDismiss,
 }: {
   online: boolean;
-  gated: boolean;
   onRegistered: (record: IdpRecord, message: string) => void;
   onDismiss: () => void;
 }) {
@@ -310,14 +307,6 @@ function IdpCeremony({
       },
     ];
   }, [catalog]);
-
-  const brokerNotes = useMemo(
-    () =>
-      firstClass
-        .map((provider) => brandFor(provider.id)?.note)
-        .filter((note): note is string => note !== undefined),
-    [firstClass],
-  );
 
   async function choose(provider: FederatedProviderSummary) {
     setBusy(provider.id);
@@ -423,12 +412,6 @@ function IdpCeremony({
           </div>
         )}
 
-        {brokerNotes.map((note) => (
-          <p className="hint signin__provider-note" key={note}>
-            {note}
-          </p>
-        ))}
-
         <FailureNotice
           id="identity:idp-ceremony"
           title="Identity provider"
@@ -453,12 +436,6 @@ function IdpCeremony({
         >
           Set up later
         </button>
-        {gated ? (
-          <p className="hint identity-ceremony__later-note">
-            You can register an identity provider at any time from the Providers
-            tab.
-          </p>
-        ) : null}
       </div>
     </section>
   );
@@ -612,17 +589,9 @@ function ByoClientFields({
                 {copied === "redirect" ? <IconCheck /> : <IconCopy />}
               </IconKey>
             </div>
-            <p className="hint">
-              {copied === "redirect"
-                ? "Copied. Add it to your provider's allowed redirect URIs."
-                : "Register this exact redirect URI at your provider."}
-            </p>
           </>
         ) : (
-          <p className="hint">
-            Set a remote Identity URL under Settings → Connections to get the
-            deployment callback URI. Browser-local providers do not need it.
-          </p>
+          <p className="hint">No remote Identity URL.</p>
         )}
       </div>
     </>
@@ -699,6 +668,7 @@ function IdpPresetForm({
             autoComplete="off"
             spellCheck={false}
             placeholder={preset.field.placeholder}
+            title={preset.field.hint}
             value={input}
             disabled={disabled || byo.busy}
             onChange={(event) => {
@@ -706,7 +676,6 @@ function IdpPresetForm({
               byo.setError(null);
             }}
           />
-          <p className="hint">{preset.field.hint}</p>
         </div>
       ) : null}
       {fixedIssuer?.ok ? (
@@ -1078,11 +1047,6 @@ function LinkedIdentitiesCard({ online }: { online: boolean }) {
                       )}
                     </div>
                   </div>
-                  {confirmId === identity.id ? (
-                    <p className="hint">
-                      The account at the provider itself is untouched.
-                    </p>
-                  ) : null}
                 </li>
               );
             })}
@@ -1262,7 +1226,7 @@ function OrgMembersCard({ online }: { online: boolean }) {
         ) : null}
 
         {members && members.length === 0 ? (
-          <p className="hint">Only you are a member of this organization.</p>
+          <p className="hint">No other members.</p>
         ) : null}
 
         {owner ? (
@@ -1305,7 +1269,7 @@ function OrgMembersCard({ online }: { online: boolean }) {
             </div>
           </form>
         ) : members !== null ? (
-          <p className="hint">Only the owner can add or remove members.</p>
+          <p className="hint">Owner only.</p>
         ) : null}
 
         <StatusNote title="Members" message={flash} />
@@ -1499,10 +1463,7 @@ function ServiceAccountsPanel({
                     </div>
                   </div>
                   {confirmId === client.id ? (
-                    <p className="hint">
-                      Revoking disables this client registration. Previously
-                      issued identity assertions retain their stated expiry.
-                    </p>
+                    <p className="hint">Assertions keep their expiry.</p>
                   ) : null}
                 </li>
               ))}
@@ -1561,12 +1522,12 @@ function ServiceAccountsPanel({
       <p className="hint">
         <a
           href={`${identityBase()}/.well-known/openid-configuration`}
+          title="Open OIDC discovery to configure this issuer in your application"
           target="_blank"
           rel="noreferrer"
         >
           Open OIDC discovery
-        </a>{" "}
-        to configure this issuer in your application.
+        </a>
       </p>
     </>
   );
@@ -1667,13 +1628,11 @@ function CreateClientForm({
               value={sectorIdentifier}
               onChange={(event) => setSectorIdentifier(event.target.value)}
               placeholder="https://ci.example.com"
+              title="An https URL naming the sector pairwise subjects are computed for"
               spellCheck={false}
               autoComplete="off"
               disabled={busy}
             />
-            <p className="hint">
-              An https URL naming the sector pairwise subjects are computed for.
-            </p>
           </div>
           <div className="actions actions--end">
             <FormCommit
@@ -1901,13 +1860,11 @@ function CreateOrgForm({
               value={ssoIssuer}
               onChange={(event) => setSsoIssuer(event.target.value)}
               placeholder="https://login.acme.com"
+              title="The OIDC issuer this organization locks sign-ins to"
               spellCheck={false}
               autoComplete="off"
               disabled={busy}
             />
-            <p className="hint">
-              The OIDC issuer this organization locks sign-ins to.
-            </p>
           </div>
 
           <FailureNotice

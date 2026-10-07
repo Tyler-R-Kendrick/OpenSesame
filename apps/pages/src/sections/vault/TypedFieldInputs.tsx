@@ -10,10 +10,6 @@ import {
 import { RevealButton } from "../../components/FieldRow.js";
 import { IconPlus, IconX } from "../../components/Icons.js";
 
-export function Hint({ field }: { field: FieldDefinition }) {
-  return field.help === undefined ? null : <p className="hint">{field.help}</p>;
-}
-
 export function ScalarInput({
   field,
   value,
