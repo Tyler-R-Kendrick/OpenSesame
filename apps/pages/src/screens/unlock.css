@@ -3,7 +3,7 @@
   display: grid;
   grid-template-columns: 1fr;
   place-items: center;
-  /* Horizontal pad lives on the card; notes go edge-to-edge for the tone. */
+  /* The narrow layout adds a shared gutter for the card and notes below. */
   padding: 2rem 0 0;
   background: var(--canvas);
   color: var(--ink);
@@ -177,10 +177,12 @@
   .unlock__notes {
     width: auto;
     max-width: none;
+    height: 100dvh;
     min-height: 100dvh;
     justify-self: stretch;
     /* Accordion stack centred as one block in the column. */
-    align-content: center;
+    align-content: safe center;
+    overflow-y: auto;
     border-radius: 0;
     background: transparent;
     box-shadow: inset 1px 0 0 var(--line);
@@ -232,6 +234,7 @@
 .unlock__brand-tools {
   display: flex;
   align-items: center;
+  flex: none;
   gap: 0.35rem;
   margin-left: auto;
 }
@@ -519,9 +522,45 @@
   flex: none;
 }
 
-/* The same 44px floor every other key gets; this rule loads after the
-   shared one, so the mark needs its own. */
+/* A stacked gate shares one gutter and a fixed gap, even when notes open. */
+@media (max-width: 1099px) {
+  .unlock {
+    align-content: start;
+    gap: 1.25rem;
+    padding-inline: max(1.25rem, env(safe-area-inset-left, 0px))
+      max(1.25rem, env(safe-area-inset-right, 0px));
+  }
+
+  .unlock__card,
+  .unlock__notes {
+    width: min(100%, 27rem);
+  }
+
+  .unlock__card {
+    padding-block: 0;
+  }
+
+  .unlock__notes-summary {
+    min-height: 44px;
+    padding: 0.65rem 0.85rem;
+  }
+
+  .unlock__notes-body {
+    padding-inline: 0.85rem;
+  }
+}
+
 @media (pointer: coarse), (max-width: 900px) {
+  .unlock__brand {
+    container-type: inline-size;
+    gap: 0.5rem;
+  }
+
+  .unlock__brand .unlock__wordmark {
+    /* Reserve the two 44px chrome keys before sizing the reel's cells. */
+    font-size: clamp(0.75rem, calc((100cqi - 7rem) / 14), 1.1rem);
+  }
+
   /* Guest account chip on unlock — name is short, height was 33. */
   .unlock-user__trigger {
     box-sizing: border-box;
@@ -853,29 +892,6 @@
 }
 
 /* Which deployment this app is pointed at, and the way back into setup. */
-
-@media (max-width: 480px) {
-  .unlock {
-    padding: 1.25rem 0.9rem;
-    align-content: start;
-    padding-top: 2.5rem;
-  }
-
-  /* The shell carries the phone's gutter here, so the card must not take
-     the wide screens' 2.5rem off it again: the seal and unlock forms keep
-     the front door's width instead of stepping 20px in on each side. */
-  .unlock__card {
-    width: min(100%, 27rem);
-    padding: 1.5rem 1.15rem 1.35rem;
-  }
-
-  /* Same dock the setup foot and phone tab bar leave: the overlay would
-     otherwise sit on Unlock. A ceremony card's keys in a sheet over the
-     screen (`.found__do`) are not that commit, and keep the card's edge. */
-  .unlock .go-row:not(.found__do) {
-    padding-left: 1.6rem;
-  }
-}
 
 /* Who is unlocking — compact trigger beside the Unlock / Sign in title.
    The menu itself reuses `.account-switcher__*` so the unlock card and the

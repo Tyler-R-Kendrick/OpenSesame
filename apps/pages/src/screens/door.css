@@ -3,7 +3,7 @@
    and the sign-in panel come from unlock.css and styles.css unchanged. */
 
 .door .unlock__card {
-  width: min(100%, 30rem);
+  width: min(calc(100% - 2.5rem), 30rem);
   gap: 1.35rem;
   padding-top: 2.4rem;
 }
@@ -137,6 +137,19 @@
 @media (max-width: 30rem) {
   .door__roads {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1099px) {
+  .door .unlock__card,
+  .door .unlock__notes {
+    width: min(100%, 30rem);
+  }
+}
+
+@media (pointer: coarse), (max-width: 900px) {
+  .door .unlock__card {
+    padding-top: 3.25rem;
   }
 }
 

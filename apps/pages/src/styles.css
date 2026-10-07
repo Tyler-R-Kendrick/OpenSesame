@@ -202,6 +202,14 @@ fieldset {
   border: 0;
 }
 
+/* Reset native control corners as well as the styled button classes. */
+button,
+input,
+select,
+textarea {
+  border-radius: 0;
+}
+
 body {
   margin: 0;
   background: var(--canvas);
