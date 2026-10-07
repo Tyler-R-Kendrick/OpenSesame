@@ -61,9 +61,6 @@ export function AccountDetail({
   copy,
 }: { item: AccountItem } & Ports) {
   const { tomb } = useVault();
-  const credentialsRef = useGuideTarget<HTMLElement>(
-    "item.credentials.references",
-  );
   const usernameRef = useGuideTarget<HTMLButtonElement>("item.copy-username");
   const ports = { name: item.name, revealed, toggle, copied, failed, copy };
   const firstPassword = item.methods.find(
@@ -86,10 +83,7 @@ export function AccountDetail({
 
   return (
     <>
-      <section
-        className="detail__group"
-        ref={item.deletedAt === null ? credentialsRef : undefined}
-      >
+      <section className="detail__group">
         <h2 className="detail__grouphead">Credentials</h2>
         {item.username ? (
           <FieldRow

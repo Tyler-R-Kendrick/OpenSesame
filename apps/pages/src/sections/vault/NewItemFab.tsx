@@ -10,7 +10,6 @@ import {
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { AddSlide } from "./AddSlide.js";
 import { ExportEntry } from "./ExportKey.js";
-import { PasswordWorkflowsEntry } from "./PasswordWorkflows.js";
 import { type AddEntry, addEntries } from "./add-menu.js";
 import { useAddSlide } from "./add-slide.js";
 import "./new-item-fab.css";
@@ -83,21 +82,14 @@ function AddButton({
   const exportGuide = useGuideTarget<HTMLAnchorElement>("vault.export", {
     activation: "manual",
   });
-  const workflowGuide = useGuideTarget<HTMLAnchorElement>(
-    "vault.workflow.open",
-    {
-      activation: "manual",
-    },
-  );
   const slide = useAddSlide(chooseEntry);
   const plusRef = useCallback(
     (element: HTMLAnchorElement | null) => {
       importGuide(element);
       exportGuide(element);
-      workflowGuide(element);
       fabRef?.(element);
     },
-    [importGuide, exportGuide, workflowGuide, fabRef],
+    [importGuide, exportGuide, fabRef],
   );
   return (
     <>
@@ -127,7 +119,6 @@ function AddButton({
       {/* The flows the slide starts: they draw nothing but their sheets. */}
       {flows.map(({ id, Entry }) => (Entry ? <Entry key={id} /> : null))}
       <ExportEntry />
-      <PasswordWorkflowsEntry />
     </>
   );
 }

@@ -61,17 +61,4 @@ describe("where a tour's navigate goes", () => {
       guideNavigationPath("/vault/trash", here("/vault", "?f=trash")),
     ).toBeNull();
   });
-
-  it("opens the password workflow sheet without a click or an item", () => {
-    holding();
-    expect(
-      guideNavigationPath("/vault/password-workflows", here("/vault")),
-    ).toBe("/vault?workflow=password");
-    expect(
-      guideNavigationPath(
-        "/vault/password-workflows",
-        here("/vault", "?workflow=password"),
-      ),
-    ).toBeNull();
-  });
 });

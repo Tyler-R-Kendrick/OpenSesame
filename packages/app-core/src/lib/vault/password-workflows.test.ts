@@ -11,7 +11,6 @@ import { webmcpNavigationSeam } from "../../webmcp/seams.js";
 import { shareReachSeams } from "../local-share-reach.js";
 import {
   comparePrivatePassword,
-  createPrivateCredential,
   localInventory,
   passwordWorkflowAudit,
   passwordWorkflowFind,
@@ -54,37 +53,42 @@ describe("local password workflow adapter", () => {
       (entry) => entry.name === "opensesame_open_password_workflow",
     );
     if (!tool) throw new Error("The human workflow handoff is missing");
-    for (const action of [
-      "create",
-      "compare",
-      "update",
-      "read",
-      "env-resolve",
-    ]) {
-      expect(await tool.execute({ action })).toEqual({
+    expect(await tool.execute({ action: "create" })).toEqual({
+      status: "ceremony_opened",
+      location: "/vault/new/secret",
+    });
+    for (const action of ["compare", "update", "read", "env-resolve"]) {
+      expect(await tool.execute({ action, item: "itm_1" })).toEqual({
         status: "ceremony_opened",
-        location: `/vault?workflow=password&workflowAction=${action}`,
+        location: "/vault/itm_1",
       });
     }
-    expect(navigate.mock.calls).toEqual(
-      ["create", "compare", "update", "read", "env-resolve"].map((action) => [
-        `/vault?workflow=password&workflowAction=${action}`,
-      ]),
-    );
+    expect(await tool.execute({ action: "read" })).toEqual({
+      status: "ceremony_opened",
+      location: "/vault",
+    });
+    expect(navigate.mock.calls).toEqual([
+      ["/vault/new/secret"],
+      ["/vault/itm_1"],
+      ["/vault/itm_1"],
+      ["/vault/itm_1"],
+      ["/vault/itm_1"],
+      ["/vault"],
+    ]);
     expect(() =>
       tool.execute({
         action: "create",
         credential: "PRIVATE_HANDOFF_SENTINEL",
       }),
-    ).toThrow("action only");
+    ).toThrow("action and an item id only");
     expect(() => tool.execute({ action: "unknown" })).toThrow("Unknown");
-    expect(navigate).toHaveBeenCalledTimes(5);
+    expect(navigate).toHaveBeenCalledTimes(6);
     vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
       ...state,
       status: "locked",
     });
     expect(() => tool.execute({ action: "read" })).toThrow("vault_locked");
-    expect(navigate).toHaveBeenCalledTimes(5);
+    expect(navigate).toHaveBeenCalledTimes(6);
   });
   it("inventory ordering and typed concealed references retain metadata without values through WebMCP", async () => {
     await loadPack("api-credential");
@@ -270,23 +274,13 @@ describe("local password workflow adapter", () => {
       );
     }
   });
-  it("creates and reads back a private credential and compares or applies a login password", async () => {
+  it("compares or applies a login password", async () => {
     const login = testAccount("Example");
     login.methods[0] = {
       ...login.methods[0],
       ...manualPassword(`${login.id}:password`, "old", login.updatedAt),
     };
     const state = open([login]);
-    const created = await createPrivateCredential(
-      "New API key",
-      "private-credential",
-    );
-    expect(created.verified).toBe(true);
-    expect(state.items.find((item) => item.id === created.id)).toMatchObject({
-      kind: "secret",
-      value: "private-credential",
-    });
-    expect(JSON.stringify(created)).not.toContain("private-credential");
     expect(await comparePrivatePassword(login.id, "new")).toMatchObject({
       matches: false,
       applied: false,
@@ -308,14 +302,11 @@ describe("local password workflow adapter", () => {
     const state = open([secret]);
     state.status = "locked";
     await expect(passwordWorkflowInventory()).rejects.toThrow("Unlock");
-    await expect(createPrivateCredential("New", "secret")).rejects.toThrow(
-      "Unlock",
-    );
     state.status = "unlocked";
     vi.spyOn(shareReachSeams, "canAccess").mockReturnValue(false);
     vi.spyOn(shareReachSeams, "currentSession").mockReturnValue(null);
     expect(await passwordWorkflowInventory()).toEqual([]);
-    await expect(createPrivateCredential("New", "secret")).rejects.toThrow(
+    await expect(comparePrivatePassword(secret.id, "x", true)).rejects.toThrow(
       "share_grant_denied",
     );
   });
@@ -343,7 +334,7 @@ describe("local password workflow adapter", () => {
     });
     expect(() => tool?.execute({ assignments: "KEY=plaintext" })).toThrow();
   });
-  it("refuses duplicate writes, sanitizes URLs, resolves local references only and preserves secret newlines", async () => {
+  it("sanitizes URLs, resolves local references only and preserves secret newlines", async () => {
     const secret = createItem("secret", "Existing");
     secret.value = "first\nlast";
     const login = testAccount("Example");
@@ -355,9 +346,6 @@ describe("local password workflow adapter", () => {
       },
     ];
     open([secret, login]);
-    await expect(createPrivateCredential(" existing ", "new")).rejects.toThrow(
-      "already exists",
-    );
     const items = await passwordWorkflowInventory();
     expect(items.find((item) => item.id === login.id)?.urls).toEqual([
       "https://example.com",
@@ -381,16 +369,21 @@ describe("local password workflow adapter", () => {
     expect(typo.suggestions?.[0]?.ref).toBe(ref);
   });
   it("suppresses uncertain private write errors without retrying", async () => {
-    open([]);
+    const login = testAccount("Example");
+    login.methods[0] = {
+      ...login.methods[0],
+      ...manualPassword(`${login.id}:password`, "old", login.updatedAt),
+    };
+    open([login]);
     const save = vi
       .spyOn(vaultStore, "saveItem")
       .mockRejectedValue(new Error("PRIVATE_WRITE_SENTINEL"));
     await expect(
-      createPrivateCredential("New", "PRIVATE_WRITE_SENTINEL"),
+      comparePrivatePassword(login.id, "PRIVATE_WRITE_SENTINEL", true),
     ).rejects.toThrow("unverified");
     expect(save).toHaveBeenCalledTimes(1);
     try {
-      await createPrivateCredential("Another", "PRIVATE_WRITE_SENTINEL");
+      await comparePrivatePassword(login.id, "PRIVATE_WRITE_SENTINEL", true);
     } catch (error) {
       expect(String(error)).not.toContain("PRIVATE_WRITE_SENTINEL");
     }

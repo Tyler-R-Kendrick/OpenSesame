@@ -8,12 +8,17 @@
  * stored.
  */
 
-import { enablePack } from "@opensesame/app-core/lib/type-packs/installer.js";
+import {
+  disablePack,
+  enablePack,
+} from "@opensesame/app-core/lib/type-packs/installer.js";
+import { countPackItems } from "@opensesame/app-core/lib/type-packs/watch.js";
 import {
   defaultGenerator,
   newSecretFor,
 } from "@opensesame/app-core/lib/vault/generators/index.js";
 import type { OfferedGeneratorId } from "@opensesame/app-core/lib/vault/generators/index.js";
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   type AccountItem,
   type CredentialItem,
@@ -211,5 +216,17 @@ export function bindableCredentials(
 /**
  * The pack switch an editor reaches for. A seam, so a test can see which type
  * was switched on without downloading it.
+ *
+ * Choosing a type while an account is still a draft installs it for this
+ * document and remembers nothing (`keep: false`): the type is the vault's only
+ * once an account holding a credential of it is saved. A draft that is
+ * abandoned gives the type back (`release`); a vault that now holds items of
+ * it refuses, which is how a saved account keeps it.
  */
-export const credentialPackSeams = { enable: enablePack };
+export const credentialPackSeams = {
+  enable: (id: string) => enablePack(id, { keep: false }),
+  release: async (ids: readonly string[]) => {
+    const held = countPackItems(vaultStore.getSnapshot().items);
+    for (const id of ids) if (!held.has(id)) await disablePack(id);
+  },
+};
