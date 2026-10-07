@@ -222,4 +222,8 @@ pub(super) const MIGRATIONS: &[(&str, &str)] = &[
         "0056_outbox_customer_binding",
         include_str!("../migrations/0056_outbox_customer_binding.sql"),
     ),
+    (
+        "0057_credential_canaries",
+        include_str!("../migrations/0057_credential_canaries.sql"),
+    ),
 ];

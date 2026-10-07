@@ -8,9 +8,11 @@ use serde_json::{json, Value};
 use std::{
     fs,
     io::Write as _,
-    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
+
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 
 use crate::connect;
 
@@ -21,7 +23,7 @@ pub async fn cmd_ca(server: &str, output: &str, out: Option<PathBuf>) -> Result<
         .and_then(Value::as_str)
         .context("Host did not return a CA certificate")?;
     if let Some(path) = out {
-        write_pem(&path, pem, 0o644)?;
+        write_pem(&path, pem)?;
         eprintln!("wrote {}", path.display());
     }
     if output == "json" {
@@ -127,10 +129,10 @@ pub async fn cmd_issue(server: &str, output: &str, options: IssueOptions) -> Res
     if let Some(ref dir) = out_dir {
         fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
         let stem = sanitize_stem(&common_name);
-        write_pem(&dir.join(format!("{stem}.crt.pem")), cert, 0o644)?;
+        write_pem(&dir.join(format!("{stem}.crt.pem")), cert)?;
         write_private_pem(&dir.join(format!("{stem}.key.pem")), key)?;
         if !ca.is_empty() {
-            write_pem(&dir.join("ca.crt.pem"), ca, 0o644)?;
+            write_pem(&dir.join("ca.crt.pem"), ca)?;
         }
         eprintln!("wrote certs to {}", dir.display());
     }
@@ -197,10 +199,11 @@ fn sanitize_stem(cn: &str) -> String {
     }
 }
 
-/// Write a public PEM (a certificate or CA) at `mode`.
-fn write_pem(path: &Path, pem: &str, mode: u32) -> Result<()> {
+/// Write a public PEM using the platform's normal public-file policy.
+fn write_pem(path: &Path, pem: &str) -> Result<()> {
     fs::write(path, pem).with_context(|| format!("writing {}", path.display()))?;
-    fs::set_permissions(path, fs::Permissions::from_mode(mode))?;
+    #[cfg(unix)]
+    fs::set_permissions(path, fs::Permissions::from_mode(0o644))?;
     Ok(())
 }
 
@@ -252,10 +255,19 @@ pub async fn cmd_key(
 mod tests {
     use super::*;
 
+    #[test]
+    fn certificate_names_cannot_escape_the_output_directory() {
+        assert_eq!(sanitize_stem("../host/key\\name"), ".._host_key_name");
+        assert_eq!(sanitize_stem(""), "cert");
+        assert_eq!(sanitize_stem("host.example-1"), "host.example-1");
+    }
+
+    #[cfg(unix)]
     fn mode_of(path: &Path) -> u32 {
         fs::metadata(path).unwrap().permissions().mode() & 0o777
     }
 
+    #[cfg(unix)]
     #[test]
     fn a_private_key_is_owner_only_even_over_a_world_readable_file() {
         let dir = tempfile::tempdir().unwrap();
@@ -271,10 +283,17 @@ mod tests {
     }
 
     #[test]
-    fn a_public_certificate_keeps_its_readable_mode() {
+    fn a_public_certificate_preserves_its_contents() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("host.crt.pem");
-        write_pem(&path, "cert", 0o644).unwrap();
+        write_pem(&path, "certificate\n").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "certificate\n");
+        write_pem(&path, "replacement certificate\n").unwrap();
+        assert_eq!(
+            fs::read_to_string(&path).unwrap(),
+            "replacement certificate\n"
+        );
+        #[cfg(unix)]
         assert_eq!(mode_of(&path), 0o644);
     }
 }

@@ -20,7 +20,7 @@ fn run(format: Format) {
         tracing::info!(user = "ada", "vault unlocked");
         tracing::error!(
             password = "hunter2",
-            "delivery failed: https://app.example/claim#token=osc_clm_AbC.s3cr3tpart"
+            "delivery failed: https://app.example/claim#token=osc_clm_AbC.s3cr3tpart" // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
         );
     });
 

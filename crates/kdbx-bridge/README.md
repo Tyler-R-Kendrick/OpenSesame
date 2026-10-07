@@ -210,6 +210,32 @@ experimental:
 > `DatabaseVersion::KDB4(1)` outright, so this crate emits 4.1. KeePass 2.x,
 > KeePassXC and `kdbxweb` all read 4.1. See `EXPORT_KDBX_MINOR_VERSION`.
 
+## Import resource policy
+
+Import screens KDB/KDBX work factors before unauthenticated key derivation.
+These fixed device resource ceilings deliberately refuse legitimate databases
+configured above the supported work budget:
+
+| Work factor | Inclusive ceiling |
+|---|---|
+| AES-KDF rounds (KDB, KDBX 3 and KDBX 4) | 1,048,576 |
+| Argon2 memory | 128 MiB |
+| Argon2 passes | 8 |
+| Argon2 lanes | 8 |
+| Argon2 memory × passes | 256 MiB |
+| Argon2 passes × lanes | 32 |
+
+All individual and joint limits apply. KeePass 1 must name an outer cipher
+supported by the reader (AES or Twofish) before any KDF work is attempted.
+A refused import returns a classified error before changing the destination
+store. There is no automatic parameter downgrade or unchecked retry.
+
+The default export profile (64 MiB / 2 passes / 4 lanes) and committed
+conformance fixture (16 MiB / 2 passes / 4 lanes) remain inside the policy.
+The ceilings do not guarantee a particular duration on a user's device;
+accepted-boundary KDF benchmarks are required before claiming compliance
+with a time budget. The existing fuzz per-input deadline remains unchanged.
+
 ## Import merge semantics
 
 Merges by store path:

@@ -46,6 +46,8 @@ use opensesame_human_vault::{
 use zeroize::Zeroize;
 
 use crate::age_fmt::encrypt_age;
+#[path = "rotation_platform.rs"]
+mod platform;
 use crate::attachment::{attach_relative, hex_to_bytes, object_relative, ChunkRef};
 use crate::envelope::{
     envelope_revision, open_osseal, seal_osseal, seal_osseal_in, COLLECTION_ATTACHMENTS,
@@ -55,6 +57,7 @@ use crate::path::{confined_read, confined_remove, confined_write};
 use crate::rotation_walk::inventory;
 use crate::store_lock::StoreLock;
 use crate::{StoreError, StoreRoot};
+use platform::{create_private_dir, rename_confined};
 
 /// Staging directory for an in-flight rotation, relative to the store root.
 pub const ROTATION_STAGING_DIR: &str = ".opensesame-rotation";
@@ -108,6 +111,9 @@ pub(crate) fn rotate_store_root_observed(
         return Err(StoreError::NotInitialized(root.to_path_buf()));
     }
     let _lock = StoreLock::exclusive(root)?;
+    if let Some(new_password) = edit.new_password {
+        crate::retired_credentials::reject_retired_password_reuse(root, new_password)?;
+    }
     let staging = root.join(ROTATION_STAGING_DIR);
     if fs::symlink_metadata(&staging).is_ok() {
         return Err(StoreError::Other(format!(
@@ -304,7 +310,7 @@ fn commit(
 
     let result = swap_all(root, staging, plan).and_then(|()| {
         verify_nothing_left_behind(root, plan)?;
-        fs::rename(&key_next, root.join(KEY_FILE_NAME))?;
+        rename_confined(root, &key_next, &root.join(KEY_FILE_NAME))?;
         sync_dir(root);
         Ok(())
     });
@@ -315,7 +321,7 @@ fn commit(
     // putting the old ciphertext back returns the store to its previous state.
     for (index, rel) in plan.swaps.iter().enumerate().rev() {
         let backup = staging.join("old").join(index.to_string());
-        if backup.exists() && fs::rename(&backup, root.join(rel)).is_err() {
+        if backup.exists() && rename_confined(root, &backup, &root.join(rel)).is_err() {
             *stranded = true;
         }
     }
@@ -354,8 +360,8 @@ fn swap_all(root: &Path, staging: &Path, plan: &Plan) -> Result<(), StoreError> 
         refuse_symlinked_parents(root, rel)?;
         let target = root.join(rel);
         let slot = index.to_string();
-        fs::rename(&target, staging.join("old").join(&slot))?;
-        fs::rename(staging.join("new").join(&slot), &target)?;
+        rename_confined(root, &target, &staging.join("old").join(&slot))?;
+        rename_confined(root, &staging.join("new").join(&slot), &target)?;
         if let Some(parent) = target.parent() {
             parents.insert(parent.to_path_buf());
         }
@@ -378,14 +384,6 @@ fn refuse_symlinked_parents(root: &Path, rel: &Path) -> Result<(), StoreError> {
             ));
         }
     }
-    Ok(())
-}
-
-fn create_private_dir(path: &Path) -> Result<(), StoreError> {
-    let mut builder = fs::DirBuilder::new();
-    #[cfg(unix)]
-    std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
-    builder.create(path)?;
     Ok(())
 }
 

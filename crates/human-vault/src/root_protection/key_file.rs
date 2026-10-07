@@ -1,5 +1,6 @@
 //! Versioned and legacy `.opensesame-key` load/store (NATIVE / KP-03).
 
+#[cfg(not(windows))]
 use std::fs;
 use std::path::Path;
 
@@ -35,6 +36,20 @@ pub enum KeyFileContents {
 ///
 /// Returns typed parse errors for legacy vs versioned shapes.
 pub fn load_key_file(root: &Path) -> Result<KeyFileContents, ProtectionError> {
+    #[cfg(windows)]
+    let json = String::from_utf8(crate::windows_io::read_bounded(
+        root,
+        Path::new(KEY_FILE_NAME),
+        MAX_MANIFEST_ENCODED_BYTES,
+    )?)
+    .map_err(|_| ProtectionError::MalformedEncoding("key file is not UTF-8".into()))?;
+    #[cfg(not(windows))]
+    let json = load_key_file_text(root)?;
+    parse_key_file_json(&json)
+}
+
+#[cfg(not(windows))]
+fn load_key_file_text(root: &Path) -> Result<String, ProtectionError> {
     let path = root.join(KEY_FILE_NAME);
     if !path.exists() {
         return Err(ProtectionError::Io(format!("missing {}", path.display())));
@@ -43,7 +58,7 @@ pub fn load_key_file(root: &Path) -> Result<KeyFileContents, ProtectionError> {
     if json.len() > MAX_MANIFEST_ENCODED_BYTES {
         return Err(ProtectionError::OversizedManifest);
     }
-    parse_key_file_json(&json)
+    Ok(json)
 }
 
 /// Parse key-file JSON without touching the filesystem.
@@ -95,6 +110,17 @@ pub fn encode_key_file(contents: &KeyFileContents) -> Result<String, ProtectionE
 /// Returns IO or encoding failures.
 pub fn write_key_file(root: &Path, contents: &KeyFileContents) -> Result<(), ProtectionError> {
     let json = encode_key_file(contents)?;
+    #[cfg(windows)]
+    {
+        crate::windows_publish::atomic_write(root, Path::new(KEY_FILE_NAME), json.as_bytes())?;
+        Ok(())
+    }
+    #[cfg(not(windows))]
+    write_key_file_text(root, &json)
+}
+
+#[cfg(not(windows))]
+fn write_key_file_text(root: &Path, json: &str) -> Result<(), ProtectionError> {
     let tmp = root.join(format!(
         "{KEY_FILE_NAME}.{}.tmp",
         uuid::Uuid::new_v4().simple()
@@ -115,6 +141,22 @@ pub fn write_key_file(root: &Path, contents: &KeyFileContents) -> Result<(), Pro
 ///
 /// Returns the underlying IO failure.
 pub fn write_synced(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    #[cfg(windows)]
+    {
+        let root = path
+            .parent()
+            .ok_or_else(|| std::io::Error::other("missing private file parent"))?;
+        let name = path
+            .file_name()
+            .ok_or_else(|| std::io::Error::other("missing private file name"))?;
+        crate::windows_publish::write_new(root, Path::new(name), bytes)
+    }
+    #[cfg(not(windows))]
+    write_synced_platform(path, bytes)
+}
+
+#[cfg(not(windows))]
+fn write_synced_platform(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
     let mut options = fs::OpenOptions::new();
     options.write(true).create_new(true);

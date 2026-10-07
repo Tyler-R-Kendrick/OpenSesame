@@ -205,3 +205,42 @@ fn filled_filter(value: &str) -> CertificateFilter {
         limit: None,
     }
 }
+
+#[test]
+fn filter_identifier_coincidences_are_bound_not_interpolated() {
+    let neutral = CertificateFilter {
+        status: Some("neutral".into()),
+        limit: Some(1000),
+        ..CertificateFilter::default()
+    }
+    .to_query();
+    assert_eq!(
+        neutral.sql,
+        "SELECT * FROM issued_certificates WHERE organization_id = ? AND status = ? ORDER BY expires_at, id LIMIT ?"
+    );
+    for value in ["certificate", "organization_id", "issued_certificates"] {
+        let query = CertificateFilter {
+            status: Some(value.into()),
+            limit: Some(1000),
+            ..CertificateFilter::default()
+        }
+        .to_query();
+        // The fixed schema legitimately contains this caller-chosen text.
+        assert!(query.sql.contains(value));
+        assert_eq!(query.sql, neutral.sql);
+        assert_eq!(query.text_binds, vec![value.to_owned()]);
+        assert_eq!(query.sql.matches('?').count(), 3);
+        assert_eq!(query.limit, Some(1000));
+    }
+    let injection = "'; DROP TABLE issued_certificates; --";
+    let query = CertificateFilter {
+        status: Some(injection.into()),
+        limit: Some(1000),
+        ..CertificateFilter::default()
+    }
+    .to_query();
+    assert_eq!(query.sql, neutral.sql);
+    assert_eq!(query.text_binds, vec![injection.to_owned()]);
+    assert_eq!(query.sql.matches('?').count(), 3);
+    assert!(!query.sql.contains("DROP TABLE"));
+}

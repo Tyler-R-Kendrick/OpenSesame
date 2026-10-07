@@ -143,20 +143,10 @@ pub(super) fn env(cmd: Env) -> anyhow::Result<()> {
                     .map_err(|_| anyhow::anyhow!("Invalid secret batch"))?
             };
             let resolved = zeroize::Zeroizing::new(core::resolved(&lines, &refs, &values)?);
-            let parent = target
-                .parent()
-                .filter(|p| !p.as_os_str().is_empty())
-                .unwrap_or_else(|| std::path::Path::new("."));
-            let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                temporary
-                    .as_file()
-                    .set_permissions(std::fs::Permissions::from_mode(0o600))?;
-            }
-            temporary.write_all(resolved.as_bytes())?;
-            temporary.persist(&target)?;
+            crate::attach::write_owner_only(&target, |file| {
+                file.write_all(resolved.as_bytes())?;
+                Ok(())
+            })?;
             eprintln!(
                 "Resolved {} secret references; output contains plaintext secrets",
                 lines

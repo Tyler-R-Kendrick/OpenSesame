@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn a_percent_encoded_surrogate_is_still_found_in_its_field() {
-        let body = "password=osr%5F0123456789abcdef0123456789abcdef";
+        let body = "password=osr%5F0123456789abcdef0123456789abcdef"; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
         let out = substitute(body.as_bytes(), "password", S, "x").unwrap();
         assert_eq!(&out[..], b"password=x");
     }

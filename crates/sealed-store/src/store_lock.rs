@@ -14,8 +14,10 @@
 //!   current root (the key file's manifest MAC), so a key unlocked before a
 //!   rotation cannot write under the old root after it.
 //!
-//! The lock is `flock(2)` on Unix, so a crashed process never leaves it held.
+//! The lock is `flock(2)` on Unix and `LockFileEx` on Windows; process exit
+//! releases either lock. Windows also retains confined ancestor handles.
 
+#[cfg(not(windows))]
 use std::fs::File;
 use std::path::Path;
 
@@ -42,15 +44,31 @@ const RESERVED_TOP_LEVEL: [&str; 4] = [
 ];
 
 /// A held store lock; released when dropped (or when the process exits).
+#[cfg(windows)]
+type PlatformLock = opensesame_human_vault::windows_io::WindowsLock;
+#[cfg(not(windows))]
+type PlatformLock = File;
 pub(crate) struct StoreLock {
-    _file: File,
+    _file: PlatformLock,
+}
+
+#[cfg(unix)]
+impl Drop for StoreLock {
+    fn drop(&mut self) {
+        use std::os::fd::AsRawFd;
+
+        // A concurrent fork can retain this open-file description until exec,
+        // even with O_CLOEXEC. Release at the guard's lifetime boundary rather
+        // than waiting for the last inherited descriptor to close.
+        // SAFETY: the owned file descriptor remains valid throughout drop.
+        let _ = unsafe { libc::flock(self._file.as_raw_fd(), libc::LOCK_UN) };
+    }
 }
 
 impl StoreLock {
     /// The rotation lock: refused while any writer or another rotation holds it.
     pub(crate) fn exclusive(root: &Path) -> Result<Self, StoreError> {
-        let file = open_lock_file(root)?;
-        acquire(&file, true).map_err(|busy| {
+        let file = held_lock(root, true).map_err(|busy| {
             busy.unwrap_or_else(|| {
                 StoreError::Other(
                     "the store is busy: another write or rotation is in progress; retry once \
@@ -65,12 +83,17 @@ impl StoreLock {
     /// An ordinary write: refused while a rotation runs or left its staging.
     pub(crate) fn shared(root: &Path) -> Result<Self, StoreError> {
         refuse_staging(root)?;
-        let file = open_lock_file(root)?;
-        acquire(&file, false).map_err(|busy| busy.unwrap_or_else(rotation_in_progress))?;
+        let file =
+            held_lock(root, false).map_err(|busy| busy.unwrap_or_else(rotation_in_progress))?;
+        let lock = Self { _file: file };
+        Self::finish_shared(root, lock)
+    }
+
+    fn finish_shared(root: &Path, held: Self) -> Result<Self, StoreError> {
         // A rotation may have created its staging directory between the first
         // check and the lock; with the lock held, look again.
         refuse_staging(root)?;
-        Ok(Self { _file: file })
+        Ok(held)
     }
 
     /// A key-file edit (add, remove or rewrap a protector): exclusive, so two
@@ -152,6 +175,25 @@ fn ensure_current_root(root: &Path, key: &ItemDataKey) -> Result<(), StoreError>
     })
 }
 
+#[cfg(windows)]
+fn held_lock(root: &Path, exclusive: bool) -> Result<PlatformLock, Option<StoreError>> {
+    opensesame_human_vault::windows_io::lock(root, Path::new(STORE_LOCK_FILE), exclusive).map_err(
+        |error| {
+            if error.kind() == std::io::ErrorKind::WouldBlock {
+                None
+            } else {
+                Some(StoreError::Io(error))
+            }
+        },
+    )
+}
+#[cfg(not(windows))]
+fn held_lock(root: &Path, exclusive: bool) -> Result<PlatformLock, Option<StoreError>> {
+    let file = open_lock_file(root).map_err(Some)?;
+    acquire(&file, exclusive)?;
+    Ok(file)
+}
+
 #[cfg(unix)]
 fn open_lock_file(root: &Path) -> Result<File, StoreError> {
     use std::os::unix::fs::OpenOptionsExt;
@@ -192,7 +234,7 @@ fn acquire(file: &File, exclusive: bool) -> Result<(), Option<StoreError>> {
     Err(Some(StoreError::Io(error)))
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn open_lock_file(root: &Path) -> Result<File, StoreError> {
     Ok(std::fs::OpenOptions::new()
         .read(true)
@@ -203,7 +245,7 @@ fn open_lock_file(root: &Path) -> Result<File, StoreError> {
 }
 
 /// Without `flock`, only the staging-directory refusal protects writers.
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn acquire(_file: &File, _exclusive: bool) -> Result<(), Option<StoreError>> {
     Ok(())
 }
@@ -211,6 +253,68 @@ fn acquire(_file: &File, _exclusive: bool) -> Result<(), Option<StoreError>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    #[test]
+    fn failed_second_staging_check_releases_the_retained_descriptor_lock() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path();
+        let held = StoreLock {
+            _file: held_lock(root, false).unwrap(),
+        };
+        let retained = held._file.try_clone().unwrap();
+        std::fs::create_dir(root.join(ROTATION_STAGING_DIR)).unwrap();
+        let result = StoreLock::finish_shared(root, held);
+        assert!(matches!(result, Err(StoreError::Other(message)) if message.contains("exists")));
+        assert!(StoreLock::key_file_edit(root).is_err());
+        std::fs::remove_dir(root.join(ROTATION_STAGING_DIR)).unwrap();
+        let edit = StoreLock::key_file_edit(root).unwrap();
+        assert!(StoreLock::shared(root).is_err());
+        drop(retained);
+        assert!(StoreLock::shared(root).is_err());
+        drop(edit);
+        assert!(StoreLock::shared(root).is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn exclusive_guard_releases_despite_a_retained_duplicate_descriptor() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path();
+        let guard = StoreLock::key_file_edit(root).unwrap();
+        // try_clone duplicates the same open-file description inherited by fork.
+        let retained = guard._file.try_clone().unwrap();
+        assert!(StoreLock::key_file_edit(root).is_err());
+        assert!(StoreLock::shared(root).is_err());
+        drop(guard);
+        let next = StoreLock::key_file_edit(root).unwrap();
+        assert!(StoreLock::key_file_edit(root).is_err());
+        drop(retained);
+        // Closing the old descriptor must not release the independent new edit.
+        assert!(StoreLock::shared(root).is_err());
+        drop(next);
+        assert!(StoreLock::shared(root).is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn releasing_one_shared_guard_preserves_another_live_writer() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path();
+        let first = StoreLock::shared(root).unwrap();
+        let retained = first._file.try_clone().unwrap();
+        let second = StoreLock::shared(root).unwrap();
+        drop(first);
+        assert!(StoreLock::key_file_edit(root).is_err());
+        drop(second);
+        // The completed first writer's duplicate must not prolong its lock.
+        let edit = StoreLock::key_file_edit(root).unwrap();
+        assert!(StoreLock::shared(root).is_err());
+        drop(retained);
+        assert!(StoreLock::shared(root).is_err());
+        drop(edit);
+        assert!(StoreLock::shared(root).is_ok());
+    }
 
     #[test]
     fn reserved_top_level_names_are_refused_in_any_ascii_case() {

@@ -173,10 +173,12 @@ impl ServiceBindingSet {
     /// # Errors
     ///
     /// `MalformedConfiguration` for any syntax, unknown-field, coercion, or
-    /// structural failure; the message never echoes the input.
+    /// structural failure. Decode errors omit document contents; structural
+    /// diagnostics may name a validated, bounded binding id.
     pub fn parse_json(json: &str) -> Result<Self, TransportError> {
-        let set: Self = serde_json::from_str(json)
-            .map_err(|e| TransportError::malformed(format!("service bindings: {e}")))?;
+        let set: Self = serde_json::from_str(json).map_err(|_| {
+            TransportError::malformed("service bindings: invalid JSON binding document")
+        })?;
         set.validate()?;
         Ok(set)
     }
