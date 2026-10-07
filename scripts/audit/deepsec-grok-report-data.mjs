@@ -1,0 +1,94 @@
+#!/usr/bin/env node
+/**
+ * Emit markdown tables for docs/security/*-deepsec-grok-scan.md from FileRecords.
+ */
+import fs from "node:fs";
+import path from "node:path";
+
+const repoRoot = process.argv[2] ?? process.cwd();
+const filesRoot = path.join(repoRoot, ".deepsec", "data", "opensesame", "files");
+
+const AREAS = {
+  core: [
+    "crates/core/",
+    "crates/client-core/",
+    "crates/host-core/",
+    "packages/app-core/",
+    "packages/vault-core/",
+  ],
+  pwa: ["apps/pages/"],
+  cli: ["apps/cli/", "packages/cli/"],
+};
+
+function areaOf(filePath) {
+  for (const [name, prefixes] of Object.entries(AREAS)) {
+    if (prefixes.some((p) => filePath.startsWith(p))) return name;
+  }
+  return "other";
+}
+
+function walk(dir) {
+  const out = [];
+  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, ent.name);
+    if (ent.isDirectory()) out.push(...walk(p));
+    else if (ent.name.endsWith(".json")) out.push(p);
+  }
+  return out;
+}
+
+const severityOrder = ["CRITICAL", "HIGH", "MEDIUM", "HIGH_BUG", "BUG", "LOW"];
+const stats = {};
+for (const k of Object.keys(AREAS)) {
+  stats[k] = {
+    analyzed: 0,
+    pending: 0,
+    error: 0,
+    candidates: 0,
+    bySeverity: {},
+    byVerdict: {},
+  };
+}
+
+const rows = [];
+
+for (const fp of walk(filesRoot)) {
+  const rec = JSON.parse(fs.readFileSync(fp, "utf8"));
+  const rel = rec.filePath;
+  const area = areaOf(rel);
+  if (!stats[area]) continue;
+  const st = rec.status ?? "?";
+  if (st === "analyzed") stats[area].analyzed += 1;
+  else if (st === "pending") stats[area].pending += 1;
+  else if (st === "error") stats[area].error += 1;
+  stats[area].candidates += (rec.candidates ?? []).length;
+  for (const f of rec.findings ?? []) {
+    const sev = f.severity ?? "?";
+    stats[area].bySeverity[sev] = (stats[area].bySeverity[sev] ?? 0) + 1;
+    const v = f.revalidation?.verdict ?? "unrevalidated";
+    stats[area].byVerdict[v] = (stats[area].byVerdict[v] ?? 0) + 1;
+    const lines = (f.lineNumbers ?? []).join(",");
+    rows.push({
+      area,
+      id: f.findingId ?? f.title,
+      severity: sev,
+      filePath: rel,
+      lines,
+      title: f.title,
+      slug: f.vulnSlug,
+      verdict: f.revalidation?.verdict ?? "unrevalidated",
+      reasoning: (f.revalidation?.reasoning ?? "").slice(0, 120),
+    });
+  }
+}
+
+rows.sort((a, b) => {
+  const sa = severityOrder.indexOf(a.severity);
+  const sb = severityOrder.indexOf(b.severity);
+  if (sa !== sb) return (sa === -1 ? 99 : sa) - (sb === -1 ? 99 : sb);
+  if (a.verdict === "true-positive" && b.verdict !== "true-positive") return -1;
+  if (b.verdict === "true-positive" && a.verdict !== "true-positive") return 1;
+  return a.filePath.localeCompare(b.filePath);
+});
+
+console.log(JSON.stringify({ stats, rows }, null, 2));
