@@ -15,6 +15,12 @@ import {
   setTheme,
   useThemePreference,
 } from "../theme.js";
+import {
+  type ClipboardCopy,
+  acceptClipboardCopy,
+  beginClipboardCopy,
+  clearClipboardCopy,
+} from "./clipboard-ownership.js";
 
 function useVaultDefault(): VaultState {
   // A built-in type switched on or off changes how every item draws, and the
@@ -138,25 +144,11 @@ function useSessionGuardsDefault(): void {
 export type CopyResult = "copied" | "unavailable";
 
 /** Last value this app put on the clipboard, so lock can wipe it. */
-type CopiedSecret = { value: string; id: number };
-let lastCopied: CopiedSecret | null = null;
-let copySequence = 0;
+let lastCopied: ClipboardCopy | null = null;
 let pendingClear: number | null = null;
 
-async function clearIfOurs(copy: CopiedSecret): Promise<void> {
-  // A delayed read must not erase a later app copy, including the same value.
-  const sequence = copySequence;
-  try {
-    const current = await navigator.clipboard.readText();
-    if (
-      sequence === copySequence &&
-      current === copy.value &&
-      !(lastCopied && lastCopied.id > copy.id && lastCopied.value === current)
-    )
-      await navigator.clipboard.writeText("");
-  } catch {
-    // Without a readable ownership witness, do not erase foreign/newer data.
-  }
+async function clearIfOurs(copy: ClipboardCopy): Promise<void> {
+  await clearClipboardCopy(copy, navigator.clipboard);
   if (lastCopied?.id === copy.id) lastCopied = null;
 }
 
@@ -193,7 +185,7 @@ function useCopySecretDefault(): (value: string) => Promise<CopyResult> {
       } catch {
         return "unavailable";
       }
-      const copy = { value, id: ++copySequence };
+      const copy = beginClipboardCopy(value);
       try {
         await navigator.clipboard.writeText(value);
       } catch {
@@ -206,7 +198,7 @@ function useCopySecretDefault(): (value: string) => Promise<CopyResult> {
         await clearIfOurs(copy);
         return "unavailable";
       }
-      if (lastCopied && lastCopied.id > copy.id) {
+      if (!acceptClipboardCopy(copy)) {
         await clearIfOurs(copy);
         return "unavailable";
       }

@@ -15,6 +15,7 @@
 
 import { chromium, expect } from "@playwright/test";
 import { approveByKeyboard } from "./capability-keyboard-contract.mjs";
+import { copyByKeyboard } from "./live-clipboard-keyboard.mjs";
 import { reportConnectionFailure } from "./live-connection-diagnostics.mjs";
 import { startLiveTurn } from "./live-turn.mjs";
 
@@ -88,10 +89,6 @@ const focusedName = (page) =>
     const el = document.activeElement;
     return el?.getAttribute("aria-label") || el?.id || el?.tagName || "";
   });
-
-async function copied(page) {
-  return page.evaluate(() => navigator.clipboard.readText());
-}
 
 /** A guest device with one login in it, and Live sessions chosen. */
 async function ownerEnters(page, { origin, base, tabTo, width }) {
@@ -176,8 +173,7 @@ async function ownerStarts(page, tabTo) {
   await expect(copyLink, "Start lands on the Copy link key").toBeFocused();
   if (process.env.LIVE_MEASURE) await measure(page, "after Start");
   await focusIn(page, "#live-session", "after Start");
-  await page.keyboard.press("Enter");
-  const link = await copied(page);
+  const link = await copyByKeyboard(page, panel, "the link");
   const code = (await panel.locator(".live-code").innerText()).trim();
   return { link, code };
 }
@@ -205,8 +201,7 @@ async function joinerAsks(page, { link, code, tabTo }) {
     timeout: 20_000,
   });
   await focusIn(page, ".live-join", "after asking");
-  await page.keyboard.press("Enter");
-  return copied(page);
+  return copyByKeyboard(page, page, "your request code");
 }
 
 /** The owner pastes the request, lets the joiner in, and copies the reply. */
@@ -227,8 +222,7 @@ async function ownerAdmits(page, { request, tabTo }) {
   });
   await expect(reply, "Let in lands on the reply code").toBeFocused();
   await focusIn(page, "#live-session", "after Let in");
-  await page.keyboard.press("Enter");
-  return copied(page);
+  return copyByKeyboard(page, panel, "the reply code for Ada Lovelace");
 }
 
 /** A wrong reply keeps the field; the right one joins, and focus follows. */

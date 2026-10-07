@@ -250,6 +250,7 @@ function Session() {
       ) : null}
       {catalog ? (
         <LiveCatalog
+          guest={guest}
           catalog={catalog}
           request={(what, item, field) => guest.request(what, item, field)}
           save={(item, field, value) => guest.edit(item, field, value)}

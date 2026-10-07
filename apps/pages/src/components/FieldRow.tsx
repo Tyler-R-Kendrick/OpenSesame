@@ -6,28 +6,40 @@ import {
   useRef,
   useState,
 } from "react";
-import { useCopySecret } from "../lib/vault/hooks.js";
+import { type CopyResult, useCopySecret } from "../lib/vault/hooks.js";
 import { IconCheck, IconCopy, IconEye, IconEyeOff } from "./Icons.js";
 
 export function useCopyFeedback() {
-  const copySecret = useCopySecret();
+  return useCopyFeedbackWith(useCopySecret());
+}
+
+export function useCopyFeedbackWith(
+  copySecret: (value: string) => Promise<CopyResult>,
+) {
   const [copied, setCopied] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
+  const lifetime = useRef({ mounted: true, operation: 0 });
 
   // The flash timers are the only thing still running after this row goes
   // away: clear them on unmount so a copy can never call back into a torn-down
   // tree (which surfaces as an unhandled error after the tests finish).
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    lifetime.current.mounted = true;
+    return () => {
+      lifetime.current.mounted = false;
+      lifetime.current.operation += 1;
       if (timer.current) window.clearTimeout(timer.current);
-    },
-    [],
-  );
+    };
+  }, []);
 
   const copy = useCallback(
     async (key: string, value: string) => {
+      if (!lifetime.current.mounted) return;
+      const operation = ++lifetime.current.operation;
       const result = await copySecret(value);
+      if (!lifetime.current.mounted || lifetime.current.operation !== operation)
+        return;
       if (timer.current) window.clearTimeout(timer.current);
       if (result === "copied") {
         setFailed(null);

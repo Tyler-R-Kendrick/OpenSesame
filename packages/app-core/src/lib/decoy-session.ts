@@ -7,6 +7,13 @@ import {
 let active = false;
 let realmGeneration = 0;
 let syntheticTransition = 0;
+const syntheticListeners = new Set<() => void>();
+
+/** Retire independently owned transports when a synthetic realm begins. */
+export function onSyntheticTransition(listener: () => void): () => void {
+  syntheticListeners.add(listener);
+  return () => syntheticListeners.delete(listener);
+}
 let freshOwnerAuthentication = false;
 let originatingTomb: string | null = null;
 let originatingVault: string | null = null;
@@ -79,10 +86,22 @@ export function markDecoySession(
       originatingVault = ownerVaultIdentity ?? null;
     }
     freshOwnerAuthentication = true;
-    persistPendingOwnerContext(originatingTomb, originatingVault);
   }
-  realmGeneration += 1;
-  observer = null;
+  try {
+    if (on) persistPendingOwnerContext(originatingTomb, originatingVault);
+  } finally {
+    realmGeneration += 1;
+    observer = null;
+    if (on) {
+      for (const listener of [...syntheticListeners]) {
+        try {
+          listener();
+        } catch {
+          // One transport cannot prevent other original sessions from retiring.
+        }
+      }
+    }
+  }
   return previous;
 }
 

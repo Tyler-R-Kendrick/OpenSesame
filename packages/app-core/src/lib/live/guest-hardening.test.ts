@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { LiveGuest } from "./guest.js";
 import { LiveHost } from "./host.js";
-import { deferred } from "./live-clock.fixture.js";
+import { deferred, settle } from "./live-clock.fixture.js";
 import { FakeNet } from "./live-fakes.js";
 import { DIRECT_ONLY } from "./peer.js";
 
@@ -35,7 +35,9 @@ describe("leaving while the offer is being made", () => {
       peers: net.factory(),
     });
     const starting = guest.start();
-    // Left before the browser had an offer: nothing to close yet.
+    // The peer exists, but its real offer is still held.
+    await settle(10);
+    expect(net.peers).toHaveLength(1);
     guest.leave();
     hold.release();
     expect(await starting).toBe("");

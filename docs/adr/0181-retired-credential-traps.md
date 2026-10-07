@@ -84,6 +84,21 @@ that copy; denied reads or intervening external changes prevent reliable cleanup
 Session revocation cannot retroactively retract secrets already released to an
 external clipboard consumer.
 
+Vault copies keep the original vault authority. Live-session copies instead
+keep the original guest, request or unexpired catalog, and UI operation lifetime.
+Each operation retains its starting realm generation. An independent joined
+session can survive an ordinary vault lock, but entering a synthetic realm
+permanently retires its original authority and closes its owned transports.
+A joiner needs no vault key; the owner's field permissions still govern
+concealed values. Both copy paths share monotonic clipboard
+ownership to recognize newer app copies, including identical values. This
+bookkeeping grants no authority and does not make clipboard read/write atomic.
+
+Hosted sessions retain their original vault authority. A pending guest edit
+also checks its original host and seat at storage acceptance, so ending either
+before acceptance refuses the write. This does not undo an already accepted
+write or retract data already delivered to a peer.
+
 ## Canaries and agents
 
 Synthetic data contains no working third-party credentials. A fake vendor key
