@@ -84,7 +84,11 @@ export function ItemCredentialActions({ item }: { item: VaultItem }) {
   return (
     <section
       className="detail__group password-workflows"
-      ref={target}
+      ref={
+        item.kind === "account" || item.kind === "credential"
+          ? undefined
+          : target
+      }
       aria-label="Credential references"
     >
       <h2 className="detail__grouphead">Credential references</h2>

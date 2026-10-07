@@ -189,10 +189,10 @@ export const VAULT_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "item.credentials.references",
     description:
-      "Credential references on the open item, with reference-only environment templates and deliberate private downloads.",
+      "Credential fields on the open account or credential, or contextual reference tools on another item. Reveal and copy controls stay beside each value; reference templates and deliberate private downloads appear when available.",
     role: "surface",
     routes: ["/vault/item"],
-    capabilityId: "vault.workflow.env_template",
+    capabilityId: "vault.items.reveal",
   },
   {
     id: "item.credentials.compare",
