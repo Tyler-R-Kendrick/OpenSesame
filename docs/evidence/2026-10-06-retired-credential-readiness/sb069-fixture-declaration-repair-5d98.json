@@ -1,0 +1,46 @@
+{
+  "v": 1,
+  "recordedAt": "2026-10-07T00:43:26.641387+00:00",
+  "baseCommit": "5d98d1e906f8547cd369e15d8125bb28a1c79fdf",
+  "scope": "Test-only SB-069 declaration-bound source excerpt repair",
+  "path": "packages/app-core/src/lib/sops/boundaries.test.ts",
+  "previousSha256": "b2b84d23005a0b2384fb8dcba3c451acc499c274b59ac64adc1fa4be0fa9b7b1",
+  "currentSha256": "eb502b084b34a2afde5b521b257f7655f05c44337aad560c286af54f47a3ed10",
+  "productionChanges": false,
+  "changes": "Anchor the next private method declaration, rather than a call site or obsolete no-argument signature; assert excerpt start/end validity and preserve the one batch mutation assertion.",
+  "focusedCasesPassed": 11,
+  "fullCoreTypecheckReportedExit": 0,
+  "strictBiomeDiffReportedExit": 0,
+  "proofs": [
+    {
+      "stage": "focused",
+      "reportedActualExit": 0,
+      "privateRawLogSha256": "4f82e5c4aecc32301b3d09150a1d8144bccd1787ee5559f1f7ec20dac63106c1"
+    },
+    {
+      "stage": "types",
+      "reportedActualExit": 0,
+      "privateRawLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "stage": "strict",
+      "reportedActualExit": 0,
+      "privateRawLogSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "originalFailureRetained": {
+    "attempt": "V22",
+    "workspaceExit": 1,
+    "coreCasesFailed": 1,
+    "coreCasesPassed": 6237,
+    "existingCoreSkips": 24,
+    "canonical": "NOT_RUN",
+    "failureSummarySha256": "502e4b22bbf4d94849adc994f4c96566d48f0f04b6b56f02930a84daa73d62a1"
+  },
+  "candidateSourceCatalog": {
+    "paths": 1101,
+    "sha256": "4ea7e17c1c3353bff7bc2f6e8180889f70808dead1f5c4bfa428b5982c51be18",
+    "onlyDeltaFromV5": "This test file; all production source hashes unchanged"
+  },
+  "qualification": "Finite focused fixture validation; the failed V22 workspace run remains failed, and the11-case run is not a new whole-workspace result. OriginalV44 prepush and V5 catalog retain pre-test-repair bytes. CurrentV45/V23, security/build/gallery and hosted Windows89/native/device/depth acceptance remain pending. No raw logs/stacks/credentials are included, and no source publication is inferred."
+}

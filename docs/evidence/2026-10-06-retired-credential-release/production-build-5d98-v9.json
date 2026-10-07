@@ -1,0 +1,187 @@
+{
+  "base": "5d98d1e906f8547cd369e15d8125bb28a1c79fdf",
+  "verifiedAt": "2026-10-07T01:01:29.553941+00:00",
+  "stages": {
+    "minimal": {
+      "exit": 0,
+      "logSha256": "0c97d62f8390bf62781068fc20b306658ef40f1de2b0be7850464b5409536b3c"
+    },
+    "minimal-sizes": {
+      "exit": 0,
+      "logSha256": "6598cb464f24d018d8f343fa05baab4c7c57c203cfce3129c4576dc7187d32b9"
+    },
+    "family": {
+      "exit": 0,
+      "logSha256": "11f38b301bc7262e512e07a224b0c6cd9532068954d7818f0969b649695f18df"
+    },
+    "family-sizes": {
+      "exit": 0,
+      "logSha256": "ebc5affc2da01d2f96edfad0e593ad5e9234760c237b5a66681cdcd23f1a2906"
+    },
+    "pages": {
+      "exit": 0,
+      "logSha256": "b0d41b5bbf6a4c77189863d8fbd5c9d0bc411ff53ebf614205f0b2f2b64bfee0"
+    },
+    "main-extension": {
+      "exit": 0,
+      "logSha256": "d74cf270e63ff7f42e3edcdb41a9496682065d3ade797e69d09079cba484c572"
+    },
+    "autofill-extension": {
+      "exit": 0,
+      "logSha256": "71214a1a008058d723614fc9144e4419476378d669fd620542c77518688b101d"
+    },
+    "whole-budget": {
+      "exit": 0,
+      "logSha256": "c7b21533f9bea29d2dd5524b2fb50e5c018ef77457c6ab98432e59582da2f124"
+    },
+    "controlled-loopback": {
+      "exit": 0,
+      "logSha256": "a883ab46e6ef7ca90dd11df877f6f405bbf06d925a7c141ba619554a20e63c67"
+    },
+    "shared-chunk-graph": {
+      "exit": 0,
+      "logSha256": "0f34f03b1e001a101785de87bcdc2d651c15fdff5a94da88502a6b47cd3abec8"
+    }
+  },
+  "actualStatuses": {
+    "build-chain": 0,
+    "inputs-check": 0,
+    "tool-chain": 0,
+    "global-check": 0
+  },
+  "globalSourceInputsUnchangedDuringBuild": 10835,
+  "hardenedProfiles": [
+    {
+      "name": "minimal-local-hardened",
+      "ok": true,
+      "mismatchCount": 0,
+      "sizes": {
+        "capabilityChunks": {},
+        "css": 159988,
+        "entryStatic": 711618,
+        "entryStaticGzip": 230189,
+        "fileCount": 154,
+        "javascript": 3286770,
+        "javascriptGzip": 1053952,
+        "largestAsset": 704672,
+        "largestAssetName": "assets/main-Bu0ZMWb8.js",
+        "total": 3898064
+      },
+      "violationCounts": {},
+      "measurementSha256": "a2d8c2bdc34ea9c2b9d54897b1e6f269ae6573d619b5a29e2bb627fe048d389c",
+      "canonicalLargestAssetCeilingKiB": 693
+    },
+    {
+      "name": "family-local-hardened",
+      "ok": true,
+      "mismatchCount": 0,
+      "sizes": {
+        "capabilityChunks": {},
+        "css": 159988,
+        "entryStatic": 711618,
+        "entryStaticGzip": 230186,
+        "fileCount": 154,
+        "javascript": 3286770,
+        "javascriptGzip": 1053735,
+        "largestAsset": 704672,
+        "largestAssetName": "assets/main-DolqRG8Y.js",
+        "total": 3898063
+      },
+      "violationCounts": {},
+      "measurementSha256": "4cc3602bd59fa3802cada19b7dcd344c3da9870fcd0911b5e20cc353f686b483",
+      "canonicalLargestAssetCeilingKiB": 693
+    }
+  ],
+  "pwa": {
+    "proof": "pwa-build-5d98-v9.json",
+    "proofSha256": "a3dec73abdb122aa32b506fb9c03e70b4b47c5274a6c926ddf643ead0b923240",
+    "capturedInputs": 3525,
+    "changesDuringBuild": [],
+    "assets": 268,
+    "indexSha256": "014c94d1fe2399acc01a02d25be5f45727b3c4294bb1fbf42485be04cd4ad447",
+    "sourceAggregateSha256": "ca7cc1c947fe72eb9faab81aad2c3c11ce76746e48a8a02280678ddeb60a3c19",
+    "buildAggregateSha256": "a54fa40e9d2266be1c6a18794e911b5c368a36fbf2afc5903d5f579727f96eae",
+    "javascriptGzipKiB": 1731,
+    "canonicalCeilingKiB": 1739
+  },
+  "extensions": {
+    "proof": "extension-builds-5d98-v9.json",
+    "proofSha256": "32cf50d94b7ab8bbd25d7c5181ce072694a8d08586242e11ae1252a2553e88b4",
+    "capturedInputs": 79,
+    "changesDuringBuild": [],
+    "profiles": 2,
+    "installedRuntimeExecutedByThisChain": false
+  },
+  "emittedSharedCredentialChunk": {
+    "status": "actual-emitted-closed-five-module-shared-chunk-passed",
+    "targets": [
+      {
+        "target": "minimal",
+        "chunk": "assets/shared-credential-model-C7Ac-4Vf.js",
+        "moduleCount": 5,
+        "modules": [
+          "packages/os-domain/src/json.ts",
+          "packages/vault-core/src/account.ts",
+          "packages/vault-core/src/credential-bind.ts",
+          "packages/vault-core/src/credential-split.ts",
+          "packages/vault-core/src/credential.ts"
+        ],
+        "imports": [],
+        "dynamicImports": [],
+        "closedChunkCannotCreateImportCycle": true,
+        "graphSha256": "5ab25d6ad96ab949b941ac2d8ffcabab1f6e71290981b496e978b60e0cf34d81"
+      },
+      {
+        "target": "family",
+        "chunk": "assets/shared-credential-model-C7Ac-4Vf.js",
+        "moduleCount": 5,
+        "modules": [
+          "packages/os-domain/src/json.ts",
+          "packages/vault-core/src/account.ts",
+          "packages/vault-core/src/credential-bind.ts",
+          "packages/vault-core/src/credential-split.ts",
+          "packages/vault-core/src/credential.ts"
+        ],
+        "imports": [],
+        "dynamicImports": [],
+        "closedChunkCannotCreateImportCycle": true,
+        "graphSha256": "8d95aba35663b13d73f1c0e41599495e5f4a923c851c1e37649145450b5245a0"
+      },
+      {
+        "target": "standard",
+        "chunk": "assets/shared-credential-model-vkPO6iub.js",
+        "moduleCount": 5,
+        "modules": [
+          "packages/os-domain/src/json.ts",
+          "packages/vault-core/src/account.ts",
+          "packages/vault-core/src/credential-bind.ts",
+          "packages/vault-core/src/credential-split.ts",
+          "packages/vault-core/src/credential.ts"
+        ],
+        "imports": [],
+        "dynamicImports": [],
+        "closedChunkCannotCreateImportCycle": true,
+        "graphSha256": "a173a98a31bcd067ef13da1158cebcede0cb2cb2342ee1ce21d3efa7741d45c3"
+      },
+      {
+        "target": "controlled",
+        "chunk": "assets/shared-credential-model-vkPO6iub.js",
+        "moduleCount": 5,
+        "modules": [
+          "packages/os-domain/src/json.ts",
+          "packages/vault-core/src/account.ts",
+          "packages/vault-core/src/credential-bind.ts",
+          "packages/vault-core/src/credential-split.ts",
+          "packages/vault-core/src/credential.ts"
+        ],
+        "imports": [],
+        "dynamicImports": [],
+        "closedChunkCannotCreateImportCycle": true,
+        "graphSha256": "87d1ac2675267969a297f499e8dcfbdb9d0e3d5be63ed1f5aa159e354510f6f6"
+      }
+    ],
+    "qualification": "Checks emitted graph/runtime module membership and import closure; no authority or cryptographic proof claim."
+  },
+  "defaultProfileSha256": "da5fe95fa9eee73685f5209486c1efba0fbbe1547e8ed77de825ccd1aad5f8c0",
+  "qualification": "Actual current-source production builds and original strict budgets. V5 budget failures remain retained. Original fac gallery/catalogs, 8fab and V7 build proofs remain their unchanged historical scopes. V7 preceded the WebMCP continuation repairs. No browser, native or installed-extension execution is claimed by this build chain."
+}

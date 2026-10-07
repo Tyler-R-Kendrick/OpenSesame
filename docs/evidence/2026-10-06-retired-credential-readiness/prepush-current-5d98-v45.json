@@ -1,0 +1,89 @@
+{
+  "status": "actual-recorded5d98-declaration-fixture-prepush-passed",
+  "recordedAt": "2026-10-07T00:44:42.634440+00:00",
+  "attempt": "v45",
+  "baseCommit": "5d98d1e906f8547cd369e15d8125bb28a1c79fdf",
+  "featureAdr": "docs/adr/0180-retired-credential-traps.md",
+  "stages": [
+    {
+      "stage": "lint",
+      "command": "pnpm lint",
+      "actualExit": 0,
+      "privateRawLogSha256": "7defaf350ee23ba0cea59b0844b74c82144ba41146ee3ab4b34c91c462fd2d98",
+      "privateExitRecordSha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "stage": "quality",
+      "command": "pnpm quality",
+      "actualExit": 0,
+      "privateRawLogSha256": "27e30a5849966f3b85a47de9ddd4bd8021c812e0832a5758b91829be6a05f998",
+      "privateExitRecordSha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    },
+    {
+      "stage": "typecheck",
+      "command": "pnpm typecheck",
+      "actualExit": 0,
+      "privateRawLogSha256": "f6b6a77bfb542b4f7ef32466476f30c54ff5fe4d593f0ad19f4519a494fbf362",
+      "privateExitRecordSha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+    }
+  ],
+  "capturedSourceInputs": 10835,
+  "capturedManifestSha256": "31971237e62ab902f9c846f5f916b8acd1d9be4b5fe571ffcd52bb1296121096",
+  "inputCheckSha256": "4ddd71a3d352fca6779b8eee9b856f26c25b8754cee85e34d0e5af182f6035ef",
+  "changedInputs": [],
+  "lintFilesChecked": 1141,
+  "quality": {
+    "vitestTestsPassed": 619,
+    "vitestFilesPassed": 72,
+    "nodeTestsPassed": 15,
+    "structuralTrackedViolations": 655,
+    "structuralFiles": 423,
+    "structuralRegressions": 0,
+    "appCoreBoundaryFiles": 1986,
+    "vaultCoreBoundaryFiles": 68,
+    "boundaryAndRestrictedSeamViolations": 0,
+    "packageComponents": 137,
+    "packageCycles": 0,
+    "phantomDependencies": 0
+  },
+  "typecheck": {
+    "tasksSuccessful": 67,
+    "tasksCached": 61,
+    "tasksExecutedFresh": 6,
+    "freshTasks": [
+      "@opensesame/app-core",
+      "@opensesame/browser-extension-autofill",
+      "@opensesame/browser-extension",
+      "@opensesame/fuzz",
+      "@opensesame/cli",
+      "@opensesame/pages"
+    ],
+    "elapsedMilliseconds": 52189,
+    "allTasksExecutedFresh": false
+  },
+  "completeSourceDiffManifest": {
+    "paths": 1101,
+    "sha256": "4ea7e17c1c3353bff7bc2f6e8180889f70808dead1f5c4bfa428b5982c51be18",
+    "localIndependentRootFsIndexByteModeBlobVerification": true,
+    "privateVerificationReceiptSha256": "0603410ae40d5a501bff5f74f7ece341f791b735cb48dff4bf1586f4edca842b",
+    "remotePublicationOrVerificationExecuted": false
+  },
+  "priorAttempts": {
+    "v40": "Failed quality test-function structure; type/workspace not run",
+    "v41": "Failed core test fixture types; workspace not run",
+    "v42": "Failed page test fixture types; workspace not run",
+    "priorFailureSummarySha256": "2c4357a53f1519602a5e0addf14d1ccb88d2643a1e5f8a664207224880e35f95"
+  },
+  "qualification": "Actual closed prepush only on10835 unchanged inputs. All67 type tasks succeeded with61 cached and6 fresh at52.189 seconds. V23 workspace is still running; no completion is claimed. V14 security and V9 build stages have not run. Current gallery, Windows89/native/device/depth/hosted and production acceptance remain pending. Publication remains blocked pending destination approval. Earlier successful and failed snapshots keep their original byte/cache scopes; no formal-proof claim.",
+  "earlierCandidateQualification": "V44 is an actual passing prepush before one test-only declaration-boundary fixture repair. V22 is an actual failed workspace run; neither result is relabeled by this V45 receipt.",
+  "lateWriteBoundary": "Original operation ceiling is checked until raw storage dispatch. Already-admitted native I/O completes required root/header/index bookkeeping; no undo guarantee is claimed.",
+  "testOnlyRepairQualification": {
+    "path": "packages/app-core/src/lib/sops/boundaries.test.ts",
+    "sha256": "eb502b084b34a2afde5b521b257f7655f05c44337aad560c286af54f47a3ed10",
+    "productionChanged": false,
+    "sourceDiffPathsBeforeAndAfter": 1101,
+    "focusedCasesPassed": 11,
+    "originalFailedWorkspaceAttempt": "V22",
+    "originalFailedWorkspaceSummarySha256": "502e4b22bbf4d94849adc994f4c96566d48f0f04b6b56f02930a84daa73d62a1"
+  }
+}

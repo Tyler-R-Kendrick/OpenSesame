@@ -1,0 +1,39 @@
+{
+  "v": 1,
+  "status": "actual-recorded5d98-v22-workspace-failed",
+  "recordedAt": "2026-10-07T00:41:39.371654+00:00",
+  "attempt": "v22",
+  "baseCommit": "5d98d1e906f8547cd369e15d8125bb28a1c79fdf",
+  "serial": {
+    "command": "pnpm exec turbo run test --concurrency=1",
+    "actualExit": 1,
+    "tasksSuccessful": 64,
+    "tasksCached": 64,
+    "tasksTotal": 70,
+    "elapsedMilliseconds": 363136,
+    "failedPackage": "@opensesame/app-core",
+    "privateRawLogSha256": "787585b8e8cbdaa904104df478b263951527690fa03468e779e607631e6f1ed2",
+    "privateExitRecordSha256": "4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865"
+  },
+  "coreResults": {
+    "casesFailed": 1,
+    "casesPassed": 6237,
+    "existingCasesSkipped": 24,
+    "filesFailed": 1,
+    "filesPassed": 769,
+    "existingFilesSkipped": 2
+  },
+  "failureClassification": "SB-069 source-structure fixture uses an obsolete private-method signature delimiter. The legitimate new optional operation-ceiling parameter causes the fixture to select the wrong source excerpt. A narrow test-only repair is underway; this remains a failed run, not a waived failure.",
+  "canonical": {
+    "command": "pnpm test",
+    "status": "NOT_RUN"
+  },
+  "laterPackages": "The failed serial run does not establish PWA or downstream package completion.",
+  "capturedInputs": 10835,
+  "inputManifestSha256": "c5465cdf7cd0eb51f599209a9f51af1819d45d91fffdcab3a23ba91a3c198b44",
+  "inputCheckSha256": "4ddd71a3d352fca6779b8eee9b856f26c25b8754cee85e34d0e5af182f6035ef",
+  "changedInputs": [],
+  "originalPrepushQualification": "V44 actually passed before the subsequent test-only fixture repair. Its original snapshot is preserved and is not relabeled.",
+  "nextCandidate": "Final source metadata and prepush/workspace must refresh after actual test-only repair and freeze.",
+  "qualification": "Actual failed original-deadline workspace run on unchanged10835 inputs. Existing skips remain explicit. Current V14 security and V9 production builds have not executed; full Windows89/native/device/depth/hosted and release acceptance remain pending. No source mutation, publication or canonical workspace success is inferred. Raw logs remain private."
+}

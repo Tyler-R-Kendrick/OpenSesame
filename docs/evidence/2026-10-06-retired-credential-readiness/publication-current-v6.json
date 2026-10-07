@@ -1,0 +1,32 @@
+{
+  "recordedAt": "2026-10-07T03:11:00.938668+00:00",
+  "base": "5d98d1e906f8547cd369e15d8125bb28a1c79fdf",
+  "sourceSha": "c0f8c299e472ba56f434796263c12cf1aa78ff6c",
+  "commits": [
+    {
+      "sha": "725fb329c7d5ec10d8f7d15495587ec4c3d7a831",
+      "parent": "5d98d1e906f8547cd369e15d8125bb28a1c79fdf",
+      "verifiedSignature": true,
+      "exactCompleteRemoteTree": true,
+      "paths": 11904
+    },
+    {
+      "sha": "c0f8c299e472ba56f434796263c12cf1aa78ff6c",
+      "parent": "725fb329c7d5ec10d8f7d15495587ec4c3d7a831",
+      "verifiedSignature": true,
+      "exactCompleteRemoteTree": true,
+      "paths": 12221
+    }
+  ],
+  "sourcePaths": 1101,
+  "remotePublicationExecuted": true,
+  "sourceManifestSha256": "4ea7e17c1c3353bff7bc2f6e8180889f70808dead1f5c4bfa428b5982c51be18",
+  "sourcePr": 764,
+  "hostedRun": 37565578573,
+  "dispatchInputs": {
+    "test_depth": true,
+    "extension_mutation": true
+  },
+  "hostedAcceptance": "pending",
+  "localResumePrepush": "lint, quality, 67 cached type tasks, 70 cached test tasks passed; earlier unprivileged network test failures retained privately"
+}
