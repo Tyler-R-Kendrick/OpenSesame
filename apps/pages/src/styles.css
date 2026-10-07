@@ -3239,40 +3239,6 @@ fieldset.picker {
     border-color: var(--accent);
   }
 
-  /* The type suffix is the same choice one level up — `.login` after a name —
-     so it takes the same shape. Left as a dashed rule it would have detached
-     from its own word the moment the box grew to a key. */
-  /* Only the picker becomes a chip: a type the route or the item fixed is a
-     label, and boxed like the picker it read as a key that did nothing. */
-  select.editor__ext {
-    min-height: 2.75rem;
-    /* The sentence chips draw their own caret and pay for the room; this one
-       keeps the platform's, so it only owes it a hair of clearance. */
-    padding: 0 0.35rem 0 0.6rem;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background-color: var(--surface-2);
-  }
-
-  select.editor__ext:hover {
-    border-color: var(--ink-3);
-  }
-
-  /* A native select sizes to its widest option, so `.login` was drawn as wide
-     as `.certificate` and its caret sat a third of the row away from the word
-     it belongs to. Sized to its content it reads as the suffix it is, and the
-     name keeps the rest of the line. The cap is for engines without
-     `field-sizing`, where the widest option still wins. */
-  .editor__ext {
-    field-sizing: content;
-    max-width: 40%;
-  }
-
-  .editor__folder {
-    min-width: 2.75rem;
-    max-width: 30%;
-  }
-
   /* The switch keeps the size of its mechanic and grows a target around it:
      the button becomes a 44px key, and the track and knob are drawn inside
      it. A 24px-tall pill is a fine switch and a poor thing to aim at. */
