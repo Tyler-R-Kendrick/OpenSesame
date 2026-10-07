@@ -12,10 +12,36 @@ fn identity(root: &Path) -> String {
     manifest.vault_id
 }
 
+fn probe_fixed_filenames(root: &Path) {
+    let sealed = windows_publish::detector_key::seal(&identity(root), &[71_u8; 32])
+        .expect("fixed-filename detector key protect failed");
+    for (name, value) in [
+        (KEY_FILE, sealed.as_slice()),
+        (
+            ".opensesame-credential-canaries.v1",
+            b"private fixture".as_slice(),
+        ),
+        (
+            ".opensesame-installed-canary-validator.v1",
+            b"private fixture".as_slice(),
+        ),
+    ] {
+        windows_publish::atomic_write(root, Path::new(name), value)
+            .expect("fixed-filename detector publication failed");
+        assert_eq!(
+            windows_io::read_bounded(root, Path::new(name), 4096)
+                .expect("fixed-filename detector read failed"),
+            value,
+        );
+        windows_io::remove(root, Path::new(name)).expect("fixed-filename detector removal failed");
+    }
+}
+
 #[test]
 fn windows_detector_key_is_dpapi_sealed_and_reopens_without_a_real_root_key() {
     let dir = store();
     let root = dir.path();
+    probe_fixed_filenames(root);
     let canary = create(root, b"current owner", ArtifactKind::McpConfiguration).unwrap();
     let protected = windows_io::read_bounded(root, Path::new(KEY_FILE), 4096).unwrap();
     let independent = windows_publish::detector_key::open(&identity(root), &protected).unwrap();

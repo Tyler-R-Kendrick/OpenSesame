@@ -167,9 +167,11 @@ class VisualResultsTest(unittest.TestCase):
                        "import pathlib,sys\nargs=sys.argv[1:]\n" +
                        "if args[:3] == ['shell','getconf','PAGE_SIZE']: print('4096')\n" +
                        "elif args[:3] == ['shell','am','instrument']: sys.exit(7)\n" +
+                       "elif args[0] == 'logcat': print('Public crash fixture')\n" +
+                       "elif args == ['shell','dumpsys','window','policy']: print('Public keyguard fixture')\n" +
                        "elif args[:2] == ['exec-out','run-as']:\n" +
                        " if args[-1].endswith('/security-empty.png'): sys.stdout.buffer.write(pathlib.Path(" + repr(str(fixture_png)) + ").read_bytes())\n" +
-                       " else: sys.exit(1)\n")
+                       " else: print('cat: public missing fixture'); sys.exit(0)\n")
         adb.chmod(0o700)
         apk = self.root / "public-fixture.apk"; apk.write_bytes(b"public parser fixture, not an actual APK")
         report = self.root / "failed-attempt"
@@ -182,6 +184,13 @@ class VisualResultsTest(unittest.TestCase):
         images = list((report / "visual").glob("*/security-empty.png"))
         self.assertEqual(len(images), 1)
         self.assertEqual(images[0].read_bytes(), image())
+        self.assertEqual(len(list((report / "visual").glob("*/*.png"))), 1)
+        self.assertEqual(list((report / "visual").glob("*/*.json")), [])
+        diagnostics = report / "diagnostics"
+        self.assertEqual((diagnostics / "crash-buffer.log").read_text(), "Public crash fixture\n")
+        self.assertEqual((diagnostics / "runtime.log").read_text(), "Public crash fixture\n")
+        self.assertEqual((diagnostics / "window-policy.log").read_text(), "Public keyguard fixture\n")
+        self.assertIn("cat: public missing fixture", (diagnostics / "fresh-owner-png.rejected.log").read_text())
         self.assertFalse((report / "verified.json").exists())
         self.assertEqual(list((report / "visual").glob("*-verified.json")), [])
 

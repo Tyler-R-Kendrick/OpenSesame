@@ -100,7 +100,9 @@ async function openPage(): Promise<Wired> {
   const fresh = await import("@opensesame/browser-at-rest");
   fresh.useClientAtRestKeys(() => deviceKey);
   await import("../entrypoints/options/main");
-  await settle();
+  await eventually(() =>
+    expect(document.querySelectorAll("#ready li")).toHaveLength(4),
+  );
   return wired;
 }
 

@@ -63,6 +63,9 @@ struct NativeAuthorityBridgeTests {
         // This uses the pinned Ktor engine's actual cancellation Job. It does not contact a server.
         let engine = NativeRealmHttpEngine(fence: fresh.fence).create { _ in }
         #expect(engine.coroutineContext.isActive_)
+        let preparedSource = try await source(storage: fresh, area: freshArea, fence: fresh.fence)
+        preparedSource.endAdmission()
+        await expectCancellation { _ = try await preparedSource.selectCredential(document: document, requestedClaims: [], keyAgreementPossible: []) }
         fresh.fence.revoke()
         #expect(!engine.coroutineContext.isActive_)
         engine.close()

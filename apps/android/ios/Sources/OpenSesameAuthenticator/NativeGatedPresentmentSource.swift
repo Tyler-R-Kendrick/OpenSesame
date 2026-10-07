@@ -11,6 +11,8 @@ final class NativeGatedPresentmentSource: PresentmentSource, @unchecked Sendable
         super.init(documentStore: delegate.documentStore, documentTypeRepository: delegate.documentTypeRepository,
                    zkSystemRepository: delegate.zkSystemRepository, eventLogger: delegate.eventLogger)
     }
+    func endAdmission() { fence.revoke() }
+
     override func __resolveTrust(requester: Requester,
                                completionHandler: @escaping (TrustedRequesterIdentity?, Error?) -> Void) {
         fence.perform({ delegate.__resolveTrust(requester: requester, completionHandler: $0) }, completion: completionHandler)

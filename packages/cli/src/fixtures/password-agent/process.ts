@@ -22,6 +22,8 @@ export async function processFixture() {
       const child = spawn(
         process.execPath,
         [
+          // Keep application stderr exact while Node 22 labels SQLite experimental.
+          "--disable-warning=ExperimentalWarning",
           "--import",
           resolve("node_modules/tsx/dist/loader.mjs"),
           "packages/cli/src/bin.ts",

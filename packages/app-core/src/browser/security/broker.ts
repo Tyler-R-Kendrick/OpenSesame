@@ -74,7 +74,10 @@ export class ExtensionRealmBroker {
   constructor(readonly ports: BrokerPorts) {}
   async #authorize(
     owner: PortIdentity,
-    request: Extract<SecurityRequest, { op: "authorize" }>,
+    request: Pick<
+      Extract<SecurityRequest, { op: "authorize" }>,
+      "id" | "permit"
+    >,
   ): Promise<SecurityReply> {
     const lease = request.permit ? this.#leases.get(request.permit) : undefined;
     const allowed =
@@ -93,32 +96,24 @@ export class ExtensionRealmBroker {
     owner: PortIdentity,
     request: Extract<SecurityRequest, { op: "manage" }>,
   ): Promise<SecurityReply> {
+    const refusal = "Owner management failed. Authenticate again.";
     const lease = this.#leases.get(request.permit);
+    if (!lease || lease.realm !== "real" || lease.owner !== owner)
+      return { id: request.id, realm: "locked", error: refusal };
     const check = () => {
       if (
-        !lease ||
-        lease.realm !== "real" ||
-        lease.owner !== owner ||
         !this.#clients.has(owner) ||
         this.#leases.get(request.permit) !== lease ||
         lease.until <= this.ports.now()
       )
-        throw new Error("Authenticate the real owner again.");
+        throw new Error(refusal);
     };
     try {
       check();
-      const authorized = await this.#authorize(owner, {
-        id: request.id,
-        op: "authorize",
-        permit: request.permit,
-      });
+      const authorized = await this.allows(request.permit);
       check();
-      if (
-        authorized.realm !== "real" ||
-        !this.ports.manage ||
-        this.#authenticating
-      )
-        throw new Error("Owner management unavailable.");
+      if (!authorized || !this.ports.manage || this.#authenticating)
+        throw new Error(refusal);
       this.#authenticating += 1;
       try {
         const resultJson = await this.ports.manage(
@@ -127,8 +122,7 @@ export class ExtensionRealmBroker {
           check,
         );
         check();
-        if (!(await this.allows(request.permit)))
-          throw new Error("Owner authentication changed.");
+        if (!(await this.allows(request.permit))) throw new Error(refusal);
         check();
         return { id: request.id, realm: "real", resultJson };
       } finally {
@@ -138,7 +132,7 @@ export class ExtensionRealmBroker {
       return {
         id: request.id,
         realm: "locked",
-        error: "Owner management failed. Authenticate again.",
+        error: refusal,
       };
     }
   }

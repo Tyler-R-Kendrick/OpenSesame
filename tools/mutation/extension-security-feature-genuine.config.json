@@ -1,6 +1,6 @@
 {
   "mutate": [
-    "packages/app-core/src/browser/security/broker.ts:75:0-144:0",
+    "packages/app-core/src/browser/security/broker.ts:75:0-138:0",
     "packages/app-core/src/browser/security/client.ts:69:0-94:0"
   ],
   "ignorePatterns": [
@@ -40,5 +40,6 @@
   },
   "$schema": "../../node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "timeoutFactor": 1.5,
-  "dryRunTimeoutMinutes": 5
+  "dryRunTimeoutMinutes": 5,
+  "maxTestRunnerReuse": 1
 }

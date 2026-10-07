@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 function trackedBytes(path) {
   const stat = lstatSync(path);
@@ -47,7 +47,28 @@ if (process.argv[1]?.endsWith("/test-depth-inputs.mjs")) {
   if (operation === "capture") {
     writeFileSync(destination, `${JSON.stringify(inputs, null, 2)}\n`);
   } else {
-    assertSameInputs(JSON.parse(readFileSync(destination, "utf8")), inputs);
+    const before = JSON.parse(readFileSync(destination, "utf8"));
+    const previous = new Map(before.map((input) => [input.path, input]));
+    const current = new Map(inputs.map((input) => [input.path, input]));
+    const changed = [...new Set([...previous.keys(), ...current.keys()])]
+      .sort()
+      .filter(
+        (path) =>
+          JSON.stringify(previous.get(path)) !==
+          JSON.stringify(current.get(path)),
+      );
+    // Retain hashes and paths, never source contents, before refusing changed inputs.
+    writeFileSync(
+      join(dirname(destination), "inputs.after.json"),
+      `${JSON.stringify(inputs, null, 2)}\n`,
+      { mode: 0o600 },
+    );
+    writeFileSync(
+      join(dirname(destination), "inputs.changed-paths.json"),
+      `${JSON.stringify(changed, null, 2)}\n`,
+      { mode: 0o600 },
+    );
+    assertSameInputs(before, inputs);
     console.log(`All ${inputs.length} tracked inputs unchanged.`);
   }
 }

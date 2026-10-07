@@ -34,11 +34,13 @@ class NativeSettingsDeviceJourneyTest {
     private val current = "UI journey current application password"
 
     @Before fun emptyFixture() {
+        unlockInitialDeviceScreen(app.activity, device)
         // Reset test state only. Admission and every management operation below
         // use production UI and the actual platform owner factor.
         NativeGate.lock()
         clearFixture()
         app.activityRule.scenario.recreate()
+        assertEquals(androidx.lifecycle.Lifecycle.State.RESUMED, app.activity.lifecycle.currentState)
         waitText("Unlock OpenSesame")
     }
 

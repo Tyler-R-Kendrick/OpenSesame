@@ -34,11 +34,13 @@ class NativeCanaryDeviceTest {
     private val now = "2026-10-06T12:00:00.000Z"
 
     @Before fun fixture() {
+        unlockInitialDeviceScreen(app.activity, device)
         NativeGate.lock()
         app.activity.getSharedPreferences(storage, Context.MODE_PRIVATE).edit().clear().commit()
         NativeGate.javaClass.getDeclaredMethod("save", Context::class.java, String::class.java)
             .apply { isAccessible = true }.invoke(NativeGate, app.activity, nativeGateCreate(current))
         app.activityRule.scenario.recreate()
+        assertEquals(androidx.lifecycle.Lifecycle.State.RESUMED, app.activity.lifecycle.currentState)
         unlockRealFromAdmission()
     }
     @After fun cleanup() {

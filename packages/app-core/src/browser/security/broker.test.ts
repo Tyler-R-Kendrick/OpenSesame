@@ -310,9 +310,11 @@ it("confines human management to its original real port and fresh password callb
     (await other.handle({ ...request, permit: synthetic.permit })).realm,
   ).toBe("locked");
   expect(calls).toBe(0);
-  expect((await owner.handle({ ...request, password: "wrong" })).realm).toBe(
-    "locked",
-  );
+  expect(await owner.handle({ ...request, password: "wrong" })).toEqual({
+    id: request.id,
+    realm: "locked",
+    error: "Owner management failed. Authenticate again.",
+  });
   expect((await owner.handle(request)).resultJson).toBe(
     JSON.stringify({ configured: false }),
   );

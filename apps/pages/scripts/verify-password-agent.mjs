@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "@playwright/test";
-import { doorGuest } from "./lib/front-door.mjs";
-import { openSettingsCategory } from "./lib/pages-journey.mjs";
+import {
+  openSettingsCategory,
+  sealWithPassword,
+} from "./lib/pages-journey.mjs";
 import {
   verifyItemContext,
   verifyNativeRequestHandoff,
@@ -39,12 +41,7 @@ try {
       },
     });
     await page.goto(`${origin}${base}`);
-    await doorGuest(page).click();
-    await page
-      .getByRole("button", { name: "Lock vault" })
-      .locator("visible=true")
-      .first()
-      .waitFor();
+    await sealWithPassword(page);
     await openSettingsCategory(page, "Vaults");
     // An account offers only the credential types this vault switched on
     // (ADR 0179): Account brings Password with it, the other two are asked for.

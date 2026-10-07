@@ -84,7 +84,7 @@ async function verifyPreservedMethods(page, section, accountId, methodIds) {
     ["Token", "token", "context-private-token"],
   ]) {
     const field = section.getByRole("group", { name: label, exact: true });
-    const reference = `os://guest/${accountId}/${encodeURIComponent(`method:${methodIds[label]}:${suffix}`)}`;
+    const reference = `os://personal/${accountId}/${encodeURIComponent(`method:${methodIds[label]}:${suffix}`)}`;
     assert.equal(await field.locator("code").textContent(), reference);
     assert.ok(!(await section.textContent()).includes(value));
     await field
@@ -124,7 +124,7 @@ async function verifyReferenceDownloads(
     .waitFor();
   assert.equal(
     await page.evaluate(() => navigator.clipboard.readText()),
-    `os://guest/${loginId}/${encodeURIComponent(`method:${passwordMethodId}:secret`)}`,
+    `os://personal/${loginId}/${encodeURIComponent(`method:${passwordMethodId}:secret`)}`,
   );
   assert.ok(!(await section.textContent()).includes("new-private-password"));
   const event = page.waitForEvent("download");
@@ -132,7 +132,7 @@ async function verifyReferenceDownloads(
   const file = await event;
   assert.equal(
     fs.readFileSync(await file.path(), "utf8"),
-    `CREDENTIAL=os://guest/${loginId}/${encodeURIComponent(`method:${passwordMethodId}:secret`)}\n`,
+    `CREDENTIAL=os://personal/${loginId}/${encodeURIComponent(`method:${passwordMethodId}:secret`)}\n`,
   );
   await field
     .getByLabel("Download this credential as plaintext on this device")
@@ -150,7 +150,7 @@ async function verifyReferenceDownloads(
 }
 
 export async function verifyNativeRequestHandoff(page, base, width, out) {
-  // Guest starts with Access off. Install its real optional module through
+  // Install the owner's real optional Access module through
   // the same Settings switch a person uses before visiting its requests.
   await addCapabilities(page, ["Access authority"]);
   await page.evaluate((route) => {

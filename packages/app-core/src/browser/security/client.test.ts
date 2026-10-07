@@ -268,11 +268,17 @@ it("does not forward a newly entered management password before a real worker pe
     const before = f.sent.length;
     const attempts = f.attemptedPosts();
     const privateInput = crypto.randomUUID();
-    await expect(
-      f.client.manage({ verb: "receiver-test" }, privateInput),
-    ).rejects.toThrow();
-    expect(f.sent).toHaveLength(before);
-    expect(f.attemptedPosts()).toBe(attempts);
+    const refused = f.client.manage({ verb: "receiver-test" }, privateInput);
+    const denial = expect(refused).rejects.toThrow();
+    try {
+      // Inspect dispatch before awaiting: forwarding an unadmitted password
+      // must fail this assertion, not merely strand the caller's promise.
+      expect(f.sent).toHaveLength(before);
+      expect(f.attemptedPosts()).toBe(attempts);
+    } finally {
+      f.client.lock();
+      await denial;
+    }
     expect(JSON.stringify(f.sent)).not.toContain(privateInput);
     expect(f.client.permit()).toBeUndefined();
   }
@@ -293,4 +299,20 @@ it("requires a management result even when a correlated worker reply reports a r
   const complete = f.client.manage({ verb: "canary-status" }, "owner-current");
   f.emit({ id: 2, realm: "real", resultJson: '{"artifacts":[]}' });
   await expect(complete).resolves.toBe('{"artifacts":[]}');
+});
+
+it("withholds management data carried by a correlated locked or synthetic reply", async () => {
+  for (const realm of ["locked", "synthetic"] as const) {
+    const f = fixture();
+    const admitted = f.client.unlock("owner-current");
+    f.emit({ id: 0, realm: "real", permit: "worker-issued-real" });
+    await admitted;
+    const pending = f.client.manage({ verb: "canary-status" }, "owner-current");
+    const denied = expect(pending).rejects.toThrow("Owner management failed");
+    f.emit({ id: 1, realm, resultJson: '{"private":"must-not-return"}' });
+    await denied;
+    const fresh = f.client.manage({ verb: "canary-status" }, "owner-current");
+    f.emit({ id: 2, realm: "real", resultJson: '{"artifacts":[]}' });
+    await expect(fresh).resolves.toBe('{"artifacts":[]}');
+  }
 });

@@ -19,6 +19,7 @@ import { createTestHost } from "@opensesame/app-core/test-host.js";
 import { expect, it, vi } from "vitest";
 import { createGuardedHealthClient, readGuardedHealth } from "./guarded-health";
 import { createWorkflowHandoff } from "./password-workflow-handoff";
+import { clickSecurityAction } from "./test-support/security-action";
 
 function input(root: HTMLElement, label: string) {
   const found = [...root.querySelectorAll("label")]
@@ -56,7 +57,7 @@ async function fixture() {
   async function unlock(password: string) {
     unlockAttempt += 1;
     input(root, "Vault password").value = password;
-    button(root, "Unlock vault").click();
+    await clickSecurityAction(button(root, "Unlock vault"));
     await vi.waitFor(() =>
       expect(
         root.textContent,

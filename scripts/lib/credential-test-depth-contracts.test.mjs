@@ -49,11 +49,12 @@ it("keeps the feature model and genuine mutation campaigns separate with unchang
   );
   for (const config of [model, genuine]) {
     expect(config.mutate).toEqual([
-      "packages/app-core/src/browser/security/broker.ts:75:0-144:0",
+      "packages/app-core/src/browser/security/broker.ts:75:0-138:0",
       "packages/app-core/src/browser/security/client.ts:69:0-94:0",
     ]);
     expect(config.thresholds).toEqual({ high: 100, low: 100, break: 100 });
     expect(config.concurrency).toBe(1);
+    expect(config.maxTestRunnerReuse).toBe(1);
     expect(config.timeoutMS).toBe(10000);
     expect(config.timeoutFactor).toBe(1.5);
     expect(config.dryRunTimeoutMinutes).toBe(5);

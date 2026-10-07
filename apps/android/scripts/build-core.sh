@@ -69,7 +69,7 @@ case "${1:-}" in
     cargo +1.88.0 build --locked -p "$core_package" --release --features ffi \
       --target x86_64-apple-ios
 
-    local_sim="$CARGO_TARGET_DIR/opensesame-authenticator-ios-simulator.a"
+    local_sim="$CARGO_TARGET_DIR/libopensesame-authenticator-ios-simulator.a"
     xcrun lipo -create \
       "$CARGO_TARGET_DIR/aarch64-apple-ios-sim/release/lib${library_name}.a" \
       "$CARGO_TARGET_DIR/x86_64-apple-ios/release/lib${library_name}.a" \

@@ -51,10 +51,7 @@ test("native capture admission binds exact source and retains failed attempts", 
     assert.match(source, /GITHUB_SHA/u);
     assert.match(source, /verify-native-visual\.py/u);
   }
-  assert.match(
-    android,
-    /trap 'device_status=\$\?; collect_device_visual \|\| true; exit/u,
-  );
+  assert.match(android, /trap 'finish_device_attempt "\$\?"' EXIT/u);
   assert.ok(
     android.indexOf("verify-native-results.py") <
       android.indexOf("verify-native-visual.py"),

@@ -1,6 +1,7 @@
 import ExtensionKit
 import IdentityDocumentServices
 import IdentityDocumentServicesUI
+import SwiftUI
 @preconcurrency import Multipaz
 import WalletEnvelopeCore
 import WalletEnvelopeStorage
@@ -9,12 +10,16 @@ private enum DocumentProviderError: Error {
     case missingAppGroup
 }
 
-private func presentmentSource() async throws -> PresentmentSource {
+private func presentmentSource() async throws -> NativeGatedPresentmentSource {
+    try Task.checkCancellation()
     try await NativeGateStorage.ownerProof()
+    try Task.checkCancellation()
     let permit = try NativeGateStorage.consumePresentationGrant()
     let fence = NativeAuthorityFence(denied: {
         CancellationException(message: "Wallet presentation admission ended", cause: nil).asError()
     }, validate: { try NativeGateStorage.requirePresentation(permit) })
+    var retained = false
+    defer { if !retained { fence.revoke() } }
     guard let group = Bundle.main.object(forInfoDictionaryKey: "OpenSesameAppGroup") as? String,
           let root = FileManager.default.containerURL(
         forSecurityApplicationGroupIdentifier: group
@@ -65,19 +70,67 @@ private func presentmentSource() async throws -> PresentmentSource {
         domainsKeylessSdJwt: [],
         domainsKeyBoundSdJwt: ["sdjwt_user_auth"]
     )
-    return NativeGatedPresentmentSource(delegate: source, fence: fence)
+    try Task.checkCancellation()
+    let admitted = NativeGatedPresentmentSource(delegate: source, fence: fence)
+    retained = true
+    return admitted
 }
 
 @main
 struct OpenSesameDocumentProvider: IdentityDocumentProvider {
     var body: some IdentityDocumentRequestScene {
         ISO18013MobileDocumentRequestScene { context in
-            RequestAuthorizationView(
-                requestContext: context,
-                getPresentmentSource: { try await presentmentSource() }
-            )
+            NativeRequestAdmissionView { source in
+                RequestAuthorizationView(
+                    requestContext: context,
+                    getPresentmentSource: { source }
+                )
+            }
         }
     }
 
     func performRegistrationUpdates() async {}
+}
+
+/// The SDK's callback cannot throw. Render it only after authentic owner admission.
+@MainActor
+private struct NativeRequestAdmissionView<Content: View>: View {
+    let content: (PresentmentSource) -> Content
+    @State private var source: NativeGatedPresentmentSource?
+    @State private var denied = false
+    @State private var preparationId = Foundation.UUID()
+
+    var body: some View {
+        Group {
+            if let source {
+                content(source)
+            } else if denied {
+                Text("Owner verification required")
+            } else {
+                ProgressView("Verify wallet owner")
+            }
+        }
+        .task {
+            let expected = preparationId
+            denied = false
+            var prepared: NativeGatedPresentmentSource?
+            do {
+                prepared = try await presentmentSource()
+                try Task.checkCancellation()
+                guard expected == preparationId else {
+                    prepared?.endAdmission()
+                    return
+                }
+                source = prepared
+            } catch {
+                prepared?.endAdmission()
+                if expected == preparationId && !Task.isCancelled { denied = true }
+            }
+        }
+        .onDisappear {
+            preparationId = Foundation.UUID()
+            source?.endAdmission()
+            source = nil
+        }
+    }
 }

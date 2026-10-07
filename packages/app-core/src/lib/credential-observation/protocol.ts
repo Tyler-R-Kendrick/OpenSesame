@@ -16,7 +16,10 @@ export const CLOCK_SKEW_MS = 300000;
 export const isoSchema = z
   .string()
   .datetime()
-  .refine((s) => new Date(s).toISOString() === s);
+  .refine((s) => {
+    const date = new Date(s);
+    return Number.isFinite(date.getTime()) && date.toISOString() === s;
+  });
 const id = z.string().min(1).max(128);
 const epoch = z.number().int().min(0).max(4294967295);
 export function canonicalBase64(raw: string, length: number): Uint8Array {

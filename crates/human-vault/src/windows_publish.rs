@@ -55,8 +55,14 @@ fn rename_file(file: &File, destination: &PinnedParent) -> io::Result<()> {
         Err(error) if error.kind() == io::ErrorKind::NotFound => {}
         Err(error) => return Err(error),
     }
-    let mut name = windows_private::wide_path(destination.path())?;
-    name.pop(); // FileNameLength supplies the exact UTF-16 length without a terminator.
+    // Retain an explicit terminator for the Win32 path conversion, while the
+    // content length excludes it. Never depend on allocation alignment padding.
+    let name = windows_private::wide_path(destination.path())?;
+    let content_bytes = name
+        .len()
+        .checked_sub(1)
+        .and_then(|units| units.checked_mul(2))
+        .ok_or_else(|| io::Error::other("Windows rename filename exceeded its bound"))?;
     let offset = mem::offset_of!(FILE_RENAME_INFO, FileName);
     let size = offset
         .checked_add(
@@ -71,7 +77,7 @@ fn rename_file(file: &File, destination: &PinnedParent) -> io::Result<()> {
         let info = buffer.as_mut_ptr().cast::<FILE_RENAME_INFO>();
         (*info).Anonymous.ReplaceIfExists = 1;
         (*info).RootDirectory = ptr::null_mut();
-        (*info).FileNameLength = u32::try_from(name.len() * 2)
+        (*info).FileNameLength = u32::try_from(content_bytes)
             .map_err(|_| io::Error::other("Windows rename filename exceeded its bound"))?;
         ptr::copy_nonoverlapping(
             name.as_ptr(),
@@ -266,6 +272,19 @@ mod tests {
             crate::windows_io::read_bounded(dir.path(), name, 64).unwrap(),
             b"complete next"
         );
+        // Full-path UTF-16 lengths exercise each alignment residue, including
+        // buffers whose old allocation had no incidental NUL padding.
+        for padding in 0..4 {
+            let filename = format!("{}records.json", "x".repeat(padding));
+            let relative = Path::new(&filename);
+            atomic_write(dir.path(), relative, b"first complete").unwrap();
+            atomic_write(dir.path(), relative, b"next complete").unwrap();
+            assert_eq!(
+                crate::windows_io::read_bounded(dir.path(), relative, 64).unwrap(),
+                b"next complete"
+            );
+            crate::windows_io::remove(dir.path(), relative).unwrap();
+        }
     }
 
     #[test]

@@ -95,7 +95,7 @@ function parseScope(overrides, finding) {
 }
 
 function validateScannerAttribution(finding, target) {
-  const shape = z.object({
+  const findingSchema = z.object({
     ruleId: z.literal("OA006"),
     severity: z.literal("medium"),
     message: z.literal(
@@ -105,7 +105,7 @@ function validateScannerAttribution(finding, target) {
       `js-yaml is overridden to "${target}", but its installed parent promptfoo@0.122.0 declares it as exact (dependencies: "5.2.2"). No installed copy confirms the override took; if the parent's exact pin wins resolution, npm/pnpm keep that version on disk and the override does nothing. Override the parent instead.`,
     ),
   });
-  shape.parse(finding);
+  findingSchema.parse(finding);
 }
 
 function selectedParent(root, path, scope) {

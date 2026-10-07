@@ -52,7 +52,7 @@ struct NativeKeychainTests {
         #expect(throws: NativeRealmError.self) { try admission.requireReal() }
         #expect(throws: NativeStorageError.self) { try NativeGateStorage.consumePresentationGrant() }
         admission.observeDenied()
-        let observed = try #require(NativeGateStorage.read("record"))
+        let observed = try #require(try NativeGateStorage.read("record"))
         let metadata = try nativeGateStatus(record: observed)
         #expect(metadata.contains("synthetic_decoy_interaction"))
         #expect(!metadata.contains(current) && !metadata.contains(retired))
@@ -97,7 +97,7 @@ struct NativeKeychainTests {
         cleanup()
         defer { cleanup() }
         try NativeGateStorage.clearPresentationGrant()
-        let generation = try #require(NativeGateStorage.read("presentation-generation"))
+        let generation = try #require(try NativeGateStorage.read("presentation-generation"))
         try NativeGateStorage.write("presentation-grant", "\(generation)|\(Date().timeIntervalSince1970 - 1)")
         #expect(throws: NativeStorageError.self) { try NativeGateStorage.consumePresentationGrant() }
         try NativeGateStorage.write("presentation-grant", "malformed")

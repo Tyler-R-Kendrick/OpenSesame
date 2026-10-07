@@ -40,7 +40,10 @@ case "$family" in
     run_gate mutation-ts pnpm test:mutation:ts
     run_gate mutation-duress pnpm test:mutation:duress
     ;;
-  mutation-rust) run_gate mutation-rust pnpm test:mutation:rust ;;
+  mutation-rust)
+    mkdir -p artifacts/mutation
+    run_gate mutation-rust pnpm test:mutation:rust
+    ;;
   fuzz-ts) run_gate fuzz-ts pnpm test:fuzz ;;
   fuzz-rust) run_gate fuzz-rust pnpm audit:fuzz ;;
   feature-mutation)

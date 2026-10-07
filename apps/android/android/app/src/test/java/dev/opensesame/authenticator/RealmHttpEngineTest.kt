@@ -34,6 +34,7 @@ class RealmHttpEngineTest {
         val calls = AtomicInteger()
         val closes = AtomicInteger()
         val cancellations = AtomicInteger()
+        val cancelled = CompletableDeferred<Unit>()
         var hold: CompletableDeferred<Unit>? = null
         val entered = CompletableDeferred<Unit>()
         override suspend fun execute(data: HttpRequestData): HttpResponseData {
@@ -41,6 +42,7 @@ class RealmHttpEngineTest {
             entered.complete(Unit)
             try { hold?.await() } catch (cancelled: CancellationException) {
                 cancellations.incrementAndGet()
+                this.cancelled.complete(Unit)
                 throw cancelled
             }
             return HttpResponseData(HttpStatusCode.OK, GMTDate(), Headers.Empty,
@@ -116,6 +118,7 @@ class RealmHttpEngineTest {
         try {
             delegate.entered.await()
             pending.cancelAndJoin()
+            delegate.cancelled.await()
             assertFalse(release.isCompleted)
             assertEquals(1, delegate.cancellations.get())
             client.close(); client.close(); realm.lock()

@@ -214,6 +214,17 @@ mod unix {
 #[cfg(unix)]
 pub(super) use unix::{read, remove, write};
 #[cfg(windows)]
+fn windows_failure(stage: &str, error: std::io::Error) -> StoreError {
+    std::io::Error::new(
+        error.kind(),
+        format!(
+            "Windows detector {stage} failed (OS code {:?})",
+            error.raw_os_error()
+        ),
+    )
+    .into()
+}
+#[cfg(windows)]
 pub(super) fn read(root: &Path, record: Record, max: usize) -> Result<Option<Vec<u8>>, StoreError> {
     supported()?;
     require_private_directory(root)?;
@@ -231,14 +242,15 @@ pub(super) fn read(root: &Path, record: Record, max: usize) -> Result<Option<Vec
                 let key = opensesame_human_vault::windows_publish::detector_key::open(
                     &super::storage::identity(root)?,
                     &bytes,
-                )?;
+                )
+                .map_err(|error| windows_failure("key unprotect", error))?;
                 Ok(Some(key[..].to_vec()))
             } else {
                 Ok(Some(bytes))
             }
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(error.into()),
+        Err(error) => Err(windows_failure("record read", error)),
     }
 }
 #[cfg(windows)]
@@ -249,12 +261,14 @@ pub(super) fn write(root: &Path, record: Record, bytes: &[u8]) -> Result<(), Sto
         protected = opensesame_human_vault::windows_publish::detector_key::seal(
             &super::storage::identity(root)?,
             bytes,
-        )?;
+        )
+        .map_err(|error| windows_failure("key protect", error))?;
         protected.as_slice()
     } else {
         bytes
     };
-    opensesame_human_vault::windows_publish::atomic_write(root, Path::new(record.name()), bytes)?;
+    opensesame_human_vault::windows_publish::atomic_write(root, Path::new(record.name()), bytes)
+        .map_err(|error| windows_failure("record publish", error))?;
     Ok(())
 }
 #[cfg(windows)]

@@ -6,6 +6,7 @@ import { configureHost } from "../host.js";
 import { createMemoryStorage } from "../memory-storage.js";
 import { nodeOriginFiles } from "../node/origin-files.js";
 import { createTestHost } from "../test-host.js";
+import { webLocksDouble } from "./__tests__/web-locks-double.js";
 import {
   PASSWORD,
   clearVaultSurface,
@@ -26,6 +27,7 @@ it("restores the tab's pending original-owner admission after a normal module re
   configureHost(
     createTestHost({
       originFiles: nodeOriginFiles(directory),
+      locks: webLocksDouble(),
       storage: { local: createMemoryStorage(), session: createMemoryStorage() },
     }),
   );

@@ -53,7 +53,7 @@
     "wallet:evidence": "node scripts/wallet/evidence.mjs",
     "typecheck:anti-slop": "tsc --noEmit --allowImportingTsExtensions --module NodeNext --moduleResolution NodeNext --target ESNext --skipLibCheck --types node tools/oxlint/anti-slop/index.ts tools/oxlint/anti-slop/effect/index.ts",
     "test:coverage:ts": "node scripts/quality/ts-coverage-gate.mjs",
-    "test:coverage:rust": "cargo +1.88.0 llvm-cov --workspace --all-targets --summary-only --fail-under-lines 69 --fail-under-functions 67 --json --output-path coverage/rust-summary.json",
+    "test:coverage:rust": "mkdir -p coverage && cargo +1.88.0 llvm-cov --workspace --all-targets --summary-only --fail-under-lines 69 --fail-under-functions 67 --json --output-path coverage/rust-summary.json",
     "test:coverage": "pnpm test:coverage:ts && pnpm test:coverage:rust",
     "test:mutation:ts": "stryker run tools/mutation/stryker.config.json",
     "test:mutation:duress": "stryker run tools/mutation/stryker.duress.config.json",

@@ -9,6 +9,7 @@ import {
 import { expect, vi } from "vitest";
 import { backupId, createRecoveryKey, sealBackup } from "./backup";
 import { toB64 } from "./bytes";
+import { clickSecurityAction } from "./test-support/security-action";
 export function gate() {
   let finish: () => void = () => {};
   const promise = new Promise<void>((resolve) => {
@@ -36,7 +37,7 @@ export async function unlock(passwordValue: string, handle: string) {
   if (!(password instanceof HTMLInputElement))
     throw new Error("Missing genuine owner input");
   password.value = passwordValue;
-  button("Unlock vault").click();
+  await clickSecurityAction(button("Unlock vault"));
   await vi.waitFor(() =>
     expect(document.querySelector("#security")?.textContent).toContain(
       "Vault open",

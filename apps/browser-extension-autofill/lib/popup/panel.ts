@@ -25,6 +25,7 @@ type StatusAnswer = FillStatus | ErrorReply;
 
 /** The background, spoken to through decoded replies (`wire.ts`). */
 export interface PanelPorts {
+  check(): void;
   status(): Promise<StatusAnswer>;
   trigger(reference: string | undefined): Promise<OutcomeReply | ErrorReply>;
   enable(origin: string): Promise<StatusAnswer>;
@@ -94,12 +95,39 @@ function render(els: PanelElements, status: FillStatus): void {
   mark(els, statusOutcome(status));
 }
 
+export interface PanelController {
+  invalidate(): void;
+  refresh(): Promise<void>;
+}
+
 /** Wire the popup: load status, then answer the three keys. */
 export async function mountPanel(
   els: PanelElements,
-  ports: PanelPorts,
-): Promise<void> {
+  begin: () => PanelPorts,
+): Promise<PanelController> {
   let current: FillStatus | null = null;
+  let generation = 0;
+  const invalidate = () => {
+    generation += 1;
+    current = null;
+    els.origin.textContent = "";
+    els.code.value = "";
+    renderRefs(els, []);
+    els.site.hidden = els.pair.hidden = els.go.hidden = true;
+  };
+  const operation = () => {
+    const ports = begin();
+    const original = generation;
+    const live = () => {
+      try {
+        ports.check();
+        return generation === original;
+      } catch {
+        return false;
+      }
+    };
+    return { ports, live };
+  };
   const show = (answer: StatusAnswer) => {
     if ("error" in answer && !("references" in answer)) {
       // No status to act on: offer no fill until one arrives.
@@ -112,43 +140,60 @@ export async function mountPanel(
   };
 
   els.site.addEventListener("click", async () => {
+    const { ports, live } = operation();
     const origin = current?.origin;
     if (!origin) return;
     if (current?.enabled) {
-      show(await ports.disable());
+      const answer = await ports.disable();
+      if (live()) show(answer);
       return;
     }
     const pattern = hostPattern(origin);
     const granted = pattern
       ? await ports.request([pattern, DAEMON_PATTERN])
       : false;
+    if (!live()) return;
     if (!granted) {
       mark(els, "permission_not_granted");
       return;
     }
-    show(await ports.enable(origin));
+    const answer = await ports.enable(origin);
+    if (live()) show(answer);
   });
 
   els.pair.addEventListener("click", async () => {
-    if (!(await ports.request([DAEMON_PATTERN]))) {
+    const { ports, live } = operation();
+    const granted = await ports.request([DAEMON_PATTERN]);
+    if (!live()) return;
+    if (!granted) {
       mark(els, "permission_not_granted");
       return;
     }
     const reply = await ports.pair();
+    if (!live()) return;
     if ("error" in reply) {
       mark(els, reply.error);
     } else if (reply.state === "pending") {
       els.code.value = `${reply.code.slice(0, 4)}-${reply.code.slice(4)}`;
     } else {
       els.code.value = "";
-      show(await ports.status());
+      const answer = await ports.status();
+      if (live()) show(answer);
     }
   });
 
   els.go.addEventListener("click", async () => {
+    const { ports, live } = operation();
     const reply = await ports.trigger(chosen(els.refs));
-    mark(els, "error" in reply ? reply.error : reply.outcome);
+    if (live()) mark(els, "error" in reply ? reply.error : reply.outcome);
   });
 
-  show(await ports.status());
+  const refresh = async () => {
+    invalidate();
+    const { ports, live } = operation();
+    const answer = await ports.status();
+    if (live()) show(answer);
+  };
+  await refresh();
+  return { refresh, invalidate };
 }

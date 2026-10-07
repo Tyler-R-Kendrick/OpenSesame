@@ -1,19 +1,18 @@
 /** Actual installed popup authority; intercepted destination is transport only. */
 import assert from "node:assert/strict";
 import { expect } from "@playwright/test";
+import { controlWorkflowNavigation } from "./controlled-navigation.mjs";
 
-export async function provePopupWorkflows(context, id, current, retired) {
+export async function provePopupWorkflows(
+  context,
+  id,
+  current,
+  retired,
+  profile,
+) {
   const destination = "https://tyler-r-kendrick.github.io/OpenSesame/";
-  const reached = [];
-  const route = async (request) => {
-    reached.push(request.request().url());
-    await request.fulfill({
-      status: 200,
-      contentType: "text/plain",
-      body: "Controlled navigation endpoint; no vault or credentials.",
-    });
-  };
-  await context.route(`${destination}**`, route);
+  const navigation = await controlWorkflowNavigation(profile, destination);
+  const { reached } = navigation;
   const popup = await context.newPage();
   const failures = [];
   popup.on("pageerror", (error) => failures.push(error.message));
@@ -84,8 +83,9 @@ export async function provePopupWorkflows(context, id, current, retired) {
     await unlock(current);
     await expect(popup.locator("#production-controls")).toBeVisible();
     assert.deepEqual(failures, []);
+    assert.deepEqual(navigation.errors, []);
   } finally {
     await popup.close();
-    await context.unroute(`${destination}**`, route);
+    await navigation.close();
   }
 }

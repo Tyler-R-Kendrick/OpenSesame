@@ -35,7 +35,12 @@ const context = await chromium.launchPersistentContext(profile, {
   executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
   headless: true,
   ignoreDefaultArgs: ["--disable-extensions"],
-  args: [`--disable-extensions-except=${dist}`, `--load-extension=${dist}`],
+  args: [
+    `--disable-extensions-except=${dist}`,
+    `--load-extension=${dist}`,
+    "--remote-debugging-port=0",
+    "--remote-debugging-address=127.0.0.1",
+  ],
 });
 const page = await context.newPage();
 const failures = [];
@@ -63,7 +68,8 @@ const manifestSha256 = createHash("sha256")
 let featureAssertionsExecuted = false;
 let initializationStage = "extension-discovery";
 
-async function enroll(password, response) {
+async function enroll(password, response, expectedTraps) {
+  initializationStage = "retired-trap-enrollment";
   await page
     .getByLabel("Current vault password", { exact: true })
     .fill(current);
@@ -80,6 +86,15 @@ async function enroll(password, response) {
   await expect(
     page.getByLabel("Retired vault password", { exact: true }),
   ).toHaveValue("");
+  if (expectedTraps !== undefined) {
+    await page
+      .getByText("Retired credential trap enrolled.", { exact: true })
+      .waitFor();
+    await expect(
+      page.getByRole("button", { name: "Remove trap", exact: true }),
+    ).toHaveCount(expectedTraps);
+  }
+  initializationStage = "feature-assertions";
 }
 
 async function unlock(password) {
@@ -115,11 +130,17 @@ try {
     "reject",
   );
   await enroll(current, "reject");
+  await page
+    .getByText(
+      "This password collides with a current password or existing trap.",
+      { exact: true },
+    )
+    .waitFor();
   await expect(
     page.getByRole("button", { name: "Remove trap", exact: true }),
   ).toHaveCount(0);
-  await enroll(reject, "reject");
-  await enroll(synthetic, "synthetic_decoy");
+  await enroll(reject, "reject", 1);
+  await enroll(synthetic, "synthetic_decoy", 2);
   await page.screenshot({ path: path.join(out, "owner-enrollment.png") });
   await page.getByRole("button", { name: "Lock vault", exact: true }).click();
   await page.reload();
@@ -180,7 +201,8 @@ try {
   await page.getByText(realName, { exact: true }).waitFor();
   await page.getByText(/Local observations: 2\./).waitFor();
   await page.screenshot({ path: path.join(out, "owner-recovery.png") });
-  if (!autofill) await provePopupWorkflows(context, id, current, synthetic);
+  if (!autofill)
+    await provePopupWorkflows(context, id, current, synthetic, profile);
   assert.deepEqual(failures, []);
   fs.writeFileSync(
     path.join(out, "results.json"),

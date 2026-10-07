@@ -193,9 +193,6 @@
     "apps/pages/src/sections/settings/security/AccountFactorsPanel.tsx": {
       "anti-slop/no-unknown-parameters": 1
     },
-    "apps/pages/src/sections/vault/creation-kinds.test.tsx": {
-      "anti-slop/require-safety-comment-for-type-assertion": 2
-    },
     "apps/pages/src/sw/messages.ts": {
       "anti-slop/no-shape-in-symbol-names": 2
     },

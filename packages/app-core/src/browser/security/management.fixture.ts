@@ -25,18 +25,40 @@ function managementModel() {
   let operation: ((check: () => void) => Promise<string>) | undefined;
   let revision: Promise<string> | undefined;
   let managementCalls = 0;
+  let revisionCalls = 0;
+  let callbackDispatches = 0;
+  let clockObserver: { remaining: number; run: () => void } | undefined;
   const broker = new ExtensionRealmBroker({
     revision: async () => {
+      revisionCalls += 1;
       const pending = revision;
       revision = undefined;
       return pending ?? state.revision;
     },
-    now: () => state.now,
+    now: () => {
+      const current = state.now;
+      if (clockObserver && --clockObserver.remaining === 0) {
+        const action = clockObserver.run;
+        clockObserver = undefined;
+        queueMicrotask(action);
+      }
+      return current;
+    },
     classify: async (password) => {
+      if (password === "selected-retired")
+        return {
+          realm: "synthetic",
+          trap: {
+            id: "selected-trap",
+            createdAt: "2026-10-05T00:00:00.000Z",
+            response: "synthetic_decoy",
+          },
+        };
       if (password !== "owner-current") throw new Error("Invalid owner proof");
       return { realm: "real" };
     },
     manage: async (_operation, password, check) => {
+      callbackDispatches += 1;
       check();
       if (password !== "owner-current") throw new Error("Invalid owner proof");
       managementCalls += 1;
@@ -50,6 +72,11 @@ function managementModel() {
     state,
     started: started.promise,
     managementCalls: () => managementCalls,
+    revisionCalls: () => revisionCalls,
+    callbackDispatches: () => callbackDispatches,
+    afterClockReads: (remaining: number, run: () => void) => {
+      clockObserver = { remaining, run };
+    },
     performManagement: (callback: (check: () => void) => Promise<string>) => {
       operation = callback;
     },
@@ -118,6 +145,9 @@ export function managementBridge() {
     started: model.started,
     close,
     managementCalls: model.managementCalls,
+    revisionCalls: model.revisionCalls,
+    callbackDispatches: model.callbackDispatches,
+    afterClockReads: model.afterClockReads,
     performManagement: model.performManagement,
     blockNextRevision: model.blockNextRevision,
     holdReplies: () => {

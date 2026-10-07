@@ -38,6 +38,7 @@ class NativeAdmissionDeviceTest {
     private val retired = "device-test retired application password"
 
     @Before fun fixture() {
+        unlockInitialDeviceScreen(app.activity, device)
         NativeGate.lock()
         val created = nativeGateCreate(retired)
         val rotated = nativeGateChangePassword(created, retired, current)
@@ -47,6 +48,7 @@ class NativeAdmissionDeviceTest {
         NativeGate.javaClass.getDeclaredMethod("save", Context::class.java, String::class.java)
             .apply { isAccessible = true }.invoke(NativeGate, app.activity, enrolled)
         app.activityRule.scenario.recreate()
+        assertEquals(androidx.lifecycle.Lifecycle.State.RESUMED, app.activity.lifecycle.currentState)
         app.waitUntil(30_000) { app.onAllNodes(hasSetTextAction()).fetchSemanticsNodes().size == 1 }
     }
 
