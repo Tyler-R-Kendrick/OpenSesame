@@ -56,6 +56,7 @@ Object.assign(vaultHooksSeams, {
 import { expectInTray } from "../../components/tray.test-support.js";
 import { ItemDetail } from "./ItemDetail.js";
 import { ItemEditor } from "./ItemEditor.js";
+import { listedKeys } from "./path-field.test-support.js";
 
 const BANK_LOCKER = JSON.stringify({
   apiVersion: "opensesame.dev/v1alpha1",
@@ -159,12 +160,9 @@ afterAll(() => {
 });
 
 describe("the editor for a type installed at runtime", () => {
-  it("offers the type in the picker beside the built-in ones", () => {
+  it("offers the type in the picker beside the built-in ones", async () => {
     renderEditor("/vault/new");
-    const picker = screen.getByLabelText("Type");
-    const options = [...picker.querySelectorAll("option")].map(
-      (option) => option.value,
-    );
+    const options = await listedKeys("Type");
     expect(options).toContain("safe-deposit");
     expect(options).toContain("secret");
   });

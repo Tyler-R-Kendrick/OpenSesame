@@ -1,17 +1,15 @@
+import { chooseType, listedTypes } from "./editor-type.mjs";
+
 /** Exercise native Tab order across native and manifest-defined forms. */
 export async function checkEditorTabOrder(page, check) {
   await page.getByRole("link", { name: "New item", exact: true }).click();
   await page.getByLabel("Type", { exact: true }).waitFor({ state: "visible" });
-  const kinds = await page
-    .getByLabel("Type", { exact: true })
-    .locator("option")
-    .evaluateAll((options) => options.map((option) => option.value));
+  const kinds = await listedTypes(page);
   if (kinds.length === 0) throw new Error("No item types were checked");
   await page.getByRole("link", { name: "Cancel", exact: true }).click();
   for (const kind of kinds) {
     await page.getByRole("link", { name: "New item", exact: true }).click();
-    if (kind !== "account")
-      await page.getByLabel("Type", { exact: true }).selectOption(kind);
+    if (kind !== "account") await chooseType(page, kind);
     const form = page.locator("form.editor");
     if (kind === "account") {
       // An authenticator is a login method: the + beside "Login methods"

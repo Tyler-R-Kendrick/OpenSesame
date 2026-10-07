@@ -39,12 +39,17 @@ export function scopedSteps({ press }) {
         .setChecked(value);
       await page.waitForTimeout(300);
     },
-    /** Type into a field found by label or selector, when this build has it. */
+    /**
+     * Type into a field found by label or selector, when this build has it.
+     * A native `<select>` is the same difference as an absent field: the
+     * base's folder and type cannot be typed into.
+     */
     async fillOptional(page, { label, selector, text }) {
       const field = selector
         ? page.locator(selector).first()
         : page.getByLabel(label, { exact: true }).first();
       if (!(await field.count())) return;
+      if ((await field.evaluate((node) => node.tagName)) === "SELECT") return;
       await field.fill(text);
       await page.waitForTimeout(300);
     },
