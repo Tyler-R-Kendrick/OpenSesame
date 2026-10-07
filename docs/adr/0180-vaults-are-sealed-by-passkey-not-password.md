@@ -1,6 +1,6 @@
 # ADR 0180 — A new vault is sealed by a passkey, never a master password
 
-- **Status:** Accepted — Pages unlock and Security surfaces implemented; vault-key rotation, the CLI and Node host still create password wraps (see Consequences)
+- **Status:** Accepted — implemented in Pages, including vault-key rotation; the CLI and Node host still use typed passwords (see Consequences)
 - **Date:** 2026-10-06
 - **Deciders:** OpenSesame maintainers
 - **Supplements:** ADR 0091 ([account exits and the unlock ceremony](0091-account-exits-and-unlock-ceremony.md)),
@@ -38,6 +38,20 @@ take the other road: the only way in is a passkey.
    `@opensesame/app-core` because the CLI (`opensesame-id`, no WebAuthn), the
    Node host, the offline-backup reader and the test fixtures need a typed
    key. No Pages screen calls the three that create or change one.
+5. **Vault-key rotation never creates a password.** A vault that holds one
+   proves it and keeps it, as before. Any other vault is re-keyed under a
+   new passkey (the wrap is made, and the prompt answered, before any key
+   changes), or under a new PIN where WebAuthn cannot run
+   (`rotateCompromisedRoot({ passkey: true } | { pin })`). A password
+   offered to a vault that holds none, or a passkey to one that does, is
+   refused.
+6. **The PIN stays, deliberately.** A passkey needs a secure hostname and a
+   WebAuthn PRF authenticator, and the browser cannot tell which until the
+   ceremony runs, so a vault with no typed road would strand people on
+   authenticators without PRF. The PIN is a device-local key that never
+   syncs, and the duress code shares its field. It is the explicit fallback,
+   not a peer of the passkey; if a future browser reports PRF support before
+   the ceremony, the PIN tab should be drawn only when that says no.
 
 ## Consequences
 
@@ -46,13 +60,18 @@ take the other road: the only way in is a passkey.
   (`tailnet-sync/snapshot.ts`). With the password gone, a vault that should
   open on a second device needs a passkey; a PIN-only vault stays on its
   device. This is the existing rule, now with one fewer portable road.
-- **Open follow-ups, not done here:** (a) *Rotate compromised vault key*
-  (`rotateCompromisedRoot`) still re-wraps under a typed password, and a
-  vault with none gets "the password entered becomes the master password";
-  it needs a passkey re-enrolment design. (b) The PIN is still a typed
-  secret; "passkeys only" in the strict sense would remove it too, and with
-  it the first-run road on a browser with no WebAuthn. (c) The CLI and
-  `opensesame vault verify` still unlock by master password.
+- **A fix found on the way.** Rotating the key re-sealed only the body, so a
+  vault with any other sealed file (the tomb index at least) failed to unlock
+  after a rotation. `rekeyTomb` now re-seals every file first, all-or-nothing.
+- **`verify:tailnet-sync` cannot be driven headlessly** and is not part of CI.
+  Its second device must adopt a vault from a wrap that travels. A PIN never
+  does, a password can no longer be made, and Chromium's virtual
+  authenticator does not carry a credential's PRF secret across devices
+  (`WebAuthn.getCredentials` omits it; probed). It needs a fixture that seeds
+  device A's vault with a password wrap through the store, as
+  `scripts/fixtures/local-iam.ts` does, not through the UI.
+- **Still typed passwords:** the CLI (`opensesame-id`, no WebAuthn), the Node
+  host, `opensesame vault verify` and the test fixtures. No Pages screen calls
+  `VaultStore.create`, `enrollPassword` or `changeMasterPassword`.
 - Browser journeys that sealed a vault with a password (`verify:*`) seal
-  with a PIN instead, or with a virtual WebAuthn authenticator where the
-  second device must adopt the vault.
+  with a PIN instead.

@@ -17,17 +17,43 @@ const SECOND_STEP_LABEL = {
   sms: "Text message",
 } satisfies Record<SecondStepId, string>;
 
+/** The key a rotation re-wraps the new vault key under. */
+export type RotationKeep = "password" | "passkey" | "pin";
+
+const KEPT_KIND = {
+  password: "password",
+  passkey: "webauthn-prf",
+  pin: "pin",
+} as const;
+
 /**
- * What rotating the vault key takes with it. A new root keeps the password's
- * wrap and nothing else: every other protector (PIN, passkey, recovery key,
- * age, cloud), the second steps and the recovery codes were sealed or wrapped
+ * Which key a rotation ends on. A vault that holds a master password proves it
+ * and keeps it; every other vault gets a new passkey, or a new PIN where the
+ * browser cannot make one, and is never given a password (ADR 0180).
+ */
+export function rotationKeeps(
+  header: VaultHeader | null,
+  passkeyOk: boolean,
+): RotationKeep {
+  if (header?.wrap && header.kdf) return "password";
+  return passkeyOk ? "passkey" : "pin";
+}
+
+/**
+ * What rotating the vault key takes with it. A new root keeps one key's wrap
+ * (the password's, or the new passkey or PIN that replaces its own kind) and
+ * nothing else: every other protector (PIN, passkey, recovery key, age,
+ * cloud), the second steps and the recovery codes were sealed or wrapped
  * under the old key and are written off with it. The sheet names them before
  * the key is pressed, and the notice after names the same ones.
  */
-export function rotationLosses(header: VaultHeader | null): string[] {
+export function rotationLosses(
+  header: VaultHeader | null,
+  keeps: RotationKeep = "password",
+): string[] {
   const lost = new Set<string>();
   for (const row of selectProtectionView({ header }).methods) {
-    if (row.kind !== "password") lost.add(row.mechanismLabel);
+    if (row.kind !== KEPT_KIND[keeps]) lost.add(row.mechanismLabel);
   }
   for (const step of listSecondSteps(header)) {
     lost.add(SECOND_STEP_LABEL[step]);

@@ -119,7 +119,7 @@ import {
 import { type SentCode, sendCode, verifyCode } from "./remote-code.js";
 import { carryForkUnlockedIntoActiveScope } from "./scope-carry-fork.js";
 import { carryOpenActiveScopeWithCurrentKey } from "./scope-carry-open.js";
-import { rebindTombSeals } from "./seal-rebind.js";
+import { rebindTombSeals, rekeyTomb } from "./seal-rebind.js";
 import { CodeSendGuard, PendingChallenge } from "./second-step-guard.js";
 import {
   UnguardedTotpEnrollment,
@@ -473,12 +473,12 @@ export class VaultStore {
     return this.#rawVaultKey;
   }
 
-  /** Root-rotate: swap the in-memory VK and re-seal the body under it. */
+  /** Root-rotate: re-seal the tomb's files and the body under the new VK. */
   async #replaceRawVaultKey(next: Uint8Array): Promise<void> {
     if (!this.#vaultKey || !this.#header) {
       throw new Error("Unlock the vault before rotating the vault key.");
     }
-    const vaultKey = await importVaultKey(next);
+    const vaultKey = await rekeyTomb(this.#scope.tomb, this.#vaultKey, next);
     this.#stashRaw(next);
     this.#vaultKey = vaultKey;
     await this.#persist();

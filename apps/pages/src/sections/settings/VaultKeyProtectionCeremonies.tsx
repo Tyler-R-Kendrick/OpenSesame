@@ -1,4 +1,6 @@
+import { checkWebauthnHost } from "@opensesame/app-core/lib/vault/unlock-methods.js";
 import {
+  rotationKeeps,
   rotationLosses,
   runCaught,
   status,
@@ -137,37 +139,46 @@ export function AddKeyProtection({
 function RotateCeremony({ onDone }: { onDone: () => void }): ReactNode {
   const store = useVaultStore();
   const { header } = useVault();
-  const [password, setPassword] = useState("");
+  const [secret, setSecret] = useState("");
   const [busy, setBusy] = useState(false);
   // Read once, when the sheet opens: the rotation rewrites the header.
-  const [lost] = useState(() => rotationLosses(header));
+  const [keeps] = useState(() => rotationKeeps(header, checkWebauthnHost().ok));
+  const [lost] = useState(() => rotationLosses(header, keeps));
   const gone = lost.join(", ");
-  // With a master password enrolled, the one typed is proved against it and
-  // wrapped anew; with none, there is nothing to prove and it becomes the one.
-  const proves = Boolean(header?.wrap && header.kdf);
+  // A master password is proved against what is enrolled and wrapped anew. A
+  // vault without one is never given one (ADR 0180): it is re-keyed under a
+  // new passkey, or a new PIN where the browser cannot make a passkey.
+  const typed = keeps !== "passkey";
+  const ready = !typed || secret.length > 0;
+  const effect = {
+    password: "A new vault key; the master password is wrapped anew",
+    passkey: "A new vault key; a new passkey opens it",
+    pin: "A new vault key; the new PIN opens it",
+  }[keeps];
   return (
     <CeremonyShell
-      ok={password.length > 0}
+      ok={ready}
       name="Rotate compromised vault key"
       facts={[
-        {
-          key: "Effect",
-          value: proves
-            ? "A new vault key; the master password is wrapped anew"
-            : "A new vault key; the password entered becomes the master password",
-        },
+        { key: "Effect", value: effect },
         { key: "Removed", value: gone === "" ? "nothing else" : gone },
       ]}
       primary={{
         label: "Rotate",
         icon: <IconRefresh size={18} />,
         busy,
-        disabled: busy || password.length === 0,
+        disabled: busy || !ready,
         tone: "danger",
         onClick: () => {
           setBusy(true);
           void runCaught(async () => {
-            await store.protection.rotateCompromisedRoot({ password });
+            await store.protection.rotateCompromisedRoot(
+              keeps === "password"
+                ? { password: secret }
+                : keeps === "pin"
+                  ? { pin: secret }
+                  : { passkey: true },
+            );
             status(
               "info",
               "Vault key protection",
@@ -180,14 +191,18 @@ function RotateCeremony({ onDone }: { onDone: () => void }): ReactNode {
         },
       }}
     >
-      <FieldShell
-        label={proves ? "Master password" : "New master password"}
-        type="password"
-        value={password}
-        onValueChange={setPassword}
-        autoComplete={proves ? "current-password" : "new-password"}
-        mono
-      />
+      {typed ? (
+        <FieldShell
+          label={keeps === "password" ? "Master password" : "New PIN"}
+          type="password"
+          value={secret}
+          onValueChange={setSecret}
+          autoComplete={
+            keeps === "password" ? "current-password" : "new-password"
+          }
+          mono
+        />
+      ) : null}
     </CeremonyShell>
   );
 }

@@ -17,6 +17,7 @@ import {
   provenEnrollmentRecord,
 } from "./browser-enroll.js";
 import {
+  type RotationKey,
   removeProtector as removeProtectorOp,
   rotateCompromisedRoot as rotateCompromisedRootOp,
   setPreferredProtector as setPreferredProtectorOp,
@@ -295,7 +296,7 @@ export class VaultProtectionBrowserService {
     return testProtectorOp(this.#host, protectorId, material);
   }
 
-  async rotateCompromisedRoot(input: { password: string }): Promise<void> {
+  async rotateCompromisedRoot(input: RotationKey): Promise<void> {
     this.#assertCanMutate();
     await this.ensureProtectionProjected();
     await this.#assertManifestTrusted();
