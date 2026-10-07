@@ -3,8 +3,6 @@
  */
 
 import {
-  MANIFEST_SCHEMA_VERSION,
-  type PasswordProtectorRecord,
   type ProtectionRecord,
   type RootProtectionManifest,
   type VaultHeader,
@@ -12,13 +10,20 @@ import {
   unwrapRawVaultKeyFromPassword,
   wrapVaultKeyWithPassword,
 } from "@opensesame/vault-core";
+import { wrapVaultKeyWithCeremony } from "../passkey-unlock-session.js";
+import {
+  type VaultUnlocks,
+  createPasskeyUnlockCeremony,
+  withPasskeyUnlock,
+  wrapVaultKeyWithPin,
+} from "../unlock-methods.js";
 import {
   protectorIsHeaderWrap,
   protectorUnlocksVault,
 } from "../unlock-preference.js";
-import { assertNewPassword } from "../unlock-secret-guard.js";
+import { assertNewPassword, assertNewPin } from "../unlock-secret-guard.js";
 import { ProtectionError } from "./errors.js";
-import { newOpaqueId, newProtectorId } from "./ids.js";
+import { newOpaqueId } from "./ids.js";
 import {
   assertCanRemoveProtector,
   assertExpectedRevision,
@@ -210,21 +215,77 @@ export async function testProtector(
 }
 
 /**
- * Mint a new vault root, re-seal the body, re-wrap with password, and reset
- * the protection manifest to the password path (root-rotate).
+ * What a rotation re-wraps the new vault key under. A vault that holds a
+ * master password proves it and keeps it; every other vault is re-keyed under
+ * a fresh passkey (or a PIN where the browser cannot make one) and never gains
+ * a password (ADR 0180).
+ */
+export type RotationKey =
+  | { password: string }
+  | { passkey: true }
+  | { pin: string };
+
+type RotationWrap = {
+  kdf?: VaultHeader["kdf"];
+  wrap?: VaultHeader["wrap"];
+  unlocks?: VaultUnlocks;
+};
+
+/**
+ * The wrap that opens `rawVaultKey` under `key`, made before any key changes:
+ * a passkey ceremony can be refused, and a refusal must leave the vault as it
+ * was. A password is proved against the current wrap first.
+ */
+async function wrapRotatedKey(
+  header: VaultHeader,
+  rawVaultKey: Uint8Array,
+  key: RotationKey,
+): Promise<RotationWrap> {
+  const holdsPassword = Boolean(header.wrap && header.kdf);
+  if ("password" in key) {
+    if (!holdsPassword) {
+      throw new ProtectionError(
+        "unavailable",
+        "This vault has no master password, and one is not added. Rotate with a passkey or a PIN.",
+      );
+    }
+    await assertNewPassword(key.password);
+    // Throws WrongPasswordError, before any key changes.
+    await unwrapRawVaultKeyFromPassword(header, key.password);
+    const wrapped = await wrapVaultKeyWithPassword(rawVaultKey, key.password);
+    return { kdf: wrapped.kdf, wrap: wrapped.wrap };
+  }
+  if (holdsPassword) {
+    throw new ProtectionError(
+      "unavailable",
+      "This vault holds a master password; rotate by proving it.",
+    );
+  }
+  if ("passkey" in key) {
+    const ceremony = await createPasskeyUnlockCeremony();
+    const record = await wrapVaultKeyWithCeremony(rawVaultKey, ceremony);
+    return { unlocks: withPasskeyUnlock(undefined, record) };
+  }
+  await assertNewPin(key.pin);
+  return { unlocks: { pin: await wrapVaultKeyWithPin(rawVaultKey, key.pin) } };
+}
+
+/**
+ * Mint a new vault root, re-seal the body, re-wrap it under one key, and reset
+ * the protection manifest to what that key projects (root-rotate).
  *
- * The password meets the same floor as every other master-password path
+ * A secret typed here meets the same floor as every other unlock secret
  * (policy, then the duress-code collision probe) before any key changes. When
  * the vault has a master password, the one typed must be that password: a
  * rotation re-wraps it under the new root, and changing it is
- * `changeMasterPassword`'s job. With no master password enrolled there is none
- * to prove, and the password typed becomes it.
+ * `changeMasterPassword`'s job. A vault with none is never given one: it is
+ * re-keyed under a new passkey or PIN, and every other method it held is
+ * dropped with the old key (the caller names which).
  */
 export async function rotateCompromisedRoot(
   host: LifecycleHost,
-  input: { password: string },
+  input: RotationKey,
 ): Promise<void> {
-  await assertNewPassword(input.password);
   const header = host.getHeader();
   if (!header) {
     throw new ProtectionError(
@@ -232,47 +293,41 @@ export async function rotateCompromisedRoot(
       "There is no vault header on this device.",
     );
   }
-  if (header.wrap && header.kdf) {
-    // Throws WrongPasswordError, before any key changes.
-    await unwrapRawVaultKeyFromPassword(header, input.password);
-  }
   const base = requireManifest(header);
   const { rawVaultKey } = await mintVaultKey();
-  await host.replaceRawVaultKey(rawVaultKey);
-  const wrapped = await wrapVaultKeyWithPassword(
-    host.requireRawRoot(),
-    input.password,
-  );
-  const passwordRecord: PasswordProtectorRecord = {
-    kind: "password",
-    protectorId: newProtectorId("password"),
-    legacy: true,
-    kdf: {
-      alg: "PBKDF2-SHA256",
-      saltB64: wrapped.kdf.saltB64,
-      iterations: wrapped.kdf.iterations,
-    },
-    wrap: wrapped.wrap,
-    proofStatus: "verified",
-  };
-  const nextManifest: Omit<RootProtectionManifest, "authB64"> = {
-    schemaVersion: MANIFEST_SCHEMA_VERSION,
-    vaultId: base.vaultId,
-    rootKeyId: newOpaqueId("root"),
-    rootEpoch: base.rootEpoch + 1,
-    revision: base.revision + 1,
-    purpose: base.purpose,
-    records: [passwordRecord],
-  };
-  const sealed = await sealAuthenticatedManifest(
-    host.requireRawRoot(),
-    nextManifest,
-  );
-  await host.persistHeader({
-    ...header,
-    kdf: wrapped.kdf,
-    wrap: wrapped.wrap,
-    unlocks: undefined,
-    protection: sealed,
-  });
+  const wrapped = await wrapRotatedKey(header, rawVaultKey, input);
+  // The store zeroes the key it replaces, so a way back is kept before the swap.
+  const previousRoot = host.requireRawRoot().slice();
+  try {
+    await host.replaceRawVaultKey(rawVaultKey);
+    const { protection: _old, ...kept } = header;
+    const nextHeader: VaultHeader = {
+      ...kept,
+      kdf: wrapped.kdf,
+      wrap: wrapped.wrap,
+      unlocks: wrapped.unlocks,
+    };
+    const nextManifest: Omit<RootProtectionManifest, "authB64"> = {
+      ...migrateLegacyHeaderToManifest({
+        header: nextHeader,
+        vaultId: base.vaultId,
+        rootKeyId: newOpaqueId("root"),
+        rootEpoch: base.rootEpoch + 1,
+      }).manifest,
+      revision: base.revision + 1,
+      purpose: base.purpose,
+    };
+    const sealed = await sealAuthenticatedManifest(
+      host.requireRawRoot(),
+      nextManifest,
+    );
+    await host.persistHeader({ ...nextHeader, protection: sealed });
+  } catch (error) {
+    // The header still holds the old wraps, so the data must go back under the
+    // old key or the vault would open to nothing.
+    await host.replaceRawVaultKey(previousRoot.slice()).catch(() => undefined);
+    throw error;
+  } finally {
+    previousRoot.fill(0);
+  }
 }

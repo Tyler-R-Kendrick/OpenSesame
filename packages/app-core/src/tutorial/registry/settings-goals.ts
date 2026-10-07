@@ -119,23 +119,6 @@ export const SETTINGS_GOALS: readonly GuideGoalDescriptor[] = [
     ].join("\n"),
   },
   {
-    id: "vault.master-password.change",
-    title: "Change the master password",
-    routes: ["/settings/security"],
-    libraryOnly: true,
-    guide: [
-      "guide/1",
-      'goal "vault.master-password.change"',
-      'say "The master password is one of the keys that open this vault. Changing it re-wraps the vault key; no item is re-encrypted."',
-      'navigate "/settings/security"',
-      'wait route "/settings/security" timeout=15000',
-      'focus "settings.master-password" "Add sets a master password where there is none, and Change replaces it. Either opens a sheet, and the password is typed there, never in a tour. It takes twelve characters or more." side=left',
-      'wait target "settings.master-password" event=activate timeout=60000',
-      'success "The sheet is where the new password is typed."',
-      "end",
-    ].join("\n"),
-  },
-  {
     id: "vault.recovery.view",
     title: "See which recovery codes are left",
     routes: ["/settings/security"],

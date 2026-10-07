@@ -12,6 +12,7 @@ import {
 import {
   type SealedBlob,
   assertSealed,
+  importVaultKey,
   openJsonForRebind,
   sealJson,
   vaultSealBinding,
@@ -22,6 +23,8 @@ import {
   SEAL_BOUND_MARKER_PATH,
   readPlaintextFile,
   tombFileKey,
+  unlockTomb,
+  vfsFlush,
   vfsSeams,
   writePlaintextFile,
 } from "../vfs.js";
@@ -114,4 +117,65 @@ export async function rebindTombSeals(
     await rewriteIfUnbound(tomb, key, path, blob);
   }
   await writePlaintextFile(tomb, SEAL_BOUND_MARKER_PATH, "1");
+}
+
+/**
+ * Re-seal every sealed file of a tomb from `from` to `to`, for a vault-key
+ * rotation, then point the tomb at `to`. The body is the store's to seal from
+ * memory, so it is left alone here. Every file is opened and re-sealed before
+ * any is written, so one that cannot be read stops the rotation with the tomb
+ * as it was, and a write that fails part-way is put back. A file left under
+ * the old key would be unreadable the moment the old key is gone. Returns the
+ * imported new key.
+ */
+export async function rekeyTomb(
+  tomb: string,
+  from: CryptoKey,
+  nextRaw: Uint8Array,
+): Promise<CryptoKey> {
+  const to = await importVaultKey(nextRaw);
+  await vfsFlush();
+  // Bound first: a seal that predates path binding is rewritten, never carried.
+  await rebindTombSeals(tomb, from);
+  const rawIndex = vfsSeams.readRaw(tombFileKey(tomb, INDEX_PATH));
+  const indexBlob = rawIndex ? parseBlob(rawIndex) : null;
+  if (!indexBlob) {
+    unlockTomb(tomb, to);
+    return to;
+  }
+  const index = parseIndex(
+    await vfsSeams.open(from, indexBlob, vaultSealBinding(tomb, INDEX_PATH)),
+  );
+  const sealed: [string, SealedBlob][] = [];
+  for (const path of Object.keys(index.files)) {
+    if (path === BODY_PATH || path === INDEX_PATH) continue;
+    const raw = vfsSeams.readRaw(tombFileKey(tomb, path));
+    const blob = raw ? parseBlob(raw) : null;
+    if (!blob) continue;
+    const binding = vaultSealBinding(tomb, path);
+    const value = await vfsSeams.open<BoundaryValue>(from, blob, binding);
+    sealed.push([path, await vfsSeams.seal(to, value, binding)]);
+  }
+  sealed.push([
+    INDEX_PATH,
+    await vfsSeams.seal(to, index, vaultSealBinding(tomb, INDEX_PATH)),
+  ]);
+  const written: [string, string | null][] = [];
+  try {
+    for (const [path, blob] of sealed) {
+      assertSealed(blob);
+      const key = tombFileKey(tomb, path);
+      const previous = vfsSeams.readRaw(key);
+      await vfsSeams.writeRaw(key, JSON.stringify(blob));
+      written.push([key, previous]);
+    }
+  } catch (error) {
+    // A write that fails part-way must not leave some files under each key.
+    for (const [key, previous] of written.reverse()) {
+      if (previous !== null) await vfsSeams.writeRaw(key, previous);
+    }
+    throw error;
+  }
+  unlockTomb(tomb, to);
+  return to;
 }

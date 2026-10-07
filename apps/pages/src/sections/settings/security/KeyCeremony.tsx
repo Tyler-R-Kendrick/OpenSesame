@@ -168,9 +168,11 @@ export function KeyCard({
     );
   }
 
+  // A password is never enrolled or changed (ADR 0180): its only sheet is the
+  // removal above, so nothing but a PIN is drawn past here.
+  if (kind === "password") return null;
   return (
     <SecretKeyCard
-      kind={kind}
       view={view}
       busy={busy}
       run={run}
@@ -213,7 +215,7 @@ export function KeyCeremony({
   onDone: () => void;
   reason?: "authenticator";
 }) {
-  const others = (["passkey", "pin", "password"] as const).filter(
+  const others = (["passkey", "pin"] as const).filter(
     (id) => id !== kind && !enrolled.includes(id),
   );
   const alts: CeremonyAlt[] = [];

@@ -16,7 +16,7 @@ import { doorGuest, passTheDoor } from "./front-door.mjs";
 import {
   lockVault,
   sealLocalOnly,
-  unlockWithPassword,
+  unlockWithPin,
   waitOpen,
 } from "./pages-journey.mjs";
 
@@ -238,7 +238,7 @@ export async function memberVault(browser) {
   });
   env.check(claim.status === 423, `${label}: locked, no claim is created`);
 
-  await unlockWithPassword(page);
+  await unlockWithPin(page);
   const again = await hostCall(
     page,
     "/v1/principals/me",

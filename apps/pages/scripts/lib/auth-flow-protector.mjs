@@ -1,6 +1,6 @@
 /**
  * Journey 3 of `verify-auth-flow.mjs`: a vault opened from an enrolled
- * protector (ADR 0152). A password-sealed vault enrolls a recovery key through
+ * protector (ADR 0152). A PIN-sealed vault enrolls a recovery key through
  * Settings, then an authenticator; it is locked, and the unlock screen must
  * draw exactly the enrolled methods, refuse a wrong key without opening
  * anything, open with the right one — and still ask for the authenticator code
@@ -23,19 +23,17 @@ const tabs = (page) =>
     .getByRole("tab")
     .evaluateAll((els) => els.map((el) => el.textContent.trim()));
 
-async function sealWithPassword(page, password) {
+async function sealWithPin(page, pin) {
   await passTheDoor(page);
   await page.getByRole("button", { name: "Use without an account" }).click();
   await page.waitForTimeout(500);
-  await page.getByRole("tab", { name: "Password" }).click();
-  await page.getByLabel("Master password", { exact: true }).fill(password);
-  await page
-    .getByLabel("Confirm master password", { exact: true })
-    .fill(password);
+  await page.getByRole("tab", { name: "PIN" }).click();
+  await page.getByLabel("Device PIN", { exact: true }).fill(pin);
+  await page.getByLabel("Confirm PIN", { exact: true }).fill(pin);
   await page
     .getByLabel("I understand this vault cannot be recovered.", { exact: true })
     .check();
-  await page.getByRole("button", { name: "Seal this device" }).click();
+  await page.getByRole("button", { name: "Seal with PIN" }).click();
   await page.waitForTimeout(5000);
 }
 
@@ -110,7 +108,7 @@ async function unlockFromRecoveryKey(page, h, { key, seed }) {
   const locked = await snap(page, "3-protector-locked");
   const names = await tabs(page);
   check(
-    names.join(",") === "Password,Recovery key",
+    names.join(",") === "PIN,Recovery key",
     `the tabs are exactly the enrolled methods (${names.join(", ")})`,
   );
   check(
@@ -184,8 +182,7 @@ async function preferRecoveryKey(page, h) {
   check(/^Unlock$/m.test(reloaded), "a reload lands on Unlock");
   const selected = await recoveryTab.getAttribute("aria-selected");
   check(
-    (await tabs(page)).join(",") === "Password,Recovery key" &&
-      selected === "true",
+    (await tabs(page)).join(",") === "PIN,Recovery key" && selected === "true",
     "after a reload the tabs and the preference are still the enrolled ones",
   );
   check(
@@ -195,11 +192,11 @@ async function preferRecoveryKey(page, h) {
 }
 
 export async function protectorJourney(h) {
-  const { browser, newPage, setStep, lock, PASSWORD, ORIGIN, BASE } = h;
+  const { browser, newPage, setStep, lock, PIN, ORIGIN, BASE } = h;
   const { page, context } = await newPage(browser);
   setStep("3-protector");
   await page.goto(`${ORIGIN}${BASE}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page, PASSWORD);
+  await sealWithPin(page, PIN);
   const secrets = await enrollBoth(page, h);
   await lock(page);
   await unlockFromRecoveryKey(page, h, secrets);

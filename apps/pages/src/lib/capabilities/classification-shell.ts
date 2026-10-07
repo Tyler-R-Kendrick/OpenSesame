@@ -223,7 +223,6 @@ export const SHELL_RULES = [
   core("src/screens/unlock/", SIGNIN, "sign-in panel and unlock form parts"),
   core("src/screens/UnlockScreen", UNLOCK, "unlock ceremony"),
   core("src/screens/unlock-screen-harness", UNLOCK, "test harness"),
-  core("src/screens/unlock/StrengthMeter", UNLOCK, "unlock form part"),
   core("src/screens/unlock/CodeField", UNLOCK, "second-step code field"),
   core("src/screens/unlock/unlock-form-focus", UNLOCK, "unlock form focus"),
   core("src/screens/unlock/useCountdown", UNLOCK, "second-step countdown"),

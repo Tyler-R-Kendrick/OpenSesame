@@ -9,7 +9,7 @@
  * `reloadUnlock` is the sealed vault's `reload`: a new section loads with the
  * app root, and a vault that is not a guest's opens with its password.
  */
-import { unlockWithPassword } from "./pages-journey.mjs";
+import { unlockWithPin } from "./pages-journey.mjs";
 
 /** 32 bytes, unpadded base64url: the shape the page accepts. Not a secret. */
 const EVIDENCE_KEY = "RXZpZGVuY2UtZGFlbW9uLWtleS1ub3QtcmVhbC0wMSE";
@@ -106,7 +106,7 @@ export function pluginSteps() {
     async reloadUnlock(page) {
       await page.reload({ waitUntil: "networkidle" });
       await page.waitForTimeout(5200);
-      await unlockWithPassword(page);
+      await unlockWithPin(page);
       await page.waitForTimeout(1400);
     },
   };

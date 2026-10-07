@@ -5,8 +5,8 @@
 import {
   addCapabilities,
   openSection,
-  sealWithPassword,
-  unlockWithPassword,
+  sealWithPin,
+  unlockWithPin,
 } from "./pages-journey.mjs";
 import { expectInTray } from "./tray-contract.mjs";
 
@@ -69,7 +69,7 @@ export async function walkJConflict({
   snap,
 }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page);
+  await sealWithPin(page);
   // Identity belongs to a capability: choose it before its rail row exists.
   await addCapabilities(page, [
     "External connectors",
@@ -82,7 +82,7 @@ export async function walkJConflict({
   await snap(page, "J-CONFLICT-registered");
   const pageB = await context.newPage();
   await pageB.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await unlockWithPassword(pageB);
+  await unlockWithPin(pageB);
   await openApplications(pageB);
   const rowB = pageB
     .getByRole("region", { name: "Local applications", exact: true })

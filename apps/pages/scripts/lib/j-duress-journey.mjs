@@ -8,9 +8,9 @@
  * used, clears it, and changes the code.
  */
 import {
-  PASSWORD,
+  PIN,
   openSettingsCategory,
-  sealWithPassword,
+  sealWithPin,
   waitOpen,
 } from "./pages-journey.mjs";
 
@@ -82,10 +82,8 @@ async function useCode({ page, check, snap }) {
   const real = await promptLabel(page);
   await page.waitForTimeout(1500);
   await page.reload({ waitUntil: "networkidle" });
-  await page
-    .getByLabel("Password", { exact: true })
-    .waitFor({ timeout: 15000 });
-  await page.getByLabel("Password", { exact: true }).fill(CODE);
+  await page.getByLabel("PIN", { exact: true }).waitFor({ timeout: 15000 });
+  await page.getByLabel("PIN", { exact: true }).fill(CODE);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page).catch(async (error) => {
     const body = await page.evaluate(() => document.body.innerText);
@@ -144,14 +142,12 @@ async function comeBack({ page, check, snap }) {
     .first()
     .click();
   // Locking the decoy lands where a real lock does: the vault's own password.
-  await page
-    .getByLabel("Password", { exact: true })
-    .waitFor({ timeout: 15000 });
+  await page.getByLabel("PIN", { exact: true }).waitFor({ timeout: 15000 });
   check(
-    (await page.getByLabel("Password", { exact: true }).count()) === 1,
+    (await page.getByLabel("PIN", { exact: true }).count()) === 1,
     "locking the decoy returns to the vault's own password, not the guest road",
   );
-  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByLabel("PIN", { exact: true }).fill(PIN);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page);
   await openSettingsCategory(page, "Security");
@@ -178,7 +174,7 @@ async function comeBack({ page, check, snap }) {
 export async function walkJDuress(context) {
   const { page, origin, base } = context;
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page);
+  await sealWithPin(page);
   await turnOn(context);
   await useCode(context);
   await comeBack(context);

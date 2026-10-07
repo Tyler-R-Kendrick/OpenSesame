@@ -10,8 +10,8 @@ import {
   lockVault,
   openConfigFile,
   openGeneral,
-  sealWithPassword,
-  unlockWithPassword,
+  sealWithPin,
+  unlockWithPin,
 } from "./pages-journey.mjs";
 
 async function assertValues(page, check, label) {
@@ -37,7 +37,7 @@ async function assertValues(page, check, label) {
 
 export async function walkJConfig({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page);
+  await sealWithPin(page);
   await openGeneral(page);
   await snap(page, "J-CONFIG-form");
   await page.getByRole("button", { name: "Night" }).click();
@@ -52,14 +52,12 @@ export async function walkJConfig({ page, origin, base, check, snap }) {
     "config.yaml's page shows clipboard 30",
   );
   await lockVault(page);
-  await unlockWithPassword(page);
+  await unlockWithPin(page);
   await assertValues(page, check, "after unlock");
   await snap(page, "J-CONFIG-after-unlock");
   await page.reload({ waitUntil: "networkidle" });
-  await page
-    .getByLabel("Password", { exact: true })
-    .waitFor({ timeout: 15000 });
-  await unlockWithPassword(page);
+  await page.getByLabel("PIN", { exact: true }).waitFor({ timeout: 15000 });
+  await unlockWithPin(page);
   await assertValues(page, check, "after reload");
   await snap(page, "J-CONFIG-after-reload");
 }

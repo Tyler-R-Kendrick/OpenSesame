@@ -43,7 +43,6 @@ describe("UnlockMethodsPanel", () => {
     store.removePasskey.mockResolvedValue(undefined);
     store.enrollPin.mockResolvedValue(undefined);
     store.removePin.mockResolvedValue(undefined);
-    store.enrollPassword.mockResolvedValue(undefined);
     store.removePassword.mockResolvedValue(undefined);
     store.beginTotpEnrollment.mockResolvedValue(
       "otpauth://totp/vault?secret=ABCDEFGH",
@@ -75,9 +74,14 @@ describe("UnlockMethodsPanel", () => {
     expect(document.querySelectorAll("input")).toHaveLength(0);
     expect(row("Passkey").getByRole("button", { name: "Add" })).toBeTruthy();
     expect(row("PIN").getByRole("button", { name: "Add" })).toBeTruthy();
+    // A vault that already holds a master password can only drop it: no
+    // Add, no Change (ADR 0180).
     expect(
-      row("Password").getByRole("button", { name: "Change" }),
+      row("Password").getByRole("button", { name: "Remove" }),
     ).toBeTruthy();
+    expect(
+      row("Password").queryByRole("button", { name: "Change" }),
+    ).toBeNull();
     // State is a glyph whose sentence is its accessible name, never a pill.
     expect(row("Password").getByRole("img", { name: "Enrolled" })).toBeTruthy();
     expect(
@@ -148,51 +152,6 @@ describe("UnlockMethodsPanel", () => {
     expect(
       dialog.queryByRole("button", { name: "Use a password instead" }),
     ).toBeNull();
-  });
-
-  it("changes a password from its row, asking for the current one", async () => {
-    render(<UnlockMethodsPanel />);
-    await userEvent.click(
-      row("Password").getByRole("button", { name: "Change" }),
-    );
-    const dialog = sheet();
-    for (const [label, value] of [
-      ["Current password", "old-password-1"],
-      ["New password", "correct horse battery"],
-      ["Confirm new password", "correct horse battery"],
-    ] as const) {
-      await userEvent.type(dialog.getByLabelText(label), value);
-    }
-    await userEvent.click(
-      dialog.getByRole("button", { name: "Change password" }),
-    );
-    await waitFor(() =>
-      expect(store.changeMasterPassword).toHaveBeenCalledWith(
-        "old-password-1",
-        "correct horse battery",
-      ),
-    );
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  });
-
-  it("confirms a removal in the card and refuses to remove the last key", async () => {
-    render(<UnlockMethodsPanel />);
-    await userEvent.click(
-      row("Password").getByRole("button", { name: "Change" }),
-    );
-    const dialog = sheet();
-    await userEvent.click(
-      dialog.getByRole("button", { name: "Remove this password" }),
-    );
-    expect(document.querySelector(".found--ask .go")).toBeTruthy();
-    expect(
-      dialog.getByRole("button", { name: "Remove password" }),
-    ).toHaveProperty("disabled", true);
-    expect(dialog.getByText(/only key/)).toBeTruthy();
-    expect(dialog.getByRole("button", { name: "Add a PIN" })).toBeTruthy();
-    await userEvent.click(dialog.getByRole("button", { name: "Close" }));
-    expect(screen.queryByRole("dialog")).toBeNull();
-    expect(store.removePassword).not.toHaveBeenCalled();
   });
 
   it("removes a key once another exists, after the confirmation", async () => {

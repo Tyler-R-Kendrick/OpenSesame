@@ -17,7 +17,7 @@
  * people to.
  */
 
-import { PASSWORD } from "./pages-journey.mjs";
+import { PIN } from "./pages-journey.mjs";
 import { listTutorials, readStep, startTutorial } from "./tutorial-walk.mjs";
 
 /** What the key is measured by, read in the page: its box, its name, and what it touches. */
@@ -239,16 +239,14 @@ async function sealGate(page, walkHere) {
     await passkey.click();
     await walkHere("seal passkey", ["gate.unlock.passkey"]);
   }
-  await page.getByRole("tab", { name: "Password", exact: true }).click();
-  await walkHere("seal password", ["gate.unlock"]);
-  await page.getByLabel("Master password", { exact: true }).fill(PASSWORD);
-  await page
-    .getByLabel("Confirm master password", { exact: true })
-    .fill(PASSWORD);
+  await page.getByRole("tab", { name: "PIN", exact: true }).click();
+  await walkHere("seal PIN", ["gate.unlock"]);
+  await page.getByLabel("Device PIN", { exact: true }).fill(PIN);
+  await page.getByLabel("Confirm PIN", { exact: true }).fill(PIN);
   await page
     .getByLabel("I understand this vault cannot be recovered.", { exact: true })
     .check();
-  await page.getByRole("button", { name: "Seal this device" }).click();
+  await page.getByRole("button", { name: "Seal with PIN" }).click();
   await page
     .getByRole("button", { name: "Lock vault" })
     .locator("visible=true")
@@ -265,9 +263,7 @@ export async function gatePass(env) {
   await sealGate(page, walkHere);
   // Unlock: the vault just sealed, on a fresh load, which locks it.
   await page.goto(`${origin}${base}vault`, { waitUntil: "domcontentloaded" });
-  await page
-    .getByLabel("Password", { exact: true })
-    .waitFor({ timeout: 20000 });
+  await page.getByLabel("PIN", { exact: true }).waitFor({ timeout: 20000 });
   await walkHere("unlock", ["gate.unlock", "gate.unlock.account"]);
   await context.close();
 }

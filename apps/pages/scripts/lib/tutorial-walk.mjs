@@ -13,7 +13,7 @@
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { PASSWORD } from "./pages-journey.mjs";
+import { PIN } from "./pages-journey.mjs";
 import { measureStep, stepChecks } from "./tutorial-measure.mjs";
 
 export { stepChecks };
@@ -229,7 +229,7 @@ export async function resetToVault(page, base) {
  * of the two states arrives before deciding which one it is in.
  */
 export async function unlockIfLocked(page) {
-  const field = page.getByLabel("Password", { exact: true });
+  const field = page.getByLabel("PIN", { exact: true });
   const open = page
     .getByRole("button", { name: "Lock vault" })
     .locator("visible=true")
@@ -239,7 +239,7 @@ export async function unlockIfLocked(page) {
     open.waitFor({ state: "visible", timeout: 10000 }),
   ]).catch(() => {});
   if (!(await field.isVisible().catch(() => false))) return false;
-  await field.fill(PASSWORD);
+  await field.fill(PIN);
   await field.press("Enter");
   await open.waitFor({ timeout: 20000 });
   return true;

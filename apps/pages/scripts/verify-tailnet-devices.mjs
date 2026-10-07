@@ -45,7 +45,7 @@ import {
 } from "./lib/at-rest-envelope-format.mjs";
 import "./lib/expect-timeout.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
-import { sealWithPassword } from "./lib/pages-journey.mjs";
+import { sealWithPin } from "./lib/pages-journey.mjs";
 import {
   deviceManagementOn,
   pairByLink,
@@ -91,7 +91,7 @@ try {
     device: { viewport: { width: 1280, height: 900 } },
   });
   const page = owner.page;
-  await sealWithPassword(page);
+  await sealWithPin(page);
   await deviceManagementOn(page, base);
   await pairByLink(page, base, stack.pairLink("manage", "Ops laptop"));
   const rows = page
@@ -142,7 +142,7 @@ try {
   const phone = await stack.browserPage({
     device: phoneContext({ width: 390, height: 844 }),
   });
-  await sealWithPassword(phone.page);
+  await sealWithPin(phone.page);
   await deviceManagementOn(phone.page, base);
   await pairByLink(phone.page, base, stack.pairLink("read", "Help desk phone"));
   const phoneRows = phone.page

@@ -1,0 +1,45 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        { "seal": null },
+        { "visit": "settings/security" },
+        { "press": "Rotate compromised vault key" },
+        { "measure": "[role=dialog] input" },
+        { "shot": "1280-rotate" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "seal": null },
+        { "visit": "settings/security" },
+        { "press": "Rotate compromised vault key" },
+        { "measure": "[role=dialog] input" },
+        { "shot": "390-rotate" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-rotate",
+      "width": 1280,
+      "title": "Rotate compromised vault key — 1280 × 800",
+      "caption": "A vault with no master password is no longer asked to invent one. The rotation re-keys it under a new passkey, and nothing is typed.",
+      "before": "1 field: New master password",
+      "after": "0 fields: a new passkey opens it"
+    },
+    {
+      "shot": "390-rotate",
+      "width": 390,
+      "title": "Rotate compromised vault key — 390 × 844",
+      "caption": "The same sheet on a phone.",
+      "before": "1 field: New master password",
+      "after": "0 fields: a new passkey opens it"
+    }
+  ]
+}

@@ -17,7 +17,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { phoneContext } from "./lib/mobile-contract.mjs";
-import { sealWithPassword } from "./lib/pages-journey.mjs";
+import { sealWithPin } from "./lib/pages-journey.mjs";
 import {
   deviceManagementOn,
   pairByLink,
@@ -80,7 +80,7 @@ try {
     [390, { device: phoneContext({ width: 390, height: 844 }) }],
   ]) {
     const { page } = await stack.browserPage(options);
-    await sealWithPassword(page);
+    await sealWithPin(page);
     await deviceManagementOn(page, stack.base);
     if (side === "after")
       await pairByLink(

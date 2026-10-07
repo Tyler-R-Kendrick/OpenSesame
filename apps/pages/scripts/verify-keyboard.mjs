@@ -68,24 +68,20 @@ async function savedVaultUnlock(width) {
   await page.setViewportSize({ width, height: 900 });
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await toLocalSeal(page);
-  await tabTo(page, page.getByRole("tab", { name: "Password", exact: true }));
+  // A new vault is sealed with a passkey or a PIN, never a password (ADR 0180).
+  await tabTo(page, page.getByRole("tab", { name: "PIN", exact: true }));
   await page.keyboard.press("Enter");
-  await expect(
-    page.getByLabel("Master password", { exact: true }),
-  ).toBeFocused();
-  const password = "Cedar-lantern-47-river!";
-  await page.keyboard.insertText(password);
-  await tabTo(
-    page,
-    page.getByLabel("Confirm master password", { exact: true }),
-  );
-  await page.keyboard.insertText(password);
+  await expect(page.getByLabel("Device PIN", { exact: true })).toBeFocused();
+  const pin = "48291037";
+  await page.keyboard.insertText(pin);
+  await tabTo(page, page.getByLabel("Confirm PIN", { exact: true }));
+  await page.keyboard.insertText(pin);
   const acknowledge = page.getByRole("checkbox");
   await tabTo(page, acknowledge);
   await page.keyboard.press("Space");
   await expect(acknowledge).toBeChecked();
   const seal = page.getByRole("button", {
-    name: "Seal this device",
+    name: "Seal with PIN",
     exact: true,
   });
   await expect(seal).toBeEnabled();
@@ -95,8 +91,8 @@ async function savedVaultUnlock(width) {
   await intoTheList(page, width);
   await expect(create).toBeFocused();
   await page.reload({ waitUntil: "networkidle" });
-  await expect(page.getByLabel("Password", { exact: true })).toBeFocused();
-  await page.keyboard.insertText(password);
+  await expect(page.getByLabel("PIN", { exact: true })).toBeFocused();
+  await page.keyboard.insertText(pin);
   await page.keyboard.press("Enter");
   // The reload kept the address, which is already the list.
   await expect(create).toBeFocused();
@@ -112,7 +108,7 @@ async function savedVaultUnlock(width) {
   await expect(page.locator("form.editor")).toBeVisible();
   await context.close();
   console.log(
-    `PASS ${width}px: saved password vault reload, unlock and immediate navigation`,
+    `PASS ${width}px: saved vault reload, unlock and immediate navigation`,
   );
 }
 

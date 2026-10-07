@@ -9,7 +9,7 @@
  *
  *  - `/unlock/signin` — first run's way in, the provider panel and the local
  *    seal beside it;
- *  - `/unlock/form` — the key ceremony with a typed key: password, PIN, or a
+ *  - `/unlock/form` — the key ceremony with a typed key: PIN, or a
  *    recovery or age key;
  *  - `/unlock/passkey` — the key ceremony with the passkey tab picked;
  *  - `/unlock` — anything else (the second step, the user menu's sign-in, a

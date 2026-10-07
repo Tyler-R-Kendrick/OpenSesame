@@ -9,12 +9,12 @@ import {
   openGeneral,
   openSection,
   runCommand,
-  sealWithPassword,
+  sealWithPin,
 } from "./pages-journey.mjs";
 
 export async function walkJFile({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page);
+  await sealWithPin(page);
   await openGeneral(page);
   await snap(page, "J-FILE-settings");
   check(

@@ -31,7 +31,7 @@ import {
   mintInit,
 } from "./lib/device-identity-scenarios.mjs";
 import { passTheDoor } from "./lib/front-door.mjs";
-import { PASSWORD, sealLocalOnly } from "./lib/pages-journey.mjs";
+import { PIN, sealLocalOnly } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const side = process.argv[2];
@@ -112,7 +112,7 @@ async function backupFrom(browser, name, { connectFirst }) {
 }
 
 /**
- * The Import key, then the restore card with the backup's password. With
+ * The Import key, then the restore card with the backup's PIN. With
  * `shot`, the card as drawn (before the choice is made) is captured and its
  * choice measured: how many there are, whether it is checked, its size.
  */
@@ -120,7 +120,7 @@ async function restore(page, file, shot) {
   await page.getByLabel("Choose a file to import").first().setInputFiles(file);
   const sheet = page.getByRole("dialog", { name: "Import items" });
   await sheet.waitFor({ timeout: 15000 });
-  await sheet.getByLabel("Master password", { exact: true }).fill(PASSWORD);
+  await sheet.getByLabel("PIN", { exact: true }).fill(PIN);
   // The card offers the backup's device identity to a vault that has done
   // nothing yet; the person takes it. The base build has no such choice.
   const choice = sheet.getByRole("checkbox", {

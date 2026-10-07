@@ -742,6 +742,14 @@ Do not add new top-level directories or loose root files — find the group.
   `UnlockScreen.test.tsx`, and `store.test.ts` asserting guest exists and
   stays isolated are load-bearing
   and must not be deleted or inverted.
+- **A new vault is sealed with a passkey, never a master password**
+  ([ADR 0180](docs/adr/0180-vaults-are-sealed-by-passkey-not-password.md)).
+  First-run sealing offers a passkey, or a PIN where WebAuthn cannot run;
+  Settings › Security has no way to add or change a master password. A vault
+  that already holds a password wrap keeps its Password tab (a header with no
+  recovery is never stranded) and its Password row offers Remove only. Do not
+  add a password field, strength meter or reminder to the seal form, and do
+  not offer "Use a password instead" in a key sheet.
 - A device knows two things and the unlock screen states both: **who** is
   signed in (the Identity session plus the upstream assertion federation saved)
   and **which key** opens the vault (the passkey/PIN/password wraps in the
@@ -761,7 +769,7 @@ Do not add new top-level directories or loose root files — find the group.
   one action, never an input — and one sheet
   (`apps/pages/src/sections/settings/security/`) built from `CeremonyShell`
   and `FieldShell`; do not draw a form under a row, and do not draw a second
-  PIN or password form anywhere. Email and text codes are fallbacks the
+  PIN form anywhere. Email and text codes are fallbacks the
   Identity API sends (`/v1/mfa/code/send|verify`), offered only where one is
   configured, with NIST 800-63B's notice before the address is asked for;
   recovery codes are the vault's, sealed whole under its key, and stand in

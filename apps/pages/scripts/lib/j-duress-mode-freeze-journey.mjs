@@ -12,10 +12,10 @@
  * survives a reload and the app never reads it); the app has no clock seam.
  */
 import {
-  PASSWORD,
+  PIN,
   lockVault,
   openSettingsCategory,
-  sealWithPassword,
+  sealWithPin,
   waitOpen,
 } from "./pages-journey.mjs";
 import { takeRefusal } from "./tray-contract.mjs";
@@ -43,7 +43,7 @@ function installClockShim() {
 }
 
 async function attempt(page, secret) {
-  await page.getByLabel("Password", { exact: true }).fill(secret);
+  await page.getByLabel("PIN", { exact: true }).fill(secret);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   // The refusal is a notice in the tray, never a box in the page.
   return takeRefusal(page);
@@ -61,9 +61,7 @@ async function opened(page) {
 async function reloadToUnlock(page) {
   await page.waitForTimeout(1500);
   await page.reload({ waitUntil: "networkidle" });
-  await page
-    .getByLabel("Password", { exact: true })
-    .waitFor({ timeout: 15000 });
+  await page.getByLabel("PIN", { exact: true }).waitFor({ timeout: 15000 });
 }
 
 /** Freeze for 24 hours, chosen in the sheet: duration and consent, both explicit. */
@@ -112,13 +110,14 @@ export async function walkJDuressFreeze(context) {
   const { page, origin, base, check } = context;
   await page.context().addInitScript(installClockShim);
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page);
+  await sealWithPin(page);
 
-  // What an ordinary wrong password says, before anything is armed.
+  // What an ordinary wrong PIN says, before anything is armed: a well-formed
+  // one, so the refusal is the vault's and not the field's format rule.
   await lockVault(page);
-  const ordinary = await attempt(page, "not the vault password");
-  check(ordinary.length > 0, `an ordinary wrong password says: ${ordinary}`);
-  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  const ordinary = await attempt(page, "73920146");
+  check(ordinary.length > 0, `an ordinary wrong PIN says: ${ordinary}`);
+  await page.getByLabel("PIN", { exact: true }).fill(PIN);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page);
 
@@ -136,20 +135,17 @@ export async function walkJDuressFreeze(context) {
     "the refusal names nothing about a freeze",
   );
 
-  const real = await attempt(page, PASSWORD);
+  const real = await attempt(page, PIN);
   check(
     real === ordinary,
-    `the real password is refused in the ordinary words (${real})`,
+    `the real PIN is refused in the ordinary words (${real})`,
   );
-  check(!(await opened(page)), "the real password opens nothing while frozen");
+  check(!(await opened(page)), "the real PIN opens nothing while frozen");
 
   // The hold is on disk, not in the tab.
   await reloadToUnlock(page);
-  const again = await attempt(page, PASSWORD);
-  check(
-    again === ordinary,
-    "after a reload the real password is still refused",
-  );
+  const again = await attempt(page, PIN);
+  check(again === ordinary, "after a reload the real PIN is still refused");
   check(!(await opened(page)), "after a reload the vault is still shut");
 
   // The clock passes the hold; nothing else changes.
@@ -157,8 +153,8 @@ export async function walkJDuressFreeze(context) {
     window.name = `os-clock:${ms}`;
   }, DAY_MS + 60_000);
   await reloadToUnlock(page);
-  await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
+  await page.getByLabel("PIN", { exact: true }).fill(PIN);
   await page.getByRole("button", { name: "Unlock", exact: true }).click();
   await waitOpen(page);
-  check(await opened(page), "past the hold the real password opens the vault");
+  check(await opened(page), "past the hold the real PIN opens the vault");
 }

@@ -19,7 +19,6 @@ import type { PendingFocus } from "./use-refocus-after-failure.js";
 type UnlockStore = Readonly<{
   createWithPasskey: (signal?: AbortSignal) => Promise<void>;
   createWithPin: (pin: string) => Promise<void>;
-  create: (password: string, hint?: string) => Promise<void>;
   createGuest: (options?: { resume?: boolean }) => Promise<void>;
   cancelTotpChallenge: () => void;
   redeemRecoveryCode: (code: string) => Promise<void>;
@@ -60,7 +59,6 @@ export async function submitUnlockForm(input: {
   confirm: string;
   password: string;
   protectorSecret: string;
-  hint: string;
   recovery: string;
   totp: string;
   setPin: (value: string) => void;

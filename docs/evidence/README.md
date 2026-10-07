@@ -47,8 +47,10 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-07-rotate-without-password/`](2026-10-07-rotate-without-password/README.md) | Rotating the vault key without inventing a password — before / after |
 | [`2026-10-06-sharp-plain-sheets/`](2026-10-06-sharp-plain-sheets/README.md) | Sharp corners, no red controls, one way out |
 | [`2026-10-06-share-key-and-api-rows/`](2026-10-06-share-key-and-api-rows/README.md) | Share once as a toolbar key, and an account's credentials that all copy |
+| [`2026-10-06-passkey-only-unlock/`](2026-10-06-passkey-only-unlock/README.md) | Passkey-only sealing — before / after |
 | [`2026-10-06-pages-are-pages/`](2026-10-06-pages-are-pages/README.md) | A page's own files are the page |
 | [`2026-10-06-credentials-as-entries/`](2026-10-06-credentials-as-entries/README.md) | Credentials are entries of their own, bound to an account |
 | [`2026-10-06-credential-lines/`](2026-10-06-credential-lines/README.md) | A credential is one line, like a website |

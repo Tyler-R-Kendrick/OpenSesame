@@ -5,7 +5,7 @@
  * kept on its own is listed under the `+` and, chosen, is bound to the account
  * in the same save: never a copy of it.
  */
-import { openSettingsCategory, sealWithPassword } from "./pages-journey.mjs";
+import { openSettingsCategory, sealWithPin } from "./pages-journey.mjs";
 
 async function switchOn(page, name) {
   const control = page.getByRole("switch", { name, exact: true });
@@ -36,7 +36,7 @@ async function save(page) {
 
 export async function walkJCredentials({ page, origin, base, check, snap }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
-  await sealWithPassword(page);
+  await sealWithPin(page);
   await openSettingsCategory(page, "Vaults");
   await switchOn(page, "Account");
 

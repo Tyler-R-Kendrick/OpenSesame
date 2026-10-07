@@ -1,0 +1,79 @@
+{
+  "out": ".",
+  "screens": [
+    {
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        { "localSeal": null },
+        { "measure": ".unlock__methods .unlock__method" },
+        { "measure": ".unlock__card" },
+        { "shot": "1280-seal" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "localSeal": null },
+        { "measure": ".unlock__methods .unlock__method" },
+        { "measure": ".unlock__card" },
+        { "shot": "390-seal" }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 800,
+      "steps": [
+        { "seal": null },
+        { "visit": "settings/security" },
+        { "measure": "#unlock-methods .sw" },
+        { "shot": "1280-security" }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        { "seal": null },
+        { "visit": "settings/security" },
+        { "measure": "#unlock-methods .sw" },
+        { "shot": "390-security" }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-seal",
+      "width": 1280,
+      "title": "Seal this device — 1280 × 800",
+      "caption": "A new vault is sealed with a passkey or a PIN. The Password tab, its strength meter and the unlock reminder are gone.",
+      "before": "3 method tabs (Passkey, PIN, Password)",
+      "after": "2 method tabs (Passkey, PIN)"
+    },
+    {
+      "shot": "390-seal",
+      "width": 390,
+      "title": "Seal this device — 390 × 844",
+      "caption": "The same form on a phone: two tabs, no password field.",
+      "before": "3 method tabs (Passkey, PIN, Password)",
+      "after": "2 method tabs (Passkey, PIN)"
+    },
+    {
+      "shot": "1280-security",
+      "width": 1280,
+      "title": "Settings › Security — 1280 × 800",
+      "caption": "A vault holding no master password is not offered one. The Password row, whose only action was Add, is no longer drawn.",
+      "before": "3 key rows (Passkey, PIN, Password)",
+      "after": "2 key rows (Passkey, PIN)"
+    },
+    {
+      "shot": "390-security",
+      "width": 390,
+      "title": "Settings › Security — 390 × 844",
+      "caption": "The same list on a phone.",
+      "before": "3 key rows (Passkey, PIN, Password)",
+      "after": "2 key rows (Passkey, PIN)"
+    }
+  ]
+}

@@ -4,10 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import {
-  openSettingsCategory,
-  sealWithPassword,
-} from "../../lib/pages-journey.mjs";
+import { openSettingsCategory, sealWithPin } from "../../lib/pages-journey.mjs";
 import { createHarness } from "../../lib/static-origin-harness.mjs";
 import { SCENARIO_IDS, buildScenarioMatrix } from "./scenario-matrix.mjs";
 
@@ -36,7 +33,7 @@ function settingsPanelWired() {
  * then read what the section draws.
  */
 async function probeSecurityDuressPanel(page, snap, blockers, check) {
-  await sealWithPassword(page);
+  await sealWithPin(page);
   await openSettingsCategory(page, "Security");
   await page.waitForTimeout(800);
   if (snap) await snap(page, "ui-security");

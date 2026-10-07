@@ -11,8 +11,8 @@ GitHub Pages cannot host the Host or Identity APIs. This page is the console: a 
 call `getSecret()`. Host connectors never appear here as plaintext.
 
 The vault key for items on this device can be unwrapped with a **passkey** (WebAuthn
-PRF), a **PIN**, and/or a **master password**, with optional authenticator MFA after
-primary unlock. Credentials are not stored. A reload or a cold link asks again.
+PRF) or a **PIN** (a vault made before ADR 0180 may still hold a **master password**,
+which Settings can only remove), with optional authenticator MFA after primary unlock. Credentials are not stored. A reload or a cold link asks again.
 
 ## Rails
 
@@ -40,7 +40,7 @@ Listen for `opensesame:signed_in`, or call `OpenSesame.signIn()` / `signInAndAcc
   OWASP 2023 floor) → AES-GCM wrap of the vault key; or WebAuthn PRF → HKDF → AES-GCM wrap.
 - Optional TOTP MFA runs after any primary unwrap; the authenticator seed is sealed under
   the vault key.
-- Changing the master password re-wraps that key; items are never re-encrypted. Passkey and
+- Removing a master password drops its wrap; items are never re-encrypted. Passkey and
   PIN wraps stay enrolled.
 - The item collection is sealed with AES-256-GCM under the vault key and written to OPFS as
   ciphertext. A fresh 96-bit nonce per write; the GCM tag detects tampering and doubles as the

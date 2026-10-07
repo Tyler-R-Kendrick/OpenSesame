@@ -34,7 +34,7 @@ One store, five readings of it:
   claim what those devices created, read what the protocol guarantees.
 
 ## Task
-Create or unlock the vault with a master password → work in one of the four
+Create or unlock the vault with a passkey or PIN → work in one of the four
 sections → lock, which discards the key.
 
 Arriving from another manager is its own first-run task: pick an export from

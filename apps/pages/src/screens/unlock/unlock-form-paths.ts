@@ -22,7 +22,6 @@ import type { MutableRefObject } from "react";
 type UnlockStore = Readonly<{
   createWithPasskey: (signal?: AbortSignal) => Promise<void>;
   createWithPin: (pin: string) => Promise<void>;
-  create: (password: string, hint?: string) => Promise<void>;
   createGuest: (options?: { resume?: boolean }) => Promise<void>;
   cancelTotpChallenge: () => void;
   redeemRecoveryCode: (code: string) => Promise<void>;
@@ -49,8 +48,6 @@ export async function submitFirstRunUnlock(input: {
   passkeyAbort: MutableRefObject<AbortController | null>;
   pin: string;
   confirm: string;
-  password: string;
-  hint: string;
   setPin: (value: string) => void;
 }): Promise<void> {
   if (input.activeMethod === "passkey") {
@@ -64,18 +61,16 @@ export async function submitFirstRunUnlock(input: {
     }
     return;
   }
-  if (input.activeMethod === "pin") {
-    if (input.pin !== input.confirm) {
-      throw new Error("The two entries do not match.");
-    }
-    await input.store.createWithPin(input.pin);
-    input.setPin("");
-    return;
+  // A new vault is sealed with a passkey or a PIN — no master password is
+  // ever created here (ADR 0180).
+  if (input.activeMethod !== "pin") {
+    throw new Error("Seal this device with a passkey or a PIN.");
   }
-  if (input.password !== input.confirm) {
+  if (input.pin !== input.confirm) {
     throw new Error("The two entries do not match.");
   }
-  await input.store.create(input.password, input.hint.trim() || undefined);
+  await input.store.createWithPin(input.pin);
+  input.setPin("");
 }
 
 export async function submitSecondStepUnlock(input: {

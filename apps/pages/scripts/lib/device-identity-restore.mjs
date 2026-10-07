@@ -15,7 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import { asBearer, hostCall, mintInit } from "./device-identity-scenarios.mjs";
 import { doorGuest, passTheDoor } from "./front-door.mjs";
-import { PASSWORD, sealLocalOnly, waitOpen } from "./pages-journey.mjs";
+import { PIN, sealLocalOnly, waitOpen } from "./pages-journey.mjs";
 
 const env = {};
 
@@ -26,7 +26,7 @@ export function configureRestore(next) {
 
 const PRINCIPAL = /^prn_[A-Za-z0-9_-]{43}$/;
 
-/** A new device: its own context, a fresh vault sealed with the password. */
+/** A new device: its own context, a fresh vault sealed with a PIN. */
 async function newDevice(browser) {
   const { page, context } = await env.newPage(browser);
   await page.goto(`${env.ORIGIN}${env.BASE}`, { waitUntil: "networkidle" });
@@ -79,7 +79,7 @@ async function exportBackup(page, file) {
 const TAKE = "Also take its device identity";
 
 /**
- * The Import key, then the restore card with the backup's own password. The
+ * The Import key, then the restore card with the backup's own PIN. The
  * backup's device identity is taken only when `take` is set: the card offers
  * the choice to a vault that has done nothing yet and leaves it off.
  */
@@ -87,7 +87,7 @@ async function restoreBackup(page, file, { take = false } = {}) {
   await page.getByLabel("Choose a file to import").first().setInputFiles(file);
   const sheet = page.getByRole("dialog", { name: "Import items" });
   await sheet.waitFor({ timeout: 15000 });
-  await sheet.getByLabel("Master password", { exact: true }).fill(PASSWORD);
+  await sheet.getByLabel("PIN", { exact: true }).fill(PIN);
   if (take) await sheet.getByRole("checkbox", { name: TAKE }).check();
   await sheet.getByRole("button", { name: "Restore items" }).click();
   await sheet
@@ -247,7 +247,7 @@ export async function restoreDeclined(browser) {
     (await box.count()) === 1 && !(await box.isChecked()),
     `${label}: a fresh vault is offered the backup's identity, off`,
   );
-  await sheet.getByLabel("Master password", { exact: true }).fill(PASSWORD);
+  await sheet.getByLabel("PIN", { exact: true }).fill(PIN);
   await sheet.getByRole("button", { name: "Restore items" }).click();
   await sheet
     .getByText("Restored", { exact: true })
@@ -290,12 +290,12 @@ export async function restoreAsGuest(browser) {
     .setInputFiles(backup);
   const sheet = page.getByRole("dialog", { name: "Import items" });
   await sheet.waitFor({ timeout: 15000 });
-  await sheet.getByLabel("Master password", { exact: true }).waitFor();
+  await sheet.getByLabel("PIN", { exact: true }).waitFor();
   env.check(
     (await sheet.getByRole("checkbox", { name: TAKE }).count()) === 0,
     `${label}: a guest session's restore card draws no choice about the identity`,
   );
-  await sheet.getByLabel("Master password", { exact: true }).fill(PASSWORD);
+  await sheet.getByLabel("PIN", { exact: true }).fill(PIN);
   await sheet.getByRole("button", { name: "Restore items" }).click();
   await sheet
     .getByText("Restored", { exact: true })

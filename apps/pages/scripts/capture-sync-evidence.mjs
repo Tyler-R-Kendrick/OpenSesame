@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
-import { sealWithPassword } from "./lib/pages-journey.mjs";
+import { sealWithPin } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { tailscaleServeDrive } from "./lib/tailscale-serve-drive.mjs";
 
@@ -137,7 +137,7 @@ async function checksWalk(page, shot) {
 }
 
 async function waitingWalk(page, shot, { code, answer }) {
-  await sealWithPassword(page);
+  await sealWithPin(page);
   await switchOn(page, "Networking");
   await visit(page, "settings/vaults");
   await page

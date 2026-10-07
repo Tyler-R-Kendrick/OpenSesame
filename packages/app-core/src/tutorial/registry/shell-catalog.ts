@@ -40,7 +40,7 @@ export const SHELL_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "shell.lock",
     description:
-      "Locks the vault immediately, dropping the in-memory keys. The master password is needed to open it again.",
+      "Locks the vault immediately, dropping the in-memory keys. Your unlock method is needed to open it again.",
     role: "action",
     routes: [],
     capabilityId: null,
