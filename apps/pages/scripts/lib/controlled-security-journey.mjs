@@ -215,7 +215,12 @@ export async function controlledSecurityJourney({
   const retired = `controlled-retired-${width}-long-password`;
   await createRealItem(page, base, realName);
   const dialog = await openDialog(page, base, "Manage controlled canaries");
-  const { file, config } = await downloadCanary(page, dialog, directory);
+  const { file, config } = await downloadCanary(
+    page,
+    dialog,
+    directory,
+    PASSWORD,
+  );
   await dialog.getByText("Artifact exported", { exact: false }).waitFor();
   await page.screenshot({
     path: path.join(out, `${width}-canary-exported.png`),
