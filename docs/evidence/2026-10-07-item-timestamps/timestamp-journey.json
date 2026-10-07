@@ -1,0 +1,116 @@
+{
+  "out": ".",
+  "clock": "2026-10-07T12:00:00Z",
+  "screens": [
+    {
+      "width": 390,
+      "height": 844,
+      "desktop": false,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Example account"
+          }
+        },
+        {
+          "fill": {
+            "label": "Username / ID",
+            "text": "user@example.com"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "report": ".detail__meta"
+        },
+        {
+          "report": ".detail > p.hint"
+        },
+        {
+          "measure": ".detail > p.hint"
+        },
+        {
+          "shot": "390-account-date"
+        }
+      ]
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "desktop": true,
+      "steps": [
+        {
+          "guest": null
+        },
+        {
+          "visit": "settings/vaults"
+        },
+        {
+          "switchOptional": "Account"
+        },
+        {
+          "visit": "vault/new/account"
+        },
+        {
+          "fillOptional": {
+            "label": "Name",
+            "text": "Example account"
+          }
+        },
+        {
+          "fill": {
+            "label": "Username / ID",
+            "text": "user@example.com"
+          }
+        },
+        {
+          "press": "Save item"
+        },
+        {
+          "report": ".detail__meta"
+        },
+        {
+          "report": ".detail > p.hint"
+        },
+        {
+          "measure": ".detail > p.hint"
+        },
+        {
+          "shot": "1280-account-date"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "390-account-date",
+      "width": 390,
+      "title": "Account timestamp \u2014 390px",
+      "caption": "An unchanged password shares the item edit date.",
+      "before": "The same date appears in the header and password footer.",
+      "after": "The header shows the date once; distinct password history remains available."
+    },
+    {
+      "shot": "1280-account-date",
+      "width": 1280,
+      "title": "Account timestamp \u2014 1280px",
+      "caption": "An unchanged password shares the item edit date.",
+      "before": "The same date appears in the header and password footer.",
+      "after": "The header shows the date once; distinct password history remains available."
+    }
+  ]
+}
