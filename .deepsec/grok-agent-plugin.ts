@@ -10,8 +10,13 @@ import type { DeepsecPlugin } from "deepsec/config";
 
 const GROK_SYSTEM_NOTE =
   "You are running inside the deepsec harness for OpenSesame. Use read-only inspection (read/grep files). " +
-  "Do not run the target application, send network requests, or attempt exploitation. " +
-  "Return only the requested JSON.";
+  "Do not run the target application, send network requests, or attempt exploitation.";
+
+const JSON_ONLY_SUFFIX =
+  "\n\n## CRITICAL — output format\n" +
+  "Your **entire** final reply must be **only** a JSON array (you may wrap it in a ```json fence). " +
+  "Do **not** write prose before or after the JSON. Do **not** write \"I'll review\", summaries, or markdown outside the fence. " +
+  "The first non-whitespace character must be `[` or a backtick starting a json code fence.";
 
 const DEFAULT_MODEL = "grok-4.7";
 const MAX_ATTEMPTS = 3;
@@ -222,7 +227,7 @@ For each finding ID (F1, F2, …), output a verdict JSON array:
 [
   { "findingId": "F1", "verdict": "true-positive|false-positive|fixed|uncertain|duplicate", "reasoning": "...", "adjustedSeverity": "HIGH" }
 ]
-\`\`\``;
+\`\`\`${JSON_ONLY_SUFFIX}`;
   return { prompt, total };
 }
 
@@ -251,27 +256,46 @@ class GrokAgentPlugin {
       })
       .join("\n");
     const projectInfoBlock = params.projectInfo ? `## Project Context\n\n${params.projectInfo}\n\n` : "";
-    const prompt = `${GROK_SYSTEM_NOTE}\n\n${params.promptTemplate}\n\n${projectInfoBlock}## Target Files\n\n${fileList}\n\nInvestigate each file; output JSON array per deepsec schema.`;
+    const prompt = `${GROK_SYSTEM_NOTE}\n\n${params.promptTemplate}\n\n${projectInfoBlock}## Target Files\n\n${fileList}\n\nInvestigate each file; output JSON array per deepsec schema.${JSON_ONLY_SUFFIX}`;
     const start = Date.now();
     yield { type: "started", message: `Investigating ${params.batch.length} file(s) with Grok Build (${model})` };
     let resultText = "";
     let lastError = "";
+    let lastParse = "";
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const body =
+        attempt === 1
+          ? prompt
+          : `${prompt}\n\nYour previous reply was rejected: ${lastParse}. Output ONLY the JSON array now. No other text.`;
       try {
         resultText = await runGrokPrompt({
           cwd: params.projectRoot,
-          prompt,
+          prompt: body,
           model,
           signal: params.signal,
         });
-        if (resultText) break;
       } catch (err) {
         lastError = err instanceof Error ? err.message : String(err);
+        resultText = "";
         yield { type: "error", message: `Grok error: ${lastError.slice(0, 300)}` };
+        continue;
+      }
+      if (!resultText) continue;
+      try {
+        parseInvestigateResults(resultText, params.batch);
+        break;
+      } catch (e) {
+        lastParse = e instanceof Error ? e.message : String(e);
+        resultText = "";
+        if (attempt >= MAX_ATTEMPTS) {
+          throw new Error(`Grok investigation JSON parse failed: ${lastParse}`);
+        }
       }
     }
     if (!resultText) {
-      throw new Error(`Grok produced no investigation result. Last error: ${lastError || "(none)"}`);
+      throw new Error(
+        `Grok produced no investigation result. Last error: ${lastError || lastParse || "(none)"}`,
+      );
     }
     const parsed = parseInvestigateResults(resultText, params.batch);
     yield {
@@ -296,12 +320,29 @@ class GrokAgentPlugin {
       type: "started",
       message: `Revalidating ${total} finding(s) with Grok Build (${model})`,
     };
-    const resultText = await runGrokPrompt({
-      cwd: params.projectRoot,
-      prompt: `${GROK_SYSTEM_NOTE}\n\n${prompt}`,
-      model,
-      signal: params.signal,
-    });
+    let resultText = "";
+    let lastParse = "";
+    const fullPrompt = `${GROK_SYSTEM_NOTE}\n\n${prompt}`;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const body =
+        attempt === 1
+          ? fullPrompt
+          : `${fullPrompt}\n\nYour previous reply was rejected: ${lastParse}. Output ONLY the JSON array now. No other text.`;
+      resultText = await runGrokPrompt({
+        cwd: params.projectRoot,
+        prompt: body,
+        model,
+        signal: params.signal,
+      });
+      try {
+        parseRevalidateVerdicts(resultText);
+        break;
+      } catch (e) {
+        lastParse = e instanceof Error ? e.message : String(e);
+        resultText = "";
+        if (attempt >= MAX_ATTEMPTS) throw new Error(`Grok revalidation JSON parse failed: ${lastParse}`);
+      }
+    }
     const verdicts = parseRevalidateVerdicts(resultText);
     yield {
       type: "complete",
