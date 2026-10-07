@@ -84,7 +84,8 @@ It is a `StatusMark` on the field and nothing is sent to the tray; a notice is
 for something that was attempted and did not work.
 
 `pnpm lint:design` holds both. Explainer sentences are matched by content in
-the connector panels. In-page failures are a plain failure
+the connector panels, and by shape everywhere (`no-hint-caption`, rule 17).
+In-page failures are a plain failure
 (`no-in-page-error` for markup, `no-error-box-css` for CSS that paints one) with
 no ledger: the count is zero everywhere, and a new file meets that outright.
 The tray's own `.notice-card--err`, the `StatusMark` glyph and `aria-invalid`
@@ -288,6 +289,18 @@ and a Claude Code `PostToolUse` hook:
     `border-radius` past 0 — 2px, a pill, a circle, a percentage, a value the
     lint cannot resolve — fails, on a control, a dot, a knob or a panel alike.
     The ledger is empty.
+
+17. **A hint is a fact, not a caption** (`no-hint-caption`). A `.hint` (or
+    `*__hint`) element whose static copy runs five words or more, whose copy
+    is read from a `help`, `guidance`, `reason` or `note` property, or a
+    `FieldShell` given a `hint` at all, is a line about a control rather than
+    a fact the screen shows. `Enrolled {date}`, `Callback: {url}` and `No
+    receipts yet.` stay; "Whole hostname only, case-insensitive…" under an
+    address does not. The sentence goes on the control's `aria-label` or
+    `title`, or nowhere. There is no `?` key and no extra row for it. No
+    ledger: the count is zero, and `FieldShell` has no `hint` prop.
+    `scripts/quality/design-lint-hints.mjs` holds it and
+    `apps/pages/src/screens/setup/control-contract.test.ts` watches it fail.
 
 `scripts/quality/design-lint-sheets.mjs` holds rules 9–13 and 15, and
 `apps/pages/src/screens/setup/sheet-contract.test.ts` watches each one fail

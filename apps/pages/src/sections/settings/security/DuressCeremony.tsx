@@ -155,16 +155,11 @@ function CodeFields({
             />
           ) : null
         }
-        // Naming the code to change is guidance the person acts on, so it
-        // stays in the page; the other refusals are failures for the tray.
-        hint={refusal === "collides" ? duressRefusalText(refusal) : undefined}
       />
       <FailureNotice
         id="duress-code:refusal"
         title="Duress code"
-        message={
-          refusal && refusal !== "collides" ? duressRefusalText(refusal) : null
-        }
+        message={refusal ? duressRefusalText(refusal) : null}
       />
       <FieldShell
         label="Confirm duress code"

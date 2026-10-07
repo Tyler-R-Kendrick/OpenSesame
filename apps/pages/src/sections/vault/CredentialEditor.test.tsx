@@ -241,6 +241,39 @@ describe("a credential written on its own", () => {
     expect(savedCredential().accountId).toBeNull();
   });
 
+  it("draws no Account row for a new password, and saves it unbound", async () => {
+    vault.current = { items: [billing], folders: [] };
+    open("/vault/new/password");
+    expect(screen.getByRole("group", { name: "Password method" })).toBeTruthy();
+    expect(screen.queryByLabelText("Account")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Save item" }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    const credential = savedCredential();
+    expect(credential.method.type).toBe("password");
+    expect(credential.accountId).toBeNull();
+  });
+
+  it("draws no Account row for a bound password and leaves its binding alone", async () => {
+    const bound = createCredential(
+      {
+        id: "p2",
+        type: "password",
+        generator: { id: "manual" },
+        pepper: false,
+        secret: "hunter2",
+        changedAt: "2026-01-01T00:00:00.000Z",
+      },
+      "Billing · Password",
+      billing.id,
+    );
+    vault.current = { items: [billing, bound], folders: [] };
+    open("/vault/p2/edit");
+    expect(screen.queryByLabelText("Account")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Save item" }));
+    await waitFor(() => expect(saveItem).toHaveBeenCalled());
+    expect(savedCredential().accountId).toBe(billing.id);
+  });
+
   it("will not offer another account for a password an earlier pepper sealed", async () => {
     const sealed = createCredential(
       {

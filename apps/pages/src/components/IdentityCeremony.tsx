@@ -225,7 +225,6 @@ function AdoptTokenPanel({ onDone }: { onDone: (flash: Flash) => void }) {
         placeholder="paste the bearer printed by opensesame login"
         value={token}
         onValueChange={setToken}
-        hint="Held in this tab only. No cookie is sent alongside it."
       />
       <div className="actions">
         <FormCommit

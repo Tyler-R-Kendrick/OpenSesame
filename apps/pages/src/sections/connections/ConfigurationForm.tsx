@@ -5,7 +5,6 @@ import type {
 import { fieldGuidance } from "@opensesame/app-core/lib/connector-guidance.js";
 import { type FormEvent, useId } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
-import { IconInfo } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { defaultsFor } from "./connect-defaults.js";
 
@@ -35,9 +34,6 @@ function FieldRows({
             : field.required
               ? " (required)"
               : " (optional)"}
-          <span title={guidance.help} aria-hidden="true">
-            <IconInfo size={14} />
-          </span>
         </label>
         <input
           id={id}
@@ -52,15 +48,10 @@ function FieldRows({
           autoComplete="off"
           required={field.required}
           placeholder={guidance.placeholder}
-          aria-describedby={`${id}-help`}
           title={guidance.help}
           value={values[field.name] ?? ""}
           onChange={(event) => onChange(field.name, event.target.value)}
         />
-        <p className="hint" id={`${id}-help`}>
-          {guidance.help}
-          {automatic ? " Filled automatically; change it if needed." : ""}
-        </p>
       </div>
     );
   });
@@ -120,19 +111,13 @@ export function ConfigurationForm({
           </label>
           <input
             id={nameId}
+            title="Only changes the label in OpenSesame; the provider never sees it."
             value={name}
             onChange={(event) => onName(event.target.value)}
           />
-          <p className="hint">
-            Only changes the label in OpenSesame; the provider never sees it.
-          </p>
         </div>
         {rows(optional)}
       </details>
-      <p className="hint">
-        Secret fields are sealed on arrival and are never returned to this
-        browser.
-      </p>
       <FormCommit
         label={busy ? "Saving" : "Save configuration"}
         busy={busy}

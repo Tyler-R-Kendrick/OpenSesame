@@ -155,7 +155,7 @@ export function matchesOptionalSection(pathname: string): boolean {
 export function UnavailableRoute() {
   return (
     <main id="main" className="section" tabIndex={-1}>
-      <p className="hint">Not available on this installation.</p>
+      <p className="hint">Not available here.</p>
       <Link to="/vault">Vault</Link>
     </main>
   );

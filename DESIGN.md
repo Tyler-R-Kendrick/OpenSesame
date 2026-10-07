@@ -558,6 +558,9 @@ fails on every spelling of the box.
 Do not add caption or explainer prose under a title, a button, or a field:
 no sentence that tells the person what the control will do, where it goes,
 or why it exists. The control's `aria-label` and `title` carry that sentence.
+A `.hint` line is a fact (`Enrolled {date}`, `Callback: {url}`), never a
+sentence about the control: `pnpm lint:design` fails any `hint` of five words
+or more, on every screen (`no-hint-caption`), and `FieldShell` takes no `hint`.
 
 Pages copy never names a Host. A connector action that the browser can do
 itself — including creating a GitHub App — does not ask for a paired Host

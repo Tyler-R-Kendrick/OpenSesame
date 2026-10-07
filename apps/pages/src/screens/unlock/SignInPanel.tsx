@@ -76,7 +76,6 @@ import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { ByoProviderSheet } from "./ByoProviderSheet.js";
 import { IdentifierField } from "./IdentifierField.js";
 import { MagicLinkStage } from "./MagicLinkStage.js";
-import { brandFor } from "./ProviderBrand.js";
 import { SignInSocialBar } from "./SignInSocialBar.js";
 
 type Props =
@@ -111,15 +110,6 @@ export function SignInPanel(props: Props) {
   // Reads location.hostname, so it must be resolved at render, not at import:
   // loopback deployments get the local mock IdP, everything else the broker.
   const upstream = defaultUpstream();
-  // Broker disclosures the branded buttons owe the reader (e.g. Google via
-  // shoo.dev) — under the buttons, never in the label.
-  const brokerNotes = [
-    ...new Set(
-      providers
-        .map((provider) => brandFor(provider.id)?.note)
-        .filter((note): note is string => Boolean(note)),
-    ),
-  ];
   // The loopback mock IdP is development plumbing, never a sign-in road: the
   // catalog's "mock" entry is filtered out before anything renders, and a mock
   // default upstream means there is NO fallback button at all.
@@ -326,11 +316,6 @@ export function SignInPanel(props: Props) {
               onByo={() => setStage("byo")}
               onMagicLink={() => setStage("magic-link")}
             />
-            {brokerNotes.map((note) => (
-              <p className="hint signin__provider-note" key={note}>
-                {note}
-              </p>
-            ))}
           </div>
 
           {/* The identifier field looks an organisation up and routes to its

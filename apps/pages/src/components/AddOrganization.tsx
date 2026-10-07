@@ -161,9 +161,7 @@ export function AddOrganization() {
         <div className="account-switcher__tenant">
           <p className="account-switcher__tenant-name">{tenant.displayName}</p>
           {tenant.authMethods.length === 0 ? (
-            <p className="account-switcher__hint">
-              This organization has not configured SSO or SAML.
-            </p>
+            <p className="account-switcher__hint">No sign-in methods.</p>
           ) : (
             <div className="account-switcher__methods">
               {tenant.authMethods.map((method) => (

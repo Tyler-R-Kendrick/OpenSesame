@@ -86,11 +86,7 @@ function LocalConsent({
         <p>
           Requested permissions: <code>{request.scopes.join(" ")}</code>
         </p>
-        <p className="hint">
-          {request.agent
-            ? "This authorizes the named agent, not your identity. Access ends when either session expires or is revoked. No vault contents or upstream token are shared."
-            : "This shares your local subject identifier, not vault contents or an upstream token. Application resource access still requires its own policy."}
-        </p>
+        <p className="hint">Shares no vault contents.</p>
         <FailureNotice
           id="local-authorize:consent"
           title="Application sign-in"
@@ -105,11 +101,24 @@ function LocalConsent({
   );
 }
 
+function connectionStatus({
+  status,
+  session,
+  agent,
+}: ReturnType<typeof useLocalConsent>): string {
+  if (status === "active") return "Application connected.";
+  if (status === "closed") return "Connection ended.";
+  if (status === "approved") return "Finishing sign-in…";
+  if (status === "waiting")
+    return agent ? "Waiting for agent proof…" : "Waiting for application…";
+  return session ? "Passkey verified." : "Verify to continue.";
+}
+
 function ConsentControls({
   model,
 }: { model: ReturnType<typeof useLocalConsent> }) {
   const root = useRef<HTMLDivElement>(null);
-  const { session, busy, loaded, status } = model;
+  const { busy, loaded, status } = model;
   useEffect(() => {
     if (loaded && !busy && keyboardIsIdle())
       landFocus(firstControl(root.current));
@@ -121,19 +130,7 @@ function ConsentControls({
       {loaded && !terminal ? <ConsentForm model={model} /> : null}
       <p className="hint">
         <output aria-label="Application connection status">
-          {status === "active"
-            ? "Application connected. Keep this window open while using it."
-            : status === "closed"
-              ? "Application connection ended. Start a new sign-in from the application."
-              : status === "approved"
-                ? "Finishing application sign-in…"
-                : status === "waiting"
-                  ? model.agent
-                    ? "Waiting for the application's agent proof…"
-                    : "Waiting for the application window…"
-                  : session
-                    ? "Passkey verified. Review the site and permissions before allowing access."
-                    : "Application connected. Verify your local identity to continue."}
+          {connectionStatus(model)}
         </output>
       </p>
       {status === "active" ? (

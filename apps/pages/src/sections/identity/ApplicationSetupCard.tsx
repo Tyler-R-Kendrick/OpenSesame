@@ -1,7 +1,4 @@
-import {
-  mappingOverridesReserved,
-  previewSyntheticClaims,
-} from "@opensesame/app-core/lib/configuration/claim-preview.js";
+import { previewSyntheticClaims } from "@opensesame/app-core/lib/configuration/claim-preview.js";
 import type { LocalApplicationRegistration } from "@opensesame/app-core/lib/local-applications.js";
 import { useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
@@ -46,12 +43,6 @@ export function ApplicationSetupCard(props: {
         </div>
       </div>
       <div className="panel__body">
-        <p className="hint">
-          This is a local browser-mediated relying party. Registration is not
-          consent. OpenSesame Pages is not a SAML IdP or LDAP server. Hosted
-          public PKCE and confidential clients live on your sign-in service when
-          one is configured.
-        </p>
         <dl>
           <dt>Authority</dt>
           <dd>client_local application registration</dd>
@@ -80,12 +71,6 @@ export function ApplicationSetupCard(props: {
             2,
           )}
         </pre>
-        <p className="hint">
-          Preview is not a login
-          {mappingOverridesReserved({ sub: "x" })
-            ? "; reserved claims such as sub cannot be mapped away."
-            : "."}
-        </p>
       </div>
     </section>
   );

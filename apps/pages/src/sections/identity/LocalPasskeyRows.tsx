@@ -31,9 +31,7 @@ export function CredentialRows({
             <span>Passkey · {key.credentialId.slice(-8)}</span>
             <span className="hint">
               Enrolled {new Date(key.createdAt).toLocaleDateString()}
-              {key.prfCapable
-                ? " · This passkey supports encrypted vault unlock."
-                : ""}
+              {key.prfCapable ? " · Vault unlock" : ""}
             </span>
             <div className="actions">
               <button

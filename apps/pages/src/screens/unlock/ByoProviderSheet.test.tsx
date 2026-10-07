@@ -98,7 +98,7 @@ describe("ByoProviderSheet", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText(/using your client/)).toBeTruthy();
+      expect(screen.getByText(/your client/)).toBeTruthy();
     });
     expect(registerByoProvider).toHaveBeenLastCalledWith({
       issuer: "https://auth.kestrel.dev",
