@@ -6,9 +6,9 @@ Audited against `origin/main` at `8f70cf43` (2026-10-07), then follow-up fixes o
 
 | # | Item (summary) | Initial | Evidence | Final | Follow-up |
 |---|----------------|---------|----------|-------|-----------|
-| P1 | GHCR container images | NOT DONE | No publish workflow on main | PARTIAL | PR #776 — **BLOCKED:** run workflow or push `v*` tag; confirm `packages: write` |
-| P2 | npm publish | NOT DONE | No workflow on main | PARTIAL | PR #776 — **BLOCKED:** add `NPM_TOKEN`, remove `private` on packages to publish |
-| P3 | Vercel + default services | PARTIAL | `apps/pages/vercel.json`; Pages on GH Actions (`deploy-pages.yml` success on main) | PARTIAL | PR #776 doc — **BLOCKED:** link Vercel project, set `PAGES_*` vars per `deploy-pages.yml` |
+| P1 | GHCR container images | NOT DONE | No publish workflow on main | PARTIAL | Workflow in #776; agent VM has no Docker — [dry-run log](2026-10-publishing-dry-run.md) |
+| P2 | npm publish | NOT DONE | No workflow on main | PARTIAL | Workflow in #776; `npm publish --dry-run` OK for `@opensesame/os-domain` — [dry-run log](2026-10-publishing-dry-run.md) |
+| P3 | Vercel + default services | PARTIAL | `apps/pages/vercel.json`; Pages on GH Actions (`deploy-pages.yml` success on main) | PARTIAL | Pages build OK on agent; Vercel link still **BLOCKED** — [dry-run log](2026-10-publishing-dry-run.md) |
 | A1 | Host as relay + default capability bindings | NOT DONE | Gateway remains full Host API | PARTIAL | [ADR 0181](../adr/0181-relay-host-org-vaults-and-join-sync.md) — decision only; gateway is still the full Host API |
 | A2 | Vaults scoped to users/orgs like GitHub repos | PARTIAL | Project tombs + `listDeviceVaults()` | PARTIAL | [ADR 0181](../adr/0181-relay-host-org-vaults-and-join-sync.md) — `OrgVaultRef` parser only; device and project tombs, no org directory |
 | A3 | Environments + prod hash reuse warning | PARTIAL | `vault.environments` module, tests | DONE | PR #776 — `notifyEnvironmentValueReuse()` + test |
@@ -19,7 +19,7 @@ Audited against `origin/main` at `8f70cf43` (2026-10-07), then follow-up fixes o
 | E2 | `.env.schema`, toggle envs, required notifications | DONE | `renderEnvSchema`, `notifyMissingEnvironmentValues` tests | DONE | — |
 | U1 | Setup keyboard nav | DONE | `SetupConfiguration.test.tsx` (40 tests in setup suite) | DONE | — |
 | U2 | Remove setup reset | DONE | No reset on `SetupScreen` | DONE | — |
-| U3 | Remove sign-in "Continue as guest" (keep one flow) | PARTIAL | `SignInPanel.tsx` — only "Use without account"; guest not duplicated | PARTIAL | Unlock footer + front door Skip remain (**product rule** AGENTS.md) |
+| U3 | Remove sign-in "Continue as guest" (keep one flow) | PARTIAL | `SignInPanel.tsx` — only "Use without account"; guest not duplicated | DONE | PR #782 — Skip / Skip to the guest vault; Identity **Use this device** |
 | U4 | Vault tree borders overflow when expanded | NOT DONE | No Playwright/visual proof this audit | DONE | `VaultTree.guide.test.tsx` |
 | U5 | Remove Security › Formats | DONE | `page-tree.test.ts` — absent without capability | DONE | — |
 | U6 | Remove Security › Age Keys | DONE | Not in default `page-tree` | DONE | — |
