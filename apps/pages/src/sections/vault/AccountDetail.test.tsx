@@ -113,6 +113,46 @@ describe("account detail", () => {
     vi.restoreAllMocks();
   });
 
+  it.each([
+    "2026-08-02T12:00:00Z",
+    "2026-08-02T14:00:00+02:00",
+    "2026-08-02T12:00:30Z",
+  ])("shows a shared edit timestamp once (%s)", (passwordChangedAt) => {
+    vault.current = {
+      items: [
+        makeAccount({
+          id: "itm_dates",
+          updatedAt: "2026-08-02T12:00:00Z",
+          passwordChangedAt,
+        }),
+      ],
+      folders: [],
+    };
+    renderAt("itm_dates");
+    expect(screen.getAllByText(/^Updated /)).toHaveLength(1);
+    expect(screen.queryByText(/^Password last changed /)).toBeNull();
+  });
+
+  it("retains password history when another edit updated the item later", () => {
+    vault.current = {
+      items: [makeAccount({ id: "itm_dates" })],
+      folders: [],
+    };
+    renderAt("itm_dates");
+    expect(screen.getAllByText(/^Updated /)).toHaveLength(1);
+    expect(screen.getByText(/^Password last changed /)).toBeTruthy();
+  });
+
+  it("shows only the item edit date for an account without a password", () => {
+    vault.current = {
+      items: [makeAccount({ id: "itm_dates", password: "" })],
+      folders: [],
+    };
+    renderAt("itm_dates");
+    expect(screen.getAllByText(/^Updated /)).toHaveLength(1);
+    expect(screen.queryByText(/^Password last changed /)).toBeNull();
+  });
+
   it("generates a replacement password through the update panel", async () => {
     vault.current = {
       items: [makeAccount({ id: "itm_login", password: "hunter2hunter2" })],

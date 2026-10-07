@@ -69,6 +69,9 @@ export function AccountDetail({
   const firstPassword = item.methods.find(
     (method): method is PasswordMethod => method.type === "password",
   );
+  const passwordChanged = firstPassword
+    ? formatDate(firstPassword.changedAt)
+    : null;
 
   const saveMethod = async (next: PasswordMethod) => {
     try {
@@ -111,10 +114,8 @@ export function AccountDetail({
 
       <AccountWebsiteRows item={item} copying={{ copied, failed, copy }} />
 
-      {firstPassword ? (
-        <p className="hint">
-          Password last changed {formatDate(firstPassword.changedAt)}.
-        </p>
+      {passwordChanged && passwordChanged !== formatDate(item.updatedAt) ? (
+        <p className="hint">Password last changed {passwordChanged}.</p>
       ) : null}
     </>
   );
