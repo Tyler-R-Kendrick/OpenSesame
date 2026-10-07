@@ -26,3 +26,22 @@ VERIFY_SKIP_BUILD=1 \
 ```
 
 `VERIFY_SKIP_BUILD=1` reuses `apps/pages/dist-profiles/verification-<buildKey>/` when `index.html` is already there. Builds are gitignored under `dist-profiles/`.
+
+## Tutorials without support models
+
+`apps/pages/scripts/verify-tutorials-profiles.mjs` builds `capability-profiles/minimal-local.json` and `capability-profiles/full.json` the same way (`security-profile.mjs`, then `vite build` with `VITE_BASE=/OpenSesame/`), then walks tutorials in each dist. Minimal leaves the profile's approvals as they are: only installed capabilities. Full turns every other section on. Both runs finish with the on-device model and the remote support model unapproved (`TUTORIALS_AI=off`).
+
+The default command is shard 1/3 at desktop (1280) and phone (390), including the gate pass on shard 1. The full library is the same script with `TUTORIALS_PROFILES_FULL=1`.
+
+```bash
+PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:tutorials-profiles
+```
+
+```bash
+TUTORIALS_PROFILES_FULL=1 \
+  PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
+  pnpm --filter @opensesame/pages verify:tutorials-profiles
+```
+
+`VERIFY_SKIP_BUILD=1` reuses `apps/pages/dist-profiles/tutorials-<name>/` when `index.html` is already there.

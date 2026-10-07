@@ -28,12 +28,20 @@
  *
  * `TUTORIALS_DEV_URL=http://localhost:5180` walks a running dev server
  * instead of `dist/`; `TUTORIALS_ONLY=vault.lock,vault.export` narrows it.
+ * `TUTORIALS_DIST` walks a profile build. `TUTORIALS_ENABLE=installed` leaves
+ * the build's approvals alone; `except-ai` turns sections on and then drops
+ * the on-device and remote support models (`TUTORIALS_AI=off` does that drop
+ * on its own).
  */
 
 import fs from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
-import { enableEverything } from "./lib/enable-capabilities.mjs";
+import {
+  enableEverything,
+  ensureModelsOff,
+} from "./lib/enable-capabilities.mjs";
 import { passTheDoor } from "./lib/front-door.mjs";
 import { sealLocalOnly } from "./lib/pages-journey.mjs";
 import { inShard, isFirstShard, parseShard } from "./lib/shard.mjs";
@@ -69,8 +77,11 @@ const firstShard = isFirstShard(shard);
 const keepShots = process.env.TUTORIALS_SHOTS === "1";
 const verbose = process.env.TUTORIALS_VERBOSE === "1";
 
+const dist = process.env.TUTORIALS_DIST
+  ? path.resolve(process.env.TUTORIALS_DIST)
+  : fileURLToPath(new URL("../dist", import.meta.url));
 const harness = createHarness({
-  dist: fileURLToPath(new URL("../dist", import.meta.url)),
+  dist,
   origin,
   base,
   out,
@@ -150,8 +161,19 @@ async function sealedShell(width) {
   await passTheDoor(page);
   say("  sealing a vault");
   await sealLocalOnly(page);
-  say("  switching every capability on");
-  await enableEverything(page, { origin, base, verbose });
+  // `installed` walks only what this build already approved. `except-ai`
+  // turns every other section on, then drops the two support models.
+  const enable = process.env.TUTORIALS_ENABLE ?? "all";
+  const modelsOff =
+    process.env.TUTORIALS_AI === "off" || enable === "except-ai";
+  if (enable !== "installed") {
+    say("  switching every capability on");
+    await enableEverything(page, { origin, base, verbose });
+  }
+  if (modelsOff) {
+    say("  leaving support models off");
+    await ensureModelsOff(page, { origin, base, verbose });
+  }
   say("  back to the vault");
   await page.goto(`${origin}${base}vault`, { waitUntil: "domcontentloaded" });
   await unlockIfLocked(page);
