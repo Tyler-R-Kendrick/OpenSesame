@@ -21,14 +21,13 @@
 // TAILNET_SYNC_TAILNET=<name>,<tls port>,<100.x address> runs the same walk
 // over a real tailnet instead (scripts/test/tailnet-sync-real-tailnet.sh).
 //
-//   NOT MIGRATED (ADR 0180): this walk needs a wrap that travels to a second
-//   device. A PIN never does (tailnet-sync/snapshot.ts) and a master password
-//   can no longer be created in the UI, so A is sealed with a PIN here and
-//   TS-ADOPT cannot open the vault on B. It needs a fixture that seals A with
-//   a passkey whose PRF output a second virtual authenticator can reproduce.
-//   Not part of CI; run it by hand only once that fixture exists.
+//   Device A's vault is sealed under a master password by the store
+//   (lib/seeded-vault.mjs), not by a screen: no screen makes one any more
+//   (ADR 0180), and a PIN never leaves its device, so a PIN vault could not be
+//   adopted by B. A passkey cannot stand in headlessly: a virtual
+//   authenticator does not carry a credential's PRF secret to a second device.
 //
-//   TS-PAIR    device A seals a vault with a PIN, saves an item, turns
+//   TS-PAIR    device A opens its seeded vault, saves an item, turns
 //              Networking on and pairs (the row's key opens the pairing
 //              sheet, the code goes in the sheet, its commit pairs): the panel
 //              reports it in step and the drive holds generation ≥ 1 of a
@@ -56,8 +55,8 @@ import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
 import { doorGuest } from "./lib/front-door.mjs";
 import { phoneContext } from "./lib/mobile-contract.mjs";
-import { sealWithPin, unlockWithPin } from "./lib/pages-journey.mjs";
 import { openVaultList, toTheList } from "./lib/phone-vault.mjs";
+import { seedPasswordVault, unlockSeeded } from "./lib/seeded-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import {
   attachmentCrosses,
@@ -165,7 +164,12 @@ function browserReaches(page) {
 }
 
 /** A device: the harness page, allowed to reach the drive and nothing else. */
-async function device(browser, options, answer = "granted") {
+async function device(
+  browser,
+  options,
+  answer = "granted",
+  { seeded = false } = {},
+) {
   const { page, context } = await harness.newPage(browser, {
     ...options,
     device: { ...options.device, ignoreHTTPSErrors: true },
@@ -175,6 +179,7 @@ async function device(browser, options, answer = "granted") {
   pages.push(page);
   const errors = [];
   page.on("pageerror", (error) => errors.push(String(error)));
+  if (seeded) await seedPasswordVault(context, origin);
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
   await page.waitForTimeout(3000);
   return { page, context, errors };
@@ -215,10 +220,13 @@ try {
   const code = await openSlot();
 
   // TS-PAIR
-  const a = await device(browser, {
-    device: { viewport: { width: 1280, height: 900 } },
-  });
-  await sealWithPin(a.page);
+  const a = await device(
+    browser,
+    { device: { viewport: { width: 1280, height: 900 } } },
+    "granted",
+    { seeded: true },
+  );
+  await unlockSeeded(a.page);
   await saveItem(a.page, "Bank of Example");
   await networkingOn(a.page);
   await visit(a.page, "settings/vaults");
@@ -276,7 +284,7 @@ try {
     .getByLabel("Password", { exact: true })
     .waitFor({ timeout: 20_000 });
   await shot(b.page, "390-device-b-unlock");
-  await unlockWithPin(b.page);
+  await unlockSeeded(b.page);
   await visit(b.page, "vault");
   // A phone opens the vault on the section tree; the item is two panes in.
   await openVaultList(b.page);
@@ -350,11 +358,15 @@ try {
       exact: true,
     })
     .click();
+  // A failure is a mark on what failed and a notice in the tray, never an
+  // alert drawn in the page (ADR 0163).
   await expect(
-    refused.getByRole("alert").locator(".status-mark"),
-  ).toHaveAttribute("aria-label", /Allow local network access for this site/, {
-    timeout: 20_000,
-  });
+    c.page
+      .locator(
+        '#tailnet-sync .status-mark[aria-label*="Allow local network access for this site"]',
+      )
+      .first(),
+  ).toBeVisible({ timeout: 20_000 });
   await shot(c.page, "1280-device-c-denied");
   console.log("LNA-DENIED ok");
 

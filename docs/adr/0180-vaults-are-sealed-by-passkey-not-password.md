@@ -63,13 +63,13 @@ take the other road: the only way in is a passkey.
 - **A fix found on the way.** Rotating the key re-sealed only the body, so a
   vault with any other sealed file (the tomb index at least) failed to unlock
   after a rotation. `rekeyTomb` now re-seals every file first, all-or-nothing.
-- **`verify:tailnet-sync` cannot be driven headlessly** and is not part of CI.
-  Its second device must adopt a vault from a wrap that travels. A PIN never
-  does, a password can no longer be made, and Chromium's virtual
+- **`verify:tailnet-sync` seeds its first device through the store.** Its
+  second device must adopt a vault from a wrap that travels: a PIN never does,
+  a password can no longer be made by a screen, and Chromium's virtual
   authenticator does not carry a credential's PRF secret across devices
-  (`WebAuthn.getCredentials` omits it; probed). It needs a fixture that seeds
-  device A's vault with a password wrap through the store, as
-  `scripts/fixtures/local-iam.ts` does, not through the UI.
+  (`WebAuthn.getCredentials` omits it; probed). So device A's vault is sealed
+  under a master password by `fixtures/vault-seed.ts` (the way
+  `fixtures/local-iam.ts` seeds), and both devices unlock it from the screen.
 - **Still typed passwords:** the CLI (`opensesame-id`, no WebAuthn), the Node
   host, `opensesame vault verify` and the test fixtures. No Pages screen calls
   `VaultStore.create`, `enrollPassword` or `changeMasterPassword`.

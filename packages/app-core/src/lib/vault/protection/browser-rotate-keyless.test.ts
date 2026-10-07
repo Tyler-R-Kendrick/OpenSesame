@@ -154,6 +154,17 @@ describe("rotating the vault key of a vault with no master password", () => {
     ).rejects.toBeInstanceOf(ProtectionError);
   });
 
+  it("refuses a PIN rotation on a vault that holds a password, too", async () => {
+    const store = new VaultStore();
+    await store.create("correct horse battery staple");
+    await store.protection.ensureProtectionProjected();
+    const before = store.getSnapshot().header;
+    await expect(
+      store.protection.rotateCompromisedRoot({ pin: NEW_PIN }),
+    ).rejects.toBeInstanceOf(ProtectionError);
+    expect(store.getSnapshot().header).toEqual(before);
+  });
+
   it("refuses a passkey rotation on a vault that holds a password, which it would drop", async () => {
     const store = new VaultStore();
     await store.create("correct horse battery staple");

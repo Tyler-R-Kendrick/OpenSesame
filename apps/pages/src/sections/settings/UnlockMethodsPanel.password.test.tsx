@@ -11,6 +11,7 @@ import {
   vi,
 } from "vitest";
 import { UnlockMethodsPanel } from "./UnlockMethodsPanel.js";
+import { KeyCeremony } from "./security/KeyCeremony.js";
 import {
   checkWebauthnHost,
   installUnlockSeams,
@@ -20,6 +21,7 @@ import {
   row,
   sheet,
   store,
+  vault,
 } from "./unlock-methods-panel.test-support.js";
 
 const restoreSeams = installUnlockSeams();
@@ -98,5 +100,32 @@ describe("UnlockMethodsPanel — the master password", () => {
     );
     await waitFor(() => expect(store.removePassword).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("says a saved reminder shows at unlock on the row that holds the password", () => {
+    vault.current = {
+      header: { wrap: {}, kdf: {}, unlocks: {}, hint: "my usual place" },
+    };
+    render(<UnlockMethodsPanel />);
+    expect(
+      row("Password").getByText("The reminder you saved shows at unlock."),
+    ).toBeTruthy();
+  });
+
+  it("draws no password form even if a sheet is asked for one", () => {
+    render(
+      <KeyCeremony
+        kind="password"
+        view="add"
+        enrolled={["passkey"]}
+        host={{ ok: true, hostname: "localhost", reason: "", fixUrl: null }}
+        busy={false}
+        run={async () => {}}
+        onDone={() => {}}
+      />,
+    );
+    expect(screen.queryByRole("form")).toBeNull();
+    expect(screen.queryByLabelText(/password/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /set password/i })).toBeNull();
   });
 });
