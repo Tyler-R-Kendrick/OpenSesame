@@ -57,17 +57,12 @@ function DrawerRow({
   );
 }
 
-export function NavDrawer({
-  session,
-  revealSession = false,
-}: { session?: ReactNode; revealSession?: boolean }) {
+function useDrawerState(revealSession: boolean) {
   const [open, setOpen] = useState(false);
   const revealedByGuide = useRef(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const guideFocusRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
-  const keyRef = useGuideTarget<HTMLButtonElement>("nav.menu");
-  const sections = useSections();
   const location = useLocation();
   // Stable: `useModalFocus` keeps this in its effect deps, and a fresh
   // arrow each render would re-run the effect — re-focusing Close and
@@ -76,6 +71,10 @@ export function NavDrawer({
   const close = useCallback(() => {
     revealedByGuide.current = false;
     setOpen(false);
+  }, []);
+  const show = useCallback(() => {
+    revealedByGuide.current = false;
+    setOpen(true);
   }, []);
   // A tutorial owns focus on its Next key while it reveals a control. A
   // person's ordinary Sections gesture still lands on the drawer's Close.
@@ -106,6 +105,18 @@ export function NavDrawer({
     close();
   }, [close, location.key]);
 
+  return { open, show, close, closeRef, drawerRef };
+}
+
+export function NavDrawer({
+  session,
+  revealSession = false,
+}: { session?: ReactNode; revealSession?: boolean }) {
+  const { open, show, close, closeRef, drawerRef } =
+    useDrawerState(revealSession);
+  const keyRef = useGuideTarget<HTMLButtonElement>("nav.menu");
+  const sections = useSections();
+
   return (
     <>
       <button
@@ -116,10 +127,7 @@ export function NavDrawer({
         title="Sections"
         aria-haspopup="dialog"
         aria-expanded={open}
-        onClick={() => {
-          revealedByGuide.current = false;
-          setOpen(true);
-        }}
+        onClick={show}
       >
         <IconMenu size={18} />
       </button>
