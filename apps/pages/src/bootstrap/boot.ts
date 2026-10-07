@@ -87,7 +87,8 @@ export async function bootCore(): Promise<CoreBoot> {
   // fragment the same way; the route behind unlock takes them from memory
   // (ADR 0140 plan step 8).
   captureClaimArrivalFromPage();
-  // Every lock purges it (ADR 0140 D6), whatever is on screen.
+  // A lock purges an ownership claim (ADR 0140 D6), whatever is on screen.
+  // A drop's key stays in memory so present and poll can finish while locked.
   bindClaimLockReset();
   // `/i/<ref>` and `/approve/<ref>` keep their reference in the path (it
   // authorizes nothing, ADR 0086 §3); a fragment or query that rode along

@@ -2,6 +2,7 @@ import type { Ref } from "react";
 import { Link } from "react-router";
 import { useContributions } from "../../bindings/contributions.js";
 import { IconPlus } from "../../components/Icons.js";
+import { ClaimOpenLink } from "./ClaimOpen.js";
 import { ExportKey } from "./ExportKey.js";
 
 /**
@@ -36,6 +37,7 @@ export function VaultActions({
         <IconPlus size={15} />
       </Link>
       <VaultCommands />
+      <ClaimOpenLink />
     </>
   );
 }
