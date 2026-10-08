@@ -57,7 +57,7 @@ function streamingRequest(chunks, fields = {}) {
   return req;
 }
 
-describe("inbound relay body ceiling", () => {
+describe("readRawBody ceiling", () => {
   it("reads a body at the ceiling and rejects one byte past it", async () => {
     const atLimit = Buffer.alloc(MAX_INBOUND_BODY_BYTES, 0x61);
     const ok = await readRawBody(streamingRequest([atLimit]));
@@ -121,7 +121,9 @@ describe("inbound relay body ceiling", () => {
     assert.equal(res.statusCode, 405);
     assert.equal(read, false);
   });
+});
 
+describe("relay answers 413", () => {
   it("answers 413 from the node relay and still reports invalid JSON", async () => {
     const tooLarge = response();
     handleRelayRequest(
