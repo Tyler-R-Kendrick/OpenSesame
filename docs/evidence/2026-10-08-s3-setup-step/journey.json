@@ -1,0 +1,119 @@
+{
+  "out": ".",
+  "clock": "2026-10-08T10:00:00.000Z",
+  "screens": [
+    {
+      "desktop": true,
+      "width": 1280,
+      "height": 900,
+      "steps": [
+        {
+          "press": "Set up your own"
+        },
+        {
+          "pressOptional": "Custom"
+        },
+        {
+          "press": "Customize this installation"
+        },
+        {
+          "press": "Every optional capability offered"
+        },
+        {
+          "press": "External connectors"
+        },
+        {
+          "press": "Save on this device"
+        },
+        {
+          "press": "Apply configuration"
+        },
+        {
+          "count": ["[role=tab]"]
+        },
+        {
+          "shot": "1280-tabs"
+        },
+        {
+          "pressOptional": "Storage"
+        },
+        {
+          "shot": "1280-storage"
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "steps": [
+        {
+          "press": "Set up your own"
+        },
+        {
+          "pressOptional": "Custom"
+        },
+        {
+          "press": "Customize this installation"
+        },
+        {
+          "press": "Every optional capability offered"
+        },
+        {
+          "press": "External connectors"
+        },
+        {
+          "press": "Save on this device"
+        },
+        {
+          "press": "Apply configuration"
+        },
+        {
+          "count": ["[role=tab]"]
+        },
+        {
+          "shot": "390-tabs"
+        },
+        {
+          "pressOptional": "Storage"
+        },
+        {
+          "shot": "390-storage"
+        }
+      ]
+    }
+  ],
+  "sheets": [
+    {
+      "shot": "1280-tabs",
+      "width": 1280,
+      "title": "Custom setup after applying External connectors \u2014 1280 \u00d7 900",
+      "caption": "Before, applying the Connections capability added one tab, Connectors. After, a Storage tab follows it: the vault's location is part of the ceremony.",
+      "before": "2 tabs: capabilities, connectors",
+      "after": "3 tabs: capabilities, connectors, storage"
+    },
+    {
+      "shot": "1280-storage",
+      "width": 1280,
+      "title": "The Storage tab \u2014 1280 \u00d7 900",
+      "caption": "The bucket's own form, the same one Settings \u203a Capabilities \u203a Local storage opens: endpoint, region, bucket, access key id, secret access key (a secret field, sealed on this device apart from the public ones). Nothing is chosen for the person; with no bucket saved the vault stays in this browser.",
+      "before": "no Storage tab to open (the ceremony stays on its capabilities tab)",
+      "after": "S3-compatible bucket form, 5 required fields"
+    },
+    {
+      "shot": "390-tabs",
+      "width": 390,
+      "title": "The tabs on a phone \u2014 390 \u00d7 844",
+      "caption": "The same ceremony on a phone.",
+      "before": "2 tabs: capabilities, connectors",
+      "after": "3 tabs: capabilities, connectors, storage"
+    },
+    {
+      "shot": "390-storage",
+      "width": 390,
+      "title": "The Storage tab on a phone \u2014 390 \u00d7 844",
+      "caption": "The same form at the touch sizes the ceremony already uses.",
+      "before": "no Storage tab to open (the ceremony stays on its capabilities tab)",
+      "after": "S3-compatible bucket form"
+    }
+  ]
+}
