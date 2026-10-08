@@ -1,4 +1,5 @@
 import { listNotices } from "@opensesame/app-core/lib/notices.js";
+import { sessionStore } from "@opensesame/app-core/ports.js";
 /** @vitest-environment jsdom */
 import { overlapCast } from "@opensesame/os-domain";
 import {
@@ -810,7 +811,7 @@ describe("UnlockScreen — password unlock", () => {
   });
 
   it("opens on sign-in after a sign-out from inside the app", () => {
-    sessionStorage.setItem(
+    sessionStore().setItem(
       "opensesame:federation:outcome",
       JSON.stringify({ kind: "signed_out" }),
     );
@@ -820,7 +821,7 @@ describe("UnlockScreen — password unlock", () => {
   });
 
   it("opens on sign-in to attach an account, keeping the session", () => {
-    sessionStorage.setItem(
+    sessionStore().setItem(
       "opensesame:federation:outcome",
       JSON.stringify({ kind: "attach" }),
     );

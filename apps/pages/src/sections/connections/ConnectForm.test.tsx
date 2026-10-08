@@ -7,6 +7,7 @@ import {
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import { connectionSeams } from "@opensesame/app-core/lib/connections.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
+import { localStore } from "@opensesame/app-core/ports.js";
 import { hasConnectRoute } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { vercelConnectCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import {
@@ -172,7 +173,7 @@ it("offers the same with a Host named and granted: it opens no road", async () =
 
 it("draws nothing to authorize once a local GitHub App is registered", async () => {
   nameAHostWithALiveGrant();
-  localStorage.setItem(
+  localStore().setItem(
     "opensesame.github-app.public",
     JSON.stringify({
       id: "123",

@@ -4,6 +4,7 @@ import {
   claimGithubAppCode,
   forgetLocalGithubApp,
 } from "@opensesame/app-core/lib/github-app-manifest.js";
+import { localStore, sessionStore } from "@opensesame/app-core/ports.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
@@ -130,7 +131,7 @@ describe("GithubAppPresence", () => {
 
   it("unlocks the repository field for editing", async () => {
     const onFlash = vi.fn();
-    localStorage.setItem(
+    localStore().setItem(
       PUBLIC_KEY,
       JSON.stringify({
         id: "123",
@@ -169,7 +170,7 @@ describe("GithubAppPresence", () => {
       listGithubInstallations: vi.fn(async () => []),
       getBackupStatus: vi.fn(async () => ({ target: null, pendingEvents: 0 })),
     });
-    localStorage.setItem(
+    localStore().setItem(
       PUBLIC_KEY,
       JSON.stringify({
         id: "123",
@@ -209,7 +210,7 @@ describe("GithubAppPresence", () => {
     render(<GithubAppPresence />);
     expect(screen.queryByTestId("github-app-presence")).toBeNull();
 
-    sessionStorage.setItem("opensesame.github-app.state", "claim-state");
+    sessionStore().setItem("opensesame.github-app.state", "claim-state");
     vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
       status: "unlocked",
       tomb: "guest",
@@ -280,7 +281,7 @@ describe("GithubAppPresence", () => {
       listGithubInstallations: vi.fn(async () => []),
       getBackupStatus: vi.fn(async () => ({ target: null, pendingEvents: 0 })),
     });
-    localStorage.setItem(
+    localStore().setItem(
       PUBLIC_KEY,
       JSON.stringify({
         id: "4997182",
@@ -304,7 +305,7 @@ describe("GithubAppPresence", () => {
     await waitFor(() => {
       expect(screen.queryByTestId("github-app-presence")).toBeNull();
     });
-    expect(localStorage.getItem(PUBLIC_KEY)).toBeNull();
+    expect(localStore().getItem(PUBLIC_KEY)).toBeNull();
   });
 
   it("warns when the App is stored without a registrant", async () => {
@@ -315,7 +316,7 @@ describe("GithubAppPresence", () => {
       listGithubInstallations: vi.fn(async () => []),
       getBackupStatus: vi.fn(async () => ({ target: null, pendingEvents: 0 })),
     });
-    localStorage.setItem(
+    localStore().setItem(
       PUBLIC_KEY,
       JSON.stringify({
         id: "123",

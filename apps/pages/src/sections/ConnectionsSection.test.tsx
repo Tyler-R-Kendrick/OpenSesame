@@ -21,6 +21,7 @@ const connect = vi.hoisted(() => vi.fn());
 const connectState: { connecting: boolean; error: string | null } = vi.hoisted(
   () => ({ connecting: false, error: null }),
 );
+import { localStore } from "@opensesame/app-core/ports.js";
 import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
 Object.assign(identityHookSeams, {
   useConnect: () => ({
@@ -410,7 +411,7 @@ describe("ConnectionsSection deeper branches", () => {
   });
 
   it("hides Connect once the GitHub App is registered from this browser", async () => {
-    localStorage.setItem(
+    localStore().setItem(
       "opensesame.github-app.public",
       JSON.stringify({
         id: "123",
@@ -435,7 +436,7 @@ describe("ConnectionsSection deeper branches", () => {
         screen.queryByRole("button", { name: /Authorize with GitHub/i }),
       ).toBeNull();
     } finally {
-      localStorage.removeItem("opensesame.github-app.public");
+      localStore().removeItem("opensesame.github-app.public");
     }
   });
 });
