@@ -10,14 +10,14 @@ shells via `/etc/profile.d/kimi-code.sh` (same pattern as cargo).
    under `~/.kimi-code/credentials/*.json`. Never commit or print them.
 2. **Optional API key** — Cursor **Runtime Secrets**:
    - `KIMI_MODEL_API_KEY` (required for this path)
-   - `KIMI_MODEL_NAME` (use `k3` or `kimi-k3` for Kimi K3)
+   - `KIMI_MODEL_NAME` (use `kimi-code/k3` (aliases `k3` / `kimi-k3` when configured) for Kimi K3)
    - `KIMI_MODEL_BASE_URL` (optional override)
 
 Plain `KIMI_API_KEY` is **not** read by Kimi Code; use `KIMI_MODEL_API_KEY`.
 
 ## Headless automation
 
-Model **K3** is pinned with `-m k3` (catalog alias `kimi-k3` on Moonshot
+Model **K3** is pinned with `-m kimi-code/k3` (catalog alias `kimi-k3` on Moonshot
 providers). Non-interactive runs use JSON stream output:
 
 ```bash
@@ -28,7 +28,7 @@ scripts/dev/kimi-headless.sh -p "your prompt"
 `kimi-headless.sh` unsets `KIMI_API_KEY` and, by default, `KIMI_MODEL_*` so a
 depleted or test runtime secret does not shadow OAuth (`KIMI_HEADLESS_PREFER_OAUTH=0`
 keeps API-key env for key-only runs). For `-p` runs it adds `--output-format
-stream-json` and `-m k3` when you did not pass them (`--auto` is not combined
+stream-json` and `-m kimi-code/k3` when you did not pass them (`--auto` is not combined
 with `-p`).
 
 ## When to use Cursor Agent instead

@@ -67,7 +67,7 @@ not My Machines or a contributor’s local PC). Image and bootstrap live in
   `grok -p "…" --always-approve --output-format json`.
 - **Kimi Code CLI** is installed as `@moonshot-ai/kimi-code` (pinned in the
   Dockerfile) on `PATH` via `/etc/profile.d/kimi-code.sh`. Headless **K3** runs:
-  `scripts/dev/kimi-headless.sh -p "…"` (`-m k3`, `--output-format stream-json`).
+  `scripts/dev/kimi-headless.sh -p "…"` (`-m kimi-code/k3`, `--output-format stream-json`).
   Auth: `kimi login` OAuth first, else Runtime Secret
   `KIMI_MODEL_API_KEY` (+ optional `KIMI_MODEL_NAME`, `KIMI_MODEL_BASE_URL`;
   Kimi ignores plain `KIMI_API_KEY`). Check `scripts/dev/kimi-preflight.sh`

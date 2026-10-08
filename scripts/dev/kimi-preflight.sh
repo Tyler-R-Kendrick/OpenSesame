@@ -6,7 +6,7 @@
 # KIMI_MODEL_API_KEY is set. Exit 1 when neither is available.
 set -euo pipefail
 
-KIMI_MODEL_PIN="${KIMI_MODEL_PIN:-k3}"
+KIMI_MODEL_PIN="${KIMI_MODEL_PIN:-kimi-code/k3}"
 
 if ! command -v kimi >/dev/null 2>&1; then
   printf '%s\n' "kimi: not on PATH" >&2
@@ -29,17 +29,17 @@ fi
 printf 'KIMI_MODEL_API_KEY length: %s\n' "$model_key_len"
 
 configured_model="${KIMI_MODEL_NAME:-$KIMI_MODEL_PIN}"
-printf 'model pin: %s (headless default -m %s; catalog alias kimi-k3)\n' \
+printf 'model pin: %s (headless default -m %s; K3 catalog id)\n' \
   "$configured_model" "$KIMI_MODEL_PIN"
 
 case "$configured_model" in
-  k3 | kimi-k3)
+  k3 | kimi-k3 | kimi-code/k3 | kimi-code/k3-256k)
     printf 'model K3: ok\n'
     ;;
   *)
     if [[ -n "${KIMI_MODEL_NAME:-}" ]]; then
       printf '%s\n' \
-        "KIMI_MODEL_NAME must be k3 or kimi-k3 for K3; got \"${KIMI_MODEL_NAME}\"." >&2
+        "KIMI_MODEL_NAME must be a K3 id (kimi-code/k3, k3, kimi-k3); got \"${KIMI_MODEL_NAME}\"." >&2
       exit 1
     fi
     ;;

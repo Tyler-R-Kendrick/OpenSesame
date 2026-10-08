@@ -11,7 +11,9 @@
 # to keep KIMI_MODEL_* for API-key-only runs.
 set -euo pipefail
 
-KIMI_MODEL_PIN="${KIMI_MODEL_PIN:-k3}"
+# OAuth catalog id for Kimi K3 (display name "K3"). Aliases k3 / kimi-k3 alone
+# are not registered in config.toml after device login.
+KIMI_MODEL_PIN="${KIMI_MODEL_PIN:-kimi-code/k3}"
 
 unset_env=( -u KIMI_API_KEY )
 if [[ "${KIMI_HEADLESS_PREFER_OAUTH:-1}" == "1" ]]; then
