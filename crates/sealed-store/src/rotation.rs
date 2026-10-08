@@ -382,7 +382,9 @@ fn refuse_symlinked_parents(root: &Path, rel: &Path) -> Result<(), StoreError> {
 }
 
 fn create_private_dir(path: &Path) -> Result<(), StoreError> {
-    let mut builder = fs::DirBuilder::new();
+    let builder = fs::DirBuilder::new();
+    #[cfg(unix)]
+    let mut builder = builder;
     #[cfg(unix)]
     std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
     builder.create(path)?;
