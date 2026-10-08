@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Test-runner-only bridge to real simulator sensor commands, never application authority."""
 import json
+import os
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -19,28 +21,75 @@ def command_output(value):
     return (value or "")[:4096]
 
 
+def complete_output(capture):
+    value = os.pread(capture.fileno(), 4097, 0)
+    if len(value) > 4096:
+        raise ValueError("Simulator command output exceeded its capture bound")
+    return value.decode("utf-8").replace("\r\n", "\n").replace("\r", "\n")
+
+
+def capture_diagnostics(record, stdout, stderr):
+    for name, capture in [("stdout", stdout), ("stderr", stderr)]:
+        try:
+            record[name] = command_output(os.pread(capture.fileno(), 4096, 0))
+        except Exception as error:
+            record[name] = ""
+            record[name + "CaptureError"] = type(error).__name__
+
+
 def sensor_command(args, stage, diagnostics):
     started = time.monotonic()
     record = {"stage": stage, "timeoutSeconds": 5}
+    captures = []
+    failed = False
     try:
-        result = subprocess.run(args, check=True, timeout=5, capture_output=True, text=True)
+        stdout = tempfile.TemporaryFile()
+        captures.append(stdout)
+        stderr = tempfile.TemporaryFile()
+        captures.append(stderr)
+        try:
+            # Wait for the owned command, not EOF from independently retained pipes.
+            # subprocess.run kills and waits its owned process on a timeout.
+            result = subprocess.run(args, check=True, timeout=5, stdout=stdout, stderr=stderr)
+        except subprocess.TimeoutExpired:
+            record.update(status="timed_out")
+            capture_diagnostics(record, stdout, stderr)
+            raise
+        except subprocess.CalledProcessError as error:
+            record.update(status="failed", exitCode=error.returncode)
+            capture_diagnostics(record, stdout, stderr)
+            raise
+        except OSError as error:
+            record.update(status="launch_failed", errno=error.errno)
+            raise
+        try:
+            output = complete_output(stdout)
+            error_output = complete_output(stderr)
+        except (OSError, ValueError) as error:
+            record.update(status="capture_failed", captureError=type(error).__name__)
+            capture_diagnostics(record, stdout, stderr)
+            raise
         record.update(status="completed", exitCode=result.returncode,
-                      stdout=command_output(result.stdout), stderr=command_output(result.stderr))
-        return result
-    except subprocess.TimeoutExpired as error:
-        record.update(status="timed_out", stdout=command_output(error.stdout),
-                      stderr=command_output(error.stderr))
-        raise
-    except subprocess.CalledProcessError as error:
-        record.update(status="failed", exitCode=error.returncode,
-                      stdout=command_output(error.stdout), stderr=command_output(error.stderr))
-        raise
-    except OSError as error:
-        record.update(status="launch_failed", errno=error.errno)
+                      stdout=command_output(output), stderr=command_output(error_output))
+        return subprocess.CompletedProcess(result.args, result.returncode, output, error_output)
+    except BaseException:
+        failed = True
+        if "status" not in record:
+            record["status"] = "capture_failed"
         raise
     finally:
+        close_error = None
+        for capture in captures:
+            try:
+                capture.close()
+            except OSError as error:
+                record["captureCloseError"] = type(error).__name__
+                close_error = error
         record["elapsedSeconds"] = round(time.monotonic() - started, 6)
         diagnostics.append(record)
+        if close_error is not None and not failed:
+            record["status"] = "capture_failed"
+            raise close_error
 
 
 def set_enrollment(device, enabled, diagnostics=None):
