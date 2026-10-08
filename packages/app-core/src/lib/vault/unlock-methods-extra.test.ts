@@ -9,6 +9,7 @@ import {
   randomBytes,
 } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { PIN_PBKDF2_ITERATIONS, pinPbkdf2Iterations } from "./pin-kdf.js";
 import {
   MAX_PIN_LENGTH,
   MIN_PIN_LENGTH,
@@ -35,10 +36,6 @@ import {
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
-import {
-  PIN_PBKDF2_ITERATIONS,
-  pinPbkdf2Iterations,
-} from "./pin-kdf.js";
 
 const PASSWORD = "correct horse battery staple";
 const PIN = "48291037";
