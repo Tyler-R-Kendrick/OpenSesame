@@ -56,3 +56,26 @@ it("screens bare CR separators before provider dotenv parsing", () => {
     validateRunTemplate("API=ordinary\rNODE_OPTIONS=--require attacker.cjs\r"),
   ).toThrow("startup");
 });
+
+it("rejects colon assignments without whitespace after the separator", () => {
+  expect(() => validateRunTemplate("LD_PRELOAD:private-hook")).toThrow(
+    "startup",
+  );
+  expect(() =>
+    validateRunTemplate("NODE_OPTIONS:--require attacker.cjs"),
+  ).toThrow("startup");
+});
+
+it("rejects every provider dialect the shared policy names", () => {
+  for (const key of passwordAgentPolicy.credentialStartupEnvKeys) {
+    for (const line of [
+      `${key}=private-hook`,
+      `export\t${key} = 'private-hook'`,
+      `\uFEFF${key}: private-hook`,
+      `"${key}"=private-hook`,
+      `\`${key}\`=private-hook`,
+      `${key}:private-hook`,
+    ])
+      expect(() => validateRunTemplate(line)).toThrow("startup");
+  }
+});
