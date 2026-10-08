@@ -149,6 +149,11 @@ export async function rig(options: RigOptions = {}): Promise<Rig> {
  * and below vitest's testTimeout so refuse-without-settle cases that resolve
  * null on this timer still finish.
  */
-export function enqueue(r: Rig, runId: string, request: JsonObject, ms = 2_000) {
+export function enqueue(
+  r: Rig,
+  runId: string,
+  request: JsonObject,
+  ms = 2_000,
+) {
   return r.host.dispatch(runId, request, ms);
 }
