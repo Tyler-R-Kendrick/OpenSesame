@@ -15,6 +15,7 @@ struct Fake {
     status: u16,
     body_size: usize,
     send_behavior: SendBehavior,
+    send_release: tokio::sync::Notify,
     claim_check: Option<(std::path::PathBuf, String)>,
 }
 impl Backend for Fake {
@@ -63,7 +64,8 @@ impl Backend for Fake {
             "Private send failed"
         );
         if self.send_behavior == SendBehavior::Hang {
-            std::future::pending::<()>().await;
+            self.send_release.notified().await;
+            self.events.borrow_mut().push("released-send");
         }
         let body = if self.body_size == 0 {
             b"PRIVATE-TOKEN".to_vec()
@@ -83,6 +85,7 @@ fn fake() -> Fake {
         status: 200,
         body_size: 0,
         send_behavior: SendBehavior::Success,
+        send_release: tokio::sync::Notify::new(),
         claim_check: None,
     }
 }
@@ -169,8 +172,7 @@ async fn mixed_dns_denies_before_inspection_and_read_failures_or_rotation_burn_c
 }
 
 #[tokio::test]
-async fn bounded_private_requests_reject_redirects_oversize_stalls_and_send_failures_without_retry()
-{
+async fn private_requests_reject_redirects_oversize_and_send_failures_without_retry() {
     let root = tempfile::tempdir().unwrap();
     let mut store = Store::at(root.path().to_path_buf()).await.unwrap();
     let binding = policy::describe(
@@ -180,7 +182,11 @@ async fn bounded_private_requests_reject_redirects_oversize_stalls_and_send_fail
         "Bearer ",
     )
     .unwrap();
-    for mode in 0..4 {
+    for (mode, expected) in [
+        (0, "Private request redirects are forbidden; use consumed"),
+        (1, "Private response exceeded 64 KiB; use consumed"),
+        (2, "Private send failed"),
+    ] {
         let grant = store
             .grant(
                 binding.clone(),
@@ -197,18 +203,17 @@ async fn bounded_private_requests_reject_redirects_oversize_stalls_and_send_fail
         match mode {
             0 => backend.status = 302,
             1 => backend.body_size = 65_537,
-            2 => backend.send_behavior = SendBehavior::Hang,
             _ => backend.send_behavior = SendBehavior::Fail,
         }
-        assert!(execute_bounded(
-            &mut store,
-            &grant.id,
-            &binding,
-            &backend,
-            Duration::from_millis(20)
-        )
-        .await
-        .is_err());
+        backend.claim_check = Some((root.path().to_path_buf(), grant.id.clone()));
+        let error = execute_with(&mut store, &grant.id, &binding, &backend)
+            .await
+            .unwrap_err();
+        assert_eq!(error.to_string(), expected);
+        assert_eq!(
+            *backend.events.borrow(),
+            ["dns", "inspect", "read", "inspect", "send"]
+        );
         assert_eq!(
             backend
                 .events
@@ -230,6 +235,80 @@ async fn bounded_private_requests_reject_redirects_oversize_stalls_and_send_fail
     ] {
         assert!(policy::describe(url, "op://Vault/Item/token", header, prefix).is_err());
     }
+}
+
+#[tokio::test]
+async fn bounded_private_stalls_preserve_claim_state_and_drop_released_results() {
+    let root = tempfile::tempdir().unwrap();
+    let mut store = Store::at(root.path().to_path_buf()).await.unwrap();
+    let binding = policy::describe(
+        "https://example.com/private",
+        "op://Vault/Item/token",
+        "Authorization",
+        "Bearer ",
+    )
+    .unwrap();
+    let grant = store
+        .grant(
+            binding.clone(),
+            lease::Resource {
+                id: "a".repeat(26),
+                version: 7,
+            },
+            600,
+            1,
+        )
+        .await
+        .unwrap();
+    let mut backend = fake();
+    backend.send_behavior = SendBehavior::Hang;
+    let error = execute_bounded(
+        &mut store,
+        &grant.id,
+        &binding,
+        &backend,
+        Duration::from_millis(20),
+    )
+    .await
+    .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "Private request deadline exceeded; any claimed use remains consumed"
+    );
+    let events = backend.events.borrow().clone();
+    assert!(["dns", "inspect", "read", "inspect", "send"].starts_with(&events));
+    assert!(events.iter().filter(|event| **event == "send").count() <= 1);
+    backend.send_release.notify_one();
+    tokio::task::yield_now().await;
+    assert_eq!(*backend.events.borrow(), events);
+
+    // A cancelled claim may not have committed. Close its connection before
+    // reading the actual durable ledger, rather than an in-flight transaction.
+    drop(store);
+    let mut persisted = Store::at(root.path().to_path_buf()).await.unwrap();
+    let remaining = persisted.status(&grant.id).await.unwrap().uses_remaining;
+    if events.contains(&"read") {
+        // Private read starts only after the claim's COMMIT returned.
+        assert_eq!(remaining, 0);
+    } else {
+        // The deadline may precede COMMIT or its awaited completion.
+        assert!(remaining <= 1);
+    }
+    let mut retry = fake();
+    retry.claim_check = Some((root.path().to_path_buf(), grant.id.clone()));
+    let result = execute_with(&mut persisted, &grant.id, &binding, &retry).await;
+    assert_eq!(result.is_ok(), remaining == 1);
+    assert_eq!(
+        retry
+            .events
+            .borrow()
+            .iter()
+            .filter(|event| **event == "send")
+            .count(),
+        usize::from(remaining == 1)
+    );
+    assert_eq!(persisted.status(&grant.id).await.unwrap().uses_remaining, 0);
+    assert_eq!(*backend.events.borrow(), events);
 }
 
 #[tokio::test]
