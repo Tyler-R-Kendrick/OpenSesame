@@ -9,8 +9,8 @@ Audited against `origin/main` at `8f70cf43` (2026-10-07), then follow-up fixes o
 | P1 | GHCR container images | NOT DONE | No publish workflow on main | PARTIAL | Publish workflow in #776 ([dry-run log](2026-10-publishing-dry-run.md)). Pull requests build `ops/compose/Dockerfile` in [`.github/workflows/container-build-pr.yml`](../../.github/workflows/container-build-pr.yml) with `push: false` and `contents: read` only. |
 | P2 | npm publish | NOT DONE | No workflow on main | PARTIAL | Workflow in #776; `npm publish --dry-run` OK for `@opensesame/os-domain` — [dry-run log](2026-10-publishing-dry-run.md) |
 | P3 | Vercel + default services | PARTIAL | `apps/pages/vercel.json`; Pages on GH Actions (`deploy-pages.yml` success on main) | PARTIAL | Pages build OK on agent; Vercel link still **BLOCKED** — [dry-run log](2026-10-publishing-dry-run.md) |
-| A1 | Host as relay + default capability bindings | NOT DONE | Gateway remains full Host API | PARTIAL | `OPENSESAME_GATEWAY_PROFILE=relay` installs an empty `vault_relay` set (`install_relay_bindings`, `docs/operators/local.md`). Certificated-peer admission stays on the full Host resolver. |
-| A2 | Vaults scoped to users/orgs like GitHub repos | PARTIAL | Project tombs + `listDeviceVaults()` | PARTIAL | `POST /v1/org-vaults` and `GET /v1/org-vaults?owner=` (`OrgVaultRef`); Pages `OrgVaultDirectoryPanel`. Handle/slug namespace and member-publish refusal still open. |
+| A1 | Host as relay + default capability bindings | NOT DONE | Gateway remains full Host API | PARTIAL | `GET /health/relay` advertises `profile: relay`, `bindings: vault_relay`, `durable: true`. A non-`vault_relay` document still refuses startup. Certificated-peer admission stays on the full Host resolver. |
+| A2 | Vaults scoped to users/orgs like GitHub repos | PARTIAL | Project tombs + `listDeviceVaults()` | PARTIAL | A presented `member` may list and may not create or publish (`x-opensesame-org-role`). `OrgVaultDirectoryPanel` sends the role. Handle/slug namespace and issuer registration still open. |
 | A3 | Environments + prod hash reuse warning | PARTIAL | `vault.environments` module, tests | DONE | PR #776 — `notifyEnvironmentValueReuse()` + test |
 | R1 | Smart password reset email config | DONE | `ai.password-reset` capability, `PasswordResetMailPanel`, `password-reset-mail.ts` | DONE | — |
 | R2 | Auto reset from mailbox / per-item email | DONE | `resetEmailId` on account items, `ResetEmailField.tsx`, scan job | DONE | Requires login item type + capability |
@@ -32,7 +32,7 @@ Audited against `origin/main` at `8f70cf43` (2026-10-07), then follow-up fixes o
 | U13 | Reset device modal (design system) | DONE | `ResetBrowser.tsx`, danger panel tests | DONE | — |
 | U14 | Danger: trash list, empty/restore/delete | DONE | `SettingsDangerPanel.tsx` | DONE | — |
 | U15 | Setup "full" profile | DONE | `SetupConfiguration.tsx` `full` choice + `apply-configuration.ts` | DONE | — |
-| S1 | Join-session durable vault sync (Syncthing-like) | NOT DONE | Live join exists; no post-join vault replica | PARTIAL | `verify:relay-join` passed 2026-10-07: two browser contexts; B reads the sealed snapshot from the relay. `verify:live-join` stays the live-session walk. |
+| S1 | Join-session durable vault sync (Syncthing-like) | NOT DONE | Live join exists; no post-join vault replica | PARTIAL | `verify:relay-join` is the journeys-1 shard (harness). `verify:relay-join-live` spawns `opensesame host run --profile relay`: A consents and publishes, B reads generation and ciphertext. `verify:live-join` stays the live-session walk. |
 | S2 | Minimal slash-command typeahead | DONE | `CommandBar.test.tsx` | DONE | — |
 | S3 | Remove identity status icon | DONE | `Statusline.tsx` — no identity glyph | DONE | — |
 | S4 | Remove WebCrypto status icon | DONE | `Statusline.tsx` | DONE | — |

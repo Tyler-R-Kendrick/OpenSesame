@@ -321,6 +321,14 @@ jobs:
           VITE_BASE: /OpenSesame/
           EXPERIENCE_SHARD: ${{ matrix.journeys }}
         run: node apps/pages/scripts/verify-experience-journeys.mjs
+      - name: Relay join
+        # ADR 0181. One leg only, so the walk runs once. The harness is the
+        # Pages half; `verify:relay-join-live` is the gateway process.
+        if: matrix.shard == 'journeys-1'
+        env:
+          PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
+          VITE_BASE: /OpenSesame/
+        run: pnpm --filter @opensesame/pages verify:relay-join
 
   device-inbox:
     name: Device inbox and local notifications
