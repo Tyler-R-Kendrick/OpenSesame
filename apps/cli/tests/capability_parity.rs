@@ -10,6 +10,15 @@ const CAPABILITIES_JSON: &str =
 
 const CLI_SOURCES: &[&str] = &[
     include_str!("../src/main.rs"),
+    include_str!("../src/pass_cmds.rs"),
+    include_str!("../src/configs.rs"),
+    include_str!("../src/pass_otp.rs"),
+    include_str!("../src/pass_protect.rs"),
+    include_str!("../src/pass_protect/rotate.rs"),
+    include_str!("../src/security.rs"),
+    include_str!("../src/vault_crypto.rs"),
+    include_str!("../src/vault_relay_sync.rs"),
+    include_str!("../src/vault_secret.rs"),
     include_str!("../src/serve.rs"),
     include_str!("../src/entry.rs"),
     include_str!("../src/store.rs"),

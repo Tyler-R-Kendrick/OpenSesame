@@ -17,6 +17,15 @@ import { optionalPluginCapabilities } from "./optional-plugins.js";
  * agent daemon and the workload connector host as subcommands, and answers as
  * each credential helper and browser bridge under its link name (ADR 0138).
  */
+
+/** Every non-CLI surface is null; paired with `cli` on one line. */
+const NO_SURFACES = {
+  pwa: null,
+  mcp_host: null,
+  mcp_client: null,
+  webmcp: null,
+} as const;
+
 export const nativeHostCapabilities: readonly Capability[] = [
   {
     id: "host.health",
@@ -137,69 +146,67 @@ export const nativeHostCapabilities: readonly Capability[] = [
     title: "Install/start/stop the local host agent",
     plane: "host",
     kind: "admin",
-    surfaces: {
-      cli: "opensesame daemon install",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
+    surfaces: { cli: null, ...NO_SURFACES },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: OPS_PLANE,
+      mcp_client: OPS_PLANE,
     },
-    excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
   },
   {
     id: "daemon.serve",
     title: "Run the local host agent in this process",
     plane: "host",
     kind: "admin",
-    surfaces: {
-      cli: "opensesame daemon run",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
+    surfaces: { cli: null, ...NO_SURFACES },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: OPS_PLANE,
+      mcp_client: OPS_PLANE,
     },
-    excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
   },
   {
     id: "daemon.approvals",
     title: "Approve a device code or claim through the local host agent",
     plane: "host",
     kind: "ceremony",
-    surfaces: {
-      cli: "opensesame daemon approve-device",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
+    surfaces: { cli: null, ...NO_SURFACES },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: HUMAN_CEREMONY,
+      mcp_client: HUMAN_CEREMONY,
     },
-    excluded: { mcp_host: HUMAN_CEREMONY, mcp_client: HUMAN_CEREMONY },
   },
   {
     id: "host.serve",
     title: "Run the Host API",
     plane: "host",
     kind: "admin",
-    surfaces: {
-      cli: "opensesame host run",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
+    surfaces: { cli: null, ...NO_SURFACES },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: OPS_PLANE,
+      mcp_client: OPS_PLANE,
     },
-    excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
   },
   {
     id: "worker.serve",
     title: "Run the workload connector host",
     plane: "host",
     kind: "admin",
-    surfaces: {
-      cli: "opensesame worker run",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
+    surfaces: { cli: null, ...NO_SURFACES },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: OPS_PLANE,
+      mcp_client: OPS_PLANE,
     },
+  },
+  {
+    id: "relay.serve",
+    title: "Serve the optional vault-relay peer",
+    plane: "host",
+    kind: "admin",
+    surfaces: { cli: "opensesame relay run", ...NO_SURFACES },
     excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
   },
   {
@@ -219,16 +226,10 @@ export const nativeHostCapabilities: readonly Capability[] = [
 
   {
     id: "host.auth.doctor",
-    title: "Diagnose the local sign-in state",
+    title: "Diagnose local health: sealed store, relay bindings, crypto tools",
     plane: "host",
     kind: "read",
-    surfaces: {
-      cli: "opensesame identity auth doctor",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
+    surfaces: { cli: "opensesame doctor", ...NO_SURFACES },
     excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
   },
   {
@@ -236,14 +237,9 @@ export const nativeHostCapabilities: readonly Capability[] = [
     title: "Acquire or revoke a short-lived credential lease",
     plane: "host",
     kind: "act",
-    surfaces: {
-      cli: "opensesame access grants lease",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
+    surfaces: { cli: null, ...NO_SURFACES },
     excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
       mcp_host: NEVER_AGENT_SECRET,
       mcp_client: NEVER_AGENT_SECRET,
       webmcp: NEVER_AGENT_SECRET,
@@ -254,14 +250,12 @@ export const nativeHostCapabilities: readonly Capability[] = [
     title: "Import non-secret connection configuration",
     plane: "host",
     kind: "admin",
-    surfaces: {
-      cli: "opensesame access connectors import",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
+    surfaces: { cli: null, ...NO_SURFACES },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: OPS_PLANE,
+      mcp_client: OPS_PLANE,
     },
-    excluded: { mcp_host: OPS_PLANE, mcp_client: OPS_PLANE },
   },
   {
     id: "files.crypto",
@@ -334,14 +328,9 @@ export const nativeHostCapabilities: readonly Capability[] = [
     title: "Serve Bitwarden clients from the Host (bitwarden-compat bridge)",
     plane: "host",
     kind: "admin",
-    surfaces: {
-      cli: "opensesame host run",
-      pwa: null,
-      mcp_host: null,
-      mcp_client: null,
-      webmcp: null,
-    },
+    surfaces: { cli: null, ...NO_SURFACES },
     excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
       pwa: PAGES_HAS_NO_HOST,
       mcp_host: BITWARDEN_CLIENT_ONLY,
       mcp_client: BITWARDEN_CLIENT_ONLY,

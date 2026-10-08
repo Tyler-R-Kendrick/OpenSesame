@@ -45,13 +45,14 @@ export const accountCapabilities: readonly Capability[] = [
     plane: "identity",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame logout",
+      cli: null,
       pwa: "lib/session-exit.ts:signOut",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
       mcp_host: AUTH_CEREMONY,
       mcp_client: AUTH_CEREMONY,
       webmcp: AUTH_CEREMONY,

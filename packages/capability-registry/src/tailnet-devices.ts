@@ -1,4 +1,4 @@
-import { ADR_TAILNET_DEVICES } from "./exclusions.js";
+import { ADR_TAILNET_DEVICES, CLIENT_NO_HOST_IDENTITY } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 /**
@@ -37,13 +37,17 @@ export const tailnetDeviceCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: "opensesame daemon tailnet connect",
+      cli: null,
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: { ...AGENTS_WITHHELD, pwa: CREDENTIAL_ON_THE_DAEMON },
+    excluded: {
+      ...AGENTS_WITHHELD,
+      pwa: CREDENTIAL_ON_THE_DAEMON,
+      cli: CLIENT_NO_HOST_IDENTITY,
+    },
   },
   {
     id: "tailnet.devices.pair",
@@ -51,13 +55,16 @@ export const tailnetDeviceCapabilities: readonly Capability[] = [
     plane: "client_local",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame daemon tailnet pair",
+      cli: null,
       pwa: CLIENT,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: AGENTS_WITHHELD,
+    excluded: {
+      ...AGENTS_WITHHELD,
+      cli: CLIENT_NO_HOST_IDENTITY,
+    },
   },
   {
     id: "tailnet.devices.read",
@@ -65,13 +72,16 @@ export const tailnetDeviceCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame daemon tailnet devices",
+      cli: null,
       pwa: CLIENT,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: AGENTS_WITHHELD,
+    excluded: {
+      ...AGENTS_WITHHELD,
+      cli: CLIENT_NO_HOST_IDENTITY,
+    },
   },
   {
     id: "tailnet.devices.manage",
@@ -80,13 +90,16 @@ export const tailnetDeviceCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: "opensesame daemon tailnet approve",
+      cli: null,
       pwa: CLIENT,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: AGENTS_WITHHELD,
+    excluded: {
+      ...AGENTS_WITHHELD,
+      cli: CLIENT_NO_HOST_IDENTITY,
+    },
   },
   {
     id: "tailnet.keys.manage",
@@ -94,13 +107,16 @@ export const tailnetDeviceCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: "opensesame daemon tailnet mint",
+      cli: null,
       pwa: CLIENT,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: AGENTS_WITHHELD,
+    excluded: {
+      ...AGENTS_WITHHELD,
+      cli: CLIENT_NO_HOST_IDENTITY,
+    },
   },
   {
     id: "tailnet.audit.read",
@@ -108,12 +124,15 @@ export const tailnetDeviceCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame daemon tailnet audit",
+      cli: null,
       pwa: CLIENT,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: AGENTS_WITHHELD,
+    excluded: {
+      ...AGENTS_WITHHELD,
+      cli: CLIENT_NO_HOST_IDENTITY,
+    },
   },
 ];

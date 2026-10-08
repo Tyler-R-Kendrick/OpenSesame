@@ -137,6 +137,24 @@ async function ensurePasswordResetMailbox(page, section) {
   return false;
 }
 
+/** Leave the section's switch on, so the walk ends where full began. */
+async function ensureResetToggleOn(page, section) {
+  const toggle = section.getByRole("switch", { name: "Password reset" });
+  if (
+    (await toggle.count()) > 0 &&
+    (await toggle.getAttribute("aria-checked")) !== "true"
+  ) {
+    await toggle.click();
+    await toggle
+      .waitFor({ state: "visible", timeout: 8_000 })
+      .catch(() => undefined);
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      if ((await toggle.getAttribute("aria-checked")) === "true") break;
+      await page.waitForTimeout(500);
+    }
+  }
+}
+
 /** Password reset under Capabilities: absent on minimal, 0/1/many on full. */
 export async function capturePasswordReset(page, shot, record) {
   if (record.profile === MINIMAL) {
@@ -213,18 +231,5 @@ export async function capturePasswordReset(page, shot, record) {
     "R1-many",
     /one@example.com/.test(many) && /two@example.com/.test(many),
   );
-  const toggle = section.getByRole("switch", { name: "Password reset" });
-  if (
-    (await toggle.count()) > 0 &&
-    (await toggle.getAttribute("aria-checked")) !== "true"
-  ) {
-    await toggle.click();
-    await toggle
-      .waitFor({ state: "visible", timeout: 8_000 })
-      .catch(() => undefined);
-    for (let attempt = 0; attempt < 12; attempt += 1) {
-      if ((await toggle.getAttribute("aria-checked")) === "true") break;
-      await page.waitForTimeout(500);
-    }
-  }
+  await ensureResetToggleOn(page, section);
 }

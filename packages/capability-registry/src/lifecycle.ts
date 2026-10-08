@@ -1,3 +1,4 @@
+import { CLIENT_NO_HOST_IDENTITY } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 const ADR_LIFECYCLE_HOOKS = "0074-expiry-lifecycle-hooks.md";
@@ -22,13 +23,14 @@ export const lifecycleCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame access resources lifecycle expiring",
+      cli: null,
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
       mcp_host: SCOPED_AGENT_ONLY,
     },
   },
@@ -38,13 +40,14 @@ export const lifecycleCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame access resources lifecycle hooks",
+      cli: null,
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
       mcp_host: SCOPED_AGENT_ONLY,
     },
   },
@@ -54,13 +57,14 @@ export const lifecycleCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: "opensesame access resources lifecycle hook add",
+      cli: null,
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
       mcp_host: HOOK_SECRET_ISSUANCE,
       webmcp: HOOK_SECRET_ISSUANCE,
     },
@@ -71,13 +75,14 @@ export const lifecycleCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: "opensesame access resources lifecycle hook rm",
+      cli: null,
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
       mcp_host: {
         reason:
           "silently deleting a subscription blinds whoever depended on it; removal stays a deliberate human action alongside registration",
@@ -96,13 +101,14 @@ export const lifecycleCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame access resources lifecycle deliveries",
+      cli: null,
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
       mcp_host: SCOPED_AGENT_ONLY,
     },
   },
@@ -112,13 +118,14 @@ export const lifecycleCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame access resources lifecycle scan",
+      cli: null,
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
       mcp_host: SCOPED_AGENT_ONLY,
     },
   },
