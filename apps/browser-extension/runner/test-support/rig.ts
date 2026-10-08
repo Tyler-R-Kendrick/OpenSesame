@@ -142,7 +142,13 @@ export async function rig(options: RigOptions = {}): Promise<Rig> {
   };
 }
 
-/** Enqueue one step the way the executor does, without waiting for the runner. */
-export function enqueue(r: Rig, runId: string, request: JsonObject, ms = 150) {
+/**
+ * Enqueue one step the way the executor does, without waiting for the runner.
+ * The dispatch waiter uses wall-clock `setTimeout`. Keep it above a contended
+ * settle (fake `now` does not stop the event loop from stalling under turbo)
+ * and below vitest's testTimeout so refuse-without-settle cases that resolve
+ * null on this timer still finish.
+ */
+export function enqueue(r: Rig, runId: string, request: JsonObject, ms = 2_000) {
   return r.host.dispatch(runId, request, ms);
 }
