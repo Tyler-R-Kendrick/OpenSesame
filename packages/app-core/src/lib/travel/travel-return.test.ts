@@ -219,6 +219,28 @@ describe("return", () => {
     ).rejects.toBeInstanceOf(TravelBundleError);
   });
 
+  it("leaves a live vault alone when its tomb header is missing", async () => {
+    const origin = packedDevice();
+    const { pkg } = await depart(origin, [PRJ_TRIP]);
+    const roadBody = '{"ivB64":"road","ctB64":"road"}';
+    origin.files.delete(tombFile("personal", "header"));
+    origin.files.set(tombFile("personal", "body"), roadBody);
+    const opened = await openReturn(origin.deps, {
+      bundleJson: pkg.bundleJson,
+      returnCode: pkg.returnCode,
+    });
+    if (!opened.ok) throw new Error(opened.code);
+    expect(opened.opened.preview.vaults.find((v) => v.id === "personal")?.status).toBe(
+      "occupied",
+    );
+    const done = await completeReturn(origin.deps, opened.opened);
+    if (!done.ok) throw new Error(done.code);
+    expect(done.receipt.occupied).toContain("personal");
+    expect(done.receipt.restored).not.toContain("personal");
+    expect(origin.files.get(tombFile("personal", "body"))).toBe(roadBody);
+    expect(origin.files.has(tombFile("personal", "header"))).toBe(false);
+  });
+
   it("refuses a bundle vault with no header, rather than wiping one here", async () => {
     const origin = packedDevice();
     const secret = mintReturnSecret();
