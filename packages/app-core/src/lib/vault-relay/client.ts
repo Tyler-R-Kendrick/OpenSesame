@@ -40,6 +40,8 @@ export type RelayTarget = {
   readonly slotKey: string;
   readonly principal?: string;
   readonly ownerKind?: RelayOwnerKind;
+  /** RS256 registration JWT when the relay pins `OPENSESAME_VAULT_RELAY_ISSUER`. */
+  readonly relayRegistrationToken?: string;
   readonly fetch?: typeof fetch;
 };
 
@@ -85,11 +87,17 @@ function fetchOf(target: { readonly fetch?: typeof fetch }): typeof fetch {
     } satisfies LocalNetworkFetchInit);
 }
 
+function applyRegistrationToken(value: Headers, token?: string): void {
+  if (!token) return;
+  value.set("authorization", `Bearer ${token}`);
+}
+
 function headers(target: RelayTarget): Headers {
   const value = new Headers();
   value.set("x-opensesame-slot-key", target.slotKey);
   if (target.principal) value.set("x-opensesame-principal", target.principal);
   if (target.ownerKind) value.set("x-opensesame-owner-kind", target.ownerKind);
+  applyRegistrationToken(value, target.relayRegistrationToken);
   return value;
 }
 
@@ -211,6 +219,7 @@ function isOrgVault(value: unknown): value is OrgVaultRecord {
 
 export type OrgVaultDirectory = {
   readonly baseUrl: string;
+  readonly relayRegistrationToken?: string;
   readonly fetch?: typeof fetch;
 };
 
@@ -225,16 +234,17 @@ export async function createOrgVault(
   },
 ): Promise<OrgVaultRecord> {
   const fetchImpl = fetchOf(target);
-  const headers: Record<string, string> = {
-    "content-type": "application/json",
-    "x-opensesame-principal": target.principal,
-  };
-  if (target.orgRole) headers["x-opensesame-org-role"] = target.orgRole;
+  const headers = new Headers({ "content-type": "application/json" });
+  if (!target.relayRegistrationToken) {
+    headers.set("x-opensesame-principal", target.principal);
+    if (target.orgRole) headers.set("x-opensesame-org-role", target.orgRole);
+  }
+  applyRegistrationToken(headers, target.relayRegistrationToken);
   const response = await fetchImpl(
     `${originOf(target.baseUrl)}/v1/org-vaults`,
     {
       method: "POST",
-      headers,
+      headers: Object.fromEntries(headers.entries()),
       body: JSON.stringify({
         ownerKind: target.ownerKind,
         owner: target.owner,
@@ -270,7 +280,10 @@ export async function listOrgVaults(
   if (target.owner) query.set("owner", target.owner);
   if (target.principal) query.set("principal", target.principal);
   const headers = new Headers();
-  if (target.orgRole) headers.set("x-opensesame-org-role", target.orgRole);
+  if (!target.relayRegistrationToken && target.orgRole) {
+    headers.set("x-opensesame-org-role", target.orgRole);
+  }
+  applyRegistrationToken(headers, target.relayRegistrationToken);
   const response = await fetchImpl(
     `${originOf(target.baseUrl)}/v1/org-vaults?${query.toString()}`,
     { method: "GET", headers },
