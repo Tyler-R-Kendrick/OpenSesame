@@ -1,5 +1,12 @@
 # Wallet consent baseline (CONSENT swarm)
 
+> Status (2026-10-08): a record of the baseline before `@opensesame/wallet-consent`
+> was added ([ADR 0123](../adr/0123-wallet-spending-authority.md)); the
+> package now exists (`packages/wallet-consent`). Its verifier is no longer a
+> stub: `verifyDigestBoundApproval` also takes `trustedKeys` (enrolled SPKI
+> keys) and checks an ES256 signature over the digest against them, refusing
+> `key_not_enrolled` and `signature_invalid`.
+
 How `payment_initiation` approvals work today, and what CONSENT adds without
 touching those routes.
 

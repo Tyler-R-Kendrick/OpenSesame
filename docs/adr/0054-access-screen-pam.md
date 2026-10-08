@@ -1,6 +1,6 @@
 # ADR 0054 — The Agents screen becomes Access, a PAM surface
 
-Status: Accepted
+Status: Accepted (tab structure partly superseded by [ADR 0061](0061-access-pam-plane-ceremonies.md))
 Date: 2026-08-29
 References: ADR 0005 (ConnectionRef), ADR 0018 (standing grants vs task
 authority), ADR 0019 (immutable ceiling), ADR 0021 (frozen intent), ADR 0044

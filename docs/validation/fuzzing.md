@@ -40,9 +40,10 @@ Override duration with `FUZZ_SECONDS`. Override the Miri nightly with
   into a private audit directory outside the checkout, where corpus growth
   stays
 - `tests/fuzz/cargo/artifacts/` — gitignored; `tests/fuzz/clusterfuzzlite/build.sh`
-  puts built targets and seed-corpus zips there. Crashes from `pnpm audit:fuzz*`
-  and `pnpm test:fuzz*` land in the private audit directory instead
-  (`OPENSESAME_AUDIT_DIR`, default under `$TMPDIR`; the gate prints its path)
+  puts built targets and seed-corpus zips there when `OUT` is unset. Crashes
+  from `pnpm audit:fuzz*` and `pnpm test:fuzz*` land in a private audit
+  directory instead (a fresh `opensesame-audit.*` directory under
+  `OPENSESAME_AUDIT_DIR`, default `$TMPDIR`; the gate prints its path)
 - `tests/fuzz/cargo/regressions/<target>/` — minimized crashing inputs to
   commit; the gates read them as seeds. The directory does not exist yet in
   this checkout
@@ -71,8 +72,8 @@ A crash is a panic, sanitizer hit, or failed `assert!`.
 
 ## Crash triage
 
-1. Confirm reproducibility: `cargo +nightly fuzz run <target> --fuzz-dir tests/fuzz/cargo "$OPENSESAME_AUDIT_DIR/artifacts/<file>"`
-   (the gate prints `Private audit artifacts: <path>`)
+1. Confirm reproducibility: `cargo +nightly fuzz run <target> --fuzz-dir tests/fuzz/cargo <audit-dir>/artifacts/<file>`
+   (the gate prints `Private audit artifacts: <audit-dir>`)
 2. Minimize: `cargo +nightly fuzz tmin <target> --fuzz-dir tests/fuzz/cargo <crash>`
 3. Copy the minimized input to `tests/fuzz/cargo/regressions/<target>/`
 4. Fix the product code (not the harness, unless the oracle was wrong)
@@ -80,7 +81,7 @@ A crash is a panic, sanitizer hit, or failed `assert!`.
 6. Re-run the target for at least 60s
 
 TypeScript follows the same steps; its crashes are written to
-`$OPENSESAME_AUDIT_DIR/artifacts/<target>-*`.
+`<audit-dir>/artifacts/<target>-*`.
 
 ## ClusterFuzzLite and OSS-Fuzz
 

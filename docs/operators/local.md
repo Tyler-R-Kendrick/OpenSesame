@@ -14,10 +14,11 @@ pnpm dev:host   # scripts/dev/dev-host.sh: sources scripts/dev/local-env.sh, the
 ```
 
 The Host refuses to start from a bare `host run`: it needs `OPENSESAME_ENV`
-(or `OPENSESAME_ALLOW_DEV_DEFAULTS=1`), loopback `OPENSESAME_RESOURCE` and
-`OPENSESAME_ISSUER` (their defaults are not loopback), and
+(or `OPENSESAME_ALLOW_DEV_DEFAULTS=1`, which also refuses any endpoint that is
+not loopback), loopback `OPENSESAME_RESOURCE` and `OPENSESAME_ISSUER` for a
+local-only run (their defaults are not loopback), and
 `OPENSESAME_OPERATOR_TOKEN` and `OPENSESAME_CLAIM_PEPPER`, each at least 32
-printable ASCII bytes with at least 8 distinct ones
+printable, non-space ASCII bytes with at least 8 distinct ones
 (`crates/gateway/src/config.rs`, `required_secret`). `source
 scripts/dev/local-env.sh` sets all of that, generating the secrets once as 0600
 files under `~/.local/state/opensesame/development/`, so run the binary
@@ -32,8 +33,9 @@ With live providers:
 
 ```bash
 ./scripts/dev/start-native-deps.sh
-source scripts/dev/local-env.sh
 source .tools/run/env.sh
+export OPENSESAME_PUBLIC_URL=http://127.0.0.1:18787   # the resource and Host API follow it
+source scripts/dev/local-env.sh
 cargo run -p opensesame-cli -- host run \
   --listen 127.0.0.1:18787
 ```
@@ -61,7 +63,7 @@ Approve the user code at Pages' `/device` route (signed in to the Identity API),
 Invoke with ConnectionRef:
 
 ```bash
-cargo run -p opensesame-cli -- access resources invoke \
+cargo run -p opensesame-cli -- invoke \
   --connection-ref 'conn://…/github/main' \
   --operation repository.read \
   --resource 'repo:acme/catalog'
@@ -83,6 +85,10 @@ OPENSESAME_PUBLIC_URL=http://127.0.0.1:8788 \
 OPENSESAME_ENV=development OPENSESAME_ALLOW_DEV_DEFAULTS=1 \
 pnpm --filter @opensesame/control-plane start
 ```
+
+`OPENSESAME_ALLOW_DEV_DEFAULTS` must be exactly `1` (or `0`), and
+`OPENSESAME_ENV=development` alone is refused without an
+`OPENSESAME_CLAIM_PEPPER`.
 
 `OPENSESAME_PUBLIC_URL` must be the URL the **browser** really reaches: it is the
 origin inside the origin-profile client id and the base of the one redirect URI

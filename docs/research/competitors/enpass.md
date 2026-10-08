@@ -191,7 +191,7 @@ real WireGuard tailnet: headscale, two `tailscaled` nodes, `tailscale serve`).
 | Attachments sync separately | — | **Closed.** Encrypted parts sit beside the snapshot, immutable, behind the slot key; a device fetches what it lacks and keeps it (§16) |
 | Conflicting edits on two devices | Whole-item: the newer copy won | **Surpassed.** Field by field, stamped after everything the device has seen, so two devices' edits to different fields both survive and a slow clock loses nothing it edited later (§13) |
 | Sync in a stock browser | — | **Closed.** Chrome's Local Network Access prompt is asked for only by a person's own action, and a refusal says where to undo it (§11) |
-| Sync from a terminal | Enpass publishes no CLI; community tools read a vault file | **Surpassed.** `opensesame-id vault sync` (§17) |
+| Sync from a terminal | No official Enpass CLI found; community tools read a vault file | **Surpassed.** `opensesame-id vault sync` (§17) |
 | Sync while the app is closed | Enpass syncs on its own schedule | **Deliberately different.** The vault key is sealed until a person opens the vault, so nothing can merge in the background; the next open catches up, as does coming back online (§12) |
 | Cloud storage providers (iCloud, Drive, Dropbox, OneDrive, WebDAV, Nextcloud) | Git remotes only, push-only | **Deliberately different.** The tailnet drive is the fabric: a machine the person owns, reached only inside their tailnet. A third-party cloud would hold the ciphertext and the slot's history; the protocol (two routes, opaque snapshots) would let one be added as a transport if that ever changes |
 | Business sharing / recovery (Enpass Hub) | Identity shares, recovery codes, duress (ADRs 0079, 0091, 0131) | See *Beyond sync* below |

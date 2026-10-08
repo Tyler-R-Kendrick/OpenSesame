@@ -34,7 +34,7 @@ it. It belongs to the human plane only.
 | `BitwardenClient::unlock` | Prelogin, KDF, login and key unwrap into a `Session` |
 | `BitwardenClient::read`, `list`, `vault`, `server_config` | Read one item's secret, list names, sync the decrypted vault |
 | `api` (`Client`, `Endpoints`, `SyncResponse`, `DeviceIdentity`) | The HTTP API client |
-| `crypto`, `kdf` | EncString parsing, key derivation within a policy range |
+| `crypto` | `EncString` parsing, `Kdf`, `MasterKey`, `SymmetricKey`; key derivation within a policy range (the private `kdf` module) |
 | `vault` (`Vault`, `Item`, `ItemKind`, `Login`, `Folder`, `UnreadableItem`, …) | The decrypted model |
 | `Session`, `DEFAULT_SESSION_TTL`, `Error` | In-memory session and the error type |
 

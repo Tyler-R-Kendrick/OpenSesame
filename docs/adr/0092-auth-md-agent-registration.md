@@ -1,7 +1,11 @@
 # ADR 0092 — auth.md AgentAuth registration as a profile over OpenSesame identity
 
 ## Status
-Accepted
+Accepted (partly superseded by [ADR 0124](0124-agent-auth-provider-id-jag.md):
+decision 3, for provider `identity_assertion`)
+
+Amended by: [ADR 0138](0138-self-issued-identity-one-native-host.md) (Proposed, partly implemented; agent tokens come from the
+host).
 
 ## Context
 

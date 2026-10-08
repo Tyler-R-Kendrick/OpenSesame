@@ -1,7 +1,14 @@
 # ADR 0071 — HSM connectors via PKCS#11
 
-Status: Accepted
+Status: Accepted (not implemented beyond storage; see Implementation)
 Date: 2026-08-30
+Implementation: the `hsm_connectors` and `external_ca_configs` tables and
+accessors exist (`crates/storage/src/external_ca.rs`); there is no
+`crates/hsm-client`, no PKCS#11 code and no connector route. The `Signer` trait
+of §4 exists in `crates/pki-core/src/signer.rs` with one implementation,
+`SealedKeySigner`, but `build_crl`, the leaf builders and the CA helpers take a
+`&KeyPair` (only `build_ocsp_response` signs through a `Signer`), so §4's rule
+that every signing site goes through the trait is not yet true.
 Supplements: ADR 0005 (authority handles), ADR 0032 §3 (catalog is data),
 ADR 0048 §5 (dependency budget and daemon quarantine),
 ADR 0052-cert ([key custody](0052-automatic-certificate-authority-selection.md)),

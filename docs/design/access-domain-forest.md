@@ -35,7 +35,7 @@ That refusal is what keeps two earlier decisions true:
 | 1 | A node's realm equals its forest's realm | `Realm::assert_same_boundary` at every insert |
 | 2 | One parent, no cycles | insert (fresh id under an existing parent cannot close a cycle); `reparent` refuses a new parent inside the moved subtree |
 | 3 | Depth ≤ `MAX_DOMAIN_DEPTH` (8) | insert; `reparent` counts the moved subtree's whole height |
-| 4 | Sibling slugs unique; slug is `[a-z0-9-]`, no leading/trailing hyphen | `assert_slug`, `assert_slug_free` |
+| 4 | Sibling slugs unique; slug is `[a-z0-9-]`, at most 63 characters, no leading/trailing hyphen | `assert_slug`, `assert_slug_free` |
 | 5 | Nothing permanent hangs under something temporary | `DomainLifetime::assert_within` |
 | 6 | A child never outlives its parent | same |
 | 7 | A temporary lifetime is positive and ≤ 30 days | `assert_well_formed` |
@@ -53,8 +53,14 @@ forest arrives by deserialization: the reads report it rather than looping.
 ## Notes for STORAGE (DDL)
 
 These are the constraints the schema can carry, so a row that violates an
-invariant cannot be written even by a path that skips the domain model. Nothing
-here is implemented yet — this section is the handoff.
+invariant cannot be written even by a path that skips the domain model. This
+section is a proposal, not the shipped schema: the Host's `access_domains`
+table (`crates/storage/migrations/0034_general_authority.sql`,
+`crates/storage/src/authority/domains.rs`) is scoped by `organization_id`
+(`UNIQUE (id, organization_id)`, the parent referenced by that pair) with an
+optional `project_id`, carries `lifecycle` and `revision` columns, caps `depth`
+at 32, and has no `access_domain_controls` table. Nothing in `crates/storage`
+or the gateway calls the pure model described above.
 
 ### `access_domains`
 

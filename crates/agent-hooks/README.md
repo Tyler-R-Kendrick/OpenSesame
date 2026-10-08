@@ -96,10 +96,11 @@ cargo +1.88.0 test -p opensesame-agent-hooks
 cargo +1.88.0 test -p opensesame-cli --test hooks_intercept
 ```
 
-`tests/emitter.rs`, `tests/labels.rs`, `tests/label_propagation.rs`,
-`tests/label_policy.rs` and `tests/approval.rs` drive the interceptor through the
-SDK's own `InterceptionEmitter`, so every verdict passes the canonical §5
-validation and record projection. The `tests/interaction_*.rs` suites run the
+`tests/emitter.rs`, `tests/labels.rs`, `tests/label_propagation.rs` and
+`tests/approval.rs` drive the interceptor through the SDK's own
+`InterceptionEmitter`, so every verdict passes the canonical §5 validation and
+record projection; `tests/label_policy.rs` pins the label lists' syntax and
+positional errors. The `tests/interaction_*.rs` suites run the
 approver against a loopback Identity API double (`tests/interaction_mock`):
 config validation, the wire shape, the digest vectors, decline, withdrawal,
 cancellation by drop, a lost reply retried under one key, and a base URL with a

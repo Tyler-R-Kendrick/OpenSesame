@@ -8,10 +8,10 @@ crate).
 | Directory | Kind | What it proves | Run |
 |---|---|---|---|
 | [`fixtures/`](fixtures) | Shared data | Committed inputs both planes are checked against: KDBX round-trip vectors, a demo `.env.schema`. | — |
-| [`fuzz/cargo/`](fuzz/cargo) | cargo-fuzz (Rust) | Parsers and state machines survive arbitrary input: tokens, manifests, KDBX, NATS callouts, certificate requests. Seeds in `corpus/`, crashers kept in `regressions/`. | `pnpm audit:fuzz` (short) · `pnpm audit:fuzz:batch` |
+| [`fuzz/cargo/`](fuzz/cargo) | cargo-fuzz (Rust) | Parsers and state machines survive arbitrary input: tokens, manifests, KDBX, NATS callouts, certificate requests. Seeds in `corpus/`; a minimized crasher is committed under `regressions/<target>/` (none are committed yet). | `pnpm audit:fuzz` (short) · `pnpm audit:fuzz:batch` |
 | [`fuzz/jazzer/`](fuzz/jazzer) | Jazzer.js (TypeScript) | The same for the Identity plane: contracts, agent-auth tokens, audit redaction, claim engine. | `pnpm test:fuzz` · `pnpm test:fuzz:batch` |
 | [`fuzz/clusterfuzzlite/`](fuzz/clusterfuzzlite) | OSS-Fuzz builder | Builds every cargo-fuzz target for ClusterFuzzLite. Not wired to CI. | — |
-| [`redteam/`](redteam) | promptfoo | The MCP servers under prompt injection, confused-deputy, exfiltration and malformed-input attacks, against the real `packages/mcp-host`. | `pnpm test:redteam` |
+| [`redteam/`](redteam) | promptfoo + Vitest | The real `packages/mcp-host` stdio server under prompt-injection, confused-deputy, exfiltration and malformed-input attacks, behind a stub Host API and daemon. | `pnpm test:redteam` (promptfoo corpus); its Vitest suites, including the structural pact suite, run under `pnpm test` |
 | [`visual-contract/`](visual-contract) | Playwright + pixelmatch | The Pages app still matches its design baselines in `.impeccable/screenshots`. | `pnpm test:visual` |
 | [`mtls-interop/`](mtls-interop) | Rust integration crate | Optional mTLS interoperates across runtimes: Rust ↔ Node listeners, nats-server, OpenBao `auth/cert`, SPIRE, a Caddy ingress. Ignored unless `OPENSESAME_MTLS_FIXTURES=1`. | `pnpm test:mtls:integration` |
 
@@ -25,7 +25,7 @@ own `Cargo.lock`. Method and coverage: [docs/validation/fuzzing.md](../docs/vali
 |---|---|---|
 | Unit and property tests (TypeScript) | beside the source, `*.test.ts` | `pnpm test` |
 | Unit and integration tests (Rust) | `src/**` `#[cfg(test)]` and each crate's `tests/` | `cargo +1.88.0 test --workspace --all-targets` |
-| PACT suites — property, adversarial, chaos, contract | `*.pact.test.ts`, per package | part of `pnpm test`; see [docs/validation/pact.md](../docs/validation/pact.md) |
+| PACT suites — property, adversarial, chaos, contract | `pact.test.ts` and `*.pact.test.ts`, per package | part of `pnpm test`; see [docs/validation/pact.md](../docs/validation/pact.md) |
 | Browser journeys on a real build | `apps/pages/scripts/verify-*.mjs` | `pnpm --filter @opensesame/pages verify:<journey>` |
 | Security gates | `scripts/audit/*-gate.sh` | `pnpm audit:*`, `pnpm test:security` |
 | Coverage and mutation | `scripts/quality/ts-coverage-gate.mjs`, [`tools/mutation/`](../tools/mutation) | `pnpm test:coverage`, `pnpm test:mutation` |

@@ -143,8 +143,8 @@ dropped.
    algorithm, a secret that is not base32, an `otpauth://` URI without a
    secret — **nothing is consumed**: the raw fields are preserved verbatim as
    ordinary trailer lines and `MapWarning::UnusableOtpField` /
-   `UnusableTimeOtp` is raised. The bridge
-   never guesses at a TOTP configuration.
+   `UnusableTimeOtp` is raised. The bridge never guesses at a TOTP
+   configuration.
 
 ### Path sanitization
 

@@ -1,5 +1,15 @@
 # General authority — swarm ownership matrix
 
+> Status (2026-10-08): the ownership split below is a record of who owned what.
+> The programme's work has since landed: `completion-matrix.json` lists 47 of
+> its 48 work items `verified` with the command that proved each, and GA-O-04
+> (keep the matrix honest) is `unresolved` by design. The sentence below that
+> nothing here records completed work describes the bootstrap commit;
+> `apps/pwa`, named under GA-P, is no longer in the tree (Pages is the client
+> plane). Paths that moved: the migrations named below are in
+> `crates/storage/migrations/`, and the VERIFICATION row's scripts are
+> `scripts/lib/authority-fabric*.mjs` and `scripts/test/authority-fabric-gate.mjs`.
+
 Bootstrap artifact. **Nothing in this directory records completed work.** It
 records who owns what, which contracts must hold, and what has not been done.
 

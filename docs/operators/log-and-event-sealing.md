@@ -25,7 +25,7 @@ rather than sealed.
 | A networked or production Host has no `OPENSESAME_CONNECTION_KEY` | `host run` refuses; a development Host stores events unsealed and logs a warning |
 | A persistent Identity database has neither `OPENSESAME_EVENT_KEY` nor `OPENSESAME_CLAIM_PEPPER` | the control plane and the worker refuse |
 | `OPENSESAME_EVENT_KEY` is under 32 characters | the control plane refuses |
-| A Host with `OPENSESAME_CONNECTION_KEY` finds a Host event value (see "What is sealed") that is not a current `osev2.` envelope, and `OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION` is not `true` | `host run` refuses (see "One-time trusted legacy import") |
+| A Host with `OPENSESAME_CONNECTION_KEY` finds a Host event value (see "What is sealed, and under what") that is not a current `osev2.` envelope, and `OPENSESAME_ALLOW_LEGACY_SECRET_MIGRATION` is not `true` | `host run` refuses (see "One-time trusted legacy import") |
 | A sealed event does not open (wrong key, altered row) | a read is an error naming the column, never an empty event or ciphertext; in a queue claim the one row is quarantined (below) and the rest go on |
 | The audit trail's newest row does not open | appends fail until it can be read; the chain is never restarted at genesis |
 
@@ -107,6 +107,7 @@ wrote in the clear or under the earlier `osev1.` format: the Host and the
 Identity plane refuse them, and importing them is the one-time step below. On
 the Host, a legacy plaintext value that begins with `osev` is taken for a sealed
 one and the import refuses it as unreadable.
+
 Rolling back to a build before this change reads a sealed log or event as
 corrupt data.
 

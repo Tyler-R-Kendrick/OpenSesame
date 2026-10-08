@@ -14,7 +14,7 @@ Relying Party / CLI / Agent
         v
   control-plane (:8788)
         |
-        +-- Better Auth (upstream) + mock IdP (:9090)
+        +-- upstream IdPs (mock IdP :9090 in dev); Better Auth for email magic-link only
         +-- oidc-provider (downstream issuer)
         +-- ClaimEngine / provisional principals
         |

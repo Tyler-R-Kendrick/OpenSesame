@@ -15,7 +15,7 @@ does not run — why, so the absence is a decision rather than an oversight.
 | Characterization / snapshot | `insta` snapshots in Rust (`src/snapshots/`), Vitest snapshots in TS (`__snapshots__/`) | with the unit tests |
 | Behaviour (BDD) | `*.behavior.test.ts` — Given/When/Then journeys | with the unit tests |
 | Integration | `test:integration` targets | `pnpm test:integration` |
-| End-to-end | Playwright specs; `scripts/test/battle-test.sh`; `scripts/test/task-security-battle-test.sh` | `pnpm test:e2e`, `pnpm verify` |
+| End-to-end | Playwright specs; `scripts/test/battle-test.sh`; `scripts/test/task-security-battle-test.sh` | `pnpm test:e2e`, `pnpm verify`, `pnpm test:task-access` |
 | Fuzz | `cargo-fuzz` targets; Jazzer.js | `pnpm audit:fuzz`, `pnpm test:fuzz` |
 | Mutation | Stryker (TS), `cargo-mutants` (Rust) | `pnpm test:mutation` |
 | Model checking | Kani proofs, Miri, Shuttle | `pnpm audit:kani`, `audit:miri`, `audit:shuttle` |
@@ -46,7 +46,8 @@ Two numbers are expected to look low and are not defects:
 
 - `packages/database` — the Postgres repository path needs a live database, so
   the in-memory implementation is what the unit suite exercises. The Postgres
-  path is covered by `test:integration`.
+  path is covered by the package's `test:postgres` script, which needs
+  `DATABASE_URL` (its `test:integration` runs `tests/pact.test.ts` only).
 - Anything whose branches are mostly typed-error mapping, where the assertion
   worth making is on the typed error, not on each arm.
 

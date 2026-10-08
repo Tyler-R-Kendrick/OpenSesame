@@ -34,13 +34,14 @@ disagreement would be a privilege escalation rather than a bug.
 
 Host migrations are applied in order by `crates/storage/src/migrations.rs`;
 `0033` is the sibling fence and stays ahead of `0034`, which depends on it.
-Three later Host migrations touch the same tables: `0036_authority_grant_watermarks`
+Three later Host migrations extend it: `0036_authority_grant_watermarks`
 (a lifecycle watermark may name an `authority_grant`), `0038_authority_offer_roster_digest`
 (`grant_offers.roster_digest`) and `0039_authority_offer_live_writer`
 (`grant_offers.trusted_writer`, `grant_offers.permitted_principal_class`).
 The Identity migration follows `0023_naive_meltdown` and is generated from
 `packages/database/src/schema/authority.ts` (registered in `drizzle.config.ts`
-alongside `schema/index.ts`, which is at its structural size budget).
+alongside `schema/index.ts`, which is over the 400-line module budget and
+recorded in `tools/quality/quality-baseline.json`, so it may not grow).
 
 Every Host table takes `organization_id` as part of its primary key or its
 unique index, and every predicate names it. A realm is part of a row's identity,

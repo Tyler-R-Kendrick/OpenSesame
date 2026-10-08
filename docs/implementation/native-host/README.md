@@ -2,20 +2,20 @@
 
 > Status (2026-10-08): live plan, partly landed. [ADR 0138](../../adr/0138-self-issued-identity-one-native-host.md)
 > is still Proposed. Landed: `opensesame` (`apps/cli`) is the one native
-> executable and `host run`, `daemon run`, `worker run`, the toolbar verbs and
+> executable, and `host run`, `daemon run`, `worker run`, the toolbar verbs and
 > the helper and bridge entry points are its subcommands or link names
 > (`apps/cli/src/serve.rs`, `daemon_cmd.rs`, `entry.rs`); `apps/toolbar`,
 > `apps/callback-edge`, `apps/pwa`, `apps/console`, `apps/ceremonies` and
-> `apps/mobile-mfa` are not in this checkout (ADR 0140); `apps/android` exists;
-> a vault holds a P-256 identity key whose thumbprint is the open vault's
-> principal ([ADR 0160](../../adr/0160-the-device-identity-plane-is-declared.md) §5, phase 1's
-> first two bullets in part); `opensesame vault verify | ls` exist
-> (`apps/cli/src/vault_file.rs`). Not landed: phase 0's helper-minting fix and
-> full-tree dependency gate, Pages' own sign-in as SIOP, `principal.rotate`,
-> and phases 2, 4, 5, 7 and 8. Every name in the Target tree and the phases
-> below that is not named in this banner (`crates/host-api`, `host-agent`,
-> `host-identity`, `host-mcp`, `packages/mcp`, `packages/hosted-identity`,
-> `ops/hosted-identity`, `apps/desktop`) is a proposal: no such path exists.
+> `apps/mobile-mfa` are not in this checkout (ADR 0140 records the last three);
+> `apps/android` exists; a vault holds a P-256 identity key whose thumbprint is
+> the open vault's principal ([ADR 0160](../../adr/0160-the-device-identity-plane-is-declared.md)
+> §5, phase 1's first two bullets in part); `opensesame vault verify | ls`
+> exist (`apps/cli/src/vault_file.rs`). Not landed: phase 0's helper-minting fix
+> and full-tree dependency gate, Pages' own sign-in as SIOP, `principal.rotate`,
+> and phases 2, 4, 5, 7 and 8. `crates/host-api`, `host-agent`, `host-identity`
+> and `host-mcp`, `packages/mcp`, `packages/hosted-identity`,
+> `ops/hosted-identity` and `apps/desktop`, named in the Target tree and the
+> phases, are proposals: none of them exists.
 
 The work behind [ADR 0138](../../adr/0138-self-issued-identity-one-native-host.md):
 identity self-issued by default on every surface, one native process per
@@ -32,7 +32,7 @@ the same tests the original did.
 |---|---|---|
 | Self-issued sign-in | Pages is a SIOPv2 provider for registered local apps (ES256, thumbprint subject, pairwise keys, passkey-gated consent). Pages' own sign-in is not SIOP. | `packages/siop-v2`, `apps/pages/src/screens/SiopAuthorize.tsx`, ADR 0116 |
 | Principal | With a vault open, the in-tab principal is `prn_` + the thumbprint of a P-256 key sealed in that vault (`config/device-identity-key`, carried in the sealed body); a member's reads `active`, a guest's `provisional`, and assurance is always `provisional`. With no vault, or a key that cannot be read, it is a random `prn_…`. | `packages/app-core/src/lib/device-identity-sessions.ts` (`mintProvisional`, `principalForNow`), `device-identity-key.ts`, ADR 0160 §5 |
-| Identity without a service | Pages answers its own Identity API when none is set: sessions and the principal, projects, orgs, agents, OAuth clients, and (while `identity.local-iam` is on) the directory, audit and the approval inbox. Email and text codes, organization sign-in, federation callbacks and wallet passes are never served by the device. | `device-identity-local.ts`, `device-identity-routes.ts`, ADR 0118, ADR 0160 §3 |
+| Identity without a service | Pages answers its own Identity API when none is set: sessions, the principal and claims, and, while `identity.local-iam` is on, the directory (projects, organizations, agents, OAuth clients), audit and the approval inbox. Email and text codes, organization sign-in, federation callbacks and wallet passes are never served by the device. | `device-identity-local.ts`, `device-identity-routes.ts`, ADR 0118, ADR 0160 §3 |
 | Host authorization | The gateway accepts only the control-plane's RS256 `host-authorization+jwt`, so Join's verify and agent-run control need the Identity API. | `crates/gateway/src/host_authorization.rs`, `packages/app-core/src/lib/join/client.ts` |
 | Gateway issuer | Defaults to `https://keycloak.local/realms/opensesame`. | `crates/gateway/src/config.rs` |
 | Daemon | Loopback `:18790` and optional Unix socket, served by `opensesame daemon run`. The `sessions` map is never filled, so `mint_capability` always answers `no_session`. `lib.rs` is 1,500 lines. | `crates/daemon/src/lib.rs` |
@@ -153,7 +153,8 @@ local gateway with no Identity API; a security audit note under
   API routes (`crates/gateway/src/callback_ingress`). `apps/toolbar` and
   `apps/callback-edge` are not in this checkout; the native roles in
   `crates/*` are libraries (the other binaries there are
-  `opensesame-nats-auth-bridge` in `crates/nats-callout` and
+  `opensesame-nats-auth-bridge` in `crates/nats-callout`,
+  `opensesame-surrogate-proxy` in `crates/surrogate-proxy` and
   `uniffi-bindgen` in `crates/authenticator-core`). The Rust worker role is
   `crates/worker` (`opensesame worker run`, ADR 0132), not removed.
 - Still open: one process per machine (`daemon run` also serving the Host
@@ -192,7 +193,7 @@ host.
   Host API call. Generate the catalog into `capabilities.json` as today.
 - `packages/mcp`: the TypeScript adapter over the catalog (low-level
   `Server`, tools/list and tools/call), used by Pages' WebMCP registration,
-  the extension, Android's embedded core and the desktop webview. The 24
+  the extension, Android's embedded core and the desktop webview. The 29
   existing WebMCP tools move onto it.
 - `crates/host-mcp`: the Rust adapter (`rmcp`), served by
   `opensesame mcp serve` (stdio) and by the daemon (Streamable HTTP on the

@@ -1,13 +1,16 @@
 # crates/
 
-Rust libraries for the **Host / authority plane**. Every crate here is a member
-of the root Cargo workspace, is published under the package name
-`opensesame-<directory>`, and builds with the pinned Rust 1.88 toolchain.
-Binaries that use them live in [`apps/`](../apps/README.md).
+Rust libraries for the **Host / authority plane** (and `client-core`, the Client
+plane's SDK). Every crate here is a member of the root Cargo workspace, has the
+package name `opensesame-<directory>`, and builds with the pinned Rust 1.88
+toolchain. The `opensesame` binary that links them lives in
+[`apps/cli`](../apps/README.md); two crates also ship a binary of their own,
+`nats-callout` (`opensesame-nats-auth-bridge`) and `surrogate-proxy` (the optional
+plugin `opensesame-surrogate-proxy`).
 
 ```bash
 cargo +1.88.0 test -p opensesame-sealed-store      # one crate
-cargo +1.88.0 test --workspace --all-targets       # everything (what CI runs)
+cargo +1.88.0 test --workspace --all-targets       # everything (CI scopes it to the crates a diff reaches)
 pnpm audit:clippy                                  # rustfmt + pedantic Clippy
 ```
 
@@ -17,13 +20,15 @@ dependency cycle between crates.
 
 ## SDK facades
 
-What an application links against. Each re-exports the libraries below it
-behind a stable surface ([ADR 0017](../docs/adr/0017-host-client-product-topology.md)).
+What an application links against. `core`, `host-core` and `client-core`
+re-export the libraries below them behind a stable surface
+([ADR 0017](../docs/adr/0017-host-client-product-topology.md)); `domain` and
+`connector-sdk` are the layers they sit on and beside.
 
 | Crate | Purpose |
 |---|---|
 | [`core`](core) | Shared IR with no I/O: the domain model and `AuthorityHandle`, per the `core` WIT world. |
-| [`host-core`](host-core) | Host logic facade: broker, authorization, connector host, env-spec, daemon constants. |
+| [`host-core`](host-core) | Host logic facade: re-exports the broker, authorization, authn, audit, connector host and env-spec crates; adds the endpoint table, bind and deployment-mode policy, the operator check and CORS hardening. |
 | [`client-core`](client-core) | Client SDK: local E2EE and sync cursors; native and Wasm builds. |
 | [`domain`](domain) | Canonical domain model: resources, invariants, IDs, errors, transport contracts. |
 | [`connector-sdk`](connector-sdk) | Helpers for WIT connector guests — ConnectionRef-oriented, no `secrets.get`. |
@@ -55,7 +60,7 @@ behind a stable surface ([ADR 0017](../docs/adr/0017-host-client-product-topolog
 | [`connection-detect`](connection-detect) | Value-blind discovery of provider credentials already on a machine ([ADR 0047](../docs/adr/0047-daemon-connector-discovery.md)). |
 | [`invoke-through`](invoke-through) | Daemon-mediated upstream calls over a credential that never leaves the machine. |
 | [`surrogate-proxy`](surrogate-proxy) | Per-run proxy where an unmodified client holds a surrogate and invoke-through places the credential ([ADR 0150](../docs/adr/0150-surrogate-credentials-at-the-last-hop.md)); ships only as the optional plugin binary `opensesame-surrogate-proxy`. |
-| `plugin-settings` | The optional-plugin catalog, the settings file that switches plugins, and install pins verified at every launch ([plugins guide](../docs/operators/plugins.md)). |
+| [`plugin-settings`](plugin-settings) | The optional-plugin catalog, the settings file that switches plugins, and install pins verified at every launch ([plugins guide](../docs/operators/plugins.md)). |
 | [`provider-openbao`](provider-openbao) | OpenBao credential-authority adapter. |
 | [`provider-openfga`](provider-openfga) | OpenFGA remote PDP client. |
 | [`provider-bitwarden`](provider-bitwarden) | Bitwarden / Vaultwarden consume-client ([ADR 0052](../docs/adr/0052-password-manager-ecosystem-bridging.md)). |
@@ -71,9 +76,11 @@ behind a stable surface ([ADR 0017](../docs/adr/0017-host-client-product-topolog
 | [`storage`](storage) | The Host database (SQLite via SQLx); one module per responsibility, migrations in [`migrations/`](storage/migrations). |
 | [`human-vault`](human-vault) | Server-blind E2EE envelopes shared by the vault and the sealed store. |
 | [`sealed-store`](sealed-store) | Git-native hierarchical sealed store with `pass` parity, attachments and tombs. |
-| [`vault-item-types`](vault-item-types) | Item-type parser and registry; embeds [`marketplace/item-types/builtin`](../marketplace/item-types/builtin). |
+| [`vault-item-types`](vault-item-types) | Item-type parser and registry; embeds the definitions in [`marketplace/item-types/builtin`](../marketplace/item-types/builtin) except the five credential types. |
 | [`kdbx-bridge`](kdbx-bridge) | KeePass KDBX 4 read/write mapped onto the sealed store. |
 | [`env-spec`](env-spec) | Consumes `.env.schema` JSON to resolve developer environments without printing values. |
+| [`event-seal`](event-seal) | Seals the Host's event and audit rows at rest under a key derived from the Host sealing key: one process-wide sealer ([ADR 0157](../docs/adr/0157-logs-and-events-carry-no-secrets.md)). |
+| [`sealed-log`](sealed-log) | An encrypted, rotating log file: every line sealed on its own under a key kept apart from it ([ADR 0157](../docs/adr/0157-logs-and-events-carry-no-secrets.md)). |
 
 ## Transport and workload identity
 
@@ -86,12 +93,13 @@ behind a stable surface ([ADR 0017](../docs/adr/0017-host-client-product-topolog
 | [`nats-callout`](nats-callout) | NATS auth-callout protocol and the native bridge to the Host decision route. |
 | [`uds-authn`](uds-authn) | Unix-socket peer-credential attestation. |
 | [`tailscale-authn`](tailscale-authn) | Tailnet caller identity through `tailscaled` whois. |
+| [`tailnet-admin`](tailnet-admin) | Tailnet device management for the daemon: the Tailscale credential, origin-bound role pairings, the upstream client and the audit trail ([ADR 0169](../docs/adr/0169-tailnet-device-management.md)). |
 
 ## Lifecycle, events and rotation
 
 | Crate | Purpose |
 |---|---|
-| [`lifecycle`](lifecycle) | Expiry ladder and `lifecycle.*` hook events — the one place deadlines are detected ([ADR 0074](../docs/adr/0074-expiry-lifecycle-hooks.md)). |
+| [`lifecycle`](lifecycle) | Expiry ladder, `lifecycle.*` hook events and authority-invalidation fencing, as pure functions — deadlines are detected once, by the gateway's scanner, and published on this feed ([ADR 0074](../docs/adr/0074-expiry-lifecycle-hooks.md)). |
 | [`security-events`](security-events) | The shared `SecurityNotice` envelope and its Alertmanager, PagerDuty and syslog renderings ([ADR 0080](../docs/adr/0080-security-event-hooks.md)). |
 | [`breach-intel`](breach-intel) | Value-blind breach detection: Pwned Passwords k-anonymity and public breach catalogues. |
 | [`agent-events`](agent-events) | Frozen `agent.*` event vocabulary for sandboxed runs. |
@@ -119,7 +127,7 @@ The libraries behind the roles of the one `opensesame` binary
 | Crate | Purpose |
 |---|---|
 | [`gateway`](gateway) | The Host API, served by `opensesame host run`: routes, background actors, transports, signed provider callbacks. |
-| [`daemon`](daemon) | The local host agent, served by `opensesame daemon run`. Its own dependency closure is budgeted ([ADR 0048](../docs/adr/0048-capability-moded-connector-discovery.md) §5, `pnpm audit:daemon-deps`). |
+| [`daemon`](daemon) | The local host agent, served by `opensesame daemon run`. Its direct dependencies are budgeted ([ADR 0048](../docs/adr/0048-capability-moded-connector-discovery.md) §5, `pnpm audit:daemon-deps`). |
 | [`worker`](worker) | The workload connector host, served by `opensesame worker run` ([ADR 0132](../docs/adr/0132-optional-mtls-and-workload-identity.md)). |
 | [`credential-helpers`](credential-helpers) | git, Docker, AWS and kubectl credential helpers — `opensesame` answers as each under its link name ([ADR 0049](../docs/adr/0049-derived-short-lived-materialization.md)). |
 | [`pm-bridges`](pm-bridges) | browserpass, gopass and keepassxc-protocol bridges, each a cargo feature of `opensesame`, all off by default ([ADR 0053](../docs/adr/0053-pm-bridge-binaries.md)). |

@@ -32,7 +32,7 @@ draft ─────────────────────► pending
                                 │                                            │
                                 │            GET /oauth/callback/{provider}  │
                                 ▼                                            ▼
-                            failed ◄──── exchange error ──── code+state ──► active
+                            error  ◄──── exchange error ──── code+state ──► active
                                                                              │
                     refresh ahead of expiry (automatic) ─────────────────────┤
                                                                              │
@@ -188,8 +188,8 @@ Event = { "id", "kind": "created"|"authorize_started"|"authorized"|"refreshed"
 code, code verifier, or client secret.** The one exception is `POST /connections/{id}/mint`
 (ADR 0049), which returns a provider-minted, short-lived `derived_token` and never the stored
 credential; it needs a caller who may configure integrations and owns the connection, and
-`materialization: derived_short_lived`. Every other route is asserted in tests against the leak denylist in
-`crates/authz/src/authority_use.rs`.
+`materialization: derived_short_lived`. Every other route is asserted in tests against the
+leak denylist in `crates/authz/src/authority_use.rs`.
 
 ### Request bodies
 
@@ -316,9 +316,8 @@ A **Project** is the primary secrets and environment scope
 optionally narrow with `project_id`. Every authenticated principal can obtain an
 idempotent **default personal project** (`POST /v1/projects/personal/ensure` on the
 Identity API) that may bind sealed-store tomb name and Pages vault folder metadata (opaque
-strings). Shared project/env secrets use project-scoped
-authority entries plus connection `shareability` / bindings — not server-readable vault
-plaintext.
+strings). Shared project/env secrets use project-scoped authority entries plus connection
+`shareability` / bindings — not server-readable vault plaintext.
 
 `SecretConfig` hangs off a project with an environment
 (`development` | `staging` | `production` | `custom`). Catalog provider `doppler` remains

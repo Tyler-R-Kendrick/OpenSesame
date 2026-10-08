@@ -90,9 +90,9 @@ Verified against the public format documentation; this is the shape
 **KDBX 4.1** adds fields without changing the container: group and entry
 tags, custom-icon names and modification times, an entry password-quality
 check flag, and `PreviousParentGroup` (so a move can be undone). KeePass
-2.48 introduced 4.1 and saves in it only when a database uses one of those
-features; OpenSesame's writer always emits 4.1 (`EXPORT_KDBX_MINOR_VERSION`
-in `crates/kdbx-bridge`).
+2.48 introduced 4.1 and writes it only when a database uses a feature that
+needs it (a previous-parent reference alone does not); OpenSesame's writer
+always emits 4.1 (`EXPORT_KDBX_MINOR_VERSION` in `crates/kdbx-bridge`).
 
 ### Sync, such as it is
 
@@ -171,7 +171,7 @@ None of these needs a server. All of them open a correct KDBX 4.x file, 4.1 incl
 | KDBX entry `Password` | Sealed-store `Entry.secret` (line 1) |
 | KDBX `UserName` / `URL` / `Notes` | Trailer lines `login:` / `url:` / `notes:` |
 | Other KDBX string fields | Trailer `<sanitized-key>: <value>`, preserved verbatim |
-| KDBX TOTP (`otp`, `TimeOtp-*`) | `otpauth://` trailer via `crates/authenticator-core/src/otp.rs`, re-exported by `crates/sealed-store` (pass-otp parity) |
+| KDBX TOTP (`otp`, `TimeOtp-*`) | `otpauth://` trailer, parsed by `crates/authenticator-core/src/otp.rs` (pass-otp parity) |
 | Group path + entry `Title` | Store logical path `Group/Sub/Title`, sanitized deterministically |
 | `Protected="True"` | Applied on write to line 1 and to trailer keys matching `pass`/`token`/`secret`/`key` |
 | Import a database | `opensesame pass import-kdbx` (merge-by-path, idempotent) |

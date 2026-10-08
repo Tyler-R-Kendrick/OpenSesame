@@ -23,8 +23,9 @@ vectors disagree, the vectors win, and this document has a bug.
 
 ## 1. Encodings
 
-- **Base64.** Standard alphabet with `=` padding (`btoa`/`atob`), not URL
-  safe. Fields ending in `B64` hold it.
+- **Base64.** Standard alphabet, written with `=` padding as `btoa` does, not
+  URL safe. A reader accepts what `atob` accepts (padding optional, ASCII
+  whitespace ignored). Fields ending in `B64` hold it.
 - **Text.** UTF-8 (`TextEncoder`). JSON is `JSON.stringify` with no
   canonicalisation: readers must parse, never compare bytes.
 - **`SealedBlob`** is `{ "ivB64": string, "ctB64": string }`:
@@ -248,9 +249,10 @@ Per ADR 0063, each tomb lives under the flat key prefix `tomb/<name>/`:
 `tombs.v1` lists the tomb names. Lockout counters sit outside the tomb, in
 plaintext. "Plaintext" here is relative to the vault format: on the device the
 browser and CLI hosts also seal every stored value under their at-rest key
-([ADR 0149](../adr/0149-nothing-stored-in-the-clear.md)). The portable envelopes carry only `header` and `body`. Of the
-`config/*` files, one rides inside the body: the device identity key
-(`config/device-identity-key`, §6), whose working copy is the tomb file.
+([ADR 0149](../adr/0149-nothing-stored-in-the-clear.md)). The portable
+envelopes carry only `header` and `body`. Of the `config/*` files, one rides
+inside the body: the device identity key (`config/device-identity-key`, §6),
+whose working copy is the tomb file.
 
 ## 9. What a conforming reader must do
 

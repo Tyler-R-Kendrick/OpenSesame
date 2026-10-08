@@ -120,7 +120,7 @@ Existing shared-session streams now revalidate closure and seat status
 before each frame; actual HTTP tests verify termination and the operator's
 retained record.
 
-Broader verification walked all 174 desktop/phone tutorials as recorded (the count follows the tutorial library and is not fixed), including popup
+Broader verification walks all 174 desktop/phone tutorials, including popup
 focus and the front-door, sign-in, seal and unlock gates. The mobile contract
 covers six widths: 320, 390, 430, 844, 1024 and 1366 pixels. Each run pins the
 actual PWA build; the final pull-request review records its completed results

@@ -163,7 +163,7 @@ Each of these is a parse-time refusal with a message naming the path:
 - carry a value (`default` on a concealed field);
 - put a concealed field in `subtitle` or `search`;
 - name a ceremony `handler` — those belong to the platform (`account`,
-  `passkey`, `secret`, `certificate` and `drop`), each named only by the
+  `passkey`, `secret`, `certificate` and `drop`), each used by the
   built-in of that id;
 - redefine a built-in id, or take over an id another publisher installed;
 - reuse another registered type's extension, title, or vault directory.

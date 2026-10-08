@@ -53,7 +53,8 @@ and defaults; applications are service workspaces whose members hold
 metadata carried across.
 
 The routes cover authorities, policies and profiles, for callers who pass
-`Caller::can_configure_integrations` (owner or admin, `crates/gateway/src/middleware/auth.rs`);
+`Caller::can_configure_integrations` (the operator, or a session whose role is
+owner or admin; `crates/gateway/src/middleware/auth.rs`);
 another organization's object is a 404, never a 403. Applications, their
 members, the role ladder (`opensesame_storage::Role`), inventory sources and
 renewal links exist as schema and storage accessors (`pki_applications`,
@@ -159,7 +160,10 @@ ledger with credential arguments redacted at write time.
 
 Design only. No `cryptoki` dependency, HSM client or connector route exists;
 storage holds `hsm_connectors` (a label, a sealed PIN under the `hsm_pin` scope
-with no read path, a key-label prefix, a verification status). The design: a
+with no read path, a key-label prefix, a verification status). The one trace in
+the Host is `PATCH /api/v1/certmgr/cas/{id}/signing-config`, which accepts a
+`key_source` of `sealed` or `hsm` (the latter with an `hsm_connector_id` and an
+`hsm_key_label`) and stores it; nothing reads it back to pick a signer. The design: a
 PKCS#11 client over `cryptoki`; connectors carry a slot **label** (never an
 index); mechanisms RSA PKCS#1 v1.5 (raw and SHA-256/384/512) and ECDSA
 SHA-256/384/512; key generation RSA-2048/4096 and P-256/P-384; verify-on-create
@@ -196,9 +200,10 @@ server, which is also not implemented.
 `crates/storage/migrations/0013_certificate_issuance.sql`: `TEXT` primary keys, RFC3339 `TEXT`
 timestamps, `organization_id TEXT NOT NULL REFERENCES organizations(id)`,
 composite `UNIQUE(organization_id, id)`, optimistic `version` on mutable rows,
-partial unique indexes for one-default-per-organization, and all-or-nothing
-`CHECK` groups on sealed-blob column sets
-(`*_key_id`, `*_ciphertext`, `*_nonce`, `*_aad_digest`).
+and all-or-nothing `CHECK` groups on sealed-blob column sets
+(`*_key_id`, `*_ciphertext`, `*_nonce`, `*_aad_digest`). The
+one-default-per-organization partial unique index is 0013's
+(`idx_certificate_authorities_one_default`); 0016 adds none.
 
 It extends `certificate_authorities` (hierarchy, key algorithm, subject DN, path
 length, key source, CRL settings, pending CSR) and `issued_certificates`
@@ -279,8 +284,8 @@ it:
 | ACME nonce single-use | `chaos_exactly_one_task_consumes_an_acme_nonce` (`crates/storage/tests/certmgr_chaos.rs`), at the store only; ACME server, account-bound order lookup and mandatory EAB: none yet |
 | SCEP challenge single-use | `chaos_exactly_one_task_consumes_a_scep_challenge` and `given_a_scep_challenge_already_consumed_...` (`crates/storage/tests/certmgr_chaos.rs`, `certmgr_behavior.rs`), at the store only; SCEP server, bounded expiry and pending set: none yet |
 | Revoked serial appears in CRL and OCSP; unrelated serial reads `good`; unknown serial reads `unknown` | `crates/pki-core` revocation tests (`a_revoked_serial_appears_in_the_crl_and_ocsp_agrees_on_the_reason`, `adversarial_a_serial_the_authority_never_issued_is_unknown_not_good`) |
-| Tampered CRL fails verification; OCSP signed only by CA or valid delegate | `crates/pki-core` revocation tests (`adversarial_a_tampered_crl_fails_verification`, `adversarial_a_tampered_response_fails_verification`, `a_delegated_responder_signs_with_its_own_key`) |
-| EST refuses a policy-violating CSR whole and authenticates every enrollment | `routes/est_server_tests.rs`, `routes/est_enrollment_tests.rs` |
+| Tampered CRL or OCSP response fails verification | `crates/pki-core` revocation tests (`adversarial_a_tampered_crl_fails_verification`, `adversarial_a_tampered_response_fails_verification`). A delegated responder signs with its own key (`a_delegated_responder_signs_with_its_own_key`), but the library does not check that the delegate was issued by the CA or carries `id-kp-OCSPSigning`; ADR 0067 §6 puts that check at configuration time, and no configuration path exists |
+| EST authenticates every enrollment; a policy-violating CSR is refused whole | `enrollment_without_valid_credentials_is_refused_with_basic_auth` (`routes/est_server_tests.rs`); the refusal is `est_enrollment::decide`, whose `policy_denied` code is pinned in `routes/est_enrollment_tests.rs` — no route-level test drives a violating CSR yet |
 | Signing scope pin mismatch denies and ledgers; credential arguments redacted before write | none yet (no Sign API) |
 | Signature counter increments atomically under concurrency | `chaos_signature_cap_holds_under_a_racing_swarm` (`crates/storage/tests/certmgr_chaos.rs`), at the store only |
 | Sync key material never reaches a caller or a log | none yet (no sync adapter) |
@@ -417,10 +422,10 @@ Depth gates:
   server does). Executions and duration:
   _pending: fill from the run of `pnpm audit:fuzz` (short pass) and
   `pnpm audit:fuzz:batch`._
-- Kani / Miri / Shuttle: _pending: fill from the runs of `pnpm audit:kani`,
-  `pnpm audit:miri`, `pnpm audit:shuttle` if these gates are extended to
-  `opensesame-pki-core` and the certificate-manager storage code; state
-  explicitly if they are not._
+- Kani / Miri / Shuttle: not extended to `opensesame-pki-core` or the
+  certificate-manager storage code; `scripts/audit/kani-gate.sh`,
+  `miri-gate.sh` and `shuttle-gate.sh` name other crates (see
+  [fuzzing.md](fuzzing.md)).
 
 **No number in this document may be written from expectation.** A gate that has
 not been run stays `_pending_`.

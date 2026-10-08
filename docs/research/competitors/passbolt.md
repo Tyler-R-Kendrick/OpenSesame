@@ -77,10 +77,11 @@ Two properties matter for OpenSesame. First, the flow requires the user's
 prompt for the passphrase on a TTY at the human plane (ADR 0052 §6), held in
 `secrecy::SecretBox`, zeroized, and never persisted. Second, the extension pins only a
 **user-supplied server URL plus the server's PGP fingerprint** — there is
-no vendor-hosted component in the trust path — which is precisely why a
-third-party Passbolt-compatible server is viable in a way a
-Bitwarden-compatible one is not (see [`bitwarden.md`](bitwarden.md) and
-ADR 0052 §4 on the push-relay installation ID).
+no vendor-hosted component in the trust path — which is why a
+third-party Passbolt-compatible server has no incumbent service to depend on,
+unlike Bitwarden's mobile push relay (see [`bitwarden.md`](bitwarden.md) and
+ADR 0052 §4 on the push-relay installation ID; the Bitwarden-compatible server
+in `crates/bitwarden-server` uses no push relay, ADR 0148).
 
 ### API surface
 

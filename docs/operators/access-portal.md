@@ -1,60 +1,52 @@
 # Access portal
 
-Access uses the configured OpenSesame Identity service and Host. It does not
-require either service to open the offline vault.
+Access is the local PAM plane. Its six tabs (Grants, Requests, Sessions,
+Connectors, Resources, Policies) read sealed local records, so it needs neither
+the Identity service nor a Host, and neither is required to open the offline
+vault. No Host panel is drawn on Access: pairing a browser with a Host is a
+native ceremony described in
+[Migrating local authority](local-authority-migration.md).
 
-## Connect without leaving Access
+## What an Identity service adds
 
-Choose **Connect Host**, enter its address, pair the browser through the native
-approval ceremony, then verify Identity for Host access. Native membership and
-the verified Identity handoff determine authority. Pairing alone permits only
-its existing local-read scope. Public/shared-origin demo deployments cannot pair
-with local authority; use an explicitly configured loopback or dedicated origin.
+Set the Identity API address on the Identity screen (**Connect a sign-in
+service**) or on the setup Identity tab. With an address set, **Requests** also
+draws **Requests for you**: the authorization requests addressed to your
+Identity session, beside the local ones. When no Identity session is held the
+panel shows **Connect**; **Reload requests for you** reads again. A row decides
+nothing: it opens the full review at `/approve/<ref>`, where the decision is
+bound to the request's digest, verb and policy. No operator credential belongs
+in the browser. A self-hosted service must be running; a static page cannot
+become an OIDC or approval server by itself.
 
-On **Requests**, enter your Identity API address if needed and connect. No
-operator credential belongs in the browser. A self-hosted service must be
-running; a static page cannot become an OIDC or approval server by itself.
+**Sessions** draws **Receipts** when the Identity plane serves an audit trail:
+the device's own once Browser-local IAM is on, or the service's once you are
+signed in to it ([browser-local IAM](browser-local-iam.md)).
 
 ## Operate
 
-| View | Operations | Authority |
+| Tab | Panels and operations | Authority |
 | --- | --- | --- |
-| Grants | Mint an offer, review and claim it, narrow or revoke a grant | Host ownership and delegation policy |
-| Requests | Create an addressed request, review/approve/deny, show a requester comparison code; review Host relay asks and retract offers | Identity digest-bound consent or Host holder-bound relay decision |
-| Sessions | Start an explicitly scoped task, inspect its ceiling, terminate with its current version; review receipts | Host principal and organization, plus separate Identity receipts |
-| Policies | Select a connection, edit its policy and manage bindings | Existing connection ownership and authorization |
-| Resources | Existing resource/client management | Its own Host, Identity or local admission policy |
+| Grants | **Portable grants** (the access book, drawn once it holds a grant; import and export keys sit in Access's title row, and export saves `access.json`), **Local application grants** (revoke, with a confirmation), **Identity shares** (grant a share: identity, resource, policy, duration; revoke) | Sealed local records |
+| Requests | **Requests for you** (with an Identity API), **Local requests**: create one for an application (requesting identity, application, redirect URI, scopes, reason), approve or deny it with a passkey as an authorized person | Local identity session and passkey; Identity digest-bound consent for hosted rows |
+| Sessions | **Local sessions** (revoke), **Audience templates** (a read-only list of declarative templates and their support matrix), **Vault share sessions** (start, stop or restart a time-boxed share with a join code), **Receipts** | Sealed local records; Identity-plane audit trail |
+| Connectors | Who may use which connector: **Add** chooses a connector configured or imported on Connections and who may use it; **Revoke** ends a grant early | Local share grants of kind `connection` (ADR 0115) |
+| Resources | **Local resources**: what a grant can point at, and who holds a standing share of each | Local admission policy |
+| Policies | **Local application policies**: one block per local application, with its registration and the roles allowed per permission | Local admission policy |
 
-Share **My inbox address** deliberately with a requester. A new request needs
-that address, an action, a resource, a reason and a deadline. Approval shows the
-exact details and digest; passkey and comparison requirements cannot be skipped.
-Passkey decisions open an Identity-origin window. Sign in to that service as the
-approver and enroll an Identity passkey first; a vault-unlock passkey for another
-origin is not interchangeable. Confirm the displayed request and decision there.
-Access reads the recorded result from Identity; the window never returns a token.
-The requester explicitly issues a comparison code and shares it with the
-approver. It is returned once; losing it requires a new request. Keep the sent
-request open to track it: this UI retains only the latest sent request in memory.
+A local request records consent, not a new resource grant: creating one says
+"No access was granted", and approval is a separate decision by an authorized
+person, with a passkey. Hosted requests are reviewed at `/approve/<ref>` on the
+Pages deployment. That route needs an Identity session, not an unlocked vault,
+and shows the exact request; depending on its policy the review asks for a
+passkey touch for that exact request and a comparison code from where the
+request started.
 
-Approval records consent, not a new resource grant. A Host task ceiling similarly
-limits a task but does not supply the grant needed to execute against a resource.
-The existing task engine is in-memory and this portal does not provide an SSH or
-database terminal.
-
-Claim offers are transferable to someone holding both the token and code, subject
-to the Host's admission checks. Naming connection bindings in the existing grant
-flow is not cryptographic recipient binding. Share claim material only with its
-intended recipient and retract unused offers.
+Audience templates are local UI only: selecting one is not a grant ledger and
+not remote enforcement. Access does not provide an SSH or database terminal.
 
 ## Failures
 
 An expired request cannot be approved. Reload the inbox and ask for a fresh one.
-A policy change during activation requires another review. Cancelling an
-authenticator does not decide the request. Closing a review prevents pending
-client-side work from proceeding, but cannot roll back a decision already
-accepted by the service.
-
-Host refusals after pairing usually require verified Identity and current native
-membership; reconnecting is not permission to bypass either check. Revoking the
-paired client invalidates its active grants. Changing the local deployment
-profile at runtime cannot upgrade the shipped demo's trust.
+Cancelling an authenticator does not decide the request. Closing a review
+cannot roll back a decision already accepted by the service.

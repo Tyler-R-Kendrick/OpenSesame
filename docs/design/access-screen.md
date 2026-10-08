@@ -11,8 +11,10 @@ structure of [ADR 0054](../adr/0054-access-screen-pam.md)). Parity target:
 > as written. Its Access tabs read sealed local records and call none of the
 > Host routes named here (`/api/v1/delegations`, `/api/v1/relay/requests/pending`,
 > `/api/v1/tasks`); those routes exist on the Host and have a typed client
-> (`packages/api-client/src/delegations.ts`), but no Pages code uses them
-> ([ADR 0090](../adr/0090-static-frontend-complete-without-backend.md)). What each
+> (`packages/api-client/src/delegations.ts`), but no Pages code calls them
+> ([ADR 0090](../adr/0090-static-frontend-complete-without-backend.md); Join,
+> [ADR 0136](../adr/0136-join-a-session-restored.md), calls the separate
+> `/api/v1/delegations/present` and `/claim`). What each
 > tab draws today is under *As built*; the hard rules and the first data rule
 > hold.
 
