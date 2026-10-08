@@ -38,9 +38,7 @@
     "/home/vscode/security-audit-skill/OpenSesame/run-1",
     "/home/vscode/security-audit-skill/OpenSesame/run-2"
   ],
-  "shared_file_owners": [
-    "parent"
-  ],
+  "shared_file_owners": ["parent"],
   "run_status": "complete",
   "sandbox": {
     "mechanism": "unshare --user --map-root-user --mount --net",
