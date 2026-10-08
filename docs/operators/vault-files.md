@@ -67,13 +67,21 @@ read" and changes nothing; run it again. A crash between a save's secret files
 and its manifest leaves the vault readable: the manifest lists what to open, and
 the next save settles the rest.
 
-## A privately hosted store
+## A bucket
 
-The same four operations are served over HTTP by `makeFilesHandler`
-(`@opensesame/app-core/lib/secret-fs/http-handler.js`), a `Request`→`Response`
-function over any store, and reached by `makeHttpSecretFiles` wrapped in
+Any S3-compatible service holds the same files: AWS S3, MinIO, Cloudflare R2,
+Backblaze B2, Ceph. `makeS3SecretFiles` (`lib/secret-fs/s3.ts`) is wrapped in
 `resilient`: a time limit per attempt, bounded retries with jittered backoff for
-an unreachable server only, and a circuit breaker so a dead server is not hit on
-every keystroke. The server requires a bearer token of at least 16 characters and
-allows one page origin to call it. Wiring it into the Pages app is not part of
-this change; see ADR 0182, *Not in this change*.
+an unreachable bucket only, and a circuit breaker so a dead one is not hit on
+every keystroke. It needs no server of ours. Give it an access key limited to
+the bucket (`s3:GetObject`, `PutObject`, `DeleteObject`, `ListBucket`) and a
+prefix to keep the vault under. Conditional writes (`If-Match`,
+`If-None-Match`) must be supported by the service, as they are by current AWS
+S3, MinIO and R2.
+
+In the Pages app a bucket is chosen in setup, under Custom → History &
+persistence → S3-compatible bucket. The page's origin needs a CORS rule on the
+bucket allowing `GET, PUT, DELETE` with headers `Authorization, If-Match,
+If-None-Match, x-amz-*, Content-Type`, exposing `ETag`. Everything in the bucket
+is sealed under a key the bucket never sees; the names of secrets are the
+object keys.

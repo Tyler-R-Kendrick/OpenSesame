@@ -76,20 +76,18 @@ holds which id. Where a file goes is fixed by `secretFilePath`, whose cases are
   layout, or from a writer without the vault key) is read when it is further on
   than the manifest, and removed by the next write that has the key.
 
-## The HTTP store
+## The S3 store
 
-A privately hosted store serves the same four operations. The credential is a
-bearer token; the server's `ETag` is the file's SHA-256 (hex, quoted).
+A bucket serves the same four operations, signed with AWS Signature V4 (the
+secret key never leaves the signer). A file's revision is the SHA-256 of its
+bytes; the bucket's `ETag` is used only to make a write conditional.
 
 | Operation | Request | Answer |
 |---|---|---|
-| read | `GET /v1/files/<path>` | `200` bytes + `ETag`; `404` |
-| write | `PUT /v1/files/<path>` + `If-Match: "<rev>"` or `If-None-Match: *` (optional) | `200` + `ETag`; `412` + current `ETag` (none if absent) |
-| remove | `DELETE /v1/files/<path>` | `204`, also when already absent |
-| list | `GET /v1/files?prefix=<dir>` | `200` `{ "paths": [...] }` sorted |
+| read | `GET /<bucket>/<prefix>/<path>` | `200` bytes; `404` |
+| write | `PUT …` + `If-Match: <ETag>` (revision named), `If-None-Match: *` (create), or neither | `200`; `412`/`409` is a conflict |
+| remove | `DELETE …` | `204`, also when already absent |
+| list | `GET /<bucket>?list-type=2&prefix=<prefix>/<dir>` | XML keys, continued by `continuation-token` |
 
-`401` without a valid token, `403` for a refused credential, `400` for a path
-no store holds, `413` over 4 MiB, `429`/`5xx` are retried by the client's
-resilience layer. A page on another origin is served only if the server is
-configured with that exact origin (`Access-Control-Allow-Origin`), preflights
-are answered, and `ETag` is exposed.
+`401`/`403` is a refused credential, `400`/`413` a refused request, `429`/`5xx`
+are retried by the resilience layer.

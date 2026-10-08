@@ -49,13 +49,16 @@ a bounded retry and an honest account of what a lost answer meant.
    target, flushed, renamed over it), owner-only (`0600`/`0700`), confined to
    its root (a planted symlink cannot lead out of it) and cross-process safe
    for revision-checked writes (a lock file with stale takeover, under an
-   in-process mutex). The **private store** is `http.ts` (client) and
-   `http-handler.ts` (a `Request`→`Response` function the daemon, a Node process
-   or a container mounts where it already listens): the revision is the
-   `ETag`, the check is `If-Match`/`If-None-Match`, so the server decides a
-   race and not the network. `files.conformance.ts` is the one suite all of
+   in-process mutex). The **bucket** is `s3.ts`, any S3-compatible
+   service (AWS S3, MinIO, R2, B2, Ceph) signed with `s3-sigv4.ts` (checked
+   against Amazon's worked examples): the four operations are `GetObject`,
+   `PutObject`, `DeleteObject` and `ListObjectsV2`; a write that names a
+   revision reads the object, compares its SHA-256, and puts with
+   `If-Match: <ETag>` (`If-None-Match: *` to create), so the bucket decides a
+   race and not the network. It needs no server of ours, which is why a browser
+   can use it. There is no bespoke HTTP store. `files.conformance.ts` is the one suite all of
    them pass, and `vault-on-files.conformance.ts` runs the whole vault on the
-   emulation, on a disk, and on a disk behind HTTP and `resilient`.
+   emulation, on a disk, and on a bucket behind `resilient`.
 3. **The VFS is unchanged for its callers.** `vfsSeams` (now `vfs-seams.ts`,
    which also takes `vfs.ts` back under its size ledger) is where the VFS keeps
    bytes. `vfs-files.ts` lays those seams over any `SecretFiles`:
@@ -174,16 +177,14 @@ emulation keeps hiding shape (ADR 0149, ADR 0175); nothing here changes it.
 
 ## Not in this change
 
-- **Pages.** The shipped PWA keeps its OPFS emulation. The hosted mode is
-  `installFileBackedVfs(resilient(makeHttpSecretFiles(...)))`, and what remains
-  is the product around it: a Settings row that sets the store's address and
-  token (ADR 0158), the capability it ships as and its consent (ADR 0130),
-  the Local Network Access permission the browser asks for, a boot step that
-  hydrates before first paint, and before/after evidence (AGENTS.md §5).
-  `vfs-seams.ts` and `install.ts` are the whole of the core's side of it.
-- **A server to point it at.** `makeFilesHandler` is the server's logic; mounting
-  it on the daemon or a standalone `opensesame` role is a separate change with
-  its own capability-registry entry (ADR 0065).
+- **Pages.** The shipped PWA keeps its OPFS emulation by default and never
+  touches a real filesystem. A bucket is an opt-in connection: the `s3`
+  connector in the Custom setup ceremony's History & persistence step, saved
+  device-locally (secret key apart from the public fields, like every other
+  configuration connector), and installed at boot as
+  `installFileBackedVfs(resilient(makeS3SecretFiles(...)))`. The bucket needs
+  a CORS rule for the page's origin that allows `If-Match`, `If-None-Match`,
+  `x-amz-*` and `Authorization` and exposes `ETag`.
 - **The native plane.** `crates/sealed-store` already keeps one file per entry
   and is not changed. A Rust reader and writer of this layout can be built from
   `spec/secret-files/` and `spec/conformance/secret-file-layout-vectors.json`;
