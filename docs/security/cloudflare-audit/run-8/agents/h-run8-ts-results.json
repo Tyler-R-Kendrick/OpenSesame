@@ -1,0 +1,384 @@
+[
+  {
+    "coverage_id": "apps%2Fbrowser-extension%2Frunner%2Fhost.ts::apps%2Fbrowser-extension%2Frunner%2Fhost-base.ts::apps%2Fbrowser-extension::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      { "path": "apps/browser-extension/runner/host.ts", "start_line": 79, "end_line": 94 },
+      { "path": "apps/browser-extension/runner/host-base.ts", "start_line": 20, "end_line": 42 },
+      { "path": "apps/browser-extension/entrypoints/background.ts", "start_line": 91, "end_line": 123 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "A tampered hostApiBase in extension storage could repoint the runner's bearer token to a remote Host API.",
+        "verdict": "rejected",
+        "evidence": "apps/browser-extension/runner/host-base.ts:35-37 normalizes via normalizeLoopbackBaseUrl and falls back to DEFAULT_HOST; apps/browser-extension/runner/host.ts:88-93 passes only that base to createApiClient."
+      },
+      {
+        "hypothesis": "connector() could be invoked without the person's access token while still reaching sync/agent routes.",
+        "verdict": "rejected",
+        "evidence": "apps/browser-extension/runner/host.ts:86-87 returns null when settings.token() is null, so hostConnection is never built without a session."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review on /tmp/wt-run8-stack at product tip; pnpm exec vitest run apps/browser-extension/runner/host.test.ts (5 passed) on /workspace.",
+    "result_one_line": "resolveHostBase seals hostApiBase and normalizeLoopbackBaseUrl rejects non-loopback bases before createApiClient; connector refuses null tokens.",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Ffederation-callback.ts::packages%2Fapp-core%2Fsrc%2Flib%2Ffederation-callback.ts%23assertSafeReturnTo::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      { "path": "packages/app-core/src/lib/federation-callback.ts", "start_line": 50, "end_line": 134 },
+      { "path": "apps/pages/src/screens/FederationReturn.tsx", "start_line": 18, "end_line": 24 },
+      { "path": "packages/app-core/src/screens/federation-return-model.ts", "start_line": 1, "end_line": 40 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "Federation return navigation accepts an off-origin returnTo because completeSignIn never calls assertSafeReturnTo.",
+        "verdict": "rejected",
+        "evidence": "apps/pages/src/screens/FederationReturn.tsx:23 uses react-router navigate on in-app paths only; production callers set fixed returnTo; assertSafeReturnTo at packages/app-core/src/lib/federation-callback.ts:122-133 blocks ://, @, and paths outside basePath after URL resolution."
+      },
+      {
+        "hypothesis": "OAuth error_description in the callback could inject HTML into federation UI.",
+        "verdict": "rejected",
+        "evidence": "packages/app-core/src/lib/federation-callback.ts:88-92 strips tags and caps description at 120 chars; error codes are whitelisted at lines 26-67."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review; pnpm --filter @opensesame/app-core test -- src/lib/federation-callback.test.ts (4 passed).",
+    "result_one_line": "assertSafeReturnTo rejects absolute, protocol-relative, and out-of-root paths; FederationReturn navigates via react-router on pending.returnTo with no production off-site builder.",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Ffederation.ts%23completeSignInDefault::packages%2Fapp-core%2Fsrc%2Flib%2Ffederation.ts%23readIdentity::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      { "path": "packages/app-core/src/lib/federation.ts", "start_line": 586, "end_line": 653 },
+      { "path": "packages/app-core/src/lib/federation.ts", "start_line": 731, "end_line": 810 },
+      { "path": "packages/app-core/src/lib/federation-endpoint-pin.ts", "start_line": 1, "end_line": 80 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "Pending storage could steer the token POST or JWKS fetch to an attacker-controlled host.",
+        "verdict": "rejected",
+        "evidence": "packages/app-core/src/lib/federation.ts:586-590 resolvePinnedEndpoints over TRUSTED_UPSTREAMS; token fetch at 593 uses pinned.tokenEndpoint; readIdentity at 625 uses pinned.jwksUri."
+      },
+      {
+        "hypothesis": "readIdentity accepts tokens from issuers outside the compiled and operator allowlists.",
+        "verdict": "rejected",
+        "evidence": "packages/app-core/src/lib/federation.ts:744-754 refuses when issuer is not in upstreamByIssuer, isBrokeredIssuer, or isOperatorIdpIssuer (unless orgSlug leg); audience and exp checked at 756-770."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review of completeSignInDefault and readIdentity on worktree tip; federation-endpoint-pin module read for pin semantics.",
+    "result_one_line": "Token exchange uses resolvePinnedEndpoints; readIdentity enforces issuer, audience, expiry, and trusted-issuer allowlist before saveSession.",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Fguest-access.ts%23guestsAllowed::packages%2Fapp-core%2Fsrc%2Flib%2Fguest-access.ts%23assertGuestsAllowed::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      { "path": "packages/app-core/src/lib/guest-access.ts", "start_line": 26, "end_line": 48 },
+      { "path": "packages/app-core/src/lib/guest-auth.ts", "start_line": 1, "end_line": 60 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "Malformed guest-access.v1 could turn guests off without operator intent.",
+        "verdict": "rejected",
+        "evidence": "packages/app-core/src/lib/guest-access.ts:27-35 returns true on null, parse failure, or missing allowed:false — failure direction keeps guest road up per file header."
+      },
+      {
+        "hypothesis": "A caller could open a guest vault while guestsAllowed is false by bypassing UI.",
+        "verdict": "rejected",
+        "evidence": "packages/app-core/src/lib/guest-access.ts:46-47 assertGuestsAllowed throws GUESTS_OFF_MESSAGE; guest-auth entry paths are documented to call openGuestVault which uses this gate."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review; guestsAllowed fail-open-to-on behavior matches ADR 0135 / AGENTS.md contract.",
+    "result_one_line": "guestsAllowed defaults on and fails toward on; assertGuestsAllowed enforces operator-off before any guest tomb is created.",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Fsecret-fs%2Fs3.ts%23makeWire::packages%2Fapp-core%2Fsrc%2Flib%2Fsecret-fs%2Ffiles.ts%23checkPath::packages%2Fapp-core::Resource%20and%20file%20handling",
+    "read_ranges": [
+      { "path": "packages/app-core/src/lib/secret-fs/s3.ts", "start_line": 111, "end_line": 199 },
+      { "path": "packages/app-core/src/lib/secret-fs/files.ts", "start_line": 59, "end_line": 101 },
+      { "path": "packages/app-core/src/lib/secret-fs/s3.ts", "start_line": 161, "end_line": 167 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "S3 object keys could escape the configured prefix via .. or absolute segments.",
+        "verdict": "rejected",
+        "evidence": "packages/app-core/src/lib/secret-fs/s3.ts:192 yield* checkPath(path) before GET; packages/app-core/src/lib/secret-fs/files.ts:85-100 rejects empty, oversize, and badSegment paths."
+      },
+      {
+        "hypothesis": "A redirect on bucket fetch could forward the SigV4 Authorization header to another host.",
+        "verdict": "rejected",
+        "evidence": "packages/app-core/src/lib/secret-fs/s3.ts:166 sets redirect: error on signed fetch; endpoint must be https or loopback http at lines 116-122."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review of makeWire call path and checkPath invariants.",
+    "result_one_line": "makeWire requires https (or loopback http), uses redirect:error, and every object path passes checkPath before I/O.",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fsections%2Fvault%2Fimport%2Fmodel.ts::packages%2Fapp-core%2Fsrc%2Fsections%2Fvault%2Fimport%2Fmodel.ts::packages%2Fapp-core::ATTACK-CLASSES.md%23Injection",
+    "read_ranges": [
+      { "path": "packages/app-core/src/sections/vault/import/model.ts", "start_line": 136, "end_line": 250 },
+      { "path": "packages/app-core/src/lib/vault/import/index.ts", "start_line": 1, "end_line": 60 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "Import file names or adapter output could reach eval, shell, or dynamic code execution.",
+        "verdict": "rejected",
+        "evidence": "packages/app-core/src/sections/vault/import/model.ts:159-198 only calls readImportFile, parseImportAsync, and store.applyImport/importSealed — pure data pipeline with no eval or spawn."
+      },
+      {
+        "hypothesis": "A manifest merge could write paths outside the vault tomb.",
+        "verdict": "rejected",
+        "evidence": "packages/app-core/src/sections/vault/import/model.ts:183-188 routes manifests through readStoreManifest and applyManifestMerge on ImportStorePort; merge is store-scoped, not arbitrary filesystem."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review of import stage machine and vault/import entrypoints.",
+    "result_one_line": "Import model is a pure stage machine over parseImportAsync and vault store ports; no injection sink on the import path.",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fwebmcp%2Fpassword-workflow-tools.ts::packages%2Fapp-core%2Fsrc%2Flib%2Fvault%2Fpassword-workflows.ts%23reachableItems::packages%2Fapp-core::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "read_ranges": [
+      { "path": "packages/app-core/src/webmcp/password-workflow-tools.ts", "start_line": 15, "end_line": 100 },
+      { "path": "packages/app-core/src/lib/vault/password-workflows.ts", "start_line": 40, "end_line": 90 },
+      { "path": "packages/app-core/src/lib/vault/password-workflows.ts", "start_line": 147, "end_line": 175 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "WebMCP workflow tools could list vault items the session has no share grant to read.",
+        "verdict": "rejected",
+        "evidence": "packages/app-core/src/lib/vault/password-workflows.ts:154-158 await assertShareReach per item; failures are dropped from reachableItems."
+      },
+      {
+        "hypothesis": "Inventory or find tools could return concealed password field values.",
+        "verdict": "rejected",
+        "evidence": "packages/app-core/src/lib/vault/password-workflows.ts:72-80 emits os:// refs for concealed fields, not values; password-workflow-tools.ts descriptions state metadata/refs only."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review of reachableItems and registered WebMCP tool execute bodies.",
+    "result_one_line": "Password-workflow WebMCP tools expose metadata and os:// refs only; reachableItems drops items when assertShareReach read fails.",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fwebmcp%2Fvault-tools.ts::packages%2Fapp-core%2Fsrc%2Fwebmcp%2Ftool-shared.ts%23reachedItem::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      { "path": "packages/app-core/src/webmcp/tool-shared.ts", "start_line": 43, "end_line": 93 },
+      { "path": "packages/app-core/src/webmcp/vault-tools.ts", "start_line": 65, "end_line": 68 },
+      { "path": "packages/app-core/src/webmcp/vault-tools.ts", "start_line": 235, "end_line": 290 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "reachedItem could return an item before share-reach proof, leaking metadata by item id guessing.",
+        "verdict": "rejected",
+        "evidence": "packages/app-core/src/webmcp/tool-shared.ts:87-91 awaits reachItemRead/Write before findItem; vault-tools.ts:242 and :286 call reachedItem for reads/writes."
+      },
+      {
+        "hypothesis": "Vault WebMCP writes could exfiltrate secrets in tool responses.",
+        "verdict": "rejected",
+        "evidence": "packages/app-core/src/webmcp/vault-tools.ts:98-100 documents projectVaultItemMeta allowlist; reveal flows use ceremonyOpened, not direct secret fields in execute return."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review of reachedItem and vault-tools call sites.",
+    "result_one_line": "reachedItem proves share reach before findSavedItem; vault tools project metadata-only fields and open ceremonies for reveal.",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fcli%2Fsrc%2Fbin.ts::packages%2Fcli%2Fsrc%2Fidentity-session.ts::packages%2Fcli::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "read_ranges": [
+      { "path": "packages/cli/src/bin.ts", "start_line": 1, "end_line": 11 },
+      { "path": "packages/cli/src/identity-session.ts", "start_line": 57, "end_line": 137 },
+      { "path": "packages/cli/src/identity-session.ts", "start_line": 149, "end_line": 192 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "identity-session.json readable by other local users could leak refresh tokens.",
+        "verdict": "rejected",
+        "evidence": "packages/cli/src/identity-session.ts:62-69 assertPrivateFile refuses mode with group/other bits; loadSession at 98-102 errors loudly and returns null."
+      },
+      {
+        "hypothesis": "Refresh could send tokens to a token_endpoint on a different origin than the session issuer.",
+        "verdict": "rejected",
+        "evidence": "packages/cli/src/identity-session.ts:162-163 requires new URL(tokenEndpoint).origin === issuer origin before POST."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review; pnpm --filter @opensesame/cli test -- identity-session (4 passed).",
+    "result_one_line": "CLI session file is owner-only, sealed with local envelope binding issuer+clientId; refresh pins token_endpoint to issuer origin.",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fcli%2Fsrc%2Fparity-node.ts::packages%2Fcli%2Fsrc%2Fparity-node.ts::packages%2Fcli::ATTACK-CLASSES.md%23Injection",
+    "read_ranges": [
+      { "path": "packages/cli/src/parity-node.ts", "start_line": 48, "end_line": 85 },
+      { "path": "packages/cli/src/parity-node.ts", "start_line": 139, "end_line": 245 },
+      { "path": "packages/cli/src/parity-node.ts", "start_line": 202, "end_line": 222 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "invokeOp spawn with shell:true could allow command injection via op arguments.",
+        "verdict": "rejected",
+        "evidence": "packages/cli/src/parity-node.ts:56-59 spawn(..., shell: false); stderr suppressed from callers at lines 74-80."
+      },
+      {
+        "hypothesis": "LD_PRELOAD or similar could be injected into the child environment for op run.",
+        "verdict": "rejected",
+        "evidence": "packages/cli/src/parity-node.ts:203-207 helperEnvironment deletes keys in passwordAgentPolicy.credentialStartupEnvKeys; runOpChild embed script deletes OP_SERVICE_ACCOUNT_TOKEN at line 151."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review of capture, runOpChild, and helperEnvironment.",
+    "result_one_line": "parity-node spawns helpers with shell:false, strips credential startup env keys, and validates run templates before env-file execution.",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fmcp-host%2Fsrc%2Ftransports%2Fstreamable-http.ts::packages%2Fmcp-host%2Fsrc%2Fhost-api.ts::packages%2Fmcp-host::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      { "path": "packages/mcp-host/src/transports/streamable-http.ts", "start_line": 40, "end_line": 88 },
+      { "path": "packages/mcp-host/src/host-api.ts", "start_line": 19, "end_line": 79 },
+      { "path": "packages/mcp-host/src/host-api.ts", "start_line": 107, "end_line": 126 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "MCP HTTP transport could bind on a routable interface and accept unauthenticated tool calls.",
+        "verdict": "rejected",
+        "evidence": "packages/mcp-host/src/transports/streamable-http.ts:53-55 requires LOOPBACK_HOSTS; authorized() at 77-87 compares SHA-256 of bearer with timingSafeEqual."
+      },
+      {
+        "hypothesis": "OPENSESAME_HOST_API could point MCP host fetches at a remote attacker with operator headers.",
+        "verdict": "rejected",
+        "evidence": "packages/mcp-host/src/host-api.ts:55-57 requires https off loopback; hostFetch at 115-116 forbids overriding authorization headers."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review; pnpm --filter @opensesame/mcp-host test (101 passed).",
+    "result_one_line": "Streamable HTTP is loopback-only with minimum-length transport token; hostApiBase/daemonBase normalize to loopback http or https and hostFetch refuses header override.",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fmfa.ts::packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fmfa-step-up.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      { "path": "packages/control-plane/src/routes/mfa.ts", "start_line": 62, "end_line": 72 },
+      { "path": "packages/control-plane/src/routes/mfa-step-up.ts", "start_line": 48, "end_line": 79 },
+      { "path": "packages/control-plane/src/routes/mfa-step-up.ts", "start_line": 120, "end_line": 180 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "Account factor removal could proceed on session alone without step-up proof.",
+        "verdict": "rejected",
+        "evidence": "packages/control-plane/src/routes/mfa-step-up.ts:22-45 documents transaction-bound proofs; findOwnFactor at 64-78 ensures factor belongs to principal before verifyRemovalProof path."
+      },
+      {
+        "hypothesis": "Passkey registration could satisfy the same bar as factor removal without step-up.",
+        "verdict": "accepted",
+        "evidence": "packages/control-plane/src/routes/mfa.ts enrollment routes use requirePrincipal only; ADR 0146 scopes step-up to removal — intentional product contract, not a bypass of removal gate."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review of mfa-step-up verifyRemovalProof wiring vs registration routes (prior run-7 rejected enrollment-as-bug).",
+    "result_one_line": "Factor removal requires transaction-bound passkey or spent TOTP via mfa-step-up; enrollment remains session-gated by design (ADR 0146).",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fnotification-callbacks.ts::packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fnotification-channels.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "read_ranges": [
+      { "path": "packages/control-plane/src/routes/notification-callbacks.ts", "start_line": 20, "end_line": 50 },
+      { "path": "packages/control-plane/src/routes/notification-callbacks.ts", "start_line": 100, "end_line": 180 },
+      { "path": "packages/control-plane/src/routes/notification-channels.ts", "start_line": 47, "end_line": 79 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "Unsigned Slack/Teams callbacks could settle approvals without adapter signature verification.",
+        "verdict": "rejected",
+        "evidence": "packages/control-plane/src/routes/notification-callbacks.ts:27-31 requires raw capture then adapter signature check before parse; uniform ack at 46-49 avoids existence oracle."
+      },
+      {
+        "hypothesis": "Notification channel binding APIs could leak provider subject ids to the authenticated principal.",
+        "verdict": "rejected",
+        "evidence": "packages/control-plane/src/routes/notification-channels.ts:47-50 states subject never leaves service; list response omits subject field per comment."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review of callback chain ordering and notification-channels binding contract.",
+    "result_one_line": "Callbacks verify provider signatures before parse and bind tenant+subject; channel routes keep subject ids server-side and require fresh auth for binding mutations.",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Foauth-clients.ts::packages%2Fcontrol-plane%2Fsrc%2Fmiddleware%2Fauth.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      { "path": "packages/control-plane/src/routes/oauth-clients.ts", "start_line": 46, "end_line": 75 },
+      { "path": "packages/control-plane/src/middleware/auth.ts", "start_line": 12, "end_line": 54 },
+      { "path": "packages/control-plane/src/middleware/auth.ts", "start_line": 56, "end_line": 105 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "OAuth client CRUD could mutate another principal's registrations by id oracle.",
+        "verdict": "rejected",
+        "evidence": "packages/control-plane/src/routes/oauth-clients.ts:52-55 loadOwnedClient returns null when ownerPrincipalId !== principalId, answering 404 for foreign ids."
+      },
+      {
+        "hypothesis": "Cookie-authenticated CSRF could register OAuth clients from a malicious origin.",
+        "verdict": "rejected",
+        "evidence": "packages/control-plane/src/middleware/auth.ts:41-53 cookieAuthAllowed requires Origin in corsOrigins or publicUrl for mutating methods; bearer path unaffected at 62-69."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review of loadOwnedClient and cookieAuthAllowed.",
+    "result_one_line": "OAuth client routes are owner-scoped with 404 for foreign ids; mutating cookie auth requires allowed Origin.",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fscim.ts%23authenticate::packages%2Fdatabase%2Fsrc%2Fscim-store.ts%23verify::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      { "path": "packages/control-plane/src/routes/scim.ts", "start_line": 89, "end_line": 91 },
+      { "path": "packages/control-plane/src/routes/scim.ts", "start_line": 153, "end_line": 189 },
+      { "path": "packages/database/src/scim-store.ts", "start_line": 335, "end_line": 347 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "A SCIM token minted for org A could provision org B when organizationId is guessed.",
+        "verdict": "rejected",
+        "evidence": "packages/control-plane/src/routes/scim.ts:175-187 hashes presented token and calls tokens.verify(organization.id, hash); packages/database/src/scim-store.ts:340-344 requires matching organizationId and live row."
+      },
+      {
+        "hypothesis": "SCIM authenticate would distinguish missing org from bad token, enabling org enumeration.",
+        "verdict": "rejected",
+        "evidence": "packages/control-plane/src/routes/scim.ts:157-160 and 182-188 return the same unauthorized() for missing/suspended org and bad token."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review; pnpm --filter @opensesame/control-plane test -- scim (24 passed).",
+    "result_one_line": "SCIM bearer is org-scoped via path organizationId plus SHA-256 token hash verify; all auth failures share one 401 shape.",
+    "agent_id": "h-run8-ts"
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Fserver.ts::packages%2Fcontrol-plane%2Fsrc%2Fmiddleware%2Fauth.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "read_ranges": [
+      { "path": "packages/control-plane/src/server.ts", "start_line": 114, "end_line": 155 },
+      { "path": "packages/control-plane/src/app.ts", "start_line": 110, "end_line": 120 },
+      { "path": "packages/control-plane/src/middleware/auth.ts", "start_line": 26, "end_line": 94 }
+    ],
+    "hypotheses": [
+      {
+        "hypothesis": "pst_ session ids (ps_ prefix) could authenticate API requests like access tokens.",
+        "verdict": "rejected",
+        "evidence": "packages/control-plane/src/middleware/auth.ts:16-17 resolveProvisionalSession returns undefined unless token starts with pst_."
+      },
+      {
+        "hypothesis": "TLS listener could skip mTLS-bound bearer checks applied on the plain listener.",
+        "verdict": "rejected",
+        "evidence": "packages/control-plane/src/server.ts:149 calls rejectMismatchedBoundBearer on plain dispatcher; TLS branch at 192 repeats the same check on forwarded request."
+      }
+    ],
+    "candidate": null,
+    "local_check": "Source review of createDispatcher and global authMiddleware mount in app.ts.",
+    "result_one_line": "Global authMiddleware resolves only pst_ bearers (prn_ dev-gated); server dispatcher applies rejectMismatchedBoundBearer on plain and TLS paths.",
+    "agent_id": "h-run8-ts"
+  }
+]
