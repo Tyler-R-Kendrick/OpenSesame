@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { localStore } from "../../ports.js";
 import { parseAuthCallback } from "../federation-callback.js";
 import { providerConnectionKey } from "./provider.js";

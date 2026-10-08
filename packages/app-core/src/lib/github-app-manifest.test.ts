@@ -184,9 +184,7 @@ function relay() {
   return fetchMock;
 }
 
-function storedValues(
-  ...stores: { map: Map<string, string> }[]
-): string[] {
+function storedValues(...stores: { map: Map<string, string> }[]): string[] {
   const out: string[] = [];
   for (const store of stores) {
     for (const value of store.map.values()) out.push(value);
@@ -266,8 +264,12 @@ describe("github app secret never rests in web storage", () => {
     localStore().setItem("opensesame.github-app.pending-pem", PEM);
     sessionStore().setItem("opensesame.github-app.pending-pem", PEM);
     expect(readLocalGithubApp()?.id).toBe("4997182");
-    expect(localStore().getItem("opensesame.github-app.pending-pem")).toBeNull();
-    expect(sessionStore().getItem("opensesame.github-app.pending-pem")).toBeNull();
+    expect(
+      localStore().getItem("opensesame.github-app.pending-pem"),
+    ).toBeNull();
+    expect(
+      sessionStore().getItem("opensesame.github-app.pending-pem"),
+    ).toBeNull();
     expect(hasPendingGithubAppSecret("4997182")).toBe(true);
   });
 

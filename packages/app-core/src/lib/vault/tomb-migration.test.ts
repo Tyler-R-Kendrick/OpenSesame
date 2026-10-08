@@ -2,6 +2,7 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { localStore, sessionStore } from "../../ports.js";
 import {
   IDP_REGISTRY_CONFIG_PATH,
   listIdpRegistrations,
@@ -28,7 +29,6 @@ import {
   vfsFlush,
 } from "../vfs.js";
 import { PREFS_CONFIG_PATH } from "./store.js";
-import { localStore, sessionStore } from "../../ports.js";
 import {
   LEGACY_BODY_KEY,
   LEGACY_HEADER_KEY,
