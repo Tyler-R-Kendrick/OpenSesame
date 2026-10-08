@@ -11,7 +11,7 @@ Profiles:
 | `custom` | Stock build. There is no `capability-profiles/custom.json`. | Custom |
 | `full` | `capability-profiles/full.json` (buildKey `full`) | Full |
 
-Screenshots are written to `/opt/cursor/artifacts/verification-2026-10/<profile>/<step>.png`. `results.json` in that directory is the pass/fail note for each check. Key steps: `front-door`, `setup-choices`, `settings-capabilities`, `help-support`, `statusline`, `share-menu`. A guest who skips the front door, without applying the setup choice, is `share-menu-guest` when that submenu opens.
+Screenshots are written to `/opt/cursor/artifacts/verification-2026-10/<profile>/<step>.png`. `results.json` in that directory is the pass/fail note for each check. Key steps: `front-door`, `setup-choices`, `settings-capabilities`, `help-support`, `statusline`, `share-menu`. Capability rows use their own files: `u5-formats-absent`, `u6-age-keys-absent`, `u7-transport-absent`, `u8-travel`, `u9-sealed-store-absent`, `u14-trash-restore`, `u14-trash-delete`, `u14-trash-empty`, `r1-reset-zero`, `r1-reset-one`, `r1-reset-many`, `r2-reset-email`, `r3-password-reset`, `e1-environments`, `e2-environment-toggle`, `e2-required`, `e2-missing-required`. Absence of those capabilities on `minimal-local` is `r1-reset-absent`, `r2-reset-email-absent`, `r3-settings-absent`, and `e1-environments-absent`. A guest who skips the front door, without applying the setup choice, is `share-menu-guest` when that submenu opens.
 
 ```bash
 PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
