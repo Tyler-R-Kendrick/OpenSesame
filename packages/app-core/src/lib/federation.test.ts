@@ -789,6 +789,8 @@ describe("completeSignIn", () => {
   it("accepts an org-tenant issuer that is not a global trusted broker", async () => {
     seedPending({
       issuer: "https://idp.acme.example",
+      tokenEndpoint: "https://idp.acme.example/token",
+      jwksUri: "https://idp.acme.example/jwks",
       orgSlug: "acme",
       orgMethod: "saml",
       returnTo: "/settings",
@@ -956,6 +958,7 @@ describe("brokered federation", () => {
       upstreamId: "broker:google",
       issuer: BASE,
       tokenEndpoint: `${BASE}/token`,
+      jwksUri: `${BASE}/jwks`,
     });
     history.replaceState(null, "", "/?code=abc&state=state-1");
     vi.stubGlobal(
@@ -1010,7 +1013,11 @@ describe("brokered federation", () => {
   });
 
   it("refuses a subject-less token from the brokered issuer", async () => {
-    seedPending({ issuer: BASE, tokenEndpoint: `${BASE}/token` });
+    seedPending({
+      issuer: BASE,
+      tokenEndpoint: `${BASE}/token`,
+      jwksUri: `${BASE}/jwks`,
+    });
     history.replaceState(null, "", "/?code=abc&state=state-1");
     vi.stubGlobal(
       "fetch",
@@ -1278,6 +1285,7 @@ describe("an operator's own identity provider", () => {
     seedPending({
       issuer: OKTA.issuer,
       tokenEndpoint: `${OKTA.issuer}/token`,
+      jwksUri: `${OKTA.issuer}/keys`,
       clientId: OKTA.clientId,
     });
     history.replaceState(null, "", "/?code=abc&state=state-1");
