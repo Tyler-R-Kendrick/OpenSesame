@@ -32,15 +32,15 @@ export function sealOriginFile(
 }
 
 /**
- * A file's plaintext. A file written before values were sealed reads as it
- * is (`origin-files-sweep.ts` seals it at the next boot); a sealed file that
- * does not open under this device's key reads as null.
+ * A file's plaintext when it is a valid seal under this device's key and
+ * bound to `name`. Unsealed bytes and seals that do not open here read as
+ * null — nothing on disk is trusted without authentication (ADR 0149).
  */
 export async function openOriginFile(
   name: string,
   text: string,
 ): Promise<string | null> {
-  if (!isSealedAtRest(text)) return text;
+  if (!isSealedAtRest(text)) return null;
   const atRest = await atRestReady();
   return openAtRest(atRest.key, binding(name), text);
 }
