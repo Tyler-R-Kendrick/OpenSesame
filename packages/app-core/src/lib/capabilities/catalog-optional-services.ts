@@ -25,6 +25,13 @@ export const WEB_PUSH_ENROLMENT_PURPOSE =
 export const TAILNET_DEVICES_PURPOSE =
   "the daemon a person paired for tailnet device management, which holds the Tailscale credential";
 
+/**
+ * What `support.remote-ai` declares for its external-service egress; model
+ * posts import this so the descriptor and runtime cannot drift.
+ */
+export const REMOTE_MODEL_EGRESS_PURPOSE =
+  "the configured AG-UI endpoint or model provider, with redacted page context";
+
 export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "agents.webmcp",
@@ -62,8 +69,7 @@ export const SERVICE_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
       egress: [
         {
           class: "external-service",
-          purpose:
-            "the configured AG-UI endpoint or model provider, with redacted page context",
+          purpose: REMOTE_MODEL_EGRESS_PURPOSE,
           automatic: true,
         },
       ],

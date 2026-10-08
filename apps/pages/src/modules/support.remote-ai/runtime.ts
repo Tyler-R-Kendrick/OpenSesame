@@ -27,6 +27,7 @@
  * the lease, so a capability disabled mid-flight fetches nothing further.
  */
 
+import type { EgressPort } from "@opensesame/app-core/lib/capabilities/egress.js";
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
@@ -35,7 +36,10 @@ import {
   runListedFeature,
 } from "@opensesame/app-core/lib/feature-connector-operation.js";
 import { savedFeatureRequests } from "@opensesame/app-core/lib/feature-request.js";
-import type { ModelExchange } from "@opensesame/app-core/lib/hosted-inference.js";
+import type {
+  ModelExchange,
+  ModelPostOptions,
+} from "@opensesame/app-core/lib/hosted-inference.js";
 import { savedModelRequests } from "@opensesame/app-core/lib/model-provider.js";
 import { createSavedModelSupportAgent } from "@opensesame/app-core/lib/saved-model-agent.js";
 import {
@@ -66,11 +70,11 @@ export function savedRemoteModel(
  * never on the same-origin support endpoint and never on the model record.
  * Each request is the operation `savedRemoteModel` returned.
  */
-export function loadSavedRemoteModels(): ModelExchange[] {
+export function loadSavedRemoteModels(post: ModelPostOptions): ModelExchange[] {
   const operations = savedFeatureRequests(["agent_harnesses"]).map((row) =>
     savedRemoteModel(row.providerId),
   );
-  return savedModelRequests(operations);
+  return savedModelRequests(operations, post);
 }
 
 let acceptedModels: ModelExchange[] = [];
@@ -78,6 +82,11 @@ let acceptedModels: ModelExchange[] = [];
 /** Inference requests this capability has accepted. Secrets stay on their headers. */
 export function acceptedRemoteModels(): readonly ModelExchange[] {
   return acceptedModels;
+}
+
+/** @internal test hook */
+export function resetAcceptedRemoteModelsForTest(): void {
+  acceptedModels = [];
 }
 
 function secretsStayOnHeaders(row: ModelExchange & { ok: true }): boolean {
@@ -105,11 +114,22 @@ export async function loadRemoteAgentModule(): Promise<RemoteAgentModule> {
 }
 
 /** Read the configured endpoint once, unless the lease already aborted. */
-export function startAgUiEndpointLoad(signal: AbortSignal): void {
+export function startAgUiEndpointLoad(
+  signal: AbortSignal,
+  egress: EgressPort,
+): void {
   if (signal.aborted) return;
-  acceptedModels = loadSavedRemoteModels().filter(
+  const post: ModelPostOptions = { egress, signal };
+  acceptedModels = loadSavedRemoteModels(post).filter(
     (row): row is ModelExchange & { ok: true } =>
       row.ok && secretsStayOnHeaders(row),
+  );
+  signal.addEventListener(
+    "abort",
+    () => {
+      acceptedModels = [];
+    },
+    { once: true },
   );
   void remoteSupportSeams.loadAgUiEndpoint().then(
     (endpoint) => {
@@ -136,11 +156,14 @@ export const capabilityRuntime: CapabilityRuntime = {
         agUi: () => loadRemoteAgentModule(),
       }),
     );
-    activation.onDispose(() => applyAgUiEndpoint(null));
+    activation.onDispose(() => {
+      acceptedModels = [];
+      applyAgUiEndpoint(null);
+    });
 
     activation.register("background-job", {
       id: "ag-ui-endpoint",
-      start: startAgUiEndpointLoad,
+      start: (signal) => startAgUiEndpointLoad(signal, ctx.egress),
     });
     // The bar stays a command parser until a model capability is on. This
     // one does not interpret; it only opens the ask road. On-device

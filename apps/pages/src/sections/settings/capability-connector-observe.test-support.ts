@@ -6,6 +6,7 @@
  */
 
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
+import { runListedFeature } from "@opensesame/app-core/lib/feature-connector-operation.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
 import { performInference } from "@opensesame/app-core/lib/hosted-inference.js";
 import { vi } from "vitest";
@@ -94,25 +95,33 @@ export function sentFetch(provider: Provider): Used {
   }
 }
 
+function listedModelUse(provider: Provider): Used {
+  const operation = runListedFeature(provider);
+  if (!operation.ok) return missed(provider.id);
+  const secrets = expectedSecrets(provider);
+  for (const [name, value] of Object.entries(secrets)) {
+    if (operation.secrets[name] !== value) return missed(provider.id);
+    if (JSON.stringify(operation.action).includes(value))
+      return missed(provider.id);
+  }
+  return { ok: true, fields: operation.action, secret: operation.secrets };
+}
+
 export function sentModel(provider: Provider): Used {
+  if (provider.egress.authorities.length === 0) {
+    return listedModelUse(provider);
+  }
   const exchange = performInference(provider);
   if (!exchange.ok) return missed(provider.id);
-  const call = [...vi.mocked(globalThis.fetch).mock.calls]
-    .reverse()
-    .find((row) => String(row[0]) === exchange.url);
-  if (!call) return missed(provider.id);
+  const fields = exchange.body;
+  const headers = exchange.headers;
+  const secrets = expectedSecrets(provider);
   try {
-    // SAFETY: this json body is the string record the model request posted.
-    const fields = JSON.parse(fetchBody(call[1]?.body)) as Record<
-      string,
-      string
-    >;
-    const headers = headerRecord(call[1]?.headers);
-    for (const value of Object.values(expectedSecrets(provider))) {
+    for (const value of Object.values(secrets)) {
       if (!Object.values(headers).includes(value)) return missed(provider.id);
       if (JSON.stringify(fields).includes(value)) return missed(provider.id);
     }
-    return { ok: true, fields, secret: headers };
+    return { ok: true, fields, secret: secrets };
   } catch {
     return missed(provider.id);
   }

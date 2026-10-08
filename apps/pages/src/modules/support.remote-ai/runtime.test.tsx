@@ -15,6 +15,7 @@ import {
   runtimeOf,
 } from "../runtime-test-kit.js";
 import { createTestContext } from "../test-context.js";
+import { resetAcceptedRemoteModelsForTest } from "./runtime.js";
 import type * as Runtime from "./runtime.js";
 
 let runtime: typeof Runtime;
@@ -24,6 +25,7 @@ describe("support.remote-ai runtime", () => {
     vi.restoreAllMocks();
     resetSupportAgentLoadersForTest();
     resetAgUiEndpointForTest();
+    resetAcceptedRemoteModelsForTest();
   });
 
   it("imports with no fetch, timer, DOM or storage side effect", async () => {
@@ -62,6 +64,21 @@ describe("support.remote-ai runtime", () => {
       job?.start(aborted.signal);
       expect(load).not.toHaveBeenCalled();
       await handle.dispose();
+    } finally {
+      runtime.remoteSupportSeams.loadAgUiEndpoint = original;
+    }
+  });
+
+  it("loads saved models only through the lease egress port", async () => {
+    const raw = vi.spyOn(globalThis, "fetch");
+    const original = runtime.remoteSupportSeams.loadAgUiEndpoint;
+    runtime.remoteSupportSeams.loadAgUiEndpoint = async () => null;
+    try {
+      const t = createTestContext();
+      const signal = new AbortController().signal;
+      runtime.startAgUiEndpointLoad(signal, t.ctx.egress);
+      expect(raw).not.toHaveBeenCalled();
+      expect(t.egressCalls).toEqual([]);
     } finally {
       runtime.remoteSupportSeams.loadAgUiEndpoint = original;
     }

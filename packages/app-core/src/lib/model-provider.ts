@@ -51,7 +51,10 @@ import {
   planeIsReady,
 } from "./browser-inference.js";
 import type { FeatureOperation } from "./feature-connector-operation.js";
-import { sendModelOperation } from "./hosted-inference.js";
+import {
+  type ModelPostOptions,
+  sendModelOperation,
+} from "./hosted-inference.js";
 import { kvGet, kvSetDurable } from "./kv.js";
 
 export const MODEL_PROVIDER_KEY = "model-provider.v1";
@@ -385,6 +388,9 @@ export function browserInferenceForCommands(
 }
 
 /** Send each operation the feature built. The key stays on the request headers. */
-export function savedModelRequests(operations: readonly FeatureOperation[]) {
-  return operations.map((operation) => sendModelOperation(operation));
+export function savedModelRequests(
+  operations: readonly FeatureOperation[],
+  post?: ModelPostOptions,
+) {
+  return operations.map((operation) => sendModelOperation(operation, post));
 }

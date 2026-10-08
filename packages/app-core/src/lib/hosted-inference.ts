@@ -5,6 +5,8 @@
  */
 
 import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
+import { REMOTE_MODEL_EGRESS_PURPOSE } from "./capabilities/catalog-optional-services.js";
+import type { EgressPort } from "./capabilities/egress.js";
 import type { Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
 import {
@@ -33,6 +35,11 @@ export type DeliveredModel = {
   operation: string;
 };
 
+export type ModelPostOptions = Readonly<{
+  egress: EgressPort;
+  signal?: AbortSignal;
+}>;
+
 const delivered: DeliveredModel[] = [];
 
 function secretHeaders(secret: Record<string, string>) {
@@ -45,11 +52,11 @@ function secretHeaders(secret: Record<string, string>) {
   return headers;
 }
 
-function modelUrl(provider: Provider, operation: string): string {
+function modelUrl(provider: Provider, operation: string): string | null {
   const authority = provider.egress.authorities[0];
+  if (!authority) return null;
   const scheme = provider.egress.scheme === "http" ? "http" : "https";
-  const path = `/${operation}`;
-  return authority ? `${scheme}://${authority}${path}` : path;
+  return `${scheme}://${authority}/${operation}`;
 }
 
 function bodyHidesSecret(
@@ -72,41 +79,64 @@ export function modelExchange(provider: Provider | string): ModelExchange {
   if (!bodyHidesSecret(request.fields, request.secret)) {
     return { ok: false, providerId: row.id };
   }
+  const url = modelUrl(row, request.operation);
+  if (!url) return { ok: false, providerId: row.id };
   return {
     ok: true,
     providerId: row.id,
     operation: request.operation,
-    url: modelUrl(row, request.operation),
+    url,
     body: request.fields,
     headers: secretHeaders(request.secret),
   };
 }
 
+function deliverExchange(
+  exchange: ModelExchange & { ok: true },
+  post?: ModelPostOptions,
+): DeliveredModel {
+  const sent: DeliveredModel = {
+    url: exchange.url,
+    body: JSON.stringify(exchange.body),
+    headers: { ...exchange.headers },
+    providerId: exchange.providerId,
+    operation: exchange.operation,
+  };
+  delivered.push(sent);
+  if (post !== undefined && !post.signal?.aborted) {
+    void post.egress
+      .fetch(
+        sent.url,
+        {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "content-type": "application/json",
+            ...sent.headers,
+          },
+          body: sent.body,
+          credentials: "omit",
+          redirect: "manual",
+          signal: post.signal,
+        },
+        {
+          capability: post.egress.capability,
+          purpose: REMOTE_MODEL_EGRESS_PURPOSE,
+        },
+      )
+      .catch(() => undefined);
+  }
+  return sent;
+}
+
 export const hostedInferenceSeams = {
   fetch: (url: string, init: RequestInit): Promise<Response> =>
     globalThis.fetch(url, init),
-  deliver(exchange: ModelExchange & { ok: true }): DeliveredModel {
-    const sent: DeliveredModel = {
-      url: exchange.url,
-      body: JSON.stringify(exchange.body),
-      headers: { ...exchange.headers },
-      providerId: exchange.providerId,
-      operation: exchange.operation,
-    };
-    delivered.push(sent);
-    void hostedInferenceSeams
-      .fetch(sent.url, {
-        method: "POST",
-        headers: {
-          accept: "application/json",
-          "content-type": "application/json",
-          ...sent.headers,
-        },
-        body: sent.body,
-        credentials: "omit",
-      })
-      .catch(() => undefined);
-    return sent;
+  deliver(
+    exchange: ModelExchange & { ok: true },
+    post?: ModelPostOptions,
+  ): DeliveredModel {
+    return deliverExchange(exchange, post);
   },
 };
 
@@ -128,8 +158,11 @@ function stringRecord(text: string) {
   return body;
 }
 
-function posted(exchange: ModelExchange & { ok: true }): ModelExchange {
-  const sent = hostedInferenceSeams.deliver(exchange);
+function posted(
+  exchange: ModelExchange & { ok: true },
+  post?: ModelPostOptions,
+): ModelExchange {
+  const sent = hostedInferenceSeams.deliver(exchange, post);
   const body = stringRecord(sent.body);
   return {
     ok: true,
@@ -145,21 +178,27 @@ function posted(exchange: ModelExchange & { ok: true }): ModelExchange {
  * Post the operation `savedRemoteModel` returned. The key stays on the headers.
  * Nothing saved does not succeed.
  */
-export function sendModelOperation(operation: FeatureOperation): ModelExchange {
+export function sendModelOperation(
+  operation: FeatureOperation,
+  post?: ModelPostOptions,
+): ModelExchange {
   if (!operation.ok) return { ok: false, providerId: operation.providerId };
   const drafted = modelExchange(operation.providerId);
   if (!drafted.ok) return drafted;
   if (!bodyHidesSecret(operation.action, operation.secrets)) {
     return { ok: false, providerId: operation.providerId };
   }
-  return posted({
-    ok: true,
-    providerId: operation.providerId,
-    operation: operation.operation,
-    url: drafted.url,
-    body: { ...operation.action },
-    headers: secretHeaders(operation.secrets),
-  });
+  return posted(
+    {
+      ok: true,
+      providerId: operation.providerId,
+      operation: operation.operation,
+      url: drafted.url,
+      body: { ...operation.action },
+      headers: secretHeaders(operation.secrets),
+    },
+    post,
+  );
 }
 
 /** Send one saved provider's inference request. The key stays on that request. */
