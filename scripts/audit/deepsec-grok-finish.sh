@@ -5,12 +5,14 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 WS="${ROOT}/.deepsec"
 DEEPSEC="${WS}/node_modules/.bin/deepsec"
 PROJECT_ID=opensesame
-MODEL="${DEEPSEC_GROK_MODEL:-grok-4.7}"
+export PATH="${HOME}/.local/bin:${PATH}"
+AGENT="${DEEPSEC_AGENT:-kimi}"
+MODEL="${DEEPSEC_GROK_MODEL:-kimi-code/k3}"
 LOG=/tmp/deepsec-grok-finish.log
 exec > >(tee -a "$LOG") 2>&1
 
-echo "=== deepsec grok finish start $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
-unset XAI_API_KEY GROK_DEPLOYMENT_KEY
+echo "=== deepsec finish start $(date -u +%Y-%m-%dT%H:%M:%SZ) agent=$AGENT model=$MODEL ==="
+unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY
 export DEEPSEC_THINKING="${DEEPSEC_THINKING:-high}"
 export DEEPSEC_CONCURRENCY="${DEEPSEC_CONCURRENCY:-2}"
 
@@ -21,7 +23,7 @@ echo "=== RERUN ERROR FILES ($COUNT) $(date -u +%H:%M:%S) ==="
 if [[ "$COUNT" -gt 0 ]]; then
   cd "$WS"
   "$DEEPSEC" process --project-id "$PROJECT_ID" \
-    --agent grok --model "$MODEL" \
+    --agent "$AGENT" --model "$MODEL" \
     --thinking-level "$DEEPSEC_THINKING" \
     --concurrency "$DEEPSEC_CONCURRENCY" \
     --manifest "$MANIFEST" || echo "WARN: error rerun exited $?"
@@ -35,11 +37,16 @@ cd "$WS"
   --thinking-level "$DEEPSEC_THINKING" \
   --concurrency "$DEEPSEC_CONCURRENCY" || echo "WARN: revalidate exited $?"
 
-echo "=== TRIAGE --agent grok --model $MODEL $(date -u +%H:%M:%S) ==="
+echo "=== TRIAGE --agent $AGENT --model $MODEL $(date -u +%H:%M:%S) ==="
+export DEEPSEC_AGENT="$AGENT"
+export DEEPSEC_GROK_MODEL="$MODEL"
 node "${ROOT}/scripts/audit/deepsec-grok-triage.mjs" --all-severities || echo "WARN: triage exited $?"
 
 OUT="${WS}/findings-grok"
 echo "=== EXPORT -> $OUT $(date -u +%H:%M:%S) ==="
 "$DEEPSEC" export --project-id "$PROJECT_ID" --format md-dir --out "$OUT" || echo "WARN: export exited $?"
+
+echo "=== DOCS EXPORT $(date -u +%H:%M:%S) ==="
+node "${ROOT}/scripts/audit/deepsec-export-docs.mjs" "$ROOT" || echo "WARN: docs export exited $?"
 
 echo "=== FINISH COMPLETE $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="

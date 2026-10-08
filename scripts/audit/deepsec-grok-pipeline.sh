@@ -4,14 +4,16 @@ LOG=/tmp/deepsec-grok-pipeline.log
 ROOT=/workspace
 WS=/workspace/.deepsec
 DEEPSEC="$WS/node_modules/.bin/deepsec"
-MODEL=grok-4.7
+export PATH="${HOME}/.local/bin:${PATH}"
+AGENT="${DEEPSEC_AGENT:-kimi}"
+MODEL="${DEEPSEC_GROK_MODEL:-kimi-code/k3}"
 export DEEPSEC_THINKING=high
 export DEEPSEC_CONCURRENCY=2
 
 exec > >(tee -a "$LOG") 2>&1
 
-echo "=== deepsec grok pipeline start $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
-unset XAI_API_KEY GROK_DEPLOYMENT_KEY
+echo "=== deepsec pipeline start $(date -u +%Y-%m-%dT%H:%M:%SZ) agent=$AGENT model=$MODEL ==="
+unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY
 
 run_process() {
   local label="$1"
@@ -19,7 +21,7 @@ run_process() {
   echo "=== PROCESS $label filter=$filter $(date -u +%H:%M:%S) ==="
   cd "$WS"
   "$DEEPSEC" process --project-id opensesame \
-    --agent grok --model "$MODEL" \
+    --agent "$AGENT" --model "$MODEL" \
     --thinking-level "$DEEPSEC_THINKING" \
     --concurrency "$DEEPSEC_CONCURRENCY" \
     --filter "$filter" || echo "WARN: process $label exited $?"
@@ -37,16 +39,21 @@ run_process cli-ts "packages/cli/"
 echo "=== REVALIDATE $(date -u +%H:%M:%S) ==="
 cd "$WS"
 "$DEEPSEC" revalidate --project-id opensesame \
-  --agent grok --model "$MODEL" \
+  --agent "$AGENT" --model "$MODEL" \
   --thinking-level "$DEEPSEC_THINKING" \
   --concurrency "$DEEPSEC_CONCURRENCY" || echo "WARN: revalidate exited $?"
 
-echo "=== TRIAGE --agent grok --model $MODEL $(date -u +%H:%M:%S) ==="
+echo "=== TRIAGE --agent $AGENT --model $MODEL $(date -u +%H:%M:%S) ==="
 cd "$ROOT"
+export DEEPSEC_AGENT="$AGENT"
+export DEEPSEC_GROK_MODEL="$MODEL"
 node scripts/audit/deepsec-grok-triage.mjs --all-severities || echo "WARN: triage exited $?"
 
 OUT="$WS/findings-grok"
 echo "=== EXPORT -> $OUT $(date -u +%H:%M:%S) ==="
 "$DEEPSEC" export --project-id opensesame --format md-dir --out "$OUT" || echo "WARN: export exited $?"
+
+echo "=== DOCS EXPORT $(date -u +%H:%M:%S) ==="
+node scripts/audit/deepsec-export-docs.mjs "$ROOT" || echo "WARN: docs export exited $?"
 
 echo "=== PIPELINE COMPLETE $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="

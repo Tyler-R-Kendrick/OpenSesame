@@ -9,6 +9,7 @@ export const JSON_ONLY_SUFFIX =
   "The first non-whitespace character must be `[` or a backtick starting a json code fence.";
 
 export const DEFAULT_GROK_MODEL = "grok-4.7";
+export const DEFAULT_KIMI_MODEL = "kimi-code/k3";
 export const MAX_ATTEMPTS = 3;
 
 export type FileRecord = {

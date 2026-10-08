@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Run a deepsec scan + headless AI investigation (Cursor CLI preferred, else Grok Build).
-# No XAI_API_KEY / AI Gateway pay-per-use. Usage: deepsec-grok-scan.sh [phase]
+# Run a deepsec scan + headless AI investigation (Kimi Code K3 preferred).
+# Subscription OAuth only — no Moonshot / XAI / gateway API keys.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 WS="${ROOT}/.deepsec"
 PROJECT_ID=opensesame
-MODEL="${DEEPSEC_GROK_MODEL:-grok-4.7}"
+MODEL="${DEEPSEC_GROK_MODEL:-kimi-code/k3}"
 AGENT="${DEEPSEC_AGENT:-}"
 PHASE="${1:-all}"
 
@@ -24,31 +24,37 @@ pick_agent() {
     echo "$AGENT"
     return 0
   fi
-  if command -v cursor-agent >/dev/null 2>&1; then
-    echo "cursor"
+  export PATH="${HOME}/.local/bin:${PATH}"
+  if [[ -f "${HOME}/.kimi-code/credentials/kimi-code.json" ]] && command -v kimi >/dev/null 2>&1; then
+    echo "kimi"
     return 0
   fi
   if command -v grok >/dev/null 2>&1; then
     echo "grok"
     return 0
   fi
-  echo "deepsec-grok-scan: neither cursor-agent nor grok on PATH" >&2
+  echo "deepsec-grok-scan: kimi (signed in) or grok required on PATH" >&2
   return 1
 }
 
-cursor_auth_check() {
-  if ! command -v cursor-agent >/dev/null 2>&1; then
+kimi_auth_check() {
+  export PATH="${HOME}/.local/bin:${PATH}"
+  if [[ ! -f "${HOME}/.kimi-code/credentials/kimi-code.json" ]]; then
+    echo "deepsec-grok-scan: Kimi Code not signed in (~/.kimi-code/credentials/kimi-code.json missing)." >&2
+    return 1
+  fi
+  if ! command -v kimi >/dev/null 2>&1; then
+    echo "deepsec-grok-scan: kimi CLI not on PATH" >&2
     return 1
   fi
   local probe
-  probe="$(cursor-agent -p "reply OK" --model "$MODEL" --print --force 2>&1 || true)"
-  if echo "$probe" | grep -qiE 'not (authenticated|logged in)|login required'; then
-    echo "deepsec-grok-scan: cursor-agent is not signed in." >&2
-    echo "  Install Cursor CLI and run cursor-agent login on this machine." >&2
+  probe="$(unset MOONSHOT_API_KEY XAI_API_KEY; kimi -m kimi-code/k3 -p "reply OK" --auto 2>&1 || true)"
+  if echo "$probe" | grep -qiE 'not signed in|login|unauthorized|401'; then
+    echo "deepsec-grok-scan: Kimi Code auth failed. Run: kimi login" >&2
     return 1
   fi
-  if [[ -z "${probe// }" ]]; then
-    echo "deepsec-grok-scan: cursor-agent returned empty probe (check install/auth)." >&2
+  if ! echo "$probe" | grep -qi 'OK'; then
+    echo "deepsec-grok-scan: Kimi probe unexpected: ${probe:0:200}" >&2
     return 1
   fi
   return 0
@@ -73,10 +79,10 @@ grok_auth_check() {
 ai_auth_check() {
   AGENT="$(pick_agent)" || return 1
   case "$AGENT" in
-    cursor) cursor_auth_check ;;
+    kimi) kimi_auth_check ;;
     grok) grok_auth_check ;;
     *)
-      echo "deepsec-grok-scan: unknown DEEPSEC_AGENT=$AGENT (use cursor or grok)" >&2
+      echo "deepsec-grok-scan: unknown DEEPSEC_AGENT=$AGENT (use kimi or grok)" >&2
       return 1
       ;;
   esac
@@ -103,7 +109,7 @@ run_process_area() {
   fi
   (
     cd "$WS"
-    unset XAI_API_KEY GROK_DEPLOYMENT_KEY
+    unset MOONSHOT_API_KEY XAI_API_KEY GROK_DEPLOYMENT_KEY
     "$DEEPSEC" process --project-id "$PROJECT_ID" \
       --agent "$AGENT" \
       --model "$MODEL" \
@@ -118,7 +124,7 @@ run_revalidate() {
   echo "==> deepsec revalidate --agent $AGENT --model $MODEL"
   (
     cd "$WS"
-    unset XAI_API_KEY GROK_DEPLOYMENT_KEY
+    unset MOONSHOT_API_KEY XAI_API_KEY GROK_DEPLOYMENT_KEY
     "$DEEPSEC" revalidate --project-id "$PROJECT_ID" \
       --agent "$AGENT" \
       --model "$MODEL" \
@@ -128,10 +134,12 @@ run_revalidate() {
 }
 
 run_triage() {
-  echo "==> triage --agent grok --model $MODEL (Grok Build plugin; subscription)"
+  echo "==> triage --agent $AGENT --model $MODEL (Kimi plugin when DEEPSEC_AGENT=kimi)"
   (
     cd "$ROOT"
-    unset XAI_API_KEY GROK_DEPLOYMENT_KEY
+    unset MOONSHOT_API_KEY XAI_API_KEY GROK_DEPLOYMENT_KEY
+    export DEEPSEC_AGENT="$AGENT"
+    export DEEPSEC_GROK_MODEL="$MODEL"
     export DEEPSEC_CONCURRENCY="${DEEPSEC_CONCURRENCY:-2}"
     node scripts/audit/deepsec-grok-triage.mjs --all-severities
   )
@@ -141,6 +149,12 @@ run_export() {
   local out="${WS}/findings-grok"
   echo "==> deepsec export -> $out"
   (cd "$WS" && "$DEEPSEC" export --project-id "$PROJECT_ID" --format md-dir --out "$out")
+  echo "==> docs export -> docs/security/deepsec/"
+  (
+    cd "$ROOT"
+    export DEEPSEC_AGENT="${AGENT:-$(pick_agent 2>/dev/null || echo kimi)}"
+    node scripts/audit/deepsec-export-docs.mjs "$ROOT"
+  )
 }
 
 case "$PHASE" in
@@ -166,6 +180,7 @@ case "$PHASE" in
     run_triage
     ;;
   export)
+    AGENT="$(pick_agent)" || AGENT="kimi"
     run_export
     ;;
   all)
@@ -181,7 +196,7 @@ case "$PHASE" in
         run_export
       fi
     else
-      echo "==> Skipping AI process/revalidate until cursor-agent or Grok Build login completes."
+      echo "==> Skipping AI process/revalidate until Kimi Code or Grok Build login completes."
       exit 2
     fi
     ;;

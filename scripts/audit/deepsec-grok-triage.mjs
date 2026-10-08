@@ -16,7 +16,10 @@ const projectId = "opensesame";
 const ws = path.join(repoRoot, ".deepsec");
 const dataDir = path.join(ws, "data", projectId);
 const filesDir = path.join(dataDir, "files");
-const model = process.env.DEEPSEC_GROK_MODEL ?? "grok-4.7";
+const agentKind = process.env.DEEPSEC_AGENT ?? "kimi";
+const model =
+  process.env.DEEPSEC_GROK_MODEL ??
+  (agentKind === "kimi" ? "kimi-code/k3" : "grok-4.7");
 const force = process.argv.includes("--force");
 const severityArg = process.argv.find((a) => a.startsWith("--severity="));
 const severities = severityArg
@@ -30,6 +33,7 @@ const concurrency = Number(process.env.DEEPSEC_CONCURRENCY ?? Math.max(1, os.cpu
 
 delete process.env.XAI_API_KEY;
 delete process.env.GROK_DEPLOYMENT_KEY;
+delete process.env.MOONSHOT_API_KEY;
 
 function resolveJitiEntry() {
   const pnpm = path.join(ws, "node_modules/.pnpm");
@@ -40,8 +44,14 @@ function resolveJitiEntry() {
 const jitiPkg = resolveJitiEntry();
 const { createJiti } = await import(pathToFileURL(jitiPkg).href);
 const jiti = createJiti(import.meta.url, { interopDefault: true });
-const { grokAgentPlugin } = await jiti.import(path.join(ws, "grok-agent-plugin.ts"));
-const agent = grokAgentPlugin.agents[0];
+const pluginPath =
+  agentKind === "kimi"
+    ? path.join(ws, "kimi-agent-plugin.ts")
+    : path.join(ws, "grok-agent-plugin.ts");
+const pluginModule = await jiti.import(pluginPath);
+const agentPlugin =
+  agentKind === "kimi" ? pluginModule.kimiAgentPlugin : pluginModule.grokAgentPlugin;
+const agent = agentPlugin.agents[0];
 
 let projectInfo = "";
 try {
@@ -151,7 +161,9 @@ async function runSeverity(severity) {
     console.log(`No ${severity} findings to triage`);
     return { triaged: 0, p0: 0, p1: 0, p2: 0, skip: 0 };
   }
-  console.log(`Triaging ${toTriage.length} ${severity} finding(s) with grok (${model})`);
+  console.log(
+    `Triaging ${toTriage.length} ${severity} finding(s) with ${agentKind} (${model})`,
+  );
   const batches = [];
   for (let i = 0; i < toTriage.length; i += BATCH_SIZE) {
     batches.push(toTriage.slice(i, i + BATCH_SIZE));

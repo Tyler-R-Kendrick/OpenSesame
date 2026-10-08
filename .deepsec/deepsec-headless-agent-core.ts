@@ -23,6 +23,7 @@ import {
 export {
   DEEPSEC_SYSTEM_NOTE,
   DEFAULT_GROK_MODEL,
+  DEFAULT_KIMI_MODEL,
   JSON_ONLY_SUFFIX,
   MAX_ATTEMPTS,
 } from "./deepsec-headless-agent-types.js";
