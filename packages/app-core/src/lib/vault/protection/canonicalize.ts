@@ -39,7 +39,7 @@ function canonicalizeValue(value: JsonValue): JsonValue {
     );
   }
   const keys = Object.keys(value).sort();
-  const out: JsonObject = {};
+  const out: JsonObject = { __proto__: null };
   for (const key of keys) {
     const entry = value[key];
     if (entry === undefined) continue;
