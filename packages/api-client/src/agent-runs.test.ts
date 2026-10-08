@@ -71,6 +71,13 @@ describe("api-client agent runs", () => {
     );
   });
 
+  it("refuses a body whose id is not the run that was requested", async () => {
+    const { client } = harness(() => json(run));
+    await expect(client.getAgentRun("run:other")).rejects.toMatchObject({
+      code: "unexpected_response",
+    });
+  });
+
   it("claim: a 204 is nothing to do, not an error", async () => {
     const { client, calls } = harness(
       () => new Response(null, { status: 204 }),
