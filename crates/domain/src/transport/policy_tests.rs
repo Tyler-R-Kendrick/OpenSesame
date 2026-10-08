@@ -189,6 +189,8 @@ fn operation_strings_are_the_contract_spellings() {
             "principals.mapping.resolve",
             "ingress.forward",
             "connector.invoke",
+            "vault.relay.snapshot.read",
+            "vault.relay.snapshot.write",
         ]
     );
     for op in operations::KNOWN {
