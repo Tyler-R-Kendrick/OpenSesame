@@ -20,7 +20,7 @@ vocabulary and routing rules that apply repo-wide.
 | --- | --- |
 | `live_grok_build` | Grok Build session produced the restack/patch (session logs under the agent store / `/tmp/grok-*.log`); the commit was still created via local `git commit` with Author Grok (committer Cursor Agent). |
 | `grok_labeled_replay` | Cursor agent (or a git cherry-pick/soft-reset) produced or re-applied the tree and stamped Author Grok. Includes post–usage-exhaustion work and batch replays. |
-| `live_kimi_code` | Kimi Code CLI session produced the patch via `scripts/dev/kimi-headless.sh` with model **K3** (`-m k3`) after `kimi login` OAuth or `KIMI_MODEL_API_KEY`; logs under `/tmp/kimi-*.log` or the agent store. Commits may still be created locally with honest Author/committer metadata. |
+| `live_kimi_code` | Kimi Code CLI session produced the patch via `scripts/dev/kimi-headless.sh` with model **K3** (`-m kimi-code/k3`) after `kimi login` OAuth or `KIMI_MODEL_API_KEY`; logs under `/tmp/kimi-*.log` or the agent store. Commits may still be created locally with honest Author/committer metadata. |
 | `cursor_agent` | Author and committer are Cursor Agent. Honest post-exhaustion authorship. |
 
 ## Exhaustion evidence
@@ -37,7 +37,7 @@ After that point, commits labeled Grok were not live Grok. Retried once via
 
 **Remaining automation should go through Kimi first:** run
 `scripts/dev/kimi-preflight.sh`, then `scripts/dev/kimi-headless.sh -p "…"`
-with **K3** pinned (`-m k3`). Auth order is OAuth from `kimi login`, else
+with **K3** pinned (`-m kimi-code/k3`). Auth order is OAuth from `kimi login`, else
 optional Runtime Secret `KIMI_MODEL_API_KEY` (not plain `KIMI_API_KEY`).
 
 Use **Cursor Agent** only when Kimi cannot run (quota/payment/auth failure
@@ -47,3 +47,15 @@ Grok Build stays available but was exhausted for the 2026-10 stacks above;
 prefer Kimi over re-labeling commits as Grok.
 
 Operator detail: [kimi-code-cloud.md](../operators/kimi-code-cloud.md).
+
+### Cloud Agent auth durability (2026-10-08)
+
+- Device OAuth (`kimi login`) authenticated a Cloud Agent VM under
+  `~/.kimi-code/credentials/` (never commit or print tokens).
+- Preflight + smoke used **K3** catalog id `kimi-code/k3` via
+  `scripts/dev/kimi-headless.sh`.
+- OAuth is **local to that VM**. A fresh Cloud Agent from the snapshot needs
+  either another `kimi login` or a Cursor Runtime Secret `KIMI_MODEL_API_KEY`
+  with `KIMI_MODEL_NAME=kimi-code/k3` (optional `KIMI_MODEL_BASE_URL`). Plain
+  `KIMI_API_KEY` is ignored by Kimi Code.
+
