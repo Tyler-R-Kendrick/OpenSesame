@@ -444,9 +444,8 @@ describe planned depth: those components are not in this checkout.
 | K8s issuer | Reconcile against a `kube` fake client — no live cluster |
 | Sync SSH/WinRM executors | Feature-gated, unit-tested against fakes |
 
-Which Windows KSP variant applied in this run: _pending: state whether the
-`x86_64-pc-windows-gnu` cross-compile ran, or whether it degraded to the
-`#[cfg(target_os = "windows")]` compile guard._
+Which Windows KSP variant applied: none — no Windows KSP crate exists in this
+checkout, so there is no cross-compile or compile guard to state.
 
 ## Residual risk and intentionally unsupported profiles
 
