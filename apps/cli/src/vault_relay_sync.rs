@@ -4,7 +4,7 @@ use clap::Subcommand;
 use opensesame_gateway::vault_relay::SNAPSHOT_FORMAT;
 use serde_json::{json, Value};
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand)]
 pub enum SyncCmd {
     /// Upload a sealed snapshot JSON to a paired relay.
     Push {
@@ -44,6 +44,53 @@ pub enum SyncCmd {
         #[arg(long)]
         owner_kind: Option<String>,
     },
+}
+
+impl std::fmt::Debug for SyncCmd {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Push {
+                file,
+                base_url,
+                owner,
+                slug,
+                expected_generation,
+                principal,
+                owner_kind,
+                ..
+            } => f
+                .debug_struct("Push")
+                .field("file", file)
+                .field("base_url", base_url)
+                .field("owner", owner)
+                .field("slug", slug)
+                .field("slot_key", &"[REDACTED]")
+                .field("expected_generation", expected_generation)
+                .field("token", &"[REDACTED]")
+                .field("principal", principal)
+                .field("owner_kind", owner_kind)
+                .finish(),
+            Self::Pull {
+                output,
+                base_url,
+                owner,
+                slug,
+                principal,
+                owner_kind,
+                ..
+            } => f
+                .debug_struct("Pull")
+                .field("output", output)
+                .field("base_url", base_url)
+                .field("owner", owner)
+                .field("slug", slug)
+                .field("slot_key", &"[REDACTED]")
+                .field("token", &"[REDACTED]")
+                .field("principal", principal)
+                .field("owner_kind", owner_kind)
+                .finish(),
+        }
+    }
 }
 
 pub async fn run(cmd: SyncCmd) -> anyhow::Result<()> {
