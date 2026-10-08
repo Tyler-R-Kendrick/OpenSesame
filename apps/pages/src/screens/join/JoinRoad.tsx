@@ -16,7 +16,8 @@ import {
   takeCapturedInvite,
 } from "@opensesame/app-core/lib/join/invite.js";
 import { holdLiveLink } from "@opensesame/app-core/lib/live/link.js";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router";
 import { IconLogin } from "../../components/Icons.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { JoinScreen } from "../JoinScreen.js";
@@ -26,6 +27,8 @@ export const joinRoadDependencies = {
   configuredEndpoint,
   takeCapturedInvite,
   onInviteArrival,
+  /** The lock screens' road. `useJoinRoad` installs it. */
+  openJoin: (): void => {},
 };
 
 /** `arrival` counts invites, so a new one starts a fresh ceremony. */
@@ -57,11 +60,35 @@ export function useJoinRoad(): JoinRoadState {
       }),
     [],
   );
+  const open = useCallback(
+    () => setJoining({ captured: null, arrival: 0 }),
+    [],
+  );
+  // The vault chooser and the unlock footer call this. A setup record does
+  // not retire it: join stays reachable once a vault exists.
+  useEffect(() => {
+    const previous = joinRoadDependencies.openJoin;
+    joinRoadDependencies.openJoin = open;
+    return () => {
+      if (joinRoadDependencies.openJoin === open) {
+        joinRoadDependencies.openJoin = previous;
+      }
+    };
+  }, [open]);
   return {
     screen: joining ? joinScreenFor(joining, () => setJoining(null)) : null,
     // Live sessions need no Host, so the road is on every deployment.
-    open: () => setJoining({ captured: null, arrival: 0 }),
+    open,
   };
+}
+
+/**
+ * `/join` inside the unlocked shell: the command bar and `g j` land here.
+ * The gate asks for Live sessions when they are off, then opens `/live`.
+ */
+export function JoinRoadRoute() {
+  const navigate = useNavigate();
+  return <LiveJoinGate link={null} onClose={() => navigate("/vault")} />;
 }
 
 /**
@@ -90,8 +117,29 @@ function joinScreenFor(joining: NonNullable<Joining>, onDone: () => void) {
 }
 
 /** The front door's second road, beside "Set up your own". */
-export function JoinRoadButton({ onOpen }: { onOpen: () => void }) {
+export function JoinRoadButton({
+  onOpen,
+  variant = "road",
+}: {
+  onOpen: () => void;
+  /** `road` is the card. `foot` is the lock screen's footer link. */
+  variant?: "road" | "foot";
+}) {
   const joinRef = useGuideTarget<HTMLButtonElement>("setup.join");
+  if (variant === "foot") {
+    return (
+      <button
+        ref={joinRef}
+        type="button"
+        className="unlock__switch"
+        aria-label="Join a session"
+        title="a link somebody shared"
+        onClick={onOpen}
+      >
+        Join a session
+      </button>
+    );
+  }
   return (
     <button
       ref={joinRef}

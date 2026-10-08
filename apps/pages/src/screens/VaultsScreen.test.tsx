@@ -61,6 +61,7 @@ Object.assign(federationSeams, {
 });
 
 import { VaultsScreen } from "./VaultsScreen.js";
+import { joinRoadDependencies } from "./join/JoinRoad.js";
 
 beforeEach(() => {
   Object.assign(projectSeams, {
@@ -148,6 +149,19 @@ describe("VaultsScreen — the front door", () => {
     expect(
       screen.getByRole("button", { name: "Reset this browser?" }),
     ).toBeTruthy();
+  });
+
+  it("offers join beside the list, with no setup record required", () => {
+    const openJoin = vi.fn();
+    const previous = joinRoadDependencies.openJoin;
+    joinRoadDependencies.openJoin = openJoin;
+    try {
+      renderScreen();
+      fireEvent.click(screen.getByRole("button", { name: "Join a session" }));
+      expect(openJoin).toHaveBeenCalledOnce();
+    } finally {
+      joinRoadDependencies.openJoin = previous;
+    }
   });
 
   it("carries the sign-in tab beside the list", () => {

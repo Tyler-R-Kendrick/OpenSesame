@@ -431,6 +431,10 @@
   padding-top: 0.15rem;
 }
 
+.unlock__foot .road {
+  width: 100%;
+}
+
 .unlock__foot p {
   font-size: 0.75rem;
   color: var(--ink-3);

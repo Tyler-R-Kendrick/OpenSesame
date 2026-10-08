@@ -32,6 +32,7 @@ export const SHELL_TOUR_GOALS: readonly GuideGoalDescriptor[] = [
       'wait route "/settings" timeout=15000',
       'focus "nav.settings" "Settings is a row too, opened with g then s. While you are in it the rail shows Settings alone, with a row at the top that goes back to the vault." side=right',
       'say "Access, Connections, Identity, Wallet and Activity join the rail when they are switched on in Settings › Capabilities, and each has its own tour from the moment it does."',
+      'say "Press g then j to join a session somebody shared. That road stays available when this device already holds a vault."',
       'success "That is the rail. Press g and then a letter to move between sections without the pointer."',
       "end",
     ].join("\n"),
