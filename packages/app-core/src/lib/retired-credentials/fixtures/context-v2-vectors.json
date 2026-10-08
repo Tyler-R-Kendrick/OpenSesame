@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "supportedFormat": "pages-auth-header-v1",
+  "unsupportedFormat": "native-root-manifest-v1",
+  "note": "Public known-key reference vectors, independently generated; TS/Rust execution pending. Same-profile Pages parity only, never native owner proof. Cloud reference validates public metadata canonicalization and MAC, not a KMS exchange.",
+  "vectors": [
+    {
+      "name": "pages-published-recovery-capsule",
+      "format": "pages-auth-header-v1",
+      "rawHeaderJson": "{\"createdAt\":\"2026-10-08T00:00:00.000Z\",\"protection\":{\"authB64\":\"ycpfGyKBLojwwT4cHDGMam/PTw7+WeYujsAONQtXKoQ=\",\"legacyGates\":{\"emailEnrolled\":false,\"recoveryCodesEnrolled\":false,\"smsEnrolled\":false,\"totpEnrolled\":false},\"purpose\":\"human-vault-root\",\"records\":[{\"fingerprintB64\":\"AAAAAAAAAAA=\",\"kind\":\"recovery-key\",\"proofStatus\":\"verified\",\"protectorId\":\"prot_vector\",\"wrap\":{\"ctB64\":\"DeGlhRtYExB8z6ELN6F//VHECPM3wiCVKO0KhuzgdiL9jcwjnkn2qGXdQICnwc+voqeL4YPz3G+WJGWt1Vo3aHCwGff77Kf9XyChcTogMSJ2WKOG7kUsfTLHp5r2jE6AxgZYCsMqzLTQ54Zkad8URyuZ/9dNs7hkezsdxnG1eLUwN0C6E9eG/C6V29/L7rf3MmeZvTOhGDD5/oOYkPUkio+p7fNVI3e89/b177rtJ8m5x5AdxqmqzL1gXMCcED7d8RntYjZOufWJK49NBiqj3kYDM96IqEIuzGfaknPGasNZisT+2VhBRyB5DXos1gKfbUgRSfCuATa0SG7/l/287Fb+P9w8\",\"ivB64\":\"MzMzMzMzMzMzMzMz\"}}],\"revision\":7,\"rootEpoch\":1,\"rootKeyId\":\"root_vector\",\"schemaVersion\":1,\"vaultId\":\"vault_vector\"},\"v\":1}",
+      "generationInputUtf8": "opensesame/retired-credential/context-header/v2\u0000pages-auth-header-v1\u0000{\"createdAt\":\"2026-10-08T00:00:00.000Z\",\"protection\":{\"authB64\":\"ycpfGyKBLojwwT4cHDGMam/PTw7+WeYujsAONQtXKoQ=\",\"legacyGates\":{\"emailEnrolled\":false,\"recoveryCodesEnrolled\":false,\"smsEnrolled\":false,\"totpEnrolled\":false},\"purpose\":\"human-vault-root\",\"records\":[{\"fingerprintB64\":\"AAAAAAAAAAA=\",\"kind\":\"recovery-key\",\"proofStatus\":\"verified\",\"protectorId\":\"prot_vector\",\"wrap\":{\"ctB64\":\"DeGlhRtYExB8z6ELN6F//VHECPM3wiCVKO0KhuzgdiL9jcwjnkn2qGXdQICnwc+voqeL4YPz3G+WJGWt1Vo3aHCwGff77Kf9XyChcTogMSJ2WKOG7kUsfTLHp5r2jE6AxgZYCsMqzLTQ54Zkad8URyuZ/9dNs7hkezsdxnG1eLUwN0C6E9eG/C6V29/L7rf3MmeZvTOhGDD5/oOYkPUkio+p7fNVI3e89/b177rtJ8m5x5AdxqmqzL1gXMCcED7d8RntYjZOufWJK49NBiqj3kYDM96IqEIuzGfaknPGasNZisT+2VhBRyB5DXos1gKfbUgRSfCuATa0SG7/l/287Fb+P9w8\",\"ivB64\":\"MzMzMzMzMzMzMzMz\"}}],\"revision\":7,\"rootEpoch\":1,\"rootKeyId\":\"root_vector\",\"schemaVersion\":1,\"vaultId\":\"vault_vector\"},\"v\":1}",
+      "expectedContext": {
+        "v": 2,
+        "format": "pages-auth-header-v1",
+        "tomb": "personal",
+        "purpose": "human-vault-root",
+        "vaultId": "vault_vector",
+        "rootKeyId": "root_vector",
+        "rootEpoch": 1,
+        "generationSha256": "33e7119f4cec6cbadce892038dc63326b63fcaeb0a1e1ac635f38fde013415fb"
+      },
+      "canonicalWire": "{\"format\":\"pages-auth-header-v1\",\"generationSha256\":\"33e7119f4cec6cbadce892038dc63326b63fcaeb0a1e1ac635f38fde013415fb\",\"purpose\":\"human-vault-root\",\"rootEpoch\":1,\"rootKeyId\":\"root_vector\",\"tomb\":\"personal\",\"v\":2,\"vaultId\":\"vault_vector\"}"
+    },
+    {
+      "name": "pages-utf16-cloud-public-metadata",
+      "format": "pages-auth-header-v1",
+      "rawHeaderJson": "{\"createdAt\":\"2026-10-08T00:00:00.000Z\",\"protection\":{\"authB64\":\"QHIQKzphCrD4iDaSuJYMi5NzaB3Bby1GYrMB0GeofZQ=\",\"legacyGates\":{\"emailEnrolled\":false,\"recoveryCodesEnrolled\":false,\"smsEnrolled\":false,\"totpEnrolled\":false},\"purpose\":\"human-vault-root\",\"records\":[{\"connectionConfigVersion\":\"1\",\"connectionId\":\"connection_vector\",\"encryptionContext\":{\"domain\":\"opensesame/vault/cloud-wrapping-secret/v1\",\"protectorId\":\"prot_vector\",\"purpose\":\"human-vault-root\",\"rootEpoch\":\"1\",\"rootKeyId\":\"root_vector\",\"vaultId\":\"vault_vector\",\"𐀀\":\"astral\",\"\":\"bmp\"},\"keyArn\":\"arn:aws:kms:us-east-1:123456789012:key/00000000-0000-0000-0000-000000000001\",\"kind\":\"aws-kms\",\"localCapsule\":{\"ctB64\":\"DeGlhRtYExB8z6ELN6F//VHECPM3wiCVKO0KhuzgdiL9jcwjnkn2qGXdQICnwc+voqeL4YPz3G+WJGWt1Vo3aHCwGff77Kf9XyChcTogMSJ2WKOG7kUsfTLHp5r2jE6AxgZYCsMqzLTQ54Zkad8URyuZ/9dNs7hkezsdxnG1eLUwN0C6E9eG/C6V29/L7rf3MmeZvTOhGDD5/oOYkPUkio+p7fNVI3e89/b177rtJ8m5x5AdxqmqzL1gXMCcED7d8RntYjZOufWJK49NBiqj3kYDM96IqEIuzGfaknPGasNZisT+2VhBRyB5DXos1gKfbUgRSfCuATa0SG7/l/287Fb+P9w8\",\"ivB64\":\"MzMzMzMzMzMzMzMz\"},\"proofStatus\":\"verified\",\"protectorId\":\"prot_vector\",\"region\":\"us-east-1\",\"wrappedSecretB64\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\"}],\"revision\":7,\"rootEpoch\":1,\"rootKeyId\":\"root_vector\",\"schemaVersion\":1,\"vaultId\":\"vault_vector\"},\"v\":1}",
+      "generationInputUtf8": "opensesame/retired-credential/context-header/v2\u0000pages-auth-header-v1\u0000{\"createdAt\":\"2026-10-08T00:00:00.000Z\",\"protection\":{\"authB64\":\"QHIQKzphCrD4iDaSuJYMi5NzaB3Bby1GYrMB0GeofZQ=\",\"legacyGates\":{\"emailEnrolled\":false,\"recoveryCodesEnrolled\":false,\"smsEnrolled\":false,\"totpEnrolled\":false},\"purpose\":\"human-vault-root\",\"records\":[{\"connectionConfigVersion\":\"1\",\"connectionId\":\"connection_vector\",\"encryptionContext\":{\"domain\":\"opensesame/vault/cloud-wrapping-secret/v1\",\"protectorId\":\"prot_vector\",\"purpose\":\"human-vault-root\",\"rootEpoch\":\"1\",\"rootKeyId\":\"root_vector\",\"vaultId\":\"vault_vector\",\"𐀀\":\"astral\",\"\":\"bmp\"},\"keyArn\":\"arn:aws:kms:us-east-1:123456789012:key/00000000-0000-0000-0000-000000000001\",\"kind\":\"aws-kms\",\"localCapsule\":{\"ctB64\":\"DeGlhRtYExB8z6ELN6F//VHECPM3wiCVKO0KhuzgdiL9jcwjnkn2qGXdQICnwc+voqeL4YPz3G+WJGWt1Vo3aHCwGff77Kf9XyChcTogMSJ2WKOG7kUsfTLHp5r2jE6AxgZYCsMqzLTQ54Zkad8URyuZ/9dNs7hkezsdxnG1eLUwN0C6E9eG/C6V29/L7rf3MmeZvTOhGDD5/oOYkPUkio+p7fNVI3e89/b177rtJ8m5x5AdxqmqzL1gXMCcED7d8RntYjZOufWJK49NBiqj3kYDM96IqEIuzGfaknPGasNZisT+2VhBRyB5DXos1gKfbUgRSfCuATa0SG7/l/287Fb+P9w8\",\"ivB64\":\"MzMzMzMzMzMzMzMz\"},\"proofStatus\":\"verified\",\"protectorId\":\"prot_vector\",\"region\":\"us-east-1\",\"wrappedSecretB64\":\"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\"}],\"revision\":7,\"rootEpoch\":1,\"rootKeyId\":\"root_vector\",\"schemaVersion\":1,\"vaultId\":\"vault_vector\"},\"v\":1}",
+      "expectedContext": {
+        "v": 2,
+        "format": "pages-auth-header-v1",
+        "tomb": "personal",
+        "purpose": "human-vault-root",
+        "vaultId": "vault_vector",
+        "rootKeyId": "root_vector",
+        "rootEpoch": 1,
+        "generationSha256": "f8a0978a6217d49b2aadbb1a410adbff6c890ae0e4b27847e35605d802a91bed"
+      },
+      "canonicalWire": "{\"format\":\"pages-auth-header-v1\",\"generationSha256\":\"f8a0978a6217d49b2aadbb1a410adbff6c890ae0e4b27847e35605d802a91bed\",\"purpose\":\"human-vault-root\",\"rootEpoch\":1,\"rootKeyId\":\"root_vector\",\"tomb\":\"personal\",\"v\":2,\"vaultId\":\"vault_vector\"}"
+    }
+  ]
+}
