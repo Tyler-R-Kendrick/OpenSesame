@@ -1,6 +1,7 @@
 use axum::extract::{Path, Query, State};
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{Extensions, HeaderMap, StatusCode};
 use axum::Json;
+use opensesame_domain::transport::operations;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
@@ -17,7 +18,19 @@ pub(crate) async fn get_snapshot(
     State(state): State<RelayState>,
     Path((owner, slug)): Path<(String, String)>,
     headers: HeaderMap,
+    extensions: Extensions,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    if state.mtls.is_some() {
+        if super::service_admit::require_vault_relay_caller(
+            &state,
+            &extensions,
+            operations::VAULT_RELAY_SNAPSHOT_READ,
+        )
+        .is_err()
+        {
+            return Err(forbidden());
+        }
+    }
     let address = address(&owner, &slug).ok_or(not_found())?;
     let key = presented_key(&headers).ok_or(unauthorized())?;
     let digest = digest_hex(&key);
@@ -42,8 +55,20 @@ pub(crate) async fn put_snapshot(
     State(state): State<RelayState>,
     Path((owner, slug)): Path<(String, String)>,
     headers: HeaderMap,
+    extensions: Extensions,
     Json(body): Json<PutBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
+    if state.mtls.is_some() {
+        if super::service_admit::require_vault_relay_caller(
+            &state,
+            &extensions,
+            operations::VAULT_RELAY_SNAPSHOT_WRITE,
+        )
+        .is_err()
+        {
+            return Err(forbidden());
+        }
+    }
     let address = address(&owner, &slug).ok_or(not_found())?;
     let owner_kind = owner_kind_of(&headers)
         .map_err(|status| (status, Json(json!({ "error": "malformed" }))))?;

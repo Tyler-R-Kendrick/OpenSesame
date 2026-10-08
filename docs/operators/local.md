@@ -61,6 +61,15 @@ absent, the slot key is the admission.
 
 `/health/ready` and the rest of the Host API are absent here.
 
+### Relay `mtls_required` (native sync peers)
+
+Browsers still use plain HTTP and the slot key. Native peers set
+`OPENSESAME_RELAY_TRANSPORT=mtls_required` and provision TLS material under
+the `OPENSESAME_RELAY_TLS_*` prefix (same shape as the workload worker).
+`OPENSESAME_SERVICE_BINDINGS_FILE` must name an exact `vault_relay` binding
+for the peer. Snapshot routes then admit through that binding set only — not
+the full Host transport resolver or database.
+
 ## Headless login
 
 ```bash
