@@ -7,8 +7,8 @@
 //! binding document that is not empty `vault_relay` snapshot authority.
 //! `GET /health/relay` advertises that authority: purpose `vault_relay`,
 //! the document (`empty` or `vault_relay`), and `durable: true`.
-//! Native `mtls_required` admits certificated peers through the installed
-//! `vault_relay` binding set only (`service_admit`), not the Host resolver.
+//! Native mTLS admission of a certificated peer, beyond that startup check,
+//! is still the full Host's binding resolver.
 
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -47,14 +47,6 @@ pub(crate) struct Store {
     pub(crate) slots: BTreeMap<String, Slot>,
     /// Addresses created or claimed, keyed `owner/slug`.
     pub(crate) directory: BTreeMap<String, DirEntry>,
-    /// Owner label → `user` | `organization` (one namespace for handles and slugs).
-    pub(crate) owners: BTreeMap<String, String>,
-}
-
-/// Active mTLS profile, when `OPENSESAME_RELAY_TRANSPORT=mtls_required`.
-#[derive(Clone)]
-pub(crate) struct RelayMtls {
-    pub(crate) generations: std::sync::Arc<opensesame_transport_security::TransportGenerations>,
 }
 
 #[derive(Clone)]
@@ -62,9 +54,6 @@ pub(crate) struct RelayState {
     pub(crate) store: Shared,
     /// Empty, or entirely purpose `vault_relay`, for the life of this process.
     pub(crate) bindings: opensesame_domain::transport::ServiceBindingSet,
-    pub(crate) mtls: Option<RelayMtls>,
-    /// When set, org directory and publish policy use registration JWTs only.
-    pub(crate) registration: Option<registration::Verifier>,
 }
 
 pub(crate) type Shared = Arc<Mutex<Store>>;
@@ -122,16 +111,12 @@ pub(crate) fn router(store: Shared) -> Router {
     router_with(
         store,
         install_relay_bindings(None).expect("empty vault_relay bindings install"),
-        None,
-        None,
     )
 }
 
 pub(crate) fn router_with(
     store: Shared,
     bindings: opensesame_domain::transport::ServiceBindingSet,
-    mtls: Option<RelayMtls>,
-    registration: Option<registration::Verifier>,
 ) -> Router {
     Router::new()
         .route("/health/live", get(live))
@@ -146,12 +131,7 @@ pub(crate) fn router_with(
         )
         .layer(DefaultBodyLimit::max(MAX_SNAPSHOT_BYTES))
         .layer(ciphertext_drive_cors_layer(&crate::config::cors_origins()))
-        .with_state(RelayState {
-            store,
-            bindings,
-            mtls,
-            registration,
-        })
+        .with_state(RelayState { store, bindings })
 }
 
 pub(crate) async fn live(State(state): State<RelayState>) -> &'static str {
@@ -189,74 +169,28 @@ pub(crate) async fn relay_health(State(state): State<RelayState>) -> Json<Value>
 /// The binding document is refused, the listen address is not allowed, or
 /// the socket cannot be bound.
 pub async fn run(args: &Args) -> anyhow::Result<()> {
-    use transport::{bind_secure, load_secure, RelayTransport};
-
+    let bindings = load_bindings()?;
     let listen = args.listen.to_string();
     opensesame_host_core::daemon::assert_tcp_listen_allowed(&listen).map_err(anyhow::Error::msg)?;
+    tracing::info!(%listen, profile = "relay", "opensesame gateway relay listening");
+    let listener = tokio::net::TcpListener::bind(args.listen)
+        .await
+        .map_err(|err| anyhow::anyhow!("bind {listen}: {err}"))?;
     let store = Arc::new(Mutex::new(Store::default()));
-    let profile =
-        RelayTransport::parse(&|name| std::env::var(name).ok()).map_err(anyhow::Error::new)?;
-    match profile {
-        RelayTransport::Plain => {
-            let bindings = load_bindings()?;
-            let registration = registration::Verifier::from_env().map_err(anyhow::Error::msg)?;
-            tracing::info!(%listen, profile = "relay", transport = "plain", "opensesame gateway relay listening");
-            let listener = tokio::net::TcpListener::bind(args.listen)
-                .await
-                .map_err(|err| anyhow::anyhow!("bind {listen}: {err}"))?;
-            tracing::info!(
-                installed = bindings.bindings.len(),
-                revision = bindings.revision,
-                "relay profile is serving the installed vault_relay bindings"
-            );
-            axum::serve(listener, router_with(store, bindings, None, registration)).await?;
-        }
-        RelayTransport::MtlsRequired => {
-            let secure =
-                load_secure(&listen, &|name| std::env::var(name).ok()).map_err(|error| {
-                    anyhow::anyhow!(
-                        "relay mtls_required refused to start: {error} [{}]",
-                        error.code()
-                    )
-                })?;
-            let bindings = (*secure.bindings).clone();
-            let mtls = RelayMtls {
-                generations: Arc::clone(&secure.generations),
-            };
-            let registration = registration::Verifier::from_env().map_err(anyhow::Error::msg)?;
-            let app = router_with(store, bindings, Some(mtls), registration).layer(
-                axum::middleware::from_fn_with_state(
-                    Arc::clone(&secure.generations),
-                    opensesame_transport_security::enforce_current_generation,
-                ),
-            );
-            let listener = bind_secure(&secure).await.map_err(anyhow::Error::new)?;
-            tracing::info!(
-                listen = %listener.local_addr(),
-                profile = "relay",
-                transport = "mtls_required",
-                installed = secure.bindings.bindings.len(),
-                "opensesame gateway relay listening"
-            );
-            listener.serve(app).await.map_err(anyhow::Error::new)?;
-        }
-    }
+    tracing::info!(
+        installed = bindings.bindings.len(),
+        revision = bindings.revision,
+        "relay profile is serving the installed vault_relay bindings"
+    );
+    axum::serve(listener, router_with(store, bindings)).await?;
     Ok(())
 }
 
 mod admit;
-mod identity;
-mod registration;
 mod routes;
-mod service_admit;
-mod transport;
 
 #[cfg(test)]
 mod directory_tests;
-#[cfg(test)]
-mod mtls_tests;
-#[cfg(test)]
-mod registration_tests;
 #[cfg(test)]
 mod snapshot_tests;
 #[cfg(test)]

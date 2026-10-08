@@ -801,20 +801,37 @@ function UnlockForm({
           </form>
         )}
 
-        <UnlockFoot
-          firstRun={firstRun}
-          localOnly={localOnly}
-          onSignInInstead={() => setLocalOnly(false)}
-          showSignIn={showSignIn}
-          showReset={showReset}
-          busy={busy}
-          setBusy={setBusy}
-          setError={setError}
-          guestKeyless={guestKeyless}
-          onOpenReset={() => setShowReset(true)}
-          onDelete={() => void store.destroy()}
-          onKeep={() => setShowReset(false)}
-        />
+        <div className="unlock__foot">
+          {firstRun && localOnly ? (
+            <button
+              type="button"
+              className="unlock__switch"
+              onClick={() => setLocalOnly(false)}
+            >
+              Sign in instead
+            </button>
+          ) : null}
+          {/* Guest tomb beside a sealed vault (GuestRoad.tsx). Not on
+              sign-in or a keyless tomb — Unlock resumes that tomb. Allow
+              guests is the only gate (AGENTS.md §5). */}
+          {!firstRun && !showSignIn && !showReset ? (
+            <GuestUnlockSwitch
+              busy={busy}
+              setBusy={setBusy}
+              setError={setError}
+              hidden={guestKeyless}
+            />
+          ) : null}
+          {!firstRun && !showSignIn ? (
+            <ResetVault
+              open={showReset}
+              onOpen={() => setShowReset(true)}
+              onDelete={() => void store.destroy()}
+              onKeep={() => setShowReset(false)}
+            />
+          ) : null}
+          {showReset ? null : <ResetBrowser />}
+        </div>
       </div>
       <ReleaseNotes />
     </div>

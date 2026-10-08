@@ -9,17 +9,26 @@ import {
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
 import {
-  type OrgDirectoryRole,
   type OrgVaultRecord,
-  type RelayOwnerKind,
   createOrgVault,
   listOrgVaults,
 } from "@opensesame/app-core/lib/vault-relay/client.js";
 import { useState } from "react";
-import { IconKey } from "../../components/IconKey.js";
-import { IconPlus, IconRefresh } from "../../components/Icons.js";
+import {
+  type DirectoryDraft,
+  OrgVaultDirectoryFields,
+} from "./OrgVaultDirectoryFields.js";
 
 const NOTICE_ID = "sharing.relay.directory";
+
+const EMPTY_DRAFT: DirectoryDraft = {
+  relay: "",
+  principal: "",
+  ownerKind: "organization",
+  orgRole: "owner",
+  owner: "",
+  slug: "",
+};
 
 /** Tests inject a fetch. The product uses the relay client's own road out. */
 export const orgVaultDirectorySeams: { fetch?: typeof fetch } = {};
@@ -40,164 +49,87 @@ function refused(status: number): string {
   return "The relay did not answer.";
 }
 
+function statusOf(error: unknown): number {
+  return error instanceof Error && "status" in error ? Number(error.status) : 0;
+}
+
+async function listVaults(
+  draft: DirectoryDraft,
+  setVaults: (vaults: readonly OrgVaultRecord[]) => void,
+  setBusy: (busy: boolean) => void,
+): Promise<void> {
+  dismissNotice(NOTICE_ID);
+  if (draft.owner.trim().length === 0 || draft.relay.trim().length === 0) {
+    notice("Name the relay and the owner to list.");
+    return;
+  }
+  setBusy(true);
+  try {
+    const next = await listOrgVaults({
+      baseUrl: draft.relay.trim(),
+      owner: draft.owner.trim(),
+      principal: draft.principal.trim() || undefined,
+      orgRole: draft.orgRole,
+      fetch: orgVaultDirectorySeams.fetch,
+    });
+    setVaults(next);
+  } catch (error) {
+    notice(refused(statusOf(error)));
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function createVault(
+  draft: DirectoryDraft,
+  setDraft: (next: DirectoryDraft) => void,
+  setVaults: (vaults: readonly OrgVaultRecord[]) => void,
+  setBusy: (busy: boolean) => void,
+): Promise<void> {
+  dismissNotice(NOTICE_ID);
+  if (
+    draft.relay.trim().length === 0 ||
+    draft.principal.trim().length === 0 ||
+    draft.owner.trim().length === 0 ||
+    draft.slug.trim().length === 0
+  ) {
+    notice("Name the relay, the principal, the owner, and the slug.");
+    return;
+  }
+  setBusy(true);
+  try {
+    await createOrgVault({
+      baseUrl: draft.relay.trim(),
+      owner: draft.owner.trim(),
+      slug: draft.slug.trim(),
+      ownerKind: draft.ownerKind,
+      principal: draft.principal.trim(),
+      orgRole: draft.orgRole,
+      fetch: orgVaultDirectorySeams.fetch,
+    });
+    setDraft({ ...draft, slug: "" });
+    await listVaults(draft, setVaults, setBusy);
+  } catch (error) {
+    notice(refused(statusOf(error)));
+  } finally {
+    setBusy(false);
+  }
+}
+
 export function OrgVaultDirectoryPanel() {
-  const [relay, setRelay] = useState("");
-  const [principal, setPrincipal] = useState("");
-  const [ownerKind, setOwnerKind] = useState<RelayOwnerKind>("organization");
-  const [orgRole, setOrgRole] = useState<OrgDirectoryRole>("owner");
-  const [owner, setOwner] = useState("");
-  const [slug, setSlug] = useState("");
+  const [draft, setDraft] = useState(EMPTY_DRAFT);
   const [vaults, setVaults] = useState<readonly OrgVaultRecord[]>([]);
   const [busy, setBusy] = useState(false);
 
-  const list = async () => {
-    dismissNotice(NOTICE_ID);
-    if (owner.trim().length === 0 || relay.trim().length === 0) {
-      notice("Name the relay and the owner to list.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const next = await listOrgVaults({
-        baseUrl: relay.trim(),
-        owner: owner.trim(),
-        principal: principal.trim() || undefined,
-        orgRole,
-        fetch: orgVaultDirectorySeams.fetch,
-      });
-      setVaults(next);
-    } catch (error) {
-      const status =
-        error instanceof Error && "status" in error ? Number(error.status) : 0;
-      notice(refused(status));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const create = async () => {
-    dismissNotice(NOTICE_ID);
-    if (
-      relay.trim().length === 0 ||
-      principal.trim().length === 0 ||
-      owner.trim().length === 0 ||
-      slug.trim().length === 0
-    ) {
-      notice("Name the relay, the principal, the owner, and the slug.");
-      return;
-    }
-    setBusy(true);
-    try {
-      await createOrgVault({
-        baseUrl: relay.trim(),
-        owner: owner.trim(),
-        slug: slug.trim(),
-        ownerKind,
-        principal: principal.trim(),
-        orgRole,
-        fetch: orgVaultDirectorySeams.fetch,
-      });
-      setSlug("");
-      await list();
-    } catch (error) {
-      const status =
-        error instanceof Error && "status" in error ? Number(error.status) : 0;
-      notice(refused(status));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <section id="org-vault-directory" aria-label="Organization vaults">
-      <div className="field">
-        <label htmlFor="org-vault-relay">Relay URL</label>
-        <input
-          id="org-vault-relay"
-          value={relay}
-          autoComplete="off"
-          onChange={(event) => setRelay(event.target.value)}
-        />
-      </div>
-      <div className="field">
-        <label htmlFor="org-vault-principal">Principal</label>
-        <input
-          id="org-vault-principal"
-          value={principal}
-          autoComplete="off"
-          onChange={(event) => setPrincipal(event.target.value)}
-        />
-      </div>
-      <div className="field">
-        <label htmlFor="org-vault-kind">Owner kind</label>
-        <select
-          id="org-vault-kind"
-          value={ownerKind}
-          onChange={(event) =>
-            setOwnerKind(
-              event.target.value === "user" ? "user" : "organization",
-            )
-          }
-        >
-          <option value="organization">Organization</option>
-          <option value="user">User</option>
-        </select>
-      </div>
-      <div className="field">
-        <label htmlFor="org-vault-role">Role</label>
-        <select
-          id="org-vault-role"
-          value={orgRole}
-          onChange={(event) => {
-            const value = event.target.value;
-            setOrgRole(
-              value === "admin"
-                ? "admin"
-                : value === "member"
-                  ? "member"
-                  : "owner",
-            );
-          }}
-        >
-          <option value="owner">Owner</option>
-          <option value="admin">Admin</option>
-          <option value="member">Member</option>
-        </select>
-      </div>
-      <div className="field">
-        <label htmlFor="org-vault-owner">Owner</label>
-        <input
-          id="org-vault-owner"
-          value={owner}
-          autoComplete="off"
-          onChange={(event) => setOwner(event.target.value)}
-        />
-      </div>
-      <div className="field">
-        <label htmlFor="org-vault-slug">Slug</label>
-        <input
-          id="org-vault-slug"
-          value={slug}
-          autoComplete="off"
-          onChange={(event) => setSlug(event.target.value)}
-        />
-      </div>
-      <div className="field-inline">
-        <IconKey
-          label="Create vault"
-          disabled={busy}
-          onClick={() => void create()}
-        >
-          <IconPlus size={16} />
-        </IconKey>
-        <IconKey
-          label="List vaults"
-          disabled={busy}
-          onClick={() => void list()}
-        >
-          <IconRefresh size={16} />
-        </IconKey>
-      </div>
+      <OrgVaultDirectoryFields
+        draft={draft}
+        setDraft={setDraft}
+        busy={busy}
+        onCreate={() => void createVault(draft, setDraft, setVaults, setBusy)}
+        onList={() => void listVaults(draft, setVaults, setBusy)}
+      />
       <ul aria-label="Vaults for this owner">
         {vaults.map((vault) => (
           <li key={`${vault.ownerKind}/${vault.owner}/${vault.slug}`}>

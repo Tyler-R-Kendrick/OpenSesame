@@ -149,25 +149,10 @@ pub(crate) fn lock(store: &Shared) -> std::sync::MutexGuard<'_, Store> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
-/// Refuse when the owner label is already registered under another kind.
-pub(crate) fn owner_kind_conflict(store: &Store, owner: &str, owner_kind: &str) -> bool {
-    store
-        .owners
-        .get(owner)
-        .is_some_and(|existing| existing != owner_kind)
-}
-
-pub(crate) fn register_owner(store: &mut Store, owner: &str, owner_kind: &str) {
-    store
-        .owners
-        .insert(owner.to_string(), owner_kind.to_string());
-}
-
 pub(crate) fn remember(store: &mut Store, address: &str, owner_kind: &str, principal: &str) {
     let Some((owner, slug)) = address.split_once('/') else {
         return;
     };
-    register_owner(store, owner, owner_kind);
     match store.directory.get_mut(address) {
         Some(entry) => {
             entry.owner_kind = owner_kind.to_string();

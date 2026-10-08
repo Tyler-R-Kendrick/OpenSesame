@@ -210,7 +210,7 @@ async fn relay_profile_refuses_other_bindings_and_advertises_vault_relay() {
     let set = install_relay_bindings(Some(&vault_relay_document())).expect("vault_relay only");
     assert!(!set.bindings.is_empty());
     let (status, body) = call(
-        router_with(Arc::new(Mutex::new(Store::default())), set, None, None),
+        router_with(Arc::new(Mutex::new(Store::default())), set),
         "GET",
         "/health/relay",
         None,
@@ -343,41 +343,4 @@ async fn member_may_list_and_may_not_create_or_publish() {
     )
     .await;
     assert_eq!(status, StatusCode::CREATED);
-}
-
-#[tokio::test]
-async fn owner_namespace_refuses_conflicting_owner_kind() {
-    let store = Arc::new(Mutex::new(Store::default()));
-    let app = router(Arc::clone(&store));
-    let (status, _) = call(
-        app,
-        "POST",
-        "/v1/org-vaults",
-        None,
-        Some("acme"),
-        None,
-        Some(json!({
-            "ownerKind": "user",
-            "owner": "acme",
-            "slug": "vault",
-        })),
-    )
-    .await;
-    assert_eq!(status, StatusCode::CREATED);
-    let (status, body) = call(
-        router(store),
-        "POST",
-        "/v1/org-vaults",
-        None,
-        Some("bob"),
-        None,
-        Some(json!({
-            "ownerKind": "organization",
-            "owner": "acme",
-            "slug": "other",
-        })),
-    )
-    .await;
-    assert_eq!(status, StatusCode::CONFLICT, "{body}");
-    assert_eq!(body["error"], "owner_kind");
 }

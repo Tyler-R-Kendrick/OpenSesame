@@ -37,46 +37,10 @@ function memoryRelay() {
     const address = `${decodeURIComponent(match[1] ?? "")}/${decodeURIComponent(match[2] ?? "")}`;
     const key = new Headers(init?.headers).get("x-opensesame-slot-key") ?? "";
     const method = init?.method ?? "GET";
-    const current = slots.get(address);
-    if (method === "GET") {
-      if (!current) {
-        return Response.json({ error: "not_found" }, { status: 404 });
-      }
-      if (current.key !== key) {
-        return Response.json({ error: "unauthorized" }, { status: 401 });
-      }
-      return Response.json({
-        generation: current.generation,
-        snapshot: current.snapshot,
-      });
-    }
-    if (method !== "PUT") return new Response(null, { status: 404 });
-    const body = JSON.parse(String(init?.body)) as {
-      expected_generation: number;
-      snapshot: RelaySnapshot;
-    };
-    if (!current) {
-      if (body.expected_generation !== 0) {
-        return Response.json({ error: "not_found" }, { status: 404 });
-      }
-      slots.set(address, {
-        key,
-        generation: 1,
-        snapshot: body.snapshot,
-        principal:
-          new Headers(init?.headers).get("x-opensesame-principal") ?? "",
-      });
-      return Response.json({ generation: 1 });
-    }
-    if (current.key !== key) {
-      return Response.json({ error: "unauthorized" }, { status: 401 });
-    }
-    if (current.generation !== body.expected_generation) {
-      return Response.json({ generation: current.generation }, { status: 409 });
-    }
-    current.generation += 1;
-    current.snapshot = body.snapshot;
-    return Response.json({ generation: current.generation });
+    if (method === "GET") return readSlot(slots.get(address), key);
+    if (method === "PUT")
+      return writeSlot(slots, address, key, headers, init?.body);
+    return new Response(null, { status: 404 });
   };
   return fetchImpl;
 }

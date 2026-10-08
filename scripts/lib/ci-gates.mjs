@@ -15,7 +15,8 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-
+import { relayJoinPath, relayProcessGate } from "./ci-relay-join.mjs";
+export { relayJoinPath };
 /** The gates the bundle job's shards run, by shard name (`mobile-*` is one). */
 export const SHARD_GATES = [
   "budgets",
@@ -108,9 +109,7 @@ export const DRIVER_GATES = {
   "verify-duress-offline.mjs": null,
   "verify-duress.mjs": null,
   "verify-live-join.mjs": null,
-  // ADR 0181. The journeys-1 shard builds the CLI and runs
-  // `verify:relay-join-live` (the gateway relay profile). The harness
-  // script is the same gate: a change starts that shard.
+  // ADR 0181: the journeys shard runs the relay join walk.
   "verify-relay-join.mjs": ["journeys"],
   "verify-relay-join-live.mjs": ["journeys"],
   "verify-live-netns.mjs": null,
@@ -119,30 +118,6 @@ export const DRIVER_GATES = {
   "verify-tailnet-sync.mjs": null,
   "verify-transport.mjs": null,
 };
-
-/**
- * Paths whose change has to run the relay-join walk (the journeys shard).
- * A gateway `vault_relay` file is not in the Pages bundle area; `selectGates`
- * still counts it so the walk runs when the relay process changes.
- */
-export function relayJoinPath(path) {
-  if (path.startsWith("crates/gateway/") && path.includes("vault_relay")) {
-    return true;
-  }
-  if (
-    path === "apps/pages/scripts/verify-relay-join.mjs" ||
-    path === "apps/pages/scripts/verify-relay-join-live.mjs" ||
-    path === "apps/pages/scripts/lib/vault-relay-http.mjs"
-  ) {
-    return true;
-  }
-  if (path.startsWith("apps/pages/src/modules/sharing.relay/")) return true;
-  return (
-    path.startsWith("apps/pages/") &&
-    path.includes("relay") &&
-    path.includes("join")
-  );
-}
 
 const SCRIPTS = "apps/pages/scripts";
 const IMPORT = /(?:from\s*|import\s*\(\s*|import\s+)["'](\.[^"']+)["']/g;
@@ -371,12 +346,7 @@ export function gatesForPath(path, reach, read = () => "") {
 
 function gatesByPath(path, reach) {
   if (isDocPath(path) || isTestPath(path)) return gates();
-  // The relay process is not a Pages bundle. The join walk is the gate that
-  // sees it. Pages relay files stay on their own rules, which already include
-  // this gate when the path is in the bundle.
-  if (path.startsWith("crates/gateway/") && path.includes("vault_relay")) {
-    return gates("journeys");
-  }
+  if (relayProcessGate(path)) return gates("journeys");
   // The workflow is every job's definition: an edit to one job is proved only
   // by running it, so it starts them all.
   if (path === ".github/workflows/ci.yml") return everyGate();

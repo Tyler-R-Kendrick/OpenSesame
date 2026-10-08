@@ -1,36 +1,22 @@
 use axum::extract::{Path, Query, State};
-use axum::http::{Extensions, HeaderMap, StatusCode};
+use axum::http::{HeaderMap, StatusCode};
 use axum::Json;
-use opensesame_domain::transport::operations;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::config::constant_time_eq;
 
 use super::admit::{
-    address, claimed_by_other, digest_hex, lock, member_allows, owner_kind_conflict, owner_kind_of,
-    presented_key, publish_allows, remember, snapshot_ok, MemberAction,
+    address, claimed_by_other, digest_hex, lock, member_allows, org_role_of, owner_kind_of,
+    presented_key, principal_of, publish_allows, remember, snapshot_ok, MemberAction,
 };
-use super::identity::resolve_identity;
 use super::{DirEntry, RelayState, Slot, MAX_SNAPSHOT_BYTES};
 
 pub(crate) async fn get_snapshot(
     State(state): State<RelayState>,
     Path((owner, slug)): Path<(String, String)>,
     headers: HeaderMap,
-    extensions: Extensions,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    if state.mtls.is_some() {
-        if super::service_admit::require_vault_relay_caller(
-            &state,
-            &extensions,
-            operations::VAULT_RELAY_SNAPSHOT_READ,
-        )
-        .is_err()
-        {
-            return Err(forbidden());
-        }
-    }
     let address = address(&owner, &slug).ok_or(not_found())?;
     let key = presented_key(&headers).ok_or(unauthorized())?;
     let digest = digest_hex(&key);
@@ -55,20 +41,8 @@ pub(crate) async fn put_snapshot(
     State(state): State<RelayState>,
     Path((owner, slug)): Path<(String, String)>,
     headers: HeaderMap,
-    extensions: Extensions,
     Json(body): Json<PutBody>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    if state.mtls.is_some() {
-        if super::service_admit::require_vault_relay_caller(
-            &state,
-            &extensions,
-            operations::VAULT_RELAY_SNAPSHOT_WRITE,
-        )
-        .is_err()
-        {
-            return Err(forbidden());
-        }
-    }
     let address = address(&owner, &slug).ok_or(not_found())?;
     let owner_kind = owner_kind_of(&headers)
         .map_err(|status| (status, Json(json!({ "error": "malformed" }))))?;
@@ -92,16 +66,14 @@ pub(crate) async fn put_snapshot(
         ));
     }
     let digest = digest_hex(&key);
-    let now = unix_now();
-    let identity = resolve_identity(&headers, state.registration.as_ref(), now)?;
-    if !publish_allows(owner_kind, &identity.principal, &owner, identity.role) {
+    let role =
+        org_role_of(&headers).map_err(|status| (status, Json(json!({ "error": "malformed" }))))?;
+    let principal = principal_of(&headers);
+    if !publish_allows(owner_kind, &principal, &owner, role) {
         return Err(forbidden());
     }
     let mut guard = lock(&state.store);
-    if owner_kind_conflict(&guard, &owner, owner_kind) {
-        return Err((StatusCode::CONFLICT, Json(json!({ "error": "owner_kind" }))));
-    }
-    if claimed_by_other(&guard, &address, &identity.principal) {
+    if claimed_by_other(&guard, &address, &principal) {
         return Err((StatusCode::CONFLICT, Json(json!({ "error": "claimed" }))));
     }
     if guard.slots.contains_key(&address) {
@@ -121,7 +93,7 @@ pub(crate) async fn put_snapshot(
             slot.snapshot = body.snapshot;
             slot.generation
         };
-        remember(&mut guard, &address, owner_kind, &identity.principal);
+        remember(&mut guard, &address, owner_kind, &principal);
         return Ok(Json(json!({ "generation": generation })));
     }
     if body.expected_generation != 0 {
@@ -136,15 +108,8 @@ pub(crate) async fn put_snapshot(
             snapshot: body.snapshot,
         },
     );
-    remember(&mut guard, &address, owner_kind, &identity.principal);
+    remember(&mut guard, &address, owner_kind, &principal);
     Ok(Json(json!({ "generation": generation })))
-}
-
-fn unix_now() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|duration| duration.as_secs() as i64)
-        .unwrap_or(0)
 }
 
 pub(crate) fn unauthorized() -> (StatusCode, Json<Value>) {
@@ -189,8 +154,8 @@ pub(crate) async fn list_org_vaults(
     headers: HeaderMap,
     Query(query): Query<ListQuery>,
 ) -> Result<Json<Value>, (StatusCode, Json<Value>)> {
-    let now = unix_now();
-    let identity = resolve_identity(&headers, state.registration.as_ref(), now)?;
+    let role =
+        org_role_of(&headers).map_err(|status| (status, Json(json!({ "error": "malformed" }))))?;
     let principal = query.principal.filter(|value| !value.is_empty());
     let owner = query.owner.filter(|value| !value.is_empty());
     // A member may list. With no role the owner and principal filters stand.
@@ -201,7 +166,7 @@ pub(crate) async fn list_org_vaults(
         "organization",
         listed_as,
         listed_owner,
-        identity.role,
+        role,
     ) {
         return Err(forbidden());
     }
@@ -240,34 +205,32 @@ pub(crate) async fn create_org_vault(
         StatusCode::BAD_REQUEST,
         Json(json!({ "error": "malformed" })),
     ))?;
-    let now = unix_now();
-    let identity = resolve_identity(&headers, state.registration.as_ref(), now)?;
-    if identity.principal.is_empty() {
+    let principal = principal_of(&headers);
+    if principal.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(json!({ "error": "malformed" })),
         ));
     }
+    let role =
+        org_role_of(&headers).map_err(|status| (status, Json(json!({ "error": "malformed" }))))?;
     if !member_allows(
         MemberAction::Create,
         &body.owner_kind,
-        &identity.principal,
+        &principal,
         &body.owner,
-        identity.role,
+        role,
     ) {
         return Err(forbidden());
     }
     let mut guard = lock(&state.store);
-    if owner_kind_conflict(&guard, &body.owner, &body.owner_kind) {
-        return Err((StatusCode::CONFLICT, Json(json!({ "error": "owner_kind" }))));
-    }
     if let Some(entry) = guard.directory.get(&address) {
-        if entry.principal != identity.principal {
+        if entry.principal != principal {
             return Err((StatusCode::CONFLICT, Json(json!({ "error": "claimed" }))));
         }
         return Ok((StatusCode::OK, Json(json!({ "vault": vault_json(entry) }))));
     }
-    remember(&mut guard, &address, &body.owner_kind, &identity.principal);
+    remember(&mut guard, &address, &body.owner_kind, &principal);
     Ok((
         StatusCode::CREATED,
         Json(json!({
