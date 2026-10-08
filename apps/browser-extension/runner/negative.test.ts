@@ -85,6 +85,57 @@ describe("runs the runner does not claim", () => {
     expect(r.host.claims).toBe(0);
   });
 
+  it("does not claim the next step when getRun names another origin", async () => {
+    const r = await rig();
+    const other = "https://other.example";
+    await r.settings.arm(other);
+    r.granted.add(other);
+    await r.vault.putEntry({
+      origin: other,
+      username: "other",
+      password: "other-secret",
+    });
+    r.host.openRun("run:1", RP);
+    r.host.presentView = (view, read) =>
+      read === 1 ? view : { ...view, id: "run:other", origin: other };
+    const navigate = enqueue(r, "run:1", {
+      step: "navigate",
+      url: `${RP}/x`,
+    });
+    const submit = enqueue(r, "run:1", { step: "submit" }, 50);
+    const report = await r.runner.tick();
+    expect((await navigate)?.outcome).toBe("done");
+    expect(await submit).toBeNull();
+    expect(r.host.claims).toBe(1);
+    expect(r.host.settled.map((row) => row.request.step)).toEqual(["navigate"]);
+    expect(report.skipped).toContainEqual({
+      runId: "run:1",
+      reason: "origin_refused",
+    });
+  });
+
+  it("stops with not_armed when the opened origin expires before the next claim", async () => {
+    const r = await rig();
+    r.host.openRun("run:1", RP);
+    r.host.presentView = async (view, read) => {
+      if (read > 1) await r.settings.arm(RP, -1);
+      return view;
+    };
+    const navigate = enqueue(r, "run:1", {
+      step: "navigate",
+      url: `${RP}/x`,
+    });
+    const submit = enqueue(r, "run:1", { step: "submit" }, 50);
+    const report = await r.runner.tick();
+    expect((await navigate)?.outcome).toBe("done");
+    expect(await submit).toBeNull();
+    expect(r.host.claims).toBe(1);
+    expect(report.skipped).toContainEqual({
+      runId: "run:1",
+      reason: "not_armed",
+    });
+  });
+
   it("an arm that ran out drives nothing and gives its grant back", async () => {
     const r = await rig();
     await r.settings.arm(RP, -1);

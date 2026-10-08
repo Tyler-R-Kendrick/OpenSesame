@@ -159,6 +159,17 @@ export class FakeHost implements HostPort, BackupStore {
   rejectPushes = false;
   tamperOnRead = false;
 
+  /**
+   * Replaces the view `getRun` returns. `read` starts at 1. The stored row
+   * stays the opened run, so a test can hand back a different id or origin
+   * after the page is already open.
+   */
+  presentView: (
+    view: AgentRunView,
+    read: number,
+  ) => AgentRunView | Promise<AgentRunView> = (view) => view;
+  private reads = 0;
+
   constructor(readonly me = "principal:me") {}
 
   openRun(id: string, origin: string, owner = this.me): void {
@@ -247,7 +258,9 @@ export class FakeHost implements HostPort, BackupStore {
   }
 
   async getRun(id: string) {
-    return this.owned(id).view;
+    const view = this.owned(id).view;
+    this.reads += 1;
+    return this.presentView(view, this.reads);
   }
 
   async claim(runId: string): Promise<ClaimedRunnerStep | null> {
