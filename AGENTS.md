@@ -77,7 +77,9 @@ not My Machines or a contributor’s local PC). Image and bootstrap live in
 
 After checkout, `install` runs `.cursor/install.sh` (`corepack` + `pnpm install`
 + `cargo +1.88.0 fetch`). Prefer the shared cargo target dir documented in §9
-when compiling Rust in Cloud Agents.
+when compiling Rust in Cloud Agents. Login and non-login bash for `vscode`
+source `/etc/profile.d/cargo.sh`, which prepends `/usr/local/cargo/bin` and
+defaults `CARGO_TARGET_DIR` to `$HOME/.cache/packages/cargo-target`.
 
 ## 3. Command crib sheet
 
