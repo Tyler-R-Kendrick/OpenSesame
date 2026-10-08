@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { planWith } from "./__tests__/plan-with.js";
-import { optionalCapabilityIds } from "./catalog.js";
+import { CAPABILITY_CATALOG, optionalCapabilityIds } from "./catalog.js";
 import {
   NEEDS_IDENTITY_API,
   NO_SURFACE,
@@ -8,6 +8,7 @@ import {
   featureOf,
   isSwitchable,
   shown,
+  switchFeature,
 } from "./features.js";
 
 describe("capabilities with no Pages code behind them", () => {
@@ -21,7 +22,32 @@ describe("capabilities with no Pages code behind them", () => {
     }
     expect(isSwitchable(featureById("telemetry"))).toBe(false);
     expect(isSwitchable(featureById("certificates"))).toBe(false);
+    // Live sessions keep Sharing switchable. Household sharing does not.
     expect(isSwitchable(featureById("sharing"))).toBe(true);
+    expect(shown(featureById("sharing")).capabilities).toEqual([
+      "sharing.live",
+    ]);
+  });
+
+  it("hides household sharing until a plan approves it, then keeps the switch that turns it off", () => {
+    const sharing = featureById("sharing");
+    const approved = planWith(["sharing.household"]);
+    expect(shown(sharing, approved).capabilities).toEqual([
+      "sharing.live",
+      "sharing.household",
+    ]);
+    expect(isSwitchable(sharing, approved)).toBe(true);
+    // The section switch Settings draws is the shown feature, so turning
+    // Sharing on does not select a capability with nothing behind it.
+    expect(
+      switchFeature(
+        { roots: [], alternatives: {} },
+        shown(sharing),
+        true,
+        planWith([]),
+        CAPABILITY_CATALOG,
+      ).roots,
+    ).toEqual(["sharing.live"]);
   });
 
   it("leave a section's other capabilities alone", () => {
