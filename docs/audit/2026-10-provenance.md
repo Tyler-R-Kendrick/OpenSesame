@@ -24,7 +24,9 @@ Grok Build returned HTTP 402 `Grok Build usage balance exhausted` during the
 #794 restack (after #793 went green), with ~95 model calls on `grok-4.6-build`
 in that session (`/tmp/grok-restack-tail.log`). Confirmed again on both device
 OIDC (`env -u XAI_API_KEY`) and with `XAI_API_KEY` set on 2026-10-08 ~09:17 UTC.
-After that point, commits labeled Grok were not live Grok.
+After that point, commits labeled Grok were not live Grok. Retried once via
+`scripts/dev/grok-headless.sh` for the static-PWA stack on 2026-10-08 ~15:14 UTC
+— again HTTP 402 (`/tmp/grok-static-pwa-attempt.log`). That stack is Cursor Agent.
 
 ## Counts (unique commits `base..head` per PR, summed)
 
@@ -187,4 +189,10 @@ After that point, commits labeled Grok were not live Grok.
 | `ea22ecd3` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | docs(audit): record checklist screenshots and seed walk items |
 | `d0c18cce` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | feat(adr-0181): org vault directory and relay join walk |
 | `425e446c` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | fix(tutorial): keep the accounts filter off a secret-only vault |
+
+### Static PWA / no default services (on top of #796)
+
+| SHA | Author (as shown) | Real producer | Subject |
+| --- | --- | --- | --- |
+| *(tip)* | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs + remove Pages Identity/Host/daemon stamps; Grok 402 |
 
