@@ -53,7 +53,10 @@ function stateFromRaw(raw: string): string | null {
   }
 }
 
-function pkcePendingStoresDisagree(localRaw: string, sessionRaw: string): boolean {
+function pkcePendingStoresDisagree(
+  localRaw: string,
+  sessionRaw: string,
+): boolean {
   const localState = stateFromRaw(localRaw);
   const sessionState = stateFromRaw(sessionRaw);
   return Boolean(localState && sessionState && localState !== sessionState);
@@ -63,7 +66,11 @@ function readRawPending() {
   const localRaw = localStore().getItem(PKCE_KEY);
   const sessionRaw = sessionStore().getItem(PKCE_KEY);
   if (!localRaw && !sessionRaw) return { raw: null, swapped: false };
-  if (localRaw && sessionRaw && pkcePendingStoresDisagree(localRaw, sessionRaw)) {
+  if (
+    localRaw &&
+    sessionRaw &&
+    pkcePendingStoresDisagree(localRaw, sessionRaw)
+  ) {
     dropRawPending();
     return { raw: null, swapped: true };
   }
