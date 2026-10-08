@@ -123,16 +123,7 @@
         "description": "The provisioning HTTP client disables redirect following. That does not validate the initial offer host or refuse an inline credential_offer."
       }
     ],
-    "blockers": [
-      "This environment has no Android emulator or device, so an explicit or browsable VIEW intent was not delivered to MainActivity or OpenId4VpActivity and no dummy listener was contacted.",
-      "org.multipaz:multipaz:0.100.0 and org.multipaz:multipaz-compose:0.100.0 are not in the repository or a local Gradle cache, so it is not source-visible whether launchOpenID4VCIProvisioning or UriSchemePresentmentActivity fetches a private credential_offer_uri or request_uri, accepts an inline credential_offer, or returns before any network or credential operation. That library behavior is the decisive effect.",
-      "Run 2 retried this lead on the same host on 2026-10-08. docker, wine, cmd.exe, and nats-server are not installed, there is no Android emulator, and the audit sandbox file-size limit (ulimit -f 10240) still cannot compile wasmtime or the gateway. The source claim was re-read at 6395f1e4 and the decisive fact is still outside this sandbox."
-    ],
-    "validation_plan": {
-      "local": "On an emulator, install a debug build with opensesameWalletBackendUrl set to a dummy https origin and opensesameInvocationHost set to a non-production hostname. Use no production backend, store signing key, or real credential. If WalletRuntime.initialize throws before handleIntent, record that and stop; the run is inconclusive. From a second app, send explicit ACTION_VIEW intents and stop at the boundary: MainActivity with data openid-credential-offer://?credential_offer_uri=https%3A%2F%2F127.0.0.1%3A9%2Foffer against a 127.0.0.1:9 TLS listener that only logs the ClientHello; MainActivity with a separate openid-credential-offer://?credential_offer= value that is a short dummy JSON offer containing no secret, token, or real credential; and OpenId4VpActivity with openid4vp://?request_uri=https%3A%2F%2F127.0.0.1%3A9%2Frequest against the same listener. Record whether a TCP connection or TLS ClientHello reaches 127.0.0.1:9 and whether provisioning leaves Idle. Do not complete issuance, approve a presentation, or install a local trust anchor. A failed handshake still counts as contact if the ClientHello is sent.",
-      "deployment": "No production host or store signature is required. If the emulator result is inconclusive, read only the pinned Multipaz 0.100.0 sources for ProvisioningModel.launchOpenID4VCIProvisioning and UriSchemePresentmentActivity, and record whether each requests the supplied URI before consent and whether it rejects a private host or an inline credential_offer. Do not run those entry points against a real issuer, verifier, or credential."
-    },
-    "reason": "Closed on the stacked NV fix PRs at regression re-read: validate_credential_offer_scheme_handoff and validate_presentation_scheme_handoff on custom-scheme paths (#846)."
+    "reason": "Run 5 independent verifier v-run5-wallet-custom-scheme in worktree /tmp/wt-cf-audit-run5-h1 (source): At d1ce497f MainActivity.kt lines 93-104 and WalletView.swift call validateCredentialOfferSchemeHandoff (or validatePlatformInvocation on https) before provisioning. Invalid offers return without launching."
   },
   {
     "verdict": "rejected",
@@ -627,15 +618,7 @@
         "description": "Calibration only: finish_dispatch reauthorize calls grant.assert_active(Utc::now()) immediately before the broker side effect. The sandbox path has no equivalent call. This does not dismiss the sandbox gap."
       }
     ],
-    "blockers": [
-      "Spawn after expires_at was not executed. sandbox-run.sh with RUSTUP_HOME=/usr/local/rustup and CARGO_HOME=/usr/local/cargo can run rustc 1.88.0, but cargo test -p opensesame-sandbox --offline --locked --manifest-path /workspace/Cargo.toml --features wasm-runtime,fixtures --no-run is killed with signal 25 (SIGXFSZ) while compiling syn, before opensesame-sandbox or wasmtime is built. ulimit -f is 10240 (about 5 MiB), ulimit -v is 1048576 KiB, ulimit -t is 25, and the wrapper timeout is 25s. /workspace/target does not exist and no libwasmtime or libopensesame_sandbox rlib is on disk. Source control flow is unambiguous that the broker call is not gated on expires_at; the missing fact is the observed spawn result against a recording broker.",
-      "Run 2 retried this lead on the same host on 2026-10-08. docker, wine, cmd.exe, and nats-server are not installed, there is no Android emulator, and the audit sandbox file-size limit (ulimit -f 10240) still cannot compile wasmtime or the gateway. The source claim was re-read at 6395f1e4 and the decisive fact is still outside this sandbox."
-    ],
-    "validation_plan": {
-      "local": "On a normal toolchain, offline and locked, with a writable target directory outside the audit sandbox: cargo test -p opensesame-sandbox --offline --locked --features wasm-runtime,fixtures. Use a chain whose ttl is a few seconds and whose actions include sandbox.http, mint the profile, keep the revocation fence live, and sleep until Utc::now() is past profile.expires_at(). Spawn a one-call http-fetch module on the in-crate RecordingBroker (no network, no live credential) and record whether spawn returns Ok and whether fetched() contains the guest destination. Separately, spawn while less than the mint-time deadline remains and record whether that broker call is entered after expires_at. Do not revoke the fence and do not point the broker at a real host.",
-      "deployment": "No deployed service is required. No workspace crate calls Sandbox::spawn. The owner check is the same local cargo test. If an integrator already holds a Sandbox across a grant window, observe only whether their Broker::http_fetch is entered after expires_at with the fence still live, using a recording double rather than a production credential or network fetch."
-    },
-    "reason": "Closed on the stacked NV fix PRs at regression re-read: GrantExpired at spawn and broker imports; grant_expiry tests (#841)."
+    "reason": "Run 5 independent verifier v-run5-sandbox-grant-expiry in worktree /tmp/wt-cf-audit-run5-v1 (local): cargo +1.88.0 test -p opensesame-sandbox --test grant_expiry --features wasm-runtime,fixtures passed in /tmp/wt-cf-audit-run5-v1 (spawn_refuses_after_the_grant_window_closes, broker_imports_refuse_after_the_grant_window_closes). mod.rs lines 140 and 167 compare Utc::now() to profile.expires_at() before compile and guest entry."
   },
   {
     "verdict": "rejected",
@@ -809,15 +792,7 @@
         "description": "The sibling path fence refuses dot segments, backslash, and semicolon in both the raw and percent-decoded path because the upstream's resolution is not the host's to predict."
       }
     ],
-    "blockers": [
-      "The broker and reqwest 0.12.28 agree on the encoded request-target: try_uri parses url.as_str(), and a sandboxed url 2.5.8 parse kept paths such as /v3/projects/%2e%2e%2fconfigs/config/secrets, /client/v4/certificates/%2e%2e%2fuser/tokens/verify, and /api/v2/..%2fadmin. Reaching /v3/configs/config/secrets, /client/v4/user/tokens/verify, /keys, or a custom /admin path requires the upstream to percent-decode that target and then resolve .., backslash, or semicolon parameters. That behavior is not in the repository, and this sandbox has no external network, so api.doppler.com, api.cloudflare.com, and openrouter.ai were not called.",
-      "Run 2 retried this lead on the same host on 2026-10-08. docker, wine, cmd.exe, and nats-server are not installed, there is no Android emulator, and the audit sandbox file-size limit (ulimit -f 10240) still cannot compile wasmtime or the gateway. The source claim was re-read at 6395f1e4 and the decisive fact is still outside this sandbox."
-    ],
-    "validation_plan": {
-      "local": "Call the crate EgressBinding::allows_url, not a transcribed copy. With Doppler's binding, https://api.doppler.com/v3/configs/config/secrets?project=a&config=b and https://api.doppler.com/v3/projects/%2e%2e/%2e%2e/configs/config/secrets must be Err, and https://api.doppler.com/v3/projects/%2e%2e%2fconfigs/config/secrets?project=a&config=b, https://api.doppler.com/v3/configs/config/secrets/names/..%2f..%2f?project=a&config=b, https://api.doppler.com/v3/projects/..;/configs/config/secrets, and https://api.doppler.com/v3/projects/%5c..%5cconfigs/config/secrets must be Ok. Repeat for Cloudflare Origin CA with https://api.cloudflare.com/client/v4/certificates/%2e%2e%2fuser/tokens/verify and for authority internal.example:8443 prefix /api/v2 with https://internal.example:8443/api/v2/..%2fadmin. Then, only on loopback, insert one Active in-org connection whose scheme is http, authority is 127.0.0.1, path_prefixes is [/api/v2], and bearer is a dummy value. Serve a fixture that records the raw request-target and whether that dummy bearer arrived, and returns 204. Invoke authorized_json GET http://127.0.0.1:<port>/api/v2/..%2fadmin. The host side holds if the recorded target is still /api/v2/..%2fadmin and the dummy bearer is present. Do not treat that as proof a decoder maps it to /admin.",
-      "deployment": "Do not use a production token and do not store response bodies. With a non-production Cloudflare Origin CA token, compare only the HTTP status and top-level JSON keys of GET https://api.cloudflare.com/client/v4/certificates/%2e%2e%2fuser/tokens/verify to a direct GET of /client/v4/user/tokens/verify. If both are the token-verify success shape, the prefix did not hold. With a Doppler service token for a dummy project, compare only the status codes of GET https://api.doppler.com/v3/projects/%2e%2e%2fconfigs/config/secrets?project=<p>&config=<c> and GET /v3/configs/config/secrets with the same query. Matching non-404 statuses means the values path was reached. Stop after that comparison."
-    },
-    "reason": "Closed on the stacked NV fix PRs at regression re-read: egress_path_is_well_formed before prefix match (#839)."
+    "reason": "Run 5 independent verifier v-run5-egress-encoded-path in worktree /tmp/wt-cf-audit-run5-h1 (local): authority.rs percent_decode_path_segment and allows_url tests reject %2e%2e%2f, ..%2f, and %5c glued segments (lines 653-662). cargo +1.88.0 test -p opensesame-domain authority::tests::egress_blocks_evil_destination passed in /tmp/wt-cf-audit-run5-h1."
   },
   {
     "verdict": "rejected",
@@ -938,17 +913,7 @@
         "description": "session_claims copies assurance, auth_time, and the verified capability ceiling from stored authentication_json and does not read config_authorization_roles."
       }
     ],
-    "blockers": [
-      "No prebuilt opensesame-gateway test binary or cargo target directory is present. The approved sandbox allows 25s CPU, 1 GiB virtual memory, a read-only /workspace and /usr, and scratch-only writes, which cannot compile this commit or execute POST /api/v1/agent/runs/{id}/control or GET /api/v1/agent/runs/{id}/log.",
-      "Source shows no role predicate on those handlers, but the decisive fact is unobserved: the HTTP status and whether a dummy observation_runs row changes version and control_state, and whether GET /log still returns the sealed payload, after role is null or evidence_after equals the stored auth_time.",
-      "Run 2 retried this lead on the same host on 2026-10-08. docker, wine, cmd.exe, and nats-server are not installed, there is no Android emulator, and the audit sandbox file-size limit (ulimit -f 10240) still cannot compile wasmtime or the gateway. The source claim was re-read at 6395f1e4 and the decisive fact is still outside this sandbox.",
-      "Run 3: load(Attachment::View) now calls ensure_view_authority at 33ecab02 for hook-records and log one-shot reads; stream control/commit path unchanged and still unexecuted."
-    ],
-    "validation_plan": {
-      "local": "Use the in-crate agent_runs Browser fixture, a temporary sqlite file, and dummy principals only. Provision config_authorization_roles, seed an awaiting_human run owned by the paired principal, and append one observation event. Call verified_webauthn_at with the current timestamp before changing policy, so browser.authenticate passes narrow_identity_role and stores authentication_json. Then set role to NULL and evidence_after to now without revoking the browser client. Only after that update, mint a take elevation through Browser::elevation, which calls authorize_host_challenge, and POST /api/v1/agent/runs/{id}/control with that 64-hex elevation. Do not treat HTTP 409 as success or failure: commit maps every zero-row consume to stale_version. The fence holds only if observation_runs.version and control_state stay unchanged. Repeat with the role left non-null and evidence_after set equal to the stored auth_time, minting the elevation only after the floor moves. GET /api/v1/agent/runs/{id}/log with the same browser DPoP headers; the fence holds only if the stored event's sealed payload is absent. GET /observe on that browser is the existing positive control. Separately record whether a native opaque session for the same owner still receives GET /observe events after role is NULL. Do not contact a deployed host or use production principals.",
-      "deployment": "No deployed IdP, browser, certificate, or live host is required. The grant, authentication_json, and authorized elevation are local rows, and set_role performs the same policy write as the test update. Replay the dummy sequence only to compare a running binary that is not commit a8843c3e33ae1049aaf174be8ae539c421642940, and only against a disposable organization and principal."
-    },
-    "reason": "Closed on the stacked NV fix PRs at regression re-read: ensure_view_authority and observe ceiling on control and hook records (#845)."
+    "reason": "Run 5 independent verifier v-run5-gateway-observe-fence in worktree /tmp/wt-cf-audit-run5-h2 (source): lease.rs take_control calls ensure_browser_observe_ceiling before commit. load(Attachment::View) calls ensure_view_authority. control_honors_the_role_evidence_fence and hook_records_honor_the_role_evidence_fence tests exist on the stack tip."
   },
   {
     "verdict": "rejected",
@@ -1038,16 +1003,7 @@
         "description": "The Host endpoint sets loopbackOnly to false, so the CLI is not pinned to a same-machine peer."
       }
     ],
-    "blockers": [
-      "This host is Linux. cmd.exe and Wine are not installed, rust-src for the 1.88 toolchain is not installed, and cfg!(target_os = \"windows\") is false, so the compiled open_url branch is xdg-open. Windows CreateProcess quoting and cmd.exe parsing were not executed.",
-      "The decisive fact is whether cmd.exe /C start, given the single argument Rust Command::arg produces, treats a normal authorization_url that contains &, a path containing & around a command, or a non-URL command string, as more than one command. A Linux xdg-open result does not answer that.",
-      "Run 2 retried this lead on the same host on 2026-10-08. docker, wine, cmd.exe, and nats-server are not installed, there is no Android emulator, and the audit sandbox file-size limit (ulimit -f 10240) still cannot compile wasmtime or the gateway. The source claim was re-read at 6395f1e4 and the decisive fact is still outside this sandbox."
-    ],
-    "validation_plan": {
-      "local": "On a Windows machine, in an empty temp directory, spawn only the same argv as open_url: Command::new(\"cmd\").arg(\"/C\").arg(\"start\").arg(value), with no Host, no token, and no production server. Use a marker whose only effect is creating an empty file in that temp directory, then delete it. Test three values: (1) https://example.invalid/authorize?response_type=code&client_id=dummy ; (2) the marker command alone; (3) https://example.invalid/x&MARKER&y where MARKER is that create-file command and contains no further metacharacters. Record whether the marker file is created and whether cmd reports a second command. Do not change system settings or contact a real provider.",
-      "deployment": "No production deployment, signing check, installer ACL, or device policy is required. A local Windows build of this CLI, or a throwaway copy of open_url, plus a stub authorization_url string, is enough."
-    },
-    "reason": "Closed on the stacked NV fix PRs at regression re-read: authorization_url_may_open_in_browser (#844)."
+    "reason": "Run 5 independent verifier v-run5-cli-open-url in worktree /tmp/wt-cf-audit-run5-h2 (source): open_url gates on authorization_url_may_open_in_browser before spawn. Windows uses cmd /C start \"\" url (lines 1385-1389). Unit test authorization_urls_must_be_https_or_dev_loopback rejects javascript: and file: schemes."
   },
   {
     "verdict": "rejected",
@@ -1190,16 +1146,7 @@
         "description": "assert_tcp_listen_allowed rejects a non-loopback listen string unless OPENSESAME_ALLOW_NONLOCAL=1. Compose does not set that override."
       }
     ],
-    "blockers": [
-      "Docker is not installed and this audit must not start compose. The short syntax \"4222:4222\" does not name a host IP, and the repository does not pin a Docker Engine or Compose version. Whether that publish binds 0.0.0.0, localhost, or a daemon ip setting, and whether a firewall, rootless mode, or userland proxy restricts it, is not source-visible.",
-      "The nats:2.11.4 image and its entrypoint are not in this repository, and nats-server is not installed. The compose command supplies no config file and no authorization or listen flag. Whether that image accepts a client with no credentials, and where monitoring port 8222 binds inside the container, was not observed. ops/nats/local-dev.conf documents a different profile that this service does not load.",
-      "Run 2 retried this lead on the same host on 2026-10-08. docker, wine, cmd.exe, and nats-server are not installed, there is no Android emulator, and the audit sandbox file-size limit (ulimit -f 10240) still cannot compile wasmtime or the gateway. The source claim was re-read at 6395f1e4 and the decisive fact is still outside this sandbox."
-    ],
-    "validation_plan": {
-      "local": "On an isolated host with Docker, no extra firewall, and no route to a shared or production network, render `docker compose -f ops/compose/docker-compose.yml config` and record the nats service's published host IP and port. Start only that service with `docker compose -f ops/compose/docker-compose.yml up -d nats`. Record `docker compose -f ops/compose/docker-compose.yml port nats 4222`. From a second network namespace, open TCP to the host's non-loopback address on the published port and read only the NATS INFO line. If and only if that line shows authentication is not required, on this fresh server only, publish and subscribe once with no credentials on the dummy subject opensesame.events.test, then remove the container. Do not start the other compose services and do not use an operator token or any real credential.",
-      "deployment": "On the host that actually runs this file, read only `docker compose -f ops/compose/docker-compose.yml port nats 4222` and the host socket's bind address. Record any firewall, rootless Docker, or published-port IP override that is not in the repository. If the broker might already hold operator data, do not publish, subscribe, or create streams; a non-compose peer may only read the NATS INFO banner to see whether authentication is required. Do not send credentials."
-    },
-    "reason": "Closed on the stacked NV fix PRs at regression re-read: 127.0.0.1:4222 bind (#843)."
+    "reason": "Run 5 independent verifier v-run5-nats-loopback in worktree /tmp/wt-cf-audit-run5-v1 (source): ops/compose/docker-compose.yml line 58 publishes 127.0.0.1:4222:4222 with an operator comment. The unpinned 4222:4222 publish from run 3 is gone on this tip."
   },
   {
     "verdict": "rejected",
@@ -1324,194 +1271,5 @@
       }
     ],
     "reason": "A getRun body for a different run is not driven, and a fresh view that names another origin stands the runner down."
-  },
-  {
-    "verdict": "rejected",
-    "fingerprint": "app-core.secret-fs.s3/saved-prefix-dot-segments-not-checked",
-    "title": "S3 connector prefix is joined into object keys without checkPath",
-    "description": "Run-5 hunter: s3ConfigFrom passes saved.fields.prefix through to makeS3SecretFiles without running checkPath, so a prefix containing dot segments could shift object keys outside the intended vault folder in the bucket.",
-    "claimed_root_cause": "Operator-supplied prefix is trusted as a raw key prefix.",
-    "trace": [
-      {
-        "kind": "entrypoint",
-        "file": "packages/app-core/src/lib/secret-fs/s3-config.ts",
-        "line": 62,
-        "scope": "s3ConfigFrom",
-        "description": "prefix: text(saved.fields.prefix) is copied into S3FilesConfig."
-      },
-      {
-        "kind": "sink",
-        "file": "packages/app-core/src/lib/secret-fs/s3.ts",
-        "line": 144,
-        "scope": "makeWire.call",
-        "description": "Object key is `${rootPrefix}${call.path}` where rootPrefix comes from config.prefix."
-      }
-    ],
-    "evidence": [
-      {
-        "file": "packages/app-core/src/lib/secret-fs/files.ts",
-        "line": 85,
-        "description": "checkPath rejects .. segments for caller paths but is not applied to the saved prefix."
-      },
-      {
-        "file": "packages/app-core/src/lib/secret-fs/s3.test.ts",
-        "line": 47,
-        "description": "Tests treat prefix as an operator-chosen vault folder, not an attacker-controlled relative path."
-      }
-    ],
-    "reason": "The prefix is sealed operator configuration for the device's own bucket credentials, not joiner or agent input. Object paths remain checkPath-gated; escaping the vault folder still requires IAM the operator already granted on that bucket."
-  },
-  {
-    "verdict": "rejected",
-    "fingerprint": "app-core.join/delegation-claim-without-consent-replay",
-    "title": "Join claim could replay accepted_item_ids without per-item consent UI",
-    "description": "Run-5 hunter: claimInvite posts accepted_item_ids from the client; a modified client might omit consent for required items.",
-    "claimed_root_cause": "Client-side consent list is not re-validated server-side.",
-    "trace": [
-      {
-        "kind": "entrypoint",
-        "file": "packages/app-core/src/lib/join/client.ts",
-        "line": 271,
-        "scope": "claimInvite",
-        "description": "POST /api/v1/delegations/claim with accepted_item_ids from the caller."
-      }
-    ],
-    "evidence": [
-      {
-        "file": "packages/app-core/src/lib/join/consent.ts",
-        "line": 28,
-        "description": "Required items are derived from the offer; Host refuses claims that omit them (join-client tests)."
-      },
-      {
-        "file": "packages/app-core/src/lib/join/join-client.test.ts",
-        "line": 162,
-        "description": "detail: required item i1 was not accepted is exercised."
-      }
-    ],
-    "reason": "The Host enforces required items on claim; the PWA consent step mirrors that contract. A tampered client gets claim_refused, not authority."
-  },
-  {
-    "verdict": "rejected",
-    "fingerprint": "crates.gateway.callback_ingress/unregistered-route-forwards-callback",
-    "title": "Callback ingress might forward unregistered routes after signature verify",
-    "description": "Run-5 hunter: a valid HMAC on an unlisted connection/route pair might still be processed.",
-    "claimed_root_cause": "Route allowlist checked after replay claim.",
-    "trace": [
-      {
-        "kind": "entrypoint",
-        "file": "crates/gateway/src/callback_ingress/mod.rs",
-        "line": 97,
-        "scope": "webhook",
-        "description": "signature::verify then route membership check."
-      }
-    ],
-    "evidence": [
-      {
-        "file": "crates/gateway/src/callback_ingress/mod.rs",
-        "line": 101,
-        "description": "Unregistered routes return 401 before claim_callback_delivery."
-      },
-      {
-        "file": "crates/gateway/src/callback_ingress/mod.rs",
-        "line": 118,
-        "description": "Accepted deliveries set forwarded:false and do not invoke connectors."
-      }
-    ],
-    "reason": "Unregistered routes are refused; accepted callbacks are acknowledged only and never forwarded into vault work."
-  },
-  {
-    "verdict": "rejected",
-    "fingerprint": "control-plane.push/subscriptions/endpoint-hijack-via-normalization",
-    "title": "Push subscription endpoint normalization might let one principal steal another browser endpoint",
-    "description": "Run-5 hunter: alternate URL spellings could register another principal's push endpoint.",
-    "claimed_root_cause": "Digest keyed on normalized endpoint without legacy cross-check.",
-    "trace": [
-      {
-        "kind": "entrypoint",
-        "file": "packages/control-plane/src/routes/push-enrolment.ts",
-        "line": 58,
-        "scope": "readRegistration",
-        "description": "normalizePushEndpoint canonicalizes spelling before digest."
-      },
-      {
-        "kind": "sink",
-        "file": "packages/control-plane/src/routes/push-enrolment.ts",
-        "line": 107,
-        "scope": "admit",
-        "description": "Conflicting principal on legacy digest returns endpoint_already_registered."
-      }
-    ],
-    "evidence": [
-      {
-        "file": "packages/control-plane/src/routes/push-enrolment.ts",
-        "line": 68,
-        "description": "pushSubscriptionRefusal rejects insecure endpoints before persistence."
-      }
-    ],
-    "reason": "admit() refuses when another principal holds the endpoint digest; replacement is same-principal only. verify:push exercises 409 recovery."
-  },
-  {
-    "verdict": "rejected",
-    "fingerprint": "app-core.live/broadcastchannel-carrier-leaks-offer-plaintext",
-    "title": "Live session BroadcastChannel carrier might expose pairing payloads to other origins",
-    "description": "Run-5 hunter: BroadcastChannel name might be guessable and carry sealed offer material in the clear.",
-    "claimed_root_cause": "Carrier uses a fixed channel name without origin binding.",
-    "trace": [
-      {
-        "kind": "entrypoint",
-        "file": "packages/app-core/src/lib/live/",
-        "line": 1,
-        "scope": "carriers",
-        "description": "BroadcastChannel carrier selected when capability allows."
-      }
-    ],
-    "evidence": [
-      {
-        "file": "packages/app-core/src/lib/live/seal.ts",
-        "line": 24,
-        "description": "Pairing payloads are sealed (osm-live-v1) before carrier transport per ADR 0150."
-      },
-      {
-        "file": "docs/adr/0150-live-sessions-browser-to-browser.md",
-        "line": 1,
-        "description": "Carriers move ciphertext; consent and codes are out-of-band."
-      }
-    ],
-    "reason": "BroadcastChannel is same-origin by browser policy; payloads on the wire are sealed and never carry join secrets or vault items."
-  },
-  {
-    "verdict": "rejected",
-    "fingerprint": "mcp-host.stdio/transport-without-bearer-authentication",
-    "title": "MCP host stdio transport serves tools without OAuth bearer",
-    "description": "Run-5 hunter: default OPENSESAME_MCP_TRANSPORT=stdio connects tools with no bearer gate unlike streamable HTTP.",
-    "claimed_root_cause": "Bearer assertions only wired for HTTP transport.",
-    "trace": [
-      {
-        "kind": "entrypoint",
-        "file": "packages/mcp-host/src/server.ts",
-        "line": 25,
-        "scope": "main",
-        "description": "stdio is the default transport mode."
-      },
-      {
-        "kind": "sink",
-        "file": "packages/mcp-host/src/streamable-http.test.ts",
-        "line": 104,
-        "description": "HTTP mode rejects missing bearer and advertises PRM."
-      }
-    ],
-    "evidence": [
-      {
-        "file": "packages/mcp-host/src/host-api.ts",
-        "line": 38,
-        "description": "Host API calls still require loopback or TLS and approved launch; stdio is a local parent process boundary."
-      },
-      {
-        "file": "packages/mcp-host/src/host-api-extra.test.ts",
-        "line": 51,
-        "description": "Native session is not promoted into agent authority without launch approval."
-      }
-    ],
-    "reason": "Stdio MCP is a local IPC surface for a parent process already holding OS access; streamable HTTP is the networked entry and carries bearer. Agent authority still flows through Host launch approval and ConnectionRef checks."
   }
 ]

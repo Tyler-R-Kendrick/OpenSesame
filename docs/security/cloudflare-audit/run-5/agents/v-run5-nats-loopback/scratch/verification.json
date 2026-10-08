@@ -1,0 +1,6 @@
+{
+  "fingerprint": "ops/compose/docker-compose.yml/nats/plaintext-host-port",
+  "worktree": "/tmp/wt-cf-audit-run5-v1",
+  "role": "phase3-verifier",
+  "independent_of_hunter": true
+}

@@ -34,11 +34,11 @@
         "reason": "No cloud IAM selector is the decision on this URL launch."
       }
     ],
-    "prior_status": "prior_deferred",
+    "prior_status": "prior_needs_validation",
     "attempts": [],
-    "wave": 1,
-    "status": "candidate",
-    "agent_id": "h-ios",
+    "wave": 2,
+    "status": "covered",
+    "agent_id": "h-run5-android-ios",
     "reviewed_paths": [
       "apps/android/ios/IdentityDocumentProvider/DocumentProvider.swift",
       "apps/android/ios/IdentityDocumentProvider/Info.plist",
@@ -47,7 +47,8 @@
       "apps/android/ios/Package.swift",
       "apps/android/ios/Sources/OpenSesameAuthenticator/WalletModel.swift",
       "apps/android/ios/Sources/OpenSesameAuthenticator/WalletView.swift",
-      "crates/authenticator-core/src/lib.rs"
+      "crates/authenticator-core/src/lib.rs",
+      "apps/android/android/app/src/main/java/dev/opensesame/authenticator/MainActivity.kt"
     ],
     "local_checks": [
       {
@@ -77,16 +78,26 @@
         "method": "source",
         "result": "ios/Info.plist registers only openid-credential-offer and haip-vci. openid4vp, haip-vp, and mdoc are absent. WalletView launches provisioning only for oid4vci after a successful https validation; an oid4vp result is not launched. IdentityDocumentProvider fulfills presentment through ISO18013MobileDocumentRequestScene and returns nil from showConsentPromptFn on consent failure. It does not call launchOpenID4VCIProvisioning or validatePlatformInvocation. No second issuance bypass was found.",
         "artifact": null
+      },
+      {
+        "agent_id": "v-run5-wallet-custom-scheme",
+        "reviewed_paths": [
+          "apps/android/android/app/src/main/java/dev/opensesame/authenticator/MainActivity.kt",
+          "apps/android/ios/Sources/OpenSesameAuthenticator/WalletView.swift",
+          "crates/authenticator-core/src/lib.rs"
+        ],
+        "invariant": "Custom-scheme OID4VCI handoffs must pass validateCredentialOfferSchemeHandoff before launchOpenID4VCIProvisioning.",
+        "method": "source",
+        "result": "At d1ce497f MainActivity.kt lines 93-104 and WalletView.swift call validateCredentialOfferSchemeHandoff (or validatePlatformInvocation on https) before provisioning. Invalid offers return without launching.",
+        "artifact": null
       }
     ],
-    "result_fingerprints": [
-      "apps/ios/invocation/custom-scheme-skips-validate-platform-invocation"
-    ],
+    "result_fingerprints": [],
     "unresolved": [],
     "uncovered_reason": "onOpenURL sends openid-credential-offer and haip-vci URLs to WalletModel.launch without validatePlatformInvocation, while the https branch calls that policy. Info.plist registers those schemes, and no unit's reviewed_paths includes WalletView.swift.",
     "hardening_notes": [],
     "phase3_verdict": "needs_validation",
-    "phase3_verifier": "parent-run3-close"
+    "phase3_verifier": "v-run5-wallet-custom-scheme"
   },
   {
     "coverage_id": "apps%2Fbrowser-extension%2Frunner%2Fhost.ts::apps%2Fbrowser-extension%2Frunner%2Fhost-base.ts::apps%2Fbrowser-extension::ATTACK-CLASSES.md%23Access%20control",
@@ -213,7 +224,9 @@
     "boundary": "apps/cli/src/connect.rs#authorize_oauth",
     "subsystem": "apps/cli",
     "attack_class": "Injection",
-    "starting_paths": ["apps/cli/src/connect.rs"],
+    "starting_paths": [
+      "apps/cli/src/connect.rs"
+    ],
     "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
     "selected_companion_blocks": [
       "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
@@ -229,17 +242,31 @@
     ],
     "prior_status": "prior_needs_validation",
     "attempts": [],
-    "wave": 1,
+    "wave": 2,
     "status": "covered",
-    "agent_id": "parent-run3-planned",
-    "reviewed_paths": ["apps/cli/src/connect.rs"],
+    "agent_id": "h-run5-cli",
+    "reviewed_paths": [
+      "apps/cli/src/connect.rs"
+    ],
     "local_checks": [
       {
         "agent_id": "parent-run3-planned",
-        "reviewed_paths": ["apps/cli/src/connect.rs"],
+        "reviewed_paths": [
+          "apps/cli/src/connect.rs"
+        ],
         "invariant": "Run-1 needs_validation unit re-read at stack tip.",
         "method": "source",
         "result": "Re-hunted at 33ecab02. No new confirmed path; prior blocker or run-2 disposition unchanged.",
+        "artifact": null
+      },
+      {
+        "agent_id": "v-run5-cli-open-url",
+        "reviewed_paths": [
+          "apps/cli/src/connect.rs"
+        ],
+        "invariant": "Only https or non-production loopback authorization URLs reach cmd start; Windows passes an empty start title.",
+        "method": "source",
+        "result": "open_url gates on authorization_url_may_open_in_browser before spawn. Windows uses cmd /C start \"\" url (lines 1385-1389). Unit test authorization_urls_must_be_https_or_dev_loopback rejects javascript: and file: schemes.",
         "artifact": null
       }
     ],
@@ -251,7 +278,7 @@
       "Unix sealed-store IO is descriptor-relative and no-follow. The non-unix confined_read, confined_write, and confined_remove helpers canonicalize and then use path IO, which is a TOCTOU. rotation swap_all checks symlinks and then rename, and rename follows intermediate directory symlinks. apps/cli/src/store.rs shred_file follows a final symlink when zeroing a manifest. Those matter only if a lower-trust writer can already modify the store path; the default home store is the same OS account."
     ],
     "phase3_verdict": "needs_validation",
-    "phase3_verifier": "v13-opensesame-cli-connect-open-url-authoriz"
+    "phase3_verifier": "v-run5-cli-open-url"
   },
   {
     "coverage_id": "apps%2Fcli%2Fsrc%2Fpassword_agent%2Fio.rs::crates%2Fconnector-host%2Fsrc%2Fpassword_agent%2Fenv.rs::apps%2Fcli::ATTACK-CLASSES.md%23Injection",
@@ -361,7 +388,9 @@
     "boundary": "apps/cli/src/plugins_install.rs",
     "subsystem": "apps/cli",
     "attack_class": "Resource and file handling",
-    "starting_paths": ["apps/cli/src/plugins_install.rs"],
+    "starting_paths": [
+      "apps/cli/src/plugins_install.rs"
+    ],
     "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
     "selected_companion_blocks": [
       "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
@@ -614,7 +643,9 @@
     "boundary": "apps/pages/api/github-app/webhook.mjs#readRaw",
     "subsystem": "apps/pages",
     "attack_class": "Resource accumulation",
-    "starting_paths": ["apps/pages/api/github-app/webhook.mjs"],
+    "starting_paths": [
+      "apps/pages/api/github-app/webhook.mjs"
+    ],
     "ordinary_attack_class_block": null,
     "selected_companion_blocks": [
       "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
@@ -691,7 +722,9 @@
     "boundary": "apps/pages/scripts/github-app-relay-plugin.mjs#readBody",
     "subsystem": "apps/pages",
     "attack_class": "Resource accumulation",
-    "starting_paths": ["apps/pages/scripts/github-app-relay-plugin.mjs"],
+    "starting_paths": [
+      "apps/pages/scripts/github-app-relay-plugin.mjs"
+    ],
     "ordinary_attack_class_block": null,
     "selected_companion_blocks": [
       "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
@@ -891,7 +924,9 @@
       },
       {
         "agent_id": "h-pages-write",
-        "reviewed_paths": ["apps/pages/server/github-app-repos.mjs"],
+        "reviewed_paths": [
+          "apps/pages/server/github-app-repos.mjs"
+        ],
         "invariant": "Listing or creating a repository requires the App PEM, and create does not grant a token the caller can reuse.",
         "method": "source",
         "result": "Holds in source. Both handlers require readCredentials. List mints contents:read plus metadata:read and returns only fullName, name, private, and defaultBranch. Create mints an installation token with administration:write and no repository list, then POSTs only to https://api.github.com/orgs/{owner}/repos or https://api.github.com/user/repos. The token is not returned. accountType and owner are caller-chosen and are not compared to the installation account locally; cross-account create would require GitHub to honor that token outside the installation, which is not established here and is not reported.",
@@ -1637,9 +1672,9 @@
     ],
     "prior_status": "prior_needs_validation",
     "attempts": [],
-    "wave": 1,
+    "wave": 2,
     "status": "covered",
-    "agent_id": "parent-run3-planned",
+    "agent_id": "h-run5-egress",
     "reviewed_paths": [
       "crates/connection-broker/src/egress.rs",
       "crates/connection-broker/src/lib.rs",
@@ -1659,6 +1694,16 @@
         "method": "source",
         "result": "Re-hunted at 33ecab02. No new confirmed path; prior blocker or run-2 disposition unchanged.",
         "artifact": null
+      },
+      {
+        "agent_id": "v-run5-egress-encoded-path",
+        "reviewed_paths": [
+          "crates/domain/src/authority.rs"
+        ],
+        "invariant": "Encoded traversals that decode outside an allowed prefix are refused before credential attach.",
+        "method": "source",
+        "result": "authority.rs percent_decode_path_segment and allows_url tests reject %2e%2e%2f, ..%2f, and %5c glued segments (lines 653-662). cargo +1.88.0 test -p opensesame-domain authority::tests::egress_blocks_evil_destination passed in /tmp/wt-cf-audit-run5-h1.",
+        "artifact": null
       }
     ],
     "result_fingerprints": [],
@@ -1668,7 +1713,7 @@
       "allows_redirect compares host strings only, not ports (authority.rs:261-268), but authorized_json never calls it. Both reqwest clients are built with redirect Policy::none (lib.rs:280 and lib.rs:287). The comment above http_bytes that says the shared client follows redirects is stale."
     ],
     "phase3_verdict": "needs_validation",
-    "phase3_verifier": "v11-domain-egressbinding-allows-url-encoded"
+    "phase3_verifier": "v-run5-egress-encoded-path"
   },
   {
     "coverage_id": "crates%2Fcredential-helpers%2Fsrc%2Flib.rs::crates%2Fcredential-helpers%2Fsrc%2Flib.rs::crates%2Fcredential-helpers::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
@@ -1682,7 +1727,9 @@
     "boundary": "crates/credential-helpers/src/lib.rs",
     "subsystem": "crates/credential-helpers",
     "attack_class": "Cryptography and secrets",
-    "starting_paths": ["crates/credential-helpers/src/lib.rs"],
+    "starting_paths": [
+      "crates/credential-helpers/src/lib.rs"
+    ],
     "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
     "selected_companion_blocks": [
       "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
@@ -2018,7 +2065,9 @@
       },
       {
         "agent_id": "h-daemon",
-        "reviewed_paths": ["crates/daemon/src/lib.rs"],
+        "reviewed_paths": [
+          "crates/daemon/src/lib.rs"
+        ],
         "invariant": "Routes that skip require_operator are either non-authority or a separate boundary already covered by the proxy and tailnet units.",
         "method": "source",
         "result": "Operator mutations in this file call require_operator. /host and /identity do not; that gap is the backslash denylist candidate on the proxy and bridge units, not a failure inside require_operator. GET /health, GET /health/live, and POST /v1/get_access_token are ungated, and the token route only returns the error use_mint_capability. Vault device routes use a slot key. None of those grant operator authority.",
@@ -2115,7 +2164,9 @@
       },
       {
         "agent_id": "h-daemon",
-        "reviewed_paths": ["crates/daemon/src/fill/caller.rs"],
+        "reviewed_paths": [
+          "crates/daemon/src/fill/caller.rs"
+        ],
         "invariant": "Fill value routes do not treat a non-loopback daemon bind as extension authority.",
         "method": "source",
         "result": "extension_caller requires a loopback Host, no forwarding headers, an extension origin, and a paired bearer. The loopback test reads the client Host header, not the accepted socket address, so a direct client of the WSL bridge can send Host: 127.0.0.1. The paired bearer still gates secret values. That is a header-versus-socket hardening gap, not a candidate: no value is returned without the pairing token, and Serve's injected forwarding headers are not defined in this repo.",
@@ -2577,13 +2628,15 @@
     ],
     "prior_status": "prior_needs_validation",
     "attempts": [],
-    "wave": 1,
+    "wave": 2,
     "status": "covered",
-    "agent_id": "parent-run3-planned",
+    "agent_id": "h-run5-gateway",
     "reviewed_paths": [
       "crates/gateway/src/routes/agent_runs/lease.rs",
       "crates/gateway/src/routes/host_authorizations.rs",
-      "crates/storage/src/host_authorizations.rs"
+      "crates/storage/src/host_authorizations.rs",
+      "crates/gateway/src/routes/agent_run_stream_authority.rs",
+      "crates/gateway/src/routes/agent_runs_tests.rs"
     ],
     "local_checks": [
       {
@@ -2597,6 +2650,18 @@
         "method": "source",
         "result": "Re-hunted at 33ecab02. No new confirmed path; prior blocker or run-2 disposition unchanged.",
         "artifact": null
+      },
+      {
+        "agent_id": "v-run5-gateway-observe-fence",
+        "reviewed_paths": [
+          "crates/gateway/src/routes/agent_runs/lease.rs",
+          "crates/gateway/src/routes/agent_run_stream_authority.rs",
+          "crates/gateway/src/routes/agent_runs_tests.rs"
+        ],
+        "invariant": "Control commits and one-shot log reads honor the same config_authorization_roles evidence_after floor as observe tails.",
+        "method": "source",
+        "result": "lease.rs take_control calls ensure_browser_observe_ceiling before commit. load(Attachment::View) calls ensure_view_authority. control_honors_the_role_evidence_fence and hook_records_honor_the_role_evidence_fence tests exist on the stack tip.",
+        "artifact": null
       }
     ],
     "result_fingerprints": [],
@@ -2607,7 +2672,7 @@
       "control_with_host_authorization binds the elevation digest, client, transition, and run version in one transaction, and a stale observation update returns before commit."
     ],
     "phase3_verdict": "needs_validation",
-    "phase3_verifier": "v12-gateway-observation-control-role-evidenc"
+    "phase3_verifier": "v-run5-gateway-observe-fence"
   },
   {
     "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Fstream.rs%23observe::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
@@ -2646,13 +2711,15 @@
     ],
     "prior_status": "prior_needs_validation",
     "attempts": [],
-    "wave": 1,
+    "wave": 2,
     "status": "covered",
-    "agent_id": "parent-run3-planned",
+    "agent_id": "h-run5-gateway",
     "reviewed_paths": [
       "crates/gateway/src/routes/agent_run_stream_authority.rs",
       "crates/gateway/src/routes/agent_runs/stream.rs",
-      "crates/gateway/src/routes/shared_sessions/events.rs"
+      "crates/gateway/src/routes/shared_sessions/events.rs",
+      "crates/gateway/src/routes/agent_runs/lease.rs",
+      "crates/gateway/src/routes/agent_runs_tests.rs"
     ],
     "local_checks": [
       {
@@ -2666,6 +2733,18 @@
         "method": "source",
         "result": "Re-hunted at 33ecab02. No new confirmed path; prior blocker or run-2 disposition unchanged.",
         "artifact": null
+      },
+      {
+        "agent_id": "v-run5-gateway-observe-fence",
+        "reviewed_paths": [
+          "crates/gateway/src/routes/agent_runs/lease.rs",
+          "crates/gateway/src/routes/agent_run_stream_authority.rs",
+          "crates/gateway/src/routes/agent_runs_tests.rs"
+        ],
+        "invariant": "Control commits and one-shot log reads honor the same config_authorization_roles evidence_after floor as observe tails.",
+        "method": "source",
+        "result": "lease.rs take_control calls ensure_browser_observe_ceiling before commit. load(Attachment::View) calls ensure_view_authority. control_honors_the_role_evidence_fence and hook_records_honor_the_role_evidence_fence tests exist on the stack tip.",
+        "artifact": null
       }
     ],
     "result_fingerprints": [],
@@ -2676,7 +2755,7 @@
       "control_with_host_authorization binds the elevation digest, client, transition, and run version in one transaction, and a stale observation update returns before commit."
     ],
     "phase3_verdict": "needs_validation",
-    "phase3_verifier": "v12-gateway-observation-control-role-evidenc"
+    "phase3_verifier": "v-run5-gateway-observe-fence"
   },
   {
     "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs.rs%23get_run::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
@@ -2690,7 +2769,9 @@
     "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
     "subsystem": "crates/gateway",
     "attack_class": "Access control",
-    "starting_paths": ["crates/gateway/src/routes/agent_runs.rs"],
+    "starting_paths": [
+      "crates/gateway/src/routes/agent_runs.rs"
+    ],
     "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
     "selected_companion_blocks": [],
     "excluded_blocks": [
@@ -3519,7 +3600,9 @@
     "boundary": "crates/human-vault/src/lib.rs",
     "subsystem": "crates/human-vault",
     "attack_class": "Cryptography and secrets",
-    "starting_paths": ["crates/human-vault/src/lib.rs"],
+    "starting_paths": [
+      "crates/human-vault/src/lib.rs"
+    ],
     "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
     "selected_companion_blocks": [
       "DATA-ISOLATION-AND-LIFECYCLE.md#Core discipline",
@@ -3558,7 +3641,9 @@
     "local_checks": [
       {
         "agent_id": "h-storage",
-        "reviewed_paths": ["crates/human-vault/src/lib.rs"],
+        "reviewed_paths": [
+          "crates/human-vault/src/lib.rs"
+        ],
         "invariant": "An untrusted envelope cannot change item, org, project, collection, key, or revision binding, or obtain plaintext, without the item key.",
         "method": "source",
         "result": "encrypt_item and seal_chunk use XChaCha20-Poly1305 with a fresh 24-byte rand 0.8 ThreadRng nonce and bind a blake3 digest of the canonical associated data as AAD. decrypt_item and open_chunk recompute that digest, reject a mismatched stored digest or version, and return only AEAD failures. decrypt_item_with_ad additionally requires the caller's reconstructed context to hash to the same digest. There is no unauthenticated or plaintext fallback. Workspace rand is 0.8.5 (ChaCha ThreadRng).",
@@ -3635,13 +3720,15 @@
     "excluded_blocks": [],
     "prior_status": "prior_needs_validation",
     "attempts": [],
-    "wave": 1,
+    "wave": 2,
     "status": "covered",
-    "agent_id": "parent-run3-planned",
+    "agent_id": "h-run5-sandbox",
     "reviewed_paths": [
       "crates/sandbox/src/boundary.rs",
       "crates/sandbox/src/capability.rs",
-      "crates/sandbox/src/lib.rs"
+      "crates/sandbox/src/lib.rs",
+      "crates/sandbox/src/runtime/mod.rs",
+      "crates/sandbox/tests/grant_expiry.rs"
     ],
     "local_checks": [
       {
@@ -3655,6 +3742,17 @@
         "method": "source",
         "result": "Re-hunted at 33ecab02. No new confirmed path; prior blocker or run-2 disposition unchanged.",
         "artifact": null
+      },
+      {
+        "agent_id": "v-run5-sandbox-grant-expiry",
+        "reviewed_paths": [
+          "crates/sandbox/src/runtime/mod.rs",
+          "crates/sandbox/tests/grant_expiry.rs"
+        ],
+        "invariant": "Spawn and broker imports refuse after profile.expires_at while the fence stays live.",
+        "method": "source",
+        "result": "cargo +1.88.0 test -p opensesame-sandbox --test grant_expiry --features wasm-runtime,fixtures passed in /tmp/wt-cf-audit-run5-v1 (spawn_refuses_after_the_grant_window_closes, broker_imports_refuse_after_the_grant_window_closes). mod.rs lines 140 and 167 compare Utc::now() to profile.expires_at() before compile and guest entry.",
+        "artifact": null
       }
     ],
     "result_fingerprints": [],
@@ -3666,7 +3764,7 @@
       "Guest http destinations, sign purposes, and token scopes are forwarded after UTF-8 and length checks only. The profile keeps actions and budgets, not resources, audiences, or allowed_networks. Integrators must enforce those in Broker; DenyAll is the only in-crate broker and it refuses everything. max_broker_response_bytes stays at the 4 MiB ceiling and is not a grant budget key. binds_chain compares ids and generation only."
     ],
     "phase3_verdict": "needs_validation",
-    "phase3_verifier": "v09-crates-sandbox-spawn-grant-expiry-not-re"
+    "phase3_verifier": "v-run5-sandbox-grant-expiry"
   },
   {
     "coverage_id": "crates%2Fstorage%2Fsrc%2Fauthority%2Fgrants.rs%23issue_authority::crates%2Fstorage%2Fsrc%2Fgrants.rs%23find_grant::crates%2Fstorage::ATTACK-CLASSES.md%23Access%20control",
@@ -3970,9 +4068,9 @@
     ],
     "prior_status": "prior_needs_validation",
     "attempts": [],
-    "wave": 1,
+    "wave": 2,
     "status": "covered",
-    "agent_id": "parent-run3-planned",
+    "agent_id": "h-run5-compose",
     "reviewed_paths": [
       "ops/compose/docker-compose.yml",
       "ops/ingress/Caddyfile",
@@ -3990,6 +4088,16 @@
         "method": "source",
         "result": "Re-hunted at 33ecab02. No new confirmed path; prior blocker or run-2 disposition unchanged.",
         "artifact": null
+      },
+      {
+        "agent_id": "v-run5-nats-loopback",
+        "reviewed_paths": [
+          "ops/compose/docker-compose.yml"
+        ],
+        "invariant": "Published NATS client port binds loopback on the host, not 0.0.0.0.",
+        "method": "source",
+        "result": "ops/compose/docker-compose.yml line 58 publishes 127.0.0.1:4222:4222 with an operator comment. The unpinned 4222:4222 publish from run 3 is gone on this tip.",
+        "artifact": null
       }
     ],
     "result_fingerprints": [],
@@ -4002,7 +4110,7 @@
       "Image tags are not digests. The compose header already says to replace them in production. Caddy 2.11.4 is digest-pinned in ops/ingress/caddy.version."
     ],
     "phase3_verdict": "needs_validation",
-    "phase3_verifier": "v14-ops-compose-docker-compose-yml-nats-plai"
+    "phase3_verifier": "v-run5-nats-loopback"
   },
   {
     "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Ffederation-callback.ts::packages%2Fapp-core%2Fsrc%2Flib%2Ffederation-callback.ts%23assertSafeReturnTo::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
@@ -4604,7 +4712,9 @@
       },
       {
         "agent_id": "h-tscli",
-        "reviewed_paths": ["packages/cli/src/identity-session.ts"],
+        "reviewed_paths": [
+          "packages/cli/src/identity-session.ts"
+        ],
         "invariant": "A session or key file that is group- or world-accessible is refused, and a refreshed token is posted only to the issuer origin that minted the session.",
         "method": "source",
         "result": "assertPrivateFile rejects any mode with bits in 0o077 before read, and saveSession creates the temp file mode 0600, chmods 0600, then renames it into place. refreshSession ignores a non-string token_endpoint and returns null unless new URL(tokenEndpoint).origin equals new URL(session.issuer).origin. A changed outer issuer or clientId fails the envelope AAD before the inner session is returned.",
@@ -5158,7 +5268,9 @@
       },
       {
         "agent_id": "h-cp-oauth",
-        "reviewed_paths": ["packages/control-plane/src/routes/device.ts"],
+        "reviewed_paths": [
+          "packages/control-plane/src/routes/device.ts"
+        ],
         "invariant": "Device approval binds the host call to the caller's current membership role, and the request body cannot choose that role.",
         "method": "source",
         "result": "Holds inside this service. POST /v1/device/approve requires a principal, re-reads membership under serializeMembershipMutation, refuses an inactive organization, and sends organization_role from that row. The operator token is attached by the server. The host's interpretation of user_code is outside this repository and is not a second control-plane grant.",

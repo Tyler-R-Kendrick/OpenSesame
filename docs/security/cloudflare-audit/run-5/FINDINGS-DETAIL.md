@@ -1,3 +1,3 @@
-# Run 5 findings detail
+# Findings detail (run 5)
 
-Six run-5 hunter candidates are appended in findings.json with traces and rejection reasons. Prior rows match run 4.
+See `findings.json`. All run-3 `needs_validation` items were re-verified and rejected with `verification.verifier_id` records.

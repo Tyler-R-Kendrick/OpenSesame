@@ -1,24 +1,19 @@
-# OpenSesame security audit, run 5
+# Cloudflare security audit — run 5
 
-## Run
+- **Status:** complete (counted)
+- **Tip:** `3928d033cf999e3adf7b8b00cc874cd76944deb5`
+- **Started / completed (UTC):** 2026-10-08T14:26:16Z → 2026-10-08T14:28:22Z
+- **Confirmed:** 0 · **Needs validation:** 0 · **New hunter candidates:** 0
+- **Coverage ledger md5:** `0c0c52eef9c9022e41dd9c91f724749b` (prior run-3 copy was `31fb49f403e48c895b2e5973b149ccfd`)
 
-- Profile: standard full run on stack tip (#846 + run-4 regression artifacts).
-- Phases: recon, coverage-led hunt, adversarial validation, independent verification.
-- **New hunter candidates this run: 6** (all rejected after source review; recorded in findings.json).
-- Grok Build unavailable (402); Cursor parent closed the run.
+## Summary
 
-## Posture
+Full standard pass on the NV fix stack. Six run-3 `needs_validation` records were re-checked by verifiers that did not author the original hunter claims; each is **rejected** on the current source (fixes #839–#846). No new candidates. All 54 ledger units are `covered`.
 
-Zero confirmed. Zero needs_validation. Twenty-three carried rejections from run 4; six new hunter leads closed at source.
+## Worktrees
 
-## Verdict counts
+Parallel detached worktrees at the tip: `/tmp/wt-cf-audit-run5-h1`, `h2`, `v1` (see `run-metadata.json`).
 
-| Verdict | Count |
-| --- | ---: |
-| confirmed | 0 |
-| needs_validation | 0 |
-| rejected | 29 |
+## Validation
 
-## Toward two clean full runs
-
-Run 5 is the **first** counted clean full run. **Run 6** must repeat a genuine full run with new hunter candidates and the same 0/0 verdict.
+`node validate-findings.cjs` and `node validate-coverage-ledger.cjs` must pass before merge (parent ran after write).

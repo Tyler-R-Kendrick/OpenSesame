@@ -3,10 +3,11 @@
   "repo": "OpenSesame",
   "target": "/workspace",
   "source_ref": {
-    "commit": "58ebcf5c3c8544d375cab2c357764b3177a9ae70",
+    "commit": "3928d033cf999e3adf7b8b00cc874cd76944deb5",
     "branch": "cursor/cf-audit-run-5-artifacts-d641",
     "worktree": "clean",
-    "origin_main": "77164dd258f0bdb5fc4752efee922ce09f45b842"
+    "origin_main": "be3c9db9036d23ffabae67d34d5892b38e1a95c8",
+    "prior_run_4_commit": "d1ce497fbc40e5c8ea4756674d08d74b116cdaae"
   },
   "profile": "standard",
   "scope_paths": [
@@ -18,21 +19,82 @@
     "scripts",
     "tools"
   ],
-  "execution_policy": "full-run",
+  "budget": null,
+  "execution_policy": "sandboxed-source-and-local-only",
+  "started_at": "2026-10-08T14:26:16Z",
+  "completed_at": "2026-10-08T14:28:22Z",
   "prior_run_paths": [
     "docs/security/cloudflare-audit/run-1",
     "docs/security/cloudflare-audit/run-2",
     "docs/security/cloudflare-audit/run-3",
     "docs/security/cloudflare-audit/run-4"
   ],
-  "run_status": "complete",
-  "new_hunter_candidates": 6,
-  "phases": [
-    "recon",
-    "coverage-led-hunt",
-    "adversarial-validation",
-    "independent-verification"
+  "prior_ledger_md5_run3": "31fb49f403e48c895b2e5973b149ccfd",
+  "coverage_ledger_md5": "0c0c52eef9c9022e41dd9c91f724749b",
+  "worktrees": [
+    {
+      "id": "h-run5-android-ios",
+      "path": "/tmp/wt-cf-audit-run5-h1",
+      "role": "hunter-wave-2"
+    },
+    {
+      "id": "h-run5-egress",
+      "path": "/tmp/wt-cf-audit-run5-h1",
+      "role": "hunter-wave-2"
+    },
+    {
+      "id": "h-run5-gateway",
+      "path": "/tmp/wt-cf-audit-run5-h2",
+      "role": "hunter-wave-2"
+    },
+    {
+      "id": "h-run5-cli",
+      "path": "/tmp/wt-cf-audit-run5-h2",
+      "role": "hunter-wave-2"
+    },
+    {
+      "id": "h-run5-sandbox",
+      "path": "/tmp/wt-cf-audit-run5-v1",
+      "role": "hunter-wave-2"
+    },
+    {
+      "id": "h-run5-compose",
+      "path": "/tmp/wt-cf-audit-run5-v1",
+      "role": "hunter-wave-2"
+    },
+    {
+      "id": "v-run5-wallet-custom-scheme",
+      "path": "/tmp/wt-cf-audit-run5-h1",
+      "role": "phase3-verifier"
+    },
+    {
+      "id": "v-run5-sandbox-grant-expiry",
+      "path": "/tmp/wt-cf-audit-run5-v1",
+      "role": "phase3-verifier"
+    },
+    {
+      "id": "v-run5-egress-encoded-path",
+      "path": "/tmp/wt-cf-audit-run5-h1",
+      "role": "phase3-verifier"
+    },
+    {
+      "id": "v-run5-gateway-observe-fence",
+      "path": "/tmp/wt-cf-audit-run5-h2",
+      "role": "phase3-verifier"
+    },
+    {
+      "id": "v-run5-cli-open-url",
+      "path": "/tmp/wt-cf-audit-run5-h2",
+      "role": "phase3-verifier"
+    },
+    {
+      "id": "v-run5-nats-loopback",
+      "path": "/tmp/wt-cf-audit-run5-v1",
+      "role": "phase3-verifier"
+    }
   ],
-  "notes": "First counted full run on NV fix stack (#839–#846). Six new hunter candidates written to findings.json (all rejected after source review). Grok unavailable (402).",
-  "completed_at": "2026-10-08T21:00:00Z"
+  "new_hunter_candidates": 0,
+  "run_status": "complete",
+  "grok_probe": "402 Payment Required (Grok Build usage exhausted); Cursor parent closed phases 1–6",
+  "notes": "Counted run 5. Regenerated architecture and coverage ledger from tip recon; prior run-3 ledger md5 not reused. Six run-3 NV items independently verified and rejected. Zero confirmed, zero needs_validation."
 }

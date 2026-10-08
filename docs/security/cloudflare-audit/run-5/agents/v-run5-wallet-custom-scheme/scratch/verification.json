@@ -1,0 +1,6 @@
+{
+  "fingerprint": "apps/android/invocation/custom-scheme-skips-validate-platform-invocation",
+  "worktree": "/tmp/wt-cf-audit-run5-h1",
+  "role": "phase3-verifier",
+  "independent_of_hunter": true
+}

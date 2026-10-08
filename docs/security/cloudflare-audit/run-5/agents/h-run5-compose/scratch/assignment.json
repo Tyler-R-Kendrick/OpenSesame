@@ -1,0 +1,5 @@
+{
+  "fingerprint": "ops/compose/docker-compose.yml/nats/plaintext-host-port",
+  "worktree": "/tmp/wt-cf-audit-run5-v1",
+  "role": "hunter-wave-2-revalidation"
+}

@@ -1,0 +1,6 @@
+{
+  "fingerprint": "domain.EgressBinding.allows_url/encoded-path-escape",
+  "worktree": "/tmp/wt-cf-audit-run5-h1",
+  "role": "phase3-verifier",
+  "independent_of_hunter": true
+}

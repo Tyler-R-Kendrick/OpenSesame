@@ -1,0 +1,6 @@
+{
+  "fingerprint": "crates/sandbox/spawn/grant-expiry-not-rechecked",
+  "worktree": "/tmp/wt-cf-audit-run5-v1",
+  "role": "phase3-verifier",
+  "independent_of_hunter": true
+}
