@@ -811,10 +811,7 @@ describe("UnlockScreen — password unlock", () => {
   });
 
   it("opens on sign-in after a sign-out from inside the app", () => {
-    sessionStore().setItem(
-      "opensesame:federation:outcome",
-      JSON.stringify({ kind: "signed_out" }),
-    );
+    sessionStore().setItem("opensesame:federation:outcome", JSON.stringify({ kind: "signed_out" }));
     render(<UnlockScreen />);
     expect(screen.getByRole("heading", { name: "Sign in" })).toBeTruthy();
     expect(screen.getByRole("button", { name: FEDERATED_BUTTON })).toBeTruthy();

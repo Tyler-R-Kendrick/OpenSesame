@@ -216,9 +216,7 @@ describe("ConnectionsSection gallery", () => {
       makeConnection({ status: "pending", displayName: "GitHub work" }),
     ]);
     renderAt("/connections");
-    expect(
-      await screen.findByRole("heading", { name: "Needs attention" }),
-    ).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Needs attention" })).toBeTruthy();
     expect(screen.getAllByText("GitHub work").length).toBeGreaterThan(0);
     // The sentence shows in both the inbox and the connected list.
     expect(
@@ -475,8 +473,6 @@ describe("ConnectionsSection remaining branches", () => {
       }),
     ]);
     renderAt("/connections");
-    expect(
-      await screen.findAllByText("The provider returned an error."),
-    ).not.toHaveLength(0);
+    expect(await screen.findAllByText("The provider returned an error.")).not.toHaveLength(0);
   });
 });
