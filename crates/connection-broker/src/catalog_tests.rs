@@ -4,14 +4,14 @@ use super::*;
 fn embedded_catalog_is_valid_and_versioned() {
     let catalog = load().expect("embedded catalog");
     assert_eq!(catalog.revision(), "2026-10-05.1");
-    assert_eq!(catalog.providers().len(), 111);
+    assert_eq!(catalog.providers().len(), 112);
     assert_eq!(
         catalog
             .providers()
             .iter()
             .filter(|provider| provider.id != "mock")
             .count(),
-        110
+        111
     );
     assert_eq!(catalog.find("github").unwrap().display_name, "GitHub");
 }

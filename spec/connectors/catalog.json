@@ -3461,6 +3461,60 @@
       "operations": ["git.fetch", "git.push"]
     },
     {
+      "id": "s3",
+      "display_name": "S3-compatible bucket",
+      "category": "local_storage",
+      "docs_url": "https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html",
+      "provenance_url": "https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html",
+      "auth": {
+        "kind": "configuration"
+      },
+      "connection_configuration_fields": [
+        {
+          "name": "endpoint",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "region",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "bucket",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "prefix",
+          "secret": false,
+          "required": false
+        },
+        {
+          "name": "access_key_id",
+          "secret": false,
+          "required": true
+        },
+        {
+          "name": "secret_access_key",
+          "secret": true,
+          "required": true
+        },
+        {
+          "name": "session_token",
+          "secret": true,
+          "required": false
+        }
+      ],
+      "scopes": [],
+      "egress": {
+        "scheme": "none",
+        "authorities": [],
+        "path_prefixes": []
+      },
+      "operations": ["s3.get", "s3.put"]
+    },
+    {
       "id": "vault-self",
       "display_name": "This vault (authenticator codes)",
       "category": "password_managers",
