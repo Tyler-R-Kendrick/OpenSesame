@@ -205,7 +205,10 @@ function arrivalSteps({ press }) {
       const road = [
         apply,
         doorGuest(page),
-        page.getByRole("button", { name: "Skip to the guest vault", exact: true }),
+        page.getByRole("button", {
+          name: "Skip to the guest vault",
+          exact: true,
+        }),
         page.getByRole("button", { name: "Continue as guest", exact: true }),
         page.getByRole("button", { name: "Unlock", exact: true }),
       ];
