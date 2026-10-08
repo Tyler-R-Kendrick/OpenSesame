@@ -32,9 +32,9 @@ After that point, commits labeled Grok were not live Grok.
 | --- | ---: |
 | `live_grok_build` | 17 |
 | `grok_labeled_replay` | 47 |
-| `cursor_agent` | 25 |
+| `cursor_agent` | 26 |
 | `unknown` | 0 |
-| **Total** | **89** |
+| **Total** | **90** |
 
 ## Commits by PR
 
@@ -143,10 +143,11 @@ After that point, commits labeled Grok were not live Grok.
 | `034abd84` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | chore(cursor): put cargo on PATH for vscode bash |
 | `fc12cf17` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | ci: pin docker/build-push-action to v6.18.0 |
 
-### #796 (`origin/cursor/checklist-walk-complete-b359` → tip `a14eee0c`)
+### #796 (`origin/cursor/checklist-walk-complete-b359` → tip `07a8d1a0`)
 
 | SHA | Author (as shown) | Real producer | Subject |
 | --- | --- | --- | --- |
+| `07a8d1a0` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs(audit): tip SHAs and counts after runner enqueue fix |
 | `a14eee0c` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): give settle room under the enqueue wall-clock waiter |
 | `afb2ced4` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs(audit): record Tyler's no-rewrite provenance decision |
 | `068ca92a` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): keep runner idle polls under the vitest budget |
