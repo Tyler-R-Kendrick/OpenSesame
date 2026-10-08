@@ -32,7 +32,7 @@ Audited against `origin/main` at `8f70cf43` (2026-10-07), then follow-up fixes o
 | U13 | Reset device modal (design system) | DONE | `ResetBrowser.tsx`, danger panel tests | DONE | — |
 | U14 | Danger: trash list, empty/restore/delete | DONE | `SettingsDangerPanel.tsx` | DONE | — |
 | U15 | Setup "full" profile | DONE | `SetupConfiguration.tsx` `full` choice + `apply-configuration.ts` | DONE | — |
-| S1 | Join-session durable vault sync (Syncthing-like) | NOT DONE | Live join exists; no post-join vault replica | PARTIAL | `verify:relay-join`: two browser contexts; B reads the sealed snapshot from the relay. `verify:live-join` stays the live-session walk. |
+| S1 | Join-session durable vault sync (Syncthing-like) | NOT DONE | Live join exists; no post-join vault replica | PARTIAL | `verify:relay-join` passed 2026-10-07: two browser contexts; B reads the sealed snapshot from the relay. `verify:live-join` stays the live-session walk. |
 | S2 | Minimal slash-command typeahead | DONE | `CommandBar.test.tsx` | DONE | — |
 | S3 | Remove identity status icon | DONE | `Statusline.tsx` — no identity glyph | DONE | — |
 | S4 | Remove WebCrypto status icon | DONE | `Statusline.tsx` | DONE | — |
@@ -44,8 +44,8 @@ Audited against `origin/main` at `8f70cf43` (2026-10-07), then follow-up fixes o
 | H1 | Help: remove top/bottom explainers | DONE | #774 + support tests | DONE | — |
 | H2 | Walkthrough missing control → notification | DONE | `session.ts` `notifyFailure(GUIDE_ERROR_TEXT[...])` | DONE | — |
 | H3 | Design system lint for explainers / in-panel errors | DONE | `pnpm lint:design`, `design-lint.mjs`, #774 | DONE | — |
-| H4 | Programmatic walkthroughs per installed features | DONE | `verify:tutorials` gate in CI; tutorial registry | DONE | `verify:tutorials-profiles` shard 1/3 minimal-local + full, AI off (5787 checks, 2026-10-07) |
-| H5 | Feature bundles ship walkthroughs | DONE | ADR 0163 + `feature-goals.ts` | DONE | Same walk; model tours withheld when support AI off |
+| H4 | Programmatic walkthroughs per installed features | DONE | `verify:tutorials` gate in CI; tutorial registry | DONE | `TUTORIALS_PROFILES_FULL=1 verify:tutorials-profiles`, AI off, 2026-10-07: minimal-local 9009 checks, full 14545 checks, 0 failed. `vault.item.find` no longer points at the accounts filter on a secret-only vault. |
+| H5 | Feature bundles ship walkthroughs | DONE | ADR 0163 + `feature-goals.ts` | DONE | Same full-library walk; model tours withheld when support AI off |
 | H6 | Ask → Search when AI disabled | DONE | `SupportComposer.tsx`, `support.test.tsx` | DONE | — |
 | X1 | Incremental commits + stacked PRs | N/A | Process | DONE | PR #776 (2 commits); most UI already on main |
 
