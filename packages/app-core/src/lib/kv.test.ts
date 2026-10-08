@@ -175,9 +175,7 @@ describe("kv with OPFS backing", () => {
     root.files.set(file, '{"hostApi":"https://evil.example"}');
     await kvHydrate(["authority"]);
     expect(kvGet("authority")).toBeNull();
-    await expect(kvRefresh("authority", 1024)).rejects.toThrow(
-      "does not open",
-    );
+    await expect(kvRefresh("authority", 1024)).rejects.toThrow("does not open");
     expect(kvGet("authority")).toBeNull();
   });
 
