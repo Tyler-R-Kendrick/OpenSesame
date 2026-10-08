@@ -6,6 +6,8 @@ import { setStatusNotice } from "../notices.js";
 
 const PREFIX = "sharing.live";
 export const LIVE_SESSION_FAILURE_MARK = "Could not join";
+export const LIVE_SESSION_ENDED_TRAY = "The session ended";
+export const LIVE_VAULT_LOCKED_TRAY = "Ended because the vault locked";
 
 /**
  * A live outcome is one more row in the tray. It is not an arrival: opening
