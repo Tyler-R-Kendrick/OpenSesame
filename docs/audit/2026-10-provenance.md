@@ -5,7 +5,10 @@ Honest record of who produced each commit on the stacked PRs
 Grok Build generated the change.** Many commits were made with
 `GIT_AUTHOR_NAME=Grok` / `GIT_AUTHOR_EMAIL=noreply@x.ai` by the Cursor agent
 (committer `Cursor Agent`) after a soft-reset, cherry-pick, or restack.
-Tyler will decide whether to rewrite history; this document does not rewrite it.
+Tyler decided (2026-10-08): **no history rewrite and no force-push to change
+authors.** Keep the existing commits. This file plus a Provenance section on
+each affected PR is the record. Every new commit from that point must carry
+honest authorship.
 
 ## Producer labels
 
