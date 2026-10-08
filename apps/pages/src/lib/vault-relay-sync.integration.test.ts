@@ -111,8 +111,11 @@ describe("vault relay join sync", () => {
       0,
     );
     const pulled = await pullRelaySnapshot(shared);
-    expect(pulled).not.toBeNull();
-    const meta = relayCiphertextMeta(pulled!.generation, pulled!.snapshot);
+    expect(pulled).toBeDefined();
+    if (pulled == null) {
+      throw new Error("relay pull returned nothing");
+    }
+    const meta = relayCiphertextMeta(pulled.generation, pulled.snapshot);
     expect(meta).toEqual({
       format: FORMAT,
       tomb: "personal",
@@ -120,7 +123,7 @@ describe("vault relay join sync", () => {
       ctB64: sealed.body.ctB64,
     });
     expect(JSON.stringify(meta)).not.toContain(ITEM_NAME);
-    expect(pulled!.generation).toBe(1);
+    expect(pulled.generation).toBe(1);
 
     await expect(pushRelaySnapshot(shared, sealed, 0)).rejects.toMatchObject({
       status: 409,
