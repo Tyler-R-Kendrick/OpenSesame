@@ -115,7 +115,7 @@ describe("local drop claims — no Identity API", () => {
     const session = await createLocalDropClaim(manifest, 600_000);
     await expect(
       presentLocalDropClaim(session.bearerToken, "WRONG-CODE"),
-    ).rejects.toThrow(/does not match/);
+    ).rejects.toThrow(/does not match this drop\. 4 tries left\./);
     await expect(
       pollLocalDropClaim(session.claimId, session.bearerToken),
     ).resolves.toBe("pending");
