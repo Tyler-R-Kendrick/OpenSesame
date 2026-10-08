@@ -6,6 +6,8 @@ export * from "./json.js";
 export * from "./fnv1a.js";
 export * from "./canonical-origin.js";
 export * from "./types.js";
+// Published vault address owner/slug (ADR 0181). A pure parser, no I/O.
+export * from "./org-vault-ref.js";
 export * from "./errors.js";
 export * from "./endpoint-display.js";
 export * from "./endpoints.js";

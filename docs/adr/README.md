@@ -222,3 +222,4 @@ looks arbitrary, the ADR it cites explains it.
 | [0178](0178-authorization-checks-are-proofs-the-compiler-can-see.md) | Authorization checks are proofs the compiler can see | Accepted |
 | [0179](0179-credentials-are-entries-bound-to-accounts.md) | Credentials are entries of their own, bound to an account by reference | Accepted |
 | [0180](0180-vaults-are-sealed-by-passkey-not-password.md) | A new vault is sealed by a passkey, never a master password | Accepted |
+| [0181](0181-relay-host-org-vaults-and-join-sync.md) | Relay host, org-scoped vaults, and durable join sync | Proposed |
