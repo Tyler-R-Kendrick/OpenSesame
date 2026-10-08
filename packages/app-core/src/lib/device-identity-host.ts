@@ -147,7 +147,14 @@ async function presentClaim(init: RequestInit): Promise<Response> {
   } catch (error) {
     if (error instanceof LocalDropClaimError) {
       // The Identity API's code for the same refusal, read by one wording.
-      return json({ error: error.wire, hint: error.message }, 401);
+      return json(
+        {
+          error: error.wire,
+          hint: error.message,
+          attemptsLeft: error.attemptsLeft ?? null,
+        },
+        401,
+      );
     }
     return json({ error: "unreachable" }, 503);
   }
