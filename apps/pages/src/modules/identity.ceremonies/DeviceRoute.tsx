@@ -88,7 +88,11 @@ export function DeviceRoute() {
           </div>
         </section>
       ) : (
-        <ConnectIdentityNote online={online} what="the devices that sign in" />
+        <ConnectIdentityNote
+          online={online}
+          what="the devices that sign in"
+          lockIssuer
+        />
       )}
     </div>
   );
