@@ -17,12 +17,7 @@ use opensesame_sealed_store::{
 use regex::Regex;
 
 pub fn require_reveal(reveal: bool) -> anyhow::Result<()> {
-    if reveal || io::stdin().is_terminal() {
-        return Ok(());
-    }
-    anyhow::bail!(
-        "plaintext output requires a TTY or --reveal; agents must use ConnectionRef invoke"
-    );
+    opensesame_connector_host::password_agent::reveal_gate::assert_pass_reveal(reveal)
 }
 
 pub(crate) fn prompt_password(prompt: &str) -> anyhow::Result<String> {
@@ -914,8 +909,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn require_reveal_allows_flag() {
-        assert!(require_reveal(true).is_ok());
+    fn require_reveal_requires_tty_and_flag() {
+        assert!(require_reveal(false).is_err());
     }
 
     #[test]

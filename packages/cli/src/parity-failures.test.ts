@@ -174,8 +174,8 @@ describe("2password CLI safety gauntlet", { timeout: 120_000 }, () => {
       '"verified": true',
     );
   });
-  it("malformed secret batches leave existing output untouched and diagnostics contain no plaintext", async () => {
-    const { cli, env, directory } = fixture;
+  it("piped env resolve never reaches a malformed secret batch and leaves output untouched", async () => {
+    const { cli, env, directory, calls } = fixture;
     const template = join(directory, "input.env");
     const output = join(directory, "output.env");
     await writeFile(template, "TOKEN=op://v/i/f\n");
@@ -188,10 +188,14 @@ describe("2password CLI safety gauntlet", { timeout: 120_000 }, () => {
       "--output",
       output,
       "--desktop",
+      "--reveal",
     ]);
+    // A pipe is not a person at a terminal, so the provider never runs.
     expect(result.code).toBe(1);
+    expect(result.stderr).toMatch(/stdin and stdout/);
     expect(result.stderr).not.toContain("malformed-secret-canary");
-    expect(result.stderr).toContain("details suppressed");
+    expect(result.stdout).not.toContain("malformed-secret-canary");
+    expect(await calls()).toEqual([]);
     expect(await readFile(output, "utf8")).toBe("preserved");
   });
   it("doctor enforces a deadline on a stuck helper without authentication or diagnostics", async () => {

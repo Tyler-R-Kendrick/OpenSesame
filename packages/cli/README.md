@@ -65,9 +65,16 @@ opensesame-id service-account setup --vault Automation --create-vault --write --
 Creation and password changes accept secrets from a pipe or `--clipboard`,
 verify every write by reading it back, and never retry a write. Passwords retain
 exact bytes; `password` compares unless `--apply` is supplied. Discovery and
-receipts contain metadata and references. `read` intentionally prints plaintext;
-`env resolve <file> --output <file>` or `--in-place` intentionally writes an
-owner-only plaintext file. The selected child receives injected secrets and
+receipts contain metadata and references. `read` and `env resolve` refuse unless
+stdin and stdout are both TTYs, you pass `--reveal`, `op://` reads also need
+`--desktop`, and no agent context is detected; each allowed use writes a
+value-free receipt to stderr. Prefer `opensesame-id run` / `os run` with
+`--env NAME=op://…` or `os://…` (1Password-style references), or `env run`, for
+scripts — the same `run` wrapper pattern as `op run`, `infisical run`, and
+`doppler run`. `env resolve` is deprecated in favor of `env run`. A future
+broker lane (network stand-in swap) extends `run`, not a separate top-level
+command. The selected child receives
+injected secrets and
 its exit status is preserved; the provider service token is removed before
 that child starts.
 

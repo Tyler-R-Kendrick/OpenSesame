@@ -1,6 +1,28 @@
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { parseArgs } from "./parse.js";
 import { runCli } from "./run.js";
+
+async function withTerminal<T>(body: () => Promise<T>): Promise<T> {
+  const stdinTty = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+  const stdoutTty = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+  Object.defineProperty(process.stdin, "isTTY", {
+    value: true,
+    configurable: true,
+  });
+  Object.defineProperty(process.stdout, "isTTY", {
+    value: true,
+    configurable: true,
+  });
+  try {
+    return await body();
+  } finally {
+    if (stdinTty) Object.defineProperty(process.stdin, "isTTY", stdinTty);
+    if (stdoutTty) Object.defineProperty(process.stdout, "isTTY", stdoutTty);
+  }
+}
 describe("password-agent CLI", () => {
   it("preserves child flags after the separator", () => {
     expect(
@@ -68,6 +90,59 @@ describe("password-agent CLI", () => {
       expect(invoke).toHaveBeenCalledTimes(2);
     } finally {
       stdout.mockRestore();
+    }
+  });
+  it("refuses read without human reveal gate", async () => {
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    const invoke = vi.fn(async () => "secret-canary");
+    try {
+      expect(
+        await withTerminal(() =>
+          runCli(["read", "op://v/i/f", "--desktop", "--reveal"], {
+            parityPort: { invoke },
+          }),
+        ),
+      ).toBe(0);
+      expect(invoke).toHaveBeenCalled();
+      const err = stderr.mock.calls.map(([value]) => String(value)).join("");
+      expect(err).toContain('"lane":"reveal"');
+    } finally {
+      stderr.mockRestore();
+    }
+  });
+  it("suppresses a malformed secret batch for a person at a terminal", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "opensesame-reveal-"));
+    const template = join(directory, "input.env");
+    const output = join(directory, "output.env");
+    await writeFile(template, "TOKEN=op://v/i/f\n");
+    await writeFile(output, "preserved");
+    const stderr = vi.spyOn(process.stderr, "write").mockReturnValue(true);
+    const invoke = vi.fn(async () => "malformed-secret-canary");
+    try {
+      expect(
+        await withTerminal(() =>
+          runCli(
+            [
+              "env",
+              "resolve",
+              template,
+              "--output",
+              output,
+              "--desktop",
+              "--reveal",
+            ],
+            { parityPort: { invoke } },
+          ),
+        ),
+      ).toBe(1);
+      const err = stderr.mock.calls.map(([value]) => String(value)).join("");
+      expect(err).toContain("details suppressed");
+      expect(err).not.toContain("malformed-secret-canary");
+      expect(await readFile(output, "utf8")).toBe("preserved");
+      expect(invoke).toHaveBeenCalled();
+    } finally {
+      stderr.mockRestore();
+      await rm(directory, { recursive: true, force: true });
     }
   });
   it("validates source selection before reading or writing", async () => {

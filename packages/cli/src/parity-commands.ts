@@ -17,15 +17,21 @@ import type {
   PasswordAgentPort,
   Scope,
 } from "@opensesame/app-core/lib/password-agent/transport.js";
-import { emitHumanValue, emitMetadata as print } from "./output.js";
+import {
+  emitHumanValue,
+  emitStderrLine,
+  emitMetadata as print,
+} from "./output.js";
 import type { readPrivateInput, writePrivateFile } from "./parity-node.js";
 import { exhausted, option, source, toggle } from "./parity-parse.js";
 import { runLease, runPrivateRequest } from "./parity-request.js";
+import { assertHumanReveal, emitRevealReceipt } from "./reveal-gate.js";
 export interface ParityContext {
   requestTransport?: Pick<RequestPorts, "addresses" | "send"> | undefined;
   args: string[];
   child: string[];
   scope: Scope;
+  reveal: boolean;
   store: CredentialStore;
   raw: PasswordAgentPort;
   port: PasswordAgentPort;
@@ -64,6 +70,13 @@ export async function dispatchParity(
     case "read": {
       const ref = required(args.shift(), "read requires op://reference.");
       exhausted(args);
+      assertHumanReveal({
+        verb: "read",
+        reveal: ctx.reveal,
+        desktop: Boolean(ctx.scope.desktop),
+        reference: ref,
+      });
+      emitRevealReceipt({ verb: "read", reference: ref });
       emitHumanValue(await agent.read(ref));
       return 0;
     }
@@ -166,11 +179,20 @@ export async function runEnv(ctx: ParityContext): Promise<number> {
   }
   if (verb !== "resolve")
     throw new Error("env requires write, resolve, or run.");
+  assertHumanReveal({
+    verb: "env-resolve",
+    reveal: ctx.reveal,
+    desktop: Boolean(ctx.scope.desktop),
+  });
+  emitStderrLine(
+    "Deprecation: env resolve writes plaintext at rest; prefer `run --env-file` or `env run <file> -- <cmd>` (same `run` wrapper as `op run` / `infisical run`).",
+  );
   const output = option(args, "--output");
   const inPlace = toggle(args, "--in-place");
   exhausted(args);
   if (inPlace === (output !== undefined))
     throw new Error("Choose exactly one of --output or --in-place.");
+  emitRevealReceipt({ verb: "env-resolve" });
   const result = await agent.resolveEnv(await readFile(file, "utf8"));
   await privateFile(output ?? file, result.content);
   print({ resolved: result.count, file: output ?? file, plaintext: true });
