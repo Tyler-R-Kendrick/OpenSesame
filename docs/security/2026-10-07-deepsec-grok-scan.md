@@ -1,15 +1,22 @@
 # deepsec + Grok Build scan (2026-10-07)
 
 Point-in-time security scan using [deepsec](https://deepsec.sh) 2.3.6 pattern
-matchers and a custom **Grok Build CLI** agent backend (`--agent grok`,
+matchers and a custom **Grok Build CLI** agent plugin (`--agent grok`,
 model `grok-4.7`). No application code was modified as part of this run.
 
-**Status (2026-10-07T21:20Z):** Grok Build subscription auth is working.
-`process` is **still running in the background** on this VM (main +
-parallel workers). This report captures the first **40** AI findings,
-**10** revalidated as **true-positive**, and an export under
-`.deepsec/findings-grok/`. **CLI** investigation has not started yet;
-**triage** was skipped (deepsec requires Claude / gateway, not used here).
+deepsec agents are **pluggable** (`process`, `revalidate`, and triage). This
+branch registers a Grok Build backend in `.deepsec/grok-agent-plugin.ts` and
+runs investigation, revalidation, and triage on the **subscription** CLI
+(`grok login --device-auth`, `XAI_API_KEY` unset). The stock `deepsec triage`
+subcommand in 2.3.6 still defaults to Claude Agent SDK; OpenSesame invokes
+Grok triage via `scripts/audit/deepsec-grok-triage.mjs` with the same
+`--agent grok --model grok-4.7` contract as the other stages.
+
+**Status (2026-10-08T00:30Z):** Grok Build subscription auth is working.
+`process` is **still running** on this VM (`deepsec-grok-pipeline.sh`, PID
+4662). Parallel worker finished PWA + **CLI** (`packages/cli/` 13 files
+analyzed). Snapshot below; finish pipeline (`revalidate` → `triage` → `export`)
+runs via `/tmp/deepsec-grok-watch-and-finish.sh` when `process` completes.
 
 ## Commit scanned
 
@@ -24,11 +31,10 @@ parallel workers). This report captures the first **40** AI findings,
 | --- | --- |
 | deepsec | 2.3.6 (`.deepsec/`) |
 | Pattern scan | `20261007155615-14ffb61cd7c5a795` |
-| Grok auth | Device login `ZYN7-QTES` → `contact.tylerkendrick@gmail.com` |
+| Grok auth | Device login → `contact.tylerkendrick@gmail.com` |
 | Grok probe | `grok -p … -m grok-4.7` → `AUTHOK` (subscription; `XAI_API_KEY` unset) |
 | Process runs | `grok` / `grok-4.7`, concurrency 2 (`/tmp/deepsec-grok-pipeline.log`, `/tmp/deepsec-grok-parallel.log`) |
-| Revalidate run | `20261007205432-927b9e45d4370c16` (`/tmp/deepsec-grok-revalidate.log`) |
-| Export | `.deepsec/findings-grok/` (40 markdown files, unresolved verdicts only) |
+| Revalidate / triage / export | `scripts/audit/deepsec-grok-finish.sh` after workers complete |
 
 ## Commands executed
 
@@ -38,13 +44,14 @@ grok -p "Reply with exactly the word AUTHOK and nothing else." \
   -m grok-4.7 --always-approve --output-format json
 
 # Long-running (nohup, logs in /tmp):
-/workspace/scripts/audit/deepsec-grok-pipeline.sh      # PID 4662 — full area sequence
-/tmp/deepsec-grok-parallel.sh                          # PID 15373 — PWA + smaller core + CLI queue
-/tmp/deepsec-grok-revalidate.sh                        # revalidate → triage (failed) → export
+/workspace/scripts/audit/deepsec-grok-pipeline.sh
+/tmp/deepsec-grok-parallel.sh
 
-cd /workspace/.deepsec
-./node_modules/.bin/deepsec revalidate --project-id opensesame --agent grok --model grok-4.7
-./node_modules/.bin/deepsec export --project-id opensesame --format md-dir --out ./findings-grok
+# After process completes (watch script):
+/workspace/scripts/audit/deepsec-grok-finish.sh
+# → error rerun, revalidate --agent grok, triage (grok plugin), export
+
+node scripts/audit/deepsec-grok-report-data.mjs /workspace
 ```
 
 ## Coverage (in-scope paths)
@@ -55,33 +62,37 @@ Prefixes: **core** (`crates/core`, `crates/client-core`, `crates/host-core`,
 
 | Area | Analyzed | Pending | Error | Matcher hits (scan) | AI findings |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Core | 210 | 24 | 66 | 869 | 31 |
-| PWA | 173 | 0 | 62 | 529 | 9 |
-| CLI | 0 | 13 | 0 | 51 | 0 |
+| Core | 375 | 1 | 75 | 869 | 66 |
+| PWA | 331 | 0 | 72 | 529 | 28 |
+| CLI | 13 | 0 | 0 | 51 | 10 |
 
-`process` was ~batch 61/137 for `packages/app-core/` and ~56/96 for
-`apps/pages/` when export ran; workers were left running.
+Pipeline was ~batch 98/137 for `packages/app-core/` when this doc was refreshed.
 
-## Findings after revalidation (snapshot)
+## Findings (snapshot)
 
-**40** findings total. **10** `true-positive`, **0** `false-positive`,
-**30** `unrevalidated` (Grok returned prose instead of JSON on several
-revalidate batches; see `data/opensesame/revalidation/20261007205432-927b9e45d4370c16/`).
+**104** findings in scope. **10** revalidated **true-positive**, **0**
+**false-positive**, remainder mostly **unrevalidated** until the finish
+`revalidate` pass completes.
 
-### Severity counts (all findings in snapshot)
+### Severity counts (all findings)
 
 | Area | CRITICAL | HIGH | MEDIUM | HIGH_BUG | BUG | LOW |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Core | 0 | 12 | 10 | 2 | 7 | 0 |
-| PWA | 0 | 1 | 6 | 1 | 1 | 0 |
-| CLI | 0 | 0 | 0 | 0 | 0 | 0 |
+| Core | 0 | 16 | 30 | 6 | 14 | 0 |
+| PWA | 0 | 9 | 13 | 1 | 5 | 0 |
+| CLI | 0 | 4 | 6 | 0 | 0 | 0 |
 
-### Severity × verdict (revalidated true-positives only)
+### Triage priority (P0 / P1 / P2 / skip)
 
-| Area | HIGH | MEDIUM | HIGH_BUG | BUG |
+Triage runs on the finish pipeline with `--agent grok` (see
+`deepsec-grok-triage.mjs`). Counts below update after that step completes.
+
+| Area | P0 | P1 | P2 | skip |
 | --- | ---: | ---: | ---: | ---: |
-| Core | 1 | 2 | 0 | 3 |
-| PWA | 0 | 3 | 1 | 0 |
+| Core | 0 | 0 | 0 | 0 |
+| PWA | 0 | 0 | 0 | 0 |
+| CLI | 0 | 0 | 0 | 0 |
+| **Total** | **0** | **0** | **0** | **0** |
 
 ### Top confirmed issues (true-positive)
 
@@ -98,30 +109,20 @@ revalidate batches; see `data/opensesame/revalidation/20261007205432-927b9e45d43
 | finding_c7a4b5c8299f09f1 | MEDIUM | pwa | `apps/pages/src/sections/vault/TypedFields.tsx:79,86` | Repeating concealed vault fields render in clear text |
 | finding_b070d5576b12a75b | HIGH_BUG | pwa | `apps/pages/src/components/IdentityCeremony.tsx:92,93,94,141,142,183` | Refresh session drops live credential and reports success |
 
-### Other findings (not yet revalidated)
+High-priority unrevalidated items include several findings in
+`packages/app-core/src/lib/duress/recovery/approval.ts` (recovery quorum /
+target-device proof).
 
-Twenty-five core and five PWA findings remain `unrevalidated`, including
-several **HIGH** items in `packages/app-core/src/lib/duress/recovery/approval.ts`
-(multi-domain recovery quorum / target-device proof). Re-run:
+## Limitations
 
-```bash
-unset XAI_API_KEY
-cd /workspace/.deepsec
-./node_modules/.bin/deepsec revalidate --project-id opensesame --agent grok --model grok-4.7
-```
-
-## Skipped / limitations
-
-| Item | Reason |
+| Item | Notes |
 | --- | --- |
-| **triage** (P0/P1/P2) | deepsec `triage` requires `--agent claude` + gateway credentials; not run (no gateway / no API key). |
-| **CLI `process`** | Queued behind parallel worker; 13 files still `pending`. |
-| **Full core `process`** | ~45% of `packages/app-core/` batches done when export ran; workers intentionally left running. |
-| **Batch errors** | Some `process`/`revalidate` batches failed when Grok returned non-JSON prose (`status=error` on affected files; deepsec retries on next run). |
-| **`.deepsec/data/`** | Gitignored; export only in `.deepsec/findings-grok/`. |
+| **Batch errors** | Some `process`/`revalidate`/`triage` batches fail when Grok returns non-JSON prose; files get `status=error` or skip triage for that batch. Plugin retries JSON up to 3×; finish script reruns error files once. |
+| **Core `process`** | `packages/app-core/` batches still in flight when snapshot taken. |
+| **`.deepsec/data/`** | Gitignored; export under `.deepsec/findings-grok/`. |
 
 ## Follow-up
 
-1. Let PIDs **4662** / **15373** finish (or re-run `deepsec-grok-pipeline.sh`).
-2. `revalidate` again for remaining findings; optionally add a non-gateway triage path later.
-3. Refresh this doc from `node scripts/audit/deepsec-grok-report-data.mjs /workspace`.
+1. Let pipeline PID **4662** finish (watch: `/tmp/deepsec-grok-watch.log`).
+2. Confirm finish log: revalidate → triage → export.
+3. Refresh: `node scripts/audit/deepsec-grok-report-data.mjs /workspace`.

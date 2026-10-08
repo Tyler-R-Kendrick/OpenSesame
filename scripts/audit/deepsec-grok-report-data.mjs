@@ -47,8 +47,11 @@ for (const k of Object.keys(AREAS)) {
     candidates: 0,
     bySeverity: {},
     byVerdict: {},
+    byTriage: { P0: 0, P1: 0, P2: 0, skip: 0 },
   };
 }
+
+const triageTotals = { P0: 0, P1: 0, P2: 0, skip: 0 };
 
 const rows = [];
 
@@ -67,6 +70,11 @@ for (const fp of walk(filesRoot)) {
     stats[area].bySeverity[sev] = (stats[area].bySeverity[sev] ?? 0) + 1;
     const v = f.revalidation?.verdict ?? "unrevalidated";
     stats[area].byVerdict[v] = (stats[area].byVerdict[v] ?? 0) + 1;
+    const pr = f.triage?.priority;
+    if (pr === "P0" || pr === "P1" || pr === "P2" || pr === "skip") {
+      stats[area].byTriage[pr] += 1;
+      triageTotals[pr] += 1;
+    }
     const lines = (f.lineNumbers ?? []).join(",");
     rows.push({
       area,
@@ -78,6 +86,7 @@ for (const fp of walk(filesRoot)) {
       slug: f.vulnSlug,
       verdict: f.revalidation?.verdict ?? "unrevalidated",
       reasoning: (f.revalidation?.reasoning ?? "").slice(0, 120),
+      triage: f.triage?.priority ?? "",
     });
   }
 }
@@ -91,4 +100,4 @@ rows.sort((a, b) => {
   return a.filePath.localeCompare(b.filePath);
 });
 
-console.log(JSON.stringify({ stats, rows }, null, 2));
+console.log(JSON.stringify({ stats, triageTotals, rows }, null, 2));

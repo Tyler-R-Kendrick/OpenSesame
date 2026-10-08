@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# After process completes: rerun error files once, revalidate (grok), export. No triage.
+# After process completes: rerun error files once, revalidate (grok), triage (grok), export.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 WS="${ROOT}/.deepsec"
@@ -34,6 +34,9 @@ cd "$WS"
   --agent grok --model "$MODEL" \
   --thinking-level "$DEEPSEC_THINKING" \
   --concurrency "$DEEPSEC_CONCURRENCY" || echo "WARN: revalidate exited $?"
+
+echo "=== TRIAGE --agent grok --model $MODEL $(date -u +%H:%M:%S) ==="
+node "${ROOT}/scripts/audit/deepsec-grok-triage.mjs" --all-severities || echo "WARN: triage exited $?"
 
 OUT="${WS}/findings-grok"
 echo "=== EXPORT -> $OUT $(date -u +%H:%M:%S) ==="

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 LOG=/tmp/deepsec-grok-pipeline.log
+ROOT=/workspace
 WS=/workspace/.deepsec
 DEEPSEC="$WS/node_modules/.bin/deepsec"
 MODEL=grok-4.7
@@ -40,8 +41,9 @@ cd "$WS"
   --thinking-level "$DEEPSEC_THINKING" \
   --concurrency "$DEEPSEC_CONCURRENCY" || echo "WARN: revalidate exited $?"
 
-echo "=== TRIAGE $(date -u +%H:%M:%S) ==="
-"$DEEPSEC" triage --project-id opensesame || echo "WARN: triage exited $?"
+echo "=== TRIAGE --agent grok --model $MODEL $(date -u +%H:%M:%S) ==="
+cd "$ROOT"
+node scripts/audit/deepsec-grok-triage.mjs --all-severities || echo "WARN: triage exited $?"
 
 OUT="$WS/findings-grok"
 echo "=== EXPORT -> $OUT $(date -u +%H:%M:%S) ==="

@@ -63,6 +63,33 @@ type RevalidateParams = {
   projectId?: string;
 };
 
+type TriageFindingRef = {
+  filePath: string;
+  title: string;
+  severity: string;
+  vulnSlug: string;
+  lineNumbers: number[];
+  confidence: string;
+  description: string;
+};
+
+type TriageParams = {
+  batch: TriageFindingRef[];
+  projectRoot: string;
+  projectInfo: string;
+  config: Record<string, unknown>;
+  signal?: AbortSignal;
+  projectId?: string;
+};
+
+type TriageVerdict = {
+  title: string;
+  priority: "P0" | "P1" | "P2" | "skip";
+  exploitability: "trivial" | "moderate" | "difficult";
+  impact: "critical" | "high" | "medium" | "low";
+  reasoning: string;
+};
+
 function modelFromConfig(config: Record<string, unknown>): string {
   const m = config.model;
   return typeof m === "string" && m.length > 0 ? m : DEFAULT_MODEL;
@@ -241,6 +268,78 @@ function parseRevalidateVerdicts(text: string) {
   }>;
 }
 
+function buildTriagePrompt(batch: TriageFindingRef[], projectInfo: string): string {
+  const findingsList = batch
+    .map(
+      (item, idx) =>
+        `### ${idx + 1}. ${item.title}
+- **File:** \`${item.filePath}\`
+- **Severity:** ${item.severity}
+- **Slug:** ${item.vulnSlug}
+- **Lines:** ${item.lineNumbers.join(", ")}
+- **Confidence:** ${item.confidence}
+- **Description:** ${item.description}`,
+    )
+    .join("\n\n");
+  const ctx = projectInfo
+    ? `## Project Context (summary only)\n\n${projectInfo.slice(0, 2000)}\n\n`
+    : "";
+  return `${GROK_SYSTEM_NOTE}
+
+You are a security triage expert with **no tools** and **no file access**. Classify from the finding text only; do not say you will read or verify code.
+
+You are a security triage expert. Given a list of vulnerability findings, classify each by priority for remediation.
+
+${ctx}## Findings to Triage
+
+${findingsList}
+
+## Classification Criteria
+
+**P0 — Fix immediately:** Exploitable by external attackers with trivial effort. Direct impact on user data, auth bypass, or code execution. No mitigations in place.
+
+**P1 — Fix soon:** Real vulnerability but requires specific conditions (internal access, feature flag enabled, race condition). Moderate impact.
+
+**P2 — Fix eventually:** Low-impact or difficult to exploit. Defense-in-depth improvements. Code quality issues with security implications.
+
+**skip — Not actionable:** False positive, already mitigated, test-only code, or too vague to act on.
+
+## Exploitability scale
+- **trivial**: Can be exploited with a single crafted HTTP request or URL
+- **moderate**: Requires some setup (valid auth, specific timing, internal network)
+- **difficult**: Requires deep knowledge, chained exploits, or unlikely conditions
+
+## Impact scale
+- **critical**: Full auth bypass, RCE, data exfiltration across tenants
+- **high**: Single-tenant data access, privilege escalation, secret exposure
+- **medium**: Information disclosure, DoS, weak crypto
+- **low**: Cosmetic, theoretical, or minimal real-world impact
+
+## Output
+
+\`\`\`json
+[
+  {
+    "title": "exact title",
+    "priority": "P0" | "P1" | "P2" | "skip",
+    "exploitability": "trivial" | "moderate" | "difficult",
+    "impact": "critical" | "high" | "medium" | "low",
+    "reasoning": "1-2 sentences"
+  }
+]
+\`\`\`${JSON_ONLY_SUFFIX}`;
+}
+
+function parseTriageVerdicts(text: string): TriageVerdict[] {
+  const parsed = parseJsonArrayFromAgent(text) as TriageVerdict[];
+  for (const v of parsed) {
+    if (!v.title || !v.priority || !v.exploitability || !v.impact || !v.reasoning) {
+      throw new Error("Triage verdict missing required fields");
+    }
+  }
+  return parsed;
+}
+
 class GrokAgentPlugin {
   type = "grok";
 
@@ -353,6 +452,48 @@ class GrokAgentPlugin {
       meta: { durationMs: Date.now() - start, model },
       rawResponses: [{ kind: "initial", rawText: resultText, parsedCount: verdicts.length }],
       repairAttempts: 0,
+    };
+  }
+
+  async *triage(params: TriageParams) {
+    const model = modelFromConfig(params.config);
+    const prompt = buildTriagePrompt(params.batch, params.projectInfo);
+    const start = Date.now();
+    yield {
+      type: "started",
+      message: `Triaging ${params.batch.length} finding(s) with Grok Build (${model})`,
+    };
+    let resultText = "";
+    let lastParse = "";
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const body =
+        attempt === 1
+          ? prompt
+          : `${prompt}\n\nYour previous reply was rejected: ${lastParse}. Output ONLY the JSON array now. No other text.`;
+      resultText = await runGrokPrompt({
+        cwd: params.projectRoot,
+        prompt: body,
+        model,
+        signal: params.signal,
+        maxTurns: 1,
+      });
+      try {
+        parseTriageVerdicts(resultText);
+        break;
+      } catch (e) {
+        lastParse = e instanceof Error ? e.message : String(e);
+        resultText = "";
+        if (attempt >= MAX_ATTEMPTS) throw new Error(`Grok triage JSON parse failed: ${lastParse}`);
+      }
+    }
+    const verdicts = parseTriageVerdicts(resultText);
+    yield {
+      type: "complete",
+      message: `Triage complete (${((Date.now() - start) / 1000).toFixed(1)}s, ${verdicts.length} verdicts)`,
+    };
+    return {
+      verdicts,
+      meta: { durationMs: Date.now() - start, model },
     };
   }
 }

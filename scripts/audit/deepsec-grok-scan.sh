@@ -80,8 +80,13 @@ run_revalidate() {
 }
 
 run_triage() {
-  echo "==> deepsec triage"
-  (cd "$WS" && "$DEEPSEC" triage --project-id "$PROJECT_ID")
+  echo "==> triage --agent grok --model $MODEL (Grok Build plugin; subscription)"
+  (
+    cd "$ROOT"
+    unset XAI_API_KEY GROK_DEPLOYMENT_KEY
+    export DEEPSEC_CONCURRENCY="${DEEPSEC_CONCURRENCY:-2}"
+    node scripts/audit/deepsec-grok-triage.mjs --all-severities
+  )
 }
 
 run_export() {

@@ -4,8 +4,9 @@ import { grokAgentPlugin } from "./grok-agent-plugin.js";
 
 /**
  * Default AI route (unchanged for `pnpm audit:deepsec` / DEEPSEC_PROCESS=1):
- * Pi + Vercel AI Gateway. Grok Build scans use `--agent grok` (see
- * `scripts/audit/deepsec-grok-scan.sh`) and ignore gateway credentials.
+ * Pi + Vercel AI Gateway. Grok Build scans use the `grok` agent plugin for
+ * `process`, `revalidate`, and triage (see `scripts/audit/deepsec-grok-scan.sh`);
+ * subscription auth only (`XAI_API_KEY` unset).
  */
 export default defineConfig({
   defaultThinkingLevel: "medium", // <deepsec:default-thinking-level>
