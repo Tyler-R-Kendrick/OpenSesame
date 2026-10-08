@@ -19,13 +19,6 @@
 #                     to "/OpenSesame/" — the correct value for
 #                     https://<owner>.github.io/OpenSesame/. Override only
 #                     if deploying to a custom domain or different path.
-#   PAGES_IDENTITY_API  Identity API base URL for the deployed app. Written
-#                     to os-runtime-config.json beside the bundle so the app
-#                     knows its Identity API at boot without a rebuild —
-#                     without it, every sign-in path on the deployed vault is
-#                     dead on arrival. Example: https://id.example.com
-#   PAGES_HOST_API      Optional Host API base URL, same mechanism.
-#   PAGES_DAEMON_API    Optional daemon base URL, same mechanism.
 #   PAGES_SUPPORT_AGENT_URL
 #                       Optional remote support endpoint (ADR 0087). A
 #                       destination, not a credential — the browser sends no
@@ -33,14 +26,10 @@
 #                       front if the endpoint needs one. Unset means support
 #                       runs on-device or falls back to authored help.
 #
-# Sign-in note: with no Identity API configured the deployed vault can only
-# offer the local-only path (it says so on screen). With one configured, the
-# zero-config Google button runs through the shoo.dev broker and is labeled
-# that way; for first-party Google (accounts.google.com, with verified-email
-# account joining) set OPENSESAME_PROVIDERS=google plus
-# OPENSESAME_PROVIDER_GOOGLE_CLIENT_ID/_CLIENT_SECRET on the Identity API and
-# register <identity-api>/v1/federated/callback as the redirect URI in the
-# Google Cloud console — see docs/operators/live-provider-verification.md.
+# Do not set PAGES_IDENTITY_API / PAGES_HOST_API / PAGES_DAEMON_API —
+# write-runtime-config.mjs refuses them. Pages is static (ADR 0090); device
+# identity and guest/local seal work with no Identity API; sessions are
+# browser WebRTC (ADR 0150).
 #
 # What it does:
 #   1. Refuses to run on a dirty working tree (unless --force).

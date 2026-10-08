@@ -1,0 +1,3 @@
+# Static export only (Tyler 2026-10-08). Do not ship serverless routes.
+api
+server

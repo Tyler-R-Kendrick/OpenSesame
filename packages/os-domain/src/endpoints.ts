@@ -17,7 +17,8 @@ export type EndpointVariable = {
 export type Endpoint = EndpointVariable & {
   readonly title: string;
   readonly listen: EndpointVariable;
-  readonly pagesRuntimeKey: string;
+  /** Absent for Host/Identity/daemon — Pages is static and does not stamp them. */
+  readonly pagesRuntimeKey?: string;
   readonly viteKey: string;
   readonly setting: string;
   readonly loopbackOnly: boolean;
