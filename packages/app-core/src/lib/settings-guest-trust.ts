@@ -3,7 +3,10 @@ import type { PagesSettings } from "./settings.js";
 
 type TrustAnchorDefaults = { hostApi: string; identityApi: string };
 
-function trustAnchorsOf(settings: PagesSettings, defaults: TrustAnchorDefaults) {
+function trustAnchorsOf(
+  settings: PagesSettings,
+  defaults: TrustAnchorDefaults,
+) {
   return {
     hostApi: settings.hostApi.trim() || defaults.hostApi,
     identityApi: settings.identityApi.trim() || defaults.identityApi,
