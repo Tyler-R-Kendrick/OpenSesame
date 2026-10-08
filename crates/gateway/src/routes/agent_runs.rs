@@ -202,6 +202,11 @@ async fn load(
         lease_held_by_other,
     )
     .map_err(refusal)?;
+    if attachment == Attachment::View {
+        if let Err(response) = stream_authority::ensure_view_authority(st, headers).await {
+            return Err(response);
+        }
+    }
     Ok((who, organization_id, run))
 }
 
