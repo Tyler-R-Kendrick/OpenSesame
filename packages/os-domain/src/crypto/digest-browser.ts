@@ -1,16 +1,10 @@
 /**
  * Browser-safe manifest digest (no node:crypto). Matches node sha256Hex output.
  */
-import {
-  type BoundaryValue,
-  type JsonObject,
-  type Jsonable,
-  type MutableBoundaryObject,
-  isFunction,
-  isString,
-  isTypeofObject,
-  overlapCast,
-} from "../json.js";
+import { type JsonObject, isString } from "../json.js";
+import { canonicalize } from "./canonical.js";
+
+export { canonicalize };
 
 function u32At(values: ArrayLike<number>, index: number): number {
   const value = values[index];
@@ -18,48 +12,6 @@ function u32At(values: ArrayLike<number>, index: number): number {
     throw new Error("sha256 index out of range");
   }
   return value >>> 0;
-}
-
-function isJsonable(value: BoundaryValue): value is Jsonable {
-  if (!isTypeofObject(value) || value === null) return false;
-  const candidate: Jsonable = overlapCast(value);
-  return isFunction(candidate.toJSON);
-}
-
-export function canonicalize(value: BoundaryValue): string {
-  return JSON.stringify(sortKeys(value));
-}
-
-function sortKeys(value: BoundaryValue): BoundaryValue {
-  if (value === null || !isTypeofObject(value)) {
-    return value;
-  }
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  if (value instanceof Map) {
-    const out: MutableBoundaryObject = {};
-    const entries = [...value.entries()].sort(([a], [b]) =>
-      String(a).localeCompare(String(b)),
-    );
-    for (const [key, item] of entries) {
-      out[String(key)] = sortKeys(item);
-    }
-    return out;
-  }
-  if (Array.isArray(value)) {
-    return value.map(sortKeys);
-  }
-  const proto = Object.getPrototypeOf(value);
-  if (proto !== Object.prototype && proto !== null && isJsonable(value)) {
-    return sortKeys(value.toJSON());
-  }
-  const obj: MutableBoundaryObject = overlapCast(value);
-  const out: MutableBoundaryObject = {};
-  for (const key of Object.keys(obj).sort()) {
-    out[key] = sortKeys(obj[key]);
-  }
-  return out;
 }
 
 const SHA256_K = new Uint32Array([
