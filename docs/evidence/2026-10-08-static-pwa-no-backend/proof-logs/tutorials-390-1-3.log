@@ -1,0 +1,17 @@
+
+> @opensesame/pages@0.1.0 verify:tutorials /workspace/apps/pages
+> node scripts/verify-tutorials.mjs
+
+1280px: 28 tutorials on the shell
+1280px: 1 more once the vault holds items
+1280px: 29 tutorials walked in 145s
+1280px: popups walked in 10s
+1280px: gates walked in 52s
+390px: 25 tutorials on the shell
+390px: 1 more once the vault holds items
+390px: 26 tutorials walked in 109s
+390px: popups walked in 10s
+390px: gates walked in 51s
+wall time 423s; slowest: 1280px settings.keybindings.review 24s, 1280px vault.password-workflows 8s, 390px vault.password-workflows 8s, 1280px settings.live.host 6s, 1280px gate.front-door 6s
+
+5939 checks passed, 0 failed
