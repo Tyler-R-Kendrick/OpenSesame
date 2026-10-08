@@ -170,12 +170,13 @@ mod imp {
                 };
                 // kSecAttrService ("svce") is what `gh:`-style tools set;
                 // kSecAttrLabel ("labl") is the display fallback.
-                let label = attributes.get("svce").or_else(|| attributes.get("labl"));
-                if let Some(label) = label {
-                    if !label.is_empty() {
-                        labels.push((KeychainStore::MacOsKeychain, label.clone()));
-                    }
+                let Some(label) = attributes.get("svce").or_else(|| attributes.get("labl")) else {
+                    continue;
+                };
+                if label.is_empty() {
+                    continue;
                 }
+                labels.push((KeychainStore::MacOsKeychain, label.clone()));
             }
             Ok(labels)
         }
