@@ -65,6 +65,14 @@ not My Machines or a contributor’s local PC). Image and bootstrap live in
   `XAI_API_KEY` set as a Cursor **Runtime Secret** (or `GROK_DEPLOYMENT_KEY` where
   applicable), headless use looks like:
   `grok -p "…" --always-approve --output-format json`.
+- **Kimi Code CLI** is installed on `PATH` as `kimi`
+  (`KIMI_INSTALL_DIR=/usr/local` in the Dockerfile; binary at
+  `/usr/local/bin/kimi`). Sign in once per machine with the **Kimi Code (OAuth)**
+  subscription device-code flow — not a Kimi Open Platform API key:
+  `kimi login` (polls until Tyler approves the code in a browser). Credentials
+  live under `~/.kimi-code/` (`credentials/kimi-code.json`, `config.toml`).
+  Headless prompts: `kimi -p "…"` (alias `--prompt`); add `--output-format
+  stream-json` when structured output is needed.
 - **Never run `sudo`** in agent commands (see `.cursor/rules/no-sudo.mdc`). The
   image includes `sudo` for Cursor platform tooling only.
 - **Never commit API keys** or other secrets; inject them through Cursor Secrets.
