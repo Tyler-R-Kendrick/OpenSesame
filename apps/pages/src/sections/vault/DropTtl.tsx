@@ -6,6 +6,11 @@ export const DROP_TTL_OPTIONS = [
   { label: "1 day", ms: 86_400_000 },
 ] as const;
 
+/** The label of a TTL the form offers, or empty when the value is not one of them. */
+export function dropTtlLabel(ms: number): string {
+  return DROP_TTL_OPTIONS.find((option) => option.ms === ms)?.label ?? "";
+}
+
 /**
  * How long the share stays open: three choices side by side, the one in force
  * pressed. The chosen one takes `selectedRef`, so a ceremony that opens can
