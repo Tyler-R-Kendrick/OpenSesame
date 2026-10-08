@@ -49,9 +49,9 @@ Shipped empty file: `apps/pages/public/os-runtime-config.json` = `{}` (`pages-bo
 
 | Surface | Paths | Status |
 | --- | --- | --- |
-| Connect / GitHub App / git-backup routes | `apps/pages/api/**` | `vercel-serverless` — remove from static PWA |
-| Local relay helpers | `apps/pages/server/**` | `vercel-serverless` / operator local |
-| `vercel.json` rewrite excluding `api/` | `apps/pages/vercel.json` | rewrite must not reserve `api/` for functions |
+| Connect / GitHub App / git-backup routes | `apps/pages/api/**` | `vercel-serverless` — excluded by `.vercelignore` |
+| Local relay helpers | `apps/pages/server/**` | kept for Pages `tsc` (connect-conformance); not in `dist/` |
+| `vercel.json` → `dist/` only | `apps/pages/vercel.json` | static export; no server functions |
 
 ## 5. Compose / ops
 
