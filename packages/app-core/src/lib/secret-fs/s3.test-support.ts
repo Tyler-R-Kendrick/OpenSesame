@@ -30,13 +30,21 @@ export type FakeBucket = Readonly<{
 const xmlEscape = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-const reply = (
-  status: number,
-  body = "",
-  headers: Record<string, string> = {},
-) => new Response(body === "" ? null : body, { status, headers });
+const reply = (status: number, body = "", headers?: Headers) =>
+  new Response(body === "" ? null : body, { status, headers });
 
 type Objects = Map<string, Stored>;
+
+function methodOf(name: string): "GET" | "PUT" | "DELETE" | null {
+  switch (name) {
+    case "GET":
+    case "PUT":
+    case "DELETE":
+      return name;
+    default:
+      return null;
+  }
+}
 
 /** SigV4 as a bucket checks it: recomputed from the request that arrived. */
 async function signedCorrectly(
@@ -56,8 +64,10 @@ async function signedCorrectly(
   }
   const token = request.headers.get("x-amz-security-token");
   const stamp = request.headers.get("x-amz-date") ?? "";
+  const method = methodOf(request.method);
+  if (method === null) return false;
   const expected = signS3({
-    method: request.method as "GET" | "PUT" | "DELETE",
+    method,
     url: new URL(request.url),
     headers: carried,
     payloadHash: claimed,
@@ -108,7 +118,7 @@ function put(
   }
   if (match !== null && found?.etag !== match) return reply(412);
   objects.set(key, { bytes: body, etag });
-  return reply(200, "", { etag });
+  return reply(200, "", new Headers([["etag", etag]]));
 }
 
 function object(
