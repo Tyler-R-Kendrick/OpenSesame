@@ -2,13 +2,13 @@
 /**
  * Two browser contexts join one relay session (ADR 0181).
  *
- * A creates the org vault and publishes a sealed snapshot. B joins the
- * same address, is refused as a second principal, and still reads the
- * ciphertext with the slot key. The page shows generation and ciphertext.
- * It never shows an item name. `verify:live-join` stays the live walk.
+ * A consents and publishes a sealed snapshot. B consents, is refused as a
+ * member, and still reads the ciphertext with the slot key. The page shows
+ * generation and ciphertext. It never shows an item name.
+ * `verify:live-join` stays the live-session walk.
  *
- * Not a ci.yml gate (`DRIVER_GATES` is null). The gateway tests cover the
- * real relay process. This is the browser half.
+ * The default is the in-process harness (the journeys-1 CI shard).
+ * `VAULT_RELAY_LIVE=1` spawns the gateway relay profile instead.
  */
 
 import { chromium } from "@playwright/test";
@@ -37,6 +37,17 @@ async function probe(origin) {
   await expectStatus(live, 200, "health");
   if ((await live.text()) !== "ok") fail("health body was not ok");
 
+  const advertised = await fetch(`${origin}/health/relay`);
+  await expectStatus(advertised, 200, "relay health");
+  const health = await advertised.json();
+  if (
+    health.profile !== "relay" ||
+    health.bindings !== "vault_relay" ||
+    health.durable !== true
+  ) {
+    fail(`relay health ${JSON.stringify(health)}`);
+  }
+
   const absent = await fetch(`${origin}/api/v1/sync/pull`, { method: "POST" });
   await expectStatus(absent, 404, "host sync route");
 
@@ -57,7 +68,8 @@ async function probe(origin) {
   await expectStatus(listed, 200, "list probe");
   const body = await listed.json();
   const slugs = (body.vaults ?? []).map((vault) => vault.slug);
-  if (!slugs.includes("probe")) fail(`list missed probe: ${JSON.stringify(body)}`);
+  if (!slugs.includes("probe"))
+    fail(`list missed probe: ${JSON.stringify(body)}`);
 
   const second = await fetch(`${origin}/v1/org-vaults`, {
     method: "POST",
@@ -80,18 +92,24 @@ async function probe(origin) {
   }
 }
 
-function joinUrl(origin, role, principal) {
-  const url = new URL("/join.html", origin);
+function joinUrl(pageOrigin, apiOrigin, role, principal) {
+  const url = new URL("/join.html", pageOrigin);
   url.searchParams.set("role", role);
   url.searchParams.set("principal", principal);
   url.searchParams.set("owner", "acme");
   url.searchParams.set("slug", "ledger");
   url.searchParams.set("ownerKind", "organization");
   url.searchParams.set("slotKey", SLOT_KEY);
+  if (apiOrigin !== pageOrigin) url.searchParams.set("relay", apiOrigin);
   return url.href;
 }
 
-async function joinedText(page) {
+async function joinedText(page, role) {
+  const consent =
+    role === "a"
+      ? "I consent to publish this vault"
+      : "I consent to join this vault";
+  await page.getByRole("checkbox", { name: consent }).check();
   await page.getByRole("button", { name: "Join session" }).click();
   const joined = page.locator("#joined");
   await joined.waitFor({ state: "visible", timeout: 15_000 });
@@ -110,37 +128,40 @@ async function main() {
     for (const probed of discovery.probed) console.error(`  ${probed}`);
     process.exit(2);
   }
-  const relay = await startVaultRelay();
-  const browser = await chromium.launch({
-    executablePath: discovery.path,
-    headless: true,
+  const relay = await startVaultRelay({
+    live: process.env.VAULT_RELAY_LIVE === "1",
   });
+  let browser;
   try {
+    browser = await chromium.launch({
+      executablePath: discovery.path,
+      headless: true,
+    });
     await probe(relay.origin);
     const publisher = await browser.newContext();
     const receiver = await browser.newContext();
     const pageA = await publisher.newPage();
     const pageB = await receiver.newPage();
-    await pageA.goto(joinUrl(relay.origin, "a", "ada"));
-    const first = await joinedText(pageA);
+    const pageOrigin = relay.pageOrigin ?? relay.origin;
+    await pageA.goto(joinUrl(pageOrigin, relay.origin, "a", "ada"));
+    const first = await joinedText(pageA, "a");
     if (first.status !== "201") fail(`A create status ${first.status}`);
     if (first.generation !== "1") fail(`A generation ${first.generation}`);
-    if (first.ciphertext !== CIPHERTEXT) fail(`A ciphertext ${first.ciphertext}`);
+    if (first.ciphertext !== CIPHERTEXT)
+      fail(`A ciphertext ${first.ciphertext}`);
     if (first.body.includes(ITEM_NAME)) fail("A rendered an item name");
 
-    await pageB.goto(joinUrl(relay.origin, "b", "bee"));
-    const second = await joinedText(pageB);
-    if (second.status !== "409") fail(`B create status ${second.status}`);
+    await pageB.goto(joinUrl(pageOrigin, relay.origin, "b", "bee"));
+    const second = await joinedText(pageB, "b");
+    if (second.status !== "403") fail(`B create status ${second.status}`);
     if (second.generation !== "1") fail(`B generation ${second.generation}`);
     if (second.ciphertext !== CIPHERTEXT) {
       fail(`B ciphertext ${second.ciphertext}`);
     }
     if (second.body.includes(ITEM_NAME)) fail("B rendered an item name");
-    console.log(
-      "[relay-join] A published generation 1; B read the ciphertext",
-    );
+    console.log("[relay-join] A published generation 1; B read the ciphertext");
   } finally {
-    await browser.close();
+    await browser?.close();
     await relay.close();
   }
 }
