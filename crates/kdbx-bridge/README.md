@@ -30,6 +30,11 @@ pub fn map_kdbx(
 ) -> Result<(Vec<MappedItem>, Vec<ItemWarning>), KdbxError>;
 ```
 
+Import reads KDBX 3 and 4 databases and refuses other versions; before it
+derives anything it also refuses hostile KDF work factors
+(`MAX_KDF_MEMORY_BYTES`, `MAX_KDF_ITERATIONS`, `MAX_KDF_PARALLELISM`,
+`MAX_AES_KDF_ROUNDS`). Export writes KDBX 4.1 only.
+
 Everything in [`map`](src/map.rs) is a pure function over plain data — no
 `keepass` types, no file system, no crypto — so the contract below is
 unit-testable, mutation-testable, and portable to the TypeScript adapter in
@@ -47,8 +52,10 @@ or a credential.
 
 ## The mapping contract (normative)
 
-This is the statement of ADR 0052 §4.5. The Rust implementation here and the
-TypeScript pages adapter must agree on every rule; `tests/fixtures/kdbx/` is the
+This is the normative statement of the mapping behind the KDBX tier of
+[ADR 0052](../../docs/adr/0052-password-manager-ecosystem-bridging.md). The Rust
+implementation here and the TypeScript pages adapter must agree on every rule;
+the repository's [`tests/fixtures/kdbx/`](../../tests/fixtures/kdbx) is the
 cross-implementation guard.
 
 ### Fields
@@ -112,11 +119,15 @@ dropped.
 
 ### TOTP
 
-1. If `otp` is present and, after trimming, starts with `otpauth://` (any
-   case), it is parsed by `sealed-store`'s `parse_otpauth`. On success it
-   becomes `Entry.otp` and the `otp` field emits no trailer line.
-2. Otherwise, if `TimeOtp-Secret-Base32` is present and non-empty, an
-   `otpauth://` URI is synthesized:
+1. If `otp` is present and non-blank, only it is consulted. When, after
+   trimming, it starts with `otpauth://` (any case), it is parsed by
+   `sealed-store`'s `parse_otpauth`; on success it becomes `Entry.otp` and the
+   `otp` field emits no trailer line. A value that does not start with
+   `otpauth://` is preserved verbatim as an ordinary trailer line and
+   `MapWarning::UnusableOtpField` is raised; the `TimeOtp-*` attributes are
+   then left as ordinary trailer lines too.
+2. Otherwise (no `otp`, or a blank one), if `TimeOtp-Secret-Base32` is present
+   and non-empty, an `otpauth://` URI is synthesized:
 
    ```
    otpauth://totp/{percent-encoded Title}?secret={secret}&digits={d}&period={p}&algorithm={alg}
@@ -129,10 +140,11 @@ dropped.
    back to the defaults. The four `TimeOtp-*` attributes are then consumed and
    emit no trailer lines.
 3. If either path yields something `parse_otpauth` rejects — an unknown
-   algorithm, a secret that is not base32 — **nothing is consumed**: the raw
-   fields are preserved verbatim as ordinary trailer lines and
-   `MapWarning::UnusableOtpField` / `UnusableTimeOtp` is raised. The bridge
-   never guesses at a TOTP configuration.
+   algorithm, a secret that is not base32, an `otpauth://` URI without a
+   secret — **nothing is consumed**: the raw fields are preserved verbatim as
+   ordinary trailer lines and `MapWarning::UnusableOtpField` /
+   `UnusableTimeOtp` is raised. The bridge never guesses at a TOTP
+   configuration.
 
 ### Path sanitization
 
@@ -158,9 +170,9 @@ The store path is the KDBX group path (the root group excluded) plus the entry
 | `..` | `__` |
 | `...` | `___` |
 
-An `ImportOptions::prefix` is split on `/`, **empty segments dropped** (so
-`a//b` is `a/b`, unlike a group literally named `""`), each remaining segment
-sanitized by the same rules, and prepended.
+An `ImportOptions::prefix` is split on `/`, **empty and blank segments
+dropped** (so `a//b` is `a/b`, unlike a group literally named `""`), each
+remaining segment sanitized by the same rules, and prepended.
 
 ### Collisions
 
@@ -205,10 +217,10 @@ experimental:
 | Compression | GZip |
 | KDF | Argon2id, 64 MiB / 2 passes / 4 lanes by default |
 
-> **KDBX 4.0 is not reachable.** ADR 0052 §4.5 asks for 4.0, but
-> `keepass 0.13.22`'s `dump_kdbx4` rejects anything other than
-> `DatabaseVersion::KDB4(1)` outright, so this crate emits 4.1. KeePass 2.x,
-> KeePassXC and `kdbxweb` all read 4.1. See `EXPORT_KDBX_MINOR_VERSION`.
+> **KDBX 4.0 is not reachable.** `keepass 0.13.22`'s `dump_kdbx4` rejects
+> anything other than `DatabaseVersion::KDB4(1)` outright, so this crate emits
+> 4.1. KeePass 2.x, KeePassXC and `kdbxweb` all read 4.1. See
+> `EXPORT_KDBX_MINOR_VERSION`.
 
 ## Import merge semantics
 
@@ -246,8 +258,8 @@ cargo +1.88.0 clippy -p opensesame-kdbx-bridge --all-targets -- -D warnings
 - `tests/snapshots.rs` — `insta` characterization of the mapping, the trailer
   rendering, the exported field layout and the import summary. Review with
   `cargo insta review`; `.snap` files are committed.
-- `tests/conformance.rs` — the committed `tests/fixtures/kdbx/` pair. Regenerate
-  with:
+- `tests/conformance.rs` — the committed pair under the repository's
+  `tests/fixtures/kdbx/`. Regenerate with:
 
   ```bash
   cargo +1.88.0 test -p opensesame-kdbx-bridge --test conformance -- \

@@ -3,15 +3,19 @@
 The Identity plane's database: the Drizzle schema for Postgres, the SQL
 migrations, and a repository layer with two implementations, Postgres and
 in-memory. `createRepositories()` returns the Postgres repositories when a
-database URL is set and the in-memory ones otherwise. The Host plane has its
-own SQLite store in [`crates/storage`](../../crates/storage).
+database URL is set and the in-memory ones otherwise. Event rows (audit, outbox,
+delivery payloads) rest sealed, so the Postgres repositories refuse to be built
+without `OPENSESAME_EVENT_KEY` or `OPENSESAME_CLAIM_PEPPER`
+([ADR 0157](../../docs/adr/0157-logs-and-events-carry-no-secrets.md)). The Host
+plane has its own SQLite store in [`crates/storage`](../../crates/storage).
 
 ## Where it fits
 
 - **Used by:** [`packages/control-plane`](../../packages/control-plane) and
   [`packages/identity-worker`](../../packages/identity-worker).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) for the domain types
-  the repositories return, `drizzle-orm` and `postgres`.
+  the repositories return, [`@opensesame/log-scrub`](../log-scrub),
+  `drizzle-orm` and `postgres`.
 - Reads `DATABASE_URL` (declared in [`.env.schema`](../../.env.schema)). The
   migrate and reset scripts exit 1 without it; `drizzle.config.ts` falls back
   to `postgres://opensesame:opensesame@127.0.0.1:5432/opensesame`.

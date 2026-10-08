@@ -38,9 +38,10 @@ CodeRabbit does not auto-review while the repository has fewer than 10 stars.
 ## Hard rules (apply on every firing, no exceptions)
 
 - **This routine never becomes a GitHub Actions job.** `.github/workflows/`
-  holds only `ci.yml` (the merge-queue gate) and `deploy-pages.yml`; doc-drift
-  sweeps are not to be added there. You are an ordinary Claude Code session
-  running `git`/`gh` yourself.
+  holds `ci.yml` (the required pull-request checks), `deploy-pages.yml`,
+  `full-suite.yml` and `password-parity.yml`; doc-drift sweeps are not to be
+  added there. You are an ordinary Claude Code session running `git`/`gh`
+  yourself.
 - **No new paid dependencies or services.**
 - **Never commit secrets.**
 - **Do not touch Rust/`Cargo.*` files** unless the drift you are fixing is a
@@ -63,19 +64,22 @@ This exact class of bug has already been found once by a human/agent pass —
 **"a doc references a thing that used to exist, or was planned but never
 landed, or has since been renamed/removed"**:
 
-- `PRODUCT.md` referenced `scripts/release/deploy-pages.sh`, which does not exist in
-  `scripts/` (confirm this is still true when you run — if a later change
-  added the script, that specific item is resolved and you should look for
-  the *next* instance of this pattern instead).
-- `docs/security/tooling-evaluation.md` claimed dependency/security gates
-  were "wired ... into CI `security` job". No such job exists: CI is exactly
-  the two workflows in `.github/workflows/` — `ci.yml` (lint, typecheck,
-  `pnpm test`, `cargo test`, gating the merge queue) and `deploy-pages.yml`.
-  Treat any doc that attributes a gate to CI which those two workflows do not
-  actually run as this same class of drift — reword it to name what really
-  runs it (local git hooks via `scripts/dev/setup-hooks.sh` / `.githooks/`, these
-  Routines, or CodeRabbit). Docs asserting the repo has *no* CI or no
-  `.github/` directory are now themselves drift.
+- `PRODUCT.md` once referenced `scripts/release/deploy-pages.sh` at a time
+  when no such file was tracked. It exists now (the manual fallback beside
+  `.github/workflows/deploy-pages.yml`), so that specific item is resolved:
+  look for the *next* instance of this pattern instead.
+- `docs/security/tooling-evaluation.md` once claimed dependency/security
+  gates were "wired ... into CI `security` job". No such job exists:
+  `.github/workflows/` holds four workflows — `ci.yml` (the required
+  `TypeScript`, `Bundle budgets` and `Rust` checks: changed-file lint,
+  `pnpm quality`, the scoped tests and the browser gates), `deploy-pages.yml`,
+  `full-suite.yml` (the whole TypeScript suite on a schedule) and
+  `password-parity.yml` (the password parity gauntlet) — and none of them runs
+  the `pnpm audit:*` gates. Treat any doc that attributes a gate to CI which
+  those workflows do not actually run as this same class of drift — reword it
+  to name what really runs it (local git hooks via `scripts/dev/setup-hooks.sh`
+  / `.githooks/`, or these Routines). Docs asserting the repo has *no* CI or no
+  `.github/` directory are themselves drift.
 
 Watch for the same pattern anywhere else: a referenced file path, script
 name, package name, or command that no longer exists or never existed.
@@ -87,9 +91,7 @@ git status
 ```
 
 1. **File/path references.** For each of `README.md`, `PRODUCT.md`,
-   `CONTRIBUTING.md`, root `AGENTS.md` (check `ls AGENTS.md` first — it may
-   not exist yet on an early firing; skip gracefully if so, but check every
-   time since a sibling workstream is adding it), `DESIGN.md`, and any other
+   `CONTRIBUTING.md`, `AGENTS.md`, `DESIGN.md`, and any other
    root-level `*.md` file (`ls *.md`), extract every backtick-quoted path
    that looks like a repo-relative file or directory (`scripts/*.sh`,
    `apps/*`, `packages/*`, `crates/*`, `docs/*`, config file names) and
@@ -109,7 +111,7 @@ git status
    - `cargo <x>` — check it's a standard cargo subcommand or one provided by
      an installed cargo extension already referenced elsewhere in the repo
      (e.g. `cargo deny`, `cargo clippy`).
-   - A direct script invocation (`bash scripts/foo.sh`, `./scripts/foo.sh`)
+   - A direct script invocation (`bash scripts/<name>.sh`, `./scripts/<name>.sh`)
      — confirm the file exists and is the same script `package.json` points
      at, if both reference it (they should agree).
    Do **not** actually execute destructive or long-running commands (a full
@@ -147,13 +149,18 @@ git add <corrected docs>
 git commit -m "fix(docs): correct stale reference(s) found by weekly drift check
 
 <one line per correction, e.g.:
-- PRODUCT.md: scripts/release/deploy-pages.sh no longer exists; reworded to describe gh-based deploy
-- docs/security/tooling-evaluation.md: removed stale GitHub Actions CI claim>"
+- <doc>: <path or command> does not exist; <what it was changed to>
+- <doc>: <stale claim> corrected to <what the tree shows>>"
 git push -u origin HEAD
 gh pr create --title "fix(docs): correct stale reference(s)" \
   --body "Weekly docs-drift pass. Corrections:
 <same list as the commit body>"
 ```
+
+The default-branch ruleset requires signed commits
+(`ops/github/default-branch.json`), and a local `git commit` is unsigned: land
+the commit with `createCommitOnBranch` as described above and use the commands
+here for the branch and the pull request.
 
 If nothing is stale, end the session with a short note in your final message
 listing what you checked and that everything matched. Do not open an empty

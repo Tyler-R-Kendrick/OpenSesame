@@ -9,18 +9,18 @@ and connector decisions stay honest about parity and deliberate gaps.
 | **`pass` (password-store)** | **Direct** — human CLI sealed store | Unix GPG/`~/.password-store` CLI; hierarchical encrypted secrets in git | [`pass.md`](pass.md) |
 | Tomb | Adjacent / inspiration | Linux dm-crypt volume + key separation; motivates multi-tomb registry | [`tomb.md`](tomb.md) |
 | Infisical | Craft bar (agents) | Agent/secret delivery (`infisical run`, Agent Proxy) | [`infisical.md`](infisical.md) |
-| Bitwarden | Study / client-bridge target ([ADR 0052](../../adr/0052-password-manager-ecosystem-bridging.md)) + craft bar (human UI habits) | Password-manager UX (+ Secrets Manager SKU); consume-client built, server compat roadmap-only; never brand marks | [`bitwarden.md`](bitwarden.md) |
+| Bitwarden | Study / client-bridge target ([ADR 0052](../../adr/0052-password-manager-ecosystem-bridging.md)) + craft bar (human UI habits) | Password-manager UX (+ Secrets Manager SKU); consume-client built, Bitwarden-compatible server built behind the default-off `bitwarden-compat` feature ([ADR 0141](../../adr/0141-bitwarden-compatible-server.md)); never brand marks | [`bitwarden.md`](bitwarden.md) |
 | KeePass / KeePassXC | Study / client-bridge target ([ADR 0052](../../adr/0052-password-manager-ecosystem-bridging.md)) | Offline KDBX database + keepassxc-protocol browser integration; format and protocol implemented from public specs | [`keepass.md`](keepass.md) |
 | Passbolt | Study / consume target ([ADR 0052](../../adr/0052-password-manager-ecosystem-bridging.md)) | Self-hosted team PM on per-user OpenPGP; KDBX export ingests today, native client is a stretch | [`passbolt.md`](passbolt.md) |
 | 1Password | Craft bar (human UI habits) / consume target | `op` CLI, service accounts, `op://` refs, Connect REST, `.1pux`; CXF co-author. Serving its clients is impossible (proprietary) | [`1password.md`](1password.md) |
 | Doppler | Adjacent / craft bar | Cloud secrets platform + env injection CLI; capability parity via Host projects / SyncTarget / changelog — not a clone; catalog `doppler` ≠ this feature set | [`doppler.md`](doppler.md) |
 | HashiCorp Vault / OpenBao | Provider / prior art | Dynamic secrets, transit, PKI | [`hashicorp-vault.md`](hashicorp-vault.md) |
 | fnox | Peer / compatibility | Multi-provider secrets CLI; Host catalog Fnox parity | [`fnox.md`](fnox.md) |
-| SOPS | Adjacent | Encrypted structured config in git (GitOps) | [`sops.md`](sops.md) |
+| SOPS | Adjacent | Encrypted structured config in git (GitOps); OpenSesame reads and writes SOPS YAML/JSON in the browser ([ADR 0130](../../adr/0130-browser-local-sops.md)) | [`sops.md`](sops.md) |
 | age | Primitive / prior art | Modern file encryption format used by SOPS/fnox/sealed-store | [`age.md`](age.md) |
-| Vercel Connect | Adjacent / borrow-source | Short-lived connector tokens for apps/agents on Vercel | [`vercel-connect.md`](vercel-connect.md) |
+| Vercel Connect | Adjacent / borrow-source | Short-lived connector tokens for apps/agents on Vercel; Pages can drive it as a connector transport | [`vercel-connect.md`](vercel-connect.md) |
 | Oomol Open Connector | Adjacent | OSS agent SaaS gateway (Actions + MCP; credentials stay behind gateway) | [`oomol-open-connector.md`](oomol-open-connector.md) |
-| Nango | Study | Embedded OAuth/API integrations + Functions/MCP | [`nango.md`](nango.md) |
+| Nango | Study | Embedded OAuth/API integrations + Functions/MCP; its listing routes are read to import connectors ([ADR 0115](../../adr/0115-front-door-and-connector-directory.md)) | [`nango.md`](nango.md) |
 | Border0 + Tailscale (Tailscale PAM) | **Craft bar (Access screen)** — design parity target ([ADR 0054](../../adr/0054-access-screen-pam.md)) | Privileged access management: sockets/services, policies, sessions + recordings, JIT approval flows, ZSP | [`border0-tailscale-pam.md`](border0-tailscale-pam.md) |
 | Tailscale — Identity | **Craft bar (Identity screen)** — design parity target ([ADR 0060](../../adr/0060-identity-screen-idp-brokering.md)) | IdP-bound tailnet: mandatory IdP signup ceremony, users/roles/states, service identities, groups, SCIM | [`tailscale-identity.md`](tailscale-identity.md) |
 | Vaultwarden | Study / client-bridge prior art ([ADR 0052](../../adr/0052-password-manager-ecosystem-bridging.md)) | Self-hosted Bitwarden-compatible server; AGPL-3.0, clean-room study only | — (see [docs/reference/reuse.md](../../reference/reuse.md), [bitwarden.md](bitwarden.md)) |

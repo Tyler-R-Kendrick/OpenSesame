@@ -1,6 +1,6 @@
 # ADR 0098: Durable Host ceilings for project secret metadata
 
-Status: accepted
+Status: Accepted
 
 ## Context
 

@@ -5,6 +5,14 @@
 > marks; never imply OpenSesame ships Apple's flow, and never imply Apple
 > ships ours.
 
+> Status (2026-10-08): ADR 0076 is Proposed, and the OpenSesame column below
+> and the tier names (T0 to T5) are its ladder. What this checkout has: the
+> Host's web-login runner (`crates/gateway/src/web_login`) replays a signed
+> recipe (T3) through the policy owner's browser, only for a recipe with a
+> passing canary when nobody is watching, and parks the job otherwise (T5's
+> notification). It has no passkey-migration path (T0) and no model-driven
+> runner (T4): `crates/rotation-web` links no model client.
+
 **Stance: prior art / craft bar (the deterministic tiers).** Apple defined the
 convention every password manager now uses to reach a site's password-change
 page, and it is the right convention. What Apple does *not* do is the part that
@@ -42,15 +50,15 @@ The human performs every password change. Apple navigates, and generates a
 compliant replacement, and offers to save it. It does not fill the old password,
 submit the form, or verify the result.
 
-| Dimension | Apple Passwords | OpenSesame (ADR 0076) |
+| Dimension | Apple Passwords | OpenSesame (ADR 0076, as proposed) |
 |-----------|-----------------|-----------------------|
 | Finds the change page | `/.well-known/change-password` + curated corpus | same convention, same derivation |
-| Generates a compliant password | yes, from composition quirks | yes, from recipe `composition` |
-| Fills and submits the form | **no — the human does** | T3 deterministic replay, T4 agentic |
+| Generates a compliant password | yes, from composition quirks | specified: recipe `composition`; the recipe document the Host parses has no such member |
+| Fills and submits the form | **no — the human does** | T3 deterministic replay; T4 agentic is specified, not built |
 | Verifies the change took effect | no | fresh login, before the old value is released |
-| Runs unattended on a schedule | no | T0–T3 by default |
-| Recovers from a site redesign | n/a — the human adapts | teaching session → new signed recipe |
-| Passkey migration | offered where supported | T0, ranked above rotation |
+| Runs unattended on a schedule | no | scheduled by the lifecycle scanner; needs a policy owner and a recipe with a passing canary (T0–T3 by default in the ADR) |
+| Recovers from a site redesign | n/a — the human adapts | specified: teaching session → new signed recipe; today an operator signs a new recipe and proves it with a canary run |
+| Passkey migration | offered where supported | T0, ranked above rotation; specified, not built |
 
 ## What we take
 

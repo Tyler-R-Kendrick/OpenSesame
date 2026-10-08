@@ -10,8 +10,11 @@ test vectors are written once, and each plane runs every vector.
 
 - **Used by:** `@opensesame/observability` (the pino logger), `@opensesame/audit`,
   `@opensesame/telemetry`, `@opensesame/wallet-consent`, `@opensesame/support-agent`,
-  `@opensesame/sdk-cli`, `@opensesame/app-core` (the activity log, duress alert
-  outbox) and the Identity API's error handling.
+  `@opensesame/sdk-cli`, `@opensesame/cli` (its output),
+  `@opensesame/database` (sealed events; the migrate and reset scripts' error
+  line), `@opensesame/identity-worker` and `@opensesame/control-plane` (the
+  entry points' last-resort error line), `@opensesame/app-core` (the activity
+  log, duress alert outbox) and `examples/agent`.
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) for boundary guards. No
   Node built-ins, so it runs in a browser and in a bare V8 isolate.
 
@@ -21,6 +24,8 @@ test vectors are written once, and each plane runs every vector.
 |---|---|
 | `scrubText(text)` | Rewrites every secret the text carries: PEM blocks, DSN passwords, `#token=` and `?code=` parameters, `label: value` pairs, cookie headers, bearer and DPoP credentials, JWTs, `osc_*` tokens, vendor keys. Idempotent. |
 | `scrubValue(value)` | A deep copy with sensitive keys censored (`accessToken`, `x-api-key`, `db_password`), every string scrubbed, errors flattened, binary replaced, cycles and depth cut. |
+| `scrubStrings(value)` | The value layer only: every string scrubbed, no key censored, for an output whose own key policy is deliberate (the device-flow CLI printing a `user_code`). |
+| `describeError(error)` | An error, or whatever was thrown, as one scrubbed line (its stack when it has one), for an entry point's last-resort `console.error`. |
 | `isSensitiveKey(key)` | Whether a key is named like a secret. `tokenType` is not; `accessToken` is. |
 | `REDACTED` | The marker, `[REDACTED]`. |
 

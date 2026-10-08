@@ -1,7 +1,16 @@
 # ADR 0079 — Shared sessions: a coordination transport, and grants that never travel on it
 
-Status: Proposed
+Status: Proposed (partly implemented; see Implementation)
 Date: 2026-08-31
+Implementation: the Host side is built: `crates/gateway/src/routes/shared_sessions*`
+and `session_coordination*`, over the `sessions`, `session_grants`,
+`session_grant_items`, `session_join_requests` and `session_memberships`
+tables (migrations `0019_shared_sessions.sql`, `0035_session_coordination.sql`,
+`0041_session_admission.sql`).
+Amended by: [ADR 0137](0137-open-sessions-admit-on-ask.md) (§7: an open session
+may admit on ask, as an observer).
+Revisited by: [ADR 0150](0150-live-sessions-browser-to-browser.md) (§Rejected,
+"WebRTC mesh as the admission path").
 References: ADR 0005 ([ConnectionRef over SecretRef](0005-authority-handle-connectionref.md)),
 ADR 0038 ([projects, memberships and sharing](0038-project-hierarchy-sharing.md)),
 ADR 0044 ([claimable delegation](0044-claimable-connection-delegation.md)),

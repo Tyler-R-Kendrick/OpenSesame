@@ -9,9 +9,11 @@ else.
 
 ## Where it fits
 
-- **Used by:** [`crates/daemon`](../../crates/daemon) (`src/invoke_through.rs`) and
+- **Used by:** [`crates/daemon`](../../crates/daemon) (`src/invoke_through.rs`),
   [`opensesame-connection-broker`](../connection-broker) (transport pool and
-  rotation egress).
+  rotation egress), [`opensesame-connector-host`](../connector-host)
+  (constrained HTTP), [`opensesame-tailnet-admin`](../tailnet-admin) (the
+  Tailscale API client) and [`opensesame-surrogate-proxy`](../surrogate-proxy).
 - **Builds on:** no workspace crates at runtime. `opensesame-transport-security`
   (with `testkit`) and `opensesame-domain` are dev-dependencies only, because the
   daemon's dependency budget is measured on normal edges.

@@ -1,7 +1,8 @@
 # ADR 0129 — Vault key protection manifest (any-of roots)
 
-- **Status:** Accepted
+- **Status:** Accepted (§7 superseded by [ADR 0130](0130-browser-local-sops.md))
 - **Date:** 2026-09-20
+- **Amended by:** [ADR 0152](0152-browser-key-protector-enrollment.md) (§8)
 - **Deciders:** OpenSesame maintainers
 
 ## Context

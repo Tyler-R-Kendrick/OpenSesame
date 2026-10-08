@@ -1,7 +1,17 @@
 # ADR 0068 — Enrollment protocol servers, and the narrow ACME directory supersession
 
-Status: Accepted
+Status: Accepted (partly implemented; see Implementation)
 Date: 2026-08-30
+Implementation: partly built. EST (RFC 7030) is built:
+`GET /.well-known/est/{profile_id}/cacerts`, `POST .../simpleenroll`,
+`POST .../simplereenroll` and the operator
+`GET|PUT /api/v1/certmgr/profiles/{id}/est-config`
+(`crates/gateway/src/routes/est_server.rs`, `est_enrollment.rs`, `est_wire.rs`);
+the `est_configs`, `scep_configs`, `scep_challenges` and `acme_*` tables and
+accessors exist in storage. Not built: the ACME server
+(`routes/acme_server.rs`), the SCEP server (`routes/scep_server.rs`,
+`crates/scep`), and the §5 supersession, since `cert_issuers/acme.rs` accepts
+only its fixed providers, never an arbitrary directory URL.
 Supplements: ADR 0017 (host/client topology), ADR 0032 §3 (catalog is data),
 ADR 0066 (Certificate Manager domain model), ADR 0067 (revocation)
 Supersedes in part:

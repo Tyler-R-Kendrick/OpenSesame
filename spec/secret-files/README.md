@@ -14,7 +14,7 @@ any other plane that reads or writes a vault directory follows this.
     vault.json                                  the manifest: the commit point
     secrets/<folder>/<name>.<kind>.json         one sealed document per secret
     secrets/<folder>/folder.dir.json            one sealed document per folder: its directory, empty or not
-    settings/<page>/<name>.<lang>.json          a Settings page's file, at the address the page shows it under
+    settings/<address>.json                     a Settings page's file, at the address the page shows it under
     config/<name>.json, index.json, …           every other sealed vault file, one document each
 ```
 
@@ -26,7 +26,7 @@ name (`files.ts`: `checkPath`). A store refuses any other path.
 
 ## Documents
 
-Both are JSON, pretty-printed with a trailing newline. The schemas are
+Each is JSON, pretty-printed with a trailing newline. The schemas are
 [`secret-file.schema.json`](secret-file.schema.json) and
 [`folder-file.schema.json`](folder-file.schema.json),
 [`config-file.schema.json`](config-file.schema.json) and
@@ -55,7 +55,7 @@ config file's place (before this envelope) is still read.
 
 The manifest is `{ "format": "opensesame.vault", "version": 1, "sealed": … }`,
 bound as `vaultSealBinding(tomb, "manifest")`, over the vault body without its
-items — `rev`, `folders`, `itemTypes`, `tombstones`, `deviceIdentityKey`,
+items — `v`, `rev`, `itemTypes`, `itemTypesAt`, `tombstones`, `deviceIdentityKey`,
 `masterWrap` — plus `items` and `folders`, each `[{ "id", "file", "rev" }]` in order. A manifest
 that holds `folders` whole (written before folders were files) is still read.
 

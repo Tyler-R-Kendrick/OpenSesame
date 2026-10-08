@@ -1,9 +1,13 @@
 # Browser identity and one-use control verification
 
 Pairing grants encrypted sync, not operator authority or permission to control
-an agent-driven browser. After pairing, **Verify browser identity** opens the
-configured Identity origin. Browser-control buttons use the same ceremony,
-followed by a separate approval bound to the exact run and transition.
+an agent-driven browser. After pairing, the host-authorization ceremony
+(`authorizeHost` in `packages/app-core/src/lib/host-authorization.ts`) opens the
+configured Identity origin. In Pages the Join a session road is its only caller
+(operation `browser.authenticate`); the Identity API and the Host also accept
+`agent.browser.control`, but no Pages control in this checkout starts it.
+Browser control uses the same ceremony, followed by a separate approval bound to
+the exact run and transition.
 
 ## Deployment requirements
 

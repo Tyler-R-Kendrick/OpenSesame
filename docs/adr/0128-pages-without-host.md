@@ -4,6 +4,11 @@
 
 Accepted.
 
+Amended by: [ADR 0136](0136-join-a-session-restored.md) (a second, bounded
+exception: joining a session), [ADR 0144](0144-tailnet-vault-sync.md) (a
+third: the tailnet vault drive) and [ADR 0169](0169-tailnet-device-management.md)
+(a fourth: the tailnet device routes of a paired daemon).
+
 ## Context
 
 The Pages PWA is a static front end (ADR 0090) whose live roads run on
