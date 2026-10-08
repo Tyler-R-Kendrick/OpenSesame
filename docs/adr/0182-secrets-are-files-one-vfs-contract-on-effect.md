@@ -177,16 +177,22 @@ emulation keeps hiding shape (ADR 0149, ADR 0175); nothing here changes it.
 
 ## Not in this change
 
-- **Pages.** The shipped PWA keeps its OPFS emulation by default and never
-  touches a real filesystem. A bucket is an opt-in connection: the `s3`
-  connector, configured in the Custom setup ceremony's Storage tab (contributed
-  by `connectors.external` after its Connectors tab, so it is there exactly when
-  Connections is part of the installation) or in Settings › Capabilities ›
-  Local storage, and saved device-locally (secret key apart from the public fields, like every other
-  configuration connector), and installed at boot as
-  `installFileBackedVfs(resilient(makeS3SecretFiles(...)))`. The bucket needs
-  a CORS rule for the page's origin that allows `If-Match`, `If-None-Match`,
-  `x-amz-*` and `Authorization` and exposes `ETag`.
+- **Pages' own UI for moving a vault into a bucket.** The shipped PWA keeps
+  its OPFS emulation by default and never touches a real filesystem. A bucket
+  is an opt-in connection: the `s3` connector (catalog category
+  `local_storage`), configured in the Custom setup ceremony's Storage tab
+  (contributed by `connectors.external` after its Connectors tab, so it is
+  there exactly when Connections is part of the installation) or in Settings ›
+  Capabilities › Local storage, and saved device-locally with the secret key
+  apart from the public fields. At boot, after the at-rest key and before any
+  vault header, `bootCore` asks `hasSavedBucket()` (a small read) and only then
+  loads `bucket-boot.ts`, which installs
+  `installFileBackedVfs(resilient(makeS3SecretFiles(...)))`. An unreachable or
+  half-saved bucket leaves the emulation in place and says so in the tray; it
+  never half-installs. The bucket needs a CORS rule for the page's origin that
+  allows `If-Match`, `If-None-Match`, `x-amz-*` and `Authorization` and exposes
+  `ETag`. What remains is a Settings control to move an existing OPFS vault
+  into a bucket.
 - **The native plane.** `crates/sealed-store` already keeps one file per entry
   and is not changed. A Rust reader and writer of this layout can be built from
   `spec/secret-files/` and `spec/conformance/secret-file-layout-vectors.json`;

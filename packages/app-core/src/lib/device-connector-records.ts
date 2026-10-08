@@ -13,6 +13,12 @@ import { kvDelete, kvGet, kvSet } from "./kv.js";
 const PUBLIC_KEY = "opensesame.device-connectors.v1";
 const SECRET_KEY = "opensesame.device-connector-secrets.v1";
 
+/** Both records, for a boot that reads a saved connector before anything draws. */
+export const DEVICE_CONNECTOR_KEYS: readonly string[] = [
+  PUBLIC_KEY,
+  SECRET_KEY,
+];
+
 export interface StringFields {
   [key: string]: string;
 }
