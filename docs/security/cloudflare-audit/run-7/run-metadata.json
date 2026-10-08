@@ -22,8 +22,8 @@
   "budget": null,
   "execution_policy": "sandboxed-source-and-local-only",
   "count_status": "counted",
-  "run_status": "in_progress",
-  "current_phase": "2_hunting",
+  "run_status": "complete",
+  "current_phase": "complete",
   "grok_probe": "402 Payment Required (Grok Build usage exhausted); Cursor hunters only",
   "hunter_platform": "cursor_explore_subagents",
   "started_at": "2026-10-08T14:55:26Z",
@@ -33,6 +33,55 @@
       "started_at": "2026-10-08T14:55:26Z",
       "completed_at": "2026-10-08T15:01:39Z",
       "agents": ["recon-1a", "recon-1b", "recon-1c", "recon-1d"]
+    },
+    {
+      "phase": "2_hunting",
+      "started_at": "2026-10-08T15:12:30Z",
+      "completed_at": "2026-10-08T15:39:54Z",
+      "agents": [
+        "h-run7-gateway-wave",
+        "h-run7-pages-wave",
+        "h-run7-ts-wave",
+        "h-run7-cli-wave",
+        "h-run7-misc-wave"
+      ],
+      "worktrees": [
+        "/tmp/wt-run7-h-gateway",
+        "/tmp/wt-run7-h-pages",
+        "/tmp/wt-run7-h-cp"
+      ]
+    },
+    {
+      "phase": "3_validation",
+      "started_at": "2026-10-08T15:39:54Z",
+      "completed_at": "2026-10-08T15:39:54Z",
+      "agents": [
+        "v-run7-egress-encoded-path",
+        "v-run7-cli-open-url",
+        "v-run7-android-manifest",
+        "v-run7-gateway-observe-fence",
+        "v-run7-nats-loopback",
+        "v-run7-sandbox-grant-expiry",
+        "v-run7-wallet-custom-scheme"
+      ]
+    },
+    {
+      "phase": "4_findings",
+      "started_at": "2026-10-08T15:39:54Z",
+      "completed_at": "2026-10-08T15:39:54Z",
+      "confirmed": 0,
+      "needs_validation": 0
+    },
+    {
+      "phase": "5_record_verification",
+      "started_at": "2026-10-08T15:39:54Z",
+      "completed_at": "2026-10-08T15:39:54Z",
+      "agent": "v-run7-record-verify"
+    },
+    {
+      "phase": "6_report",
+      "started_at": "2026-10-08T15:39:54Z",
+      "completed_at": "2026-10-08T15:39:54Z"
     }
   ],
   "prior_run_paths": [
@@ -46,5 +95,7 @@
   "prior_runs_not_counted": ["run-5", "run-6"],
   "coverage_ledger_units": 54,
   "shared_file_owners": ["parent"],
-  "notes": "Counted run 7. Phase 1: four parallel Cursor recon agents (1a–1d); parent wrote architecture.md and reset ledger to planned (no build-run-* scripts). Phase 2+ pending."
+  "notes": "Counted run 7. Phase 1: four parallel Cursor recon agents (1a\u20131d); parent wrote architecture.md and reset ledger to planned (no build-run-* scripts). Phase 2+ pending.",
+  "completed_at": "2026-10-08T15:39:54Z",
+  "coverage_ledger_md5": "a58d862ea7600139570ca3c8e1fe9439"
 }
