@@ -213,9 +213,7 @@
     "boundary": "apps/cli/src/connect.rs#authorize_oauth",
     "subsystem": "apps/cli",
     "attack_class": "Injection",
-    "starting_paths": [
-      "apps/cli/src/connect.rs"
-    ],
+    "starting_paths": ["apps/cli/src/connect.rs"],
     "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
     "selected_companion_blocks": [
       "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
@@ -234,15 +232,11 @@
     "wave": 1,
     "status": "covered",
     "agent_id": "parent-run3-planned",
-    "reviewed_paths": [
-      "apps/cli/src/connect.rs"
-    ],
+    "reviewed_paths": ["apps/cli/src/connect.rs"],
     "local_checks": [
       {
         "agent_id": "parent-run3-planned",
-        "reviewed_paths": [
-          "apps/cli/src/connect.rs"
-        ],
+        "reviewed_paths": ["apps/cli/src/connect.rs"],
         "invariant": "Run-1 needs_validation unit re-read at stack tip.",
         "method": "source",
         "result": "Re-hunted at 33ecab02. No new confirmed path; prior blocker or run-2 disposition unchanged.",
@@ -367,9 +361,7 @@
     "boundary": "apps/cli/src/plugins_install.rs",
     "subsystem": "apps/cli",
     "attack_class": "Resource and file handling",
-    "starting_paths": [
-      "apps/cli/src/plugins_install.rs"
-    ],
+    "starting_paths": ["apps/cli/src/plugins_install.rs"],
     "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
     "selected_companion_blocks": [
       "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
@@ -622,9 +614,7 @@
     "boundary": "apps/pages/api/github-app/webhook.mjs#readRaw",
     "subsystem": "apps/pages",
     "attack_class": "Resource accumulation",
-    "starting_paths": [
-      "apps/pages/api/github-app/webhook.mjs"
-    ],
+    "starting_paths": ["apps/pages/api/github-app/webhook.mjs"],
     "ordinary_attack_class_block": null,
     "selected_companion_blocks": [
       "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
@@ -701,9 +691,7 @@
     "boundary": "apps/pages/scripts/github-app-relay-plugin.mjs#readBody",
     "subsystem": "apps/pages",
     "attack_class": "Resource accumulation",
-    "starting_paths": [
-      "apps/pages/scripts/github-app-relay-plugin.mjs"
-    ],
+    "starting_paths": ["apps/pages/scripts/github-app-relay-plugin.mjs"],
     "ordinary_attack_class_block": null,
     "selected_companion_blocks": [
       "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
@@ -903,9 +891,7 @@
       },
       {
         "agent_id": "h-pages-write",
-        "reviewed_paths": [
-          "apps/pages/server/github-app-repos.mjs"
-        ],
+        "reviewed_paths": ["apps/pages/server/github-app-repos.mjs"],
         "invariant": "Listing or creating a repository requires the App PEM, and create does not grant a token the caller can reuse.",
         "method": "source",
         "result": "Holds in source. Both handlers require readCredentials. List mints contents:read plus metadata:read and returns only fullName, name, private, and defaultBranch. Create mints an installation token with administration:write and no repository list, then POSTs only to https://api.github.com/orgs/{owner}/repos or https://api.github.com/user/repos. The token is not returned. accountType and owner are caller-chosen and are not compared to the installation account locally; cross-account create would require GitHub to honor that token outside the installation, which is not established here and is not reported.",
@@ -1696,9 +1682,7 @@
     "boundary": "crates/credential-helpers/src/lib.rs",
     "subsystem": "crates/credential-helpers",
     "attack_class": "Cryptography and secrets",
-    "starting_paths": [
-      "crates/credential-helpers/src/lib.rs"
-    ],
+    "starting_paths": ["crates/credential-helpers/src/lib.rs"],
     "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
     "selected_companion_blocks": [
       "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
@@ -2034,9 +2018,7 @@
       },
       {
         "agent_id": "h-daemon",
-        "reviewed_paths": [
-          "crates/daemon/src/lib.rs"
-        ],
+        "reviewed_paths": ["crates/daemon/src/lib.rs"],
         "invariant": "Routes that skip require_operator are either non-authority or a separate boundary already covered by the proxy and tailnet units.",
         "method": "source",
         "result": "Operator mutations in this file call require_operator. /host and /identity do not; that gap is the backslash denylist candidate on the proxy and bridge units, not a failure inside require_operator. GET /health, GET /health/live, and POST /v1/get_access_token are ungated, and the token route only returns the error use_mint_capability. Vault device routes use a slot key. None of those grant operator authority.",
@@ -2133,9 +2115,7 @@
       },
       {
         "agent_id": "h-daemon",
-        "reviewed_paths": [
-          "crates/daemon/src/fill/caller.rs"
-        ],
+        "reviewed_paths": ["crates/daemon/src/fill/caller.rs"],
         "invariant": "Fill value routes do not treat a non-loopback daemon bind as extension authority.",
         "method": "source",
         "result": "extension_caller requires a loopback Host, no forwarding headers, an extension origin, and a paired bearer. The loopback test reads the client Host header, not the accepted socket address, so a direct client of the WSL bridge can send Host: 127.0.0.1. The paired bearer still gates secret values. That is a header-versus-socket hardening gap, not a candidate: no value is returned without the pairing token, and Serve's injected forwarding headers are not defined in this repo.",
@@ -2710,9 +2690,7 @@
     "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
     "subsystem": "crates/gateway",
     "attack_class": "Access control",
-    "starting_paths": [
-      "crates/gateway/src/routes/agent_runs.rs"
-    ],
+    "starting_paths": ["crates/gateway/src/routes/agent_runs.rs"],
     "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
     "selected_companion_blocks": [],
     "excluded_blocks": [
@@ -3541,9 +3519,7 @@
     "boundary": "crates/human-vault/src/lib.rs",
     "subsystem": "crates/human-vault",
     "attack_class": "Cryptography and secrets",
-    "starting_paths": [
-      "crates/human-vault/src/lib.rs"
-    ],
+    "starting_paths": ["crates/human-vault/src/lib.rs"],
     "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
     "selected_companion_blocks": [
       "DATA-ISOLATION-AND-LIFECYCLE.md#Core discipline",
@@ -3582,9 +3558,7 @@
     "local_checks": [
       {
         "agent_id": "h-storage",
-        "reviewed_paths": [
-          "crates/human-vault/src/lib.rs"
-        ],
+        "reviewed_paths": ["crates/human-vault/src/lib.rs"],
         "invariant": "An untrusted envelope cannot change item, org, project, collection, key, or revision binding, or obtain plaintext, without the item key.",
         "method": "source",
         "result": "encrypt_item and seal_chunk use XChaCha20-Poly1305 with a fresh 24-byte rand 0.8 ThreadRng nonce and bind a blake3 digest of the canonical associated data as AAD. decrypt_item and open_chunk recompute that digest, reject a mismatched stored digest or version, and return only AEAD failures. decrypt_item_with_ad additionally requires the caller's reconstructed context to hash to the same digest. There is no unauthenticated or plaintext fallback. Workspace rand is 0.8.5 (ChaCha ThreadRng).",
@@ -4630,9 +4604,7 @@
       },
       {
         "agent_id": "h-tscli",
-        "reviewed_paths": [
-          "packages/cli/src/identity-session.ts"
-        ],
+        "reviewed_paths": ["packages/cli/src/identity-session.ts"],
         "invariant": "A session or key file that is group- or world-accessible is refused, and a refreshed token is posted only to the issuer origin that minted the session.",
         "method": "source",
         "result": "assertPrivateFile rejects any mode with bits in 0o077 before read, and saveSession creates the temp file mode 0600, chmods 0600, then renames it into place. refreshSession ignores a non-string token_endpoint and returns null unless new URL(tokenEndpoint).origin equals new URL(session.issuer).origin. A changed outer issuer or clientId fails the envelope AAD before the inner session is returned.",
@@ -5186,9 +5158,7 @@
       },
       {
         "agent_id": "h-cp-oauth",
-        "reviewed_paths": [
-          "packages/control-plane/src/routes/device.ts"
-        ],
+        "reviewed_paths": ["packages/control-plane/src/routes/device.ts"],
         "invariant": "Device approval binds the host call to the caller's current membership role, and the request body cannot choose that role.",
         "method": "source",
         "result": "Holds inside this service. POST /v1/device/approve requires a principal, re-reads membership under serializeMembershipMutation, refuses an inactive organization, and sends organization_role from that row. The operator token is attached by the server. The host's interpretation of user_code is outside this repository and is not a second control-plane grant.",
