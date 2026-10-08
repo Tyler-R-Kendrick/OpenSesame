@@ -85,6 +85,7 @@ export async function rig(options: RigOptions = {}): Promise<Rig> {
   const closedTabs: (number | null)[] = [];
   const opened = { pages: 0 };
   const connection: Connection = { host, backup: host };
+  let clock = 0;
   const runner = createRunner({
     settings,
     vault,
@@ -107,7 +108,14 @@ export async function rig(options: RigOptions = {}): Promise<Rig> {
     },
     connect: async () =>
       (await settings.token()) === null ? null : connection,
-    sleep: () => new Promise((resolve) => setTimeout(resolve, 1)),
+    // Wall-clock idle under CI load aborted a live walk: Date.now jumped past
+    // idleMs while the executor was still enqueueing the next step. Advance
+    // `now` only with `sleep` so contention cannot end the tick early.
+    now: () => clock,
+    sleep: async (ms = 1) => {
+      clock += Math.max(ms, 0);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    },
     pollMs: 1,
     idleMs: 400,
     loginWindowMs: 40,
