@@ -11,8 +11,10 @@ secrets from a payload and refuses one that still looks like a credential.
   [`packages/identity-worker`](../../packages/identity-worker), [`packages/mcp-host`](../../packages/mcp-host)
   and [`packages/mcp-client`](../../packages/mcp-client) (`forAgent` on tool output),
   [`packages/agent-client`](../agent-client) (`registerAgentSecret`),
-  [`packages/telemetry`](../telemetry) (reuses `SENSITIVE_KEY_PATTERN`) and
-  [`packages/webmcp`](../webmcp).
+  [`packages/telemetry`](../telemetry) (reuses `isSensitiveKey`).
+  [`packages/webmcp`](../webmcp) keeps a browser-safe port of the agent-payload
+  fence and depends on this package only as a dev dependency, to check the port
+  against `forAgent`.
 - **Builds on:** [`@opensesame/os-domain`](../os-domain),
   [`@opensesame/log-scrub`](../log-scrub), `pino` and `@noble/ciphers`.
 - Diagnostic logs are kept apart from the audit trail
