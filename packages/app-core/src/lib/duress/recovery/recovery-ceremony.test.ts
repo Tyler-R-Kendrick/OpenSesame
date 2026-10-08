@@ -55,7 +55,7 @@ async function sharesOf(
 async function quorum() {
   const secrets = keys();
   const request = await recoveryRequest();
-  const ledger = new ApprovalQuorumLedger(secrets.approval, secrets.device, {
+  const ledger = new ApprovalQuorumLedger(secrets.registry, secrets.device, {
     thresholdK: 2,
     proofMaxAgeMs: 60_000,
   });

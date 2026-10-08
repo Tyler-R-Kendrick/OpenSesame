@@ -3,6 +3,7 @@
  * and RECOVERY-D/E tests.
  */
 import {
+  type ApproverRegistry,
   type RecoveryRequest,
   digestRecoveryRequest,
   issueTargetDeviceChallenge,
@@ -21,11 +22,12 @@ export const grant = (
   principalRef: string,
   custodyDomain: string,
   generation = 1,
+  scopeRef = "v1",
 ): CustodyGrant => ({
   principalRef,
   role,
   custodyDomain,
-  scopeRef: "c-outside",
+  scopeRef,
   generation,
 });
 
@@ -49,9 +51,49 @@ export async function recoveryRequest(
   return { ...body, digest: await digestRecoveryRequest(body) };
 }
 
-export type Keys = Readonly<{ approval: Uint8Array; device: Uint8Array }>;
+export type Keys = Readonly<{
+  device: Uint8Array;
+  macKeyFor: (principalRef: string) => Uint8Array;
+  registry: ApproverRegistry;
+}>;
 
-export const keys = (): Keys => ({ approval: key(), device: key() });
+/** Per-approver MAC keys so one signer cannot satisfy a multi-domain quorum. */
+export const keys = (): Keys => {
+  const device = key();
+  const macByPrincipal = new Map<string, Uint8Array>();
+  const macKeyFor = (principalRef: string): Uint8Array => {
+    const existing = macByPrincipal.get(principalRef);
+    if (existing) return existing;
+    const fresh = key();
+    macByPrincipal.set(principalRef, fresh);
+    return fresh;
+  };
+  const registry: ApproverRegistry = {
+    grants: (request) => {
+      const row = (
+        principalRef: string,
+        custodyDomain: string,
+      ): CustodyGrant =>
+        grant(
+          "recovery_approver",
+          principalRef,
+          custodyDomain,
+          request.recoveryGeneration,
+          request.vaultRef,
+        );
+      return [
+        row("a1", "phone"),
+        row("a1", "hardware-token"),
+        row("a2", "hardware-token"),
+        row("a1", "icloud-sync"),
+        row("a2", "icloud-sync"),
+        row("someone-else", "phone"),
+      ];
+    },
+    approvalMacKey: (approverRef) => macByPrincipal.get(approverRef),
+  };
+  return { device, macKeyFor, registry };
+};
 
 /** One approver's approval of `request`, with the challenge it answered. */
 export async function approve(
@@ -59,6 +101,7 @@ export async function approve(
   approver: CustodyGrant,
   secrets: Keys,
   id = `ap-${approver.principalRef}`,
+  approvalMacKey?: Uint8Array,
 ) {
   const challenge = issueTargetDeviceChallenge({
     targetDeviceBinding: request.targetDeviceBinding,
@@ -74,7 +117,7 @@ export async function approve(
     request,
     approver,
     targetDeviceProof,
-    approvalMacKey: secrets.approval,
+    approvalMacKey: approvalMacKey ?? secrets.macKeyFor(approver.principalRef),
     nowMs: NOW,
   });
   return { approval, challenge };
