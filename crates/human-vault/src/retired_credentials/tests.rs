@@ -198,3 +198,56 @@ fn held_real_arena_refuses_overlap_then_releases_without_mutating_inputs() {
         VERIFIER
     );
 }
+
+#[test]
+fn wire_duplicates_and_unpaired_surrogates_are_refused_before_verification() {
+    let records = record();
+    let text = serde_json::to_string(&records).unwrap();
+    for (needle, replacement) in [
+        (r#""v":1"#, r#""v":0,"v":1"#),
+        (r#""v":1"#, r#""v":1,"\u0076":1"#),
+        (
+            r#""tomb":"native:test""#,
+            r#""tomb":"foreign","tomb":"native:test""#,
+        ),
+        (r#""id":"selected""#, r#""\u0069d":"other","id":"selected""#),
+        (r#""id":"selected""#, r#""id":"\ud800""#),
+        (r#""id":"selected""#, r#""id":"\udfff""#),
+        (r#""tomb":"native:test""#, r#""tomb":"\ud800""#),
+    ] {
+        assert!(text.contains(needle));
+        assert!(Records::parse(&text.replacen(needle, replacement, 1), &records.tomb).is_err());
+    }
+    let mut with_event = record();
+    with_event
+        .events
+        .push(TrapEvent::RetiredCredentialObserved {
+            trap_id: "selected".into(),
+            at: NOW.into(),
+            response: Response::Reject,
+        });
+    let text = serde_json::to_string(&with_event).unwrap();
+    for (needle, replacement) in [
+        (
+            r#""trapId":"selected""#,
+            r#""trapId":"other","trap\u0049d":"selected""#,
+        ),
+        (r#""trapId":"selected""#, r#""trapId":"\ud800""#),
+        (
+            r#""type":"retired_credential_observed""#,
+            r#""type":"retired_credential_observed","type":"retired_credential_observed""#,
+        ),
+    ] {
+        assert!(text.contains(needle));
+        assert!(Records::parse(&text.replacen(needle, replacement, 1), &with_event.tomb).is_err());
+    }
+    let paired = serde_json::to_string(&Records {
+        tomb: "🚀".into(),
+        traps: vec![],
+        events: vec![],
+        v: 1,
+    })
+    .unwrap()
+    .replace('🚀', r"\ud83d\ude80");
+    assert_eq!(Records::parse(&paired, "🚀").unwrap().tomb, "🚀");
+}
