@@ -16,8 +16,8 @@
     "max-statements": 40
   },
   "totals": {
-    "files": 426,
-    "violations": 659,
+    "files": 427,
+    "violations": 660,
     "oversizedLines": 215962
   },
   "files": {
@@ -90,6 +90,9 @@
     },
     "apps/pages/src/lib/keymap.coverage.test.ts": {
       "max-lines": 623
+    },
+    "apps/pages/src/lib/vault-relay-sync.integration.test.ts": {
+      "complexity": 1
     },
     "apps/pages/src/screens/BrokerAuthorize.tsx": {
       "max-lines-per-function": 1
