@@ -169,9 +169,10 @@ describe("the /device route", () => {
     expect(screen.queryByLabelText("User code")).toBeNull();
     expect(screen.queryByLabelText("Sign-in service")).toBeNull();
     expect(
-      screen.getByText(
-        /Set your organisation’s sign-in service in Settings after you unlock/,
-      ),
-    ).toBeTruthy();
+      listNotices().find((notice) => notice.id === "identity:connect-issuer-locked")
+        ?.body,
+    ).toMatch(
+      /Set your organisation’s sign-in service in Settings after you unlock/,
+    );
   });
 });
