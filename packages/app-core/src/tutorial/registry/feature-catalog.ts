@@ -134,7 +134,7 @@ export const FEATURE_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "feature.sharing",
     description:
-      "The Sharing section of Settings › Capabilities: its switch adds live sessions and household sharing.",
+      "The Sharing section of Settings › Capabilities: its switch adds live sessions.",
     role: "surface",
     routes: ["/settings"],
     capabilityId: null,

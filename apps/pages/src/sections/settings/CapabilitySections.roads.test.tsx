@@ -148,7 +148,8 @@ describe("connector tiles once Connections routes its pages", () => {
       expect(screen.getByRole("heading", { name: title }), title).toBeTruthy();
     }
     // A section with a switch keeps it even with no connector tiles.
-    expect(screen.getByRole("switch", { name: "Sharing" })).toBeTruthy();
+    // Household sharing has no surface, so Sharing is not that section here.
+    expect(screen.getByRole("switch", { name: "Item types" })).toBeTruthy();
   });
 
   it("draws the vault-sealed keys only for an unlocked vault", () => {
