@@ -12,6 +12,16 @@ actually enforce them, with the exit each test suite produced **in this
 session** at dirty checkout `4358f7fe`. The machine-readable companion is
 [`wallet-interaction-evidence.json`](../evidence/wallet/interaction-evidence.json).
 
+> Status (2026-10-08): this is a record of the 2026-09-15 session at dirty
+> checkout `4358f7fe`; none of the results below were re-run for this note. The
+> anchors resolve in this checkout, with one exception: F03's
+> `access-requests.test.ts` is no such file here
+> (`packages/app-core/src/lib/local-access-requests.receipts.test.ts` sits beside
+> the two it was listed with). The failing `interactions_consumed_at_check`
+> case behind the F04/F12/T-07 `partial_fail` rows named a constraint absent from
+> the dirty-tree schema; it is now defined in
+> `packages/database/src/schema/index.ts` and `packages/database/drizzle/0021_superb_ronan.sql`.
+
 ## How to read this
 
 - The F- and T- numbers are the swarm's own labels. They are **not** enumerated

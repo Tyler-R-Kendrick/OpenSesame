@@ -64,7 +64,9 @@ audit in [`travel-hidden-items.md`](../research/travel-hidden-items.md)).
 
 It refuses, and says why, while any of these is on:
 
-- a **backup target** or a history remote (the remote keeps every older copy);
+- a **backup target**, a **history backup** (one bound to a remote, or any
+  history entry held on this device), or a queued offline write for this vault
+  (each keeps an older copy or would hand the items back);
 - a **paired drive** (its next sync would bring the items back);
 - a **share** of the item (end it first);
 - a duress incident, a guest or decoy session, or a browser that keeps no

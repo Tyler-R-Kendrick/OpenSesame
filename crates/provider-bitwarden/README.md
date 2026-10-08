@@ -9,7 +9,8 @@ it. It belongs to the human plane only.
 ## Where it fits
 
 - **Used by:** [`apps/cli`](../../apps/cli) (`src/providers_native.rs`, the
-  `bitwarden` / `vaultwarden` providers) and the fuzz crate
+  `bitwarden` / `vaultwarden` providers), [`opensesame-bitwarden-server`](../bitwarden-server)
+  (its `import` of live accounts and account files) and the fuzz crate
   [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`bitwarden_encstring`).
 - **Builds on:** no workspace crates. `reqwest`, `argon2`, `pbkdf2`, `hkdf`,
   `aes`/`cbc`, `secrecy`, `zeroize`.

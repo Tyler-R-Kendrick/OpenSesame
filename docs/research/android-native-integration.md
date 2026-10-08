@@ -1,6 +1,23 @@
 # Android as a native surface — platform research and gap analysis
 
-Research input for a future ADR (next free number: 0133). This document
+> Status (2026-10-08): the proposals in §§2–10 are still proposals. No ADR
+> adopts them, and `apps/android` has no `AutofillService`,
+> `CredentialProviderService` or TWA. §11 landed as
+> [ADR 0133](../adr/0133-shared-app-core.md) (see its *As built*):
+> `packages/app-core` and `packages/vault-core` exist, so the `lib/…` paths in
+> the body, written against `apps/pages/src` on 2026-09-22, now live under
+> `packages/app-core/src/lib/` (the tomb crypto and item model in
+> `packages/vault-core/src`). Also since then: `apps/authenticator-native` is
+> `apps/android` ([ADR 0138](../adr/0138-self-issued-identity-one-native-host.md));
+> the `login` item type is `account` ([ADR 0172](../adr/0172-accounts-and-login-methods.md));
+> Web Push enrolment has a UI (`notifications.web-push`); the Vercel deployment
+> writes host-root `.well-known` associations for `/invoke/*`
+> ([ADR 0140](../adr/0140-pages-hosts-every-ceremony.md) D11); and
+> `crates/human-vault` carries a Rust reader of the Pages tomb (`pages_vault`,
+> `opensesame vault verify|ls`) checked against `spec/conformance/vault-vectors.json`.
+
+Research input for a future ADR (the number then free, 0133, went to the shared
+app core in §11; the next free number is 0183). This document
 records what Android and Chrome for Android let a third-party password
 manager and identity product do as of 2026-09-22, grounds each capability in
 what OpenSesame ships today, and proposes how to bridge the gaps. It is
