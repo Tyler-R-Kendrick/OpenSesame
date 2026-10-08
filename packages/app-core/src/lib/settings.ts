@@ -17,6 +17,7 @@ import {
   bindingsFromStored,
   scopeCapabilityConnectorsForSave,
 } from "./capability-connector-scope.js";
+import { assertNotGuestSession, isGuestSession } from "./guest-isolation.js";
 import { kvGet, kvSet } from "./kv.js";
 import { isLoopbackUrl } from "./urls.js";
 
@@ -360,6 +361,15 @@ function subscribeSettingsDefault(listener: () => void): () => void {
   };
 }
 
+/** Persisted Host / Identity API bases — operator trust anchors (ADR 0090). */
+function trustAnchorsOf(settings: PagesSettings) {
+  const defaults = defaultsForPage();
+  return {
+    hostApi: settings.hostApi.trim() || defaults.hostApi,
+    identityApi: settings.identityApi.trim() || defaults.identityApi,
+  };
+}
+
 function persistRecord(next: PagesSettings): PersistedSettings {
   const defaults = defaultsForPage();
   return {
@@ -378,6 +388,16 @@ function persistRecord(next: PagesSettings): PersistedSettings {
 }
 
 function saveSettingsDefault(next: PagesSettings): void {
+  if (isGuestSession()) {
+    const prior = trustAnchorsOf(loadSettings());
+    const proposed = trustAnchorsOf(next);
+    if (
+      prior.hostApi !== proposed.hostApi ||
+      prior.identityApi !== proposed.identityApi
+    ) {
+      assertNotGuestSession("change Host or Identity endpoints");
+    }
+  }
   kvSet(PERSIST_KEY, JSON.stringify(persistRecord(next)));
   emitSettings();
 }
