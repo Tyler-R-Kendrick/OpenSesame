@@ -33,7 +33,7 @@ rm -f "$MANIFEST"
 echo "=== REVALIDATE $(date -u +%H:%M:%S) ==="
 cd "$WS"
 "$DEEPSEC" revalidate --project-id "$PROJECT_ID" \
-  --agent grok --model "$MODEL" \
+  --agent "$AGENT" --model "$MODEL" \
   --thinking-level "$DEEPSEC_THINKING" \
   --concurrency "$DEEPSEC_CONCURRENCY" || echo "WARN: revalidate exited $?"
 
