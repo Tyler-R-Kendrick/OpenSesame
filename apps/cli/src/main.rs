@@ -30,6 +30,7 @@ mod rotate_recipes;
 mod security;
 mod serve;
 mod session;
+mod session_directory;
 mod store;
 mod sync_commands;
 mod sync_export;
@@ -54,6 +55,7 @@ use private_file::{write_private, write_private_new};
 pub(crate) use rotate_recipes::RotateCmd;
 use serde::Deserialize;
 use serde_json::json;
+use session_directory::session_path;
 use std::{env, path::PathBuf, time::Duration};
 #[derive(Parser, Debug)]
 #[command(
@@ -897,14 +899,6 @@ async fn real_main() -> anyhow::Result<()> {
         Commands::Hooks { cmd } => hooks::run(&cli.server, cmd).await?,
     }
     Ok(())
-}
-
-fn session_path() -> anyhow::Result<PathBuf> {
-    let dir = directories::ProjectDirs::from("dev", "OpenSesame", "opensesame")
-        .ok_or_else(|| anyhow::anyhow!("no project dirs"))?;
-    let path = dir.config_dir().join("session.json");
-    std::fs::create_dir_all(dir.config_dir())?;
-    Ok(path)
 }
 
 pub(crate) fn load_access_token() -> anyhow::Result<String> {
