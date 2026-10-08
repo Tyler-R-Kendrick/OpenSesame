@@ -59,8 +59,9 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
    `isMobile`/`hasTouch`) — walking the first run a visitor walks today:
    the front door (`apps/pages/src/screens/FrontDoor.tsx`, `.door`), the
    "Use without an account" road to the seal form
-   (`apps/pages/src/screens/UnlockScreen.tsx`: `#master`, `#confirm`,
-   the `"Seal this device"` button), and the vault
+   (`apps/pages/src/screens/UnlockScreen.tsx`: select the PIN tab, fill
+   Device PIN and Confirm PIN, acknowledge no recovery, then use the
+   "Seal with PIN" button; ADR 0180), and the vault
    (`apps/pages/src/sections/VaultSection.tsx`, `.vault`). Desktop shows
    the empty `"Nothing here"` list; phone opens its Sections tree with Vault
    expanded and all selected, retaining the empty list behind it. Both verify
