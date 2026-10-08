@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Behavioral controls for the exact native result verifier, not platform proof."""
 import importlib.util
+import hashlib
 from pathlib import Path
 import tempfile
+import struct
 import sys
 import unittest
 import xml.etree.ElementTree as ET
@@ -36,7 +38,57 @@ def write_jvm(directory):
         ET.ElementTree(root).write(Path(directory) / f"TEST-{suite}.xml")
 
 
+def pe_fixture():
+    """Artificial PE header for parser controls; never native execution evidence."""
+    image = bytearray(512)
+    image[:2] = b"MZ"
+    struct.pack_into("<I", image, 60, 128)
+    image[128:132] = b"PE\0\0"
+    struct.pack_into("<H", image, 132, 0x8664)
+    struct.pack_into("<H", image, 148, 240)
+    struct.pack_into("<H", image, 150, 0x0002)
+    struct.pack_into("<H", image, 152, 0x20B)
+    struct.pack_into("<QQ", image, 224, 8 * 1024 * 1024, 4096)
+    return image
+
+
 class NativeResults(unittest.TestCase):
+    def test_controlled_pe_fixture_checks_stack_and_hash_without_platform_claim(self):
+        image = pe_fixture()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "controlled.exe")
+            path.write_bytes(image)
+            result = verifier.windows_cli(path)
+        self.assertEqual(result["stackReserveBytes"], 8 * 1024 * 1024)
+        self.assertEqual(result["stackCommitBytes"], 4096)
+        self.assertEqual(result["imageBytes"], len(image))
+        self.assertEqual(result["imageSha256"], hashlib.sha256(image).hexdigest())
+        self.assertIn("behavior requires unchanged native lifecycle", result["scope"])
+
+    def test_pe_parser_refuses_default_stack_wrong_images_and_malformed_headers(self):
+        mutations = [
+            (0, b"NZ"), (60, struct.pack("<I", 0)),
+            (60, struct.pack("<I", 4096)), (128, b"PX\0\0"),
+            (132, struct.pack("<H", 0x14C)),
+            (148, struct.pack("<H", 80)), (148, struct.pack("<H", 4096)),
+            (150, struct.pack("<H", 0)), (150, struct.pack("<H", 0x2002)),
+            (152, struct.pack("<H", 0x10B)),
+            (224, struct.pack("<Q", 1024 * 1024)),
+            (232, struct.pack("<Q", 8192)),
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "controlled.exe")
+            for offset, replacement in mutations:
+                image = pe_fixture()
+                image[offset:offset + len(replacement)] = replacement
+                path.write_bytes(image)
+                with self.subTest(offset=offset, replacement=replacement), self.assertRaises(ValueError):
+                    verifier.windows_cli(path)
+            for size in (0, 63, 151, 200):
+                path.write_bytes(pe_fixture()[:size])
+                with self.subTest(truncated=size), self.assertRaises(ValueError):
+                    verifier.windows_cli(path)
+
     def test_all_current_rust_groups_require_their_exact_cases(self):
         for group, cases in verifier.CATALOG["rust"].items():
             with self.subTest(group=group):

@@ -4,8 +4,10 @@ import argparse
 from collections import Counter
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
+import struct
 import sys
 import xml.etree.ElementTree as ET
 
@@ -110,14 +112,48 @@ def swift_envelope(text):
     return {"passed": len(expected), "failed": 0, "skipped": 0, "cases": expected, "scope": "Portable envelope XCTest; not Apple Keychain or SDK execution"}
 
 
+def windows_cli(path):
+    """Inspect the actual shipped CLI PE image, without executing a surrogate."""
+    path = Path(path)
+    with path.open("rb") as image:
+        original = image.fileno()
+        before = os.fstat(original)
+        require(64 <= before.st_size <= 256 * 1024 * 1024, "Invalid CLI image size")
+        dos = image.read(64)
+        require(len(dos) == 64 and dos[:2] == b"MZ", "Missing DOS image header")
+        offset = struct.unpack_from("<I", dos, 60)[0]
+        require(64 <= offset <= before.st_size - 24, "Invalid PE header location")
+        image.seek(offset)
+        header = image.read(24)
+        require(len(header) == 24 and header[:4] == b"PE\0\0", "Missing PE signature")
+        machine = struct.unpack_from("<H", header, 4)[0]
+        optional_size = struct.unpack_from("<H", header, 20)[0]
+        characteristics = struct.unpack_from("<H", header, 22)[0]
+        require(machine == 0x8664 and characteristics & 0x0002 != 0 and characteristics & 0x2000 == 0, "Expected AMD64 executable")
+        require(112 <= optional_size <= 4096 and offset + 24 + optional_size <= before.st_size, "Invalid optional header size")
+        optional = image.read(optional_size)
+        require(len(optional) == optional_size and struct.unpack_from("<H", optional)[0] == 0x20B, "Expected PE32+ optional header")
+        reserve, commit = struct.unpack_from("<QQ", optional, 72)
+        require(reserve == 8 * 1024 * 1024 and commit == 4096, "Incorrect CLI stack reservation or commitment")
+        image.seek(0)
+        digest = hashlib.sha256()
+        for block in iter(lambda: image.read(1024 * 1024), b""):
+            digest.update(block)
+        after = os.fstat(original)
+        require((before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns) == (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns), "CLI image changed during verification")
+    return {"imageSha256": digest.hexdigest(), "imageBytes": before.st_size, "machine": "AMD64", "optionalHeader": "PE32+", "stackReserveBytes": reserve, "stackCommitBytes": commit, "scope": "Actual executable header; command behavior requires unchanged native lifecycle and ConPTY cases"}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("kind", choices=("rust", "jvm", "android", "swift", "swift-envelope"))
+    parser.add_argument("kind", choices=("rust", "jvm", "android", "swift", "swift-envelope", "windows-cli"))
     parser.add_argument("input", type=Path)
     parser.add_argument("--group", choices=tuple(CATALOG["rust"]))
     parser.add_argument("--pages", type=int)
     args = parser.parse_args()
-    if args.kind == "swift":
+    if args.kind == "windows-cli":
+        result = windows_cli(args.input)
+    elif args.kind == "swift":
         result = swift(args.input)
     elif args.kind == "jvm":
         result = jvm(args.input)

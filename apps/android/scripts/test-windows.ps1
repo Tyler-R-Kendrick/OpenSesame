@@ -69,11 +69,17 @@ try {
         Invoke-NativeTests "windows-cli-private" @("+1.88.0", "test", "--locked", "-p", "opensesame-cli", "--bin", "opensesame", "private_file::windows::tests")
         Invoke-NativeTests "windows-cli-certs" @("+1.88.0", "test", "--locked", "-p", "opensesame-cli", "--bin", "opensesame", "certs::tests")
         Invoke-NativeTool "cargo" @("+1.88.0", "build", "--locked", "-p", "opensesame-cli", "--bin", "opensesame")
-        Invoke-NativeTests "native-cli-trap-lifecycle" @("+1.88.0", "test", "--locked", "-p", "opensesame-cli", "--test", "retired_credentials", "--")
-        Invoke-NativeTests "native-cli-real-conpty" @("+1.88.0", "test", "--locked", "-p", "opensesame-cli", "--test", "retired_credentials_conpty", "--", "--test-threads=1")
         $cli = Join-Path $env:CARGO_TARGET_DIR "debug/opensesame.exe"
         if (!(Test-Path $cli)) { throw "Actual MSVC CLI executable is missing" }
-        Get-FileHash $cli -Algorithm SHA256 | ConvertTo-Json |
+        & python (Join-Path $nativeRoot "scripts/verify-native-results.py") windows-cli $cli |
+            Out-File -FilePath (Join-Path $reportRoot "windows-cli-image-verified.json") -Encoding utf8
+        if ($LASTEXITCODE -ne 0) { throw "Actual MSVC CLI stack image verification failed" }
+        $imageProof = Get-Content (Join-Path $reportRoot "windows-cli-image-verified.json") -Raw | ConvertFrom-Json
+        Invoke-NativeTests "native-cli-trap-lifecycle" @("+1.88.0", "test", "--locked", "-p", "opensesame-cli", "--test", "retired_credentials", "--")
+        Invoke-NativeTests "native-cli-real-conpty" @("+1.88.0", "test", "--locked", "-p", "opensesame-cli", "--test", "retired_credentials_conpty", "--", "--test-threads=1")
+        $imageHash = Get-FileHash $cli -Algorithm SHA256
+        if ($imageHash.Hash.ToLowerInvariant() -ne $imageProof.imageSha256) { throw "Actual MSVC CLI changed during lifecycle tests" }
+        $imageHash | ConvertTo-Json |
             Out-File -FilePath (Join-Path $reportRoot "windows-cli-build.json") -Encoding utf8
     }
 } finally { Pop-Location }
