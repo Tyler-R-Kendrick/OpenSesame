@@ -11,11 +11,30 @@ import { type LocalShare, listLocalShares } from "./local-share-grants.js";
 
 export type ShareReachRole = "read" | "write";
 
+export type ShareReachResource =
+  | { kind: "vault" }
+  | { kind: "folder"; id: string }
+  | { kind: "item"; id: string; folderId?: string | null };
+
+async function folderIdOfItem(
+  tomb: string,
+  itemId: string,
+): Promise<string | null> {
+  const { vaultStore } = await import("./vault/store.js");
+  const snap = vaultStore.getSnapshot();
+  if (snap.status !== "unlocked" || snap.tomb !== tomb) return null;
+  const item = snap.items.find(
+    (row) => row.id === itemId && row.deletedAt === null,
+  );
+  return item?.folderId ?? null;
+}
+
 export const shareReachSeams = {
   resolveCurrentAccessRole,
   canAccess,
   currentSession,
   listLocalShares,
+  folderIdOf: folderIdOfItem,
 };
 
 function principalsToMatch(explicit?: string): string[] {
@@ -35,9 +54,28 @@ function policyCovers(policy: string, wanted: ShareReachRole): boolean {
   return policy === "items" || policy === "use";
 }
 
+function shareCovers(
+  share: LocalShare,
+  tomb: string,
+  resource: ShareReachResource,
+  folderId: string | null,
+): boolean {
+  if (share.resourceKind === "vault" && share.resourceId === tomb) return true;
+  if (resource.kind === "vault") return false;
+  if (resource.kind === "folder")
+    return share.resourceKind === "folder" && share.resourceId === resource.id;
+  if (share.resourceKind === "item" && share.resourceId === resource.id)
+    return true;
+  return (
+    share.resourceKind === "folder" &&
+    folderId !== null &&
+    share.resourceId === folderId
+  );
+}
+
 export async function shareAllows(
   tomb: string,
-  resource: { kind: "vault" } | { kind: "item"; id: string },
+  resource: ShareReachResource,
   wanted: ShareReachRole,
   principalId?: string,
 ): Promise<boolean> {
@@ -50,22 +88,27 @@ export async function shareAllows(
 
   const shares: LocalShare[] = await shareReachSeams.listLocalShares(tomb);
   const now = Date.now();
-  return shares.some((share) => {
-    if (share.expiresAt <= now) return false;
-    if (!principals.includes(share.principalId)) return false;
-    if (!policyCovers(share.policy, wanted)) return false;
-    if (resource.kind === "vault")
-      return share.resourceKind === "vault" && share.resourceId === tomb;
-    return (
-      (share.resourceKind === "vault" && share.resourceId === tomb) ||
-      (share.resourceKind === "item" && share.resourceId === resource.id)
-    );
-  });
+  const live = shares.filter(
+    (share) =>
+      share.expiresAt > now &&
+      principals.includes(share.principalId) &&
+      policyCovers(share.policy, wanted),
+  );
+  let folderId: string | null = null;
+  if (resource.kind === "item") {
+    folderId =
+      resource.folderId !== undefined
+        ? resource.folderId
+        : live.some((share) => share.resourceKind === "folder")
+          ? await shareReachSeams.folderIdOf(tomb, resource.id)
+          : null;
+  }
+  return live.some((share) => shareCovers(share, tomb, resource, folderId));
 }
 
 export async function assertShareReach(
   tomb: string,
-  resource: { kind: "vault" } | { kind: "item"; id: string },
+  resource: ShareReachResource,
   wanted: ShareReachRole,
   principalId?: string,
 ): Promise<void> {

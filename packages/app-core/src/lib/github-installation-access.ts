@@ -21,11 +21,8 @@ import {
   recordAccessAuditEvent,
 } from "./local-access-audit.js";
 import { readLocalDirectory } from "./local-directory.js";
-import {
-  type LocalShare,
-  ensureLocalShare,
-  listLocalShares,
-} from "./local-share-grants.js";
+import { ensureLocalShare } from "./local-share-grants-approvals.js";
+import { type LocalShare, listLocalShares } from "./local-share-grants.js";
 import { standingConnectionRevoked } from "./standing-connection-grants.js";
 
 export const GITHUB_PROVIDER_ID = "github";

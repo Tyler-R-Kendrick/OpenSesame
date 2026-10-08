@@ -69,16 +69,32 @@ async function copiesInPlay(tomb: string): Promise<readonly ItemsCopy[]> {
 async function sharedItems(tomb: string): Promise<ReadonlySet<string>> {
   const shares = await listLocalShares(tomb);
   const sessions = await listVaultSessions(tomb);
-  return new Set([
-    ...shares
-      .filter((share) => share.resourceKind === "item")
-      .map((share) => share.resourceId),
-    ...sessions.flatMap((session) =>
-      session.grants
-        .filter((grant) => grant.resourceKind === "item")
-        .map((grant) => grant.resourceId),
-    ),
-  ]);
+  const ids = new Set<string>();
+  const folderIds = new Set<string>();
+  for (const share of shares) {
+    if (share.resourceKind === "item") ids.add(share.resourceId);
+    if (share.resourceKind === "folder") folderIds.add(share.resourceId);
+  }
+  for (const session of sessions) {
+    for (const grant of session.grants) {
+      if (grant.resourceKind === "item") ids.add(grant.resourceId);
+      if (grant.resourceKind === "folder") folderIds.add(grant.resourceId);
+    }
+  }
+  if (folderIds.size > 0) {
+    const snap = vaultStore.getSnapshot();
+    if (snap.status === "unlocked" && snap.tomb === tomb) {
+      for (const item of snap.items) {
+        if (
+          item.deletedAt === null &&
+          item.folderId !== null &&
+          folderIds.has(item.folderId)
+        )
+          ids.add(item.id);
+      }
+    }
+  }
+  return ids;
 }
 
 type TravelItemSeams = { deps: ItemsDeps };
