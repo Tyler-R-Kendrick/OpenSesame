@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  type StringFields,
   writeDeviceRows,
   writeDeviceSecrets,
 } from "../device-connector-records.js";
