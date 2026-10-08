@@ -25,6 +25,7 @@ import {
   randomBytes,
   totpCode,
 } from "@opensesame/vault-core";
+import { loadPinKdf } from "./pin-kdf-loader.js";
 import {
   createPasskeyUnlockCeremonyDefault,
   getPasskeyUnlockCeremonyDefault,
@@ -32,7 +33,6 @@ import {
 } from "./protection/adapters/webauthn-prf-ceremony.js";
 import { assertUsablePrfOutput } from "./protection/adapters/webauthn-prf-output.js";
 import type { UnlockTabId } from "./protection/unlock-protector-methods.js";
-import { loadPinKdf } from "./pin-kdf-loader.js";
 import { chooseUnlockMethod } from "./unlock-preference.js";
 
 export {
