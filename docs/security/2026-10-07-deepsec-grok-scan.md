@@ -2,21 +2,20 @@
 
 Point-in-time security scan using [deepsec](https://deepsec.sh) 2.3.6 pattern
 matchers and a custom **Grok Build CLI** agent plugin (`--agent grok`,
-model `grok-4.7`). No application code was modified as part of this run.
+model `grok-4.7`). This branch documents the scan; application fixes ship on
+stacked `cursor/deepsec-fix-*` draft PRs (not merged here).
 
 deepsec agents are **pluggable** (`process`, `revalidate`, and triage). This
 branch registers a Grok Build backend in `.deepsec/grok-agent-plugin.ts` and
-runs investigation, revalidation, and triage on the **subscription** CLI
+ran investigation, revalidation, and triage on the **subscription** CLI
 (`grok login --device-auth`, `XAI_API_KEY` unset). The stock `deepsec triage`
 subcommand in 2.3.6 still defaults to Claude Agent SDK; OpenSesame invokes
 Grok triage via `scripts/audit/deepsec-grok-triage.mjs` with the same
 `--agent grok --model grok-4.7` contract as the other stages.
 
-**Status (2026-10-08T00:30Z):** Grok Build subscription auth is working.
-`process` is **still running** on this VM (`deepsec-grok-pipeline.sh`, PID
-4662). Parallel worker finished PWA + **CLI** (`packages/cli/` 13 files
-analyzed). Snapshot below; finish pipeline (`revalidate` → `triage` → `export`)
-runs via `/tmp/deepsec-grok-watch-and-finish.sh` when `process` completes.
+**Status (2026-10-08T07:18:50Z):** Scan **complete**. Finish log reports
+`revalidate` → Grok triage → export. Export: **150** findings in
+`.deepsec/findings-grok/` (four malformed INFO/NONE rows dropped at export).
 
 ## Commit scanned
 
@@ -24,6 +23,7 @@ runs via `/tmp/deepsec-grok-watch-and-finish.sh` when `process` completes.
 | --- | --- |
 | SHA | `9c0eca7220665eea203f109b005072308d0eb5e6` |
 | Branch | `cursor/deepsec-grok-scan-3405` (PR [#773](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/773)) |
+| Finish | `=== FINISH COMPLETE 2026-10-08T07:18:50Z ===` (`/tmp/deepsec-grok-finish.log`) |
 
 ## Tooling and model
 
@@ -31,25 +31,17 @@ runs via `/tmp/deepsec-grok-watch-and-finish.sh` when `process` completes.
 | --- | --- |
 | deepsec | 2.3.6 (`.deepsec/`) |
 | Pattern scan | `20261007155615-14ffb61cd7c5a795` |
-| Grok auth | Device login → `contact.tylerkendrick@gmail.com` |
-| Grok probe | `grok -p … -m grok-4.7` → `AUTHOK` (subscription; `XAI_API_KEY` unset) |
-| Process runs | `grok` / `grok-4.7`, concurrency 2 (`/tmp/deepsec-grok-pipeline.log`, `/tmp/deepsec-grok-parallel.log`) |
-| Revalidate / triage / export | `scripts/audit/deepsec-grok-finish.sh` after workers complete |
+| Grok auth | Device login (subscription; `XAI_API_KEY` unset) |
+| Process / revalidate / triage | `grok-4.7`, concurrency 2 |
+| Logs | `/tmp/deepsec-grok-pipeline.log`, `/tmp/deepsec-grok-finish.log` |
 
 ## Commands executed
 
 ```bash
 unset XAI_API_KEY GROK_DEPLOYMENT_KEY
-grok -p "Reply with exactly the word AUTHOK and nothing else." \
-  -m grok-4.7 --always-approve --output-format json
-
-# Long-running (nohup, logs in /tmp):
 /workspace/scripts/audit/deepsec-grok-pipeline.sh
 /tmp/deepsec-grok-parallel.sh
-
-# After process completes (watch script):
-/workspace/scripts/audit/deepsec-grok-finish.sh
-# → error rerun, revalidate --agent grok, triage (grok plugin), export
+# watch → /workspace/scripts/audit/deepsec-grok-finish.sh
 
 node scripts/audit/deepsec-grok-report-data.mjs /workspace
 ```
@@ -60,69 +52,77 @@ Prefixes: **core** (`crates/core`, `crates/client-core`, `crates/host-core`,
 `packages/app-core`, `packages/vault-core`), **PWA** (`apps/pages`),
 **CLI** (`apps/cli`, `packages/cli`).
 
-| Area | Analyzed | Pending | Error | Matcher hits (scan) | AI findings |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Core | 375 | 1 | 75 | 869 | 66 |
-| PWA | 331 | 0 | 72 | 529 | 28 |
-| CLI | 13 | 0 | 0 | 51 | 10 |
+| Area | Analyzed | Pending | Error | Matcher hits (scan) |
+| --- | ---: | ---: | ---: | ---: |
+| Core | 637 | 0 | 0 | 869 |
+| PWA | 403 | 0 | 0 | 529 |
+| CLI | 13 | 0 | 0 | 51 |
 
-Pipeline was ~batch 98/137 for `packages/app-core/` when this doc was refreshed.
+## Findings (final)
 
-## Findings (snapshot)
+| Verdict | Count |
+| --- | ---: |
+| **True-positive** | **150** |
+| **False-positive** | **5** |
 
-**104** findings in scope. **10** revalidated **true-positive**, **0**
-**false-positive**, remainder mostly **unrevalidated** until the finish
-`revalidate` pass completes.
+Per area (true-positive / false-positive):
 
-### Severity counts (all findings)
+| Area | True-positive | False-positive |
+| --- | ---: | ---: |
+| Core | 108 | 3 |
+| PWA | 32 | 2 |
+| CLI | 10 | 0 |
 
-| Area | CRITICAL | HIGH | MEDIUM | HIGH_BUG | BUG | LOW |
+### Severity counts (true-positive findings)
+
+| Area | HIGH | MEDIUM | HIGH_BUG | BUG | LOW | other |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Core | 0 | 16 | 30 | 6 | 14 | 0 |
-| PWA | 0 | 9 | 13 | 1 | 5 | 0 |
-| CLI | 0 | 4 | 6 | 0 | 0 | 0 |
+| Core | 29 | 59 | 2 | 3 | 16 | 2 (NONE) |
+| PWA | 8 | 15 | 1 | 2 | 6 | 2 (INFO/NONE) |
+| CLI | 3 | 7 | 0 | 0 | 0 | 0 |
 
 ### Triage priority (P0 / P1 / P2 / skip)
 
-Triage runs on the finish pipeline with `--agent grok` (see
-`deepsec-grok-triage.mjs`). Counts below update after that step completes.
-
 | Area | P0 | P1 | P2 | skip |
 | --- | ---: | ---: | ---: | ---: |
-| Core | 0 | 0 | 0 | 0 |
-| PWA | 0 | 0 | 0 | 0 |
-| CLI | 0 | 0 | 0 | 0 |
-| **Total** | **0** | **0** | **0** | **0** |
+| Core | 11 | 71 | 26 | 1 |
+| PWA | 2 | 21 | 8 | 1 |
+| CLI | 1 | 8 | 1 | 0 |
+| **Total** | **14** | **100** | **35** | **2** |
 
-### Top confirmed issues (true-positive)
+Fix queue: **150** findings (all non–false-positive), ordered P0 → P1 → P2
+then severity (`scripts/audit/deepsec-grok-fix-queue.mjs`).
 
-| ID | Sev | Area | Location | Title |
-| --- | --- | --- | --- | --- |
-| finding_41122b344b0a646d | HIGH | core | `packages/app-core/src/lib/kv.ts:129,294` | Origin KV accepts unsealed files as authentic authority |
-| finding_5bbac90277a8abca | MEDIUM | core | `packages/app-core/src/lib/local-share-grants.ts:225,231,280,288,290,317,344,356` | Share revocation can be overwritten by a stale read-modify-write |
-| finding_29c7bdced2093f5c | MEDIUM | core | `packages/app-core/src/lib/local-vault-sessions.ts:186,211,238,254,275,295,330,344,357,382` | Session stop can lose the race and leave system shares active |
-| finding_2066d65aa8b4ac37 | BUG | core | `packages/app-core/src/lib/claims/ceremony.ts:133,134,135,182,184` | Pausing a presented claim erases the stash fields resume needs |
-| finding_263e33d09724deb4 | BUG | core | `packages/app-core/src/lib/local-vault-sessions.ts:228,232,357,376` | Mid-run join issues a TTL the share writer rejects |
-| finding_8838568f1ba5cab3 | BUG | core | `packages/app-core/src/lib/saved-model-agent.ts:17,21,30,52` | Support agent posts vault API keys to the app origin |
-| finding_6e4af83473314203 | MEDIUM | pwa | `apps/pages/src/sections/connections/connect/ConnectTransportForm.tsx:81,94,110` | Connect seal uses decoy cover tomb / lock error / still arms bearer |
-| finding_19eb4190ca18f1c1 | MEDIUM | pwa | `apps/pages/src/sections/vault/DropCeremony.tsx:200,206,267,271` | Kept-copy reveal state survives navigation to another drop |
-| finding_c7a4b5c8299f09f1 | MEDIUM | pwa | `apps/pages/src/sections/vault/TypedFields.tsx:79,86` | Repeating concealed vault fields render in clear text |
-| finding_b070d5576b12a75b | HIGH_BUG | pwa | `apps/pages/src/components/IdentityCeremony.tsx:92,93,94,141,142,183` | Refresh session drops live credential and reports success |
+### P0 findings (remediation first)
 
-High-priority unrevalidated items include several findings in
-`packages/app-core/src/lib/duress/recovery/approval.ts` (recovery quorum /
-target-device proof).
+| ID | Area | Location | Title |
+| --- | --- | --- | --- |
+| finding_08f341a1caedad41 | cli | `packages/cli/src/parity-node.ts` | Credential helper PATH lookup |
+| finding_41122b344b0a646d | core | `packages/app-core/src/lib/kv.ts` | Origin KV accepts unsealed files |
+| finding_4e404a871c7792e9 | core | `packages/app-core/src/lib/at-rest/web-storage.ts` | Web Storage plaintext reseal |
+| finding_68d1eb4363d74f8e | pwa | `apps/pages/.../ConnectIdentityNote.tsx` | Locked ceremony retargets Identity issuer |
+| finding_9004ac142fcc4d31 | core | `packages/app-core/src/lib/federation-pending.ts` | PKCE pending swap / sign-in theft |
+| finding_a1e774d3565c9af5 | core | `packages/app-core/src/lib/travel/return.ts` | Missing tomb header deletes live vault |
+| finding_ac27e08f517344a1 | pwa | `apps/pages/.../support.remote-ai/runtime.ts` | Remote-support POSTs cloud API keys to origin |
+| finding_af73edb2deb1c255 | core | `packages/app-core/src/lib/settings.ts` | Guest rewrites Identity/Host trust anchors |
+| finding_afe9924a15cb3b16 | core | `packages/app-core/src/lib/vault/unlock-methods.ts` | 8-digit PIN offline-crackable wrap |
+| finding_c1b0ae42617f6fd4 | core | `packages/app-core/src/lib/password-agent/startup-env.ts` | Env screener misses startup hooks |
+| finding_c91553b6b7b0871d | core | `packages/app-core/src/lib/hosted-inference.ts` | Model secrets POSTed to app origin |
+| finding_db53526e593772dd | core | `packages/app-core/src/lib/feature-request-send.ts` | Backup sync leaks SSH keys in headers |
+| finding_dbbb0b56d33b0a76 | core | `packages/app-core/src/lib/recovery/ceremony.ts` | Quorum digest not recomputed |
+| finding_e7d51ead834be5ff | core | `packages/app-core/src/lib/recovery/approval.ts` | One MAC key satisfies multi-domain quorum |
 
 ## Limitations
 
 | Item | Notes |
 | --- | --- |
-| **Batch errors** | Some `process`/`revalidate`/`triage` batches fail when Grok returns non-JSON prose; files get `status=error` or skip triage for that batch. Plugin retries JSON up to 3×; finish script reruns error files once. |
-| **Core `process`** | `packages/app-core/` batches still in flight when snapshot taken. |
+| **Batch errors** | Some batches fail when Grok returns non-JSON prose; finish reruns error files once. |
+| **Export drops** | Four findings with invalid severity (INFO/NONE) omitted from md-dir export. |
 | **`.deepsec/data/`** | Gitignored; export under `.deepsec/findings-grok/`. |
+| **Fix phase** | When Grok Build quota is exhausted, fixes may run on Cursor agent usage until `grok` probe succeeds again. |
 
 ## Follow-up
 
-1. Let pipeline PID **4662** finish (watch: `/tmp/deepsec-grok-watch.log`).
-2. Confirm finish log: revalidate → triage → export.
-3. Refresh: `node scripts/audit/deepsec-grok-report-data.mjs /workspace`.
+1. Stacked draft PRs per finding (`cursor/deepsec-fix-*`), base #773 scan context.
+2. Rescan changed files after each fix round; skip only revalidated false positives.
+3. Do not merge until human review.

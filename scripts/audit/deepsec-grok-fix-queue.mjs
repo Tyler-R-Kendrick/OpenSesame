@@ -18,10 +18,14 @@ if (proc.status !== 0) {
 }
 const { rows } = JSON.parse(proc.stdout);
 const severityOrder = ["CRITICAL", "HIGH", "HIGH_BUG", "MEDIUM", "BUG", "LOW"];
+const triageOrder = { P0: 0, P1: 1, P2: 2, skip: 3, "": 4 };
 
 const queue = rows
   .filter((r) => r.verdict !== "false-positive")
   .sort((a, b) => {
+    const ta = triageOrder[a.triage] ?? 4;
+    const tb = triageOrder[b.triage] ?? 4;
+    if (ta !== tb) return ta - tb;
     const sa = severityOrder.indexOf(a.severity);
     const sb = severityOrder.indexOf(b.severity);
     if (sa !== sb) return (sa === -1 ? 99 : sa) - (sb === -1 ? 99 : sb);
