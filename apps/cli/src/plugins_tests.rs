@@ -52,7 +52,9 @@ async fn an_install_is_pinned_placed_executable_and_recorded_off() {
     .unwrap();
     let dest = home
         .root()
-        .join("surrogate-proxy/1.2.0/opensesame-surrogate-proxy");
+        .join("surrogate-proxy")
+        .join("1.2.0")
+        .join("opensesame-surrogate-proxy");
     assert_eq!(out["location"], dest.display().to_string());
     assert_eq!(out["enabled"], false);
     assert_eq!(std::fs::read(&dest).unwrap(), b"plugin bytes");
