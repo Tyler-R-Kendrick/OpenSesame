@@ -81,6 +81,12 @@ const BANK_LOCKER = JSON.stringify({
           { id: "boxNumber", type: "string", label: "Box number" },
           { id: "keyCode", type: "concealed", label: "Key code" },
           { id: "aliases", type: "string", label: "Alias", multiple: true },
+          {
+            id: "backupCodes",
+            type: "concealed",
+            label: "Backup code",
+            multiple: true,
+          },
           { id: "host", type: "host-port", label: "Endpoint" },
         ],
       },
@@ -185,6 +191,24 @@ describe("the editor for a type installed at runtime", () => {
     expect(keyCode.getAttribute("type")).toBe("password");
     fireEvent.click(screen.getByRole("button", { name: "Reveal key code" }));
     expect(screen.getByLabelText("Key code").getAttribute("type")).toBe("text");
+  });
+
+  it("conceals every row of a repeating concealed field", () => {
+    renderEditor("/vault/new/safe-deposit");
+    fireEvent.click(screen.getByRole("button", { name: "Add backup code" }));
+    expect(screen.getByLabelText("Backup code 1").getAttribute("type")).toBe(
+      "password",
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reveal backup code 1" }),
+    );
+    expect(screen.getByLabelText("Backup code 1").getAttribute("type")).toBe(
+      "text",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add backup code" }));
+    expect(screen.getByLabelText("Backup code 2").getAttribute("type")).toBe(
+      "text",
+    );
   });
 
   it("opens saved optional values and preserves them during unrelated edits", async () => {

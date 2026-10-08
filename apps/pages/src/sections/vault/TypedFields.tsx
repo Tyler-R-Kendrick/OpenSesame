@@ -80,6 +80,8 @@ function FieldControl({
       <RepeatingInput
         field={field}
         values={asList(value)}
+        revealed={revealed.has(field.id)}
+        onToggle={() => toggle(field.id)}
         onChange={(next) => onChange(field.id, next)}
       />
     );

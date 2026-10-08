@@ -91,23 +91,35 @@ export function ScalarInput({
 export function RepeatingInput({
   field,
   values,
+  revealed,
+  onToggle,
   onChange,
 }: {
   field: FieldDefinition;
   values: string[];
+  revealed: boolean;
+  onToggle: () => void;
   onChange: (next: string[]) => void;
 }) {
+  const spec = FIELD_TYPES[field.type];
+  const inputKind = spec.concealed && !revealed ? "password" : "text";
+  const label = field.label.toLowerCase();
   return (
     <>
       {values.map((entry, index) => (
         <div
-          className="editor__inline"
+          className={
+            spec.concealed
+              ? "editor__inline editor__inline--adorned"
+              : "editor__inline"
+          }
           // A repeated row has no identity of its own: the definition format
           // deliberately has no field for one, so position is what there is.
           key={`${field.id}-${index}`}
         >
           <input
             aria-label={`${field.label} ${index + 1}`}
+            type={inputKind}
             autoComplete="off"
             spellCheck={false}
             maxLength={fieldMaxLength(field)}
@@ -120,6 +132,13 @@ export function RepeatingInput({
               )
             }
           />
+          {spec.concealed ? (
+            <RevealButton
+              revealed={revealed}
+              label={`${label} ${index + 1}`}
+              onToggle={onToggle}
+            />
+          ) : null}
           <button
             type="button"
             className="icon-btn"
@@ -136,8 +155,8 @@ export function RepeatingInput({
       <button
         type="button"
         className="icon-btn icon-btn--sm"
-        aria-label={`Add ${field.label.toLowerCase()}`}
-        title={`Add ${field.label.toLowerCase()}`}
+        aria-label={`Add ${label}`}
+        title={`Add ${label}`}
         onClick={() => onChange([...values, ""])}
       >
         <IconPlus size={15} />
