@@ -213,6 +213,13 @@ function secondsRemainingDefault(
   return period - (Math.floor(atMs / 1000) % period);
 }
 
+/**
+ * Fixed bindings to the RFC parser and generator, independent of totpSeams.
+ * These primitives confer no authentication authority. Callers remain responsible
+ * for authenticated factor material and the trusted time/context of verification.
+ */
+export { parseTotpDefault as parseTotpFixed, totpCodeDefault as totpCodeFixed };
+
 export const totpSeams = {
   parseTotp: parseTotpDefault,
   totpCode: totpCodeDefault,
