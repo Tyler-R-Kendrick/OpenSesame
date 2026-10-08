@@ -58,6 +58,7 @@ const vault: VaultHarness = {
   },
 };
 
+import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { dropSeams } from "@opensesame/app-core/lib/vault/drop.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
@@ -239,6 +240,25 @@ describe("share ceremony on an item", () => {
 
     const [manifest] = createClaim.mock.calls[0] ?? [];
     expect(JSON.stringify(manifest)).not.toContain("s3cr3t-value");
+  });
+
+  it("hides the device-scope line when a cross-device claim host is configured", async () => {
+    const local = deviceIdentitySeams.remoteIdentityApi;
+    deviceIdentitySeams.remoteIdentityApi = () => "https://id.example.com";
+    try {
+      const user = userEvent.setup();
+      render(<Ceremony item={makeSecret()} />);
+      expect(screen.queryByText("Opens on")).toBeNull();
+      expect(screen.queryByText("This browser")).toBeNull();
+
+      await user.click(screen.getByRole("button", { name: /Seal and share/i }));
+      await screen.findByText("Drop ready");
+      const ready = screen.getByRole("region", { name: "Drop ready" });
+      expect(ready.textContent).not.toMatch(/Opens on/);
+      expect(ready.textContent).toMatch(/Opens for\s*1 hour/);
+    } finally {
+      deviceIdentitySeams.remoteIdentityApi = local;
+    }
   });
 
   it("draws nothing while closed, and a closed ceremony forgets a finished drop", async () => {
