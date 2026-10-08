@@ -18,14 +18,14 @@
   "totals": {
     "files": 425,
     "violations": 658,
-    "oversizedLines": 215371
+    "oversizedLines": 215357
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
       "complexity": 1
     },
     "apps/cli/src/bridge.rs": {
-      "max-lines": 514
+      "max-lines": 500
     },
     "apps/cli/src/configs.rs": {
       "max-lines": 587
