@@ -13,13 +13,24 @@ import {
 import { readLocalDirectory } from "./local-directory.js";
 import { mintGuestSessionPerson } from "./local-guest.js";
 import {
+  approvePendingShare,
+  submitLocalShare,
+} from "./local-share-grants-approvals.js";
+import {
   type LocalShare,
   createLocalShare,
   listLocalShares,
   revokeLocalShare,
 } from "./local-share-grants.js";
+import { flushSharingReceipts } from "./sharing-receipts.js";
 import { wipeTombOnDestroy } from "./vault/tomb-migration.js";
-import { GUEST_TOMB, lockAllTombs, unlockTomb, writeFile } from "./vfs.js";
+import {
+  GUEST_TOMB,
+  lockAllTombs,
+  unlockTomb,
+  vfsFlush,
+  writeFile,
+} from "./vfs.js";
 
 let tomb: string;
 
@@ -123,11 +134,15 @@ describe("ensureDefaultAccess", () => {
     expect(
       shares.some(
         (share) =>
-          share.principalId === SUPPORT_AGENT_ID &&
-          share.resourceKind === "vault" &&
-          share.policy === "open",
+          share.resourceKind === "connection" &&
+          share.principalId === person?.id &&
+          share.policy === "invoke",
       ),
     ).toBe(true);
+    // The built-in agent is in the directory and holds no standing grant.
+    expect(shares.some((share) => share.principalId === SUPPORT_AGENT_ID)).toBe(
+      false,
+    );
 
     const before = shares.length;
     await ensureDefaultAccess(tomb);
@@ -160,45 +175,55 @@ describe("ensureDefaultAccess", () => {
     const connector = (shares: LocalShare[]) =>
       shares.filter((share) => share.resourceKind === "connection");
     const standing = connector(await listLocalShares(tomb));
-    const agentGrant = standing.find(
-      (share) => share.principalId === SUPPORT_AGENT_ID,
+    const owner = (await readLocalDirectory(tomb)).entries.find(
+      (row) => row.kind === "person",
     );
-    expect(agentGrant).toBeTruthy();
-    const provider = agentGrant?.resourceId ?? "";
     const ownerGrant = standing.find(
-      (share) =>
-        share.resourceId === provider && share.principalId !== SUPPORT_AGENT_ID,
+      (share) => share.principalId === owner?.id && share.policy === "invoke",
     );
     expect(ownerGrant).toBeTruthy();
+    const provider = ownerGrant?.resourceId ?? "";
+    await createLocalShare(tomb, {
+      principalId: PAGES_APPLICATION_ID,
+      resourceKind: "connection",
+      resourceId: provider,
+      resourceLabel: provider,
+      policy: "use",
+      durationSeconds: 3600,
+    });
 
-    await revokeLocalShare(tomb, agentGrant?.id ?? "");
+    await revokeLocalShare(tomb, ownerGrant?.id ?? "");
     await ensureDefaultAccess(tomb);
 
     const after = connector(await listLocalShares(tomb)).filter(
       (share) => share.resourceId === provider,
     );
-    // The support agent stays revoked; the owner's grant is untouched.
+    // The owner's standing grant stays revoked; the application's does not.
     expect(after.map((share) => share.principalId)).toEqual([
-      ownerGrant?.principalId,
+      PAGES_APPLICATION_ID,
     ]);
   });
 
   it("never re-issues a revoked grant when the trail that says so cannot be read", async () => {
     await ensureDefaultAccess(tomb);
-    const [agentGrant] = (await listLocalShares(tomb)).filter(
+    const ownerId = (await readLocalDirectory(tomb)).entries.find(
+      (row) => row.kind === "person",
+    )?.id;
+    const [ownerGrant] = (await listLocalShares(tomb)).filter(
       (share) =>
         share.resourceKind === "connection" &&
-        share.principalId === SUPPORT_AGENT_ID,
+        share.principalId === ownerId &&
+        share.policy === "invoke",
     );
-    const provider = agentGrant?.resourceId ?? "";
+    const provider = ownerGrant?.resourceId ?? "";
     const grantOf = async () =>
       (await listLocalShares(tomb)).filter(
         (share) =>
           share.resourceKind === "connection" &&
           share.resourceId === provider &&
-          share.principalId === SUPPORT_AGENT_ID,
+          share.principalId === ownerId,
       );
-    await revokeLocalShare(tomb, agentGrant?.id ?? "");
+    await revokeLocalShare(tomb, ownerGrant?.id ?? "");
     expect(await grantOf()).toEqual([]);
     // A build that writes the trail another way, a rollback, a damaged file:
     // this one cannot tell what was revoked, so it issues nothing.
@@ -213,38 +238,74 @@ describe("ensureDefaultAccess", () => {
 
   it("grants the standing connector shares again in a vault made after the last was deleted", async () => {
     await ensureDefaultAccess(tomb);
-    const [agentGrant] = (await listLocalShares(tomb)).filter(
+    const ownerId = (await readLocalDirectory(tomb)).entries.find(
+      (row) => row.kind === "person",
+    )?.id;
+    const [ownerGrant] = (await listLocalShares(tomb)).filter(
       (share) =>
-        share.resourceKind === "connection" &&
-        share.principalId === SUPPORT_AGENT_ID,
+        share.resourceKind === "connection" && share.principalId === ownerId,
     );
-    await revokeLocalShare(tomb, agentGrant?.id ?? "");
+    await revokeLocalShare(tomb, ownerGrant?.id ?? "");
     // The vault is destroyed and another is made in the same tomb, with a key
     // that cannot open what the first one sealed. Its audit of revocations
     // must not stay behind as ciphertext the new vault reads as "unreadable",
-    // which would withhold every standing grant for good.
+    // which would withhold every standing grant for good. The revoke's
+    // receipt writes after revokeLocalShare returns; let it land first.
+    await flushSharingReceipts();
+    await vfsFlush();
     await wipeTombOnDestroy(tomb);
     unlockTomb(tomb, (await mintVaultKey()).vaultKey);
     await ensureDefaultAccess(tomb);
+    const ownerAfter = (await readLocalDirectory(tomb)).entries.find(
+      (row) => row.kind === "person",
+    )?.id;
     expect(
       (await listLocalShares(tomb)).filter(
         (share) =>
           share.resourceKind === "connection" &&
-          share.principalId === SUPPORT_AGENT_ID,
+          share.principalId === ownerAfter,
       ).length,
     ).toBeGreaterThan(0);
+    expect(
+      (await listLocalShares(tomb)).some(
+        (share) => share.principalId === SUPPORT_AGENT_ID,
+      ),
+    ).toBe(false);
   });
 
   it("renews a revoked standing grant again once a person re-grants it", async () => {
     await ensureDefaultAccess(tomb);
-    const agentGrant = (await listLocalShares(tomb)).find(
+    const ownerGrant = (await listLocalShares(tomb)).find(
       (share) =>
-        share.resourceKind === "connection" &&
-        share.principalId === SUPPORT_AGENT_ID,
+        share.resourceKind === "connection" && share.policy === "invoke",
     );
-    const provider = agentGrant?.resourceId ?? "";
-    await revokeLocalShare(tomb, agentGrant?.id ?? "");
+    const provider = ownerGrant?.resourceId ?? "";
+    const ownerId = ownerGrant?.principalId ?? "";
+    await revokeLocalShare(tomb, ownerGrant?.id ?? "");
     await createLocalShare(tomb, {
+      principalId: ownerId,
+      resourceKind: "connection",
+      resourceId: provider,
+      resourceLabel: provider,
+      policy: "invoke",
+      durationSeconds: 3600,
+    });
+    // The one-hour grant is inside the renewal window, so the standing
+    // grant replaces it now that the trail's newest word is a grant.
+    await ensureDefaultAccess(tomb);
+    const renewed = (await listLocalShares(tomb)).find(
+      (share) => share.resourceId === provider && share.principalId === ownerId,
+    );
+    expect(renewed?.expiresAt ?? 0).toBeGreaterThan(Date.now() + 86400_000);
+  });
+
+  it("does not widen an approved agent grant into a standing week", async () => {
+    await ensureDefaultAccess(tomb);
+    const provider =
+      (await listLocalShares(tomb)).find(
+        (share) => share.resourceKind === "connection",
+      )?.resourceId ?? "";
+    const submitted = await submitLocalShare(tomb, {
       principalId: SUPPORT_AGENT_ID,
       resourceKind: "connection",
       resourceId: provider,
@@ -252,14 +313,18 @@ describe("ensureDefaultAccess", () => {
       policy: "use",
       durationSeconds: 3600,
     });
-    // The one-hour grant is inside the renewal window, so the standing
-    // grant replaces it now that the trail's newest word is a grant.
-    await ensureDefaultAccess(tomb);
-    const renewed = (await listLocalShares(tomb)).find(
-      (share) =>
-        share.resourceId === provider && share.principalId === SUPPORT_AGENT_ID,
+    expect(submitted.outcome).toBe("pending");
+    if (submitted.outcome !== "pending") return;
+    await approvePendingShare(tomb, submitted.pending.id);
+    const before = (await listLocalShares(tomb)).find(
+      (share) => share.principalId === SUPPORT_AGENT_ID,
     );
-    expect(renewed?.expiresAt ?? 0).toBeGreaterThan(Date.now() + 86400_000);
+    await ensureDefaultAccess(tomb);
+    const after = (await listLocalShares(tomb)).find(
+      (share) => share.principalId === SUPPORT_AGENT_ID,
+    );
+    expect(after?.expiresAt).toBe(before?.expiresAt);
+    expect((after?.expiresAt ?? 0) - (after?.issuedAt ?? 0)).toBe(3600 * 1000);
   });
 
   it("does not read a revocation that names no principal as covering the standing grants", async () => {

@@ -106,6 +106,7 @@ function isGrantSpec(value: BoundaryValue): value is SessionGrantSpec {
     isSubject(value.subject) &&
     (value.resourceKind === "vault" ||
       value.resourceKind === "connection" ||
+      value.resourceKind === "folder" ||
       value.resourceKind === "item") &&
     text(value.resourceId, 128) &&
     text(value.resourceLabel, 128) &&

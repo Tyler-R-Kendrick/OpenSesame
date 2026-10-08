@@ -28,6 +28,10 @@
       "reason": "Registered local relying-party metadata (redirect URIs, scopes). Authority to act is still a share grant."
     },
     {
+      "path": "packages/app-core/src/lib/local-share-grants-approvals.ts",
+      "reason": "Pending agent-grant inbox and standing-share renewal. Share bytes are still written by local-share-grants; this file is not a second ledger."
+    },
+    {
       "path": "packages/app-core/src/lib/local-share-reach.ts",
       "reason": "Read-only reach check for agent and WebMCP surfaces: lists local-share-grants and the Access role to decide whether the actor may read or write a vault or item. It stores nothing and writes no share; the ledger it reads is local-share-grants."
     },
