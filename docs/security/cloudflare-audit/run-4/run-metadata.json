@@ -10,7 +10,15 @@
     "prior_run_3_commit": "7f110532e4c8b8b8b8b8b8b8b8b8b8b8b8b8b8b8"
   },
   "profile": "standard",
-  "scope_paths": ["apps", "crates", "packages", "ops", "spec", "scripts", "tools"],
+  "scope_paths": [
+    "apps",
+    "crates",
+    "packages",
+    "ops",
+    "spec",
+    "scripts",
+    "tools"
+  ],
   "execution_policy": "regression-re-read-only",
   "prior_run_paths": [
     "docs/security/cloudflare-audit/run-1",
