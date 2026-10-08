@@ -50,9 +50,14 @@ operation other than `vault.relay.snapshot.read` and
 
 Routes on this profile:
 
-- `GET /health/live`
+- `GET /health/live` — plain `ok`
+- `GET /health/relay` — `{"profile":"relay","bindings":"vault_relay","durable":true}` plus `document` (`empty` or `vault_relay`)
 - `GET` and `PUT /v1/vault-relay/{owner}/{slug}/snapshot`
 - `GET` and `POST /v1/org-vaults`
+
+`x-opensesame-org-role` is `owner`, `admin`, or `member`. A member may list
+an organization vault and may not create or publish one. With the header
+absent, the slot key is the admission.
 
 `/health/ready` and the rest of the Host API are absent here.
 

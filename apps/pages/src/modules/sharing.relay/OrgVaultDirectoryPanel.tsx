@@ -9,6 +9,7 @@ import {
   setStatusNotice,
 } from "@opensesame/app-core/lib/notices.js";
 import {
+  type OrgDirectoryRole,
   type OrgVaultRecord,
   type RelayOwnerKind,
   createOrgVault,
@@ -34,6 +35,7 @@ function notice(body: string): void {
 
 function refused(status: number): string {
   if (status === 409) return "That address is already published.";
+  if (status === 403) return "A member cannot publish that address.";
   if (status === 400) return "That address was refused.";
   return "The relay did not answer.";
 }
@@ -42,6 +44,7 @@ export function OrgVaultDirectoryPanel() {
   const [relay, setRelay] = useState("");
   const [principal, setPrincipal] = useState("");
   const [ownerKind, setOwnerKind] = useState<RelayOwnerKind>("organization");
+  const [orgRole, setOrgRole] = useState<OrgDirectoryRole>("owner");
   const [owner, setOwner] = useState("");
   const [slug, setSlug] = useState("");
   const [vaults, setVaults] = useState<readonly OrgVaultRecord[]>([]);
@@ -59,6 +62,7 @@ export function OrgVaultDirectoryPanel() {
         baseUrl: relay.trim(),
         owner: owner.trim(),
         principal: principal.trim() || undefined,
+        orgRole,
         fetch: orgVaultDirectorySeams.fetch,
       });
       setVaults(next);
@@ -90,6 +94,7 @@ export function OrgVaultDirectoryPanel() {
         slug: slug.trim(),
         ownerKind,
         principal: principal.trim(),
+        orgRole,
         fetch: orgVaultDirectorySeams.fetch,
       });
       setSlug("");
@@ -136,6 +141,27 @@ export function OrgVaultDirectoryPanel() {
         >
           <option value="organization">Organization</option>
           <option value="user">User</option>
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="org-vault-role">Role</label>
+        <select
+          id="org-vault-role"
+          value={orgRole}
+          onChange={(event) => {
+            const value = event.target.value;
+            setOrgRole(
+              value === "admin"
+                ? "admin"
+                : value === "member"
+                  ? "member"
+                  : "owner",
+            );
+          }}
+        >
+          <option value="owner">Owner</option>
+          <option value="admin">Admin</option>
+          <option value="member">Member</option>
         </select>
       </div>
       <div className="field">

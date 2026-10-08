@@ -1,6 +1,12 @@
 /** @vitest-environment jsdom */
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   OrgVaultDirectoryPanel,
@@ -68,6 +74,39 @@ describe("OrgVaultDirectoryPanel", () => {
     });
     expect(calls[1]?.url).toContain("owner=acme");
     expect(listNotices()).toEqual([]);
+  });
+
+  it("tells a member when the relay refuses the publish", async () => {
+    const calls: { role: string | null }[] = [];
+    orgVaultDirectorySeams.fetch = async (_input, init) => {
+      calls.push({
+        role: new Headers(init?.headers).get("x-opensesame-org-role"),
+      });
+      return jsonResponse({ error: "forbidden" }, 403);
+    };
+    render(<OrgVaultDirectoryPanel />);
+    fireEvent.change(screen.getByLabelText("Relay URL"), {
+      target: { value: "http://127.0.0.1:9" },
+    });
+    fireEvent.change(screen.getByLabelText("Principal"), {
+      target: { value: "bee" },
+    });
+    fireEvent.change(screen.getByLabelText("Role"), {
+      target: { value: "member" },
+    });
+    fireEvent.change(screen.getByLabelText("Owner"), {
+      target: { value: "acme" },
+    });
+    fireEvent.change(screen.getByLabelText("Slug"), {
+      target: { value: "ledger" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create vault" }));
+    await waitFor(() => {
+      expect(listNotices()[0]?.body).toBe(
+        "A member cannot publish that address.",
+      );
+    });
+    expect(calls[0]?.role).toBe("member");
   });
 
   it("lists by owner without creating", async () => {

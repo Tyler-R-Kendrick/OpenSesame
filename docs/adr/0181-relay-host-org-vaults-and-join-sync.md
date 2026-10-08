@@ -58,8 +58,11 @@ certificate, and the vault key is not a transport identity.
 ### 1. Relay profile serves a closed route set
 
 An operator can start the gateway in **relay profile**. That process serves
-`GET /health/live` and the vault-relay slot routes in §4. Every other route
-is absent, including `/api/v1/sync/*`, operator transport administration,
+`GET /health/live`, `GET /health/relay`, and the vault-relay slot routes in
+§4. `GET /health/relay` is the profile advertisement
+(`profile`, `bindings: vault_relay`, `durable`), not operator transport
+administration. Every other route is absent, including `/api/v1/sync/*`,
+operator transport administration,
 shared-session administration, and connector invoke. The full Host API
 remains the profile an operator starts when they want the Host API.
 
@@ -198,8 +201,8 @@ The decision, the address parser `parseOrgVaultRef` / `formatOrgVaultRef`,
 and the first working code for phases 1–3:
 
 - Relay profile (`OPENSESAME_GATEWAY_PROFILE=relay` or `opensesame host run
-  --profile relay`) serves `GET /health/live`, the slot routes, and
-  `GET` and `POST /v1/org-vaults`. Other routes, including
+  --profile relay`) serves `GET /health/live`, `GET /health/relay`, the slot
+  routes, and `GET` and `POST /v1/org-vaults`. Other routes, including
   `POST /api/v1/sync/pull`, are absent. Startup installs an empty
   `vault_relay` binding set when `OPENSESAME_SERVICE_BINDINGS_FILE` is
   unset, and holds that set for the life of the process. A document that
@@ -213,7 +216,11 @@ and the first working code for phases 1–3:
   address. The same principal may repeat it. A different principal is
   `409`. `GET /v1/org-vaults?owner=` lists that owner's refs. A request
   with neither owner nor principal returns an empty list. A successful
-  snapshot write records the same directory row.
+  snapshot write records the same directory row. A presented organization
+  role of `member` may list and may not create or publish. `owner` and
+  `admin` may. A user address may be created or published only by the
+  principal whose handle is the owner. With no role header, the slot key
+  remains the admission.
 - `sharing.relay` is an optional Pages capability, off in the default plan.
   When it is on, Settings › Capabilities › Sharing draws Organization
   vaults (`OrgVaultDirectoryPanel`): create and list, and no fetch at
@@ -230,8 +237,8 @@ and the first working code for phases 1–3:
   joins and reads the ciphertext. The item name is not in the snapshot.
   `verify:live-join` stays the live-session walk.
 
-Not in this slice: an Identity-issuer registration check, a membership
-test that refuses a member's publish, the vault-drive conformance replay,
+Not in this slice: an Identity-issuer registration check, the vault-drive
+conformance replay,
 attachment parts, and `opensesame-id vault sync`.
 
 ## Phased implementation
@@ -285,14 +292,15 @@ commit.
 
 - A1, A2, and S1 have a first working slice. The checklist can cite the
   relay profile, the address on the device list, and the replica client.
-  The issuer directory, the member-publish refusal, and the conformance
-  replay are still open, so those rows stay short of the whole phase.
+  The issuer registration and the conformance replay are still open.
+  A presented member may list and may not publish. With no role, the slot
+  key is still the admission.
 - `opensesame host run` without `--profile relay` is still the full
   gateway. Relay profile loads an empty binding set unless the operator
   writes one that is entirely `vault_relay`.
 - The device list reads `publishedAddress` from the tomb header. Nothing
-  in this slice publishes that field from the UI, and there is still no
-  check that a member cannot publish an organization vault.
+  in this slice publishes that field from the UI. A presented member role
+  cannot create or publish an organization vault.
 - Live join still writes nothing. The replica client runs only when a
   caller pushes or pulls. Tailnet sync remains the merge while a vault
   is unlocked. The relay stores the snapshot and does not merge it.
@@ -301,8 +309,9 @@ commit.
   tailnet drive already makes.
 - On a relay with no Identity issuer, the first principal to create the
   address, or to publish a snapshot there, claims it. A different principal
-  is refused. The issuer registration and the member-publish refusal are
-  still open. The handle and organization-slug namespace is still not
-  enforced.
+  is refused. The issuer registration is still open: the role is a presented
+  header, not a signed registration. A presented `member` role is refused
+  on create and publish. The handle and organization-slug namespace is still
+  not enforced.
 - Live join gains no default public relay, no default TURN server, and no
   widening of `host.join` into sync.

@@ -15,6 +15,9 @@ export const RELAY_SNAPSHOT_FORMAT = "opensesame-vault-drive-snapshot";
 
 export type RelayOwnerKind = "user" | "organization";
 
+/** Organization directory role (ADR 0181). A member may list and may not publish. */
+export type OrgDirectoryRole = "owner" | "admin" | "member";
+
 export type OrgVaultRecord = {
   readonly ownerKind: RelayOwnerKind;
   readonly owner: string;
@@ -218,17 +221,20 @@ export async function createOrgVault(
     readonly slug: string;
     readonly ownerKind: RelayOwnerKind;
     readonly principal: string;
+    readonly orgRole?: OrgDirectoryRole;
   },
 ): Promise<OrgVaultRecord> {
   const fetchImpl = fetchOf(target);
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    "x-opensesame-principal": target.principal,
+  };
+  if (target.orgRole) headers["x-opensesame-org-role"] = target.orgRole;
   const response = await fetchImpl(
     `${originOf(target.baseUrl)}/v1/org-vaults`,
     {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-opensesame-principal": target.principal,
-      },
+      headers,
       body: JSON.stringify({
         ownerKind: target.ownerKind,
         owner: target.owner,
@@ -256,15 +262,18 @@ export async function listOrgVaults(
   target: OrgVaultDirectory & {
     readonly owner?: string;
     readonly principal?: string;
+    readonly orgRole?: OrgDirectoryRole;
   },
 ): Promise<readonly OrgVaultRecord[]> {
   const fetchImpl = fetchOf(target);
   const query = new URLSearchParams();
   if (target.owner) query.set("owner", target.owner);
   if (target.principal) query.set("principal", target.principal);
+  const headers = new Headers();
+  if (target.orgRole) headers.set("x-opensesame-org-role", target.orgRole);
   const response = await fetchImpl(
     `${originOf(target.baseUrl)}/v1/org-vaults?${query.toString()}`,
-    { method: "GET" },
+    { method: "GET", headers },
   );
   const body = await readJson(response);
   if (!response.ok) {
