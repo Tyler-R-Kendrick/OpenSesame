@@ -1,3 +1,4 @@
+import type { JsonObject } from "@opensesame/os-domain";
 /**
  * The Host's executor, as the pact tests need it: `run_change_password`'s
  * ordering (`crates/rotation-web/src/executor.rs`) issued as step requests
@@ -6,7 +7,6 @@
  * page.
  */
 import type { RunnerStepOutcome } from "../host-api-contract.js";
-import type { JsonObject } from "@opensesame/os-domain";
 import type { FakeHost } from "./fake-host";
 
 export interface Recipe {

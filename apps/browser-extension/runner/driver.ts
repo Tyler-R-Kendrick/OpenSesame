@@ -1,3 +1,5 @@
+import { WAIT_MS, ctxOf } from "./context";
+import type { DriverDeps, EpochState } from "./context";
 /**
  * One step, executed: the verb in the page, or the custody step in the vault.
  *
@@ -9,8 +11,6 @@
  * checked by `guard` against the step it answers before it leaves.
  */
 import type { RunnerStepRequest } from "./host-api-contract.js";
-import { WAIT_MS, ctxOf } from "./context";
-import type { DriverDeps, EpochState } from "./context";
 import { withinOrigin } from "./origin";
 import type { StepPages } from "./ports";
 import { verifyByFreshLogin } from "./verify";

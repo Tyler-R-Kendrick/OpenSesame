@@ -4,10 +4,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { expect, it } from "vitest";
 
-const packageRoot = join(
-  dirname(fileURLToPath(import.meta.url)),
-  "..",
-);
+const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 it("stdio MCP advertises no Host sync tools after authority removal", async () => {
   const transport = new StdioClientTransport({
@@ -19,9 +16,9 @@ it("stdio MCP advertises no Host sync tools after authority removal", async () =
   try {
     await client.connect(transport);
     const resources = await client.listResources();
-    expect(resources.resources.some((r) => r.name === "password-workflows")).toBe(
-      true,
-    );
+    expect(
+      resources.resources.some((r) => r.name === "password-workflows"),
+    ).toBe(true);
   } finally {
     await client.close();
   }

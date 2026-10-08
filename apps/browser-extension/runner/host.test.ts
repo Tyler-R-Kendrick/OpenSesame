@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { b64, toB64 } from "./bytes";
-import type { RunnerHostClient, SyncPageCursor } from "./host-api-contract.js";
 import { connector, hostBackup, recoverBackup } from "./host";
+import type { RunnerHostClient, SyncPageCursor } from "./host-api-contract.js";
 import { RunnerSettings } from "./settings";
 import { SealedKv } from "./store";
 import { MemoryStore, useTestDeviceKey } from "./test-support/memory";
@@ -80,9 +80,7 @@ describe("the Host's ciphertext store as a backup", () => {
   it("finds a blob that is many pages in", async () => {
     const host = syncHost({ pageSize: 2 });
     for (let i = 0; i < 9; i += 1) {
-      await host.syncPush([
-        { id: `x${i}`, epoch: 1, ciphertextB64: "AAAA" },
-      ]);
+      await host.syncPush([{ id: `x${i}`, epoch: 1, ciphertextB64: "AAAA" }]);
     }
     const store = hostBackup(host);
     await store.push("runner-candidate.late", bytes);
@@ -127,10 +125,7 @@ describe("the runner's connection", () => {
   it("is none without a Host API in this build", async () => {
     useTestDeviceKey();
     const settings = new RunnerSettings(new SealedKv(new MemoryStore()));
-    const connect = connector(
-      settings,
-      async () => "http://127.0.0.1:8787",
-    );
+    const connect = connector(settings, async () => "http://127.0.0.1:8787");
     expect(await connect()).toBeNull();
     await settings.setToken("  the-session  ");
     expect(await connect()).toBeNull();

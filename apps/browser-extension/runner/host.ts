@@ -5,10 +5,7 @@
 import { isJsonObject } from "@opensesame/os-domain";
 import type { BackupStore } from "./backup";
 import { fromB64, toB64 } from "./bytes";
-import type {
-  RunnerHostClient,
-  SyncPageCursor,
-} from "./host-api-contract.js";
+import type { RunnerHostClient, SyncPageCursor } from "./host-api-contract.js";
 import type { Connection } from "./loop";
 import type { RunnerSettings } from "./settings";
 

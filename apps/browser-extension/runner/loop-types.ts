@@ -1,3 +1,4 @@
+import type { BackupStore } from "./backup";
 /** The runner loop's ports, options and report. */
 import type {
   AgentRunView,
@@ -5,7 +6,6 @@ import type {
   RunnerStepOutcome,
   SettledRunnerStep,
 } from "./host-api-contract.js";
-import type { BackupStore } from "./backup";
 import type { Grants, PagesFactory } from "./ports";
 import type { RunnerSettings } from "./settings";
 import type { RunnerVault } from "./vault";

@@ -153,6 +153,53 @@ const STRING_FIELDS = new Map<string, readonly string[]>([
   ["promote_candidate", ["handle"]],
 ]);
 
+function decodeStringFieldStep(
+  value: JsonObject,
+  tag: string,
+  exact: (names: readonly string[]) => boolean,
+): RunnerStepRequest | null {
+  const strings = STRING_FIELDS.get(tag);
+  if (!strings) return null;
+  if (!exact(strings) || !strings.every((name) => isString(value[name]))) {
+    return null;
+  }
+  // SAFETY: tag is in STRING_FIELDS and every named field is a string with exact keys only.
+  return overlapCast(value);
+}
+
+function decodeReadDomRedacted(
+  value: JsonObject,
+  exact: (names: readonly string[]) => boolean,
+): RunnerStepRequest | null {
+  const strip = value.strip;
+  if (!exact(["strip"]) || !Array.isArray(strip) || !strip.every(isString)) {
+    return null;
+  }
+  return { step: "read_dom_redacted", strip: strip.filter(isString) };
+}
+
+function decodeScreenshotRedacted(
+  value: JsonObject,
+  exact: (names: readonly string[]) => boolean,
+): RunnerStepRequest | null {
+  const { epoch, mask_selectors } = value;
+  if (
+    !exact(["epoch", "mask_selectors"]) ||
+    !isNumber(epoch) ||
+    !Number.isSafeInteger(epoch) ||
+    epoch < 0 ||
+    !Array.isArray(mask_selectors) ||
+    !mask_selectors.every(isString)
+  ) {
+    return null;
+  }
+  return {
+    step: "screenshot_redacted",
+    epoch,
+    mask_selectors: mask_selectors.filter(isString),
+  };
+}
+
 export function decodeRunnerStepRequest(
   value: BoundaryValue,
 ): RunnerStepRequest | null {
@@ -161,39 +208,13 @@ export function decodeRunnerStepRequest(
   const own = Object.keys(value).filter((key) => key !== "step");
   const exact = (names: readonly string[]) =>
     own.length === names.length && names.every((name) => name in value);
-  const strings = STRING_FIELDS.get(tag);
-  if (strings) {
-    if (!exact(strings) || !strings.every((name) => isString(value[name]))) {
-      return null;
-    }
-    // SAFETY: tag is in STRING_FIELDS and every named field is a string with exact keys only.
-    const typed: RunnerStepRequest = overlapCast(value);
-    return typed;
-  }
+  const stringStep = decodeStringFieldStep(value, tag, exact);
+  if (stringStep) return stringStep;
   if (tag === "read_dom_redacted") {
-    const strip = value.strip;
-    if (!exact(["strip"]) || !Array.isArray(strip) || !strip.every(isString)) {
-      return null;
-    }
-    return { step: "read_dom_redacted", strip: strip.filter(isString) };
+    return decodeReadDomRedacted(value, exact);
   }
   if (tag === "screenshot_redacted") {
-    const { epoch, mask_selectors } = value;
-    if (
-      !exact(["epoch", "mask_selectors"]) ||
-      !isNumber(epoch) ||
-      !Number.isSafeInteger(epoch) ||
-      epoch < 0 ||
-      !Array.isArray(mask_selectors) ||
-      !mask_selectors.every(isString)
-    ) {
-      return null;
-    }
-    return {
-      step: "screenshot_redacted",
-      epoch,
-      mask_selectors: mask_selectors.filter(isString),
-    };
+    return decodeScreenshotRedacted(value, exact);
   }
   return null;
 }

@@ -1,6 +1,6 @@
 import { overlapCast } from "@opensesame/os-domain";
-import { type ParityDependencies, runParity } from "./parity.js";
 import { errorLine } from "./output.js";
+import { type ParityDependencies, runParity } from "./parity.js";
 import { type ParsedCommand, helpText, parseArgs } from "./parse.js";
 import { type VaultDependencies, runVaultCommand } from "./vault-commands.js";
 import { type VaultItemDependencies, runVaultItems } from "./vault-items.js";

@@ -10,7 +10,7 @@
  * the private key the person holds and shows the value to them alone.
  */
 import { overlapCast } from "@opensesame/os-domain";
-import { backupId, createRecoveryKey } from "../../runner/backup";
+import { createRecoveryKey } from "../../runner/backup";
 import {
   type CredentialForm,
   type FormError,

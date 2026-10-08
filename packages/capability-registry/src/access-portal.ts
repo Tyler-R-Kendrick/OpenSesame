@@ -1,5 +1,5 @@
-import type { Capability, CapabilityExclusion } from "./index.js";
 import { CLIENT_NO_HOST_IDENTITY } from "./exclusions.js";
+import type { Capability, CapabilityExclusion } from "./index.js";
 
 export const APPROVAL_CEREMONY: CapabilityExclusion = {
   reason:

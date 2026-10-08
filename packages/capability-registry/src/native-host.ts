@@ -1,4 +1,5 @@
 import {
+  AUTH_CEREMONY,
   BITWARDEN_CLIENT_ONLY,
   BITWARDEN_IMPORT_IS_HUMAN,
   CLIENT_NO_HOST_IDENTITY,
@@ -17,6 +18,101 @@ import { optionalPluginCapabilities } from "./optional-plugins.js";
  * each credential helper and browser bridge under its link name (ADR 0138).
  */
 export const nativeHostCapabilities: readonly Capability[] = [
+  {
+    id: "host.health",
+    title: "Host API and daemon health/readiness",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+      extension: null,
+    },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      pwa: PAGES_HAS_NO_HOST,
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
+      mcp_client: CLIENT_NO_HOST_IDENTITY,
+      webmcp: PAGES_HAS_NO_HOST,
+      extension: CLIENT_NO_HOST_IDENTITY,
+    },
+  },
+  {
+    id: "host.health.pages",
+    title: "Connectivity posture inside the authority vault",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/settings",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: "opensesame_health",
+    },
+    excluded: {
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
+      mcp_client: CLIENT_NO_HOST_IDENTITY,
+    },
+  },
+  {
+    id: "host.discovery",
+    title: "Protected-resource metadata discovery",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
+      mcp_client: CLIENT_NO_HOST_IDENTITY,
+    },
+  },
+  {
+    id: "host.whoami",
+    title: "Resolve the authenticated principal",
+    plane: "host",
+    kind: "read",
+    surfaces: {
+      cli: null,
+      pwa: "route:/identity",
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
+      mcp_client: CLIENT_NO_HOST_IDENTITY,
+      webmcp: PAGES_HAS_NO_HOST,
+    },
+  },
+  {
+    id: "host.login",
+    title: "Host device/loopback login",
+    plane: "host",
+    kind: "ceremony",
+    surfaces: {
+      cli: null,
+      pwa: null,
+      mcp_host: null,
+      mcp_client: null,
+      webmcp: null,
+    },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: AUTH_CEREMONY,
+      mcp_client: AUTH_CEREMONY,
+      webmcp: AUTH_CEREMONY,
+    },
+  },
   {
     id: "daemon.status",
     title: "Local host agent status",

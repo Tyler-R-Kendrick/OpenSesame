@@ -1,7 +1,3 @@
-import {
-  normalizeHttpBaseUrl,
-  normalizeLoopbackBaseUrl,
-} from "./http-base-url.js";
 /**
  * Where this page is allowed to send things.
  *
@@ -13,6 +9,10 @@ import {
  * in this repo, not one per surface.
  */
 import { maybePage, page } from "../ports.js";
+import {
+  normalizeHttpBaseUrl,
+  normalizeLoopbackBaseUrl,
+} from "./http-base-url.js";
 
 function isLoopbackUrlDefault(raw: string): boolean {
   return normalizeLoopbackBaseUrl(raw) !== null;

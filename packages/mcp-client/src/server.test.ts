@@ -18,9 +18,9 @@ describe("mcp-client server", () => {
     const client = new Client({ name: "test", version: "0" });
     await client.connect(clientTransport);
     const resources = await client.listResources();
-    expect(resources.resources.some((r) => r.name === "password-workflows")).toBe(
-      true,
-    );
+    expect(
+      resources.resources.some((r) => r.name === "password-workflows"),
+    ).toBe(true);
     await client.close();
     await server.close();
   });

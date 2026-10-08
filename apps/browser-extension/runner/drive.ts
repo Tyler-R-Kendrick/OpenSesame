@@ -1,3 +1,5 @@
+import type { DriverDeps, EpochState } from "./context";
+import { runStep } from "./driver";
 /**
  * One run, driven: claim its outstanding step, run it, settle what it did, and
  * stand down the moment the run is not the agent's to drive.
@@ -9,8 +11,6 @@ import {
   decodeRunnerStepRequest,
 } from "./host-api-contract.js";
 import type { AgentRunView } from "./host-api-contract.js";
-import type { DriverDeps, EpochState } from "./context";
-import { runStep } from "./driver";
 import type {
   Connection,
   HostPort,
