@@ -1,7 +1,7 @@
 # Evidence — static PWA, no Host/Identity/daemon backend (2026-10-08)
 
 PR: [#861](https://github.com/Tyler-R-Kendrick/OpenSesame/pull/861)  
-Branch tip: `bd0a9f07` (plus follow-up Vercelignore fix)  
+Branch tip: `353d7737` (Endpoints removed; Vercelignore api-only)
 Producer: Cursor Agent (Grok Build HTTP 402)
 
 ## What was proved (no backend processes)
