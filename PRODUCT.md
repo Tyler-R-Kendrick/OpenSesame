@@ -37,11 +37,11 @@ An Infisical-class authority console that also keeps a human store on the device
 
 ## Capabilities (this surface)
 
-- Create and unlock an E2EE vault: PBKDF2-SHA256 master key, AES-GCM wrapped vault key, sealed blob in OPFS
+- Create and unlock an E2EE vault: a random AES-GCM vault key wrapped per unlock method (passkey PRF, PIN, or an older vault's PBKDF2-SHA256 password wrap), sealed blob in OPFS
 - Unlock with passkey (WebAuthn PRF) or PIN; an older vault may still hold a master password, which Settings only removes. Optional TOTP MFA after primary unwrap
-- Vault items: login, passkey, card, secret, note, certificate, drop — full create/edit/delete, folders, favorites, trash
+- Vault items: account (a username or id, its sites and login methods), passkey, card, secret, note, certificate, drop and the other built-in types in `marketplace/item-types/builtin/` — full create/edit/delete, folders, favorites, trash
 - Certificates: enter names and lifetime; the Host generates the key/CSR and uses the sealed OpenSesame private CA by default, or a configured Let's Encrypt, ZeroSSL, or Cloudflare Origin CA connection without trust downgrade
-- Password generator (characters and passphrase), strength estimation, password health report (weak, reused, old)
+- Password generator (random characters, random words, algorithmic), strength estimation, password health report (weak, reused, old, no authenticator)
 - TOTP codes generated in-page from stored seeds; store-bridge prefers pass-otp `otpauth://` trailer lines
 - Update password / secret on a single vault item (generate or enter); notes and TOTP preserved
 - Clipboard copy with automatic clear; auto-lock on idle and on tab hide

@@ -1,7 +1,8 @@
 # ADR 0034: Origin-brokered sign-in for static sites
 
 ## Status
-Accepted
+Accepted (partly superseded by [ADR 0096](0096-static-auth-profiles-and-immutable-distribution.md):
+the production admission, browser verification and fragment-fallback portions)
 
 ## Context
 A static site has no backend, so it has nowhere to keep a client secret and nowhere to run a

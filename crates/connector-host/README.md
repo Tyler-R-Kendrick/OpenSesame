@@ -14,9 +14,9 @@ a feature — runs Wasm component connectors.
 - **Used by:** [`opensesame-broker`](../broker) (`HostRuntime::invoke`),
   [`opensesame-host-core`](../host-core) (re-exported as
   `host_core::connector_host`), [`crates/gateway`](../../crates/gateway),
-  [`packages/identity-worker`](../../packages/identity-worker) and [`apps/cli`](../../apps/cli) (the
-  `providers` catalogue and plans), and the fuzz harness in
-  [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`connector_yaml`).
+  [`crates/worker`](../worker) and [`apps/cli`](../../apps/cli) (the
+  `providers` catalogue and plans, and `password_agent`), and the fuzz harness
+  in [`tests/fuzz/cargo`](../../tests/fuzz/cargo) (`connector_yaml`).
 - **Builds on:** [`opensesame-domain`](../domain) (`EgressBinding`,
   `InvokeLevel`), [`opensesame-invoke-through`](../invoke-through) (the
   surrogate ledger and the broker L2 constrained HTTP runs through) and
@@ -54,6 +54,7 @@ a feature — runs Wasm component connectors.
 | `Surrogate`, `SurrogateSpec`, `SurrogateSite`, `RefusalCode` | Re-exported from invoke-through for L2 callers |
 | `manifest` | `ConnectorManifest` for `connectors/<id>/connector.yaml` (`opensesame.dev/v1alpha1`, `ConnectorDefinition`, max 64 KiB) |
 | `providers` | External secret-provider catalogue (`catalog`, `find`), `probe_local` / `probe_live`, `human_plan` / `execute_human_plan`, `crypto_plan` / `execute_crypto_plan` |
+| `password_agent` | Human-operated 1Password-parity planning over the `op` CLI's output (`documents`, `reference`, `validate_summary`, `validate_item`; `discover`, `env`, `lease`, `policy`, `request`, `service`, `writes`); no guest materialization path |
 | `wasm` (feature `wasm-connectors`) | `WasmConnector`, `GuestLimits`, `HostEgress` — binds only `types`, `host-http`, `host-crypto`, `host-oauth`; a fresh `Store` per invocation under fuel, epoch and memory limits; the component's sha256 must match the manifest and be pinned in `trusted_digests` |
 
 | Cargo feature | Effect |

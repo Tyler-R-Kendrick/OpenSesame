@@ -34,6 +34,8 @@ for one), and a sensitive value is materialized only when policy allows it. A sc
 | `resolve_for_delivery(doc, policy, agent)` | `Vec<ResolvedEnvEntry>` with delivery mode, connection ref, projection, `omitted` and `warning` |
 | `EnvSpecDocument`, `EnvSpecItem`, `EnvDecorator`, `EnvResolver`, `EnvResolverArg` | The bridge's JSON shapes |
 | `EnvSpecError` | `Io`, `Json`, `Bridge`, `Domain` |
+| `web_login`, `WebLogin`, `LOGIN_RESOLVER` | The `opensesameLogin(...)` resolver: a sealed-store path and one form submission, never the password; the entry resolves omitted and only the optional `surrogate-proxy` plugin delivers anything for it (ADR 0150 §6.3) |
+| `is_bounded_prefix`, `is_http_method`; `ResolvedEnvEntry::path_prefixes` | The `paths=` and `methods=` a connection entry may declare to bound its surrogate (ADR 0150 §8) |
 
 ## Develop
 

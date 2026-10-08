@@ -2,6 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-09-28
+- Amended by: [ADR 0175](0175-searchable-encryption-over-indexeddb.md) (§3, for
+  the stores it moves into encrypted databases)
 - Builds on: [ADR 0063](0063-encrypted-vfs-tombs.md) (the encrypted VFS and
   its plaintext boundary), [ADR 0133](0133-shared-app-core.md) (one core,
   platform ports), [ADR 0090](0090-static-frontend-complete-without-backend.md)

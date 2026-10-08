@@ -13,7 +13,9 @@ same plan and the same digest.
   [`apps/pages`](../../apps/pages) (the capability build and the bootstrap).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) and `@noble/hashes`
   for SHA-256.
-- Core is always approved. An optional capability is approved only when it is
+- Core is approved unless a verified instance policy withdraws an always-on
+  capability that owns a module (`src/resolve-withdraw.ts`, ADR 0142). An
+  optional capability is approved only when it is
   distributed, permitted by every scope, runtime-supported, network-allowed,
   selected (or pulled in by a clean root), covered by a consent receipt, and
   served by a single worker variant (`src/resolve.ts`).
@@ -51,5 +53,8 @@ capability build: run `pnpm --filter @opensesame/pages build:profile` and
   — operator-controlled capability composition
 - [ADR 0135](../../docs/adr/0135-always-on-capabilities-and-feature-rollups.md)
   — always-on capabilities and feature rollups
+- [ADR 0142](../../docs/adr/0142-capabilities-page-one-list-honest-defaults.md)
+  — Settings › Capabilities: one list, honest defaults (operator withdrawal of
+  always-on capabilities)
 - [Operator guide](../../docs/operators/capability-composition.md) ·
   [Verification method](../../docs/validation/capability-composition.md)

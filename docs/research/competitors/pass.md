@@ -45,7 +45,7 @@ Canonical `pass` verbs operators expect parity with:
 | `pass show` / `pass ls` / `pass find` | Read and navigate |
 | `pass cp` / `pass mv` / `pass rm` | Tree edits |
 | `pass git` | Commit / push / pull the ciphertext tree |
-| `pass copy` (often via `xclip`/`wl-copy`) | Clipboard without printing |
+| `pass show -c` (via `xclip`/`wl-copy`) | Clipboard without printing |
 | `pass otp` (pass-otp) | `opensesame pass otp` — trailer `otpauth://` + structured OTP |
 | `pass update` (pass-update) | `opensesame pass update` — rotate first line; preserve trailer/OTP |
 | pass-tomb / multi-store | `opensesame pass tomb` + optional `open`/`close` ([ADR 0038](../../adr/0038-multi-tomb-sealed-store.md)) |
@@ -63,8 +63,11 @@ Default root resolution mirrors `pass`: `OPENSESAME_STORE_DIR` →
 - Ecosystem assumes `.gpg` readability; some deployments add age.
 
 OpenSesame reads classic trees (`.gpg` / `.age`) and prefers `.osseal` for new
-writes when OpenSesame recipients/key material are present. Mixed trees in one
-root are allowed.
+writes when OpenSesame recipients/key material are present; an entry that
+already exists keeps its format on replace. Mixed trees in one root are
+allowed. `.gpg` entries are read and written through the `gpg` binary, and
+`.age` entries are X25519-recipient only and need `OPENSESAME_AGE_IDENTITY` to
+read.
 
 ### What `pass` does not do (and OpenSesame must not regress into)
 

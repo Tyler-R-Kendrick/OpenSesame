@@ -8,8 +8,9 @@
 **Stance: study / consume target.** Passbolt is a self-hosted team password
 manager whose data model — one OpenPGP encryption per user per secret — is
 the most rigorous in this competitive set and the most expensive to serve.
-OpenSesame consumes a Passbolt instance as a brokered upstream (stretch);
-serving Passbolt's own clients is a costed roadmap row, not a plan.
+A Passbolt consume-client is a tier-2 stretch row in ADR 0052 and is not
+built in this checkout; serving Passbolt's own clients is a costed roadmap
+row, not a plan.
 
 ## Overview
 
@@ -53,7 +54,7 @@ throughput cost that shapes every other design decision in the product.
 verify the server's identity, verify the user's identity, then obtain a
 session. It predates the JWT flow and remains for compatibility.
 
-**JWT (preferred)** — the flow a consume-client implements:
+**JWT (preferred)** — the flow a consume-client would implement:
 
 1. The client builds a challenge object carrying `version`, `domain`, a
    client-generated `verify_token`, and `verify_token_expiry`.
@@ -67,18 +68,20 @@ session. It predates the JWT flow and remains for compatibility.
    generated**. That check is what proves the server holds the private key
    for the fingerprint the client pinned — mutual authentication, not just
    "the TLS cert was valid."
-5. Refresh tokens are **single-use and rotating**: each refresh issues a
-   new one and invalidates the old.
+5. `/auth/jwt/refresh.json` renews the session: the server answers with a new
+   access token and sometimes a new refresh token. Passbolt's documentation
+   does not say that the old refresh token stops working.
 
 Two properties matter for OpenSesame. First, the flow requires the user's
-**private key and its passphrase** at the client — so the passphrase is
-prompted on a TTY at the human plane, held in `secrecy::SecretBox`,
-zeroized, and never persisted. Second, the extension pins only a
+**private key and its passphrase** at the client — so a consume-client would
+prompt for the passphrase on a TTY at the human plane (ADR 0052 §6), held in
+`secrecy::SecretBox`, zeroized, and never persisted. Second, the extension pins only a
 **user-supplied server URL plus the server's PGP fingerprint** — there is
-no vendor-hosted component in the trust path — which is precisely why a
-third-party Passbolt-compatible server is viable in a way a
-Bitwarden-compatible one is not (see [`bitwarden.md`](bitwarden.md) and
-ADR 0052 §4 on the push-relay installation ID).
+no vendor-hosted component in the trust path — which is why a
+third-party Passbolt-compatible server has no incumbent service to depend on,
+unlike Bitwarden's mobile push relay (see [`bitwarden.md`](bitwarden.md) and
+ADR 0052 §4 on the push-relay installation ID; the Bitwarden-compatible server
+in `crates/bitwarden-server` uses no push relay, ADR 0148).
 
 ### API surface
 
@@ -108,21 +111,21 @@ metadata keys.
 
 This is a **compat cliff, not a migration slope**. A client or server
 written for the v4 shape does not degrade gracefully against v5: it sees
-encrypted blobs where it expects names. OpenSesame's consume-client
-therefore **detects v5 metadata encryption and refuses with a named error**
-pointing at this document, rather than best-effort parsing that would
-silently produce a vault full of ciphertext-looking titles.
+encrypted blobs where it expects names. ADR 0052 §4 therefore specifies that
+a consume-client **detects v5 metadata encryption and refuses with a named
+error**, rather than best-effort parsing that would silently produce a vault
+full of ciphertext-looking titles. No such client exists in this checkout.
 
-### KDBX is Passbolt's own recommended export
+### KDBX is one of Passbolt's own export formats
 
-Passbolt's documented export formats include **KDBX**, and it is the one
-their docs recommend for a full-fidelity extraction (CSV loses structure).
+Passbolt's documented export formats include **KDBX** alongside many CSV
+flavors; KDBX keeps the folder structure that CSV loses.
 
 That is a strategically pleasant fact: **OpenSesame's KDBX support ingests
 Passbolt on day one**, with no Passbolt-specific code, no API credentials,
 and no network access. `opensesame pass import-kdbx` and the Pages KDBX
-adapter both read a Passbolt export directly. The native consume-client is
-therefore an *upgrade* (live, brokered, no manual export step), not the
+adapter both read a Passbolt export directly. A native consume-client would
+therefore be an *upgrade* (live, brokered, no manual export step), not the
 prerequisite for supporting Passbolt users.
 
 ## Differentiators (why teams still pick Passbolt)
@@ -153,15 +156,15 @@ prerequisite for supporting Passbolt users.
 | Passbolt concept | OpenSesame |
 |---|---|
 | Resource + per-user secret | Sealed-store `Entry` — one ciphertext, one owner, no recipient fan-out |
-| PGP message payload | Decrypted by `crates/provider-passbolt` (rpgp, MIT/Apache) at the human plane; never persisted decrypted |
-| JWT login + `verify_token` server proof | `provider-passbolt` `auth.rs`; server URL + PGP fingerprint pinned from user configuration |
-| Key passphrase | Prompted on a TTY in `apps/cli`, `secrecy::SecretBox`, zeroized, never stored |
-| `/resources.json`, `/secrets/…` reads | `HumanProviderPlan::Passbolt` — declarative plan, executed by the async CLI call site (the `GitHubApp` precedent) |
+| PGP message payload | Not built — ADR 0052 §4 names `crates/provider-passbolt` (rpgp, MIT/Apache) as the stretch consume-client, which would decrypt at the human plane; that crate does not exist in this checkout |
+| JWT login + `verify_token` server proof | Not built (same stretch row); server URL + PGP fingerprint would be pinned from user configuration |
+| Key passphrase | Not built; a consume-client would prompt on a TTY, `secrecy::SecretBox`, zeroized, never stored (ADR 0052 §6) |
+| `/resources.json`, `/secrets/…` reads | Not built — `HumanProviderPlan` has no Passbolt variant (`crates/connector-host/src/providers.rs`) |
 | Folders / groups / permissions | Read for mapping context only; not reproduced as an OpenSesame authorization model (that is OpenFGA + ADR 0032) |
 | KDBX export | **Already supported** — `opensesame pass import-kdbx` and the Pages KDBX adapter |
-| v5 encrypted metadata | Detected and refused with a named error (ADR 0052 §4) |
+| v5 encrypted metadata | Specified as detect-and-refuse with a named error (ADR 0052 §4); no client to enforce it yet |
 | Serving Passbolt's own clients | **Roadmap only** — 2–4 engineer-months; O(N) sharing and the v5 cliff are the reasons |
-| Catalog provider row | `passbolt`, `auth.kind: "configuration"` (`server_url`, `private_key` secret, `passphrase` secret) — an inert configuration row even if the provider crate is dropped |
+| Catalog provider row | `passbolt`, `auth.kind: "configuration"` (`server_url`, `private_key` secret, `passphrase` secret) — a configuration-only row; there is no provider crate behind it |
 
 ## Deliberate non-goals vs Passbolt
 

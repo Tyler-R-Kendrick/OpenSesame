@@ -5,6 +5,16 @@ tutorial system ([ADR 0088](../adr/0088-ai-native-contextual-support.md),
 [architecture](../architecture/ai-contextual-support.md)), what each command
 proves, and — the part that matters more — what it does not.
 
+> Status (2026-10-08): the run, its counts and its build inspection were
+> recorded on 2026-08-31 and were not re-measured. The suites have since grown:
+> `guide-lang` also has `limits.test.ts`; `guide-runtime` also has
+> `tour.test.ts` and `tour-edges.test.ts`; `support-agent` also has
+> `egress-terms.test.ts` and `remote-payload.test.ts`; `webmcp` has six test files against the five
+> measured (`detect`, `fence.characterization`, `fence`, `index`, `registrar`,
+> `registration-ack`); and `capability-registry` has six against one.
+> The registry suites (`catalog`, `context`, `predicates`) now live in
+> `packages/app-core/src/tutorial/registry/`.
+
 This document is the test inventory. The threat-by-threat review of the same
 subsystem — what was attacked, what held, and which properties are structural
 rather than conventional — is
@@ -58,7 +68,9 @@ failure, while an unusable route is a *parse* failure caught before the
 vocabulary is consulted at all.
 
 **Residual gap.** The parser has no coverage-guided fuzz target in `tests/fuzz/cargo/` or
-`tests/fuzz/jazzer/`; fast-check is property testing with generators we wrote.
+`tests/fuzz/jazzer/` (the Jazzer.js target `support_payload` fuzzes
+`parseSupportTurn`, which splits a completion into prose and a guide block but
+does not parse GuideLang); fast-check is property testing with generators we wrote.
 Unicode is asserted at the specific hazards, not exhaustively. Nothing here is
 in the `tools/mutation/stryker.config.json` mutation slice, so a surviving mutant in the
 parser would not currently fail a gate.
@@ -145,7 +157,9 @@ provider.
 This command runs the whole `apps/pages` suite. The parts belonging to this
 work are below.
 
-**The registries.** `tutorial/registry/catalog.test.ts` holds the invariants
+**The registries.** `catalog.test.ts` (in
+`packages/app-core/src/tutorial/registry/`, so run by
+`pnpm --filter @opensesame/app-core test`) holds the invariants
 that make the catalog safe to hand to a model: every control has a unique
 semantic id within budget, every target is scoped to routes the route registry
 actually declares, every cited capability exists in the ADR 0065 registry, and
@@ -159,7 +173,7 @@ duplicate for an ordinary mount and unmount, refuses the same element twice,
 refuses an id the catalog never declared, resolves a target to whichever
 candidate is visible, and does not call a hidden control mounted.
 
-`tutorial/registry/context.test.ts` covers the one input the context builder is
+`context.test.ts` (same directory) covers the one input the context builder is
 handed: a registered route passes through unchanged, a route the registry does
 not declare is refused and reduced to `/vault`, and targets and goals are scoped
 to the corrected route rather than the supplied one. These cases exist because
@@ -167,14 +181,14 @@ the adversarial sweep found `route` arriving as a caller-supplied string that
 the egress sanitizer bounded in length but never checked for membership —
 correct only because the single live caller happens to pass a total function.
 
-`tutorial/registry/predicates.test.ts` proves every predicate is declared
+`predicates.test.ts` (same directory) proves every predicate is declared
 exactly once, that re-declaring is safe, that each one answers a boolean **while
 the vault is locked** (a predicate that threw would take a guide down with it),
 that location is reported through the route registry rather than the raw path,
 that connections report only a count and never anything named, and that an
 undeclared id is refused.
 
-`tutorial/registry/instrumentation.test.tsx` renders the instrumented screens
+`apps/pages/src/tutorial/registry/instrumentation.test.tsx` renders the instrumented screens
 and asserts the bindings actually attach — the connector catalog, its search
 field, the custom-connector link, the connected panel, the health verdict and
 its findings, the two authority planes on the statusline, the core connections
@@ -397,7 +411,7 @@ sweep as the other agent surfaces, and that has not been done.
 the support panel or for a highlighted control, so a visual regression in the
 overlay would not be caught — and `tests/visual-contract` is where the
 browser-driven half that `reflow.test.tsx` cannot cover would go: legibility at
-320 CSS pixels, behaviour at 400% zoom, and whether the popover actually lands
+320 CSS pixels, behaviour at 400% zoom, and whether the card actually lands
 beside the control it names.
 
 **No coverage or mutation figure is claimed for the new packages.**
@@ -410,12 +424,14 @@ updated here because the gate was not run.
 
 **No fuzz target exists for the GuideLang parser.** It is the obvious
 candidate — a small, dependency-free, all-or-nothing parser sitting directly on
-untrusted input — and `tests/fuzz/jazzer` is where a Jazzer.js target would go.
+untrusted input — and `tests/fuzz/jazzer` is where a Jazzer.js target would go
+(`support_payload` there covers `parseSupportTurn` and
+`redactSupportQuestion`, not `parseGuide`).
 
 **jsdom is not a browser.** It computes no layout, so geometry, focus-ring
-rendering and whether a highlight is actually visible where the popover claims
-are all unproven. The XSS suite's value is that it runs the real library's
-markup sink, not that it renders like Chrome.
+rendering and whether a highlight is actually visible where the card claims
+are all unproven. The inertness suite's value is that it drives hostile model
+output through the real chain to the real card, not that it renders like Chrome.
 
 **Accessibility is asserted by behaviour, not audited by a tool or a person.**
 The suites cover naming, landmarks, labelling, focus containment and
@@ -425,7 +441,7 @@ automated rule sweep — there is no axe-style audit — and verification with a
 real screen reader in a real browser: asserting a live region exists and
 carries the right words is not the same as hearing the order and timing of what
 is actually spoken as a highlight moves. Colour contrast of the overlay and the
-popover is also unmeasured.
+card is also unmeasured.
 
 **Offline behaviour is covered by construction, not by an offline test.** The
 no-model path is exercised (`answers an authored topic with no model at all`),

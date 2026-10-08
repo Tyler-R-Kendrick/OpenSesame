@@ -1,5 +1,63 @@
 # Claimable connection delegation — design analysis
 
+> Status (2026-10-08): the design in §3 is largely built, and the inventory in
+> §1.2 and §1.3 is a snapshot from the date of
+> [ADR 0044](../adr/0044-claimable-connection-delegation.md) (2026-08-19), so
+> its "Today" columns and line anchors predate that work. (ADR 0044 and
+> [ADR 0046](../adr/0046-relayed-execution-and-authorization-inbox.md) still read
+> "Proposed" although the code below exists.) In the checkout now:
+>
+> - **Built.** `crates/storage/migrations/0012_connection_delegations.sql` holds
+>   the three tables of §3.1 (plus `code_attempts`, `execution_mode` and ADR
+>   0046's `relay_requests`). `crates/connection-broker/src/delegation.rs` mints
+>   offers (per-item attenuation against the owner grant, and a refusal of
+>   `Shareability::Private`), treats present as the one spend point, claims,
+>   revokes and narrows, and spends a budget atomically. It burns an offer, and
+>   revokes every delegation in its set, on a second presentation or at five
+>   wrong user codes. `crates/gateway/src/routes/delegations.rs` serves
+>   `POST` and `GET /api/v1/delegations`, `POST …/present`, `POST …/claim`,
+>   `GET …/offers`, `DELETE …/offers/{id}`, `DELETE …/{id}` and
+>   `POST …/{id}/narrow`. `routes/intents.rs` resolves the submitted
+>   `connection_ref` (a delegate invokes only through a live delegation, at L1,
+>   with `delegation_chain` set to the parent and child grant) and
+>   `routes/intents_enforcement.rs` runs `authorize_authority_use_enforced`, so
+>   §1.3 gaps 1 and 2 are closed for `POST /api/v1/intents` (the task invoke
+>   path, `POST /api/v1/tasks/invoke` in `routes/tasks.rs`, still runs against
+>   the bootstrap grant and `demo-conn`). The audit allowlist now carries
+>   `delegationId` and `connectionId` (gap 4), the identity-plane claim and
+>   provisional-session stores are database-backed when a database is configured
+>   (`packages/control-plane/src/repos/durable-claim-store.ts`, `security-maps.ts`;
+>   gap 3), and
+>   `docs/architecture/claims.md` no longer says completion writes the outbox
+>   atomically (gap 5).
+> - **Built differently.** The claim body is `{claim_token, user_code,
+>   accepted_item_ids}`; the claimant is the session's subject, with no
+>   `claimant_assertion`, `proof_jwk`, `intended_claimant` or `claimant_kind`,
+>   and `claimant_instance_jkt` is written as NULL, so proof-key binding is
+>   still unverified. There is no `POST /api/v1/connections/{id}/delegations`
+>   route and no `…/sets/{offer_id}` route: `DELETE …/offers/{id}` revokes the
+>   offer and every delegation in its set. The child grant comes from
+>   `child_grant_from` (`delegation_helpers.rs`) checked by
+>   `Grant::validate_attenuation`; `crates/grants::delegate` has no production
+>   caller (only the fuzz harness in `tests/fuzz/cargo`).
+> - **Not built.** The identity-plane projection: no outbox event, no writer for
+>   the `delegations` table, no producer of `connection` claim sessions, and
+>   `connection.delegated` is still in `FutureDomainEventType`
+>   (`packages/os-domain/src/types.ts:816`); the gateway records its own
+>   `connection_events` kinds instead. `ConnectionPolicy.maximum_delegation_depth`,
+>   `permitted_actor_kinds`, `permitted_audiences` and `consent_subject_id`
+>   (`crates/domain/src/connection.rs:39-43`) are read by nothing outside tests.
+>   Provider-level attenuation (§3.3, Phase 4) is not wired into delegation. No
+>   client in `apps` or `packages` calls `POST /api/v1/delegations` to mint;
+>   `packages/api-client/src/delegations.ts` lists, narrows and revokes.
+> - **Hosting changed.** The standalone ceremonies app, the console and its
+>   `ClaimPage` no longer exist ([ADR 0140](../adr/0140-pages-hosts-every-ceremony.md)).
+>   `/delegate` is a Pages alias into Join a session
+>   ([ADR 0136](../adr/0136-join-a-session-restored.md)), which looks an invite
+>   up with `POST /api/v1/delegations/present` and claims with `…/claim`
+>   (`packages/app-core/src/lib/join/client.ts`). Read §3.6, §6 and §7's console
+>   and ceremonies-app references accordingly; the PWA is `apps/pages`.
+
 Companion to [ADR 0044](../adr/0044-claimable-connection-delegation.md).
 This document records the research behind the decision: what exists in the
 codebase today (with anchors), what the standards and competing products
@@ -15,24 +73,27 @@ receipted, and without any underlying token ever moving.**
 
 ## 1. Current-state inventory
 
+§1.1 is checked against the checkout. §1.2 and §1.3 describe 2026-08-19; see the
+status note above for what has changed.
+
 ### 1.1 What already exists and is load-bearing
 
 | Capability | Where | State |
 |---|---|---|
-| Sealed connector credentials, AAD-bound to `(connection_id, organization_id)` | `crates/connection-broker/src/crypto.rs` (XChaCha20-Poly1305, AAD `opensesame:connection:v1:{cid}:{oid}`), `crates/storage/migrations/0002_connections.sql` | Built |
-| ConnectionRef agent surface, "no token crosses the API boundary" | `crates/domain/src/authority.rs:97` (`ConnectionRef`), `crates/connection-broker/src/model.rs:227` (`ConnectionView.connection_ref`), ADR 0005/0032 | Built |
-| Grant attenuation + delegation chains | `crates/domain/src/grant.rs:78` (`validate_attenuation`: refuses cross-org, depth ≠ parent+1, lifetime/action/resource/audience/budget/export widening), `crates/domain/src/delegation_chain.rs` (contiguity, cycle, `beneficiary[i] == issuer[i+1]`), `crates/grants/src/lib.rs:3` (`delegate()`) | Built, Rust domain only |
+| Sealed connector credentials, bound to `(connection_id, organization_id)` | `crates/connection-broker/src/crypto.rs` (fresh XChaCha20-Poly1305 data keys wrapped under context-derived keys; the length-prefixed context names `"connection"`, the connection id and the organization id; the old `opensesame:connection:v1:{cid}:{oid}` AAD is read-only), `crates/storage/migrations/0002_connections.sql` | Built |
+| ConnectionRef agent surface, "no token crosses the API boundary" | `crates/domain/src/authority.rs:99` (`ConnectionRef`), `crates/connection-broker/src/model.rs:258` (`ConnectionView.connection_ref`), ADR 0005/0032 | Built |
+| Grant attenuation + delegation chains | `crates/domain/src/grant.rs:89` (`validate_attenuation`: refuses cross-org, depth ≠ parent+1, lifetime/action/resource/audience/budget/export widening), `crates/domain/src/delegation_chain.rs` (contiguity, cycle, `beneficiary[i] == issuer[i+1]`), `crates/grants/src/lib.rs:7` (`delegate()`, which only the fuzz harness calls) | Built, Rust domain only |
 | Claim-session ceremony (peppered tokens, user codes, CAS state machine, idempotent complete) | `packages/claims/src/engine.ts`, `packages/os-domain/src/crypto/claim-token.ts`, `packages/control-plane/src/routes/claims.ts`; Rust twin `crates/claims/src/lib.rs` | Built |
-| Guest/anon principals with later claim | `packages/control-plane/src/routes/principals.ts:70` (`POST /v1/principals/provisional`, `pst_` bearer, quota-fenced), identity linking preserves the principal id | Built |
+| Guest/anon principals with later claim | `packages/control-plane/src/routes/principals.ts:75` (`POST /v1/principals/provisional`, `pst_` bearer, quota-fenced), identity linking preserves the principal id | Built |
 | Device-flow claim codes (RFC 8628), twice | `packages/oauth-provider` + `packages/device-auth`; gateway `crates/gateway/src/routes/device.rs` | Built |
 | Task-scoped authority: ceilings, ratchet, frozen intents | `crates/domain/src/task.rs`, `crates/broker/src/frozen.rs` (`assert_grant_covers_frozen_intent`), ADR 0018/0019/0020/0021/0027 | Built |
-| Signed invocation receipts carrying `delegation_chain` | `crates/domain/src/receipt.rs:18`, `assert_no_secret_leak` | Built (chain always empty today) |
+| Signed invocation receipts carrying `delegation_chain` | `crates/domain/src/receipt.rs:31`, `assert_no_secret_leak` | Built (the chain was always empty on 2026-08-19; delegated invocations now fill it) |
 | Hash-chained audit trail with redaction allowlist | `packages/audit/src/chain.ts`, `packages/audit/src/redact.ts` | Built |
-| GitHub App installation tokens (repo/permission-attenuated, ≤ 1 h) | `crates/connection-broker/src/installation.rs` (`mint_installation_token`), ADR 0039 backup actor | Built for backup only |
+| GitHub App installation tokens (repo/permission-attenuated, ≤ 1 h) | `crates/connection-broker/src/installation.rs` (`mint_installation_token`), ADR 0039 backup actor, ADR 0049's `mint_derived_token` (default deny) | Built; not per-delegation |
 
 ### 1.2 Modeled-but-unwired seams (the feature mostly connects these)
 
-| Seam | Anchor | Today |
+| Seam | Anchor | On 2026-08-19 |
 |---|---|---|
 | `claim_sessions.type = 'connection'`, `claim_items.requested_action = 'delegate'` | `packages/database/src/schema/index.ts:500,575` | Vocabulary only; no producer ever creates connection claims or any `claim_items` at all |
 | `claim_sessions.requested_grant` / `requested_destination` | same | Stored, echoed, never interpreted |
@@ -235,7 +296,8 @@ becomes *somebody*:
   allowed-actions list gains `connection.claim_delegation`. Because
   identity upgrade preserves the principal id, a guest who later links a
   real identity keeps the delegation — the same "claim it later, lose
-  nothing" story the PWA already tells (`apps/pwa/src/App.tsx:146`).
+  nothing" story the app already tells (`packages/app-core/src/lib/guest-auth.ts`,
+  the `guest_claim` notice; ADR 0033).
 - **Agent**: registers (or already has) an `agent_instance` with
   `publicKeyJkt`; the claim binds to that key.
 
@@ -274,7 +336,8 @@ marked members optional at mint. Then:
 
 On success the gateway, in **one transaction covering every accepted
 item**: re-verifies the manifest digest, mints one child `Grant` per
-item via `crates/grants::delegate(parent, child)` (which enforces
+item via `crates/grants::delegate(parent, child)` (as built,
+`child_grant_from` checked by `Grant::validate_attenuation`; either enforces
 attenuation + depth against that connection's owner grant), writes the
 `connection_delegations` rows (all sharing `offer_id` as their set id),
 writes a `connection_bindings` row per connection
@@ -501,6 +564,13 @@ records found-and-fixed vulnerabilities, not designs.
 
 ## 6. Phased implementation plan
 
+Status (2026-10-08): Phases 0 and 1 are built apart from the task invoke path
+(still on `demo-conn`), the identity-plane outbox event and the
+`ConnectionPolicy` depth and actor-kind checks. Phase 2 is built as Pages'
+Join ceremony, without the claimant assertion or proof-key verification. Phases 3 and 4 are not built (no delegation example in
+`examples/agent`, no agent-card capability, no jkt-verified agent claim, no
+per-delegation installation token). See the status note at the top.
+
 **Phase 0 — prerequisites (independently valuable).**
 Resolve submitted `connection_ref` in `routes/intents.rs` /
 `routes/tasks.rs` instead of `demo-conn`; route the invoke path through
@@ -516,8 +586,9 @@ revoke_delegation / revoke_delegation_set / list_delegations_for`;
 per-item mint validation (ownership, `Shareability`,
 `maximum_delegation_depth`, attenuation, dependency cycle check) with
 whole-mint failure on any ineligible item; `EventKind::Delegated`; child
-grants via `crates/grants::delegate`, one per accepted item in one
-transaction; the synchronous budget decrementer (fail-closed);
+grants via `crates/grants::delegate` (as built, `child_grant_from` +
+`validate_attenuation`), one per accepted item in one transaction; the
+synchronous budget decrementer (fail-closed);
 delegate-aware subject→grant resolution + binding-level
 `min(max_invoke_level)`; receipts populate `delegation_chain`. Tests:
 attenuation refusals, spend-once race (two concurrent claims, one 410),

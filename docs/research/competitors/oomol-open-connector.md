@@ -21,7 +21,7 @@ Deployments: self-host (Docker/Node), Cloudflare Workers, or OOMOL hosted.
 |-----------|----------------|
 | Category | Agent SaaS connector gateway (OSS) |
 | Trust model | Gateway-held credentials; runtime tokens for agents |
-| Sync | SQLite / D1 / hosted control plane |
+| Sync | SQLite / PostgreSQL / D1 / hosted control plane |
 | Agent story | Primary — MCP + Actions catalog |
 | License | Apache-2.0 (upstream) |
 
@@ -44,8 +44,8 @@ Deployments: self-host (Docker/Node), Cloudflare Workers, or OOMOL hosted.
 - Full **authorization fabric**: Identity plane, device login, receipts, policy
   (AuthZEN/OpenFGA), sealed human store — not only SaaS Actions.
 - Host/client product topology and ConnectionRef as the durable contract.
-- Git sealed store + capability connectors (encryption/history) for secrets
-  that are not SaaS Actions.
+- Git sealed store, vault key protectors and a git history capability for
+  secrets that are not SaaS Actions.
 - Polyglot WIT/Wasm core; Open Connector is primarily a Node/TS gateway.
 
 ## OpenSesame mapping

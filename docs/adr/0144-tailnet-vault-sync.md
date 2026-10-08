@@ -3,6 +3,9 @@
 - Status: Accepted
 - Date: 2026-09-24; amended 2026-10-05 (items 11–18: stock Chrome, field
   merge, passwords, projects, attachments, CLI, the tombstone horizon)
+- Amended by: [ADR 0169](0169-tailnet-device-management.md) (the daemon
+  surfaces Pages may speak to gain a fourth: the tailnet device routes of a
+  paired daemon)
 - Amends: [ADR 0128](0128-pages-without-host.md) (Pages no longer speaks
   Host) with a third, bounded exception: the tailnet vault drive
 - Builds on: [ADR 0063](0063-encrypted-vfs-tombs.md) (every

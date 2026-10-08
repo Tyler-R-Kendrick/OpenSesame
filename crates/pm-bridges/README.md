@@ -13,7 +13,9 @@ under its name.
 
 - **Used by:** [`apps/cli`](../../apps/cli) (`opensesame bridge …` installs
   native-messaging manifests, probes the KeePassXC socket, opens the pairing
-  window) through the library's `conflict`, `manifest` and `now_unix`.
+  window) through the library's `conflict`, `manifest` and `now_unix`, and
+  `apps/cli/src/entry.rs` runs the bridge programs in `entry` when `opensesame`
+  is started under a bridge's name.
 - **Builds on:** [`opensesame-sealed-store`](../../crates/sealed-store) only;
   `crypto_box` for the `keepassxc` feature.
 - No network listener. A native-messaging host speaks over the stdio pipe the
@@ -25,12 +27,16 @@ under its name.
 
 ## Surface
 
-| Cargo feature | Name | Protocol |
+| Cargo feature | Link name | Protocol |
 |---|---|---|
 | `browserpass` | `opensesame-browserpass-host` | browserpass native messaging: `configure`, `list`, `fetch`, `echo`; no write verbs |
 | `gopass` | `opensesame-gopass-jsonapi` | gopass-jsonapi native messaging (`query`, `queryHost`, …) |
 | `keepassxc` | `opensesame-keepassxc-bridge` | keepassxc-protocol, as a native host or `serve [--socket PATH] [--takeover]` on the socket `keepassxc-proxy` dials |
 | `secret-service`, `webdav` | — | Declared; nothing is gated on them yet |
+
+The link names are not cargo binaries: this crate declares no `[[bin]]`, and
+`opensesame helpers link` creates each name as a link to `opensesame`, which
+runs the matching `entry` program.
 
 A default build compiles only the shared library: `framing` (native-messaging
 stdio framing), `store` (`StoreAccess`, URL search), `pairing` (public keys and

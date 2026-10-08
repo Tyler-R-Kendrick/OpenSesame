@@ -9,15 +9,16 @@ level, and the directory a project lives in says what kind of thing it is.
 ```text
 apps/          deployable products and services (Rust binaries and TypeScript apps)
 crates/        Rust libraries                          → Cargo workspace members
-packages/      TypeScript libraries (@opensesame/*)    → pnpm workspace members
-examples/      runnable integrations built only on public SDKs
+packages/      TypeScript libraries and services (@opensesame/*) → pnpm workspace members
+examples/      runnable integrations that use OpenSesame from the outside, through its SDKs
 marketplace/   vault item-type definitions (built-in + installable)
 spec/          language-neutral contracts both planes compile against
 tests/         cross-cutting test suites and shared fixtures
 tools/         development tooling: lint plugins, quality baselines, dev servers
-scripts/       the scripts behind `pnpm <task>`: quality/, audit/, fuzz/, test/, mtls/, release/, dev/
+scripts/       the scripts behind `pnpm <task>`: quality/, audit/, fuzz/, test/, mtls/, security/, wallet/, release/, dev/, shared logic in lib/
 ops/           deployment references, repo governance, scheduled routines
 skills/        agent skills (also exposed through .agents/skills)
+patches/       pnpm patches applied to third-party dependencies
 docs/          documentation
 ```
 
@@ -25,13 +26,13 @@ Dot-directories hold tool configuration that tools look up by name:
 `.github/` (CI), `.githooks/` (local hooks), `.devcontainer/`, `.cargo/`,
 `.opensesame/` (this repository's item-type marketplace index), and the
 agent/editor directories `.agents/`, `.claude/`, `.codex/`, `.cursor/`,
-`.impeccable/`, `.deepsec/`.
+`.grok/` (the task-swarm workflow), `.impeccable/`, `.deepsec/`.
 
 ## The three planes in the tree
 
 | Plane | Language | Runs | Lives in |
 |---|---|---|---|
-| **Host / authority** — authorize, invoke, receipt | Rust | Host API `crates/gateway`, daemon `crates/daemon`, host CLI `apps/cli`, helpers `crates/credential-helpers`, bridges `crates/pm-bridges` | `crates/*` (54 libraries), facade `crates/host-core` |
+| **Host / authority** — authorize, invoke, receipt | Rust | Host API `crates/gateway`, daemon `crates/daemon`, worker `crates/worker`, host CLI `apps/cli`, helpers `crates/credential-helpers`, bridges `crates/pm-bridges` | `crates/*` (66 crates), facade `crates/host-core` |
 | **Identity** — who someone is | TypeScript | Identity API `packages/control-plane` and its worker `packages/identity-worker`; its ceremonies are Pages routes ([ADR 0140](../adr/0140-pages-hosts-every-ceremony.md)) | `packages/os-domain`, `oauth-provider`, `auth-upstream`, `claims`, `database`, `policy` |
 | **Client** — a person's device | TypeScript (+ Rust→Wasm) | Pages PWA `apps/pages`, extension `apps/browser-extension`, client CLI `packages/cli`, MCP servers `packages/mcp-*` (served by `opensesame-id mcp`) | `packages/app-core`, `packages/vault-core`, `packages/api-client`, `crates/client-core` |
 
@@ -60,14 +61,16 @@ worlds, the Host OpenAPI, the OpenFGA model) and in `packages/os-domain` /
 
 ## Rules that follow from the layout
 
-These are enforced by gates, not by convention; the full list is in
+Most of these are enforced by gates, not by convention; the full list is in
 [`AGENTS.md` §5](../../AGENTS.md#5-design-rules-that-gate-merges).
 
 - **`packages/os-domain` imports no framework** — no Better Auth,
-  oidc-provider, Hono, Drizzle or React.
-- **`packages/app-core` and `packages/vault-core` reach into no app** and read
-  no platform global outside their `browser/`, `node/` or `sandbox/` host
-  adapters (`pnpm quality:app-core`).
+  oidc-provider, Hono, Drizzle or React. Review holds this one; no gate scans
+  for it.
+- **`packages/app-core` and `packages/vault-core` reach into no app**, load no
+  React and read a browser global only through a port: app-core's `browser/`
+  host and worker entries, and none at all in vault-core
+  (`pnpm quality:app-core`).
 - **No dependency cycles, no undeclared workspace imports** between packages or
   crates (`pnpm quality:packages`).
 - **A source file stays under 400 lines**, and complexity is ratcheted against
@@ -85,7 +88,7 @@ These are enforced by gates, not by convention; the full list is in
 | A TypeScript library | `packages/<name>/` with `package.json` named `@opensesame/<name>`, `tsconfig.json` extending `../../tsconfig.base.json`, and `typecheck` + `test` scripts. |
 | A Rust library | `crates/<name>/` with package name `opensesame-<name>`, `version.workspace = true`, and an entry in the root `Cargo.toml` `members`. |
 | A deployable app | `apps/<name>/`. TypeScript apps are picked up by `apps/*` in `pnpm-workspace.yaml`; Rust apps need a `Cargo.toml` `members` entry. |
-| An example | `examples/<name>/` with a `README.md` and a package named `@opensesame/example-<name>`. It may depend only on published SDK packages. |
+| An example | `examples/<name>/` with a `README.md` and a package named `@opensesame/example-<name>`. It uses the public SDKs and shared contract packages, never an app's source. |
 | A test suite spanning packages | `tests/<name>/`, plus a line in `pnpm-workspace.yaml` if it is a TypeScript package. |
 | A vault item type | A JSON file in `marketplace/item-types/` — see [the marketplace guide](../../marketplace/README.md). |
 | A user-facing capability | A `packages/capability-registry` entry mapping it onto every agent surface ([ADR 0065](../adr/0065-agent-surface-parity.md)), and for optional features the five pieces in [ADR 0130](../adr/0130-operator-controlled-capability-composition.md). |

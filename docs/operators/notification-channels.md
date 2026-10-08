@@ -1,6 +1,6 @@
 # Notification channels and approval ceremonies
 
-Operator guide for ADR 0081. How to configure where people are told about
+Operator guide for [ADR 0084](../adr/0084-external-authorization-notifications.md). How to configure where people are told about
 authorization requests, and what each channel can and cannot be trusted to do.
 
 ## The one rule
@@ -65,7 +65,7 @@ channel can meet. Every shipped default policy has that list empty.
 adapters declare `canRenderDecisionActions: false`, and the policy normalizer
 strips them from `directApprovalChannels` even if an operator writes them in.
 
-### Why three channels cannot approve
+### Why Teams, WeChat and SMS cannot approve
 
 - **Teams** — inbound action provenance requires a Bot Framework channel with a
   publicly reachable messaging endpoint and Entra token validation. Accepting an
@@ -99,6 +99,30 @@ An unconfigured adapter is reported as unconfigured everywhere — in
 `GET /v1/notification-channels`, in the effective-route response's `excluded`
 list, and on the settings screen. It is never presented as working.
 
+The subsections below describe each adapter's configuration
+(`packages/notification-adapters/src/adapters/`). What a process builds from its
+environment today is narrower:
+
+- **Web Push** — the Identity API and the identity worker, from the
+  `OPENSESAME_WEBPUSH_*` variables below. It is the only adapter the worker
+  builds.
+- **Slack** — the Identity API verifies Slack interaction callbacks at
+  `POST /v1/notification-callbacks/slack` when `OPENSESAME_SLACK_SIGNING_SECRET`
+  is set. No variable carries a bot token, so no process delivers to Slack.
+- **Telegram** — `OPENSESAME_TELEGRAM_WEBHOOK_SECRET` is read, but the callback
+  adapter is built only from a bot token and webhook secret that the Identity
+  API's configuration does not carry, so none is constructed.
+- **SMS** — `OPENSESAME_SMS_BRIDGE_URL`, `OPENSESAME_SMS_BRIDGE_SECRET` and
+  optionally `OPENSESAME_SMS_SENDER_ID`. The Identity API uses it only to send
+  the one-time second-step code.
+- **Teams, WeChat, generic webhook** — adapters in the package; no process in
+  this checkout builds them from its environment.
+
+`OPENSESAME_NOTIFICATION_CHANNELS` lists the channels the Identity API offers,
+and `OPENSESAME_DIRECT_APPROVAL_CHANNELS` / `OPENSESAME_DIRECT_DENIAL_CHANNELS`
+name the ones allowed to settle by provider callback (both empty by default;
+unknown names are dropped).
+
 ### Slack
 
 Create a Slack app in your workspace with the bot scopes needed to DM users.
@@ -107,7 +131,8 @@ Supply:
 - the **bot token** (`xoxb-…`) — delivery
 - the **signing secret** — inbound request verification
 
-Inbound interactions are verified with Slack's official v0 scheme: HMAC-SHA256
+Inbound interactions are verified (`OPENSESAME_SLACK_SIGNING_SECRET`) with
+Slack's official v0 scheme: HMAC-SHA256
 over `v0:{timestamp}:{raw body}`, compared in constant time against
 `x-slack-signature`, rejecting anything more than five minutes from now. The
 body is parsed only *after* that check passes. Identity is taken from `team.id`
@@ -133,10 +158,14 @@ token, timestamp and nonce). Notification and rendezvous only.
 
 ### SMS
 
-Supply a **bridge URL** you host and a **signing secret**. The adapter POSTs
-`{to, body}` signed as a Standard Webhook; your bridge verifies the signature
-and hands the message to whatever carrier or gateway you already use. Leave it
-unset and SMS stays unavailable.
+Supply a **bridge URL** you host and a **signing secret**
+(`OPENSESAME_SMS_BRIDGE_URL`, `OPENSESAME_SMS_BRIDGE_SECRET`). The adapter POSTs
+`{eventType, to, text}` (plus `senderId` when `OPENSESAME_SMS_SENDER_ID` is set)
+signed as a Standard Webhook; your bridge verifies the signature and hands the
+message to whatever carrier or gateway you already use. Leave it unset and SMS
+stays unavailable. For the second-step code the Identity API also accepts
+`OPENSESAME_TWILIO_ACCOUNT_SID`, `OPENSESAME_TWILIO_AUTH_TOKEN` and
+`OPENSESAME_TWILIO_FROM_NUMBER`, and prefers them to the bridge.
 
 ### Web Push
 
@@ -150,10 +179,10 @@ Apple) only ever carry ciphertext.
 pnpm --filter @opensesame/notification-adapters generate:vapid mailto:ops@example.com
 ```
 
-It prints the three lines below (the private key on stdout, so you can pipe it
-into a secret store; a reminder on stderr). Replacing the pair later invalidates
-every existing browser subscription, because browsers subscribe under the public
-key.
+It prints the three `NAME=value` lines named in the table below on stdout, so
+you can pipe them into a secret store; a reminder to keep the private key secret
+goes to stderr. Replacing the pair later invalidates every existing browser
+subscription, because browsers subscribe under the public key.
 
 **2. Set the environment.**
 

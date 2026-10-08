@@ -29,7 +29,7 @@ what goes over each wire, and what it is built on.
 | Page | Contents |
 |---|---|
 | [Foundations we reuse](reuse.md) | What OpenSesame builds on instead of reinventing, the pinned choice, and its license stance. |
-| [Identity-plane dependencies](identity-dependencies.md) | The Identity API's direct dependencies and why each is there. `pnpm generate:sbom` writes a CycloneDX SBOM. |
+| [Identity-plane dependencies](identity-dependencies.md) | The third-party libraries the Identity plane's packages build on and why each is there. `pnpm generate:sbom` writes a CycloneDX SBOM. |
 
 Command-line and API usage is documented where agents and people look for it:
 the [`skills/`](../../skills/README.md) directory has one guide each for the

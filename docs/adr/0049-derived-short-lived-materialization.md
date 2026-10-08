@@ -4,6 +4,8 @@ Status: Accepted
 Date: 2026-08-19
 Amends: ADR 0005 (Level 3 materialization), ADR 0032 §6 (credential
 material boundary); supplements ADR 0044 (delegation receipts)
+Amended by: [ADR 0138](0138-self-issued-identity-one-native-host.md) (Proposed, partly implemented; §4 here: the helpers become
+entry points of one binary).
 
 ## Context
 

@@ -11,7 +11,8 @@ required for this profile ([ADR 0116](../adr/0116-browser-native-siop-v2.md)).
 `VITE_BASE` set to the repository path. The consent route lives at
 `{origin}{base}identity/siop`. Cross-origin opener policy is `unsafe-none` only
 on that route and on `/identity/authorize` so an RP popup can retain
-`window.opener`; every other path stays `same-origin` with
+`window.opener`; every other path stays `same-origin` (bar the MSAL redirect
+bridge at `auth/redirect.html`, which carries no opener policy) with
 `Cross-Origin-Embedder-Policy: require-corp`.
 
 **Vercel** (or any static host) may serve the same artifact with hardened

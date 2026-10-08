@@ -1,7 +1,9 @@
 # ADR 0072 — Kubernetes cert-manager external issuer
 
-Status: Accepted
+Status: Accepted (not implemented; see Implementation)
 Date: 2026-08-30
+Implementation: not built. There is no `apps/k8s-issuer`, no
+`opensesame-k8s-issuer` crate and no deploy manifests in this checkout.
 Supplements: ADR 0017 (host/client topology), ADR 0048 §5 (dependency budget),
 ADR 0065 ([agent-surface parity](0065-agent-surface-parity.md)),
 ADR 0066 (Certificate Manager domain model),

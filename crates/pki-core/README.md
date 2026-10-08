@@ -2,7 +2,7 @@
 
 The provider-agnostic X.509 engine behind the Host certificate manager. It is a
 pure library with no HTTP surface, no database and no `axum`: everything the
-certificate-manager routes, the ACME/EST/SCEP servers and the renewal actor
+certificate-manager routes, the EST server and transport-certificate issuance
 need to make or read certificate material lives here, so each rule has one
 implementation, one set of bounds and one error taxonomy.
 

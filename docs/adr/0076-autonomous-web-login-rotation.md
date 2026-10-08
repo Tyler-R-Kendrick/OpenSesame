@@ -1,7 +1,19 @@
 # ADR 0076 — Autonomous web-login rotation through remote agent browsers
 
-Status: Proposed
+Status: Proposed (partly implemented; see Implementation)
 Date: 2026-08-31
+Implementation: partly built. The hosted web-login runner is
+`crates/gateway/src/web_login` (launch, registry, settle, reaper), with signed
+recipes in `crates/gateway/src/routes/web_login_recipes*` and
+`crates/rotation-web/src/recipe_doc`, the step IR and tool boundary in
+`crates/rotation-web`, the run table (`observation_runs`, migration
+`0021_web_login_observation.sql`) and the recipe and hook-record tables
+(migration `0050_web_login_runs.sql`). Every hosted run record is created at tier `t3`
+(`web_login/launch.rs`, `records.rs`): `t4` appears only in tests, and no
+code enforces the T4 one-time consent or per-domain opt-in of §2 (only comments
+name them).
+Amended by: [ADR 0150](0150-surrogate-credentials-at-the-last-hop.md) (§6.3,
+login-form substitution).
 Supplements: ADR 0005 ([ConnectionRef over SecretRef](0005-authority-handle-connectionref.md)),
 ADR 0021 ([frozen intent](0021-frozen-intent.md)), ADR 0037 (git-native sealed store),
 ADR 0039 ([event-driven backup](0039-event-driven-github-backup.md)),

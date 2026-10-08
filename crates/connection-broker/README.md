@@ -20,13 +20,16 @@ and sync targets, and the connector transport.
   [`opensesame-connection-detect`](../connection-detect) (credentials already on
   a machine), [`opensesame-rotation`](../rotation),
   [`opensesame-relay`](../relay), [`opensesame-invoke-through`](../invoke-through),
-  [`opensesame-task-bus`](../task-bus) and
+  [`opensesame-task-bus`](../task-bus),
+  [`opensesame-event-seal`](../event-seal) (sealed event and outbox rows) and
   [`opensesame-transport-security`](../transport-security) — the broker never
   builds a TLS stack of its own.
 - Egress injects sealed credentials and never returns them; credential-carrying
   uploads refuse redirects, so a token never reaches an unapproved origin.
-- Sealing is XChaCha20-Poly1305 with the connection and organization ids as
-  associated data: a ciphertext moved into another tenant's row does not open.
+- Sealing is a versioned envelope: a fresh XChaCha20-Poly1305 data key per
+  value, wrapped under a key HKDF-derived from the deployment key and the
+  record's context, with the connection and organization ids as associated
+  data — a ciphertext moved into another tenant's row does not open.
   Authorization-code flows always use PKCE S256, confidential clients included.
 - A provider the deployment cannot use is reported as unconfigured, naming the
   variables it wants — not hidden, and not offered as a button that fails.
@@ -40,7 +43,7 @@ and sync targets, and the connector transport.
 | Catalogue and config | `catalog` (loads [`spec/connectors/catalog.json`](../../spec/connectors/catalog.json), the one integration catalog; `tests/catalog_view.rs` writes its Host API view),  `config`, `custom_provider`, `configuration`, `integration`, `scope_ceiling` |
 | Acquire and hold | `flow` (PKCE), `token`, `crypto` (`seal` / `open`, `SealedBlob`), `store`, `store_backup` |
 | Use | `egress`, `transport*` (connector transport and client pools, ADR 0132) |
-| Rotate | `rotation`, `rotation_verify`, `rotation_egress` |
+| Rotate | `rotation` (its `rotation_web_login*` files hold the web-login job's claim and lifecycle), `rotation_verify`, `rotation_egress` |
 | Delegate | `delegation`, `delegation_helpers`, `delegation_lineage` |
 | GitHub | `github_app` (App Manifest flow), `installation` (installation tokens), `github_webhook_hmac`, `forge_token_probe` |
 | Project config | `secret_config`, `config_access`, `sync_target`, `changelog_hook` |

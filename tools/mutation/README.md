@@ -19,10 +19,10 @@ surviving mutant fails the run.
 
 | File | What it is |
 |---|---|
-| `stryker.config.json` | The main slice: redaction, URL trust boundaries, guest auth, the audit chain, identity linking, SIOP issuer and validity, the unlock duress gates, Pages keymap and tree motion. Runs related tests only (`vitest.related: true`). Report: `artifacts/mutation/typescript.json`. |
-| `vitest.mutation.config.ts` | The Vitest config the main slice runs under: every `apps/**/src` and `packages/**/src` test, repository root as `root`, Pages' `test-setup.ts`, `OPENSESAME_ALLOW_DEV_DEFAULTS=1` so Identity suites boot. |
+| `stryker.config.json` | The main slice: redaction and agent-payload fences, URL trust boundaries, guest auth, notices and certificates, the audit chain, identity linking, provisional policy, the agent-auth pages, SIOP issuer and validity, capability-composition closure and withdrawal, the unlock duress gates, Pages keymap and tree motion. Runs related tests only (`vitest.related: true`). Report: `artifacts/mutation/typescript.json`. |
+| `vitest.mutation.config.ts` | The Vitest config the main slice runs under: every `apps/**/src` and `packages/**/src` test plus `packages/**/tests/**/*.test.ts`, repository root as `root`, Pages' `test-setup.ts`, `OPENSESAME_ALLOW_DEV_DEFAULTS=1` so Identity suites boot. |
 | `stryker.duress.config.json` | The three duress-unlock modules in `packages/app-core/src/screens/unlock/`, against a fixed test set (`related: false`). Report: `artifacts/mutation/duress-unlock.json`. |
-| `vitest.duress-mutation.config.ts` | That fixed test set: the duress red-team suites in `packages/app-core/src/lib/duress/redteam/` and `apps/pages/src/lib/duress/redteam/gaps.honest.test.ts`. |
+| `vitest.duress-mutation.config.ts` | That fixed test set: five duress red-team suites in `packages/app-core/src/lib/duress/redteam/` (`unlock-gates`, `unlock-continue`, `unlock-duress.behavior`, `unlock-duress.pact`, `unlock-uv-prf.bridge`) and `apps/pages/src/lib/duress/redteam/gaps.honest.test.ts`. |
 
 ## Develop
 

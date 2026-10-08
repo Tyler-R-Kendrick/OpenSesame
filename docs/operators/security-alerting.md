@@ -15,8 +15,8 @@ tripwires are [ADR 0150](../adr/0150-surrogate-credentials-at-the-last-hop.md).
 
 | Family | Detects | Subject kinds |
 |--------|---------|---------------|
-| `lifecycle.*` | deadlines: certificates, CAs, brokered credentials, store paths, signers, web logins, session grants | every kind |
-| `breach.*` | a stored password in a public corpus; a provider that announced an incident; a corpus that could not be consulted | `store_path`, `connection_credential`, `source` |
+| `lifecycle.*` | deadlines: certificates, CAs, brokered credentials, store paths, signers, web logins, session grants, authority grants | every kind |
+| `breach.*` | a stored password in a public corpus; a provider that announced an incident; a corpus that could not be consulted | `store_path`, `connection_credential`, `domain`, `breach_source` |
 | `agent.*` | a sandboxed run rotating a web login: started, blocked, waiting for you, control taken and handed back, resumed, completed, failed | `web_login` |
 | `surrogate.*` | a surrogate credential refused by the broker: two in one request, one never issued, revoked, expired, presented by another process, sent to another host, sent over http, placed outside its declared site, used outside its method and path scope | `agent_run`, `surrogate_proxy` |
 
@@ -75,14 +75,14 @@ a human can find it. If you ship the gateway's logs anywhere, you are already
 collecting security events; `authpriv` is the facility, so most default syslog
 configurations route them somewhere more restricted than application logs.
 
-Both are ordinary subscription rows. They show up in `opensesame security` /
-`opensesame lifecycle hooks` alongside everything else, and you can disable
-either one — re-seeding never revives something you deliberately turned off.
+Both are ordinary subscription rows. They show up in
+`opensesame lifecycle hooks` (`GET /api/v1/security/hooks`)
+alongside everything else, and re-seeding never revives a row stored with
+`enabled: false`.
 
-Turning one off means `enabled: false`, not deleting it and not rewriting it:
-a deleted row is re-seeded on the next pass, and a `PUT` carrying a built-in's
-id is refused, because seeding only ever inserts and a rewritten row would
-never be restored.
+Seeding only ever inserts, so a deleted row is re-seeded on the next pass, and
+a `PUT` carrying a built-in's id is refused (`this subscription is a platform
+responder`). The API has no call that stores `enabled: false` on one.
 
 Set `OPENSESAME_HOSTNAME` to control the `HOSTNAME` field on those lines (in a
 container the kernel's idea of it is a random hex string), and
@@ -91,13 +91,15 @@ number; the default is 32473, which IANA reserves for examples.
 
 ## Routing to your own alerting
 
-Register a subscription per sink. Owner/admin session or the operator token.
+Register a subscription per sink. The caller is an owner/admin session
+(`Authorization: Bearer opaque-session:…`) or the operator token
+(`X-OpenSesame-Operator`, as below).
 
 ### Prometheus Alertmanager
 
 ```bash
 curl -sS -X PUT http://127.0.0.1:8787/api/v1/security/hooks \
-  -H "authorization: Bearer $OPENSESAME_TOKEN" \
+  -H "x-opensesame-operator: $OPENSESAME_OPERATOR_TOKEN" \
   -H 'content-type: application/json' \
   -d '{
     "name": "alertmanager",
@@ -118,7 +120,7 @@ if you front it with a proxy, pass a `secret` and it is sent as a bearer token.
 
 ```bash
 curl -sS -X PUT http://127.0.0.1:8787/api/v1/security/hooks \
-  -H "authorization: Bearer $OPENSESAME_TOKEN" \
+  -H "x-opensesame-operator: $OPENSESAME_OPERATOR_TOKEN" \
   -H 'content-type: application/json' \
   -d '{
     "name": "oncall",

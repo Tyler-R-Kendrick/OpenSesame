@@ -33,7 +33,9 @@ endpoints and OIDC discovery, and Hono (`src/app.ts`) serves the rest.
 | Area | Paths |
 |---|---|
 | Health | `/v1/health/live`, `/v1/health/ready` |
-| Discovery | `/auth.md`, `/.well-known/agent-card.json`, `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server` |
+| OIDC (oidc-provider) | `/auth`, `/token` (with `/token/introspection` and `/token/revocation`), `/me`, `/jwks`, `/device` (with `/device/auth`), `/session` (`/session/end`), `/reg`, `/request`, `/.well-known/openid-configuration` |
+| Discovery | `/auth.md`, `/.well-known/agent-card.json`, `/.well-known/agent-auth-jwks.json`, `/.well-known/oauth-protected-resource`, `/.well-known/oauth-authorization-server` |
+| Agent authentication | `/agent/identity`, `/agent/identity/claim`, `/agent/identity/claim/complete`, `/agent/identity/:id/revoke`, `/oauth2/token`, `/oauth2/revoke` |
 | Sign-in | `/v1/auth` (upstream), `/v1/federated`, `/v1/saml`, `/interaction` (oidc-provider slot), `/i` |
 | Principals and projects | `/v1/principals`, `/v1/projects`, `/v1/organizations` (domains, LDAP, SCIM) |
 | Authentication | `/v1/mfa`, `/v1/authentication`, `/v1/device`, `/v1/enrollment`, `/v1/siop` |
@@ -50,8 +52,13 @@ stores), `transport/` (optional mTLS listener and ingress evidence),
 Configuration is read in `src/config.ts`: port from
 `OPENSESAME_CONTROL_PLANE_PORT` (or `PORT`, default `8788`), plus
 `DATABASE_URL`, `OPENSESAME_ISSUER`, `OPENSESAME_CLAIM_PEPPER` and more; see
-[`.env.schema`](../../.env.schema). Local development needs
-`OPENSESAME_ENV=development` or `OPENSESAME_ALLOW_DEV_DEFAULTS=true`.
+[`.env.schema`](../../.env.schema). The deployment mode must be chosen
+explicitly with `OPENSESAME_ENV` (or `NODE_ENV`) set to `development`, `test`
+or `production`, and without `OPENSESAME_CLAIM_PEPPER` the Identity API
+refuses to start unless `OPENSESAME_ALLOW_DEV_DEFAULTS=1`. That opt-in is
+exactly `1` or `0` (`true` is an error) and is refused on a networked or
+production deployment; on a local-only one it also stands in for a missing
+`OPENSESAME_ENV`.
 
 ## Develop
 

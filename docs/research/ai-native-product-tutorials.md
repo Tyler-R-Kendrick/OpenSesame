@@ -1,5 +1,15 @@
 # AI-native product tutorials — ecosystem assessment
 
+> Status (2026-10-08): the Driver.js decision below was reversed.
+> [ADR 0163](../adr/0163-tutorial-mode.md) amended ADR 0088 §5: Driver.js is no
+> longer the rendering primitive and `driver.js` is no longer a dependency of
+> this repository. `CoachHud` (`apps/pages/src/tutorial/coach/`) draws each
+> step as a React card over the target registry, and the browser
+> `GuideRenderer` only scrolls the control into view. Everything else here
+> holds, including the `@ag-ui/client@0.0.59` pin
+> (`packages/app-core/package.json`) and the text-only rule (model text reaches
+> the page as a text node, now a React one, never as markup).
+
 Research input for [ADR 0088](../adr/0088-ai-native-contextual-support.md).
 This document records what the existing tools in this space actually do, what
 each one would have given us, and why it was or was not adopted. It is
@@ -124,7 +134,7 @@ synchronously when the vault locks, and has to be cancellable from outside any
 component — a lock is not a re-render. A renderer behind a port with an
 imperative `clear()` matches that; a component tree does not. The second
 reason is narrower: tying the rendering primitive to React would make the same
-guidance impossible to reuse from `apps/pwa` or a non-React surface later,
+guidance impossible to reuse from another shell or a non-React surface later,
 and the target registry is deliberately framework-neutral for that reason.
 
 ### Intro.js — not chosen
@@ -188,7 +198,8 @@ page registers named tools with JSON Schema inputs, and an agent that is
 present in the browser can call them. This repository already implements it —
 `packages/webmcp` wraps the API behind feature detection so it silently no-ops
 where unsupported, and `apps/pages` registers boot tools at mount and session
-tools only between unlock and lock (ADR 0065 §7). The API surface is still
+tools only between unlock and lock
+([ADR 0065](../adr/0065-agent-surface-parity.md) §7). The API surface is still
 in motion; the package tracks the current `document.modelContext` placement
 and keeps the older `navigator.modelContext` location working, because both
 exist in the wild and a page that binds to one of them is one Chrome release
@@ -209,7 +220,8 @@ approval dialog for them" there would be no structural reason to say no. Two
 channels with different powers is a boundary; one channel with a policy is a
 promise. So the support agent has its own contract
 (`packages/support-agent/src/contract.ts`) whose reply type has no field
-capable of carrying a tool call, and the WebMCP catalog gains only two
+the page ever executes as a tool call (`computer` carries step names for
+display only), and the WebMCP catalog gains only two
 ceremony-open tools: one that opens support on an authored topic, and one that
 starts an authored walkthrough by name and refuses GuideLang text outright. An
 agent may ask for a guide somebody wrote; it cannot write one, and it cannot

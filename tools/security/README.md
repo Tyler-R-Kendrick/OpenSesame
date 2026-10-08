@@ -24,7 +24,7 @@ finding.
 | File | What it is |
 |---|---|
 | `ast-grep-rules.yml` | Eleven error-level rules: SQL string formatting and shell command construction in Rust; `eval`, `innerHTML` (TS and TSX), `dangerouslySetInnerHTML`, `document.write`, web-storage writes (TS and TSX), `Math.random` and `child_process` exec in TypeScript. The browser-risk rules (innerHTML, web storage, `Math.random`) carry a test-file ignore list; the injection rules do not. |
-| `ast-grep-negative-control.md` | Four cases that show the rules can still fail and that the test-file scoping narrows the browser-risk rules without switching the injection rules off. Also lists the three production findings suppressed in place, and why. |
+| `ast-grep-negative-control.md` | Five cases that show the rules can still fail and that the test-file scoping narrows the browser-risk rules without switching the injection rules off. Also describes the production findings suppressed in place with `// ast-grep-ignore: <rule-id>`, and why. |
 | `gitleaks-negative-control.md` | How to plant generated, correctly shaped credentials and watch `pnpm audit:gitleaks` fail, and what each exemption in `.gitleaks.toml` costs: `// gitleaks:allow` must be trailing on the same line, and path entries are whole-file. |
 | `claude-review-checklist.md` | Nine sections of diff-checkable items (bind fences and CORS, fail-closed production paths, token and DPoP custody, CSRF, sealed-store integrity, log redaction, SSRF, quotas, audit chain and grant scope) plus the non-negotiables, each citing the security doc or audit it came from. |
 
@@ -35,12 +35,13 @@ pnpm audit:ast-grep       # needs ast-grep on PATH; fails on any error-level fin
 pnpm audit:gitleaks       # needs gitleaks on PATH
 ```
 
-The ast-grep gate scans `apps`, `crates` and `packages`, and the script also
-passes `--globs` that skip `*.test.*`, `*.spec.*` and snapshots. Output goes to a
-fresh mode-0700 directory outside the checkout, under `OPENSESAME_AUDIT_DIR` or
-`$TMPDIR`.
+The ast-grep gate scans `apps`, `crates` and `packages`, and the script passes
+`--globs '!**/__snapshots__/**'` to skip snapshots. Test files are skipped by the
+`ignores` list on the browser-risk rules in `ast-grep-rules.yml`, not by the
+scan. Output goes to a fresh mode-0700 directory outside the checkout, under
+`OPENSESAME_AUDIT_DIR` or `$TMPDIR`.
 
-After any change to `ast-grep-rules.yml`, run the four cases in
+After any change to `ast-grep-rules.yml`, run the five cases in
 `ast-grep-negative-control.md`; after any change to `.gitleaks.toml`, run the
 probe in `gitleaks-negative-control.md`. A new rule is a new document block in
 the YAML with `severity: error`. When a checklist item changes, cite the doc
