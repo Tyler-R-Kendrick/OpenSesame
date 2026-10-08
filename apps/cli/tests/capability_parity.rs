@@ -64,41 +64,86 @@ fn registry_cli_surfaces_exist_in_clap_sources() {
         .map(|s| s.to_ascii_lowercase())
         .collect::<Vec<_>>()
         .join("\n");
-    let registry = capabilities
-        .as_array()
-        .expect("capabilities.json is an array");
-    let mut missing = Vec::new();
-    for entry in registry {
-        let surfaces = entry
-            .get("surfaces")
-            .and_then(|v| v.as_object())
-            .expect("entry has surfaces object");
-        let Some(cli) = surfaces.get("cli") else {
+
+    let mut checked = 0usize;
+    let mut missing: Vec<String> = Vec::new();
+    for capability in capabilities.as_array().expect("registry is an array") {
+        let Some(cli) = capability["surfaces"]["cli"].as_str() else {
             continue;
         };
-        if cli.is_null() {
-            continue;
+        let mut tokens = cli.split_whitespace();
+        if tokens.next() != Some("opensesame") {
+            continue; // opensesame-id surfaces are checked by packages/cli.
         }
-        let cmd = cli
-            .get("command")
-            .and_then(|v| v.as_str())
-            .expect("cli surface has command string");
-        for token in cmd.split_whitespace() {
-            if token == "opensesame" {
-                continue;
-            }
+        for token in tokens {
+            checked += 1;
             if !has_word(&combined, token) {
                 missing.push(format!(
-                    "{}: missing `{}` in CLI sources",
-                    entry.get("id").and_then(|v| v.as_str()).unwrap_or("?"),
-                    token
+                    "{}: `{cli}` token `{token}` not found in CLI sources",
+                    capability["id"]
                 ));
             }
         }
     }
+
+    assert!(checked > 20, "registry lost its opensesame CLI surfaces");
     assert!(
         missing.is_empty(),
-        "capability registry lists CLI verbs absent from clap sources:\n{}",
+        "capability registry / CLI drift:\n{}",
         missing.join("\n")
     );
+}
+
+/// Verbs that are shell mechanics or another interface over capabilities the
+/// registry already holds, rather than capabilities of their own.
+const INTERFACE_VERBS: &[&str] = &["help", "completion"];
+
+/// The other direction: every top-level `opensesame` verb is a registry
+/// capability, so a verb cannot ship on the CLI without the registry — and
+/// with it every other target's column — knowing (ADR 0139).
+#[test]
+fn every_cli_verb_is_a_registry_capability() {
+    let help = std::process::Command::new(env!("CARGO_BIN_EXE_opensesame"))
+        .arg("--help")
+        .output()
+        .expect("opensesame --help runs");
+    let help = String::from_utf8(help.stdout).expect("help is UTF-8");
+    let verbs: Vec<&str> = help
+        .lines()
+        .skip_while(|line| !line.starts_with("Commands:"))
+        .skip(1)
+        .take_while(|line| line.starts_with("  "))
+        .filter_map(|line| line.split_whitespace().next())
+        .collect();
+    assert!(
+        verbs.len() >= 10,
+        "no commands in `opensesame --help`:\n{help}"
+    );
+
+    let capabilities: serde_json::Value =
+        serde_json::from_str(CAPABILITIES_JSON).expect("capabilities.json parses");
+    let registered: std::collections::BTreeSet<&str> = capabilities
+        .as_array()
+        .expect("registry is an array")
+        .iter()
+        .filter_map(|capability| capability["surfaces"]["cli"].as_str())
+        .filter_map(|cli| cli.strip_prefix("opensesame "))
+        .filter_map(|rest| rest.split_whitespace().next())
+        .collect();
+    let unregistered: Vec<&str> = verbs
+        .into_iter()
+        .filter(|verb| !registered.contains(verb) && !INTERFACE_VERBS.contains(verb))
+        .collect();
+    assert!(
+        unregistered.is_empty(),
+        "`opensesame` verbs with no packages/capability-registry entry: {unregistered:?}"
+    );
+}
+
+#[test]
+fn word_matching_rejects_substrings() {
+    assert!(has_word("connectcmd::ls {", "ls"));
+    assert!(!has_word("let value = false;", "ls"));
+    assert!(has_word("Rotate {", "rotate"));
+    assert!(!has_word("rotated_at", "rotate"));
 }

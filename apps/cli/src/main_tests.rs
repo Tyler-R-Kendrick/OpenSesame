@@ -1,6 +1,7 @@
 //! Unit tests of `main.rs`: argument helpers and private session writes.
 
 use super::*;
+use crate::private_file::write_private;
 
 #[test]
 fn a_written_session_is_never_readable_by_anyone_else() {

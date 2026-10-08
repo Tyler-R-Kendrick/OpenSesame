@@ -24,7 +24,7 @@ mod vault_migration;
 use clap::{Parser, Subcommand, ValueEnum};
 use dev_run::{dev_cmd, DevCmd};
 use init_schema::init_schema;
-use private_file::{write_private, write_private_new};
+use private_file::write_private_new;
 use serde_json::json;
 use std::path::PathBuf;
 #[derive(Parser, Debug)]
@@ -505,8 +505,8 @@ async fn real_main() -> anyhow::Result<()> {
         Commands::Session => session::enter()?,
         Commands::Vault { cmd } => vault_area::run(&cli.output, cmd).await?,
         Commands::Ceremony { cmd } => match cmd {
-            CeremonyCmd::List => ceremony::cmd_list(&cli.output),
-            CeremonyCmd::Show { provider } => ceremony::cmd_show(&cli.output, &provider),
+            CeremonyCmd::List => ceremony::cmd_list(&cli.output)?,
+            CeremonyCmd::Show { provider } => ceremony::cmd_show(&cli.output, &provider)?,
         },
         Commands::Rotate { cmd } => rotate_local::run(cmd)?,
         Commands::ConfigFiles { schema } => {
@@ -537,6 +537,15 @@ async fn real_main() -> anyhow::Result<()> {
         Commands::Helpers { cmd } => entry::helpers(cmd)?,
         Commands::Plugins { cmd } => plugins::run(&cli.output, cmd).await?,
         Commands::Hooks { cmd } => hooks::run(cmd).await?,
+    }
+    Ok(())
+}
+
+pub(crate) fn print_output(output: &str, value: &serde_json::Value) -> anyhow::Result<()> {
+    if output == "json" {
+        println!("{}", serde_json::to_string_pretty(value)?);
+    } else {
+        println!("{value}");
     }
     Ok(())
 }
