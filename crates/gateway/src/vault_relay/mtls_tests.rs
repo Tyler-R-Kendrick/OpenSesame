@@ -2,14 +2,19 @@
 
 use std::net::SocketAddr;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use std::sync::Mutex;
+
+use rustls::pki_types::pem::PemObject;
+use secrecy::ExposeSecret;
 
 use axum::http::StatusCode;
+use chrono::{Duration, Utc};
 use opensesame_domain::transport::{
     operations, BindingPurpose, BindingScope, PeerIdentitySelector, ServiceBinding,
     ServiceBindingSet, TrustProfileRef,
 };
-use opensesame_transport_security::testkit::{DisposableCa, IssuedLeaf};
+use opensesame_transport_security::testkit::{DisposableCa, IssuedLeaf, LeafSpec, SanEntry};
 use opensesame_transport_security::{
     reqwest_builder, ClientProfile, ServerNamePolicy, TrustBundle,
 };
@@ -204,4 +209,137 @@ async fn uncertified_peer_is_refused_and_certificated_peer_syncs() {
     assert_eq!(read.status(), StatusCode::OK);
     let payload = read.json::<serde_json::Value>().await.expect("json");
     assert_eq!(payload["generation"], 1);
+}
+
+fn client_leaf(ca: &DisposableCa, dns: &str) -> IssuedLeaf {
+    ca.issue_client(PeerIdentitySelector::DnsName(dns.into()))
+}
+
+async fn put_slot(
+    http: &reqwest::Client,
+    addr: SocketAddr,
+    slot_key: &str,
+) -> Result<reqwest::Response, reqwest::Error> {
+    let body = json!({ "expected_generation": 0, "snapshot": snapshot("prj_sync") });
+    http.put(url(addr, "/v1/vault-relay/ada/personal/snapshot"))
+        .header("x-opensesame-slot-key", slot_key)
+        .header("x-opensesame-principal", "ada")
+        .header("x-opensesame-owner-kind", "user")
+        .json(&body)
+        .send()
+        .await
+}
+
+/// Build a client from raw PEM so an expired leaf still reaches the relay
+/// listener. `TlsIdentity` refuses that leaf before a handshake.
+fn raw_client(pki: &Pki, addr: SocketAddr, leaf: &IssuedLeaf) -> reqwest::Client {
+    let chain = rustls::pki_types::CertificateDer::pem_slice_iter(&leaf.cert_pem)
+        .collect::<Result<Vec<_>, _>>()
+        .expect("pem");
+    let key = rustls::pki_types::PrivateKeyDer::from_pem_slice(leaf.key_pem.expose_secret())
+        .expect("key");
+    let trust = TrustBundle::from_pem(
+        TrustProfileRef::new("server").unwrap(),
+        opensesame_domain::transport::TrustProfileKind::PrivateRoot,
+        &pki.ca.ca_pem(),
+    )
+    .unwrap();
+    let config =
+        rustls::ClientConfig::builder_with_provider(opensesame_transport_security::provider())
+            .with_protocol_versions(&[&rustls::version::TLS13])
+            .expect("tls13")
+            .with_root_certificates(trust.roots())
+            .with_client_auth_cert(chain, key)
+            .expect("client auth");
+    reqwest::Client::builder()
+        .use_preconfigured_tls(config)
+        .no_proxy()
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(std::time::Duration::from_secs(5))
+        .resolve_to_addrs(SERVER_DNS, &[addr])
+        .build()
+        .expect("client")
+}
+
+#[tokio::test]
+async fn expired_client_cert_is_refused() {
+    let pki = pki();
+    let now = Utc::now();
+    let expired = pki.ca.issue_with(
+        &LeafSpec::client(vec![SanEntry::Dns(CLIENT_DNS.into())])
+            .valid_between(now - Duration::hours(2), now - Duration::minutes(5)),
+    );
+    let set = ServiceBindingSet {
+        revision: 1,
+        bindings: vec![binding(
+            PeerIdentitySelector::DnsName(CLIENT_DNS.into()),
+            &[operations::VAULT_RELAY_SNAPSHOT_WRITE],
+        )],
+    };
+    let addr = serve(&pki, set).await;
+    let result = put_slot(&raw_client(&pki, addr, &expired), addr, &key()).await;
+    assert!(
+        result.is_err(),
+        "expired client certificate must not complete the handshake"
+    );
+}
+
+#[tokio::test]
+async fn client_cert_from_a_different_ca_is_refused() {
+    let pki = pki();
+    let other = DisposableCa::new("other-ca");
+    let foreign = client_leaf(&other, CLIENT_DNS);
+    let set = ServiceBindingSet {
+        revision: 1,
+        bindings: vec![binding(
+            PeerIdentitySelector::DnsName(CLIENT_DNS.into()),
+            &[operations::VAULT_RELAY_SNAPSHOT_WRITE],
+        )],
+    };
+    let addr = serve(&pki, set).await;
+    let result = put_slot(&client(&pki, addr, Some(&foreign)), addr, &key()).await;
+    assert!(
+        result.is_err(),
+        "a certificate from an untrusted CA must not complete the handshake"
+    );
+}
+
+#[tokio::test]
+async fn valid_cert_whose_san_does_not_match_the_binding_is_refused() {
+    let pki = pki();
+    let cn_only = pki.ca.issue_with(&LeafSpec {
+        common_name: CLIENT_DNS.into(),
+        sans: vec![SanEntry::Dns("other.test".into())],
+        ..LeafSpec::client(vec![])
+    });
+    let set = ServiceBindingSet {
+        revision: 1,
+        bindings: vec![binding(
+            PeerIdentitySelector::DnsName(CLIENT_DNS.into()),
+            &[operations::VAULT_RELAY_SNAPSHOT_WRITE],
+        )],
+    };
+    let addr = serve(&pki, set).await;
+    let response = put_slot(&client(&pki, addr, Some(&cn_only)), addr, &key())
+        .await
+        .expect("handshake");
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn missing_client_cert_is_refused() {
+    let pki = pki();
+    let set = ServiceBindingSet {
+        revision: 1,
+        bindings: vec![binding(
+            PeerIdentitySelector::DnsName(CLIENT_DNS.into()),
+            &[operations::VAULT_RELAY_SNAPSHOT_WRITE],
+        )],
+    };
+    let addr = serve(&pki, set).await;
+    let result = put_slot(&client(&pki, addr, None), addr, &key()).await;
+    assert!(
+        result.is_err() || result.unwrap().status() == StatusCode::FORBIDDEN,
+        "a missing client certificate must not be admitted"
+    );
 }
