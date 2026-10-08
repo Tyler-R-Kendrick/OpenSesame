@@ -398,7 +398,7 @@ private func uniffiTraitInterfaceCallWithError<T, E>(
         callStatus.pointee.errorBuf = FfiConverterString.lower(String(describing: error))
     }
 }
-// Initial value and increment amount for handles.
+// Initial value and increment amount for handles. 
 // These ensure that SWIFT handles always have the lowest bit set
 fileprivate let UNIFFI_HANDLEMAP_INITIAL: UInt64 = 1
 fileprivate let UNIFFI_HANDLEMAP_DELTA: UInt64 = 2
@@ -523,7 +523,7 @@ public struct PlatformInvocation: Equatable, Hashable {
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(kind: InvocationKind, payload: String,
+    public init(kind: InvocationKind, payload: String, 
         /**
          * Standard protocol URI passed to Multipaz after policy validation.
          */protocolUri: String) {
@@ -532,9 +532,9 @@ public struct PlatformInvocation: Equatable, Hashable {
         self.protocolUri = protocolUri
     }
 
+    
 
-
-
+    
 }
 
 #if compiler(>=6)
@@ -548,8 +548,8 @@ public struct FfiConverterTypePlatformInvocation: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PlatformInvocation {
         return
             try PlatformInvocation(
-                kind: FfiConverterTypeInvocationKind.read(from: &buf),
-                payload: FfiConverterString.read(from: &buf),
+                kind: FfiConverterTypeInvocationKind.read(from: &buf), 
+                payload: FfiConverterString.read(from: &buf), 
                 protocolUri: FfiConverterString.read(from: &buf)
         )
     }
@@ -577,11 +577,11 @@ public func FfiConverterTypePlatformInvocation_lower(_ value: PlatformInvocation
 }
 
 
-public
+public 
 enum AuthenticatorError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
 
-
-
+    
+    
     case InvalidAuthenticatorOrigin
     case UnverifiedInvocationOrigin
     case UnsupportedInvocation
@@ -593,15 +593,15 @@ enum AuthenticatorError: Swift.Error, Equatable, Hashable, Foundation.LocalizedE
     case UserVerificationRequired
     case WrongDevice
 
+    
 
+    
 
-
-
-
+    
     public var errorDescription: String? {
         String(reflecting: self)
     }
-
+    
 }
 
 #if compiler(>=6)
@@ -618,9 +618,9 @@ public struct FfiConverterTypeAuthenticatorError: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
 
+        
 
-
-
+        
         case 1: return .InvalidAuthenticatorOrigin
         case 2: return .UnverifiedInvocationOrigin
         case 3: return .UnsupportedInvocation
@@ -639,49 +639,49 @@ public struct FfiConverterTypeAuthenticatorError: FfiConverterRustBuffer {
     public static func write(_ value: AuthenticatorError, into buf: inout [UInt8]) {
         switch value {
 
+        
 
-
-
-
+        
+        
         case .InvalidAuthenticatorOrigin:
             writeInt(&buf, Int32(1))
-
-
+        
+        
         case .UnverifiedInvocationOrigin:
             writeInt(&buf, Int32(2))
-
-
+        
+        
         case .UnsupportedInvocation:
             writeInt(&buf, Int32(3))
-
-
+        
+        
         case .ForbiddenInvocationParameter:
             writeInt(&buf, Int32(4))
-
-
+        
+        
         case .InvalidInvocationPayload:
             writeInt(&buf, Int32(5))
-
-
+        
+        
         case .InvalidInvocationPayloadValue:
             writeInt(&buf, Int32(6))
-
-
+        
+        
         case .InsecureRequestUri:
             writeInt(&buf, Int32(7))
-
-
+        
+        
         case .PrivateRequestUri:
             writeInt(&buf, Int32(8))
-
-
+        
+        
         case .UserVerificationRequired:
             writeInt(&buf, Int32(9))
-
-
+        
+        
         case .WrongDevice:
             writeInt(&buf, Int32(10))
-
+        
         }
     }
 }
@@ -704,7 +704,7 @@ public func FfiConverterTypeAuthenticatorError_lower(_ value: AuthenticatorError
 
 
 public enum InvocationKind: Equatable, Hashable {
-
+    
     case mfaApproval
     case oid4vp
     case oid4vci
@@ -728,32 +728,32 @@ public struct FfiConverterTypeInvocationKind: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InvocationKind {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-
+        
         case 1: return .mfaApproval
-
+        
         case 2: return .oid4vp
-
+        
         case 3: return .oid4vci
-
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
 
     public static func write(_ value: InvocationKind, into buf: inout [UInt8]) {
         switch value {
-
-
+        
+        
         case .mfaApproval:
             writeInt(&buf, Int32(1))
-
-
+        
+        
         case .oid4vp:
             writeInt(&buf, Int32(2))
-
-
+        
+        
         case .oid4vci:
             writeInt(&buf, Int32(3))
-
+        
         }
     }
 }
@@ -774,6 +774,22 @@ public func FfiConverterTypeInvocationKind_lower(_ value: InvocationKind) -> Rus
 }
 
 /**
+ * Validate a custom-scheme credential-offer handoff before wallet provisioning.
+ *
+ * # Errors
+ *
+ * Rejects inline offers, forbidden parameters, and private request URIs.
+ */
+public func validateCredentialOfferSchemeHandoff(authenticatorOrigin: String, raw: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeAuthenticatorError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_validate_credential_offer_scheme_handoff(
+        FfiConverterString.lower(authenticatorOrigin),
+        FfiConverterString.lower(raw),uniffiCallStatus
+    )
+})
+}
+/**
  * Validate and classify a native invocation using the shared policy engine.
  *
  * # Errors
@@ -784,6 +800,22 @@ public func validatePlatformInvocation(authenticatorOrigin: String, raw: String)
     return try  FfiConverterTypePlatformInvocation_lift(try rustCallWithError(FfiConverterTypeAuthenticatorError_lift) {
         uniffiCallStatus in
     uniffi_opensesame_authenticator_core_fn_func_validate_platform_invocation(
+        FfiConverterString.lower(authenticatorOrigin),
+        FfiConverterString.lower(raw),uniffiCallStatus
+    )
+})
+}
+/**
+ * Validate a custom-scheme OID4VP handoff before presentment.
+ *
+ * # Errors
+ *
+ * Rejects forbidden parameters and private request URIs.
+ */
+public func validatePresentationSchemeHandoff(authenticatorOrigin: String, raw: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeAuthenticatorError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_validate_presentation_scheme_handoff(
         FfiConverterString.lower(authenticatorOrigin),
         FfiConverterString.lower(raw),uniffiCallStatus
     )
@@ -805,7 +837,13 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
+    if (uniffi_opensesame_authenticator_core_checksum_func_validate_credential_offer_scheme_handoff() != 52732) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_opensesame_authenticator_core_checksum_func_validate_platform_invocation() != 29577) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_validate_presentation_scheme_handoff() != 62984) {
         return InitializationResult.apiChecksumMismatch
     }
 

@@ -161,6 +161,36 @@ pub fn validate_platform_invocation(
     })
 }
 
+/// Validate a custom-scheme credential-offer handoff before wallet provisioning.
+///
+/// # Errors
+///
+/// Rejects inline offers, forbidden parameters, and private request URIs.
+#[cfg_attr(feature = "ffi", uniffi::export)]
+#[allow(clippy::needless_pass_by_value)]
+pub fn validate_credential_offer_scheme_handoff(
+    authenticator_origin: String,
+    raw: String,
+) -> Result<String, AuthenticatorError> {
+    let policy = InvocationPolicy::new(&authenticator_origin)?;
+    policy.validate_credential_offer_scheme(&raw)
+}
+
+/// Validate a custom-scheme OID4VP handoff before presentment.
+///
+/// # Errors
+///
+/// Rejects forbidden parameters and private request URIs.
+#[cfg_attr(feature = "ffi", uniffi::export)]
+#[allow(clippy::needless_pass_by_value)]
+pub fn validate_presentation_scheme_handoff(
+    authenticator_origin: String,
+    raw: String,
+) -> Result<String, AuthenticatorError> {
+    let policy = InvocationPolicy::new(&authenticator_origin)?;
+    policy.validate_presentation_scheme(&raw)
+}
+
 fn protocol_uri(scheme: &str, key: &str, value: &str) -> String {
     let encoded = url::form_urlencoded::byte_serialize(value.as_bytes()).collect::<String>();
     format!("{scheme}://?{key}={encoded}")
@@ -259,6 +289,71 @@ impl InvocationPolicy {
         };
 
         Ok(VerifiedInvocation { kind, payload })
+    }
+
+    /// Custom-scheme OID4VCI entry points must carry only a by-reference offer URI.
+    pub fn validate_credential_offer_scheme(&self, raw: &str) -> Result<String, AuthenticatorError> {
+        let url = Url::parse(raw).map_err(|_| AuthenticatorError::UnverifiedInvocationOrigin)?;
+        if url.scheme() != "openid-credential-offer" && url.scheme() != "haip-vci" {
+            return Err(AuthenticatorError::UnsupportedInvocation);
+        }
+        self.validate_scheme_request_uri_only(
+            &url,
+            "credential_offer_uri",
+            &["openid-credential-offer", "haip-vci"],
+        )?;
+        Ok(raw.to_owned())
+    }
+
+    /// Custom-scheme OID4VP entry points must carry only a by-reference request URI.
+    pub fn validate_presentation_scheme(&self, raw: &str) -> Result<String, AuthenticatorError> {
+        let url = Url::parse(raw).map_err(|_| AuthenticatorError::UnverifiedInvocationOrigin)?;
+        if !matches!(url.scheme(), "openid4vp" | "haip-vp" | "mdoc") {
+            return Err(AuthenticatorError::UnsupportedInvocation);
+        }
+        self.validate_scheme_request_uri_only(&url, "request_uri", &["openid4vp", "haip-vp", "mdoc"])?;
+        Ok(raw.to_owned())
+    }
+
+    fn validate_scheme_request_uri_only(
+        &self,
+        url: &Url,
+        uri_key: &str,
+        allowed_schemes: &[&str],
+    ) -> Result<(), AuthenticatorError> {
+        if !allowed_schemes.iter().any(|scheme| scheme == &url.scheme()) {
+            return Err(AuthenticatorError::UnsupportedInvocation);
+        }
+        if !url.username().is_empty() || url.password().is_some() || url.fragment().is_some() {
+            return Err(AuthenticatorError::ForbiddenInvocationParameter);
+        }
+        let pairs: Vec<_> = url.query_pairs().collect();
+        if pairs.iter().any(|(key, _)| {
+            matches!(
+                key.as_ref(),
+                "token"
+                    | "access_token"
+                    | "id_token"
+                    | "code"
+                    | "credential_offer"
+                    | "password"
+                    | "secret"
+            )
+        }) {
+            return Err(AuthenticatorError::ForbiddenInvocationParameter);
+        }
+        let request_uri = single_value(&pairs, uri_key)?;
+        if pairs
+            .iter()
+            .any(|(key, _)| key.as_ref() != uri_key)
+        {
+            return Err(AuthenticatorError::ForbiddenInvocationParameter);
+        }
+        let Some(request_uri_value) = request_uri else {
+            return Err(AuthenticatorError::InvalidInvocationPayload);
+        };
+        self.validate_request_uri(request_uri_value)?;
+        Ok(())
     }
 
     fn validate_request_uri(&self, raw: &str) -> Result<Url, AuthenticatorError> {
@@ -383,6 +478,35 @@ mod tests {
     }
 
     #[test]
+    fn custom_scheme_offers_require_a_public_by_reference_uri() {
+        let policy = policy();
+        let ok = "openid-credential-offer://?credential_offer_uri=https%3A%2F%2Fissuer.example%2Foffer";
+        assert_eq!(policy.validate_credential_offer_scheme(ok).unwrap(), ok);
+        assert_eq!(
+            policy.validate_credential_offer_scheme(
+                "openid-credential-offer://?credential_offer=https%3A%2F%2Fissuer.example%2Foffer"
+            ),
+            Err(AuthenticatorError::ForbiddenInvocationParameter)
+        );
+        assert_eq!(
+            policy.validate_credential_offer_scheme(
+                "openid-credential-offer://?credential_offer_uri=https%3A%2F%2F127.0.0.1%2Foffer"
+            ),
+            Err(AuthenticatorError::PrivateRequestUri)
+        );
+    }
+
+    #[test]
+    fn custom_scheme_presentment_requires_a_public_request_uri() {
+        let policy = policy();
+        let ok = "openid4vp://?request_uri=https%3A%2F%2Fverifier.example%2Frequest";
+        assert_eq!(policy.validate_presentation_scheme(ok).unwrap(), ok);
+        assert_eq!(
+            policy.validate_presentation_scheme("openid4vp://?request_id=req_123"),
+            Err(AuthenticatorError::ForbiddenInvocationParameter)
+        );
+    }
+
     fn rejects_ssrf_literal_and_localhost_forms() {
         for request_uri in [
             "https://localhost./request",
