@@ -192,6 +192,9 @@ const manifest = z.strictObject({
   records: z.array(record).min(1).max(64),
   preferredProtectorId: id.optional(),
   legacyGates: gates,
+  factorConfiguration: z
+    .strictObject({ version: z.literal(1), digestB64: b64(32, 32) })
+    .optional(),
   authB64: b64(32, 32),
 });
 const passkey = z.strictObject({
