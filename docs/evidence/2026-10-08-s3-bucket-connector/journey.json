@@ -17,9 +17,7 @@
           "featureOptional": "Connections"
         },
         {
-          "count": [
-            "a[href*='/settings/connections/']"
-          ]
+          "count": ["a[href*='/settings/connections/']"]
         },
         {
           "centerOptional": "Local storage"
@@ -49,9 +47,7 @@
           "featureOptional": "Connections"
         },
         {
-          "count": [
-            "a[href*='/settings/connections/']"
-          ]
+          "count": ["a[href*='/settings/connections/']"]
         },
         {
           "centerOptional": "Local storage"
