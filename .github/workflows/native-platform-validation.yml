@@ -1,0 +1,229 @@
+name: Native platform validation
+
+# Real host execution; successful cross-compilation is not a platform proof.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/native-platform-validation.yml'
+      - 'crates/**'
+      - 'apps/cli/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - 'spec/conformance/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-platform-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  core:
+    name: Native vault and store (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux
+            runner: ubuntu-24.04
+          - platform: macOS
+            runner: macos-14
+          - platform: Windows
+            runner: windows-2025
+    env:
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      VALIDATION_PHASE: core
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          components: rustfmt, clippy
+      - name: Pin source and create isolated logs and build directory
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain --untracked-files=normal)"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const prefix = path.join(process.env.RUNNER_TEMP, `opensesame-native-${process.env.VALIDATION_PHASE}`);
+          const target = `${prefix}-target`;
+          fs.mkdirSync(prefix, { mode: 0o700 });
+          fs.mkdirSync(target, { mode: 0o700 });
+          const portable = value => value.replaceAll('\\', '/');
+          fs.appendFileSync(process.env.GITHUB_ENV, `NATIVE_AUDIT_DIR=${portable(prefix)}\nCARGO_TARGET_DIR=${portable(target)}\n`);
+          fs.writeFileSync(path.join(prefix, 'source.json'), JSON.stringify({
+            commit: process.env.EXPECTED_HEAD,
+            phase: process.env.VALIDATION_PHASE,
+            runnerOS: process.env.RUNNER_OS,
+            runnerArch: process.env.RUNNER_ARCH,
+            nodePlatform: process.platform,
+            nodeArch: process.arch,
+          }, null, 2) + '\n');
+          NODE
+      - name: Record the actual native Rust toolchain
+        run: |
+          set -euo pipefail
+          rustc +1.88.0 -vV 2>&1 | tee "$NATIVE_AUDIT_DIR/rustc.log"
+          cargo +1.88.0 -vV 2>&1 | tee "$NATIVE_AUDIT_DIR/cargo.log"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const version = fs.readFileSync(path.join(process.env.NATIVE_AUDIT_DIR, 'rustc.log'), 'utf8');
+          const host = /^host: ([a-zA-Z0-9_-]+)$/m.exec(version)?.[1];
+          if (!host) throw new Error('Actual native Rust host was not identified');
+          fs.appendFileSync(process.env.GITHUB_ENV, `NATIVE_HOST_TARGET=${host}\n`);
+          NODE
+      - name: Fetch the locked graph for the actual native host
+        run: |
+          set -euo pipefail
+          cargo +1.88.0 fetch --locked --target "$NATIVE_HOST_TARGET" 2>&1 | tee "$NATIVE_AUDIT_DIR/fetch.log"
+      - name: Check Rust formatting
+        run: |
+          set -euo pipefail
+          cargo +1.88.0 fmt --all -- --check 2>&1 | tee "$NATIVE_AUDIT_DIR/format.log"
+      - name: Execute actual core tests on this host
+        run: |
+          set -euo pipefail
+          cargo +1.88.0 test --frozen --target "$NATIVE_HOST_TARGET" -p opensesame-human-vault -p opensesame-sealed-store --all-targets -- --nocapture 2>&1 | tee "$NATIVE_AUDIT_DIR/tests.log"
+      - name: Check core Clippy without warning waivers
+        run: |
+          set -euo pipefail
+          cargo +1.88.0 clippy --frozen --target "$NATIVE_HOST_TARGET" -p opensesame-human-vault -p opensesame-sealed-store --all-targets -- -D warnings 2>&1 | tee "$NATIVE_AUDIT_DIR/clippy.log"
+      - name: Recheck the original source after success or failure
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git status --porcelain --untracked-files=normal)"
+      - name: Preserve real host results and failure logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: native-core-${{ matrix.platform }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/opensesame-native-core/
+          if-no-files-found: error
+  cli:
+    name: Native CLI (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: Linux
+            runner: ubuntu-24.04
+          - platform: macOS
+            runner: macos-14
+          - platform: Windows
+            runner: windows-2025
+    env:
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      VALIDATION_PHASE: cli
+      CARGO_BUILD_JOBS: '2'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87
+        with:
+          toolchain: 1.88.0
+          components: rustfmt, clippy
+      - name: Pin source and create isolated logs and build directory
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain --untracked-files=normal)"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const prefix = path.join(process.env.RUNNER_TEMP, `opensesame-native-${process.env.VALIDATION_PHASE}`);
+          const target = `${prefix}-target`;
+          fs.mkdirSync(prefix, { mode: 0o700 });
+          fs.mkdirSync(target, { mode: 0o700 });
+          const portable = value => value.replaceAll('\\', '/');
+          fs.appendFileSync(process.env.GITHUB_ENV, `NATIVE_AUDIT_DIR=${portable(prefix)}\nCARGO_TARGET_DIR=${portable(target)}\n`);
+          fs.writeFileSync(path.join(prefix, 'source.json'), JSON.stringify({
+            commit: process.env.EXPECTED_HEAD,
+            phase: process.env.VALIDATION_PHASE,
+            runnerOS: process.env.RUNNER_OS,
+            runnerArch: process.env.RUNNER_ARCH,
+            nodePlatform: process.platform,
+            nodeArch: process.arch,
+          }, null, 2) + '\n');
+          NODE
+      - name: Record the actual native Rust toolchain
+        run: |
+          set -euo pipefail
+          rustc +1.88.0 -vV 2>&1 | tee "$NATIVE_AUDIT_DIR/rustc.log"
+          cargo +1.88.0 -vV 2>&1 | tee "$NATIVE_AUDIT_DIR/cargo.log"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const version = fs.readFileSync(path.join(process.env.NATIVE_AUDIT_DIR, 'rustc.log'), 'utf8');
+          const host = /^host: ([a-zA-Z0-9_-]+)$/m.exec(version)?.[1];
+          if (!host) throw new Error('Actual native Rust host was not identified');
+          fs.appendFileSync(process.env.GITHUB_ENV, `NATIVE_HOST_TARGET=${host}\n`);
+          NODE
+      - name: Fetch the locked graph for the actual native host
+        run: |
+          set -euo pipefail
+          cargo +1.88.0 fetch --locked --target "$NATIVE_HOST_TARGET" 2>&1 | tee "$NATIVE_AUDIT_DIR/fetch.log"
+      - name: Check Rust formatting
+        run: |
+          set -euo pipefail
+          cargo +1.88.0 fmt --all -- --check 2>&1 | tee "$NATIVE_AUDIT_DIR/format.log"
+      - name: Execute actual cli tests on this host
+        run: |
+          set -euo pipefail
+          cargo +1.88.0 test --frozen --target "$NATIVE_HOST_TARGET" -p opensesame-cli --all-targets -- --nocapture 2>&1 | tee "$NATIVE_AUDIT_DIR/tests.log"
+      - name: Check cli Clippy without warning waivers
+        run: |
+          set -euo pipefail
+          cargo +1.88.0 clippy --frozen --target "$NATIVE_HOST_TARGET" -p opensesame-cli --all-targets -- -D warnings 2>&1 | tee "$NATIVE_AUDIT_DIR/clippy.log"
+      - name: Recheck the original source after success or failure
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git diff --exit-code
+          git diff --cached --exit-code
+          test -z "$(git status --porcelain --untracked-files=normal)"
+      - name: Preserve real host results and failure logs
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: native-cli-${{ matrix.platform }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/opensesame-native-cli/
+          if-no-files-found: error
