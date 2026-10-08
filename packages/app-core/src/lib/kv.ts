@@ -267,7 +267,12 @@ async function kvHydrateDefault(keys: string[]): Promise<void> {
  * Call under the record's Web Lock before evaluating or changing authority.
  * Browsers without OPFS retain explicitly session-only storage.
  */
-export async function kvRefresh(key: string, maxBytes: number): Promise<void> {
+export async function kvRefresh(
+  key: string,
+  maxBytes: number,
+  original: () => void = () => {},
+): Promise<void> {
+  original();
   if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0)
     throw new Error("Invalid storage read limit");
   const openRoot = originFiles();
@@ -277,11 +282,14 @@ export async function kvRefresh(key: string, maxBytes: number): Promise<void> {
   }
   try {
     const root = await openRoot();
+    original();
     durability = "persistent";
     let handle: FileSystemFileHandle;
     try {
       handle = await root.getFileHandle(fileName(key));
+      original();
     } catch (error) {
+      original();
       if (error instanceof DOMException && error.name === "NotFoundError") {
         memory.delete(key);
         return;
@@ -289,12 +297,17 @@ export async function kvRefresh(key: string, maxBytes: number): Promise<void> {
       throw error;
     }
     const file = await handle.getFile();
+    original();
     if (file.size > sealedFileBound(maxBytes))
       throw new Error("Storage record exceeds read limit");
-    const value = await openOriginFile(fileName(key), await file.text());
+    const text = await file.text();
+    original();
+    const value = await openOriginFile(fileName(key), text);
+    original();
     if (value === null) throw new Error("Storage record does not open");
     if (new TextEncoder().encode(value).length > maxBytes)
       throw new Error("Storage record exceeds read limit");
+    original();
     memory.set(key, value);
   } catch (error) {
     // No later sync reader may consume an authority snapshot we failed to refresh.
