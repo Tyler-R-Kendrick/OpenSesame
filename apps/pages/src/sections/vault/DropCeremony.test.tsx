@@ -218,11 +218,7 @@ describe("share ceremony on an item", () => {
     expect(ttl.querySelectorAll("button")).toHaveLength(3);
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.queryByRole("checkbox", { name: /Keep a copy/ })).toBeNull();
-    expect(
-      screen.getByText(
-        /Opens only in this browser unless a sign-in service relays the claim/,
-      ),
-    ).toBeTruthy();
+    expect(screen.getByText("This browser")).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: /Seal and share/i }));
     await screen.findByText("Drop ready");
@@ -235,6 +231,7 @@ describe("share ceremony on an item", () => {
     expect(screen.queryByText("s3cr3t-value")).toBeNull();
     const ready = screen.getByRole("region", { name: "Drop ready" });
     expect(ready.textContent).toMatch(/Opens for\s*1 hour/);
+    expect(ready.textContent).toMatch(/Opens on\s*This browser/);
     expect(expiryRow()).not.toMatch(/left/);
     expect(ready.querySelector("p.hint")).toBeNull();
     expect(screen.queryByRole("link", { name: /drop record/i })).toBeNull();
