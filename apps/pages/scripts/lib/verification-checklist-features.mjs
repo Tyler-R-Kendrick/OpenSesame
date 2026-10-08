@@ -27,10 +27,7 @@ export async function createPlainSecret(page, name, value) {
   const nameField = page.getByLabel("Name", { exact: true });
   await nameField.waitFor({ state: "visible", timeout: 15_000 });
   const type = page.getByLabel("Type", { exact: true });
-  if (
-    (await type.count()) > 0 &&
-    (await type.isVisible().catch(() => false))
-  ) {
+  if ((await type.count()) > 0 && (await type.isVisible().catch(() => false))) {
     await type.selectOption("secret");
   }
   await nameField.fill(name);
@@ -243,11 +240,22 @@ export async function capturePasswordReset(page, shot, record) {
     return;
   }
   const zero = await shot("r1-reset-zero", section);
-  const removes = await section.getByRole("button", { name: /^Remove / }).count();
-  mark(record, "R1-zero", removes === 0 && /Reset email/.test(zero), "no mailboxes");
+  const removes = await section
+    .getByRole("button", { name: /^Remove / })
+    .count();
+  mark(
+    record,
+    "R1-zero",
+    removes === 0 && /Reset email/.test(zero),
+    "no mailboxes",
+  );
   await addResetEmail(section, "one@example.com");
   const one = await shot("r1-reset-one", section);
-  mark(record, "R1-one", /one@example.com/.test(one) && !/two@example.com/.test(one));
+  mark(
+    record,
+    "R1-one",
+    /one@example.com/.test(one) && !/two@example.com/.test(one),
+  );
   await addResetEmail(section, "two@example.com");
   const many = await shot("r1-reset-many", section);
   mark(
@@ -341,7 +349,12 @@ export async function captureEnvironments(page, shot, record) {
     const absent = !(await panel.isVisible().catch(() => false));
     const vaults = page.locator("#vaults");
     await shotOf(shot, "e1-environments-absent", vaults);
-    mark(record, "E1-environments-off", absent, absent ? "panel absent" : "panel drawn");
+    mark(
+      record,
+      "E1-environments-off",
+      absent,
+      absent ? "panel absent" : "panel drawn",
+    );
     return;
   }
   if (record.profile !== FULL) return;
