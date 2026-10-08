@@ -32,9 +32,9 @@ After that point, commits labeled Grok were not live Grok.
 | --- | ---: |
 | `live_grok_build` | 17 |
 | `grok_labeled_replay` | 47 |
-| `cursor_agent` | 17 |
+| `cursor_agent` | 25 |
 | `unknown` | 0 |
-| **Total** | **81** |
+| **Total** | **89** |
 
 ## Commits by PR
 
@@ -105,10 +105,12 @@ After that point, commits labeled Grok were not live Grok.
 | `5f514632` | Grok `<noreply@x.ai>` | `live_grok_build` | fix(pages): screenshot each verification checklist item |
 | `2708ae16` | Grok `<noreply@x.ai>` | `live_grok_build` | fix(pages): build the full walk apart from stock and filter help |
 
-### #794 (`origin/cursor/tutorials-minimal-full-b359` → tip `03fe9273`)
+### #794 (`origin/cursor/tutorials-minimal-full-b359` → tip `2d5fa513`)
 
 | SHA | Author (as shown) | Real producer | Subject |
 | --- | --- | --- | --- |
+| `2d5fa513` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): give settle room under the enqueue wall-clock waiter |
+| `b59179d6` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): keep runner idle polls under the vitest budget |
 | `03fe9273` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(pages): keep DESIGN keymap jumps aligned with Activity |
 | `17423c67` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): stop runner tests timing out under CI load |
 | `2afd519a` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | chore(quality): record relay sync integration test complexity |
@@ -125,10 +127,12 @@ After that point, commits labeled Grok were not live Grok.
 | `0c73d702` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | fix(tutorial): skip model tours when support AI is off |
 | `2395ce81` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | fix(pages): seed minimal tutorial vault with secret items |
 
-### #795 (`origin/cursor/ci-cargo-setup-b359` → tip `4afcd74a`)
+### #795 (`origin/cursor/ci-cargo-setup-b359` → tip `6fc83a0d`)
 
 | SHA | Author (as shown) | Real producer | Subject |
 | --- | --- | --- | --- |
+| `6fc83a0d` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): give settle room under the enqueue wall-clock waiter |
+| `cd485841` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): keep runner idle polls under the vitest budget |
 | `4afcd74a` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): stop runner tests timing out under CI load |
 | `8b877f1f` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(pages): keep DESIGN keymap jumps aligned with Activity |
 | `d9502744` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | chore(quality): record relay sync integration test complexity |
@@ -139,10 +143,14 @@ After that point, commits labeled Grok were not live Grok.
 | `034abd84` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | chore(cursor): put cargo on PATH for vscode bash |
 | `fc12cf17` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | ci: pin docker/build-push-action to v6.18.0 |
 
-### #796 (`origin/cursor/checklist-walk-complete-b359` → tip `843b7ea4`)
+### #796 (`origin/cursor/checklist-walk-complete-b359` → tip `a14eee0c`)
 
 | SHA | Author (as shown) | Real producer | Subject |
 | --- | --- | --- | --- |
+| `a14eee0c` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): give settle room under the enqueue wall-clock waiter |
+| `afb2ced4` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs(audit): record Tyler's no-rewrite provenance decision |
+| `068ca92a` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): keep runner idle polls under the vitest budget |
+| `444610f4` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs(audit): provenance of Grok-labeled vs live commits on #776–#796 |
 | `843b7ea4` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): stop runner tests timing out under CI load |
 | `ec3b448b` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(pages): keep DESIGN keymap jumps aligned with Activity |
 | `ee8cba1a` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | test(gateway): sign the JWT confusion cases with the real RSA modulus |
