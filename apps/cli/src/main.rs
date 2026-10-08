@@ -12,6 +12,7 @@ mod daemon_toolbar;
 mod dev_run;
 mod dev_surrogate;
 mod entry;
+mod entry_dispatch;
 mod github;
 mod hooks;
 mod identity_area;
@@ -40,8 +41,7 @@ mod vault_area;
 mod vault_file;
 mod vault_migration;
 use clap::{Parser, Subcommand, ValueEnum};
-use dev_run::{dev_cmd, DevCmd};
-use init_schema::init_schema;
+use dev_run::DevCmd;
 use opensesame_authn::{
     detect_signals_from_env, resolve_login_flow, DevicePollState, DeviceServerStatus, LoginFlow,
     OpenBrowser, WhoAmI,
@@ -840,65 +840,7 @@ async fn main() {
 }
 
 async fn real_main() -> anyhow::Result<()> {
-    if let Some(code) = entry::by_program_name() {
-        std::process::exit(code);
-    }
-    let cli = session::verb()?;
-    serve::init_tracing(&cli.command);
-    match cli.command {
-        Commands::PasswordAgent(options) => password_agent::execute(options).await?,
-        Commands::Session => session::enter()?,
-        Commands::Vault { cmd } => vault_area::run(&cli.server, &cli.output, cmd).await?,
-        Commands::Access { cmd } => access_area::run(&cli.server, &cli.output, cmd).await?,
-        Commands::Identity { cmd } => identity_area::run(&cli.server, &cli.output, cmd).await?,
-        Commands::Login {
-            flow,
-            no_browser,
-            open_browser,
-            qr,
-            no_qr,
-        } => login(&cli.server, flow, no_browser, open_browser, qr, no_qr).await?,
-        Commands::Logout => {
-            let path = session_path()?;
-            let _ = std::fs::remove_file(path);
-            println!("{}", json!({"status":"logged_out"}));
-        }
-        Commands::Doctor => doctor(&cli.server).await?,
-        Commands::ConfigFiles { schema } => {
-            println!(
-                "{}",
-                json!({"config_files": [schema], "format": "env-spec"})
-            );
-        }
-        Commands::Completion { shell } => {
-            print!("{}", completion_script(shell));
-        }
-        Commands::Init { schema } => init_schema(&schema)?,
-        Commands::Config { cmd } => configs::run(&cli.server, &cli.output, cmd).await?,
-        Commands::Bridge { cmd } => bridge::run(cmd).await?,
-        Commands::Tui => tui(&cli.server).await?,
-        Commands::Dev {
-            cmd,
-            agent,
-            mode,
-            schema,
-        } => {
-            let agent = match mode {
-                DeliveryModeArg::Agent => true,
-                DeliveryModeArg::Development => false,
-                DeliveryModeArg::Auto => agent,
-            };
-            dev_cmd(cmd, agent, &schema)?;
-        }
-        Commands::Daemon(args) => daemon_cmd::run(args).await?,
-        Commands::Host { cmd } => serve::host(cmd).await?,
-        Commands::Worker { cmd } => serve::worker(cmd).await?,
-        Commands::Helpers { cmd } => entry::helpers(cmd)?,
-        Commands::Plugins { cmd } => plugins::run(&cli.output, cmd).await?,
-        Commands::Security { cmd } => security::run(&cli.server, &cli.output, cmd).await?,
-        Commands::Hooks { cmd } => hooks::run(&cli.server, cmd).await?,
-    }
-    Ok(())
+    entry_dispatch::run().await
 }
 
 pub(crate) fn load_access_token() -> anyhow::Result<String> {
