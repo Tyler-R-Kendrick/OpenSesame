@@ -1,0 +1,2897 @@
+[
+  {
+    "coverage_id": "apps%2Fandroid%2Fios%2FSources%2FOpenSesameAuthenticator%2FWalletView.swift%23onOpenURL::crates%2Fauthenticator-core%2Fsrc%2Flib.rs%23validate_platform_invocation::apps%2Fandroid::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "apps/android/ios/Sources/OpenSesameAuthenticator/WalletView.swift#onOpenURL",
+      "boundary": "crates/authenticator-core/src/lib.rs#validate_platform_invocation",
+      "subsystem": "apps/android",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "apps/android/ios/Sources/OpenSesameAuthenticator/WalletView.swift#onOpenURL",
+    "boundary": "crates/authenticator-core/src/lib.rs#validate_platform_invocation",
+    "subsystem": "apps/android",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "apps/android/ios/Sources/OpenSesameAuthenticator/WalletView.swift",
+      "apps/android/ios/Sources/OpenSesameAuthenticator/WalletModel.swift",
+      "apps/android/ios/Info.plist",
+      "crates/authenticator-core/src/lib.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Deep-link, callback, and navigation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "The gap is a custom-scheme handoff that skips the invocation policy, not an unsafe decoder or uniffi type confusion."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this URL launch."
+      }
+    ],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "uncovered_reason": "onOpenURL sends openid-credential-offer and haip-vci URLs to WalletModel.launch without validatePlatformInvocation, while the https branch calls that policy. Info.plist registers those schemes, and no unit's reviewed_paths includes WalletView.swift.",
+    "hardening_notes": [],
+    "phase3_verdict": "needs_validation",
+    "phase3_verifier": "v-run5-wallet-custom-scheme",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fbrowser-extension%2Frunner%2Fhost.ts::apps%2Fbrowser-extension%2Frunner%2Fhost-base.ts::apps%2Fbrowser-extension::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "apps/browser-extension/runner/host.ts",
+      "boundary": "apps/browser-extension/runner/host-base.ts",
+      "subsystem": "apps/browser-extension",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "apps/browser-extension/runner/host.ts",
+    "boundary": "apps/browser-extension/runner/host-base.ts",
+    "subsystem": "apps/browser-extension",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "apps/browser-extension/runner/host.ts",
+      "apps/browser-extension/runner/host-base.ts",
+      "apps/browser-extension-autofill/entrypoints/background.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "CLIENT-SIDE.md#Core discipline",
+      "CLIENT-SIDE.md#Universal moves",
+      "CLIENT-SIDE.md#Validation rules",
+      "CLIENT-SIDE.md#Cross-origin messaging and network attack classes",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Webview and native-bridge attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "resolveHostBase falls back to http://127.0.0.1:8787 when the stored value is not a loopback URL. Checked remote hosts, userinfo, queries, and IPv4-mapped public addresses are rejected. Accepted aliases such as the whole 127.0.0.0/8 range and names ending in .localhost stay on loopback in the URL parser; standing host_permissions are only http://127.0.0.1/* and http://localhost/*, so other names are not fetched unless a separate optional grant exists.",
+      "opensesame.health and opensesame.sync_cursor do not check the sender. The manifest declares no content script and no externally_connectable, and the runner's injected functions do not relay runtime messages, so a web origin cannot call them.",
+      "Runner isOwnPage does not also require an absent tab, unlike the autofill popup check. Extension pages are not web-accessible, so a web page cannot embed them to send arm or disarm.",
+      "Autofill value release is tied to a single-use nonce, browser frame 0, the armed tab and origin, and a still-enabled site. The request body cannot select the origin or the reference. That path did not show an access-control failure."
+    ],
+    "phase3_verdict": "confirmed",
+    "phase3_verifier": "v16-runner-drive-getrun-origin-unbound",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fconnect.rs%23open_url::apps%2Fcli%2Fsrc%2Fconnect.rs%23authorize_oauth::apps%2Fcli::ATTACK-CLASSES.md%23Injection",
+    "canonical_refs": {
+      "surface": "apps/cli/src/connect.rs#open_url",
+      "boundary": "apps/cli/src/connect.rs#authorize_oauth",
+      "subsystem": "apps/cli",
+      "attack_class": "ATTACK-CLASSES.md#Injection"
+    },
+    "surface": "apps/cli/src/connect.rs#open_url",
+    "boundary": "apps/cli/src/connect.rs#authorize_oauth",
+    "subsystem": "apps/cli",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "apps/cli/src/connect.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Deep-link, callback, and navigation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#FFI and ABI attack classes",
+        "reason": "Process spawn of a URL opener, not an FFI type confusion."
+      }
+    ],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "open_url should allowlist https, and loopback http only outside production, before spawning any opener, matching connection-broker assert_transport_allowed and plugins_install. On this host, xdg-open 1.1.3 kept metacharacters as data, but a file URL was still treated as a local path.",
+      "plugins_install writes the partial download with File::create, which follows a symlink and is not O_EXCL or O_NOFOLLOW, then hashes and renames by path. A writer in the install directory can redirect that write. The default plugins directory is the installing user's data dir, and the sha256 pin is the same user's, so this is not a separate principal.",
+      "Unix sealed-store IO is descriptor-relative and no-follow. The non-unix confined_read, confined_write, and confined_remove helpers canonicalize and then use path IO, which is a TOCTOU. rotation swap_all checks symlinks and then rename, and rename follows intermediate directory symlinks. apps/cli/src/store.rs shred_file follows a final symlink when zeroing a manifest. Those matter only if a lower-trust writer can already modify the store path; the default home store is the same OS account."
+    ],
+    "phase3_verdict": "needs_validation",
+    "phase3_verifier": "v-run5-cli-open-url",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fpassword_agent%2Fio.rs::crates%2Fconnector-host%2Fsrc%2Fpassword_agent%2Fenv.rs::apps%2Fcli::ATTACK-CLASSES.md%23Injection",
+    "canonical_refs": {
+      "surface": "apps/cli/src/password_agent/io.rs",
+      "boundary": "crates/connector-host/src/password_agent/env.rs",
+      "subsystem": "apps/cli",
+      "attack_class": "ATTACK-CLASSES.md#Injection"
+    },
+    "surface": "apps/cli/src/password_agent/io.rs",
+    "boundary": "crates/connector-host/src/password_agent/env.rs",
+    "subsystem": "apps/cli",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "apps/cli/src/password_agent/io.rs",
+      "crates/connector-host/src/password_agent/env.rs",
+      "spec/conformance/2password-policy.json"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Privileged-helper and local-file attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Startup-environment scrubbing is safe Rust process setup, not an unsafe decoder or FFI boundary."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "uncovered_reason": "h-tscli: the Rust CLI scrubs startup variables through the same credentialStartupEnvKeys list, which omits LD_AUDIT. Confirm env-file and inherited LD_AUDIT reach its op child.",
+    "hardening_notes": [
+      "Template screening already rejects listed hooks hidden by CR separators, escaped quotes, and backticks. Those parsers do not let LD_PRELOAD through and are not a second defect.",
+      "program() ignores relative PATH entries and the current directory, and helper arguments are passed without a shell.",
+      "resolved() quotes secret values and escapes newlines before writing a dotenv line. internal_exec strips only the service token; once LD_AUDIT is on the shared list, validation and scrub_startup cover it, so that narrower strip is not a separate root cause."
+    ],
+    "phase3_verdict": "confirmed",
+    "phase3_verifier": "v15-packages-cli-startup-env-denylist-omits",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fplugins_install.rs::apps%2Fcli%2Fsrc%2Fplugins_install.rs::apps%2Fcli::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "canonical_refs": {
+      "surface": "apps/cli/src/plugins_install.rs",
+      "boundary": "apps/cli/src/plugins_install.rs",
+      "subsystem": "apps/cli",
+      "attack_class": "ATTACK-CLASSES.md#Resource and file handling"
+    },
+    "surface": "apps/cli/src/plugins_install.rs",
+    "boundary": "apps/cli/src/plugins_install.rs",
+    "subsystem": "apps/cli",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "apps/cli/src/plugins_install.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
+    "selected_companion_blocks": [
+      "SUPPLY-CHAIN-AND-RELEASE.md#Core discipline",
+      "SUPPLY-CHAIN-AND-RELEASE.md#Universal moves",
+      "SUPPLY-CHAIN-AND-RELEASE.md#Validation rules",
+      "SUPPLY-CHAIN-AND-RELEASE.md#Dependency and build-input attack classes",
+      "SUPPLY-CHAIN-AND-RELEASE.md#Release and update attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "open_url should allowlist https, and loopback http only outside production, before spawning any opener, matching connection-broker assert_transport_allowed and plugins_install. On this host, xdg-open 1.1.3 kept metacharacters as data, but a file URL was still treated as a local path.",
+      "plugins_install writes the partial download with File::create, which follows a symlink and is not O_EXCL or O_NOFOLLOW, then hashes and renames by path. A writer in the install directory can redirect that write. The default plugins directory is the installing user's data dir, and the sha256 pin is the same user's, so this is not a separate principal.",
+      "Unix sealed-store IO is descriptor-relative and no-follow. The non-unix confined_read, confined_write, and confined_remove helpers canonicalize and then use path IO, which is a TOCTOU. rotation swap_all checks symlinks and then rename, and rename follows intermediate directory symlinks. apps/cli/src/store.rs shred_file follows a final symlink when zeroing a manifest. Those matter only if a lower-trust writer can already modify the store path; the default home store is the same OS account."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fstore.rs::crates%2Fsealed-store%2Fsrc%2Fpath.rs::apps%2Fcli::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "canonical_refs": {
+      "surface": "apps/cli/src/store.rs",
+      "boundary": "crates/sealed-store/src/path.rs",
+      "subsystem": "apps/cli",
+      "attack_class": "ATTACK-CLASSES.md#Resource and file handling"
+    },
+    "surface": "apps/cli/src/store.rs",
+    "boundary": "crates/sealed-store/src/path.rs",
+    "subsystem": "apps/cli",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "apps/cli/src/store.rs",
+      "crates/sealed-store/src/path.rs",
+      "crates/sealed-store/src/git.rs",
+      "apps/cli/src/main.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Privileged-helper and local-file attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Kernel and privileged-interface attack classes",
+        "reason": "User-space path checks, not a kernel interface."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "open_url should allowlist https, and loopback http only outside production, before spawning any opener, matching connection-broker assert_transport_allowed and plugins_install. On this host, xdg-open 1.1.3 kept metacharacters as data, but a file URL was still treated as a local path.",
+      "plugins_install writes the partial download with File::create, which follows a symlink and is not O_EXCL or O_NOFOLLOW, then hashes and renames by path. A writer in the install directory can redirect that write. The default plugins directory is the installing user's data dir, and the sha256 pin is the same user's, so this is not a separate principal.",
+      "Unix sealed-store IO is descriptor-relative and no-follow. The non-unix confined_read, confined_write, and confined_remove helpers canonicalize and then use path IO, which is a TOCTOU. rotation swap_all checks symlinks and then rename, and rename follows intermediate directory symlinks. apps/cli/src/store.rs shred_file follows a final symlink when zeroing a manifest. Those matter only if a lower-trust writer can already modify the store path; the default home store is the same OS account."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fapi%2Fconnect%2Fcallback.mjs%23handler::apps%2Fpages%2Fserver%2Fallowlist.mjs%23returnToAllowed::apps%2Fpages::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "apps/pages/api/connect/callback.mjs#handler",
+      "boundary": "apps/pages/server/allowlist.mjs#returnToAllowed",
+      "subsystem": "apps/pages",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "apps/pages/api/connect/callback.mjs#handler",
+    "boundary": "apps/pages/server/allowlist.mjs#returnToAllowed",
+    "subsystem": "apps/pages",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "apps/pages/api/connect/callback.mjs",
+      "apps/pages/server/allowlist.mjs",
+      "apps/pages/server/callback.mjs",
+      "apps/pages/server/server.mjs",
+      "apps/pages/api/github-app/callback.mjs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#HTTP framing and cache attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      },
+      {
+        "block": "AI-AND-LLM.md#Tool and action attack classes",
+        "reason": "Callback relay does not invoke a model tool."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "Callback requestHost is the raw X-Forwarded-Proto plus Host string, compared to URL.origin. A client that can set both receives a 302 to that https origin. A browser cannot set Host, and scripts/dev/connect-dev-proxy.mjs overwrites Host to 127.0.0.1, so this did not show a victim redirect. Parse requestHost with the URL API, as manage-auth.requestHostOf already does, and accept X-Forwarded-Proto only from a trusted proxy.",
+      "The 302 from handleCallback sets only Location. These files do not send Cache-Control: no-store. vercel.json does not mark /api/connect/callback cacheable. A shared cache that stored this redirect and ignored the query string is not configured here.",
+      "returnToAllowed allows any port, path, userinfo, and query on http(s) localhost, 127.0.0.1, and [::1], and the public callback forwards the remaining query string there. That is the documented dev allowlist. On a public relay it is an unauthenticated navigation to an arbitrary loopback URL, which matters only if a local service on the visitor's machine acts on that GET."
+    ],
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fapi%2Fgithub-app%2Fwebhook.mjs%23readRaw::apps%2Fpages%2Fapi%2Fgithub-app%2Fwebhook.mjs%23readRaw::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "canonical_refs": {
+      "surface": "apps/pages/api/github-app/webhook.mjs#readRaw",
+      "boundary": "apps/pages/api/github-app/webhook.mjs#readRaw",
+      "subsystem": "apps/pages",
+      "attack_class": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    },
+    "surface": "apps/pages/api/github-app/webhook.mjs#readRaw",
+    "boundary": "apps/pages/api/github-app/webhook.mjs#readRaw",
+    "subsystem": "apps/pages",
+    "attack_class": "Resource accumulation",
+    "starting_paths": [
+      "apps/pages/api/github-app/webhook.mjs"
+    ],
+    "ordinary_attack_class_block": null,
+    "selected_companion_blocks": [
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Universal moves",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Validation rules",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "ATTACK-CLASSES.md#Injection",
+        "reason": "The question is unbounded buffering, not a sink that interprets the body as code."
+      },
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Node heap growth, not a native memory-safety bug."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "uncovered_reason": "h-pages: the Vercel webhook adapter buffers the request with its own readRaw loop and does not call readRawBody.",
+    "hardening_notes": [
+      "The plugin webhook branch calls handleGithubAppWebhook without await, so after the body is buffered writeRelayOutcome throws and the client receives 500 with the TypeError text. Await the outcome. That does not add the missing size ceiling.",
+      "Other files in apps/pages/api leave parsing to the platform because they do not set bodyParser false. They are not these readers.",
+      "pinned-fetch.mjs stops an upstream reply at MAX_RESPONSE_BYTES (5 MiB) and connect-verify.mjs stops at VERIFY_MAX_BYTES (64000). Those ceilings are not applied to readRaw or readBody."
+    ],
+    "phase3_verdict": "confirmed",
+    "phase3_verifier": "v03-apps-pages-server-manage-mjs-readrawbody",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fscripts%2Fgithub-app-relay-plugin.mjs%23readBody::apps%2Fpages%2Fscripts%2Fgithub-app-relay-plugin.mjs%23readBody::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "canonical_refs": {
+      "surface": "apps/pages/scripts/github-app-relay-plugin.mjs#readBody",
+      "boundary": "apps/pages/scripts/github-app-relay-plugin.mjs#readBody",
+      "subsystem": "apps/pages",
+      "attack_class": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    },
+    "surface": "apps/pages/scripts/github-app-relay-plugin.mjs#readBody",
+    "boundary": "apps/pages/scripts/github-app-relay-plugin.mjs#readBody",
+    "subsystem": "apps/pages",
+    "attack_class": "Resource accumulation",
+    "starting_paths": [
+      "apps/pages/scripts/github-app-relay-plugin.mjs"
+    ],
+    "ordinary_attack_class_block": null,
+    "selected_companion_blocks": [
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Universal moves",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Validation rules",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "ATTACK-CLASSES.md#Injection",
+        "reason": "The question is unbounded buffering, not a sink that interprets the body as code."
+      },
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Node heap growth, not a native memory-safety bug."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "uncovered_reason": "h-pages: the Vite dev relay copies the same uncapped chunk concatenation and does not call readRawBody.",
+    "hardening_notes": [
+      "The plugin webhook branch calls handleGithubAppWebhook without await, so after the body is buffered writeRelayOutcome throws and the client receives 500 with the TypeError text. Await the outcome. That does not add the missing size ceiling.",
+      "Other files in apps/pages/api leave parsing to the platform because they do not set bodyParser false. They are not these readers.",
+      "pinned-fetch.mjs stops an upstream reply at MAX_RESPONSE_BYTES (5 MiB) and connect-verify.mjs stops at VERIFY_MAX_BYTES (64000). Those ceilings are not applied to readRaw or readBody."
+    ],
+    "phase3_verdict": "confirmed",
+    "phase3_verifier": "v03-apps-pages-server-manage-mjs-readrawbody",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fgit-backup-put.mjs%23handleGitBackupPut::apps%2Fpages%2Fserver%2Fforge-host-guard.mjs%23vetGiteaBase::apps%2Fpages::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "canonical_refs": {
+      "surface": "apps/pages/server/git-backup-put.mjs#handleGitBackupPut",
+      "boundary": "apps/pages/server/forge-host-guard.mjs#vetGiteaBase",
+      "subsystem": "apps/pages",
+      "attack_class": "ATTACK-CLASSES.md#Resource and file handling"
+    },
+    "surface": "apps/pages/server/git-backup-put.mjs#handleGitBackupPut",
+    "boundary": "apps/pages/server/forge-host-guard.mjs#vetGiteaBase",
+    "subsystem": "apps/pages",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "apps/pages/server/git-backup-put.mjs",
+      "apps/pages/server/forge-host-guard.mjs",
+      "apps/pages/server/pinned-fetch.mjs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#HTTP framing and cache attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "Callback requestHost is the raw X-Forwarded-Proto plus Host string, compared to URL.origin. A client that can set both receives a 302 to that https origin (observed for https://evil.example/phish). A browser cannot set Host, and connect-dev-proxy.mjs overwrites Host to 127.0.0.1, so this did not redirect a victim. Parse requestHost with the URL API, accept X-Forwarded-Proto only from a trusted proxy, and send Cache-Control: no-store on the 302.",
+      "IPv4-translated literals (::ffff:0:a.b.c.d) are classified public and vetGiteaBase accepts them. On this kernel they returned ENETUNREACH and did not connect to the embedded IPv4, while true IPv4-mapped addresses did connect and are rejected. Treat 0:0:0:0:ffff:0::/96 as non-public anyway.",
+      "168.63.129.16 is classified public. The relay speaks only HTTPS to a fixed /api/v1/repos/.../contents/opensesame-vault.backup.json path, so this is not an HTTP metadata read. Block that address if the relay is ever placed on an Azure network that intercepts it.",
+      "git-backup returns 403 without an allowlisted Origin, but corsOrigin accepts any loopback origin and a non-browser client can set Origin. That is not authentication. vetGiteaBase still limits the fetch. Manage mutations correctly require a separate key.",
+      "The default webhook queue file is created in /tmp with the process umask, so other local users can read queued delivery and installation ids. Those ids are low sensitivity compared with the symlink overwrite.",
+      "The public callback intentionally allows any loopback return_to and forwards the query string there. That is the documented dev allowlist. A public deployment whose provider does not pin the full return_to should not treat arbitrary loopback ports as safe redirect targets."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fgithub-app-put-contents.mjs::apps%2Fpages%2Fserver%2Fmanage-auth.mjs::apps%2Fpages::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "apps/pages/server/github-app-put-contents.mjs",
+      "boundary": "apps/pages/server/manage-auth.mjs",
+      "subsystem": "apps/pages",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "apps/pages/server/github-app-put-contents.mjs",
+    "boundary": "apps/pages/server/manage-auth.mjs",
+    "subsystem": "apps/pages",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "apps/pages/server/github-app-put-contents.mjs",
+      "apps/pages/server/github-app-repos.mjs",
+      "apps/pages/server/connect-manage.mjs",
+      "apps/pages/server/manage-auth.mjs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#API-key and mTLS attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This unit is a policy or request boundary, not a binary parser or unsafe block."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "{\"title\": \"GitHub content write allows a missing Origin\", \"detail\": \"handleGithubAppPutContents and the repo list/create handlers return 403 only when Origin is present and not allowlisted. git-backup put and webhook-pending reject a missing Origin. The PEM is still required in the body, so this is not an authorization bypass. Aligning the checks would only stop non-browser calls that already possess the App key.\"}"
+    ],
+    "phase3_verdict": "rejected",
+    "phase3_verifier": "parent-run3-close",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fgithub-app-webhook.mjs%23handleGithubAppWebhook::apps%2Fpages%2Fserver%2Fwebhook-queue.mjs%23writeFileQueue::apps%2Fpages::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "canonical_refs": {
+      "surface": "apps/pages/server/github-app-webhook.mjs#handleGithubAppWebhook",
+      "boundary": "apps/pages/server/webhook-queue.mjs#writeFileQueue",
+      "subsystem": "apps/pages",
+      "attack_class": "ATTACK-CLASSES.md#Resource and file handling"
+    },
+    "surface": "apps/pages/server/github-app-webhook.mjs#handleGithubAppWebhook",
+    "boundary": "apps/pages/server/webhook-queue.mjs#writeFileQueue",
+    "subsystem": "apps/pages",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "apps/pages/server/github-app-webhook.mjs",
+      "apps/pages/server/webhook-queue.mjs",
+      "apps/pages/server/github-app-contents.mjs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Privileged-helper and local-file attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      },
+      {
+        "block": "AI-AND-LLM.md#MCP and sub-agent trust classes",
+        "reason": "Webhook queue is not an MCP boundary."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "Callback requestHost is the raw X-Forwarded-Proto plus Host string, compared to URL.origin. A client that can set both receives a 302 to that https origin (observed for https://evil.example/phish). A browser cannot set Host, and connect-dev-proxy.mjs overwrites Host to 127.0.0.1, so this did not redirect a victim. Parse requestHost with the URL API, accept X-Forwarded-Proto only from a trusted proxy, and send Cache-Control: no-store on the 302.",
+      "IPv4-translated literals (::ffff:0:a.b.c.d) are classified public and vetGiteaBase accepts them. On this kernel they returned ENETUNREACH and did not connect to the embedded IPv4, while true IPv4-mapped addresses did connect and are rejected. Treat 0:0:0:0:ffff:0::/96 as non-public anyway.",
+      "168.63.129.16 is classified public. The relay speaks only HTTPS to a fixed /api/v1/repos/.../contents/opensesame-vault.backup.json path, so this is not an HTTP metadata read. Block that address if the relay is ever placed on an Azure network that intercepts it.",
+      "git-backup returns 403 without an allowlisted Origin, but corsOrigin accepts any loopback origin and a non-browser client can set Origin. That is not authentication. vetGiteaBase still limits the fetch. Manage mutations correctly require a separate key.",
+      "The default webhook queue file is created in /tmp with the process umask, so other local users can read queued delivery and installation ids. Those ids are low sensitivity compared with the symlink overwrite.",
+      "The public callback intentionally allows any loopback return_to and forwards the query string there. That is the documented dev allowlist. A public deployment whose provider does not pin the full return_to should not treat arbitrary loopback ports as safe redirect targets."
+    ],
+    "phase3_verdict": "rejected",
+    "phase3_verifier": "v04-apps-pages-server-webhook-queue-mjs-writ",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fserver.mjs%23createServer::apps%2Fpages%2Fserver%2Fmanage.mjs%23readRawBody::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "canonical_refs": {
+      "surface": "apps/pages/server/server.mjs#createServer",
+      "boundary": "apps/pages/server/manage.mjs#readRawBody",
+      "subsystem": "apps/pages",
+      "attack_class": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    },
+    "surface": "apps/pages/server/server.mjs#createServer",
+    "boundary": "apps/pages/server/manage.mjs#readRawBody",
+    "subsystem": "apps/pages",
+    "attack_class": "Resource accumulation",
+    "starting_paths": [
+      "apps/pages/server/server.mjs",
+      "apps/pages/server/manage.mjs"
+    ],
+    "ordinary_attack_class_block": null,
+    "selected_companion_blocks": [
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Universal moves",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Validation rules",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "ATTACK-CLASSES.md#Injection",
+        "reason": "The question is unbounded buffering, not a sink that interprets the body as code."
+      },
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Node heap growth, not a native memory-safety bug."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "Callback requestHost is the raw X-Forwarded-Proto plus Host string, compared to URL.origin. A client that can set both receives a 302 to that https origin (observed for https://evil.example/phish). A browser cannot set Host, and connect-dev-proxy.mjs overwrites Host to 127.0.0.1, so this did not redirect a victim. Parse requestHost with the URL API, accept X-Forwarded-Proto only from a trusted proxy, and send Cache-Control: no-store on the 302.",
+      "IPv4-translated literals (::ffff:0:a.b.c.d) are classified public and vetGiteaBase accepts them. On this kernel they returned ENETUNREACH and did not connect to the embedded IPv4, while true IPv4-mapped addresses did connect and are rejected. Treat 0:0:0:0:ffff:0::/96 as non-public anyway.",
+      "168.63.129.16 is classified public. The relay speaks only HTTPS to a fixed /api/v1/repos/.../contents/opensesame-vault.backup.json path, so this is not an HTTP metadata read. Block that address if the relay is ever placed on an Azure network that intercepts it.",
+      "git-backup returns 403 without an allowlisted Origin, but corsOrigin accepts any loopback origin and a non-browser client can set Origin. That is not authentication. vetGiteaBase still limits the fetch. Manage mutations correctly require a separate key.",
+      "The default webhook queue file is created in /tmp with the process umask, so other local users can read queued delivery and installation ids. Those ids are low sensitivity compared with the symlink overwrite.",
+      "The public callback intentionally allows any loopback return_to and forwards the query string there. That is the documented dev allowlist. A public deployment whose provider does not pin the full return_to should not treat arbitrary loopback ports as safe redirect targets."
+    ],
+    "phase3_verdict": "confirmed",
+    "phase3_verifier": "v03-apps-pages-server-manage-mjs-readrawbody",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fserver.mjs::SECURITY.md::apps%2Fpages::ATTACK-CLASSES.md%23Obvious%20things",
+    "canonical_refs": {
+      "surface": "apps/pages/server/server.mjs",
+      "boundary": "SECURITY.md",
+      "subsystem": "apps/pages",
+      "attack_class": "ATTACK-CLASSES.md#Obvious things"
+    },
+    "surface": "apps/pages/server/server.mjs",
+    "boundary": "SECURITY.md",
+    "subsystem": "apps/pages",
+    "attack_class": "Obvious things",
+    "starting_paths": [
+      "apps/pages/server/server.mjs",
+      "apps/pages/public/os-runtime-config.json",
+      "packages/app-core/src/host.ts",
+      "packages/cli/src/bin.ts",
+      "apps/cli/src/main.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Obvious things",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Managed storage, events, and edge attack classes",
+        "reason": "Obvious-things pass is source grep for secrets, debug gates, and open redirects, not a cloud event bus."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "apps/pages/server/server.mjs catch (line 198) returns Error.message on an unexpected throw instead of a fixed string. Current throws are fixed codes or same-caller upstream text, so this is not a stack, SQL, or cross-principal secret leak.",
+      "packages/cli/src/fixtures/password-agent/request-key.pem is a committed RSA private key for a self-signed request.example certificate used only by parity-request-socket.test.ts. It is not a production credential; .gitignore already ignores other *.pem files.",
+      "GET /api/connect/connectors is intentionally anonymous for an allowlisted Origin and a non-browser can forge Origin. The response is the catalog projection (manage.mjs publicConnector); mutations still require OPENSESAME_CONNECT_MANAGE_KEY. README states Origin is CORS, not authorization.",
+      ".gitignore does not name credentials.json or .env.production. Neither file is tracked.",
+      "Webhook nudges without Redis fall back to /tmp/opensesame-github-webhook-queue.json (webhook-queue.mjs). The file holds delivery and installation ids, not tokens, and the relay binds loopback by default."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fsrc%2Fsw%2Ffetch.ts::apps%2Fpages%2Fsrc%2Fsw%2Fmessages.ts::apps%2Fpages::ATTACK-CLASSES.md%23Injection",
+    "canonical_refs": {
+      "surface": "apps/pages/src/sw/fetch.ts",
+      "boundary": "apps/pages/src/sw/messages.ts",
+      "subsystem": "apps/pages",
+      "attack_class": "ATTACK-CLASSES.md#Injection"
+    },
+    "surface": "apps/pages/src/sw/fetch.ts",
+    "boundary": "apps/pages/src/sw/messages.ts",
+    "subsystem": "apps/pages",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "apps/pages/src/sw/fetch.ts",
+      "apps/pages/src/sw/messages.ts",
+      "apps/pages/src/sw/push-handlers.ts",
+      "apps/pages/src/main.tsx"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
+    "selected_companion_blocks": [
+      "CLIENT-SIDE.md#Core discipline",
+      "CLIENT-SIDE.md#Universal moves",
+      "CLIENT-SIDE.md#Validation rules",
+      "CLIENT-SIDE.md#Service-worker and browser-storage attack classes",
+      "CLIENT-SIDE.md#DOM and object-state attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "FederationReturn passes pending.returnTo to react-router navigate without assertSafeReturnTo. The local checker rejects absolute URLs, protocol-relative URLs, and paths outside /OpenSesame/. No production caller builds an external returnTo, and the checker is only referenced from its unit test.",
+      "The navigation handler in apps/pages/src/sw/fetch.ts stores any ok response as the release shell without comparing response.url or response.redirected to the shell URL. No in-repo redirect gadget was found that would feed another project's body into that cache. Push notification text is a closed table and the click URL is an opaque ref resolved against the worker scope.",
+      "guestsAllowed stays true unless the operator record is JSON with allowed false. That is the documented failure direction, and assertGuestsAllowed runs inside openGuestVault before a guest tomb is created.",
+      "docs/architecture/federated-signin.md says anything other than an explicit active session-check result refuses sign-in. requireActiveUpstreamSession does the opposite and returns success for every status except HTTP 401. The sandbox showed the 401 refusal does not prevent the earlier token POST."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fvite.config.ts%23handleAgentPage::apps%2Fpages%2Fvite.config.ts%23handleAgentPage::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "canonical_refs": {
+      "surface": "apps/pages/vite.config.ts#handleAgentPage",
+      "boundary": "apps/pages/vite.config.ts#handleAgentPage",
+      "subsystem": "apps/pages",
+      "attack_class": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    },
+    "surface": "apps/pages/vite.config.ts#handleAgentPage",
+    "boundary": "apps/pages/vite.config.ts#handleAgentPage",
+    "subsystem": "apps/pages",
+    "attack_class": "Resource accumulation",
+    "starting_paths": [
+      "apps/pages/vite.config.ts",
+      "apps/pages/src/lib/agent-page-dump.ts"
+    ],
+    "ordinary_attack_class_block": null,
+    "selected_companion_blocks": [
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Universal moves",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Validation rules",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "ATTACK-CLASSES.md#Injection",
+        "reason": "The question is unbounded buffering of a POST body, not a sink that interprets the body as code."
+      },
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Node heap growth from Buffer.concat, not a native memory-safety bug."
+      },
+      {
+        "block": "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Privileged-helper and local-file attack classes",
+        "reason": "The fixed /tmp/agent-page.json write is how the uncapped body is retained. The missing ceiling is the assigned control, not a helper or path traversal."
+      }
+    ],
+    "prior_status": "prior_deferred",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "uncovered_reason": "handleAgentPage pushes every POST chunk and writeFileSyncs Buffer.concat to /tmp/agent-page.json with no size comparison. The readBody unit lists vite.config.ts only as the relay-plugin mount, so a cap on readRaw or readBody does not cover this dev middleware.",
+    "hardening_notes": [],
+    "phase3_verdict": "rejected",
+    "phase3_verifier": "parent-run3-close",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fauthenticator-core%2Fsrc%2Flib.rs%23validate_platform_invocation::crates%2Fauthenticator-core%2Fsrc%2Flib.rs::apps%2Fandroid::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/authenticator-core/src/lib.rs#validate_platform_invocation",
+      "boundary": "crates/authenticator-core/src/lib.rs",
+      "subsystem": "apps/android",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/authenticator-core/src/lib.rs#validate_platform_invocation",
+    "boundary": "crates/authenticator-core/src/lib.rs",
+    "subsystem": "apps/android",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/authenticator-core/src/lib.rs",
+      "apps/android/android/app/src/main/AndroidManifest.xml"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Deep-link, callback, and navigation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "require_fresh_user_verification is only referenced by its unit test. Android wallet flows do not call it. Multipaz may still show a consent prompt; that prompt is not visible in this repo, so a missing biometric gate was not claimed.",
+      "MainActivity completes a pending issuer OAuth challenge when any incoming URI's state equals AuthorizationChallenge.OAuth.state, without pinning the configured redirect https://${INVOCATION_HOST}/invoke/oid4vci/callback. No in-repo source shows that state is predictable or leaked, and the challenge type's nullability is outside the repo.",
+      "The same validate_platform_invocation call also accepted https://0.0.0.1/x and NAT64 https://[64:ff9b::127.0.0.1]/x. Those are not IPv4-mapped forms of addresses the existing IPv4 helpers reject; treat 0.0.0.0/8 and 64:ff9b::/96 as follow-up literal gaps.",
+      "DigitalCredentialsActivity is exported for the platform GET_CREDENTIAL actions and loads an empty privileged-user-agents.json. That empty list is the documented development placeholder, not a source-visible allow-all."
+    ],
+    "phase3_verdict": "confirmed",
+    "phase3_verifier": "v07-crates-authenticator-core-host-is-privat",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fconnection-broker%2Fsrc%2Fegress.rs%23authorized_json::crates%2Fdomain%2Fsrc%2Fauthority.rs%23allows_url::crates%2Fconnection-broker::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/connection-broker/src/egress.rs#authorized_json",
+      "boundary": "crates/domain/src/authority.rs#allows_url",
+      "subsystem": "crates/connection-broker",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/connection-broker/src/egress.rs#authorized_json",
+    "boundary": "crates/domain/src/authority.rs#allows_url",
+    "subsystem": "crates/connection-broker",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/connection-broker/src/egress.rs",
+      "crates/domain/src/authority.rs",
+      "crates/connection-broker/src/lib.rs",
+      "crates/gateway/src/routes/intents_enforcement.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#HTTP framing and cache attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#API-key and mTLS attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Egress is safe Rust HTTP with a sealed bearer, not a binary parser."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "The fence is the connection egress allowlist, not a cloud IAM role."
+      }
+    ],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "A portless authorities entry matches every port because allows_url treats a == host as success (authority.rs:218-221). https://api.github.com:8443/repos/acme and https://internal.example:9/api/v2/admin were allowed. spec/connectors/catalog.json pins mock to 127.0.0.1 with no port, catalog_egress.rs binds port 0, and docs/security/audits/2026-09-23-security-architecture-review.md records this as intentional. invoke-through EgressFence rejects a non-default port; the broker fence does not.",
+      "allows_redirect compares host strings only, not ports (authority.rs:261-268), but authorized_json never calls it. Both reqwest clients are built with redirect Policy::none (lib.rs:280 and lib.rs:287). The comment above http_bytes that says the shared client follows redirects is stale."
+    ],
+    "phase3_verdict": "needs_validation",
+    "phase3_verifier": "v-run5-egress-encoded-path",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fcredential-helpers%2Fsrc%2Flib.rs::crates%2Fcredential-helpers%2Fsrc%2Flib.rs::crates%2Fcredential-helpers::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "canonical_refs": {
+      "surface": "crates/credential-helpers/src/lib.rs",
+      "boundary": "crates/credential-helpers/src/lib.rs",
+      "subsystem": "crates/credential-helpers",
+      "attack_class": "ATTACK-CLASSES.md#Cryptography and secrets"
+    },
+    "surface": "crates/credential-helpers/src/lib.rs",
+    "boundary": "crates/credential-helpers/src/lib.rs",
+    "subsystem": "crates/credential-helpers",
+    "attack_class": "Cryptography and secrets",
+    "starting_paths": [
+      "crates/credential-helpers/src/lib.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Local IPC and exported-component attack classes",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Privileged-helper and local-file attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This unit is a policy or request boundary, not a binary parser or unsafe block."
+      },
+      {
+        "block": "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+        "reason": "Credential helpers are a local process boundary, not a browser session."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "docker get (crates/credential-helpers/src/entry/docker.rs) and kube run (crates/credential-helpers/src/entry/kube.rs) print the minted secret for any caller-supplied registry URL or, for kube, without reading ExecCredential.spec.cluster.server. git request_allowed refuses that pattern. End-to-end exfiltration is not reachable: DaemonClient::post sends no operator credential and crates/daemon/src/lib.rs require_operator still requires one on UDS. A credsStore or a foreign kubeconfig would matter only after that fence changes.",
+      "git_protocol::render_credential interpolates username and password with raw newlines. OPENSESAME_GIT_USERNAME and derived_token are not rejected for CR or LF. Docker, AWS, and kube render with serde_json. The git success path is currently unreachable against the daemon, and GitHub installation tokens are not newline-bearing, so this is not a live protocol injection.",
+      "HelperError::Denied prints the response error string with no allowlist or length bound inside the 64KiB cap. Current gateway and daemon errors use static BrokerError::code values and put free text in hint, which the helper does not read.",
+      "default_sock_path falls back to the relative path opensesame/agent.sock when XDG_RUNTIME_DIR and HOME are empty, and UnixStream::connect does not require a same-UID socket inode. The body has no operator token or stored secret, and a foreign listener cannot mint through the real daemon.",
+      "MintedCredential.raw, the HTTP response String, and the AWS STS field Strings hold secret bytes outside Zeroizing. The process is one-shot and the same OS user can already hold the operator token, so this is residue, not a cross-account read.",
+      "connection-broker mint_installation_token posts an empty body to the GitHub installation access_tokens endpoint, so a successful mint is installation-wide rather than the single git path. The helper never sends path, and daemon MintRequest denies unknown fields. That attenuation gap is outside this crate and is the same operator's own opted-in mint, not a second principal."
+    ],
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fdaemon%2Fsrc%2Flib.rs%23proxy_loopback::crates%2Fdaemon%2Fsrc%2Fproxy_path.rs::crates%2Fdaemon::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "canonical_refs": {
+      "surface": "crates/daemon/src/lib.rs#proxy_loopback",
+      "boundary": "crates/daemon/src/proxy_path.rs",
+      "subsystem": "crates/daemon",
+      "attack_class": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries"
+    },
+    "surface": "crates/daemon/src/lib.rs#proxy_loopback",
+    "boundary": "crates/daemon/src/proxy_path.rs",
+    "subsystem": "crates/daemon",
+    "attack_class": "Chained vulnerabilities and trust boundaries",
+    "starting_paths": [
+      "crates/daemon/src/lib.rs",
+      "crates/daemon/src/proxy_path.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Local IPC and exported-component attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "crates/daemon/README.md and docs/operators/credential-helpers.md say the Unix-socket peer UID authenticates instead of the operator token and that helpers need no token. require_operator still requires the token after the UID check. The in-repo UDS tests deny the same UID with no token and a foreign UID with a valid token. The code is stricter than the docs.",
+      "docs/reference/daemon-socket.md says every daemon route but /health is operator-gated. GET /health/live, POST /v1/get_access_token (a stub error), /host, /identity, fill routes, and vault-drive device routes are not operator-gated. Device routes still require the slot key. The stub does not return a token.",
+      "spawn_uds and serve_uds_only bind the Unix listener and do not chmod it to 0600. A typical umask of 022 produces a socket that is not other-writable. A permissive process umask is not established here, so this stays hardening rather than a cross-user candidate.",
+      "fill/caller.rs treats Host 127.0.0.1, localhost, or [::1], plus the absence of forwarding headers, as proof the request did not arrive through Serve or the WSL bridge. A direct client of the optional WSL eth listener chooses that Host and can omit those headers. Secret fill values still require the paired bearer. Tailscale Serve's actual request headers are not in this repository."
+    ],
+    "phase3_verdict": "confirmed",
+    "phase3_verifier": "v10-daemon-proxy-backslash-canonicalizes-loc",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fdaemon%2Fsrc%2Flib.rs%23require_operator::crates%2Fuds-authn%2Fsrc%2Flib.rs::crates%2Fdaemon::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/daemon/src/lib.rs#require_operator",
+      "boundary": "crates/uds-authn/src/lib.rs",
+      "subsystem": "crates/daemon",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/daemon/src/lib.rs#require_operator",
+    "boundary": "crates/uds-authn/src/lib.rs",
+    "subsystem": "crates/daemon",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/daemon/src/lib.rs",
+      "crates/uds-authn/src/lib.rs",
+      "crates/daemon/src/peer_auth.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Local IPC and exported-component attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "crates/daemon/README.md and docs/operators/credential-helpers.md say the Unix-socket peer UID authenticates instead of the operator token and that helpers need no token. require_operator still requires the token after the UID check. The in-repo UDS tests deny the same UID with no token and a foreign UID with a valid token. The code is stricter than the docs.",
+      "docs/reference/daemon-socket.md says every daemon route but /health is operator-gated. GET /health/live, POST /v1/get_access_token (a stub error), /host, /identity, fill routes, and vault-drive device routes are not operator-gated. Device routes still require the slot key. The stub does not return a token.",
+      "spawn_uds and serve_uds_only bind the Unix listener and do not chmod it to 0600. A typical umask of 022 produces a socket that is not other-writable. A permissive process umask is not established here, so this stays hardening rather than a cross-user candidate.",
+      "fill/caller.rs treats Host 127.0.0.1, localhost, or [::1], plus the absence of forwarding headers, as proof the request did not arrive through Serve or the WSL bridge. A direct client of the optional WSL eth listener chooses that Host and can omit those headers. Secret fill values still require the paired bearer. Tailscale Serve's actual request headers are not in this repository."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fdaemon%2Fsrc%2Ftailscale.rs::crates%2Fdaemon%2Fsrc%2Fstartup.rs::crates%2Fdaemon::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "canonical_refs": {
+      "surface": "crates/daemon/src/tailscale.rs",
+      "boundary": "crates/daemon/src/startup.rs",
+      "subsystem": "crates/daemon",
+      "attack_class": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries"
+    },
+    "surface": "crates/daemon/src/tailscale.rs",
+    "boundary": "crates/daemon/src/startup.rs",
+    "subsystem": "crates/daemon",
+    "attack_class": "Chained vulnerabilities and trust boundaries",
+    "starting_paths": [
+      "crates/daemon/src/tailscale.rs",
+      "crates/daemon/src/startup.rs",
+      "crates/daemon/src/tailnet.rs",
+      "crates/daemon/src/fill/caller.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Local IPC and exported-component attack classes",
+      "CLOUD-AND-DEPLOYMENT.md#Core discipline",
+      "CLOUD-AND-DEPLOYMENT.md#Universal moves",
+      "CLOUD-AND-DEPLOYMENT.md#Validation rules",
+      "CLOUD-AND-DEPLOYMENT.md#Ingress, network, and control-plane attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Kernel and privileged-interface attack classes",
+        "reason": "Tailscale serve is a process publish path, not a kernel module."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "crates/daemon/README.md and docs/operators/credential-helpers.md say the Unix-socket peer UID authenticates instead of the operator token and that helpers need no token. require_operator still requires the token after the UID check. The in-repo UDS tests deny the same UID with no token and a foreign UID with a valid token. The code is stricter than the docs.",
+      "docs/reference/daemon-socket.md says every daemon route but /health is operator-gated. GET /health/live, POST /v1/get_access_token (a stub error), /host, /identity, fill routes, and vault-drive device routes are not operator-gated. Device routes still require the slot key. The stub does not return a token.",
+      "spawn_uds and serve_uds_only bind the Unix listener and do not chmod it to 0600. A typical umask of 022 produces a socket that is not other-writable. A permissive process umask is not established here, so this stays hardening rather than a cross-user candidate.",
+      "fill/caller.rs treats Host 127.0.0.1, localhost, or [::1], plus the absence of forwarding headers, as proof the request did not arrive through Serve or the WSL bridge. A direct client of the optional WSL eth listener chooses that Host and can omit those headers. Secret fill values still require the paired bearer. Tailscale Serve's actual request headers are not in this repository."
+    ],
+    "phase3_verdict": "confirmed",
+    "phase3_verifier": "v10-daemon-proxy-backslash-canonicalizes-loc",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Fbreach%2Fsources.rs%23password_occurrences::crates%2Fbreach-intel%2Fsrc%2Frange.rs%23range_url::crates%2Fgateway::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/breach/sources.rs#password_occurrences",
+      "boundary": "crates/breach-intel/src/range.rs#range_url",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Feature abuse and data leakage"
+    },
+    "surface": "crates/gateway/src/breach/sources.rs#password_occurrences",
+    "boundary": "crates/breach-intel/src/range.rs#range_url",
+    "subsystem": "crates/gateway",
+    "attack_class": "Feature abuse and data leakage",
+    "starting_paths": [
+      "crates/gateway/src/breach/sources.rs",
+      "crates/breach-intel/src/range.rs",
+      "crates/breach-intel/src/catalogue.rs",
+      "crates/breach-intel/src/event.rs",
+      "crates/gateway/src/routes/security.rs",
+      "crates/gateway/src/security/dispatch.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Feature abuse and data leakage",
+    "selected_companion_blocks": [
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Core discipline",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Universal moves",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Validation rules",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Derived-data and disclosure attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#HTTP framing and cache attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "The corpus client is HTTP and text parsing, not a native memory-safety boundary."
+      },
+      {
+        "block": "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Resource accumulation attack classes",
+        "reason": "The catalogue cap is adjacent. The assigned question is which tenant data leaves, not allocation."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "uncovered_reason": "password_occurrences and catalogue are the breach plane's only fetches. range_url appends a digest prefix, and the client is built with redirect Policy::none. POST /api/v1/security/breach-check takes a caller secret and subject_id, and scan publishes a SecurityNotice through security/dispatch.rs. Security boundary 8, including whether an account identifier or the secret is what leaves or is notified, has no unit. Human-vault coverage was AEAD only.",
+    "hardening_notes": [
+      "On a range transport or body-read failure, password_occurrences formats reqwest::Error Display, which appends for url (https://api.pwnedpasswords.com/range/{prefix}). source_unavailable puts that string in breach.scan.failed detail. redact_text does not strip a path prefix; the url-userinfo rule only rewrites userinfo. security/failure_text.rs already uses Error::without_url before persisting transport errors. The scan_failed subject is the corpus, not the checked secret, and PwnedDigest Debug treats the five-character prefix as log-safe, so this is not reported as disclosure of the password. Strip the URL before publishing so sinks do not also receive the bucket id.",
+      "occurrences maps an HTTP 200 whose body is empty or has no parseable SUFFIX:COUNT line to 0, and settle_check treats 0 as clean and can clear an open password finding. HTTP failures are fail-closed. A padded range body is not empty, but producing that 200 still requires the TLS peer at the fixed https origin, which this client trusts via webpki rather than an unauthenticated redirect."
+    ],
+    "phase3_verdict": "rejected",
+    "phase3_verifier": "v08-crates-breach-intel-src-event-rs-breache",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs%23require_session::crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs%23resolve_caller::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/middleware/auth.rs#require_session",
+      "boundary": "crates/gateway/src/middleware/auth.rs#resolve_caller",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/gateway/src/middleware/auth.rs#require_session",
+    "boundary": "crates/gateway/src/middleware/auth.rs#resolve_caller",
+    "subsystem": "crates/gateway",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/middleware/auth.rs",
+      "crates/gateway/src/session_claims.rs",
+      "crates/gateway/src/middleware/agent_grants.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#API-key and mTLS attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Auth decision is token lookup, not a binary parser bug."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "Device authorize evicts the soonest-expiring unapproved pending grant at 512 entries (crates/gateway/src/routes/device.rs:67). An anonymous client can cancel another client's not-yet-approved login once the map is full. Approved grants are kept, and the wrong-guess path deliberately does not delete pending codes. The interleaving test treats this eviction as the capacity fence.",
+      "approve commits pending.approved before provision_native_role and returns 503 without clearing that grant if the role insert fails (crates/gateway/src/routes/device.rs:274). token can still mint the operator-requested principal and role. The principal is not substituted; callers that treat non-200 as 'no approval' can disagree with the in-memory grant until revoke or expiry.",
+      "Callout evidence disables aud validation when OPENSESAME_NATS_CALLOUT_AUDIENCE is unset and sets validate_nbf to false with no manual nbf check (crates/gateway/src/callout_evidence.rs:245). exp, iss, and sub are still enforced, and a configured audience is rejected on mismatch. Unlike an empty server-nkey pin, an unset audience does not fail closed.",
+      "callout_permissions interpolates principal_id and project_id into NATS subjects without rejecting '*', '>', or extra dots (crates/authz/src/callout.rs:80). The live gateway path passes an empty project list and a UUID-validated mapped principal, so the wildcard form is not reachable from the route.",
+      "A host_kv write error, or a lost claim whose follow-up read fails, makes record return no stored decision, and the handler answers with the local one (crates/gateway/src/routes/nats_callout.rs:374). Replay immutability holds when the claim and the subsequent read succeed; it is not fail-closed on storage errors.",
+      "GET /api/v1/session is allowed for every agent capability as agent:self and returns the process-wide session count (crates/gateway/src/routes/session.rs:19, crates/gateway/src/middleware/agent_grants.rs:31). It does not return another principal's claims."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Fhook_records.rs%23read_hook_records::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/agent_runs/hook_records.rs#read_hook_records",
+      "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/gateway/src/routes/agent_runs/hook_records.rs#read_hook_records",
+    "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+    "subsystem": "crates/gateway",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/agent_runs/hook_records.rs",
+      "crates/gateway/src/routes/agent_runs.rs",
+      "crates/gateway/src/routes/agent_run_stream_authority.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "The missing recheck is session and role state, not a binary decoder."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on hook-record reads."
+      },
+      {
+        "block": "AI-AND-LLM.md#Tool and action attack classes",
+        "reason": "This route returns interceptor verdict records for a run. It does not invoke a model tool. WebMCP and MCP already have units."
+      }
+    ],
+    "prior_status": "prior_deferred",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "uncovered_reason": "read_hook_records calls load with Attachment::View and returns record pages without StreamAuthority::active, so a null role or stale evidence_after that stops an observe tail does not stop this route. hook_records.rs is not in any unit's reviewed_paths.",
+    "hardening_notes": [
+      "load's missing-run response is {\"error\":\"not_found\"} with no hint, while NotTheOwner is HTTP 404 with hint \"only the credential's owner may observe its run\" (crates/gateway/src/routes/agent_runs.rs refusal). The hook-records comment says a foreign run must not admit it exists. Launcher ids are run_ plus a UUID v7 (crates/gateway/src/web_login/launch.rs), so the hint is not a directory, but a same-org caller who already has an id can tell a real run from a missing one."
+    ],
+    "phase3_verdict": "rejected",
+    "phase3_verifier": "parent-run3-close",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Flease.rs%23commit::crates%2Fstorage%2Fsrc%2Fhost_authorizations.rs%23control_with_host_authorization::crates%2Fgateway::ATTACK-CLASSES.md%23Business%20logic",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/agent_runs/lease.rs#commit",
+      "boundary": "crates/storage/src/host_authorizations.rs#control_with_host_authorization",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Business logic"
+    },
+    "surface": "crates/gateway/src/routes/agent_runs/lease.rs#commit",
+    "boundary": "crates/storage/src/host_authorizations.rs#control_with_host_authorization",
+    "subsystem": "crates/gateway",
+    "attack_class": "Business logic",
+    "starting_paths": [
+      "crates/gateway/src/routes/agent_runs/lease.rs",
+      "crates/storage/src/host_authorizations.rs",
+      "crates/gateway/src/routes/host_authorizations.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Business logic",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#MFA, passkey, and account-transition attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "The transition is a SQL consume-and-update, not a memory-safety boundary."
+      },
+      {
+        "block": "AI-AND-LLM.md#Tool and action attack classes",
+        "reason": "This is the human browser control lease, not a model tool call. Agent tool routes already have a unit."
+      }
+    ],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "Human release persists resume_requested and does not call ControlLease::resume, so these control routes cannot return a run to agent_driving.",
+      "Browser observe rechecks the grant, host.agent.observe, the role fence, and the run owner before releasing a buffered SSE event.",
+      "control_with_host_authorization binds the elevation digest, client, transition, and run version in one transaction, and a stale observation update returns before commit."
+    ],
+    "phase3_verdict": "needs_validation",
+    "phase3_verifier": "v-run5-gateway-observe-fence",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Fstream.rs%23observe::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/agent_runs/stream.rs#observe",
+      "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/gateway/src/routes/agent_runs/stream.rs#observe",
+    "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+    "subsystem": "crates/gateway",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/agent_runs/stream.rs",
+      "crates/gateway/src/routes/agent_run_stream_authority.rs",
+      "crates/gateway/src/routes/shared_sessions/events.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#MFA, passkey, and account-transition attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "The stream recheck is session and grant state, not a binary decoder."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on the observation stream."
+      }
+    ],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "Human release persists resume_requested and does not call ControlLease::resume, so these control routes cannot return a run to agent_driving.",
+      "Browser observe rechecks the grant, host.agent.observe, the role fence, and the run owner before releasing a buffered SSE event.",
+      "control_with_host_authorization binds the elevation digest, client, transition, and run version in one transaction, and a stale observation update returns before commit."
+    ],
+    "phase3_verdict": "needs_validation",
+    "phase3_verifier": "v-run5-gateway-observe-fence",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs.rs%23get_run::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/agent_runs.rs#get_run",
+      "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/gateway/src/routes/agent_runs.rs#get_run",
+    "boundary": "crates/gateway/src/routes/agent_run_stream_authority.rs#active",
+    "subsystem": "crates/gateway",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/agent_runs.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [
+      {
+        "block": "WEB-PROTOCOL-AND-AUTH.md#API-key and mTLS attack classes",
+        "reason": "WEB-PROTOCOL-AND-AUTH.md has no API-authorization heading. The only API-named section is API-key and mTLS, and get_run is a browser DPoP grant or native session, not an API key or client certificate."
+      },
+      {
+        "block": "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+        "reason": "The missing check is role_policy on an already authenticated owner read, not CSRF, cookie scope, or session fixation. That inconsistency is the ordinary Access control block."
+      },
+      {
+        "block": "WEB-PROTOCOL-AND-AUTH.md#HTTP framing and cache attack classes",
+        "reason": "get_run does not split a request parse or cache key."
+      },
+      {
+        "block": "WEB-PROTOCOL-AND-AUTH.md#Federated-identity attack classes",
+        "reason": "No JWT, OAuth callback, or SAML assertion is the decision on this route."
+      },
+      {
+        "block": "WEB-PROTOCOL-AND-AUTH.md#MFA, passkey, and account-transition attack classes",
+        "reason": "StreamAuthority::active also checks phishing-resistant assurance, but the uncovered gap is the role and evidence_after comparison, which load never performs."
+      },
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "The missing recheck is session and role state, not a binary decoder."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on GET /api/v1/agent/runs/{id}."
+      },
+      {
+        "block": "AI-AND-LLM.md#Tool and action attack classes",
+        "reason": "The handler returns verdict counts. It does not invoke a model tool."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "uncovered_reason": "GET /api/v1/agent/runs/{id} (agent_runs.rs get_run, route registered beside list_runs) calls load with Attachment::View and then hook_records::summary_of. summary_of returns count, allow, deny, transform, escalated, and last_sequence. Neither get_run nor load calls StreamAuthority::active or role_policy. For a BrowserGrant, active returns false when role is none or auth_time is less than or equal to evidence_after. This count path is not read_hook_records and it is not the planned lease-commit or observe/one-shot-log fingerprint. WEB-PROTOCOL-AND-AUTH.md was checked: its headings are Core discipline, HTTP framing and cache, Browser-session, Federated-identity, MFA passkey and account-transition, API-key and mTLS, Universal moves, and Validation rules. There is no API-authorization section, so selected_companion_blocks is empty and the ordinary attack class is ATTACK-CLASSES.md#Access control. Recon names (Bitwarden id lookup, pm-bridges, daemon fill, OPFS, certmgr/EST, vault-drive, duress, compose OpenBao/Keycloak/OpenFGA, OCI wasm, agent-capability redemption, socket capability exchange, anonymous/provisional, GitHub PEM convert, storage id-only reads, authz assurance-only, prn_ bearer, public WebAuthn, browser grants without Origin and DPoP, operator organization header, docker credential helper) are not separate units: controls hold, the path is already in a covered unit, or the note is same-principal or checklist. Prior rejected leads were not reopened.",
+    "hardening_notes": [
+      "get_run also returns run_view metadata (job_id, target origin, control_state, lease, next_seq). list_runs returns that same view for the owner's runs under authorize_attach(View) and also never calls StreamAuthority::active. That metadata surface is not the hook-record page."
+    ],
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fauthority_grants.rs%23issue::crates%2Fauthz%2Fsrc%2Fauthority_use.rs%23authorize_authority_use::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/authority_grants.rs#issue",
+      "boundary": "crates/authz/src/authority_use.rs#authorize_authority_use",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/gateway/src/routes/authority_grants.rs#issue",
+    "boundary": "crates/authz/src/authority_use.rs#authorize_authority_use",
+    "subsystem": "crates/gateway",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/authority_grants.rs",
+      "crates/gateway/src/routes/authority_issuance_preflight.rs",
+      "crates/authz/src/authority_use.rs",
+      "crates/gateway/src/routes/intents_enforcement.rs",
+      "crates/gateway/src/routes/intents.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Core discipline",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Universal moves",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Validation rules",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Export, backup, restore, and migration attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#MFA, passkey, and account-transition attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Export is a grant flag and an authorizer, not a memory-safety boundary."
+      },
+      {
+        "block": "AI-AND-LLM.md#Tool and action attack classes",
+        "reason": "WebMCP and MCP tool reach already have units. This unit is the host export bit, not a model tool schema."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "uncovered_reason": "issue stores body.raw_credential_export after issuance_preflight, and a true value also requires may_issue_reserved_administration. Use-time denial is authorize_authority_use, reached from intents_enforcement.rs. intents.rs separately rejects invoke level >= 3 before that authorizer. The grant unit traced tenant matching in intents.rs and did not review the export bit, step-up, or audit. Security boundary 7 is not the planned WASM capability flag.",
+    "hardening_notes": [
+      "POST /authority accepts raw_credential_export, offline_use, and enforcement_platform only as preflight inputs. AuthorityIssue does not store them, so an owner cannot turn export on through this route, and a false claim cannot change the grant authorize_authority_use later reads.",
+      "authorize_authority_use stamps the grant's first audience into the AuthZEN context. Broker::invoke and invoke_with decide again with the caller audience and a resource-scoped connector_operation before the side effect, so the stamp does not authorize a different audience.",
+      "intents_enforcement maps every invoke_level other than 1 or 2 to Materialize. Levels at or above 3 are rejected first, and level 0 is refused because host-minted-token cannot hold termination. Gateway bindings also never set max_invoke_level to Materialize.",
+      "issue() does not attenuate child permission entries against the parent action set. Invoke authorization uses the domain Grant, and grant_fits_envelope refuses offer activation when a child entry is not an exact envelope entry.",
+      "assert_no_secret_in_agent_payload is a lowercase substring denylist and is not on the intents path. CamelCase keys such as accessToken would not match access_token. The invoke export gate is the materialize and credential.resolve denial, not this scan."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fbackup.rs::crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/backup.rs",
+      "boundary": "crates/gateway/src/middleware/auth.rs",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Feature abuse and data leakage"
+    },
+    "surface": "crates/gateway/src/routes/backup.rs",
+    "boundary": "crates/gateway/src/middleware/auth.rs",
+    "subsystem": "crates/gateway",
+    "attack_class": "Feature abuse and data leakage",
+    "starting_paths": [
+      "crates/gateway/src/routes/backup.rs",
+      "crates/gateway/src/routes/admin.rs",
+      "crates/gateway/src/routes/kv_facade.rs",
+      "crates/gateway/src/routes/kv_facade_path.rs",
+      "crates/gateway/src/routes/attachments.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Feature abuse and data leakage",
+    "selected_companion_blocks": [
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Core discipline",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Universal moves",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Validation rules",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Export, backup, restore, and migration attack classes",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Tenant and object-isolation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This unit is a policy or request boundary, not a binary parser or unsafe block."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "Backup configuration ignores x-opensesame-organization and always uses Caller::organization(connection_organization). Sibling operator routes use resolve_caller_organization. In production that id is the nil UUID (app_state.rs when demo bootstrap is off), so the header cannot move a real tenant's snapshot, but an operator who sets a customer repo while sending another tenant's header silently binds the nil organization.",
+      "valid_branch rejects literal '..' but allows percent-encoded dot segments. url 2.5.8 collapses '%2e%2e' before the request, so an operator-chosen branch can retarget the installation-token GET/PATCH that backup_github.rs builds for the ref. Blob, tree, and commit URLs do not include the branch, non-2xx bodies are dropped, and the caller is already the operator who chooses owner, repo, and installation_id. Same-principal GitHub API scope, not a second tenant read.",
+      "create_tree sets base_tree from the parent commit and never sends sha:null deletes, so files removed from the source snapshot stay on the branch tip. ADR 0039 says deletions become deletions in the repo. The code comment keeps prior ciphertext for recoverability. Readers are the operator-chosen backup repository, and the bytes are still sealed or end-to-end ciphertext.",
+      "config_has_secret_shaped_key is a substring denylist. A connector config key that does not contain value, secret, password, token, authorization, bearer, cookie, refresh, or key is stored and returned by GET to the same operator. It is not copied into the snapshot.",
+      "resync_allowed is one process-global window of 6 calls per 60 seconds, not per organization. Only the operator token can call POST /api/v1/backup/resync."
+    ],
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fbrowser_pairings.rs%23create::crates%2Fgateway%2Fsrc%2Froutes%2Fbrowser_pairings%2Fceiling.rs%23verified_ceiling::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/browser_pairings.rs#create",
+      "boundary": "crates/gateway/src/routes/browser_pairings/ceiling.rs#verified_ceiling",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/gateway/src/routes/browser_pairings.rs#create",
+    "boundary": "crates/gateway/src/routes/browser_pairings/ceiling.rs#verified_ceiling",
+    "subsystem": "crates/gateway",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/browser_pairings.rs",
+      "crates/gateway/src/routes/browser_pairings/ceiling.rs",
+      "crates/gateway/src/routes/browser_pairings/renew.rs",
+      "crates/gateway/src/browser_pairing_proof.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#MFA, passkey, and account-transition attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "Pairing issuance is safe Rust session state, not a binary parser."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on pairing issuance."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "uncovered_reason": "The gateway auth unit reviewed browser_grants.rs and browser_pairing_proof.rs as the request guard. It did not review browser_pairings.rs create, decision, ceiling.rs, or renew.rs. create stores a pairing from an origin and DPoP jkt with no operator session. decision is operator-gated and can call provision_native_role as Member unless the stored ceiling is only host.join. verified_ceiling then widens a sync pairing to host.agent.observe, host.agent.control, and the browser user routes. Security boundary 10's issuance lifecycle has no unit.",
+    "hardening_notes": [
+      "verified_ceiling treats every vector other than exactly [host.join] as the full authenticated-browser and agent map. session_claims calls allowed_capabilities first, so create cannot reach that arm with a disallowed vector, but a future caller that skipped the allowlist would grant host.agent.control and config.write.",
+      "decision commits decide_browser_pairing before provision_native_role. If provisioning returns an error the response is 503 and the row stays approved, so the browser can still exchange the device code. The authority is the approve the operator submitted; the membership row may be missing, and later narrow_identity_role then fails closed. The two writes are not one transaction.",
+      "The decision body does not echo the inspected origin, dpop_jkt, or capabilities. The shipped CLI prints the inspect view and asks for the word approve, but any other holder of the operator token can approve a sync tier without resubmitting that view. The operator credential remains the authority either way."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fdelegations.rs::crates%2Fauthz%2Fsrc%2Fauthority_use.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/delegations.rs",
+      "boundary": "crates/authz/src/authority_use.rs",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries"
+    },
+    "surface": "crates/gateway/src/routes/delegations.rs",
+    "boundary": "crates/authz/src/authority_use.rs",
+    "subsystem": "crates/gateway",
+    "attack_class": "Chained vulnerabilities and trust boundaries",
+    "starting_paths": [
+      "crates/gateway/src/routes/delegations.rs",
+      "crates/gateway/src/routes/connections.rs",
+      "crates/gateway/src/routes/grant_offers.rs",
+      "crates/gateway/src/routes/ceremonies.rs",
+      "crates/authz/src/authority_use.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Chained vulnerabilities and trust boundaries",
+    "selected_companion_blocks": [
+      "AI-AND-LLM.md#Core discipline",
+      "AI-AND-LLM.md#Universal moves",
+      "AI-AND-LLM.md#Validation rules",
+      "AI-AND-LLM.md#Tool and action attack classes",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Core discipline",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Universal moves",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Validation rules",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Tenant and object-isolation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This unit is a policy or request boundary, not a binary parser or unsafe block."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "{\"fingerprint\": \"gateway.delegations.relay-mode-skipped-on-broker-invoke\", \"title\": \"Broker invoke does not refuse relay-mode delegations\", \"detail\": \"delegate_invocation and authorize_authority_use never read execution_mode, while relay admission does. A relay claimant can obtain a level-1 mock receipt without holder approval. The sealed credential is not opened on that path; refusing ExecutionMode::Relay before authorize_authority_use would keep a later credentialed connector from skipping the holder.\"}",
+      "{\"fingerprint\": \"gateway.delegations.connection-revoke-does-not-fail-authorize\", \"title\": \"Connection revoke does not fail the next delegated authorize\", \"detail\": \"revoke_local marks the connection revoked and deletes credentials but leaves connection_delegations and the child grant active. find_live_delegation and authorize_authority_use still admit the claimant. authorized_json refuses the revoked row before opening a token, so the gap is an authorize decision that no longer matches connection lifetime.\"}"
+    ],
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fdevice.rs::crates%2Fgateway%2Fsrc%2Froutes%2Fdevice.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Business%20logic",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/device.rs",
+      "boundary": "crates/gateway/src/routes/device.rs",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Business logic"
+    },
+    "surface": "crates/gateway/src/routes/device.rs",
+    "boundary": "crates/gateway/src/routes/device.rs",
+    "subsystem": "crates/gateway",
+    "attack_class": "Business logic",
+    "starting_paths": [
+      "crates/gateway/src/routes/device.rs",
+      "crates/gateway/src/routes/session.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Business logic",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#MFA, passkey, and account-transition attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "Device authorize evicts the soonest-expiring unapproved pending grant at 512 entries (crates/gateway/src/routes/device.rs:67). An anonymous client can cancel another client's not-yet-approved login once the map is full. Approved grants are kept, and the wrong-guess path deliberately does not delete pending codes. The interleaving test treats this eviction as the capacity fence.",
+      "approve commits pending.approved before provision_native_role and returns 503 without clearing that grant if the role insert fails (crates/gateway/src/routes/device.rs:274). token can still mint the operator-requested principal and role. The principal is not substituted; callers that treat non-200 as 'no approval' can disagree with the in-memory grant until revoke or expiry.",
+      "Callout evidence disables aud validation when OPENSESAME_NATS_CALLOUT_AUDIENCE is unset and sets validate_nbf to false with no manual nbf check (crates/gateway/src/callout_evidence.rs:245). exp, iss, and sub are still enforced, and a configured audience is rejected on mismatch. Unlike an empty server-nkey pin, an unset audience does not fail closed.",
+      "callout_permissions interpolates principal_id and project_id into NATS subjects without rejecting '*', '>', or extra dots (crates/authz/src/callout.rs:80). The live gateway path passes an empty project list and a UUID-validated mapped principal, so the wildcard form is not reachable from the route.",
+      "A host_kv write error, or a lost claim whose follow-up read fails, makes record return no stored decision, and the handler answers with the local one (crates/gateway/src/routes/nats_callout.rs:374). Replay immutability holds when the claim and the subsequent read succeed; it is not fail-closed on storage errors.",
+      "GET /api/v1/session is allowed for every agent capability as agent:self and returns the process-wide session count (crates/gateway/src/routes/session.rs:19, crates/gateway/src/middleware/agent_grants.rs:31). It does not return another principal's claims."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fnats_callout.rs::crates%2Fauthz%2Fsrc%2Fcallout.rs%23evaluate_callout::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/gateway/src/routes/nats_callout.rs",
+      "boundary": "crates/authz/src/callout.rs#evaluate_callout",
+      "subsystem": "crates/gateway",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/gateway/src/routes/nats_callout.rs",
+    "boundary": "crates/authz/src/callout.rs#evaluate_callout",
+    "subsystem": "crates/gateway",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/gateway/src/routes/nats_callout.rs",
+      "crates/authz/src/callout.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Core discipline",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Universal moves",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Validation rules",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#RPC identity and authorization attack classes",
+      "PROTOCOLS-RPC-AND-MESSAGING.md#Broker and queue isolation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "Device authorize evicts the soonest-expiring unapproved pending grant at 512 entries (crates/gateway/src/routes/device.rs:67). An anonymous client can cancel another client's not-yet-approved login once the map is full. Approved grants are kept, and the wrong-guess path deliberately does not delete pending codes. The interleaving test treats this eviction as the capacity fence.",
+      "approve commits pending.approved before provision_native_role and returns 503 without clearing that grant if the role insert fails (crates/gateway/src/routes/device.rs:274). token can still mint the operator-requested principal and role. The principal is not substituted; callers that treat non-200 as 'no approval' can disagree with the in-memory grant until revoke or expiry.",
+      "Callout evidence disables aud validation when OPENSESAME_NATS_CALLOUT_AUDIENCE is unset and sets validate_nbf to false with no manual nbf check (crates/gateway/src/callout_evidence.rs:245). exp, iss, and sub are still enforced, and a configured audience is rejected on mismatch. Unlike an empty server-nkey pin, an unset audience does not fail closed.",
+      "callout_permissions interpolates principal_id and project_id into NATS subjects without rejecting '*', '>', or extra dots (crates/authz/src/callout.rs:80). The live gateway path passes an empty project list and a UUID-validated mapped principal, so the wildcard form is not reachable from the route.",
+      "A host_kv write error, or a lost claim whose follow-up read fails, makes record return no stored decision, and the handler answers with the local one (crates/gateway/src/routes/nats_callout.rs:374). Replay immutability holds when the claim and the subsequent read succeed; it is not fail-closed on storage errors.",
+      "GET /api/v1/session is allowed for every agent capability as agent:self and returns the process-wide session count (crates/gateway/src/routes/session.rs:19, crates/gateway/src/middleware/agent_grants.rs:31). It does not return another principal's claims."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fhuman-vault%2Fsrc%2Flib.rs::crates%2Fhuman-vault%2Fsrc%2Flib.rs::crates%2Fhuman-vault::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "canonical_refs": {
+      "surface": "crates/human-vault/src/lib.rs",
+      "boundary": "crates/human-vault/src/lib.rs",
+      "subsystem": "crates/human-vault",
+      "attack_class": "ATTACK-CLASSES.md#Cryptography and secrets"
+    },
+    "surface": "crates/human-vault/src/lib.rs",
+    "boundary": "crates/human-vault/src/lib.rs",
+    "subsystem": "crates/human-vault",
+    "attack_class": "Cryptography and secrets",
+    "starting_paths": [
+      "crates/human-vault/src/lib.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
+    "selected_companion_blocks": [
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Core discipline",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Universal moves",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Validation rules",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Derived-data and disclosure attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "EncryptedEnvelope.ad is serialized in the clear (item path, organization, project, collection, key id, revision). encrypt_item still authenticates it, and contract_envelope_payload_is_ciphertext_only keeps the item secret out of the JSON, but the server-blind claim does not cover those identifiers. Blinding them is a format migration already pinned by characterize_associated_data_is_cleartext_today.",
+      "find_grant and project_grant_live do not re-compare the loaded Grant.organization_id to the caller organization. Cross-tenant lookup is prevented today by the global grants.id primary key and by issuing only after an organization-scoped liveness check; binding the organization on the read would keep a later caller from skipping that check.",
+      "issue_authority does not require child permission entries to attenuate the parent sidecar. Offer activation does, via grant_fits_envelope, and no invoke authorizer allows from FencedAuthority.entries. A later consumer of those entries would honor a child that is broader than its parent.",
+      "find_grant applies revoked_at only when the column parses as RFC3339. A non-empty unparsable value leaves a body with revoked_at null looking live. delegation_lineage::load_grant treats a parse failure as revoked now. Writers currently store to_rfc3339, so this is fail-open only for a corrupt column."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fsandbox%2Fsrc%2Fcapability.rs::crates%2Fsandbox%2Fsrc%2Fboundary.rs::crates%2Fsandbox::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/sandbox/src/capability.rs",
+      "boundary": "crates/sandbox/src/boundary.rs",
+      "subsystem": "crates/sandbox",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/sandbox/src/capability.rs",
+    "boundary": "crates/sandbox/src/boundary.rs",
+    "subsystem": "crates/sandbox",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/sandbox/src/capability.rs",
+      "crates/sandbox/src/boundary.rs",
+      "crates/sandbox/src/lib.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "MEMORY-SAFETY-AND-BINARY.md#Core discipline",
+      "MEMORY-SAFETY-AND-BINARY.md#Universal moves",
+      "MEMORY-SAFETY-AND-BINARY.md#Validation rules",
+      "MEMORY-SAFETY-AND-BINARY.md#Binary loading and runtime attack classes",
+      "AI-AND-LLM.md#Core discipline",
+      "AI-AND-LLM.md#Universal moves",
+      "AI-AND-LLM.md#Validation rules",
+      "AI-AND-LLM.md#Tool and action attack classes"
+    ],
+    "excluded_blocks": [],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "Epoch and fuel instrumentation do not interrupt a blocking Broker call. Wasmtime documents that epochs only trap running Wasm, and http_fetch_impl calls the broker synchronously with no deadline argument. The stalled-broker test loops short sleeps, so it does not show that one hung fetch is bounded by sandbox.deadline_ms.",
+      "Wasm start runs inside Linker::instantiate, before the missing-entry check and the second fence.check. A module without export run can already have called the broker, and map_instantiation_error reports a revocation trap during start as Runtime rather than Revoked.",
+      "Sandbox::new does not require fence.minted_at to equal profile.invalidation_generation, so a caller can pair a stale profile with a newly minted live fence. EpochTicker::spawn ignores thread-creation failure and still returns a sandbox whose wall-clock deadline will not advance.",
+      "Guest http destinations, sign purposes, and token scopes are forwarded after UTF-8 and length checks only. The profile keeps actions and budgets, not resources, audiences, or allowed_networks. Integrators must enforce those in Broker; DenyAll is the only in-crate broker and it refuses everything. max_broker_response_bytes stays at the 4 MiB ceiling and is not a grant budget key. binds_chain compares ids and generation only."
+    ],
+    "phase3_verdict": "needs_validation",
+    "phase3_verifier": "v-run5-sandbox-grant-expiry",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fstorage%2Fsrc%2Fauthority%2Fgrants.rs%23issue_authority::crates%2Fstorage%2Fsrc%2Fgrants.rs%23find_grant::crates%2Fstorage::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/storage/src/authority/grants.rs#issue_authority",
+      "boundary": "crates/storage/src/grants.rs#find_grant",
+      "subsystem": "crates/storage",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/storage/src/authority/grants.rs#issue_authority",
+    "boundary": "crates/storage/src/grants.rs#find_grant",
+    "subsystem": "crates/storage",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/storage/src/authority/grants.rs",
+      "crates/storage/src/grants.rs",
+      "crates/connection-broker/src/store.rs",
+      "crates/gateway/src/routes/intents.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Core discipline",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Universal moves",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Validation rules",
+      "DATA-ISOLATION-AND-LIFECYCLE.md#Tenant and object-isolation attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "EncryptedEnvelope.ad is serialized in the clear (item path, organization, project, collection, key id, revision). encrypt_item still authenticates it, and contract_envelope_payload_is_ciphertext_only keeps the item secret out of the JSON, but the server-blind claim does not cover those identifiers. Blinding them is a format migration already pinned by characterize_associated_data_is_cleartext_today.",
+      "find_grant and project_grant_live do not re-compare the loaded Grant.organization_id to the caller organization. Cross-tenant lookup is prevented today by the global grants.id primary key and by issuing only after an organization-scoped liveness check; binding the organization on the read would keep a later caller from skipping that check.",
+      "issue_authority does not require child permission entries to attenuate the parent sidecar. Offer activation does, via grant_fits_envelope, and no invoke authorizer allows from FencedAuthority.entries. A later consumer of those entries would honor a child that is broader than its parent.",
+      "find_grant applies revoked_at only when the column parses as RFC3339. A non-empty unparsable value leaves a body with revoked_at null looking live. delegation_lineage::load_grant treats a parse failure as revoked now. Writers currently store to_rfc3339, so this is fail-open only for a corrupt column."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "crates%2Fsurrogate-proxy%2Fsrc%2Flistener.rs%23outer::crates%2Finvoke-through%2Fsrc%2Fsurrogate.rs%23admit::crates%2Fsurrogate-proxy::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "crates/surrogate-proxy/src/listener.rs#outer",
+      "boundary": "crates/invoke-through/src/surrogate.rs#admit",
+      "subsystem": "crates/surrogate-proxy",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "crates/surrogate-proxy/src/listener.rs#outer",
+    "boundary": "crates/invoke-through/src/surrogate.rs#admit",
+    "subsystem": "crates/surrogate-proxy",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "crates/surrogate-proxy/src/listener.rs",
+      "crates/surrogate-proxy/src/target.rs",
+      "crates/surrogate-proxy/src/broker.rs",
+      "crates/surrogate-proxy/src/passthrough.rs",
+      "crates/invoke-through/src/surrogate.rs"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Local IPC and exported-component attack classes",
+      "AI-AND-LLM.md#Core discipline",
+      "AI-AND-LLM.md#Universal moves",
+      "AI-AND-LLM.md#Validation rules",
+      "AI-AND-LLM.md#Tool and action attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "The listener and admit path are safe Rust request checks, not an unsafe decoder or FFI boundary."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "The run listener decides a local proxy credential and a provider surrogate, not a SPIFFE or cloud IAM identity."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "uncovered_reason": "No wave-1 unit reviews the surrogate proxy. listener.rs outer accepts only that run's Proxy-Authorization, then tunnels a CONNECT target or calls broker::handle_plain. Credential placement is SurrogateLedger::admit, which returns Ok(None) when the request has no surrogate and otherwise checks caller, destination, scope, and header placement. passthrough.rs forwards run-named hosts with no broker credential. That is security boundary 4, and it is not the planned WASM sandbox unit or the plugin-install download unit.",
+    "hardening_notes": [
+      "ADR 0150 section 8 already accepts that an uppercased, percent-encoded, or split surrogate is not detected and cannot be redeemed. Admit percent-decodes only the request target; header and body scans are exact lowercase osr_ plus 32 hex digits. Passthrough can forward a transformed copy to an operator-named host, and that does not select a ledger entry or acquire the provider credential.",
+      "SurrogateLedger::issue treats a prefix of only slashes as anywhere because trim_end_matches('/') yields an empty string and every absolute path starts with '/'. The plugin wire is_bounded_prefix rejects '/' and '//' before issue; a direct embedder of create_run can still pass the documented '/' anywhere-grant.",
+      "connection_ref is receipt metadata. ProviderSources and gh auth token are keyed only by provider id, so two GitHub grants in one run draw the same local token. The child still cannot cross the other grant's method or path prefix.",
+      "Revocation is checked inside admit, not again before Invoker::execute. A request already admitted can still be brokered if revoke_run lands in that window. Later requests see surrogate.revoked.",
+      "The listener does not check SO_PEERCRED. Cross-user use of the loopback port still requires the run's proxy secret, which is delivered only in that run's child environment and proxy URL."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "ops%2Fcompose%2Fdocker-compose.yml::ops%2Fnats%2Flocal-dev.conf::ops%2Fcompose::ATTACK-CLASSES.md%23Obvious%20things",
+    "canonical_refs": {
+      "surface": "ops/compose/docker-compose.yml",
+      "boundary": "ops/nats/local-dev.conf",
+      "subsystem": "ops/compose",
+      "attack_class": "ATTACK-CLASSES.md#Obvious things"
+    },
+    "surface": "ops/compose/docker-compose.yml",
+    "boundary": "ops/nats/local-dev.conf",
+    "subsystem": "ops/compose",
+    "attack_class": "Obvious things",
+    "starting_paths": [
+      "ops/compose/docker-compose.yml",
+      "ops/nats/local-dev.conf",
+      "ops/ingress/Caddyfile"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Obvious things",
+    "selected_companion_blocks": [
+      "CLOUD-AND-DEPLOYMENT.md#Core discipline",
+      "CLOUD-AND-DEPLOYMENT.md#Universal moves",
+      "CLOUD-AND-DEPLOYMENT.md#Validation rules",
+      "CLOUD-AND-DEPLOYMENT.md#Configuration and secret lifecycle attack classes",
+      "CLOUD-AND-DEPLOYMENT.md#Ingress, network, and control-plane attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Kernel and privileged-interface attack classes",
+        "reason": "Compose and Caddy config, not a kernel path."
+      }
+    ],
+    "prior_status": "prior_needs_validation",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "Compose publishes OpenBao (`BAO_DEV_LISTEN_ADDRESS` 0.0.0.0:8200, host port 8200, `server -dev`) and Keycloak `start-dev` (host port 8080) with the documented local fixture secrets. Those values are not a production path; scripts/dev/start-native-deps.sh binds the same OpenBao token to 127.0.0.1. Publishing 127.0.0.1 on those host ports would match the native fixture.",
+      "OpenFGA is published as 8081:8080 with no auth environment and the gateway is not given OPENSESAME_OPENFGA_URL. The OpenFGA client also refuses non-loopback HTTP, so this file does not wire Host tuples to that port.",
+      "No .dockerignore exists. Dockerfile `COPY . .` sends the full build context, including a gitignored .env if one is present at build time, into the builder stage. The runtime stage copies only the opensesame binary and runs as uid 10001.",
+      "Postgres connection URIs in the compose file use sslmode=disable. The password is the documented placeholder and the Postgres port is not published.",
+      "Image tags are not digests. The compose header already says to replace them in production. Caddy 2.11.4 is digest-pinned in ops/ingress/caddy.version."
+    ],
+    "phase3_verdict": "needs_validation",
+    "phase3_verifier": "v-run5-nats-loopback",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Ffederation-callback.ts::packages%2Fapp-core%2Fsrc%2Flib%2Ffederation-callback.ts%23assertSafeReturnTo::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/app-core/src/lib/federation-callback.ts",
+      "boundary": "packages/app-core/src/lib/federation-callback.ts#assertSafeReturnTo",
+      "subsystem": "packages/app-core",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/app-core/src/lib/federation-callback.ts",
+    "boundary": "packages/app-core/src/lib/federation-callback.ts#assertSafeReturnTo",
+    "subsystem": "packages/app-core",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/app-core/src/lib/federation-callback.ts",
+      "apps/pages/src/screens/FederationReturn.tsx"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Federated-identity attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [],
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Ffederation.ts%23completeSignInDefault::packages%2Fapp-core%2Fsrc%2Flib%2Ffederation.ts%23readIdentity::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/app-core/src/lib/federation.ts#completeSignInDefault",
+      "boundary": "packages/app-core/src/lib/federation.ts#readIdentity",
+      "subsystem": "packages/app-core",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/app-core/src/lib/federation.ts#completeSignInDefault",
+    "boundary": "packages/app-core/src/lib/federation.ts#readIdentity",
+    "subsystem": "packages/app-core",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/app-core/src/lib/federation.ts",
+      "packages/app-core/src/lib/federation-pending.ts",
+      "packages/app-core/src/lib/ambient-auth/oidc.ts",
+      "packages/app-core/src/lib/deployment-profile.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Federated-identity attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes",
+      "CLIENT-SIDE.md#Core discipline",
+      "CLIENT-SIDE.md#Universal moves",
+      "CLIENT-SIDE.md#Validation rules",
+      "CLIENT-SIDE.md#Service-worker and browser-storage attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      },
+      {
+        "block": "AI-AND-LLM.md#Tool and action attack classes",
+        "reason": "Sign-in completion is a browser OIDC exchange, not a model tool."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "FederationReturn passes pending.returnTo to react-router navigate without assertSafeReturnTo. The local checker rejects absolute URLs, protocol-relative URLs, and paths outside /OpenSesame/. No production caller builds an external returnTo, and the checker is only referenced from its unit test.",
+      "The navigation handler in apps/pages/src/sw/fetch.ts stores any ok response as the release shell without comparing response.url or response.redirected to the shell URL. No in-repo redirect gadget was found that would feed another project's body into that cache. Push notification text is a closed table and the click URL is an opaque ref resolved against the worker scope.",
+      "guestsAllowed stays true unless the operator record is JSON with allowed false. That is the documented failure direction, and assertGuestsAllowed runs inside openGuestVault before a guest tomb is created.",
+      "docs/architecture/federated-signin.md says anything other than an explicit active session-check result refuses sign-in. requireActiveUpstreamSession does the opposite and returns success for every status except HTTP 401. The sandbox showed the 401 refusal does not prevent the earlier token POST."
+    ],
+    "phase3_verdict": "confirmed",
+    "phase3_verifier": "v01-app-core-federation-storage-selected-tok",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Fguest-access.ts%23guestsAllowed::packages%2Fapp-core%2Fsrc%2Flib%2Fguest-access.ts%23assertGuestsAllowed::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/app-core/src/lib/guest-access.ts#guestsAllowed",
+      "boundary": "packages/app-core/src/lib/guest-access.ts#assertGuestsAllowed",
+      "subsystem": "packages/app-core",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/app-core/src/lib/guest-access.ts#guestsAllowed",
+    "boundary": "packages/app-core/src/lib/guest-access.ts#assertGuestsAllowed",
+    "subsystem": "packages/app-core",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/app-core/src/lib/guest-access.ts",
+      "packages/app-core/src/lib/guest-auth.ts",
+      "packages/app-core/src/lib/local-rbac.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      },
+      {
+        "block": "AI-AND-LLM.md#Tool and action attack classes",
+        "reason": "Guest road is a local vault session, not a model tool."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "FederationReturn passes pending.returnTo to react-router navigate without assertSafeReturnTo. The local checker rejects absolute URLs, protocol-relative URLs, and paths outside /OpenSesame/. No production caller builds an external returnTo, and the checker is only referenced from its unit test.",
+      "The navigation handler in apps/pages/src/sw/fetch.ts stores any ok response as the release shell without comparing response.url or response.redirected to the shell URL. No in-repo redirect gadget was found that would feed another project's body into that cache. Push notification text is a closed table and the click URL is an opaque ref resolved against the worker scope.",
+      "guestsAllowed stays true unless the operator record is JSON with allowed false. That is the documented failure direction, and assertGuestsAllowed runs inside openGuestVault before a guest tomb is created.",
+      "docs/architecture/federated-signin.md says anything other than an explicit active session-check result refuses sign-in. requireActiveUpstreamSession does the opposite and returns success for every status except HTTP 401. The sandbox showed the 401 refusal does not prevent the earlier token POST."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Fsecret-fs%2Fs3.ts%23makeWire::packages%2Fapp-core%2Fsrc%2Flib%2Fsecret-fs%2Ffiles.ts%23checkPath::packages%2Fapp-core::Resource%20and%20file%20handling",
+    "canonical_refs": {
+      "surface": "packages/app-core/src/lib/secret-fs/s3.ts#makeWire",
+      "boundary": "packages/app-core/src/lib/secret-fs/files.ts#checkPath",
+      "subsystem": "packages/app-core",
+      "attack_class": "Resource and file handling"
+    },
+    "surface": "packages/app-core/src/lib/secret-fs/s3.ts#makeWire",
+    "boundary": "packages/app-core/src/lib/secret-fs/files.ts#checkPath",
+    "subsystem": "packages/app-core",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "packages/app-core/src/lib/secret-fs/s3.ts",
+      "packages/app-core/src/lib/secret-fs/files.ts",
+      "packages/app-core/src/lib/secret-fs/filesystem-guard.ts",
+      "packages/app-core/src/lib/secret-fs/s3-config.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Resource and file handling",
+    "selected_companion_blocks": [],
+    "excluded_blocks": [],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fsections%2Fvault%2Fimport%2Fmodel.ts::packages%2Fapp-core%2Fsrc%2Fsections%2Fvault%2Fimport%2Fmodel.ts::packages%2Fapp-core::ATTACK-CLASSES.md%23Injection",
+    "canonical_refs": {
+      "surface": "packages/app-core/src/sections/vault/import/model.ts",
+      "boundary": "packages/app-core/src/sections/vault/import/model.ts",
+      "subsystem": "packages/app-core",
+      "attack_class": "ATTACK-CLASSES.md#Injection"
+    },
+    "surface": "packages/app-core/src/sections/vault/import/model.ts",
+    "boundary": "packages/app-core/src/sections/vault/import/model.ts",
+    "subsystem": "packages/app-core",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "packages/app-core/src/sections/vault/import/model.ts",
+      "packages/app-core/src/lib/vault/import"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
+    "selected_companion_blocks": [
+      "CLIENT-SIDE.md#Core discipline",
+      "CLIENT-SIDE.md#Universal moves",
+      "CLIENT-SIDE.md#Validation rules",
+      "CLIENT-SIDE.md#DOM and object-state attack classes",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Core discipline",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Universal moves",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Validation rules",
+      "RESOURCE-EXHAUSTION-AND-AVAILABILITY.md#Computational amplification attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "FederationReturn passes pending.returnTo to react-router navigate without assertSafeReturnTo. The local checker rejects absolute URLs, protocol-relative URLs, and paths outside /OpenSesame/. No production caller builds an external returnTo, and the checker is only referenced from its unit test.",
+      "The navigation handler in apps/pages/src/sw/fetch.ts stores any ok response as the release shell without comparing response.url or response.redirected to the shell URL. No in-repo redirect gadget was found that would feed another project's body into that cache. Push notification text is a closed table and the click URL is an opaque ref resolved against the worker scope.",
+      "guestsAllowed stays true unless the operator record is JSON with allowed false. That is the documented failure direction, and assertGuestsAllowed runs inside openGuestVault before a guest tomb is created.",
+      "docs/architecture/federated-signin.md says anything other than an explicit active session-check result refuses sign-in. requireActiveUpstreamSession does the opposite and returns success for every status except HTTP 401. The sandbox showed the 401 refusal does not prevent the earlier token POST."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fwebmcp%2Fpassword-workflow-tools.ts::packages%2Fapp-core%2Fsrc%2Flib%2Fvault%2Fpassword-workflows.ts%23reachableItems::packages%2Fapp-core::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "canonical_refs": {
+      "surface": "packages/app-core/src/webmcp/password-workflow-tools.ts",
+      "boundary": "packages/app-core/src/lib/vault/password-workflows.ts#reachableItems",
+      "subsystem": "packages/app-core",
+      "attack_class": "ATTACK-CLASSES.md#Feature abuse and data leakage"
+    },
+    "surface": "packages/app-core/src/webmcp/password-workflow-tools.ts",
+    "boundary": "packages/app-core/src/lib/vault/password-workflows.ts#reachableItems",
+    "subsystem": "packages/app-core",
+    "attack_class": "Feature abuse and data leakage",
+    "starting_paths": [
+      "packages/app-core/src/webmcp/password-workflow-tools.ts",
+      "packages/app-core/src/lib/vault/password-workflows.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Feature abuse and data leakage",
+    "selected_companion_blocks": [
+      "AI-AND-LLM.md#Core discipline",
+      "AI-AND-LLM.md#Universal moves",
+      "AI-AND-LLM.md#Validation rules",
+      "AI-AND-LLM.md#Tool and action attack classes",
+      "AI-AND-LLM.md#Output and disclosure attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "FederationReturn passes pending.returnTo to react-router navigate without assertSafeReturnTo. The local checker rejects absolute URLs, protocol-relative URLs, and paths outside /OpenSesame/. No production caller builds an external returnTo, and the checker is only referenced from its unit test.",
+      "The navigation handler in apps/pages/src/sw/fetch.ts stores any ok response as the release shell without comparing response.url or response.redirected to the shell URL. No in-repo redirect gadget was found that would feed another project's body into that cache. Push notification text is a closed table and the click URL is an opaque ref resolved against the worker scope.",
+      "guestsAllowed stays true unless the operator record is JSON with allowed false. That is the documented failure direction, and assertGuestsAllowed runs inside openGuestVault before a guest tomb is created.",
+      "docs/architecture/federated-signin.md says anything other than an explicit active session-check result refuses sign-in. requireActiveUpstreamSession does the opposite and returns success for every status except HTTP 401. The sandbox showed the 401 refusal does not prevent the earlier token POST."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fwebmcp%2Fvault-tools.ts::packages%2Fapp-core%2Fsrc%2Fwebmcp%2Ftool-shared.ts%23reachedItem::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/app-core/src/webmcp/vault-tools.ts",
+      "boundary": "packages/app-core/src/webmcp/tool-shared.ts#reachedItem",
+      "subsystem": "packages/app-core",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/app-core/src/webmcp/vault-tools.ts",
+    "boundary": "packages/app-core/src/webmcp/tool-shared.ts#reachedItem",
+    "subsystem": "packages/app-core",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/app-core/src/webmcp/vault-tools.ts",
+      "packages/app-core/src/webmcp/tool-shared.ts",
+      "packages/app-core/src/webmcp/tools.ts",
+      "packages/app-core/src/webmcp/wallet-tools.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "AI-AND-LLM.md#Core discipline",
+      "AI-AND-LLM.md#Universal moves",
+      "AI-AND-LLM.md#Validation rules",
+      "AI-AND-LLM.md#Tool and action attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "FederationReturn passes pending.returnTo to react-router navigate without assertSafeReturnTo. The local checker rejects absolute URLs, protocol-relative URLs, and paths outside /OpenSesame/. No production caller builds an external returnTo, and the checker is only referenced from its unit test.",
+      "The navigation handler in apps/pages/src/sw/fetch.ts stores any ok response as the release shell without comparing response.url or response.redirected to the shell URL. No in-repo redirect gadget was found that would feed another project's body into that cache. Push notification text is a closed table and the click URL is an opaque ref resolved against the worker scope.",
+      "guestsAllowed stays true unless the operator record is JSON with allowed false. That is the documented failure direction, and assertGuestsAllowed runs inside openGuestVault before a guest tomb is created.",
+      "docs/architecture/federated-signin.md says anything other than an explicit active session-check result refuses sign-in. requireActiveUpstreamSession does the opposite and returns success for every status except HTTP 401. The sandbox showed the 401 refusal does not prevent the earlier token POST."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fcli%2Fsrc%2Fbin.ts::packages%2Fcli%2Fsrc%2Fidentity-session.ts::packages%2Fcli::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "canonical_refs": {
+      "surface": "packages/cli/src/bin.ts",
+      "boundary": "packages/cli/src/identity-session.ts",
+      "subsystem": "packages/cli",
+      "attack_class": "ATTACK-CLASSES.md#Cryptography and secrets"
+    },
+    "surface": "packages/cli/src/bin.ts",
+    "boundary": "packages/cli/src/identity-session.ts",
+    "subsystem": "packages/cli",
+    "attack_class": "Cryptography and secrets",
+    "starting_paths": [
+      "packages/cli/src/bin.ts",
+      "packages/cli/src/identity-session.ts",
+      "packages/cli/src/run.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Cryptography and secrets",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Privileged-helper and local-file attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "identity-session save uses a predictable temp name without O_EXCL or O_NOFOLLOW, and assertPrivateFile follows symlinks and does not compare st_uid to the process uid. Default state directories are created mode 0700 and the session is sealed, so another OS user cannot plant that symlink unless the directory is already writable by them.",
+      "assertPrivateFile returns immediately on win32, so the owner-only mode check is not a Windows DACL check.",
+      "agent init sends a random sha256 placeholder as publicKeyJkt rather than a thumbprint of a key the CLI holds. That is an incomplete proof-of-possession binding; whether the control plane treats it as an authentication credential is outside this unit.",
+      "vault-clipboard spawns wl-copy, xclip, xsel, or pbcopy from PATH without the credential-helper cwd and startup-environment filters. On Linux, spawn does not search the cwd unless PATH contains it.",
+      "Startup-template screening intentionally treats a newline inside a quoted value as data. The test fixture's line splitter does not, so it is a weaker stand-in than the screen assumes."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fcli%2Fsrc%2Fparity-node.ts::packages%2Fcli%2Fsrc%2Fparity-node.ts::packages%2Fcli::ATTACK-CLASSES.md%23Injection",
+    "canonical_refs": {
+      "surface": "packages/cli/src/parity-node.ts",
+      "boundary": "packages/cli/src/parity-node.ts",
+      "subsystem": "packages/cli",
+      "attack_class": "ATTACK-CLASSES.md#Injection"
+    },
+    "surface": "packages/cli/src/parity-node.ts",
+    "boundary": "packages/cli/src/parity-node.ts",
+    "subsystem": "packages/cli",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "packages/cli/src/parity-node.ts",
+      "packages/cli/src/parity-credentials.ts",
+      "packages/cli/src/vault-clipboard.ts",
+      "packages/cli/src/parse.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Injection",
+    "selected_companion_blocks": [
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Core discipline",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Universal moves",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Validation rules",
+      "DESKTOP-MOBILE-AND-LOCAL-IPC.md#Privileged-helper and local-file attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "identity-session save uses a predictable temp name without O_EXCL or O_NOFOLLOW, and assertPrivateFile follows symlinks and does not compare st_uid to the process uid. Default state directories are created mode 0700 and the session is sealed, so another OS user cannot plant that symlink unless the directory is already writable by them.",
+      "assertPrivateFile returns immediately on win32, so the owner-only mode check is not a Windows DACL check.",
+      "agent init sends a random sha256 placeholder as publicKeyJkt rather than a thumbprint of a key the CLI holds. That is an incomplete proof-of-possession binding; whether the control plane treats it as an authentication credential is outside this unit.",
+      "vault-clipboard spawns wl-copy, xclip, xsel, or pbcopy from PATH without the credential-helper cwd and startup-environment filters. On Linux, spawn does not search the cwd unless PATH contains it.",
+      "Startup-template screening intentionally treats a newline inside a quoted value as data. The test fixture's line splitter does not, so it is a weaker stand-in than the screen assumes."
+    ],
+    "phase3_verdict": "confirmed",
+    "phase3_verifier": "v15-packages-cli-startup-env-denylist-omits",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fmfa.ts::packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fmfa-step-up.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/control-plane/src/routes/mfa.ts",
+      "boundary": "packages/control-plane/src/routes/mfa-step-up.ts",
+      "subsystem": "packages/control-plane",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/control-plane/src/routes/mfa.ts",
+    "boundary": "packages/control-plane/src/routes/mfa-step-up.ts",
+    "subsystem": "packages/control-plane",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/control-plane/src/routes/mfa.ts",
+      "packages/control-plane/src/routes/mfa-step-up.ts",
+      "packages/control-plane/src/routes/saml.ts",
+      "packages/control-plane/src/routes/interactions-ldap.ts",
+      "packages/control-plane/src/routes/openid4vci.ts",
+      "packages/control-plane/src/routes/enrollment.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#MFA, passkey, and account-transition attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Federated-identity attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This unit is a policy or request boundary, not a binary parser or unsafe block."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "POST /v1/mfa/passkey/assert decodes clientDataJSON, authenticatorData, and signature with Buffer.from(..., \"base64\") (packages/control-plane/src/routes/mfa.ts). The Pages client sends bytesToB64url (packages/sdk-browser/src/webauthn.ts assertionPayload), and Node's base64 decoder drops '-' and '_'. A normal assertion therefore fails closed and still increments the shared passkey failure fence that factor-removal step-up consumes. Step-up and host authorization already decode base64url. GET /v1/mfa/factors does not reveal the raw credential id, so this is not by itself an anonymous lockout of an unknown factor. Five failures refresh the durable 24h TTL on OpenSesame:MfaFailure."
+    ],
+    "phase3_verdict": "rejected",
+    "phase3_verifier": "parent-run3-close",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fnotification-callbacks.ts::packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fnotification-channels.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "canonical_refs": {
+      "surface": "packages/control-plane/src/routes/notification-callbacks.ts",
+      "boundary": "packages/control-plane/src/routes/notification-channels.ts",
+      "subsystem": "packages/control-plane",
+      "attack_class": "ATTACK-CLASSES.md#Feature abuse and data leakage"
+    },
+    "surface": "packages/control-plane/src/routes/notification-callbacks.ts",
+    "boundary": "packages/control-plane/src/routes/notification-channels.ts",
+    "subsystem": "packages/control-plane",
+    "attack_class": "Feature abuse and data leakage",
+    "starting_paths": [
+      "packages/control-plane/src/routes/notification-callbacks.ts",
+      "packages/control-plane/src/routes/notification-channels.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Feature abuse and data leakage",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#HTTP framing and cache attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This unit is a policy or request boundary, not a binary parser or unsafe block."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Managed storage, events, and edge attack classes",
+        "reason": "The callback URL is an application field, not a cloud event source."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "{\"fingerprint\": \"control-plane.notification-channels.destinationHint/pending-reservation\", \"title\": \"Caller-supplied destination hints reserve the provider-identity unique key while still pending\", \"detail\": \"POST /v1/notification-channels/bindings writes an unexpiring pending channel_bindings row from destinationHint before allowSelfAssertedBindings is consulted. The unique index includes pending rows, findByProviderIdentity does not filter on state, and another principal then receives 409 destination_already_bound. Completion still returns provider_verification_required in production, isBindingUsable rejects pending, and no other repository writer activates the row, so the reservation does not settle a callback or disclose the stored subject. It does let a fresh authenticated caller occupy up to 20 identities and oracle whether a chosen tuple is already taken.\"}",
+      "{\"fingerprint\": \"control-plane.notification-callbacks.courtesy-rate-limit\", \"title\": \"Callback rate limit is a client-spoofable courtesy fence\", \"detail\": \"consumeCallbackBudget keys on User-Agent and X-Forwarded-For and returns 429, unlike every other callback exit. The route comment states this is not the security control. An unauthenticated caller can rotate the fingerprint or fill the process-local global window of 600 per minute. That can delay signed retries; it does not skip the signature, binding, replay, or ceremony checks.\"}"
+    ],
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Foauth-clients.ts::packages%2Fcontrol-plane%2Fsrc%2Fmiddleware%2Fauth.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/control-plane/src/routes/oauth-clients.ts",
+      "boundary": "packages/control-plane/src/middleware/auth.ts",
+      "subsystem": "packages/control-plane",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/control-plane/src/routes/oauth-clients.ts",
+    "boundary": "packages/control-plane/src/middleware/auth.ts",
+    "subsystem": "packages/control-plane",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/control-plane/src/routes/oauth-clients.ts",
+      "packages/control-plane/src/routes/interactions.ts",
+      "packages/control-plane/src/routes/device.ts",
+      "packages/control-plane/src/routes/federated-callback.ts",
+      "packages/control-plane/src/routes/byo-public.ts",
+      "packages/control-plane/src/middleware/auth.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Federated-identity attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#API-key and mTLS attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This unit is a policy or request boundary, not a binary parser or unsafe block."
+      },
+      {
+        "block": "CLIENT-SIDE.md#DOM and object-state attack classes",
+        "reason": "These routes are server handlers, not a browser DOM."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "OAuthClientRecord.allowedResources is stored by the registration API and returned to the owner. toOidcClientMetadata omits it. getResourceServerInfo in packages/oauth-provider/src/create-provider.ts consults the operator list env.allowedResources, which is the audience ceiling documented by the 2026-08-08 provider fail-closed note. oidc-provider adds resource to every enabled grant, including client_credentials, when resourceIndicators is enabled. A non-empty per-client list does not change that decision. The create schema defaults the field to an empty array, which is the value the registration tests persist.",
+      "The client_credentials handler compares only scopes that belong to the provider static set against client.scope. Other scope strings can remain on the minted token. No control-plane route in this unit reads those strings as an authorization decision.",
+      "resolveTrustedIssuer returns an active BYO record before an organization row for the same issuer. Hosted completion JIT-joins only when pending.orgId is set, so the BYO leg does not create organization membership and does not receive the organization client secret. The directory refusal remains on the organization join route. The hosted organization button for that issuer is the leg that is no longer selected."
+    ],
+    "phase3_verdict": "rejected",
+    "phase3_verifier": "parent-run3-close",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fscim.ts%23authenticate::packages%2Fdatabase%2Fsrc%2Fscim-store.ts%23verify::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/control-plane/src/routes/scim.ts#authenticate",
+      "boundary": "packages/database/src/scim-store.ts#verify",
+      "subsystem": "packages/control-plane",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/control-plane/src/routes/scim.ts#authenticate",
+    "boundary": "packages/database/src/scim-store.ts#verify",
+    "subsystem": "packages/control-plane",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/control-plane/src/routes/scim.ts",
+      "packages/database/src/scim-store.ts",
+      "packages/control-plane/src/routes/scim-effects.ts",
+      "packages/control-plane/src/routes/scim-protocol.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#API-key and mTLS attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Federated-identity attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "SCIM authentication is a TypeScript bearer check, not a binary parser."
+      },
+      {
+        "block": "DATA-ISOLATION-AND-LIFECYCLE.md#Tenant and object-isolation attack classes",
+        "reason": "The grant unit already covered storage organization binding. This unit is the directory authenticator, not an id-only SQL read."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "uncovered_reason": "The control-plane auth unit traced pst_ bearers, cookie Origin, and the tenant join route. It read scim-effects only as the role source for that join. scim.ts authenticate is a separate gate: an sct_ bearer is hashed and tokens.verify matches organization id, hash, and revokedAt, while any other live session falls through to asOrgOwner. Directory PATCH and DELETE then deprovision membership. That authenticator was not the assigned boundary.",
+    "hardening_notes": [
+      "foldUserPatch splits attribute paths on '.' so a schema-qualified active path urn:ietf:params:scim:schemas:core:2.0:User:active is not read as active, and the PATCH still returns 200. The in-repo Okta and Entra shapes (boolean, string False, unqualified active) are handled.",
+      "The provisioning-token door rejects only deleted and suspended organizations, while the owner door requires state active. Organizations are created active and no in-repo transition returns one to provisional after a token can be minted."
+    ],
+    "phase3_verdict": "confirmed",
+    "phase3_verifier": "v06-control-plane-scim-principalsforsubject",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Fserver.ts::packages%2Fcontrol-plane%2Fsrc%2Fmiddleware%2Fauth.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/control-plane/src/server.ts",
+      "boundary": "packages/control-plane/src/middleware/auth.ts",
+      "subsystem": "packages/control-plane",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/control-plane/src/server.ts",
+    "boundary": "packages/control-plane/src/middleware/auth.ts",
+    "subsystem": "packages/control-plane",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/control-plane/src/middleware/auth.ts",
+      "packages/control-plane/src/middleware/admin-auth.ts",
+      "packages/control-plane/src/routes/organizations.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "WEB-PROTOCOL-AND-AUTH.md#Core discipline",
+      "WEB-PROTOCOL-AND-AUTH.md#Universal moves",
+      "WEB-PROTOCOL-AND-AUTH.md#Validation rules",
+      "WEB-PROTOCOL-AND-AUTH.md#Federated-identity attack classes",
+      "WEB-PROTOCOL-AND-AUTH.md#Browser-session attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "ProvisionalSession.allowedActions is stored by federated-session, enrollment, and other mint sites, and authMiddleware resolves every live pst_ bearer to a full principal for every requirePrincipal route. federated-session.ts states that the bearer is not action-scoped. No extra principal is created by the unused field.",
+      "MEMBER_ADMIN uses liveness unchecked, so an owner membership would still administer members of an organization whose state is deleted. The route comment records that as ADR 0178. No production writer sets organization.state to deleted; project deletion is a different record. The path is not reachable from current writers.",
+      "revokeOrganizationMembership deletes every provisional session for the principal, not only sessions tied to that organization. The helper documents this as ending the authority the membership granted. The effect is a cross-tenant logout for that principal when one organization deprovisions them.",
+      "principals.ts linkFromVerifiedIdToken returns the caller principalId in LinkIdentityResponse and calls ensurePersonalOnAuthenticatedSession with that caller id even when the identity row was stored on the verified-email owner. That response does not grant organization membership."
+    ],
+    "phase3_verdict": "confirmed",
+    "phase3_verifier": "v05-control-plane-org-join-email-retarget-me",
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  },
+  {
+    "coverage_id": "packages%2Fmcp-host%2Fsrc%2Ftransports%2Fstreamable-http.ts::packages%2Fmcp-host%2Fsrc%2Fhost-api.ts::packages%2Fmcp-host::ATTACK-CLASSES.md%23Access%20control",
+    "canonical_refs": {
+      "surface": "packages/mcp-host/src/transports/streamable-http.ts",
+      "boundary": "packages/mcp-host/src/host-api.ts",
+      "subsystem": "packages/mcp-host",
+      "attack_class": "ATTACK-CLASSES.md#Access control"
+    },
+    "surface": "packages/mcp-host/src/transports/streamable-http.ts",
+    "boundary": "packages/mcp-host/src/host-api.ts",
+    "subsystem": "packages/mcp-host",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/mcp-host/src/transports/streamable-http.ts",
+      "packages/mcp-host/src/host-api.ts",
+      "packages/agent-client/src/index.ts"
+    ],
+    "ordinary_attack_class_block": "ATTACK-CLASSES.md#Access control",
+    "selected_companion_blocks": [
+      "AI-AND-LLM.md#Core discipline",
+      "AI-AND-LLM.md#Universal moves",
+      "AI-AND-LLM.md#Validation rules",
+      "AI-AND-LLM.md#MCP and sub-agent trust classes",
+      "AI-AND-LLM.md#Tool and action attack classes"
+    ],
+    "excluded_blocks": [
+      {
+        "block": "MEMORY-SAFETY-AND-BINARY.md#Bounds, integer, and representation attack classes",
+        "reason": "This path is TypeScript or safe Rust with no unsafe decoder or FFI boundary in the assigned files."
+      },
+      {
+        "block": "CLOUD-AND-DEPLOYMENT.md#Workload identity and IAM attack classes",
+        "reason": "No cloud IAM selector is the decision on this path."
+      }
+    ],
+    "prior_status": "prior_covered_same_source",
+    "attempts": [],
+    "wave": 1,
+    "status": "planned",
+    "agent_id": null,
+    "reviewed_paths": [],
+    "local_checks": [],
+    "result_fingerprints": [],
+    "unresolved": [],
+    "hardening_notes": [
+      "isLoopbackBase treats any *.localhost name as loopback, but exactResource does not, so authenticated hostFetch fails closed. hostFetch skips agent headers for /health/ready and /health/live, and daemonFetch will still GET http://foo.localhost/.../health/live. The body is schema-minimized and no bearer is attached; pin those probes to a resolved loopback address anyway.",
+      "task_status and task_terminate take task_run_id as an unbounded string, while other ids use safeTokenSchema. encodeURIComponent does not escape '.' or '..', and fetch then normalizes them to parent paths on the same Host. The agent route guard currently refuses those parents; rejecting non-token ids in the tool schema would keep the bearer on the intended path.",
+      "Task context is one process-global cell, and the HTTP transport is one session behind one shared bearer. Overlapping tool calls can replace the frozen digest. That stays inside the same approved agent capability; a lock or per-session context would make the binding obvious.",
+      "sync_pull's optional device_id writes sync_device_cursors during a host.sync.read call. No reader in this repository uses that row for authorization. Bind the cursor to the agent client id or move it to an explicit write scope.",
+      "DNS-rebinding protection checks Host but allowedOrigins is unset. Browser calls still cannot attach the transport bearer without a CORS preflight the server does not answer. Setting allowedOrigins to the loopback origins would match the Host list."
+    ],
+    "carried_from": "run-2",
+    "carry_note": "Same commit 6395f1e4 as run 2. Source checks carried. Local artifacts from the prior run were not reused. Rejected fingerprints are not open candidates.",
+    "phase5_verifier": "v-run6-record-verify"
+  }
+]
