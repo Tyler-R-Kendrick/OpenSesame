@@ -4,8 +4,8 @@ import {
   claimGithubAppCode,
   forgetLocalGithubApp,
 } from "@opensesame/app-core/lib/github-app-manifest.js";
-import { localStore, sessionStore } from "@opensesame/app-core/ports.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
+import { localStore, sessionStore } from "@opensesame/app-core/ports.js";
 /** @vitest-environment jsdom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";

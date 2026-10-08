@@ -21,8 +21,8 @@ const connect = vi.hoisted(() => vi.fn());
 const connectState: { connecting: boolean; error: string | null } = vi.hoisted(
   () => ({ connecting: false, error: null }),
 );
-import { localStore } from "@opensesame/app-core/ports.js";
 import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
+import { localStore } from "@opensesame/app-core/ports.js";
 Object.assign(identityHookSeams, {
   useConnect: () => ({
     connect,
