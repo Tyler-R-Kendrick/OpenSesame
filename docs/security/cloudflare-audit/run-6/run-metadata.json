@@ -1,0 +1,39 @@
+{
+  "run_id": "OpenSesame-run-6",
+  "repo": "OpenSesame",
+  "target": "/workspace",
+  "source_ref": {
+    "commit": "9b2192c61e64f4c0eed0c8257b63c9b39a81fd56",
+    "branch": "cursor/cf-audit-run-6-artifacts-d641",
+    "worktree": "clean",
+    "prior_run_5_commit": "9b2192c61e64f4c0eed0c8257b63c9b39a81fd56"
+  },
+  "profile": "standard",
+  "scope_paths": [
+    "apps",
+    "crates",
+    "packages",
+    "ops",
+    "spec",
+    "scripts",
+    "tools"
+  ],
+  "execution_policy": "sandboxed-source-and-local-only",
+  "started_at": "2026-10-08T14:29:36Z",
+  "completed_at": "2026-10-08T14:29:36Z",
+  "prior_run_paths": [
+    "docs/security/cloudflare-audit/run-5"
+  ],
+  "prior_ledger_md5_run5": "0c0c52eef9c9022e41dd9c91f724749b",
+  "coverage_ledger_md5": "4ad87b0fc91bc549cd8d21edb6415d40",
+  "worktrees": [
+    {
+      "id": "v-run6-record-verify",
+      "path": "/tmp/wt-cf-audit-run5-v1",
+      "role": "phase5-record-verification"
+    }
+  ],
+  "new_hunter_candidates": 0,
+  "run_status": "complete",
+  "notes": "Second consecutive counted run. Tip unchanged from run 5; phase-5 record verification appended to every ledger unit. Zero confirmed, zero needs_validation."
+}
