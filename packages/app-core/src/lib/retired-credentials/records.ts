@@ -1,5 +1,6 @@
 /** Bounded pre-unlock record parser. Storage content establishes no authority. */
 import { z } from "zod";
+import { assertUnambiguousJson } from "./json-preflight.js";
 export const MAX_RETIRED_CREDENTIAL_TRAPS = 3;
 export const MAX_RETIRED_CREDENTIAL_EVENTS = 32;
 export const MAX_RETIRED_CREDENTIAL_RECORD_BYTES = 32768;
@@ -72,12 +73,8 @@ export function parseRetiredCredentialRecords(
   raw: string,
   tomb: string,
 ): Records {
-  if (
-    raw.length > MAX_RETIRED_CREDENTIAL_RECORD_BYTES ||
-    new TextEncoder().encode(raw).length > MAX_RETIRED_CREDENTIAL_RECORD_BYTES
-  )
-    throw new Error("Retired credential records are unavailable.");
   try {
+    assertUnambiguousJson(raw, MAX_RETIRED_CREDENTIAL_RECORD_BYTES);
     const parsed = recordSchema.parse(JSON.parse(raw));
     if (parsed.tomb !== tomb) throw new Error("Wrong credential context");
     return parsed;
