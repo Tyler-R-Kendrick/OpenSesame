@@ -9,7 +9,7 @@ import {
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { UnlockScreen } from "./UnlockScreen.js";
+import { UnlockScreen, unlockScreenDependencies } from "./UnlockScreen.js";
 import { joinRoadDependencies } from "./join/JoinRoad.js";
 import {
   ANSWERED,
@@ -93,6 +93,7 @@ describe("UnlockScreen — setup is optional (ADR 0090)", () => {
     expect(
       screen.queryByRole("button", { name: "Deployment setup" }),
     ).toBeNull();
+    expect(screen.getByRole("button", { name: "Join a session" })).toBeTruthy();
   });
 
   it("reaches deployment setup from the front door and hands back to sign-in", () => {
@@ -294,6 +295,55 @@ describe("UnlockScreen — joining a session (ADR 0136)", () => {
     ).toBeTruthy();
     expect(screen.getByLabelText<HTMLInputElement>("Invite").value).toBe(
       captured.invite.token,
+    );
+  });
+
+  it("keeps join after a vault exists, even when setup is answered", () => {
+    v.state = {
+      status: "locked",
+      header: null,
+      lockedOutUntil: null,
+      failedAttempts: 0,
+      durable: true,
+      awaitingSecondStep: false,
+    };
+    setupHolder.current = ANSWERED;
+    const deps = { ...unlockScreenDependencies };
+    unlockScreenDependencies.deviceHasSeveralVaults = () => false;
+    try {
+      render(
+        <MemoryRouter>
+          <UnlockScreen />
+        </MemoryRouter>,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Join a session" }));
+      expect(
+        screen.getByRole("heading", { level: 1, name: "Join a session" }),
+      ).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Close" }));
+      expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+        "Unlock",
+      );
+    } finally {
+      Object.assign(unlockScreenDependencies, deps);
+    }
+  });
+
+  it("keeps join on sign-in after setup is answered and nothing is sealed", () => {
+    fresh();
+    setupHolder.current = ANSWERED;
+    render(
+      <MemoryRouter>
+        <UnlockScreen />
+      </MemoryRouter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Join a session" }));
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Join a session" }),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Sign in",
     );
   });
 });

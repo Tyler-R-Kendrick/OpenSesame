@@ -26,9 +26,20 @@ export const COMMAND_SECTIONS = ["/vault", "/settings"] as const;
 /** `/claim`: paste a claim or drop. Always-on, not a rail row. */
 export const CLAIM_COMMAND_PATH = "/claim";
 
-/** Core destinations, the claim ceremony, and every registered `command-path`. */
+/**
+ * `/join`: the same road as the front door's Join a session. Always-on, not
+ * a rail row, and not gated on a setup record — a device that already holds
+ * a vault can still open it.
+ */
+export const JOIN_COMMAND_PATH = "/join";
+
+/** Core destinations, claim, join, and every registered `command-path`. */
 export function commandSections(): readonly string[] {
-  const paths: string[] = [...COMMAND_SECTIONS, CLAIM_COMMAND_PATH];
+  const paths: string[] = [
+    ...COMMAND_SECTIONS,
+    CLAIM_COMMAND_PATH,
+    JOIN_COMMAND_PATH,
+  ];
   for (const entry of contributionsSnapshot("command-path")) {
     if (!paths.includes(entry.path)) paths.push(entry.path);
   }
@@ -46,7 +57,7 @@ export function isCommandSection(path: string): boolean {
  * navigation tool ask this before they move, not just whether it is listed.
  */
 export function commandPathAuthorized(path: string): boolean {
-  if (path === CLAIM_COMMAND_PATH) return true;
+  if (path === CLAIM_COMMAND_PATH || path === JOIN_COMMAND_PATH) return true;
   if (COMMAND_SECTIONS.some((core) => core === path)) return true;
   try {
     assertNavigationContribution(

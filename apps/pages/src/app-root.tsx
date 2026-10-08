@@ -1,4 +1,5 @@
 import { activatePlan } from "@opensesame/app-core/lib/capabilities/change.js";
+import { JOIN_COMMAND_PATH } from "@opensesame/app-core/lib/command-bar/types.js";
 import {
   type ComponentType,
   type ReactNode,
@@ -32,6 +33,7 @@ import {
 } from "./lib/vault/hooks.js";
 import { FederationReturn as DefaultFederationReturn } from "./screens/FederationReturn.js";
 import { UnlockScreen as DefaultUnlockScreen } from "./screens/UnlockScreen.js";
+import { JoinRoadRoute } from "./screens/join/JoinRoad.js";
 import { GateHost } from "./tutorial/gate-seat.js";
 
 import { useComposition } from "./bindings/capabilities.js";
@@ -314,6 +316,7 @@ function VaultApp() {
                   </Framed>
                 }
               />
+              <Route path={JOIN_COMMAND_PATH} element={<JoinRoadRoute />} />
               <Route path="*" element={<Fallback />} />
             </Routes>
           </Suspense>

@@ -46,12 +46,12 @@ import { VaultsScreen } from "./VaultsScreen.js";
 import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { useJoinRoad } from "./join/JoinRoad.js";
 import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
+import { LockFoot } from "./unlock/LockFoot.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
 import { PasskeyHostNote } from "./unlock/PasskeyHostNote.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ProtectorField } from "./unlock/ProtectorField.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
-import { ResetBrowser } from "./unlock/ResetBrowser.js";
 import { ResetVault } from "./unlock/ResetVault.js";
 import { SecondStepFields } from "./unlock/SecondStepFields.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
@@ -84,11 +84,11 @@ export const unlockScreenDependencies = {
 };
 
 /**
- * A device with no vault opens on the front door's two roads — set up your
- * own, join a session (ADR 0150 §1); nothing is put in front of them
- * (ADR 0090). Once a setup record exists, sign-in is the first screen. A
- * shared link opens join itself (ADR 0136), and a managed instance's
- * required roots sit beside sign-in.
+ * A device with no vault and no setup record opens on the front door's two
+ * roads — set up your own, or join a session (ADR 0150 §1). Join stays on
+ * the vault chooser and the unlock footer after a vault or a setup record
+ * exists; nothing gates it on setup. A shared link opens join itself
+ * (ADR 0136), and a managed instance's required roots sit beside sign-in.
  */
 export function UnlockScreen() {
   const { status, tomb } = useVault();
@@ -832,7 +832,7 @@ function UnlockForm({
               onKeep={() => setShowReset(false)}
             />
           ) : null}
-          {showReset ? null : <ResetBrowser />}
+          <LockFoot variant="foot" hideReset={showReset} />
         </div>
       </div>
       <ReleaseNotes />

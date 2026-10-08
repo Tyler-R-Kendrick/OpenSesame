@@ -123,7 +123,7 @@ describe("listing keymap journey", () => {
     release();
   });
 
-  it("Given a g chord, When they press j instead of a section, Then j still moves", () => {
+  it("Given a g chord, When they press k instead of a section, Then k still moves", () => {
     const items = vault();
     const release = registerVaultKeymap(items);
     const handler = createKeymapHandler({
@@ -131,8 +131,8 @@ describe("listing keymap journey", () => {
       showHelp: vi.fn(),
     });
     press(handler, "g");
-    press(handler, "j");
-    expect(items.next).toHaveBeenCalledWith(1);
+    press(handler, "k");
+    expect(items.previous).toHaveBeenCalledWith(1);
     expect(items.first).not.toHaveBeenCalled();
     release();
   });

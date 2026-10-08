@@ -5,6 +5,7 @@ import {
   type AppCommand,
   CLAIM_COMMAND_PATH,
   type InterpretResult,
+  JOIN_COMMAND_PATH,
   commandSections,
 } from "./types.js";
 
@@ -26,6 +27,10 @@ const SECTION_ALIASES: ReadonlyArray<{
   {
     path: CLAIM_COMMAND_PATH,
     words: ["claim", "claims", "drop", "drops"],
+  },
+  {
+    path: JOIN_COMMAND_PATH,
+    words: ["join", "join a session"],
   },
 ];
 

@@ -92,6 +92,14 @@ describe("slashSuggestions", () => {
       label: "Claim",
       run: true,
     });
+    expect(
+      slashSuggestions("/", sections, []).map((row) => row.insert.trim()),
+    ).toContain("/join");
+    expect(slashSuggestions("/join", sections, [])[0]).toMatchObject({
+      insert: "/join",
+      label: "Join",
+      run: true,
+    });
   });
 });
 
@@ -108,6 +116,7 @@ describe("slashSections", () => {
       { path: "/vault", label: "Vault" },
       { path: "/settings", label: "Settings" },
       { path: "/claim", label: "Claim" },
+      { path: "/join", label: "Join" },
     ]);
   });
 });

@@ -72,7 +72,7 @@ describe("chaos — listing keymap under overlapping input", () => {
     release();
   });
 
-  it("chaos: g times out while a count is pending, then j uses the count", () => {
+  it("chaos: g times out while a count is pending, then k uses the count", () => {
     vi.useFakeTimers();
     const tree = target();
     const release = registerVaultKeymap(tree);
@@ -83,9 +83,9 @@ describe("chaos — listing keymap under overlapping input", () => {
     press(handler, "4");
     press(handler, "g");
     vi.advanceTimersByTime(600);
-    press(handler, "j");
+    press(handler, "k");
     expect(tree.first).not.toHaveBeenCalled();
-    expect(tree.next).toHaveBeenCalledWith(4);
+    expect(tree.previous).toHaveBeenCalledWith(4);
     release();
   });
 

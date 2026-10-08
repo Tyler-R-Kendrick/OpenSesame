@@ -4,7 +4,11 @@
  */
 
 import { liveSearchOf } from "./parse.js";
-import { CLAIM_COMMAND_PATH, type CommandField } from "./types.js";
+import {
+  CLAIM_COMMAND_PATH,
+  type CommandField,
+  JOIN_COMMAND_PATH,
+} from "./types.js";
 
 export type SlashSuggestion = {
   id: string;
@@ -23,6 +27,7 @@ const CORE_SECTIONS: readonly SlashSection[] = [
   { path: "/vault", label: "Vault" },
   { path: "/settings", label: "Settings" },
   { path: CLAIM_COMMAND_PATH, label: "Claim" },
+  { path: JOIN_COMMAND_PATH, label: "Join" },
 ];
 
 const VERBS: readonly SlashSuggestion[] = [
