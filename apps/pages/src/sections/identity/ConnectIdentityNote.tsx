@@ -1,24 +1,29 @@
+import {
+  normalizeSignInService,
+  writeSignInService,
+} from "@opensesame/app-core/lib/identity-service.js";
+import { loadSettings } from "@opensesame/app-core/lib/settings.js";
 import { useState } from "react";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { FieldShell } from "../../components/FieldShell.js";
 import { IconLogin } from "../../components/Icons.js";
 
-import {
-  loadSettings,
-  saveSettings,
-} from "@opensesame/app-core/lib/settings.js";
 import { useIdentityConfigured } from "../../lib/use-configured.js";
 
 import { useConnect } from "../../bindings/identity.js";
 export function ConnectIdentityNote({
   online,
   what,
+  lockIssuer = false,
 }: {
   online: boolean;
   what: string;
+  /** A before-unlock ceremony must not rewrite the Identity issuer mid-flight. */
+  lockIssuer?: boolean;
 }) {
   const { connecting, error, connect } = useConnect();
   const configured = useIdentityConfigured();
+  const mayEditIssuer = !configured && !lockIssuer;
 
   return (
     <section className="panel">
@@ -35,9 +40,7 @@ export function ConnectIdentityNote({
       </div>
       <div className="panel__body">
         <div className="actions">
-          {!configured ? (
-            <IdentityAddress />
-          ) : (
+          {configured ? (
             <button
               type="button"
               className="icon-btn"
@@ -48,8 +51,20 @@ export function ConnectIdentityNote({
             >
               <IconLogin size={16} />
             </button>
-          )}
+          ) : mayEditIssuer ? (
+            <IdentityAddress />
+          ) : null}
         </div>
+        <FailureNotice
+          id="identity:connect-issuer-locked"
+          title="Sign-in service"
+          tone="warn"
+          message={
+            lockIssuer && !configured
+              ? "Set your organisation’s sign-in service in Settings after you unlock this device, then open the link again."
+              : null
+          }
+        />
         <FailureNotice
           id="identity:connect-offline"
           title="Offline"
@@ -76,12 +91,10 @@ function IdentityAddress() {
       mono
       value={value}
       onValueChange={setValue}
-      onCommit={(raw) =>
-        saveSettings({
-          ...loadSettings(),
-          identityApi: raw.trim().replace(/\/$/, ""),
-        })
-      }
+      onCommit={(raw) => {
+        const normalized = normalizeSignInService(raw);
+        if (normalized) writeSignInService(normalized);
+      }}
     />
   );
 }
