@@ -230,9 +230,9 @@ describe("return", () => {
       returnCode: pkg.returnCode,
     });
     if (!opened.ok) throw new Error(opened.code);
-    expect(opened.opened.preview.vaults.find((v) => v.id === "personal")?.status).toBe(
-      "occupied",
-    );
+    expect(
+      opened.opened.preview.vaults.find((v) => v.id === "personal")?.status,
+    ).toBe("occupied");
     const done = await completeReturn(origin.deps, opened.opened);
     if (!done.ok) throw new Error(done.code);
     expect(done.receipt.occupied).toContain("personal");
