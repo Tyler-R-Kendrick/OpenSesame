@@ -29,10 +29,9 @@ function utf8Length(text: string, maxBytes: number): void {
   }
 }
 
-function quotedString(
-  raw: string,
-  start: number,
-): { text: string; end: number } {
+type QuotedStringToken = { text: string; end: number };
+
+function quotedString(raw: string, start: number): QuotedStringToken {
   let end = start + 1;
   while (end < raw.length && raw.charAt(end) !== '"') {
     if (raw.charAt(end) === "\\") end++;

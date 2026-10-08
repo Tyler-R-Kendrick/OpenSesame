@@ -105,14 +105,12 @@ describe("inactive Pages integer lexical contract", () => {
   it("bounds its scan and refuses caller objects without traversing getters", () => {
     let touched = false;
     const value = {
-      get header() {
+      get header(): never {
         touched = true;
         throw new Error("getter");
       },
     };
-    expect(() => Reflect.apply(assertIntegers, undefined, [value])).toThrow(
-      "context is unavailable",
-    );
+    expect(() => assertIntegers(value)).toThrow("context is unavailable");
     expect(touched).toBe(false);
     expect(() =>
       assertIntegers(JSON.stringify(header).padEnd(65537, " ")),
