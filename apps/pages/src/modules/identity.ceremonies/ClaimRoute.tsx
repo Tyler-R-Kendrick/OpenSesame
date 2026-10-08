@@ -12,11 +12,18 @@
  * Identity session — the Connect note and the guest road are on the route.
  * The shell's notifications tray is not mounted there, so every refusal is
  * also the mark on the page, in the model's words.
+ *
+ * With nothing arrived, the field takes a full claim or drop link, or a bare
+ * `osc_clm_…` token. What was pasted is held in memory the same way a link
+ * that arrived is, so leaving this page and coming back in the same sitting
+ * still has it. The fragment stays scrubbed from the address. Vault is a
+ * client-side link: a full load would lock an open vault.
  */
 
 import {
   captureClaimArrivalFromPage,
   peekClaimArrival,
+  rememberClaimArrival,
   takeClaimArrival,
 } from "@opensesame/app-core/lib/claims/arrival.js";
 import { CLAIM_WORDS } from "@opensesame/app-core/lib/claims/ceremony.js";
@@ -30,7 +37,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { firstControl, keyboardIsIdle, landFocus } from "../../lib/focus.js";
 import { useOnline } from "../../lib/use-online.js";
 import { ConnectIdentityNote } from "../../sections/identity/ConnectIdentityNote.js";
@@ -114,7 +121,10 @@ function ClaimFlow({
         const entry = claimEntry(raw);
         if (entry === null) return;
         if (entry.kind === "none") view.say(CLAIM_WORDS.notAToken);
-        else onArrival(entry);
+        else {
+          rememberClaimArrival(entry);
+          onArrival(entry);
+        }
       }}
     />
   );
@@ -139,22 +149,27 @@ export function ClaimRoute() {
   }, []);
 
   const drop = arrival.kind === "drop" ? arrival : null;
+  // The way back is outside the ceremony's focus root. A step that has not
+  // drawn its own control yet must not land the keyboard on this link.
   return (
-    <div className="section__inner" ref={root}>
-      <div className="section__head">
-        <h1>{drop ? "Open a drop" : "Accept a claim"}</h1>
+    <div className="section__inner">
+      <div ref={root}>
+        <div className="section__head">
+          <h1>{drop ? "Open a drop" : "Accept a claim"}</h1>
+        </div>
+        {drop ? (
+          <Suspense fallback={null}>
+            <DropClaimScreen
+              token={drop.token}
+              fragmentKey={drop.key}
+              onSettled={() => takeClaimArrival()}
+            />
+          </Suspense>
+        ) : (
+          <ClaimFlow arrival={arrival} onArrival={setArrival} root={root} />
+        )}
       </div>
-      {drop ? (
-        <Suspense fallback={null}>
-          <DropClaimScreen
-            token={drop.token}
-            fragmentKey={drop.key}
-            onSettled={() => takeClaimArrival()}
-          />
-        </Suspense>
-      ) : (
-        <ClaimFlow arrival={arrival} onArrival={setArrival} root={root} />
-      )}
+      <Link to="/vault">Vault</Link>
     </div>
   );
 }

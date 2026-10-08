@@ -1,3 +1,4 @@
+import { configureHost } from "@opensesame/app-core/host.js";
 /** @vitest-environment jsdom */
 /**
  * `/claim`: a claim link is reviewed and accepted over the one claim model; a
@@ -7,6 +8,7 @@
  * mounted), never a box.
  */
 import {
+  bindClaimLockReset,
   captureClaimArrivalFromPage,
   peekClaimArrival,
   resetClaimArrivalForTests,
@@ -25,10 +27,12 @@ import {
 } from "@opensesame/app-core/lib/claims/route-model.js";
 import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
+import { emitVaultLock } from "@opensesame/app-core/lib/vault/lock-events.js";
+import { createTestHost } from "@opensesame/app-core/test-host.js";
 import { overlapCast } from "@opensesame/os-domain";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router";
+import { Link, MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { identityHookSeams } from "../../bindings/identity.js";
 import { useOnlineSeams } from "../../lib/use-online.js";
@@ -59,11 +63,32 @@ function show() {
   );
 }
 
+/** `/claim` and a vault stub, so the way back is a real in-app navigation. */
+function showSitting() {
+  return render(
+    <MemoryRouter initialEntries={["/claim"]}>
+      <Routes>
+        <Route path="/claim" element={<ClaimRoute />} />
+        <Route
+          path="/vault"
+          element={
+            <>
+              <h1>Vault home</h1>
+              <Link to="/claim">Claim</Link>
+            </>
+          }
+        />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
 function trayed() {
   return listNotices().find((notice) => notice.id === CLAIM_NOTICE);
 }
 
 beforeEach(() => {
+  configureHost(createTestHost());
   harness = claimHarness();
   session.current = overlapCast({ accessToken: "t", principalId: "prn_1" });
   harness.routes.present.mockResolvedValue(json(OPEN_CLAIM));
@@ -233,6 +258,87 @@ describe("no link arrived", () => {
     expect(screen.getByLabelText<HTMLInputElement>("Claim link").value).toBe(
       "",
     );
+  });
+
+  it("reads a bare claim token", async () => {
+    show();
+    await userEvent.type(
+      screen.getByLabelText("Claim link"),
+      `${TOKEN}{Enter}`,
+    );
+    await screen.findByLabelText("Consent code");
+    expect(harness.routes.present).toHaveBeenCalledWith(TOKEN);
+    expect(peekClaimArrival()).toEqual({ kind: "claim", token: TOKEN });
+  });
+
+  it("reads a pasted drop link and keeps the key in memory only", async () => {
+    show();
+    await userEvent.type(
+      screen.getByLabelText("Claim link"),
+      `https://pages.example/claim#token=${TOKEN}&key=${KEY}{Enter}`,
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Open a drop" }),
+    ).toBeTruthy();
+    expect(peekClaimArrival()).toEqual({
+      kind: "drop",
+      token: TOKEN,
+      key: KEY,
+    });
+    expect(
+      JSON.stringify({ ...sessionStorage, ...localStorage }),
+    ).not.toContain(KEY);
+  });
+
+  it("returns to the vault in-app and still has the drop on the way back", async () => {
+    showSitting();
+    await userEvent.type(
+      screen.getByLabelText("Claim link"),
+      `https://pages.example/claim#token=${TOKEN}&key=${KEY}{Enter}`,
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Open a drop" }),
+    ).toBeTruthy();
+    await userEvent.click(screen.getByRole("link", { name: "Vault" }));
+    expect(
+      await screen.findByRole("heading", { name: "Vault home" }),
+    ).toBeTruthy();
+    expect(peekClaimArrival()).toEqual({
+      kind: "drop",
+      token: TOKEN,
+      key: KEY,
+    });
+    expect(
+      JSON.stringify({ ...sessionStorage, ...localStorage }),
+    ).not.toContain(KEY);
+    await userEvent.click(screen.getByRole("link", { name: "Claim" }));
+    expect(await screen.findByLabelText("One-time code")).toBeTruthy();
+    expect(peekClaimArrival().kind).toBe("drop");
+  });
+
+  it("a lock keeps a pasted drop, and coming back still has it", async () => {
+    const unbind = bindClaimLockReset();
+    try {
+      show();
+      await userEvent.type(
+        screen.getByLabelText("Claim link"),
+        `https://pages.example/claim#token=${TOKEN}&key=${KEY}{Enter}`,
+      );
+      expect(
+        await screen.findByRole("heading", { name: "Open a drop" }),
+      ).toBeTruthy();
+      emitVaultLock();
+      expect(peekClaimArrival()).toEqual({
+        kind: "drop",
+        token: TOKEN,
+        key: KEY,
+      });
+      cleanup();
+      show();
+      expect(await screen.findByLabelText("One-time code")).toBeTruthy();
+    } finally {
+      unbind();
+    }
   });
 });
 

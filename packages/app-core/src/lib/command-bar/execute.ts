@@ -226,7 +226,7 @@ export async function executeCommand(
     case "help":
       return {
         ok: true,
-        message: "Try: /vault · /? … · /open … · copy password for …",
+        message: "Try: /vault · /claim · /? … · /open … · copy password for …",
       };
     case "navigate":
       return openSection(command, ports);

@@ -9,6 +9,7 @@ import {
 } from "../../components/context-menu/menu-model.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { AddSlide } from "./AddSlide.js";
+import { ClaimOpenEntry } from "./ClaimOpen.js";
 import { ExportEntry } from "./ExportKey.js";
 import { type AddEntry, addEntries } from "./add-menu.js";
 import { useAddSlide } from "./add-slide.js";
@@ -119,6 +120,7 @@ function AddButton({
       {/* The flows the slide starts: they draw nothing but their sheets. */}
       {flows.map(({ id, Entry }) => (Entry ? <Entry key={id} /> : null))}
       <ExportEntry />
+      <ClaimOpenEntry />
     </>
   );
 }
