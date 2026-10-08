@@ -169,8 +169,9 @@ describe("the /device route", () => {
     expect(screen.queryByLabelText("User code")).toBeNull();
     expect(screen.queryByLabelText("Sign-in service")).toBeNull();
     expect(
-      listNotices().find((notice) => notice.id === "identity:connect-issuer-locked")
-        ?.body,
+      listNotices().find(
+        (notice) => notice.id === "identity:connect-issuer-locked",
+      )?.body,
     ).toMatch(
       /Set your organisation’s sign-in service in Settings after you unlock/,
     );
