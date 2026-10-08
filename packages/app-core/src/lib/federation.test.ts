@@ -49,7 +49,7 @@ function jwt(claims: JsonObject): string {
 }
 
 function seedPending(overrides: JsonObject = {}): void {
-  localStorage.setItem(
+  localStore().setItem(
     PKCE_KEY,
     JSON.stringify({
       upstreamId: "mock",
@@ -469,7 +469,7 @@ describe("completeSignIn", () => {
 
   it("finishes a sign-in that an older build left in sessionStorage", async () => {
     localStorage.clear();
-    sessionStorage.setItem(
+    sessionStore().setItem(
       PKCE_KEY,
       JSON.stringify({
         upstreamId: "mock",
@@ -496,7 +496,7 @@ describe("completeSignIn", () => {
   });
 
   it("refuses a code when the stored PKCE state is unreadable", async () => {
-    localStorage.setItem(PKCE_KEY, "{corrupt");
+    localStore().setItem(PKCE_KEY, "{corrupt");
     history.replaceState(null, "", "/?code=abc&state=state-1");
     await expect(completeSignIn()).rejects.toMatchObject({
       code: "invalid_request",
@@ -839,7 +839,7 @@ describe("session storage", () => {
   });
 
   it("ignores a corrupt session payload", () => {
-    localStorage.setItem(SESSION_KEY, "{not json");
+    localStore().setItem(SESSION_KEY, "{not json");
     expect(loadSession()).toBeNull();
   });
 
