@@ -23,7 +23,7 @@ import {
   presentDrop,
 } from "@opensesame/app-core/lib/claims/drop-open.js";
 import {
-  clearClaimNotice,
+  DROP_FAILURE_MARK,
   reportClaim,
 } from "@opensesame/app-core/lib/claims/route-model.js";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -94,7 +94,7 @@ export function DropClaimScreen({
 }: DropOpenerProps) {
   const [userCode, setUserCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   const [payload, setPayload] = useState<DropPayload | null>(null);
   const codeRef = useRef<HTMLInputElement | null>(null);
 
@@ -107,16 +107,15 @@ export function DropClaimScreen({
     event.preventDefault();
     if (busy || !userCode.trim()) return;
     setBusy(true);
-    setFailure(null);
+    setFailed(false);
     try {
       const { targetManifest } = await presentDrop(token, userCode.trim());
       setPayload(await openDrop(targetManifest, fragmentKey));
-      clearClaimNotice();
       onSettled();
     } catch (caught) {
       const words = caught instanceof Error ? caught.message : FALLBACK;
       reportClaim(words, TITLE);
-      setFailure(words);
+      setFailed(true);
       // A drop is presented once: past a refusal it cannot come back from,
       // the link is forgotten here too.
       if (spent(caught)) onSettled();
@@ -146,17 +145,16 @@ export function DropClaimScreen({
             spellCheck={false}
             value={userCode}
             disabled={busy}
-            aria-describedby={failure ? "drop-user-code-mark" : undefined}
+            aria-describedby={failed ? "drop-user-code-mark" : undefined}
             onChange={(event) => {
               setUserCode(event.target.value);
-              if (failure) {
-                setFailure(null);
-                clearClaimNotice();
-              }
+              if (failed) setFailed(false);
             }}
           />
           <output id="drop-user-code-mark" aria-live="polite">
-            {failure ? <StatusMark tone="err" label={failure} /> : null}
+            {failed ? (
+              <StatusMark tone="err" label={DROP_FAILURE_MARK} />
+            ) : null}
           </output>
         </div>
       </div>

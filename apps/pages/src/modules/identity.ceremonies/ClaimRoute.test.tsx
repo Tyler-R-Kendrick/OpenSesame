@@ -23,6 +23,7 @@ import { CLAIM_WORDS } from "@opensesame/app-core/lib/claims/ceremony.js";
 import { dropOpenSeams } from "@opensesame/app-core/lib/claims/drop-open.js";
 import {
   CLAIM_ACCEPTED,
+  CLAIM_FAILURE_MARK,
   CLAIM_NOTICE,
 } from "@opensesame/app-core/lib/claims/route-model.js";
 import type { IdentitySession } from "@opensesame/app-core/lib/identity.js";
@@ -84,7 +85,7 @@ function showSitting() {
 }
 
 function trayed() {
-  return listNotices().find((notice) => notice.id === CLAIM_NOTICE);
+  return listNotices().find((notice) => notice.id.startsWith(CLAIM_NOTICE));
 }
 
 beforeEach(() => {
@@ -178,9 +179,8 @@ describe("a claim link", () => {
       "NOPE{Enter}",
     );
     await waitFor(() => expect(trayed()?.tone).toBe("err"));
-    expect(
-      screen.getByRole("img", { name: trayed()?.body ?? "" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("img", { name: CLAIM_FAILURE_MARK })).toBeTruthy();
+    expect(trayed()?.body).toBeTruthy();
     expect(container.querySelector(".note")).toBeNull();
     expect(screen.getByLabelText("Consent code")).toBeTruthy();
   });
@@ -190,9 +190,7 @@ describe("a claim link", () => {
     harness.signIn(null);
     arrive(`/claim#token=${TOKEN}`);
     const view = show();
-    expect(
-      await screen.findByRole("img", { name: CLAIM_WORDS.signInFirst }),
-    ).toBeTruthy();
+    expect(await screen.findByRole("img", { name: "Waiting" })).toBeTruthy();
     expect(harness.routes.present).not.toHaveBeenCalled();
     expect(trayed()).toBeUndefined();
     // The Connect note /device shows, and the guest road the model offers.
@@ -232,7 +230,7 @@ describe("a claim link", () => {
     expect(location.search).toBe("");
     show();
     await waitFor(() => expect(trayed()?.body).toBe(CLAIM_WORDS.leaked));
-    expect(screen.getByRole("img", { name: CLAIM_WORDS.leaked })).toBeTruthy();
+    expect(screen.getByRole("img", { name: CLAIM_FAILURE_MARK })).toBeTruthy();
     expect(harness.routes.present).not.toHaveBeenCalled();
     expect(peekClaimArrival()).toEqual({ kind: "none" });
   });
@@ -253,7 +251,7 @@ describe("no link arrived", () => {
     show();
     await userEvent.type(screen.getByLabelText("Claim link"), "hello{Enter}");
     expect(
-      await screen.findByRole("img", { name: CLAIM_WORDS.notAToken }),
+      await screen.findByRole("img", { name: CLAIM_FAILURE_MARK }),
     ).toBeTruthy();
     expect(screen.getByLabelText<HTMLInputElement>("Claim link").value).toBe(
       "",

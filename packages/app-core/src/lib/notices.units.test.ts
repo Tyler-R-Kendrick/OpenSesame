@@ -12,11 +12,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type StatusNoticeInput,
+  appendStatusNotice,
   clearNotices,
   dismissNotice,
   listNotices,
   pushNotice,
   setStatusNotice,
+  subscribeNoticeArrivals,
   subscribeNotices,
 } from "./notices.js";
 
@@ -82,6 +84,17 @@ function statusInput(over: Partial<StatusNoticeInput> = {}): StatusNoticeInput {
   };
 }
 
+describe("appendStatusNotice", () => {
+  it("appends without replacing prior status rows and notifies arrivals", () => {
+    const arrival = vi.fn();
+    subscribeNoticeArrivals(arrival);
+    appendStatusNotice(statusInput({ body: "first" }));
+    appendStatusNotice(statusInput({ body: "second" }));
+    expect(listNotices()).toHaveLength(2);
+    expect(arrival).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("setStatusNotice", () => {
   it("stores a status notice keyed by id and emits", () => {
     const listener = vi.fn();
@@ -91,6 +104,13 @@ describe("setStatusNotice", () => {
     expect(notice.createdAt).toBeTruthy();
     expect(listNotices()).toEqual([notice]);
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not announce a standing status update as an arrival", () => {
+    const arrival = vi.fn();
+    subscribeNoticeArrivals(arrival);
+    setStatusNotice(statusInput());
+    expect(arrival).not.toHaveBeenCalled();
   });
 
   it("does not collapse status notices with claim notices or each other", () => {

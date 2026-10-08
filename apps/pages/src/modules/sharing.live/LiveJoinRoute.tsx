@@ -23,13 +23,14 @@ import {
   takeHeldLiveLink,
 } from "@opensesame/app-core/lib/live/link.js";
 import { NAME_MAX, NOTE_MAX } from "@opensesame/app-core/lib/live/messages.js";
+import { reportLiveOutcome } from "@opensesame/app-core/lib/live/outcome-notices.js";
 import { linkRoutes } from "@opensesame/app-core/lib/live/routes.js";
 import {
   currentGuestCarriers,
   joinLive,
   leaveLive,
 } from "@opensesame/app-core/lib/live/session.js";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { FieldShell } from "../../components/FieldShell.js";
 import { FormCommit } from "../../components/FormCommit.js";
@@ -63,20 +64,41 @@ import "./live.css";
 export function standing(status: GuestStatus): Standing {
   switch (status.at) {
     case "preparing":
-      return { tone: "idle", label: "Making your request code" };
+      return {
+        tone: "idle",
+        label: "Making your request code",
+        tray: "Making your request code",
+      };
     case "request":
-      return { tone: "idle", label: "Waiting for the owner's reply code" };
+      return {
+        tone: "idle",
+        label: "Waiting for the owner's reply code",
+        tray: "Waiting for the owner's reply code",
+      };
     case "connecting":
-      return { tone: "idle", label: "Connecting to the owner's browser" };
+      return {
+        tone: "idle",
+        label: "Connecting to the owner's browser",
+        tray: "Connecting to the owner's browser",
+      };
     case "joined":
-      return { tone: "ok", label: `Joined ${status.catalog.title}` };
+      return {
+        tone: "ok",
+        label: `Joined ${status.catalog.title}`,
+        tray: `Joined ${status.catalog.title}`,
+      };
     case "unreachable":
       return {
         tone: "err",
         label: "No route to the owner's browser",
+        tray: "No route to the owner's browser",
       };
     default:
-      return { tone: "idle", label: "The session ended" };
+      return {
+        tone: "idle",
+        label: "The session ended",
+        tray: "The session ended",
+      };
   }
 }
 
@@ -120,7 +142,9 @@ function useAsk(held: LiveLink | null) {
       });
     } catch {
       leaveLive();
-      setFailed("This browser could not make a request code");
+      const words = "This browser could not make a request code";
+      reportLiveOutcome("Live session", words);
+      setFailed(words);
     } finally {
       setBusy(false);
     }
@@ -232,8 +256,12 @@ function Session() {
   const { guest, status } = useLiveGuest();
   const catalog = status?.at === "joined" ? status.catalog : null;
   const left = useRemaining(catalog?.expiresAt ?? null);
-  if (!guest || !status) return null;
-  const mark = standing(status);
+  const mark = status ? standing(status) : null;
+  useEffect(() => {
+    if (status?.at !== "unreachable") return;
+    reportLiveOutcome("Live session", "No route to the owner's browser");
+  }, [status]);
+  if (!guest || !status || !mark) return null;
   return (
     <div className="setup__stack" id="live-view">
       <div className="live-status" id="live-status" tabIndex={-1}>
