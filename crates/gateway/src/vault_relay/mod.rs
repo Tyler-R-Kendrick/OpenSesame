@@ -63,6 +63,8 @@ pub(crate) struct RelayState {
     /// Empty, or entirely purpose `vault_relay`, for the life of this process.
     pub(crate) bindings: opensesame_domain::transport::ServiceBindingSet,
     pub(crate) mtls: Option<RelayMtls>,
+    /// When set, org directory and publish policy use registration JWTs only.
+    pub(crate) registration: Option<registration::Verifier>,
 }
 
 pub(crate) type Shared = Arc<Mutex<Store>>;
@@ -121,6 +123,7 @@ pub(crate) fn router(store: Shared) -> Router {
         store,
         install_relay_bindings(None).expect("empty vault_relay bindings install"),
         None,
+        None,
     )
 }
 
@@ -128,6 +131,7 @@ pub(crate) fn router_with(
     store: Shared,
     bindings: opensesame_domain::transport::ServiceBindingSet,
     mtls: Option<RelayMtls>,
+    registration: Option<registration::Verifier>,
 ) -> Router {
     Router::new()
         .route("/health/live", get(live))
@@ -146,6 +150,7 @@ pub(crate) fn router_with(
             store,
             bindings,
             mtls,
+            registration,
         })
 }
 
@@ -194,6 +199,7 @@ pub async fn run(args: &Args) -> anyhow::Result<()> {
     match profile {
         RelayTransport::Plain => {
             let bindings = load_bindings()?;
+            let registration = registration::Verifier::from_env().map_err(anyhow::Error::msg)?;
             tracing::info!(%listen, profile = "relay", transport = "plain", "opensesame gateway relay listening");
             let listener = tokio::net::TcpListener::bind(args.listen)
                 .await
@@ -203,7 +209,7 @@ pub async fn run(args: &Args) -> anyhow::Result<()> {
                 revision = bindings.revision,
                 "relay profile is serving the installed vault_relay bindings"
             );
-            axum::serve(listener, router_with(store, bindings, None)).await?;
+            axum::serve(listener, router_with(store, bindings, None, registration)).await?;
         }
         RelayTransport::MtlsRequired => {
             let secure =
@@ -217,7 +223,8 @@ pub async fn run(args: &Args) -> anyhow::Result<()> {
             let mtls = RelayMtls {
                 generations: Arc::clone(&secure.generations),
             };
-            let app = router_with(store, bindings, Some(mtls)).layer(
+            let registration = registration::Verifier::from_env().map_err(anyhow::Error::msg)?;
+            let app = router_with(store, bindings, Some(mtls), registration).layer(
                 axum::middleware::from_fn_with_state(
                     Arc::clone(&secure.generations),
                     opensesame_transport_security::enforce_current_generation,
@@ -238,6 +245,8 @@ pub async fn run(args: &Args) -> anyhow::Result<()> {
 }
 
 mod admit;
+mod identity;
+mod registration;
 mod routes;
 mod service_admit;
 mod transport;
@@ -246,6 +255,8 @@ mod transport;
 mod directory_tests;
 #[cfg(test)]
 mod mtls_tests;
+#[cfg(test)]
+mod registration_tests;
 #[cfg(test)]
 mod snapshot_tests;
 #[cfg(test)]

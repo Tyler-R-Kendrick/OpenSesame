@@ -210,7 +210,7 @@ async fn relay_profile_refuses_other_bindings_and_advertises_vault_relay() {
     let set = install_relay_bindings(Some(&vault_relay_document())).expect("vault_relay only");
     assert!(!set.bindings.is_empty());
     let (status, body) = call(
-        router_with(Arc::new(Mutex::new(Store::default())), set, None),
+        router_with(Arc::new(Mutex::new(Store::default())), set, None, None),
         "GET",
         "/health/relay",
         None,

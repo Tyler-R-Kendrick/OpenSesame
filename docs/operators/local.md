@@ -55,9 +55,17 @@ Routes on this profile:
 - `GET` and `PUT /v1/vault-relay/{owner}/{slug}/snapshot`
 - `GET` and `POST /v1/org-vaults`
 
-`x-opensesame-org-role` is `owner`, `admin`, or `member`. A member may list
-an organization vault and may not create or publish one. With the header
+Without issuer configuration, `x-opensesame-org-role` is `owner`, `admin`, or
+`member` and `x-opensesame-principal` names the caller. A member may list an
+organization vault and may not create or publish one. With those headers
 absent, the slot key is the admission.
+
+When both `OPENSESAME_VAULT_RELAY_ISSUER` and
+`OPENSESAME_VAULT_RELAY_REGISTRATION_JWKS_JSON` are set, org directory and
+publish policy use RS256 registration JWTs (`typ: vault-relay-registration+jwt`,
+`aud: vault-relay`) from `Authorization: Bearer` or
+`x-opensesame-registration`. Role and principal headers are ignored; a forged
+`x-opensesame-org-role` cannot elevate a member token.
 
 `/health/ready` and the rest of the Host API are absent here.
 

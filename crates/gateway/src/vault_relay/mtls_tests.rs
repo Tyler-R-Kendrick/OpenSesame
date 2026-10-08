@@ -105,6 +105,7 @@ async fn serve(pki: &Pki, bindings: ServiceBindingSet) -> SocketAddr {
         Arc::new(Mutex::new(Store::default())),
         (*profile.bindings).clone(),
         Some(mtls),
+        None,
     )
     .layer(axum::middleware::from_fn_with_state(
         Arc::clone(&profile.generations),
