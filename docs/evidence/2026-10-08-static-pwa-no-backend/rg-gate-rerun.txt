@@ -1,0 +1,1 @@
+./apps/browser-extension/entrypoints/background.ts:116:        error: "host_api_removed",
