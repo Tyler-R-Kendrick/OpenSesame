@@ -144,7 +144,11 @@ try {
   const untilHeld = (script, what) =>
     until(
       () => scriptsFrom(page, base),
-      (s) => same(s.active, script) && same(s.controller, script),
+      (s) =>
+        same(s.active, script) &&
+        same(s.controller, script) &&
+        s.waiting === null &&
+        s.installing === null,
       what,
     );
 
