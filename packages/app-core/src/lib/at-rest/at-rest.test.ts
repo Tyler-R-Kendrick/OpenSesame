@@ -119,13 +119,10 @@ describe("Web Storage through the ports", () => {
     expect(sessionStore().getItem("opensesame.a")).toBeNull();
   });
 
-  it("reads a value an older build left in the clear, and seals it there", () => {
-    local.setItem("opensesame.settings", "legacy");
-    expect(localStore().getItem("opensesame.settings")).toBe("legacy");
-    expect(isSealedAtRest(local.getItem("opensesame.settings") ?? "")).toBe(
-      true,
-    );
-    expect(localStore().getItem("opensesame.settings")).toBe("legacy");
+  it("drops forged plaintext under an app-owned key", () => {
+    local.setItem("opensesame.settings", '{"hostApi":"https://evil.example"}');
+    expect(localStore().getItem("opensesame.settings")).toBeNull();
+    expect(local.getItem("opensesame.settings")).toBeNull();
   });
 
   it("reads another writer's clear value without sealing it", () => {
@@ -143,16 +140,15 @@ describe("Web Storage through the ports", () => {
     local.setItem("opensesame:session", "a relying party's");
 
     expect(sealLegacyWebStorage("local")).toBe(2);
-    expect(local.getItem("opensesame.settings")).not.toBe("ours");
-    expect(local.getItem("opensesame:federation:session")).not.toBe("ours too");
+    expect(local.getItem("opensesame.settings")).toBeNull();
+    expect(local.getItem("opensesame:federation:session")).toBeNull();
     expect(local.getItem("theirs")).toBe("not ours");
     expect(local.getItem("opensesame:session")).toBe("a relying party's");
     expect(sealLegacyWebStorage("local")).toBe(0);
-    // Sealed once, not again: the ports read the value back as it was.
-    expect(localStore().getItem("opensesame.settings")).toBe("ours");
+    expect(localStore().getItem("opensesame.settings")).toBeNull();
   });
 
-  it("never seals twice when a sealed value is already there", () => {
+  it("never touches a sealed value during the sweep", () => {
     localStore().setItem("opensesame:federation:pkce", '{"state":"s"}');
     const before = local.getItem("opensesame:federation:pkce");
     expect(sealLegacyWebStorage("local")).toBe(0);
