@@ -211,7 +211,7 @@ describe("adoptFederatedIdentity", () => {
   it("defers on a locked vault instead of minting a throwaway principal", async () => {
     vaultStatus.mockReturnValue("locked");
     currentSession.mockReturnValue(null);
-    sessionStorage.setItem(FEDERATION_SESSION_KEY, '{"idToken":"kept"}');
+    sessionStore().setItem(FEDERATION_SESSION_KEY, '{"idToken":"kept"}');
 
     await adoptFederatedIdentity("id.token.here");
 

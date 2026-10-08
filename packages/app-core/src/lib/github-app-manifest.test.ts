@@ -1,6 +1,9 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { configureHost } from "../host.js";
 import { localStore, sessionStore } from "../ports.js";
+import { createTestHost } from "../test-host.js";
+import { memoryStorage as memoryStorageFixture } from "./browser-reset.fixture.js";
 import { applyConnectCallbackBase } from "./connect-callback.js";
 import {
   buildGithubAppRegistration,
@@ -181,31 +184,28 @@ function relay() {
   return fetchMock;
 }
 
-function storedValues(...stores: Storage[]): string[] {
+function storedValues(...stores: { map: Map<string, string> }[]): string[] {
   const out: string[] = [];
   for (const store of stores) {
-    for (let index = 0; index < store.length; index += 1) {
-      const key = store.key(index);
-      if (key !== null) out.push(store.getItem(key) ?? "");
-    }
+    for (const value of store.map.values()) out.push(value);
   }
   return out;
 }
 
 describe("github app secret never rests in web storage", () => {
-  let local: Storage;
-  let session: Storage;
+  let local: ReturnType<typeof memoryStorageFixture>;
+  let session: ReturnType<typeof memoryStorageFixture>;
 
   beforeEach(() => {
-    local = memoryStorage();
-    session = memoryStorage();
-    vi.stubGlobal("localStorage", local);
-    vi.stubGlobal("sessionStorage", session);
-    session.setItem("opensesame.github-app.state", "claim-state");
+    local = memoryStorageFixture();
+    session = memoryStorageFixture();
+    configureHost(createTestHost({ storage: { local, session } }));
+    sessionStore().setItem("opensesame.github-app.state", "claim-state");
   });
 
   afterEach(() => {
     forgetLocalGithubApp();
+    configureHost(createTestHost());
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
@@ -260,17 +260,21 @@ describe("github app secret never rests in web storage", () => {
   });
 
   it("removes the legacy cleartext key on first read", () => {
-    local.setItem("opensesame.github-app.public", PUBLIC_RECORD);
-    local.setItem("opensesame.github-app.pending-pem", PEM);
-    session.setItem("opensesame.github-app.pending-pem", PEM);
+    localStore().setItem("opensesame.github-app.public", PUBLIC_RECORD);
+    localStore().setItem("opensesame.github-app.pending-pem", PEM);
+    sessionStore().setItem("opensesame.github-app.pending-pem", PEM);
     expect(readLocalGithubApp()?.id).toBe("4997182");
-    expect(local.getItem("opensesame.github-app.pending-pem")).toBeNull();
-    expect(session.getItem("opensesame.github-app.pending-pem")).toBeNull();
+    expect(
+      localStore().getItem("opensesame.github-app.pending-pem"),
+    ).toBeNull();
+    expect(
+      sessionStore().getItem("opensesame.github-app.pending-pem"),
+    ).toBeNull();
     expect(hasPendingGithubAppSecret("4997182")).toBe(true);
   });
 
   it("keeps the local App when the relay rejects a just-claimed key", async () => {
-    local.setItem("opensesame.github-app.public", PUBLIC_RECORD);
+    localStore().setItem("opensesame.github-app.public", PUBLIC_RECORD);
     vaultAs({ status: "unlocked", tomb: "personal", guest: false });
     stashPendingGithubAppSecret(
       { id: "4997182", displayName: "OpenSesame Local" },

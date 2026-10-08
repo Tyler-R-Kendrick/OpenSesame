@@ -27,7 +27,7 @@ function stubStorage(): void {
 }
 
 function seedPending(): void {
-  localStorage.setItem(
+  localStore().setItem(
     PKCE_KEY,
     JSON.stringify({
       upstreamId: "mock",

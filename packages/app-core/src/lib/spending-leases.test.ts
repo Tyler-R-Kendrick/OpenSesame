@@ -319,7 +319,7 @@ describe("spending-leases", () => {
   it("migrates unsuffixed personal leases and spent assertions", async () => {
     const intent = windowedIntent({ amount: "11" });
     const digest = await buildLocalPaymentApprovalDigest(intent);
-    localStorage.setItem(
+    localStore().setItem(
       "opensesame.wallet.spent-assertions.v1",
       JSON.stringify([digest]),
     );
@@ -356,8 +356,8 @@ describe("spending-leases", () => {
     // build left it: in the clear, under the unsuffixed key.
     const scoped = localStore().getItem("opensesame.wallet.leases.v1.personal");
     expect(scoped).toBeTruthy();
-    localStorage.setItem("opensesame.wallet.leases.v1", scoped ?? "[]");
-    localStorage.removeItem("opensesame.wallet.leases.v1.personal");
+    localStore().setItem("opensesame.wallet.leases.v1", scoped ?? "[]");
+    localStore().removeItem("opensesame.wallet.leases.v1.personal");
     setWalletStorageTomb("guest");
     setWalletStorageTomb("personal");
     expect(listSpendingLeases()).toHaveLength(1);

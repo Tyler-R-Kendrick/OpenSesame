@@ -41,6 +41,7 @@ Object.assign(settingsSeams, {
 
 import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
+import { localStore } from "@opensesame/app-core/ports.js";
 Object.assign(identitySeams, {
   identityBase: () => state.identityApi,
 });
@@ -272,7 +273,7 @@ describe("SignInPanel — where the keyboard lands", () => {
 
 describe("SignInPanel — last used 3P method", () => {
   it("rings the last-used provider and names it under the bar", () => {
-    localStorage.setItem("opensesame:federation:last-method", "google");
+    localStore().setItem("opensesame:federation:last-method", "google");
     renderPanel();
     const google = screen.getByRole("button", {
       name: "Continue with Google · last used",
@@ -283,7 +284,7 @@ describe("SignInPanel — last used 3P method", () => {
   });
 
   it("promotes a last-used catalog provider in front of the others", () => {
-    localStorage.setItem("opensesame:federation:last-method", "github");
+    localStore().setItem("opensesame:federation:last-method", "github");
     render(
       <SignInPanel
         placement="primary"

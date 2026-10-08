@@ -2,6 +2,7 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { mintVaultKey } from "@opensesame/vault-core";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { localStore, sessionStore } from "../../ports.js";
 import {
   IDP_REGISTRY_CONFIG_PATH,
   listIdpRegistrations,
@@ -214,11 +215,10 @@ describe("phase C — config into the sealed tomb (on unlock)", () => {
       ],
       ceremonyDismissed: true,
     });
-    const legacy = stubLocalStorage();
-    legacy.setItem(LEGACY_IDP_KEY, registry);
+    localStore().setItem(LEGACY_IDP_KEY, registry);
     await hydrateAndMigrateTombOnUnlock(PERSONAL_TOMB);
 
-    expect(legacy.getItem(LEGACY_IDP_KEY)).toBeNull();
+    expect(localStore().getItem(LEGACY_IDP_KEY)).toBeNull();
     const raw = kvGet(tombFileKey(PERSONAL_TOMB, IDP_REGISTRY_CONFIG_PATH));
     expect(raw).toBeTruthy();
     expect(raw).not.toContain("google");
@@ -278,10 +278,10 @@ describe("phase C — config into the sealed tomb (on unlock)", () => {
 
   it("moves the org profile out of sessionStorage", async () => {
     await unlockedPersonalTomb();
-    sessionStorage.setItem(LEGACY_ORG_KEY, "org:acme");
+    sessionStore().setItem(LEGACY_ORG_KEY, "org:acme");
     await hydrateAndMigrateTombOnUnlock(PERSONAL_TOMB);
 
-    expect(sessionStorage.getItem(LEGACY_ORG_KEY)).toBeNull();
+    expect(sessionStore().getItem(LEGACY_ORG_KEY)).toBeNull();
     expect(
       utf8decode.decode(await readFile(PERSONAL_TOMB, ORG_PROFILE_CONFIG_PATH)),
     ).toBe("org:acme");
@@ -312,14 +312,13 @@ describe("phase C — config into the sealed tomb (on unlock)", () => {
     await unlockedPersonalTomb();
     // Crashed with prefs already moved but the registry and marker pending.
     kvSet(LEGACY_PREFS_KEY, '{"theme":"dark"}');
-    const legacy = stubLocalStorage();
-    legacy.setItem(LEGACY_IDP_KEY, '{"version":1,"providers":[]}');
+    localStore().setItem(LEGACY_IDP_KEY, '{"version":1,"providers":[]}');
     await hydrateAndMigrateTombOnUnlock(PERSONAL_TOMB);
     const sealedPrefs = kvGet(tombFileKey(PERSONAL_TOMB, PREFS_CONFIG_PATH));
 
     // Undo only the marker — the crash point — and re-run.
     kvDelete(tombFileKey(PERSONAL_TOMB, MIGRATION_MARKER_PATH));
-    legacy.setItem(
+    localStore().setItem(
       LEGACY_IDP_KEY,
       '{"version":1,"providers":[],"ceremonyDismissed":true}',
     );
@@ -329,15 +328,14 @@ describe("phase C — config into the sealed tomb (on unlock)", () => {
     expect(kvGet(tombFileKey(PERSONAL_TOMB, PREFS_CONFIG_PATH))).toBe(
       sealedPrefs,
     );
-    expect(legacy.getItem(LEGACY_IDP_KEY)).toBeNull();
+    expect(localStore().getItem(LEGACY_IDP_KEY)).toBeNull();
     expect(marker().config).toBe(true);
   });
 
   it("discards every decrypted view on lock", async () => {
     await unlockedPersonalTomb();
-    sessionStorage.setItem(LEGACY_ORG_KEY, "org:acme");
-    const legacy = stubLocalStorage();
-    legacy.setItem(
+    sessionStore().setItem(LEGACY_ORG_KEY, "org:acme");
+    localStore().setItem(
       LEGACY_IDP_KEY,
       JSON.stringify({
         version: 1,

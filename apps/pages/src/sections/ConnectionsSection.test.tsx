@@ -22,6 +22,7 @@ const connectState: { connecting: boolean; error: string | null } = vi.hoisted(
   () => ({ connecting: false, error: null }),
 );
 import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
+import { localStore } from "@opensesame/app-core/ports.js";
 Object.assign(identityHookSeams, {
   useConnect: () => ({
     connect,
@@ -223,8 +224,6 @@ describe("ConnectionsSection gallery", () => {
     expect(
       screen.getAllByText(/Created, but nobody has approved it yet/).length,
     ).toBeGreaterThanOrEqual(1);
-    // Repair happens in place now: the primary finishes the authorization
-    // here, and only the quiet Details link goes to the connector page.
     expect(
       screen.getByRole("button", { name: /Finish authorization/i }),
     ).toBeTruthy();
@@ -410,7 +409,7 @@ describe("ConnectionsSection deeper branches", () => {
   });
 
   it("hides Connect once the GitHub App is registered from this browser", async () => {
-    localStorage.setItem(
+    localStore().setItem(
       "opensesame.github-app.public",
       JSON.stringify({
         id: "123",
@@ -435,7 +434,7 @@ describe("ConnectionsSection deeper branches", () => {
         screen.queryByRole("button", { name: /Authorize with GitHub/i }),
       ).toBeNull();
     } finally {
-      localStorage.removeItem("opensesame.github-app.public");
+      localStore().removeItem("opensesame.github-app.public");
     }
   });
 });
