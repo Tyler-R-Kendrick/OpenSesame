@@ -89,7 +89,6 @@ function runKimiPrompt(params: RunPromptParams): Promise<string> {
       params.model,
       "-p",
       params.prompt,
-      "--auto",
       "--output-format",
       "text",
     ];

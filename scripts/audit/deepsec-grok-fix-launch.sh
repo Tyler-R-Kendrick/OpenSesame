@@ -91,7 +91,7 @@ set +e
 export PATH="${HOME}/.local/bin:${PATH}"
 env -u XAI_API_KEY -u GROK_DEPLOYMENT_KEY -u MOONSHOT_API_KEY \
   kimi -m "${DEEPSEC_KIMI_MODEL:-kimi-code/k3}" -p "$(cat "$PROMPT")" \
-  --auto --output-format text >>"$JOB_LOG" 2>&1
+  --output-format text >>"$JOB_LOG" 2>&1
 EXIT=$?
 if grep -qiE '429|insufficient_quota|quota|rate limit|too many requests|usage limit' "$JOB_LOG"; then
   EXIT=42

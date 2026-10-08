@@ -17,7 +17,7 @@ fi
 cd "$WORKTREE"
 echo "=== kimi fix run $(date -u +%Y-%m-%dT%H:%M:%SZ) cwd=$WORKTREE model=$MODEL ===" | tee "$LOG"
 set +e
-kimi -m "$MODEL" -p "$(cat "$PROMPT_FILE")" --auto --output-format text 2>&1 | tee -a "$LOG"
+kimi -m "$MODEL" -p "$(cat "$PROMPT_FILE")" --output-format text 2>&1 | tee -a "$LOG"
 EXIT=${PIPESTATUS[0]}
 set -e
 echo "=== kimi exit $EXIT $(date -u +%Y-%m-%dT%H:%M:%SZ) ===" | tee -a "$LOG"
