@@ -68,6 +68,27 @@ export function purgeItem(body: VaultBody, id: string): void {
   body.tombstones = withTombstone(body.tombstones, "items", [...gone]);
 }
 
+/** A revoked drop must not come back from the trash still looking openable. */
+export function expireDropClaims(
+  body: VaultBody,
+  claimIds: ReadonlySet<string>,
+): void {
+  let changed = false;
+  const items = body.items.map((item) => {
+    if (
+      item.kind !== "drop" ||
+      item.state !== "pending" ||
+      !claimIds.has(item.claimId)
+    ) {
+      return item;
+    }
+    changed = true;
+    const expired: VaultItem = { ...item, state: "expired" };
+    return expired;
+  });
+  if (changed) body.items = items;
+}
+
 export function emptyTrash(body: VaultBody): void {
   const gone = body.items.filter((item) => item.deletedAt !== null);
   body.items = body.items.filter((item) => item.deletedAt === null);

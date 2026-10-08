@@ -37,7 +37,7 @@ import {
 } from "@opensesame/vault-core";
 import { lockManager } from "../../ports.js";
 import type { IdentityChange } from "../device-identity-carry.js";
-import { BODY_PATH } from "../vfs.js";
+import { BODY_PATH, readSealedFile } from "../vfs.js";
 import { recordItemTypes } from "./body-edits.js";
 import { unwrapExportedVaultKey } from "./offline-backup-file.js";
 import { openJsonForRebind } from "./seal-rebind.js";
@@ -51,6 +51,28 @@ export type ImportOptions = Readonly<{
    */
   adoptIdentity?: boolean;
 }>;
+
+/** The sealed backup `VaultStore.exportSealed` writes. */
+export function sealedVaultExport(
+  header: VaultHeader | null,
+  tomb: string,
+): string {
+  if (!header) throw new Error("There is no vault to export.");
+  const body = readSealedFile(tomb, BODY_PATH);
+  if (!body) throw new Error("There is nothing stored to export yet.");
+  return JSON.stringify(
+    {
+      format: "opensesame-vault-export",
+      v: 1,
+      exportedAt: new Date().toISOString(),
+      tomb,
+      header,
+      body,
+    },
+    null,
+    2,
+  );
+}
 
 type ParsedExport = { header: VaultHeader; body: SealedBlob; tomb: string };
 

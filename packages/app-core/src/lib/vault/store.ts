@@ -57,16 +57,14 @@ import {
   applyManifestPlan,
   bodyBeforeWrite,
   deleteFolder,
-  emptyTrash,
-  purgeItem,
   recordItemTypes,
   renameFolder,
   replaceItems,
   restoreItem,
   stampedEdit,
   toggleFavorite,
-  trashItem,
 } from "./body-edits.js";
+import { commitDiscard, revokeTrashedShares } from "./drop-revoke.js";
 import { headerCarriesGate } from "./header-gate.js";
 import {
   type ItemReturn,
@@ -144,7 +142,11 @@ import {
   readTombHeader,
   sharesWrapRecord,
 } from "./store-header.js";
-import { type ImportOptions, importSealedInto } from "./store-import.js";
+import {
+  type ImportOptions,
+  importSealedInto,
+  sealedVaultExport,
+} from "./store-import.js";
 import {
   type DriveSnapshotInput,
   type SealedSnapshot,
@@ -1363,7 +1365,7 @@ export class VaultStore {
   }
 
   async trashItem(id: string): Promise<void> {
-    await this.#mutate((body) => trashItem(body, id));
+    await this.#discard("trash", id);
   }
 
   async restoreItem(id: string): Promise<void> {
@@ -1371,11 +1373,22 @@ export class VaultStore {
   }
 
   async purgeItem(id: string): Promise<void> {
-    await this.#mutate((body) => purgeItem(body, id));
+    await this.#discard("purge", id);
   }
 
   async emptyTrash(): Promise<void> {
-    await this.#mutate((body) => emptyTrash(body));
+    await this.#discard("empty", "");
+  }
+
+  /** A trashed drop that synced here still has its claim on this device. */
+  reconcileTrashedShares(): Promise<void> {
+    const items = this.getSnapshot().items;
+    return revokeTrashedShares(items, (change) => this.#mutate(change));
+  }
+
+  #discard(kind: "trash" | "purge" | "empty", id: string): Promise<void> {
+    const items = this.getSnapshot().items;
+    return commitDiscard(kind, items, id, (change) => this.#mutate(change));
   }
 
   /** Take items out of the body without a trace: no tombstone, trash or note (ADR 0171). */
@@ -1456,21 +1469,7 @@ export class VaultStore {
 
   /** Encrypted export — the sealed body plus its header, portable to another device. */
   exportSealed(): string {
-    if (!this.#header) throw new Error("There is no vault to export.");
-    const body = readSealedFile(this.#scope.tomb, BODY_PATH);
-    if (!body) throw new Error("There is nothing stored to export yet.");
-    return JSON.stringify(
-      {
-        format: "opensesame-vault-export",
-        v: 1,
-        exportedAt: new Date().toISOString(),
-        tomb: this.#scope.tomb,
-        header: this.#header,
-        body,
-      },
-      null,
-      2,
-    );
+    return sealedVaultExport(this.#header, this.#scope.tomb);
   }
 
   /** Import a sealed export with its password, its PIN, or an unwrapped key. */

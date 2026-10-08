@@ -122,7 +122,7 @@ export function ShareSecretDrop({
     setError(null);
     try {
       const name = item.name || "Shared item";
-      setDrop(await shareOnce({ name, text, ttlMs }));
+      setDrop(await shareOnce({ name, text, ttlMs, sourceItemId: item.id }));
     } catch (caught) {
       setError(
         caught instanceof Error

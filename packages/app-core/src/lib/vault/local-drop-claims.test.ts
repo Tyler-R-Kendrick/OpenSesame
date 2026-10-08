@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { kvGet } from "../kv.js";
 import { sealDrop } from "./drop.js";
 import {
+  LOCAL_DROP_CLAIM_STORAGE_KEY,
   createLocalDropClaim,
   localDropClaimSeams,
   pagesClaimBase,
@@ -8,6 +10,7 @@ import {
   pollLocalDropClaim,
   presentLocalDropClaim,
   resetLocalDropClaimsForTests,
+  revokeLocalDropClaim,
 } from "./local-drop-claims.js";
 
 beforeEach(() => {
@@ -76,6 +79,31 @@ describe("local drop claims — no Identity API", () => {
     await expect(
       presentLocalDropClaim(session.bearerToken, session.userCode),
     ).rejects.toThrow(/already opened/);
+
+    const raw = kvGet(LOCAL_DROP_CLAIM_STORAGE_KEY);
+    expect(raw).not.toBeNull();
+    const parsed: unknown = JSON.parse(String(raw));
+    expect(parsed).toMatchObject({
+      claims: {
+        [session.claimId]: { targetManifest: {} },
+      },
+    });
+  });
+
+  it("revokes a pending claim and refuses presentation afterward", async () => {
+    const { manifest } = await sealDrop({
+      kind: "text",
+      name: "revoke-me",
+      text: "gone",
+    });
+    const session = await createLocalDropClaim(manifest, 600_000);
+    await revokeLocalDropClaim(session.claimId, session.bearerToken);
+    await expect(
+      pollLocalDropClaim(session.claimId, session.bearerToken),
+    ).resolves.toBe("expired");
+    await expect(
+      presentLocalDropClaim(session.bearerToken, session.userCode),
+    ).rejects.toThrow(/expired/i);
   });
 
   it("refuses a wrong user code without burning the claim", async () => {
