@@ -32,15 +32,8 @@ import {
 } from "./protection/adapters/webauthn-prf-ceremony.js";
 import { assertUsablePrfOutput } from "./protection/adapters/webauthn-prf-output.js";
 import type { UnlockTabId } from "./protection/unlock-protector-methods.js";
+import { loadPinKdf } from "./pin-kdf-loader.js";
 import { chooseUnlockMethod } from "./unlock-preference.js";
-
-type PinKdfModule = typeof import("./pin-kdf.js");
-let pinKdfModule: PinKdfModule | undefined;
-
-async function loadPinKdf(): Promise<PinKdfModule> {
-  pinKdfModule ??= await import("./pin-kdf.js");
-  return pinKdfModule;
-}
 
 export {
   type WebauthnHostCheck,
@@ -71,7 +64,6 @@ const PRF_INFO = new TextEncoder().encode("opensesame/vault/webauthn-prf/v1");
 
 export const MIN_PIN_LENGTH = 8;
 export const MAX_PIN_LENGTH = 12;
-/** Floor iteration count; scaling lives in `pin-kdf.ts` (lazy-loaded on PIN wrap/unwrap). */
 export const PIN_PBKDF2_ITERATIONS = 1_200_000;
 
 export type {
@@ -84,10 +76,6 @@ export type {
   VaultUnlocks,
 } from "@opensesame/vault-core";
 
-/**
- * Passkey wraps present on a header. A legacy lone `passkey` migrates to a
- * one-element list; when both exist, `passkey` is prepended if its id is new.
- */
 export function listPasskeyUnlockRecords(
   unlocks: VaultUnlocks | null | undefined,
 ): PasskeyUnlockRecord[] {
