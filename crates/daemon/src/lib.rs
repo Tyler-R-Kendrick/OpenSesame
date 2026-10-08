@@ -1135,6 +1135,9 @@ mod tests {
             "/host/api/v1/session/local",
             "/host//api/v1/session/local/",
             "/host/api/v1/%73ession/local",
+            "/host/api/v1/session/.\\local",
+            "/host/api/v1/foo/..\\session/local",
+            "/host/api/v1/session/.\\.\\local",
         ] {
             let (app, _) = test_app("http://127.0.0.1:1");
             let res = app
@@ -1143,6 +1146,44 @@ mod tests {
                 .unwrap();
             assert_eq!(res.status(), StatusCode::FORBIDDEN, "{path}");
         }
+    }
+
+    #[tokio::test]
+    async fn proxy_rejects_a_raw_backslash_that_is_not_the_local_session() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        let (app, _) = test_app("http://127.0.0.1:1");
+        let res = app
+            .oneshot(
+                Request::builder()
+                    .uri("/host/api/v1/health\\check")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn proxy_does_not_treat_percent_encoded_backslash_as_a_separator() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        let (app, _) = test_app("http://127.0.0.1:1");
+        let res = app
+            .oneshot(
+                Request::builder()
+                    .uri("/host/api/v1/session/%5Clocal")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::BAD_GATEWAY);
     }
 
     #[tokio::test]
