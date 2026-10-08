@@ -39,9 +39,9 @@ Object.assign(settingsSeams, {
   }),
 });
 
-import { localStore } from "@opensesame/app-core/ports.js";
 import { deviceIdentitySeams } from "@opensesame/app-core/lib/device-identity.js";
 import { identitySeams } from "@opensesame/app-core/lib/identity.js";
+import { localStore } from "@opensesame/app-core/ports.js";
 Object.assign(identitySeams, {
   identityBase: () => state.identityApi,
 });
