@@ -29,6 +29,13 @@ url = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
+opensesame-pki-core = { path = "../../crates/pki-core" }
 opensesame-transport-security = { path = "../../crates/transport-security", features = ["testkit"] }
+http-body-util = { workspace = true }
+reqwest = { workspace = true }
+rustls = { version = "0.23.43", default-features = false, features = ["ring", "std", "tls12"] }
+secrecy = { workspace = true }
 tempfile = { workspace = true }
+tower = { workspace = true }
 tracing-subscriber = { workspace = true }
+x509-parser = { version = "0.16.0", features = ["verify"] }
