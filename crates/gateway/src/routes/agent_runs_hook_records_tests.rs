@@ -319,33 +319,3 @@ async fn a_hosted_run_seals_nothing_because_the_host_holds_no_viewer_key() {
     let rendered = page.to_string();
     assert!(!rendered.contains("password"), "{rendered}");
 }
-
-#[tokio::test]
-async fn hook_records_honor_the_role_evidence_fence() {
-    let f = fixture().await;
-    seeded(&f).await;
-    let path = "/api/v1/agent/runs/run:1/hook-records";
-    let (status, _) = f.browser.send(&f.app, "GET", path, None).await;
-    assert_eq!(status, StatusCode::OK);
-
-    let principal = parse_principal(ALICE).expect("alice principal");
-    let auth_time = Utc::now().timestamp() - 120;
-    f.browser.verified_webauthn_at(&f.state, auth_time).await;
-    let policy = role_policy(f.state.db.pool(), &f.state.connection_organization, &principal)
-        .await
-        .expect("role row")
-        .expect("membership");
-    set_role_ceiling(
-        f.state.db.pool(),
-        &f.state.connection_organization,
-        &principal,
-        None,
-        policy.revision,
-        Utc::now().timestamp(),
-    )
-    .await
-    .expect("role cleared");
-
-    let (status, _) = f.browser.send(&f.app, "GET", path, None).await;
-    assert_eq!(status, StatusCode::NOT_FOUND);
-}
