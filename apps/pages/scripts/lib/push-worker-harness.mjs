@@ -58,16 +58,6 @@ export function serve(dist, base, runtimeConfig = null) {
   );
 }
 
-/**
- * The same worker script: origin and path. A replacement the controller had to
- * ask for again carries `?r=<n>` in its URL and is still the variant's script.
- */
-export const sameScript = (a, b) =>
-  a !== null &&
-  b !== null &&
-  new URL(a).origin === new URL(b).origin &&
-  new URL(a).pathname === new URL(b).pathname;
-
 /** The worker script this scope runs, or what is installing over it. */
 export const scriptsOf = (page, base) =>
   page.evaluate(

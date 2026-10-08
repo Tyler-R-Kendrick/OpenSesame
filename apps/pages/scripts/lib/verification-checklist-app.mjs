@@ -20,9 +20,7 @@ import {
 import {
   BASE,
   ORIGIN,
-  hasLabel,
   mark,
-  railLabels,
   visibleClick,
 } from "./verification-checklist-shot.mjs";
 

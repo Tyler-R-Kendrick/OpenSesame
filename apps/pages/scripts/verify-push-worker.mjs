@@ -31,7 +31,7 @@ import {
   capabilityOnSwitch,
   capabilitySwitch,
 } from "./lib/always-on.mjs";
-import { doorGuest, openGuestAgain } from "./lib/front-door.mjs";
+import { doorGuest } from "./lib/front-door.mjs";
 import {
   addCapabilities,
   openSettingsCategory,
@@ -40,7 +40,6 @@ import {
 import { openGuestAgain } from "./lib/push-worker-guest.mjs";
 import {
   notificationsOf as notificationsFrom,
-  sameScript as same,
   scriptsOf as scriptsFrom,
   serve as serveDist,
   trackControlledBirth,

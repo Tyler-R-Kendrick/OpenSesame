@@ -16,9 +16,15 @@
     "max-statements": 40
   },
   "totals": {
+<<<<<<< HEAD
     "files": 427,
     "violations": 660,
     "oversizedLines": 215962
+=======
+    "files": 426,
+    "violations": 659,
+    "oversizedLines": 215985
+>>>>>>> f6073801 (fix(restack): align checklist tree with relay and guest walk baselines)
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -104,11 +110,11 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/screens/UnlockScreen.test.tsx": {
-      "max-lines": 1288
+      "max-lines": 1292
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 1,
-      "max-lines": 822,
+      "max-lines": 841,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
