@@ -21,8 +21,7 @@ fn doctor_reports_local_profile_without_network() {
         .output()
         .expect("doctor runs");
     assert!(output.status.success(), "{:?}", output.stderr);
-    let body: serde_json::Value =
-        serde_json::from_slice(&output.stdout).expect("doctor json");
+    let body: serde_json::Value = serde_json::from_slice(&output.stdout).expect("doctor json");
     assert_eq!(body["profile"], "local");
     assert!(body.get("sealed_store").is_some());
 }
@@ -75,13 +74,7 @@ fn vault_secret_list_on_fresh_store_is_empty() {
     assert!(init_out.status.success(), "{:?}", init_out.stderr);
 
     let list = opensesame_in(&store)
-        .args([
-            "vault",
-            "secret",
-            "list",
-            "--path",
-            path.to_str().unwrap(),
-        ])
+        .args(["vault", "secret", "list", "--path", path.to_str().unwrap()])
         .output()
         .unwrap();
     assert!(list.status.success(), "{:?}", list.stderr);

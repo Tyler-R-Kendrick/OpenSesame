@@ -81,19 +81,10 @@ pub fn run(cmd: CryptoCmd) -> anyhow::Result<()> {
             config_json(None, identity, key, keyring, location, project),
         ),
     };
-    let plan = crypto_plan(
-        &provider,
-        operation,
-        &input,
-        &output,
-        &public_config,
-    )
-    .map_err(|error| anyhow::anyhow!("{error}"))?;
+    let plan = crypto_plan(&provider, operation, &input, &output, &public_config)
+        .map_err(|error| anyhow::anyhow!("{error}"))?;
     execute_crypto_plan(plan).map_err(|error| anyhow::anyhow!("{error}"))?;
-    println!(
-        "{}",
-        json!({ "written": output, "provider": provider })
-    );
+    println!("{}", json!({ "written": output, "provider": provider }));
     Ok(())
 }
 

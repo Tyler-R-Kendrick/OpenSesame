@@ -34,7 +34,9 @@ pub enum SecurityCmd {
 pub async fn run(output: &str, cmd: SecurityCmd) -> anyhow::Result<()> {
     match cmd {
         SecurityCmd::Findings { limit } => cmd_findings(output, limit).await,
-        SecurityCmd::Scan { path, tomb } => cmd_scan(output, path.as_deref(), tomb.as_deref()).await,
+        SecurityCmd::Scan { path, tomb } => {
+            cmd_scan(output, path.as_deref(), tomb.as_deref()).await
+        }
         SecurityCmd::Check { subject_id } => cmd_check(output, &subject_id).await,
     }
 }
@@ -134,9 +136,15 @@ async fn cmd_scan(
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    std::fs::write(&path, serde_json::to_vec_pretty(&json!({ "findings": findings }))?)?;
+    std::fs::write(
+        &path,
+        serde_json::to_vec_pretty(&json!({ "findings": findings }))?,
+    )?;
     if output == "json" {
-        crate::print_output(output, &json!({ "published": published, "scanned": scanned }))?;
+        crate::print_output(
+            output,
+            &json!({ "published": published, "scanned": scanned }),
+        )?;
     } else {
         println!("Scanned {scanned} entries; {published} compromised.");
     }

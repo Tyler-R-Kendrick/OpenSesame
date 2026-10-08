@@ -33,12 +33,7 @@ pub fn run(cmd: SecretCmd) -> anyhow::Result<()> {
             reveal,
             path,
             tomb,
-        } => store::cmd_show(
-            &name,
-            reveal,
-            path.as_deref(),
-            tomb.as_deref(),
-        )?,
+        } => store::cmd_show(&name, reveal, path.as_deref(), tomb.as_deref())?,
         SecretCmd::List { prefix, path, tomb } => {
             store::cmd_ls(prefix.as_deref(), path.as_deref(), tomb.as_deref())?;
         }

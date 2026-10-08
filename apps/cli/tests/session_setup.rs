@@ -274,7 +274,7 @@ fn command_names(output: &Output) -> Vec<String> {
 }
 
 #[test]
-fn product_commands_match_the_app_and_old_verbs_still_parse() {
+fn product_commands_match_the_local_only_tree() {
     let state = tempfile::tempdir().unwrap();
     let help = run(state.path(), &["--help"], "");
     assert!(
@@ -283,19 +283,45 @@ fn product_commands_match_the_app_and_old_verbs_still_parse() {
         String::from_utf8_lossy(&help.stderr)
     );
     let names = command_names(&help);
-    for verb in ["vault", "access", "identity", "login", "logout", "session"] {
+    for verb in [
+        "password-agent",
+        "session",
+        "vault",
+        "ceremony",
+        "rotate",
+        "config",
+        "config-files",
+        "doctor",
+        "security",
+        "tui",
+        "bridge",
+        "dev",
+        "relay",
+        "helpers",
+        "plugins",
+        "hooks",
+    ] {
         assert!(
             names.iter().any(|name| name == verb),
             "{verb} missing from {names:?}"
         );
     }
+    // Host / Identity / daemon verbs and the legacy top-level aliases are
+    // gone (docs/evidence/2026-10-08-static-pwa-no-backend/removed-cli-commands.md).
     for verb in [
-        "pass",
+        "access",
+        "identity",
+        "login",
+        "logout",
+        "host",
+        "daemon",
+        "worker",
         "connect",
         "status",
         "whoami",
-        "invoke",
+        "auth",
         "provider",
+        "invoke",
         "secret",
         "sync",
         "crypto",
@@ -310,20 +336,6 @@ fn product_commands_match_the_app_and_old_verbs_still_parse() {
         );
     }
 
-    let access = command_names(&run(state.path(), &["access", "--help"], ""));
-    for verb in ["grants", "sessions", "connectors", "resources"] {
-        assert!(
-            access.iter().any(|name| name == verb),
-            "{verb} missing from {access:?}"
-        );
-    }
-    let identity = command_names(&run(state.path(), &["identity", "--help"], ""));
-    for verb in ["status", "whoami", "auth", "providers"] {
-        assert!(
-            identity.iter().any(|name| name == verb),
-            "{verb} missing from {identity:?}"
-        );
-    }
     let vault = command_names(&run(state.path(), &["vault", "--help"], ""));
     for verb in [
         "verify", "ls", "inspect", "migrate", "pass", "secret", "sync", "crypto",
@@ -334,6 +346,7 @@ fn product_commands_match_the_app_and_old_verbs_still_parse() {
         );
     }
 
+    // `pass` stays as the session rewrite for `vault pass`.
     let legacy = run(state.path(), &["--output", "json", "pass", "--help"], "");
     assert!(
         legacy.status.success(),
@@ -345,8 +358,11 @@ fn product_commands_match_the_app_and_old_verbs_still_parse() {
         pass.iter().any(|name| name == "show"),
         "pass show missing from {pass:?}"
     );
-    assert!(run(state.path(), &["connect", "--help"], "")
-        .status
-        .success());
+    for verb in ["access", "identity", "login", "host", "daemon", "connect"] {
+        assert!(
+            !run(state.path(), &[verb, "--help"], "").status.success(),
+            "{verb} still parses"
+        );
+    }
     assert!(!state.path().join(".opensesame").exists());
 }

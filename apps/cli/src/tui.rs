@@ -55,12 +55,7 @@ fn run_tui(store: &Path, names: &[String]) -> anyhow::Result<()> {
     result
 }
 
-fn draw(
-    frame: &mut ratatui::Frame<'_>,
-    store: &Path,
-    names: &[String],
-    selected: usize,
-) {
+fn draw(frame: &mut ratatui::Frame<'_>, store: &Path, names: &[String], selected: usize) {
     use ratatui::{
         layout::{Constraint, Layout},
         style::{Color, Modifier, Style},

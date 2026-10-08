@@ -63,13 +63,14 @@ pub(crate) enum LocalSignerCmd {
 pub(crate) fn run(cmd: RotateCmd) -> Result<()> {
     match cmd {
         RotateCmd::Recipe {
-            cmd: LocalRecipeCmd::Sign {
-                key,
-                file,
-                out,
-                canary_at,
-                expires_in_days,
-            },
+            cmd:
+                LocalRecipeCmd::Sign {
+                    key,
+                    file,
+                    out,
+                    canary_at,
+                    expires_in_days,
+                },
         } => {
             let options = sign::SignOptions {
                 canary_at: canary_at.as_deref(),

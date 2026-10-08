@@ -59,7 +59,8 @@ fn path_is_writable(path: &Path) -> bool {
         .open(path.join(format!(".doctor-write-{}", std::process::id())))
         .map(|file| {
             drop(file);
-            let _ = std::fs::remove_file(path.join(format!(".doctor-write-{}", std::process::id())));
+            let _ =
+                std::fs::remove_file(path.join(format!(".doctor-write-{}", std::process::id())));
             true
         })
         .unwrap_or(false)
