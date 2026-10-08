@@ -1,0 +1,29 @@
+# Architecture, run 3
+
+OpenSesame is a credential and agent-authority platform. Operators run a gateway, a control plane, and a task bus. People and agents hold vault items, connections, and grants. Lower-trust principals include unauthenticated HTTP callers, paired browsers, the CLI, extension pages, mobile VIEW intents, wasm guests, delegated agents, and any peer who can reach a published port.
+
+Protected resources are vault secrets, connection bearer tokens, organization membership, SCIM principals, observation runs, host elevations, and the environment of a credential-bearing child process.
+
+The stack is a Rust workspace (gateway, daemon, domain, authz, connection-broker, sandbox, storage, task-bus, credential-helpers), TypeScript packages (app-core, control-plane, api-client, cli, mcp-host), a Pages relay, browser extensions, and Android and iOS authenticators. `ops/compose` is the operator-shaped local stack. Offline tools present here are rustc 1.88, cargo, and node. There is no Android SDK, Multipaz, Docker, Wine, cmd.exe, or nats-server. `unshare` can create a user, mount, and net namespace. The approved sandbox is that namespace, an empty allowlisted environment, read-only `/workspace` and `/usr`, writes only under the agent `scratch/`, and explicit CPU, memory, process, file-size, and wall-clock caps.
+
+Important entries and the control on each:
+
+- Gateway HTTP sits behind `crates/gateway/src/middleware/auth.rs` and per-route checks. Browser observation re-reads `config_authorization_roles`. Control and one-shot log reads do not, which is the carried role-fence lead.
+- Control-plane routes use `packages/control-plane/src/middleware/auth.ts` and admin auth. Org join and SCIM deprovision were fixed in run 1 and rejected as closed in run 2. OAuth clients, interactions, device, MFA, SAML, LDAP, OpenID4VCI, and notification callbacks were not separate ledger units.
+- Pages relay bodies stop at `MAX_INBOUND_BODY_BYTES`. GitHub webhook queue symlink follow was rejected. Content write (`github-app-put-contents.mjs`) and `connect-manage.mjs` are new units. The connect callback unit lost its local-only evidence and is planned again.
+- Federation token exchange pins compiled endpoints (`federation-endpoint-pin.ts`). The callback unit is planned again because run 2's evidence was a local artifact this run does not reuse.
+- CLI `open_url` passes a Host `authorization_url` to `cmd /C start` on Windows. That lead stays needs_validation.
+- Daemon loopback proxy denies a canonicalized local-session path. Startup denylist includes `LD_AUDIT`.
+- `EgressBinding::allows_url` fences level-2 invoke by WHATWG path prefix and does not reject `%2e%2e%2f`, `..%2f`, semicolon, or `%5c` segments. Upstream decode is not in this repo.
+- Sandbox `spawn` checks `RevocationFence` and rebases the epoch deadline. It does not re-read `expires_at`. No workspace crate calls `Sandbox::spawn`. Wasmtime is not built here.
+- Android and iOS custom-scheme handlers pass the raw URI into provisioning. The https branch calls `validatePlatformInvocation`. Multipaz 0.100.0 is not in the tree.
+- Compose publishes NATS `4222:4222` with command `["-js", "-m", "8222"]` and no mounted auth config.
+- Secret-fs S3 uses one path grammar, loopback-only cleartext, and no redirect following. Run 2 covered it at this commit.
+
+Run 1 (`a8843c3e`) confirmed eight findings. Run 2 (`6395f1e4`, this same commit, clean worktree) rejected those eight, confirmed nothing, left six needs_validation leads, and deferred three units. This run carries the six leads for a fresh verifier and a sandbox retry. It hunts the three deferred units, the two units whose only run-2 evidence was a local artifact, and seven new surfaces: control-plane OAuth, MFA and federation protocols, notification callbacks, gateway backup and kv, gateway delegations, Pages content write, and credential helpers. Same-source covered units stay in the ledger and are not re-hunted unless a critic reopens them.
+
+Companions selected where the boundary is real: `WEB-PROTOCOL-AND-AUTH.md` for HTTP and federation, `DATA-ISOLATION-AND-LIFECYCLE.md` for backup and tenant scope, `AI-AND-LLM.md` for delegation, `DESKTOP-MOBILE-AND-LOCAL-IPC.md` for wallet URLs and credential helpers, `CLOUD-AND-DEPLOYMENT.md` for compose, `CLIENT-SIDE.md` for the extension and service worker, `PROTOCOLS-RPC-AND-MESSAGING.md` for NATS, and `RESOURCE-EXHAUSTION-AND-AVAILABILITY.md` for the relay body and the vite dev handler. Memory-safety blocks are excluded unless the assigned path is an unsafe or FFI parser.
+
+Comparable software named in `docs/research/competitors/index.md` is the baseline for "what this product is," not a second target. Direct or client-bridge peers are `pass`, KeePassXC, Bitwarden, and Vaultwarden. Agent and secrets peers are Infisical, Doppler, fnox, and Vercel Connect. Identity and access peers are Tailscale and Border0. Vault and OpenBao are providers. ADR 0062 names snappass and PrivateBin for share links. A missing control is in scope only when this repository's principal, not the peer product, can cross it.
+
+Reconnaissance named surfaces that wave 1 did not seed. They stay out of the ledger until a coverage critic accepts them: Bitwarden-compat id lookups, pm-bridges, daemon `/v1/fill`, vault-core OPFS drop, certmgr ACME and EST, vault-drive, duress, compose OpenBao and Keycloak, OCI wasm fetch, agent-capability token redemption, daemon socket capability exchange, anonymous and provisional principals, GitHub App PEM convert, storage id-only reads, authz assurance-only, control-plane `prn_` bearer and public WebAuthn, browser grants skipped when Origin and DPoP are absent, and an operator caller that ignores the organization header. The docker credential helper was reviewed inside the credential-helper unit and closed as hardening while `require_operator` holds.
