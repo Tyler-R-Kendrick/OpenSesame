@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { openOriginFile } from "./at-rest/origin-files.js";
+import { atRestReady } from "./at-rest/key.js";
+import { openOriginFile, sealOriginFile } from "./at-rest/origin-files.js";
 import {
   kvDelete,
   kvDeleteDurable,
   kvDurability,
+  kvForgetAll,
   kvGet,
   kvHydrate,
   kvRefresh,
@@ -74,7 +76,12 @@ describe("kv with OPFS backing", () => {
     const root = makeOpfsRoot();
     stubOpfs(root);
     await kvSetDurable("authority", "old");
-    root.files.set("opensesame-pages-authority.json", "revoked");
+    const atRest = await atRestReady();
+    const authorityFile = "opensesame-pages-authority.json";
+    root.files.set(
+      authorityFile,
+      sealOriginFile(atRest, authorityFile, "revoked"),
+    );
     await kvRefresh("authority", 1024);
     expect(kvGet("authority")).toBe("revoked");
     root.files.delete("opensesame-pages-authority.json");
@@ -148,7 +155,9 @@ describe("kv with OPFS backing", () => {
 
   it("hydrates memory from OPFS and reports durability", async () => {
     const root = makeOpfsRoot();
-    root.files.set("opensesame-pages-a.json", "1");
+    const atRest = await atRestReady();
+    const file = "opensesame-pages-a.json";
+    root.files.set(file, sealOriginFile(atRest, file, "1"));
     stubOpfs(root);
 
     await kvHydrate(["a", "missing"]);
@@ -156,6 +165,20 @@ describe("kv with OPFS backing", () => {
     expect(kvGet("a")).toBe("1");
     expect(kvGet("missing")).toBeNull();
     expect(kvDurability()).toBe("persistent");
+  });
+
+  it("does not hydrate or refresh forged plaintext origin files", async () => {
+    kvForgetAll();
+    const root = makeOpfsRoot();
+    stubOpfs(root);
+    const file = "opensesame-pages-authority.json";
+    root.files.set(file, '{"hostApi":"https://evil.example"}');
+    await kvHydrate(["authority"]);
+    expect(kvGet("authority")).toBeNull();
+    await expect(kvRefresh("authority", 1024)).rejects.toThrow(
+      "does not open",
+    );
+    expect(kvGet("authority")).toBeNull();
   });
 
   it("settles memory durability when OPFS is absent or throws", async () => {
