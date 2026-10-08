@@ -45,16 +45,14 @@ import { SetupScreen, type SetupStep } from "./SetupScreen.js";
 import { VaultsScreen } from "./VaultsScreen.js";
 import { RequirementsGate } from "./capabilities/RequirementsGate.js";
 import { useJoinRoad } from "./join/JoinRoad.js";
-import { GuestUnlockSwitch } from "./unlock/GuestRoad.js";
 import { NoPrimaryNote } from "./unlock/NoPrimaryNote.js";
 import { PasskeyHostNote } from "./unlock/PasskeyHostNote.js";
 import { PendingLinkBanner } from "./unlock/PendingLinkBanner.js";
 import { ProtectorField } from "./unlock/ProtectorField.js";
 import { ReleaseNotes } from "./unlock/ReleaseNotes.js";
-import { ResetBrowser } from "./unlock/ResetBrowser.js";
-import { ResetVault } from "./unlock/ResetVault.js";
 import { SecondStepFields } from "./unlock/SecondStepFields.js";
 import { SignInPanel } from "./unlock/SignInPanel.js";
+import { UnlockFoot } from "./unlock/UnlockFoot.js";
 import { UnlockUserMenu } from "./unlock/UnlockUserMenu.js";
 import {
   METHOD_LABEL,
@@ -803,39 +801,20 @@ function UnlockForm({
           </form>
         )}
 
-        <div className="unlock__foot">
-          {firstRun && localOnly ? (
-            <button
-              type="button"
-              className="unlock__switch"
-              onClick={() => setLocalOnly(false)}
-            >
-              Sign in instead
-            </button>
-          ) : null}
-          {/* Guest tomb beside a sealed vault (GuestRoad.tsx). Not on the
-              sign-in panel, and not on a keyless guest tomb — Unlock resumes
-              that tomb, so a second guest control would duplicate it.
-              Governed only by Allow guests (AGENTS.md §5), including beside
-              a guest tomb that enrolled a key. */}
-          {!firstRun && !showSignIn && !showReset ? (
-            <GuestUnlockSwitch
-              busy={busy}
-              setBusy={setBusy}
-              setError={setError}
-              hidden={guestKeyless}
-            />
-          ) : null}
-          {!firstRun && !showSignIn ? (
-            <ResetVault
-              open={showReset}
-              onOpen={() => setShowReset(true)}
-              onDelete={() => void store.destroy()}
-              onKeep={() => setShowReset(false)}
-            />
-          ) : null}
-          {showReset ? null : <ResetBrowser />}
-        </div>
+        <UnlockFoot
+          firstRun={firstRun}
+          localOnly={localOnly}
+          onSignInInstead={() => setLocalOnly(false)}
+          showSignIn={showSignIn}
+          showReset={showReset}
+          busy={busy}
+          setBusy={setBusy}
+          setError={setError}
+          guestKeyless={guestKeyless}
+          onOpenReset={() => setShowReset(true)}
+          onDelete={() => void store.destroy()}
+          onKeep={() => setShowReset(false)}
+        />
       </div>
       <ReleaseNotes />
     </div>

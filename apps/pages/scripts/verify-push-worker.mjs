@@ -32,7 +32,7 @@ import {
   capabilityOnSwitch,
   capabilitySwitch,
 } from "./lib/always-on.mjs";
-import { doorGuest } from "./lib/front-door.mjs";
+import { doorGuest, openGuestAgain } from "./lib/front-door.mjs";
 import {
   addCapabilities,
   openSettingsCategory,
@@ -40,6 +40,7 @@ import {
 } from "./lib/pages-journey.mjs";
 import {
   notificationsOf as notificationsFrom,
+  sameScript as same,
   scriptsOf as scriptsFrom,
   serve as serveDist,
   trackControlledBirth,
@@ -52,35 +53,6 @@ const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const TITLE = "Push notifications";
 const REF = "rv_Ab12-Cd34";
 const REF_AFTER = "rv_After-0001";
-
-/**
- * The same worker script: origin and path. A replacement the controller had to
- * ask for again carries `?r=<n>` in its URL and is still the variant's script.
- */
-const same = (a, b) =>
-  a !== null &&
-  b !== null &&
-  new URL(a).origin === new URL(b).origin &&
-  new URL(a).pathname === new URL(b).pathname;
-
-/**
- * A later tab, and a reload, land on the keyless guest tomb this walk
- * already opened. Unlock resumes that tomb. "Skip to the guest vault" is
- * drawn only beside a sealed vault that is not that tomb, so a click that
- * waits for it alone times out. The front door's Skip remains the first entry.
- */
-async function openGuestAgain(page) {
-  const skip = page.getByRole("button", { name: "Skip to the guest vault" });
-  const resume = page.getByRole("button", { name: "Unlock", exact: true });
-  const door = doorGuest(page);
-  await skip.or(resume).or(door).first().waitFor({
-    state: "visible",
-    timeout: 20_000,
-  });
-  if (await door.isVisible()) await door.click();
-  else if (await skip.isVisible()) await skip.click();
-  else await resume.click();
-}
 
 const failures = [];
 const check = (condition, what) => {
