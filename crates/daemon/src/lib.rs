@@ -435,9 +435,9 @@ async fn proxy_loopback(st: &App, base: &str, prefix: &str, req: Request) -> Res
     }
     let path = req.uri().path();
     let rest = path.strip_prefix(prefix).unwrap_or(path);
-    if prefix == "/host" && is_local_session_path(rest) {
-        return StatusCode::FORBIDDEN.into_response();
-    }
+    // Dot segments are refused on the raw request-target. The local-session
+    // denylist is applied to the path reqwest will request: `url` rewrites a
+    // raw `\` to `/` and collapses `.` and `..`, which the slash split misses.
     if has_dot_segment(rest) {
         return StatusCode::BAD_REQUEST.into_response();
     }
@@ -447,6 +447,15 @@ async fn proxy_loopback(st: &App, base: &str, prefix: &str, req: Request) -> Res
         .map(|q| format!("?{q}"))
         .unwrap_or_default();
     let url = format!("{}{}{}", base.trim_end_matches('/'), rest, query);
+    let Ok(parsed) = url::Url::parse(&url) else {
+        return StatusCode::BAD_REQUEST.into_response();
+    };
+    if prefix == "/host" && is_local_session_path(parsed.path()) {
+        return StatusCode::FORBIDDEN.into_response();
+    }
+    if rest.as_bytes().contains(&b'\\') {
+        return StatusCode::BAD_REQUEST.into_response();
+    }
     let method = req.method().clone();
     let headers = req.headers().clone();
     let Ok(body) = axum::body::to_bytes(req.into_body(), MAX_PROXY_BODY).await else {
