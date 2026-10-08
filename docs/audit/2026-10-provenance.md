@@ -200,7 +200,8 @@ After that point, commits labeled Grok were not live Grok. Retried once via
 | `3bf9550d` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | remove Settings › Endpoints; operator docs; ADR 0090 |
 | `bd0a9f07` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | pin Endpoints-removal SHA in provenance |
 | `cad408d9` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | Vercelignore api-only + static-PWA evidence |
-| `e7d30760` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | point evidence README at Vercelignore tip |
-| `353d7737` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | static-PWA screenshots and inventory residual note |
 | `cb4cb95a` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | pin Vercelignore evidence commit in provenance |
+| `353d7737` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | static-PWA screenshots and inventory residual note |
+| `e7d30760` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | point evidence README at Vercelignore tip |
+| `028c3035` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | provenance for evidence and Vercelignore commits |
 
