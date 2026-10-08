@@ -1,0 +1,9 @@
+{
+  "agent_id": "h-run7-ts-wave",
+  "wave": 1,
+  "coverage_units": [
+    "packages/app-core (7 units)",
+    "packages/control-plane (5 units)"
+  ],
+  "completed_at": "2026-10-08T15:20:00Z"
+}

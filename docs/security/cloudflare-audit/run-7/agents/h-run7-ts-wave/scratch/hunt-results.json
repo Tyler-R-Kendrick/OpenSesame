@@ -1,0 +1,128 @@
+[
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Ffederation-callback.ts::packages%2Fapp-core%2Fsrc%2Flib%2Ffederation-callback.ts%23assertSafeReturnTo::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/app-core/src/lib/federation-callback.ts",
+      "packages/app-core/src/lib/federation-callback.test.ts",
+      "packages/app-core/src/screens/federation-return-model.ts",
+      "apps/pages/src/screens/FederationReturn.tsx"
+    ],
+    "result_one_line": "assertSafeReturnTo rejects scheme-relative and off-origin paths after URL resolution and enforces base-path prefix; no open redirect found on tip.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Ffederation.ts%23completeSignInDefault::packages%2Fapp-core%2Fsrc%2Flib%2Ffederation.ts%23readIdentity::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/app-core/src/lib/federation.ts",
+      "packages/app-core/src/lib/federation-endpoint-pin.ts",
+      "packages/app-core/src/lib/federation-pending.ts",
+      "packages/app-core/src/lib/federation-endpoint-pin.test.ts"
+    ],
+    "result_one_line": "Token exchange uses resolvePinnedEndpoints (not storage-chosen URLs); readIdentity enforces issuer, audience, expiry and trusted-issuer allowlist before saveSession.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Fguest-access.ts%23guestsAllowed::packages%2Fapp-core%2Fsrc%2Flib%2Fguest-access.ts%23assertGuestsAllowed::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/app-core/src/lib/guest-access.ts",
+      "packages/app-core/src/lib/guest-auth.ts",
+      "packages/app-core/src/lib/local-rbac.ts"
+    ],
+    "result_one_line": "Operator switch fail-opens to allowed; assertGuestsAllowed gates openGuestVault so UI hiding alone cannot bypass guests-off.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Fsecret-fs%2Fs3.ts%23makeWire::packages%2Fapp-core%2Fsrc%2Flib%2Fsecret-fs%2Ffiles.ts%23checkPath::packages%2Fapp-core::Resource%20and%20file%20handling",
+    "reviewed_paths": [
+      "packages/app-core/src/lib/secret-fs/s3.ts",
+      "packages/app-core/src/lib/secret-fs/files.ts",
+      "packages/app-core/src/lib/secret-fs/filesystem-guard.ts",
+      "packages/app-core/src/lib/secret-fs/s3-config.ts"
+    ],
+    "result_one_line": "checkPath blocks traversal and odd segments; makeWire requires HTTPS (HTTP only on loopback) and valid bucket naming before any object key is built.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fsections%2Fvault%2Fimport%2Fmodel.ts::packages%2Fapp-core%2Fsrc%2Fsections%2Fvault%2Fimport%2Fmodel.ts::packages%2Fapp-core::ATTACK-CLASSES.md%23Injection",
+    "reviewed_paths": [
+      "packages/app-core/src/sections/vault/import/model.ts",
+      "packages/app-core/src/lib/vault/import/index.ts",
+      "packages/app-core/src/lib/duress/store/decoy-scratch.ts"
+    ],
+    "result_one_line": "Import pipeline keeps ZIP/size caps in lib/vault/import; guest/scratch tombs cannot take backup identity and merge stays behind explicit store ports.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fwebmcp%2Fpassword-workflow-tools.ts::packages%2Fapp-core%2Fsrc%2Flib%2Fvault%2Fpassword-workflows.ts%23reachableItems::packages%2Fapp-core::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "reviewed_paths": [
+      "packages/app-core/src/webmcp/password-workflow-tools.ts",
+      "packages/app-core/src/lib/vault/password-workflows.ts",
+      "packages/app-core/src/lib/local-share-reach.ts"
+    ],
+    "result_one_line": "WebMCP password workflow tools only expose metadata/refs; reachableItems drops items when assertShareReach read fails.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fwebmcp%2Fvault-tools.ts::packages%2Fapp-core%2Fsrc%2Fwebmcp%2Ftool-shared.ts%23reachedItem::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/app-core/src/webmcp/vault-tools.ts",
+      "packages/app-core/src/webmcp/tool-shared.ts",
+      "packages/app-core/src/lib/proofs/item-reach.ts",
+      "packages/app-core/src/webmcp/draft-suggestions.ts"
+    ],
+    "result_one_line": "reachedItem proves share reach before findSavedItem; vault tools use metadata-only writes and ceremony for reveal.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fmfa.ts::packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fmfa-step-up.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/control-plane/src/routes/mfa.ts",
+      "packages/control-plane/src/routes/mfa-step-up.ts",
+      "packages/control-plane/src/routes/mfa-factors.ts"
+    ],
+    "result_one_line": "Factor removal step-up (digest-bound transaction challenges) holds; passkey enroll behind session only matches ADR 0146 (run-3 candidate rejected, unchanged).",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fnotification-callbacks.ts::packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fnotification-channels.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "reviewed_paths": [
+      "packages/control-plane/src/routes/notification-callbacks.ts",
+      "packages/control-plane/src/routes/notification-channels.ts",
+      "packages/control-plane/src/routes/approval-ceremony.ts"
+    ],
+    "result_one_line": "Callbacks verify raw body before parse, claim replay ledger, resolve binding triple, then evaluateApprovalCeremony; uniform ack on every exit.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Foauth-clients.ts::packages%2Fcontrol-plane%2Fsrc%2Fmiddleware%2Fauth.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/control-plane/src/routes/oauth-clients.ts",
+      "packages/control-plane/src/middleware/auth.ts",
+      "packages/control-plane/src/routes/verified-principal-gate.ts",
+      "packages/control-plane/src/routes/oauth-client-sector.ts"
+    ],
+    "result_one_line": "Mutations require asVerifiedPrincipal; authMiddleware accepts only pst_ bearer (prn_ gated off in production); foreign client ids 404.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fscim.ts%23authenticate::packages%2Fdatabase%2Fsrc%2Fscim-store.ts%23verify::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/control-plane/src/routes/scim.ts",
+      "packages/database/src/scim-store.ts",
+      "packages/control-plane/src/routes/scim-protocol.ts"
+    ],
+    "result_one_line": "SCIM bearer is hashed before lookup; verify is scoped to path organizationId; suspended/deleted org and bad token share one 401.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Fserver.ts::packages%2Fcontrol-plane%2Fsrc%2Fmiddleware%2Fauth.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/control-plane/src/server.ts",
+      "packages/control-plane/src/app.ts",
+      "packages/control-plane/src/middleware/auth.ts",
+      "packages/control-plane/src/routes/principals.ts"
+    ],
+    "result_one_line": "Global authMiddleware applies cookieAuthAllowed on mutating cookie auth (Origin allowlist); server wiring unchanged and consistent with route-level guards.",
+    "candidate": null
+  }
+]
