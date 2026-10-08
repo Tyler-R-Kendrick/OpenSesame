@@ -21,6 +21,7 @@ const KID: &str = "relay-reg";
 struct Fixture {
     verifier: Verifier,
     signing: EncodingKey,
+    modulus: Vec<u8>,
     now: i64,
 }
 
@@ -50,6 +51,7 @@ fn fixture() -> Fixture {
     Fixture {
         verifier,
         signing,
+        modulus: modulus.to_vec(),
         now,
     }
 }
@@ -131,27 +133,28 @@ async fn alg_none_registration_is_refused() {
 }
 
 #[tokio::test]
-async fn hs256_signed_with_the_rsa_modulus_is_refused() {
+async fn hs256_with_the_rsa_modulus_and_a_foreign_rs256_key_are_refused() {
     let fixture = fixture();
-    let modulus = b"not-the-rsa-private-key";
-    let hmac = EncodingKey::from_secret(modulus);
-    let forged = token(
-        &hmac,
-        &claims(fixture.now, "ada", "acme", "owner"),
-        KID,
-        Algorithm::HS256,
-    );
-    let status = status_of(
-        put(
-            "/v1/vault-relay/acme/ledger/snapshot",
-            &key(),
-            Some(&forged),
-            None,
-        ),
-        app(fixture.verifier),
-    )
-    .await;
-    assert_eq!(status, StatusCode::UNAUTHORIZED);
+    let body = claims(fixture.now, "ada", "acme", "owner");
+    let hmac = EncodingKey::from_secret(&fixture.modulus);
+    let confused = token(&hmac, &body, KID, Algorithm::HS256);
+    let other =
+        opensesame_pki_core::keys::generate(opensesame_pki_core::KeyAlgorithm::Rsa2048).unwrap();
+    let foreign_key = EncodingKey::from_rsa_pem(other.private_key_pkcs8_pem().as_bytes()).unwrap();
+    let foreign = token(&foreign_key, &body, KID, Algorithm::RS256);
+    for forged in [confused, foreign] {
+        let status = status_of(
+            put(
+                "/v1/vault-relay/acme/ledger/snapshot",
+                &key(),
+                Some(&forged),
+                None,
+            ),
+            app(fixture.verifier.clone()),
+        )
+        .await;
+        assert_eq!(status, StatusCode::UNAUTHORIZED);
+    }
 }
 
 #[tokio::test]
