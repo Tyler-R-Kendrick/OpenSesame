@@ -13,7 +13,7 @@
 //   A. Settings › General draws no "sign out of Identity" row: the device has
 //      no session yet, so there is nothing to sign out of (ADR 0158).
 //   B. The connectivity status reads "This device", before and after Connect.
-//   C. Connect from the Identity sheet ("Continue as guest") opens a device
+//   C. Connect from the Identity sheet ("Use this device") opens a device
 //      session whose principal is `prn_` + a 43-character thumbprint, and
 //      Refresh keeps the same principal: it is the vault's key, not a dice
 //      roll.

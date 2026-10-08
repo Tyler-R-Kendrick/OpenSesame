@@ -19,7 +19,8 @@ afterEach(async () => {
   await setGuestsAllowed(true);
 });
 
-const guest = () => screen.queryByRole("button", { name: "Continue as guest" });
+const guest = () =>
+  screen.queryByRole("button", { name: "Skip to the guest vault" });
 
 describe("Allow guests", () => {
   beforeEach(() => {

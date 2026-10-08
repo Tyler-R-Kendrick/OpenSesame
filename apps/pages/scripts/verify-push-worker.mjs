@@ -32,7 +32,7 @@ import {
   capabilityOnSwitch,
   capabilitySwitch,
 } from "./lib/always-on.mjs";
-import { doorGuest } from "./lib/front-door.mjs";
+import { doorGuest, openGuestAgain } from "./lib/front-door.mjs";
 import {
   addCapabilities,
   openSettingsCategory,
@@ -40,6 +40,7 @@ import {
 } from "./lib/pages-journey.mjs";
 import {
   notificationsOf as notificationsFrom,
+  sameScript as same,
   scriptsOf as scriptsFrom,
   serve as serveDist,
   trackControlledBirth,
@@ -52,16 +53,6 @@ const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const TITLE = "Push notifications";
 const REF = "rv_Ab12-Cd34";
 const REF_AFTER = "rv_After-0001";
-
-/**
- * The same worker script: origin and path. A replacement the controller had to
- * ask for again carries `?r=<n>` in its URL and is still the variant's script.
- */
-const same = (a, b) =>
-  a !== null &&
-  b !== null &&
-  new URL(a).origin === new URL(b).origin &&
-  new URL(a).pathname === new URL(b).pathname;
 
 const failures = [];
 const check = (condition, what) => {
@@ -207,7 +198,7 @@ try {
     (s) => same(s.controller, core),
     "the second tab should be controlled by the core worker",
   );
-  await other.getByRole("button", { name: "Continue as guest" }).click();
+  await openGuestAgain(other);
   await waitOpen(other);
   await other.waitForTimeout(500);
   const otherBefore = await other.evaluate(() => performance.timeOrigin);
@@ -325,7 +316,7 @@ try {
 
   // Taking the capability away reverts to the core worker. A load locks the
   // vault, so come back in as the guest the walk began as.
-  await page.getByRole("button", { name: "Continue as guest" }).click();
+  await openGuestAgain(page);
   await waitOpen(page);
   await openSettingsCategory(page, "Capabilities");
   await capabilityOnSwitch(page, TITLE).waitFor({ timeout: 15_000 });

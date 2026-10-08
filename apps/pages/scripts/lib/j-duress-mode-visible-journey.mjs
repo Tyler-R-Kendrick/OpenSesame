@@ -144,7 +144,7 @@ async function useCode({ page, base, check, snap }) {
   await page.reload({ waitUntil: "networkidle" });
   await page.getByLabel("PIN", { exact: true }).waitFor({ timeout: 15000 });
   check(
-    (await page.getByText("Continue as guest").count()) >= 1,
+    (await page.getByText("Skip to the guest vault").count()) >= 1,
     "the guest road is still on the unlock screen",
   );
   await page.getByLabel("PIN", { exact: true }).fill(CODE);

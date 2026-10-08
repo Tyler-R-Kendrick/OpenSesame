@@ -94,13 +94,17 @@ describe("IdentityCeremony", () => {
     expect(screen.getByText("Session active")).toBeTruthy();
   });
 
-  it("keeps guest a peer of sign-in, not a click deeper", () => {
+  it("keeps this device a peer of sign-in, not a click deeper", () => {
     render(<IdentityCeremony connector={connector()} onClose={() => {}} />);
-    // Guest is a daily path in this product. Demoting it into a disclosure
-    // would add an interaction to the flow most people take.
+    // Connecting this device is a daily path. Demoting it into a disclosure
+    // would add an interaction to the flow most people take. It is not the
+    // guest tomb, and it does not reuse that sign-in phrase.
     expect(
-      screen.getByRole("button", { name: "Continue as guest" }),
+      screen.getByRole("button", { name: "Use this device" }),
     ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Continue as guest" }),
+    ).toBeNull();
     expect(
       screen.getByRole("button", {
         name: "Sign in with a seeded test account",

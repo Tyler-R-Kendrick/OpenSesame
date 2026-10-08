@@ -47,7 +47,7 @@ export const SETUP_TARGETS: readonly GuideTargetDescriptor[] = [
   {
     id: "unlock.guest",
     description:
-      "The guest road: Skip in the corner of the front door, and Continue as guest under the unlock form. A guest vault is sealed on this device and kept apart from any other vault here, which it never reads.",
+      "The guest road: Skip in the corner of the front door, and Skip to the guest vault under the unlock form beside a sealed vault. Not on the sign-in panel, and not beside a keyless guest tomb, where Unlock resumes that tomb. A guest vault is sealed on this device and kept apart from any other vault here, which it never reads.",
     role: "action",
     routes: ["/unlock"],
     capabilityId: null,

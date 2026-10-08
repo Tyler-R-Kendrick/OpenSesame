@@ -207,7 +207,7 @@ describe("ConnectionCeremony", () => {
     expect(screen.getByText(/it is not the OpenSesame service/)).toBeTruthy();
   });
 
-  it("offers registered sign-in and continue as guest from the Identity ceremony", async () => {
+  it("offers registered sign-in and this device from the Identity ceremony", async () => {
     connectSpy.mockResolvedValue(undefined);
     claimGuestAuth.mockResolvedValue(undefined);
     renderCeremony();
@@ -216,7 +216,10 @@ describe("ConnectionCeremony", () => {
         name: "Sign in with a seeded test account",
       }),
     ).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Continue as guest" }));
+    expect(
+      screen.queryByRole("button", { name: "Continue as guest" }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Use this device" }));
     await waitFor(() => expect(connectSpy).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(claimGuestAuth).toHaveBeenCalledTimes(1));
   });

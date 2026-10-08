@@ -625,8 +625,8 @@ Do not add new top-level directories or loose root files — find the group.
   and a Host invite link still opens the Host ceremony
   ([ADR 0136](docs/adr/0136-join-a-session-restored.md));
   a shared link opens join by itself. Once setup is answered or skipped the
-  sign-in screen — the compiled-in Google-via-Shoo road, guest, the
-  local-only seal — is the first screen, and setup lives behind unlock
+  sign-in screen — the compiled-in Google-via-Shoo road and the local-only
+  seal ("Use without an account") — is the first screen, and setup lives behind unlock
   (Settings), not as quiet foot links. The one thing a gate may draw beside
   its own chrome is a **help key** (`tutorial/gate-seat.tsx`,
   [ADR 0166](docs/adr/0166-gate-help-launcher.md)): a single icon key in the
@@ -724,13 +724,20 @@ Do not add new top-level directories or loose root files — find the group.
   guest session while it is off, and the last-vault pointer and vault list
   stop offering the guest tomb. It lives in two places and both are
   required: the front door's corner "Skip" (`screens/FrontDoor.tsx`, the
-  door's one guest road, where a `/guest` link lands) and the "Continue as
-  guest" link in the unlock form's footer in
-  `apps/pages/src/screens/UnlockScreen.tsx`. The sign-in panel
+  door's one guest road, where a `/guest` link lands) and "Skip to the guest
+  vault" in the unlock form's footer in
+  `apps/pages/src/screens/UnlockScreen.tsx`, beside a sealed vault, including
+  a guest tomb that enrolled a key. It is not drawn on the sign-in panel, and
+  not beside a keyless guest tomb, where Unlock resumes that tomb and a second
+  guest control would duplicate it. The sign-in panel
   (`screens/unlock/SignInPanel.tsx`) carries no guest road of its own: its
   single no-account road is "Use without an account", the local-only seal
-  offered on first run (a full-size guest button and a corner guest Skip were
-  removed as duplication, 2026-10). This flow has
+  offered on first run (a full-size "Continue as guest" button, a corner guest
+  Skip on that panel, and the unlock footer's old "Continue as guest" label
+  were removed as duplication, 2026-10). The Identity sheet does not repeat
+  that label: signed out, its no-account door is "Use this device"
+  (`components/IdentityCeremony.tsx`), which connects this device and does not
+  open the guest tomb. This flow has
   been removed by accident repeatedly — by gating it on Identity API
   availability, and by withholding it beside an existing vault. Neither is
   legitimate. `continueAsGuest` (`packages/app-core/src/lib/guest-auth.ts`) seals a
