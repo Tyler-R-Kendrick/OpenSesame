@@ -46,6 +46,7 @@ fn registration_token(
     signing: &EncodingKey,
     now: i64,
     sub: &str,
+    owner: &str,
     org_role: Option<&str>,
 ) -> String {
     let claims = json!({
@@ -54,6 +55,7 @@ fn registration_token(
         "sub": sub,
         "exp": now + 120,
         "org_role": org_role,
+        "owner": owner,
     });
     let mut header = Header::new(jsonwebtoken::Algorithm::RS256);
     header.typ = Some("vault-relay-registration+jwt".into());
@@ -93,8 +95,8 @@ async fn put_with_auth(
 async fn registration_jwt_governs_publish_and_refuses_forged_role_headers() {
     let (verifier, signing, now) = fixture_verifier();
     let bindings = super::install_relay_bindings(None).unwrap();
-    let member_token = registration_token(&signing, now, "ada", Some("member"));
-    let owner_token = registration_token(&signing, now, "ada", Some("owner"));
+    let member_token = registration_token(&signing, now, "ada", "acme", Some("member"));
+    let owner_token = registration_token(&signing, now, "ada", "acme", Some("owner"));
 
     let app = router_with(
         Arc::new(Mutex::new(Store::default())),

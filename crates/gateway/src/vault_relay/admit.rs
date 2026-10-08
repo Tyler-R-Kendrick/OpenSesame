@@ -112,6 +112,22 @@ pub(crate) fn member_allows(
     }
 }
 
+/// A configured issuer binds the registration to one owner handle.
+///
+/// Absent issuer keeps slot-key admission. Present issuer requires the JWT
+/// `owner` claim to be that handle — a token minted for one org does not
+/// open another.
+pub(crate) fn registration_binds(
+    issuer_configured: bool,
+    bound_owner: Option<&str>,
+    resource_owner: &str,
+) -> bool {
+    if !issuer_configured {
+        return true;
+    }
+    bound_owner == Some(resource_owner)
+}
+
 /// Who may push a snapshot (ADR 0181 §4).
 ///
 /// The handle's principal may publish a user address. An organization owner
