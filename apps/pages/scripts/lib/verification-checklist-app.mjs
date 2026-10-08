@@ -6,11 +6,21 @@
 import { lockVault, openSettingsCategory } from "./pages-journey.mjs";
 import { openSessionMenu, openSessionSection } from "./session-section.mjs";
 import {
+  capturePasswordReset,
+  captureSealedStore,
+  captureSecurityRows,
+  createPlainSecret,
+  trashNamed,
+} from "./verification-checklist-features.mjs";
+import {
+  captureEnvironments,
+  captureResetEmailField,
+  captureTrashActions,
+} from "./verification-checklist-profile-rows.mjs";
+import {
   BASE,
   ORIGIN,
-  hasLabel,
   mark,
-  railLabels,
   visibleClick,
 } from "./verification-checklist-shot.mjs";
 
@@ -164,12 +174,22 @@ export async function openShare(page, shot, record, step, checkId) {
 }
 
 export async function trashExample(page) {
-  const row = page.locator(".vtree__row", { hasText: "Example" }).first();
-  if ((await row.count()) === 0) return false;
-  await row.click({ button: "right" });
-  const trashed = await visibleClick(page, "menuitem", "Trash", 8_000);
-  if (!trashed) await page.keyboard.press("Escape");
-  return trashed;
+  return trashNamed(page, "Example");
+}
+
+/** Example and Second, so restore, delete, and empty each have a row. */
+export async function trashChecklistItems(page) {
+  const example = await trashNamed(page, "Example");
+  const second = await trashNamed(page, "Second");
+  return example && second;
+}
+
+/** Items the trash and environments walks need, made after the share shot. */
+export async function seedChecklistItems(page, record) {
+  if (record.profile === "full") {
+    await createPlainSecret(page, "API_TOKEN", "checklist-token");
+  }
+  await createPlainSecret(page, "Second", "second-secret");
 }
 
 /** The category click returns before React draws that panel. */
@@ -181,48 +201,7 @@ async function showCategory(page, label, selector) {
   });
 }
 
-function markSecurity(record, labels, text) {
-  mark(
-    record,
-    "U5-formats",
-    !hasLabel(labels, "Formats") && !/^Formats$/m.test(text),
-  );
-  mark(record, "U6-age-keys", !/Age Keys/.test(text));
-  mark(
-    record,
-    "U7-transport",
-    !hasLabel(labels, "Transport") && !/^Transport$/m.test(text),
-  );
-}
-
-/**
- * Duress and Travel sit below the security fold. Each panel is its own shot
- * so the evidence is the heading, not the top of the page.
- */
-async function shotDuress(page, shot, record) {
-  const duress = page.locator("#duress-profiles");
-  const travel = page.locator("#travel");
-  const duressOn = await duress
-    .waitFor({ state: "visible", timeout: 8_000 })
-    .then(() => true)
-    .catch(() => false);
-  const travelOn = duressOn
-    ? await travel
-        .waitFor({ state: "visible", timeout: 8_000 })
-        .then(() => true)
-        .catch(() => false)
-    : false;
-  if (duressOn) await shot("settings-duress", duress);
-  if (travelOn) await shot("settings-travel", travel);
-  mark(
-    record,
-    "U8-travel",
-    duressOn && travelOn,
-    duressOn && travelOn ? "Duress and Travel panels" : "duress panel absent",
-  );
-}
-
-export async function captureSettings(page, shot, record, trashed) {
+export async function captureSettings(page, shot, record) {
   await showCategory(page, "Capabilities", "[data-testid=capabilities-panel]");
   const caps = await shot("settings-capabilities");
   mark(
@@ -231,28 +210,18 @@ export async function captureSettings(page, shot, record, trashed) {
     /Capabilities/.test(caps),
     "capabilities",
   );
+  await capturePasswordReset(page, shot, record);
   await showCategory(page, "Security", "#vault-key-protection");
   await shot("settings-security");
-  await shotDuress(page, shot, record);
-  markSecurity(
-    record,
-    await railLabels(page),
-    await page.evaluate(() => document.body.innerText),
-  );
+  await captureSecurityRows(page, shot, record);
   await showCategory(page, "Vaults", "#vaults");
   await shot("settings-vaults");
-  const vaults = await page.evaluate(() => document.body.innerText);
-  mark(record, "U9-sealed-store", !/Sealed store/.test(vaults));
+  await captureSealedStore(page, shot, record);
+  await captureEnvironments(page, shot, record);
   await showCategory(page, "Danger", "#settings-trash");
-  const danger = await shot("settings-danger");
-  await shot("danger-trash", page.locator("#settings-trash"));
-  const restore = await page.getByRole("button", { name: /Restore / }).count();
-  mark(
-    record,
-    "U14-trash",
-    /Trash is empty/.test(danger) || restore > 0,
-    trashed ? `trashed; restore buttons ${restore}` : danger.slice(0, 80),
-  );
+  await shot("settings-danger");
+  await captureTrashActions(page, shot, record);
+  await captureResetEmailField(page, shot, record);
 }
 
 export async function captureCommand(page, shot, record) {

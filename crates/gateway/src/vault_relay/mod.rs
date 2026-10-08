@@ -256,6 +256,8 @@ mod directory_tests;
 #[cfg(test)]
 mod mtls_tests;
 #[cfg(test)]
+mod registration_attacks;
+#[cfg(test)]
 mod registration_tests;
 #[cfg(test)]
 mod snapshot_tests;

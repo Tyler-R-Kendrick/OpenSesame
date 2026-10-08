@@ -9,6 +9,8 @@ use super::registration::{token_from_headers, Verifier};
 pub(crate) struct RequestIdentity {
     pub(crate) principal: String,
     pub(crate) role: Option<OrgRole>,
+    /// Set only when a registration JWT names the vault owner.
+    pub(crate) owner: Option<String>,
 }
 
 pub(crate) fn resolve_identity(
@@ -23,6 +25,7 @@ pub(crate) fn resolve_identity(
         return Ok(RequestIdentity {
             principal: identity.principal,
             role: identity.role,
+            owner: identity.owner,
         });
     }
     let role =
@@ -30,6 +33,7 @@ pub(crate) fn resolve_identity(
     Ok(RequestIdentity {
         principal: principal_of(headers),
         role,
+        owner: None,
     })
 }
 

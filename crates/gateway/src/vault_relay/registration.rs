@@ -32,6 +32,8 @@ pub(crate) struct Claims {
     pub sub: String,
     pub exp: i64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub nbf: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub org_role: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owner: Option<String>,
@@ -41,6 +43,8 @@ pub(crate) struct Claims {
 pub(crate) struct Identity {
     pub(crate) principal: String,
     pub(crate) role: Option<OrgRole>,
+    /// Organization or user handle the registration is minted for.
+    pub(crate) owner: Option<String>,
 }
 
 impl Verifier {
@@ -123,6 +127,7 @@ impl Verifier {
         policy.set_audience(&[AUDIENCE]);
         policy.leeway = 0;
         policy.validate_exp = false;
+        policy.validate_nbf = false;
         let claims = decode::<Claims>(token, key, &policy)
             .map_err(|_| INVALID)?
             .claims;
@@ -131,6 +136,14 @@ impl Verifier {
             || claims.sub.len() > 128
             || claims.exp <= now
             || claims.exp > now.saturating_add(300)
+            || claims.nbf.is_some_and(|nbf| nbf > now)
+        {
+            return Err(INVALID);
+        }
+        if claims
+            .owner
+            .as_deref()
+            .is_some_and(|owner| owner.is_empty() || owner.len() > 63)
         {
             return Err(INVALID);
         }
@@ -147,10 +160,8 @@ impl Verifier {
     pub(crate) fn identity_from_claims(claims: &Claims) -> Identity {
         Identity {
             principal: claims.sub.clone(),
-            role: claims
-                .org_role
-                .as_deref()
-                .and_then(|value| parse_role(value)),
+            role: claims.org_role.as_deref().and_then(parse_role),
+            owner: claims.owner.clone(),
         }
     }
 }

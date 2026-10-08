@@ -9,7 +9,7 @@ use crate::config::constant_time_eq;
 
 use super::admit::{
     address, claimed_by_other, digest_hex, lock, member_allows, owner_kind_conflict, owner_kind_of,
-    presented_key, publish_allows, remember, snapshot_ok, MemberAction,
+    presented_key, publish_allows, registration_binds, remember, snapshot_ok, MemberAction,
 };
 use super::identity::resolve_identity;
 use super::{DirEntry, RelayState, Slot, MAX_SNAPSHOT_BYTES};
@@ -94,6 +94,13 @@ pub(crate) async fn put_snapshot(
     let digest = digest_hex(&key);
     let now = unix_now();
     let identity = resolve_identity(&headers, state.registration.as_ref(), now)?;
+    if !registration_binds(
+        state.registration.is_some(),
+        identity.owner.as_deref(),
+        &owner,
+    ) {
+        return Err(forbidden());
+    }
     if !publish_allows(owner_kind, &identity.principal, &owner, identity.role) {
         return Err(forbidden());
     }
@@ -193,6 +200,14 @@ pub(crate) async fn list_org_vaults(
     let identity = resolve_identity(&headers, state.registration.as_ref(), now)?;
     let principal = query.principal.filter(|value| !value.is_empty());
     let owner = query.owner.filter(|value| !value.is_empty());
+    if state.registration.is_some() {
+        let Some(bound) = identity.owner.as_deref().filter(|value| !value.is_empty()) else {
+            return Err(forbidden());
+        };
+        if owner.as_ref().is_some_and(|value| value != bound) {
+            return Err(forbidden());
+        }
+    }
     // A member may list. With no role the owner and principal filters stand.
     let listed_as = principal.as_deref().unwrap_or("");
     let listed_owner = owner.as_deref().unwrap_or("");
@@ -220,6 +235,14 @@ pub(crate) async fn list_org_vaults(
         if owner.as_ref().is_some_and(|value| entry.owner != *value) {
             continue;
         }
+        if state.registration.is_some()
+            && identity
+                .owner
+                .as_ref()
+                .is_some_and(|bound| entry.owner != *bound)
+        {
+            continue;
+        }
         vaults.push(vault_json(entry));
     }
     Ok(Json(json!({ "vaults": vaults })))
@@ -242,6 +265,13 @@ pub(crate) async fn create_org_vault(
     ))?;
     let now = unix_now();
     let identity = resolve_identity(&headers, state.registration.as_ref(), now)?;
+    if !registration_binds(
+        state.registration.is_some(),
+        identity.owner.as_deref(),
+        &body.owner,
+    ) {
+        return Err(forbidden());
+    }
     if identity.principal.is_empty() {
         return Err((
             StatusCode::BAD_REQUEST,

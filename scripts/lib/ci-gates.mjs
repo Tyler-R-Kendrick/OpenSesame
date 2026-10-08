@@ -15,7 +15,8 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-
+import { relayJoinPath, relayProcessGate } from "./ci-relay-join.mjs";
+export { relayJoinPath };
 /** The gates the bundle job's shards run, by shard name (`mobile-*` is one). */
 export const SHARD_GATES = [
   "budgets",
@@ -108,6 +109,9 @@ export const DRIVER_GATES = {
   "verify-duress-offline.mjs": null,
   "verify-duress.mjs": null,
   "verify-live-join.mjs": null,
+  // ADR 0181: the journeys shard runs the relay join walk.
+  "verify-relay-join.mjs": ["journeys"],
+  "verify-relay-join-live.mjs": ["journeys"],
   "verify-live-netns.mjs": null,
   "verify-mutations.mjs": null,
   "verify-tailnet-devices.mjs": null,
@@ -342,6 +346,7 @@ export function gatesForPath(path, reach, read = () => "") {
 
 function gatesByPath(path, reach) {
   if (isDocPath(path) || isTestPath(path)) return gates();
+  if (relayProcessGate(path)) return gates("journeys");
   // The workflow is every job's definition: an edit to one job is proved only
   // by running it, so it starts them all.
   if (path === ".github/workflows/ci.yml") return everyGate();

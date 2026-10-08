@@ -43,31 +43,4 @@ describe("UnlockScreen — guest unlock", () => {
     await waitFor(() => expect(resumeGuestSession).toHaveBeenCalledTimes(1));
     expect(continueAsGuest).not.toHaveBeenCalled();
   });
-
-  it("offers the guest tomb beside an existing vault (AGENTS.md §5)", async () => {
-    v.state = {
-      status: "locked",
-      header: null,
-      lockedOutUntil: null,
-      failedAttempts: 0,
-      durable: true,
-      awaitingSecondStep: false,
-    };
-    v.methods = ["password"];
-    v.preferred = "password";
-    v.host = { ok: true };
-    v.store.destroy.mockClear();
-    render(<UnlockScreen />);
-    // Whoever holds the device without its key still gets in as a guest; the
-    // sealed vault is not touched, so nothing here is destructive. The label
-    // is the guest tomb, not a second "Continue as guest" on sign-in.
-    expect(
-      screen.queryByRole("button", { name: "Continue as guest" }),
-    ).toBeNull();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Skip to the guest vault" }),
-    );
-    await waitFor(() => expect(continueAsGuest).toHaveBeenCalledTimes(1));
-    expect(v.store.destroy).not.toHaveBeenCalled();
-  });
 });

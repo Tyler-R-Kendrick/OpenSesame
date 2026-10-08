@@ -23,11 +23,11 @@ describe("sharing.relay runtime", () => {
     expect(runtime.capabilityRuntime.capability).toBe("sharing.relay");
   });
 
-  it("registers nothing", async () => {
+  it("registers the organization vault directory", async () => {
     await expectLifecycle(runtimeOf(runtime), {
       capability: "sharing.relay",
-      kinds: [],
-      count: 0,
+      kinds: ["settings-panel"],
+      count: 1,
     });
   });
 

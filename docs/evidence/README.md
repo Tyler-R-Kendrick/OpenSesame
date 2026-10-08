@@ -47,6 +47,7 @@ evidence for a programme that ran across many pull requests.
 
 | Directory | What it shows |
 |---|---|
+| [`2026-10-org-vault-address/`](2026-10-org-vault-address/README.md) | Org vault addressing (ADR 0181) — visual evidence |
 | [`2026-10-07-rotate-without-password/`](2026-10-07-rotate-without-password/README.md) | Rotating the vault key without inventing a password — before / after |
 | [`2026-10-07-no-hint-captions/`](2026-10-07-no-hint-captions/README.md) | Hint captions removed (2026-10-07) |
 | [`2026-10-07-mobile-toolbar/`](2026-10-07-mobile-toolbar/README.md) | Mobile toolbar and share icon |

@@ -142,6 +142,17 @@ export const GUIDE_PREDICATES: readonly GuidePredicateDescriptor[] = [
       vaultStore.getSnapshot().items.some((item) => item.deletedAt === null),
   },
   {
+    id: "vault.has-account",
+    description:
+      "The open vault holds at least one account outside the trash. The accounts filter and the username and password copy keys exist only then. False while it is locked.",
+    read: () =>
+      vaultStore
+        .getSnapshot()
+        .items.some(
+          (item) => item.deletedAt === null && item.kind === "account",
+        ),
+  },
+  {
     id: "vault.has-trash",
     description:
       "The open vault has at least one item in the trash. False while it is locked.",

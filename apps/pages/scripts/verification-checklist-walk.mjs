@@ -29,7 +29,8 @@ import {
   captureSupport,
   createSecret,
   openShare,
-  trashExample,
+  seedChecklistItems,
+  trashChecklistItems,
 } from "./lib/verification-checklist-app.mjs";
 import {
   appPaths,
@@ -95,8 +96,9 @@ async function walkInstalled(page, shot, record, choice) {
   const guides = await page.locator(".vtree__kids").count();
   mark(record, "U4-vault-tree", guides > 0, `guide boxes: ${guides}`);
   await openShare(page, shot, record, "share-menu", "S5-share");
-  const trashed = await trashExample(page);
-  await captureSettings(page, shot, record, trashed);
+  await seedChecklistItems(page, record);
+  await trashChecklistItems(page);
+  await captureSettings(page, shot, record);
   await captureCommand(page, shot, record);
   await captureStatusline(page, shot, record);
   await captureSupport(page, shot, record);

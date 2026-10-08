@@ -87,6 +87,7 @@ export const TUTORIAL_AREAS: readonly TutorialArea[] = [
       "vault.password-workflows.open",
       "vault.item.credentials",
       "vault.item.find",
+      "vault.item.accounts",
       "vault.item.favorite",
       "vault.item.edit",
       "vault.item.copy",

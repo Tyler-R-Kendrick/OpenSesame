@@ -23,7 +23,6 @@
 //
 // Build first, with the base this serves:
 //   VITE_BASE=/OpenSesame/ pnpm exec turbo run build --filter=@opensesame/pages
-
 import assert from "node:assert/strict";
 import path from "node:path";
 import { chromium } from "@playwright/test";
@@ -32,15 +31,15 @@ import {
   capabilityOnSwitch,
   capabilitySwitch,
 } from "./lib/always-on.mjs";
-import { doorGuest, openGuestAgain } from "./lib/front-door.mjs";
+import { doorGuest } from "./lib/front-door.mjs";
 import {
   addCapabilities,
   openSettingsCategory,
   waitOpen,
 } from "./lib/pages-journey.mjs";
+import { openGuestAgain } from "./lib/push-worker-guest.mjs";
 import {
   notificationsOf as notificationsFrom,
-  sameScript as same,
   scriptsOf as scriptsFrom,
   serve as serveDist,
   trackControlledBirth,
@@ -53,6 +52,16 @@ const base = process.env.VITE_BASE ?? "/OpenSesame/";
 const TITLE = "Push notifications";
 const REF = "rv_Ab12-Cd34";
 const REF_AFTER = "rv_After-0001";
+
+/**
+ * The same worker script: origin and path. A replacement the controller had to
+ * ask for again carries `?r=<n>` in its URL and is still the variant's script.
+ */
+const same = (a, b) =>
+  a !== null &&
+  b !== null &&
+  new URL(a).origin === new URL(b).origin &&
+  new URL(a).pathname === new URL(b).pathname;
 
 const failures = [];
 const check = (condition, what) => {
