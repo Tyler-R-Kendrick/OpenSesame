@@ -13,8 +13,6 @@ import {
   MAX_PIN_LENGTH,
   MIN_PIN_LENGTH,
   type PinUnlockRecord,
-  PIN_PBKDF2_ITERATIONS,
-  pinPbkdf2Iterations,
   WebauthnHostError,
   assertKeepsPrimaryUnlock,
   assertPinPolicy,
@@ -37,6 +35,10 @@ import {
   wrapVaultKeyWithPin,
   wrapVaultKeyWithPrf,
 } from "./unlock-methods.js";
+import {
+  PIN_PBKDF2_ITERATIONS,
+  pinPbkdf2Iterations,
+} from "./pin-kdf.js";
 
 const PASSWORD = "correct horse battery staple";
 const PIN = "48291037";

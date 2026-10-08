@@ -33,10 +33,14 @@ import {
 import { assertUsablePrfOutput } from "./protection/adapters/webauthn-prf-output.js";
 import type { UnlockTabId } from "./protection/unlock-protector-methods.js";
 import { chooseUnlockMethod } from "./unlock-preference.js";
-import {
-  assertPinKdfIterations,
-  pinPbkdf2Iterations,
-} from "./pin-kdf.js";
+
+type PinKdfModule = typeof import("./pin-kdf.js");
+let pinKdfModule: PinKdfModule | undefined;
+
+async function loadPinKdf(): Promise<PinKdfModule> {
+  pinKdfModule ??= await import("./pin-kdf.js");
+  return pinKdfModule;
+}
 
 export {
   type WebauthnHostCheck,
@@ -67,13 +71,8 @@ const PRF_INFO = new TextEncoder().encode("opensesame/vault/webauthn-prf/v1");
 
 export const MIN_PIN_LENGTH = 8;
 export const MAX_PIN_LENGTH = 12;
-export {
-  PIN_KDF_SECURITY_BITS,
-  PIN_PBKDF2_ITERATIONS,
-  assertPinKdfIterations,
-  estimatePinEntropyBits,
-  pinPbkdf2Iterations,
-} from "./pin-kdf.js";
+/** Floor iteration count; scaling lives in `pin-kdf.ts` (lazy-loaded on PIN wrap/unwrap). */
+export const PIN_PBKDF2_ITERATIONS = 1_200_000;
 
 export type {
   CodeChannel,
@@ -306,6 +305,7 @@ export async function wrapVaultKeyWithPin(
   pin: string,
 ): Promise<PinUnlockRecord> {
   assertPinPolicy(pin);
+  const { pinPbkdf2Iterations } = await loadPinKdf();
   const iterations = pinPbkdf2Iterations(pin);
   const salt = randomBytes(SALT_BYTES);
   const kek = await deriveAesKeyFromPassword(pin, salt, iterations);
@@ -328,6 +328,7 @@ export async function unwrapVaultKeyWithPin(
   if (record.kdf.alg !== "PBKDF2-SHA256") {
     throw new VaultCorruptError("unsupported PIN unlock format");
   }
+  const { assertPinKdfIterations } = await loadPinKdf();
   assertPinKdfIterations(record.kdf, pin);
   const kek = await deriveAesKeyFromPassword(
     pin,
