@@ -1,0 +1,24 @@
+{
+  "run_id": "OpenSesame-run-4",
+  "repo": "OpenSesame",
+  "target": "/workspace",
+  "source_ref": {
+    "commit": "72c941b8b75984d5e5f1309c6d02dba15f535457",
+    "branch": "cursor/cf-audit-run-4-artifacts-d641",
+    "worktree": "clean",
+    "origin_main": "77164dd258f0bdb5fc4752efee922ce09f45b842",
+    "prior_run_3_commit": "7f110532e4c8b8b8b8b8b8b8b8b8b8b8b8b8b8b8"
+  },
+  "profile": "standard",
+  "scope_paths": ["apps", "crates", "packages", "ops", "spec", "scripts", "tools"],
+  "execution_policy": "regression-re-read-only",
+  "prior_run_paths": [
+    "docs/security/cloudflare-audit/run-1",
+    "docs/security/cloudflare-audit/run-2",
+    "docs/security/cloudflare-audit/run-3"
+  ],
+  "run_status": "complete",
+  "new_hunter_candidates": 0,
+  "notes": "Regression re-read of run-3's 23 ledger records on the six-PR NV fix stack tip. No recon, no fresh coverage-led hunt, no new hunter candidates. Does not count toward two consecutive clean full runs (same class as run 2). Grok unavailable (402).",
+  "completed_at": "2026-10-08T20:00:00Z"
+}
