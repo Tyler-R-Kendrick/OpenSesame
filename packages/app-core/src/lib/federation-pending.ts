@@ -12,6 +12,10 @@ import {
   overlapCast,
 } from "@opensesame/os-domain";
 import { localStore, sessionStore } from "../ports.js";
+import {
+  dropPkcePending,
+  readPkcePendingRaw,
+} from "./federation-pkce-pending-slot.js";
 
 export const PKCE_KEY = "opensesame:federation:pkce";
 export const PENDING_MAX_AGE_MS = 10 * 60 * 1000;
@@ -42,44 +46,12 @@ export type TakenPending = {
   unmatched?: boolean;
 };
 
-function stateFromRaw(raw: string): string | null {
-  try {
-    const parsed: BoundaryValue = overlapCast(JSON.parse(raw));
-    if (!isJsonObject(parsed)) return null;
-    const state = parsed.state;
-    return isString(state) ? state : null;
-  } catch {
-    return null;
-  }
-}
-
-function pkcePendingStoresDisagree(
-  localRaw: string,
-  sessionRaw: string,
-): boolean {
-  const localState = stateFromRaw(localRaw);
-  const sessionState = stateFromRaw(sessionRaw);
-  return Boolean(localState && sessionState && localState !== sessionState);
-}
-
 function readRawPending() {
-  const localRaw = localStore().getItem(PKCE_KEY);
-  const sessionRaw = sessionStore().getItem(PKCE_KEY);
-  if (!localRaw && !sessionRaw) return { raw: null, swapped: false };
-  if (
-    localRaw &&
-    sessionRaw &&
-    pkcePendingStoresDisagree(localRaw, sessionRaw)
-  ) {
-    dropRawPending();
-    return { raw: null, swapped: true };
-  }
-  return { raw: localRaw ?? sessionRaw, swapped: false };
+  return readPkcePendingRaw(PKCE_KEY);
 }
 
 function dropRawPending(): void {
-  localStore().removeItem(PKCE_KEY);
-  sessionStore().removeItem(PKCE_KEY);
+  dropPkcePending(PKCE_KEY);
 }
 
 function asPendingAuth(value: BoundaryValue): PendingAuth | null {
