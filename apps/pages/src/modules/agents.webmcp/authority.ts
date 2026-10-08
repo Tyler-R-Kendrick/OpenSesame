@@ -1,3 +1,4 @@
+import { assertNotDecoySession } from "@opensesame/app-core/lib/decoy-session.js";
 /**
  * The authority a WebMCP tool call needs, taken inside the execute wrapper
  * before the tool's own handler runs (ownership.md §4.2).
@@ -16,6 +17,7 @@
  *   (`admitOperation`). A read-only lookup skips only this last step.
  */
 
+import { assertCurrentOperationAuthority } from "@opensesame/app-core/lib/capabilities/authority.js";
 import {
   admitSensitiveOperation,
   assertToolAuthority,
@@ -34,10 +36,18 @@ export function isSensitiveTool(tool: WebMcpToolSpec): boolean {
 }
 
 /** Throw `CapabilityDenied` unless `tool` may run now. */
-export async function authorizeToolCall(tool: WebMcpToolSpec): Promise<void> {
+export async function authorizeToolCall(
+  tool: WebMcpToolSpec,
+): Promise<() => void> {
+  assertNotDecoySession();
   const operation = ownerOf(tool);
   if (operation === null)
     throw new CapabilityDenied("NOT_REGISTERED", tool.name);
   const lease = assertToolAuthority(tool.name, operation, ownerOf);
+  const check = () => {
+    assertCurrentOperationAuthority(operation, lease);
+  };
   if (isSensitiveTool(tool)) await admitSensitiveOperation(operation, lease);
+  check();
+  return check;
 }

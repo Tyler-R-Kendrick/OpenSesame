@@ -12,6 +12,8 @@ import {
 } from "@opensesame/app-core/lib/password-agent/lease.js";
 import type { Binding } from "@opensesame/app-core/lib/password-agent/request.js";
 import { z } from "zod";
+import { guardedEffect, parityAuthority } from "./parity-authority.js";
+
 const leaseSchema = z.object({
   capability: z.literal("request"),
   method: z.literal("GET"),
@@ -35,8 +37,14 @@ export interface NodeLeaseStore extends LeaseStorePort {
   list(): Promise<LeaseRecord[]>;
   close(): void;
 }
-async function openStore(): Promise<NodeLeaseStore> {
+async function openStore(originating?: () => void): Promise<NodeLeaseStore> {
+  const authority = parityAuthority();
+  const check = () => {
+    authority();
+    originating?.();
+  };
   const { DatabaseSync } = await import("node:sqlite");
+  check();
   const directory = join(
     process.env.OPENSESAME_STATE_DIR ??
       join(
@@ -56,7 +64,16 @@ async function openStore(): Promise<NodeLeaseStore> {
   db.prepare(
     "INSERT OR IGNORE INTO authority(key,value) VALUES('principal',?)",
   ).run(randomUUID());
-  return databaseStore(db);
+  const store = databaseStore(db);
+  return {
+    principal: guardedEffect(store.principal, check),
+    get: guardedEffect(store.get, check),
+    insert: guardedEffect(store.insert, check),
+    list: guardedEffect(store.list, check),
+    claim: guardedEffect(store.claim, check),
+    revoke: guardedEffect(store.revoke, check),
+    close: store.close,
+  };
 }
 function databaseStore(db: DatabaseSync): NodeLeaseStore {
   const principal = () =>
@@ -142,9 +159,11 @@ function databaseStore(db: DatabaseSync): NodeLeaseStore {
   };
 }
 
-export async function openLeaseStore(): Promise<NodeLeaseStore> {
+export async function openLeaseStore(
+  originating?: () => void,
+): Promise<NodeLeaseStore> {
   try {
-    return await openStore();
+    return await openStore(originating);
   } catch {
     throw new Error("Lease store unavailable (details suppressed).");
   }

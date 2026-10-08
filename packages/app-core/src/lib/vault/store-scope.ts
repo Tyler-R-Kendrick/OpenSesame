@@ -7,6 +7,7 @@
  */
 
 import { overlapCast } from "@opensesame/os-domain";
+import { freshOwnerAuthenticationTomb } from "../decoy-session.js";
 import { kvGet } from "../kv.js";
 import { activeProject, scopedKey } from "../projects.js";
 import { GUEST_TOMB } from "../vfs.js";
@@ -25,10 +26,8 @@ export type VaultScope = {
 };
 
 export function scopedVaultScope(): VaultScope {
-  return {
-    tomb: activeProject().id,
-    attempts: scopedKey(ATTEMPTS_KEY),
-  };
+  const tomb = freshOwnerAuthenticationTomb() ?? activeProject().id;
+  return { tomb, attempts: scopedKey(ATTEMPTS_KEY, tomb) };
 }
 
 /** Guest-beside-vault tomb — isolated, throwaway, never a project id. */

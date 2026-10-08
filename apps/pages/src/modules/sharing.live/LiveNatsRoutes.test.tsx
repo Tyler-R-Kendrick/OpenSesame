@@ -19,25 +19,34 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LiveRoutesPanel } from "./LiveRoutesPanel.js";
+import {
+  genuineLiveOwner,
+  genuineProfilePorts,
+} from "./live-owner.test-support.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
 const original = { ...transportSeams };
+let retireOwner: () => Promise<void>;
 let stored: LiveTransport;
 
-beforeEach(() => {
+beforeEach(async () => {
+  retireOwner = await genuineLiveOwner();
   stored = DIRECT_TRANSPORT;
-  Object.assign(transportSeams, {
-    tomb: () => "personal",
-    read: async () => stored,
-    write: async (_tomb: string, next: LiveTransport) => {
-      stored = next;
-    },
-  });
+  Object.assign(
+    transportSeams,
+    genuineProfilePorts({
+      current: () => stored,
+      keep: (next) => {
+        stored = next;
+      },
+    }),
+  );
 });
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
   Object.assign(transportSeams, original);
+  await retireOwner();
 });
 
 type Panel = ReturnType<typeof within>;

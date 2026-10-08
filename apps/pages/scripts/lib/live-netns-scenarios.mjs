@@ -279,6 +279,15 @@ export async function relayed(ctx) {
         `relayed: the ${who} connected relay to relay (${JSON.stringify(made)})`,
       );
     }
+    const { udp, tcp, tls } = await turn.stats();
+    check(
+      udp.authOk >= 2 && udp.allocations >= 2 && udp.authFailed === 0,
+      "relayed: TURN authenticated and allocated for both actual UDP peers",
+    );
+    check(
+      tcp.conns + tcp.bytes + tls.conns + tls.bytes === 0,
+      "relayed: no TCP or TLS client traffic reached TURN",
+    );
     await endSession(panel);
     await joiner.context.close();
   } finally {

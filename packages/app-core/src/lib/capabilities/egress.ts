@@ -5,6 +5,7 @@ import {
   type EgressClass,
   capabilityState,
 } from "@opensesame/capability-composition";
+import { assertNotDecoySession } from "../decoy-session.js";
 /**
  * Destination-validated fetch for optional modules (S18).
  *
@@ -281,6 +282,7 @@ export function createEgressPort(options: EgressPortOptions): EgressPort {
         // included, never leaves this function (NET-05).
         throw new EgressDenied(decision.code, capability, decision.destination);
       }
+      if (decision.class !== "application-assets") assertNotDecoySession();
       const url = parseDestination(input, options.allowedOrigins[0]);
       const href =
         url === null
@@ -290,6 +292,7 @@ export function createEgressPort(options: EgressPortOptions): EgressPort {
         href,
         prepareInit(init, decision.crossOrigin),
       );
+      if (decision.class !== "application-assets") assertNotDecoySession();
       if (isRedirect(response)) {
         throw new EgressDenied(
           "redirect-refused",

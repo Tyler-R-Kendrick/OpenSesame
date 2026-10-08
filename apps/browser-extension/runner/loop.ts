@@ -69,12 +69,13 @@ export function createRunner(deps: RunnerDeps) {
   /** Arms that ran out give their grants back, whether or not anything is running. */
   async function lapse(): Promise<void> {
     for (const origin of await deps.settings.expired()) {
+      if (deps.originAllowed && !deps.originAllowed(origin)) continue;
       await deps.settings.disarm(origin);
       await deps.grants.revoke(origin);
     }
   }
 
-  async function runTick(): Promise<TickReport> {
+  async function runTick(maxRuns: number): Promise<TickReport> {
     const report: TickReport = {
       connected: false,
       driven: [],
@@ -94,12 +95,13 @@ export function createRunner(deps: RunnerDeps) {
     const runs = await link.host.listRuns();
     const open = new Map(runs.map((run) => [run.id, run]));
     for (const [runId, held] of await deps.settings.active()) {
+      if (deps.originAllowed && !deps.originAllowed(held.origin)) continue;
       const run = open.get(runId);
       if (!run || run.closed_at !== null) await finish(runId, held.origin);
     }
     let driven = 0;
     for (const run of runs) {
-      if (driven >= MAX_RUNS_PER_TICK) break;
+      if (driven >= maxRuns) break;
       const reason = await skipReason(deps, run, now());
       if (reason !== null) {
         if (reason !== "closed") report.skipped.push({ runId: run.id, reason });
@@ -113,8 +115,14 @@ export function createRunner(deps: RunnerDeps) {
 
   return {
     /** One pass over the person's runs. Overlapping calls share one pass. */
-    tick(): Promise<TickReport> {
-      busy ??= runTick().finally(() => {
+    tick(maxRuns = MAX_RUNS_PER_TICK): Promise<TickReport> {
+      if (
+        !Number.isInteger(maxRuns) ||
+        maxRuns < 1 ||
+        maxRuns > MAX_RUNS_PER_TICK
+      )
+        return Promise.reject(new Error("Invalid original runner pass bound"));
+      busy ??= runTick(maxRuns).finally(() => {
         busy = null;
       });
       return busy;

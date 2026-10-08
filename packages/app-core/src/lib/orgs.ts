@@ -6,8 +6,14 @@
  */
 
 import { sessionStore } from "../ports.js";
+import {
+  assertAuthenticationSession,
+  assertNotDecoySession,
+  isRealAuthorityBlocked,
+  withRealAuthority,
+} from "./decoy-session.js";
 import { IdentityError, identityBase } from "./identity.js";
-import { VfsError, readFile, writeFile } from "./vfs.js";
+import { VfsError, pinTombAuthority, readFile, writeFile } from "./vfs.js";
 
 /** Legacy sessionStorage key — migrated into the tomb on unlock, then deleted. */
 const LEGACY_ACTIVE_KEY = "opensesame:org-profile";
@@ -53,8 +59,12 @@ export type OrgMembership = {
 
 const listeners = new Set<() => void>();
 
-function emit(): void {
-  for (const listener of listeners) listener();
+function emit(generation: number): void {
+  for (const listener of listeners) {
+    assertNotDecoySession(generation);
+    listener();
+  }
+  assertNotDecoySession(generation);
 }
 
 export function subscribeOrgProfile(listener: () => void): () => void {
@@ -73,14 +83,28 @@ export function subscribeOrgProfile(listener: () => void): () => void {
 let activeTomb: string | null = null;
 let cachedProfileId: string | null = null;
 let profileHydrated = false;
+let profileGeneration = 0;
+let cachedAuthority: (() => void) | null = null;
 
 function readActiveProfileId(): string {
-  return profileHydrated && cachedProfileId
-    ? cachedProfileId
-    : GUEST_PROFILE_ID;
+  try {
+    assertNotDecoySession();
+    cachedAuthority?.();
+    return profileHydrated && cachedProfileId
+      ? cachedProfileId
+      : GUEST_PROFILE_ID;
+  } catch {
+    return GUEST_PROFILE_ID;
+  }
 }
 
 function writeActiveProfileId(id: string): void {
+  const generation = assertNotDecoySession();
+  cachedAuthority?.();
+  cachedAuthority ??= () => {
+    assertNotDecoySession(generation);
+  };
+  profileGeneration += 1;
   cachedProfileId = id;
   profileHydrated = true;
   const tomb = activeTomb;
@@ -99,16 +123,36 @@ function writeActiveProfileId(id: string): void {
  * Fill the in-memory selection from the tomb's sealed config, after the
  * unlock-time migration has moved any legacy sessionStorage copy.
  */
-export async function hydrateOrgProfileFromVfs(tomb: string): Promise<void> {
+export async function hydrateOrgProfileFromVfs(
+  tomb: string,
+  originatingAuthority?: () => void,
+): Promise<void> {
+  assertAuthenticationSession();
+  originatingAuthority?.();
+  const assertAuthority = pinTombAuthority(tomb);
+  if (activeTomb !== tomb) {
+    profileGeneration += 1;
+    cachedProfileId = null;
+    profileHydrated = false;
+    cachedAuthority = null;
+  }
   activeTomb = tomb;
+  const generation = profileGeneration;
+  let id: string | null;
   try {
     const bytes = await readFile(tomb, ORG_PROFILE_CONFIG_PATH);
-    const id = new TextDecoder().decode(bytes).trim();
-    cachedProfileId = id.length > 0 ? id : null;
+    const text = new TextDecoder().decode(bytes).trim();
+    id = text.length > 0 ? text : null;
   } catch (error) {
     if (error instanceof VfsError && error.code === "locked") throw error;
-    cachedProfileId = null;
+    id = null;
   }
+  assertAuthenticationSession();
+  originatingAuthority?.();
+  assertAuthority();
+  if (generation !== profileGeneration || activeTomb !== tomb) return;
+  cachedProfileId = id;
+  cachedAuthority = assertAuthority;
   profileHydrated = true;
 }
 
@@ -117,10 +161,18 @@ export function discardOrgProfile(): void {
   activeTomb = null;
   cachedProfileId = null;
   profileHydrated = false;
+  cachedAuthority = null;
+  profileGeneration += 1;
 }
 
 /** Legacy sessionStorage copy, for the unlock-time migration only. */
-export function readLegacyOrgProfile(): string | null {
+export function readLegacyOrgProfile(
+  originatingAuthority?: () => void,
+): string | null {
+  if (originatingAuthority) {
+    assertAuthenticationSession();
+    originatingAuthority();
+  } else assertNotDecoySession();
   try {
     const raw = sessionStore().getItem(LEGACY_ACTIVE_KEY);
     return raw && raw.length > 0 ? raw : null;
@@ -129,7 +181,11 @@ export function readLegacyOrgProfile(): string | null {
   }
 }
 
-export function clearLegacyOrgProfile(): void {
+export function clearLegacyOrgProfile(originatingAuthority?: () => void): void {
+  if (originatingAuthority) {
+    assertAuthenticationSession();
+    originatingAuthority();
+  } else assertNotDecoySession();
   try {
     sessionStore().removeItem(LEGACY_ACTIVE_KEY);
   } catch {
@@ -138,10 +194,13 @@ export function clearLegacyOrgProfile(): void {
 }
 
 export function activeOrgProfileId(): string {
-  return orgSeams.activeOrgProfileId();
+  return isRealAuthorityBlocked()
+    ? GUEST_PROFILE_ID
+    : orgSeams.activeOrgProfileId();
 }
 
 export function setActiveOrgProfileId(id: string): void {
+  assertNotDecoySession();
   orgSeams.setActiveOrgProfileId(id);
 }
 
@@ -150,8 +209,10 @@ function activeOrgProfileIdDefault(): string {
 }
 
 function setActiveOrgProfileIdDefault(id: string): void {
+  const generation = assertNotDecoySession();
   writeActiveProfileId(id);
-  emit();
+  assertNotDecoySession(generation);
+  emit(generation);
 }
 
 /**
@@ -184,17 +245,17 @@ export const orgSeams = {
 };
 
 export async function lookupOrgTenant(slug: string): Promise<OrgTenant> {
-  return orgSeams.lookupOrgTenant(slug);
+  return withRealAuthority(() => orgSeams.lookupOrgTenant(slug));
 }
 
 export async function lookupOrgByDomain(
   domain: string,
 ): Promise<OrgTenant | null> {
-  return orgSeams.lookupOrgByDomain(domain);
+  return withRealAuthority(() => orgSeams.lookupOrgByDomain(domain));
 }
 
 export async function listOrgMemberships(): Promise<OrgMembership[]> {
-  return orgSeams.listOrgMemberships();
+  return withRealAuthority(() => orgSeams.listOrgMemberships());
 }
 
 export async function joinOrgTenant(
@@ -202,7 +263,7 @@ export async function joinOrgTenant(
   method: OrgAuthMethodKind,
   idToken: string,
 ): Promise<OrgMembership> {
-  return orgSeams.joinOrgTenant(slug, method, idToken);
+  return withRealAuthority(() => orgSeams.joinOrgTenant(slug, method, idToken));
 }
 
 export type OrgAuthUpstream = {

@@ -28,6 +28,10 @@ import { activatePlan } from "./change.js";
 import { evaluatedModuleIds } from "./facts.js";
 import { SELECTION_KEY } from "./keys.js";
 import {
+  configureLeaseIssuerScope,
+  issuedLeaseReference,
+} from "./lease-canary-issuer.js";
+import {
   activateApprovedCapability,
   deactivateGeneration,
   liveHandleCount,
@@ -304,5 +308,36 @@ describe("activatePlan (LOAD-09)", () => {
     stop();
     await settle();
     expect(counters.disposals).toBe(4);
+  });
+});
+
+describe("issuer-generated lease alias admission", () => {
+  it("loads with the original active lease and refuses its alias after actual invalidation", async () => {
+    const stop = configureLeaseIssuerScope(() => ({
+      tomb: "personal",
+      vaultIdentity: "manifest:alias-owner",
+    }));
+    try {
+      await bootWithPasskeys();
+      let imported = 0;
+      loaderSeams.moduleTable = async () => ({
+        [MODULE]: async () => {
+          imported += 1;
+          return fakeModule({ activations: 0, disposals: 0 });
+        },
+      });
+      const alias = issuedLeaseReference(compositionStore.currentLease());
+      expect(alias).toMatch(/^oslease:v1:[A-Za-z0-9_-]{43}$/);
+      await loadApprovedModule(MODULE, alias);
+      expect(imported).toBe(1);
+      compositionStore.invalidate("actual-generation-revoked");
+      await expect(loadApprovedModule(MODULE, alias)).rejects.toThrow();
+      await expect(
+        loadApprovedModule(MODULE, "oslease:v1:forged"),
+      ).rejects.toThrow();
+      expect(imported).toBe(1);
+    } finally {
+      stop();
+    }
   });
 });

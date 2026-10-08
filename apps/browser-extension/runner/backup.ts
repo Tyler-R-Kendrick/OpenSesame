@@ -1,3 +1,5 @@
+import { b64, sha256Hex } from "./bytes";
+import type { OriginalOwner } from "./original-owner";
 /**
  * The candidate's backup, and what makes its acknowledgement true
  * (ADR 0076 §3 constraint 2).
@@ -18,7 +20,7 @@
  * backup to acknowledge, and the answer is `backed_up: false`, so the executor
  * blocks before the submit.
  */
-import { b64, sha256Hex } from "./bytes";
+import { RunnerAuthorityEnded } from "./worker-authority";
 
 export const RECIPIENT_ALG = "RSA-OAEP-256";
 /** Smaller than this is not a recovery key. */
@@ -175,7 +177,10 @@ export async function sealBackup(
 export async function openBackup(
   privateJwk: JsonWebKey,
   bytes: Uint8Array,
+  owner: OriginalOwner,
 ): Promise<string> {
+  await owner.authorize();
+  owner.check();
   const envelope: Envelope = JSON.parse(new TextDecoder().decode(bytes));
   if (envelope.v !== ENVELOPE_VERSION) throw new Error("backup_version");
   const privateKey = await crypto.subtle.importKey(
@@ -185,11 +190,17 @@ export async function openBackup(
     false,
     ["decrypt"],
   );
+  owner.check();
+  await owner.authorize();
+  owner.check();
   const raw = await crypto.subtle.decrypt(
     WRAP,
     privateKey,
     b64.from(envelope.wk),
   );
+  owner.check();
+  await owner.authorize();
+  owner.check();
   const dataKey = await crypto.subtle.importKey(
     "raw",
     raw,
@@ -197,6 +208,9 @@ export async function openBackup(
     false,
     ["decrypt"],
   );
+  owner.check();
+  await owner.authorize();
+  owner.check();
   const plain = await crypto.subtle.decrypt(
     {
       name: "AES-GCM",
@@ -206,6 +220,9 @@ export async function openBackup(
     dataKey,
     b64.from(envelope.ct),
   );
+  owner.check();
+  await owner.authorize();
+  owner.check();
   return new TextDecoder("utf-8", { fatal: true }).decode(plain);
 }
 
@@ -241,7 +258,8 @@ export async function backUp(
     const id = backupId(binding.handle);
     if (!(await store.push(id, bytes))) return false;
     return await store.confirm(id, bytes);
-  } catch {
+  } catch (error) {
+    if (error instanceof RunnerAuthorityEnded) throw error;
     return false;
   }
 }

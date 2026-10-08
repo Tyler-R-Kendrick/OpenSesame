@@ -29,6 +29,7 @@ import {
 } from "./device-identity-carry.js";
 import {
   readDeviceIdentityKey,
+  withDeviceIdentityFence,
   writeStoredDeviceIdentityKey,
 } from "./device-identity-key.js";
 import { vettedField } from "./device-identity-trust.js";
@@ -140,8 +141,16 @@ describe("reconciling the tomb's key with the body's", () => {
     vi.stubGlobal("navigator", { locks });
     const tomb = await openTomb();
     const { host } = bodyHost(tomb, await genuineField(Date.now() - 1000));
-    await reconcileDeviceIdentityKey(host, { held: true });
-    expect(locks.requested).toEqual([]);
+    await expect(
+      withDeviceIdentityFence(tomb, () =>
+        reconcileDeviceIdentityKey(host, { held: true }),
+      ),
+    ).resolves.toBe("adopted");
+    const identityLock = `opensesame-device-identity-${tomb}`;
+    expect(locks.requested.filter((name) => name === identityLock)).toEqual([
+      identityLock,
+    ]);
+    expect(locks.requested).toContain(`opensesame:vfs-rotation:${tomb}`);
   });
 });
 

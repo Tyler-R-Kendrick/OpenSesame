@@ -21,7 +21,6 @@ import {
   DIRECT_TRANSPORT,
   type LiveTransport,
 } from "@opensesame/app-core/lib/live/transport.js";
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem } from "@opensesame/vault-core";
 import {
   cleanup,
@@ -32,55 +31,54 @@ import {
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { withPassword } from "../../sections/vault/account.test-support.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { LiveRoutesPanel } from "./LiveRoutesPanel.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
+import {
+  genuineLiveOwner,
+  genuineProfilePorts,
+} from "./live-owner.test-support.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
 const github = createItem("account", "GitHub");
 withPassword(github, "correct horse battery staple");
 
-const originalHooks = { ...vaultHooksSeams };
 const originalLive = { ...liveSeams };
 const originalUi = { ...liveUiSeams };
 const originalTransport = { ...transportSeams };
 let net: FakeNet;
 let bus: FakeBus;
+let retireOwner: () => Promise<void>;
 let stored: LiveTransport;
 
-beforeEach(() => {
+beforeEach(async () => {
+  retireOwner = await genuineLiveOwner([github]);
   net = new FakeNet();
   bus = new FakeBus();
   stored = DIRECT_TRANSPORT;
-  Object.assign(vaultHooksSeams, {
-    useVault: () => ({
-      ...vaultStore.getSnapshot(),
-      status: "unlocked" as const,
-      items: [github],
-    }),
-  });
-  Object.assign(liveSeams, { items: () => [github] });
+
   Object.assign(liveUiSeams, { peers: net.factory(), carriers: bus.factory() });
-  Object.assign(transportSeams, {
-    tomb: () => "personal",
-    read: async () => stored,
-    write: async (_tomb: string, next: LiveTransport) => {
-      stored = next;
-    },
-  });
+  Object.assign(
+    transportSeams,
+    genuineProfilePorts({
+      current: () => stored,
+      keep: (next) => {
+        stored = next;
+      },
+    }),
+  );
 });
 
-afterEach(() => {
+afterEach(async () => {
   clearJoinDraft();
   leaveLive();
   endHosting();
   cleanup();
-  Object.assign(vaultHooksSeams, originalHooks);
   Object.assign(liveSeams, originalLive);
   Object.assign(liveUiSeams, originalUi);
   Object.assign(transportSeams, originalTransport);
+  await retireOwner();
 });
 
 function type(where: ReturnType<typeof within>, label: string, value: string) {
@@ -131,18 +129,20 @@ describe("Settings › Live sessions › Routes", () => {
     fireEvent.click(panel.getByRole("button", { name: "Add the carrier" }));
     await panel.findByText("wss://relay.example.com");
 
-    expect(stored).toEqual({
-      addresses: ["100.101.102.103"],
-      ice: [
-        {
-          urls: ["turns:turn.example.com:443?transport=tcp"],
-          username: "live",
-          credential: "s3cret",
-        },
-      ],
-      relay: false,
-      carriers: [{ kind: "nostr", url: "wss://relay.example.com" }],
-    });
+    await waitFor(() =>
+      expect(stored).toEqual({
+        addresses: ["100.101.102.103"],
+        ice: [
+          {
+            urls: ["turns:turn.example.com:443?transport=tcp"],
+            username: "live",
+            credential: "s3cret",
+          },
+        ],
+        relay: false,
+        carriers: [{ kind: "nostr", url: "wss://relay.example.com" }],
+      }),
+    );
 
     fireEvent.click(
       panel.getByRole("button", { name: "Remove 100.101.102.103" }),

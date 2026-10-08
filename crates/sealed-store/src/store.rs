@@ -31,12 +31,7 @@ pub(crate) const COMMIT_RESTORE: &str = "seal: restore entry";
 pub(crate) const COMMIT_ATTACH: &str = "seal: add attachment";
 pub(crate) const COMMIT_DETACH: &str = "seal: remove attachment";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FormatHint {
-    Osseal,
-    Gpg,
-    Age,
-}
+pub use crate::format_hint::FormatHint;
 
 /// Initialize a store root with optional recipients and a fresh passphrase-wrapped VRK.
 ///
@@ -68,6 +63,11 @@ pub fn init_store_key(root: &Path, password: &[u8]) -> Result<ItemDataKey, Store
 ///
 /// Returns an error when validation or the underlying operation fails.
 pub fn unlock_store_key(root: &Path, password: &[u8]) -> Result<ItemDataKey, StoreError> {
+    if crate::retired_credentials::classify_retired_password(root, password)?.is_some() {
+        return Err(StoreError::Other(
+            "that credential did not unlock the vault".into(),
+        ));
+    }
     let path = root.join(KEY_FILE);
     if !path.exists() {
         return Err(StoreError::NotInitialized(root.to_path_buf()));

@@ -89,9 +89,22 @@ export class HostPeer {
    * the reply code. The channel opens once the joiner pastes that reply.
    */
   async open(offer: string): Promise<string> {
-    const side = await answerOffer(this.options.peers, this.options.ice, offer);
-    // Closed while the browser was gathering: `close()` found no connection
-    // to close, so this is the only place that can.
+    const peers = this.options.peers;
+    const side = await answerOffer(
+      (config) => {
+        if (this.#closed) throw new Error("closed");
+        const pc = peers(config);
+        this.#pc = pc;
+        if (this.#closed) {
+          pc.close();
+          throw new Error("closed");
+        }
+        return pc;
+      },
+      this.options.ice,
+      offer,
+    );
+    // Retirement closes the owned peer even while its answer is gathering.
     if (this.#closed) {
       side.pc.close();
       side.channel.catch(() => undefined);

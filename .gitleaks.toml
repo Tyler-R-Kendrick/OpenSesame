@@ -25,6 +25,7 @@ paths = [
   '''(^|/)node_modules(?:/|$)''',
   '''(^|/)\.pnpm-store(?:/|$)''',
   '''(^|/)dist(?:/|$)''',
+  '''(^|/)apps/android/android/app/build(?:/|$)''',
   '''(^|/)dist-profiles(?:/|$)''',
   '''(^|/)coverage(?:/|$)''',
   '''(^|/)\.turbo(?:/|$)''',
@@ -80,6 +81,15 @@ paths = [
 # on TS lines when adding new hits; these whole-file paths are the ones
 # currently breaking every local pre-commit on an otherwise clean tree.
 [[allowlists]]
+description = "Exact public password SHA1, decoded bogus pairing fixture, and synthetic part identifier (no file bypass)"
+regexTarget = "line"
+regexes = [
+  '''^\s*const PASSWORD_SHA1 = "5BAA61E4C9B93F3F0682250B6CF8331B7EE68FD8";\s*$''',
+  '''^\s*key: "Qm9ndXMtZXZpZGVuY2Uta2V5LW5vdC1hLXJlYWwtb25l",\s*$''',
+  '''^\s*\.oneshot\(part_request\("PUT", &slot, &key, "AbCdEfGhIjKl-_09", &big\)\)\s*$''',
+]
+
+[[allowlists]]
 description = "Synthetic fixtures currently flagged by default rules"
 paths = [
   '''(^|/)apps/cli/src/certs\.rs$''',
@@ -110,6 +120,67 @@ paths = [
   '''(^|/)spec/conformance/vault-drive-protocol\.json$''',
   '''(^|/)spec/conformance/item-type-cases\.json$''',
   '''(^|/)crates/bitwarden-server/tests/protocol\.rs$''',
+]
+
+[[allowlists]]
+description = "Validated exact synthetic JSON line in docs/evidence/2026-09-27-sample-data-and-manifest/manifest.json (no file bypass)"
+regexTarget = "line"
+regexes = [
+  '''^\s*"secret":\ "Fjord\-Lantern\-9",\s*$''',
+]
+
+[[allowlists]]
+description = "Validated exact synthetic JSON line in docs/evidence/2026-10-05-travel-hidden-items/journey.json (no file bypass)"
+regexTarget = "line"
+regexes = [
+  '''^\s*"secret":\ "pw\-quartz\-7f3a"\s*$''',
+]
+
+[[allowlists]]
+description = "Validated exact synthetic JSON line in docs/evidence/2026-10-05-travel-hidden-items/journey.json (no file bypass)"
+regexTarget = "line"
+regexes = [
+  '''^\s*"secret":\ "pw\-quartz\-7f3a"\s*$''',
+]
+
+[[allowlists]]
+description = "Validated exact synthetic JSON line in spec/conformance/store-manifest.json (no file bypass)"
+regexTarget = "line"
+regexes = [
+  '''^\s*"secret":\ "Fjord\-Lantern\-9",\s*$''',
+]
+
+[[allowlists]]
+description = "Validated exact synthetic JSON line in spec/conformance/store-manifest.json (no file bypass)"
+regexTarget = "line"
+regexes = [
+  '''^\s*"secret":\ "Y3JlZGVudGlhbC1pZA==",\s*$''',
+]
+
+[[allowlists]]
+description = "Validated exact synthetic JSON line in spec/log-scrub/log-scrub.json (no file bypass)"
+regexTarget = "line"
+regexes = [
+  '''^\s*"input":\ "key:\ \-\-\-\-\-BEGIN\ PRIVATE\ KEY\-\-\-\-\-\\nMIIEvQIBADANBg\\n\-\-\-\-\-END\ PRIVATE\ KEY\-\-\-\-\-\ done",\s*$''',
+]
+
+[[allowlists]]
+description = "Exact deliberately truncated PEM scrub fixture span; not a parseable private key"
+regexTarget = "match"
+regexes = [
+  '''^\-\-\-\-\-BEGIN\ PRIVATE\ KEY\-\-\-\-\-\\nMIIEvQIBADANBg\\n\-\-\-\-\-END\ PRIVATE\ KEY\-\-\-\-\-\ done",\
+\ \ \ \ \ \ "expect":\ "key:\ \[REDACTED\]\ done"\
+\ \ \ \ \},\
+\ \ \ \ \{\
+\ \ \ \ \ \ "rule":\ "pem",\
+\ \ \ \ \ \ "input":\ "cut\ \-\-\-\-\-BEGIN\ RSA\ PRIVATE\ KEY\-\-\-\-\-$''',
+]
+
+[[allowlists]]
+description = "Exact generated synthetic password-facade conformance output"
+regexTarget = "line"
+regexes = [
+  '''^\s*"password":\ "aLFFjcOCEhdA6stg4G0a"\s*$''',
 ]
 
 # Reviewed synthetic test literals and public schema/storage names. Each exemption
@@ -310,3 +381,38 @@ condition = "AND"
 regexTarget = "secret"
 regexes = ['\AaLFFjcOCEhdA6stg4G0a\z']
 paths = ['(^|/)spec/conformance/produce\-vectors\.json$']
+
+[[rules.allowlists]]
+description = "Public SHA-256 source pin for scripts/quality/credential-adapter-platform.py"
+condition = "AND"
+regexTarget = "line"
+regexes = ['^\s*"scripts/quality/credential\-adapter\-platform\.py":\s*"088fcad94fd0d2b7d355b99320e9e66acdc849340516c56a960ef1f455337735",?\s*$']
+paths = ['(^|/)scripts/quality/credential\-equivalence/repository\-code\-pins\.json$']
+
+[[rules.allowlists]]
+description = "Public SHA-256 source pin for crates/sealed-store/src/retired_credentials.rs"
+condition = "AND"
+regexTarget = "line"
+regexes = ['^\s*"crates/sealed\-store/src/retired_credentials\.rs":\s*"7c9c6ca707ac060cad6679f45ff969577a7bd0759fb704721e252926c65cfbd3",?\s*$']
+paths = ['(^|/)scripts/quality/credential\-equivalence/cfg\-inventory\.json$']
+
+[[rules.allowlists]]
+description = "Public SHA-256 source pin for crates/sealed-store/src/retired_credentials.rs"
+condition = "AND"
+regexTarget = "line"
+regexes = ['^\s*"crates/sealed\-store/src/retired_credentials\.rs":\s*"7c9c6ca707ac060cad6679f45ff969577a7bd0759fb704721e252926c65cfbd3",?\s*$']
+paths = ['(^|/)scripts/quality/credential\-equivalence/policy\.json$']
+
+[[rules.allowlists]]
+description = "Public SHA-256 source pin for tools/mutation/credential-rust-depth.json"
+condition = "AND"
+regexTarget = "line"
+regexes = ['^\s*"tools/mutation/credential\-rust\-depth\.json":\s*"9fac8a4de27dd7dcbfc57ac492e18d2c223e6efe2c46049cde02e42d24d5a70d",?\s*$']
+paths = ['(^|/)scripts/quality/credential\-equivalence/policy\.json$']
+
+[[rules.allowlists]]
+description = "Public SHA-256 source pin for crates/sealed-store/src/retired_credentials.rs"
+condition = "AND"
+regexTarget = "line"
+regexes = ['^\s*"crates/sealed\-store/src/retired_credentials\.rs":\s*"7c9c6ca707ac060cad6679f45ff969577a7bd0759fb704721e252926c65cfbd3",?\s*$']
+paths = ['(^|/)tools/mutation/credential\-adapter\-applicability\.json$']

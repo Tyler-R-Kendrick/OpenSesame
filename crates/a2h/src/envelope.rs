@@ -249,7 +249,7 @@ mod debug_redaction {
     fn the_callback_secret_never_prints() {
         let config = CallbackConfig {
             url: "https://gw.example/a2h/callback".into(),
-            secret: "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw".into(),
+            secret: "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw".into(), // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
         };
         let shown = format!("{config:?}");
         assert!(

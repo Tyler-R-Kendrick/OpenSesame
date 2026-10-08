@@ -31,6 +31,11 @@ import {
   isNumber,
   isString,
 } from "@opensesame/os-domain";
+import {
+  assertNotDecoySession,
+  currentSyntheticTransition,
+  isRealAuthorityBlocked,
+} from "./decoy-session.js";
 import { kvGet, kvRefresh, kvSetDurable } from "./kv.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
 import {
@@ -169,9 +174,12 @@ async function writeConnectorDirectory(
 /* ------------------------------------------------ the sync, and its parking */
 
 let pending: ConnectorDirectory | null = null;
+let pendingTransition = 0;
 
 /** What a sync left behind before any vault could seal it. */
 export function pendingConnectorDirectory(): ConnectorDirectory | null {
+  if (pendingTransition !== currentSyntheticTransition()) pending = null;
+  if (isRealAuthorityBlocked()) return null;
   return pending;
 }
 
@@ -195,6 +203,7 @@ export async function syncConnectorDirectory(input: {
   key: string;
   tomb: string | null;
 }): Promise<ConnectorDirectory> {
+  const generation = assertNotDecoySession();
   const endpoint = normalizeDirectoryEndpoint(input.endpoint);
   if (!endpoint) {
     throw new Error("Use an https address, or http on loopback.");
@@ -211,12 +220,16 @@ export async function syncConnectorDirectory(input: {
     integrations: listing.integrations,
     connections: listing.connections,
   };
+  assertNotDecoySession(generation);
   await writeDirectoryEndpoint(endpoint);
+  assertNotDecoySession(generation);
   if (input.tomb && tombUnlocked(input.tomb)) {
     await writeConnectorDirectory(input.tomb, record);
+    assertNotDecoySession(generation);
     pending = null;
   } else {
     pending = record;
+    pendingTransition = currentSyntheticTransition();
   }
   return record;
 }
@@ -229,8 +242,11 @@ export async function sealPendingConnectorDirectory(
   tomb: string,
   { ephemeral = false }: { ephemeral?: boolean } = {},
 ): Promise<boolean> {
+  const generation = assertNotDecoySession();
+  pendingConnectorDirectory();
   if (!pending || !tombUnlocked(tomb)) return false;
   await writeConnectorDirectory(tomb, pending);
+  assertNotDecoySession(generation);
   // A guest tomb is wiped on lock: it gets the list for its session, and the
   // sync keeps waiting for a vault that lasts.
   if (!ephemeral) pending = null;

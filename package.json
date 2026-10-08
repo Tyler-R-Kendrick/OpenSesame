@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@9.15.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.22.0"
   },
   "scripts": {
     "bootstrap": "pnpm install && pnpm --filter @opensesame/database db:generate && pnpm --filter @opensesame/database db:migrate && bash scripts/dev/setup-hooks.sh",
@@ -53,7 +53,7 @@
     "wallet:evidence": "node scripts/wallet/evidence.mjs",
     "typecheck:anti-slop": "tsc --noEmit --allowImportingTsExtensions --module NodeNext --moduleResolution NodeNext --target ESNext --skipLibCheck --types node tools/oxlint/anti-slop/index.ts tools/oxlint/anti-slop/effect/index.ts",
     "test:coverage:ts": "node scripts/quality/ts-coverage-gate.mjs",
-    "test:coverage:rust": "cargo +1.88.0 llvm-cov --workspace --all-targets --summary-only --fail-under-lines 69 --fail-under-functions 67 --json --output-path coverage/rust-summary.json",
+    "test:coverage:rust": "mkdir -p coverage && cargo +1.88.0 llvm-cov --workspace --all-targets --summary-only --fail-under-lines 69 --fail-under-functions 67 --json --output-path coverage/rust-summary.json",
     "test:coverage": "pnpm test:coverage:ts && pnpm test:coverage:rust",
     "test:mutation:ts": "stryker run tools/mutation/stryker.config.json",
     "test:mutation:duress": "stryker run tools/mutation/stryker.duress.config.json",
@@ -135,24 +135,19 @@
     "typescript": "5.8.3",
     "vite": "6.4.3",
     "vitest": "4.1.11",
-    "wxt": "0.20.6",
+    "wxt": "0.21.4",
     "zod": "3.25.67"
   },
   "pnpm": {
     "overrides": {
       "vitest": "4.1.11",
       "vite": "6.4.3",
-      "shell-quote": "1.11.0",
-      "adm-zip": "0.6.1",
       "tmp": "0.2.7",
       "uuid": "14.0.1",
       "qs": "6.16.0",
       "playwright": "1.55.1",
       "esbuild": ">=0.25.0",
       "fast-uri": "3.1.8",
-      "fx-runner>shell-quote": "1.11.0",
-      "web-ext-run>tmp": "0.2.7",
-      "firefox-profile>adm-zip": "0.6.1",
       "promptfoo>ai": "6.0.237",
       "promptfoo>@huggingface/transformers": "-",
       "@xmldom/xmldom": "0.8.15",
@@ -162,22 +157,17 @@
       "yaml": "2.8.4",
       "@noble/post-quantum>@noble/curves": "2.4.0",
       "@noble/post-quantum>@noble/hashes": "2.4.0",
-      "basic-ftp": "6.2.1",
-      "flatted": "3.4.2",
-      "js-yaml@^3": "3.15.2",
-      "js-yaml@^5": "5.4.1",
-      "log4js": "6.4.0",
-      "@modelcontextprotocol/sdk": "1.31.0",
-      "simple-git": "4.0.1",
-      "@simple-git/argv-parser": "2.0.1",
+      "basic-ftp": "6.2.2",
       "source-map-js": "1.2.2",
-      "js-yaml@3.15.2>argparse": "2.0.1"
+      "simple-git": "4.0.2",
+      "js-yaml@>=5": "5.4.3",
+      "promptfoo>jks-js": "-",
+      "@modelcontextprotocol/sdk": "1.31.0",
+      "@simple-git/argv-parser": "2.0.1"
     },
     "patchedDependencies": {
-      "braces@3.0.3": "patches/braces@3.0.3.patch",
-      "node-forge@1.4.0": "patches/node-forge@1.4.0.patch",
-      "js-yaml@3.15.2": "patches/js-yaml@3.15.2.patch",
-      "@simple-git/argv-parser@2.0.1": "patches/@simple-git__argv-parser@2.0.1.patch"
+      "@simple-git/argv-parser@2.0.1": "patches/@simple-git__argv-parser@2.0.1.patch",
+      "@ldapjs/messages@1.3.0": "patches/@ldapjs__messages@1.3.0.patch"
     }
   }
 }

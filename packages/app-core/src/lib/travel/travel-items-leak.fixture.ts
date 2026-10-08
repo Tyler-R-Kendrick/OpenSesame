@@ -48,7 +48,7 @@ export const ACK = { bundleSaved: true, codeRecorded: true };
 export const S = {
   name: "Zebra Offshore Bank",
   username: "user-zebra-4c1",
-  password: "pw-zebra-9f31",
+  password: "pw-zebra-9f31", // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
   notes: "note-zebra-7c2",
   field: "field-zebra-3d9",
   totp: "KRSXG5CTMVRXEZLUKN2XG2LS",

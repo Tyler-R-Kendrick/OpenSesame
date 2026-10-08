@@ -4,6 +4,7 @@
  * `tailnetSyncHeaders` loads the device record on that drive read or write.
  */
 
+import { assertNotDecoySession } from "../decoy-session.js";
 import {
   type FeatureOperation,
   runListedFeature,
@@ -15,6 +16,7 @@ let readTailnet = (): FeatureOperation => runListedFeature("tailscale");
 export function registerTailnetReader(
   reader: () => FeatureOperation,
 ): () => void {
+  assertNotDecoySession();
   const previous = readTailnet;
   readTailnet = reader;
   return () => {
@@ -23,7 +25,10 @@ export function registerTailnetReader(
 }
 
 export function currentTailnet(): FeatureOperation {
-  return readTailnet();
+  const generation = assertNotDecoySession();
+  const saved = readTailnet();
+  assertNotDecoySession(generation);
+  return saved;
 }
 
 export type BoundTailnet = {
@@ -34,8 +39,10 @@ export type BoundTailnet = {
 };
 
 let bound: BoundTailnet | null = null;
+let boundGeneration: number | undefined;
 
 export function bindTailnetConnector(next: BoundTailnet | null): void {
+  boundGeneration = next ? assertNotDecoySession() : undefined;
   bound = next
     ? {
         providerId: next.providerId,
@@ -47,6 +54,7 @@ export function bindTailnetConnector(next: BoundTailnet | null): void {
 }
 
 export function boundTailnet(): BoundTailnet | null {
+  assertNotDecoySession(boundGeneration);
   return bound
     ? {
         providerId: bound.providerId,
@@ -62,6 +70,7 @@ export function tailnetSyncHeaders(
   base: Record<string, string> = {},
   saved = runListedFeature("tailscale"),
 ) {
+  assertNotDecoySession();
   const headers = { ...base };
   if (!saved.ok) return headers;
   for (const [name, value] of Object.entries(saved.action)) {
@@ -78,5 +87,6 @@ export function tailnetSyncHeaders(
 
 export function resetTailnetConnectorForTest(): void {
   bound = null;
+  boundGeneration = undefined;
   readTailnet = () => runListedFeature("tailscale");
 }

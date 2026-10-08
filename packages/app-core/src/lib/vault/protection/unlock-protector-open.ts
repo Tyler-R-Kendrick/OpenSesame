@@ -15,18 +15,14 @@
  */
 
 import {
+  type AgeRecipientProtectorRecord,
   type ProtectionContext,
   type ProtectionRecord,
   type RootProtectionManifest,
   type VaultHeader,
   WrongPasswordError,
 } from "@opensesame/vault-core";
-import { isAgeIdentity } from "../../age-keys.js";
-import { openAgeCapsule } from "./adapters/age-recipient.js";
-import {
-  type AgeWebauthnCrypto,
-  openAgeWebauthn,
-} from "./adapters/age-webauthn.js";
+import type { AgeWebauthnCrypto } from "./adapters/age-webauthn.js";
 import { ProtectionError } from "./errors.js";
 import { verifyManifestAuth } from "./manifest-auth.js";
 import { openWithRecoveryKey } from "./recovery-key.js";
@@ -141,16 +137,36 @@ type Opener = (
   context: ProtectionContext,
 ) => Promise<Uint8Array>;
 
+/** Load and validate only this protector; a canceled request opens no capsule. */
+async function openAgeRecipient(
+  input: ProtectorUnlockInput,
+  record: AgeRecipientProtectorRecord,
+  context: ProtectionContext,
+  secret: string,
+): Promise<Uint8Array> {
+  const { isAgeIdentity } = await import("../../age-keys.js");
+  if (input.signal?.aborted) throw abortError();
+  const valid = await isAgeIdentity(secret);
+  if (input.signal?.aborted) throw abortError();
+  if (!valid) throw new ProtectionError("unavailable", "Nothing to open with.");
+  const { openAgeCapsule } = await import("./adapters/age-recipient.js");
+  if (input.signal?.aborted) throw abortError();
+  return openAgeCapsule(record, context, secret);
+}
+
 function openerFor(input: ProtectorUnlockInput): Opener {
   const secret = (input.secret ?? "").trim();
   return async (record, context) => {
+    if (input.signal?.aborted) throw abortError();
     if (record.kind === "recovery-key" && secret) {
       return openWithRecoveryKey({ context, record, secretB64: secret });
     }
-    if (record.kind === "age-recipient" && (await isAgeIdentity(secret))) {
-      return openAgeCapsule(record, context, secret);
+    if (record.kind === "age-recipient") {
+      return openAgeRecipient(input, record, context, secret);
     }
     if (record.kind === "age-webauthn") {
+      const { openAgeWebauthn } = await import("./adapters/age-webauthn.js");
+      if (input.signal?.aborted) throw abortError();
       return openAgeWebauthn(
         input.ageWebauthnCrypto
           ? { context, record, crypto: input.ageWebauthnCrypto }

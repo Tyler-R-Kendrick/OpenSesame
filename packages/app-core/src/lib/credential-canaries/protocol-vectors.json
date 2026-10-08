@@ -1,0 +1,42 @@
+{
+  "v": 1,
+  "domain": "OpenSesame credential canary v1\u0000",
+  "vectors": [
+    {
+      "context": {
+        "vaultIdentity": "public-vector-vault",
+        "kind": "connection_ref",
+        "generation": 1
+      },
+      "presentedId": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "digestB64": "9gU6uzQhK8bmVB5zaFVnPp8kQM+GdQq5U3gFFsonS2A="
+    },
+    {
+      "context": {
+        "vaultIdentity": "public-vector-vault",
+        "kind": "mcp_configuration",
+        "generation": 2
+      },
+      "presentedId": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "digestB64": "uJoGpeeGVq7bzg889sh9loRtoqzJy8+eZkrPogjr0HQ="
+    },
+    {
+      "context": {
+        "vaultIdentity": "public-vector-vault",
+        "kind": "token_generation",
+        "generation": 3
+      },
+      "presentedId": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "digestB64": "SyUmCRWPh+eQLH0aNCUiFQ8S2TrE3Ai5i9+xldtZRas="
+    },
+    {
+      "context": {
+        "vaultIdentity": "public-vector-vault",
+        "kind": "agent_lease",
+        "generation": 4
+      },
+      "presentedId": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
+      "digestB64": "jl/HbiyKpWyDN4z+A5p9tdAXEgqsTcZgrgZ6AY6QKMA="
+    }
+  ]
+}

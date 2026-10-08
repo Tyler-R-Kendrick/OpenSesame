@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   featureRequestSeams,
+  performSavedCategory,
+  registerCategorySend,
+  resetCategorySendsForTest,
   sendFeatureOperation,
 } from "./feature-request-send.js";
 
@@ -81,4 +84,21 @@ describe("sending a saved connector operation", () => {
     ).toEqual({ ok: false, providerId: "anthropic" });
     expect(fetchSpy).not.toHaveBeenCalled();
   });
+});
+
+it("deduplicates the same current category callback and preserves explicit rebind disposal", () => {
+  resetCategorySendsForTest();
+  const shared = vi.fn(() => []);
+  const replacement = vi.fn(() => []);
+  const stopA = registerCategorySend("dedup-a", shared);
+  const stopB = registerCategorySend("dedup-b", shared);
+  performSavedCategory(["dedup-a", "dedup-b"]);
+  expect(shared).toHaveBeenCalledTimes(1);
+  const stopReplacement = registerCategorySend("dedup-a", replacement);
+  stopA();
+  performSavedCategory(["dedup-a"]);
+  expect(replacement).toHaveBeenCalledTimes(1);
+  stopB();
+  stopReplacement();
+  resetCategorySendsForTest();
 });

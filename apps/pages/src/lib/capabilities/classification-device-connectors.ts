@@ -3,11 +3,33 @@
  * saved record, so the files are shared infrastructure.
  */
 
-import { each, shared } from "./classification-rule.js";
+import { core, each, shared } from "./classification-rule.js";
 
 const L = "src/lib/";
 
 export const DEVICE_CONNECTOR_RULES = [
+  core(
+    `${L}device-connector-legacy`,
+    "vault.local-unlock",
+    "owner-authenticated import or discard of quarantined legacy credentials in Security",
+  ),
+  shared(
+    `${L}device-connector-legacy-storage`,
+    "legacy quarantine schemas read by retired-credential enrollment and connector metadata",
+  ),
+  shared(
+    `${L}device-connector-lock`,
+    "fresh metadata serialization shared by connector writers and owner recovery",
+  ),
+  ...each(
+    L,
+    ["device-connector-principal", "device-connector-principal-state"],
+    (p) =>
+      shared(
+        p,
+        "admitted vault and generation binding shared by connector runtimes, Git backup and vault carry",
+      ),
+  ),
   ...each(
     L,
     [
@@ -17,6 +39,7 @@ export const DEVICE_CONNECTOR_RULES = [
       "device-connectors",
       "feature-connector-operation",
       "feature-request",
+      "feature-request-authority",
       "local-connector-features",
     ],
     (p) =>

@@ -1,3 +1,4 @@
+import { navigateConsentWindow } from "../../../lib/decoy-navigation.js";
 /**
  * A capability family's connectors as live cards (ADR 0114).
  *
@@ -46,8 +47,9 @@ function useConnectFlow(
   const [state, setState] = useState<CardState>({ phase: "idle" });
   const connect = async () => {
     setState({ phase: "busy" });
-    const tab = openConsentPopup("about:blank");
+    let tab: Window | null = null;
     try {
+      tab = openConsentPopup("about:blank");
       const scopes = def.authScopes?.(providerId);
       const live =
         connection && connection.status !== "revoked"
@@ -61,8 +63,7 @@ function useConnectFlow(
         live.connectionId,
         scopes,
       );
-      if (tab) tab.location.href = authorizationUrl;
-      else window.location.href = authorizationUrl;
+      navigateConsentWindow(authorizationUrl, tab);
       const outcome = await awaitConsent(live.connectionId, tab);
       if (outcome.result === "active") {
         choose(providerId, outcome.connection.connectionId);

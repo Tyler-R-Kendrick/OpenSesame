@@ -1,0 +1,16 @@
+{
+  "v": 1,
+  "kind": "controlled-parser-fixture-copied-from-genuine-discovery-only",
+  "rawSha256": "648f8bd133ec9bfeb3d1fdc4396ce4f184945edaaee8a889c907dddfa5f514dd",
+  "discoveryContext": {
+    "compiler": "Rust 1.88.0",
+    "tool": "cargo-mutants 27.1.0",
+    "host": "x86_64-unknown-linux-gnu",
+    "inventory": 281,
+    "cfgInventorySha256": "3a3a8e71907cb02681c836e3e9396575ed5e71296ced646844d74074e9eb4c7d"
+  },
+  "nativeProofs": 0,
+  "qualification": "Discovery object identities are retained solely as controlled parser fixture data; generated success/Missed/Caught phases in tests are fictional. This file cannot substitute for current genuine discovery, baseline, native linkage or mutation results.",
+  "fixtureSha256": "7cb3a6c3eb01517c239f678861479e4edb3258d12cd69a4f92ecf52c8e4357b4",
+  "fixtureFormatting": "Biome whitespace only; parsed object identities and order unchanged."
+}

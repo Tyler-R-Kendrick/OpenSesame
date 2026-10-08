@@ -21,7 +21,9 @@ if [[ -x node_modules/.bin/jazzer ]] && node -e 'import("@jazzer.js/core")' >/de
   echo "==> jazzer-gate: native Jazzer.js (${SECONDS_PER_TARGET}s/target)"
   fail=0
   mkdir -p "$OPENSESAME_AUDIT_DIR/artifacts" "$OPENSESAME_AUDIT_DIR/corpus"
-  for f in src/*.ts; do
+  # Awaited crypto targets are native-only; the DEGRADED random runner is nonrecursive.
+  for f in src/*.ts src/security-protocol/*-native.ts; do
+    [[ -f "$f" ]] || continue
     base="$(basename "$f")"
     case "$base" in
       *.test.ts|oracles.ts|provider.ts|run.ts) continue ;;

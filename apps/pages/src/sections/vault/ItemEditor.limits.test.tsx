@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectInTray } from "../../components/tray.test-support.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { ItemEditor } from "./ItemEditor.js";
+import { editorPresentationWriter } from "./editor-presentation.test-support.js";
 
 const original = { ...vaultHooksSeams };
 const saveItem = vi.fn();
@@ -21,7 +22,7 @@ beforeEach(() => {
   revokePacks = switchCredentialPacksOn();
   Object.assign(vaultHooksSeams, {
     useVault: () => ({ items: [], folders: [] }),
-    useVaultStore: () => ({ saveItem }),
+    useVaultStore: () => editorPresentationWriter(saveItem),
   });
 });
 afterEach(() => {

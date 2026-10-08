@@ -26,6 +26,7 @@ import {
   redactKnown,
   sealed,
 } from "./wire";
+import { RunnerAuthorityEnded } from "./worker-authority";
 
 function moved(epoch: EpochState): void {
   epoch.epoch += 1;
@@ -141,7 +142,12 @@ async function custody(
   if (request.step === "seal_candidate") {
     // Fail closed: anything but a proven backup is the answer that stops the run.
     return sealed(
-      await d.vault.seal(ctx, request.handle, d.backup).catch(() => false),
+      await d.vault
+        .seal(ctx, request.handle, d.backup)
+        .catch((error: unknown) => {
+          if (error instanceof RunnerAuthorityEnded) throw error;
+          return false;
+        }),
     );
   }
   return (await d.vault.promote(ctx, request.handle))
@@ -197,9 +203,13 @@ export async function runStep(
   let outcome: RunnerStepOutcome;
   try {
     outcome = await execute(request, d);
-  } catch {
+  } catch (error) {
+    if (error instanceof RunnerAuthorityEnded) throw error;
     outcome = failed("transport");
   }
-  const known = await d.vault.secrets(ctxOf(d)).catch(() => []);
+  const known = await d.vault.secrets(ctxOf(d)).catch((error: unknown) => {
+    if (error instanceof RunnerAuthorityEnded) throw error;
+    return [];
+  });
   return guard(request.step, outcome, known);
 }

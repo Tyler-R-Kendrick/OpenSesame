@@ -13,6 +13,7 @@ import {
   isString,
   overlapCast,
 } from "@opensesame/os-domain";
+import { withRealAuthority } from "./decoy-session.js";
 import { identityFetch, isRemoteIdentityConfigured } from "./identity.js";
 
 export type WalletRegistrationWire = {
@@ -103,7 +104,7 @@ function parseRegisterResult(value: JsonObject): WalletRegisterResult | null {
   };
 }
 
-export async function listWalletRegistrations(): Promise<
+async function listWalletRegistrationsDefault(): Promise<
   readonly WalletRegistrationWire[]
 > {
   requireIdentity();
@@ -127,7 +128,7 @@ export async function listWalletRegistrations(): Promise<
   return out;
 }
 
-export async function registerWalletLauncher(input: {
+async function registerWalletLauncherDefault(input: {
   registrationId: string;
   header: string;
   subtitle?: string;
@@ -164,7 +165,7 @@ export async function registerWalletLauncher(input: {
   return result;
 }
 
-export async function disableWalletLauncher(
+async function disableWalletLauncherDefault(
   registrationId: string,
 ): Promise<WalletRegistrationWire & { googleAcknowledged: boolean }> {
   requireIdentity();
@@ -185,4 +186,22 @@ export async function disableWalletLauncher(
     ...base,
     googleAcknowledged: parsed.googleAcknowledged,
   };
+}
+
+export function listWalletRegistrations(
+  ...args: Parameters<typeof listWalletRegistrationsDefault>
+): ReturnType<typeof listWalletRegistrationsDefault> {
+  return withRealAuthority(() => listWalletRegistrationsDefault(...args));
+}
+
+export function registerWalletLauncher(
+  ...args: Parameters<typeof registerWalletLauncherDefault>
+): ReturnType<typeof registerWalletLauncherDefault> {
+  return withRealAuthority(() => registerWalletLauncherDefault(...args));
+}
+
+export function disableWalletLauncher(
+  ...args: Parameters<typeof disableWalletLauncherDefault>
+): ReturnType<typeof disableWalletLauncherDefault> {
+  return withRealAuthority(() => disableWalletLauncherDefault(...args));
 }

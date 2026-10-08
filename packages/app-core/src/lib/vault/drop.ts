@@ -33,6 +33,7 @@ import {
   asDropError,
   mapTransportError,
 } from "../claims/drop-open.js";
+import { assertNotDecoySession, withRealAuthority } from "../decoy-session.js";
 import { dropSeams } from "./drop-transport.js";
 
 // Opening a drop is the recipient's side, always-on under
@@ -105,14 +106,16 @@ export async function createDropSession(
   manifest: DropManifest,
   ttlMs: number,
 ): Promise<DropSession> {
-  try {
-    // SAFETY: DropManifest is a JsonObject (kind + sealed fields).
-    return await dropSeams.createClaim(overlapCast(manifest), ttlMs);
-  } catch (error) {
-    throw mapTransportError(
-      error instanceof Error ? error : new Error("drop claim create failed"),
-    );
-  }
+  return withRealAuthority(async () => {
+    try {
+      // SAFETY: DropManifest is a JsonObject (kind + sealed fields).
+      return await dropSeams.createClaim(overlapCast(manifest), ttlMs);
+    } catch (error) {
+      throw mapTransportError(
+        error instanceof Error ? error : new Error("drop claim create failed"),
+      );
+    }
+  });
 }
 
 /** Map the claim's current state onto the drop record's lifecycle. */
@@ -169,23 +172,27 @@ export async function createDrop(input: {
   ttlMs: number;
   keepCopy: boolean;
 }): Promise<CreatedDrop> {
-  const { manifest, fragmentKey } = await sealDrop(input.payload);
-  const session = await createDropSession(manifest, input.ttlMs);
-  const record: DropItem = {
-    ...createItem("drop", input.name),
-    state: "pending",
-    claimId: session.claimId,
-    bearerToken: session.bearerToken,
-    expiresAt: session.expiresAt,
-    ...(input.keepCopy
-      ? { keptCopy: keptCopyFromPayload(input.payload) }
-      : undefined),
-  };
-  return {
-    record,
-    link: dropLink(session.verifyUrl, session.bearerToken, fragmentKey),
-    userCode: session.userCode,
-  };
+  return withRealAuthority(async () => {
+    const generation = assertNotDecoySession();
+    const { manifest, fragmentKey } = await sealDrop(input.payload);
+    assertNotDecoySession(generation);
+    const session = await createDropSession(manifest, input.ttlMs);
+    const record: DropItem = {
+      ...createItem("drop", input.name),
+      state: "pending",
+      claimId: session.claimId,
+      bearerToken: session.bearerToken,
+      expiresAt: session.expiresAt,
+      ...(input.keepCopy
+        ? { keptCopy: keptCopyFromPayload(input.payload) }
+        : undefined),
+    };
+    return {
+      record,
+      link: dropLink(session.verifyUrl, session.bearerToken, fragmentKey),
+      userCode: session.userCode,
+    };
+  });
 }
 
 /** A one-time share of text already stored on an item. No vault record. */
@@ -200,17 +207,21 @@ export async function shareOnce(input: {
   text: string;
   ttlMs: number;
 }): Promise<SharedOnce> {
-  const { manifest, fragmentKey } = await sealDrop({
-    kind: "text",
-    name: input.name,
-    text: input.text,
+  return withRealAuthority(async () => {
+    const generation = assertNotDecoySession();
+    const { manifest, fragmentKey } = await sealDrop({
+      kind: "text",
+      name: input.name,
+      text: input.text,
+    });
+    assertNotDecoySession(generation);
+    const session = await createDropSession(manifest, input.ttlMs);
+    return {
+      link: dropLink(session.verifyUrl, session.bearerToken, fragmentKey),
+      userCode: session.userCode,
+      expiresAt: session.expiresAt,
+    };
   });
-  const session = await createDropSession(manifest, input.ttlMs);
-  return {
-    link: dropLink(session.verifyUrl, session.bearerToken, fragmentKey),
-    userCode: session.userCode,
-    expiresAt: session.expiresAt,
-  };
 }
 
 /* ----------------------------------------------------------- kept copies */

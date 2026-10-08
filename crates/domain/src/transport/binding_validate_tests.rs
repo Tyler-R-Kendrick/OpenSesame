@@ -154,3 +154,37 @@ fn parse_json_refuses_unknown_fields_and_coercion() {
     assert!(ServiceBindingSet::parse_json("not json").is_err());
     assert!(ServiceBindingSet::parse_json("[]").is_err());
 }
+
+#[test]
+fn parse_failures_redact_long_document_values_in_every_error_view() {
+    let canary = "private-fixture-canary-".repeat(256);
+    let good = ServiceBindingSet {
+        revision: 1,
+        bindings: vec![binding("b1", bridge(), BindingPurpose::NatsAuthBridge)],
+    };
+    let mut unknown_field = serde_json::to_value(&good).unwrap();
+    unknown_field[canary.clone()] = json!(true);
+    let mut bad_purpose = serde_json::to_value(&good).unwrap();
+    bad_purpose["bindings"][0]["purpose"] = json!(canary.clone());
+    let top_string = serde_json::to_string(&canary).unwrap();
+    for input in [
+        top_string.clone(),
+        format!("{top_string} trailing"),
+        unknown_field.to_string(),
+        bad_purpose.to_string(),
+    ] {
+        let err = ServiceBindingSet::parse_json(&input).unwrap_err();
+        assert_eq!(err.code(), "malformed_configuration");
+        let view = err.view();
+        assert_eq!(
+            view.detail.as_deref(),
+            Some("service bindings: invalid JSON binding document")
+        );
+        for text in [err.to_string(), serde_json::to_string(&view).unwrap()] {
+            assert!(text.len() < 256, "refusal detail must stay bounded");
+            assert!(!text.contains(&canary), "refusal echoed document contents");
+        }
+    }
+    let parsed = ServiceBindingSet::parse_json(&serde_json::to_string(&good).unwrap()).unwrap();
+    assert_eq!(parsed, good);
+}

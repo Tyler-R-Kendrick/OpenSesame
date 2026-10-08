@@ -5,6 +5,7 @@
 import {
   type InteractionKind,
   type JsonObject,
+  isString,
   overlapCast,
 } from "@opensesame/os-domain";
 import { expect } from "vitest";
@@ -38,16 +39,20 @@ export async function factoryPrincipal(cp: FactoryPlane) {
     method: "POST",
   });
   expect(res.status).toBe(201);
-  return overlapCast<{ accessToken: string; principalId: string }>(
-    await res.json(),
-  );
+  const { accessToken, principalId } = overlapCast(await res.json());
+  if (!isString(accessToken) || !isString(principalId))
+    throw new Error("Invalid public principal response");
+  return { accessToken, principalId };
 }
 
 export async function factoryInboxRef(cp: FactoryPlane, token: string) {
   const res = await cp.app.request("/v1/authorization-requests/inbox-ref", {
     headers: { authorization: `Bearer ${token}` },
   });
-  return overlapCast<{ approverRef: string }>(await res.json()).approverRef;
+  expect(res.status).toBe(200);
+  const { approverRef } = overlapCast(await res.json());
+  if (!isString(approverRef)) throw new Error("Invalid public inbox response");
+  return approverRef;
 }
 
 export const FACTORY_DELEGATION: JsonObject = {

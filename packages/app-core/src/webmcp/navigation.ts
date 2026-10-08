@@ -16,6 +16,7 @@ import { settingsCategories, settingsPath } from "../lib/crumbs.js";
 import { readDraftPrefill } from "../lib/vault/new-draft.js";
 import { vaultStore } from "../lib/vault/store.js";
 import { webmcpNavigationSeam } from "./seams.js";
+import { pinToolContinuation } from "./tool-shared.js";
 
 /**
  * The core sections a browser agent may name. Optional sections and their
@@ -59,6 +60,8 @@ async function itemDestination(
   section: string,
   args: JsonObject,
 ): Promise<string> {
+  const check = vaultStore.pinContinuation();
+  const tomb = vaultStore.activeTomb();
   const itemId = args.itemId;
   if (
     section !== "/vault" ||
@@ -68,11 +71,13 @@ async function itemDestination(
     throw new Error("invalid_item_destination");
   const edit = args.edit === true;
   const { assertShareReach } = await import("../lib/local-share-reach.js");
+  check();
   await assertShareReach(
-    vaultStore.activeTomb(),
+    tomb,
     { kind: "item", id: itemId },
     edit ? "write" : "read",
   );
+  check();
   const { items } = vaultStore.getSnapshot();
   if (!items.some((item) => item.id === itemId && !item.deletedAt))
     throw new Error("invalid_item_destination");
@@ -131,7 +136,8 @@ export const navigationTool: WebMcpToolSpec = {
   get inputSchema() {
     return navigationInputSchema();
   },
-  async execute(args) {
+  async execute(args, ceiling) {
+    const check = pinToolContinuation(ceiling);
     if (!isString(args.section)) throw new Error("missing_argument:section");
     const section = args.section.startsWith("/")
       ? args.section
@@ -164,6 +170,7 @@ export const navigationTool: WebMcpToolSpec = {
         isString(args.itemType) ? resolveTypeId(args.itemType) : "account",
       );
     }
+    check();
     webmcpNavigationSeam.navigate(location);
     return { status: "navigated", location };
   },

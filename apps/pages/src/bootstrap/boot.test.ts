@@ -131,6 +131,9 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  // Boot accepts lazy issuer registration outside VFS writes. Finish that
+  // real module work before this fixture clears storage or jsdom tears down.
+  await vi.dynamicImportSettled();
   await vfsFlush();
   lockAllTombs();
   clearBootKeys();
@@ -148,7 +151,14 @@ afterEach(async () => {
  */
 async function boot(): Promise<void> {
   const { stopWatching } = await bootCore();
-  stopWatching();
+  try {
+    // stopWatching unsubscribes observers; it does not cancel an accepted
+    // import. A production document stays alive, but this fixture must own
+    // completion before ending the boot session and its test environment.
+    await vi.dynamicImportSettled();
+  } finally {
+    stopWatching();
+  }
 }
 
 describe("pre-unlock boot path", () => {
@@ -177,7 +187,7 @@ describe("pre-unlock boot path", () => {
     // (Boot endpoints in `settings.v1` hydrate through the kv layer and
     // never pass through the VFS at all.)
     const PLAINTEXT_BOUNDARY_RE =
-      /^(projects\.v1|tombs\.v1|vault\.[a-z]+\.v1|site-broker\.[a-z]+\.v1|tomb\/[^/]+\/(header|body|migrated\.v1))$/;
+      /^(projects\.v1|tombs\.v1|vault\.[a-z]+\.v1|site-broker\.[a-z]+\.v1|tomb\/[^/]+\/(header|body|migrated\.v1|rotation-journal\.v1))$/;
     for (const key of touched.keys) {
       expect(key).toMatch(PLAINTEXT_BOUNDARY_RE);
     }

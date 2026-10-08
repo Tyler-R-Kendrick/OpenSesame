@@ -1,0 +1,12 @@
+{
+  "v": 1,
+  "packageId": "22222222-2222-4222-8222-222222222222",
+  "receiverId": "reference-receiver",
+  "bindingId": "fixture-binding",
+  "keyEpoch": 7,
+  "issuedAt": "2026-10-06T00:00:00.000Z",
+  "expiresAt": "2026-10-07T00:00:00.000Z",
+  "nonceB64": "UFFSU1RVVldYWVpbXF1eXw==",
+  "ciphertextB64": "QEFCQ0RFRkdISUpLmZvYARwNqyGosnJY7y13eUPkY22GBD4SRnZj1KYi3PasOcKd84HuZRDZOl6gPO7r+kCbAAL2wCWjbLVxS55hpIF9ocNwpwmQdacK/eINjg1jDjO+Rx42o1WzU1p1dAZvzNEOk/hlRfpqYPDP3rmXaNfcL4vP+hwJvt/ZuwfKMabFdQuhJB1b84EaqOHYfVHs1qHL5DeBmZpbJeSNuolYP5i7iHUQwGMhExfYsfxHkaboaqwGpXRkubvvBtD20ZckZcYOy1wX/58l4iAHbghdYW+BMV/YEDBfOaSc/CfB3is9G8E=",
+  "macB64": "T5kSHlvdVsNrhi/q+87WYPiGAWlajSpqrO+PUXf3hh4="
+}

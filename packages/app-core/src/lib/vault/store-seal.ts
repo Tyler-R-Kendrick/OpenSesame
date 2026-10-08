@@ -1,3 +1,4 @@
+import type { WriteOperation } from "../vfs-write-contract.js";
 /**
  * Sealing the body to its tomb, and noting in the header how far it has got.
  *
@@ -13,12 +14,16 @@ import {
   sealJson,
   vaultSealBinding,
 } from "@opensesame/vault-core";
+import { enqueueVfsWrite } from "../vfs-write-queue.js";
 import {
   BODY_PATH,
   HEADER_PATH,
+  refreshTombRootGeneration,
   writePlaintextFile,
   writeSealedFile,
 } from "../vfs.js";
+import { readTombHeader } from "./store-header.js";
+import { pinStoredRootAuthority } from "./store-root-authority.js";
 
 /** A body written to its tomb: its revision, its seal, and the header to hold after. */
 export type WrittenBody = Readonly<{
@@ -37,7 +42,10 @@ export async function writeBody(
   vaultKey: CryptoKey,
   body: VaultBody,
   header: VaultHeader | null,
+  operation?: WriteOperation,
 ): Promise<WrittenBody> {
+  const assertCurrent = pinStoredRootAuthority(tomb, vaultKey);
+  operation?.check();
   const rev = (body.rev ?? 0) + 1;
   const sealed = await sealJson(
     vaultKey,
@@ -46,12 +54,14 @@ export async function writeBody(
     normalizeVaultBody({ ...body, rev }),
     vaultSealBinding(tomb, BODY_PATH),
   );
+  assertCurrent();
+  operation?.check();
   assertSealed(sealed);
-  await writeSealedFile(tomb, BODY_PATH, sealed);
+  await writeSealedFile(tomb, BODY_PATH, sealed, operation);
   return {
     rev,
     mark: sealed.ivB64,
-    header: await noteBodyRev(tomb, header, rev),
+    header: await noteBodyRev(tomb, vaultKey, header, rev),
   };
 }
 
@@ -63,13 +73,21 @@ export async function writeBody(
  */
 async function noteBodyRev(
   tomb: string,
+  key: CryptoKey,
   header: VaultHeader | null,
   rev: number,
 ): Promise<VaultHeader | null> {
   if (!header || (header.bodyRev ?? 0) >= rev) return header;
-  const next: VaultHeader = { ...header, bodyRev: rev };
+  let next: VaultHeader = header;
+  const assertCurrent = pinStoredRootAuthority(tomb, key);
   try {
-    await writePlaintextFile(tomb, HEADER_PATH, JSON.stringify(next));
+    await enqueueVfsWrite(tomb, async () => {
+      assertCurrent();
+      const current = readTombHeader(tomb) ?? header;
+      next = { ...current, bodyRev: Math.max(current.bodyRev ?? 0, rev) };
+      await writePlaintextFile(tomb, HEADER_PATH, JSON.stringify(next));
+      refreshTombRootGeneration(tomb, key);
+    });
   } catch {
     // The body is safely stored; only the rollback witness is behind. Losing
     // it costs detection, not data, and the next write will catch it up.

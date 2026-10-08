@@ -38,6 +38,10 @@ import {
 import { credentials, publicKeyCredentialApi } from "../ports.js";
 import { identityPlaneRequest } from "./device-identity.js";
 import { currentSession, identityFetch } from "./identity.js";
+import {
+  authenticatedResult,
+  captureRealAuthority,
+} from "./member-authority.js";
 
 export interface InteractionTransport {
   /** An approver's Identity API call; `path` is relative to the base. */
@@ -60,13 +64,33 @@ export const identityInteractionTransport: InteractionTransport = {
 export function interactionClient(
   transport: InteractionTransport = identityInteractionTransport,
 ): InteractionClient {
-  return createInteractionClient({
+  const client = createInteractionClient({
     baseUrl: "",
     // `identityFetch` attaches the session itself, so no `bearer` here.
     fetchImpl: (input, init) => transport.fetch(String(input), init ?? {}),
     resolveFetch: (input, init) =>
       transport.anonymous(String(input), init ?? {}),
   });
+  if (transport !== identityInteractionTransport) return client;
+  return {
+    resolveInteraction: (
+      ...args: Parameters<typeof client.resolveInteraction>
+    ) => client.resolveInteraction(...args),
+    readInteraction: (...args: Parameters<typeof client.readInteraction>) =>
+      authenticatedResult(() => client.readInteraction(...args)),
+    beginInteractionActivation: (
+      ...args: Parameters<typeof client.beginInteractionActivation>
+    ) => authenticatedResult(() => client.beginInteractionActivation(...args)),
+    completeInteractionActivation: (
+      ...args: Parameters<typeof client.completeInteractionActivation>
+    ) =>
+      authenticatedResult(() => client.completeInteractionActivation(...args)),
+    approveInteraction: (
+      ...args: Parameters<typeof client.approveInteraction>
+    ) => authenticatedResult(() => client.approveInteraction(...args)),
+    denyInteraction: (...args: Parameters<typeof client.denyInteraction>) =>
+      authenticatedResult(() => client.denyInteraction(...args)),
+  };
 }
 
 async function getCredential(
@@ -129,6 +153,9 @@ export function interactionApproval(
       client: interactionClient(binding.transport),
       authenticator: binding.authenticator,
       signedIn: () => binding.transport.signedIn(),
+      ...(binding.transport === identityInteractionTransport
+        ? { beginOperation: captureRealAuthority }
+        : {}),
     },
     ref,
   );

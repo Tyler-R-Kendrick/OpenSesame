@@ -25,28 +25,29 @@ import { compositionStore } from "../capabilities/store.js";
 import { persistedRestoreRefuses } from "../document-lifecycle.js";
 import { vaultStore } from "../vault/store.js";
 import { planRefusal } from "./carrier-policy.js";
-import { vaultWrite } from "./field-write.js";
 import { LiveGuest } from "./guest.js";
-import { type Admission, LiveHost, MAX_SESSION_MS } from "./host.js";
+import {
+  captureHostConstruction,
+  guardedLiveCarrierFactory,
+} from "./host-authority.js";
+import type { LiveHost } from "./host.js";
 import { watchDocumentLifecycle } from "./lifecycle-watch.js";
 import type { LiveLink } from "./link.js";
-import type { SharePolicy } from "./messages.js";
 import { DIRECT_ONLY, type IceSettings, type PeerFactory } from "./peer.js";
+import {
+  captureLiveRealmAuthority,
+  watchLiveRealmAuthority,
+} from "./realm-authority.js";
 import type { CarrierFactory, Rendezvous } from "./rendezvous.js";
 import { NO_ROUTES, linkRoutes } from "./routes.js";
 import {
   guestCarriersFor,
-  hostRoutes,
   openCarriers,
   poster,
   rtcServers,
 } from "./session-carriers.js";
-import {
-  type CarrierSpec,
-  DIRECT_TRANSPORT,
-  type LiveTransport,
-} from "./transport.js";
-import { type ShareScope, vaultCatalog, vaultField } from "./vault-share.js";
+import { buildHost } from "./session-host.js";
+import type { CarrierSpec } from "./transport.js";
 
 export const liveSeams = {
   items: (): readonly VaultItem[] => vaultStore.getSnapshot().items,
@@ -71,6 +72,10 @@ let stopLockWatch: (() => void) | null = null;
 let guest: LiveGuest | null = null;
 let guestCarriers: Rendezvous | null = null;
 let stopPlanWatch: (() => void) | null = null;
+let hostAuthority: (() => void) | null = null;
+let guestAuthority: (() => void) | null = null;
+let stopHostRealm: (() => void) | null = null;
+let stopGuestRealm: (() => void) | null = null;
 
 /**
  * While a session stands, end both when a resolved plan does not approve
@@ -119,62 +124,8 @@ export function onLiveSessionChange(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-export type HostInput = Readonly<{
-  title: string;
-  scope: ShareScope;
-  policy: SharePolicy;
-  admission: Admission;
-  /** Minutes; the host clamps it to eight hours. */
-  minutes: number;
-  peers: PeerFactory;
-  /** The owner's transport profile; direct only when absent. */
-  transport?: LiveTransport;
-  /** The shell's carrier clients, for a profile that names carriers. */
-  carriers?: CarrierFactory;
-}>;
-
-/** Where an admission asks for a seat's relay, once the carriers are open. */
-type RelaySource = { carriers: Rendezvous | null };
-
-/** The session's host and the routes its link carries, built but not yet live. */
-async function buildHost(
-  input: HostInput,
-  post: (code: string) => void,
-  source: RelaySource,
-) {
-  // The host clamps the lifetime; the catalog states the clamped one.
-  const expiresAt = Math.min(
-    Date.now() + input.minutes * 60_000,
-    Date.now() + MAX_SESSION_MS,
-  );
-  const items = liveSeams.items;
-  const transport = input.transport ?? DIRECT_TRANSPORT;
-  const { secret, routes, own, ice } = await hostRoutes(transport, expiresAt);
-  const next = await LiveHost.start({
-    admission: input.admission,
-    ice,
-    routes,
-    secret,
-    relay: (name) => source.carriers?.seat(name) ?? null,
-    post,
-    expiresAt,
-    catalog: () =>
-      vaultCatalog({
-        title: input.title,
-        policy: input.policy,
-        expiresAt,
-        scope: input.scope,
-        items,
-      }),
-    readField: vaultField({ scope: input.scope, items }),
-    writeField: vaultWrite({ scope: input.scope, items }, (item) =>
-      vaultStore.saveItem(item),
-    ),
-    peers: input.peers,
-  });
-  return { next, routes, own };
-}
-
+export type { HostInput } from "./host-input.js";
+import type { HostInput, RelaySource } from "./host-input.js";
 function authorityStands(): boolean {
   return host !== null || guest !== null;
 }
@@ -209,6 +160,10 @@ function armRestoreGuard(): void {
  * comes back already ended and is never the current one.
  */
 export async function startHosting(input: HostInput): Promise<LiveHost> {
+  const { check, complete } = captureHostConstruction(
+    vaultStore.pinContinuation(),
+    input.assertConfiguration,
+  );
   armRestoreGuard();
   endHosting();
   let started: LiveHost | null = null;
@@ -221,9 +176,16 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
   let post: ((code: string) => Promise<void>) | null = null;
   const source: RelaySource = { carriers: null };
   try {
-    const built = await buildHost(input, (code) => void post?.(code), source);
+    const built = await buildHost(
+      input,
+      (code) => void post?.(code).catch(() => made.end()),
+      source,
+      check,
+      liveSeams.items,
+    );
     const made = built.next;
     started = made;
+    check();
     // A session another start installed while this one was building ends.
     endHosting();
     if (locked) {
@@ -231,7 +193,10 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
       stopWatch();
       return made;
     }
+    check();
     host = made;
+    hostAuthority = check;
+    stopHostRealm = watchLiveRealmAuthority(endHosting);
     stopLockWatch = stopWatch;
     watchPlan();
     // The plan may already have withdrawn Live sessions while this was built.
@@ -241,8 +206,8 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
     carriers = openCarriers(
       built.own,
       made.link.secret,
-      input.carriers,
-      (code) => void made.receive(code),
+      guardedLiveCarrierFactory(input.carriers, check),
+      (code) => void made.receive(code).catch(() => made.end()),
       "owner",
     );
     source.carriers = carriers;
@@ -254,6 +219,9 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
         if (state.status === "ended") opened.close();
       });
     }
+    // Future profile edits do not retire an already admitted live session.
+    // Its original owner/root/realm ceiling remains in force.
+    complete();
     changed();
     return made;
   } catch (error) {
@@ -279,6 +247,9 @@ function abandon(
   if (carriers && hostCarriers === carriers) hostCarriers = null;
   if (!started || host !== started) return;
   host = null;
+  hostAuthority = null;
+  stopHostRealm?.();
+  stopHostRealm = null;
   try {
     changed();
   } catch {
@@ -288,16 +259,25 @@ function abandon(
 }
 
 export function currentHost(): LiveHost | null {
+  try {
+    hostAuthority?.();
+  } catch {
+    endHosting();
+  }
   return host;
 }
 
 /** The carriers the hosted session listens on, if its profile names any. */
 export function currentHostCarriers(): Rendezvous | null {
+  currentHost();
   return hostCarriers;
 }
 
 /** End the hosted session for everyone. */
 export function endHosting(): void {
+  stopHostRealm?.();
+  stopHostRealm = null;
+  hostAuthority = null;
   stopLockWatch?.();
   stopLockWatch = null;
   hostCarriers?.close();
@@ -329,6 +309,7 @@ export type JoinInput = Readonly<{
  * Any session this tab had joined is left first.
  */
 export async function joinLive(input: JoinInput): Promise<LiveGuest> {
+  const check = captureLiveRealmAuthority();
   armRestoreGuard();
   leaveLive();
   // The join screen refuses a link whose routes do not read; direct here.
@@ -341,40 +322,61 @@ export async function joinLive(input: JoinInput): Promise<LiveGuest> {
     ? openCarriers(
         routes.carriers,
         input.link.secret,
-        input.carriers,
-        (code) => void next?.accept(code),
+        guardedLiveCarrierFactory(input.carriers, check),
+        (code) => void next?.accept(code).catch(() => next?.leave()),
       )
     : null;
-  guestCarriers = carriers;
-  next = new LiveGuest({
-    link: input.link,
-    code: input.code,
-    name: input.name,
-    note: input.note,
-    ice,
-    peers: input.peers,
-    carriers: carriers ? guestCarriersFor(carriers) : null,
-  });
-  guest = next;
-  watchPlan();
-  // The plan may already have withdrawn Live sessions: left before it began.
-  if (guest !== next) return next;
-  changed();
-  await next.start();
-  return next;
+  try {
+    check();
+    next = new LiveGuest({
+      link: input.link,
+      code: input.code,
+      name: input.name,
+      note: input.note,
+      ice,
+      peers: input.peers,
+      carriers: carriers ? guestCarriersFor(carriers) : null,
+    });
+    check();
+    guestCarriers = carriers;
+    guest = next;
+    guestAuthority = check;
+    stopGuestRealm = watchLiveRealmAuthority(leaveLive);
+    watchPlan();
+    // The plan may already have withdrawn Live sessions: left before it began.
+    if (guest !== next) return next;
+    changed();
+    await next.start();
+    check();
+    return next;
+  } catch (error) {
+    carriers?.close();
+    if (guest === next) leaveLive();
+    else next?.leave();
+    throw error;
+  }
 }
 
 export function currentGuest(): LiveGuest | null {
+  try {
+    guestAuthority?.();
+  } catch {
+    leaveLive();
+  }
   return guest;
 }
 
 /** The carriers the joined session's request goes out on, if any. */
 export function currentGuestCarriers(): Rendezvous | null {
+  currentGuest();
   return guestCarriers;
 }
 
 /** Leave the joined session, dropping everything it held. */
 export function leaveLive(): void {
+  stopGuestRealm?.();
+  stopGuestRealm = null;
+  guestAuthority = null;
   guestCarriers?.close();
   guestCarriers = null;
   if (!guest) return;

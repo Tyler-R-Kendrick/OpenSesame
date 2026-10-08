@@ -132,6 +132,26 @@ export function routesSummary(transport: LiveTransport): string {
   return `${transport.relay ? "Relay only" : "Direct"}, with ${parts.join(", ")}`;
 }
 
+/** The original routes status markup, kept beside its summary formatter. */
+function RoutesStatus({
+  transport,
+  loaded,
+  refused,
+}: {
+  transport: LiveTransport;
+  loaded: boolean;
+  refused: string | null;
+}) {
+  return refused ? (
+    <StatusMark tone="err" label={refused} />
+  ) : (
+    <StatusMark
+      tone="idle"
+      label={loaded ? routesSummary(transport) : "Reading this vault's routes"}
+    />
+  );
+}
+
 export function LiveHostForm() {
   const [title, setTitle] = useState("");
   const [scope, setScope] = useState<"vault" | "items">("items");
@@ -140,11 +160,13 @@ export function LiveHostForm() {
   const [admission, setAdmission] = useState<Admission>("invite");
   const [minutes, setMinutes] = useState(60);
   const { starting, failed, start } = useStartSession();
-  const { transport, loaded, refused } = useLiveTransport();
+  const { transport, loaded, settled, refused, captureConfiguration } =
+    useLiveTransport();
   // A profile that is there and cannot be read is not "direct only": no
   // session starts until it is fixed, or the owner's routes would be dropped.
   const ready =
     loaded &&
+    settled &&
     refused === null &&
     !starting &&
     title.trim().length > 0 &&
@@ -156,6 +178,12 @@ export function LiveHostForm() {
       onSubmit={(event) => {
         event.preventDefault();
         if (!ready) return;
+        let assertConfiguration: () => void;
+        try {
+          assertConfiguration = captureConfiguration();
+        } catch {
+          return;
+        }
         start({
           title: title.trim(),
           scope:
@@ -167,6 +195,7 @@ export function LiveHostForm() {
           minutes,
           peers: liveUiSeams.peers,
           transport,
+          assertConfiguration,
           carriers: liveUiSeams.carriers,
         });
       }}
@@ -208,11 +237,7 @@ export function LiveHostForm() {
         options={DURATIONS}
         onChange={setMinutes}
       />
-      {refused ? (
-        <StatusMark tone="err" label={refused} />
-      ) : (
-        <StatusMark tone="idle" label={routesSummary(transport)} />
-      )}
+      <RoutesStatus transport={transport} loaded={loaded} refused={refused} />
       {failed ? <StatusMark tone="err" label={failed} /> : null}
       <FormCommit
         label="Start the live session"

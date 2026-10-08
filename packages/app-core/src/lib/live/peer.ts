@@ -139,6 +139,8 @@ export class PeerChannel {
 
 /** Resolves with the channel once it is open; rejects if it never opens. */
 function opened(channel: RTCDataChannel): Promise<PeerChannel> {
+  if (channel.readyState === "closed")
+    return Promise.reject(new Error("channel_closed"));
   // Listening starts now, not at open (see `PeerChannel`).
   const peer = new PeerChannel(channel);
   return new Promise((resolve, reject) => {

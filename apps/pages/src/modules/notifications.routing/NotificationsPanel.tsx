@@ -1,3 +1,4 @@
+import { SessionAnchor } from "../../components/DecoyNavigationAnchor.js";
 /**
  * Settings › Notifications (ADR 0084; ADR 0140 D9): where the Identity API
  * tells you about requests — the channels this deployment has, the
@@ -149,7 +150,7 @@ function Begun({ begun }: { begun: NonNullable<RoutingView["begun"]> }) {
       <StatusMark tone="warn" label="Waiting to be confirmed" />
       {begun.authorizeUrl ? (
         <span className="notif-row__keys">
-          <a
+          <SessionAnchor
             className="icon-btn icon-btn--sm"
             href={begun.authorizeUrl}
             target="_blank"
@@ -158,7 +159,7 @@ function Begun({ begun }: { begun: NonNullable<RoutingView["begun"]> }) {
             title="Finish connecting where it opens"
           >
             <IconExternal size={16} />
-          </a>
+          </SessionAnchor>
         </span>
       ) : null}
     </li>

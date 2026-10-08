@@ -109,11 +109,13 @@ it.each([undefined, "osr2.corrupted"])(
     db.close();
     expect(await readLegacyHistory()).toBeUndefined();
     const installed = installEncryptedStores();
-    expect((await installed.migrated).history).toEqual({
+    const report = await installed.migrated;
+    expect(report.complete).toBe(false);
+    expect(report.history).toEqual({
       moved: 0,
       removed: false,
     });
-    installed.uninstall();
+    await installed.uninstall();
     expect(
       (await factory.databases()).some(
         (entry) => entry.name === HISTORY_BACKUP_DATABASE,

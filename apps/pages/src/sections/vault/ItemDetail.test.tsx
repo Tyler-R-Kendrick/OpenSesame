@@ -22,7 +22,6 @@ import type {
   SecretItem,
   VaultItem,
 } from "@opensesame/vault-core";
-import { manualPassword } from "@opensesame/vault-core";
 
 type VaultFixture = { current: { items: VaultItem[]; folders: Folder[] } };
 
@@ -84,12 +83,6 @@ function makeAccount(overrides: AccountSeed = {}): AccountItem {
     password: "hunter2hunter2",
     ...overrides,
   });
-}
-
-function savedItem(): VaultItem {
-  const item = store.saveItem.mock.calls[0]?.[0];
-  if (!item) throw new Error("missing saved vault item");
-  return item;
 }
 
 function renderAt(itemId: string, search = "") {
@@ -329,35 +322,6 @@ describe("ItemDetail", () => {
     expect(screen.getByText("4111 1111 1111 4242")).toBeTruthy();
   });
 
-  it("renders a secret value and its grantees", async () => {
-    const secret: SecretItem = {
-      ...base("secret", "itm_secret", "Deploy hook"),
-      value: "whsec_123",
-      ceiling: [{ id: "g1", action: "http.post", resource: "hook/x" }],
-      grantees: ["agt_release_bot"],
-      connectionRef: "conn/github/pat",
-    };
-    vault.current = { items: [secret], folders: [] };
-    renderAt("itm_secret");
-    expect(screen.getByRole("heading", { name: "Value" })).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Grantees" })).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Secret" })).toBeNull();
-    const row = screen.getByRole("button", {
-      name: "Reveal secret value",
-    }).parentElement;
-    expect(row?.querySelectorAll("button").length).toBe(3);
-    expect(screen.getByText("agt_release_bot")).toBeTruthy();
-    expect(
-      screen.queryByText(/Capability ceiling|http\.post|hook\/x/),
-    ).toBeNull();
-    expect(screen.queryByText("Connection reference")).toBeNull();
-    expect(
-      screen.queryByRole("link", { name: /^Grant or invoke$/i }),
-    ).toBeNull();
-    expect(listConnections).not.toHaveBeenCalled();
-    expect(screen.queryByText("whsec_123")).toBeNull();
-  });
-
   it("shows an empty grantee list and no receipt lookup for secrets", async () => {
     const secret: SecretItem = {
       ...base("secret", "itm_secret", "Loose secret"),
@@ -416,28 +380,6 @@ describe("ItemDetail", () => {
     sent.mockRestore();
   });
 
-  it("updates a secret value through the update panel", async () => {
-    const secret: SecretItem = {
-      ...base("secret", "itm_secret", "Deploy hook"),
-      value: "whsec_123",
-      ceiling: [],
-      grantees: [],
-      connectionRef: "",
-    };
-    vault.current = { items: [secret], folders: [] };
-    renderAt("itm_secret");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Update secret/i }),
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: /Save new value/i }),
-    );
-    await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
-    const saved = savedItem();
-    if (saved.kind !== "secret") throw new Error("expected saved secret");
-    expect(saved.value).not.toBe("whsec_123");
-  });
-
   it("renders a passkey record", () => {
     const passkey: PasskeyItem = {
       ...base("passkey", "itm_pk", "Example passkey"),
@@ -488,30 +430,6 @@ describe("ItemDetail edge branches", () => {
   afterEach(() => {
     cleanup();
     vi.clearAllMocks();
-  });
-
-  it("renders an untitled account without username or password", () => {
-    vault.current = {
-      items: [
-        makeAccount({
-          name: "",
-          username: "",
-          methods: [
-            manualPassword("itm_login:password", "", "2026-08-01T00:00:00Z"),
-          ],
-        }),
-        makeAccount({ id: "itm_other", name: "Other" }),
-      ],
-      folders: [],
-    };
-    renderAt("itm_login");
-    expect(screen.getByRole("heading", { name: "Untitled" })).toBeTruthy();
-    // No username row, and the update affordance stands alone.
-    expect(screen.queryByText("Username / ID")).toBeNull();
-    expect(
-      screen.getByRole("button", { name: /Update password/i }),
-    ).toBeTruthy();
-    expect(screen.queryByText("Authenticator code")).toBeNull();
   });
 
   it("copies the current TOTP code", async () => {

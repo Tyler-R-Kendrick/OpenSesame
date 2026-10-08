@@ -7,6 +7,7 @@ import {
   pairedHostFetch,
   pollBrowserPairing,
 } from "./browser-pairing.js";
+import { markDecoySession } from "./decoy-session.js";
 import { localNetworkFetchSeams } from "./local-network-fetch.js";
 
 const host = "http://127.0.0.1:8787";
@@ -42,6 +43,7 @@ beforeEach(() => {
   });
 });
 afterEach(() => {
+  markDecoySession(false);
   clearBrowserPairing();
   browserPairingSeams.eligible = eligible;
   browserPairingSeams.createKey = createKey;
@@ -51,6 +53,22 @@ afterEach(() => {
 });
 
 describe("explicit browser authority", () => {
+  it("does not send a pairing after its key-generation await crossed synthetic entry and exit", async () => {
+    const makeKey = browserPairingSeams.createKey;
+    browserPairingSeams.createKey = async () => {
+      const key = await makeKey();
+      markDecoySession(true);
+      markDecoySession(false);
+      return key;
+    };
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    await expect(beginBrowserPairing(host)).rejects.toThrow(
+      /authenticate again/,
+    );
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(currentBrowserGrant(host)).toBeNull();
+  });
   it("does not bootstrap authority when an ordinary Host request is attempted", async () => {
     const fetcher = vi.fn();
     vi.stubGlobal("fetch", fetcher);

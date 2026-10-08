@@ -84,9 +84,9 @@ fn realistic_argon2_parameters_pass() {
         (b"P", VD_U32, u32v(4)),
     ]);
     assert!(check_kdf_limits(&header).is_ok());
-    // KeePassXC's own ceiling-ish settings: 1 GiB × 16 passes.
+    // A legitimate higher-work configuration exceeds our device ceiling.
     let heavy = header_with(&[(b"M", VD_U64, u64v(1 << 30)), (b"I", VD_U64, u64v(16))]);
-    assert!(check_kdf_limits(&heavy).is_ok());
+    assert!(is_malformed(&heavy));
 }
 
 #[test]
@@ -187,6 +187,7 @@ fn kdbx3_transform_rounds_are_screened() {
 fn keepass1_transform_rounds_are_screened() {
     let mut header = version_header(KEEPASS_1_ID, 0);
     header.resize(KDB1_ROUNDS_OFFSET + 4, 0);
+    header[8..12].copy_from_slice(&2u32.to_le_bytes());
     header[KDB1_ROUNDS_OFFSET..].copy_from_slice(&u32::MAX.to_le_bytes());
     assert!(is_malformed(&header));
     header[KDB1_ROUNDS_OFFSET..].copy_from_slice(&60_000u32.to_le_bytes());
@@ -230,4 +231,82 @@ fn a_dictionary_with_wrong_value_types_is_ignored() {
     // `M` declared as a u32 is not the Argon2 memory field.
     let header = header_with(&[(b"M", VD_U32, u32v(u32::MAX))]);
     assert!(check_kdf_limits(&header).is_ok());
+}
+
+fn kdb1(flags: u32, rounds: u32) -> Vec<u8> {
+    let mut header = version_header(KEEPASS_1_ID, 0);
+    header.resize(KDB1_ROUNDS_OFFSET + 4, 0);
+    header[8..12].copy_from_slice(&flags.to_le_bytes());
+    header[KDB1_ROUNDS_OFFSET..].copy_from_slice(&rounds.to_le_bytes());
+    header
+}
+
+#[test]
+fn keepass1_flags_preserve_upstream_cipher_selection() {
+    for flags in [2, 8, 10, 3, 9] {
+        assert!(check_kdf_limits(&kdb1(flags, 60_000)).is_ok());
+    }
+    for flags in [0, 1, 4, 16] {
+        let err = check_kdf_limits(&kdb1(flags, 60_000)).unwrap_err();
+        assert!(err.to_string().contains("unsupported KDB cipher flags"));
+    }
+    for len in 0..KDB1_ROUNDS_OFFSET + 4 {
+        // The fixed-layout reader refuses these before deriving a key.
+        let _ = check_kdf_limits(&kdb1(0, 60_000)[..len]);
+    }
+}
+
+#[test]
+fn aes_limit_is_inclusive_in_every_import_format() {
+    let at = u32::try_from(MAX_AES_KDF_ROUNDS).expect("cap fits KDB u32");
+    for rounds in [at, at + 1] {
+        let accepted = u64::from(rounds) == MAX_AES_KDF_ROUNDS;
+        let headers = [
+            kdb1(2, rounds),
+            kdbx3(&[(HEADER_TRANSFORM_ROUNDS, u64v(u64::from(rounds)))]),
+            header_with(&[(b"R", VD_U64, u64v(u64::from(rounds)))]),
+        ];
+        for header in headers {
+            assert_eq!(check_kdf_limits(&header).is_ok(), accepted);
+        }
+    }
+}
+
+#[test]
+fn argon_pass_and_lane_limits_are_inclusive() {
+    for (name, kind, at, above) in [
+        (b"I".as_slice(), VD_U64, u64v(8), u64v(9)),
+        (b"P".as_slice(), VD_U32, u32v(8), u32v(9)),
+    ] {
+        assert!(check_kdf_limits(&header_with(&[(name, kind, at)])).is_ok());
+        assert!(is_malformed(&header_with(&[(name, kind, above)])));
+    }
+}
+
+#[test]
+fn both_argon_joint_work_limits_are_inclusive() {
+    let entries = [
+        (b"M".as_slice(), VD_U64, u64v(32 << 20)),
+        (b"I".as_slice(), VD_U64, u64v(8)),
+        (b"P".as_slice(), VD_U32, u32v(4)),
+    ];
+    assert!(check_kdf_limits(&header_with(&entries)).is_ok());
+    let mut memory_over = entries.clone();
+    memory_over[0].2 = u64v((32 << 20) + 1);
+    let err = check_kdf_limits(&header_with(&memory_over)).unwrap_err();
+    assert!(err.to_string().contains("KDF work"));
+    let mut lanes_over = entries;
+    lanes_over[2].2 = u32v(5);
+    let err = check_kdf_limits(&header_with(&lanes_over)).unwrap_err();
+    assert!(err.to_string().contains("KDF lane work"));
+}
+
+#[test]
+fn conformance_argon_configuration_remains_admitted() {
+    let entries = [
+        (b"M".as_slice(), VD_U64, u64v(16 << 20)),
+        (b"I".as_slice(), VD_U64, u64v(2)),
+        (b"P".as_slice(), VD_U32, u32v(4)),
+    ];
+    assert!(check_kdf_limits(&header_with(&entries)).is_ok());
 }

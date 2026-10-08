@@ -8,9 +8,9 @@
 //!
 //! `keepass` has no API for inspecting the outer header without deriving, so
 //! this module walks the outer header itself — bounds-checked, no allocation,
-//! no crypto — and refuses hostile work factors up front. `KeePass`'s own
-//! limits are far below these; a real database written by any mainstream
-//! client passes.
+//! no crypto — and applies bounded import work factors up front. These are
+//! device resource ceilings: legitimate databases with higher configured work
+//! are refused. They are not a measured wall-clock guarantee.
 //!
 //! The screen fails **closed**. Every format `keepass` would run a KDF for is
 //! walked: KDBX 4 (the `KdfParameters` variant dictionary), KDBX 3 (the
@@ -23,19 +23,20 @@
 
 use crate::KdbxError;
 
-/// Largest `Argon2` memory cost accepted, in bytes. `KeePassXC`'s own maximum is
-/// far below this; its default is 64 MiB.
-pub const MAX_KDF_MEMORY_BYTES: u64 = 1 << 30;
-/// Largest `Argon2` pass count accepted. `KeePass` defaults to single digits.
-pub const MAX_KDF_ITERATIONS: u64 = 1 << 12;
-/// Largest Argon2 lane count accepted.
-pub const MAX_KDF_PARALLELISM: u32 = 64;
-/// Largest `AES-KDF` round count accepted. `KeePass` defaults to 60 000.
-pub const MAX_AES_KDF_ROUNDS: u64 = 1 << 26;
-/// Largest total `Argon2` work accepted: memory (bytes) × passes. Each limit
-/// above is reasonable alone, but 1 GiB × 4096 passes is not; this caps the
-/// product at 16 GiB of memory traffic (1 GiB × 16, or 64 MiB × 256).
-pub const MAX_KDF_WORK_BYTES: u64 = 1 << 34;
+/// Largest `Argon2` memory cost accepted, in bytes: 128 MiB.
+pub const MAX_KDF_MEMORY_BYTES: u64 = 1 << 27;
+/// Largest `Argon2` pass count accepted.
+pub const MAX_KDF_ITERATIONS: u64 = 8;
+/// Largest `Argon2` lane count accepted.
+pub const MAX_KDF_PARALLELISM: u32 = 8;
+/// Largest `AES-KDF` round count accepted, across KDB and KDBX imports.
+pub const MAX_AES_KDF_ROUNDS: u64 = 1 << 20;
+/// Largest `Argon2` memory (bytes) times passes accepted: 256 MiB.
+/// This bounds configured work, not actual memory traffic or elapsed time.
+pub const MAX_KDF_WORK_BYTES: u64 = 1 << 28;
+/// Largest `Argon2` passes times lanes accepted. The native backend creates
+/// one lane thread per slice per pass; four slices give at most 128 creations.
+pub const MAX_KDF_LANE_PASSES: u64 = 32;
 
 /// Longest outer header this walker will follow, in bytes. A real header is a
 /// few hundred bytes; past this the file is refused rather than scanned.
@@ -77,6 +78,13 @@ pub(crate) fn check_kdf_limits(bytes: &[u8]) -> Result<(), KdbxError> {
             "KDF work (memory × iterations)",
             Some(work),
             MAX_KDF_WORK_BYTES,
+        )?;
+    }
+    if let (Some(iterations), Some(lanes)) = (params.iterations, params.parallelism) {
+        over(
+            "KDF lane work (iterations × lanes)",
+            Some(iterations.saturating_mul(u64::from(lanes))),
+            MAX_KDF_LANE_PASSES,
         )?;
     }
     Ok(())
@@ -151,6 +159,16 @@ fn kdf_params(bytes: &[u8]) -> Result<KdfParams, KdbxError> {
         return Ok(KdfParams::default());
     }
     if secondary == KEEPASS_1_ID {
+        // The upstream KDB reader derives before checking these cipher bits.
+        // Match its AES-first/Twofish fallback without doing rejected work.
+        if bytes.len() >= KDB1_ROUNDS_OFFSET + 4 {
+            let flags = Cursor::new(bytes, 8)
+                .u32()
+                .ok_or_else(|| malformed("missing KDB cipher flags"))?;
+            if flags & (2 | 8) == 0 {
+                return Err(malformed("unsupported KDB cipher flags"));
+            }
+        }
         // A header shorter than the fixed `KeePass` 1 layout is refused by the
         // parser before it derives anything.
         let rounds = Cursor::new(bytes, KDB1_ROUNDS_OFFSET).u32().map(u64::from);

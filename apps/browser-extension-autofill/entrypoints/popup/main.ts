@@ -1,12 +1,11 @@
-import { FILL_MESSAGE, PAIR_MESSAGE } from "@/lib/fill/protocol";
+import "@opensesame/app-core/browser/security/security.css";
+import { popupOperation } from "@/lib/popup/operation";
 import {
-  type PairRequest,
-  type PopupRequest,
-  pairReply,
-  statusReply,
-  triggerReply,
-} from "@/lib/fill/wire";
-import { type PanelElements, mountPanel } from "@/lib/popup/panel";
+  type PanelController,
+  type PanelElements,
+  mountPanel,
+} from "@/lib/popup/panel";
+import { startSecurityPanel } from "@opensesame/app-core/browser/security/bootstrap.js";
 
 function byId<T extends HTMLElement>(id: string, kind: new () => T): T {
   const found = document.getElementById(id);
@@ -25,31 +24,65 @@ const elements: PanelElements = {
 };
 
 /** Ask the background; an unreachable one answers nothing, decoded as such. */
-const ask = (message: PopupRequest | PairRequest) =>
-  browser.runtime.sendMessage(message).catch(() => null);
-
+let productionPanel:
+  | Promise<Awaited<ReturnType<typeof mountPanel>> | undefined>
+  | undefined;
+let activePanel: PanelController | undefined;
+const security = startSecurityPanel(
+  byId("security", HTMLElement),
+  browser.runtime,
+  (allowed) => {
+    const main = document.querySelector("main");
+    if (main) main.hidden = !allowed;
+    if (allowed) startProductionPanel();
+    else {
+      activePanel?.invalidate();
+      elements.origin.textContent = "";
+      elements.code.value = "";
+      const legend = elements.refs.querySelector("legend");
+      elements.refs.replaceChildren(...(legend ? [legend] : []));
+      elements.site.hidden = true;
+      elements.pair.hidden = true;
+      elements.go.hidden = true;
+    }
+  },
+);
 // Every reply is decoded before the panel sees it (`wire.ts`).
-void mountPanel(elements, {
-  status: async () =>
-    statusReply.parse(await ask({ type: FILL_MESSAGE, op: "status" })),
-  trigger: async (reference) =>
-    triggerReply.parse(
-      await ask({
-        type: FILL_MESSAGE,
-        op: "trigger",
-        reference,
+function startProductionPanel() {
+  const permit = security.permit();
+  const current = () => security.permit() === permit;
+  const initialize = async () => {
+    const panel = await mountPanel(elements, () =>
+      popupOperation(security, {
+        sendMessage: (message) => browser.runtime.sendMessage(message),
+        request: (origins) =>
+          browser.permissions.request({ origins: [...origins] }),
       }),
-    ),
-  enable: async (origin) =>
-    statusReply.parse(
-      await ask({
-        type: FILL_MESSAGE,
-        op: "enable",
-        origin,
-      }),
-    ),
-  disable: async () =>
-    statusReply.parse(await ask({ type: FILL_MESSAGE, op: "disable" })),
-  pair: async () => pairReply.parse(await ask({ type: PAIR_MESSAGE })),
-  request: (origins) => browser.permissions.request({ origins: [...origins] }),
+    );
+    if (!current()) panel.invalidate();
+    else activePanel = panel;
+    return panel;
+  };
+  const previous = productionPanel;
+  productionPanel = previous
+    ? previous.then(async (panel) => {
+        if (!current()) return panel;
+        if (!panel) return initialize();
+        activePanel = panel;
+        await panel.refresh();
+        return panel;
+      })
+    : security.ready.then(() => (current() ? initialize() : undefined));
+  void productionPanel.catch(() => {
+    if (!current()) return;
+    const main = document.querySelector("main");
+    if (main) main.hidden = true;
+    elements.mark.textContent = "Security settings could not be initialized.";
+  });
+}
+
+void security.ready.catch(() => {
+  const main = document.querySelector("main");
+  if (main) main.hidden = true;
+  elements.mark.textContent = "Security settings could not be initialized.";
 });

@@ -88,6 +88,8 @@ describe("the page itself", () => {
         () => Object.assign(tried, { message: "refused" }),
       )
       .then(() =>
+        // Untrusted-origin test intentionally tries the local fixture daemon over loopback.
+        // nosemgrep: typescript.react.security.react-insecure-request.react-insecure-request
         fetch("http://127.0.0.1:18790/v1/fill", {
           method: "POST",
           headers: { "content-type": "application/json" },

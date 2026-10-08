@@ -5,6 +5,7 @@
 /// `fs::write` then `set_permissions` creates the file at the umask's mode first,
 /// so a token spends a window world-readable — long enough for another account on
 /// the box to open it and keep the handle.
+#[cfg(not(windows))]
 pub(crate) fn write_private(path: &std::path::Path, bytes: &[u8]) -> anyhow::Result<()> {
     use std::io::Write;
     let mut opts = std::fs::OpenOptions::new();
@@ -25,6 +26,7 @@ pub(crate) fn write_private(path: &std::path::Path, bytes: &[u8]) -> anyhow::Res
     Ok(())
 }
 
+#[cfg(not(windows))]
 pub(crate) fn write_private_new(path: &std::path::Path, bytes: &[u8]) -> anyhow::Result<()> {
     use std::io::Write;
     let mut opts = std::fs::OpenOptions::new();
@@ -36,4 +38,26 @@ pub(crate) fn write_private_new(path: &std::path::Path, bytes: &[u8]) -> anyhow:
     }
     opts.open(path)?.write_all(bytes)?;
     Ok(())
+}
+
+#[cfg(windows)]
+#[path = "private_file_windows.rs"]
+mod windows;
+
+#[cfg(windows)]
+pub(crate) fn write_owner_only(
+    path: &std::path::Path,
+    fill: impl FnOnce(&mut std::fs::File) -> anyhow::Result<()>,
+) -> anyhow::Result<()> {
+    windows::write_owner_only(path, fill)
+}
+
+#[cfg(windows)]
+pub(crate) fn write_private(path: &std::path::Path, bytes: &[u8]) -> anyhow::Result<()> {
+    windows::write_private(path, bytes, false)
+}
+
+#[cfg(windows)]
+pub(crate) fn write_private_new(path: &std::path::Path, bytes: &[u8]) -> anyhow::Result<()> {
+    windows::write_private(path, bytes, true)
 }

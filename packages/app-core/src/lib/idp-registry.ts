@@ -19,9 +19,14 @@ import {
   isString,
 } from "@opensesame/os-domain";
 import { localStore } from "../ports.js";
+import {
+  assertAuthenticationSession,
+  assertNotDecoySession,
+  isRealAuthorityBlocked,
+} from "./decoy-session.js";
 import { pagesIdentityPublicBase } from "./device-identity.js";
 import { notifyLocalIamChange } from "./local-iam-events.js";
-import { VfsError, readFile, writeFile } from "./vfs.js";
+import { VfsError, pinTombAuthority, readFile, writeFile } from "./vfs.js";
 
 /** Legacy localStorage key — migrated into the tomb on unlock, then deleted. */
 const LEGACY_STORAGE_KEY = "opensesame.idp-registry.v1";
@@ -138,6 +143,7 @@ function withDeviceIdp(additional: IdpRecord[]): IdpRecord[] {
 }
 
 function saveRegistry(registry: StoredRegistry): void {
+  const generation = assertNotDecoySession();
   idpRegistrySeams.write(
     JSON.stringify({
       version: 1,
@@ -145,7 +151,9 @@ function saveRegistry(registry: StoredRegistry): void {
       ceremonyDismissed: registry.ceremonyDismissed,
     }),
   );
+  assertNotDecoySession(generation);
   notifyLocalIamChange();
+  assertNotDecoySession(generation);
 }
 
 /* ------------------------------------------------------------- transport */
@@ -158,6 +166,7 @@ function saveRegistry(registry: StoredRegistry): void {
 let activeTomb: string | null = null;
 let cachedRaw: string | null = null;
 let hydrated = false;
+let cachedAuthority: (() => void) | null = null;
 /**
  * Stale-hydrate guard. Bumped by every write and by `discardIdpRegistry`, so
  * a hydrate whose read resolved after the cache moved on (a registration in
@@ -167,7 +176,14 @@ let registryGeneration = 0;
 
 function readCachedDefault(): string | null {
   // Locked (never hydrated): the registry is unreadable — empty posture.
-  return hydrated ? cachedRaw : null;
+  if (!hydrated) return null;
+  try {
+    assertNotDecoySession();
+    cachedAuthority?.();
+    return cachedRaw;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -177,6 +193,8 @@ function readCachedDefault(): string | null {
  * the sealed registry with a partial view; it is refused, not persisted.
  */
 function writeCachedDefault(raw: string): void {
+  assertNotDecoySession();
+  cachedAuthority?.();
   const tomb = activeTomb;
   if (!tomb || !hydrated) return;
   registryGeneration += 1;
@@ -192,6 +210,8 @@ function writeCachedDefault(raw: string): void {
 
 /** Same fail-closed posture as `writeCachedDefault`: never clear mid-switch. */
 function clearCachedDefault(): void {
+  assertNotDecoySession();
+  cachedAuthority?.();
   const tomb = activeTomb;
   if (!tomb || !hydrated) return;
   registryGeneration += 1;
@@ -218,7 +238,19 @@ export const idpRegistrySeams = {
  * again and nothing is lost. If a write or a lock happened while the sealed
  * read was in flight, that read is stale — the newer cache stays.
  */
-export async function hydrateIdpRegistryFromVfs(tomb: string): Promise<void> {
+export async function hydrateIdpRegistryFromVfs(
+  tomb: string,
+  originatingAuthority?: () => void,
+): Promise<void> {
+  assertAuthenticationSession();
+  originatingAuthority?.();
+  const assertAuthority = pinTombAuthority(tomb);
+  if (activeTomb !== tomb) {
+    registryGeneration += 1;
+    cachedRaw = null;
+    hydrated = false;
+    cachedAuthority = null;
+  }
   activeTomb = tomb;
   const generation = registryGeneration;
   let raw: string | null;
@@ -229,9 +261,13 @@ export async function hydrateIdpRegistryFromVfs(tomb: string): Promise<void> {
     if (error instanceof VfsError && error.code === "locked") throw error;
     raw = null;
   }
+  assertAuthenticationSession();
+  originatingAuthority?.();
+  assertAuthority();
   // A write or a discard landed in the await window: its cache is newer.
   if (registryGeneration !== generation || activeTomb !== tomb) return;
   cachedRaw = raw;
+  cachedAuthority = assertAuthority;
   hydrated = true;
 }
 
@@ -240,11 +276,18 @@ export function discardIdpRegistry(): void {
   activeTomb = null;
   cachedRaw = null;
   hydrated = false;
+  cachedAuthority = null;
   registryGeneration += 1;
 }
 
 /** Legacy localStorage copy, for the unlock-time migration only. */
-export function readLegacyIdpRegistry(): string | null {
+export function readLegacyIdpRegistry(
+  originatingAuthority?: () => void,
+): string | null {
+  if (originatingAuthority) {
+    assertAuthenticationSession();
+    originatingAuthority();
+  } else assertNotDecoySession();
   try {
     return localStore().getItem(LEGACY_STORAGE_KEY);
   } catch {
@@ -253,7 +296,13 @@ export function readLegacyIdpRegistry(): string | null {
   }
 }
 
-export function clearLegacyIdpRegistry(): void {
+export function clearLegacyIdpRegistry(
+  originatingAuthority?: () => void,
+): void {
+  if (originatingAuthority) {
+    assertAuthenticationSession();
+    originatingAuthority();
+  } else assertNotDecoySession();
   try {
     localStore().removeItem(LEGACY_STORAGE_KEY);
   } catch {
@@ -268,17 +317,26 @@ export function clearLegacyIdpRegistry(): void {
  * any additional upstreams (oldest registration first). Never empty.
  */
 export function listIdpRegistrations(): IdpRecord[] {
-  return withDeviceIdp(parseRegistry(idpRegistrySeams.read()).providers);
+  return withDeviceIdp(
+    isRealAuthorityBlocked()
+      ? []
+      : parseRegistry(idpRegistrySeams.read()).providers,
+  );
 }
 
 /** Additional upstreams only — excludes the built-in device IdP. */
 export function listAdditionalIdpRegistrations(): IdpRecord[] {
-  return parseRegistry(idpRegistrySeams.read()).providers;
+  return isRealAuthorityBlocked()
+    ? []
+    : parseRegistry(idpRegistrySeams.read()).providers;
 }
 
 /** The operator's explicit "set up later" — defers adding another upstream. */
 export function ceremonyDismissed(): boolean {
-  return parseRegistry(idpRegistrySeams.read()).ceremonyDismissed;
+  return (
+    !isRealAuthorityBlocked() &&
+    parseRegistry(idpRegistrySeams.read()).ceremonyDismissed
+  );
 }
 
 /**
@@ -294,6 +352,7 @@ export function idpCeremonyNeeded(): boolean {
  * Registering lifts the optional ceremony deferral.
  */
 export function registerIdp(record: IdpRecord): IdpRecord[] {
+  assertNotDecoySession();
   if (record.id === DEVICE_IDP_ID || record.kind === "device") {
     return listIdpRegistrations();
   }
@@ -311,6 +370,7 @@ export function registerIdp(record: IdpRecord): IdpRecord[] {
  * removed. Server-side registration is disable-only and operator-gated.
  */
 export function removeIdpRegistration(id: string): IdpRecord[] {
+  assertNotDecoySession();
   if (id === DEVICE_IDP_ID) return listIdpRegistrations();
   const registry = parseRegistry(idpRegistrySeams.read());
   const providers = registry.providers.filter((existing) => existing.id !== id);
@@ -320,6 +380,7 @@ export function removeIdpRegistration(id: string): IdpRecord[] {
 
 /** Record the explicit deferral that lifts the ceremony gate. */
 export function dismissIdpCeremony(): void {
+  assertNotDecoySession();
   const registry = parseRegistry(idpRegistrySeams.read());
   saveRegistry({ ...registry, ceremonyDismissed: true });
 }

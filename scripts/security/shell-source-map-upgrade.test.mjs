@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import path from "node:path";
 import test from "node:test";
+import {
+  assertDependencyAbsent,
+  dependencyPresent,
+} from "./dependency-presence.mjs";
 
 const root = path.resolve(import.meta.dirname, "../..");
 const quotePath = path.join(
@@ -12,26 +16,31 @@ const mapPath = path.join(
   root,
   "node_modules/.pnpm/source-map-js@1.2.2/node_modules/source-map-js/package.json",
 );
-const quoteRequire = createRequire(quotePath);
 const mapRequire = createRequire(mapPath);
-assert.equal(quoteRequire(quotePath).version, "1.11.0");
 assert.equal(mapRequire(mapPath).version, "1.2.2");
-const { quote } = quoteRequire("shell-quote");
 const { SourceMapConsumer, SourceNode } = mapRequire("source-map-js");
 
-test("shell-quote refuses a later token that escapes a comment through a line terminator", () => {
-  for (const terminator of ["\n", "\r", "\u2028", "\u2029"]) {
-    assert.throws(
-      () => quote(["echo", "ok", { comment: "x" }, `a${terminator}id;#`]),
-      { name: "TypeError" },
+if (dependencyPresent("shell-quote")) {
+  const quoteRequire = createRequire(quotePath);
+  assert.equal(quoteRequire(quotePath).version, "1.11.0");
+  const { quote } = quoteRequire("shell-quote");
+  test("shell-quote refuses a later token that escapes a comment through a line terminator", () => {
+    for (const terminator of ["\n", "\r", "\u2028", "\u2029"]) {
+      assert.throws(
+        () => quote(["echo", "ok", { comment: "x" }, `a${terminator}id;#`]),
+        { name: "TypeError" },
+      );
+    }
+    assert.equal(quote(["echo", "hello world"]), "echo 'hello world'");
+    assert.equal(
+      quote(["echo", "ok", { comment: "ordinary" }]),
+      "echo ok #ordinary",
     );
-  }
-  assert.equal(quote(["echo", "hello world"]), "echo 'hello world'");
-  assert.equal(
-    quote(["echo", "ok", { comment: "ordinary" }]),
-    "echo ok #ordinary",
-  );
-});
+  });
+} else {
+  test("shell-quote is absent from all actual lock package, snapshot and consumer edges", () =>
+    assertDependencyAbsent("shell-quote"));
+}
 
 function indexed(line) {
   return {

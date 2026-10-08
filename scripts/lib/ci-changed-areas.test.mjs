@@ -29,16 +29,18 @@ describe("ci changed areas", () => {
       rust: false,
       mtls: false,
       push: false,
+      native: false,
     });
   });
 
-  it("runs Rust alone for a crate outside the mTLS set", () => {
+  it("runs Rust and native for the shared sealed-store engine", () => {
     expect(areas(["crates/sealed-store/src/lib.rs"])).toEqual({
       typescript: false,
       bundle: false,
       rust: true,
       mtls: false,
       push: false,
+      native: true,
     });
   });
 
@@ -71,6 +73,7 @@ describe("ci changed areas", () => {
       rust: false,
       mtls: true,
       push: false,
+      native: false,
     });
     expect(areas(["packages/control-plane/src/app.ts"], [])).toEqual({
       typescript: true,
@@ -78,6 +81,7 @@ describe("ci changed areas", () => {
       rust: false,
       mtls: false,
       push: true,
+      native: false,
     });
     expect(
       areas(["packages/control-plane/src/transport/mod.ts"], []).mtls,
@@ -102,6 +106,7 @@ describe("docs and workflow files", () => {
       rust: false,
       mtls: false,
       push: false,
+      native: false,
     });
     expect(areas(["crates/foo/README.md", "crates/foo/src/lib.rs"])).toEqual({
       typescript: false,
@@ -109,6 +114,7 @@ describe("docs and workflow files", () => {
       rust: true,
       mtls: false,
       push: false,
+      native: true,
     });
     expect(areas([])).toEqual({
       typescript: false,
@@ -116,6 +122,7 @@ describe("docs and workflow files", () => {
       rust: false,
       mtls: false,
       push: false,
+      native: false,
     });
   });
 
@@ -126,6 +133,7 @@ describe("docs and workflow files", () => {
       rust: false,
       mtls: false,
       push: true,
+      native: true,
     });
     expect(areas(["scripts/lib/ci-changed-areas.mjs"], [])).toMatchObject({
       typescript: true,
@@ -133,6 +141,7 @@ describe("docs and workflow files", () => {
       bundle: false,
       mtls: false,
       push: false,
+      native: true,
     });
   });
 });
@@ -145,6 +154,7 @@ describe("Pages graph and required check names", () => {
       rust: false,
       mtls: false,
       push: false,
+      native: false,
     });
     expect(areas(["packages/vault-core/src/index.ts"]).bundle).toBe(true);
     expect(areas(["packages/control-plane/src/app.ts"]).bundle).toBe(false);
@@ -155,6 +165,7 @@ describe("Pages graph and required check names", () => {
       rust: true,
       mtls: false,
       push: false,
+      native: false,
     });
   });
 
@@ -165,6 +176,7 @@ describe("Pages graph and required check names", () => {
       rust: true,
       mtls: true,
       push: false,
+      native: true,
     });
     expect(areas(["pnpm-lock.yaml"])).toEqual({
       typescript: true,
@@ -172,6 +184,7 @@ describe("Pages graph and required check names", () => {
       rust: false,
       mtls: true,
       push: true,
+      native: false,
     });
     expect(areas(["crates/sealed-store/Cargo.toml"]).mtls).toBe(false);
     expect(areas(["crates/gateway/Cargo.toml"]).mtls).toBe(true);
@@ -184,6 +197,7 @@ describe("Pages graph and required check names", () => {
       rust: true,
       mtls: true,
       push: true,
+      native: true,
     });
   });
 

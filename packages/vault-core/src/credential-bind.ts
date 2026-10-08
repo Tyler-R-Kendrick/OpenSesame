@@ -18,7 +18,8 @@ export type BindRefusal =
   | "missing-credential"
   | "missing-account"
   | "trashed"
-  | "legacy-seal";
+  | "legacy-seal"
+  | "invalid-identity";
 
 export type BindOutcome =
   | { readonly ok: true; readonly items: VaultItem[] }
@@ -30,11 +31,17 @@ export function bindRefusal(
   credentialId: string,
   accountId: string,
 ): BindRefusal | null {
+  if (
+    identityConflict(items, credentialId, "credential") ||
+    identityConflict(items, accountId, "account")
+  )
+    return "invalid-identity";
   const credential = items.find(
     (item): item is CredentialItem =>
       isCredential(item) && item.id === credentialId,
   );
   if (credential === undefined) return "missing-credential";
+  if (credential.method.id !== credential.id) return "invalid-identity";
   if (credential.deletedAt !== null) return "trashed";
   const account = items.find(
     (item): item is AccountItem => isAccount(item) && item.id === accountId,
@@ -93,6 +100,10 @@ export function unbindCredential(
   credentialId: string,
   now: string,
 ): VaultItem[] {
+  if (identityConflict(items, credentialId, "credential"))
+    throw new Error(
+      "Credential identity is ambiguous or belongs to another item.",
+    );
   return items.map((item) =>
     isCredential(item) && item.id === credentialId && item.accountId !== null
       ? { ...item, accountId: null, order: undefined, updatedAt: now }
@@ -116,6 +127,8 @@ export function saveCredential(
   credential: CredentialItem,
   now: string,
 ): SaveOutcome {
+  if (saveIdentityConflict(items, credential))
+    return { ok: false, refusal: "invalid-identity" };
   const prior = credentialOf(items, credential.id);
   const accountId = credential.accountId;
   if (accountId === null) {
@@ -181,6 +194,34 @@ function namedByPerson(
   return prior.named === true || credential.name !== prior.name;
 }
 
+function saveIdentityConflict(
+  items: readonly VaultItem[],
+  credential: CredentialItem,
+): boolean {
+  return (
+    credential.method.id !== credential.id ||
+    identityConflict(items, credential.id, "credential") ||
+    (credential.accountId !== null &&
+      identityConflict(items, credential.accountId, "account"))
+  );
+}
+
+function identityConflict(
+  items: readonly VaultItem[],
+  id: string,
+  kind: VaultItem["kind"],
+): boolean {
+  const matching = items.filter((item) => item.id === id);
+  return (
+    matching.length > 1 ||
+    matching.some(
+      (item) =>
+        item.kind !== kind ||
+        (isCredential(item) && item.method.id !== item.id),
+    )
+  );
+}
+
 function replaceInPlace(
   items: readonly VaultItem[],
   next: CredentialItem,
@@ -196,6 +237,8 @@ function replaceInPlace(
 /** What to tell a person who asked for a binding that cannot be made. */
 export function bindRefusalMessage(refusal: BindRefusal): string {
   switch (refusal) {
+    case "invalid-identity":
+      return "Credential identity is ambiguous or belongs to another item.";
     case "missing-credential":
       return "That credential is no longer there.";
     case "missing-account":

@@ -1,3 +1,4 @@
+import { SessionAnchor } from "../../components/DecoyNavigationAnchor.js";
 /**
  * `/invoke/:kind` (ADR 0140 plan step 10): the authenticator hand-off. A
  * link names a request by reference — an MFA user code or request id, or a
@@ -65,7 +66,7 @@ function HandOff({ invocation }: { invocation: Handoff }) {
           </div>
         </dl>
         <div className="go-row">
-          <a
+          <SessionAnchor
             ref={go}
             className="go"
             href={invocation.appUrl}
@@ -73,7 +74,7 @@ function HandOff({ invocation }: { invocation: Handoff }) {
             title={INVOCATION_LABELS.open}
           >
             <IconExternal size={18} />
-          </a>
+          </SessionAnchor>
           <span className="go-verb" aria-hidden="true">
             {INVOCATION_LABELS.open}
           </span>

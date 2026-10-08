@@ -45,14 +45,16 @@ export interface Capture {
   after: string;
 }
 
+import type { OriginalOwner } from "./original-owner";
+
 /** The browser's per-origin grants. */
 export interface Grants {
   /** Whether the browser still lets the runner act on `origin`. */
-  has(origin: string): Promise<boolean>;
+  has(origin: string, owner?: OriginalOwner): Promise<boolean>;
   /** Give the grant back. */
-  revoke(origin: string): Promise<void>;
+  revoke(origin: string, owner?: OriginalOwner): Promise<void>;
   /** Whether the person let this extension open a private window (for `verify_login`). */
-  privateAllowed(): Promise<boolean>;
+  privateAllowed(owner?: OriginalOwner): Promise<boolean>;
 }
 
 /** A run, as far as the runner needs to know it. */
@@ -61,4 +63,7 @@ export interface RunRef {
   origin: string;
 }
 
-export type PagesFactory = (run: RunRef) => Promise<StepPages | null>;
+export type PagesFactory = (
+  run: RunRef,
+  owner?: OriginalOwner,
+) => Promise<StepPages | null>;

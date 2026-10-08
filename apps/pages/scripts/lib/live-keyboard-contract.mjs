@@ -15,6 +15,9 @@
 
 import { chromium, expect } from "@playwright/test";
 import { approveByKeyboard } from "./capability-keyboard-contract.mjs";
+import { copyByKeyboard } from "./live-clipboard-keyboard.mjs";
+import { reportConnectionFailure } from "./live-connection-diagnostics.mjs";
+import { startLiveTurn } from "./live-turn.mjs";
 
 /** Where the keyboard is, in words a failure can quote. */
 function whereFocus(selector) {
@@ -87,10 +90,6 @@ const focusedName = (page) =>
     return el?.getAttribute("aria-label") || el?.id || el?.tagName || "";
   });
 
-async function copied(page) {
-  return page.evaluate(() => navigator.clipboard.readText());
-}
-
 /** A guest device with one login in it, and Live sessions chosen. */
 async function ownerEnters(page, { origin, base, tabTo, width }) {
   await page.goto(`${origin}${base}`, { waitUntil: "networkidle" });
@@ -134,6 +133,39 @@ async function openLive(page, tabTo) {
   await expect(page.locator("#live-session")).toBeVisible({ timeout: 20_000 });
 }
 
+/** An explicitly configured relay is another real keyboard-only route. */
+async function configureRelay(page, tabTo, turn) {
+  const routes = page.locator("#live-routes");
+  for (const [name, value] of [
+    ["STUN or TURN server", turn.urls.tcp],
+    ["TURN username", turn.username],
+    ["TURN credential", turn.credential],
+  ]) {
+    await tabTo(page, routes.getByLabel(name, { exact: true }));
+    await page.keyboard.insertText(value);
+  }
+  await tabTo(
+    page,
+    routes.getByRole("button", { name: "Add the server", exact: true }),
+  );
+  await page.keyboard.press("Enter");
+  const relay = routes.getByRole("checkbox", {
+    name: "Relay only, through TURN",
+  });
+  await expect(relay).toBeVisible();
+  await tabTo(page, relay);
+  await page.keyboard.press("Space");
+  await expect(relay).toBeChecked();
+  // The checkbox answers optimistically; Start uses its independently read,
+  // sealed profile. Observe that actual form before asking it to construct.
+  await expect(
+    page.locator("#live-session").getByRole("img", {
+      name: "Relay only, with 1 TURN server",
+      exact: true,
+    }),
+  ).toBeVisible();
+}
+
 /** The owner names a session and starts it; the keyboard lands in the live view. */
 async function ownerStarts(page, tabTo) {
   const panel = page.locator("#live-session");
@@ -149,8 +181,7 @@ async function ownerStarts(page, tabTo) {
   await expect(copyLink, "Start lands on the Copy link key").toBeFocused();
   if (process.env.LIVE_MEASURE) await measure(page, "after Start");
   await focusIn(page, "#live-session", "after Start");
-  await page.keyboard.press("Enter");
-  const link = await copied(page);
+  const link = await copyByKeyboard(page, panel, "the link");
   const code = (await panel.locator(".live-code").innerText()).trim();
   return { link, code };
 }
@@ -178,8 +209,7 @@ async function joinerAsks(page, { link, code, tabTo }) {
     timeout: 20_000,
   });
   await focusIn(page, ".live-join", "after asking");
-  await page.keyboard.press("Enter");
-  return copied(page);
+  return copyByKeyboard(page, page, "your request code");
 }
 
 /** The owner pastes the request, lets the joiner in, and copies the reply. */
@@ -200,8 +230,7 @@ async function ownerAdmits(page, { request, tabTo }) {
   });
   await expect(reply, "Let in lands on the reply code").toBeFocused();
   await focusIn(page, "#live-session", "after Let in");
-  await page.keyboard.press("Enter");
-  return copied(page);
+  return copyByKeyboard(page, panel, "the reply code for Ada Lovelace");
 }
 
 /** A wrong reply keeps the field; the right one joins, and focus follows. */
@@ -286,6 +315,10 @@ export async function liveKeyboardContract({
   width,
   tabTo,
 }) {
+  const turn = process.env.LIVE_KEYBOARD_TURN_SERVER
+    ? await startLiveTurn(process.env.LIVE_KEYBOARD_TURN_SERVER)
+    : null;
+  if (turn?.missing) throw new Error(`TURN fixture missing: ${turn.missing}`);
   const browser = await chromium.launch({
     executablePath: process.env.PLAYWRIGHT_CHROMIUM || undefined,
     headless: true,
@@ -317,6 +350,7 @@ export async function liveKeyboardContract({
     const owner = await device();
     await ownerEnters(owner.page, { origin, base, tabTo, width });
     await openLive(owner.page, tabTo);
+    if (turn) await configureRelay(owner.page, tabTo, turn);
     const { link, code } = await ownerStarts(owner.page, tabTo);
     const joiner = await device();
     const request = await joinerAsks(joiner.page, { link, code, tabTo });
@@ -324,31 +358,41 @@ export async function liveKeyboardContract({
       request,
       tabTo,
     });
-    await joinerConnects(joiner.page, { reply, tabTo }).catch(async (error) => {
-      // Say what each side showed, so a connection that never forms reads as
-      // one, not as a bare "element(s) not found".
-      for (const [who, page] of [
-        ["owner", owner.page],
-        ["joiner", joiner.page],
-      ]) {
-        const shown = await page
-          .locator("#live-session, .live-join")
-          .first()
-          .innerText({ timeout: 2000 })
-          .catch(() => "(no live panel)");
-        console.error(
-          `${who} showed: ${shown.replace(/\s+/g, " ").slice(0, 400)}`,
-        );
-      }
-      throw error;
-    });
+    await joinerConnects(joiner.page, { reply, tabTo }).catch((error) =>
+      reportConnectionFailure(owner.page, joiner.page, error),
+    );
+    if (turn) {
+      const stats = await turn.stats();
+      assertRelayStats(stats);
+    }
     await endings(owner.page, joiner.page, { tabTo });
     await owner.context.close();
     await joiner.context.close();
   } finally {
     await browser.close();
+    await turn?.stop();
   }
   console.log(
     `PASS live sessions (${width}px): Start, ask, Let in, Connect, Remove, Start over, Close and End each leave the keyboard on a visible control`,
   );
+}
+
+function assertRelayStats(stats) {
+  expect(
+    stats.tcp.allocations,
+    "both peers allocated the configured TCP relay",
+  ).toBeGreaterThanOrEqual(2);
+  expect(
+    stats.tcp.authOk,
+    "both peers authenticated the TCP relay",
+  ).toBeGreaterThanOrEqual(2);
+  expect(stats.tcp.authFailed).toBe(0);
+  for (const [transport, counts] of Object.entries(stats)) {
+    if (transport === "tcp") continue;
+    expect(
+      counts.packets + counts.conns + counts.bytes + counts.allocations,
+      `no client traffic reached ${transport}`,
+    ).toBe(0);
+  }
+  console.log(`MEASURE keyboard TURN transport: ${JSON.stringify(stats)}`);
 }

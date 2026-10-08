@@ -54,6 +54,7 @@ pub fn protect_rewrap_store_password(
     // One key-file edit at a time, and none while a rotation runs (its commit
     // would overwrite the edit).
     let _lock = StoreLock::key_file_edit(root)?;
+    crate::retired_credentials::reject_retired_password_reuse(root, new_password)?;
     Ok(protect_rewrap_password(root, old_password, new_password)?)
 }
 

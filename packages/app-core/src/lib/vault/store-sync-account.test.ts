@@ -24,7 +24,7 @@ import {
   vaultItemToEntry,
 } from "./store-sync.js";
 
-const SPHINX_KEY = "q83vEjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJA=";
+const SPHINX_KEY = "q83vEjRWeJCrze8SNFZ4kKvN7xI0VniQq83vEjRWeJA="; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 const RULES = {
   length: 20,
   lower: true,

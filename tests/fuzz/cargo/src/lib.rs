@@ -3,6 +3,7 @@
 //! Fuzz targets are thin `fuzz_target!` wrappers around these functions so
 //! ClusterFuzzLite, cargo-fuzz, and regression tests share one implementation.
 
+mod claim_replay;
 pub mod oracles;
 pub mod types;
 
@@ -16,7 +17,6 @@ use opensesame_authn::{
 use opensesame_authz::{
     callout_permissions, evaluate_callout, permissions_include_system, CalloutEval,
 };
-use opensesame_claims::{assert_claim_token, complete_claim, hash_secret};
 use opensesame_connection_broker::catalog::Catalog;
 use opensesame_connection_broker::crypto::{open, seal, SealedBlob};
 use opensesame_connection_broker::github_webhook_hmac::{
@@ -27,9 +27,8 @@ use opensesame_connection_detect::{
 };
 use opensesame_connector_host::manifest::ConnectorManifest;
 use opensesame_domain::{
-    canonicalize_json, digest_json, resource_pattern_matches, ActorId, ActorInstanceId, Capability,
-    CapabilitySet, ClaimSession, ClaimSessionId, ClaimState, DowngradePolicy, Grant,
-    InvocationReceipt, PrincipalId, ProtectedResource, ProtocolProfile, ReceiptOutcome,
+    canonicalize_json, digest_json, resource_pattern_matches, Capability, CapabilitySet,
+    DowngradePolicy, Grant, InvocationReceipt, ProtectedResource, ProtocolProfile, ReceiptOutcome,
     TokenPresentation,
 };
 use opensesame_env_spec::{parse_schema_json, schema_summary};
@@ -303,59 +302,7 @@ pub fn fuzz_mcp_authz(data: &[u8]) {
 }
 
 pub fn fuzz_claim_replay(input: ClaimReplayInput) {
-    let token = if input.token.is_empty() {
-        "fuzz-claim-token".into()
-    } else {
-        input.token
-    };
-    let expires = secs_to_dt(input.expires_secs);
-    let now = secs_to_dt(input.now_secs);
-    let mut session = ClaimSession {
-        id: ClaimSessionId::from_uuid(Uuid::from_u128(1)),
-        organization_hint: None,
-        project_hint: None,
-        actor_id: ActorId::from_uuid(Uuid::from_u128(2)),
-        actor_instance_id: ActorInstanceId::from_uuid(Uuid::from_u128(3)),
-        client_id: None,
-        operator_id: None,
-        instance_public_key_jwk: serde_json::json!({"kty":"OKP"}),
-        claim_token_hash: hash_secret(&token),
-        user_code_hash: None,
-        claim_attempt_token_hash: None,
-        provider_assertion_digest: None,
-        attestation_digest: None,
-        requested_grant_digest: "sha256:x".into(),
-        state: if input.start_claimed {
-            ClaimState::Claimed
-        } else {
-            ClaimState::Pending
-        },
-        created_at: secs_to_dt(input.expires_secs.saturating_sub(600)),
-        expires_at: expires,
-        claimed_at: None,
-        claimed_by_principal_id: None,
-        narrowed_actions: None,
-    };
-    let first = assert_claim_token(&session, &token);
-    if input.start_claimed {
-        assert!(first.is_err(), "non-pending claim cannot be presented");
-        return;
-    }
-    if now >= expires {
-        assert!(first.is_err(), "expired claim cannot be presented");
-        return;
-    }
-    first.expect("fresh pending claim token must verify");
-    complete_claim(
-        &mut session,
-        PrincipalId::from_uuid(Uuid::from_u128(4)),
-        now,
-    )
-    .expect("pending → claimed");
-    assert!(
-        assert_claim_token(&session, &token).is_err(),
-        "single-use claim must not verify after complete"
-    );
+    claim_replay::fuzz_claim_replay(input);
 }
 
 pub fn fuzz_receipt_verify(data: &[u8]) {
@@ -413,9 +360,8 @@ pub fn fuzz_env_spec(data: &[u8]) {
                 if let Some(items) = summary.get("items").and_then(|v| v.as_array()) {
                     for s in items {
                         if s.get("key").and_then(|k| k.as_str()) == Some(item.key.as_str()) {
-                            assert_ne!(
-                                s.get("value").and_then(|v| v.as_str()),
-                                item.value.as_deref().filter(|v| !v.is_empty()),
+                            assert!(
+                                s.get("value").is_none(),
                                 "sensitive value must not appear in schema_summary"
                             );
                         }
@@ -1241,10 +1187,7 @@ pub fn fuzz_vault_item_type(data: &[u8]) {
     // could split it would corrupt every entry the host plane reads back.
     let mut values: FieldValues = std::collections::BTreeMap::new();
     for field in definition.fields() {
-        values.insert(
-            field.id.clone(),
-            FieldValue::Text("a\nb\\c\rd".to_owned()),
-        );
+        values.insert(field.id.clone(), FieldValue::Text("a\nb\\c\rd".to_owned()));
     }
     let entry = to_entry(&definition, &values);
     assert!(

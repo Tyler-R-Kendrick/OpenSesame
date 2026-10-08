@@ -3,17 +3,20 @@
  * The Routes panel and the start form on a profile that is not ordinary
  * (ADR 0150 §6): repeats, a TURN server removed under relay-only, a profile
  * that cannot be read, credentials that travel in the link, and a session
- * that will not start. The store under the panel is a fake; the panel is not.
+ * that will not start. Profiles use genuine owner and encrypted storage I/O;
+ * physical browser storage and network boundaries are doubled.
  */
 import { FakeBus, FakeNet } from "@opensesame/app-core/lib/live/live-fakes.js";
-import { liveSeams } from "@opensesame/app-core/lib/live/session.js";
-import { endHosting } from "@opensesame/app-core/lib/live/session.js";
+import {
+  currentHost,
+  endHosting,
+  liveSeams,
+} from "@opensesame/app-core/lib/live/session.js";
 import { TransportRefused } from "@opensesame/app-core/lib/live/transport-store.js";
 import {
   DIRECT_TRANSPORT,
   type LiveTransport,
 } from "@opensesame/app-core/lib/live/transport.js";
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem } from "@opensesame/vault-core";
 import {
   cleanup,
@@ -23,56 +26,53 @@ import {
   within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 import { LiveHostForm } from "./LiveHostForm.js";
 import { LiveRoutesPanel } from "./LiveRoutesPanel.js";
 import { liveUiSeams } from "./live-hooks.js";
+import {
+  genuineLiveOwner,
+  genuineProfilePorts,
+} from "./live-owner.test-support.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
 const github = createItem("account", "GitHub");
 const original = {
-  hooks: { ...vaultHooksSeams },
   live: { ...liveSeams },
   ui: { ...liveUiSeams },
   transport: { ...transportSeams },
 };
+let retireOwner: () => Promise<void>;
 let stored: LiveTransport;
 let readError: Error | null;
 
-beforeEach(() => {
+beforeEach(async () => {
+  retireOwner = await genuineLiveOwner([github]);
   stored = DIRECT_TRANSPORT;
   readError = null;
-  Object.assign(vaultHooksSeams, {
-    useVault: () => ({
-      ...vaultStore.getSnapshot(),
-      status: "unlocked" as const,
-      items: [github],
-    }),
-  });
-  Object.assign(liveSeams, { items: () => [github] });
+
   Object.assign(liveUiSeams, {
     peers: new FakeNet().factory(),
     carriers: new FakeBus().factory(),
   });
-  Object.assign(transportSeams, {
-    tomb: () => "personal",
-    read: async () => {
-      if (readError) throw readError;
-      return stored;
-    },
-    write: async (_tomb: string, next: LiveTransport) => {
-      stored = next;
-    },
-  });
+  Object.assign(
+    transportSeams,
+    genuineProfilePorts({
+      current: () => stored,
+      keep: (next) => {
+        stored = next;
+      },
+      refusal: () => readError,
+    }),
+  );
 });
 
-afterEach(() => {
+afterEach(async () => {
   endHosting();
   cleanup();
-  Object.assign(vaultHooksSeams, original.hooks);
   Object.assign(liveSeams, original.live);
   Object.assign(liveUiSeams, original.ui);
   Object.assign(transportSeams, original.transport);
+  await retireOwner();
 });
 
 const type = (where: ReturnType<typeof within>, label: string, value: string) =>
@@ -172,6 +172,13 @@ describe("the start form", () => {
     await form.findByLabelText("Session name");
     type(form, "Session name", "Team");
     fireEvent.click(form.getByRole("checkbox", { name: "GitHub" }));
+    await waitFor(() =>
+      expect(
+        form.queryByRole("img", {
+          name: "Reading this vault's routes",
+        }),
+      ).toBeNull(),
+    );
   }
   const start = (form: ReturnType<typeof within>) =>
     form.getByRole("button", { name: "Start the live session" });
@@ -205,7 +212,9 @@ describe("the start form", () => {
     await fill(form);
     fireEvent.click(start(form));
     await form.findByRole("img", { name: /too long for a link/ });
-    expect(start(form)).toHaveProperty("disabled", false);
+    // The actual profile reader refuses this unrepresentable link before Start.
+    expect(start(form)).toHaveProperty("disabled", true);
+    expect(currentHost()).toBeNull();
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(unhandled).not.toHaveBeenCalled();
     process.off("unhandledRejection", unhandled);

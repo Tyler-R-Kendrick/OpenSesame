@@ -1,3 +1,4 @@
+import { withRealAuthority } from "./decoy-session.js";
 /**
  * The Identity account's own authenticators (ADR 0140 D10; plan step 11b):
  * list them, add a passkey or an authenticator app, remove one.
@@ -164,14 +165,16 @@ async function call(
   path: string,
   init: RequestInit,
 ): Promise<{ res: Response; body: BoundaryValue }> {
-  if (!transport.signedIn()) throw new AccountFactorError("signed_out");
-  let res: Response;
-  try {
-    res = await transport.fetch(path, init);
-  } catch {
-    throw new AccountFactorError("unreachable");
-  }
-  return { res, body: await bodyOf(res) };
+  return withRealAuthority(async () => {
+    if (!transport.signedIn()) throw new AccountFactorError("signed_out");
+    let res: Response;
+    try {
+      res = await transport.fetch(path, init);
+    } catch {
+      throw new AccountFactorError("unreachable");
+    }
+    return { res, body: await bodyOf(res) };
+  });
 }
 
 /** `GET /v1/mfa/factors`: the account's factors and what may be added. */

@@ -21,6 +21,7 @@ import {
 } from "@opensesame/app-core/sections/connections/shared.js";
 import { type FormEvent, useId, useState } from "react";
 import { useConnectorRoads } from "../../bindings/connector-roads.js";
+import { navigateConsentWindow } from "../../lib/decoy-navigation.js";
 import { ApiKeyForm } from "./ApiKeyForm.js";
 import { ConfigurationForm } from "./ConfigurationForm.js";
 import { GitConnectForm } from "./GitConnectForm.js";
@@ -79,10 +80,11 @@ export function ConnectForm({
     event.preventDefault();
     // Opened synchronously or the browser treats it as an unsolicited popup;
     // the real destination is set once the broker has issued the state.
-    const popup = openConsentPopup("about:blank");
+    let popup: Window | null = null;
     setAuthorizing(true);
     let created = false;
     try {
+      popup = openConsentPopup("about:blank");
       const connection = await createConnection({
         providerId: provider.id,
         displayName: name.trim() || provider.displayName,
@@ -93,8 +95,7 @@ export function ConnectForm({
         connection.connectionId,
         scopes,
       );
-      if (popup) popup.location.href = authorizationUrl;
-      else window.location.href = authorizationUrl;
+      navigateConsentWindow(authorizationUrl, popup);
 
       const outcome = await awaitConsent(connection.connectionId, popup);
       if (outcome.result === "active") {

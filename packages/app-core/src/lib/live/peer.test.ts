@@ -5,7 +5,7 @@
  * the owner would count in a joiner who never saw what is shared.
  */
 import { overlapCast } from "@opensesame/os-domain";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ChannelMessage } from "./messages.js";
 import { DIRECT_ONLY, makeOffer } from "./peer.js";
 
@@ -45,5 +45,18 @@ describe("a peer channel", () => {
     const heard: ChannelMessage[] = [];
     peer.onMessage((message) => heard.push(message));
     expect(heard).toEqual([CATALOG]);
+  });
+  it("rejects a channel already closed before open listening without arming a pairing timer", async () => {
+    vi.useFakeTimers();
+    try {
+      const channel = new Channel();
+      channel.readyState = "closed";
+      const side = await makeOffer(() => fakePeer(channel), DIRECT_ONLY);
+      void side.channel.catch(() => undefined);
+      expect(vi.getTimerCount()).toBe(0);
+      await expect(side.channel).rejects.toThrow("channel_closed");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

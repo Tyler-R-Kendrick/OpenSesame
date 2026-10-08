@@ -1,3 +1,7 @@
+import {
+  authorityStillCurrent,
+  captureRealAuthority,
+} from "@opensesame/app-core/lib/member-authority.js";
 /**
  * The authorization-request review as React state (ADR 0140 plan step 9).
  * The steps are `createApprovalReview`'s (ceremony-kit, bound to Pages in
@@ -18,9 +22,8 @@ import {
 import { approvalReview } from "@opensesame/app-core/lib/approvals.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export const approvalHookSeams = {
-  review: (ref: string): ApprovalReview => approvalReview(ref),
-};
+const defaultFactory = (ref: string): ApprovalReview => approvalReview(ref);
+export const approvalHookSeams = { review: defaultFactory };
 
 const LOADING: ApprovalStep = {
   phase: { kind: "loading" },
@@ -29,7 +32,10 @@ const LOADING: ApprovalStep = {
 };
 
 export function useApprovalReview(ref: string) {
-  const [review] = useState(() => approvalHookSeams.review(ref));
+  const [{ model: review, originalDefault }] = useState(() => ({
+    model: approvalHookSeams.review(ref),
+    originalDefault: approvalHookSeams.review === defaultFactory,
+  }));
   const [step, setStep] = useState<ApprovalStep>(LOADING);
   const [busy, setBusy] = useState(false);
   const live = useRef(true);
@@ -41,19 +47,30 @@ export function useApprovalReview(ref: string) {
     };
   }, []);
 
-  const run = useCallback(async (work: () => Promise<ApprovalStep | null>) => {
-    setBusy(true);
-    try {
-      const next = await work();
-      if (!next || !live.current) return;
-      setStep(next);
-      const words = approvalStepWords(next);
-      if (words) reportApproval(words);
-      else clearApprovalNotice();
-    } finally {
-      if (live.current) setBusy(false);
-    }
-  }, []);
+  const run = useCallback(
+    async (work: () => Promise<ApprovalStep | null>) => {
+      let check: () => void;
+      try {
+        check = originalDefault ? captureRealAuthority() : () => {};
+      } catch {
+        return;
+      }
+      setBusy(true);
+      try {
+        const next = await work();
+        if (!next || !live.current || !authorityStillCurrent(check)) return;
+        setStep(next);
+        const words = approvalStepWords(next);
+        if (words) reportApproval(words);
+        else clearApprovalNotice();
+      } catch (error) {
+        if (authorityStillCurrent(check)) throw error;
+      } finally {
+        if (live.current) setBusy(false);
+      }
+    },
+    [originalDefault],
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: one load per review
   useEffect(() => {

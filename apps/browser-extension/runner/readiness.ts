@@ -14,6 +14,7 @@ export async function skipReason(
   run: AgentRunView,
   now: number,
 ): Promise<Skip | null> {
+  if (deps.originAllowed && !deps.originAllowed(run.origin)) return "not_armed";
   if (run.closed_at !== null) return "closed";
   if (Date.parse(run.expires_at) <= now) return "expired";
   if (run.driver !== "agent") return "human_holds_page";

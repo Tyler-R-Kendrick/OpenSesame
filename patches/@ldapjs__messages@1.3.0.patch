@@ -1,0 +1,12 @@
+diff --git a/lib/messages/search-request.js b/lib/messages/search-request.js
+--- a/lib/messages/search-request.js
++++ b/lib/messages/search-request.js
+@@ -506,7 +506,7 @@
+       sizeLimit,
+       timeLimit,
+       typesOnly,
+-      filter: parsedFilter.toString(),
++      filter: parsedFilter,
+       attributes
+     }
+   }

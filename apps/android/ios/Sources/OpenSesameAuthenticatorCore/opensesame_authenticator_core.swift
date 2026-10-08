@@ -460,7 +460,37 @@ fileprivate final class UniffiHandleMap<T>: @unchecked Sendable {
 
 
 // Public interface members begin here.
+// Magic number for the Rust proxy to call using the same mechanism as every other method,
+// to free the callback once it's dropped by Rust.
+private let IDX_CALLBACK_FREE: Int32 = 0
+// Callback return codes
+private let UNIFFI_CALLBACK_SUCCESS: Int32 = 0
+private let UNIFFI_CALLBACK_ERROR: Int32 = 1
+private let UNIFFI_CALLBACK_UNEXPECTED_ERROR: Int32 = 2
 
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterBool : FfiConverter {
+    typealias FfiType = Int8
+    typealias SwiftType = Bool
+
+    public static func lift(_ value: Int8) throws -> Bool {
+        return value != 0
+    }
+
+    public static func lower(_ value: Bool) -> Int8 {
+        return value ? 1 : 0
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bool {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Bool, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
 
 #if swift(>=5.8)
 @_documentation(visibility: private)
@@ -506,6 +536,517 @@ fileprivate struct FfiConverterString: FfiConverter {
         writeInt(&buf, len)
         writeBytes(&buf, value.utf8)
     }
+}
+
+
+
+
+/**
+ * A human-installed adapter authenticates the actual Host separately and resolves its issued
+ * UUID record. Local password/OS proof is not Host authorization. Implementations must bound
+ * transport, reject redirects, and return only the authenticated retirement's closed metadata.
+ */
+public protocol NativeCanaryIssuerProvider: AnyObject, Sendable {
+
+    /**
+     * # Errors
+     * Refuses missing Host authentication, absent issuance, or unsuccessful atomic revocation.
+     */
+    func retireAuthenticated(issuerRecordRef: String, expectedVaultIdentity: String) throws  -> String
+
+}
+/**
+ * A human-installed adapter authenticates the actual Host separately and resolves its issued
+ * UUID record. Local password/OS proof is not Host authorization. Implementations must bound
+ * transport, reject redirects, and return only the authenticated retirement's closed metadata.
+ */
+open class NativeCanaryIssuerProviderImpl: NativeCanaryIssuerProvider, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_opensesame_authenticator_core_fn_clone_nativecanaryissuerprovider(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_opensesame_authenticator_core_fn_free_nativecanaryissuerprovider(handle, $0) }
+    }
+
+
+
+
+    /**
+     * # Errors
+     * Refuses missing Host authentication, absent issuance, or unsuccessful atomic revocation.
+     */
+open func retireAuthenticated(issuerRecordRef: String, expectedVaultIdentity: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_method_nativecanaryissuerprovider_retire_authenticated(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(issuerRecordRef),
+        FfiConverterString.lower(expectedVaultIdentity),uniffiCallStatus
+    )
+})
+}
+
+
+
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceNativeCanaryIssuerProvider {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceNativeCanaryIssuerProvider = UniffiVTableCallbackInterfaceNativeCanaryIssuerProvider(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeNativeCanaryIssuerProvider.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface NativeCanaryIssuerProvider: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeNativeCanaryIssuerProvider.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface NativeCanaryIssuerProvider: handle missing in uniffiClone")
+            }
+        },
+        retireAuthenticated: { (
+            uniffiHandle: UInt64,
+            issuerRecordRef: RustBuffer,
+            expectedVaultIdentity: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> String in
+                guard let uniffiObj = try? FfiConverterTypeNativeCanaryIssuerProvider.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return try uniffiObj.retireAuthenticated(
+                     issuerRecordRef: try FfiConverterString.lift(issuerRecordRef),
+                     expectedVaultIdentity: try FfiConverterString.lift(expectedVaultIdentity)
+                )
+            }
+
+
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterString.lower($0) }
+            uniffiTraitInterfaceCallWithError(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn,
+                lowerError: FfiConverterTypeNativeGateError_lower
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceNativeCanaryIssuerProvider> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceNativeCanaryIssuerProvider>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitNativeCanaryIssuerProvider() {
+    uniffi_opensesame_authenticator_core_fn_init_callback_vtable_nativecanaryissuerprovider(UniffiCallbackInterfaceNativeCanaryIssuerProvider.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeCanaryIssuerProvider: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<NativeCanaryIssuerProvider>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = NativeCanaryIssuerProvider
+
+    public static func lift(_ handle: UInt64) throws -> NativeCanaryIssuerProvider {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return NativeCanaryIssuerProviderImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: NativeCanaryIssuerProvider) -> UInt64 {
+         if let rustImpl = value as? NativeCanaryIssuerProviderImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeCanaryIssuerProvider {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: NativeCanaryIssuerProvider, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCanaryIssuerProvider_lift(_ handle: UInt64) throws -> NativeCanaryIssuerProvider {
+    return try FfiConverterTypeNativeCanaryIssuerProvider.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCanaryIssuerProvider_lower(_ value: NativeCanaryIssuerProvider) -> UInt64 {
+    return FfiConverterTypeNativeCanaryIssuerProvider.lower(value)
+}
+
+
+
+
+public struct NativeAdmission: Equatable, Hashable {
+    public var realm: NativeRealm
+    public var record: String
+    public var trapId: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(realm: NativeRealm, record: String, trapId: String?) {
+        self.realm = realm
+        self.record = record
+        self.trapId = trapId
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeAdmission: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeAdmission: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeAdmission {
+        return
+            try NativeAdmission(
+                realm: FfiConverterTypeNativeRealm.read(from: &buf),
+                record: FfiConverterString.read(from: &buf),
+                trapId: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeAdmission, into buf: inout [UInt8]) {
+        FfiConverterTypeNativeRealm.write(value.realm, into: &buf)
+        FfiConverterString.write(value.record, into: &buf)
+        FfiConverterOptionString.write(value.trapId, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeAdmission_lift(_ buf: RustBuffer) throws -> NativeAdmission {
+    return try FfiConverterTypeNativeAdmission.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeAdmission_lower(_ value: NativeAdmission) -> RustBuffer {
+    return FfiConverterTypeNativeAdmission.lower(value)
+}
+
+
+public struct NativeCanaryDelivery: Equatable, Hashable {
+    public var stateRecord: String
+    public var reservation: String
+    public var destination: String
+    public var packet: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(stateRecord: String, reservation: String, destination: String, packet: String) {
+        self.stateRecord = stateRecord
+        self.reservation = reservation
+        self.destination = destination
+        self.packet = packet
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeCanaryDelivery: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeCanaryDelivery: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeCanaryDelivery {
+        return
+            try NativeCanaryDelivery(
+                stateRecord: FfiConverterString.read(from: &buf),
+                reservation: FfiConverterString.read(from: &buf),
+                destination: FfiConverterString.read(from: &buf),
+                packet: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeCanaryDelivery, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.stateRecord, into: &buf)
+        FfiConverterString.write(value.reservation, into: &buf)
+        FfiConverterString.write(value.destination, into: &buf)
+        FfiConverterString.write(value.packet, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCanaryDelivery_lift(_ buf: RustBuffer) throws -> NativeCanaryDelivery {
+    return try FfiConverterTypeNativeCanaryDelivery.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCanaryDelivery_lower(_ value: NativeCanaryDelivery) -> RustBuffer {
+    return FfiConverterTypeNativeCanaryDelivery.lower(value)
+}
+
+
+public struct NativeCanaryFinishResult: Equatable, Hashable {
+    public var stateRecord: String
+    public var delivered: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(stateRecord: String, delivered: Bool) {
+        self.stateRecord = stateRecord
+        self.delivered = delivered
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeCanaryFinishResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeCanaryFinishResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeCanaryFinishResult {
+        return
+            try NativeCanaryFinishResult(
+                stateRecord: FfiConverterString.read(from: &buf),
+                delivered: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeCanaryFinishResult, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.stateRecord, into: &buf)
+        FfiConverterBool.write(value.delivered, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCanaryFinishResult_lift(_ buf: RustBuffer) throws -> NativeCanaryFinishResult {
+    return try FfiConverterTypeNativeCanaryFinishResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCanaryFinishResult_lower(_ value: NativeCanaryFinishResult) -> RustBuffer {
+    return FfiConverterTypeNativeCanaryFinishResult.lower(value)
+}
+
+
+public struct NativeCanaryObservation: Equatable, Hashable {
+    public var stateRecord: String
+    public var decision: String
+    public var observed: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(stateRecord: String, decision: String, observed: Bool) {
+        self.stateRecord = stateRecord
+        self.decision = decision
+        self.observed = observed
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeCanaryObservation: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeCanaryObservation: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeCanaryObservation {
+        return
+            try NativeCanaryObservation(
+                stateRecord: FfiConverterString.read(from: &buf),
+                decision: FfiConverterString.read(from: &buf),
+                observed: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeCanaryObservation, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.stateRecord, into: &buf)
+        FfiConverterString.write(value.decision, into: &buf)
+        FfiConverterBool.write(value.observed, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCanaryObservation_lift(_ buf: RustBuffer) throws -> NativeCanaryObservation {
+    return try FfiConverterTypeNativeCanaryObservation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCanaryObservation_lower(_ value: NativeCanaryObservation) -> RustBuffer {
+    return FfiConverterTypeNativeCanaryObservation.lower(value)
+}
+
+
+public struct NativeCanaryOwnerResult: Equatable, Hashable {
+    public var gateRecord: String
+    public var stateRecord: String
+    public var output: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(gateRecord: String, stateRecord: String, output: String) {
+        self.gateRecord = gateRecord
+        self.stateRecord = stateRecord
+        self.output = output
+    }
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeCanaryOwnerResult: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeCanaryOwnerResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeCanaryOwnerResult {
+        return
+            try NativeCanaryOwnerResult(
+                gateRecord: FfiConverterString.read(from: &buf),
+                stateRecord: FfiConverterString.read(from: &buf),
+                output: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NativeCanaryOwnerResult, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.gateRecord, into: &buf)
+        FfiConverterString.write(value.stateRecord, into: &buf)
+        FfiConverterString.write(value.output, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCanaryOwnerResult_lift(_ buf: RustBuffer) throws -> NativeCanaryOwnerResult {
+    return try FfiConverterTypeNativeCanaryOwnerResult.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCanaryOwnerResult_lower(_ value: NativeCanaryOwnerResult) -> RustBuffer {
+    return FfiConverterTypeNativeCanaryOwnerResult.lower(value)
 }
 
 
@@ -773,6 +1314,334 @@ public func FfiConverterTypeInvocationKind_lower(_ value: InvocationKind) -> Rus
     return FfiConverterTypeInvocationKind.lower(value)
 }
 
+
+
+
+public enum NativeCanaryMutation: Equatable, Hashable {
+
+    case create(kind: String
+    )
+    case remove(artifactId: String
+    )
+    case clearEvents
+    case configureReceiver(provision: String
+    )
+    case enableReceiver(enabled: Bool
+    )
+    case removeReceiver
+    case testReceiver
+    case exportValidator(artifactId: String, presentedId: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeCanaryMutation: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeCanaryMutation: FfiConverterRustBuffer {
+    typealias SwiftType = NativeCanaryMutation
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeCanaryMutation {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        case 1: return .create(kind: try FfiConverterString.read(from: &buf)
+        )
+
+        case 2: return .remove(artifactId: try FfiConverterString.read(from: &buf)
+        )
+
+        case 3: return .clearEvents
+
+        case 4: return .configureReceiver(provision: try FfiConverterString.read(from: &buf)
+        )
+
+        case 5: return .enableReceiver(enabled: try FfiConverterBool.read(from: &buf)
+        )
+
+        case 6: return .removeReceiver
+
+        case 7: return .testReceiver
+
+        case 8: return .exportValidator(artifactId: try FfiConverterString.read(from: &buf), presentedId: try FfiConverterString.read(from: &buf)
+        )
+
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeCanaryMutation, into buf: inout [UInt8]) {
+        switch value {
+
+
+        case let .create(kind):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(kind, into: &buf)
+
+
+        case let .remove(artifactId):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(artifactId, into: &buf)
+
+
+        case .clearEvents:
+            writeInt(&buf, Int32(3))
+
+
+        case let .configureReceiver(provision):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(provision, into: &buf)
+
+
+        case let .enableReceiver(enabled):
+            writeInt(&buf, Int32(5))
+            FfiConverterBool.write(enabled, into: &buf)
+
+
+        case .removeReceiver:
+            writeInt(&buf, Int32(6))
+
+
+        case .testReceiver:
+            writeInt(&buf, Int32(7))
+
+
+        case let .exportValidator(artifactId,presentedId):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(artifactId, into: &buf)
+            FfiConverterString.write(presentedId, into: &buf)
+
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCanaryMutation_lift(_ buf: RustBuffer) throws -> NativeCanaryMutation {
+    return try FfiConverterTypeNativeCanaryMutation.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeCanaryMutation_lower(_ value: NativeCanaryMutation) -> RustBuffer {
+    return FfiConverterTypeNativeCanaryMutation.lower(value)
+}
+
+
+
+public
+enum NativeGateError: Swift.Error, Equatable, Hashable, Foundation.LocalizedError {
+
+
+
+    case InvalidRecord
+    case OwnerRequired
+    case EnrollmentRefused
+
+
+
+
+
+
+    public var errorDescription: String? {
+        String(reflecting: self)
+    }
+
+}
+
+#if compiler(>=6)
+extension NativeGateError: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeGateError: FfiConverterRustBuffer {
+    typealias SwiftType = NativeGateError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeGateError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+
+
+
+        case 1: return .InvalidRecord
+        case 2: return .OwnerRequired
+        case 3: return .EnrollmentRefused
+
+         default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeGateError, into buf: inout [UInt8]) {
+        switch value {
+
+
+
+
+
+        case .InvalidRecord:
+            writeInt(&buf, Int32(1))
+
+
+        case .OwnerRequired:
+            writeInt(&buf, Int32(2))
+
+
+        case .EnrollmentRefused:
+            writeInt(&buf, Int32(3))
+
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeGateError_lift(_ buf: RustBuffer) throws -> NativeGateError {
+    return try FfiConverterTypeNativeGateError.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeGateError_lower(_ value: NativeGateError) -> RustBuffer {
+    return FfiConverterTypeNativeGateError.lower(value)
+}
+
+
+
+public enum NativeRealm: Equatable, Hashable {
+
+    case rejected
+    case real
+    case synthetic
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension NativeRealm: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNativeRealm: FfiConverterRustBuffer {
+    typealias SwiftType = NativeRealm
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NativeRealm {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        case 1: return .rejected
+
+        case 2: return .real
+
+        case 3: return .synthetic
+
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: NativeRealm, into buf: inout [UInt8]) {
+        switch value {
+
+
+        case .rejected:
+            writeInt(&buf, Int32(1))
+
+
+        case .real:
+            writeInt(&buf, Int32(2))
+
+
+        case .synthetic:
+            writeInt(&buf, Int32(3))
+
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeRealm_lift(_ buf: RustBuffer) throws -> NativeRealm {
+    return try FfiConverterTypeNativeRealm.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNativeRealm_lower(_ value: NativeRealm) -> RustBuffer {
+    return FfiConverterTypeNativeRealm.lower(value)
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
+    typealias SwiftType = String?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeNativeCanaryDelivery: FfiConverterRustBuffer {
+    typealias SwiftType = NativeCanaryDelivery?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeNativeCanaryDelivery.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeNativeCanaryDelivery.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
 /**
  * Validate and classify a native invocation using the shared policy engine.
  *
@@ -786,6 +1655,249 @@ public func validatePlatformInvocation(authenticatorOrigin: String, raw: String)
     uniffi_opensesame_authenticator_core_fn_func_validate_platform_invocation(
         FfiConverterString.lower(authenticatorOrigin),
         FfiConverterString.lower(raw),uniffiCallStatus
+    )
+})
+}
+/**
+ * # Errors
+ * This detector path never verifies a submitted vault password or returns real-session admission.
+ */
+public func nativeCanaryObserve(gateRecord: String, stateRecord: String, artifactId: String, presentedId: String, phase: String, now: String)throws  -> NativeCanaryObservation  {
+    return try  FfiConverterTypeNativeCanaryObservation_lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_canary_observe(
+        FfiConverterString.lower(gateRecord),
+        FfiConverterString.lower(stateRecord),
+        FfiConverterString.lower(artifactId),
+        FfiConverterString.lower(presentedId),
+        FfiConverterString.lower(phase),
+        FfiConverterString.lower(now),uniffiCallStatus
+    )
+})
+}
+/**
+ * # Errors
+ * Optional sender hooks normalize only the latest existing closed password event.
+ */
+public func nativeCanaryQueueLatestPassword(gateRecord: String, stateRecord: String?, now: String)throws  -> String?  {
+    return try  FfiConverterOptionString.lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_canary_queue_latest_password(
+        FfiConverterString.lower(gateRecord),
+        FfiConverterOptionString.lower(stateRecord),
+        FfiConverterString.lower(now),uniffiCallStatus
+    )
+})
+}
+/**
+ * # Errors
+ * Platform callers must already hold a genuine real session before exposing redacted status.
+ */
+public func nativeCanaryStatus(gateRecord: String, stateRecord: String?)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_canary_status(
+        FfiConverterString.lower(gateRecord),
+        FfiConverterOptionString.lower(stateRecord),uniffiCallStatus
+    )
+})
+}
+/**
+ * # Errors
+ * Check immediately before nonblocking dispatch under the same exclusion as owner revocation.
+ */
+public func nativeCanaryDispatchCurrent(gateRecord: String, stateRecord: String, reserved: String, now: String)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_canary_dispatch_current(
+        FfiConverterString.lower(gateRecord),
+        FfiConverterString.lower(stateRecord),
+        FfiConverterString.lower(reserved),
+        FfiConverterString.lower(now),uniffiCallStatus
+    )
+})
+}
+/**
+ * # Errors
+ * A changed binding, owner cancellation or unauthenticated HTTP response cannot mark delivery.
+ */
+public func nativeCanaryFinish(gateRecord: String, stateRecord: String, reserved: String, acknowledgement: String?, now: String)throws  -> NativeCanaryFinishResult  {
+    return try  FfiConverterTypeNativeCanaryFinishResult_lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_canary_finish(
+        FfiConverterString.lower(gateRecord),
+        FfiConverterString.lower(stateRecord),
+        FfiConverterString.lower(reserved),
+        FfiConverterOptionString.lower(acknowledgement),
+        FfiConverterString.lower(now),uniffiCallStatus
+    )
+})
+}
+/**
+ * # Errors
+ * Reserves a durable bounded attempt; platform sender awaits network after releasing its lock.
+ */
+public func nativeCanaryReserve(gateRecord: String, stateRecord: String, packageId: String?, testing: Bool, now: String)throws  -> NativeCanaryDelivery?  {
+    return try  FfiConverterOptionTypeNativeCanaryDelivery.lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_canary_reserve(
+        FfiConverterString.lower(gateRecord),
+        FfiConverterString.lower(stateRecord),
+        FfiConverterOptionString.lower(packageId),
+        FfiConverterBool.lower(testing),
+        FfiConverterString.lower(now),uniffiCallStatus
+    )
+})
+}
+/**
+ * # Errors
+ * Called only with an installed authenticated issuer capability after fresh OS owner proof.
+ * Caller must preserve original real-session epoch and CAS gate/state after this function returns.
+ */
+public func nativeCanaryRetireIssued(gateRecord: String, current: String, stateRecord: String?, issuerRecordRef: String, provider: NativeCanaryIssuerProvider, now: String)throws  -> NativeCanaryOwnerResult  {
+    return try  FfiConverterTypeNativeCanaryOwnerResult_lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_canary_retire_issued(
+        FfiConverterString.lower(gateRecord),
+        FfiConverterString.lower(current),
+        FfiConverterOptionString.lower(stateRecord),
+        FfiConverterString.lower(issuerRecordRef),
+        FfiConverterTypeNativeCanaryIssuerProvider_lower(provider),
+        FfiConverterString.lower(now),uniffiCallStatus
+    )
+})
+}
+/**
+ * # Errors
+ * Called only after fresh OS owner proof and a captured real-session epoch; the platform must
+ * recheck that exact epoch and stored gate/state revisions before committing this result.
+ */
+public func nativeCanaryManage(gateRecord: String, current: String, stateRecord: String?, operation: NativeCanaryMutation, now: String)throws  -> NativeCanaryOwnerResult  {
+    return try  FfiConverterTypeNativeCanaryOwnerResult_lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_canary_manage(
+        FfiConverterString.lower(gateRecord),
+        FfiConverterString.lower(current),
+        FfiConverterOptionString.lower(stateRecord),
+        FfiConverterTypeNativeCanaryMutation_lower(operation),
+        FfiConverterString.lower(now),uniffiCallStatus
+    )
+})
+}
+/**
+ * Classify before production runtime admission. Rejected retired passwords still produce evidence.
+ * # Errors
+ * Refuses malformed records, ambiguous matches, or invalid evidence timestamps.
+ */
+public func nativeGateAdmit(record: String, password: String, now: String)throws  -> NativeAdmission  {
+    return try  FfiConverterTypeNativeAdmission_lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_gate_admit(
+        FfiConverterString.lower(record),
+        FfiConverterString.lower(password),
+        FfiConverterString.lower(now),uniffiCallStatus
+    )
+})
+}
+/**
+ * Closed metadata only; no attacker-controlled URI, response body, or submitted password.
+ * # Errors
+ * Refuses malformed records, unknown/non-synthetic traps, or invalid timestamps.
+ */
+public func nativeGateAuthorityDenied(record: String, trapId: String, now: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_gate_authority_denied(
+        FfiConverterString.lower(record),
+        FfiConverterString.lower(trapId),
+        FfiConverterString.lower(now),uniffiCallStatus
+    )
+})
+}
+/**
+ * Rotate only the local admission password; a retained trap cannot become current.
+ * # Errors
+ * Refuses wrong current passwords or a new password colliding with a retained trap.
+ */
+public func nativeGateChangePassword(record: String, current: String, next: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_gate_change_password(
+        FfiConverterString.lower(record),
+        FfiConverterString.lower(current),
+        FfiConverterString.lower(next),uniffiCallStatus
+    )
+})
+}
+/**
+ * Clear local evidence after fresh owner authentication.
+ * # Errors
+ * Refuses malformed records or a wrong current password.
+ */
+public func nativeGateClearEvents(record: String, current: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_gate_clear_events(
+        FfiConverterString.lower(record),
+        FfiConverterString.lower(current),uniffiCallStatus
+    )
+})
+}
+/**
+ * Create an application password gate after fresh OS owner authentication.
+ * # Errors
+ * Refuses empty/unbounded passwords or unavailable derivation.
+ */
+public func nativeGateCreate(password: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_gate_create(
+        FfiConverterString.lower(password),uniffiCallStatus
+    )
+})
+}
+/**
+ * Management requires a fresh current password as well as platform owner verification.
+ * # Errors
+ * Refuses wrong current passwords, collisions, duplicates, or full retention.
+ */
+public func nativeGateEnroll(record: String, current: String, retired: String, synthetic: Bool, now: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_gate_enroll(
+        FfiConverterString.lower(record),
+        FfiConverterString.lower(current),
+        FfiConverterString.lower(retired),
+        FfiConverterBool.lower(synthetic),
+        FfiConverterString.lower(now),uniffiCallStatus
+    )
+})
+}
+/**
+ * Remove a selected trap after fresh owner authentication.
+ * # Errors
+ * Refuses malformed records or a wrong current password.
+ */
+public func nativeGateRemove(record: String, current: String, id: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_gate_remove(
+        FfiConverterString.lower(record),
+        FfiConverterString.lower(current),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+/**
+ * UI metadata deliberately omits verifiers, salts, and submitted passwords.
+ * # Errors
+ * Refuses malformed or oversized records.
+ */
+public func nativeGateStatus(record: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeNativeGateError_lift) {
+        uniffiCallStatus in
+    uniffi_opensesame_authenticator_core_fn_func_native_gate_status(
+        FfiConverterString.lower(record),uniffiCallStatus
     )
 })
 }
@@ -808,7 +1920,59 @@ private let initializationResult: InitializationResult = {
     if (uniffi_opensesame_authenticator_core_checksum_func_validate_platform_invocation() != 29577) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_canary_observe() != 14828) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_canary_queue_latest_password() != 25390) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_canary_status() != 56389) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_canary_dispatch_current() != 57065) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_canary_finish() != 38712) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_canary_reserve() != 42770) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_canary_retire_issued() != 39902) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_canary_manage() != 25009) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_gate_admit() != 36932) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_gate_authority_denied() != 65450) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_gate_change_password() != 64573) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_gate_clear_events() != 59560) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_gate_create() != 23398) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_gate_enroll() != 48575) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_gate_remove() != 44386) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_func_native_gate_status() != 40333) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_opensesame_authenticator_core_checksum_method_nativecanaryissuerprovider_retire_authenticated() != 58834) {
+        return InitializationResult.apiChecksumMismatch
+    }
 
+    uniffiCallbackInitNativeCanaryIssuerProvider()
     return InitializationResult.ok
 }()
 

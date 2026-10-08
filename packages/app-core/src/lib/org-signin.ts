@@ -1,3 +1,4 @@
+import { withRealAuthority } from "./decoy-session.js";
 /**
  * Organization sign-in settings (D14; ADR 0140) as a model. Three things an
  * organization's owner configures and nobody else can: the upstream their
@@ -224,27 +225,28 @@ export function federatedRedirectUri(base: string): string {
 type Call = (path: string, init: RequestInit) => Promise<BoundaryValue>;
 
 function caller(transport: OrgSignInTransport): Call {
-  return async (path, init) => {
-    let res: Response;
-    try {
-      res = await transport.fetch(path, {
-        ...init,
-        headers: {
-          accept: "application/json",
-          ...(init.body ? { "content-type": "application/json" } : {}),
-        },
-      });
-    } catch {
-      throw new OrgSignInError(0, "");
-    }
-    // 204 is what a revoke and a release answer, and it carries no body.
-    const body: BoundaryValue =
-      res.status === 204 ? null : await res.json().catch(() => null);
-    if (res.ok) return body;
-    const read: JsonObject = isJsonObject(body) ? body : {};
-    const detail = isString(read.message) ? read.message : null;
-    throw new OrgSignInError(res.status, text(read.error), detail);
-  };
+  return (path, init) =>
+    withRealAuthority(async () => {
+      let res: Response;
+      try {
+        res = await transport.fetch(path, {
+          ...init,
+          headers: {
+            accept: "application/json",
+            ...(init.body ? { "content-type": "application/json" } : {}),
+          },
+        });
+      } catch {
+        throw new OrgSignInError(0, "");
+      }
+      // 204 is what a revoke and a release answer, and it carries no body.
+      const body: BoundaryValue =
+        res.status === 204 ? null : await res.json().catch(() => null);
+      if (res.ok) return body;
+      const read: JsonObject = isJsonObject(body) ? body : {};
+      const detail = isString(read.message) ? read.message : null;
+      throw new OrgSignInError(res.status, text(read.error), detail);
+    });
 }
 
 const at = (org: OrgSignInOrganization, tail = "") =>

@@ -1,5 +1,4 @@
 import type {
-  ProtectionContext,
   ProtectionRecord,
   RootProtectionManifest,
 } from "@opensesame/vault-core";
@@ -14,20 +13,9 @@ import {
 } from "./enroll-external.js";
 import { ProtectionError } from "./errors.js";
 import { newProtectorId } from "./ids.js";
+import { contextForRecord } from "./record-context.js";
 import { enrollRecoveryKey, openWithRecoveryKey } from "./recovery-key.js";
-
-export function contextForRecord(
-  manifest: RootProtectionManifest,
-  protectorId: string,
-): ProtectionContext {
-  return {
-    vaultId: manifest.vaultId,
-    rootKeyId: manifest.rootKeyId,
-    rootEpoch: manifest.rootEpoch,
-    protectorId,
-    purpose: manifest.purpose,
-  };
-}
+export { contextForRecord } from "./record-context.js";
 
 export type EnrollableKind =
   | "recovery-key"
@@ -42,6 +30,12 @@ export type HeldWebauthnPrf = {
   userId: ArrayBuffer;
 };
 
+export type ProvenEnrollmentRecord = {
+  record: ProtectionRecord;
+  recoverySecretB64?: string;
+  ageIdentitySecret?: string;
+};
+
 /** Build a proven protector record. Does not touch the mutation journal. */
 export async function provenEnrollmentRecord(input: {
   kind: EnrollableKind;
@@ -52,11 +46,7 @@ export async function provenEnrollmentRecord(input: {
   signal: AbortSignal;
   held?: HeldWebauthnPrf | undefined;
   external?: ExternalEnrollment | undefined;
-}): Promise<{
-  record: ProtectionRecord;
-  recoverySecretB64?: string;
-  ageIdentitySecret?: string;
-}> {
+}): Promise<ProvenEnrollmentRecord> {
   if (input.external) {
     return provenExternalRecord({
       enrollment: input.external,

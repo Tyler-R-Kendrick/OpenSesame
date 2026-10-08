@@ -6,6 +6,8 @@ import {
   loopbackLogin,
   redactSecrets,
 } from "@opensesame/sdk-cli";
+import { runCanaryInstallation } from "./canary-install.js";
+import { serveCanary } from "./canary-serve.js";
 import { runHostCommand } from "./host-commands.js";
 import {
   clearSession,
@@ -15,14 +17,19 @@ import {
 } from "./identity-session.js";
 import { emit, errorLine } from "./output.js";
 import { type ParityDependencies, runParity } from "./parity.js";
+import type { SecurityCommand } from "./parse-security.js";
 import {
   type ParsedCommand,
   SessionFileSchema,
   helpText,
   parseArgs,
 } from "./parse.js";
+import { runSecurityCanary } from "./security-canaries.js";
+import { runSecurityConnectorLegacy } from "./security-connector-legacy.js";
+import { runSecurityReceiver } from "./security-receiver.js";
 import { type VaultDependencies, runVaultCommand } from "./vault-commands.js";
 import { type VaultItemDependencies, runVaultItems } from "./vault-items.js";
+import { runVaultRetired } from "./vault-retired.js";
 import { type VaultSyncDependencies, runVaultSync } from "./vault-sync.js";
 
 function defaultIssuer(): string {
@@ -78,6 +85,8 @@ export async function runCli(
   const fetchImpl = deps?.fetchImpl ?? fetch;
 
   try {
+    if (isSecurityCommand(command))
+      return await dispatchSecurity(command, deps);
     return await dispatch(command, { issuer, api, clientId, fetchImpl, deps });
   } catch (err) {
     // A refused endpoint or a failed exchange is a message, not a stack trace.
@@ -87,7 +96,7 @@ export async function runCli(
 }
 
 async function dispatch(
-  command: Exclude<ParsedCommand, { name: "help" }>,
+  command: Exclude<ParsedCommand, { name: "help" } | SecurityCommand>,
   ctx: DispatchContext,
 ): Promise<number> {
   const { issuer, api, clientId, fetchImpl, deps } = ctx;
@@ -316,6 +325,12 @@ async function dispatch(
     case "host-discover":
       return runHostCommand(command, fetchImpl);
 
+    case "vault-retired-status":
+    case "vault-retired-enroll":
+    case "vault-retired-remove":
+    case "vault-retired-clear":
+      return runVaultRetired(command, deps);
+
     case "vault-verify":
     case "vault-ls":
       return runVaultCommand(command, deps);
@@ -341,3 +356,41 @@ async function dispatch(
 }
 
 export { parseArgs, helpText, SessionFileSchema };
+
+function isSecurityCommand(
+  command: Exclude<ParsedCommand, { name: "help" }>,
+): command is SecurityCommand {
+  return (
+    command.name.startsWith("security-") || command.name.startsWith("canary-")
+  );
+}
+function isCanaryOwnerCommand(
+  command: SecurityCommand,
+): command is Extract<SecurityCommand, { name: `security-canary-${string}` }> {
+  return command.name.startsWith("security-canary-");
+}
+function isReceiverOwnerCommand(
+  command: SecurityCommand,
+): command is Extract<
+  SecurityCommand,
+  { name: `security-receiver-${string}` }
+> {
+  return command.name.startsWith("security-receiver-");
+}
+function dispatchSecurity(
+  command: SecurityCommand,
+  deps: RunDependencies | undefined,
+): Promise<number> {
+  if (
+    command.name === "security-connectors-legacy-status" ||
+    command.name === "security-connectors-legacy-resolve" ||
+    command.name === "security-connectors-legacy-discard-all"
+  )
+    return runSecurityConnectorLegacy(command, deps);
+  if (isCanaryOwnerCommand(command)) return runSecurityCanary(command, deps);
+  if (isReceiverOwnerCommand(command))
+    return runSecurityReceiver(command, deps);
+  if (command.name === "canary-serve")
+    return serveCanary(command.configFile, deps?.stateDir);
+  return runCanaryInstallation(command, deps?.stateDir);
+}

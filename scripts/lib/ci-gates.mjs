@@ -2,10 +2,8 @@
 //
 // `ci-changed-areas.mjs` says whether the Pages build is in play at all (the
 // `bundle` area). Inside it, this file says which of the gates run. A gate
-// costs a runner for the minute and a half it takes to install and build
-// before it walks anything, so a diff starts the gates its changed paths can
-// reach and no others. The triggers are the ones AGENTS.md writes down for
-// each gate ("Design rules that gate merges"); each rule below names its own.
+// costs a runner to install and build. A diff starts its reachable gates;
+// each rule names the triggers AGENTS.md writes down for that gate.
 //
 // Two things keep a skip honest:
 //   - A path nobody classified runs every gate. A wrong skip is worse than one
@@ -15,14 +13,19 @@
 
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { DRIVER_GATES } from "./ci-gate-drivers.mjs";
+
+export { DRIVER_GATES } from "./ci-gate-drivers.mjs";
 
 /** The gates the bundle job's shards run, by shard name (`mobile-*` is one). */
 export const SHARD_GATES = [
   "budgets",
   "keyboard",
+  "live-transports",
   "sign-in",
   "static",
   "auth",
+  "duress",
   "customer-crypto",
   "journeys",
   "mobile",
@@ -44,8 +47,6 @@ export function gateOfShard(shard) {
   if (shard.startsWith("mobile-")) return "mobile";
   return shard.startsWith("journeys-") ? "journeys" : shard;
 }
-
-// --- paths ---------------------------------------------------------------
 
 const DOC_ROOTS = ["docs", "skills", ".agents", ".claude"];
 
@@ -70,49 +71,6 @@ export function isTestPath(path) {
     /\.fixture\.[cm]?[jt]sx?$/.test(path)
   );
 }
-
-// --- the driver scripts of apps/pages/scripts -----------------------------
-
-// Each `verify-*.mjs` and the gate whose shard or job runs it. A driver that
-// no CI job runs is `null`: changing it starts nothing. The contract test
-// fails on a driver missing from this table, so a new one forces a decision.
-export const DRIVER_GATES = {
-  "verify-keyboard.mjs": ["keyboard"],
-  "verify-siop.mjs": ["keyboard"],
-  "verify-mobile.mjs": ["mobile"],
-  "verify-local-iam.mjs": ["sign-in"],
-  "verify-static-origin.mjs": ["static"],
-  "verify-encrypted-search.mjs": ["static"],
-  "verify-auth-flow.mjs": ["auth"],
-  "verify-experience-journeys.mjs": ["journeys"],
-  "verify-webmcp.mjs": ["budgets"],
-  "verify-push-worker.mjs": ["budgets"],
-  "verify-capability-graph.mjs": ["budgets"],
-  "verify-device-identity.mjs": ["device-identity"],
-  "verify-device-inbox.mjs": ["device-inbox"],
-  "verify-tutorials.mjs": ["tutorials"],
-  "verify-push.mjs": ["push"],
-  // The contract suite's vitest blocks run in the TypeScript job; its browser
-  // half is the gates above.
-  "verify-experience.mjs": null,
-  // Password parity has its own workflow and is not a ci.yml shard.
-  "verify-password-agent.mjs": null,
-  // Not run by any job of ci.yml.
-  "verify-access-pathbar.mjs": null,
-  "verify-ambient-sso.mjs": null,
-  "verify-browser-cert.mjs": null,
-  "verify-browser-session-lifecycle.mjs": null,
-  "verify-browser-sessions.mjs": null,
-  "verify-duress-browser.mjs": null,
-  "verify-duress-offline.mjs": null,
-  "verify-duress.mjs": null,
-  "verify-live-join.mjs": null,
-  "verify-live-netns.mjs": null,
-  "verify-mutations.mjs": null,
-  "verify-tailnet-devices.mjs": null,
-  "verify-tailnet-sync.mjs": null,
-  "verify-transport.mjs": null,
-};
 
 const SCRIPTS = "apps/pages/scripts";
 const IMPORT = /(?:from\s*|import\s*\(\s*|import\s+)["'](\.[^"']+)["']/g;
@@ -257,7 +215,7 @@ function pagesSection(path) {
   // AGENTS.md: unlock methods and second steps are verify:auth; the device as
   // the Identity plane is verify:device-identity.
   if (path.startsWith(`${PAGES_SRC}/sections/settings/security/`)) {
-    return gates("budgets", "journeys", "auth", "device-identity");
+    return gates("budgets", "journeys", "auth", "duress", "device-identity");
   }
   return gates("budgets", "journeys");
 }
@@ -284,6 +242,8 @@ function pagesSource(path) {
       "keyboard",
       "mobile",
       "static",
+      "auth",
+      "duress",
       "journeys",
       "tutorials",
     );
@@ -310,6 +270,9 @@ function coreSource(path) {
 }
 
 function pagesOther(path, reach) {
+  // The duress driver launches these modules as a process, so imports alone
+  // cannot express their reachability.
+  if (under(path, `${SCRIPTS}/duress`)) return gates("duress");
   if (path.startsWith(`${SCRIPTS}/`)) return scriptGates(path, reach);
   // The relay's own tests run `node --test`, in the TypeScript job.
   if (under(path, "apps/pages/server")) return gates();
@@ -344,6 +307,15 @@ function gatesByPath(path, reach) {
   // The workflow is every job's definition: an edit to one job is proved only
   // by running it, so it starts them all.
   if (path === ".github/workflows/ci.yml") return everyGate();
+  if (
+    underAny(path, [
+      "apps/browser-extension",
+      "apps/browser-extension-autofill",
+    ])
+  )
+    return gates("auth");
+  if (under(path, "scripts/test/live-turn"))
+    return gates("keyboard", "live-transports");
   if (path === "tools/quality/bundle-budgets.json") return gates("budgets");
   if (path.startsWith(`${PAGES_SRC}/`)) return pagesSource(path);
   if (path.startsWith("apps/pages/")) return pagesOther(path, reach);

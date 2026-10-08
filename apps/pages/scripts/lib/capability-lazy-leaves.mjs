@@ -17,6 +17,11 @@ const LAZY_LEAVES = [
   ["/packages/webmcp/src/", "agents.webmcp", "webmcp-sdk"],
   // The SDKs behind the agents, which Rollup fused the same way.
   ["/node_modules/ai/", "support.local-ai", "vendor-ai-sdk"],
+  [
+    "/packages/app-core/src/lib/command-bar/ai-object-generator.ts",
+    "support.local-ai",
+    "vendor-ai-sdk",
+  ],
   ["/node_modules/@ai-sdk/", "support.local-ai", "vendor-ai-sdk"],
   ["/node_modules/@ag-ui/client/", "support.remote-ai", "vendor-ag-ui"],
   // MSAL, reached only through lib/ambient-auth/entra.ts's import(): Rollup

@@ -8,6 +8,7 @@ import {
   listLocalBackupTargets,
   subscribeLocalBackupTarget,
 } from "./backup-target-local.js";
+import { isRealAuthorityBlocked } from "./decoy-session.js";
 import { drainBackupWebhooks, syncVaultBackup } from "./vault-backup-sync.js";
 import { GUEST_TOMB, vaultStore } from "./vault/store.js";
 
@@ -37,6 +38,7 @@ function statusKey(): string {
 const AUTOMATIC: ReadonlySet<BackupSyncReason> = new Set(["vault", "webhook"]);
 
 async function runSync(reason: BackupSyncReason): Promise<void> {
+  if (isRealAuthorityBlocked()) return;
   // Withdrawn by the operator: nothing, not even a sync asked for by hand.
   if (!backupEgressGate.running()) return;
   if (AUTOMATIC.has(reason) && !backupEgressGate.allowed()) return;
@@ -61,6 +63,7 @@ async function runSync(reason: BackupSyncReason): Promise<void> {
 }
 
 export function publishBackupSyncEvent(reason: BackupSyncReason): void {
+  if (isRealAuthorityBlocked()) return;
   const { tomb } = vaultStore.getSnapshot();
   if (tomb === GUEST_TOMB) return;
   const event: BackupSyncEvent = { reason };
@@ -78,9 +81,18 @@ export function subscribeBackupSyncEvents(
 }
 
 async function pollWebhooks(): Promise<void> {
-  if (!backupEgressGate.allowed()) return;
-  const count = await drainBackupWebhooks();
-  if (count > 0) publishBackupSyncEvent("webhook");
+  if (isRealAuthorityBlocked() || !backupEgressGate.allowed()) return;
+  try {
+    const count = await drainBackupWebhooks();
+    if (isRealAuthorityBlocked()) {
+      stopVaultBackupObserver();
+      return;
+    }
+    if (count > 0) publishBackupSyncEvent("webhook");
+  } catch {
+    // Transient polling failure retries on the timer; synthetic entry withdraws the job.
+    if (isRealAuthorityBlocked()) stopVaultBackupObserver();
+  }
 }
 
 /** Idempotent — call once from the GitHub connector surface or app boot. */
@@ -90,12 +102,16 @@ export function startVaultBackupObserver(): () => void {
   }
   // Every caller — the capability's job, a Settings tile reading the status,
   // a target being enabled — lands here, so the network envelope is held here.
-  if (!backupEgressGate.allowed()) {
+  if (isRealAuthorityBlocked() || !backupEgressGate.allowed()) {
     return () => undefined;
   }
   started = true;
   lastStatus = statusKey();
   vaultUnsub = vaultStore.subscribe(() => {
+    if (isRealAuthorityBlocked()) {
+      stopVaultBackupObserver();
+      return;
+    }
     const next = statusKey();
     if (next === lastStatus) return;
     lastStatus = next;
@@ -128,4 +144,5 @@ export function stopVaultBackupObserver(): void {
 export const vaultBackupObserverSeams = {
   runSync,
   publishBackupSyncEvent,
+  pollWebhooks,
 };

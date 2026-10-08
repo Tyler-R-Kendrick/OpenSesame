@@ -18,6 +18,8 @@ import {
   validateRunTemplate,
 } from "@opensesame/app-core/lib/password-agent/startup-env.js";
 
+import { parityAuthority } from "./parity-authority.js";
+
 export interface OpInvocation {
   timeoutMs?: number | undefined;
   input?: string | undefined;
@@ -27,10 +29,12 @@ export interface OpInvocation {
 }
 
 /** Diagnostics from a secret-bearing subprocess never cross this boundary. */
-export function invokeOp(
+export async function invokeOp(
   args: readonly string[],
   options: OpInvocation = {},
 ): Promise<string> {
+  const check = parityAuthority();
+  check();
   const env = { ...process.env, ...options.env };
   if (options.desktop) env.OP_SERVICE_ACCOUNT_TOKEN = undefined;
   const argv = options.account
@@ -52,7 +56,9 @@ function capture(
   input?: string,
   timeoutMs = 0,
 ): Promise<string> {
+  const check = parityAuthority();
   return new Promise((resolve, reject) => {
+    check();
     const child = spawn(command, args, {
       env: helperEnvironment(env),
       cwd: parse(process.execPath).root,
@@ -76,6 +82,12 @@ function capture(
       ),
     );
     child.on("close", (code) => {
+      try {
+        check();
+      } catch (error) {
+        reject(error);
+        return;
+      }
       if (code === 0 && !tooLarge) resolve(output);
       else reject(new Error("Credential helper failed; details suppressed."));
     });
@@ -88,12 +100,14 @@ function capture(
 export async function readPrivateInput(
   source: "stdin" | "clipboard",
 ): Promise<string> {
+  const check = parityAuthority();
   let text: string;
   if (source === "stdin") {
     if (process.stdin.isTTY) throw new Error("Pipe the secret to --stdin.");
     process.stdin.setEncoding("utf8");
     text = "";
     for await (const chunk of process.stdin) {
+      check();
       text += chunk;
       if (text.length > 16_777_216)
         throw new Error("Private input is too large.");
@@ -114,6 +128,7 @@ export async function readPrivateInput(
   } else {
     throw new Error("Clipboard input requires macOS or Windows; use --stdin.");
   }
+  check();
   if (!text.trim()) throw new Error("Private input is empty.");
   return text;
 }
@@ -123,26 +138,35 @@ export async function writePrivateFile(
   target: string,
   content: string,
 ): Promise<void> {
+  const check = parityAuthority();
+  if (process.platform === "win32")
+    throw new Error(
+      "Private file publication on Windows requires the native opensesame CLI.",
+    );
   const temporary = join(
     dirname(target),
     `.${basename(target)}.${randomUUID()}.tmp`,
   );
   try {
     await writeFile(temporary, content, { mode: 0o600, flag: "wx" });
+    check();
     await chmod(temporary, 0o600);
+    check();
     await rename(temporary, target);
+    check();
   } finally {
     await rm(temporary, { force: true });
   }
 }
 
 /** A fixed node helper removes the provider token before the selected process. */
-export function runOpChild(
+export async function runOpChild(
   args: readonly string[],
   command: readonly string[],
   values: Readonly<Record<string, string>> = {},
   options: OpInvocation = {},
 ): Promise<number> {
+  const check = parityAuthority();
   if (!command.length) throw new Error("A child command is required after --.");
   for (const name of Object.keys(values)) assertSafeRunName(name);
   const env = { ...process.env, ...options.env, ...values };
@@ -171,7 +195,14 @@ export function runOpChild(
         new Error("Could not start credential helper; details suppressed."),
       ),
     );
-    child.on("close", (code) => resolve(code ?? 1));
+    child.on("close", (code) => {
+      try {
+        check();
+        resolve(code ?? 1);
+      } catch (error) {
+        reject(error);
+      }
+    });
   });
 }
 
@@ -227,18 +258,24 @@ export async function runEnvFileSnapshot(
   command: readonly string[],
   options: OpInvocation = {},
 ): Promise<number> {
+  const check = parityAuthority();
   validateRunTemplate(content);
   const directory = await mkdtemp(join(tmpdir(), "opensesame-run-env-"));
   const file = join(directory, "environment");
   try {
+    check();
     await chmod(directory, 0o700);
+    check();
     await writeFile(file, content, { mode: 0o600, flag: "wx" });
-    return await runOpChild(
+    check();
+    const result = await runOpChild(
       ["run", `--env-file=${file}`],
       command,
       {},
       options,
     );
+    check();
+    return result;
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

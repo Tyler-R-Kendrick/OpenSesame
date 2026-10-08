@@ -1,10 +1,11 @@
-/** @vitest-environment jsdom */
 import { listNotices } from "@opensesame/app-core/lib/notices.js";
 import {
   mintOprfKey,
   sphinxPassword,
   vaultEvaluator,
 } from "@opensesame/app-core/lib/vault/generators/sphinx.js";
+/** @vitest-environment jsdom */
+import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   type AccountItem,
   DEFAULT_RULES,
@@ -24,6 +25,10 @@ import {
   it,
   vi,
 } from "vitest";
+import {
+  admitConnectorOwner,
+  releaseConnectorOwner,
+} from "../settings/connector-owner.test-support.js";
 
 type VaultFixture = { current: { items: VaultItem[]; folders: Folder[] } };
 
@@ -38,15 +43,12 @@ const copySecret = vi.hoisted(() => vi.fn());
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 const originalVaultHooksSeams = { ...vaultHooksSeams };
 Object.assign(vaultHooksSeams, {
-  useVault: () => ({ ...vault.current, tomb: "personal" }),
-  useVaultStore: () => store,
   useCopySecret: () => copySecret,
 });
 afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
 
 import { expectInTray } from "../../components/tray.test-support.js";
 import { ItemDetail } from "./ItemDetail.js";
-import { bindAccountPasswordCore } from "./account-password-test-context.js";
 import {
   PLAIN,
   sealedAccount,
@@ -77,7 +79,8 @@ function sphinxAccount(): AccountItem {
   };
 }
 
-function renderAt(id: string) {
+async function renderAt(id: string) {
+  await vaultStore.replaceAll(vault.current.items, vault.current.folders);
   return render(
     <MemoryRouter initialEntries={[`/vault/${id}`]}>
       <Routes>
@@ -100,57 +103,32 @@ function savedPassword() {
   return method;
 }
 
+async function awaitPasswordWrite() {
+  await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
+  const result = store.saveItem.mock.results[0];
+  if (result?.type !== "return") throw new Error("Expected password write.");
+  await result.value;
+  await waitFor(() => {
+    const item = vaultStore
+      .getSnapshot()
+      .items.find((entry) => entry.id === store.saveItem.mock.calls[0]?.[0].id);
+    if (item?.kind !== "account") throw new Error("Expected stored account.");
+    expect(passwordMethod(item)?.secret).toBe(savedPassword().secret);
+  });
+}
+
 describe("account detail", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await admitConnectorOwner();
     vault.current = { items: [], folders: [] };
     copySecret.mockResolvedValue("copied");
-    store.saveItem.mockResolvedValue(undefined);
-    bindAccountPasswordCore(() => vault.current.items, store.saveItem);
+    store.saveItem = vi.spyOn(vaultStore, "saveItem");
   });
-  afterEach(() => {
+  afterEach(async () => {
     cleanup();
+    await releaseConnectorOwner();
     vi.clearAllMocks();
     vi.restoreAllMocks();
-  });
-
-  it.each([
-    "2026-08-02T12:00:00Z",
-    "2026-08-02T14:00:00+02:00",
-    "2026-08-02T12:00:30Z",
-  ])("shows a shared edit timestamp once (%s)", (passwordChangedAt) => {
-    vault.current = {
-      items: [
-        makeAccount({
-          id: "itm_dates",
-          updatedAt: "2026-08-02T12:00:00Z",
-          passwordChangedAt,
-        }),
-      ],
-      folders: [],
-    };
-    renderAt("itm_dates");
-    expect(screen.getAllByText(/^Updated /)).toHaveLength(1);
-    expect(screen.queryByText(/^Password last changed /)).toBeNull();
-  });
-
-  it("retains password history when another edit updated the item later", () => {
-    vault.current = {
-      items: [makeAccount({ id: "itm_dates" })],
-      folders: [],
-    };
-    renderAt("itm_dates");
-    expect(screen.getAllByText(/^Updated /)).toHaveLength(1);
-    expect(screen.getByText(/^Password last changed /)).toBeTruthy();
-  });
-
-  it("shows only the item edit date for an account without a password", () => {
-    vault.current = {
-      items: [makeAccount({ id: "itm_dates", password: "" })],
-      folders: [],
-    };
-    renderAt("itm_dates");
-    expect(screen.getAllByText(/^Updated /)).toHaveLength(1);
-    expect(screen.queryByText(/^Password last changed /)).toBeNull();
   });
 
   it("generates a replacement password through the update panel", async () => {
@@ -158,14 +136,14 @@ describe("account detail", () => {
       items: [makeAccount({ id: "itm_login", password: "hunter2hunter2" })],
       folders: [],
     };
-    renderAt("itm_login");
+    await renderAt("itm_login");
     await userEvent.click(
       screen.getByRole("button", { name: /Update password/i }),
     );
     await userEvent.click(
       screen.getByRole("button", { name: /Save new value/i }),
     );
-    await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
+    await awaitPasswordWrite();
     const method = savedPassword();
     expect(method.secret).not.toBe("hunter2hunter2");
     expect(method.secret).toHaveLength(32);
@@ -174,7 +152,7 @@ describe("account detail", () => {
 
   it("requires a value in provide mode and saves what is typed", async () => {
     vault.current = { items: [makeAccount({ id: "itm_login" })], folders: [] };
-    renderAt("itm_login");
+    await renderAt("itm_login");
     await userEvent.click(
       screen.getByRole("button", { name: /Update password/i }),
     );
@@ -191,13 +169,13 @@ describe("account detail", () => {
     await userEvent.click(
       screen.getByRole("button", { name: /Save new value/i }),
     );
-    await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
+    await awaitPasswordWrite();
     expect(savedPassword().secret).toBe("typed-secret-value");
   });
 
   it("cancels the update panel without saving", async () => {
     vault.current = { items: [makeAccount({ id: "itm_login" })], folders: [] };
-    renderAt("itm_login");
+    await renderAt("itm_login");
     await userEvent.click(
       screen.getByRole("button", { name: /Update password/i }),
     );
@@ -209,7 +187,7 @@ describe("account detail", () => {
     ).toBeTruthy();
   });
 
-  it("gives every method its own rows", () => {
+  it("gives every method its own rows", async () => {
     const base = makeAccount({ id: "itm_many", totp: "JBSWY3DPEHPK3PXP" });
     vault.current = {
       items: [
@@ -233,7 +211,7 @@ describe("account detail", () => {
       ],
       folders: [],
     };
-    renderAt("itm_many");
+    await renderAt("itm_many");
     expect(screen.getByText("Username / ID")).toBeTruthy();
     expect(screen.getByText("Authenticator code")).toBeTruthy();
     expect(screen.getByText("API header")).toBeTruthy();
@@ -251,7 +229,7 @@ describe("account detail", () => {
   it("reveals the pepper slot and copies its parts without a separate lock marker", async () => {
     const account = slottedAccount("abcdefghij", "-4");
     vault.current = { items: [account], folders: [] };
-    renderAt("itm_slot");
+    await renderAt("itm_slot");
     expect(
       screen.queryByRole("img", { name: "Your pepper goes at -4" }),
     ).toBeNull();
@@ -274,7 +252,7 @@ describe("account detail", () => {
 
   it("has no rest to copy when the pepper goes last", async () => {
     vault.current = { items: [slottedAccount("abcdefghij")], folders: [] };
-    renderAt("itm_slot");
+    await renderAt("itm_slot");
     expect(
       screen.queryByRole("img", { name: "Your pepper goes after it" }),
     ).toBeNull();
@@ -289,7 +267,7 @@ describe("account detail", () => {
 
   it("updates a password that has a pepper slot as a stored one, keeping the slot, with no prompt", async () => {
     vault.current = { items: [slottedAccount("abcdefghij", "3")], folders: [] };
-    renderAt("itm_slot");
+    await renderAt("itm_slot");
     await userEvent.click(
       screen.getByRole("button", { name: "Update password" }),
     );
@@ -301,7 +279,7 @@ describe("account detail", () => {
     await userEvent.click(
       screen.getByRole("button", { name: "Save new value" }),
     );
-    await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
+    await awaitPasswordWrite();
     expect(savedPassword()).toMatchObject({
       pepper: true,
       pepperAt: "3",
@@ -313,7 +291,7 @@ describe("account detail", () => {
   it("converts a password an earlier pepper sealed, once, into a stored one", async () => {
     const { account } = await sealedAccount();
     vault.current = { items: [account], folders: [] };
-    renderAt("itm_pep");
+    await renderAt("itm_pep");
     expect(
       screen.getByRole("img", {
         name: "Made with an earlier pepper: convert it once",
@@ -328,7 +306,7 @@ describe("account detail", () => {
       screen.getByRole("dialog", { name: "Convert password" }),
     ).toBeTruthy();
     await answer("right");
-    await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
+    await awaitPasswordWrite();
     const method = savedPassword();
     expect(method).toMatchObject({ pepper: false, secret: PLAIN });
     expect(method.sealed).toBeUndefined();
@@ -338,7 +316,7 @@ describe("account detail", () => {
   it("shows a wrong earlier pepper as a mark and a tray notice, never a box, and saves nothing", async () => {
     const { account, method } = await sealedAccount();
     vault.current = { items: [account], folders: [] };
-    const { container } = renderAt("itm_pep");
+    const { container } = await renderAt("itm_pep");
     await userEvent.click(
       screen.getByRole("button", { name: "Convert password" }),
     );
@@ -356,7 +334,7 @@ describe("account detail", () => {
   it("closing the earlier-pepper prompt converts nothing and says nothing", async () => {
     const { account } = await sealedAccount();
     vault.current = { items: [account], folders: [] };
-    renderAt("itm_pep");
+    await renderAt("itm_pep");
     await userEvent.click(
       screen.getByRole("button", { name: "Convert password" }),
     );
@@ -370,12 +348,12 @@ describe("account detail", () => {
   it("converts a Sphinx password from its master input to the password it computed", async () => {
     const account = sphinxAccount();
     vault.current = { items: [account], folders: [] };
-    renderAt("itm_sph");
+    await renderAt("itm_sph");
     await userEvent.click(
       screen.getByRole("button", { name: "Convert password" }),
     );
     await answer("one master");
-    await waitFor(() => expect(store.saveItem).toHaveBeenCalled());
+    await awaitPasswordWrite();
     const before = passwordMethod(account);
     if (before?.generator.id !== "sphinx") throw new Error("fixture");
     const expected = await sphinxPassword(

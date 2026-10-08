@@ -174,11 +174,11 @@ const LOCAL_AI_FILES = [
   "model-slugs",
   "browser-inference",
   "command-bar/interpret",
+  "command-bar/ai-object-generator",
   "command-bar/prompt-model",
   "command-bar/speech",
 ];
 const WALLET_FILES = ["spending-", "wallet-"];
-
 export const LIB_RULES = [
   core(
     `${L}item-type-marketplace/`,

@@ -74,7 +74,11 @@ import { connectorUnlockEffects } from "./unlock-effects.js";
 export const CAPABILITY = "connectors.external";
 
 /** Plaintext keys this capability hydrates before its first read. */
-export const HYDRATE_KEYS: readonly string[] = [DIRECTORY_KEY, FIRST_RUN_KEY];
+export const HYDRATE_KEYS: readonly string[] = [
+  DIRECTORY_KEY,
+  FIRST_RUN_KEY,
+  "opensesame.device-connectors.v1",
+];
 
 /**
  * Authored beside the registry (`connections-catalog.ts`, `-goals.ts`):

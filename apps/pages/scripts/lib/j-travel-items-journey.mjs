@@ -22,14 +22,14 @@ import {
 } from "./pages-journey.mjs";
 
 const HIDE = [
-  { name: "Zebra Offshore Bank", secret: "pw-zebra-9f31" },
-  { name: "Quartz Escrow Account", secret: "pw-quartz-88e2" },
+  { name: "Zebra Offshore Bank", secret: "pw-zebra-9f31" }, // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
+  { name: "Quartz Escrow Account", secret: "pw-quartz-88e2" }, // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 ];
 const KEEP = [
   { name: "Keeper One", secret: "pw-keeper-1-ab9c" },
   { name: "Keeper Two", secret: "pw-keeper-2-cd7e" },
 ];
-const TRASHED = { name: "Trashed Memo", secret: "pw-trashed-31f0" };
+const TRASHED = { name: "Trashed Memo", secret: "pw-trashed-31f0" }; // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
 const NEEDLES = HIDE.flatMap((item) => [item.name, item.secret]);
 
 const text = async (page) =>

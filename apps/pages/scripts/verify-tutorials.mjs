@@ -36,6 +36,7 @@ import { chromium } from "@playwright/test";
 import { enableEverything } from "./lib/enable-capabilities.mjs";
 import { passTheDoor } from "./lib/front-door.mjs";
 import { sealLocalOnly } from "./lib/pages-journey.mjs";
+import { seedPasswordVault, unlockSeeded } from "./lib/seeded-vault.mjs";
 import { inShard, isFirstShard, parseShard } from "./lib/shard.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { gatePass, popupPass } from "./lib/tutorial-gates.mjs";
@@ -43,6 +44,10 @@ import {
   escapeEndsTheTour,
   moveAdvancesTheTour,
 } from "./lib/tutorial-interact.mjs";
+import {
+  OWNER_TUTORIALS,
+  walkDefaultTutorialCohort,
+} from "./lib/tutorial-owner-cohort.mjs";
 import { seedVault } from "./lib/tutorial-seed.mjs";
 import {
   listTutorials,
@@ -254,6 +259,30 @@ async function shellPass(width) {
   await context.close();
 }
 
+/** The default PIN cohort remains intact; these owner-only targets need a password surface. */
+async function legacyOwnerPass(width) {
+  const ids = OWNER_TUTORIALS.filter((id) => wants(id) && inShard(id, shard));
+  if (!ids.length) return;
+  const { page, context } = await newPage(width);
+  try {
+    where = `${width}px legacy password owner`;
+    await seedPasswordVault(context, origin);
+    await page.goto(`${origin}${base}vault`, { waitUntil: "domcontentloaded" });
+    await unlockSeeded(page);
+    const entries = (await listTutorials(page)).filter((entry) =>
+      ids.includes(entry.id),
+    );
+    for (const id of ids)
+      check(
+        entries.some((entry) => entry.id === id),
+        `${id}: offered to legacy password owner`,
+      );
+    await walkEntries(page, entries, { phone: width < 600, width });
+  } finally {
+    await context.close();
+  }
+}
+
 async function walkEntries(page, entries, { phone, width }) {
   for (const entry of entries) {
     const began = Date.now();
@@ -305,7 +334,8 @@ async function gateScreens(width) {
 
 try {
   for (const width of widths) {
-    await shellPass(width);
+    if (walkDefaultTutorialCohort(only)) await shellPass(width);
+    await legacyOwnerPass(width);
     if (gatesWanted) await gateScreens(width);
   }
 } finally {

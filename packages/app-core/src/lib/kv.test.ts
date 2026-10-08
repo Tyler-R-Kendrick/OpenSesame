@@ -237,4 +237,41 @@ describe("kv with OPFS backing", () => {
     });
     await expect(kvDeleteDurable("k")).rejects.toThrow(/locked/);
   });
+
+  it.each(["NoModificationAllowedError", "SecurityError"])(
+    "retains session-only delete behavior when OPFS throws %s",
+    async (name) => {
+      const root = makeOpfsRoot();
+      stubOpfs(root);
+      await kvSetDurable("restricted", "stored");
+      stubOpfs({
+        ...root,
+        async removeEntry() {
+          throw new DOMException("restricted", name);
+        },
+      });
+      await expect(kvDeleteDurable("restricted")).resolves.toBeUndefined();
+      expect(kvGet("restricted")).toBeNull();
+      expect(kvDurability()).toBe("memory");
+      expect(root.files.has("opensesame-pages-restricted.json")).toBe(true);
+    },
+  );
+
+  it.each(["NoModificationAllowedError", "SecurityError", "InvalidStateError"])(
+    "clears cached authority and preserves refresh error %s",
+    async (name) => {
+      const root = makeOpfsRoot();
+      stubOpfs(root);
+      await kvSetDurable("authority", "old");
+      const error = new DOMException("cannot read", name);
+      stubOpfs({
+        ...root,
+        async getFileHandle() {
+          throw error;
+        },
+      });
+      await expect(kvRefresh("authority", 1024)).rejects.toBe(error);
+      expect(kvGet("authority")).toBeNull();
+    },
+  );
 });

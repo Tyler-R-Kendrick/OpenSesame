@@ -4,11 +4,14 @@
  * None of it returns a value the runner holds.
  */
 import { RunnerApiError } from "@opensesame/api-client";
+import type { ExtensionRealmBroker } from "@opensesame/app-core/browser/security/broker.js";
 import { type Connection, type TickReport, createRunner } from "./loop";
 import { drivable } from "./origin";
+import type { OriginalOwner } from "./original-owner";
 import type { Grants, PagesFactory } from "./ports";
 import type { RunnerSettings } from "./settings";
 import type { CandidateSummary, RunnerVault } from "./vault";
+import { workerService } from "./worker-service";
 
 /** What the last pass did, in words that name no run's content. */
 export interface PassSummary {
@@ -48,7 +51,8 @@ export interface ServiceDeps {
   grants: Grants;
   pagesFor: PagesFactory;
   closePage: (tabId: number | null) => Promise<void>;
-  connect: () => Promise<Connection | null>;
+  connect: (owner?: OriginalOwner) => Promise<Connection | null>;
+  originAllowed?: (origin: string) => boolean;
 }
 
 function summarize(
@@ -74,13 +78,18 @@ function failure(error: Error): string {
 }
 
 export function createRunnerService(deps: ServiceDeps) {
+  return workerService(deps, createRunnerOperations);
+}
+function createRunnerOperations(deps: ServiceDeps) {
   const runner = createRunner(deps);
   let last: PassSummary | null = null;
   return {
+    /** Internal metadata only; worker status still requires original current authority. */
+    lastPassSummary: () => last,
     /** One pass. What it did, or why it could not, is kept for `status`. */
-    async tick(): Promise<TickReport> {
+    async tick(maxRuns = 3): Promise<TickReport> {
       try {
-        const report = await runner.tick();
+        const report = await runner.tick(maxRuns);
         last = summarize(report, null, Date.now());
         return report;
       } catch (error) {
@@ -132,4 +141,10 @@ export function createRunnerService(deps: ServiceDeps) {
   };
 }
 
-export type RunnerService = ReturnType<typeof createRunnerService>;
+export type RunnerOperations = ReturnType<typeof createRunnerOperations>;
+export type RunnerService = Omit<
+  ReturnType<typeof createRunnerService>,
+  "bindSecurity"
+> & {
+  bindSecurity?: (security: ExtensionRealmBroker) => void;
+};

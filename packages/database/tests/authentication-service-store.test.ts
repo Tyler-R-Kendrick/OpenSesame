@@ -201,4 +201,179 @@ describe.each([
       await backend.stores.credentials.get(application.id, "credential-1"),
     ).toMatchObject({ counter: 2 });
   });
+
+  it("keeps owner listings, returned configuration, and application edits isolated", async () => {
+    const second = {
+      ...application,
+      id: `authapp_${randomUUID()}`,
+      displayName: "Second",
+    };
+    await backend.stores.applications.create(second);
+    await expect(backend.stores.applications.create(second)).rejects.toThrow();
+    const listed = await backend.stores.applications.listByOwner(
+      application.ownerPrincipalId,
+    );
+    expect(listed.map((row) => row.id).sort()).toEqual(
+      [application.id, second.id].sort(),
+    );
+    expect(
+      await backend.stores.applications.listByOwner("foreign-owner"),
+    ).toEqual([]);
+    expect(
+      await backend.stores.applications.listByOrganization(
+        "foreign-organization",
+      ),
+    ).toEqual([]);
+    const updated = await backend.stores.applications.update({
+      ...second,
+      state: "suspended",
+      origins: ["https://second.example.com"],
+      configurations: [
+        {
+          purpose: "reauth",
+          timeToLiveSeconds: 60,
+          userVerification: "required",
+          hints: ["security-key"],
+        },
+      ],
+    });
+    updated.origins.push("https://forged.example.com");
+    updated.configurations[0]?.hints.push("hybrid");
+    expect(await backend.restart().applications.get(second.id)).toMatchObject({
+      state: "suspended",
+      origins: ["https://second.example.com"],
+      configurations: [{ hints: ["security-key"] }],
+    });
+    await expect(
+      backend.stores.applications.update({ ...second, id: "missing" }),
+    ).rejects.toThrow();
+    expect(await backend.stores.applications.get("missing")).toBeUndefined();
+  });
+
+  it("refuses alias takeover atomically and fences credential edits by application", async () => {
+    const user = {
+      applicationId: application.id,
+      userId: "alias-owner",
+      userName: "Owner",
+      displayName: "Owner",
+      createdAt: now,
+      updatedAt: now,
+    };
+    await backend.stores.users.put(user, [
+      "shared@example.com",
+      "shared@example.com",
+    ]);
+    await expect(
+      backend.stores.users.put({ ...user, userId: "intruder" }, [
+        "shared@example.com",
+      ]),
+    ).rejects.toThrow();
+    expect(
+      await backend.stores.users.get(application.id, "intruder"),
+    ).toBeUndefined();
+    expect(
+      (
+        await backend.stores.users.findByAlias(
+          application.id,
+          "shared@example.com",
+        )
+      )?.userId,
+    ).toBe(user.userId);
+    await backend.stores.users.put(user, ["replacement@example.com"]);
+    expect(
+      await backend.stores.users.findByAlias(
+        application.id,
+        "shared@example.com",
+      ),
+    ).toBeUndefined();
+    expect(
+      await backend.stores.users.aliases(application.id, user.userId),
+    ).toEqual(["replacement@example.com"]);
+    expect(
+      (await backend.stores.users.list(application.id)).some(
+        (row) => row.userId === user.userId,
+      ),
+    ).toBe(true);
+    const credential = {
+      applicationId: application.id,
+      credentialId: "editable",
+      userId: user.userId,
+      publicKey: new Uint8Array([4, 5]),
+      counter: 1,
+      transports: ["internal"],
+      createdAt: now,
+      updatedAt: now,
+    };
+    const saved = await backend.stores.credentials.create(credential);
+    saved.publicKey.fill(0);
+    saved.transports.push("usb");
+    await expect(
+      backend.stores.credentials.create(credential),
+    ).rejects.toThrow();
+    expect(
+      await backend.stores.credentials.listByUser(application.id, user.userId),
+    ).toMatchObject([
+      { publicKey: new Uint8Array([4, 5]), transports: ["internal"] },
+    ]);
+    expect(
+      await backend.stores.credentials.rename(
+        "foreign-app",
+        "editable",
+        "Stolen",
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      await backend.stores.credentials.remove("foreign-app", "editable"),
+    ).toBe(false);
+    expect(
+      await backend.stores.credentials.rename(
+        application.id,
+        "editable",
+        "Owner key",
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      (await backend.stores.credentials.get(application.id, "editable"))?.name,
+    ).toBe("Owner key");
+    expect(
+      await backend.stores.credentials.rename(
+        application.id,
+        "editable",
+        undefined,
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      (await backend.stores.credentials.get(application.id, "editable"))?.name,
+    ).toBeUndefined();
+    expect(
+      await backend.stores.credentials.recordUse(
+        application.id,
+        "editable",
+        1,
+        1,
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      await backend.stores.credentials.recordUse(
+        application.id,
+        "editable",
+        1,
+        0,
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      await backend.stores.credentials.remove(application.id, "editable"),
+    ).toBe(true);
+    expect(
+      await backend.stores.credentials.remove(application.id, "editable"),
+    ).toBe(false);
+    expect(
+      await backend.stores.credentials.get(application.id, "editable"),
+    ).toBeUndefined();
+  });
 });

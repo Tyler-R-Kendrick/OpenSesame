@@ -49,9 +49,9 @@ pub(crate) fn prompt_secret_hidden(prompt: &str) -> anyhow::Result<String> {
     if !io::stdin().is_terminal() {
         return prompt_line(prompt);
     }
+    crossterm::terminal::enable_raw_mode()?;
     eprint!("{prompt}: ");
     let _ = io::stderr().flush();
-    crossterm::terminal::enable_raw_mode()?;
     let mut buf = String::new();
     let outcome = loop {
         match crossterm::event::read() {
@@ -187,45 +187,11 @@ pub fn cmd_generate(
     Ok(())
 }
 
-pub fn cmd_show(
-    name: &str,
-    reveal: bool,
-    path: Option<&Path>,
-    tomb: Option<&str>,
-) -> anyhow::Result<()> {
-    require_reveal(reveal)?;
-    let (root, key) = open_unlocked(path, tomb)?;
-    let age_id = std::env::var("OPENSESAME_AGE_IDENTITY").ok();
-    let entry = root
-        .show_with_age_identity(name, &key, age_id.as_deref())
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-    crate::entry::print_shown(&entry);
-    Ok(())
-}
-
-pub fn cmd_ls(prefix: Option<&str>, path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
-    let root_path = resolve_root(path, tomb)?;
-    let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
-    for name in root
-        .ls(prefix.unwrap_or(""))
-        .map_err(|e| anyhow::anyhow!("{e}"))?
-    {
-        println!("{name}");
-    }
-    Ok(())
-}
-
-pub fn cmd_find(query: &str, path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
-    let root_path = resolve_root(path, tomb)?;
-    let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
-    for name in root.find(query).map_err(|e| anyhow::anyhow!("{e}"))? {
-        println!("{name}");
-    }
-    Ok(())
-}
+pub use crate::pass_read::{cmd_find, cmd_ls, cmd_show};
 
 pub fn cmd_rm(name: &str, path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
     let root_path = resolve_root(path, tomb)?;
+    crate::pass_read::require_production_if_traps(&root_path)?;
     let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
     root.rm(name).map_err(|e| anyhow::anyhow!("{e}"))?;
     println!("removed {name}");
@@ -250,6 +216,7 @@ pub fn cmd_mv(from: &str, to: &str, path: Option<&Path>, tomb: Option<&str>) -> 
 
 pub fn cmd_git(args: &[String], path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<i32> {
     let root_path = resolve_root(path, tomb)?;
+    crate::pass_read::require_production_if_traps(&root_path)?;
     git_passthrough(&root_path, args).map_err(|e| anyhow::anyhow!("{e}"))
 }
 
@@ -320,6 +287,7 @@ pub async fn cmd_backup(
     tomb: Option<&str>,
 ) -> anyhow::Result<()> {
     let root_path = resolve_root(path, tomb)?;
+    crate::pass_read::require_production_if_traps(&root_path)?;
     let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
     ensure_git_repo(&root.path).map_err(|e| anyhow::anyhow!("{e}"))?;
     opensesame_sealed_store::auto_commit(&root.path, "Backup sealed store")
@@ -660,6 +628,7 @@ pub fn cmd_rotate(
 /// Metadata only (sha, timestamp, subject) — no unlock, no plaintext.
 pub fn cmd_history(name: &str, path: Option<&Path>, tomb: Option<&str>) -> anyhow::Result<()> {
     let root_path = resolve_root(path, tomb)?;
+    crate::pass_read::require_production_if_traps(&root_path)?;
     let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
     for item in entry_history(&root, name).map_err(|e| anyhow::anyhow!("{e}"))? {
         let when = chrono::DateTime::from_timestamp(item.timestamp, 0)

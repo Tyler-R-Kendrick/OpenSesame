@@ -9,6 +9,9 @@
 
 import { type AuthoredDescriptor, core } from "./descriptor.js";
 
+/** Closed sealed metadata only; admission imports this declared purpose. */
+export const OBSERVATION_EGRESS_PURPOSE = "sealed-credential-observation";
+
 export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   core(
     "shell.navigation",
@@ -65,7 +68,7 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   core(
     "vault.local-unlock",
     "Local unlock",
-    "Password, PIN and passkey protectors for the vault key, the enrolled second step, recovery codes, the device's vault list, travel mode, the duress code and resetting this browser.",
+    "Password, PIN and passkey protectors, second steps, recovery, the device's vault list, travel and duress modes, retired-credential traps, controlled canaries, optional sealed observation delivery and resetting this browser.",
     {
       operationIds: [
         "device.browser_reset",
@@ -73,7 +76,10 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
         "vault.protectors.rotate",
         "vault.recovery_codes",
         "vault.second_step.code",
+        "vaults.controlled_canaries",
         "vaults.duress_code",
+        "vaults.observation_receiver",
+        "vaults.retired_credentials",
         "vaults.switch",
         "vaults.travel",
         "vaults.travel_items",
@@ -85,11 +91,16 @@ export const CORE_DESCRIPTORS: readonly AuthoredDescriptor[] = [
             "the configured Identity API, only to send an emailed or texted second-step code",
           automatic: false,
         },
+        {
+          class: "external-service",
+          purpose: OBSERVATION_EGRESS_PURPOSE,
+          automatic: true,
+        },
       ],
       browserPermissions: ["webauthn"],
       keyAccess: "protector-wrap",
       offlineLimits:
-        "Emailed and texted second-step codes need the Identity API; every local protector works offline.",
+        "Emailed and texted second-step codes need the Identity API. Optional sealed observation delivery needs an explicitly paired receiver and a permitted network profile; local unlock and detection work offline.",
     },
   ),
   core(

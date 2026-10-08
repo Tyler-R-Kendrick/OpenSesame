@@ -1,5 +1,7 @@
 import type { AccountItem, PasswordMethod } from "@opensesame/vault-core";
+import { assertNotDecoySession } from "../decoy-session.js";
 import { assertShareReach } from "../local-share-reach.js";
+import { pinTombAuthority } from "../vfs.js";
 import { itemText } from "./item-departure.js";
 import { matchesWrittenAccount } from "./password-workflow-account.js";
 import { vaultStore } from "./store.js";
@@ -30,8 +32,12 @@ export async function updateLocalAccountPasswordMethod(
   original: AccountItem,
   next: PasswordMethod,
 ): Promise<void> {
+  const generation = assertNotDecoySession();
   currentAccount(tomb, original);
+  const check = pinTombAuthority(tomb);
   await assertShareReach(tomb, { kind: "item", id: original.id }, "write");
+  check();
+  assertNotDecoySession(generation);
   const account = currentAccount(tomb, original);
   const matches = account.methods.filter((method) => method.id === next.id);
   if (
@@ -49,6 +55,8 @@ export async function updateLocalAccountPasswordMethod(
   };
   try {
     await vaultStore.saveItem(expected);
+    check();
+    assertNotDecoySession(generation);
     const state = vaultStore.getSnapshot();
     const saved = state.items.find((item) => item.id === expected.id);
     if (

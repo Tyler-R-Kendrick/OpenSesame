@@ -132,12 +132,14 @@ describe("connectors.external runtime", () => {
     ]);
     // Every tool names its operation ids, so the core can drop the ones the
     // plan has not approved before the browser is told about any of them.
+    // SAFETY: these are the runtime-created webmcp-tool contributions whose names were checked above.
     expect(
       tools.map((tool) => (tool as PagesWebMcpTool).capabilityIds),
     ).toEqual([
       ["connections.list", "connections.inspect"],
       ["connections.create"],
     ]);
+    // SAFETY: the same checked webmcp-tool contribution collection carries these operation tags.
     for (const id of tools.flatMap(
       (tool) => (tool as PagesWebMcpTool).capabilityIds,
     )) {
@@ -159,6 +161,10 @@ describe("connectors.external runtime", () => {
     expect(t.hydrated).toEqual([[...runtime.HYDRATE_KEYS]]);
     expect(runtime.HYDRATE_KEYS).toContain("connector-directory.v1");
     expect(runtime.HYDRATE_KEYS).toContain("connections.firstRun.v1");
+    expect(runtime.HYDRATE_KEYS).toContain("opensesame.device-connectors.v1");
+    expect(runtime.HYDRATE_KEYS).not.toContain(
+      "opensesame.device-connector-secrets.v1",
+    );
     expect(connectCallbackBase()).toBe("https://relay.example.test");
     await handle.dispose();
     expect(connectCallbackBase()).toBe("");

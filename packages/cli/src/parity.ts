@@ -6,6 +6,7 @@ import type {
   Scope,
 } from "@opensesame/app-core/lib/password-agent/transport.js";
 import { z } from "zod";
+import { guardedEffect, parityAuthority } from "./parity-authority.js";
 import { createCredentialStore } from "./parity-credentials.js";
 import {
   invokeOp,
@@ -34,6 +35,7 @@ export async function runParity(
   command: ParityCommand,
   deps: ParityDependencies = {},
 ): Promise<number> {
+  const assertCurrent = parityAuthority();
   const args = [...command.args];
   const child =
     (command.verb === "run" || command.verb === "env") && args.includes("--")
@@ -46,12 +48,30 @@ export async function runParity(
   if (desktop) scope.desktop = desktop;
   if (account !== undefined) scope.account = account;
   if (vault !== undefined) scope.vault = vault;
-  const store = createCredentialStore();
-  const raw: PasswordAgentPort = deps.parityPort ?? {
+  const storage = createCredentialStore();
+  const store = {
+    storage: storage.storage,
+    hasToken: guardedEffect(storage.hasToken, assertCurrent),
+    loadToken: guardedEffect(storage.loadToken, assertCurrent),
+    saveToken: guardedEffect(storage.saveToken, assertCurrent),
+    removeToken: guardedEffect(storage.removeToken, assertCurrent),
+    loadSettings: guardedEffect(storage.loadSettings, assertCurrent),
+    saveSettings: guardedEffect(storage.saveSettings, assertCurrent),
+    removeSettings: guardedEffect(storage.removeSettings, assertCurrent),
+  };
+  const selected: PasswordAgentPort = deps.parityPort ?? {
     invoke: invokeOp,
     run: runOpChild,
     runEnvFile: runEnvFileSnapshot,
   };
+  const raw: PasswordAgentPort = {
+    invoke: guardedEffect(selected.invoke, assertCurrent),
+  };
+  if (selected.run) raw.run = guardedEffect(selected.run, assertCurrent);
+  if (selected.runEnvFile)
+    raw.runEnvFile = guardedEffect(selected.runEnvFile, assertCurrent);
+  if (selected.readMany)
+    raw.readMany = guardedEffect(selected.readMany, assertCurrent);
   const port = authenticatedPort(
     raw,
     store,
@@ -61,9 +81,16 @@ export async function runParity(
   applyAccountScope(port, account);
   installReadMany(port);
   const agent = new PasswordAgent(port);
-  const privateInput = deps.privateInput ?? readPrivateInput;
-  const privateFile = deps.privateFile ?? writePrivateFile;
+  const privateInput = guardedEffect(
+    deps.privateInput ?? readPrivateInput,
+    assertCurrent,
+  );
+  const privateFile = guardedEffect(
+    deps.privateFile ?? writePrivateFile,
+    assertCurrent,
+  );
   return dispatchParity(command.verb, {
+    assertCurrent,
     args,
     child,
     scope,
@@ -73,7 +100,10 @@ export async function runParity(
     agent,
     privateInput,
     privateFile,
-    requestTransport: deps.requestTransport,
+    requestTransport: deps.requestTransport && {
+      addresses: guardedEffect(deps.requestTransport.addresses, assertCurrent),
+      send: guardedEffect(deps.requestTransport.send, assertCurrent),
+    },
   });
 }
 

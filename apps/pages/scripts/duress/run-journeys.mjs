@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 /**
  * Duress browser journey runner (BROWSER-QA).
  *
@@ -34,13 +35,9 @@ import {
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..", "..", "..");
-const evidenceDir = path.join(
-  root,
-  "docs",
-  "evidence",
-  "2026-09-21-duress",
-  "browser",
-);
+const evidenceDir =
+  process.env.DURESS_BROWSER_EVIDENCE_OUT ??
+  path.join(root, "docs", "evidence", "2026-09-21-duress", "browser");
 const artifactsDir = path.join(here, ".artifacts");
 
 fs.mkdirSync(evidenceDir, { recursive: true });
@@ -64,6 +61,10 @@ const testedCommit = spawnSync("git", ["rev-parse", "HEAD"], {
   cwd: root,
   encoding: "utf8",
 }).stdout.trim();
+const builtIndex = path.join(root, "apps/pages/dist/index.html");
+const buildIndexSha256 = fs.existsSync(builtIndex)
+  ? createHash("sha256").update(fs.readFileSync(builtIndex)).digest("hex")
+  : null;
 
 const capabilitiesDoc = {
   schemaVersion: 1,
@@ -108,7 +109,7 @@ if (!discovery.path) {
 `,
   );
   console.log(JSON.stringify(report, null, 2));
-  process.exit(0);
+  process.exit(1);
 }
 
 setStep("build-fixture");
@@ -269,6 +270,11 @@ try {
           path: path.join(artifactsDir, `${safe}.png`),
           fullPage: true,
         });
+        fs.copyFileSync(
+          path.join(artifactsDir, `${safe}.png`),
+          path.join(evidenceDir, `${safe}.png`),
+        );
+        fs.writeFileSync(path.join(evidenceDir, `${safe}.txt`), text);
         return text;
       },
     }).then((result) => {
@@ -291,6 +297,7 @@ const report = {
   schemaVersion: 1,
   outcome,
   testedCommit,
+  buildIndexSha256,
   chromium: discovery,
   blockers,
   journeys,
@@ -332,9 +339,9 @@ fs.writeFileSync(
 - **Journeys:** see \`journeys.json\`
 - **Capabilities:** see \`capabilities.json\`
 - **Blockers:** ${blockers.length ? blockers.map((b) => `\n  - ${b}`).join("") : "none"}
-- **Not claimed:** physical biometrics, hardware PRF, hosted CI, production unlock routing until SETTINGS/TRIGGER wire UI
+- **Not claimed:** physical biometrics, hardware PRF, hosted CI
 `,
 );
 
 console.log(JSON.stringify(report, null, 2));
-process.exit(hard > 0 ? 1 : 0);
+process.exit(hard > 0 || blockers.length > 0 ? 1 : 0);

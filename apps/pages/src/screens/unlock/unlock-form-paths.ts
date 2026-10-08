@@ -167,7 +167,7 @@ export async function submitPrimaryMethodUnlock(input: {
     input.password,
   );
   input.setPassword("");
-  return passwordOutcome === "duress_session" ? "duress_stop" : "done";
+  return passwordOutcome === "vault_opened" ? "done" : "duress_stop";
 }
 
 export async function submitPasskeyDuressCode(input: {

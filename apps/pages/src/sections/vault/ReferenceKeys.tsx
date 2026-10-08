@@ -5,11 +5,11 @@ import {
   resolveLocalEnvTemplate,
 } from "@opensesame/app-core/lib/vault/password-workflows.js";
 import type { VaultItem } from "@opensesame/vault-core";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import { IconAlert, IconDownload } from "../../components/Icons.js";
-import { useVault } from "../../lib/vault/hooks.js";
+import { useVault, useVaultStore } from "../../lib/vault/hooks.js";
 import { downloadSeams } from "../../screens/capabilities/download.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
 import { METHOD_LABELS, methodTitle } from "./MethodPicker.js";
@@ -31,83 +31,214 @@ function referenceLabel(
 
 type Reference = { label: string; ref: string };
 
-/** What the two downloads read and set on the group: the second press, and a failure. */
-type DownloadState = {
-  armed: boolean;
-  setArmed: (armed: boolean) => void;
-  setError: (message: string) => void;
-};
+type Admission = { inventory: InventoryItem; check: () => void };
+type Failure = { message: string; check: () => void };
 
-/**
- * This item's inventory entry, read again whenever the item or the vault
- * changes; an item the vault has since moved past answers nothing.
- */
+function currentFailure(failure: Failure | null): string {
+  try {
+    failure?.check();
+    return failure?.message ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** Retain the session and item version that admitted an inventory request. */
+function pinItemInventory(
+  store: ReturnType<typeof useVaultStore>,
+  id: VaultItem["id"],
+  updatedAt: VaultItem["updatedAt"],
+  tomb: string,
+): () => void {
+  const session = store.pinContinuation();
+  return () => {
+    session();
+    const current = store.getSnapshot();
+    const present = current.items.find((entry) => entry.id === id);
+    if (
+      current.status !== "unlocked" ||
+      current.awaitingSecondStep ||
+      current.tomb !== tomb ||
+      !present ||
+      present.deletedAt !== null ||
+      present.updatedAt !== updatedAt
+    )
+      throw new Error("The item changed.");
+  };
+}
+
+/** Inventory and its original session authority travel together. */
 function useItemInventory(item: VaultItem, tomb: string) {
-  const [inventory, setInventory] = useState<InventoryItem | null>(null);
-  const [failed, setFailed] = useState(false);
+  const store = useVaultStore();
+  const vault = useVault();
+  const [admitted, setAdmitted] = useState<Admission | null>(null);
+  const [failure, setFailure] = useState<
+    | (Failure & {
+        id: string;
+        updatedAt: string;
+        tomb: string;
+      })
+    | null
+  >(null);
   useEffect(() => {
     let active = true;
-    setInventory(null);
-    setFailed(false);
-    if (item.deletedAt !== null) return;
+    setAdmitted(null);
+    setFailure(null);
+    if (item.deletedAt !== null || vault.status !== "unlocked") return;
+    let check: () => void;
+    try {
+      check = pinItemInventory(store, item.id, item.updatedAt, tomb);
+      check();
+    } catch {
+      return;
+    }
     void passwordWorkflowInventory().then(
       (items) => {
-        if (active)
-          setInventory(
-            items.find(
-              (entry) =>
-                entry.id === item.id &&
-                entry.updatedAt === item.updatedAt &&
-                entry.vault === tomb,
-            ) ?? null,
+        if (!active) return;
+        try {
+          check();
+          const inventory = items.find(
+            (entry) =>
+              entry.id === item.id &&
+              entry.updatedAt === item.updatedAt &&
+              entry.vault === tomb,
           );
+          setAdmitted(inventory ? { inventory, check } : null);
+        } catch {
+          /* Retired inventory cannot be published. */
+        }
       },
       () => {
-        if (active) setFailed(true);
+        if (!active) return;
+        try {
+          check();
+          setFailure({
+            message: "References are unavailable.",
+            check,
+            id: item.id,
+            updatedAt: item.updatedAt,
+            tomb,
+          });
+        } catch {
+          /* Retired failures cannot be published. */
+        }
       },
     );
     return () => {
       active = false;
     };
-  }, [item.id, item.updatedAt, item.deletedAt, tomb]);
-  return { inventory, failed };
+  }, [item.id, item.updatedAt, item.deletedAt, tomb, vault, store]);
+  let admission: Admission | null = null;
+  try {
+    admitted?.check();
+    const entry = admitted?.inventory;
+    if (
+      entry?.id === item.id &&
+      entry.updatedAt === item.updatedAt &&
+      entry.vault === tomb &&
+      item.deletedAt === null
+    )
+      admission = admitted;
+  } catch {
+    /* Retained metadata cannot belong to a successor. */
+  }
+  const sameItem =
+    failure?.id === item.id &&
+    failure.updatedAt === item.updatedAt &&
+    failure.tomb === tomb &&
+    item.deletedAt === null;
+  return {
+    admission,
+    error: sameItem ? currentFailure(failure) : "",
+    occurrence: sameItem ? failure : null,
+  };
 }
 
-/**
- * The two files a group of references can write: the template, which holds no
- * value, and a plaintext `.env`, which asks twice. A failure is reported
- * without its cause.
- */
+/** Both downloads and the two presses retain the inventory's admission. */
 function useReferenceDownloads(
   name: string,
   references: readonly Reference[],
-  state: DownloadState,
+  admission: Admission | null,
 ) {
-  const { armed, setArmed, setError } = state;
+  const current = useRef(admission);
+  current.current = admission;
+  const [consent, setConsent] = useState<Admission | null>(null);
+  const pendingConsent = useRef<Admission | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
+  useEffect(() => {
+    current.current = admission;
+    return () => {
+      current.current = null;
+    };
+  }, [admission]);
+  const check = (intent: Admission) => {
+    intent.check();
+    if (current.current !== intent) throw new Error("The references changed.");
+  };
+  let armed = false;
+  try {
+    if (
+      consent &&
+      consent === admission &&
+      pendingConsent.current === consent
+    ) {
+      check(consent);
+      armed = true;
+    }
+  } catch {
+    /* A prior first press carries no authority. */
+  }
+  const notice = (intent: Admission, message: string) => {
+    try {
+      check(intent);
+      setFailure({ message, check: () => check(intent) });
+    } catch {
+      /* A retired intent cannot publish into its successor. */
+    }
+  };
   const template = () => itemEnvTemplate(name, references);
   const saveTemplate = () => {
-    setError("");
+    if (!admission) return;
     try {
+      check(admission);
+      setFailure(null);
       downloadSeams.save("references.env.tpl", template(), "text/plain");
     } catch {
-      setError("The template could not be written.");
+      notice(admission, "The template could not be written.");
     }
   };
   const savePlaintext = async () => {
-    if (!armed) {
-      setArmed(true);
-      return;
-    }
-    setArmed(false);
-    setError("");
+    const intent = armed ? consent : admission;
+    if (!intent) return;
     try {
+      check(intent);
+      if (!armed) {
+        pendingConsent.current = intent;
+        setConsent(intent);
+        return;
+      }
+      if (pendingConsent.current !== intent) return;
+      pendingConsent.current = null;
+      setConsent(null);
+      setFailure(null);
       const resolved = await resolveLocalEnvTemplate(template());
+      check(intent);
       downloadSeams.save("plaintext.env", resolved.content, "text/plain");
     } catch {
-      setError("The environment file could not be written.");
+      notice(intent, "The environment file could not be written.");
     }
   };
-  return { saveTemplate, savePlaintext };
+  return {
+    armed,
+    error: currentFailure(failure),
+    occurrence: failure,
+    saveTemplate,
+    savePlaintext,
+    disarm: () => {
+      pendingConsent.current = null;
+      setConsent(null);
+    },
+  };
 }
 
 /**
@@ -119,27 +250,31 @@ function useReferenceDownloads(
  */
 export function ReferenceKeys({ item }: { item: VaultItem }) {
   const vault = useVault();
-  const [writeError, setWriteError] = useState("");
-  const [armed, setArmed] = useState(false);
-  const { inventory, failed: unavailable } = useItemInventory(item, vault.tomb);
+  const {
+    admission,
+    error: inventoryError,
+    occurrence: inventoryFailure,
+  } = useItemInventory(item, vault.tomb);
+  const inventory = admission?.inventory;
   const target = useGuideTarget<HTMLButtonElement>(
     "item.credentials.references",
   );
-  const error =
-    writeError || (unavailable ? "References are unavailable." : "");
   const references = (inventory?.fields ?? []).flatMap((field) =>
     field.ref ? [{ label: referenceLabel(item, field), ref: field.ref }] : [],
   );
-  const downloads = useReferenceDownloads(item.name || "Item", references, {
-    armed,
-    setArmed,
-    setError: setWriteError,
-  });
+  const downloads = useReferenceDownloads(
+    item.name || "Item",
+    references,
+    admission,
+  );
+  const { armed } = downloads;
+  const error = downloads.error || inventoryError;
   const failure = (
     <FailureNotice
       id={`item-references:${item.id}`}
       title="References"
       message={error}
+      occurrence={downloads.error ? downloads.occurrence : inventoryFailure}
     />
   );
   const hidden =
@@ -162,7 +297,7 @@ export function ReferenceKeys({ item }: { item: VaultItem }) {
         armed={armed}
         label={armed ? really : "Download plaintext .env"}
         onClick={() => void downloads.savePlaintext()}
-        onBlur={() => setArmed(false)}
+        onBlur={downloads.disarm}
       >
         <IconAlert size={17} />
       </IconKey>

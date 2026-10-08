@@ -2,6 +2,15 @@ import { endpointAddress } from "@opensesame/os-domain";
 import { z } from "zod";
 import { type ParityCommand, parseParity } from "./parity-parse.js";
 import { leftover, takeOption } from "./parse-options.js";
+import {
+  type RetiredCredentialCommand,
+  parseRetiredCredentials,
+} from "./parse-retired.js";
+import {
+  type SecurityCommand,
+  parseCanaryServe,
+  parseSecurity,
+} from "./parse-security.js";
 import { parseVaultSync } from "./parse-vault-sync.js";
 
 export const GlobalFlagsSchema = z.object({
@@ -14,6 +23,8 @@ export const GlobalFlagsSchema = z.object({
 export type GlobalFlags = z.infer<typeof GlobalFlagsSchema>;
 
 export type ParsedCommand =
+  | SecurityCommand
+  | RetiredCredentialCommand
   | ParityCommand
   | { name: "help" }
   | {
@@ -152,23 +163,7 @@ export function parseArgs(argv: string[]): ParsedCommand {
     return { name: "agent-init", anonymous, displayName, flags };
   }
 
-  if (cmd === "host" && args[0] === "health") {
-    args.shift();
-    const hostUrl =
-      takeOption(args, "--host") ?? endpointAddress("host", process.env);
-    return { name: "host-health", hostUrl, flags };
-  }
-
-  if (cmd === "host" && args[0] === "discover") {
-    args.shift();
-    const hostUrl =
-      takeOption(args, "--host") ?? endpointAddress("host", process.env);
-    return { name: "host-discover", hostUrl, flags };
-  }
-
-  if (cmd === "vault") return parseVault(args, flags);
-
-  throw new Error(`Unknown command: ${cmd}`);
+  return parseLocalCommands(cmd, args, flags);
 }
 
 /** `login` is the pre-ADR 0172 name of `account`; it is still accepted as input. */
@@ -215,6 +210,8 @@ function parseVaultList(args: string[], flags: GlobalFlags): ParsedCommand {
 function parseVault(args: string[], flags: GlobalFlags): ParsedCommand {
   const verb = args.shift() ?? "";
   switch (verb) {
+    case "retired-credentials":
+      return parseRetiredCredentials(args, flags);
     case "verify":
       return parseVaultFile("verify", args, flags);
     case "ls":
@@ -314,58 +311,32 @@ export const SessionFileSchema = z.object({
 });
 export type SessionFile = z.infer<typeof SessionFileSchema>;
 
-export function helpText(): string {
-  return `opensesame-id — OpenSesame identity CLI (alias: opensesame-identity)
+export { helpText } from "./help.js";
 
-Commands:
-  find <query...> [--vault <vault>] [--account <account>]
-  inventory | audit           Metadata and organization checks, never values
-  create api-credential --title <title> --vault <vault> --stdin|--clipboard
-  password <item> --vault <vault> --stdin|--clipboard [--apply]
-  read <op://reference>        Explicit plaintext stdout
-  run --env NAME=op://reference -- <command...>
-  env write <file> <NAME=op://reference...>
-  env resolve <file> --output <file>|--in-place
-  env run <file> -- <command...>
-  service-account setup|connect|status|recover|forget
-  request <https-url> --secret <op://reference> [--lease <id>]
-  lease approve <https-url> --secret <ref> --desktop [--expires-in 10m] [--uses 1]
-  lease list|status <id>|revoke <id>
-  doctor                      Inspect provider setup without authentication
-  login [--device|--loopback|--no-browser|--anonymous] [--qr|--no-qr]
-                  --anonymous (alias --guest): start as a provisional guest;
-                  link an identity later to keep the same principal id
-  auth status
-  logout
-  whoami
-  project create --temporary [--name <name>]
-  claim poll <claimId> --token <osc_clm_…>   (or OPENSESAME_CLAIM_TOKEN)
-  agent init --anonymous [--name <name>]
-  host health [--host <url>]   Host API (:8787) via api-client
-  host discover [--host <url>] Host PRM / readiness discovery
-  vault verify <file>          Open a vault export or offline backup
-                               (master password from the terminal only)
-  vault ls <file>              List that file: path and kind, never values
-  vault new <kind> --name <n>  Create an account, secret, note, or card
-  vault list                   List the local vault: id, kind, and name
-  vault import <file>          Merge a sealed export into the local vault
-  vault export [--out <file>]  Write a sealed export of the local vault
-  vault set|edit <item>        Change --name, --username, or --secret
-  vault copy <item> [--field secret|username]
-                               Copy a field to the clipboard, never print it
-  vault share <item>           Share a secret once; prints the link and code
-  vault sync [--pair <code>]   Sync with a tailnet drive (ADR 0144); with no
-                               vault here, set it up from the drive first
-  mcp host|client              Serve the host- or client-facing MCP tools
-                               (stdio; OPENSESAME_MCP_TRANSPORT=http for HTTP)
+function parseLocalCommands(
+  cmd: string,
+  args: string[],
+  flags: GlobalFlags,
+): ParsedCommand {
+  if (cmd === "host" && args[0] === "health") {
+    args.shift();
+    const hostUrl =
+      takeOption(args, "--host") ?? endpointAddress("host", process.env);
+    return { name: "host-health", hostUrl, flags };
+  }
 
-Global:
-  --json          Machine-readable output (secrets redacted)
-  --issuer <url>  OIDC issuer (default OPENSESAME_ISSUER or http://127.0.0.1:8788)
-  --api <url>     Identity control plane API base
-  --client-id <id>
-  --qr / --no-qr  Device login: print a terminal QR (default: on for TTY)
-`;
+  if (cmd === "host" && args[0] === "discover") {
+    args.shift();
+    const hostUrl =
+      takeOption(args, "--host") ?? endpointAddress("host", process.env);
+    return { name: "host-discover", hostUrl, flags };
+  }
+
+  if (cmd === "security") return parseSecurity(args, flags);
+  if (cmd === "canary") return parseCanaryServe(args, flags);
+  if (cmd === "vault") return parseVault(args, flags);
+
+  throw new Error(`Unknown command: ${cmd}`);
 }
 
 function parseLogin(args: string[], flags: GlobalFlags): ParsedCommand {

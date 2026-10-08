@@ -133,7 +133,7 @@ async fn bitwardens_signalr_client_hears_a_sign_in_request_and_its_answer() {
         .json(
             &json!({"email": "live@example.com", "publicKey": "cHVibGlj",
                       "deviceIdentifier": "new-laptop",
-                      "accessCode": "4f9Q2xK7mP1rT8vW3yZ6aB0cD", "type": 0}),
+                      "accessCode": "4f9Q2xK7mP1rT8vW3yZ6aB0cD", "type": 0}), // gitleaks:allow — validated synthetic fixture or fixed non-secret identifier
         )
         .send()
         .await

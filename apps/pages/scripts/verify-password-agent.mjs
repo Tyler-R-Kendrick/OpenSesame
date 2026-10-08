@@ -4,13 +4,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { chromium } from "@playwright/test";
-import { doorGuest } from "./lib/front-door.mjs";
 import { openSettingsCategory } from "./lib/pages-journey.mjs";
 import {
   verifyAccountPassword,
   verifyHealthFindings,
   verifySecretItem,
 } from "./lib/password-item-context.mjs";
+import { seedPasswordVault, unlockSeeded } from "./lib/seeded-vault.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 
 const origin = "https://tyler-r-kendrick.github.io";
@@ -39,13 +39,10 @@ try {
         hasTouch: width < 600,
       },
     });
+    // A real password-sealed personal vault, admitted through the public unlock form.
+    await seedPasswordVault(context, origin);
     await page.goto(`${origin}${base}`);
-    await doorGuest(page).click();
-    await page
-      .getByRole("button", { name: "Lock vault" })
-      .locator("visible=true")
-      .first()
-      .waitFor();
+    await unlockSeeded(page);
     await openSettingsCategory(page, "Vaults");
     const switchOn = async (pack) => {
       const control = page.getByRole("switch", { name: pack, exact: true });

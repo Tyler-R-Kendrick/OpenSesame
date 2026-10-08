@@ -17,6 +17,7 @@ import {
 } from "node:fs";
 import { dirname } from "node:path";
 import { isString } from "@opensesame/os-domain";
+import { z } from "zod";
 import { createMemoryStorage } from "../memory-storage.js";
 import type { WebStorage } from "../ports.js";
 
@@ -24,8 +25,10 @@ function readEntries(path: string): [string, string][] {
   let text: string;
   try {
     text = readFileSync(path, "utf8");
-  } catch {
-    return [];
+  } catch (error) {
+    if (z.object({ code: z.literal("ENOENT") }).safeParse(error).success)
+      return [];
+    throw error;
   }
   const parsed: Record<string, string> = JSON.parse(text);
   return Object.entries(parsed).filter((entry): entry is [string, string] =>
@@ -47,8 +50,11 @@ function writeAtomically(path: string, text: string): void {
 }
 
 export function createFileStorage(path: string): WebStorage {
-  const memory = createMemoryStorage(readEntries(path));
-  const persist = () => {
+  // Each synchronous operation reads the current file. Compound read/merge/write
+  // operations across processes still require the caller's Host operation lock.
+  const current = () => createMemoryStorage(readEntries(path));
+  current();
+  const persist = (memory: WebStorage) => {
     const snapshot: Record<string, string> = {};
     for (let index = 0; index < memory.length; index += 1) {
       const key = memory.key(index);
@@ -58,17 +64,19 @@ export function createFileStorage(path: string): WebStorage {
   };
   return {
     get length() {
-      return memory.length;
+      return current().length;
     },
-    key: (index) => memory.key(index),
-    getItem: (key) => memory.getItem(key),
+    key: (index) => current().key(index),
+    getItem: (key) => current().getItem(key),
     setItem: (key, value) => {
+      const memory = current();
       memory.setItem(key, value);
-      persist();
+      persist(memory);
     },
     removeItem: (key) => {
+      const memory = current();
       memory.removeItem(key);
-      persist();
+      persist(memory);
     },
   };
 }

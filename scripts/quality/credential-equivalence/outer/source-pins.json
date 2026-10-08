@@ -1,0 +1,95 @@
+[
+  {
+    "name": "device",
+    "path": "crates/human-vault/src/credential_canaries/device_state.rs",
+    "absolutePath": "/workspace/OpenSesame-retired-traps/crates/human-vault/src/credential_canaries/device_state.rs",
+    "sha256": "9f55b670c8ad490cee7fd94ceae1f2d3e4f611db2bf4be73703f724ae0e2a50d",
+    "indexSha256": "9f55b670c8ad490cee7fd94ceae1f2d3e4f611db2bf4be73703f724ae0e2a50d",
+    "indexEqualsFs": true
+  },
+  {
+    "name": "registry",
+    "path": "crates/human-vault/src/credential_canaries/records.rs",
+    "absolutePath": "/workspace/OpenSesame-retired-traps/crates/human-vault/src/credential_canaries/records.rs",
+    "sha256": "292b72dc17ac101fbe79e8bc70895720b740e3ebfe8aedcefceea966bc47a8dc",
+    "indexSha256": "292b72dc17ac101fbe79e8bc70895720b740e3ebfe8aedcefceea966bc47a8dc",
+    "indexEqualsFs": true
+  },
+  {
+    "name": "queue",
+    "path": "crates/human-vault/src/credential_canaries/receiver/queue.rs",
+    "absolutePath": "/workspace/OpenSesame-retired-traps/crates/human-vault/src/credential_canaries/receiver/queue.rs",
+    "sha256": "ce0541280a478733978ed08e67b54f3a17dddfb4362c542826d28180efb64f1f",
+    "indexSha256": "ce0541280a478733978ed08e67b54f3a17dddfb4362c542826d28180efb64f1f",
+    "indexEqualsFs": true
+  },
+  {
+    "name": "receiver",
+    "path": "crates/human-vault/src/credential_canaries/receiver/protocol.rs",
+    "absolutePath": "/workspace/OpenSesame-retired-traps/crates/human-vault/src/credential_canaries/receiver/protocol.rs",
+    "sha256": "b70d71eceabc7adcf6eb9d4dd273dac07681264222c4240d71c1edec0f2a4db7",
+    "indexSha256": "b70d71eceabc7adcf6eb9d4dd273dac07681264222c4240d71c1edec0f2a4db7",
+    "indexEqualsFs": true
+  },
+  {
+    "name": "protocol",
+    "path": "crates/human-vault/src/credential_canaries/protocol.rs",
+    "absolutePath": "/workspace/OpenSesame-retired-traps/crates/human-vault/src/credential_canaries/protocol.rs",
+    "sha256": "398d28ec5ca2db87c643d963dc84dc67e95d637ba3cde74e984bbffd664bc929",
+    "indexSha256": "398d28ec5ca2db87c643d963dc84dc67e95d637ba3cde74e984bbffd664bc929",
+    "indexEqualsFs": true
+  },
+  {
+    "name": "storage",
+    "path": "crates/sealed-store/src/credential_canaries/storage.rs",
+    "absolutePath": "/workspace/OpenSesame-retired-traps/crates/sealed-store/src/credential_canaries/storage.rs",
+    "sha256": "acf80cefdaa5d71beed0b5f449d7a6613dbd62675d273732b72bbe87d4b2b14b",
+    "indexSha256": "acf80cefdaa5d71beed0b5f449d7a6613dbd62675d273732b72bbe87d4b2b14b",
+    "indexEqualsFs": true
+  },
+  {
+    "name": "crypto",
+    "path": "crates/human-vault/src/lib.rs",
+    "absolutePath": "/workspace/OpenSesame-retired-traps/crates/human-vault/src/lib.rs",
+    "sha256": "8f4135734a9d98ec7c6bb581c1833b85030344c52795b9f755021c69ff43e57b",
+    "indexSha256": "8f4135734a9d98ec7c6bb581c1833b85030344c52795b9f755021c69ff43e57b",
+    "indexEqualsFs": true
+  },
+  {
+    "name": "mod",
+    "path": "crates/human-vault/src/credential_canaries/mod.rs",
+    "absolutePath": "/workspace/OpenSesame-retired-traps/crates/human-vault/src/credential_canaries/mod.rs",
+    "sha256": "a25c4c5b505fab730d2869295c721d422d4b3ec6d85614d7d4ec742157908f27",
+    "indexSha256": "a25c4c5b505fab730d2869295c721d422d4b3ec6d85614d7d4ec742157908f27",
+    "indexEqualsFs": true
+  },
+  {
+    "name": "lock",
+    "path": "Cargo.lock",
+    "absolutePath": "/workspace/OpenSesame-retired-traps/Cargo.lock",
+    "sha256": "f8565203b5042847306a15cd93cdbed44cb8833476a4ac586d991570c1458ee8",
+    "indexSha256": "f8565203b5042847306a15cd93cdbed44cb8833476a4ac586d991570c1458ee8",
+    "indexEqualsFs": true
+  },
+  {
+    "name": "chacha",
+    "path": "/workspace/.cargo-cache/registry/src/index.crates.io-1949cf8c6b5b557f/chacha20poly1305-0.10.1/src/lib.rs",
+    "absolutePath": "/workspace/.cargo-cache/registry/src/index.crates.io-1949cf8c6b5b557f/chacha20poly1305-0.10.1/src/lib.rs",
+    "sha256": "e454914d6e98c3889cebc92c2eb9a1a43d23f60ca028df0954b55041bfed0d30",
+    "qualification": "installed exact-version vendor source, not repository index"
+  },
+  {
+    "name": "aead",
+    "path": "/workspace/.cargo-cache/registry/src/index.crates.io-1949cf8c6b5b557f/aead-0.5.2/src/lib.rs",
+    "absolutePath": "/workspace/.cargo-cache/registry/src/index.crates.io-1949cf8c6b5b557f/aead-0.5.2/src/lib.rs",
+    "sha256": "477a851e2666a29dc3a724a75b7558d32d9ed7584364e1567dc6746c32a74fc5",
+    "qualification": "installed exact-version vendor source, not repository index"
+  },
+  {
+    "name": "serde",
+    "path": "/workspace/.cargo-cache/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/ser.rs",
+    "absolutePath": "/workspace/.cargo-cache/registry/src/index.crates.io-1949cf8c6b5b557f/serde_json-1.0.151/src/ser.rs",
+    "sha256": "f2b8cc0b97e30c49dbc58698fa22c14a7d56ea616cdb57b067835a59af49a75f",
+    "qualification": "installed exact-version vendor source, not repository index"
+  }
+]

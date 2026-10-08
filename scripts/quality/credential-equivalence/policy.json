@@ -1,0 +1,915 @@
+{
+  "v": 1,
+  "repoPins": {
+    "Cargo.toml": "b005ca34dd5d2b43cf275761dfcac40f6ae59e7073588dcb72950cfbaaf1c8ef",
+    "Cargo.lock": "f8565203b5042847306a15cd93cdbed44cb8833476a4ac586d991570c1458ee8",
+    "rust-toolchain.toml": "e79c1c57ee2dae731d04927d7396c1b011bc9c139ac4ae87b3f76dc2cb0bf761",
+    "crates/sealed-store/Cargo.toml": "8a0833e83fbff401db8381296a753de32073842bef0277ffb47c6208bdedf6b6",
+    "crates/authenticator-core/Cargo.toml": "c2f501dda5859c1febd818b90acaca5fd1ea1cfaf5d35430c8ff277b6aed59c3",
+    "crates/sealed-store/src/lib.rs": "cef999ed2b9656e959bccf65b909c922b676dc67a2dd01b9028f22c4f88a33ce",
+    "crates/authenticator-core/src/lib.rs": "3fc29b27299f409bfa194f2d41e3b6d65119d1aa12ae3e1f9722c7da4b00422d",
+    "crates/sealed-store/src/credential_canaries/mod.rs": "e298d9383d05d54cd38d3d49000740477d49275d3ace41048917191fdcf2597d",
+    "crates/authenticator-core/src/native_canaries/mod.rs": "a21e255550c2ffe00fa20cd52a5082dc08c2c6d635b59fa0c8f730a75bc0c746",
+    "crates/sealed-store/src/retired_credentials.rs": "7c9c6ca707ac060cad6679f45ff969577a7bd0759fb704721e252926c65cfbd3",
+    "crates/sealed-store/src/credential_canaries/private_file.rs": "fa29f35b97de716b4ba4eb473eac16b5ce5fc05e74189a4ed7ef9946a012b296",
+    "crates/sealed-store/src/retired_credentials/persistence.rs": "24b5e46a7adc04047c3272a52542c9debf9841de139f9c8c4e1b2b93c8b5e563",
+    "crates/sealed-store/src/credential_canaries/storage.rs": "acf80cefdaa5d71beed0b5f449d7a6613dbd62675d273732b72bbe87d4b2b14b",
+    "crates/human-vault/src/credential_canaries/device_state.rs": "9f55b670c8ad490cee7fd94ceae1f2d3e4f611db2bf4be73703f724ae0e2a50d",
+    "crates/human-vault/src/credential_canaries/records.rs": "292b72dc17ac101fbe79e8bc70895720b740e3ebfe8aedcefceea966bc47a8dc",
+    "crates/human-vault/src/credential_canaries/receiver/queue.rs": "ce0541280a478733978ed08e67b54f3a17dddfb4362c542826d28180efb64f1f",
+    "crates/human-vault/src/credential_canaries/receiver/protocol.rs": "b70d71eceabc7adcf6eb9d4dd273dac07681264222c4240d71c1edec0f2a4db7",
+    "crates/human-vault/src/credential_canaries/protocol.rs": "398d28ec5ca2db87c643d963dc84dc67e95d637ba3cde74e984bbffd664bc929",
+    "crates/human-vault/src/lib.rs": "8f4135734a9d98ec7c6bb581c1833b85030344c52795b9f755021c69ff43e57b",
+    "crates/human-vault/src/credential_canaries/mod.rs": "a25c4c5b505fab730d2869295c721d422d4b3ec6d85614d7d4ec742157908f27",
+    "tools/mutation/credential-rust-depth.json": "9fac8a4de27dd7dcbfc57ac492e18d2c223e6efe2c46049cde02e42d24d5a70d"
+  },
+  "sites": [
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/credential_canaries/private_file.rs",
+        "function": {
+          "function_name": "unix::directory",
+          "return_type": "-> Result<File, StoreError>",
+          "span": {
+            "end": {
+              "column": 6,
+              "line": 81
+            },
+            "start": {
+              "column": 5,
+              "line": 70
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/credential_canaries/private_file.rs:73:45: replace | with ^ in unix::directory",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 46,
+            "line": 73
+          },
+          "start": {
+            "column": 45,
+            "line": 73
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC"],
+      "functionSourceSha256": "18f475b5201886759eb38f546dbc8f4c867ac2f9a7a7cc88af78bbcfa8eae075"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/credential_canaries/private_file.rs",
+        "function": {
+          "function_name": "unix::directory",
+          "return_type": "-> Result<File, StoreError>",
+          "span": {
+            "end": {
+              "column": 6,
+              "line": 81
+            },
+            "start": {
+              "column": 5,
+              "line": 70
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/credential_canaries/private_file.rs:73:64: replace | with ^ in unix::directory",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 65,
+            "line": 73
+          },
+          "start": {
+            "column": 64,
+            "line": 73
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC"],
+      "functionSourceSha256": "18f475b5201886759eb38f546dbc8f4c867ac2f9a7a7cc88af78bbcfa8eae075"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/credential_canaries/private_file.rs",
+        "function": {
+          "function_name": "unix::open",
+          "return_type": "-> Result<Option<File>, StoreError>",
+          "span": {
+            "end": {
+              "column": 6,
+              "line": 114
+            },
+            "start": {
+              "column": 5,
+              "line": 85
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/credential_canaries/private_file.rs:92:32: replace | with ^ in unix::open",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 33,
+            "line": 92
+          },
+          "start": {
+            "column": 32,
+            "line": 92
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_RDONLY", "O_NOFOLLOW", "O_NONBLOCK", "O_CLOEXEC"],
+      "functionSourceSha256": "eca6944001df2aa5bffd31366fdb824cf737a60a48c29528d800e5e4d3163a99"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/credential_canaries/private_file.rs",
+        "function": {
+          "function_name": "unix::open",
+          "return_type": "-> Result<Option<File>, StoreError>",
+          "span": {
+            "end": {
+              "column": 6,
+              "line": 114
+            },
+            "start": {
+              "column": 5,
+              "line": 85
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/credential_canaries/private_file.rs:92:51: replace | with ^ in unix::open",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 52,
+            "line": 92
+          },
+          "start": {
+            "column": 51,
+            "line": 92
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_RDONLY", "O_NOFOLLOW", "O_NONBLOCK", "O_CLOEXEC"],
+      "functionSourceSha256": "eca6944001df2aa5bffd31366fdb824cf737a60a48c29528d800e5e4d3163a99"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/credential_canaries/private_file.rs",
+        "function": {
+          "function_name": "unix::open",
+          "return_type": "-> Result<Option<File>, StoreError>",
+          "span": {
+            "end": {
+              "column": 6,
+              "line": 114
+            },
+            "start": {
+              "column": 5,
+              "line": 85
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/credential_canaries/private_file.rs:92:70: replace | with ^ in unix::open",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 71,
+            "line": 92
+          },
+          "start": {
+            "column": 70,
+            "line": 92
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_RDONLY", "O_NOFOLLOW", "O_NONBLOCK", "O_CLOEXEC"],
+      "functionSourceSha256": "eca6944001df2aa5bffd31366fdb824cf737a60a48c29528d800e5e4d3163a99"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/credential_canaries/private_file.rs",
+        "function": {
+          "function_name": "unix::create_temp",
+          "return_type": "-> std::io::Result<File>",
+          "span": {
+            "end": {
+              "column": 6,
+              "line": 182
+            },
+            "start": {
+              "column": 5,
+              "line": 167
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/credential_canaries/private_file.rs:173:32: replace | with ^ in unix::create_temp",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 33,
+            "line": 173
+          },
+          "start": {
+            "column": 32,
+            "line": 173
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_WRONLY", "O_CREAT", "O_EXCL", "O_NOFOLLOW", "O_CLOEXEC"],
+      "functionSourceSha256": "3ad9ecd70320db7849c8e73a82325097b6a903c639004fc387b0cef21bf7f272"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/credential_canaries/private_file.rs",
+        "function": {
+          "function_name": "unix::create_temp",
+          "return_type": "-> std::io::Result<File>",
+          "span": {
+            "end": {
+              "column": 6,
+              "line": 182
+            },
+            "start": {
+              "column": 5,
+              "line": 167
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/credential_canaries/private_file.rs:173:48: replace | with ^ in unix::create_temp",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 49,
+            "line": 173
+          },
+          "start": {
+            "column": 48,
+            "line": 173
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_WRONLY", "O_CREAT", "O_EXCL", "O_NOFOLLOW", "O_CLOEXEC"],
+      "functionSourceSha256": "3ad9ecd70320db7849c8e73a82325097b6a903c639004fc387b0cef21bf7f272"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/credential_canaries/private_file.rs",
+        "function": {
+          "function_name": "unix::create_temp",
+          "return_type": "-> std::io::Result<File>",
+          "span": {
+            "end": {
+              "column": 6,
+              "line": 182
+            },
+            "start": {
+              "column": 5,
+              "line": 167
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/credential_canaries/private_file.rs:173:63: replace | with ^ in unix::create_temp",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 64,
+            "line": 173
+          },
+          "start": {
+            "column": 63,
+            "line": 173
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_WRONLY", "O_CREAT", "O_EXCL", "O_NOFOLLOW", "O_CLOEXEC"],
+      "functionSourceSha256": "3ad9ecd70320db7849c8e73a82325097b6a903c639004fc387b0cef21bf7f272"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/credential_canaries/private_file.rs",
+        "function": {
+          "function_name": "unix::create_temp",
+          "return_type": "-> std::io::Result<File>",
+          "span": {
+            "end": {
+              "column": 6,
+              "line": 182
+            },
+            "start": {
+              "column": 5,
+              "line": 167
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/credential_canaries/private_file.rs:173:82: replace | with ^ in unix::create_temp",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 83,
+            "line": 173
+          },
+          "start": {
+            "column": 82,
+            "line": 173
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_WRONLY", "O_CREAT", "O_EXCL", "O_NOFOLLOW", "O_CLOEXEC"],
+      "functionSourceSha256": "3ad9ecd70320db7849c8e73a82325097b6a903c639004fc387b0cef21bf7f272"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/credential_canaries/private_file.rs",
+        "function": {
+          "function_name": "supported",
+          "return_type": "-> Result<(), StoreError>",
+          "span": {
+            "end": {
+              "column": 2,
+              "line": 54
+            },
+            "start": {
+              "column": 1,
+              "line": 46
+            }
+          }
+        },
+        "genre": "FnValue",
+        "name": "crates/sealed-store/src/credential_canaries/private_file.rs:47:5: replace supported -> Result<(), StoreError> with Ok(())",
+        "package": "opensesame-sealed-store",
+        "replacement": "Ok(())",
+        "span": {
+          "end": {
+            "column": 7,
+            "line": 53
+          },
+          "start": {
+            "column": 5,
+            "line": 47
+          }
+        }
+      },
+      "sourceText": "if cfg!(any(unix, windows)) {\n        return Ok(());\n    }\n    Err(StoreError::Other(\n        \"credential observation persistence requires the tested platform confinement adapter\"\n            .into(),\n    ))",
+      "sourceTextSha256": "6388aad82df807fe257727daa2962d4829f1be34a577065916cf4b62097495b0",
+      "proofClass": "supported-cfg",
+      "functionSourceSha256": "b9c75d45c4a7474b3cc8b814ad4f0cd6643b46ac980cfda7f3c9b4fb2e276006"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/retired_credentials/persistence.rs",
+        "function": {
+          "function_name": "create_temp",
+          "return_type": "-> std::io::Result<std::fs::File>",
+          "span": {
+            "end": {
+              "column": 2,
+              "line": 60
+            },
+            "start": {
+              "column": 1,
+              "line": 43
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/retired_credentials/persistence.rs:51:28: replace | with ^ in create_temp",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 29,
+            "line": 51
+          },
+          "start": {
+            "column": 28,
+            "line": 51
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_WRONLY", "O_CREAT", "O_EXCL", "O_NOFOLLOW", "O_CLOEXEC"],
+      "functionSourceSha256": "88a5c25b2b433b513e0226d73b4a8a04fc6457b24ddac61e0ace9b86f839103f"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/retired_credentials/persistence.rs",
+        "function": {
+          "function_name": "create_temp",
+          "return_type": "-> std::io::Result<std::fs::File>",
+          "span": {
+            "end": {
+              "column": 2,
+              "line": 60
+            },
+            "start": {
+              "column": 1,
+              "line": 43
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/retired_credentials/persistence.rs:51:44: replace | with ^ in create_temp",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 45,
+            "line": 51
+          },
+          "start": {
+            "column": 44,
+            "line": 51
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_WRONLY", "O_CREAT", "O_EXCL", "O_NOFOLLOW", "O_CLOEXEC"],
+      "functionSourceSha256": "88a5c25b2b433b513e0226d73b4a8a04fc6457b24ddac61e0ace9b86f839103f"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/retired_credentials/persistence.rs",
+        "function": {
+          "function_name": "create_temp",
+          "return_type": "-> std::io::Result<std::fs::File>",
+          "span": {
+            "end": {
+              "column": 2,
+              "line": 60
+            },
+            "start": {
+              "column": 1,
+              "line": 43
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/retired_credentials/persistence.rs:51:59: replace | with ^ in create_temp",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 60,
+            "line": 51
+          },
+          "start": {
+            "column": 59,
+            "line": 51
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_WRONLY", "O_CREAT", "O_EXCL", "O_NOFOLLOW", "O_CLOEXEC"],
+      "functionSourceSha256": "88a5c25b2b433b513e0226d73b4a8a04fc6457b24ddac61e0ace9b86f839103f"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/retired_credentials/persistence.rs",
+        "function": {
+          "function_name": "create_temp",
+          "return_type": "-> std::io::Result<std::fs::File>",
+          "span": {
+            "end": {
+              "column": 2,
+              "line": 60
+            },
+            "start": {
+              "column": 1,
+              "line": 43
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/retired_credentials/persistence.rs:51:78: replace | with ^ in create_temp",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 79,
+            "line": 51
+          },
+          "start": {
+            "column": 78,
+            "line": 51
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_WRONLY", "O_CREAT", "O_EXCL", "O_NOFOLLOW", "O_CLOEXEC"],
+      "functionSourceSha256": "88a5c25b2b433b513e0226d73b4a8a04fc6457b24ddac61e0ace9b86f839103f"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/retired_credentials/persistence.rs",
+        "function": {
+          "function_name": "write_before_publish",
+          "return_type": "-> Result<(), StoreError>",
+          "span": {
+            "end": {
+              "column": 2,
+              "line": 99
+            },
+            "start": {
+              "column": 1,
+              "line": 62
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/retired_credentials/persistence.rs:72:41: replace | with ^ in write_before_publish",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 42,
+            "line": 72
+          },
+          "start": {
+            "column": 41,
+            "line": 72
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC"],
+      "functionSourceSha256": "cf12b340aa29b16406614b5fda19de7113c7b1cac1bb2ee739fb9cf50896fb9e"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/retired_credentials/persistence.rs",
+        "function": {
+          "function_name": "write_before_publish",
+          "return_type": "-> Result<(), StoreError>",
+          "span": {
+            "end": {
+              "column": 2,
+              "line": 99
+            },
+            "start": {
+              "column": 1,
+              "line": 62
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/retired_credentials/persistence.rs:72:60: replace | with ^ in write_before_publish",
+        "package": "opensesame-sealed-store",
+        "replacement": "^",
+        "span": {
+          "end": {
+            "column": 61,
+            "line": 72
+          },
+          "start": {
+            "column": 60,
+            "line": 72
+          }
+        }
+      },
+      "sourceText": "|",
+      "sourceTextSha256": "cbe5cfdf7c2118a9c3d78ef1d684f3afa089201352886449a06a6511cfef74a7",
+      "proofClass": "disjoint-flags",
+      "flags": ["O_DIRECTORY", "O_NOFOLLOW", "O_CLOEXEC"],
+      "functionSourceSha256": "cf12b340aa29b16406614b5fda19de7113c7b1cac1bb2ee739fb9cf50896fb9e"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/retired_credentials/persistence.rs",
+        "function": {
+          "function_name": "supported",
+          "return_type": "-> Result<(), StoreError>",
+          "span": {
+            "end": {
+              "column": 2,
+              "line": 12
+            },
+            "start": {
+              "column": 1,
+              "line": 5
+            }
+          }
+        },
+        "genre": "FnValue",
+        "name": "crates/sealed-store/src/retired_credentials/persistence.rs:6:5: replace supported -> Result<(), StoreError> with Ok(())",
+        "package": "opensesame-sealed-store",
+        "replacement": "Ok(())",
+        "span": {
+          "end": {
+            "column": 7,
+            "line": 11
+          },
+          "start": {
+            "column": 5,
+            "line": 6
+          }
+        }
+      },
+      "sourceText": "if cfg!(any(unix, windows)) {\n        return Ok(());\n    }\n    Err(StoreError::Other(\n        \"retired credential storage requires a supported locking and confinement adapter\".into(),\n    ))",
+      "sourceTextSha256": "94a565708cd440cd969a739572b959b1d0dee08b6ded3fdf9b295740292c421d",
+      "proofClass": "supported-cfg",
+      "functionSourceSha256": "802356a745404a632dd71aa41fba3084cde9d4ab4a4f8ea8940203798d89acbd"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/credential_canaries/storage.rs",
+        "function": {
+          "function_name": "ProtectedState::write",
+          "return_type": "-> Result<(), StoreError>",
+          "span": {
+            "end": {
+              "column": 6,
+              "line": 101
+            },
+            "start": {
+              "column": 5,
+              "line": 79
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/credential_canaries/storage.rs:87:24: replace > with == in ProtectedState::write",
+        "package": "opensesame-sealed-store",
+        "replacement": "==",
+        "span": {
+          "end": {
+            "column": 25,
+            "line": 87
+          },
+          "start": {
+            "column": 24,
+            "line": 87
+          }
+        }
+      },
+      "sourceText": ">",
+      "sourceTextSha256": "62b67e1f685b7fef51102005dddd27774be3fee38c42965c53aab035d0b6b221",
+      "proofClass": "outer-size",
+      "functionSourceSha256": "386e0a2a606fb25f020f59f8703a8381937682b5e86f7a3aaba0393e6dd7b390"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/credential_canaries/storage.rs",
+        "function": {
+          "function_name": "ProtectedState::write",
+          "return_type": "-> Result<(), StoreError>",
+          "span": {
+            "end": {
+              "column": 6,
+              "line": 101
+            },
+            "start": {
+              "column": 5,
+              "line": 79
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/credential_canaries/storage.rs:87:24: replace > with >= in ProtectedState::write",
+        "package": "opensesame-sealed-store",
+        "replacement": ">=",
+        "span": {
+          "end": {
+            "column": 25,
+            "line": 87
+          },
+          "start": {
+            "column": 24,
+            "line": 87
+          }
+        }
+      },
+      "sourceText": ">",
+      "sourceTextSha256": "62b67e1f685b7fef51102005dddd27774be3fee38c42965c53aab035d0b6b221",
+      "proofClass": "outer-size",
+      "functionSourceSha256": "386e0a2a606fb25f020f59f8703a8381937682b5e86f7a3aaba0393e6dd7b390"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/credential_canaries/storage.rs",
+        "function": {
+          "function_name": "ProtectedState::write",
+          "return_type": "-> Result<(), StoreError>",
+          "span": {
+            "end": {
+              "column": 6,
+              "line": 101
+            },
+            "start": {
+              "column": 5,
+              "line": 79
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/credential_canaries/storage.rs:97:24: replace > with == in ProtectedState::write",
+        "package": "opensesame-sealed-store",
+        "replacement": "==",
+        "span": {
+          "end": {
+            "column": 25,
+            "line": 97
+          },
+          "start": {
+            "column": 24,
+            "line": 97
+          }
+        }
+      },
+      "sourceText": ">",
+      "sourceTextSha256": "62b67e1f685b7fef51102005dddd27774be3fee38c42965c53aab035d0b6b221",
+      "proofClass": "outer-size",
+      "functionSourceSha256": "386e0a2a606fb25f020f59f8703a8381937682b5e86f7a3aaba0393e6dd7b390"
+    },
+    {
+      "mutant": {
+        "file": "crates/sealed-store/src/credential_canaries/storage.rs",
+        "function": {
+          "function_name": "ProtectedState::write",
+          "return_type": "-> Result<(), StoreError>",
+          "span": {
+            "end": {
+              "column": 6,
+              "line": 101
+            },
+            "start": {
+              "column": 5,
+              "line": 79
+            }
+          }
+        },
+        "genre": "BinaryOperator",
+        "name": "crates/sealed-store/src/credential_canaries/storage.rs:97:24: replace > with >= in ProtectedState::write",
+        "package": "opensesame-sealed-store",
+        "replacement": ">=",
+        "span": {
+          "end": {
+            "column": 25,
+            "line": 97
+          },
+          "start": {
+            "column": 24,
+            "line": 97
+          }
+        }
+      },
+      "sourceText": ">",
+      "sourceTextSha256": "62b67e1f685b7fef51102005dddd27774be3fee38c42965c53aab035d0b6b221",
+      "proofClass": "outer-size",
+      "functionSourceSha256": "386e0a2a606fb25f020f59f8703a8381937682b5e86f7a3aaba0393e6dd7b390"
+    }
+  ],
+  "historicalOutcomesSha256": "ac09ab831674645979c4e1ca7280eff7bf3c3e4019c8272ca3f0b5d18938c279",
+  "rawRequired": true,
+  "admissionImplemented": false,
+  "adapterScope": {
+    "packages": ["opensesame-authenticator-core", "opensesame-sealed-store"],
+    "files": [
+      "crates/authenticator-core/src/retired_gate.rs",
+      "crates/authenticator-core/src/native_canaries/owner.rs",
+      "crates/authenticator-core/src/native_canaries/delivery.rs",
+      "crates/authenticator-core/src/native_canaries/issuer.rs",
+      "crates/sealed-store/src/retired_credentials.rs",
+      "crates/sealed-store/src/retired_credentials/persistence.rs",
+      "crates/sealed-store/src/credential_canaries/owner_witness.rs",
+      "crates/sealed-store/src/credential_canaries/receiver.rs",
+      "crates/sealed-store/src/credential_canaries/issuer.rs",
+      "crates/sealed-store/src/credential_canaries/private_file.rs",
+      "crates/sealed-store/src/credential_canaries/storage.rs",
+      "crates/sealed-store/src/credential_canaries/validator.rs"
+    ]
+  },
+  "cfgInventorySha256": "3a3a8e71907cb02681c836e3e9396575ed5e71296ced646844d74074e9eb4c7d",
+  "outerVerifierSha256": "058bd6fa61abad3324f21a14f6f182395e75ce70433fc2cf314ba846dd52c860",
+  "outerPinFileSha256": "9a9154ef72fa680be16c11892894049d1a143354500207c3b2ce7c18895e4f37",
+  "outerBounds": {
+    "configFixed": 236,
+    "configBound": 17280,
+    "oneWitnessBound": 119,
+    "witnessesArrayBound": 3841,
+    "stateWrapper": 63,
+    "completeAdmittedStateBound": 119488,
+    "clearCap": 131072,
+    "envelopeFixed": 291,
+    "ciphertextBase64Upper": 174784,
+    "sealedEnvelopeBoundAtClearCap": 176714,
+    "sealedCap": 196608
+  },
+  "libcProbeSha256": "b577dde4b5d1bd9503b8bdbfbbaf91640ac78c2e184b621ac465aeb385321b8b",
+  "nativeFlags": {
+    "linux:x86_64:gnu": {
+      "O_DIRECTORY": 65536,
+      "O_NOFOLLOW": 131072,
+      "O_CLOEXEC": 524288,
+      "O_RDONLY": 0,
+      "O_NONBLOCK": 2048,
+      "O_WRONLY": 1,
+      "O_CREAT": 64,
+      "O_EXCL": 128
+    },
+    "linux:aarch64:gnu": {
+      "O_DIRECTORY": 16384,
+      "O_NOFOLLOW": 32768,
+      "O_CLOEXEC": 524288,
+      "O_RDONLY": 0,
+      "O_NONBLOCK": 2048,
+      "O_WRONLY": 1,
+      "O_CREAT": 64,
+      "O_EXCL": 128
+    },
+    "macos:x86_64:": {
+      "O_DIRECTORY": 1048576,
+      "O_NOFOLLOW": 256,
+      "O_CLOEXEC": 16777216,
+      "O_RDONLY": 0,
+      "O_NONBLOCK": 4,
+      "O_WRONLY": 1,
+      "O_CREAT": 512,
+      "O_EXCL": 2048
+    },
+    "macos:aarch64:": {
+      "O_DIRECTORY": 1048576,
+      "O_NOFOLLOW": 256,
+      "O_CLOEXEC": 16777216,
+      "O_RDONLY": 0,
+      "O_NONBLOCK": 4,
+      "O_WRONLY": 1,
+      "O_CREAT": 512,
+      "O_EXCL": 2048
+    }
+  },
+  "shards": 8,
+  "historicalReference": {
+    "head": "4c34415189f32ad61eebc66278bea533b0557e37",
+    "run": 37593781575,
+    "attempt": 1,
+    "job": 112702997800,
+    "artifactSha256": "ca848996198997a57c158d83764551e46cb6b224e95b98ca788465446a55292a",
+    "outcomesSha256": "ac09ab831674645979c4e1ca7280eff7bf3c3e4019c8272ca3f0b5d18938c279",
+    "total": 279,
+    "missed": 100,
+    "caught": 155,
+    "unviable": 24,
+    "timeouts": 0,
+    "qualification": "authentic historical statuses unchanged; not current campaign result"
+  },
+  "libcPackageChecksum": "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
+}

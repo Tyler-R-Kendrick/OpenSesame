@@ -28,7 +28,9 @@ export function upstreamFetch(
   config: ControlPlaneConfig,
   mode: UpstreamFetchMode,
 ): client.CustomFetch {
-  const pin = mode.originProfile ? { Origin: siteOrigin(config) } : {};
+  const pin: Record<string, string> = mode.originProfile
+    ? { Origin: siteOrigin(config) }
+    : {};
   if (mode.fenced) return guardedLibraryFetch(!config.allowDevDefaults, pin);
   return (url, options) => {
     // SAFETY: CustomFetchOptions is the fetch init shape openid-client already

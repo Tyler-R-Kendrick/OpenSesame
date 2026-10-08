@@ -10,6 +10,7 @@
  * reveal key is not drawn.
  */
 
+import type { LiveGuest } from "@opensesame/app-core/lib/live/guest.js";
 import type {
   Catalog,
   SharedField,
@@ -19,11 +20,12 @@ import { useState } from "react";
 import {
   ConcealedValue,
   RevealButton,
-  useCopyFeedback,
+  useCopyFeedbackWith,
 } from "../../components/FieldRow.js";
 import { IconCheck, IconCopy } from "../../components/Icons.js";
 import { StatusMark } from "../../components/StatusMark.js";
 import { EditableRow } from "./LiveFieldEdit.js";
+import { useLiveCatalogClipboard } from "./live-copy.js";
 
 export type RequestField = (
   what: "reveal" | "copy",
@@ -38,6 +40,8 @@ export type SaveField = (
 ) => Promise<string | null>;
 
 function ConcealedField({
+  guest,
+  catalog,
   item,
   field,
   canReveal,
@@ -45,6 +49,8 @@ function ConcealedField({
   request,
   save,
 }: {
+  guest: LiveGuest;
+  catalog: Catalog;
   item: SharedItem;
   field: SharedField;
   canReveal: boolean;
@@ -54,7 +60,8 @@ function ConcealedField({
 }) {
   const [shown, setShown] = useState<string | null>(null);
   const [denied, setDenied] = useState(false);
-  const { copied, failed, copy } = useCopyFeedback();
+  const clipboard = useLiveCatalogClipboard(guest, catalog);
+  const { copied, failed, copy } = useCopyFeedbackWith(clipboard.copy);
   const key = `${item.id}:${field.key}`;
   const label = `${item.name} ${field.label}`;
 
@@ -63,15 +70,29 @@ function ConcealedField({
       setShown(null);
       return;
     }
-    const value = await request("reveal", item.id, field.key);
-    setDenied(value === null);
-    setShown(value);
+    try {
+      const check = clipboard.pin();
+      check();
+      const value = await request("reveal", item.id, field.key);
+      check();
+      setDenied(value === null);
+      setShown(value);
+    } catch {
+      setDenied(true);
+    }
   }
 
   async function copyIt(): Promise<void> {
-    const value = await request("copy", item.id, field.key);
-    setDenied(value === null);
-    if (value !== null) await copy(key, value);
+    try {
+      const check = clipboard.pin();
+      check();
+      const value = await request("copy", item.id, field.key);
+      check();
+      setDenied(value === null);
+      if (value !== null) await copy(key, value);
+    } catch {
+      setDenied(true);
+    }
   }
 
   return (
@@ -79,6 +100,7 @@ function ConcealedField({
       fieldLabel={field.label}
       editLabel={label}
       canEdit={canEdit}
+      pin={clipboard.pin}
       save={save ? (value) => save(item.id, field.key, value) : undefined}
       onSaved={(value) => {
         setDenied(false);
@@ -118,22 +140,28 @@ function ConcealedField({
 }
 
 function OpenField({
+  guest,
+  catalog,
   item,
   field,
   canEdit,
   save,
 }: {
+  guest: LiveGuest;
+  catalog: Catalog;
   item: SharedItem;
   field: SharedField;
   canEdit: boolean;
   save?: SaveField;
 }) {
+  const clipboard = useLiveCatalogClipboard(guest, catalog);
   const [saved, setSaved] = useState<string | null>(null);
   return (
     <EditableRow
       fieldLabel={field.label}
       editLabel={`${item.name} ${field.label}`}
       canEdit={canEdit}
+      pin={clipboard.pin}
       save={save ? (value) => save(item.id, field.key, value) : undefined}
       onSaved={setSaved}
     >
@@ -143,12 +171,16 @@ function OpenField({
 }
 
 function LiveItem({
+  guest,
+  catalog,
   item,
   canReveal,
   canEdit,
   request,
   save,
 }: {
+  guest: LiveGuest;
+  catalog: Catalog;
   item: SharedItem;
   canReveal: boolean;
   canEdit: boolean;
@@ -166,6 +198,8 @@ function LiveItem({
           field.concealed ? (
             <ConcealedField
               key={field.key}
+              guest={guest}
+              catalog={catalog}
               item={item}
               field={field}
               canReveal={canReveal}
@@ -176,6 +210,8 @@ function LiveItem({
           ) : (
             <OpenField
               key={field.key}
+              guest={guest}
+              catalog={catalog}
               item={item}
               field={field}
               canEdit={canEdit}
@@ -189,10 +225,12 @@ function LiveItem({
 }
 
 export function LiveCatalog({
+  guest,
   catalog,
   request,
   save,
 }: {
+  guest: LiveGuest;
   catalog: Catalog;
   request: RequestField;
   save?: SaveField;
@@ -205,6 +243,8 @@ export function LiveCatalog({
       {catalog.items.map((item) => (
         <LiveItem
           key={item.id}
+          guest={guest}
+          catalog={catalog}
           item={item}
           canReveal={catalog.policy === "read" || catalog.policy === "edit"}
           canEdit={canEdit}

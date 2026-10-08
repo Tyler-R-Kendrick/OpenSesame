@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vitest/config";
 
@@ -17,6 +18,7 @@ export default defineConfig({
     // can boot under Stryker without a shell export.
     env: {
       OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+      OPENSESAME_OPERATOR_TOKEN: randomBytes(32).toString("base64url"),
     },
     // Pages' own test setup: installs the app-core host (ADR 0133).
     setupFiles: ["apps/pages/src/host/test-setup.ts"],

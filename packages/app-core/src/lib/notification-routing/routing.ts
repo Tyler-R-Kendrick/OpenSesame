@@ -1,3 +1,4 @@
+import { captureRealAuthority } from "../member-authority.js";
 /**
  * Settings › Notifications as a model (ADR 0084; ADR 0140), over the
  * document (`document.ts`), the channel words (`channels.ts`) and the
@@ -236,13 +237,21 @@ export function createNotificationRouting(
       return save(next, "Saved.");
     },
     async bind(kind: NotificationChannelKind): Promise<RoutingStep> {
+      const check =
+        transport === identityRoutingTransport
+          ? captureRealAuthority()
+          : () => {};
       let begun: BegunBinding;
       try {
         begun = await client.beginBinding(kind, state.channels);
-        state.bindings = await client.bindings();
+        check();
+        const bindings = await client.bindings();
+        check();
+        state.bindings = bindings;
       } catch (error) {
         return done(null, wordsOf(error instanceof Error ? error : null));
       }
+      check();
       return { ...done(begun.words, null), begun };
     },
     async unbind(id: string): Promise<RoutingStep> {

@@ -57,7 +57,12 @@ function sortKeys(value: BoundaryValue): BoundaryValue {
   const obj: MutableBoundaryObject = overlapCast(value);
   const out: MutableBoundaryObject = {};
   for (const key of Object.keys(obj).sort()) {
-    out[key] = sortKeys(obj[key]);
+    Object.defineProperty(out, key, {
+      value: sortKeys(obj[key]),
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
   }
   return out;
 }

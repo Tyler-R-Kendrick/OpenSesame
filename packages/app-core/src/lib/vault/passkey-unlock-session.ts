@@ -41,7 +41,7 @@ export function wrapVaultKeyWithCeremony(
     ceremony.prfOutput,
     ceremony.prfSalt,
     ceremony.credential.rawId,
-    ceremony.userId,
+    new Uint8Array(ceremony.userId).buffer,
   );
 }
 

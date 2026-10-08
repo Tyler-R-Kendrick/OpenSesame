@@ -2,8 +2,15 @@ import {
   isSettingsCategory,
   settingsConfigRoute,
 } from "@opensesame/app-core/lib/crumbs.js";
+import { isDecoySession } from "@opensesame/app-core/lib/decoy-session.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { focusCommandBar } from "../../lib/command-bar/focus.js";
+import {
+  navigationContext,
+  runSessionHistoryNavigation,
+  runSessionNavigation,
+  sessionNavigationAllowed,
+} from "../../lib/decoy-navigation.js";
 import { keymapLabel } from "../../lib/gestures.js";
 import { showKeymapHelp } from "../../lib/keymap-help.js";
 import type { MenuGroup, MenuItem } from "./menu-model.js";
@@ -43,11 +50,34 @@ function linkGroup(
     : [];
   return [
     ...config,
-    { id: "link-open", label: "Open link", run: () => link.click() },
+    {
+      id: "link-open",
+      label: "Open link",
+      disabled: !sessionNavigationAllowed(
+        link.href,
+        navigationContext(link.target),
+      ),
+      run: () => {
+        runSessionNavigation(
+          link.href,
+          () => link.click(),
+          navigationContext(link.target),
+        );
+      },
+    },
     {
       id: "link-tab",
       label: "Open link in new tab",
-      run: () => window.open(link.href, "_blank", "noopener"),
+      disabled: !sessionNavigationAllowed(link.href, "new_context"),
+      run: () => {
+        runSessionNavigation(
+          link.href,
+          () => {
+            window.open(link.href, "_blank", "noopener");
+          },
+          "new_context",
+        );
+      },
     },
     {
       id: "link-copy",
@@ -60,12 +90,23 @@ function linkGroup(
 /** Moving around, which the browser's own menu would have offered. */
 export function navigationGroup(): MenuItem[] {
   return [
-    { id: "back", label: "Back", hint: "Alt+←", run: () => history.back() },
+    {
+      id: "back",
+      label: "Back",
+      hint: "Alt+←",
+      disabled: isDecoySession(),
+      run: () => {
+        runSessionHistoryNavigation(() => history.back());
+      },
+    },
     {
       id: "forward",
       label: "Forward",
       hint: "Alt+→",
-      run: () => history.forward(),
+      disabled: isDecoySession(),
+      run: () => {
+        runSessionHistoryNavigation(() => history.forward());
+      },
     },
     { id: "reload", label: "Reload", run: () => location.reload() },
   ];

@@ -17,6 +17,7 @@
  * person left — the catalog and every value are dropped.
  */
 
+import { guardedLiveCarrier } from "./host-authority.js";
 import type { LiveLink } from "./link.js";
 import {
   type Catalog,
@@ -34,6 +35,10 @@ import {
   makeOffer,
   takeAnswer,
 } from "./peer.js";
+import {
+  captureLiveRealmAuthority,
+  watchLiveRealmAuthority,
+} from "./realm-authority.js";
 import type { Carrier } from "./rendezvous.js";
 import { type Keypair, newKeypair, newRequestId } from "./seal.js";
 import { type LiveChannel, SeatChannel, seatName } from "./seat-channel.js";
@@ -78,11 +83,14 @@ export type GuestOptions = Readonly<{
 type Pending = { resolve: (value: string | null) => void };
 
 export class LiveGuest {
+  readonly #assertAuthority = captureLiveRealmAuthority();
   readonly #listeners = new Set<(status: GuestStatus) => void>();
   readonly #pending = new Map<string, Pending>();
   readonly #id = newRequestId();
   #status: GuestStatus = { at: "preparing" };
   #side: OfferSide | null = null;
+  #offering: RTCPeerConnection | null = null;
+  #relayCarrier: Carrier | null = null;
   #channel: LiveChannel | null = null;
   /** The owner offered a relay: the carriers stay open with the seat. */
   #relayed = false;
@@ -90,17 +98,34 @@ export class LiveGuest {
   #keys: Keypair | null = null;
   #repost: ReturnType<typeof setInterval> | null = null;
   #next = 0;
+  #unwatch: (() => void) | null = null;
 
   constructor(private readonly options: GuestOptions) {}
 
+  assertAuthority(): void {
+    this.#assertAuthority();
+  }
+
   get status(): GuestStatus {
+    this.#permitted();
     return this.#status;
   }
 
   subscribe(listener: (status: GuestStatus) => void): () => void {
+    this.#permitted();
     this.#listeners.add(listener);
     listener(this.#status);
     return () => this.#listeners.delete(listener);
+  }
+
+  #permitted(): boolean {
+    try {
+      this.#assertAuthority();
+      return !this.#over();
+    } catch {
+      this.#finish();
+      return false;
+    }
   }
 
   #to(status: GuestStatus): void {
@@ -113,11 +138,31 @@ export class LiveGuest {
    * left before there was one.
    */
   async start(): Promise<string> {
+    if (!this.#permitted()) return "";
+    this.#unwatch ??= watchLiveRealmAuthority(() => this.#finish());
+    try {
+      const request = await this.#start();
+      return this.#permitted() ? request : "";
+    } catch (error) {
+      if (!this.#permitted()) return "";
+      this.#finish();
+      throw error;
+    }
+  }
+
+  async #start(): Promise<string> {
     const { link, code, name, note, peers, ice } = this.options;
     const keys = await newKeypair();
+    if (!this.#permitted()) return "";
     this.#keys = keys;
-    const side = await makeOffer(peers, ice);
-    if (this.#over()) {
+    const side = await makeOffer((configuration) => {
+      this.#assertAuthority();
+      const pc = peers(configuration);
+      this.#offering = pc;
+      return pc;
+    }, ice);
+    this.#offering = null;
+    if (!this.#permitted()) {
       // Left while the browser was gathering: `#finish` found no connection.
       side.pc.close();
       side.channel.catch(() => undefined);
@@ -137,22 +182,23 @@ export class LiveGuest {
       note: cleanText(note),
       offer: side.offer,
     });
+    if (!this.#permitted()) return "";
     if (this.#status.at === "preparing") {
       this.#to({ at: "request", code: request });
       this.#carry(request);
     }
-    return request;
+    return this.#permitted() ? request : "";
   }
 
   /** Post the request on the carriers, again until it is answered. */
   #carry(request: string): void {
     const { carriers } = this.options;
-    if (!carriers) return;
+    if (!carriers || !this.#permitted()) return;
     void carriers.post(request);
     let left = REPOSTS;
     this.#repost = setInterval(() => {
       left -= 1;
-      if (this.#status.at !== "request") this.#release();
+      if (!this.#permitted() || this.#status.at !== "request") this.#release();
       // Enough reposts: stop posting, but keep listening — the owner may
       // answer long after, and a reply on a closed carrier is heard by nobody.
       else if (left <= 0) this.#stopReposts();
@@ -176,18 +222,21 @@ export class LiveGuest {
 
   /** The owner's reply code; false (and nothing changes) if it is not one. */
   async accept(text: string): Promise<boolean> {
+    if (!this.#permitted()) return false;
     const keys = this.#keys;
     if (this.#status.at !== "request" || !this.#side || !keys) return false;
     const { link, code } = this.options;
     const reply = await openReplyCode(link, code, keys, this.#id, text);
-    if (!reply || this.#status.at !== "request") return false;
+    if (!this.#permitted() || !reply || this.#status.at !== "request")
+      return false;
     const session = this.options.carriers?.session ?? "off";
     this.#relayed = reply.relay === "nats" && session !== "off";
     this.#release();
     this.#to({ at: "connecting" });
+    if (!this.#permitted()) return false;
     if (this.#relayed && session === "always") {
       void this.#toRelay();
-      return true;
+      return this.#permitted();
     }
     const { pc } = this.#side;
     pc.addEventListener("connectionstatechange", () => {
@@ -198,9 +247,14 @@ export class LiveGuest {
     });
     if (this.#relayed)
       this.#fallback = setTimeout(() => void this.#toRelay(), FALLBACK_MS);
+    return this.#answer(pc, reply.answer);
+  }
+
+  async #answer(pc: RTCPeerConnection, answer: string): Promise<boolean> {
     try {
-      await takeAnswer(pc, reply.answer);
-      return true;
+      await takeAnswer(pc, answer);
+      this.#assertAuthority();
+      return this.#status.at === "unreachable" || this.#permitted();
     } catch {
       this.#finish();
       return false;
@@ -215,21 +269,22 @@ export class LiveGuest {
     if (this.#fallback) clearTimeout(this.#fallback);
     this.#fallback = null;
     const keys = this.#keys;
-    if (this.#over() || this.#channel || !keys) return;
+    if (!this.#permitted() || this.#channel || !keys) return;
     const carrier = this.options.carriers?.seat?.(seatName(this.#id)) ?? null;
+    this.#relayCarrier = carrier;
     const shared = await keys.shared(this.options.link.owner);
     if (!carrier || !shared) {
       carrier?.close();
       this.#finish({ at: "unreachable" });
       return;
     }
-    if (this.#over() || this.#channel) {
+    if (!this.#permitted() || this.#channel) {
       carrier.close();
       return;
     }
     this.#side?.pc.close();
     const channel = new SeatChannel(
-      carrier,
+      guardedLiveCarrier(carrier, () => this.#assertAuthority()),
       {
         link: this.options.link,
         code: this.options.code,
@@ -240,12 +295,12 @@ export class LiveGuest {
       "joiner",
     );
     this.#connected(channel);
-    channel.send({ t: "hello" });
+    if (this.#permitted()) channel.send({ t: "hello" });
   }
 
   #connected(channel: LiveChannel): void {
     // Over already, or the seat is carried another way: not this channel.
-    if (this.#over() || this.#channel) {
+    if (!this.#permitted() || this.#channel) {
       channel.close();
       return;
     }
@@ -257,6 +312,7 @@ export class LiveGuest {
   }
 
   #onMessage(message: ChannelMessage): void {
+    if (!this.#permitted()) return;
     if (message.t === "catalog")
       this.#to({ at: "joined", catalog: message.catalog });
     else if (message.t === "end") this.#finish();
@@ -269,15 +325,16 @@ export class LiveGuest {
 
   /** Replace one shared field. The saved text, or null if the owner refused. */
   edit(item: string, field: string, value: string): Promise<string | null> {
-    if (this.#status.at !== "joined" || !this.#channel)
+    if (!this.#permitted() || this.#status.at !== "joined" || !this.#channel)
       return Promise.resolve(null);
     if (characters(value) > VALUE_MAX) return Promise.resolve(null);
     this.#next += 1;
     const req = `r${this.#next}`;
-    return new Promise((resolve) => {
+    return new Promise<string | null>((resolve) => {
       this.#pending.set(req, { resolve });
-      this.#channel?.send({ t: "edit", req, item, field, value });
-    });
+      if (this.#permitted())
+        this.#channel?.send({ t: "edit", req, item, field, value });
+    }).then((value) => (this.#permitted() ? value : null));
   }
 
   /** One concealed value, to show (`reveal`) or to copy; null if refused. */
@@ -286,14 +343,14 @@ export class LiveGuest {
     item: string,
     field: string,
   ): Promise<string | null> {
-    if (this.#status.at !== "joined" || !this.#channel)
+    if (!this.#permitted() || this.#status.at !== "joined" || !this.#channel)
       return Promise.resolve(null);
     this.#next += 1;
     const req = `r${this.#next}`;
-    return new Promise((resolve) => {
+    return new Promise<string | null>((resolve) => {
       this.#pending.set(req, { resolve });
-      this.#channel?.send({ t: what, req, item, field });
-    });
+      if (this.#permitted()) this.#channel?.send({ t: what, req, item, field });
+    }).then((value) => (this.#permitted() ? value : null));
   }
 
   #over(): boolean {
@@ -302,6 +359,9 @@ export class LiveGuest {
 
   #finish(end: GuestStatus = { at: "ended" }): void {
     if (this.#over()) return;
+    this.#status = end;
+    this.#unwatch?.();
+    this.#unwatch = null;
     if (this.#fallback) clearTimeout(this.#fallback);
     this.#fallback = null;
     this.#relayed = false;
@@ -310,8 +370,20 @@ export class LiveGuest {
     this.#pending.clear();
     this.#channel?.close();
     this.#side?.pc.close();
+    this.#offering?.close();
+    this.#offering = null;
+    if (!this.#channel) this.#relayCarrier?.close();
+    else {
+      try {
+        this.#assertAuthority();
+      } catch {
+        this.#relayCarrier?.close();
+      }
+    }
+    this.#relayCarrier = null;
     this.#channel = null;
     this.#side = null;
+    this.#keys = null;
     // The catalog goes with the status it rode on.
     this.#to(end);
   }

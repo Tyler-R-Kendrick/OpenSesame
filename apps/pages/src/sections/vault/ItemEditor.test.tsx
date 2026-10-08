@@ -23,6 +23,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { installEditorPresentation } from "./editor-presentation.test-support.js";
 import { choose, shown } from "./path-field.test-support.js";
 
 type VaultFixture = { current: { items: VaultItem[]; folders: Folder[] } };
@@ -46,14 +47,8 @@ const acknowledgeCertificateDelivery = vi.hoisted(() =>
   vi.fn<(deliveryId: string) => Promise<void>>(),
 );
 
-import { vaultHooksSeams } from "../../lib/vault/hooks.js";
-const originalVaultHooksSeams = { ...vaultHooksSeams };
-Object.assign(vaultHooksSeams, {
-  useVault: () => vault.current,
-  useVaultStore: () => ({ saveItem }),
-  useCopySecret: () => vi.fn().mockResolvedValue("copied"),
-});
-afterAll(() => Object.assign(vaultHooksSeams, originalVaultHooksSeams));
+const restoreVaultHooks = installEditorPresentation(vault, saveItem);
+afterAll(restoreVaultHooks);
 
 import { certsSeams } from "@opensesame/app-core/lib/certs.js";
 Object.assign(certsSeams, {

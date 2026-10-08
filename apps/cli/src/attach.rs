@@ -12,6 +12,8 @@ use std::path::{Path, PathBuf};
 
 use opensesame_sealed_store::{sanitize_filename, AttachMeta, StoreRoot};
 
+#[cfg(windows)]
+pub(crate) use crate::private_file::write_owner_only;
 use crate::store::{open_unlocked, require_reveal, resolve_root, shred_file};
 
 /// Warn above this size that the free git-remote tier has a practical ceiling.
@@ -110,6 +112,7 @@ pub fn cmd_attach_get(
 /// never at the umask's mode and chmodded afterwards — then it is synced and
 /// renamed into place. A failure part way through removes the partial file,
 /// so nothing truncated is ever left looking like the real document.
+#[cfg(not(windows))]
 pub(crate) fn write_owner_only(
     dest: &Path,
     fill: impl FnOnce(&mut std::fs::File) -> anyhow::Result<()>,
@@ -248,8 +251,9 @@ pub async fn cmd_attach_sync(
     path: Option<&Path>,
     tomb: Option<&str>,
 ) -> anyhow::Result<()> {
-    // Replication moves sealed bytes only, so it never needs the passphrase.
+    // Trapped stores require production admission even for ciphertext replication.
     let root_path = resolve_root(path, tomb)?;
+    crate::pass_read::require_production_if_traps(&root_path)?;
     let root = StoreRoot::open(&root_path).map_err(|e| anyhow::anyhow!("{e}"))?;
     let units = root
         .attach_replication_units()
