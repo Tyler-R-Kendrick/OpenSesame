@@ -3,7 +3,7 @@
   "repo": "OpenSesame",
   "target": "/workspace",
   "source_ref": {
-    "commit": "3928d033cf999e3adf7b8b00cc874cd76944deb5",
+    "commit": "d1ce497fbc40e5c8ea4756674d08d74b116cdaae",
     "branch": "cursor/cf-audit-run-5-artifacts-d641",
     "worktree": "clean",
     "origin_main": "be3c9db9036d23ffabae67d34d5892b38e1a95c8",

@@ -1,6 +1,6 @@
 # Architecture, run 5
 
-OpenSesame at `3928d033cf999e3adf7b8b00cc874cd76944deb5` is the six-PR NV fix stack on top of run 3 artifacts (#829) and run 4 regression (#834). The Host gateway (`crates/gateway`), daemon (`crates/daemon`), connection broker, sandbox wasm runtime, Pages relay, control plane, CLI, compose reference, and mobile wallet authenticators share one authorization fabric: ConnectionRef grants, browser pairings with `config_authorization_roles`, and sealed credentials at the last hop.
+OpenSesame at `d1ce497fbc40e5c8ea4756674d08d74b116cdaae` is the six-PR NV fix stack on top of run 3 artifacts (#829) and run 4 regression (#834). The Host gateway (`crates/gateway`), daemon (`crates/daemon`), connection broker, sandbox wasm runtime, Pages relay, control plane, CLI, compose reference, and mobile wallet authenticators share one authorization fabric: ConnectionRef grants, browser pairings with `config_authorization_roles`, and sealed credentials at the last hop.
 
 Run 5 is a **standard** full pass at this tip. Phase 1 reconnaissance re-read the tree with four parallel `research` agents (product stack, principals, entry surfaces, offline execution). Prior runs 1–4 and incompatible bogus run 5/6 ledgers were read for coverage consequences only; ledger bytes were **not** copied from run 3.
 
