@@ -29,6 +29,7 @@ import {
   openDrop as openDropFormat,
 } from "@opensesame/vault-core";
 import { identityBase, identityFetch } from "../identity.js";
+import { noteDropOpened } from "../sharing-receipts.js";
 import { claimIdFromBearer } from "../vault/local-drop-codec.js";
 import { noteOutboundDropConsumed } from "../vault/outbound-drops.js";
 
@@ -171,6 +172,7 @@ export async function presentDrop(
     const presented = await dropOpenSeams.presentClaim(bearerToken, userCode);
     const claimId = claimIdFromBearer(bearerToken);
     if (claimId) noteOutboundDropConsumed(claimId);
+    if (claimId) noteDropOpened(claimId);
     return { targetManifest: guardManifest(presented.targetManifest) };
   } catch (error) {
     throw mapTransportError(

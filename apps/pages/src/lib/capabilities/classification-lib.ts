@@ -241,6 +241,10 @@ export const LIB_RULES = [
     "append API used by core; the section is activity.log",
   ),
   shared(
+    `${L}sharing-receipts`,
+    "value-blind drop, live-grant and share receipts; activity log and device receipts",
+  ),
+  shared(
     `${L}document-lifecycle`,
     "trusted-hide and persisted-restore decisions the shell and a live session share",
   ),
@@ -278,8 +282,7 @@ export const LIB_RULES = [
     SIGNIN,
     "join a session: invite or open endpoint, before sign-in (ADR 0136)",
   ),
-  // The ceremonies a link opens on this origin (ADR 0140): always-on, so
-  // their models ship in every build beside the join road.
+  // Ceremonies a link opens on this origin ship in every build (ADR 0140).
   core(
     `${L}claims/`,
     CEREMONIES,
@@ -296,9 +299,8 @@ export const LIB_RULES = [
     CEREMONIES,
     "/approve/<ref> review, hosted rows, -link (boot), -route (ADR 0084, 0140)",
   ),
-  // A link's query, read at boot: `/device?user_code=` and the legacy links
-  // normalised to it; `/invoke/<kind>`'s handle and its screen model; the
-  // `/guest` and `/delegate` aliases (ADR 0140).
+  // A link's query, read at boot: `/device?user_code=`, `/invoke/<kind>`,
+  // and the `/guest` and `/delegate` aliases (ADR 0140).
   ...each(L, ["device-link", "invoke-", "ceremony-aliases", "directory"], (p) =>
     core(p, CEREMONIES, "a ceremony link read at boot, and its model"),
   ),
@@ -307,8 +309,7 @@ export const LIB_RULES = [
     CEREMONIES,
     "device approval view-model shared by /device and Identity › Devices (ADR 0140)",
   ),
-  // Settings › Notifications' model (ADR 0140 plan step 11, D9): reached
-  // only through the notifications.routing module and its file provider.
+  // Settings › Notifications, reached only through notifications.routing (ADR 0140).
   optional(
     `${L}notification-routing/`,
     "notifications.routing",
@@ -341,9 +342,8 @@ export const LIB_RULES = [
     "enterprise.directory-provisioning",
     "organization upstream, email domains and SCIM tokens (ADR 0140)",
   ),
-  // Duress (ADR 0131): a duress code is an unlock method, and the fence,
-  // compartments and alerting it drives all hang off unlocking, so the whole
-  // tree belongs to the core unlock capability.
+  // Duress (ADR 0131): the code, fence, compartments and alerting hang off
+  // unlocking, so the tree belongs to the core unlock capability.
   core(
     `${L}duress/`,
     "vault.local-unlock",
