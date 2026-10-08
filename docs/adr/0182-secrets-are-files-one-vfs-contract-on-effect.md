@@ -179,8 +179,10 @@ emulation keeps hiding shape (ADR 0149, ADR 0175); nothing here changes it.
 
 - **Pages.** The shipped PWA keeps its OPFS emulation by default and never
   touches a real filesystem. A bucket is an opt-in connection: the `s3`
-  connector in the Custom setup ceremony's History & persistence step, saved
-  device-locally (secret key apart from the public fields, like every other
+  connector, configured in the Custom setup ceremony's Storage tab (contributed
+  by `connectors.external` after its Connectors tab, so it is there exactly when
+  Connections is part of the installation) or in Settings › Capabilities ›
+  Local storage, and saved device-locally (secret key apart from the public fields, like every other
   configuration connector), and installed at boot as
   `installFileBackedVfs(resilient(makeS3SecretFiles(...)))`. The bucket needs
   a CORS rule for the page's origin that allows `If-Match`, `If-None-Match`,
