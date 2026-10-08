@@ -204,18 +204,18 @@ it("withholds an accepted save after original-owner revocation and fresh same-pa
   }
 });
 
-it("routes an actually enrolled retired password to synthetic UI with no popup production dispatch", async () => {
-  await f.unlock();
-  await rendered(() =>
-    [...document.querySelectorAll("#security label")].some(
-      (l) => l.textContent === "Current vault password",
-    ),
-  );
-  const retiredPasswords: [string, "reject" | "synthetic_decoy"][] = [
-    ["public-retired-popup-reject-fixture", "reject"],
-    ["public-retired-popup-fixture", "synthetic_decoy"],
-  ];
-  for (const [password, mode] of retiredPasswords) {
+it.each([
+  ["public-retired-popup-reject-fixture", "reject"],
+  ["public-retired-popup-fixture", "synthetic_decoy"],
+] as const)(
+  "routes an actually enrolled retired password to %s / %s with no popup production dispatch",
+  async (password, mode) => {
+    await f.unlock();
+    await rendered(() =>
+      [...document.querySelectorAll("#security label")].some(
+        (l) => l.textContent === "Current vault password",
+      ),
+    );
     const credentials: [string, string][] = [
       ["Current vault password", f.owner.password],
       ["Retired vault password", password],
@@ -244,46 +244,47 @@ it("routes an actually enrolled retired password to synthetic UI with no popup p
     expect(document.querySelector("#security")?.textContent).toContain(
       "Retired credential trap enrolled.",
     );
-  }
-  await f.lock();
-  const calls = [
-    f.gets.length,
-    f.writes.length,
-    f.requests.length,
-    f.opened.length,
-    f.optionsOpened(),
-  ];
-  const input = document.querySelector('#security input[type="password"]');
-  if (!(input instanceof HTMLInputElement))
-    throw new Error("Missing actual retired-password unlock control");
-  input.value = "public-retired-popup-reject-fixture";
-  await clickSecurityAction(button("Unlock vault"));
-  expect(document.querySelector("#security")?.textContent).toContain(
-    "The password did not open this vault.",
-  );
-  expect(node("production-controls", HTMLDivElement).hidden).toBe(true);
-  removedWorkflows();
-  await f.unlock("public-retired-popup-fixture");
-  expect(document.querySelector("#security")?.textContent).toContain(
-    "Example account",
-  );
-  expect(node("production-controls", HTMLDivElement).hidden).toBe(true);
-  removedWorkflows();
-  for (const name of ["Save host", "Retry"])
-    await hintAfter(button(name), "Unlock the real vault to continue.");
-  await hintAfter(
-    node("security-open", HTMLButtonElement),
-    "Unlock the real vault to continue.",
-  );
-  expect([
-    f.gets.length,
-    f.writes.length,
-    f.requests.length,
-    f.opened.length,
-    f.optionsOpened(),
-  ]).toEqual(calls);
-  await f.lock();
-  await f.unlock();
-  expect(node("production-controls", HTMLDivElement).hidden).toBe(false);
-  removedWorkflows();
-});
+    await f.lock();
+    const calls = [
+      f.gets.length,
+      f.writes.length,
+      f.requests.length,
+      f.opened.length,
+      f.optionsOpened(),
+    ];
+    const input = document.querySelector('#security input[type="password"]');
+    if (!(input instanceof HTMLInputElement))
+      throw new Error("Missing actual retired-password unlock control");
+    if (mode === "reject") {
+      input.value = password;
+      await clickSecurityAction(button("Unlock vault"));
+      expect(document.querySelector("#security")?.textContent).toContain(
+        "The password did not open this vault.",
+      );
+    } else {
+      await f.unlock(password);
+      expect(document.querySelector("#security")?.textContent).toContain(
+        "Example account",
+      );
+    }
+    expect(node("production-controls", HTMLDivElement).hidden).toBe(true);
+    removedWorkflows();
+    for (const name of ["Save host", "Retry"])
+      await hintAfter(button(name), "Unlock the real vault to continue.");
+    await hintAfter(
+      node("security-open", HTMLButtonElement),
+      "Unlock the real vault to continue.",
+    );
+    expect([
+      f.gets.length,
+      f.writes.length,
+      f.requests.length,
+      f.opened.length,
+      f.optionsOpened(),
+    ]).toEqual(calls);
+    await f.lock();
+    await f.unlock();
+    expect(node("production-controls", HTMLDivElement).hidden).toBe(false);
+    removedWorkflows();
+  },
+);
