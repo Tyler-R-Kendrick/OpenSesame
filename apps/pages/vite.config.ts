@@ -39,6 +39,31 @@ const osDomainWallet = fileURLToPath(
   new URL("../../packages/os-domain/src/wallet/index.ts", import.meta.url),
 );
 
+/**
+ * Keep the client renderer out of the entry chunk. A hardened profile's
+ * largest asset is `main`, and react-dom is what puts it over the 693 KiB
+ * ceiling. `onlyExplicitManualChunks` (capability-compose) keeps each name
+ * to the files matched here, so the entry imports the renderer instead of
+ * carrying its source.
+ */
+function bundleChunk(id: string): string | undefined {
+  const path = id.split("\\").join("/");
+  if (
+    path.includes("/node_modules/react-dom/") ||
+    path.includes("/node_modules/react/") ||
+    path.includes("/node_modules/scheduler/")
+  ) {
+    return "react-dom";
+  }
+  if (
+    path.includes("/node_modules/react-router/") ||
+    path.includes("/node_modules/react-router-dom/")
+  ) {
+    return "react-router";
+  }
+  return undefined;
+}
+
 function redirectBareBase(
   req: import("node:http").IncomingMessage,
   res: import("node:http").ServerResponse,
@@ -170,6 +195,7 @@ export default defineConfig({
         // fold small optional chunks (Tailnet sync's) into `main`, which
         // is "safe" to Rollup — everything loads `main` — and wrong here.
         experimentalMinChunkSize: 5_000,
+        manualChunks: bundleChunk,
       },
       // Every HTML entry is listed here; `capabilityCompose()`'s config hook
       // removes the ones owned by a capability a hardened build excludes
