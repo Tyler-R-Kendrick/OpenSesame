@@ -146,6 +146,13 @@ impl VaultHeader {
         let object = value
             .as_object()
             .ok_or(VaultFileError::Corrupt("the header is not an object"))?;
+        // A legacy wrap can remain after a modern protector was removed.
+        // This reader cannot authenticate and discharge that modern policy.
+        if object.contains_key("protection") {
+            return Err(VaultFileError::Rejected(
+                "modern root-protection admission is not supported by this reader",
+            ));
+        }
         if object.get("v").and_then(Value::as_f64) != Some(1.0) {
             return Err(VaultFileError::Corrupt("unsupported vault format"));
         }
