@@ -4,7 +4,7 @@ Branch: `cursor/delete-host-identity-daemon-b359` (PR #865), static `dist/` only
 
 Chromium: `~/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome`.
 
-Artifacts under `/opt/cursor/artifacts/delete-apis-proof/`.
+Artifacts under `/opt/cursor/artifacts/delete-apis-proof/` and `/opt/cursor/artifacts/verification-2026-10/`.
 
 ## Pages build
 
@@ -22,9 +22,18 @@ Repeated with `WIDTH=1280` and `WIDTH=390` env (harness still walks both widths 
 
 ## Per-profile checklist walk
 
-`node apps/pages/scripts/verification-checklist-walk.mjs` against static builds for `minimal-local`, `default`, `custom`, `full`.
+`PLAYWRIGHT_CHROMIUM=… node apps/pages/scripts/verification-checklist-walk.mjs` against static builds for `minimal-local`, `default`, `custom`, `full` (no backend).
 
-Results: `/opt/cursor/artifacts/verification-2026-10/results.json` — **PARTIAL** on every profile (pre-existing U14 trash / R1–R3 reset-absent gaps; no Host/Identity regression). Shots under `/opt/cursor/artifacts/verification-2026-10/`.
+| Profile | Status | failed-checks | Shots |
+| --- | --- | --- | --- |
+| `minimal-local` | **OK** | 0 | 45 |
+| `default` | **OK** | 0 | 40 |
+| `custom` | **OK** | 0 | 42 |
+| `full` | **OK** | 0 | 49 |
+
+Machine-readable: `/opt/cursor/artifacts/verification-2026-10/results.json`. Screenshots: `/opt/cursor/artifacts/verification-2026-10/<profile>/`.
+
+Summary log (copy): `proof-logs/checklist-walk-all.log`.
 
 ## WebRTC host-and-join vault sync
 

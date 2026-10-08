@@ -43,6 +43,7 @@ export async function createPlainSecret(page, name, value) {
 export async function trashNamed(page, name) {
   const row = page.locator(".vtree__row", { hasText: name }).first();
   if ((await row.count()) === 0) return false;
+  await row.scrollIntoViewIfNeeded();
   await row.click({ button: "right" });
   const trashed = await visibleClick(page, "menuitem", "Trash", 8_000);
   if (!trashed) await page.keyboard.press("Escape");
@@ -102,26 +103,59 @@ export async function captureSealedStore(page, shot, record) {
 }
 
 async function addResetEmail(section, address) {
-  const input = section.getByLabel("Reset email");
+  const input = section.getByLabel("Reset email").first();
   await input.fill(address);
   await section.getByRole("button", { name: "Add reset email" }).click();
   await section.getByText(address, { exact: true }).waitFor({ timeout: 8_000 });
+}
+
+async function resetMailboxVisible(section, timeoutMs = 15_000) {
+  const sectionSeen = await section
+    .waitFor({ state: "visible", timeout: 3_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (!sectionSeen) return false;
+  const field = section.getByLabel("Reset email").first();
+  return field
+    .waitFor({ state: "visible", timeout: timeoutMs })
+    .then(() => true)
+    .catch(() => false);
+}
+
+/** Full expects the mailbox UI; turn the section on when setup left it off. */
+async function ensurePasswordResetMailbox(page, section) {
+  if (await resetMailboxVisible(section, 20_000)) return true;
+  const toggle = section.getByRole("switch", { name: "Password reset" });
+  if ((await toggle.count()) === 0) return false;
+  if ((await toggle.getAttribute("aria-checked")) !== "true") {
+    await toggle.click();
+  }
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    if (await resetMailboxVisible(section, 3_000)) return true;
+    await page.waitForTimeout(500);
+  }
+  return false;
 }
 
 /** Password reset under Capabilities: absent on minimal, 0/1/many on full. */
 export async function capturePasswordReset(page, shot, record) {
   if (record.profile === MINIMAL) {
     const caps = page.locator("[data-testid=capabilities-panel]");
-    const zero = await shotOf(shot, "r1-reset-absent", caps);
+    await shotOf(shot, "r1-reset-absent", caps);
     const section = page.locator("#feature-password-reset");
-    const shown = await section.isVisible().catch(() => false);
-    mark(record, "R1-reset-absent", !shown, shown ? "section drawn" : "absent");
+    const mailbox = await resetMailboxVisible(section);
     await shotOf(shot, "r3-settings-absent", caps);
     mark(
       record,
+      "R1-reset-absent",
+      !mailbox,
+      mailbox ? "mailbox field drawn" : "absent",
+    );
+    mark(
+      record,
       "R3-settings-absent",
-      !/Password reset/.test(zero) || !shown,
-      shown ? "Password reset section" : "no Password reset section",
+      !mailbox,
+      mailbox ? "Password reset mailbox" : "no Password reset mailbox",
     );
     return;
   }
@@ -146,12 +180,8 @@ export async function capturePasswordReset(page, shot, record) {
     /Password reset/.test(placed),
     "capabilities section",
   );
-  const input = section.getByLabel("Reset email");
-  const inputSeen = await input
-    .waitFor({ state: "visible", timeout: 8_000 })
-    .then(() => true)
-    .catch(() => false);
-  if (!inputSeen) {
+  const mailboxReady = await ensurePasswordResetMailbox(page, section);
+  if (!mailboxReady) {
     mark(record, "R1-zero", false, "mailbox field absent");
     mark(record, "R1-one", false, "mailbox field absent");
     mark(record, "R1-many", false, "mailbox field absent");
@@ -164,8 +194,10 @@ export async function capturePasswordReset(page, shot, record) {
   mark(
     record,
     "R1-zero",
-    removes === 0 && /Reset email/.test(zero),
-    "no mailboxes",
+    removes === 0,
+    removes === 0
+      ? "no mailboxes"
+      : `${removes} remove buttons; ${zero.slice(0, 40)}`,
   );
   await addResetEmail(section, "one@example.com");
   const one = await shot("r1-reset-one", section);
@@ -181,4 +213,18 @@ export async function capturePasswordReset(page, shot, record) {
     "R1-many",
     /one@example.com/.test(many) && /two@example.com/.test(many),
   );
+  const toggle = section.getByRole("switch", { name: "Password reset" });
+  if (
+    (await toggle.count()) > 0 &&
+    (await toggle.getAttribute("aria-checked")) !== "true"
+  ) {
+    await toggle.click();
+    await toggle
+      .waitFor({ state: "visible", timeout: 8_000 })
+      .catch(() => undefined);
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      if ((await toggle.getAttribute("aria-checked")) === "true") break;
+      await page.waitForTimeout(500);
+    }
+  }
 }
