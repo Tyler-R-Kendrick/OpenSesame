@@ -1,5 +1,15 @@
 # Browser-session acceptance
 
+> Status (2026-10-08): a point-in-time proof record. The walk it describes is
+> still `pnpm test:browser-sessions` (`apps/pages/scripts/verify-browser-sessions.mjs`);
+> the `pageshow` and bfcache claim comes from the separate
+> `pnpm --filter @opensesame/pages verify:browser-session-lifecycle`. The
+> Measurements table is that commit's numbers and ceilings, not today's:
+> `tools/quality/bundle-budgets.json` now holds `apps/pages` at
+> 17900 / 5630 / 1739 / 168 / 12800 and both hardened profiles at
+> 4767 / 4164 / 1259 / 171 / 693 (total / javascript / javascriptGzip / css /
+> largestAsset, KiB).
+
 Status: local proof against the shipped Pages build. `pageshow.persisted=true` bfcache restoration is claimed from two history-back runs: each browser `pageshow` was trusted with `persisted: true`, `PerformanceNavigationTiming.type` stayed `navigate` (the original load; the return was not a reload and `notRestoredReasons` was null), the peer could no longer read the shared field, and the restored document did not show a live session. Physical-device, live-provider, and native window-hide are not claimed.
 
 ## What this proves
