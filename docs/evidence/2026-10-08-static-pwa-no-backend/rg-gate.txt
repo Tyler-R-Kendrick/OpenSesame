@@ -13,11 +13,5 @@ Command (excludes history trees only):
 
 Result: **0 matches** outside `docs/audit/`, `docs/evidence/`, and `docs/archive/`.
 
-Notes:
-
-- `write-runtime-config.mjs` refuses retired backend stamps without embedding
-  literal `PAGES_*_API` strings (built from plane names at runtime).
-- Federation / ceremony error codes were renamed (`no_federation_endpoint`,
-  `approval_peer_unreachable`, …) so live code does not carry `identity_api` /
-  `host_api` substrings.
-- Inventory and ADR history may still name retired env vars under `docs/audit/`.
+Last verified after renaming browser-extension health error
+`authority_plane_removed` (was matching `host_api`).

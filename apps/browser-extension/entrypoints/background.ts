@@ -113,7 +113,7 @@ export default defineBackground(() => {
   browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "opensesame.health") {
       sendResponse({
-        error: "host_api_removed",
+        error: "authority_plane_removed",
         cursor,
       });
       return true;
