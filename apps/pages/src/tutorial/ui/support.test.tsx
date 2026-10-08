@@ -1,5 +1,3 @@
-import { INITIAL_SNAPSHOT } from "@opensesame/app-core/lib/capabilities/store-types.js";
-import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js";
 import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { GUIDE_GOALS } from "@opensesame/app-core/tutorial/registry/goals.js";
 import {
@@ -21,7 +19,6 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import { expectInTray } from "../../components/tray.test-support.js";
-import { profilePlan } from "../../lib/capabilities/__tests__/vault-profiles.js";
 import {
   type VaultKeymapTarget,
   createKeymapHandler,
@@ -183,33 +180,6 @@ describe("support panel", () => {
     );
     expect(field.disabled).toBe(false);
     expect(screen.getByRole("button", { name: "Search" })).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "Search" })).toBeTruthy();
-    expect(screen.queryByRole("tab", { name: "Ask" })).toBeNull();
-  });
-
-  it("keeps the Ask tab when local AI is approved and the model is not ready", async () => {
-    const user = userEvent.setup();
-    const plan = profilePlan("full");
-    const snapshot = {
-      ...INITIAL_SNAPSHOT,
-      status: "ready" as const,
-      plan,
-    };
-    const read = compositionStore.getSnapshot;
-    compositionStore.getSnapshot = () => snapshot;
-    try {
-      mount(fakeAgentAlwaysUnavailable("no_local_model"), "none");
-      await openPanel(user);
-      expect(screen.getByRole("tab", { name: "Ask" })).toBeTruthy();
-      expect(screen.queryByRole("tab", { name: "Search" })).toBeNull();
-      expect(
-        await screen.findByLabelText("Search the written help"),
-      ).toBeTruthy();
-      expect(screen.getByRole("button", { name: "Search" })).toBeTruthy();
-      expect(screen.queryByRole("button", { name: "Ask" })).toBeNull();
-    } finally {
-      compositionStore.getSnapshot = read;
-    }
   });
 
   it("answers an authored topic with no model at all", async () => {

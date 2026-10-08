@@ -83,3 +83,15 @@ export async function waitPastSetup(page) {
   if (await signIn.isVisible().catch(() => false)) return "sign-in";
   return "door";
 }
+
+export async function railLabels(page) {
+  return (await page.locator(".railtree__row").allTextContents()).map((text) =>
+    text.trim(),
+  );
+}
+
+export function hasLabel(labels, name) {
+  return labels.some(
+    (label) => label === name || label.startsWith(`${name}\n`),
+  );
+}
