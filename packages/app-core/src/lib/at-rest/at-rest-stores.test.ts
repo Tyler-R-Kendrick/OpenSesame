@@ -21,7 +21,7 @@ import {
   AT_REST_DATABASE,
   HISTORY_BACKUP_DATABASE,
 } from "../storage-ownership.js";
-import { atRestBinding, isSealedAtRest, sealAtRest } from "./cipher.js";
+import { atRestBinding, sealAtRest } from "./cipher.js";
 import { fakeIndexedDb, rawRows } from "./fake-idb.test-support.js";
 import { loadIndexedDbAtRestKey } from "./idb-key-store.js";
 import { forgetAtRestKeyForTest } from "./key.js";
