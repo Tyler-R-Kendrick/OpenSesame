@@ -23,7 +23,6 @@
 //! — there is no path that pairs a client without a person saying yes.
 
 use std::fs;
-use std::io::Write as _;
 use std::path::{Path, PathBuf};
 #[cfg(unix)]
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -380,7 +379,7 @@ impl PairingWindow {
 
 #[cfg(unix)]
 fn write_window_file(path: &Path, contents: &[u8]) -> std::io::Result<()> {
-    use std::os::unix::fs::OpenOptionsExt;
+    use std::{io::Write as _, os::unix::fs::OpenOptionsExt};
 
     static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
     let sequence = TEMP_COUNTER.fetch_add(1, Ordering::Relaxed);

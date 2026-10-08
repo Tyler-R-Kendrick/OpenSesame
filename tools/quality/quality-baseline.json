@@ -18,7 +18,7 @@
   "totals": {
     "files": 425,
     "violations": 658,
-    "oversizedLines": 215351
+    "oversizedLines": 215349
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -330,7 +330,7 @@
       "max-lines": 801
     },
     "crates/daemon/src/lib.rs": {
-      "max-lines": 1500
+      "max-lines": 1499
     },
     "crates/daemon/src/promote.rs": {
       "max-lines": 1338
@@ -480,7 +480,7 @@
       "max-lines": 458
     },
     "crates/pm-bridges/src/pairing.rs": {
-      "max-lines": 646
+      "max-lines": 645
     },
     "crates/pm-bridges/src/store.rs": {
       "max-lines": 439
