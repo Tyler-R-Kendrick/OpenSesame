@@ -1,0 +1,38 @@
+{
+  "run_id": "OpenSesame-run-5",
+  "repo": "OpenSesame",
+  "target": "/workspace",
+  "source_ref": {
+    "commit": "58ebcf5c3c8544d375cab2c357764b3177a9ae70",
+    "branch": "cursor/cf-audit-run-5-artifacts-d641",
+    "worktree": "clean",
+    "origin_main": "77164dd258f0bdb5fc4752efee922ce09f45b842"
+  },
+  "profile": "standard",
+  "scope_paths": [
+    "apps",
+    "crates",
+    "packages",
+    "ops",
+    "spec",
+    "scripts",
+    "tools"
+  ],
+  "execution_policy": "full-run",
+  "prior_run_paths": [
+    "docs/security/cloudflare-audit/run-1",
+    "docs/security/cloudflare-audit/run-2",
+    "docs/security/cloudflare-audit/run-3",
+    "docs/security/cloudflare-audit/run-4"
+  ],
+  "run_status": "complete",
+  "new_hunter_candidates": 6,
+  "phases": [
+    "recon",
+    "coverage-led-hunt",
+    "adversarial-validation",
+    "independent-verification"
+  ],
+  "notes": "First counted full run on NV fix stack (#839–#846). Six new hunter candidates written to findings.json (all rejected after source review). Grok unavailable (402).",
+  "completed_at": "2026-10-08T21:00:00Z"
+}
