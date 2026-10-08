@@ -1,3 +1,4 @@
+import { kvRefresh } from "@opensesame/app-core/lib/kv.js";
 /** @vitest-environment jsdom */
 /**
  * Edits to the owner's transport profile, in real time (ADR 0150 §6): the
@@ -15,13 +16,21 @@ import {
   DIRECT_TRANSPORT,
   type LiveTransport,
 } from "@opensesame/app-core/lib/live/transport.js";
-import { VfsError } from "@opensesame/app-core/lib/vfs.js";
+import {
+  VfsError,
+  readFile,
+  tombFileKey,
+  writeFile,
+} from "@opensesame/app-core/lib/vfs.js";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { genuineLiveOwner } from "./live-owner.test-support.js";
 import { withAddress, withCarrier } from "./live-transport-edits.js";
 import { transportSeams, useLiveTransport } from "./live-transport-hooks.js";
 
+let retireOwner: () => Promise<void>;
 const files = new Map<string, Uint8Array>();
+const installed = new Map<string, Uint8Array>();
 type Control = {
   /** How long each write takes, by its call number (ms). */
   delays: number[];
@@ -39,12 +48,18 @@ const control: Control = {
 
 /** The vfs under the real store: a memory whose writes take as long as told. */
 const memory = {
-  refresh: async () => undefined,
+  refresh: async (tomb: string) =>
+    kvRefresh(tombFileKey(tomb, TRANSPORT_PATH), 64_000),
   read: async (tomb: string) => {
     if (control.locked) throw new VfsError("locked", "locked");
     const bytes = files.get(`${tomb}/${TRANSPORT_PATH}`);
     if (!bytes) throw new VfsError("not-found", "none");
-    return bytes;
+    const key = `${tomb}/${TRANSPORT_PATH}`;
+    if (installed.get(key) !== bytes) {
+      await writeFile(tomb, TRANSPORT_PATH, bytes);
+      installed.set(key, bytes);
+    }
+    return readFile(tomb, TRANSPORT_PATH);
   },
   write: async (tomb: string, bytes: Uint8Array) => {
     const call = control.calls++;
@@ -52,6 +67,8 @@ const memory = {
       setTimeout(resolve, control.delays[call] ?? 0),
     );
     if (control.failing.has(call)) throw new Error("disk full");
+    await writeFile(tomb, TRANSPORT_PATH, bytes);
+    installed.set(`${tomb}/${TRANSPORT_PATH}`, bytes);
     files.set(`${tomb}/${TRANSPORT_PATH}`, bytes);
   },
 };
@@ -67,8 +84,10 @@ const put = (text: string) =>
   files.set(`personal/${TRANSPORT_PATH}`, new TextEncoder().encode(text));
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-beforeEach(() => {
+beforeEach(async () => {
+  retireOwner = await genuineLiveOwner();
   files.clear();
+  installed.clear();
   Object.assign(control, {
     delays: [],
     failing: new Set<number>(),
@@ -79,10 +98,11 @@ beforeEach(() => {
   Object.assign(storeSeams, memory);
 });
 
-afterEach(() => {
+afterEach(async () => {
   cleanup();
   Object.assign(transportSeams, original);
   Object.assign(storeSeams, originalStore);
+  await retireOwner();
 });
 
 const NOSTR = { kind: "nostr" as const, url: "wss://relay.example.com" };

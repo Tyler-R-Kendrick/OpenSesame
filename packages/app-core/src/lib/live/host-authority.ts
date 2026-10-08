@@ -12,6 +12,27 @@ export function captureHostAuthority(owner?: () => void): () => void {
   return check;
 }
 
+/** Configuration stays pinned through construction; the owner stays pinned for life. */
+export function captureHostConstruction(
+  owner: () => void,
+  configuration?: () => void,
+) {
+  const authority = captureHostAuthority(owner);
+  let constructed = false;
+  const check = () => {
+    authority();
+    if (!constructed) configuration?.();
+  };
+  check();
+  return {
+    check,
+    complete: () => {
+      check();
+      constructed = true;
+    },
+  };
+}
+
 export function retiredHostState(): HostState {
   return {
     status: "ended",

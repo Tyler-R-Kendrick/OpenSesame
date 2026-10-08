@@ -29,6 +29,14 @@ const control: Control = { delays: [], locked: false, broken: false, calls: 0 };
 const original = { ...storeSeams };
 
 const fake = {
+  // This suite substitutes the entire physical store; genuine key/realm
+  // retirement is exercised separately by transport-store-authority.test.ts.
+  pin: () => {
+    if (control.locked) throw new VfsError("locked", "locked");
+    return () => {
+      if (control.locked) throw new VfsError("locked", "locked");
+    };
+  },
   refresh: async () => undefined,
   read: async (tomb: string) => {
     if (control.locked) throw new VfsError("locked", "locked");

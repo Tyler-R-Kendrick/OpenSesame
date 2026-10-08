@@ -15,8 +15,12 @@
  * "direct only": the Form does not start a session on a guess at it.
  */
 
+import { captureHostAuthority } from "@opensesame/app-core/lib/live/host-authority.js";
 import {
-  TransportRefused,
+  beginTransportEdit,
+  onTransportReadinessChange,
+} from "@opensesame/app-core/lib/live/transport-readiness.js";
+import {
   onTransportChange,
   readLiveTransport,
   writeLiveTransport,
@@ -24,125 +28,124 @@ import {
 import {
   DIRECT_TRANSPORT,
   type LiveTransport,
-  readTransport,
-  transportFileText,
 } from "@opensesame/app-core/lib/live/transport.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ProfileReadState,
+  type TransportEdit,
+  captureProfileConfiguration,
+  commitTransportEdit,
+  loadTransportProfile,
+  pendingTransport,
+} from "./live-transport-profile.js";
 
 export const transportSeams = {
   tomb: (): string => vaultStore.activeTomb(),
   read: (tomb: string): Promise<LiveTransport> => readLiveTransport(tomb),
-  write: (tomb: string, transport: LiveTransport): Promise<void> =>
-    writeLiveTransport(tomb, transport),
+  write: (
+    tomb: string,
+    transport: LiveTransport,
+    assertCurrent: () => void,
+  ): Promise<void> => writeLiveTransport(tomb, transport, assertCurrent),
 };
 
 /** A change to the profile, made against the profile as it is by then. */
 export type Edit = (current: LiveTransport) => LiveTransport;
-
 export type TransportView = Readonly<{
   transport: LiveTransport;
   loaded: boolean;
-  /** Why the saved profile cannot be used; null when it can. */
+  /** The actual sealed profile is current and no edit or reload is pending. */
+  settled: boolean;
   refused: string | null;
-  /** Apply an edit; the refusal it meets, or null once written. */
   change: (edit: Edit) => Promise<string | null>;
+  /** Pins the actual loaded profile; never grants vault authority. */
+  captureConfiguration: () => () => void;
 }>;
-
-const NOT_KEPT = "This vault could not keep the change";
-const NOT_READ = "This vault's routes could not be read";
-
-function check(next: LiveTransport) {
-  return readTransport(JSON.parse(transportFileText(next)));
-}
 
 export function useLiveTransport(): TransportView {
   const [transport, setTransport] = useState<LiveTransport>(DIRECT_TRANSPORT);
   const [loaded, setLoaded] = useState(false);
+  const [settled, setSettled] = useState(false);
   const [refused, setRefused] = useState<string | null>(null);
-  /** The last profile known to be sealed. */
   const kept = useRef<LiveTransport>(DIRECT_TRANSPORT);
-  const pending = useRef<{ edit: Edit }[]>([]);
+  const pending = useRef<TransportEdit[]>([]);
   const tail = useRef<Promise<unknown>>(Promise.resolve());
-  /** Bumped by every load and write, so a read that lost the race is dropped. */
-  const epoch = useRef(0);
-  const alive = useRef(true);
+  const state = useRef<ProfileReadState>({
+    epoch: 0,
+    alive: true,
+    admitted: null,
+  });
 
   const draw = useCallback(() => {
-    if (!alive.current) return;
-    setTransport(
-      pending.current.reduce((shown, { edit }) => {
-        const checked = check(edit(shown));
-        return checked.ok ? checked.transport : shown;
-      }, kept.current),
-    );
+    if (!state.current.alive) return;
+    setTransport(pendingTransport(kept.current, pending.current));
   }, []);
 
   const load = useCallback(() => {
-    // Edits in flight end in a load of their own.
-    if (pending.current.length > 0) return;
-    epoch.current += 1;
-    const at = epoch.current;
-    Promise.resolve()
-      .then(() => transportSeams.read(transportSeams.tomb()))
-      .then(
-        (next) => {
-          if (!alive.current || at !== epoch.current) return;
-          kept.current = next;
-          setTransport(next);
-          setRefused(null);
-          setLoaded(true);
-        },
-        (error) => {
-          if (!alive.current || at !== epoch.current) return;
-          kept.current = DIRECT_TRANSPORT;
-          setTransport(DIRECT_TRANSPORT);
-          setRefused(
-            error instanceof TransportRefused ? error.message : NOT_READ,
-          );
-          setLoaded(true);
-        },
-      );
+    loadTransportProfile({
+      state: state.current,
+      pending: pending.current.length,
+      ports: transportSeams,
+      waiting: () => setSettled(false),
+      accept: (next) => {
+        kept.current = next;
+        setTransport(next);
+        setRefused(null);
+        setLoaded(true);
+        setSettled(true);
+      },
+      refuse: (message) => {
+        kept.current = DIRECT_TRANSPORT;
+        setTransport(DIRECT_TRANSPORT);
+        setRefused(message);
+        setLoaded(true);
+      },
+    });
   }, []);
 
   useEffect(() => {
-    alive.current = true;
+    state.current.alive = true;
     load();
     const stop = onTransportChange(load);
+    const stopReadiness = onTransportReadinessChange(load);
     return () => {
-      alive.current = false;
+      state.current.alive = false;
+      state.current.admitted = null;
       stop();
+      stopReadiness();
     };
   }, [load]);
 
   const commit = useCallback(
-    async (entry: { edit: Edit }): Promise<string | null> => {
-      epoch.current += 1;
-      let outcome: string | null = null;
-      try {
-        const tomb = transportSeams.tomb();
-        const checked = check(entry.edit(await transportSeams.read(tomb)));
-        if (checked.ok) {
-          await transportSeams.write(tomb, checked.transport);
-          kept.current = checked.transport;
-        } else outcome = checked.errors[0] ?? "Refused";
-      } catch (error) {
-        outcome = error instanceof TransportRefused ? error.message : NOT_KEPT;
-      }
-      epoch.current += 1;
-      pending.current = pending.current.filter((one) => one !== entry);
-      draw();
-      load();
-      return outcome;
-    },
-    [draw, load],
+    (entry: TransportEdit) =>
+      commitTransportEdit({
+        entry,
+        ports: transportSeams,
+        accept: (next) => {
+          kept.current = next;
+        },
+        done: () => {
+          pending.current = pending.current.filter((one) => one !== entry);
+          draw();
+        },
+      }),
+    [draw],
   );
 
   const change = useCallback(
     (edit: Edit): Promise<string | null> => {
-      const entry = { edit };
+      let owner: () => void;
+      try {
+        owner = captureHostAuthority(vaultStore.pinContinuation());
+      } catch {
+        return Promise.resolve("This vault could not keep the change");
+      }
+      const tomb = transportSeams.tomb();
+      const finish = beginTransportEdit();
+      const entry = { edit, tomb, check: owner, finish };
       pending.current.push(entry);
-      // Drawn at once, so a switch answers the click.
+      // The switch keeps focus and answers immediately; Start waits separately.
       draw();
       const run = tail.current.then(() => commit(entry));
       tail.current = run;
@@ -151,5 +154,9 @@ export function useLiveTransport(): TransportView {
     [draw, commit],
   );
 
-  return { transport, loaded, refused, change };
+  const captureConfiguration = useCallback(
+    () => captureProfileConfiguration(state.current),
+    [],
+  );
+  return { transport, loaded, settled, refused, change, captureConfiguration };
 }

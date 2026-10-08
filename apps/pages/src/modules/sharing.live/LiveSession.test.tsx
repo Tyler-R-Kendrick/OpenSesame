@@ -15,8 +15,6 @@ import {
   leaveLive,
   liveSeams,
 } from "@opensesame/app-core/lib/live/session.js";
-import { DIRECT_TRANSPORT } from "@opensesame/app-core/lib/live/transport.js";
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem } from "@opensesame/vault-core";
 import {
   cleanup,
@@ -32,6 +30,7 @@ import { withPassword } from "../../sections/vault/account.test-support.js";
 import { LiveHostPanel } from "./LiveHostPanel.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
+import { genuineLiveOwner } from "./live-owner.test-support.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
 const SECRET = "correct horse battery staple";
@@ -45,24 +44,15 @@ const originalHooks = { ...vaultHooksSeams };
 const originalLive = { ...liveSeams };
 const originalUi = { ...liveUiSeams };
 const originalTransport = { ...transportSeams };
+let retireOwner: () => Promise<void>;
 let net: FakeNet;
 
-beforeEach(() => {
-  Object.assign(transportSeams, {
-    tomb: () => "personal",
-    read: async () => DIRECT_TRANSPORT,
-  });
+beforeEach(async () => {
+  retireOwner = await genuineLiveOwner([github, bank]);
+
   net = new FakeNet();
   Object.assign(vaultHooksSeams, {
-    useVault: () => ({
-      ...vaultStore.getSnapshot(),
-      status: "unlocked" as const,
-      items: [github, bank],
-    }),
     useCopySecret: () => async () => "copied" as const,
-  });
-  Object.assign(liveSeams, {
-    items: () => [github, bank],
   });
   Object.assign(liveUiSeams, {
     peers: net.factory(),
@@ -70,7 +60,7 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => {
+afterEach(async () => {
   clearJoinDraft();
   leaveLive();
   endHosting();
@@ -79,6 +69,7 @@ afterEach(() => {
   Object.assign(liveSeams, originalLive);
   Object.assign(liveUiSeams, originalUi);
   Object.assign(transportSeams, originalTransport);
+  await retireOwner();
 });
 
 async function startHosting(admission: "invite" | "open" = "invite") {

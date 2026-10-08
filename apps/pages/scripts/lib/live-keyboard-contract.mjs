@@ -156,6 +156,14 @@ async function configureRelay(page, tabTo, turn) {
   await tabTo(page, relay);
   await page.keyboard.press("Space");
   await expect(relay).toBeChecked();
+  // The checkbox answers optimistically; Start uses its independently read,
+  // sealed profile. Observe that actual form before asking it to construct.
+  await expect(
+    page.locator("#live-session").getByRole("img", {
+      name: "Relay only, with 1 TURN server",
+      exact: true,
+    }),
+  ).toBeVisible();
 }
 
 /** The owner names a session and starts it; the keyboard lands in the live view. */

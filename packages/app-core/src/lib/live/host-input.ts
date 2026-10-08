@@ -15,6 +15,8 @@ export type HostInput = Readonly<{
   peers: PeerFactory;
   /** The owner's transport profile; direct only when absent. */
   transport?: LiveTransport;
+  /** A narrowing ceiling while the original configured session is being built. */
+  assertConfiguration?: () => void;
   /** The shell's carrier clients, for a profile that names carriers. */
   carriers?: CarrierFactory;
 }>;

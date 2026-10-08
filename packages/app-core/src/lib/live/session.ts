@@ -27,7 +27,7 @@ import { vaultStore } from "../vault/store.js";
 import { planRefusal } from "./carrier-policy.js";
 import { LiveGuest } from "./guest.js";
 import {
-  captureHostAuthority,
+  captureHostConstruction,
   guardedLiveCarrierFactory,
 } from "./host-authority.js";
 import type { LiveHost } from "./host.js";
@@ -160,7 +160,10 @@ function armRestoreGuard(): void {
  * comes back already ended and is never the current one.
  */
 export async function startHosting(input: HostInput): Promise<LiveHost> {
-  const check = captureHostAuthority(vaultStore.pinContinuation());
+  const { check, complete } = captureHostConstruction(
+    vaultStore.pinContinuation(),
+    input.assertConfiguration,
+  );
   armRestoreGuard();
   endHosting();
   let started: LiveHost | null = null;
@@ -216,7 +219,9 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
         if (state.status === "ended") opened.close();
       });
     }
-    check();
+    // Future profile edits do not retire an already admitted live session.
+    // Its original owner/root/realm ceiling remains in force.
+    complete();
     changed();
     return made;
   } catch (error) {

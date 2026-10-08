@@ -21,8 +21,6 @@ import {
   leaveLive,
   liveSeams,
 } from "@opensesame/app-core/lib/live/session.js";
-import { DIRECT_TRANSPORT } from "@opensesame/app-core/lib/live/transport.js";
-import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { createItem } from "@opensesame/vault-core";
 import {
   act,
@@ -39,6 +37,7 @@ import { withPassword } from "../../sections/vault/account.test-support.js";
 import { LiveHostPanel } from "./LiveHostPanel.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { clearJoinDraft, liveUiSeams } from "./live-hooks.js";
+import { genuineLiveOwner } from "./live-owner.test-support.js";
 import { transportSeams } from "./live-transport-hooks.js";
 
 const github = createItem("account", "GitHub");
@@ -49,6 +48,7 @@ const originalHooks = { ...vaultHooksSeams };
 const originalLive = { ...liveSeams };
 const originalUi = { ...liveUiSeams };
 const originalTransport = { ...transportSeams };
+let retireOwner: () => Promise<void>;
 let net: FakeNet;
 let fixup: MutationObserver;
 
@@ -73,21 +73,13 @@ function browserFocusFixup(): MutationObserver {
   return observer;
 }
 
-beforeEach(() => {
-  Object.assign(transportSeams, {
-    tomb: () => "personal",
-    read: async () => DIRECT_TRANSPORT,
-  });
+beforeEach(async () => {
+  retireOwner = await genuineLiveOwner([github]);
+
   net = new FakeNet();
   Object.assign(vaultHooksSeams, {
-    useVault: () => ({
-      ...vaultStore.getSnapshot(),
-      status: "unlocked" as const,
-      items: [github],
-    }),
     useCopySecret: () => async () => "copied" as const,
   });
-  Object.assign(liveSeams, { items: () => [github] });
   Object.assign(liveUiSeams, {
     peers: net.factory(),
     joinUrl: () => "https://example.test/OpenSesame/",
@@ -95,7 +87,7 @@ beforeEach(() => {
   fixup = browserFocusFixup();
 });
 
-afterEach(() => {
+afterEach(async () => {
   vi.restoreAllMocks();
   fixup.disconnect();
   clearJoinDraft();
@@ -106,6 +98,7 @@ afterEach(() => {
   Object.assign(liveSeams, originalLive);
   Object.assign(liveUiSeams, originalUi);
   Object.assign(transportSeams, originalTransport);
+  await retireOwner();
 });
 
 /** Focus what a keyboard user is on, then press it. */

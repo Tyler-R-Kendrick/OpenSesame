@@ -9,7 +9,14 @@
 
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { kvRefresh } from "../kv.js";
-import { VfsError, readFile, tombFileKey, writeFile } from "../vfs.js";
+import {
+  VfsError,
+  pinTombAuthority,
+  readFile,
+  tombFileKey,
+  writeFile,
+} from "../vfs.js";
+import { beginTransportEdit } from "./transport-readiness.js";
 import {
   type LiveTransport,
   type TransportRead,
@@ -22,6 +29,7 @@ const MAX_BYTES = 32_000;
 
 /** The sealed file underneath; tests stand a memory in its place. */
 export const storeSeams = {
+  pin: (tomb: string): (() => void) => pinTombAuthority(tomb),
   refresh: (tomb: string): Promise<void> =>
     kvRefresh(tombFileKey(tomb, TRANSPORT_PATH), MAX_BYTES * 2),
   read: (tomb: string): Promise<Uint8Array> => readFile(tomb, TRANSPORT_PATH),
@@ -55,10 +63,15 @@ export class TransportRefused extends Error {
  * broken file to be fixed), or `{}` where nothing was ever written.
  */
 export async function readTransportText(tomb: string): Promise<string> {
+  const assertCurrent = storeSeams.pin(tomb);
   await storeSeams.refresh(tomb);
+  assertCurrent();
   try {
-    return new TextDecoder().decode(await storeSeams.read(tomb));
+    const bytes = await storeSeams.read(tomb);
+    assertCurrent();
+    return new TextDecoder().decode(bytes);
   } catch (error) {
+    assertCurrent();
     if (error instanceof VfsError && error.code === "not-found") return "{}\n";
     throw error;
   }
@@ -85,7 +98,9 @@ export function parseTransportText(text: string): TransportRead {
 export async function readLiveTransport(tomb: string): Promise<LiveTransport> {
   let text: string;
   try {
+    const assertCurrent = storeSeams.pin(tomb);
     text = await readTransportText(tomb);
+    assertCurrent();
   } catch (error) {
     if (error instanceof VfsError && error.code === "locked")
       throw new TransportRefused("Unlock this vault to read its routes");
@@ -104,20 +119,31 @@ const chains = new Map<string, Promise<void>>();
  * a slow first cannot land after a fast second and put the older profile
  * back.
  */
-export function writeLiveTransport(
+export async function writeLiveTransport(
   tomb: string,
   transport: LiveTransport,
+  assertCurrent?: () => void,
 ): Promise<void> {
+  const pin = storeSeams.pin(tomb);
+  const check = () => {
+    pin();
+    assertCurrent?.();
+  };
+  check();
+  const finish = beginTransportEdit();
   const run = (chains.get(tomb) ?? Promise.resolve()).then(async () => {
+    check();
     const text = transportFileText(transport);
     const checked = parseTransportText(text);
     if (!checked.ok) throw new Error(checked.errors[0] ?? "Refused.");
+    check();
     await storeSeams.write(tomb, new TextEncoder().encode(text));
+    check();
     for (const listener of listeners) listener();
   });
   chains.set(
     tomb,
     run.catch(() => undefined),
   );
-  return run;
+  return run.finally(finish);
 }
