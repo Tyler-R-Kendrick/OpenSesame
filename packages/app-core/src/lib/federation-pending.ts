@@ -6,10 +6,7 @@
 
 import { type BoundaryValue, overlapCast } from "@opensesame/os-domain";
 import { localStore, sessionStore } from "../ports.js";
-import {
-  asPendingAuth,
-  type PendingAuth,
-} from "./federation-pending-auth.js";
+import { type PendingAuth, asPendingAuth } from "./federation-pending-auth.js";
 import {
   dropPkcePending,
   readPkcePendingRaw,
