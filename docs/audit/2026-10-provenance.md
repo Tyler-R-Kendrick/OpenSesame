@@ -198,4 +198,6 @@ After that point, commits labeled Grok were not live Grok. Retried once via
 | `77823a46` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(pages): stop stamping Identity/Host/daemon into the static app |
 | `34eb310a` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs(audit): P3 is static Pages with no default services |
 | `3bf9550d` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | remove Settings › Endpoints; operator docs; ADR 0090 |
+| `bd0a9f07` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | pin Endpoints-removal SHA in provenance |
+| *(pending)* | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | Vercelignore api-only + static-PWA evidence |
 
