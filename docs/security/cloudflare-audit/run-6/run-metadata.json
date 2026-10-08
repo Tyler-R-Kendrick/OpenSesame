@@ -36,5 +36,7 @@
   ],
   "new_hunter_candidates": 0,
   "run_status": "complete",
-  "notes": "Second consecutive counted run. Tip unchanged from run 5; phase-5 record verification appended to every ledger unit. Zero confirmed, zero needs_validation."
+  "count_status": "not_counted",
+  "artifact_origin": "scripted_regeneration_removed",
+  "notes": "NOT COUNTED. Same-second timestamps; build-run-6-artifacts.mjs (deleted on relabel) appended phase-5 checks to run-5 ledger only. Not a full pass. See REPORT.md."
 }
