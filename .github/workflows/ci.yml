@@ -297,7 +297,7 @@ jobs:
         run: cargo +1.88.0 build -p opensesame-cli --locked
       - name: Relay join
         # ADR 0181. One leg only, so the walk runs once against the gateway
-        # relay profile (`opensesame host run --profile relay`).
+        # relay binary (`opensesame relay run`).
         if: matrix.shard == 'journeys-1'
         env:
           PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
