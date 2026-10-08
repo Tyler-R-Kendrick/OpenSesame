@@ -7,8 +7,9 @@ use serde_json::{json, Value};
 use crate::config::constant_time_eq;
 
 use super::admit::{
-    address, claimed_by_other, digest_hex, lock, member_allows, org_role_of, owner_kind_of,
-    presented_key, principal_of, publish_allows, remember, snapshot_ok, MemberAction,
+    address, claimed_by_other, digest_hex, lock, member_allows, org_role_of, owner_kind_conflict,
+    owner_kind_of, presented_key, principal_of, publish_allows, remember, snapshot_ok,
+    MemberAction,
 };
 use super::{DirEntry, RelayState, Slot, MAX_SNAPSHOT_BYTES};
 
@@ -73,6 +74,9 @@ pub(crate) async fn put_snapshot(
         return Err(forbidden());
     }
     let mut guard = lock(&state.store);
+    if owner_kind_conflict(&guard, &owner, owner_kind) {
+        return Err((StatusCode::CONFLICT, Json(json!({ "error": "owner_kind" }))));
+    }
     if claimed_by_other(&guard, &address, &principal) {
         return Err((StatusCode::CONFLICT, Json(json!({ "error": "claimed" }))));
     }
@@ -224,6 +228,9 @@ pub(crate) async fn create_org_vault(
         return Err(forbidden());
     }
     let mut guard = lock(&state.store);
+    if owner_kind_conflict(&guard, &body.owner, &body.owner_kind) {
+        return Err((StatusCode::CONFLICT, Json(json!({ "error": "owner_kind" }))));
+    }
     if let Some(entry) = guard.directory.get(&address) {
         if entry.principal != principal {
             return Err((StatusCode::CONFLICT, Json(json!({ "error": "claimed" }))));

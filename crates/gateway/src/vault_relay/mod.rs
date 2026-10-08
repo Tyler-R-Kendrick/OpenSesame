@@ -47,6 +47,8 @@ pub(crate) struct Store {
     pub(crate) slots: BTreeMap<String, Slot>,
     /// Addresses created or claimed, keyed `owner/slug`.
     pub(crate) directory: BTreeMap<String, DirEntry>,
+    /// Owner label → `user` | `organization` (one namespace for handles and slugs).
+    pub(crate) owners: BTreeMap<String, String>,
 }
 
 #[derive(Clone)]
