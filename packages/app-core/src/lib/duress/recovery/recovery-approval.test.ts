@@ -113,7 +113,7 @@ describe("ApprovalQuorumLedger", () => {
     const secrets = keys();
     const request = await recoveryRequest();
     const ledger = new ApprovalQuorumLedger(
-      secrets.approval,
+      secrets.registry,
       secrets.device,
       config,
     );
@@ -142,11 +142,40 @@ describe("ApprovalQuorumLedger", () => {
     expect(ledger.keyMaterialFromApprovals()).toBeNull();
   });
 
+  it("refuses a second custody domain from the same approver principal", async () => {
+    const secrets = keys();
+    const request = await recoveryRequest();
+    const ledger = new ApprovalQuorumLedger(
+      secrets.registry,
+      secrets.device,
+      config,
+    );
+    const first = await approve(
+      request,
+      grant("recovery_approver", "a1", "phone"),
+      secrets,
+    );
+    const secondDomain = await approve(
+      request,
+      grant("recovery_approver", "a1", "hardware-token"),
+      secrets,
+      "ap-a1-b",
+    );
+    await ledger.submit({ ...first, request, nowMs: NOW });
+    expect(await ledger.submit({ ...secondDomain, request, nowMs: NOW })).toEqual(
+      {
+        kind: "approval_rejected",
+        reason: "duplicate_approver: approval already counted",
+      },
+    );
+    expect(ledger.quorumMet(request.digest)).toBe(false);
+  });
+
   it("counts two approvers on one synced domain once", async () => {
     const secrets = keys();
     const request = await recoveryRequest();
     const ledger = new ApprovalQuorumLedger(
-      secrets.approval,
+      secrets.registry,
       secrets.device,
       config,
     );
@@ -172,7 +201,7 @@ describe("ApprovalQuorumLedger", () => {
     const secrets = keys();
     const request = await recoveryRequest();
     const ledger = new ApprovalQuorumLedger(
-      secrets.approval,
+      secrets.registry,
       secrets.device,
       config,
     );
@@ -213,7 +242,7 @@ describe("ApprovalQuorumLedger", () => {
     const request = await recoveryRequest();
     const other = await recoveryRequest({ requestId: "req-2" });
     const ledger = new ApprovalQuorumLedger(
-      secrets.approval,
+      secrets.registry,
       secrets.device,
       config,
     );
@@ -228,12 +257,7 @@ describe("ApprovalQuorumLedger", () => {
       await ledger.submit({ ...signed, request: edited, nowMs: NOW }),
     ).toMatchObject({ reason: "authority_mismatch: request digest" });
     // The right device, but an approval sealed under another MAC key.
-    const forged = await approve(
-      request,
-      approver,
-      { ...secrets, approval: key() },
-      "x3",
-    );
+    const forged = await approve(request, approver, secrets, "x3", key());
     expect(
       await ledger.submit({ ...forged, request, nowMs: NOW }),
     ).toMatchObject({ reason: "tampered_approval" });
@@ -243,7 +267,9 @@ describe("ApprovalQuorumLedger", () => {
       request,
       nowMs: NOW,
     });
-    expect(tampered).toMatchObject({ reason: "tampered_approval" });
+    expect(tampered).toMatchObject({
+      reason: "authority_mismatch: unknown approver key",
+    });
     // A refusal consumes nothing: the genuine approval still counts.
     expect(
       await ledger.submit({ ...signed, request, nowMs: NOW }),
@@ -254,7 +280,7 @@ describe("ApprovalQuorumLedger", () => {
     const secrets = keys();
     const request = await recoveryRequest();
     const ledger = new ApprovalQuorumLedger(
-      secrets.approval,
+      secrets.registry,
       secrets.device,
       config,
     );
@@ -275,7 +301,7 @@ describe("ApprovalQuorumLedger", () => {
     const secrets = keys();
     const request = await recoveryRequest();
     const ledger = new ApprovalQuorumLedger(
-      secrets.approval,
+      secrets.registry,
       secrets.device,
       config,
     );
@@ -293,7 +319,7 @@ describe("ApprovalQuorumLedger", () => {
       request,
       approver: grant("recovery_approver", "a1", "phone"),
       targetDeviceProof,
-      approvalMacKey: secrets.approval,
+      approvalMacKey: secrets.macKeyFor("a1"),
       nowMs: NOW,
     });
     expect(
