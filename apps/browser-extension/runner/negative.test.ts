@@ -203,13 +203,15 @@ describe("steps the runner will not run", () => {
   it("a ceremony capture is answered as a failure, never as something sealed", async () => {
     const r = await rig();
     r.host.openRun("run:1", RP);
-    const pending = enqueue(r, "run:1", {
-      step: "capture_credential",
-      slot: "client_secret",
-      selector: "#secret",
-      recipient: "host-key",
-    });
-    await r.runner.tick();
-    expect(await pending).toEqual({ outcome: "failed", error: "transport" });
+    const [outcome] = await Promise.all([
+      enqueue(r, "run:1", {
+        step: "capture_credential",
+        slot: "client_secret",
+        selector: "#secret",
+        recipient: "host-key",
+      }),
+      r.runner.tick(),
+    ]);
+    expect(outcome).toEqual({ outcome: "failed", error: "transport" });
   });
 });
