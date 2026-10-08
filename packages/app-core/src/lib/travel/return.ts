@@ -120,9 +120,7 @@ async function statusOf(
   vault: TravelPayload["vaults"][number],
   present: readonly string[],
 ): Promise<ReturnStatus> {
-  if ((await deps.storage.read(headerOf(vault.id))) === null) {
-    return "comes_home";
-  }
+  const headerMissing = (await deps.storage.read(headerOf(vault.id))) === null;
   const files = vaultFiles(vault);
   const here = await Promise.all(
     files.map((entry) => deps.storage.read(entry.file)),
@@ -137,6 +135,9 @@ async function statusOf(
     (entry, i) => here[i] !== null && here[i] !== entry.text,
   );
   if (differs || extra.length > 0) return "occupied";
+  // Without a header, every matching file still needs the header written;
+  // only conflicting tomb files mean a different vault owns this id.
+  if (headerMissing) return "comes_home";
   if (here.every((text) => text !== null)) return "already_home";
   const bodyGone = files.some(
     (entry, i) => entry.file === bodyOf(vault.id) && here[i] === null,
