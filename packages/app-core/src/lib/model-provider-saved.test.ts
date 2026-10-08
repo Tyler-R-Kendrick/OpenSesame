@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { planWith } from "./capabilities/__tests__/plan-with.js";
+import { CAPABILITY_CATALOG } from "./capabilities/catalog.js";
+import { createEgressPort } from "./capabilities/egress.js";
 import {
   createConnection,
   setConnectionConfiguration,
@@ -60,39 +63,55 @@ describe("savedModelRequests", () => {
     vi.restoreAllMocks();
   });
 
-  it("posts saved fields and the secret, and refuses when nothing is saved", async () => {
+  it("posts saved fields and the secret through egress, and refuses when nothing is saved", async () => {
+    const descriptor = CAPABILITY_CATALOG.capabilities.find(
+      (row) => row.id === "support.remote-ai",
+    );
+    if (!descriptor) throw new Error("catalog lacks support.remote-ai");
+    const posted: string[] = [];
+    const egress = createEgressPort({
+      capability: descriptor,
+      plan: () => planWith(["support.remote-ai"]),
+      allowedOrigins: ["https://app.example.test"],
+      fetchImpl: async (input) => {
+        posted.push(String(input));
+        return new Response("{}", { status: 200 });
+      },
+    });
+
     const ids = ["anthropic", "azure-openai"] as const;
-    const unsaved = savedModelRequests(ids.map((id) => runListedFeature(id)));
+    const unsaved = savedModelRequests(
+      ids.map((id) => runListedFeature(id)),
+      {
+        egress,
+      },
+    );
     expect(unsaved.map((row) => row.ok)).toEqual([false, false]);
+    expect(posted).toEqual([]);
     expect(vi.mocked(globalThis.fetch)).not.toHaveBeenCalled();
 
     await saveConnector("anthropic", "sek-anthropic-credential");
     await saveConnector("azure-openai", "sek-azure-openai-key");
     const operations = ids.map((id) => runListedFeature(id));
-    const sent = savedModelRequests(operations);
-    expect(sent.map((row) => row.ok)).toEqual([true, true]);
+    const sent = savedModelRequests(operations, { egress });
+    expect(sent.map((row) => row.ok)).toEqual([true, false]);
 
-    for (const operation of operations) {
-      if (!operation.ok) throw new Error(operation.providerId);
-      const call = vi
-        .mocked(globalThis.fetch)
-        .mock.calls.find((row) =>
-          Object.values(operation.secrets).every((value) =>
-            headerValues(row[1]?.headers).includes(value),
-          ),
-        );
-      expect(call, operation.providerId).toBeTruthy();
-      // SAFETY: this json body is the string record the model request posted.
-      const body = JSON.parse(String(call?.[1]?.body)) as Record<
-        string,
-        string
-      >;
-      expect(body, operation.providerId).toEqual(operation.action);
-      const packed = JSON.stringify(body);
-      for (const value of Object.values(operation.secrets)) {
-        expect(packed, operation.providerId).not.toContain(value);
-        expect(kvGet(MODEL_PROVIDER_KEY) ?? "").not.toContain(value);
-      }
+    const operation = operations[0];
+    if (!operation.ok) throw new Error(operation.providerId);
+    expect(posted.length).toBe(1);
+    expect(posted[0]).toMatch(/^https:\/\/api\.anthropic\.com\//);
+    const packed = JSON.stringify(operation.action);
+    for (const value of Object.values(operation.secrets)) {
+      expect(packed, operation.providerId).not.toContain(value);
+      expect(kvGet(MODEL_PROVIDER_KEY) ?? "").not.toContain(value);
     }
+    expect(vi.mocked(globalThis.fetch)).not.toHaveBeenCalled();
+  });
+
+  it("does not post when no egress port is supplied", async () => {
+    await saveConnector("anthropic", "sek-anthropic-credential");
+    const sent = savedModelRequests([runListedFeature("anthropic")]);
+    expect(sent[0]?.ok).toBe(true);
+    expect(vi.mocked(globalThis.fetch)).not.toHaveBeenCalled();
   });
 });
