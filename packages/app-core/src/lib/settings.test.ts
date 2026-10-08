@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureHost } from "../host.js";
 import { createTestHost } from "../test-host.js";
 import { defaultCapabilityConnectors } from "./capabilities.js";
+import { GUEST_TOMB } from "./vfs.js";
 
 afterEach(() => {
   configureHost(createTestHost());
@@ -133,6 +134,69 @@ describe("runtime endpoint defaults", () => {
         "tyler-r-kendrick.github.io",
       ),
     ).toBe(true);
+  });
+});
+
+describe("guest trust-anchor guards", () => {
+  beforeEach(async () => {
+    const { vaultStore } = await import("./vault/store.js");
+    vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
+      status: "unlocked",
+      tomb: GUEST_TOMB,
+      guest: true,
+      header: null,
+      items: [],
+      folders: [],
+      prefs: {
+        autoLockMinutes: 0,
+        lockOnHide: false,
+        signOutOnLock: false,
+        clipboardClearSeconds: 30,
+        theme: "system",
+      },
+      lockedOutUntil: null,
+      failedAttempts: 0,
+      awaitingSecondStep: false,
+      durable: false,
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("refuses a guest rewrite of Host or Identity trust anchors", async () => {
+    const { kvSet } = await import("./kv.js");
+    kvSet(
+      "settings.v1",
+      JSON.stringify({
+        hostApi: "https://host.example",
+        identityApi: "https://id.example",
+        daemonApi: "",
+      }),
+    );
+    const { isGuestSession } = await import("./guest-isolation.js");
+    const { loadSettings, saveSettings } = await import("./settings.js");
+    expect(isGuestSession()).toBe(true);
+    const base = loadSettings();
+    expect(base.identityApi).toBe("https://id.example");
+    expect(() =>
+      saveSettings({ ...base, identityApi: "https://evil.example" }),
+    ).toThrow(/Guests cannot change Host or Identity endpoints/);
+    expect(() =>
+      saveSettings({ ...base, hostApi: "https://evil-host.example" }),
+    ).toThrow(/Guests cannot change Host or Identity endpoints/);
+    expect(loadSettings().identityApi).toBe("https://id.example");
+    expect(loadSettings().hostApi).toBe("https://host.example");
+  });
+
+  it("lets a guest save settings that leave Host and Identity anchors unchanged", async () => {
+    const { loadSettings, saveSettings } = await import("./settings.js");
+    saveSettings({
+      ...loadSettings(),
+      activeProjectId: "prj_guest_scoped",
+    });
+    expect(loadSettings().activeProjectId).toBe("prj_guest_scoped");
   });
 });
 
