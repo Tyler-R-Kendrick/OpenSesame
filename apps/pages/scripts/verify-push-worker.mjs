@@ -144,7 +144,11 @@ try {
   const untilHeld = (script, what) =>
     until(
       () => scriptsFrom(page, base),
-      (s) => same(s.active, script) && same(s.controller, script),
+      (s) =>
+        same(s.active, script) &&
+        same(s.controller, script) &&
+        s.waiting === null &&
+        s.installing === null,
       what,
     );
 
@@ -235,10 +239,6 @@ try {
   check(
     state.registrations === 1,
     "there is exactly one registration (no competing worker)",
-  );
-  check(
-    state.waiting === null && state.installing === null,
-    "nothing is left installing or waiting",
   );
   check(
     (await documentOrigin()) === documentBefore,
