@@ -1,5 +1,6 @@
 import { Redacted } from "effect";
 import { describe, expect, it } from "vitest";
+import { isBundledProviderId } from "../bundled-provider-ids.js";
 import { catalogProvider } from "../connector-catalog.js";
 import { S3_PROVIDER_ID, s3ConfigFrom, s3Missing } from "./s3-config.js";
 
@@ -41,6 +42,8 @@ describe("the saved S3 connection", () => {
   it("reads exactly the fields the catalog's s3 connector declares, secrets kept apart", () => {
     const fields = catalogProvider(S3_PROVIDER_ID)?.configurationFields ?? [];
     expect(catalogProvider(S3_PROVIDER_ID)?.authKind).toBe("configuration");
+    // Pages draws only the catalog rows it bundles: without this the tile is absent.
+    expect(isBundledProviderId(S3_PROVIDER_ID)).toBe(true);
     expect(fields.filter((field) => field.secret).map((f) => f.name)).toEqual([
       "secret_access_key",
       "session_token",

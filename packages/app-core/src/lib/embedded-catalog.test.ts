@@ -10,7 +10,7 @@ describe("embedded connector catalog", () => {
   it("contains every Fnox, LLM, and identity provider once", () => {
     const ids = bundledProviders.map((provider) => provider.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toHaveLength(51);
+    expect(ids).toHaveLength(52);
     for (const id of [
       "webcrypto",
       "aws-kms",
