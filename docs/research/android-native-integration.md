@@ -1,6 +1,24 @@
 # Android as a native surface — platform research and gap analysis
 
-Research input for a future ADR (next free number: 0133). This document
+> Status (2026-10-08): the proposals in §§2–10 are still proposals. No ADR
+> adopts them, and `apps/android` has no `AutofillService`,
+> `CredentialProviderService` or TWA. §11 landed as
+> [ADR 0133](../adr/0133-shared-app-core.md) (see its *As built*):
+> `packages/app-core` and `packages/vault-core` exist, so most `lib/…` paths in
+> the body, written against `apps/pages/src` on 2026-09-22, now live under
+> `packages/app-core/src/lib/` (the tomb crypto and item model in
+> `packages/vault-core/src`; the install offer and Web Push enrolment stay in
+> `apps/pages/src/lib/`). Also since then: `authenticator-native` is now
+> `apps/android` ([ADR 0138](../adr/0138-self-issued-identity-one-native-host.md));
+> the `login` item type is `account` ([ADR 0172](../adr/0172-accounts-and-login-methods.md));
+> Web Push enrolment has a UI (`notifications.web-push`); the Vercel deployment
+> writes host-root `.well-known` associations for `/invoke/*`
+> ([ADR 0140](../adr/0140-pages-hosts-every-ceremony.md) D11); and
+> `crates/human-vault` carries a Rust reader of the Pages tomb (`pages_vault`,
+> `opensesame vault verify|ls`) checked against `spec/conformance/vault-vectors.json`.
+
+Research input for a future ADR (the number then free, 0133, went to the shared
+app core in §11; the next free number is 0183). This document
 records what Android and Chrome for Android let a third-party password
 manager and identity product do as of 2026-09-22, grounds each capability in
 what OpenSesame ships today, and proposes how to bridge the gaps. It is
@@ -23,30 +41,37 @@ sources.
 **The installed PWA.** `apps/pages` is the installable GitHub Pages PWA
 served at `https://tyler-r-kendrick.github.io/OpenSesame/`.
 
-- Manifest: inline in `apps/pages/vite.config.ts:174-205`. It has `name`,
-  `display: standalone`, `start_url`/`scope` `./`, and one SVG icon with
-  `purpose: "any maskable"`. It has no `id`, no PNG icons, no `screenshots`,
-  no `shortcuts` and no `share_target`.
-- Service worker: `apps/pages/src/sw.ts`. It precaches, serves navigations
-  network-first, and has handlers for Web Push and `notificationclick`.
+- Manifest: inline in `apps/pages/vite.config.ts:237-258`. It has `name`,
+  `short_name`, `description`, `display: standalone`, `start_url`/`scope`
+  `./`, and one SVG icon with `purpose: "any maskable"`. It has no `id`, no PNG
+  icons, no `screenshots`, no `shortcuts` and no `share_target`.
+- Service worker: `apps/pages/src/sw.ts` installs the core worker
+  (`src/sw/`). It saves the shell at install, serves navigations
+  network-first, and has no `push` or `notificationclick` handler. Those live
+  in a second script, `src/sw-push.ts`, built and registered only when the
+  distribution includes `notifications.web-push`.
 - Install offer: `lib/install.ts`, per ADR 0085. It captures
   `beforeinstallprompt` and calls `navigator.storage.persist()` once the app
   is installed (`install.ts:331-373`).
-- Web Push: `lib/push.ts` subscribes against the Identity API's VAPID key.
-  **Nothing in the UI calls it**; the only importer is `sw.ts`.
+- Web Push: `lib/push-enrolment.ts` subscribes against the Identity API's
+  VAPID key, from the Settings › General › Push panel
+  (`modules/notifications.web-push/PushPanel.tsx`, an optional capability).
+  `lib/push.ts` is the worker's half (what a push may say on a lock screen).
+  The notification carries no action buttons.
 
 **Who is signed in** is restored silently on launch.
-- `saveSession` writes the upstream assertion to localStorage
-  (`lib/federation-session-store.ts`, `lib/federation.ts:848-882`).
-  `useAmbientAuthBoot` (`lib/ambient-auth/boot.ts:26-51`) re-verifies it
-  against JWKS at boot.
+- `saveSession` writes the upstream assertion to the local store port,
+  which is `localStorage` in a browser, sealed under the at-rest key (ADR
+  0149) (`lib/federation-session-store.ts`, `lib/federation.ts:851-854`).
+  `runAmbientAuthBoot` (`lib/ambient-auth/boot.ts:25-102`, started by the
+  `identity.ambient-sso` capability) re-verifies it against JWKS at boot.
 - Ambient SSO acquisition (ADR 0125) is off by default. Silent acquisition
   works only for Entra (MSAL `ssoSilent`); it is unsupported for Shoo, the
   compiled-in Google broker (ADR 0125 §8).
 
 **Which key opens the vault** is asked on every launch, and that is the
 design.
-- The vault key lives only in memory (`lib/vault/store.ts:391`).
+- The vault key lives only in memory (`lib/vault/store.ts:213`).
 - DESIGN.md says to "treat a reload re-locking the vault as correct
   behavior". It also forbids "a remembered device" shortcut around the master
   password.
@@ -55,7 +80,8 @@ design.
 **Passkeys.**
 - The vault can be wrapped by a WebAuthn PRF passkey
   (`lib/vault/protection/adapters/webauthn-prf-ceremony.ts`). Its `rpId` is
-  `location.hostname` (`lib/vault/unlock-methods.ts:448-503`). The ceremony
+  the page's `location.hostname` (`webauthnRpId()` in
+  `lib/vault/webauthn-host.ts`; `localhost` for a raw IP). The ceremony
   is started by a button; it is never started automatically, never conditional,
   and there is no `autocomplete="webauthn"` anywhere.
 - Browser-local IAM passkeys live in `lib/local-passkeys.ts` (ADRs
@@ -65,16 +91,18 @@ design.
 - There is no Signal API use and no `/.well-known/webauthn`.
 
 **Vault data model.**
-- The `login` type (`marketplace/item-types/builtin/login.json`) has
-  `uris`, `username`, `password` and `totp`. URIs carry a Bitwarden-style
-  match mode (`lib/vault/website-pattern.ts`).
+- The `account` type (`marketplace/item-types/builtin/account.json`, ADR
+  0172; it replaced `login`) has `uris`, `username`, `password` and `totp`.
+  URIs carry a Bitwarden-style match mode (`lib/vault/website-pattern.ts`,
+  `packages/vault-core/src/login-uri.ts`).
 - No `androidapp://` URI form exists.
 - The `passkey` type records `rpId`, the credential id and the public key
   only. There is no private key, so today the vault cannot *act* as a
   passkey; it can only record where one lives.
 - The tomb format (AES-GCM blob in OPFS; ADR 0063) is implemented in
-  TypeScript (`lib/vault/crypto.ts`, `store.ts`). `apps/pages` does not use
-  the Rust `crates/client-core` / `crates/human-vault`.
+  TypeScript (`packages/vault-core/src/crypto.ts`, `lib/vault/store.ts`).
+  `apps/pages` does not use the Rust `crates/client-core` /
+  `crates/human-vault`.
 
 **Native Android.**
 - `apps/android` exists: Kotlin/Compose on Multipaz 0.100.0,
@@ -84,7 +112,9 @@ design.
 - Its README and ADR 0058 exclude "password, OTP, and passkey provider
   behavior".
 - There is no `AutofillService`, no `CredentialProviderService`, no TWA, and
-  no `assetlinks.json` anywhere in the repo.
+  no committed `assetlinks.json`. The Vercel build writes one at its host
+  root when the app identifiers are set
+  (`apps/pages/scripts/write-authenticator-associations.mjs`, ADR 0140 D11).
 - ADR 0129 already models a `device-local` protector ("platform keystore"),
   marked `requires-native-client`
   (`lib/vault/protection/adapters/device-local.ts`). Nothing implements its
@@ -99,7 +129,9 @@ design.
 
 **Desktop precedent for "human plane only".**
 - `apps/browser-extension` has no content scripts and no autofill, and it
-  targets desktop Chrome and Firefox only.
+  targets desktop Chrome and Firefox only. The one filler is the separate,
+  opt-in `apps/browser-extension-autofill` (the `browser-autofill` plugin,
+  ADR 0150 §7), a WXT extension for the same two browsers.
 - The pm-bridges (ADR 0052/0053) are desktop native-messaging and UDS
   bridges, default off.
 - ADR 0052 sets the rule this document reuses: password-manager ecosystem
@@ -153,7 +185,7 @@ in, and **which key** opens the vault. They have different answers on
 Android.
 
 **Who: close, but not native-feeling.**
-- The account is already restored from localStorage on launch.
+- The account is already restored from the sealed local store on launch.
 - What is missing is the Android moment where Chrome shows "Continue as
   <your Google account>" with no redirect. OpenSesame cannot get that from
   Shoo: it is a broker, not a FedCM IdP, and ADR 0125 explicitly rejects
@@ -161,10 +193,11 @@ Android.
 
 The bridge is **Google as a direct issuer through Google Identity Services
 in FedCM mode**.
-- It needs Chrome 128+ on Android
+- It needs a current Chrome on Android: Google supports its JavaScript
+  client library only on the latest two versions of each browser
   ([SIWG browsers](https://developers.google.com/identity/siwg/supported-browsers)).
 - It works from a static site. The client id is public, and the `id_token`
-  is verified in the browser against Google's JWKS, as `restoration.ts`
+  is verified in the browser against Google's JWKS, as `federation-restoration.ts`
   already does for restored tokens.
 - FedCM auto-reauthentication then signs a returning person in with no
   prompt at all.
@@ -198,7 +231,10 @@ What can be done instead, cheapest first:
      field's token are new.
 2. **Default the unlock screen to the passkey key** when it is the enrolled
    method, and focus it. ADR 0091 already says the tabs are exactly the
-   enrolled methods.
+   enrolled methods. This has landed: the screen opens on the preferred
+   protector, else passkey, PIN, password in that order (`chooseUnlockMethod`,
+   `lib/vault/unlock-preference.ts`), and focus lands on the passkey key
+   (`screens/unlock/unlock-form-focus.ts`).
 3. **Native device-local protector (ADR 0129).**
    - In the APK proposed in §5, wrap the vault key with an Android Keystore
      key: `setUserAuthenticationRequired`, StrongBox where present, and
@@ -261,7 +297,7 @@ The design problems, in the order they bite:
      merge-by-path rule the manifest import already follows.
    - The native side never rewrites the tomb.
 3. **Matching.**
-   - Add an `androidapp://<package>` URI form to `login.uris`, beside the
+   - Add an `androidapp://<package>` URI form to `account.uris`, beside the
      existing match modes.
    - Association rules: accept a web URI for an app only when the app's
      Digital Asset Links verify it. Fill a browser request only against the
@@ -310,7 +346,7 @@ and a route.
   `tyler-r-kendrick.github.io` belongs to the user-site repository
   `tyler-r-kendrick/tyler-r-kendrick.github.io`, not to this project site.
 - `https://tyler-r-kendrick.github.io/.well-known/assetlinks.json` returned
-  404 when checked on 2026-09-22.
+  404 when checked on 2026-09-22, and again on 2026-10-08.
 - Jekyll drops dot-directories unless `.nojekyll` is present.
 
 **A related finding, independent of Android.** Every GitHub Pages project
@@ -319,8 +355,10 @@ site on the same account is served from the same origin as OpenSesame.
   and the sealed tomb in OPFS.
 - It can also request WebAuthn assertions for the vault's `rpId`, which is
   `location.hostname`.
-- The tomb stays sealed, but the origin is not OpenSesame's alone. No ADR
-  records this.
+- The tomb stays sealed, but the origin is not OpenSesame's alone. Since this
+  was written it is recorded: ADR 0149 ("What this protects, and what it does
+  not"), ADR 0094 and `docs/operators/pages-origin.md` (the
+  `shared_origin_demo` deployment profile, against `dedicated_origin`).
 
 Two ways out:
 
@@ -336,7 +374,7 @@ Two ways out:
     (`lib/vault/export`, `import`) is the migration road.
 
 **Distribution.** Play requires target API 36 for updates after 2026-08-31,
-which `authenticator-native` already meets. Android developer verification
+which `apps/android` already meets. Android developer verification
 applies to sideloaded installs on certified devices from 2026-09-30 in the
 first regions
 ([blog](https://android-developers.googleblog.com/2026/03/android-developer-verification-rolling-out-to-all-developers.html)).
@@ -347,13 +385,13 @@ Each of these stands on its own.
 
 | Change | Where | Why on Android |
 |---|---|---|
-| Manifest `id`, PNG 192/512 icons (maskable + any), `description`, `screenshots` | `apps/pages/vite.config.ts:174-205` | Stable WebAPK identity across `start_url` changes; Chrome's richer install sheet uses screenshots. Whether the WebAPK minting server accepts an SVG-only manifest was not verified. |
+| Manifest `id`, PNG 192/512 icons (maskable + any), `screenshots` (`description` is already set) | `apps/pages/vite.config.ts:237-258` | Stable WebAPK identity across `start_url` changes; Chrome's richer install sheet uses screenshots. Whether the WebAPK minting server accepts an SVG-only manifest was not verified. |
 | `shortcuts`: Lock, Search, Generate password, Scan code | same | Long-press launcher menu, Chrome 84+ |
-| `share_target` + a filtered-logins route | manifest, `sw.ts`, router | §4 interim. Also accepts shared files as vault attachments (Level 2) |
+| `share_target` + a filtered-logins route | manifest, `src/sw/`, router | §4 interim. Also accepts shared files as vault attachments (Level 2) |
 | Conditional-mediation passkey unlock | `UnlockScreen.tsx`, `IdentifierField.tsx`, `webauthn-prf-ceremony.ts` | §3.1: unlock from the keyboard strip |
 | Signal API on removing a passkey wrap or renaming the account | `lib/vault/unlock-methods.ts` | Keeps Google Password Manager and third-party providers from offering a dead passkey (Chrome 144+) |
-| Turn on the dormant Web Push UI | `lib/push.ts` (no caller today) | Notification action buttons for ADR 0084 approvals. An action must open a window, because WebAuthn cannot run inside `notificationclick` (inference) |
-| Default the unlock tab to the passkey when enrolled | `UnlockScreen.tsx:225-251` | One tap instead of two |
+| Notification action buttons on the Web Push notification (the enrolment UI, Settings › General › Push, has landed) | `src/sw/push-handlers.ts` | For ADR 0084 approvals. An action must open a window, because WebAuthn cannot run inside `notificationclick` (inference) |
+| Default the unlock tab to the passkey when enrolled (landed, §3.2) | `lib/vault/unlock-preference.ts`, `UnlockScreen.tsx` | One tap instead of two |
 | Don't build: badging, `launch_handler`, `protocol_handlers`, `file_handlers` | — | Not implemented on Android |
 
 Each row touching boot, unlock or chrome is covered by `verify:keyboard`,
@@ -386,13 +424,13 @@ The inverse of §3: other sites on the phone signing in *with* OpenSesame.
 
 | Want | Today | Gap | Bridge | Needs |
 |---|---|---|---|---|
-| PWA opens knowing who I am | Assertion restored from localStorage | No native "Continue as"; Shoo cannot do FedCM | GIS/FedCM Google issuer (§3) | ADR (issuer allowlist) |
+| PWA opens knowing who I am | Assertion restored from the sealed local store | No native "Continue as"; Shoo cannot do FedCM | GIS/FedCM Google issuer (§3) | ADR (issuer allowlist) |
 | PWA opens unlocked | Re-locks by design; unlock is a button | Frequent re-lock after process death | Conditional passkey (§3.1), device-local protector (§3.3) | PWA change; APK |
-| Chrome fills my logins | Nothing | No `AutofillService` | Service in `authenticator-native`, replica + Rust tomb reader + pending-capture queue (§4) | ADR 0058 amendment, tomb format spec |
+| Chrome fills my logins | Nothing | No `AutofillService` | Service in `apps/android`, replica + Rust tomb reader + pending-capture queue (§4) | ADR 0058 amendment, tomb format spec |
 | System passkey sheet lists OpenSesame | Nothing | No `CredentialProviderService`; passkey type holds no private key | Provider service + passkey item private key (§4.4) | ADR 0087 ceremony handler |
 | Suggest a strong password in Chrome | Generator exists in-vault only | Chrome only asks its autofill provider | `AutofillService` save/generate path | APK |
-| Native links, TWA, `use_as_origin` | No `.well-known` anywhere; root 404 | Project-site origin | Custom domain + one-time ROR bridge (§5) | Domain decision |
-| Install feels native | SVG-only manifest, no shortcuts or share target, push dormant | Manifest and UI | §6 | PWA change |
+| Native links, TWA, `use_as_origin` | No `.well-known` on the github.io origin; root 404. The Vercel host root can serve `/invoke/*` associations only | Project-site origin | Custom domain + one-time ROR bridge (§5) | Domain decision |
+| Install feels native | SVG-only manifest, no shortcuts or share target, no notification actions | Manifest and UI | §6 | PWA change |
 | Sites sign in with OpenSesame on Android | Popup IAM; FedCM flag unread | No IdP endpoints | FedCM in control plane (§7) | ADR |
 
 ## 9. Proposed sequence
@@ -401,20 +439,23 @@ Each phase ships on its own and is useful without the next.
 
 0. **Extract the core (§11.6).** Useful on its own, because the TS CLI and
    the extension gain the vault. Every later native phase depends on it.
+   Landed as ADR 0133.
 1. **PWA polish (§6).**
    - Manifest identity, icons, shortcuts, share target, and a conditional
      passkey unlock.
-   - Signal API and the Web Push UI.
+   - Signal API and notification actions (the Web Push enrolment UI has
+     landed).
    - No ADR is needed except a line in ADR 0085 for the manifest.
 2. **Origin decision (§5).**
    - Pick (A) or (B).
-   - Record the shared-origin finding under `docs/security/`.
+   - Record the shared-origin finding under `docs/security/` (ADR 0149 and
+     `docs/security/security-boundaries.md` already state it).
    - Serve `/.well-known/{assetlinks.json,webauthn}`.
 3. **Ambient Google (§3).** A GIS/FedCM issuer beside Shoo, with its own
    ADR against ADR 0033/0125.
 4. **Native shell.**
    - Amend ADR 0058.
-   - Add the TWA launcher to `authenticator-native`.
+   - Add the TWA launcher to `apps/android`.
    - Add the device-local Keystore protector (ADR 0129) and the
      `postMessage` replica.
    - Load the extracted TypeScript core (§11) into the headless services,
@@ -433,7 +474,7 @@ Each phase ships on its own and is useful without the next.
 - **Custom domain or user-site repo** for `.well-known`, and what to do
   about the shared github.io origin in either case.
 - **One native app or two.** Folding autofill and provider into
-  `authenticator-native` keeps one signing identity. It also makes the
+  `apps/android` keeps one signing identity. It also makes the
   wallet app a password manager, which ADR 0058 deliberately avoided.
 - **Google as a first-class issuer** beside Shoo, given ADR 0033's
   production allowlist.
@@ -452,7 +493,7 @@ Two questions: can most of the PWA become one core shared by the PWA, the
 CLIs and the Android app, and can Vercel Labs' TypeScript-to-native tooling
 spare us a rewrite?
 
-### 11.1 What the code looks like today (measured 2026-09-22)
+### 11.1 What the code looked like (measured 2026-09-22, before ADR 0133's move)
 
 **Size.**
 - `apps/pages/src` holds about 139.6k non-test lines:
@@ -485,7 +526,8 @@ spare us a rewrite?
 vault.
 
 **Two vault crypto stacks already exist.**
-- Pages: PBKDF2-SHA256 → AES-GCM over WebCrypto (`lib/vault/crypto.ts`).
+- Pages: PBKDF2-SHA256 → AES-GCM over WebCrypto (then `lib/vault/crypto.ts`,
+  now `packages/vault-core/src/crypto.ts`).
 - `crates/human-vault`: Argon2 → XChaCha20-Poly1305 with HKDF, used by
   the sealed store and `opensesame pass`.
 - ADR 0017 planned the client plane as Rust → Wasm + TS.
@@ -567,7 +609,8 @@ byte-identical everywhere. §11.5 covers where it lives.
 androidx.javascriptengine's `JavaScriptSandbox`
 ([guide](https://developer.android.com/develop/ui/views/layout/webapps/jsengine),
 [releases](https://developer.android.com/jetpack/androidx/releases/javascriptengine)):
-- Stable 1.1.0 (2026-05-06).
+- Stable 1.1.0 (2026-05-06). 1.1.1 (2026-09-23) fixes
+  `JavaScriptSandbox.isSupported()` returning an incorrect result.
 - Evaluates JavaScript on the device WebView's engine, in a separate
   sandboxed process.
 - API 26+, where the WebView supports it; callers must check
@@ -619,14 +662,14 @@ Recommendation: **start with the TypeScript route.**
 - Extracting the core is required by either route anyway.
 - Keep the Rust kernel as the fallback if the §11.4 spike fails.
 - Treat format convergence as its own later decision. The duplication
-  between `lib/vault/crypto.ts` and `crates/human-vault` predates Android,
-  and it is the real "two stacks" cost today.
+  between `packages/vault-core/src/crypto.ts` and `crates/human-vault`
+  predates Android, and it is the real "two stacks" cost today.
 
 ### 11.6 Extraction order
 
 The earlier draft here, a small kernel package, was superseded by a plan to
-move most of Pages' logic, not the minimum. ADR 0133 records it. In
-outline:
+move most of Pages' logic, not the minimum. ADR 0133 records it, and its
+*As built* section records what landed. In outline:
 
 1. **Take React and UI imports out of `lib/` in place.** `identity.ts`
    imports React, and `vault/store.ts` reaches it through `remote-code`, so

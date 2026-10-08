@@ -17,7 +17,8 @@ migration reader can import older rows before the Host serves requests.
 - **Used by:** [`opensesame-storage`](../storage) (every event column it writes
   and reads, and `Db::seal_legacy_events`), [`opensesame-connection-broker`](../connection-broker)
   (connection events and its outbox rows), [`opensesame-gateway`](../gateway)
-  (installs the sealer at start-up, `src/event_sealing.rs`).
+  (installs the sealer at start-up, `src/event_sealing.rs`) and
+  [`opensesame-sealed-log`](../sealed-log).
 - **Builds on:** no workspace crates (`chacha20poly1305`, `hkdf`, `sha2`,
   `base64`, `zeroize`).
 - **One sealer for the process**, installed once ([`install`]): free functions
@@ -32,6 +33,7 @@ migration reader can import older rows before the Host serves requests.
 |---|---|
 | `install(&[u8; 32])` / `clear()` / `is_active()` | Install, remove and query the process's sealer. |
 | `seal(column, text)` / `seal_opt` | Seal for `table.column`; the input when none is installed. |
+| `seal_in(customer, column, record, text)` | Seal under the customer's key, binding the trusted record id. |
 | `open(column, stored)` / `open_opt` | Current envelopes only when configured; plaintext only in unconfigured development. |
 | `open_in(customer, column, record, stored)` | Current envelopes bound to trusted customer and row; legacy values fail closed. |
 | `open_legacy_for_migration(column, stored)` | Explicit startup migration only; legacy values have no authenticated customer or row identity. |

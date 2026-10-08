@@ -13,7 +13,7 @@ foundations for sync and rotation events are in
 
 | Plane | Holds | Can read it? |
 |---|---|---|
-| Vault (`apps/pages`, OPFS) | passwords, passkeys, notes | No — sealed under the master password |
+| Vault (`apps/pages`, OPFS) | passwords, passkeys, notes | No — sealed under the vault key |
 | Authority (gateway `:8787`) | provider access/refresh tokens | Yes — required for egress injection and refresh |
 
 A connection is authority-plane state. The Host's own clients (its CLI, the Host API, the
@@ -32,7 +32,7 @@ draft ─────────────────────► pending
                                 │                                            │
                                 │            GET /oauth/callback/{provider}  │
                                 ▼                                            ▼
-                            failed ◄──── exchange error ──── code+state ──► active
+                            error  ◄──── exchange error ──── code+state ──► active
                                                                              │
                     refresh ahead of expiry (automatic) ─────────────────────┤
                                                                              │
@@ -77,15 +77,20 @@ Provider = {
   "display_name": "GitHub",
   "category": "identity" | "backup_recovery" | "encryption" | "password_managers" | "agent_harnesses" | "networking" | "wallet" | "cloud_secret_storage" | "local_storage" | "certificates" | "custom" | "developer" | "productivity" | "communication" | "storage" | "crm" | "testing",
   "docs_url": "https://docs.github.com/apps/oauth-apps",
+  "provenance_url": "https://...",
+  "catalog_revision": "...",
   "auth_kind": "oauth2_authorization_code" | "api_key" | "configuration",
   "supports_refresh": true,
-  "configured": false,                       // deployment has client id + secret
+  "auto_configurable": false,                // the Host already holds complete credentials for it
+  "configured": false,                       // deployment has the connection key and, for OAuth, client id + secret
   "callback_url": "https://host.example/api/v1/oauth/callback/github",
-  "missing_config": ["OPENSESAME_PROVIDER_GITHUB_CLIENT_ID", "..."],  // [] when configured
+  "missing_config": ["OPENSESAME_PROVIDER_GITHUB_CLIENT_ID", "..."],  // [] when configured; names OPENSESAME_CONNECTION_KEY when it is unset
   "scopes": [ { "name": "repo", "description": "Full control of private repositories",
                 "sensitive": true, "default": false } ],
   "egress": { "scheme": "https", "authorities": ["api.github.com"], "path_prefixes": [] },
-  "operations": ["repository.read", "pull_request.create"]
+  "operations": ["repository.read", "pull_request.create"],
+  "integration_configuration_fields": [ { "name", "secret", "required" } ],
+  "connection_configuration_fields": [ { "name", "secret", "required" } ]
 }
 ```
 
@@ -111,10 +116,12 @@ DELETE /api/v1/integrations/{id}  204                             // owner/admin
 
 An integration contains `id`, `key`, `provider_id`, `display_name`, `source`
 (`organization`, `shared_dev`, or `deployment`), `enabled`, `configured`, `callback_url`,
-`scopes`, `client_id_hint`, `has_client_secret`, `connection_count`, `created_by`, and
-timestamps. Client secrets are write-only. Omitting `client_secret` on PATCH preserves it;
+`scopes`, `client_id_hint`, `has_client_secret`, `configured_fields`, `github_app_html_url`
+(when known), `connection_count`, `created_by`, and timestamps. Client secrets are
+write-only. Omitting `client_secret` on PATCH preserves it;
 an empty value clears it. `provider_id` is immutable; changing providers requires a new
-integration. Environment integrations are read-only.
+integration. Deployment integrations (`source: deployment`, from the environment) are
+read-only.
 
 ### Connections
 
@@ -124,15 +131,19 @@ GET    /api/v1/connections                      200 { "connections": [ Connectio
 POST   /api/v1/connections/discover             200 { "configured": 0 }
 POST   /api/v1/connections                      201 Connection
 GET    /api/v1/connections/{id}                 200 Connection
+PATCH  /api/v1/connections/{id}                 200 Connection   // sharing and invoke policy
 DELETE /api/v1/connections/{id}                 200 { "revoked": true,
                                                       "provider_revocation": "ok"|"unsupported"|"failed" }
 POST   /api/v1/connections/{id}/authorize       200 { "authorization_url", "state", "expires_at" }
 POST   /api/v1/connections/{id}/refresh         200 Connection
 POST   /api/v1/connections/{id}/credential      200 Connection   // API key or configuration providers
+POST   /api/v1/connections/{id}/mint            200 DerivedMaterialization   // ADR 0049; see below
 POST   /api/v1/connections/{id}/bindings        200 Connection
 DELETE /api/v1/connections/{id}/bindings/{bid}  200 Connection
 GET    /api/v1/connections/{id}/events          200 { "events": [ Event ] }
-GET    /api/v1/oauth/callback/{provider_id}     302 or text/html   // provider redirect target
+GET    /api/v1/connections/{id}/github/repos    200 { "repositories": [ ... ] }   // GitHub connections
+POST   /api/v1/connections/{id}/github/repos    201 { "full_name", "clone_url", ... }   // private by default
+GET    /api/v1/oauth/callback/{provider_id}     200 or 400 text/html   // provider redirect target
 ```
 
 ```jsonc
@@ -149,11 +160,13 @@ Connection = {
   "project_id": null,
   "owner_kind": "organization",
   "shareability": "private" | "delegable" | "organization_wide",
+  "materialization": "deny" | "derived_short_lived",   // ADR 0049 gate for /mint; default deny
   "requested_scopes": ["repo"],
   "granted_scopes": [],                     // as returned by the provider
   "account_label": null,                    // who we are connected as, e.g. "acme"
   "expires_at": null,                       // access token expiry
   "refreshable": false,
+  "configured_fields": [ { "name", "hint" } ],   // names only, never values
   "last_refreshed_at": null,
   "max_invoke_level": 2,
   "egress": { "scheme": "https", "authorities": ["api.github.com"], "path_prefixes": [] },
@@ -161,43 +174,59 @@ Connection = {
   "created_at": "2026-...", "updated_at": "2026-..."
 }
 
-Binding = { "id", "target_kind": "organization"|"project"|"agent",
+Binding = { "id", "target_kind": "organization"|"project"|"agent"|"group"|"device"|"identity",
             "target_id", "target_label", "created_at" }
 
 Event = { "id", "kind": "created"|"authorize_started"|"authorized"|"refreshed"
-                       |"refresh_failed"|"bound"|"unbound"|"revoked"|"error",
+                       |"refresh_failed"|"bound"|"unbound"|"policy_updated"|"revoked"
+                       |"materialized"|"delegated"|"delegation_revoked"
+                       |"delegation_burned"|"error",
           "at", "detail" }
 ```
 
 **No response body on any route may contain an access token, refresh token, authorization
-code, code verifier, or client secret.** This is asserted in tests against the leak denylist
-in `crates/authz/src/authority_use.rs`.
+code, code verifier, or client secret.** The one exception is `POST /connections/{id}/mint`
+(ADR 0049), which returns a provider-minted, short-lived `derived_token` and never the stored
+credential; it needs a caller who may configure integrations and owns the connection, and
+`materialization: derived_short_lived`. Every other route is asserted in tests against the
+leak denylist in `crates/authz/src/authority_use.rs`.
 
 ### Request bodies
 
 ```jsonc
 POST /integrations
 { "key": "engineering", "provider_id": "github", "display_name": "Engineering GitHub",
-  "scopes"?: [string], "client_id"?: string, "client_secret"?: string }
+  "scopes"?: [string], "client_id"?: string, "client_secret"?: string,
+  "configuration"?: { field: value } }
 
 PATCH /integrations/{id}
 { "key"?: string, "display_name"?: string, "enabled"?: boolean, "scopes"?: [string],
-  "client_id"?: string, "client_secret"?: string } // empty credentials clear; provider immutable
+  "client_id"?: string, "client_secret"?: string,
+  "configuration_set"?: { field: value }, "configuration_clear"?: [field] }
+                                                     // empty credentials clear; provider immutable
 
 POST /connections
 { "integration_id": "integration_01J...", "provider_id"?: "github",
   "display_name"?: string, "logical_name"?: string,
   "project_id"?: string, "scopes"?: [string], "shareability"?: string }
 
+PATCH /connections/{id}
+{ "shareability": string, "max_invoke_level": number, "materialization"?: "deny"|"derived_short_lived" }
+
 POST /connections/{id}/authorize
 { "redirect_uri"?: string, "scopes"?: [string] }   // redirect_uri must be deployment-allowlisted
 
 POST /connections/{id}/credential
-{ "configuration_set"?: { field: value }, "configuration_clear"?: [field] }
-                                                     // API key or configuration providers
+{ "value"?: string, "configuration_set"?: { field: value }, "configuration_clear"?: [field] }
+                                                     // API key or configuration providers;
+                                                     // `value` is shorthand for configuration_set.api_key
+
+POST /connections/{id}/mint
+{ "installation_id"?: string }                       // GitHub App installation id; required for GitHub
 
 POST /connections/{id}/bindings
-{ "target_kind": "project"|"agent"|"organization", "target_id": string, "target_label"?: string }
+{ "target_kind": "organization"|"project"|"agent"|"group"|"device"|"identity",
+  "target_id": string, "target_label"?: string }
 ```
 
 ### Errors
@@ -207,7 +236,9 @@ POST /connections/{id}/bindings
 `integration_not_found`, `integration_required`, `integration_conflict`,
 `integration_read_only`, `integration_in_use`,
 `state_expired`, `exchange_failed`, `not_refreshable`, `needs_reauth`, `redirect_not_allowed`,
-`binding_exists`, `binding_not_found`, `unsupported_credential`, `invalid_request`,
+`binding_exists`, `binding_not_found`, `sync_target_not_found`, `config_not_found`,
+`config_value_not_found`, `unsupported_credential`, `materialization_denied`, `unmintable`,
+`web_login_run_in_flight`, `catalog_unavailable`, `invalid_request`,
 `internal_error`, `unauthorized`, `forbidden`.
 
 ## Authorization flow
@@ -219,7 +250,9 @@ POST /connections/{id}/bindings
 4. Provider redirects to `GET /api/v1/oauth/callback/{provider_id}?code=…&state=…`.
 5. Broker validates and consumes `state`, exchanges the code with the PKCE verifier,
    encrypts and stores the token set, sets `active`, and returns an HTML page that posts
-   `{ type: "opensesame:connection", connectionId, status }` to `window.opener` and closes.
+   `{ type: "opensesame:connection", connectionId, status }` to `window.opener` (at the
+   origin of its referrer) and closes. A failure returns the same page with status 400 and
+   `{ type, error, hint }`.
 6. PWA also polls `GET /connections/{id}` so a blocked `postMessage` or a manually closed
    popup still converges.
 
@@ -250,17 +283,19 @@ OPENSESAME_PROVIDER_<ID>_<FIELD>         # connection configuration or API key
 
 ```
 OPENSESAME_CONNECTION_KEY        # 32-byte base64; credential encryption key
-OPENSESAME_PUBLIC_URL            # base for building the callback redirect_uri
+OPENSESAME_PUBLIC_URL            # base for building the callback redirect_uri (default http://127.0.0.1:8787)
 OPENSESAME_CONNECTION_REDIRECT_ALLOWLIST   # comma-separated post-consent return origins
 ```
 
-Without `OPENSESAME_CONNECTION_KEY` the broker refuses to store credentials and every
-provider reports `configured: false`, rather than storing tokens under a default key.
+Without a usable `OPENSESAME_CONNECTION_KEY` the broker refuses to store credentials and every
+provider reports `configured: false` (naming the key in `missing_config`), rather than storing
+tokens under a default key. The same key seals the Host's events at rest (ADR 0157).
 
-GitHub and GitLab also accept a **pasted personal access token** via
-`POST /api/v1/connections/{id}/credential` (`value` / `api_key`). The Host verifies
-the token against the provider API, seals it as a Bearer credential, and activates
-the connection — no OAuth App required. Ambient `GITHUB_TOKEN` / `GH_TOKEN` /
+GitHub, GitLab, Bitbucket, Codeberg and Cursor Origin (`origin`) also accept a **pasted
+access token** via `POST /api/v1/connections/{id}/credential` (`value`, or
+`configuration_set.api_key` / `access_token`). The Host verifies the token against the
+provider API, seals it as a Bearer credential, and activates the connection — no OAuth App
+required. For GitHub, ambient `GITHUB_TOKEN` / `GH_TOKEN` /
 `OPENSESAME_PROVIDER_GITHUB_TOKEN` are discovered the same way.
 
 `POST /api/v1/connections/discover` lets an owner/admin adopt complete credentials already
@@ -276,13 +311,13 @@ recreated.
 
 ## Projects (secrets / env scope)
 
-Host **Project** is the primary secrets and environment scope
+A **Project** is the primary secrets and environment scope
 ([ADR 0041](../adr/0041-projects-sync-targets-and-secret-changelog.md)). Connections may
 optionally narrow with `project_id`. Every authenticated principal can obtain an
-idempotent **default personal project** that may bind sealed-store tomb name and Pages
-vault folder metadata (opaque strings). Shared project/env secrets use project-scoped
-authority entries plus connection `shareability` / bindings — not server-readable vault
-plaintext.
+idempotent **default personal project** (`POST /v1/projects/personal/ensure` on the
+Identity API) that may bind sealed-store tomb name and Pages vault folder metadata (opaque
+strings). Shared project/env secrets use project-scoped authority entries plus connection
+`shareability` / bindings — not server-readable vault plaintext.
 
 `SecretConfig` hangs off a project with an environment
 (`development` | `staging` | `production` | `custom`). Catalog provider `doppler` remains
@@ -342,7 +377,8 @@ remain local ciphertext history for the human store.
 
 ## Verification
 
-`opensesame-mock-upstream-idp` speaks authorization-code + PKCE S256 + `refresh_token`, so
-it backs the `mock` catalog provider and the full loop — create, authorize, callback,
-exchange, credential injection, real HTTP egress, refresh, and revoke — is exercised end
-to end in local integration tests.
+`@opensesame/mock-upstream-idp` (`tools/mock-upstream-idp`, `:9090`) speaks
+authorization-code + PKCE S256 + `refresh_token`, and the `mock` catalog provider (absent
+in production) points at it. The gateway's integration tests
+(`crates/gateway/src/routes/connections/tests.rs`) run the loop — create, authorize,
+callback, exchange, refresh, and revoke — against an in-test authorization server.

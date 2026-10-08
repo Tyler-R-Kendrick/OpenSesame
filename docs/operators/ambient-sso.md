@@ -30,9 +30,10 @@ Write `os-runtime-config.json` beside the Pages bundle:
 }
 ```
 
-Also add the matching provider under Pages Settings → sign-in methods
-(`issuer`, `clientId`, `providerId: "microsoft"`). Policy will not enable
-automatic acquisition for a key that is not in that allowlist.
+Also add the matching provider as a way in on the setup **Identity** tab
+(`/setup/identity`, the Microsoft preset): its `issuer`, `clientId` and
+`providerId: "microsoft"` are kept in the sign-in methods. Policy will not
+enable automatic acquisition for a key that is not in that allowlist.
 
 `silent-redirect` is a top-level `prompt=none` authorize. Use `silent-iframe`
 only on hosts that can omit COOP on `/auth/redirect.html` (Vercel headers,

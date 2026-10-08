@@ -41,7 +41,7 @@
 - This attaches an identity at admission. It never fuses two already-durable principals, and
   the returned identity's `principalId` — not the id the caller passed in — is the account
   signing in.
-- Linking requires an authenticated principal + step-up for sensitive changes.
+- Linking through `POST /v1/principals/link-identities` requires an authenticated principal. A verified upstream `id_token` is the production path; a self-asserted `(kind, issuer, subject)` tuple is refused with `identity_link_requires_upstream` unless the deployment runs with dev defaults.
 - Canonical `Principal.id` never changes when identities are attached.
 
 ## Pairwise subjects
@@ -54,4 +54,4 @@ Default identity: `iss`, pairwise `sub`, `aud`, time claims, assurance/session c
 
 ## Merge
 
-Full merge is only supported when both principals are authenticated (or admin recovery). Otherwise collision detection returns a safe `merge_not_supported` workflow — never silent merge. The verified-email join above is not a merge and does not weaken this: it creates one identity row against an existing principal at admission time, while `principal.merge` — fusing two durable principals — stays in the pinned high-risk deny list.
+There is no merge workflow in the Identity API. A tuple already bound to another principal is refused with `identity_collision` (HTTP 409; the message does not name the bound principal), never silently merged. The verified-email join above is not a merge and does not weaken this: it creates one identity row against an existing principal at admission time, while `principal.merge` — fusing two durable principals — is on the policy engine's high-risk list (`packages/policy/src/provisional.ts`), which is denied for every subject.

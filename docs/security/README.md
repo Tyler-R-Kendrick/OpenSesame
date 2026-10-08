@@ -35,8 +35,10 @@ in [`AGENTS.md` §5](../../AGENTS.md#5-design-rules-that-gate-merges).
 
 - No agent-facing API returns a secret; there is no `getSecret()`
   ([ADR 0005](../adr/0005-authority-handle-connectionref.md)).
-- Vault and master keys live only in memory; vault material never touches
-  `localStorage` or `sessionStorage`.
+- Unwrapped vault and master keys live only in memory; client storage is
+  sealed under the at-rest key and written through the host ports, not to
+  `localStorage` or `sessionStorage` directly
+  ([ADR 0149](../adr/0149-nothing-stored-in-the-clear.md)).
 - A sensitive approval is bound to its request digest, decision verb and
   policy digest, and spent once.
 - A verified TLS peer authenticates; it never authorizes on its own.

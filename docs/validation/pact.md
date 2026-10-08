@@ -40,7 +40,7 @@ Do not add a suite that only documents the happy path.
 | Host changelog | org-scoped list | event-type allowlist; no cross-tenant read | concurrent records from two orgs never mix | metadata-only rows |
 | Host device / agents / rotation / sync | device capacity under lock (≤512); approve failure fence holds the lock across the guess | operator before complete locks; session before opaque JSON; store_path rejects `..` | device interleaving at cap; concurrent wrong codes ≤10 then 429; rotation job survives bus down; sync 401 | opaque sync blobs |
 | Host NATS callout | unmapped principal denied across many subjects | ignores self-asserted `project_ids` | mapping partition → deny (not allow); missing token 401 | deny JSON has no shared secret |
-| Callback-edge | HMAC verify_slice | path segments reject traversal | unconfigured secret is 503 not open | health `{status:ok}`; 401 bad MAC |
+| Callback ingress (`crates/gateway/src/callback_ingress`) | HMAC `verify_slice`; concurrent identical deliveries both succeed | the signature binds method, connection, route and query; `..`, `//` and `%70` path variants fail; unregistered route and changed body on a seen delivery id are 401 | concurrent duplicate deliveries claim once, and the claim survives a restart (`crates/storage/tests/callback_replay.rs`) | oversized body is 413 |
 | Daemon | hop-header strip | path-id allowlist; proxy rejects `..` | upstream partition → 502 `upstream_unreachable` | opaque `/health` |
 | Pages vault / queue / auth.js | non-extractable VK; PIN ≥8 | postMessage origin pin; iss then aud | claim tokens never hit OPFS | TaskBus GET schema rejects secrets |
 | Pages duress unlock (ADR 0130/0131) | throttle/window with injected `now` (never sleep `lockoutMs`) | locked presentation → WrongPasswordError; UV/PRF armed → solo passkey refuse | concurrent decoy continues all createGuest; fence survives miss flood | wrong-secret copy + continue policy characterization snapshots; no secret fields on pre-unlock opaque view |
@@ -83,7 +83,7 @@ Reference call sites: `crates/gateway/src/github_webhook.rs`,
 `crates/gateway/src/lib.rs` (`pact_coverage`),
 `packages/control-plane/src/__tests__/pact-chaos.test.ts`,
 `packages/identity-worker/src/__tests__/pact.test.ts`,
-`crates/gateway/src/callback_ingress/mod.rs`,
+`crates/gateway/src/callback_ingress/tests.rs`,
 `crates/daemon/src/lib.rs`,
 `packages/app-core/src/lib/pact.test.ts`,
 `packages/audit/src/__tests__/pact.test.ts`,

@@ -9,7 +9,7 @@ browser.
 ## Where it fits
 
 - **Used by:** [`packages/cli`](../cli) (`opensesame-id`), and the examples [`headless`](../../examples/headless) and [`agent`](../../examples/agent).
-- **Builds on:** [`@opensesame/os-domain`](../os-domain); [`@opensesame/qr`](../qr) for the terminal QR in device-flow instructions.
+- **Builds on:** [`@opensesame/os-domain`](../os-domain); [`@opensesame/log-scrub`](../log-scrub) for the value-shape scrub of diagnostic text in `redactSecrets`; [`@opensesame/qr`](../qr) for the terminal QR in device-flow instructions.
 - The device code never leaves the client: `start()` returns a `SafeDeviceStart` with no `device_code`, and `redactSecrets` scrubs it from anything logged.
 - Every URL the SDK sends a code, a verifier or a bearer to must be https; http is allowed only on loopback. An endpoint the issuer *discovered* may only point into private space when the issuer itself is private, so a remote issuer cannot aim the next request at a listener on this machine (`secure-url.ts`).
 - The loopback listener closes after five minutes by default (`timeoutMs`).

@@ -4,6 +4,10 @@ A Bitwarden-compatible server. Point a Bitwarden client — `bw`, the browser
 extension, the desktop or mobile app — at the Host's `/bitwarden` URL and it
 signs in, unlocks, syncs and edits a personal vault as it would against
 Bitwarden's own server ([ADR 0141](../../docs/adr/0141-bitwarden-compatible-server.md)).
+Beyond personal vaults and their attachments and Sends it serves organizations
+and collections, emergency access, key rotation, device login requests, the
+live-sync hub at `/notifications/hub`, and an operator-supplied web vault
+(`src/routes/`, `src/notifications/`; ADR 0148).
 
 ## Where it fits
 
@@ -12,9 +16,12 @@ Bitwarden's own server ([ADR 0141](../../docs/adr/0141-bitwarden-compatible-serv
   mounts it at `/bitwarden` when `OPENSESAME_BITWARDEN_COMPAT=on`. Off by default,
   and compiled in only with the gateway's `bitwarden-compat` feature
   ([ADR 0148](../../docs/adr/0148-bitwarden-bridge-and-importer.md)).
-- **Builds on:** [`crates/storage`](../storage) (`bitwarden_accounts.rs`,
-  `bitwarden_vault.rs`, migration `0042_bitwarden_compat`). `argon2`,
-  `pbkdf2` (verify only), `jsonwebtoken`, `axum`.
+- **Builds on:** [`crates/storage`](../storage) (`src/bitwarden/`, migrations
+  `0042_bitwarden_compat` through `0048_bitwarden_org_policies` and
+  `0051_bitwarden_auth_request_expiry`),
+  [`opensesame-authenticator-core`](../authenticator-core) (TOTP for the
+  authenticator second factor), `argon2`, `pbkdf2` (verify only),
+  `jsonwebtoken`, `axum`.
 - **Tested with:** [`crates/provider-bitwarden`](../provider-bitwarden) as an
   independent client, and the official `@bitwarden/cli` as the oracle.
 - Human plane only. Every value a client encrypts is an opaque `EncString`
@@ -55,7 +62,8 @@ pnpm test:bitwarden-oracle                          # + the bw CLI oracle suites
 ```
 
 `tests/import.rs` runs the importer end to end in ordinary CI.
-`tests/bw_cli_oracle.rs`, `tests/bw_cli_oracle_accounts.rs` and
-`tests/bw_cli_oracle_import.rs` are `#[ignore]`d
-and need `OPENSESAME_BW_CLI`; the pnpm script installs the pinned CLI into
-`.cache/bitwarden-oracle/` and sets it. They fail, never skip, without it.
+The `tests/bw_cli_oracle*.rs` suites are `#[ignore]`d and need
+`OPENSESAME_BW_CLI`; the pnpm script installs the pinned CLI into
+`.cache/bitwarden-oracle/` and sets it. `tests/bw_cli_oracle_hub.rs` drives the
+live-sync hub with a pinned SignalR client instead (`OPENSESAME_SIGNALR_DIR`,
+installed by the same script). They fail, never skip, without them.

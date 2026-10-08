@@ -15,7 +15,7 @@ does not run — why, so the absence is a decision rather than an oversight.
 | Characterization / snapshot | `insta` snapshots in Rust (`src/snapshots/`), Vitest snapshots in TS (`__snapshots__/`) | with the unit tests |
 | Behaviour (BDD) | `*.behavior.test.ts` — Given/When/Then journeys | with the unit tests |
 | Integration | `test:integration` targets | `pnpm test:integration` |
-| End-to-end | Playwright specs; `scripts/test/battle-test.sh`; `scripts/test/task-security-battle-test.sh` | `pnpm test:e2e`, `pnpm verify` |
+| End-to-end | Playwright specs; `scripts/test/battle-test.sh`; `scripts/test/task-security-battle-test.sh` | `pnpm test:e2e`, `pnpm verify`, `pnpm test:task-access` |
 | Fuzz | `cargo-fuzz` targets; Jazzer.js | `pnpm audit:fuzz`, `pnpm test:fuzz` |
 | Mutation | Stryker (TS), `cargo-mutants` (Rust) | `pnpm test:mutation` |
 | Model checking | Kani proofs, Miri, Shuttle | `pnpm audit:kani`, `audit:miri`, `audit:shuttle` |
@@ -46,7 +46,8 @@ Two numbers are expected to look low and are not defects:
 
 - `packages/database` — the Postgres repository path needs a live database, so
   the in-memory implementation is what the unit suite exercises. The Postgres
-  path is covered by `test:integration`.
+  path is covered by the package's `test:postgres` script, which needs
+  `DATABASE_URL` (its `test:integration` runs `tests/pact.test.ts` only).
 - Anything whose branches are mostly typed-error mapping, where the assertion
   worth making is on the typed error, not on each arm.
 
@@ -58,8 +59,10 @@ every security-relevant test exists to assert a refusal, and a refusal that
 stops refusing still executes the same lines.
 
 `pnpm test:mutation` runs Stryker over the TypeScript planes and
-`cargo-mutants` over the pure decision crates — redaction, task-bus, relay,
-connection-detect. It is scoped rather
+`cargo-mutants` over a scoped set of Rust files in the decision crates —
+redaction, task-bus, relay, connection-detect, human-vault, sealed-store,
+gateway, pki-core and storage (the exact `--file` list is
+`test:mutation:rust` in the root `package.json`). It is scoped rather
 than workspace-wide on purpose: a surviving mutant in a decision function is a
 fence with no test behind it, while a surviving mutant in glue code is usually
 noise, and drowning the first in the second helps nobody.
@@ -128,7 +131,7 @@ merely wrong:
 - `packages/audit` redaction — what reaches an append-only trail. A key that
   stops appearing is an event quietly losing evidence; one that starts
   appearing may be a secret entering a log that is designed never to forget.
-- Pages guest-login / claim-notice copy — a rewrite of "no passkey or
+- Guest-login / claim-notice copy (`packages/app-core`'s guest surfaces) — a rewrite of "no passkey or
   password" or the claim prompt is how a guest path quietly becomes a
   registered-auth demand.
 

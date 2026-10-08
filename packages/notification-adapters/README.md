@@ -10,11 +10,13 @@ an adapter produced.
 
 ## Where it fits
 
-- **Used by:** [`packages/control-plane`](../../packages/control-plane).
+- **Used by:** [`packages/control-plane`](../../packages/control-plane) and
+  [`packages/identity-worker`](../../packages/identity-worker).
 - **Builds on:** [`@opensesame/os-domain`](../os-domain) (channel kinds,
   capability records, confidentiality levels),
-  [`@opensesame/webhooks`](../webhooks) (Standard Webhooks signing and
-  delivery for the SMS and generic-webhook adapters) and
+  [`@opensesame/webhooks`](../webhooks) (Standard Webhooks signing for the
+  SMS and generic-webhook adapters, and its public-only sender for the Teams
+  and generic-webhook adapters) and
   [`@opensesame/oauth-provider`](../oauth-provider) (its safe-fetcher, for
   public-only delivery).
 - An adapter's capabilities come from the os-domain catalogue; no adapter

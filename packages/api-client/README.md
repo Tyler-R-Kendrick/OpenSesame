@@ -5,7 +5,11 @@ factory, `createApiClient`, returns methods for connections, integrations,
 sync targets, secret configs, invoke, sync, tasks, receipts, delegations,
 relay, certificates, rotations, the project changelog, the backup target and
 the driver half of a sandboxed run (claim and settle a step, read the hook records).
-Responses are parsed with the `@opensesame/contracts` schemas.
+Provider, connection, integration, sync-target and secret-config responses are
+parsed with the `@opensesame/contracts` schemas; `health`, `discover` and
+`probeDaemon` build their own result types, the sandboxed-run methods decode
+their own wire shapes, and the remaining methods return the decoded JSON as a
+boundary value.
 
 ## Where it fits
 
@@ -26,7 +30,7 @@ Responses are parsed with the `@opensesame/contracts` schemas.
 | Export | What it does |
 |---|---|
 | `createApiClient({ baseUrl, accessToken?, dpop?, fetchImpl? })` | The client; `ApiClient` is its type |
-| Core methods | `health`, `discover`, `whoami`, `listProviders`, connection CRUD plus `authorizeConnection` / `refreshConnection` / `revokeConnection` / `bindConnection`, integrations, sync targets, secret configs and versions, `invoke`, `syncPush`, `syncPull`, `probeDaemon` |
+| Core methods | `health`, `discover`, `whoami`, `listProviders`, connection CRUD plus `authorizeConnection` / `refreshConnection` / `revokeConnection` / `bindConnection` / `unbindConnection` / `setConnectionCredential` / `connectionEvents`, integrations, sync targets, secret configs and versions, `invoke`, `syncPush`, `syncPull`, `syncPullPages`, `syncReadPage`, `probeDaemon` |
 | Mixed-in groups | `tasks.ts`, `receipts.ts`, `delegations.ts`, `relay.ts`, `certs.ts`, `rotations.ts`, `changelog.ts`, `backup.ts`, `agent-runs.ts` |
 | Runs | `listAgentRuns`, `getAgentRun`, `claimRunnerStep` (`null` on 204), `settleRunnerStep`, `readRunHookRecords`; `decodeRunnerStepRequest` (strict: an unknown tag, a missing, mistyped or extra field is `null`), `RunnerStepRequest` / `RunnerStepOutcome` mirroring `crates/rotation-web` `StepRequest` / `StepOutcome`, and `RunnerApiError` carrying status and code |
 | Helpers | `createDpopKeyPair`, `accessTokenHash`, `normalizeHttpBaseUrl`, `normalizeLoopbackBaseUrl`, `pullSyncPages`, `readSyncPage` |

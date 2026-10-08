@@ -65,7 +65,7 @@ What is a failure is drawn by what the sentence reports: an operation that was
 attempted and did not succeed goes to the tray; a disclosure, guidance or
 empty-state instruction, a destructive confirmation or a live status the
 person must read before acting stays in the page
-([ADR 0161](../adr/0161-failures-live-in-the-tray.md)).
+([ADR 0163](../adr/0163-failures-live-in-the-tray.md)).
 
 A notice is keyed by `id` — one per place, so a second try replaces the first
 and a success clears it; give a per-item editor the item's id. A visually-hidden

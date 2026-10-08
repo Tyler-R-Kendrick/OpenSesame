@@ -9,7 +9,7 @@ describe what the decisions add up to.
 ```mermaid
 flowchart TB
   subgraph Device["A person's device"]
-    PAGES["Pages PWA<br/>vault · console · sign-in"]
+    PAGES["Pages PWA<br/>vault · sign-in"]
     CLIENTS["Client CLI · extension · MCP client"]
   end
   subgraph IdentityPlane["Identity plane"]
@@ -19,7 +19,7 @@ flowchart TB
   subgraph HostPlane["Host / authority plane"]
     HOST["Host API :8787"]
     PEP["Policy · grants · broker"]
-    STORE[("SQLite / Postgres<br/>sealed connections")]
+    STORE[("SQLite<br/>sealed connections")]
     DAEMON["Daemon :18790"]
     FGA["OpenFGA"]
     BAO["OpenBao"]
@@ -44,8 +44,8 @@ Three planes, each answering one question:
 
 | Plane | Answers | Built as | Never does |
 |---|---|---|---|
-| **Identity** | *Who is this?* | TypeScript: Hono, oidc-provider, Better Auth (`packages/control-plane`) | Hold a third-party credential or perform an invocation. |
-| **Host / authority** | *May they do this — and do it.* | Rust: Axum, SQLx, OpenFGA, OpenBao (`crates/gateway`, `crates/`) | Hand a credential to a caller. |
+| **Identity** | *Who is this?* | TypeScript: Hono, oidc-provider, Better Auth (`packages/control-plane`) | Take custody of an upstream account's tokens, or perform an invocation. |
+| **Host / authority** | *May they do this — and do it.* | Rust: Axum, SQLx, OpenFGA, OpenBao (`crates/gateway`, `crates/`) | Hand a credential to a caller without an explicit export grant. |
 | **Client** | *What does this person keep here?* | TypeScript + WebCrypto, Rust→Wasm (`apps/pages`, `packages/app-core`) | Depend on either backend to be useful. |
 
 The Identity and Host APIs are separate services with separate stores, and
@@ -79,9 +79,9 @@ Possessing a handle never implies permission to resolve it
   encrypted vault with no Host, no Identity API and no localhost service; each
   panel is gated on exactly what it needs
   ([ADR 0090](../adr/0090-static-frontend-complete-without-backend.md)).
-- **Vault keys never leave memory.** The master key is derived on unlock, the
-  vault key is unwrapped in memory, and only ciphertext is persisted (OPFS in
-  the browser) — see [vault format v1](vault-format-v1.md) and the
+- **Vault keys never leave memory.** The wrapping key (passkey PRF, PIN or
+  password) is derived on unlock, the vault key is unwrapped in memory, and
+  only ciphertext is persisted (OPFS in the browser) — see [vault format v1](vault-format-v1.md) and the
   [key hierarchy](../security/key-hierarchy.md).
 - **Optional code is absent until consented.** A capability's module is not
   loaded before an operator's plan and a consent receipt cover it
@@ -100,14 +100,14 @@ Possessing a handle never implies permission to resolve it
 | Page | Covers |
 |---|---|
 | [Host/client topology](host-client-topology.md) | Surfaces, ports, the crate/package dependency graph, the two CLIs, the WIT worlds. |
-| [Identity plane](identity-plane.md) | The Identity API's parts and how principals relate to upstream accounts. |
+| [Identity plane](identity-plane.md) | Where the Identity API sits between the two planes, and who owns the canonical principal id. |
 | [Transport topology](transport-topology.md) | The hop profiles between planes and what a certificate does and does not prove. |
 
 ### Identity and sign-in
 
 | Page | Covers |
 |---|---|
-| [Federated sign-in](federated-signin.md) | The wire contract for upstream IdPs and origin-brokered sign-in on static sites. |
+| [Federated sign-in](federated-signin.md) | The wire contract for upstream IdPs and origin-brokered sign-in on static sites, and the server-side legs: provider registry, bring-your-own issuers, organization SSO, SAML, SCIM, LDAP and email magic-link. |
 | [Device authorization](device-auth.md) | RFC 8628 device login and its domain projection. |
 | [Claims](claims.md) | Claim sessions that attach or transfer ownership — and why they are not device authorization. |
 | [Identity linking](identity-linking.md) | Pairwise subjects, external-identity uniqueness, what links and what never does. |

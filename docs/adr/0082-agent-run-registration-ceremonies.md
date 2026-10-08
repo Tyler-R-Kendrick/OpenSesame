@@ -1,7 +1,12 @@
 # ADR 0082 — Agent-run registration ceremonies: the setup cliff, and who climbs it
 
-Status: Proposed
+Status: Proposed (partly implemented; see Implementation)
 Date: 2026-08-31
+Implementation: partly built. `crates/ceremony` (the C0 to C3 tier ladder,
+typed capture slots and refusals) is linked by the gateway, the CLI and
+`crates/rotation-web`, whose `ceremony.rs` is the capture half of the tool
+boundary (§3); the GitHub App Manifest flow is
+`crates/gateway/src/routes/github_app.rs`.
 Supplements: ADR 0076 ([autonomous web-login rotation](0076-autonomous-web-login-rotation.md)),
 ADR 0081 ([live session observation](0081-live-session-observation.md)),
 ADR 0005 ([ConnectionRef over SecretRef](0005-authority-handle-connectionref.md)),

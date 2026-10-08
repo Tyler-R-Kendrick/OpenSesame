@@ -16,7 +16,7 @@ typed items also accept `field.<id>` for declared scalar text, URL, number,
 boolean, select and country fields (for example, `field.engine=postgresql` on
 `/vault/new/database`). Concealed, multiline and personal-record fields are not
 accepted. A value must match its field type and declared select options.
-the whole encoded query is at most 2048. Parameters must occur once. Unknown or
+The whole encoded query is at most 2048 characters. Parameters must occur once. Unknown or
 invalid parameters refuse the entire prefill and show an explanation. URLs may
 use HTTP/HTTPS but not embedded credentials, query strings or fragments.
 

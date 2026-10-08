@@ -1,5 +1,16 @@
 # Vault item types as an extension point — prior-art research
 
+> Status (2026-10-08): [ADR 0087](../adr/0087-vault-item-type-plugins.md)
+> landed, and [ADR 0165](../adr/0165-item-type-packs-on-demand.md) moved most
+> built-in types into on-demand packs. An item type is now a manifest parsed by
+> `packages/vault-item-types` and `crates/vault-item-types`; the shipped corpus
+> is `marketplace/item-types/builtin/` (28 definitions, of which only `secret`,
+> `file`, `passkey`, `certificate` and `drop` are embedded in the bundle).
+> The question below and §1 describe the repository before that: the vault
+> model (`packages/vault-core/src/model.ts`) now has a `typed` arm beside its
+> legacy arms, `login` became `account` (ADR 0172), and `ItemEditor.tsx` and
+> `ItemDetail.tsx` (386 and 165 lines) no longer carry a `switch (item.kind)`.
+
 Research input for [ADR 0087](../adr/0087-vault-item-type-plugins.md). This
 document records *how other credential managers model the shape of a stored
 item*, what each design made easy and what it made impossible, and derives
@@ -19,7 +30,7 @@ turning the vault body into an execution surface.
 
 The pieces of an item-type system exist, scattered:
 
-- `apps/pages/src/lib/vault/model.ts` — a seven-arm discriminated union,
+- `packages/vault-core/src/model.ts` — a seven-arm discriminated union,
   `KIND_LABEL`/`KIND_PLURAL` string tables, a `createItem` overload set, and
   hand-written `itemSubtitle`/`searchMatches` switches. Every one of those
   is a per-kind edit, in one file, in one app.
@@ -28,14 +39,15 @@ The pieces of an item-type system exist, scattered:
   are overwhelmingly the same three moves: label a field, conceal or reveal
   it, copy it. Only certificate issuance, the drop claim, passkey custody,
   and secret grant-ceilings do anything a data description could not.
-- `apps/pages/src/lib/vault/paths.ts` — `KIND_EXT`, the file-extension
+- `packages/vault-core/src/paths.ts` — `KIND_EXT`, the file-extension
   vocabulary the VFS tree renders (ADR 0064/0073).
 - `crates/sealed-store/src/entry.rs` — the **base native secret**: line one
   is the secret, the remainder is a freeform `key: value` trailer, `parse`
   and `render` exact inverses. `pass` compatibility lives here, and so does
   everything the host plane can already read.
-- `apps/pages/src/lib/vault/export/cxf.ts` and `import/formats/*` — a real
-  FIDO CXF writer and eleven importers, all of which already do the work of
+- `packages/app-core/src/lib/vault/export/cxf.ts` and
+  `packages/app-core/src/lib/vault/import/` — a real FIDO CXF writer and
+  eighteen import adapters (`ADAPTERS`), all of which already do the work of
   mapping foreign item types onto ours and losing what does not fit.
 - ADR 0065's extension tiers, its four safety properties, and
   `crates/connector-host/src/manifest.rs` as the worked example of an inert,
@@ -85,13 +97,13 @@ roughly thirty entries in three shapes:
 - *reference-shaped*: `cardRef`, `fileRef`, `addressRef`, `date`,
   `birthDate`, `expirationDate`.
 
-Seventeen standard record types ship on that catalogue (`login`,
+Nineteen standard record types ship on that catalogue (`login`, `address`,
 `bankAccount`, `bankCard`, `birthCertificate`, `contact`,
 `databaseCredentials`, `driverLicense`, `encryptedNotes`, `file`,
 `healthInsurance`, `membership`, `passport`, `photo`, `serverCredentials`,
-`softwareLicense`, `ssnCard`, `sshKeys`), and *custom record types are the
-same JSON*, dropped into a `record_type` directory and picked up by
-Commander and the SDKs without a client release.
+`softwareLicense`, `ssnCard`, `sshKeys`, `wifiCredentials`), and *custom
+record types are the same JSON*, dropped into a `record_type` directory and
+picked up by Commander and the SDKs without a client release.
 
 **What to take.** The `$ref` indirection is the whole trick: a template
 that can only *name* field types cannot introduce new rendering, new
@@ -121,11 +133,12 @@ An **Item** does not *have* a type. An Item carries a list of
 `ApiKeyCredential`, `WifiCredential`, `AddressCredential`,
 `PersonNameCredential`, `DriversLicenseCredential`,
 `IdentityDocumentCredential`, `PassportCredential`, `FileCredential`,
-`GeneratedPasswordCredential`, `ItemReferenceCredential`,
-`AndroidAppIdCredential`, `Fido2HmacCredentials`, and the escape hatch
-`CustomFieldsCredential`. Values are `EditableField`s with a `fieldType`
-from a closed list (`string`, `concealed-string`, `email`, `number`,
-`boolean`, `date`, `year-month`, `country-code`, `subdivision-code`).
+`GeneratedPasswordCredential`, `ItemReferenceCredential`, and the escape
+hatch `CustomFieldsCredential` (the `credential-exchange-format` crate's
+names for the specification's seventeen `type` values). Values are
+`EditableField`s with a `fieldType` from a closed list (`string`,
+`concealed-string`, `email`, `number`, `boolean`, `date`, `year-month`,
+`wifi-network-security-type`, `country-code`, `subdivision-code`).
 
 Two details deserve emphasis. First, `DriversLicenseCredential` is defined
 against ISO 18013-1 and `PassportCredential` against ICAO Doc 9303, and

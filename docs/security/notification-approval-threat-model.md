@@ -1,6 +1,6 @@
 # Threat model — external authorization notifications and approval ceremonies
 
-Companion to [ADR 0081](../adr/0084-external-authorization-notifications.md).
+Companion to [ADR 0084](../adr/0084-external-authorization-notifications.md).
 Scope: the path from an authorization request being created, through whatever
 channel tells a person about it, to a decision being settled and recorded.
 
@@ -95,7 +95,7 @@ and does so carrying provenance — never authority.
    requested" banner.
 
 5. **Historical approvals cannot be retroactively characterized.** Rows settled
-   before ADR 0081 have no receipt, and none is synthesized for them. A reviewer
+   before ADR 0084 have no receipt, and none is synthesized for them. A reviewer
    sees the absence rather than a fabricated assurance claim. This is
    deliberate: inventing evidence for an old decision would be worse than
    recording that none was captured.

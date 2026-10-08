@@ -17,7 +17,9 @@ affordance to a web page, and no credential ever travels to the Host.
 - **Builds on:** [`@opensesame/api-client`](../../packages/api-client)
   (`createApiClient`, `normalizeLoopbackBaseUrl`),
   [`@opensesame/client-core`](../../packages/client-core) (`createCursor`,
-  `persistSealedStore`), [`@opensesame/os-domain`](../../packages/os-domain).
+  `persistSealedStore`),
+  [`@opensesame/browser-at-rest`](../../packages/browser-at-rest) (`sealForRest`,
+  `openFromRest`), [`@opensesame/os-domain`](../../packages/os-domain).
 - The Host API base is loopback only. The popup refuses a non-loopback URL
   before it is stored, and the background ignores a stored value that no
   longer normalizes to loopback and falls back to `http://127.0.0.1:8787`.
@@ -75,7 +77,7 @@ plugin's registry rows to the companion's own parity test.
 | `opensesame.sync_cursor` message | Returns `{ cursor }` |
 | `opensesame.runner.status` / `.arm` / `.disarm` messages | What the runner has ready; arm one origin (once the browser has granted it) or give it back. From this extension's own pages only |
 | `entrypoints/options/` | The runner's setup: session, recovery key, credentials, the site to drive, held candidates and their recovery |
-| `entrypoints/popup/` | Status list (Host API, daemon, sync cursor) and the Host API base field, stored as `hostApiBase` in `chrome.storage.local` |
+| `entrypoints/popup/` | Status list (Host API, daemon, sync cursor) and the Host API base field, stored sealed at rest (ADR 0149) as `hostApiBase` in `chrome.storage.local` |
 | `wxt.config.ts` | Manifest: `storage` and `alarms` permissions and loopback hosts (standing); `scripting` and `https://*/*` as **optional** only; no content script; extension-page CSP `script-src 'self'`; build target `chrome111`/`firefox115` |
 
 ## Develop
@@ -102,9 +104,12 @@ change-password recipe walk over jsdom pages, and the negative cases (a run
 that is not the person's, an unarmed or ungranted origin, a person holding the
 page, an unknown step, an off-origin navigation, an unprovable backup, a
 rejected or indeterminate login, a settle that never arrived). The
-Playwright suite in `tests/auth-surface.spec.ts` is skipped unless
-`PLAYWRIGHT_BASE_URL` points at a running gateway; it reads
-`OPENSESAME_OPERATOR_TOKEN` for the operator header.
+Playwright suites run under `test:e2e` (which runs `wxt build` first):
+`tests/runner-storage.spec.ts` loads the built extension into Chromium and
+checks that credentials are sealed and cross-origin ciphertext replay is
+refused; `tests/auth-surface.spec.ts` is skipped unless `PLAYWRIGHT_BASE_URL`
+points at a running gateway, and reads `OPENSESAME_OPERATOR_TOKEN` for the
+operator header.
 
 ## Related
 
