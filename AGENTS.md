@@ -60,10 +60,17 @@ not My Machines or a contributor’s local PC). Image and bootstrap live in
 [`.cursor/Dockerfile`](.cursor/Dockerfile) (`rust:1.88.0-bookworm`, aligned with
 `rust-toolchain.toml`).
 
-- **Grok Build** is installed on `PATH` as `grok` (and `agent`). With
-  `XAI_API_KEY` set as a Cursor **Runtime Secret** (or `GROK_DEPLOYMENT_KEY` where
-  applicable), headless use looks like:
-  `grok -p "…" --always-approve --output-format json`.
+- **Grok Build** is installed on `PATH` as `grok` (and `agent`). Headless use
+  looks like `grok -p "…" --always-approve --output-format json`. A Cursor
+  **Runtime Secret** `XAI_API_KEY` shadows OIDC unless it is unset for grok
+  invocations (`GROK_DEPLOYMENT_KEY` where applicable). A depleted key shows
+  **403** from `https://api.x.ai/v1/models` or **Not signed in** from the CLI,
+  even when `~/.grok/auth.json` is present. `scripts/dev/grok-preflight.sh`
+  prints the key length (never the value), whether `~/.grok/auth.json` exists,
+  and the models HTTP status. Device login needs the key unset: run grok via
+  `scripts/dev/grok-headless.sh` (`env -u XAI_API_KEY -u GROK_CODE_XAI_API_KEY`).
+  Do not set `auth.preferred_method = "api_key"` in the project
+  `.grok/config.toml` when using device login alongside that runtime key.
 - **Never run `sudo`** in agent commands (see `.cursor/rules/no-sudo.mdc`). The
   image includes `sudo` for Cursor platform tooling only.
 - **Never commit API keys** or other secrets; inject them through Cursor Secrets.

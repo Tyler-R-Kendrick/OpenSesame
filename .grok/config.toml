@@ -1,0 +1,5 @@
+# Do not set auth.preferred_method = "api_key" when using device login alongside
+# a Cursor Runtime Secret XAI_API_KEY. That preference, like the runtime key
+# itself, shadows OIDC in ~/.grok/auth.json (a depleted key shows 403 or
+# "Not signed in"). Run grok through scripts/dev/grok-headless.sh so the key
+# is unset for the invocation, and check scripts/dev/grok-preflight.sh first.
