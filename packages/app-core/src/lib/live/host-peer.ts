@@ -6,9 +6,10 @@
  * left out — and then one concealed value at a time, on request. Under
  * `edit`, a joiner may also replace one shared field. Every request is
  * checked again against the session as it stands now: still within its time,
- * the item still shared, the field one that exists, `reveal` only under
- * `read` or `edit`, and `edit` only under `edit`. Every answer lands in the
- * owner's on-screen log.
+ * the item still shared, the field one that exists. `reveal` and `copy` run
+ * only under `read` or `edit`. Copy only (`use`) refuses both, so a concealed
+ * value is not handed to the joiner to place on their clipboard. `edit`
+ * writes only under `edit`. Every answer lands in the owner's on-screen log.
  */
 
 import {
@@ -216,7 +217,9 @@ export class HostPeer {
     if (this.#closed || this.options.now() >= this.options.expiresAt)
       return null;
     const catalog = this.options.catalog();
-    if (request.t === "reveal" && catalog.policy === "use") return null;
+    // Copy only keeps the concealed plaintext on this device. It is not
+    // revealed, and it is not returned for the joiner to copy.
+    if (catalog.policy === "use") return null;
     const item = catalog.items.find((entry) => entry.id === request.item);
     const field = item?.fields.find((entry) => entry.key === request.field);
     if (!item || !field?.concealed) return null;
