@@ -95,6 +95,8 @@
   ],
   "new_hunter_candidates": 0,
   "run_status": "complete",
-  "grok_probe": "402 Payment Required (Grok Build usage exhausted); Cursor parent closed phases 1–6",
-  "notes": "Counted run 5. Regenerated architecture and coverage ledger from tip recon; prior run-3 ledger md5 not reused. Six run-3 NV items independently verified and rejected. Zero confirmed, zero needs_validation."
+  "count_status": "not_counted",
+  "artifact_origin": "scripted_regeneration_removed",
+  "grok_probe": "402 Payment Required (Grok Build usage exhausted)",
+  "notes": "NOT COUNTED. Artifacts were synthesized by build-run-5-artifacts.mjs (deleted on relabel); ~2m wall clock. Scripted re-check of run-3 needs_validation items only — not a full standard pass. See REPORT.md."
 }
