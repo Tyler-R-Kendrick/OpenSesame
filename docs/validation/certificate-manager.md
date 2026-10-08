@@ -1,8 +1,8 @@
 # Certificate Manager implementation evidence
 
-Status: **evidence template — implementation in flight.** The delivered-behavior,
-schema, standards, and limitation sections below are written from the committed
-plan and from ADRs 0066–0072. Every **numeric** result — coverage, mutation,
+Status: **evidence template — implementation partly landed.** The sections below
+are written from the committed plan and from ADRs 0066–0072, and each says what
+exists in this checkout and what does not. Every **numeric** result — coverage, mutation,
 fuzz executions, test counts, scan cost — is marked
 `_pending: fill from the run of <command>_` and MUST be replaced with a measured
 value from an actual run. Do not substitute an estimate, a previous release's
@@ -21,9 +21,25 @@ number, or a number carried over from
 - Implementation head: _pending: fill from `git rev-parse HEAD` at integration
   time._
 - Toolchain: Rust 1.88 (`cargo +1.88.0`), Node ≥ 22, pnpm 9.15.0, Turbo 2.9.14,
-  Biome 1.9.4, Vitest 4.1.10, Playwright 1.55.1 — as pinned in `AGENTS.md` §2.
+  Biome 1.9.4, Vitest 4.1.11, Playwright 1.55.1 — as pinned in `AGENTS.md` §2.
 
 ## Delivered behavior
+
+Present in this checkout: the `opensesame-pki-core` engine
+([`crates/pki-core`](../../crates/pki-core)); the certificate-manager schema
+(migration `0016_certificate_manager.sql`) and its persistence layer in
+`crates/storage`; the Host routes for authorities, policies and profiles
+(`/api/v1/certmgr/cas`, `/policies`, `/profiles`,
+`/profiles/{id}/est-config` in `crates/gateway/src/routes/certmgr_*.rs` and
+`est_server.rs`); and the EST server (`/.well-known/est/{profileId}/…`). The
+routes are still allowlisted in `crates/gateway/src/routes/contract.rs`
+("while the surface is still being assembled") rather than published in
+`spec/openapi/host-api.yaml`. Everything else the headings below describe — CRL
+and OCSP endpoints, the ACME and SCEP servers, syncs, discovery, alerts,
+approvals, signers and the Sign API, HSM connectors, the PKCS#11 module, the
+Windows KSP and the Kubernetes issuer — has no route, actor or crate in this
+checkout. Those sections state the design of ADRs 0067–0072 and say which part
+(if any) exists.
 
 ### Domain model (ADR 0066)
 
@@ -31,13 +47,23 @@ Certificate management walks one object chain: certificate authority → policy 
 profile → application → enrollment config → certificate. Policies are pure
 constraint documents with three-state field rules; profiles bind a CA, a policy
 and defaults; applications are service workspaces whose members hold
-`admin`/`operator`/`auditor` roles layered over the existing caller model in
-`crates/gateway/src/middleware/auth.rs`. Inventory rows carry a `source` of
+`admin`/`operator`/`auditor` roles. Inventory rows carry a `source` of
 `issued`, `imported` or `discovered`, and renewal is a bidirectional link
 (`renewed_from_id` / `renewed_by_id`), one renewal per certificate, with custom
-metadata carried across. Every mutating `/api/v1/certmgr/*` route appends a
-`certmgr.<object>.<verb>` outbox audit event in the same transaction as its state
-change.
+metadata carried across.
+
+The routes cover authorities, policies and profiles, for callers who pass
+`Caller::can_configure_integrations` (owner or admin, `crates/gateway/src/middleware/auth.rs`);
+another organization's object is a 404, never a 403. Applications, their
+members, the role ladder (`opensesame_storage::Role`), inventory sources and
+renewal links exist as schema and storage accessors (`pki_applications`,
+`insert_renewal_link`); no gateway route manages an application, and no
+`admin`/`operator`/`auditor` gate runs in the gateway. The CA, policy and
+profile routes append a `certmgr.<object>.<verb>` outbox audit event after the
+state change, in a separate transaction (`certmgr.ca.created`, `.updated`,
+`.imported`, `.renewed`, `.signing_config_updated`; `certmgr.policy.*` and
+`certmgr.profile.*` for create, update and delete). A policy or profile create
+whose audit append fails is undone. `PUT .../est-config` appends no audit event.
 
 The existing `/api/v1/certs/*` routes are unchanged and remain the
 zero-configuration issuance path.
@@ -45,90 +71,124 @@ zero-configuration issuance path.
 ### Certificate authorities
 
 Root and intermediate CAs with path-length constraints and full DN fields; key
-algorithms RSA-2048, RSA-4096, ECDSA P-256, ECDSA P-384 (Ed25519 for leaves);
+algorithms RSA-2048, RSA-4096, ECDSA P-256, ECDSA P-384 (the engine also
+generates Ed25519 for leaves; the authority routes refuse it);
 externally-signed intermediates via CSR export and signed-chain import; CA
 renewal in both same-key and new-key modes, with previously issued certificates
 remaining valid across a new-key renewal.
 
 ### Revocation (ADR 0067)
 
-Revocation writes an immutable record with an RFC 5280 `CRLReason` code. CRL v2
-is generated per CA with a monotonic `cRLNumber`, signed by the issuing CA
-through the custody-agnostic `Signer` trait, regenerated on revoke and on the
-`next_update` horizon by the lifecycle actor, coordinated only through the
-`crl_state` row. Newly issued internal-CA certificates embed a CRL Distribution
-Point; up to four additional mirror URLs may be advertised (advertise-only — the
-operator republishes). CRL DER is sealed at rest under the `crl_der` scope.
-`GET /crl/{caId}.crl`, `GET /crl/{caId}.pem` and the RFC 6960 OCSP responder at
-`/ocsp/{caId}` are unauthenticated by design and contract-allowlisted with a
-category comment. The responder signs with the CA key or an explicitly delegated
-OCSP-signing certificate carrying `id-kp-OCSPSigning` and issued by that same CA.
+Revocation writes an immutable record (`certificate_revocations`) with an RFC
+5280 `CRLReason` code; today the transport-certificate revoke route
+(`POST /api/v1/operator/transport/certificates/revoke`, ADR 0132) is the only
+caller. `opensesame-pki-core` builds, parses and verifies CRL v2
+(`revocation::build_crl`, `parse_crl`, `verify_crl`) and RFC 6960 OCSP requests
+and responses, signed by the CA key or by a delegated responder, from a
+`KeyPair`; the custody-agnostic `Signer` trait (`SealedKeySigner`) exists but no
+builder takes it yet. A CA's signing configuration stores `crl_enabled` and up
+to four advertise-only mirror URLs, and storage holds `crl_state` and the
+`crl_der` seal scope.
+
+Not implemented: `GET /crl/{caId}.crl`, `GET /crl/{caId}.pem` and the OCSP
+responder at `/ocsp/{caId}` (no such route in `crates/gateway`); the lifecycle
+actor that would regenerate a CRL on revoke and at `next_update`; and CRL
+Distribution Point embedding in issued leaves (the engine can emit one, but
+EST enrollment passes none, `routes/est_enrollment.rs`).
 
 ### Enrollment protocols (ADR 0068)
 
-Server side, profile-scoped: ACME (RFC 8555) with mandatory per-profile EAB,
-single-use nonces, HTTP-01 validation or an admin-enabled skip-validation mode;
-EST (RFC 7030) `cacerts` / `simpleenroll` / `simplereenroll` with passphrase,
-bootstrap-chain and mTLS authentication; SCEP (RFC 8894) `GetCACaps` /
-`GetCACert` / `PKIOperation` with static and one-time dynamic challenges.
+Implemented, profile-scoped: EST (RFC 7030) `cacerts` / `simpleenroll` /
+`simplereenroll` at `/.well-known/est/{profileId}/…`
+(`crates/gateway/src/routes/est_server.rs`). A caller authenticates with the
+profile's sealed bootstrap passphrase (HTTP Basic), a verified TLS client
+certificate chaining to the configured bootstrap chain, or the certificate being
+replaced (re-enrollment); `require_bootstrap` demands a client certificate. A
+policy-violating CSR is refused whole, never narrowed, and issued certificates
+are recorded in the inventory (`routes/est_records.rs`). The operator surface is
+`GET|PUT /api/v1/certmgr/profiles/{id}/est-config`.
 
-Client side: upstream HTTP-01 and TLS-ALPN-01 remain refused (ADR 0052-cert's
-rationale restated — DNS-01 is a strict superset). Organization administrators
-may register private ACME directories, which receive trust class
-`private_local` assigned in code; `public_web` remains pinned to the code-owned
-registry in `crates/gateway/src/cert_issuers/registry.rs`.
+Not implemented: the ACME server (RFC 8555, mandatory per-profile EAB,
+single-use nonces, HTTP-01 validation or skip-validation) and the SCEP server
+(RFC 8894 `GetCACaps` / `GetCACert` / `PKIOperation`, static and one-time
+dynamic challenges). Only their storage exists — the `acme_*` and `scep_*`
+tables, with single-use `consume_acme_nonce` and `consume_scep_challenge` — and
+no route in `crates/gateway` serves either protocol.
+
+Client side: upstream HTTP-01 and TLS-ALPN-01 remain refused
+(`ChallengeKind::require_dns01` in `crates/gateway/src/cert_issuers/model.rs`;
+ADR 0052-cert's rationale restated — DNS-01 is a strict superset). The external
+issuers are the code-owned registry in
+`crates/gateway/src/cert_issuers/registry.rs` (Let's Encrypt, ZeroSSL,
+Cloudflare Origin CA), where `public_web` trust is pinned. Registering a private
+ACME directory (trust class `private_local`) is not implemented;
+`external_ca_configs` allows the kind `private_acme` as schema only.
 
 ### Lifecycle, discovery, alerting, approvals
 
-Auto-renewal and manual renewal with copy-on-write semantics and a per-issuer
-key-handling matrix; certificate cleanup N days past expiry skipping
-certificates with active syncs; network TLS discovery jobs (≤20 domains, ≤256
-IPs, CIDR ≥ /24, ≤5 ports) tracking installations by SHA-256 fingerprint across
-scans; expiration/issuance/renewal/revocation alerts over email, Slack,
+Implemented: the renewal link between a certificate and its successor
+(`insert_renewal_link`, `mark_certificate_renewed`), used by host-custody
+renewal in `crates/gateway/src/managed_certs.rs` (ADR 0075).
+
+Not implemented — storage only (`crates/storage/src/{discovery,cert_alerts,approval_policies,approval_requests}.rs`;
+no route or actor in `crates/gateway` calls them): certificate cleanup N days
+past expiry; network TLS discovery jobs (planned limits ≤20 domains, ≤256 IPs,
+CIDR ≥ /24, ≤5 ports, plan §5.11) tracking installations by SHA-256 fingerprint
+across scans; expiration/issuance/renewal/revocation alerts over email, Slack,
 PagerDuty Events v2 and CloudEvents 1.0 webhooks with HMAC-SHA256 signatures;
 multi-step M-of-N approval workflows with max-request-TTL and machine-identity
 bypass.
 
 ### Code signing (ADR 0070)
 
-Signers are authority handles fulfilling ADR 0005's `SignerRef`, with **no key
-read path of any kind** — not even a human ceremony. The Sign API takes a
-precomputed digest and returns a signature; it never accepts an artifact.
-Approvals pin any subset of command, application name, application SHA-256,
-hostname, OS username, server-observed IP and data hash, and become immutable
-access records with signature counters and signing windows. A PKCS#11 v2.40
-sign-only provider module (`cdylib`) proxies to the Sign API over the daemon
-socket; a Windows CNG KSP is build-only. Every attempt — succeeded, failed or
-denied — appends to the per-signer activity ledger with credential arguments
-redacted at write time.
+Design only. No Sign API route, `SignerRef` type, PKCS#11 provider module or
+Windows KSP exists in this checkout. Storage holds the data model (`signers`,
+`signer_members`, `signing_access_records`, `signing_events`, the `signer_key`
+seal scope, an atomic `increment_signature_count`). The design: signers are
+authority handles with **no key read path of any kind** — not even a human
+ceremony; the Sign API takes a precomputed digest and returns a signature and
+never accepts an artifact; approvals pin any subset of command, application
+name, application SHA-256, hostname, OS username, server-observed IP and data
+hash, and become immutable access records with signature counters and signing
+windows; a PKCS#11 v2.40 sign-only provider module (`cdylib`) proxies to the
+Sign API over the daemon socket, and a Windows CNG KSP is build-only; every
+attempt — succeeded, failed or denied — appends to the per-signer activity
+ledger with credential arguments redacted at write time.
 
 ### HSM connectors (ADR 0071)
 
+Design only. No `cryptoki` dependency, HSM client or connector route exists;
+storage holds `hsm_connectors` (a label, a sealed PIN under the `hsm_pin` scope
+with no read path, a key-label prefix, a verification status). The design: a
 PKCS#11 client over `cryptoki`; connectors carry a slot **label** (never an
-index), a sealed PIN with no read path, and an optional key-label prefix.
-Mechanisms: RSA PKCS#1 v1.5 (raw and SHA-256/384/512) and ECDSA
-SHA-256/384/512; key generation RSA-2048/4096 and P-256/P-384. Verify-on-create
-performs a live sign-and-verify round trip. PIN rotation touches only the
-connector row. HSM-held keys implement the same `Signer` trait as sealed keys,
+index); mechanisms RSA PKCS#1 v1.5 (raw and SHA-256/384/512) and ECDSA
+SHA-256/384/512; key generation RSA-2048/4096 and P-256/P-384; verify-on-create
+performs a live sign-and-verify round trip; PIN rotation touches only the
+connector row; HSM-held keys implement the same `Signer` trait as sealed keys,
 so CA, CRL, OCSP and signing code is custody-agnostic.
 
 ### Syncs (ADR 0069)
 
-Certificate syncs push a certificate, its chain and where applicable its private
-key to administrator-configured destinations through
-`ConnectionBroker::authorized_json`. Key material is unsealed only inside the
-sync actor pass and is never returned to any caller. Every push emits an outbox
-audit event and a `sync_runs` record. SSH and WinRM executors are cargo-feature
-gated and default-off, following ADR 0053. `certmgr.sync.*` is excluded from
-every agent surface.
+Design only. Storage holds `cert_syncs` and `sync_runs`
+(`crates/storage/src/cert_alerts.rs`); no sync actor, destination adapter or
+route exists. The design: push a certificate, its chain and where applicable its
+private key to administrator-configured destinations through
+`ConnectionBroker::authorized_json`; unseal key material only inside the sync
+actor pass and never return it to any caller; emit an outbox audit event and a
+`sync_runs` record per push; gate SSH and WinRM executors behind default-off
+cargo features, following ADR 0053; exclude `certmgr.sync.*` from every agent
+surface.
 
 ### Kubernetes issuer (ADR 0072)
 
-`apps/k8s-issuer` is a kube-rs controller exposing `Issuer` and `ClusterIssuer`
-CRDs in group `certmgr.opensesame.dev`, reconciling cert-manager
-`CertificateRequest`s against the API-enrollment route with machine-identity
-authentication and surfacing the issuing chain in `ca.crt`. The ACME server
-remains the zero-install path for the stock cert-manager ACME issuer.
+Design only. There is no `apps/k8s-issuer` (the apps are `android`,
+`browser-extension`, `browser-extension-autofill`, `cli` and `pages`), no
+`kube` or `k8s-openapi` dependency and no `Issuer` / `ClusterIssuer` CRD in this
+checkout. The design: a kube-rs controller exposing those CRDs in group
+`certmgr.opensesame.dev`, reconciling cert-manager `CertificateRequest`s against
+the API-enrollment route with machine-identity authentication and surfacing the
+issuing chain in `ca.crt`. The stock cert-manager ACME issuer would need the ACME
+server, which is also not implemented.
 
 ## Schema and configuration
 

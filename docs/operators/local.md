@@ -9,6 +9,22 @@
 ## Run gateway
 
 ```bash
+pnpm dev:host   # scripts/dev/dev-host.sh: sources scripts/dev/local-env.sh, then
+                # cargo +1.88.0 run -p opensesame-cli -- host run --listen 127.0.0.1:8787
+```
+
+The Host refuses to start from a bare `host run`: it needs `OPENSESAME_ENV`
+(or `OPENSESAME_ALLOW_DEV_DEFAULTS=1`), loopback `OPENSESAME_RESOURCE` and
+`OPENSESAME_ISSUER` (their defaults are not loopback), and
+`OPENSESAME_OPERATOR_TOKEN` and `OPENSESAME_CLAIM_PEPPER`, each at least 32
+printable ASCII bytes with at least 8 distinct ones
+(`crates/gateway/src/config.rs`, `required_secret`). `source
+scripts/dev/local-env.sh` sets all of that, generating the secrets once as 0600
+files under `~/.local/state/opensesame/development/`, so run the binary
+directly after sourcing it:
+
+```bash
+source scripts/dev/local-env.sh
 cargo run -p opensesame-cli -- host run --listen 127.0.0.1:8787
 ```
 
@@ -16,6 +32,7 @@ With live providers:
 
 ```bash
 ./scripts/dev/start-native-deps.sh
+source scripts/dev/local-env.sh
 source .tools/run/env.sh
 cargo run -p opensesame-cli -- host run \
   --listen 127.0.0.1:18787
@@ -166,18 +183,21 @@ curl -X POST http://127.0.0.1:8787/api/v1/admin/authority \
 
 Device approval and claim completion require the native operator header (or `Authorization: Bearer operator:<token>`). Every deployment requires an explicitly generated operator secret. Browsers cannot present operator authority; use the native pairing ceremony instead.
 
-Set `OPENSESAME_CLAIM_PEPPER` in production too. User codes are eight characters
-from a twenty-letter alphabet — roughly 2^35 possibilities — so their stored
-digests are only out of reach while they are keyed by a server-held pepper. The
-Host logs an error and runs without one if it is unset in production.
+`OPENSESAME_CLAIM_PEPPER` is required in every environment, like
+`OPENSESAME_OPERATOR_TOKEN`: the Host refuses to start without it. User codes
+are eight characters from a twenty-letter alphabet — roughly 2^35 possibilities
+— so their stored digests are only out of reach while they are keyed by a
+server-held pepper.
 
 ### Receipt signing key
 
 Receipts are the non-repudiation record and the receipt store outlives the process,
 so the signing key must too. Set `OPENSESAME_RECEIPT_SIGNING_KEY` to a base64
-32-byte ed25519 seed; the gateway refuses to start without it when
-`OPENSESAME_ENV=production`, because an ephemeral key makes every receipt written
-before a restart verify as `valid: false` — indistinguishable from tampering.
+32-byte ed25519 seed; the gateway refuses to start without it in production
+(`OPENSESAME_ENV=production`) or on a networked deployment (a listener or
+endpoint that is not loopback), because an ephemeral key makes every receipt
+written before a restart verify as `valid: false` — indistinguishable from
+tampering.
 
 ```bash
 export OPENSESAME_RECEIPT_SIGNING_KEY="$(openssl rand -base64 32)"
@@ -186,15 +206,15 @@ export OPENSESAME_RECEIPT_SIGNING_KEY="$(openssl rand -base64 32)"
 Locally the key may be omitted; the gateway logs a warning and generates one per run.
 
 To rotate, move the old key's *public* half into
-`OPENSESAME_RECEIPT_VERIFY_KEYS` (comma-separated base64 32-byte ed25519 public
-keys) and set a new `OPENSESAME_RECEIPT_SIGNING_KEY`. Verification needs no secret,
+`OPENSESAME_RECEIPT_VERIFY_KEYS` (comma- or whitespace-separated base64 32-byte
+ed25519 public keys) and set a new `OPENSESAME_RECEIPT_SIGNING_KEY`. Verification needs no secret,
 so the retired seed can be destroyed while the receipts it signed stay verifiable.
 `GET /api/v1/receipts/keys` publishes the accepted keys so a receipt holder can
 check one without taking the gateway's word for it.
 
 ## Compose (when Docker available)
 
-See `ops/compose/docker-compose.yml` for Keycloak, Postgres, OpenFGA, OpenBao, NATS, gateway, worker, callback-edge.
+See `ops/compose/docker-compose.yml` for Postgres, OpenFGA, OpenBao, Keycloak, NATS and the gateway (`opensesame host run`); the worker (`opensesame worker run`) is under the `workload` profile. Signed provider callbacks are Host routes, not a separate service.
 
 If Docker Engine cannot be installed (no elevated privileges), use the native binary path above — it exercises the same OpenFGA/OpenBao HTTP adapters.
 
@@ -214,7 +234,8 @@ creds in git). Defaults stay in-memory for unit tests.
 # <!-- TASKBUS_ENV -->
 export NATS_URL="nats://127.0.0.1:4222"          # or nats://nats:4222 in Compose
 export OPENSESAME_TASKBUS="${OPENSESAME_TASKBUS:-nats}"  # memory | nats
-# Stream / consumer names (configurable; defaults):
+# Stream / consumer names (fixed defaults, no environment variable):
+#   stream:   OPENSESAME_EVENTS
 #   subjects: opensesame.events.>
 #   durable:  opensesame-worker
 # Callout namespace reserved: opensesame.callout.>
@@ -245,9 +266,10 @@ cargo run -p opensesame-cli -- dev --agent run --schema tests/fixtures/demo.env.
 
 OpenSesame is a **resolver/broker**, not exclusive shell magic — mise/direnv/devcontainers can activate the same schema by calling `opensesame dev resolve` or the env-spec bridge.
 
-The host daemon (`opensesame-daemon`, `OPENSESAME_DAEMON_API`, default
-`127.0.0.1:18790`) issues short-lived session capabilities into
-WSL/devcontainers; containers never receive refresh tokens or WebAuthn
-material. The legacy `opensesame-credential-agent` binary that used to do this
-has been removed; `OPENSESAME_DAEMON_LISTEN` remains an alias for
-`OPENSESAME_DAEMON_LISTEN`.
+The host daemon (`opensesame daemon run`, crate `opensesame-daemon`; clients
+find it at `OPENSESAME_DAEMON_API`, default `http://127.0.0.1:18790`, and it
+binds `OPENSESAME_DAEMON_LISTEN`, default `127.0.0.1:18790`) issues short-lived
+session capabilities into WSL/devcontainers; containers never receive refresh
+tokens or WebAuthn material. The legacy `opensesame-credential-agent` binary
+that used to do this has no source in this checkout; `OPENSESAME_AGENT_LISTEN`
+remains an alias for `OPENSESAME_DAEMON_LISTEN`.

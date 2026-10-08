@@ -27,9 +27,9 @@ ever stores ciphertext; persisted state is sealed blobs, never plaintext.
 |---|---|
 | `DeviceKey` | `generate`, `from_bytes`, `as_bytes` |
 | `seal`, `open` | AEAD over a device key, with associated data |
-| `SyncStore` | `new(device_id)`, `put_local`, `apply_remote`, `collect_outgoing(since)` |
+| `SyncStore` | `new(device_id)`, `put_local`, `apply_remote`, `collect_outgoing(since)`; sealed-blob persistence through `to_persisted_json` / `from_persisted_json` and, off `wasm32`, `save_path` / `load_path` |
 | `SyncCursor`, `SyncBlob` | The sync wire shapes |
-| `snapshot` | `CiphertextSyncSnapshot` (`validate`, `to_json`, `from_json`, `export_ciphertext_snapshot`, `import_ciphertext_snapshot`), `SNAPSHOT_FORMAT`, `SNAPSHOT_VERSION` |
+| `snapshot` | `CiphertextSyncSnapshot` (`validate`, `to_json`, `from_json`), `SyncStore::export_ciphertext_snapshot` / `import_ciphertext_snapshot`, `SNAPSHOT_FORMAT`, `SNAPSHOT_VERSION` |
 | `wit_contract::PACKAGE` | `opensesame:client@1.0.0` — the `spec/wit/client` world |
 | `wasm` (feature `wasm-bindgen`) | `WasmDeviceKey`, `WasmSyncStore`, `wasm_seal`, `wasm_open`, `wit_package` |
 

@@ -137,11 +137,12 @@ DELETE /api/v1/connections/{id}                 200 { "revoked": true,
 POST   /api/v1/connections/{id}/authorize       200 { "authorization_url", "state", "expires_at" }
 POST   /api/v1/connections/{id}/refresh         200 Connection
 POST   /api/v1/connections/{id}/credential      200 Connection   // API key or configuration providers
-POST   /api/v1/connections/{id}/mint            200 DerivedMaterialization   // ADR 0049; administrators only
+POST   /api/v1/connections/{id}/mint            200 DerivedMaterialization   // ADR 0049; see below
 POST   /api/v1/connections/{id}/bindings        200 Connection
 DELETE /api/v1/connections/{id}/bindings/{bid}  200 Connection
 GET    /api/v1/connections/{id}/events          200 { "events": [ Event ] }
-GET    /api/v1/connections/{id}/github/repos    // list (GET) or create (POST) repositories through the connection
+GET    /api/v1/connections/{id}/github/repos    200 { "repositories": [ ... ] }   // GitHub connections
+POST   /api/v1/connections/{id}/github/repos    201 { "full_name", "clone_url", ... }   // private by default
 GET    /api/v1/oauth/callback/{provider_id}     200 or 400 text/html   // provider redirect target
 ```
 
@@ -186,8 +187,8 @@ Event = { "id", "kind": "created"|"authorize_started"|"authorized"|"refreshed"
 **No response body on any route may contain an access token, refresh token, authorization
 code, code verifier, or client secret.** The one exception is `POST /connections/{id}/mint`
 (ADR 0049), which returns a provider-minted, short-lived `derived_token` and never the stored
-credential; it needs an administrator, the connection's owner, and `materialization:
-derived_short_lived`. Every other route is asserted in tests against the leak denylist in
+credential; it needs a caller who may configure integrations and owns the connection, and
+`materialization: derived_short_lived`. Every other route is asserted in tests against the leak denylist in
 `crates/authz/src/authority_use.rs`.
 
 ### Request bodies
