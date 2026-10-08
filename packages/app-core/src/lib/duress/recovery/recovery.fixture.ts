@@ -70,10 +70,7 @@ export const keys = (): Keys => {
   };
   const registry: ApproverRegistry = {
     grants: (request) => {
-      const row = (
-        principalRef: string,
-        custodyDomain: string,
-      ): CustodyGrant =>
+      const row = (principalRef: string, custodyDomain: string): CustodyGrant =>
         grant(
           "recovery_approver",
           principalRef,

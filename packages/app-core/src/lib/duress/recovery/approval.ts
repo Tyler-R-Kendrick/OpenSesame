@@ -365,8 +365,7 @@ export class ApprovalQuorumLedger {
       list.push(approval);
       this.acceptedByDigest.set(request.digest, list);
 
-      const independentApprovers = new Set(list.map((a) => a.approverRef))
-        .size;
+      const independentApprovers = new Set(list.map((a) => a.approverRef)).size;
       return {
         kind: "approval_accepted",
         independentApprovers,
