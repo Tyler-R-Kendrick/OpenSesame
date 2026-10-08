@@ -333,9 +333,6 @@ describe("beginSignIn", () => {
 
     await beginSignIn(upstream);
 
-    // Exactly what shoo.js sends (docs.shoo.dev): client, redirect, state and
-    // an S256 challenge. `response_type` and `scope` are not part of Shoo's
-    // protocol, and profile data is the `pii` flag — absent unless asked for.
     const url = new URL(seen[0] ?? "");
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("code_challenge")).toBeTruthy();
@@ -1388,7 +1385,6 @@ describe("prompt=login for switching accounts", () => {
 
     const url = new URL(seen[0] ?? "");
     expect(url.searchParams.get("prompt")).toBeNull();
-    // The dialect stays exactly Shoo's: nothing else crept in beside it.
     expect([...url.searchParams.keys()].sort()).toEqual([
       "client_id",
       "code_challenge",
