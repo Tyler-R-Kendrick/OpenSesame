@@ -5084,6 +5084,69 @@
       "auto_configurable": false,
       "callback_url": null,
       "catalog_revision": "2026-10-05.1",
+      "category": "local_storage",
+      "configured": false,
+      "connection_configuration_fields": [
+        {
+          "name": "endpoint",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "region",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "bucket",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "prefix",
+          "required": false,
+          "secret": false
+        },
+        {
+          "name": "access_key_id",
+          "required": true,
+          "secret": false
+        },
+        {
+          "name": "secret_access_key",
+          "required": true,
+          "secret": true
+        },
+        {
+          "name": "session_token",
+          "required": false,
+          "secret": true
+        }
+      ],
+      "display_name": "S3-compatible bucket",
+      "docs_url": "https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html",
+      "egress": {
+        "authorities": [],
+        "path_prefixes": [],
+        "scheme": "none"
+      },
+      "id": "s3",
+      "integration_configuration_fields": [],
+      "missing_config": [],
+      "operations": [
+        "s3.get",
+        "s3.put"
+      ],
+      "provenance_url": "https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html",
+      "scopes": [],
+      "supports_refresh": false
+    },
+    {
+      "aliases": [],
+      "auth_kind": "configuration",
+      "auto_configurable": false,
+      "callback_url": null,
+      "catalog_revision": "2026-10-05.1",
       "category": "password_managers",
       "configured": false,
       "connection_configuration_fields": [],
