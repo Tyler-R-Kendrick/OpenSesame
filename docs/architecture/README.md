@@ -19,7 +19,7 @@ flowchart TB
   subgraph HostPlane["Host / authority plane"]
     HOST["Host API :8787"]
     PEP["Policy · grants · broker"]
-    STORE[("SQLite / Postgres<br/>sealed connections")]
+    STORE[("SQLite<br/>sealed connections")]
     DAEMON["Daemon :18790"]
     FGA["OpenFGA"]
     BAO["OpenBao"]
@@ -79,9 +79,9 @@ Possessing a handle never implies permission to resolve it
   encrypted vault with no Host, no Identity API and no localhost service; each
   panel is gated on exactly what it needs
   ([ADR 0090](../adr/0090-static-frontend-complete-without-backend.md)).
-- **Vault keys never leave memory.** The master key is derived on unlock, the
-  vault key is unwrapped in memory, and only ciphertext is persisted (OPFS in
-  the browser) — see [vault format v1](vault-format-v1.md) and the
+- **Vault keys never leave memory.** The wrapping key (passkey PRF, PIN or
+  password) is derived on unlock, the vault key is unwrapped in memory, and
+  only ciphertext is persisted (OPFS in the browser) — see [vault format v1](vault-format-v1.md) and the
   [key hierarchy](../security/key-hierarchy.md).
 - **Optional code is absent until consented.** A capability's module is not
   loaded before an operator's plan and a consent receipt cover it
