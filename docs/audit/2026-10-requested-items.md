@@ -6,12 +6,12 @@ Audited against `origin/main` at `8f70cf43` (2026-10-07), then follow-up fixes o
 
 | # | Item (summary) | Initial | Evidence | Final | Follow-up |
 |---|----------------|---------|----------|-------|-----------|
-| P1 | GHCR container images | NOT DONE | No publish workflow on main | PARTIAL | `.github/workflows/publish-containers.yml` + `docs/operators/publishing.md` — **BLOCKED:** run workflow or push `v*` tag; confirm `packages: write` |
-| P2 | npm publish | NOT DONE | No workflow on main | PARTIAL | `.github/workflows/publish-npm.yml` — **BLOCKED:** add `NPM_TOKEN`, remove `private` on packages to publish |
-| P3 | Vercel + default services | PARTIAL | `apps/pages/vercel.json`; Pages on GH Actions (`deploy-pages.yml` success on main) | PARTIAL | Operator doc; **BLOCKED:** link Vercel project, set `PAGES_*` vars per `deploy-pages.yml` |
+| P1 | GHCR container images | NOT DONE | No publish workflow on main | PARTIAL | PR #776 — **BLOCKED:** run workflow or push `v*` tag; confirm `packages: write` |
+| P2 | npm publish | NOT DONE | No workflow on main | PARTIAL | PR #776 — **BLOCKED:** add `NPM_TOKEN`, remove `private` on packages to publish |
+| P3 | Vercel + default services | PARTIAL | `apps/pages/vercel.json`; Pages on GH Actions (`deploy-pages.yml` success on main) | PARTIAL | PR #776 doc — **BLOCKED:** link Vercel project, set `PAGES_*` vars per `deploy-pages.yml` |
 | A1 | Host as relay + default capability bindings | NOT DONE | Gateway remains full Host API | NOT DONE | ADR-level; no relay-only product slice |
 | A2 | Vaults scoped to users/orgs like GitHub repos | PARTIAL | Project tombs + `listDeviceVaults()` | PARTIAL | Not GitHub-org parity; device + project vaults only |
-| A3 | Environments + prod hash reuse warning | PARTIAL | `vault.environments` module, tests | DONE | `notifyEnvironmentValueReuse()` + test on this branch |
+| A3 | Environments + prod hash reuse warning | PARTIAL | `vault.environments` module, tests | DONE | PR #776 — `notifyEnvironmentValueReuse()` + test |
 | R1 | Smart password reset email config | DONE | `ai.password-reset` capability, `PasswordResetMailPanel`, `password-reset-mail.ts` | DONE | — |
 | R2 | Auto reset from mailbox / per-item email | DONE | `resetEmailId` on account items, `ResetEmailField.tsx`, scan job | DONE | Requires login item type + capability |
 | R3 | Settings under Capabilities, depends on password type | DONE | `runtime.ts` registers panel under `feature-password-reset` | DONE | — |
@@ -47,7 +47,7 @@ Audited against `origin/main` at `8f70cf43` (2026-10-07), then follow-up fixes o
 | H4 | Programmatic walkthroughs per installed features | DONE | `verify:tutorials` gate in CI; tutorial registry | DONE | Full gate not re-run in this audit |
 | H5 | Feature bundles ship walkthroughs | DONE | ADR 0163 + `feature-goals.ts` | DONE | — |
 | H6 | Ask → Search when AI disabled | DONE | `SupportComposer.tsx`, `support.test.tsx` | DONE | — |
-| X1 | Incremental commits + stacked PRs | N/A | Process | DONE | This branch; most UI already on main |
+| X1 | Incremental commits + stacked PRs | N/A | Process | DONE | PR #776 (2 commits); most UI already on main |
 
 ## Commands run (audit evidence)
 
