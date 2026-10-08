@@ -764,6 +764,84 @@ describe("completeSignIn", () => {
       expect(result?.identity.pairwiseSub).toBe("ps_sub-1");
     });
 
+    it("posts a stolen pending record only to the compiled Shoo endpoints", async () => {
+      seedPending({
+        upstreamId: "shoo",
+        issuer: "https://shoo.dev",
+        verifier: "verifier-from-storage",
+        tokenEndpoint: "https://attacker.example/token",
+        sessionCheckEndpoint: "https://attacker.example/check",
+        jwksUri: "https://attacker.example/jwks",
+      });
+      history.replaceState(null, "", "/?code=attacker-code&state=state-1");
+      const calls: string[] = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((input: RequestInfo | URL, init: RequestInit = {}) => {
+          const url = String(input);
+          calls.push(url);
+          if (url === "https://shoo.dev/session/check") {
+            return Promise.resolve(Response.json({ status: "active" }));
+          }
+          expect(url).toBe("https://shoo.dev/token");
+          const body = String(init.body ?? "");
+          expect(body).toContain("code=attacker-code");
+          expect(body).toContain("code_verifier=verifier-from-storage");
+          return Promise.resolve(
+            Response.json({
+              id_token: jwt({
+                iss: "https://shoo.dev",
+                aud: originClientId(),
+                exp: 4_000_000_000,
+                pairwise_sub: "ps_real",
+              }),
+            }),
+          );
+        }),
+      );
+
+      const result = await completeSignIn();
+
+      expect(result?.identity.pairwiseSub).toBe("ps_real");
+      expect(result?.identity.jwksUri).toBe(
+        "https://shoo.dev/.well-known/jwks.json",
+      );
+      expect(calls).toEqual([
+        "https://shoo.dev/token",
+        "https://shoo.dev/session/check",
+      ]);
+      expect(loadSession()?.jwksUri).toBe(
+        "https://shoo.dev/.well-known/jwks.json",
+      );
+    });
+
+    it("posts the mock issuer's code to the compiled loopback token endpoint", async () => {
+      seedPending({
+        tokenEndpoint: "https://attacker.example/token",
+        jwksUri: "https://attacker.example/jwks",
+      });
+      history.replaceState(null, "", "/?code=attacker-code&state=state-1");
+      const fetchMock = vi.fn((input: RequestInfo | URL) => {
+        expect(String(input)).toBe("http://127.0.0.1:9090/token");
+        return Promise.resolve(
+          Response.json({
+            id_token: jwt({
+              iss: "http://127.0.0.1:9090",
+              aud: originClientId(),
+              exp: Date.now() / 1000 + 3600,
+              pairwise_sub: "sub-1",
+            }),
+          }),
+        );
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const result = await completeSignIn();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(result?.identity.jwksUri).toBe("http://127.0.0.1:9090/jwks");
+    });
+
     it("never calls a check endpoint an upstream does not declare", async () => {
       seedPending();
       history.replaceState(null, "", "/?code=abc&state=state-1");
@@ -1239,6 +1317,24 @@ describe("an operator's own identity provider", () => {
     // A provider we do not control needs a subject and a name to be worth
     // signing in with; the origin-profile brokers only ever needed `openid`.
     expect(pending.scope).toBe("openid profile email");
+  });
+
+  it("does not post the code to a token endpoint outside the operator issuer", async () => {
+    withIdps([OKTA]);
+    seedPending({
+      issuer: OKTA.issuer,
+      tokenEndpoint: "https://attacker.example/token",
+      jwksUri: `${OKTA.issuer}/keys`,
+      clientId: OKTA.clientId,
+    });
+    history.replaceState(null, "", "/?code=abc&state=state-1");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(completeSignIn()).rejects.toMatchObject({
+      code: "untrusted_issuer",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("spends the operator's client id at the token endpoint", async () => {
