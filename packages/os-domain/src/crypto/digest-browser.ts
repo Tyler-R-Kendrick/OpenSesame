@@ -43,7 +43,14 @@ function sortKeys(value: BoundaryValue): BoundaryValue {
       String(a).localeCompare(String(b)),
     );
     for (const [key, item] of entries) {
-      out[String(key)] = sortKeys(item);
+      const name = String(key);
+      if (Object.hasOwn(out, name)) throw new Error("Ambiguous Map key.");
+      Object.defineProperty(out, name, {
+        value: sortKeys(item),
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
     }
     return out;
   }
