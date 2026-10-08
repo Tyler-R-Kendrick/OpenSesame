@@ -14,8 +14,9 @@ function validName(name: string): boolean {
 }
 function trimAssignmentName(raw: string): string {
   let name = raw.trim();
-  while (name.length > 0 && nameQuotes.has(name[0])) name = name.slice(1);
-  while (name.length > 0 && nameQuotes.has(name[name.length - 1]))
+  while (name.length > 0 && nameQuotes.has(name.charAt(0)))
+    name = name.slice(1);
+  while (name.length > 0 && nameQuotes.has(name.charAt(name.length - 1)))
     name = name.slice(0, -1);
   return name;
 }
