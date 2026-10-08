@@ -25,6 +25,14 @@ export const PWNED_PURPOSE =
 export const TWO_FACTOR_PURPOSE =
   "2fa.directory's public list of sites that take an authenticator code, fetched whole";
 
+/**
+ * What Settings says `vault.security-checks` does. The capabilities section
+ * shows this while the switch is off; the check panel shows it once the
+ * capability is on. Kept under the catalog's 400-character summary limit.
+ */
+export const SECURITY_CHECKS_SUMMARY =
+  "Compares the open vault's logins with known password breaches and with sites that offer an authenticator code you have not stored. With this on, Settings and Password health show how many passwords were found and which logins could add a second step. Press Check to run it. Only five characters of each password's hash leave this browser; the two-step site list is fetched whole and matched here.";
+
 export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "vault.derived-records",
@@ -81,7 +89,7 @@ export const VAULT_FAMILY_DESCRIPTORS: readonly AuthoredDescriptor[] = [
   optional(
     "vault.security-checks",
     "Breach and two-step checks",
-    "When you press Check, find logins whose password has appeared in a known breach and logins on sites that take an authenticator code you have not stored. Only five characters of each password's hash leave the browser; the list of two-step sites is fetched whole and matched here.",
+    SECURITY_CHECKS_SUMMARY,
     {
       operationIds: ["vault.health.security_check"],
       egress: [

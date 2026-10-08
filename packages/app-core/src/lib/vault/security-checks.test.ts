@@ -10,14 +10,18 @@ import {
   newUri,
 } from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
+import { breachWatchSnapshot } from "./health.js";
 import {
   type CheckFetch,
   PWNED_RANGE_URL,
   TWO_FACTOR_LIST_URL,
   breachCounts,
+  clearSecurityWatch,
+  noteSecurityWatch,
   parseRange,
   parseTwoFactorList,
   runSecurityChecks,
+  securityWatchLabel,
 } from "./security-checks.js";
 
 /** SHA-1 of "password", the corpus's most famous entry. */
@@ -183,5 +187,45 @@ describe("runSecurityChecks", () => {
     );
     expect(report.findings).toEqual([]);
     expect(list.requests).toEqual([]);
+  });
+
+  it("publishes a standing a person can read when the capability is on", async () => {
+    clearSecurityWatch();
+    expect(breachWatchSnapshot().phase).toBe("off");
+    noteSecurityWatch({ phase: "idle" });
+    expect(breachWatchSnapshot()).toMatchObject({
+      phase: "idle",
+      label: "Breach and two-step checks are on. Not checked yet.",
+    });
+    const range = rangeServer(new Map([[PASSWORD_SHA1, 12]]));
+    const list = listServer();
+    const report = await runSecurityChecks(
+      [
+        login("GitHub", "password", "https://github.com/login"),
+        login("Mail", "unique-and-long-1", "https://accounts.google.com"),
+      ],
+      range.fetch,
+      list.fetch,
+    );
+    expect(securityWatchLabel(report)).toBe(
+      "1 of 2 passwords found in known breaches. 2 logins could add an authenticator code.",
+    );
+    noteSecurityWatch({ phase: "checked", report });
+    const watch = breachWatchSnapshot();
+    expect(watch.phase).toBe("checked");
+    if (watch.phase !== "checked") return;
+    expect(watch.label).toBe(securityWatchLabel(report));
+    expect(watch.breached).toBe(1);
+    expect(watch.twoStep).toBe(2);
+    expect(watch.lines.map((line) => line.name)).toEqual(["GitHub", "Mail"]);
+    expect(watch.lines[0]?.sentences).toEqual([
+      "Found in breaches 12 times: change this password",
+      "This site takes an authenticator code; none is stored",
+    ]);
+    expect(watch.lines[1]?.sentences).toEqual([
+      "This site takes an authenticator code; none is stored",
+    ]);
+    clearSecurityWatch();
+    expect(breachWatchSnapshot().phase).toBe("off");
   });
 });

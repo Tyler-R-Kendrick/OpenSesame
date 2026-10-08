@@ -198,6 +198,22 @@
   gap: 0;
 }
 
+.set__security .set__lead,
+.set__security .set__status {
+  margin: 0 0 0.8rem;
+  max-width: 68ch;
+  line-height: 1.5;
+}
+
+.set__security .set__finding {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--ink);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 /* Ten recovery codes: a two-column mono list, because they are data to be
    copied down, not chrome. Used ones are struck through. */
 .codes {

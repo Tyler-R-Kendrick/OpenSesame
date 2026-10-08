@@ -15,6 +15,7 @@
  * one needs nothing the switch adds.
  */
 
+import { SECURITY_CHECKS_SUMMARY } from "@opensesame/app-core/lib/capabilities/catalog-optional-vault.js";
 import {
   FEATURES,
   type Feature,
@@ -299,6 +300,9 @@ function CapabilitySection({
           />
         ) : null}
       </SectionHead>
+      {feature.id === "security-checks" && own.length === 0 ? (
+        <p className="capsection__summary">{SECURITY_CHECKS_SUMMARY}</p>
+      ) : null}
       {tiles ? (
         <ul className="conn-grid" aria-label={`${feature.title} capabilities`}>
           {feature.capabilities.map((id) => (

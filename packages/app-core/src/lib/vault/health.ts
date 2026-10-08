@@ -160,3 +160,64 @@ export function buildHealthReport(items: VaultItem[]): HealthReport {
     counts,
   };
 }
+
+/**
+ * What Password health shows for breach and two-step checks.
+ *
+ * The check runs in `security-checks.ts` and only while `vault.security-checks`
+ * is on. This seat stays in the core vault library, so the health page can
+ * read it without loading that module. `off` is the value while the capability
+ * is off, and the page draws nothing for it.
+ */
+export type BreachWatchLine = Readonly<{
+  id: string;
+  name: string;
+  site: string;
+  breaches: number;
+  twoFactorAvailable: boolean;
+  /** Sentences a person can read without hovering a status mark. */
+  sentences: readonly string[];
+}>;
+
+export type BreachWatch =
+  | Readonly<{ phase: "off" }>
+  | Readonly<{ phase: "idle"; label: string }>
+  | Readonly<{ phase: "checking"; label: string }>
+  | Readonly<{ phase: "error"; label: string }>
+  | Readonly<{
+      phase: "checked";
+      label: string;
+      checked: number;
+      breached: number;
+      twoStep: number;
+      lines: readonly BreachWatchLine[];
+    }>;
+
+const BREACH_WATCH_OFF: BreachWatch = { phase: "off" };
+
+type BreachWatchSlot = {
+  current: BreachWatch;
+  listeners: Set<() => void>;
+};
+
+const breachWatchSlot: BreachWatchSlot = {
+  current: BREACH_WATCH_OFF,
+  listeners: new Set(),
+};
+
+export function breachWatchSnapshot(): BreachWatch {
+  return breachWatchSlot.current;
+}
+
+export function subscribeBreachWatch(listener: () => void): () => void {
+  breachWatchSlot.listeners.add(listener);
+  return () => {
+    breachWatchSlot.listeners.delete(listener);
+  };
+}
+
+/** Replace the seat. Listeners re-read `breachWatchSnapshot`. */
+export function publishBreachWatch(next: BreachWatch): void {
+  breachWatchSlot.current = next;
+  for (const listener of breachWatchSlot.listeners) listener();
+}
