@@ -58,6 +58,7 @@ const vault: VaultHarness = {
   },
 };
 
+import { clearNotices, listNotices } from "@opensesame/app-core/lib/notices.js";
 import { dropSeams } from "@opensesame/app-core/lib/vault/drop.js";
 import { vaultHooksSeams } from "../../lib/vault/hooks.js";
 Object.assign(vaultHooksSeams, {
@@ -66,7 +67,11 @@ Object.assign(vaultHooksSeams, {
 });
 Object.assign(dropSeams, { createClaim, pollClaim });
 
-import { DropRecordFields, ShareSecretDrop } from "./DropCeremony.js";
+import {
+  DropRecordFields,
+  ShareSecretDrop,
+  clockExpiry,
+} from "./DropCeremony.js";
 import { makeAccount } from "./account.test-support.js";
 
 function sessionFor(claimId = "clm_test") {
@@ -127,6 +132,7 @@ beforeAll(() => {
 afterAll(() => revokeRealm());
 
 beforeEach(() => {
+  clearNotices();
   for (const mock of Object.values(store)) mock.mockReset();
   store.saveItem.mockResolvedValue(undefined);
   store.purgeItem.mockResolvedValue(undefined);
@@ -149,6 +155,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  clearNotices();
   cleanup();
   // beforeEach resets mock state; the seam objects themselves stay injected
   // for the whole file (vitest isolates modules per test file).
@@ -187,6 +194,21 @@ function Ceremony({
   );
 }
 
+function expiryRow(): string {
+  return screen.getByText("Expires").closest(".frow")?.textContent ?? "";
+}
+
+describe("clock expiry", () => {
+  const now = Date.parse("2026-08-30T09:00:00.000Z");
+
+  it("adds what is left while the drop is ahead, and the time alone once it has lapsed", () => {
+    expect(clockExpiry("2026-08-30T10:00:00.000Z", now)).toMatch(/left$/);
+    const past = clockExpiry("2026-08-30T08:00:00.000Z", now);
+    expect(past).not.toMatch(/left/);
+    expect(past.length).toBeGreaterThan(0);
+  });
+});
+
 describe("share ceremony on an item", () => {
   it("seals a secret with a TTL and shows the drop card, saving no item", async () => {
     const user = userEvent.setup();
@@ -203,8 +225,13 @@ describe("share ceremony on an item", () => {
     expect(
       screen.getByText(/#token=osc_clm_clm_test\.secret&key=/),
     ).toBeTruthy();
-    expect(screen.getAllByText("ABCD-EFGH").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("ABCD-EFGH")).toHaveLength(1);
+    expect(document.querySelector(".qr__shortcode")).toBeNull();
     expect(screen.queryByText("s3cr3t-value")).toBeNull();
+    const ready = screen.getByRole("region", { name: "Drop ready" });
+    expect(ready.textContent).toMatch(/Opens for\s*1 hour/);
+    expect(expiryRow()).not.toMatch(/left/);
+    expect(ready.querySelector("p.hint")).toBeNull();
     expect(screen.queryByRole("link", { name: /drop record/i })).toBeNull();
     expect(store.saveItem).not.toHaveBeenCalled();
 
@@ -236,14 +263,42 @@ describe("share ceremony on an item", () => {
       screen.getByRole("button", { name }).getAttribute("aria-pressed");
     expect(pressed("1 hour")).toBe("true");
     expect(pressed("10 minutes")).toBe("false");
+    const hourExpiry = expiryRow();
+    expect(hourExpiry).toMatch(/left$/);
 
     await user.click(screen.getByRole("button", { name: "1 day" }));
     expect(pressed("1 day")).toBe("true");
     expect(pressed("1 hour")).toBe("false");
+    expect(expiryRow()).not.toBe(hourExpiry);
+    expect(expiryRow()).toMatch(/left$/);
 
     await user.click(screen.getByRole("button", { name: /Seal and share/i }));
     await screen.findByText("Drop ready");
     expect(createClaim.mock.calls[0]?.[1]).toBe(86_400_000);
+    expect(
+      screen.getByRole("region", { name: "Drop ready" }).textContent,
+    ).toMatch(/Opens for\s*1 day/);
+    expect(expiryRow()).not.toMatch(/left/);
+    expect(screen.queryByRole("radiogroup")).toBeNull();
+  });
+
+  it("keeps a failed seal in the tray and leaves the form up", async () => {
+    const user = userEvent.setup();
+    createClaim.mockRejectedValue(new Error("The drop was not created."));
+    render(<Ceremony item={makeSecret()} />);
+    await user.click(screen.getByRole("button", { name: /Seal and share/i }));
+    await waitFor(() =>
+      expect(listNotices()[0]).toMatchObject({
+        id: "vault:drop:itm_secret",
+        title: "Drop",
+        body: "The drop was not created.",
+        tone: "err",
+      }),
+    );
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(document.querySelector(".note--err")).toBeNull();
+    expect(screen.queryByText("Drop ready")).toBeNull();
+    expect(screen.getByRole("radiogroup", { name: "Opens for" })).toBeTruthy();
   });
 
   it("takes focus on the choice in force when it opens, and Cancel closes it", async () => {
