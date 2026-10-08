@@ -11,7 +11,6 @@ import { compositionStore } from "@opensesame/app-core/lib/capabilities/store.js
 import type { VaultState } from "@opensesame/app-core/lib/vault/store-state.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { EffectivePlan } from "@opensesame/capability-composition";
-import type { RecoveryCodesRecord, VaultHeader } from "@opensesame/vault-core";
 import { fakeAgentAlwaysUnavailable } from "@opensesame/support-agent";
 import type { RecoveryCodesRecord, VaultHeader } from "@opensesame/vault-core";
 import { within } from "@testing-library/react";
