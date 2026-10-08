@@ -58,8 +58,10 @@ every security-relevant test exists to assert a refusal, and a refusal that
 stops refusing still executes the same lines.
 
 `pnpm test:mutation` runs Stryker over the TypeScript planes and
-`cargo-mutants` over the pure decision crates — redaction, task-bus, relay,
-connection-detect. It is scoped rather
+`cargo-mutants` over a scoped set of Rust files in the decision crates —
+redaction, task-bus, relay, connection-detect, human-vault, sealed-store,
+gateway, pki-core and storage (the exact `--file` list is
+`test:mutation:rust` in the root `package.json`). It is scoped rather
 than workspace-wide on purpose: a surviving mutant in a decision function is a
 fence with no test behind it, while a surviving mutant in glue code is usually
 noise, and drowning the first in the second helps nobody.
@@ -128,7 +130,7 @@ merely wrong:
 - `packages/audit` redaction — what reaches an append-only trail. A key that
   stops appearing is an event quietly losing evidence; one that starts
   appearing may be a secret entering a log that is designed never to forget.
-- Pages guest-login / claim-notice copy — a rewrite of "no passkey or
+- Guest-login / claim-notice copy (`packages/app-core`'s guest surfaces) — a rewrite of "no passkey or
   password" or the claim prompt is how a guest path quietly becomes a
   registered-auth demand.
 

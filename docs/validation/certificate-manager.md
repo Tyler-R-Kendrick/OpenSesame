@@ -214,16 +214,24 @@ Seal scopes, one per secret purpose, alongside the existing
 `signer_key`, `hsm_pin`, `external_ca_credential`, `crl_der`,
 `acme_account_key`.
 
-New configuration knobs are `pub fn`s in `crates/gateway/src/config.rs` and are
-documented in `.env.schema` with `@type` / `@required` / `@sensitive` /
-`@public` annotations. No live secret is committed.
+No certificate-manager configuration knob has been added to
+`crates/gateway/src/config.rs` or `.env.schema` yet; any that is added follows
+the env-spec pattern (`@type` / `@required` / `@sensitive` / `@public`
+annotations). No live secret is committed.
 
 - Migration applies from empty: _pending: fill from the run of
   `cargo +1.88.0 test -p opensesame-storage`._
-- `.env.schema` knobs added: _pending: enumerate after the Assembler wiring
-  lands._
+- `.env.schema` knobs added: none.
 
 ## Standards and dependencies
+
+The table is the scope the full design claims. In this checkout the engine
+(`opensesame-pki-core`) implements RFC 5280 issuance and CRL v2 build/verify,
+RFC 6960 request and response build/verify, RFC 7468 PEM, RFC 7292 PKCS#12 and
+the PKCS#7 `certs-only` format EST uses; the Host serves RFC 7030 EST and the
+RFC 8555 ACME *client* (DNS-01). The ACME server, the SCEP server, the CRL and
+OCSP endpoints, the PKCS#11 client and provider, and CloudEvents webhooks are
+not implemented.
 
 | Standard | Scope claimed here |
 |---|---|
@@ -242,36 +250,40 @@ Per `docs/reference/protocol-conformance.md`, passing the repository's suites es
 this implementation profile only; it is not certification, and no certification
 is claimed from repository evidence.
 
-Dependencies: `rcgen` and `x509-parser` (already vetted in the ADR 0052-cert
-stack), `instant-acme = 0.8.5` exact-pinned (client, and reused as the hermetic
-test client against our own ACME server), `cryptoki` (HSM client, gateway only),
-`kube` and `k8s-openapi` (Kubernetes issuer only). No new `reqwest` dependent is
-introduced (ADR 0048 D5); all third-party egress goes through
-`ConnectionBroker::authorized_json`. `pnpm audit:daemon-deps` must stay green:
-none of `cryptoki`, `kube`, or `k8s-openapi` may reach a daemon-adjacent tree.
+Dependencies in use: `rcgen` 0.13 and `x509-parser` 0.16 (`pki-core` and the
+gateway, already vetted in the ADR 0052-cert stack), the RustCrypto `der` 0.7
+generation and `p12-keystore` (`pki-core`), and `instant-acme = 0.8.5`
+exact-pinned (the ACME client, gateway). `cryptoki` (HSM client), `kube` and
+`k8s-openapi` (Kubernetes issuer) are not dependencies of any crate in this
+checkout; ADR 0071 and ADR 0072 would add them. The planned syncs and external
+adapters would send third-party egress through
+`ConnectionBroker::authorized_json` (ADR 0048 D5). `pnpm audit:daemon-deps` must
+stay green: none of `cryptoki`, `kube`, or `k8s-openapi` may reach a
+daemon-adjacent tree.
 
 - Dependency review date and findings: _pending: record at integration time,
   with the output of `pnpm audit:cargo-audit` and `pnpm audit:osv`._
 
 ## Security findings and regression proof
 
-Enforcement boundaries and their intended anchors:
+Enforcement boundaries and their anchors. Rows whose anchor is "none yet" name
+a boundary of a component that does not exist in this checkout, so nothing proves
+it:
 
 | Boundary | Anchor |
 |---|---|
-| Sealed custody, redacting `Debug`, no `Clone`/`Serialize` on secret carriers | `crates/storage` sealed-carrier tests |
-| Cross-organization isolation on every new table | storage isolation tests, modeled on `adversarial_ephemeral_history_isolated_between_organizations` in `crates/gateway/src/routes/certs.rs` |
-| Application/signer role gates before any `st.db` access | forthcoming `crates/gateway/src/routes/certmgr_roles.rs` tests |
-| Non-member sees 404, not 403 | `certmgr_app.rs` inline tests |
-| ACME nonce single-use; account-bound order lookup | `acme_server.rs` hermetic e2e |
-| EAB mandatory on `new-account` | `acme_server.rs` inline tests |
-| SCEP dynamic challenge single-use, bounded expiry and pending set | `scep_server.rs` fixture interop tests |
-| Revoked serial appears in CRL and OCSP; unrelated serial reads `good`; unknown serial reads `unknown` | `crates/pki-core` revocation tests |
-| Tampered CRL fails verification; OCSP signed only by CA or valid delegate | `crates/pki-core` revocation tests |
-| Signing scope pin mismatch denies and ledgers | `certmgr_signers.rs` inline tests |
-| Signature counter increments atomically under concurrency | `certmgr_signers.rs` concurrency test |
-| Credential arguments redacted before write | `certmgr_signers.rs` redaction tests |
-| Sync key material never reaches a caller or a log | `cert_syncs` adapter tests |
+| Sealed custody, redacting `Debug`, no `Clone`/`Serialize` on secret carriers | `crates/pki-core` secret-carrier types (`KeyPair`, `GeneratedCa`, `SealedKeySigner`, `Pkcs12Entry`); `crates/storage` sealed-carrier tests |
+| Cross-organization isolation on every new table | `certmgr_rows_are_isolated_between_organizations` (`crates/storage/src/tests.rs`) and `given_two_organizations_each_with_a_certificate_when_one_lists_then_the_other_is_never_returned` (`crates/storage/tests/certmgr_behavior.rs`); route-level `adversarial_*_another_organization*` tests in `routes/certmgr_ca.rs`, `certmgr_policy.rs` and `certmgr_profile.rs`; modeled on `adversarial_ephemeral_history_isolated_between_organizations` in `crates/gateway/src/routes/certs_tests.rs` |
+| Owner/admin gate before any `st.db` access on the authority, policy and profile routes | `require_configurator` in `routes/certmgr_ca.rs` and `routes/certmgr_policy.rs`; application and signer role gates: none yet (no `certmgr_roles.rs`) |
+| Another organization's object is a 404, not a 403 | the `adversarial_*_another_organization*` tests above |
+| ACME nonce single-use | `chaos_exactly_one_task_consumes_an_acme_nonce` (`crates/storage/tests/certmgr_chaos.rs`), at the store only; ACME server, account-bound order lookup and mandatory EAB: none yet |
+| SCEP challenge single-use | `chaos_exactly_one_task_consumes_a_scep_challenge` and `given_a_scep_challenge_already_consumed_...` (`crates/storage/tests/certmgr_chaos.rs`, `certmgr_behavior.rs`), at the store only; SCEP server, bounded expiry and pending set: none yet |
+| Revoked serial appears in CRL and OCSP; unrelated serial reads `good`; unknown serial reads `unknown` | `crates/pki-core` revocation tests (`a_revoked_serial_appears_in_the_crl_and_ocsp_agrees_on_the_reason`, `adversarial_a_serial_the_authority_never_issued_is_unknown_not_good`) |
+| Tampered CRL fails verification; OCSP signed only by CA or valid delegate | `crates/pki-core` revocation tests (`adversarial_a_tampered_crl_fails_verification`, `adversarial_a_tampered_response_fails_verification`, `a_delegated_responder_signs_with_its_own_key`) |
+| EST refuses a policy-violating CSR whole and authenticates every enrollment | `routes/est_server_tests.rs`, `routes/est_enrollment_tests.rs` |
+| Signing scope pin mismatch denies and ledgers; credential arguments redacted before write | none yet (no Sign API) |
+| Signature counter increments atomically under concurrency | `chaos_signature_cap_holds_under_a_racing_swarm` (`crates/storage/tests/certmgr_chaos.rs`), at the store only |
+| Sync key material never reaches a caller or a log | none yet (no sync adapter) |
 | Agent surfaces carry no secret-bearing tool | `assertsNoSecretTools`, `assertsNoSecretNames`, registry parity suites |
 
 - Codex Security targeted review: _pending. Record CLI and plugin versions,
@@ -310,7 +322,10 @@ Parity suites that must stay green — _pending: fill from the run of
 ### Measured results — foundation crates
 
 Recorded from actual runs on 2026-08-30. Every figure below was produced by the
-named command; nothing here is written from expectation.
+named command; nothing here is written from expectation. They were not
+re-measured for this revision, and the suites have grown since: `crates/storage`
+now holds about 380 test functions by source count against the 87 recorded for
+the storage run, and `opensesame-pki-core` has 9 `insta` snapshots.
 
 | Crate | `cargo test` | Tests | Lines | Functions | Regions |
 |---|---|---|---|---|---|
@@ -321,9 +336,10 @@ Both are far above the workspace floors the Rust coverage gate enforces
 (`--fail-under-lines 69 --fail-under-functions 67`), so they raise the workspace
 average rather than drawing on its headroom.
 
-Per-file coverage of the security-critical modules registered in the mutation
-gate — these are the files where a surviving mutant is a security defect rather
-than a style nit:
+Per-file coverage of the security-critical modules — these are the files where a
+surviving mutant is a security defect rather than a style nit. `policy.rs`,
+`revocation.rs`, `bundle.rs` and `crates/storage/src/lib.rs` are registered in the
+mutation gate (`pnpm test:mutation:rust`); `x509.rs` is not:
 
 | File | Lines | Functions |
 |---|---|---|
@@ -371,7 +387,7 @@ Test types delivered per crate (plan §6.0):
 
 | Crate | unit | snapshot | pact | chaos | behavior | property | fuzz |
 |---|---|---|---|---|---|---|---|
-| `opensesame-pki-core` | ✓ | ✓ (6 `insta`) | ✓ | ✓ | ✓ | ✓ | targets registered |
+| `opensesame-pki-core` | ✓ | ✓ (9 `insta`) | ✓ | ✓ | ✓ | ✓ | targets registered |
 | `opensesame-storage` | 36 | 4 | 9 | 6 | 4 | 2 | 1 target |
 
 `cargo-llvm-cov` is not present in a default checkout of this environment and
@@ -380,13 +396,10 @@ was installed to take these measurements (`cargo install cargo-llvm-cov
 
 Per-crate and per-package done-commands — _pending each_:
 
-`cargo +1.88.0 test -p opensesame-gateway`,
+`cargo +1.88.0 test -p opensesame-pki-core`,
+`cargo +1.88.0 test -p opensesame-storage`,
 `cargo +1.88.0 test -p opensesame-gateway`,
 `cargo +1.88.0 test -p opensesame-cli`,
-`cargo +1.88.0 build -p opensesame-hsm-client`,
-`cargo +1.88.0 build -p opensesame-pkcs11-provider`,
-`cargo +1.88.0 build --target x86_64-pc-windows-gnu -p opensesame-windows-ksp`,
-`cargo +1.88.0 test -p opensesame-k8s-issuer`,
 `pnpm --filter @opensesame/capability-registry test`,
 `pnpm --filter @opensesame/mcp-host test`,
 `pnpm --filter @opensesame/api-client test`,
@@ -398,21 +411,26 @@ Depth gates:
 - Rust coverage: _pending: fill from the run of `pnpm test:coverage:rust`._
 - TypeScript mutation: _pending: fill from the run of `pnpm test:mutation:ts`._
 - Rust mutation: _pending: fill from the run of `pnpm test:mutation:rust`._
-- Fuzz — new targets registered in `tests/fuzz/cargo/Cargo.toml`: CSR parser, PKCS#12
-  parser, SCEP CMS parser, ACME JWS parser. Executions and duration:
+- Fuzz — certificate-manager targets registered in `tests/fuzz/cargo/Cargo.toml`:
+  `certmgr_filter_parse`, `pki_csr_parse`, `pki_pkcs12_parse`, `pki_crl_parse`,
+  `pki_ocsp_request_parse` (no SCEP CMS or ACME JWS target exists, as neither
+  server does). Executions and duration:
   _pending: fill from the run of `pnpm audit:fuzz` (short pass) and
   `pnpm audit:fuzz:batch`._
 - Kani / Miri / Shuttle: _pending: fill from the runs of `pnpm audit:kani`,
-  `pnpm audit:miri`, `pnpm audit:shuttle` if these gates are extended to the new
-  crates; state explicitly if they are not._
+  `pnpm audit:miri`, `pnpm audit:shuttle` if these gates are extended to
+  `opensesame-pki-core` and the certificate-manager storage code; state
+  explicitly if they are not._
 
 **No number in this document may be written from expectation.** A gate that has
 not been run stays `_pending_`.
 
 ## Validation limits — what CI actually proves, per area
 
-This table is authoritative and is reproduced from plan §6. Read it as the
-ceiling on every claim above.
+This table is reproduced from plan §6. Read it as the ceiling on every claim
+above. Rows for the ACME server, SCEP, external CA adapters, the HSM client, the
+PKCS#11 provider, the Windows KSP, the Kubernetes issuer and the sync executors
+describe planned depth: those components are not in this checkout.
 
 | Area | Validation depth in CI |
 |---|---|
@@ -432,8 +450,15 @@ Which Windows KSP variant applied in this run: _pending: state whether the
 
 ## Residual risk and intentionally unsupported profiles
 
+Items 1–11 belong to components that are not implemented in this checkout
+(external CA adapters, the HSM client, the Windows KSP, the Kubernetes issuer,
+the Sign API, the ACME and SCEP servers, syncs, CRL generation); they state the
+risk the design accepts once those components exist. Item 13 is partly
+implemented.
+
 1. **External CA adapters are fixture-validated only.** AWS PCA, DigiCert,
-   Sectigo, GoDaddy, Azure ADCS, Venafi Cloud and private-ACME adapters are
+   Sectigo, GoDaddy, Azure ADCS, Venafi Cloud and private-ACME adapters (named
+   as `external_ca_configs` kinds in the schema; no adapter exists yet) would be
    exercised against recorded request/response fixtures. A provider that changes
    its API breaks in production before it breaks in CI. Live provider validation
    is an operational obligation of onboarding.
@@ -484,8 +509,9 @@ Which Windows KSP variant applied in this run: _pending: state whether the
     are the IaC surfaces under ADR 0065); KMS/KMIP/SSH-CA/PAM (out of
     Certificate Manager scope).
 13. **Upstream HTTP-01 and TLS-ALPN-01 remain refused** as an ACME client
-    (ADR 0068 §6). Registering a private upstream ACME directory yields trust
-    class `private_local` and never `public_web`.
+    (ADR 0068 §6). The design rule that registering a private upstream ACME
+    directory yields trust class `private_local` and never `public_web` has no
+    implementation yet: there is no registration route.
 14. **This document claims the documented subsets** of RFC 5280, 8555, 7030,
     8894, 6960, 7468, 7292 and PKCS#11 v2.40 — not general CA, WebPKI, browser,
     hardware, NIST or provider conformance.

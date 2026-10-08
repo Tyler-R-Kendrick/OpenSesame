@@ -80,7 +80,7 @@ Run the broker:
 ```bash
 OPENSESAME_ORIGIN_CLIENTS_ENABLED=true \
 OPENSESAME_PUBLIC_URL=http://127.0.0.1:8788 \
-OPENSESAME_ENV=development OPENSESAME_ALLOW_DEV_DEFAULTS=true \
+OPENSESAME_ENV=development OPENSESAME_ALLOW_DEV_DEFAULTS=1 \
 pnpm --filter @opensesame/control-plane start
 ```
 
