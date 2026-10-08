@@ -13,7 +13,8 @@ import { Redacted } from "effect";
 import { signS3 } from "./s3-sigv4.js";
 
 export const ACCESS_KEY = "AKIATESTONLY";
-export const SECRET_KEY = "test-secret-key-0123456789abcdef";
+// Synthetic SigV4 key for the injected in-memory bucket only.
+export const SECRET_KEY = "TEST_ONLY_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 export const REGION = "eu-west-1";
 export const BUCKET_NAME = "vault-bucket";
 export const ENDPOINT = "https://s3.test";
