@@ -400,7 +400,6 @@ mod tests {
     }
 
     type Shared = Arc<Mutex<MockGithub>>;
-
     async fn start_mock(mock: Shared) -> String {
         let app = Router::new()
             .route(
@@ -514,6 +513,7 @@ mod tests {
             issuer: "https://issuer.local".into(),
             database_url: "sqlite::memory:".into(),
             task_database_url: String::new(),
+            profile: crate::config::GatewayProfile::Host,
         })
         .await
         .unwrap();

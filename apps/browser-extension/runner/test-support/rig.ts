@@ -85,6 +85,7 @@ export async function rig(options: RigOptions = {}): Promise<Rig> {
   const closedTabs: (number | null)[] = [];
   const opened = { pages: 0 };
   const connection: Connection = { host, backup: host };
+  let clock = 0;
   const runner = createRunner({
     settings,
     vault,
@@ -107,9 +108,18 @@ export async function rig(options: RigOptions = {}): Promise<Rig> {
     },
     connect: async () =>
       (await settings.token()) === null ? null : connection,
-    sleep: () => new Promise((resolve) => setTimeout(resolve, 1)),
+    // Wall-clock idle under CI load aborted a live walk: Date.now jumped past
+    // idleMs while the executor was still enqueueing the next step. Advance
+    // `now` only with `sleep` so contention cannot end the tick early.
+    // Keep idleMs small: each null poll is a real claim round-trip, and 400
+    // of them exceeds vitest's 5s budget when turbo saturates the runner.
+    now: () => clock,
+    sleep: async (ms = 1) => {
+      clock += Math.max(ms, 0);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    },
     pollMs: 1,
-    idleMs: 400,
+    idleMs: 80,
     loginWindowMs: 40,
     waitMs: 40,
   });
@@ -132,7 +142,18 @@ export async function rig(options: RigOptions = {}): Promise<Rig> {
   };
 }
 
-/** Enqueue one step the way the executor does, without waiting for the runner. */
-export function enqueue(r: Rig, runId: string, request: JsonObject, ms = 150) {
+/**
+ * Enqueue one step the way the executor does, without waiting for the runner.
+ * The dispatch waiter uses wall-clock `setTimeout`. Keep it above a contended
+ * settle (fake `now` does not stop the event loop from stalling under turbo)
+ * and below vitest's testTimeout so refuse-without-settle cases that resolve
+ * null on this timer still finish.
+ */
+export function enqueue(
+  r: Rig,
+  runId: string,
+  request: JsonObject,
+  ms = 2_000,
+) {
   return r.host.dispatch(runId, request, ms);
 }

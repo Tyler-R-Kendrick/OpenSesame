@@ -1,5 +1,24 @@
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use std::{env, net::SocketAddr};
+
+/// Which route set `opensesame host run` serves (ADR 0181).
+///
+/// `host` is the full Host API. `relay` serves liveness and vault-relay
+/// slots only, and refuses every other route.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+pub enum GatewayProfile {
+    Host,
+    Relay,
+}
+
+impl std::fmt::Display for GatewayProfile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Host => "host",
+            Self::Relay => "relay",
+        })
+    }
+}
 
 #[cfg(test)]
 pub use opensesame_host_core::deployment_mode::DeploymentMode;
@@ -42,6 +61,15 @@ pub struct Args {
     pub database_url: String,
     #[arg(long, env = "OPENSESAME_TASK_DB", default_value = "")]
     pub task_database_url: String,
+    /// `host` (default) or `relay`. `OPENSESAME_GATEWAY_PROFILE` selects it
+    /// without a flag. Relay profile does not open the Host database.
+    #[arg(
+        long,
+        env = "OPENSESAME_GATEWAY_PROFILE",
+        value_enum,
+        default_value_t = GatewayProfile::Host
+    )]
+    pub profile: GatewayProfile,
 }
 
 pub fn is_production_env() -> bool {

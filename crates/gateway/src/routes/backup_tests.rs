@@ -15,6 +15,7 @@ async fn state() -> AppState {
         issuer: "https://issuer.local".into(),
         database_url: "sqlite::memory:".into(),
         task_database_url: String::new(),
+        profile: crate::config::GatewayProfile::Host,
     })
     .await
     .unwrap();

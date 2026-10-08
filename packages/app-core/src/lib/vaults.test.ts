@@ -123,8 +123,69 @@ describe("listDeviceVaults", () => {
     expect(work?.state).toBe("locked");
     expect(work?.sealedAt).toBe(header.createdAt);
     expect(work?.sharedKey).toBe(false);
+    expect(work?.address).toBeNull();
     expect(guest?.kind).toBe("guest");
     expect(guest?.state).toBe("empty");
+    expect(guest?.address).toBeNull();
+  });
+
+  it("shows owner/slug from the tomb header and keeps a sealed name", async () => {
+    const { header } = await createVault(PASSWORD);
+    kvSet(
+      tombFileKey("prj_named", HEADER_PATH),
+      JSON.stringify({
+        ...header,
+        publishedAddress: {
+          ownerKind: "organization",
+          owner: "acme",
+          slug: "ledger",
+        },
+      }),
+    );
+    kvSet(
+      tombFileKey(PERSONAL_TOMB, HEADER_PATH),
+      JSON.stringify({
+        ...header,
+        publishedAddress: { ownerKind: "user", owner: "ada", slug: "personal" },
+      }),
+    );
+    const vaults = listDeviceVaults();
+    const personal = vaults.find((vault) => vault.id === PERSONAL_PROJECT_ID);
+    const work = vaults.find((vault) => vault.id === "prj_named");
+    const unnamed = vaults.find((vault) => vault.id.endsWith("f4a2"));
+    expect(personal?.label).toBe("personal");
+    expect(personal?.address).toEqual({
+      ownerKind: "user",
+      owner: "ada",
+      slug: "personal",
+    });
+    expect(work?.label).toBe("Work");
+    expect(work?.address).toEqual({
+      ownerKind: "organization",
+      owner: "acme",
+      slug: "ledger",
+    });
+    expect(unnamed?.address).toBeNull();
+    expect(unnamed?.label).toBe("project · f4a2");
+    expect(JSON.stringify(work)).not.toContain(PASSWORD);
+  });
+
+  it("ignores a published address that does not parse", async () => {
+    const { header } = await createVault(PASSWORD);
+    kvSet(
+      tombFileKey("prj_named", HEADER_PATH),
+      JSON.stringify({
+        ...header,
+        publishedAddress: {
+          ownerKind: "user",
+          owner: "Guest",
+          slug: "personal",
+        },
+      }),
+    );
+    const work = listDeviceVaults().find((vault) => vault.id === "prj_named");
+    expect(work?.address).toBeNull();
+    expect(work?.label).toBe("Work");
   });
 
   it("never lists the guest tomb twice when guest files exist on disk", async () => {
