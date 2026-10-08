@@ -1,10 +1,10 @@
 #!/usr/bin/env node
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 /**
  * Playwright capture for org vault addressing (ADR 0181).
  */
 import { chromium } from "@playwright/test";
-import { fileURLToPath } from "node:url";
-import path from "node:path";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(root, "../../../apps/pages/dist");
@@ -15,7 +15,9 @@ async function main() {
     executablePath: process.env.PLAYWRIGHT_CHROMIUM,
     headless: true,
   });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const page = await browser.newPage({
+    viewport: { width: 1280, height: 900 },
+  });
   await page.goto(`${base}#/guest`, { waitUntil: "domcontentloaded" });
   const skip = page.getByRole("link", { name: /skip/i });
   if (await skip.isVisible().catch(() => false)) await skip.click();
