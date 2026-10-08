@@ -139,7 +139,7 @@ mod imp {
 #[cfg(target_os = "macos")]
 mod imp {
     use super::*;
-    use security_framework::item::{ItemClass, ItemSearchOptions, Limit};
+    use security_framework::item::{ItemClass, ItemSearchOptions, Limit, SearchResult};
 
     /// macOS Keychain backend.
     ///
@@ -163,23 +163,27 @@ mod imp {
                 .limit(Limit::All)
                 .search()
                 .map_err(|e| ProbeError::Keychain(format!("macOS keychain search: {e}")))?;
-            let mut labels = Vec::new();
-            for result in results {
-                let Some(attributes) = result.simplify_dict() else {
-                    continue;
-                };
-                // kSecAttrService ("svce") is what `gh:`-style tools set;
-                // kSecAttrLabel ("labl") is the display fallback.
-                let Some(label) = attributes.get("svce").or_else(|| attributes.get("labl")) else {
-                    continue;
-                };
-                if label.is_empty() {
-                    continue;
-                }
-                labels.push((KeychainStore::MacOsKeychain, label.clone()));
-            }
-            Ok(labels)
+            Ok(labels_from_results(results))
         }
+    }
+
+    fn labels_from_results(results: Vec<SearchResult>) -> Vec<(KeychainStore, String)> {
+        let mut labels = Vec::new();
+        for result in results {
+            let Some(attributes) = result.simplify_dict() else {
+                continue;
+            };
+            // kSecAttrService ("svce") is what `gh:`-style tools set;
+            // kSecAttrLabel ("labl") is the display fallback.
+            let Some(label) = attributes.get("svce").or_else(|| attributes.get("labl")) else {
+                continue;
+            };
+            if label.is_empty() {
+                continue;
+            }
+            labels.push((KeychainStore::MacOsKeychain, label.clone()));
+        }
+        labels
     }
 
     pub fn backend() -> Arc<dyn KeychainBackend> {
