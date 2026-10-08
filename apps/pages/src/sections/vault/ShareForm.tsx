@@ -34,6 +34,9 @@ export function ShareForm({
   return (
     <section className="detail__group" aria-label="Share this item once">
       <h2 className="detail__grouphead">Share once</h2>
+      <p className="hint">
+        Opens only in this browser unless a sign-in service relays the claim.
+      </p>
       <TtlChoices
         value={ttlMs}
         onChange={onTtl}

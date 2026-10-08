@@ -218,6 +218,11 @@ describe("share ceremony on an item", () => {
     expect(ttl.querySelectorAll("button")).toHaveLength(3);
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(screen.queryByRole("checkbox", { name: /Keep a copy/ })).toBeNull();
+    expect(
+      screen.getByText(
+        /Opens only in this browser unless a sign-in service relays the claim/,
+      ),
+    ).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: /Seal and share/i }));
     await screen.findByText("Drop ready");
