@@ -1,0 +1,50 @@
+{
+  "run_id": "OpenSesame-run-7",
+  "repo": "OpenSesame",
+  "target": "/workspace",
+  "source_ref": {
+    "commit": "d1ce497fbc40e5c8ea4756674d08d74b116cdaae",
+    "artifact_branch_tip": "68dff5a99f032d00e58148f238703e416534f3ae",
+    "branch": "cursor/cf-audit-run-7-artifacts-d641",
+    "worktree": "clean",
+    "origin_main": "be3c9db9036d23ffabae67d34d5892b38e1a95c8"
+  },
+  "profile": "standard",
+  "scope_paths": [
+    "apps",
+    "crates",
+    "packages",
+    "ops",
+    "spec",
+    "scripts",
+    "tools"
+  ],
+  "budget": null,
+  "execution_policy": "sandboxed-source-and-local-only",
+  "count_status": "counted",
+  "run_status": "in_progress",
+  "current_phase": "2_hunting",
+  "grok_probe": "402 Payment Required (Grok Build usage exhausted); Cursor hunters only",
+  "hunter_platform": "cursor_explore_subagents",
+  "started_at": "2026-10-08T14:55:26Z",
+  "phase_log": [
+    {
+      "phase": "1_reconnaissance",
+      "started_at": "2026-10-08T14:55:26Z",
+      "completed_at": "2026-10-08T15:01:39Z",
+      "agents": ["recon-1a", "recon-1b", "recon-1c", "recon-1d"]
+    }
+  ],
+  "prior_run_paths": [
+    "docs/security/cloudflare-audit/run-1",
+    "docs/security/cloudflare-audit/run-2",
+    "docs/security/cloudflare-audit/run-3",
+    "docs/security/cloudflare-audit/run-4",
+    "docs/security/cloudflare-audit/run-5",
+    "docs/security/cloudflare-audit/run-6"
+  ],
+  "prior_runs_not_counted": ["run-5", "run-6"],
+  "coverage_ledger_units": 54,
+  "shared_file_owners": ["parent"],
+  "notes": "Counted run 7. Phase 1: four parallel Cursor recon agents (1a–1d); parent wrote architecture.md and reset ledger to planned (no build-run-* scripts). Phase 2+ pending."
+}
