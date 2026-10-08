@@ -190,9 +190,12 @@ After that point, commits labeled Grok were not live Grok. Retried once via
 | `d0c18cce` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | feat(adr-0181): org vault directory and relay join walk |
 | `425e446c` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | fix(tutorial): keep the accounts filter off a secret-only vault |
 
-### Static PWA / no default services (on top of #796)
+### Static PWA / no default services (on top of #796) — PR #861
 
 | SHA | Author (as shown) | Real producer | Subject |
 | --- | --- | --- | --- |
-| *(tip)* | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs + remove Pages Identity/Host/daemon stamps; Grok 402 |
+| `1f5d4f6c` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs(audit): provenance for static-PWA stack after Grok 402 |
+| `77823a46` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(pages): stop stamping Identity/Host/daemon into the static app |
+| `34eb310a` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs(audit): P3 is static Pages with no default services |
+| *(pending)* | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | remove Settings › Endpoints; operator docs; ADR 0090 |
 

@@ -174,15 +174,10 @@ await sesame.signIn({ returnTo: "/" });   // provider: sesame.signIn({ provider:
 pnpm --filter @opensesame/example-static-rp dev:4101
 ```
 
-For the OpenSesame PWA the broker URL arrives at deploy time rather than build
-time, so a static deploy is repointed without a rebuild:
-
-```bash
-PAGES_IDENTITY_API=https://<broker> scripts/release/deploy-pages.sh
-```
-
-Without it the deploy ships an empty `os-runtime-config.json` and the vault says it is
-not connected to an identity service — which is the honest answer, not a bug.
+The OpenSesame PWA is a static export (ADR 0090). It does **not** stamp an
+Identity/Host/daemon URL at deploy time. Device identity and guest/local seal
+work with an empty `os-runtime-config.json`. Sessions are browser WebRTC; an
+optional relay peer is separate (ADR 0181).
 
 **Real providers.** Google, Microsoft, GitHub and Apple are configured on the
 *broker*, never on the static site: set `OPENSESAME_PROVIDERS` plus each

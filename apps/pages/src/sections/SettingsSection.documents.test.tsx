@@ -118,10 +118,10 @@ describe("a page's own files", () => {
     expect(textEditor()).not.toBeNull();
   });
 
-  it("show the Endpoints panel on Capabilities, with both addresses", () => {
+  it("draw Capabilities without an Endpoints panel", () => {
     renderAt("/settings/capabilities");
-    expect(screen.getByRole("heading", { name: "Endpoints" })).toBeTruthy();
-    expect(screen.getByLabelText("Connections service")).toBeTruthy();
-    expect(screen.getByLabelText("Local agent")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Endpoints" })).toBeNull();
+    expect(screen.queryByLabelText("Connections service")).toBeNull();
+    expect(screen.queryByLabelText("Local agent")).toBeNull();
   });
 });

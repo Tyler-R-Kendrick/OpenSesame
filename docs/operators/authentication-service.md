@@ -13,11 +13,12 @@ OPENSESAME_SMTP_URL=smtps://user:password@smtp.example.com \
 pnpm --filter @opensesame/control-plane start
 ```
 
-Publish `apps/pages` through the existing Pages deployment with
-`PAGES_IDENTITY_API=https://identity.example.com`, connect Identity, and open
-**Authentication service**. Create an application for each relying party with
-its exact RP ID and HTTPS origins. Copy each shown-once `osa_` API secret into
-that application's backend secret store.
+The Pages PWA is static and does **not** take `PAGES_IDENTITY_API` (Tyler
+2026-10-08). Authentication-service admin UI for relying parties is an
+Identity-plane operator concern on the control-plane origin itself, not a
+required stamp on the static vault. Create an application for each relying
+party with its exact RP ID and HTTPS origins. Copy each shown-once `osa_` API
+secret into that application's backend secret store.
 
 The relying-party frontend imports `createAuthenticationClient` from
 `@opensesame/sdk-browser`; its backend creates `ort_` registration tokens and

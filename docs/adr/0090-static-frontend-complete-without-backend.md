@@ -76,12 +76,14 @@ that.
 
 ### 3. No local host is ever assumed
 
-`lib/settings.ts` has one set of defaults for every origin: empty. A local host
-is a capability somebody configures — `pages-dev.sh` bakes `VITE_HOST_API` and
-`VITE_IDENTITY_API`, a deploy writes `os-runtime-config.json`, an operator
-fills Settings → Endpoints or pairs a daemon — and the shipped `127.0.0.1`
-addresses remain *suggestions* a loopback tab may offer in a pairing field.
-The old loopback/remote split (`localDefaults` / `remoteDefaults`) is gone.
+`lib/settings.ts` has one set of defaults for every origin: empty. The Host
+API, daemon API, and Identity API are **not** Pages backends (Tyler
+2026-10-08). A static deploy writes an empty `os-runtime-config.json` and
+must not stamp `PAGES_IDENTITY_API` / `PAGES_HOST_API` / `PAGES_DAEMON_API`.
+Sessions are browser-hosted WebRTC; a relay peer (ADR 0181) is optional.
+`pages-dev.sh` may still bake `VITE_*` for a full-stack operator tab — that
+is not the shipped static product. The old loopback/remote split
+(`localDefaults` / `remoteDefaults`) is gone.
 
 ### 4. A sign-in with no identity service is complete, not pending
 

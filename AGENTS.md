@@ -878,7 +878,8 @@ Do not add new top-level directories or loose root files — find the group.
   draws the designed page that writes it, never its text** — the same as every
   other page. Never draw YAML as a view, never add a Form/Visual/Source toggle
   or a paste box, and when a key has no designed row, add the row (Capabilities
-  draws an Endpoints panel for the addresses `config.yaml` holds). Only a file
+  adds the designed row on the page that owns the key; Host/Identity/daemon
+  are not Pages backends and have no Endpoints panel). Only a file
   a provider keeps for authoring (an item type's JSON, `marketplaces.json`, a
   routing file) opens in the file viewer, painted in the same colours, from a
   row's key. An item-type marketplace is a git repository read through its

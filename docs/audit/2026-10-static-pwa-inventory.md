@@ -31,7 +31,7 @@ Shipped empty file: `apps/pages/public/os-runtime-config.json` = `{}` (`pages-bo
 | --- | --- | --- |
 | `loadRuntimeConfig` / `applyRuntimeConfig` | `packages/app-core/src/lib/runtime-config.ts`; `apps/pages/src/bootstrap/boot.ts` | `pages-boot` — empty/`absent` OK |
 | Settings keys `hostApi` / `identityApi` / `daemonApi` | `packages/app-core/src/lib/settings.ts`; virtual settings files | `remove-from-pages-wiring` as defaults/suggestions for static |
-| Endpoints UI (Connections service + Local agent) | `apps/pages/src/sections/settings/EndpointsPanel.tsx` | `remove-from-pages-wiring` |
+| Endpoints UI (Connections service + Local agent) | removed (`EndpointsPanel.tsx` deleted) | done — no Host/daemon fields in Settings |
 | WaysIn identity address | `apps/pages/src/screens/setup/WaysIn.tsx` | remote Identity optional; device plane is default |
 | `useHostConfigured` | `apps/pages/src/lib/use-configured.ts` — already always `false` (ADR 0128) | dead gate |
 

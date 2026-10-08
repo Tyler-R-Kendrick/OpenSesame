@@ -282,9 +282,8 @@ describe("SettingsSection", () => {
   it("puts every provider on Capabilities, with no Connections tab", () => {
     renderSettings("#connectivity");
     expect(screen.queryByRole("heading", { name: /^Core/ })).toBeNull();
-    // Endpoints is a panel on this page (the addresses its config.yaml holds),
-    // never a tab of its own.
-    expect(screen.getByRole("heading", { name: "Endpoints" })).toBeTruthy();
+    // No Endpoints panel — Host/Identity/daemon are not Pages backends.
+    expect(screen.queryByRole("heading", { name: "Endpoints" })).toBeNull();
     expect(
       within(
         screen.getByRole("navigation", { name: "Settings sections" }),
