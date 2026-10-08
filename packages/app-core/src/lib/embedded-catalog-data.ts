@@ -69,6 +69,13 @@ export const WALLET_ISSUER_PROVIDER_IDS = [
 ] as const;
 
 /**
+ * Object stores the vault can live in (catalog category `local_storage`).
+ * The bucket is saved on this device like any configuration connector;
+ * `secret-fs/bucket-boot.ts` reads it at boot (ADR 0182).
+ */
+export const STORAGE_PROVIDER_IDS = ["s3"] as const;
+
+/**
  * Field sets this app collects that differ from the catalog row's. Each is a
  * known divergence from the one definition: `connector-catalog.test.ts` pins
  * the ids, so the list can shrink but never grow.

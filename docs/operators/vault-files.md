@@ -80,10 +80,10 @@ prefix to keep the vault under. Conditional writes (`If-Match`,
 S3, MinIO and R2.
 
 In the Pages app a bucket is saved as the S3-compatible bucket connector
-(Settings › Capabilities › Local storage, also reached from the Custom setup
-ceremony's capabilities step); from the next load the vault is read from it.
-Remove the connector and the device goes back to its own storage. The page's origin needs a CORS rule on the
-bucket allowing `GET, PUT, DELETE` with headers `Authorization, If-Match,
+(Settings › Capabilities › Local storage, where the connector pages are on);
+from the next load the vault is read from it.
+Remove the connector and the device goes back to its own storage. The page's
+origin needs a CORS rule on the bucket allowing `GET, PUT, DELETE` with headers `Authorization, If-Match,
 If-None-Match, x-amz-*, Content-Type`, exposing `ETag`. Everything in the bucket
 is sealed under a key the bucket never sees; the names of secrets are the
 object keys.
