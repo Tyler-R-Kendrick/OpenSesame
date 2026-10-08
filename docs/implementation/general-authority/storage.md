@@ -169,7 +169,7 @@ are under `crates/storage/tests/`; the number is the count of test functions.
 | `authority_migrate.rs` (6) | backfill refused without a backup, a translated grant keeping its window and gaining no delegation, malformed/expired/revoked quarantined, another realm out of scope, a crashed pass resuming, a client below the floor refused by name |
 | `authority_restore.rs` (6) | recovery invalidating pre-restore authority without visiting a row, held capacity voided and spend kept, projection state discarded, reissue required, a rolled-back file and a different file both fenced |
 | `authority_offers.rs` (4) | an offer admits each person once and no more than its cap; a snapshot offer without a roster digest and a live offer without a trusted writer are refused |
-| `authority_adversarial_matrix.rs` (5) | the `AT-*` cases named in [`adversarial-matrix.md`](adversarial-matrix.md) |
+| `authority_adversarial_matrix.rs` (5) | the storage-plane `AT-*` cases (realm id, cohort cycle, state restore, multiwriter lease, budget fan-out), mapped in [`adversarial-matrix.md`](adversarial-matrix.md) |
 | `authority_fence.rs` (6) and `authority_fence_freshness.rs` (13), sibling | chain verdicts, revocation ordering, idempotent revoke, freshness — consumed here rather than duplicated |
 
 Shared fixtures are in `crates/storage/tests/authority_support/mod.rs`, which seeds rows with
