@@ -1,6 +1,6 @@
 # ADR 0130 — Duress profiles: trust boundaries
 
-- **Status:** Accepted (implementation in progress on `feat/duress-profiles`)
+- **Status:** Accepted (implemented in `packages/app-core/src/lib/duress/`; built on by [ADR 0155](0155-the-device-duress-code.md) and [ADR 0168](0168-duress-modes-from-scenarios.md))
 - **Date:** 2026-09-21
 - **Deciders:** OpenSesame maintainers
 - **Evidence:** `docs/evidence/2026-09-21-duress/`

@@ -11,8 +11,10 @@ authored page context and the answer never leave the machine.
   `LocalLanguageModelApi` with pre-bound methods, or `null`. Every platform
   method is treated as absent until proven present, and no raw platform value
   escapes the module.
-- `prompt-api-agent.ts` — `createPromptApiSupportAgent()` and
-  `acquireLocalModel()`.
+- `prompt-api-agent.ts` — `createPromptApiSupportAgent()`,
+  `createPromptApiAgent()` (the same agent, or `null` when the browser has no
+  built-in model at all), `acquireLocalModel()` and its throwing wrapper
+  `acquirePromptApiModel()`.
 
 The platform surface is injected: `PromptApiAgentOptions.api` defaults to
 `detectLocalLanguageModel()`, and tests pass a hand-written fake instead. Pass
@@ -22,9 +24,10 @@ The platform surface is injected: `PromptApiAgentOptions.api` defaults to
 
 The first use downloads the model. `run()` refuses with
 `SupportError("AGENT_UNAVAILABLE", …)` whenever the model is anything other
-than `available`; a click handler calls `acquireLocalModel({ onDownloadProgress })`,
-which is the only path in this directory that can start a download. Nothing
-here starts a multi-gigabyte transfer on a person's behalf.
+than `available`; a click handler calls `acquireLocalModel({ onDownloadProgress })`
+(or `acquirePromptApiModel`, which wraps it), the only path in this directory
+that can start a download. Nothing here starts a multi-gigabyte transfer on a
+person's behalf.
 
 ## The honest limitation
 

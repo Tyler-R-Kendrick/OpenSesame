@@ -71,7 +71,7 @@ does not provide that.
 ## Presets (scenario vocabulary)
 
 Presets map to compiled scenario IDs (fixtures under
-`docs/evidence/2026-09-21-duress/examples/` once CONTRACT lands). Labels in UI
+`docs/evidence/2026-09-21-duress/examples/`). Labels in UI
 must match these semantics — do not invent stronger wording.
 
 | Preset / scenario | Typical trigger | What changes | Honest limit |

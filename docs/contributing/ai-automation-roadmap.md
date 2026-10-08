@@ -1,5 +1,16 @@
 # AI subscription & automation roadmap
 
+> Status (2026-10-08): this is the record of an assessment made on 2026-08-09,
+> and several of its findings no longer hold in this checkout. `.github/workflows/`
+> now holds `ci.yml` (the required TypeScript, Bundle budgets and Rust checks),
+> `deploy-pages.yml` (publishes Pages; `scripts/release/deploy-pages.sh` remains
+> as the manual fallback), `full-suite.yml` and `password-parity.yml`, so the
+> "zero GitHub Actions" amendment at the end is superseded. A root `AGENTS.md`
+> exists and `CLAUDE.md` imports it; `.agents/skills/` symlinks the skills in `skills/`;
+> `packages/telemetry` and the six routine prompts in `ops/routines/` exist.
+> For what runs today, read [Contributing](README.md) and
+> [Agent routines](agent-routines.md).
+
 **Date:** 2026-08-09
 **Scope:** How to better use the AI subscriptions and connected services already paid for — across DevEx, security, UX, product analytics, and project management — grounded in the current state of this repo and current agentic-SDLC practice.
 

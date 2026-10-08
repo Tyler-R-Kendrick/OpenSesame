@@ -5,7 +5,7 @@ Before/after images for user-visible changes, one directory per change
 to the interface without cloning the branch, installing, building and walking
 the app.
 
-Each directory holds:
+Most directories hold:
 
 - the composed sheets — one PNG per comparison, each a before and an after of
   the same screen with the measurement that makes the difference a fact;
@@ -16,6 +16,12 @@ Each directory holds:
 - `journey.json` — the screens visited, the steps taken to reach them, and the
   captions. It lives here rather than in the script because a caption that
   outlives its change is a caption nobody rechecks.
+
+A few carry other evidence instead of, or beside, sheets: command output, JSON
+ledgers or measurements (for example `2026-09-24-bitwarden-oracle/`,
+`2026-09-17-ambient-sso/` and the programme directories
+`capability-composition/` and `general-authority/`), with no `journey.json` or
+no images.
 
 Both halves of every pair come from a real build: the base branch's for the
 before, the branch's for the after, walked the same way. Nothing here is a

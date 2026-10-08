@@ -1,7 +1,15 @@
 # ADR 0081 — Live session observation: watching the agent work, and taking the page back
 
-Status: Proposed
+Status: Proposed (partly implemented; see Implementation)
 Date: 2026-08-31
+Implementation: partly built. `crates/session-observe` (the sealed stream, the
+control lease, viewer admission) and the Host routes under
+`/api/v1/agent/runs/{id}` (`observe`, `log`, `handoff`, `control`,
+`release`; `crates/gateway/src/routes/agent_runs/`) exist. §9's WSS relay is not
+built: `observe` is a server-sent-events tail that polls the sealed log every
+500 ms, and `log` is a paged read. No code outside tests appends to the sealed
+log (`append_observation_event` has no non-test caller), so a hosted run writes
+no entries today.
 Supplements: ADR 0076 ([autonomous web-login rotation](0076-autonomous-web-login-rotation.md))
 §4 and §5, ADR 0046
 ([relayed execution and the authorization-request inbox](0046-relayed-execution-and-authorization-inbox.md))

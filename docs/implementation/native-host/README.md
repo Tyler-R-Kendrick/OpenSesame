@@ -1,5 +1,22 @@
 # Native host and self-issued identity — implementation plan
 
+> Status (2026-10-08): live plan, partly landed. [ADR 0138](../../adr/0138-self-issued-identity-one-native-host.md)
+> is still Proposed. Landed: `opensesame` (`apps/cli`) is the one native
+> executable, and `host run`, `daemon run`, `worker run`, the toolbar verbs and
+> the helper and bridge entry points are its subcommands or link names
+> (`apps/cli/src/serve.rs`, `daemon_cmd.rs`, `entry.rs`); `apps/toolbar`,
+> `apps/callback-edge`, `apps/pwa`, `apps/console`, `apps/ceremonies` and
+> `apps/mobile-mfa` are not in this checkout (ADR 0140 records the last three);
+> `apps/android` exists; a vault holds a P-256 identity key whose thumbprint is
+> the open vault's principal ([ADR 0160](../../adr/0160-the-device-identity-plane-is-declared.md)
+> §5, phase 1's first two bullets in part); `opensesame vault verify | ls`
+> exist (`apps/cli/src/vault_file.rs`). Not landed: phase 0's helper-minting fix
+> and full-tree dependency gate, Pages' own sign-in as SIOP, `principal.rotate`,
+> and phases 2, 4, 5, 7 and 8. `crates/host-api`, `host-agent`, `host-identity`
+> and `host-mcp`, `packages/mcp`, `packages/hosted-identity`,
+> `ops/hosted-identity` and `apps/desktop`, named in the Target tree and the
+> phases, are proposals: none of them exists.
+
 The work behind [ADR 0138](../../adr/0138-self-issued-identity-one-native-host.md):
 identity self-issued by default on every surface, one native process per
 machine that hosts it, MCP as a capability of every app, and `apps/` reduced
@@ -11,19 +28,19 @@ the same tests the original did.
 
 ## Where things stand
 
-| Area | Today | Source of the fact |
+| Area | Today (2026-10-08) | Source of the fact |
 |---|---|---|
 | Self-issued sign-in | Pages is a SIOPv2 provider for registered local apps (ES256, thumbprint subject, pairwise keys, passkey-gated consent). Pages' own sign-in is not SIOP. | `packages/siop-v2`, `apps/pages/src/screens/SiopAuthorize.tsx`, ADR 0116 |
-| Principal | The in-tab principal is a random `prn_…`, not key-derived. Promotion to durable needs a broker. | `packages/app-core/src/lib/device-identity-host.ts` (`mintProvisional`), ADR 0033 |
-| Identity without a service | Pages answers its own Identity API when none is set: principals, projects, orgs, agents, OAuth clients, audit. Writes, the approval inbox and MFA codes are unavailable. | `device-identity-local.ts`, ADR 0118 |
+| Principal | With a vault open, the in-tab principal is `prn_` + the thumbprint of a P-256 key sealed in that vault (`config/device-identity-key`, carried in the sealed body); a member's reads `active`, a guest's `provisional`, and assurance is always `provisional`. With no vault, or a key that cannot be read, it is a random `prn_…`. | `packages/app-core/src/lib/device-identity-sessions.ts` (`mintProvisional`, `principalForNow`), `device-identity-key.ts`, ADR 0160 §5 |
+| Identity without a service | Pages answers its own Identity API when none is set: sessions, the principal and claims, and, while `identity.local-iam` is on, the directory (projects, organizations, agents, OAuth clients), audit and the approval inbox. Email and text codes, organization sign-in, federation callbacks and wallet passes are never served by the device. | `device-identity-local.ts`, `device-identity-routes.ts`, ADR 0118, ADR 0160 §3 |
 | Host authorization | The gateway accepts only the control-plane's RS256 `host-authorization+jwt`, so Join's verify and agent-run control need the Identity API. | `crates/gateway/src/host_authorization.rs`, `packages/app-core/src/lib/join/client.ts` |
 | Gateway issuer | Defaults to `https://keycloak.local/realms/opensesame`. | `crates/gateway/src/config.rs` |
-| Daemon | Loopback `:18790` and optional Unix socket, served by `opensesame daemon run`. The `sessions` map is never filled, so `mint_capability` always answers `no_session`. `lib.rs` is 1,581 lines. | `crates/daemon/src/lib.rs` |
+| Daemon | Loopback `:18790` and optional Unix socket, served by `opensesame daemon run`. The `sessions` map is never filled, so `mint_capability` always answers `no_session`. `lib.rs` is 1,500 lines. | `crates/daemon/src/lib.rs` |
 | Helper minting | The daemon requires the operator token even on the socket; the helpers send none, so `/v1/mint` answers 401. | `crates/daemon/src/lib.rs` (`require_operator`), `crates/credential-helpers/src/lib.rs` |
 | Dependency budget | The gate checks depth one; the full tree reaches `sqlx` and `chacha20poly1305` through `host-core`. | `scripts/audit/daemon-deps-gate.sh`, `cargo tree -p opensesame-daemon` |
 | Rust identity primitives | DPoP, JWK thumbprints, PKCE, device flow, discovery parsing, X.509. No OIDC provider, no ID-token minting, no SIOP, no WebAuthn relying party. | `crates/proof`, `crates/authn`, `crates/pki-core` |
-| MCP | Two stdio servers with duplicated sync tools and two audiences; 13 of 189 capabilities reach MCP. Pages has 24 WebMCP tools on a transport-neutral spec the servers do not use. | `packages/mcp-{host,client}`, `packages/webmcp/src/registrar.ts`, `packages/app-core/src/webmcp/` |
-| Desktop | None. The toolbar is `opensesame daemon info / approve-device / approve-claim`. | `apps/cli/src/daemon_toolbar.rs` |
+| MCP | Two servers (`mcp-host` over stdio and Streamable HTTP, `mcp-client` over stdio) with duplicated sync tools and two audiences (`urn:opensesame:agent:mcp-host`, `urn:opensesame:agent:mcp-client`); 13 of 306 capabilities reach MCP. Pages has 29 WebMCP tools on a transport-neutral spec the servers do not use. | `packages/mcp-{host,client}`, `packages/webmcp/src/registrar.ts`, `packages/app-core/src/webmcp/` |
+| Desktop | None (`apps/desktop` does not exist). The toolbar is `opensesame daemon info / approve-device / approve-claim`. | `apps/cli/src/daemon_toolbar.rs` |
 
 ## Target
 
@@ -57,9 +74,12 @@ Phase 3 depends on 2. Phase 4 depends on 1 and 3. Phases 6 and 7 depend on 4.
 - Accept ADR 0138; amend ADRs 0007, 0017, 0033, 0047 §6, 0048 §5, 0049 §4,
   0053, 0065, 0092 and 0124 by reference; update `AGENTS.md` §1 and §4.
 - Fix helper minting: a same-user socket peer is the helper's authority on
-  `/v1/mint`, as `peer_auth.rs`, `mint.rs` and the helper docs already
-  claim. Add an integration test that runs `git-credential-opensesame get`
-  against a real daemon.
+  `/v1/mint`, as the helper crate's docs (`crates/credential-helpers/src/lib.rs`)
+  already claim; the daemon's own `peer_auth.rs` and `mint.rs` document the
+  operator token as required on every transport, which is what the code does.
+  Add an integration test that runs `git-credential-opensesame get` against a
+  real daemon (`apps/cli/tests/credential_helpers.rs` runs the helpers against
+  a stub daemon only).
 - Make `daemon-deps-gate.sh` check the full tree and record today's
   violations as a ledger that may only shrink, so phase 3 can be measured.
 
@@ -71,10 +91,13 @@ Phase 3 depends on 2. Phase 4 depends on 1 and 3. Phases 6 and 7 depend on 4.
 - The vault gains one identity key (P-256, non-extractable in the browser,
   wrapped by the vault key) and a `principal = jwk_thumbprint(identity_key)`
   derivation in `packages/vault-core`, with golden vectors shared with a new
-  Rust reader in `crates/human-vault`.
-- `device-identity-host.ts` mints `prn_<thumbprint>` instead of a random
-  ID. Existing random principals are kept and linked by a signed statement
-  from the new key.
+  Rust reader in `crates/human-vault`. As built (ADR 0160 §5): the key is a
+  P-256 JWK sealed in the tomb at `config/device-identity-key` and copied into
+  the sealed body (`packages/vault-core/src/device-key.ts`); `pages_vault`
+  reads only that the copy is present, and derives no principal.
+- `device-identity-sessions.ts` mints `prn_<thumbprint>` instead of a random
+  ID (done for an open vault). Existing random principals are kept and linked
+  by a signed statement from the new key.
 - Pages' own sign-in becomes a SIOP self-authentication. The Shoo road stays
   as an optional link that attaches a Google account to the principal
   (ADR 0078); the guest road is unchanged (ADR 0135).
@@ -120,7 +143,7 @@ local gateway with no Identity API; a security audit note under
   when configured). `--shared` adds the mTLS listener (ADR 0132).
 - `opensesame daemon install` writes a systemd user unit or launchd agent;
   Windows uses a named pipe with a peer-SID check.
-- ~~Fold into `opensesame`: the toolbar's four commands, the credential
+- ~~Fold into `opensesame`: the toolbar's commands, the credential
   helpers and the password-manager bridges as argv[0] entry points~~ — done.
   `opensesame` is the only native executable: `host run` (the Host API,
   `crates/gateway`), `daemon run` (`crates/daemon`), `worker run`
@@ -128,9 +151,16 @@ local gateway with no Identity API; a security audit note under
   toolbar), and `apps/cli/src/entry.rs` answers as each helper and bridge
   under its link name (`opensesame helpers link`). The callback edge is Host
   API routes (`crates/gateway/src/callback_ingress`). `apps/toolbar` and
-  `apps/callback-edge` are gone; `crates/*` hold libraries only.
+  `apps/callback-edge` are not in this checkout; the native roles in
+  `crates/*` are libraries (the other binaries there are
+  `opensesame-nats-auth-bridge` in `crates/nats-callout`,
+  `opensesame-surrogate-proxy` in `crates/surrogate-proxy` and
+  `uniffi-bindgen` in `crates/authenticator-core`). The Rust worker role is
+  `crates/worker` (`opensesame worker run`, ADR 0132), not removed.
 - Still open: one process per machine (`daemon run` also serving the Host
-  API), the `host-agent` split and its full-tree dependency check.
+  API), the `host-agent` split and its full-tree dependency check, and
+  `daemon install` writing a unit (today it only prints how to run
+  `opensesame daemon run` as a login item).
 
 **Exit:** `cargo +1.88.0 test --workspace --all-targets`; `pnpm test:live-stack`,
 `test:nats-dogfood`, `test:task-access`, `test:mtls`, `test:mtls:integration`
@@ -163,7 +193,7 @@ host.
   Host API call. Generate the catalog into `capabilities.json` as today.
 - `packages/mcp`: the TypeScript adapter over the catalog (low-level
   `Server`, tools/list and tools/call), used by Pages' WebMCP registration,
-  the extension, Android's embedded core and the desktop webview. The 24
+  the extension, Android's embedded core and the desktop webview. The 29
   existing WebMCP tools move onto it.
 - `crates/host-mcp`: the Rust adapter (`rmcp`), served by
   `opensesame mcp serve` (stdio) and by the daemon (Streamable HTTP on the
@@ -190,7 +220,9 @@ host.
   and MCP `task_status` cover it).
 - `packages/cli` (`opensesame-id`): move `vault verify` / `vault ls` into
   `opensesame` over the Rust vault reader from phase 1, checked against the
-  golden vectors; delete the TypeScript CLI.
+  golden vectors; delete the TypeScript CLI. The Rust verbs exist
+  (`opensesame vault verify | ls`, `crates/human-vault` `pages_vault`);
+  `packages/cli` is still in the tree.
 
 **Exit:** `pnpm quality:bundle`, `verify:keyboard`, `verify:mobile`,
 before/after evidence for the moved screens (`skills/visual-evidence`).
@@ -223,9 +255,10 @@ tested against the hosted deployment.
   `packages/mcp`.
 - `apps/browser-extension`: rebuilt on app-core's browser host and
   vault-core; autofill and WebMCP through `packages/mcp`.
-- `apps/android`: rename, then embed an app-core bundle through the sandbox
-  host (`packages/app-core/src/sandbox`), which requires amending ADRs 0058
-  and 0133 §8.
+- `apps/android`: ~~rename~~ — done (`apps/android`), then embed an app-core
+  bundle through the sandbox host (`packages/app-core/src/sandbox`), which
+  requires amending ADRs 0058 and 0133 §8. The sandbox host exists; Android
+  does not embed it yet.
 
 **Exit:** each shell's own tests plus `verify:keyboard` and `verify:mobile`
 where the shell renders Pages.

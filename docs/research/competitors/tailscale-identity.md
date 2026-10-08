@@ -81,7 +81,7 @@ in with *their own* IdP or passkey — not necessarily yours
 
 **User approval:** when on, new users land in `needs approval` — they reach
 the coordination server but cannot connect to devices. Default **on** for
-tailnets created after 2025-05-22. Mutually exclusive with SCIM provisioning.
+tailnets created on or after 2025-05-22. Mutually exclusive with SCIM provisioning.
 
 **Offboarding cascades, documented inline:** suspend freezes devices, tokens,
 and console access (restorable); delete purges device keys from the
@@ -115,9 +115,10 @@ roles — roles stay console-managed
 
 ## 5. User & group provisioning (SCIM) and approvals posture
 
-SCIM for **Google Workspace, Microsoft Entra ID, Okta** only (Enterprise for
-the latter two); never for custom OIDC. Configured on the **User management**
-page (SCIM API key + base URL). Enabling SCIM **disables User approval**.
+SCIM for **Google Workspace, Microsoft Entra ID, Okta** only (Standard,
+Premium and Enterprise plans, as of October 2026); never for custom OIDC.
+Configured on the **User management** page (SCIM API key + base URL). Tailscale
+documents SCIM provisioning and **User approval** as either/or.
 **Device approval** is a separate posture on the Device management page with
 "Needs approval" badges on Machines
 ([provisioning](https://tailscale.com/docs/features/user-group-provisioning)).
@@ -146,8 +147,8 @@ name* / *Tailnet ID* / *Legacy ID*.
 | Tailnet bound/locked to IdP; sticky Legacy ID | Local **IdP registry** = the binding this device brokers; org `ssoIssuer` = the server-side binding | Providers tab; Organization tab |
 | Users page (roles, states, last seen, filters) | People tab: principal state/assurance, linked identities, org members with roles | People tab (gaps: no fleet-wide user list, no last-seen, no invites API) |
 | Switch identity provider | Remove/re-register a brokered IdP (local; server disable is operator-token-only) | Providers tab |
-| PAM Service accounts / Trust credentials (OAuth clients) | OAuth clients CRUD (`/v1/oauth/clients`); agents live on the Access screen | Service accounts tab |
-| Groups (user-defined / synced / autogroups) | **Gap** — no Group entity; org roles `owner|admin|member` only | Recorded in ADR 0060 |
+| PAM Service accounts / Trust credentials (OAuth clients) | OAuth clients CRUD (`/v1/oauth/clients`); managed agents have their own tab | Applications tab (route view `service-accounts`); Agents tab |
+| Groups (user-defined / synced / autogroups) | **Gap** — no Group entity; org roles `owner\|admin\|member` only (a SCIM group maps onto one of those roles, ADR 0056) | Recorded in ADR 0060 |
 | User approval ("Needs approval") | Access screen → Requests tab (relay approval inbox, ADR 0046) | Cross-link, not duplicated |
 | SCIM provisioning | Org SCIM routes exist (ADR 0056); operator/API surface, not a Pages screen | Recorded in ADR 0060 |
-| Device approval | Gateway/control-plane device authorization; approved in Authority screen | Already shipped |
+| Device approval | Gateway/control-plane device authorization; approved in Identity › Devices (`POST /v1/device/approve`) | Already shipped |

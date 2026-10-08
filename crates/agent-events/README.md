@@ -9,9 +9,13 @@ value-blind.
 
 ## Where it fits
 
-- **Used by:** [`opensesame-a2h`](../a2h) and [`crates/gateway`](../../crates/gateway)
-  (`security/dispatch.rs`, `security/delivery.rs`, `lifecycle/responders.rs`,
-  `routes/a2h.rs`, `routes/lifecycle.rs`).
+- **Used by:** [`opensesame-a2h`](../a2h),
+  [`crates/gateway`](../../crates/gateway) (`security/dispatch.rs`,
+  `security/delivery.rs`, `lifecycle/agent_phase.rs`, `routes/a2h.rs`,
+  `routes/lifecycle.rs`, `run_lease.rs`, `web_login/reaper.rs`) and
+  [`opensesame-surrogate-proxy`](../surrogate-proxy) (`surrogate_refusal_notice`).
+  [`opensesame-session-observe`](../session-observe) takes it as a
+  dev-dependency only, for a drift test.
 - **Builds on:** [`opensesame-security-events`](../security-events) —
   `AgentEvent::notice()` returns a `SecurityNotice`, which is the only way
   `agent.*` reaches subscribers. There is no second subscription table and no

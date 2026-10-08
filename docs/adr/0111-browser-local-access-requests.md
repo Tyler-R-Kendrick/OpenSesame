@@ -1,6 +1,6 @@
 # ADR 0111: Browser-local access requests
 
-Status: accepted
+Status: Accepted
 
 Local IAM needs durable request creation and human decisions without a Host or
 Identity endpoint. Requests use the existing domain Interaction lifecycle and

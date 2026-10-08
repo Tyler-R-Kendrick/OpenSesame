@@ -1,5 +1,13 @@
 # Keybinding, hotkey and macro customization
 
+> Status (2026-10-08): [ADR 0156](../adr/0156-keybindings-and-macros.md)
+> landed. Settings › Keybindings
+> (`apps/pages/src/sections/settings/keybindings/`) draws one command
+> catalogue (`packages/app-core/src/lib/keymap/commands.ts`), and the shell's
+> handler (`apps/pages/src/lib/keymap.ts`) resolves every press through the
+> effective keymap. The survey below is as of 2026-09-28; where it and the ADR
+> differ, the ADR wins.
+
 How products with passionate power users let people rebind keys, compose
 sequences and record macros — and what a keyboard-first, vim-flavoured,
 terminal-styled settings page should take from them. Fed
@@ -142,7 +150,8 @@ repeat while held, toggle, or a press/hold/release sequence
   ([docs](https://docs.github.com/en/get-started/accessibility/keyboard-shortcuts)) —
   WCAG 2.1.4 in practice.
 - **Linear** — single letters plus `G then X` navigation, `?` for the full
-  list ([cheat sheet](https://shortcut.fyi/linear-shortcuts)). Not rebindable.
+  list ([cheat sheet](https://shortcut.fyi/linear-shortcuts)). Not rebindable
+  *(unverified)*.
 - **Superhuman** — every command is in `Cmd+K`, which shows each shortcut
   beside its command, so the palette teaches the keys; shortcuts are fixed
   ([help](https://help.superhuman.com/hc/en-us/articles/43658258433299-Desktop-Shortcuts)).
@@ -213,8 +222,8 @@ repeat while held, toggle, or a press/hold/release sequence
 11. **A text form that round-trips.** The table is a view of one file
     (JSON or a vimrc-like text) that can be viewed, edited, exported and
     imported, with removal of a default expressed as an entry (`-command`,
-    `null`, `no_op`) rather than editing defaults — this matches ADR 0134
-    ("Settings is files, and the Form is a view of them"). Presets
+    `null`, `no_op`) rather than editing defaults — this matches ADR 0134 §4
+    ("Settings is files; the Form is a view of them"). Presets
     (vim-default, "arrows only", "no single-letter keys") are just files.
 12. **Reserved keys and guardrails.** Some keys cannot be captured or
     rebound: Tab/Shift-Tab (focus order), Esc's leave-field semantics, F6,

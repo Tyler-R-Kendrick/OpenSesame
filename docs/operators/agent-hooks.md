@@ -133,8 +133,8 @@ operator token (`OPENSESAME_OPERATOR_TOKEN`), or a human's native session with a
 passkey step-up from the last five minutes. An administrator's plain session is
 refused (`403 step_up_required`, with the remedy in `hint`) because the loop the
 policy governs may be running under that very session. A session whose ceiling
-carries agent capabilities is refused as `delegated_credential`, however fresh
-its evidence.
+carries agent capabilities is refused the same way (`403 step_up_required`,
+reason `delegated_credential`), however fresh its evidence.
 
 The passkey branch is implemented and tested against constructed claims, but no
 session in this repository carries step-up evidence today (device approval is

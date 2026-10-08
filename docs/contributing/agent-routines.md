@@ -1,10 +1,13 @@
 # Agent routines — standing automation outside CI
 
-CI is deliberately thin. `.github/workflows/ci.yml` runs lint, typecheck,
-`pnpm test` and `cargo test` as required up-to-date pull-request checks, and
-`.github/workflows/deploy-pages.yml` publishes `apps/pages` from `main`;
-nothing else belongs in Actions. The deeper verification comes from three
-layers, described in `CONTRIBUTING.md` under "Gates":
+CI is the merge gate, not the whole story. `.github/workflows/ci.yml` runs
+what a diff can reach as the required up-to-date pull-request checks
+(TypeScript, Bundle budgets, Rust), `.github/workflows/deploy-pages.yml`
+publishes `apps/pages` from `main`, and two further workflows run the whole
+TypeScript suite nightly (`full-suite.yml`) and the 2password parity gauntlet
+on the pull requests that touch it (`password-parity.yml`). The long audit,
+fuzz and drift passes are not Actions jobs. The deeper verification comes from
+three layers (the gates and hooks are described in [Contributing](README.md)):
 
 1. **Local git hooks** (`.githooks/` + `scripts/dev/setup-hooks.sh`) — run on
    every commit and push, on the contributor's own machine.
@@ -14,8 +17,9 @@ layers, described in `CONTRIBUTING.md` under "Gates":
 3. **This layer: standing autonomous agent routines** — Claude Code cloud
    scheduled sessions ("Routines") that run the deeper, periodic work no
    human or CodeRabbit pass covers: dependency/secret scanning triage, a
-   rotating security audit of the codebase, and documentation drift
-   detection. This document explains how to register and operate them.
+   rotating security audit of the codebase, documentation drift detection, a
+   fuzz batch and an agent-surface parity sweep. This document explains how to
+   register and operate them.
 
 ## Why this replaces CI-hosted agents
 
@@ -49,7 +53,7 @@ to run, the same way this document restates context for you.
 |---|---|---|
 | `ops/routines/nightly-dependency-triage.md` | Nightly | Fix PR (`fix(deps): ...`) or a dated note in `docs/security/tooling-evaluation.md` |
 | `ops/routines/weekly-security-audit.md` | Weekly | New `docs/security/audits/YYYY-MM-DD-<topic>.md` + PR with any small fixes |
-| `ops/routines/nightly-fuzz-batch.md` | Nightly | Crash fix PR or a CLEAN log; never an Actions workflow |
+| `ops/routines/nightly-fuzz-batch.md` | Nightly | Crash fix PR (`fix(fuzz): …`) with a regression input and an audit note; no PR when CLEAN; never an Actions workflow |
 | `ops/routines/weekly-docs-drift.md` | Weekly | Fix PR (`fix(docs): ...`) correcting stale references |
 | `ops/routines/weekly-agent-surface-drift.md` | Weekly | Fix PR for a capability that never gained a registry entry |
 | `ops/routines/pr-security-review.md` | On demand | One structured review comment on a named PR |
@@ -137,6 +141,11 @@ Mon   Tue        Wed   Thu        Fri   Sat   Sun
       07:00                                            weekly-security-audit
                        08:00                            weekly-docs-drift
 ```
+
+`nightly-fuzz-batch.md` and `weekly-agent-surface-drift.md` open with the same
+"paste this whole file as the `prompt` of a scheduled session (a Routine,
+`create_new_session_on_fire=true`)" instruction as the three above, but this
+document gives them no schedule slot.
 
 After creating each trigger, `list_triggers` returns the `trig_...` id —
 record it if you need to `update_trigger`, `fire_trigger`, or

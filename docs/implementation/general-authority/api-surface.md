@@ -11,9 +11,17 @@ Operator bearer/header **or** an owner/admin session. The path
 for operators; the session's organization for humans). A mismatch returns
 `404 not_found` (fail closed). Members receive `403`.
 
-No OpenFGA tuple writes on these routes. Projection dirty/applied helpers in
-`crates/storage/src/authority/projection.rs` are for projectors; domain
-mutations already emit outbox events from the storage transaction.
+The access-domain and offer routes write no OpenFGA tuples. Projection
+dirty/applied helpers in `crates/storage/src/authority/projection.rs` are for
+projectors; domain mutations already emit outbox events from the storage
+transaction. The grant-issue route is the exception: once the issue commits, and
+only when an OpenFGA client is configured, it projects the grant's tuples
+(`project_grant_live`, `crates/gateway/src/openfga_project.rs`); a failed
+projection is logged and leaves the projection unmarked.
+
+Issuing authority that names `credential.export` or `policy.edit`, or sets
+`raw_credential_export`, needs the realm owner or the operator; an admin
+receives `403`. `delegation_depth_remaining` must be 0 to 2.
 
 ## Routes
 

@@ -35,7 +35,7 @@ canonical JSON, context identity, verdict validation and composition.
 | Point | Decision |
 |---|---|
 | `pre_tool_call` | The policy's rule for the tool (exact name, else longest prefix, else `unlisted_tools`, default `escalate`). Plain denies, in this order: the rule's `deny`; a credential in the arguments (`opensesame:raw_secret`); inputs whose `extensions.opensesame.source_labels` meet the rule's or the policy-wide `refuse_labels` (`opensesame:label_flow_denied`, naming the labels). Only then does `escalate` apply. `source_labels` that is not an array of strings is `opensesame:context_unreadable` |
-| `input`, `pre_model_call`, `post_model_call`, `output` | Credential shapes become `[redacted:<kind>]` by a `transform` of `$target` carrying `result_labels: ["opensesame:credential_material"]` (`secret_guard: redact`, the default), or a deny (`deny`) |
+| `input`, `pre_model_call`, `post_model_call`, `output` | Credential shapes become `[redacted:<kind>]` by a `transform` of `$target` carrying `result_labels: ["opensesame:credential_material"]` (`secret_guard: redact`, the default), a deny (`deny`), or nothing at all (`off`) |
 | `post_tool_call` | As above, and every permit also carries the matching rule's `labels` (rule labels first, then carried labels, then the built-in one, each once) |
 | `agent_startup`, `agent_shutdown` | `allow` |
 
@@ -96,10 +96,11 @@ cargo +1.88.0 test -p opensesame-agent-hooks
 cargo +1.88.0 test -p opensesame-cli --test hooks_intercept
 ```
 
-`tests/emitter.rs`, `tests/labels.rs`, `tests/label_propagation.rs`,
-`tests/label_policy.rs` and `tests/approval.rs` drive the interceptor through the
-SDK's own `InterceptionEmitter`, so every verdict passes the canonical §5
-validation and record projection. The `tests/interaction_*.rs` suites run the
+`tests/emitter.rs`, `tests/labels.rs`, `tests/label_propagation.rs` and
+`tests/approval.rs` drive the interceptor through the SDK's own
+`InterceptionEmitter`, so every verdict passes the canonical §5 validation and
+record projection; `tests/label_policy.rs` pins the label lists' syntax and
+positional errors. The `tests/interaction_*.rs` suites run the
 approver against a loopback Identity API double (`tests/interaction_mock`):
 config validation, the wire shape, the digest vectors, decline, withdrawal,
 cancellation by drop, a lost reply retried under one key, and a base URL with a

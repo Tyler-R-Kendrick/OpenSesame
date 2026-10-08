@@ -41,16 +41,21 @@ Kubernetes/GitOps (encrypted manifests in repo; decrypt at apply time).
 - Hierarchical **secret paths** (`Folder/name`) and `opensesame pass` verbs —
   `pass`-shaped, not document-shaped.
 - Human Pages vault + agent ConnectionRef product, not only decrypt-at-apply.
-- Capability connectors bind encryption KMS and git history as product settings.
+- Vault key protectors (age recipients, AWS KMS, Google Cloud KMS —
+  [ADR 0129](../../adr/0129-vault-key-protection-manifest.md)) and a git history
+  capability are product settings.
 
 ## OpenSesame mapping
 
 | SOPS concept | OpenSesame |
 |--------------|------------|
 | Encrypted YAML values | Sealed-store path files (`.osseal` / `.age` / `.gpg`) |
-| age / KMS recipients | Encryption capability connectors + sealed-store recipients |
+| age / KMS recipients | Vault key protectors (`age-recipient`, `aws-kms`, `gcp-kms`, …) + sealed-store recipients (`.age-recipients`) |
+| SOPS YAML/JSON document | Browser-local SOPS engine, `packages/app-core/src/lib/sops` ([ADR 0130](../../adr/0130-browser-local-sops.md)): encrypt, decrypt, edit, import and export in the page, wire-compatible with upstream v3.13.3. Covers YAML and JSON, local age (X25519) identities, key groups with Shamir thresholds; AWS/Azure/GCP KMS adapters are wire-contract only; PGP, HashiCorp Vault and dotenv/ini/binary are refused by name ([wire compatibility](../../security/sops-wire-compatibility.md)) |
+| `sops` binary | Optional: `opensesame pass protect sops encrypt\|decrypt` runs the binary at an absolute `OPENSESAME_SOPS_BIN` (YAML/JSON, age recipients); the browser engine does not use it |
 | `sops decrypt` in CI | Rejected as agent API — ConnectionRef invoke |
 | GitOps file review | Optional — store git history via history capability (GitHub default) |
 
 Related: [age.md](age.md), [pass.md](pass.md),
-[ADR 0037](../../adr/0037-git-sealed-store.md).
+[ADR 0037](../../adr/0037-git-sealed-store.md),
+[SOPS wire compatibility](../../security/sops-wire-compatibility.md).

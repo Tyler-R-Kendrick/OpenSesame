@@ -1,6 +1,6 @@
 # ADR 0100: Generated vault drafts and public link prefills
 
-Status: accepted · 2026-09-09
+Status: Accepted · 2026-09-09
 
 ## Decision
 

@@ -1,5 +1,16 @@
 # Product-experience baseline
 
+> Status (2026-10-08): a record of the checkout this programme started from, not
+> a description of today's Pages. Since then Pages dropped its Host panels
+> ([ADR 0128](../../adr/0128-pages-without-host.md)), so the Host secret-config
+> history named below is not in `apps/pages`, and `apps/pages/src/sections`
+> holds more than five sections (`VaultSection`, `AccessSection`,
+> `ConnectionsSection`, `IdentitySection`, `ActivitySection`, `WalletSection`,
+> `SettingsSection`). Every path in `traceability.json` resolves in this tree.
+> `DESIGN.md` has since been reworded for passkey and PIN sealing
+> ([ADR 0180](../../adr/0180-vaults-are-sealed-by-passkey-not-password.md)), so
+> the Stale prose note below describes the baseline, not today's file.
+
 - Checkout: `config-files` at `041aad7955fac098b0dad5adc615a3d7e7492428`.
 - Prompt baseline `4358f7feacee97468b17abdd9b5ccc02c81ee68d` is an ancestor.
 - Unrelated worktrees (`feat/ga-v-33b-fabric-bin`, agent-auth, pages-stack) were not reset or overwritten.

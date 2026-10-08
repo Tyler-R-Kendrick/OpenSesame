@@ -1,5 +1,16 @@
 # Automatic certificate issuance implementation evidence
 
+> Status (2026-10-08): this is the evidence record for the 2026-08-25
+> integration base; its counts and results were not re-measured. The behavior it
+> describes is in this checkout: the issuer adapters are
+> `crates/gateway/src/cert_issuers/` (`acme.rs` for Let's Encrypt and ZeroSSL
+> with EAB over DNS-01, `cloudflare_dns.rs`, `cloudflare_origin.rs`), the routes
+> are `crates/gateway/src/routes/certs.rs` (`/api/v1/certs/issue`,
+> `/api/v1/certs/deliveries/{request_id}/ack`), and the storage is migration
+> `crates/storage/migrations/0013_certificate_issuance.sql`. The fuzz and
+> concurrency figures have since grown: 48 cargo-fuzz targets, 16 Jazzer.js
+> targets and Shuttle tests in four crates (see [fuzzing.md](fuzzing.md)).
+
 ## Reconciled baseline and stack
 
 Integration base: `291992f987185c99f24c105397a8411bc7c75a3c`

@@ -2,9 +2,10 @@
 
 The host-core SDK facade for the Host / authority plane (ADR 0017). It
 re-exports the authority crates under one name and adds the pieces every local
-host binary shares: daemon listen defaults and bind policy, strict deployment
-mode, the operator bearer check, route-scoped CORS and response hardening, and
-the PACT test oracles. It corresponds to the `opensesame:host@1.0.0` WIT world.
+host binary shares: the service endpoint table (the daemon's listen default
+included) and bind policy, strict deployment mode, the operator bearer check,
+route-scoped CORS and response hardening, and the PACT test oracles. It
+corresponds to the `opensesame:host@1.0.0` WIT world.
 
 ## Where it fits
 
@@ -28,10 +29,11 @@ the PACT test oracles. It corresponds to the `opensesame:host@1.0.0` WIT world.
 |---|---|
 | `audit`, `authn`, `authz`, `broker`, `connector_host`, `core`, `env_spec` | Re-exported crates |
 | `wit_contract::PACKAGE` | `opensesame:host@1.0.0` ([`spec/wit/host/world.wit`](../../spec/wit/host/world.wit)) |
-| `daemon` | `DEFAULT_LISTEN` (`127.0.0.1:18790`), `listen_host_is_loopback`, `assert_tcp_listen_allowed`, `uds_only_requested`, `base_url_is_local`; env names `OPENSESAME_DAEMON_LISTEN` (alias `OPENSESAME_DAEMON_LISTEN`), `OPENSESAME_DAEMON_UDS_ONLY`, `OPENSESAME_ALLOW_NONLOCAL`, `OPENSESAME_DAEMON_ALLOW_NONLOCAL` |
+| `endpoints` | The Host API, Identity API and daemon addresses and listen addresses, read from [`spec/config/endpoints.json`](../../spec/config/endpoints.json) (ADR 0139): `HOST`, `IDENTITY`, `DAEMON`, `endpoint`, `all`, `env`, `fallback`, `listen_env`, `listen_fallback`, `address`. The daemon's default listen address (`127.0.0.1:18790`) is here |
+| `daemon` | `listen_host_is_loopback`, `assert_tcp_listen_allowed`, `uds_only_requested`, `base_url_is_local`; env names `OPENSESAME_DAEMON_UDS_ONLY`, `OPENSESAME_ALLOW_NONLOCAL`, `OPENSESAME_DAEMON_ALLOW_NONLOCAL` (legacy alias) |
 | `deployment_mode` | `DeploymentMode`, `ExposureClass`, `Deployment` (`production_safeguards`), `resolve`, `from_env`, `classify`, `endpoint_exposure` — reads `OPENSESAME_ENV` (which must agree with `NODE_ENV`) and `OPENSESAME_ALLOW_DEV_DEFAULTS` (local-only exposure) |
 | `operator` | `check(expected, headers)`, `token_from_headers`, `constant_time_eq`, `OperatorDenial` |
-| `http_security` | `browser_cors_layer`, `public_cors_layer`, `apply_security_headers`, `apply_http_security`, `parse_cors_origins`, `cors_origins_from_env` (`OPENSESAME_CORS_ORIGINS`), `is_exact_origin`, `is_safe_path_id`, `is_hop_or_forwarding_header` |
+| `http_security` | `browser_cors_layer`, `public_cors_layer`, `ciphertext_drive_cors_layer`, `apply_security_headers`, `apply_http_security`, `parse_cors_origins`, `cors_origins_from_env` (`OPENSESAME_CORS_ORIGINS`), `assert_cors_origins_allowed`, `is_exact_origin`, `is_safe_path_id`, `is_hop_or_forwarding_header` |
 | `pact` | Property / Adversarial / Chaos / conTract oracles shared by Host tests |
 | `duress` | Optional independent-authority duress hold, quarantine and recovery (`IndependentHold`, `DurableEpochs`, `ceiling_for_hold`); timer expiry never unlocks |
 

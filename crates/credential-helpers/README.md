@@ -19,8 +19,14 @@ and no secret of their own.
   `materialization = derived_short_lived`. A provider with no native mint path
   answers `422 unmintable` and the helper fails closed; nothing decrypts a
   stored credential.
-- Authentication is the socket. The kernel attests the peer UID and the daemon
-  authorizes same-UID callers, so the helpers carry no token. Unix only.
+- The helpers send no token; they present only the socket, where the kernel
+  attests the peer UID. The daemon's `/v1/mint` runs `require_operator`, which
+  also demands the operator token (`X-OpenSesame-Operator`) on every transport
+  and treats the peer UID as an extra restriction, so a token-less helper call is
+  answered `401 operator_unauthorized` (`503 operator_token_unconfigured` when
+  the daemon holds none) and the helper fails closed
+  ([operators: credential helpers](../../docs/operators/credential-helpers.md)).
+  Unix only.
 - On any failure a helper exits non-zero with nothing on stdout and only a
   failure class on stderr, never a token or response body.
 
@@ -33,8 +39,9 @@ and no secret of their own.
 | `opensesame-credential-process` | AWS `credential_process` JSON | `OPENSESAME_AWS_CONNECTION_ID` |
 | `opensesame-kube-exec` | client-go `ExecCredential` | `OPENSESAME_KUBE_CONNECTION_ID` |
 
-All helpers read `OPENSESAME_GITHUB_INSTALLATION_ID` for GitHub App
-connections, and `OPENSESAME_AGENT_SOCK` for the socket (default
+The git, Docker and kubectl helpers read `OPENSESAME_GITHUB_INSTALLATION_ID`
+for GitHub App connections, and every helper reads `OPENSESAME_AGENT_SOCK` for
+the socket (default
 `$XDG_RUNTIME_DIR/opensesame/agent.sock`, else `~/.opensesame/agent.sock`).
 The AWS and kubectl helpers fail closed today: the gateway has no AWS or
 Kubernetes mint arm yet, so the daemon answers `422 unmintable`.

@@ -11,10 +11,12 @@ feature.
 ## Where it fits
 
 - **Used by:** [`opensesame-sealed-store`](../sealed-store) (re-exports the OTP
-  functions for `pass`-style `otpauth://` trailers) and
+  functions for `pass`-style `otpauth://` trailers),
+  [`opensesame-bitwarden-server`](../bitwarden-server) (`parse_otpauth` and
+  `totp_code` for its authenticator second factor) and
   [`apps/android`](../../apps/android), whose
-  `scripts/build-core.sh` builds this crate with `--features ffi` and generates
-  Kotlin and Swift bindings from it.
+  `apps/android/scripts/build-core.sh` builds this crate with `--features ffi`
+  and generates Kotlin and Swift bindings from it.
 - **Builds on:** no workspace crates — `hmac`, `sha1`, `sha2`, `url`, `serde`,
   `thiserror`, and optionally `uniffi`.
 - Native adapters translate a `PlatformInvocation` into the OS request type;

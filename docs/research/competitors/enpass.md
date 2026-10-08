@@ -191,7 +191,7 @@ real WireGuard tailnet: headscale, two `tailscaled` nodes, `tailscale serve`).
 | Attachments sync separately | — | **Closed.** Encrypted parts sit beside the snapshot, immutable, behind the slot key; a device fetches what it lacks and keeps it (§16) |
 | Conflicting edits on two devices | Whole-item: the newer copy won | **Surpassed.** Field by field, stamped after everything the device has seen, so two devices' edits to different fields both survive and a slow clock loses nothing it edited later (§13) |
 | Sync in a stock browser | — | **Closed.** Chrome's Local Network Access prompt is asked for only by a person's own action, and a refusal says where to undo it (§11) |
-| Sync from a terminal | Enpass CLI is read-only community tooling | **Surpassed.** `opensesame-id vault sync` (§17) |
+| Sync from a terminal | No official Enpass CLI found; community tools read a vault file | **Surpassed.** `opensesame-id vault sync` (§17) |
 | Sync while the app is closed | Enpass syncs on its own schedule | **Deliberately different.** The vault key is sealed until a person opens the vault, so nothing can merge in the background; the next open catches up, as does coming back online (§12) |
 | Cloud storage providers (iCloud, Drive, Dropbox, OneDrive, WebDAV, Nextcloud) | Git remotes only, push-only | **Deliberately different.** The tailnet drive is the fabric: a machine the person owns, reached only inside their tailnet. A third-party cloud would hold the ciphertext and the slot's history; the protocol (two routes, opaque snapshots) would let one be added as a transport if that ever changes |
 | Business sharing / recovery (Enpass Hub) | Identity shares, recovery codes, duress (ADRs 0079, 0091, 0131) | See *Beyond sync* below |
@@ -208,10 +208,10 @@ real WireGuard tailnet: headscale, two `tailscaled` nodes, `tailscale serve`).
 | Passkeys and TOTP in the vault | Passkey items (vault-custodied ones can sign), TOTP from one set of conformance cases | **Matched** |
 | Browser extension, SRP pairing, host-matched fill | WXT browser extension; keepassxc-protocol and browserpass bridges on the device plane (ADR 0052/0053) | **Craft bar only** — autofill habits, not a clone |
 | Wearables | None | **Out of scope** |
-| Item sharing by pre-shared key | Secret drops (sealed, one-time, with a TTL) and Identity share grants that can be revoked (ADR 0115) | **Matched, and revocable where Enpass's is not** |
+| Item sharing by pre-shared key | Secret drops (sealed, one-time, with a TTL) and Identity share grants that can be revoked (ADR 0062, ADR 0107) | **Matched, and revocable where Enpass's is not** |
 | Business access recovery through a recovery key | Recovery codes stand in for a second step only; nothing can recover a lost master password or passkey | **Deliberate gap.** No party holds a way to unwrap a person's vault |
 | Several vaults, categories, tags | Several vaults per device (ADR 0089); item types are manifests, installable at runtime (ADR 0087) | **Matched** |
-| Import from other managers and CSV | Bitwarden, 1Password, KDBX/KeePass, KeePassXC, LastPass, Dashlane, NordPass, Proton Pass, **Enpass (JSON)**, browsers, CXF, `.env` | **Matched.** The Enpass importer (`vault/import/formats/enpass.ts`) reads Enpass 6's JSON export — logins, cards, notes, folders, typed fields, trash — and names attachments it leaves behind. Its fixture is built from Enpass's documented export shape, not a captured export |
+| Import from other managers and CSV | Bitwarden, 1Password, KDBX/KeePass, KeePassXC, LastPass, Dashlane, NordPass, Proton Pass, **Enpass (JSON)**, browsers, CXF, `.env` | **Matched.** The Enpass importer (`vault/import/formats/enpass.ts`) reads Enpass 6's JSON export — logins, cards, notes, folders, typed fields — skips trashed items and names attachments it leaves behind. Its fixture is built from Enpass's documented export shape, not a captured export |
 
 ## Deliberate non-goals vs Enpass
 
