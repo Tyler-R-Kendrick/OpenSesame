@@ -1,4 +1,4 @@
-import { normalizeLoopbackBaseUrl } from "@opensesame/api-client";
+import { normalizeLoopbackBaseUrl } from "../../runner/host-api-contract.js";
 import { openFromRest, sealForRest } from "@opensesame/browser-at-rest";
 import { ENDPOINTS, isString, overlapCast } from "@opensesame/os-domain";
 

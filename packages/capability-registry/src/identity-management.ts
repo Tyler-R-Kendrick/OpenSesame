@@ -1,4 +1,8 @@
-import { AUTHENTICATOR_HANDOFF, AUTH_CEREMONY } from "./exclusions.js";
+import {
+  AUTHENTICATOR_HANDOFF,
+  AUTH_CEREMONY,
+  CLIENT_NO_HOST_IDENTITY,
+} from "./exclusions.js";
 import type { Capability } from "./index.js";
 import { localOrganizationCapabilities } from "./local-organizations.js";
 import { orgSignInCapabilities } from "./org-signin.js";
@@ -251,13 +255,14 @@ export const identityManagementCapabilities: readonly Capability[] = [
     plane: "identity",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame-id agent init",
+      cli: null,
       pwa: "route:/identity",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
       webmcp: {
         reason:
           "Navigation opens Identity; directory and lifecycle changes require a human decision",

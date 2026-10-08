@@ -4,7 +4,7 @@ import {
   RunnerApiError,
   type RunnerStepOutcome,
   type SettledRunnerStep,
-} from "@opensesame/api-client";
+} from "../host-api-contract.js";
 /**
  * A fake Host that is as strict as the real one about what a driver settles.
  *

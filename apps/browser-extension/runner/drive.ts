@@ -7,8 +7,8 @@ import {
   RunnerApiError,
   type RunnerStepOutcome,
   decodeRunnerStepRequest,
-} from "@opensesame/api-client";
-import type { AgentRunView } from "@opensesame/api-client";
+} from "./host-api-contract.js";
+import type { AgentRunView } from "./host-api-contract.js";
 import type { DriverDeps, EpochState } from "./context";
 import { runStep } from "./driver";
 import type {

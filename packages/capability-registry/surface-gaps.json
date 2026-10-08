@@ -261,8 +261,6 @@
     "env_spec.dev",
     "env_spec.init",
     "files.crypto",
-    "host.discovery",
-    "host.whoami",
     "identity.claims.poll",
     "integrations.read",
     "intents.invoke",

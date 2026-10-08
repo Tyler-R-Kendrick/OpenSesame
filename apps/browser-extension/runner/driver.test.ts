@@ -1,4 +1,4 @@
-import type { RunnerStepRequest } from "@opensesame/api-client";
+import type { RunnerStepRequest } from "./host-api-contract.js";
 import { describe, expect, it } from "vitest";
 import type { DriverDeps } from "./context";
 import { runStep } from "./driver";

@@ -4,7 +4,7 @@ import {
   type WebhookSignature,
   generateWebhookSecret,
   verifyWebhook,
-} from "@opensesame/webhooks";
+} from "../webhooks/index.js";
 
 import { SMS_EVENT_TYPE, createSmsAdapter } from "../adapters/sms.js";
 import { FIXED_NOW, jsonFetch, renderInput, throwingFetch } from "./helpers.js";

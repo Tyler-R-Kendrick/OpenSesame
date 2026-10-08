@@ -8,7 +8,7 @@
  * the value. Every answer is built by `wire.ts`'s closed constructors and
  * checked by `guard` against the step it answers before it leaves.
  */
-import type { RunnerStepRequest } from "@opensesame/api-client";
+import type { RunnerStepRequest } from "./host-api-contract.js";
 import { WAIT_MS, ctxOf } from "./context";
 import type { DriverDeps, EpochState } from "./context";
 import { withinOrigin } from "./origin";

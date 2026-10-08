@@ -1,28 +1,20 @@
 /**
- * The Host, as the runner uses it: the run and step routes, and the Host's
- * ciphertext store as the place a candidate's backup is put and proven.
- *
- * Every call carries the person's own Host session. The base is the same
- * loopback-pinned one the popup shows (`resolveHostBase`), so a rewritten
- * setting cannot send a bearer anywhere else.
+ * Host runner connection types. The Host API was removed from this repository;
+ * the runner loop still accepts an injected connection in tests.
  */
-import {
-  type ApiClient,
-  type ApiClientOptions,
-  type SyncPageCursor,
-  createApiClient,
-} from "@opensesame/api-client";
 import { isJsonObject } from "@opensesame/os-domain";
 import type { BackupStore } from "./backup";
 import { fromB64, toB64 } from "./bytes";
+import type {
+  RunnerHostClient,
+  SyncPageCursor,
+} from "./host-api-contract.js";
 import type { Connection } from "./loop";
 import type { RunnerSettings } from "./settings";
 
-/** Pages of ciphertext read back while proving a backup: more than a Host holds. */
 const MAX_PAGES = 64;
 
-/** The blob under `id` in the Host's ciphertext store, if it holds one. */
-async function findBlob(client: ApiClient, id: string) {
+async function findBlob(client: RunnerHostClient, id: string) {
   let after: SyncPageCursor = { epoch: 1, id: "" };
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const read = await client.syncReadPage(after);
@@ -34,17 +26,15 @@ async function findBlob(client: ApiClient, id: string) {
   return undefined;
 }
 
-/** The ciphertext of a candidate's backup, for the person who holds its key. */
 export async function recoverBackup(
-  client: ApiClient,
+  client: RunnerHostClient,
   id: string,
 ): Promise<Uint8Array | null> {
   const held = await findBlob(client, id);
   return held ? fromB64(held.ciphertext_b64) : null;
 }
 
-/** The Host's opaque ciphertext store, through `/api/v1/sync/*`. */
-export function hostBackup(client: ApiClient): BackupStore {
+export function hostBackup(client: RunnerHostClient): BackupStore {
   return {
     async push(id, bytes) {
       const res = await client.syncPush([
@@ -63,7 +53,7 @@ export function hostBackup(client: ApiClient): BackupStore {
   };
 }
 
-export function hostConnection(client: ApiClient): Connection {
+export function hostConnection(client: RunnerHostClient): Connection {
   return {
     host: {
       listRuns: () => client.listAgentRuns(),
@@ -76,20 +66,11 @@ export function hostConnection(client: ApiClient): Connection {
   };
 }
 
-/** A connection under the person's session, or null when they have none. */
+/** No Host API in this build — connector always yields null. */
 export function connector(
-  settings: RunnerSettings,
-  resolveBase: () => Promise<string>,
-  fetchImpl?: typeof fetch,
+  _settings: RunnerSettings,
+  _resolveBase: () => Promise<string>,
+  _fetchImpl?: typeof fetch,
 ): () => Promise<Connection | null> {
-  return async () => {
-    const accessToken = await settings.token();
-    if (accessToken === null) return null;
-    const options: ApiClientOptions = {
-      baseUrl: await resolveBase(),
-      accessToken,
-    };
-    if (fetchImpl) options.fetchImpl = fetchImpl;
-    return hostConnection(createApiClient(options));
-  };
+  return async () => null;
 }

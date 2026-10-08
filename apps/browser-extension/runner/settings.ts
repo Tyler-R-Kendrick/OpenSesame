@@ -8,7 +8,7 @@
  * completion"). The browser's own host permission is the other half — arming
  * without the grant drives nothing, and a grant without arming drives nothing.
  */
-import type { RunnerStepOutcome } from "@opensesame/api-client";
+import type { RunnerStepOutcome } from "./host-api-contract.js";
 import { isJsonObject, isNumber, isString } from "@opensesame/os-domain";
 import type { SealedKv } from "./store";
 import { decodeOutcome } from "./wire";

@@ -29,6 +29,7 @@ import {
   NEVER_AGENT_SECRET,
   OPS_PLANE,
   PAGES_BINDS_BY_LOCAL_SHARE,
+  CLIENT_NO_HOST_IDENTITY,
   PAGES_HAS_NO_HOST,
   PAGES_HAS_NO_SECRET_CONFIGS,
   PM_PLANE,
@@ -96,14 +97,21 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame identity status",
+      cli: null,
       pwa: null,
-      mcp_host: "host_ready",
-      mcp_client: "host_health",
+      mcp_host: null,
+      mcp_client: null,
       webmcp: null,
-      extension: "message:opensesame.health",
+      extension: null,
     },
-    excluded: { pwa: PAGES_HAS_NO_HOST, webmcp: PAGES_HAS_NO_HOST },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      pwa: PAGES_HAS_NO_HOST,
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
+      mcp_client: CLIENT_NO_HOST_IDENTITY,
+      webmcp: PAGES_HAS_NO_HOST,
+      extension: CLIENT_NO_HOST_IDENTITY,
+    },
   },
   {
     id: "host.health.pages",
@@ -113,9 +121,13 @@ export const CAPABILITIES: readonly Capability[] = [
     surfaces: {
       cli: null,
       pwa: "route:/settings",
-      mcp_host: "host_ready",
-      mcp_client: "host_health",
+      mcp_host: null,
+      mcp_client: null,
       webmcp: "opensesame_health",
+    },
+    excluded: {
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
+      mcp_client: CLIENT_NO_HOST_IDENTITY,
     },
   },
   {
@@ -124,11 +136,16 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame doctor",
+      cli: null,
       pwa: null,
       mcp_host: null,
-      mcp_client: "host_discover",
+      mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
+      mcp_client: CLIENT_NO_HOST_IDENTITY,
     },
   },
   {
@@ -137,13 +154,18 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame identity whoami",
+      cli: null,
       pwa: "route:/identity",
       mcp_host: null,
-      mcp_client: "whoami",
+      mcp_client: null,
       webmcp: null,
     },
-    excluded: { webmcp: PAGES_HAS_NO_HOST },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
+      mcp_client: CLIENT_NO_HOST_IDENTITY,
+      webmcp: PAGES_HAS_NO_HOST,
+    },
   },
   {
     id: "host.login",
@@ -151,13 +173,14 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame login",
+      cli: null,
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
       mcp_host: AUTH_CEREMONY,
       mcp_client: AUTH_CEREMONY,
       webmcp: AUTH_CEREMONY,
@@ -187,13 +210,17 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame access grants task list",
+      cli: null,
       pwa: null,
-      mcp_host: "task_list",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: { webmcp: PAGES_HAS_NO_HOST },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
+      webmcp: PAGES_HAS_NO_HOST,
+    },
   },
   {
     id: "tasks.inspect",
@@ -201,13 +228,17 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame access grants task inspect",
+      cli: null,
       pwa: null,
-      mcp_host: "task_status",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: { webmcp: PAGES_HAS_NO_HOST },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
+      webmcp: PAGES_HAS_NO_HOST,
+    },
   },
   {
     id: "tasks.terminate",
@@ -215,13 +246,17 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame access grants task terminate",
+      cli: null,
       pwa: null,
-      mcp_host: "task_terminate",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: { webmcp: PAGES_HAS_NO_HOST },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
+      webmcp: PAGES_HAS_NO_HOST,
+    },
   },
   {
     id: "tasks.intent.freeze",
@@ -229,11 +264,15 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame access grants intent create",
+      cli: null,
       pwa: null,
-      mcp_host: "task_invoke",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
     },
   },
   {
@@ -242,11 +281,15 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame access grants intent invoke",
+      cli: null,
       pwa: null,
-      mcp_host: "task_invoke_l1",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
     },
   },
   {
@@ -811,11 +854,16 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame vault sync push",
+      cli: null,
       pwa: null,
-      mcp_host: "sync_push",
-      mcp_client: "sync_push",
+      mcp_host: null,
+      mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
+      mcp_client: CLIENT_NO_HOST_IDENTITY,
     },
   },
   {
@@ -824,11 +872,16 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: "opensesame vault sync pull",
+      cli: null,
       pwa: null,
-      mcp_host: "sync_pull",
-      mcp_client: "sync_pull",
+      mcp_host: null,
+      mcp_client: null,
       webmcp: null,
+    },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
+      mcp_client: CLIENT_NO_HOST_IDENTITY,
     },
   },
   {
@@ -1134,13 +1187,14 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "identity",
     kind: "read",
     surfaces: {
-      cli: "opensesame-id claim poll",
+      cli: null,
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
       mcp_client: {
         reason:
           "Human Identity sessions and raw claim bearers are not agent capabilities or model arguments; use the human CLI or browser ceremony",
@@ -1216,13 +1270,17 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "identity",
     kind: "read",
     surfaces: {
-      cli: "opensesame-id whoami",
+      cli: null,
       pwa: "route:/identity",
       mcp_host: null,
       mcp_client: null,
       webmcp: "opensesame_identity_read",
     },
-    excluded: { mcp_host: DEFERRED, mcp_client: DEFERRED },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: DEFERRED,
+      mcp_client: DEFERRED,
+    },
   },
   ...identityManagementCapabilities,
   ...connectorCapabilities,
@@ -1232,13 +1290,17 @@ export const CAPABILITIES: readonly Capability[] = [
     plane: "identity",
     kind: "act",
     surfaces: {
-      cli: "opensesame-id project create",
+      cli: null,
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: { mcp_host: DEFERRED, mcp_client: DEFERRED },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      mcp_host: DEFERRED,
+      mcp_client: DEFERRED,
+    },
   },
   {
     id: "identity.admin",

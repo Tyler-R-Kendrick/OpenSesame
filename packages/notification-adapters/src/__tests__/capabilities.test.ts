@@ -5,7 +5,7 @@ import {
   defaultApprovalPolicy,
   normalizeApprovalPolicy,
 } from "@opensesame/os-domain";
-import { generateWebhookSecret } from "@opensesame/webhooks";
+import { generateWebhookSecret } from "../webhooks/index.js";
 import { describe, expect, it } from "vitest";
 
 import { createGenericWebhookAdapter } from "../adapters/generic-webhook.js";

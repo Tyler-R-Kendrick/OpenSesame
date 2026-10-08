@@ -1,4 +1,4 @@
-import { normalizeLoopbackBaseUrl } from "@opensesame/api-client";
+import { normalizeLoopbackBaseUrl } from "./host-api-contract.js";
 /**
  * Where the Host API is, for everything the extension says to it.
  *

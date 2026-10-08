@@ -4,7 +4,7 @@ import type {
   ClaimedRunnerStep,
   RunnerStepOutcome,
   SettledRunnerStep,
-} from "@opensesame/api-client";
+} from "./host-api-contract.js";
 import type { BackupStore } from "./backup";
 import type { Grants, PagesFactory } from "./ports";
 import type { RunnerSettings } from "./settings";

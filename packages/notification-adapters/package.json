@@ -21,8 +21,7 @@
   },
   "dependencies": {
     "@opensesame/oauth-provider": "workspace:*",
-    "@opensesame/os-domain": "workspace:*",
-    "@opensesame/webhooks": "workspace:*"
+    "@opensesame/os-domain": "workspace:*"
   },
   "devDependencies": {
     "@types/jws": "3.2.10",

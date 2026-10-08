@@ -1,5 +1,5 @@
 /** A driver wired to a jsdom page, a vault and a fake Host, for the step-level tests. */
-import type { RunnerStepRequest } from "@opensesame/api-client";
+import type { RunnerStepRequest } from "../host-api-contract.js";
 import type { DriverDeps } from "../context";
 import { runStep } from "../driver";
 import { JsdomPages } from "./jsdom-pages";

@@ -4,7 +4,7 @@ import {
   generateWebhookSecret,
   signWebhook,
   verifyWebhook,
-} from "@opensesame/webhooks";
+} from "../webhooks/index.js";
 import { describe, expect, it, vi } from "vitest";
 
 import {

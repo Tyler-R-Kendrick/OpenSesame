@@ -1,4 +1,4 @@
-import { RunnerApiError } from "@opensesame/api-client";
+import { RunnerApiError } from "./host-api-contract.js";
 import { describe, expect, it } from "vitest";
 import { RECIPE, changePassword } from "./test-support/executor";
 import { type Rig, enqueue, rig } from "./test-support/rig";

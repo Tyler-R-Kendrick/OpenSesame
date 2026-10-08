@@ -1,6 +1,7 @@
 import {
   BITWARDEN_CLIENT_ONLY,
   BITWARDEN_IMPORT_IS_HUMAN,
+  CLIENT_NO_HOST_IDENTITY,
   HUMAN_CEREMONY,
   NEVER_AGENT_SECRET,
   OPS_PLANE,
@@ -22,13 +23,18 @@ export const nativeHostCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: "opensesame daemon status",
+      cli: null,
       pwa: null,
-      mcp_host: "daemon_health",
+      mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: { pwa: PAGES_HAS_NO_HOST, webmcp: PAGES_HAS_NO_HOST },
+    excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
+      pwa: PAGES_HAS_NO_HOST,
+      mcp_host: CLIENT_NO_HOST_IDENTITY,
+      webmcp: PAGES_HAS_NO_HOST,
+    },
   },
   {
     id: "daemon.lifecycle",

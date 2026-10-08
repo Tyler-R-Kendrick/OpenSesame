@@ -16,7 +16,7 @@
 import type {
   RunnerStepError,
   RunnerStepOutcome,
-} from "@opensesame/api-client";
+} from "./host-api-contract.js";
 import {
   type BoundaryValue,
   type JsonObject,

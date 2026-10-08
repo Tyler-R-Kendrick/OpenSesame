@@ -29,12 +29,7 @@ export const SHARD_GATES = [
   "mobile",
 ];
 /** The gates that are jobs of their own. */
-export const JOB_GATES = [
-  "tutorials",
-  "device-inbox",
-  "device-identity",
-  "push",
-];
+export const JOB_GATES = ["tutorials", "device-inbox", "device-identity"];
 export const ALL_GATES = [...SHARD_GATES, ...JOB_GATES];
 
 const everyGate = () => new Set(ALL_GATES);
@@ -87,13 +82,13 @@ export const DRIVER_GATES = {
   "verify-auth-flow.mjs": ["auth"],
   "verify-experience-journeys.mjs": ["journeys"],
   "verify-webmcp.mjs": ["budgets"],
-  "verify-push-worker.mjs": ["budgets"],
+  "verify-push-worker.mjs": null,
   "verify-capability-graph.mjs": ["budgets"],
   "verify-device-identity.mjs": ["device-identity"],
   "verify-device-inbox.mjs": ["device-inbox"],
   "verify-tutorials.mjs": ["tutorials"],
   "verify-tutorials-profiles.mjs": ["tutorials"],
-  "verify-push.mjs": ["push"],
+  "verify-push.mjs": null,
   // The contract suite's vitest blocks run in the TypeScript job; its browser
   // half is the gates above.
   "verify-experience.mjs": null,
