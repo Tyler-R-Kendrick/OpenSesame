@@ -1,5 +1,7 @@
 use super::*;
-use crate::dev_run::login::tests::{web_login, FakeStore, SECRET};
+#[cfg(unix)]
+use crate::dev_run::login::tests::SECRET;
+use crate::dev_run::login::tests::{web_login, FakeStore};
 use opensesame_domain::{
     CredentialDeliveryMode, LegacyProjection, PlaceholderLocation, PlaceholderPlacement,
 };
