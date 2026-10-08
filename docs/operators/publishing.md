@@ -1,11 +1,13 @@
 # Publishing OpenSesame artifacts
 
-## GitHub Container Registry (host image)
+## GitHub Container Registry (relay-only image)
 
 Workflow: `.github/workflows/publish-containers.yml`
 
 - Triggers on `workflow_dispatch` or version tags `v*`.
-- Builds `ops/compose/Dockerfile` (the `opensesame` CLI / host roles).
+- Builds `ops/compose/Dockerfile` — the `opensesame` CLI with default
+  `CMD ["relay", "run"]` (optional vault-relay peer, ADR 0181). There is no
+  Host, Identity, or daemon API image.
 - Pushes to `ghcr.io/<owner>/<repo>` using `GITHUB_TOKEN` (`packages: write`).
 
 Optional repository variable: set `OPENSESAME_FEATURES` in the workflow dispatch
@@ -44,5 +46,5 @@ For Vercel:
    build as CI.
 
 Operator notes: [`docs/audit/2026-10-p3-vercel-default-services.md`](../audit/2026-10-p3-vercel-default-services.md).
-The GHCR image and compose stack remain for CLI/operator roles; they are not
-Pages backends.
+The GHCR image and `ops/compose/docker-compose.yml` relay service are optional
+operator peers for vault relay sync; they are not Pages backends.

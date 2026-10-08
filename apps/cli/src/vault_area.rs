@@ -1,4 +1,5 @@
-//! Vault commands: the same work the Vault section covers, plus the sealed store.
+//! Vault commands: local vault files and the sealed password store.
+
 use std::path::PathBuf;
 
 use super::{PassAttachCmd, PassCmd, PassTombCmd};
@@ -27,24 +28,9 @@ pub(crate) enum VaultArea {
         #[command(subcommand)]
         cmd: super::PassCmd,
     },
-    /// Explicit human-only provider reads. Never exposed through MCP or agent APIs.
-    Secret {
-        #[command(subcommand)]
-        cmd: super::SecretCmd,
-    },
-    /// Push or pull server-blind encrypted blobs.
-    Sync {
-        #[command(subcommand)]
-        cmd: crate::sync_commands::SyncCmd,
-    },
-    /// Encrypt or decrypt files without placing plaintext in argv or stdout.
-    Crypto {
-        #[command(subcommand)]
-        cmd: super::CryptoCmd,
-    },
 }
 
-pub(crate) async fn run(server: &str, output: &str, cmd: VaultArea) -> anyhow::Result<()> {
+pub(crate) async fn run(output: &str, cmd: VaultArea) -> anyhow::Result<()> {
     match cmd {
         VaultArea::Verify { file } => {
             crate::vault_file::run(output, &crate::vault_file::VaultCmd::Verify { file })?;
@@ -59,15 +45,12 @@ pub(crate) async fn run(server: &str, output: &str, cmd: VaultArea) -> anyhow::R
             memory_kib,
             passes,
         } => crate::vault_migration::migrate(&input, &output, memory_kib, passes)?,
-        VaultArea::Pass { cmd } => run_pass(server, cmd).await?,
-        VaultArea::Secret { cmd } => super::secret_cmd(server, cmd).await?,
-        VaultArea::Sync { cmd } => crate::sync_commands::sync_cmd(server, cmd).await?,
-        VaultArea::Crypto { cmd } => super::crypto_cmd(server, cmd).await?,
+        VaultArea::Pass { cmd } => run_pass(cmd).await?,
     }
     Ok(())
 }
 
-async fn run_pass(server: &str, cmd: super::PassCmd) -> anyhow::Result<()> {
+async fn run_pass(cmd: super::PassCmd) -> anyhow::Result<()> {
     match cmd {
         cmd @ (PassCmd::Init { .. }
         | PassCmd::Insert { .. }
@@ -83,7 +66,7 @@ async fn run_pass(server: &str, cmd: super::PassCmd) -> anyhow::Result<()> {
         | PassCmd::ImportKdbx { .. }
         | PassCmd::ExportKdbx { .. }
         | PassCmd::Backup { .. }) => pass_files(cmd).await?,
-        cmd @ PassCmd::Attach { .. } => pass_attach(server, cmd).await?,
+        cmd @ PassCmd::Attach { .. } => pass_attach(cmd)?,
         cmd @ (PassCmd::Protect { .. }
         | PassCmd::Otp { .. }
         | PassCmd::Update { .. }
@@ -206,7 +189,7 @@ async fn pass_files(cmd: super::PassCmd) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn pass_attach(server: &str, cmd: super::PassCmd) -> anyhow::Result<()> {
+fn pass_attach(cmd: super::PassCmd) -> anyhow::Result<()> {
     match cmd {
         PassCmd::Attach { cmd } => match cmd {
             PassAttachCmd::Add {
@@ -249,13 +232,7 @@ async fn pass_attach(server: &str, cmd: super::PassCmd) -> anyhow::Result<()> {
                 attach::cmd_attach_gc(path.as_deref(), tomb.as_deref())?;
             }
             PassAttachCmd::Sync { to_dir, path, tomb } => {
-                attach::cmd_attach_sync(
-                    to_dir.as_deref(),
-                    server,
-                    path.as_deref(),
-                    tomb.as_deref(),
-                )
-                .await?;
+                attach::cmd_attach_sync(&to_dir, path.as_deref(), tomb.as_deref())?;
             }
         },
         _ => unreachable!(),

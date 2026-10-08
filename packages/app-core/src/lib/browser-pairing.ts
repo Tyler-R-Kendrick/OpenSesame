@@ -1,7 +1,5 @@
-import {
-  createDpopKeyPair,
-  normalizeHttpBaseUrl,
-} from "@opensesame/api-client";
+import { createDpopKeyPair } from "./dpop-client.js";
+import { normalizeHttpBaseUrl } from "./http-base-url.js";
 import type { BoundaryValue } from "@opensesame/os-domain";
 import { readBoundedObject } from "./bounded-response.js";
 import {
