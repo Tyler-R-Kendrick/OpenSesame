@@ -1,13 +1,11 @@
 /**
- * `ai.password-reset` — mailboxes for the existing website password-reset
- * ceremony. The panel and the scan load only after this capability is
- * approved. Login items read the mailbox list from core and stay hidden
- * until then.
+ * `ai.password-reset` — mailbox scan for the website password-reset
+ * ceremony. The mailbox panel lives in Settings › Capabilities and draws
+ * with the section once the capability is approved; only the scan loads here.
  */
 
 import type { CapabilityRuntime } from "@opensesame/app-core/lib/capabilities/runtime-contract.js";
 import { createActivation } from "../activation.js";
-import { PasswordResetMailPanel } from "./panel.js";
 import { startPasswordResetScan } from "./scan.js";
 
 export const CAPABILITY = "ai.password-reset";
@@ -21,13 +19,6 @@ export const capabilityRuntime: CapabilityRuntime = {
   async activate(ctx) {
     const activation = createActivation(ctx, CAPABILITY);
     if (activation.disposed()) return activation.handle();
-    activation.register("settings-panel", {
-      id: "password-reset-mail",
-      label: "Password reset",
-      category: PASSWORD_RESET_PANEL_CATEGORY,
-      Panel: PasswordResetMailPanel,
-      order: 10,
-    });
     activation.register("background-job", {
       id: "password-reset-mail",
       start: startPasswordResetScan,
