@@ -216,14 +216,14 @@ describe("ConnectionsSection gallery", () => {
       makeConnection({ status: "pending", displayName: "GitHub work" }),
     ]);
     renderAt("/connections");
-    expect(await screen.findByRole("heading", { name: "Needs attention" })).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "Needs attention" }),
+    ).toBeTruthy();
     expect(screen.getAllByText("GitHub work").length).toBeGreaterThan(0);
     // The sentence shows in both the inbox and the connected list.
     expect(
       screen.getAllByText(/Created, but nobody has approved it yet/).length,
     ).toBeGreaterThanOrEqual(1);
-    // Repair happens in place now: the primary finishes the authorization
-    // here, and only the quiet Details link goes to the connector page.
     expect(
       screen.getByRole("button", { name: /Finish authorization/i }),
     ).toBeTruthy();
@@ -473,6 +473,8 @@ describe("ConnectionsSection remaining branches", () => {
       }),
     ]);
     renderAt("/connections");
-    expect(await screen.findAllByText("The provider returned an error.")).not.toHaveLength(0);
+    expect(
+      await screen.findAllByText("The provider returned an error."),
+    ).not.toHaveLength(0);
   });
 });
