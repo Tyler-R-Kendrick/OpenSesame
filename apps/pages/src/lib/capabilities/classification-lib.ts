@@ -22,8 +22,7 @@ const CORE_INFRA = [
   "vfs",
   "projects",
   "vaults",
-  // The dotted mark for a vault, person or organization (ADR 0165): drawn in
-  // the shell's prompt, so it is core with the prompt.
+  // Dotted mark for a vault, person or organization, drawn in the shell prompt (ADR 0165).
   "glyph",
   "last-vault",
   "theme",
@@ -50,6 +49,9 @@ const CORE_INFRA = [
   "page-to-tree",
   "listing-page",
   "notices",
+  // Tray history sealed at rest, and the boot that installs it (ADR 0163).
+  "notice-tray-persist",
+  "tray-boot",
   "use-online",
   "use-configured",
   // A press that must count once, however fast it is pressed twice.
@@ -161,9 +163,8 @@ const LOCAL_IAM_FILES = [
   "device-identity-local",
 ];
 const FEDERATION_FILES = [
-  // `orgs-directory` only: `orgs.ts` is the core sign-in vocabulary (the slug
-  // shape, the method routing, the profile this tab is on) and declares the
-  // four Identity-API calls as seams this capability installs.
+  // `orgs-directory` only: `orgs.ts` stays the core sign-in vocabulary and the
+  // Identity-API seams this capability installs.
   "orgs-directory",
 ];
 const LOCAL_AI_FILES = [
@@ -314,8 +315,7 @@ export const LIB_RULES = [
     "notification routing document, channel words, policy narrowing, Identity API routes (ADR 0084)",
   ),
   // Where this device tells its person a request is waiting (ADR 0162):
-  // the places, the preference, the notice and the watcher; reached only
-  // through the notifications.local module and its file provider.
+  // places, preference, notice and watcher, only through notifications.local.
   optional(
     `${L}local-notifications/`,
     "notifications.local",

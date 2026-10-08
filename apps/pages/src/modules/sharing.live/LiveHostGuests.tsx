@@ -25,29 +25,50 @@ import { useLandOnChange, useLandWhenSettled } from "./live-focus.js";
 import type { Standing } from "./live-hooks.js";
 
 const GUEST_MARK = {
-  asking: { tone: "warn", label: "Asking to join" },
-  replied: { tone: "idle", label: "Let in: hand back the reply code" },
-  joined: { tone: "ok", label: "In the session" },
-  refused: { tone: "err", label: "Turned away" },
-  gone: { tone: "idle", label: "Left" },
+  asking: { tone: "warn", label: "Asking to join", tray: "Asking to join" },
+  replied: {
+    tone: "idle",
+    label: "Let in: hand back the reply code",
+    tray: "Let in: hand back the reply code",
+  },
+  joined: { tone: "ok", label: "In the session", tray: "In the session" },
+  refused: { tone: "err", label: "Turned away", tray: "Turned away" },
+  gone: { tone: "idle", label: "Left", tray: "Left" },
 } satisfies Record<Guest["state"], Standing>;
 
 /** What pasting a code did, as the field's glyph says it; null for a guest. */
 function outcome(received: Received): Standing | null {
   switch (received.kind) {
     case "not-a-request":
-      return { tone: "err", label: "Not a request code" };
+      return {
+        tone: "err",
+        label: "Not a request code",
+        tray: "Not a request code",
+      };
     case "not-this-session":
       return {
         tone: "err",
         label: `Not for this session (${received.misses} of ${MAX_MISSES})`,
+        tray: `Not for this session (${received.misses} of ${MAX_MISSES})`,
       };
     case "full":
-      return { tone: "warn", label: "The session is full" };
+      return {
+        tone: "warn",
+        label: "The session is full",
+        tray: "The session is full",
+      };
     case "ended":
-      return { tone: "idle", label: "The session has ended" };
+      return {
+        tone: "idle",
+        label: "The session has ended",
+        tray: "The session has ended",
+      };
     case "locked":
-      return { tone: "warn", label: "The session is locked" };
+      return {
+        tone: "warn",
+        label: "The session is locked",
+        tray: "The session is locked",
+      };
     default:
       return null;
   }

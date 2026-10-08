@@ -13,12 +13,14 @@ import {
   type Notice,
   dismissNotice,
   listNotices,
+  subscribeNoticeArrivals,
   subscribeNotices,
 } from "@opensesame/app-core/lib/notices.js";
 import { loadQueue } from "@opensesame/app-core/lib/queue.js";
 import { buildHealthReport } from "@opensesame/app-core/lib/vault/health.js";
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -90,6 +92,14 @@ function NotificationsBarDefault({
 }: { form?: NotificationsForm; onClose?: () => void }) {
   const { notices, health, queued, count } = useNotices();
   const [open, setOpen] = useState(form === "panel");
+
+  useEffect(() => {
+    return subscribeNoticeArrivals((notice) => {
+      if (notice.kind !== "status") return;
+      if (notice.tone !== "err" && notice.tone !== "warn") return;
+      setOpen(true);
+    });
+  }, []);
   const healthPending = health.findings.length > 0;
   const closeRef = useRef<HTMLButtonElement>(null);
   const sheetRef = useRef<HTMLDivElement>(null);

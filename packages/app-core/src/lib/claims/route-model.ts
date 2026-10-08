@@ -10,13 +10,21 @@
  */
 
 import { isClaimToken } from "@opensesame/ceremony-kit";
-import { dismissNotice, setStatusNotice } from "../notices.js";
+import {
+  type NoticeOpen,
+  appendStatusNotice,
+  dismissNotice,
+} from "../notices.js";
 import type { ClaimCeremony, ClaimStart } from "./ceremony.js";
 import { type ClaimArrival, readClaimArrival } from "./link.js";
 import { claimStash } from "./stash.js";
 
-/** The tray notice a claim reports through, one at a time. */
+/** Tray rows for claim and drop outcomes share this id prefix. */
 export const CLAIM_NOTICE = "identity.claim";
+
+/** Status glyph on the page — the tray carries the full sentence (ADR 0163). */
+export const CLAIM_FAILURE_MARK = "Claim could not continue";
+export const DROP_FAILURE_MARK = "Drop could not open";
 
 /** The label the done mark carries. */
 export const CLAIM_ACCEPTED = "Claim accepted";
@@ -57,15 +65,28 @@ export function claimEntry(raw: string): ClaimArrival | null {
   return readClaimArrival(url).arrival;
 }
 
-/**
- * Say why a claim (or a drop) stopped, in the tray; the same words mark the
- * page. One notice for the route, so a new failure replaces the last.
- */
-export function reportClaim(words: string, title = TITLE): void {
-  setStatusNotice({ id: CLAIM_NOTICE, tone: "err", title, body: words });
+function unlockOpen(words: string): NoticeOpen | undefined {
+  if (/\b(unlock|locked)\b/i.test(words)) {
+    return { to: "/unlock", label: "Unlock" };
+  }
+  return undefined;
 }
 
-/** Take a failure down when the person starts over or it succeeds. */
+/**
+ * Say why a claim (or a drop) stopped — in the tray only; the page keeps a
+ * status glyph. Each outcome is its own notice so history survives reload.
+ */
+export function reportClaim(words: string, title = TITLE): void {
+  appendStatusNotice({
+    id: `${CLAIM_NOTICE}.${crypto.randomUUID()}`,
+    tone: "err",
+    title,
+    body: words,
+    open: unlockOpen(words),
+  });
+}
+
+/** Legacy single-slot id; new outcomes are not removed when the field clears. */
 export function clearClaimNotice(): void {
   dismissNotice(CLAIM_NOTICE);
 }
