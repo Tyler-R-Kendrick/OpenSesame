@@ -43,8 +43,19 @@ export async function verifySecretItem(page, base, width, out, sentinel) {
   assert.equal(await input.getAttribute("type"), "password");
   await input.fill(sentinel);
   await page.getByRole("button", { name: "Save item" }).first().click();
-  await page.waitForURL((url) => /\/vault\/[^/]+$/.test(url.pathname));
+  await page.waitForURL(
+    (url) =>
+      /\/vault\/[^/]+$/.test(url.pathname) &&
+      url.pathname !== `${base}vault/new`,
+  );
+  await page.getByRole("button", { name: "Save item" }).first().waitFor({
+    state: "detached",
+  });
+  await page
+    .getByRole("heading", { name: "Gauntlet API", exact: true })
+    .waitFor();
   const id = new URL(page.url()).pathname.split("/").pop();
+  assert.ok(id && id !== "new", "the saved item has its own route");
   const tools = page.locator(".detail__tools");
   await tools.waitFor();
   const reference = `os://personal/${id}/value`;
