@@ -6,9 +6,20 @@
  * The relay is not asked to merge, and this module does not hold a vault key.
  */
 
+import {
+  type LocalNetworkFetchInit,
+  localNetworkFetch,
+} from "../local-network-fetch.js";
+
 export const RELAY_SNAPSHOT_FORMAT = "opensesame-vault-drive-snapshot";
 
 export type RelayOwnerKind = "user" | "organization";
+
+export type OrgVaultRecord = {
+  readonly ownerKind: RelayOwnerKind;
+  readonly owner: string;
+  readonly slug: string;
+};
 
 export type RelaySnapshot = {
   readonly format: typeof RELAY_SNAPSHOT_FORMAT;
@@ -48,9 +59,27 @@ export class RelayRequestError extends Error {
   }
 }
 
+function originOf(baseUrl: string): string {
+  return baseUrl.replace(/\/$/, "");
+}
+
 function endpoint(target: RelayTarget): string {
-  const base = target.baseUrl.replace(/\/$/, "");
-  return `${base}/v1/vault-relay/${encodeURIComponent(target.owner)}/${encodeURIComponent(target.slug)}/snapshot`;
+  return `${originOf(target.baseUrl)}/v1/vault-relay/${encodeURIComponent(target.owner)}/${encodeURIComponent(target.slug)}/snapshot`;
+}
+
+/**
+ * Ciphertext on a paired relay is the tailnet drive's exception: no operator
+ * token, and loopback is allowed without local-operator authority.
+ */
+function fetchOf(target: { readonly fetch?: typeof fetch }): typeof fetch {
+  if (target.fetch) return target.fetch;
+  return (input, init) =>
+    localNetworkFetch(String(input), {
+      ...(init ?? {}),
+      ciphertextDrive: true,
+      timeoutMs: 15_000,
+      skipAddressSpace: String(input).startsWith("https:"),
+    } satisfies LocalNetworkFetchInit);
 }
 
 function headers(target: RelayTarget): Headers {
@@ -117,7 +146,7 @@ export async function pushRelaySnapshot(
   snapshot: RelaySnapshot,
   expectedGeneration: number,
 ): Promise<number> {
-  const fetchImpl = target.fetch ?? fetch;
+  const fetchImpl = fetchOf(target);
   const response = await fetchImpl(endpoint(target), {
     method: "PUT",
     headers: headers(target),
@@ -142,7 +171,7 @@ export async function pushRelaySnapshot(
 export async function pullRelaySnapshot(
   target: RelayTarget,
 ): Promise<{ generation: number; snapshot: RelaySnapshot } | null> {
-  const fetchImpl = target.fetch ?? fetch;
+  const fetchImpl = fetchOf(target);
   const response = await fetchImpl(endpoint(target), {
     method: "GET",
     headers: headers(target),
@@ -161,4 +190,92 @@ export async function pullRelaySnapshot(
     throw new RelayRequestError(response.status, generation);
   }
   return { generation, snapshot };
+}
+
+function isOwnerKind(value: unknown): value is RelayOwnerKind {
+  return value === "user" || value === "organization";
+}
+
+function isOrgVault(value: unknown): value is OrgVaultRecord {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    isOwnerKind(record.ownerKind) &&
+    typeof record.owner === "string" &&
+    typeof record.slug === "string"
+  );
+}
+
+export type OrgVaultDirectory = {
+  readonly baseUrl: string;
+  readonly fetch?: typeof fetch;
+};
+
+/** Create `owner/slug` for a principal. The same principal may repeat it. */
+export async function createOrgVault(
+  target: OrgVaultDirectory & {
+    readonly owner: string;
+    readonly slug: string;
+    readonly ownerKind: RelayOwnerKind;
+    readonly principal: string;
+  },
+): Promise<OrgVaultRecord> {
+  const fetchImpl = fetchOf(target);
+  const response = await fetchImpl(
+    `${originOf(target.baseUrl)}/v1/org-vaults`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-opensesame-principal": target.principal,
+      },
+      body: JSON.stringify({
+        ownerKind: target.ownerKind,
+        owner: target.owner,
+        slug: target.slug,
+      }),
+    },
+  );
+  const body = await readJson(response);
+  if (!response.ok) {
+    throw new RelayRequestError(response.status, generationOf(body));
+  }
+  if (!body || typeof body !== "object" || !("vault" in body)) {
+    throw new RelayRequestError(response.status, null);
+  }
+  if (!isOrgVault(body.vault))
+    throw new RelayRequestError(response.status, null);
+  return body.vault;
+}
+
+/**
+ * Vaults for an owner, a principal, or both. An empty filter is an empty list:
+ * the relay does not dump every address.
+ */
+export async function listOrgVaults(
+  target: OrgVaultDirectory & {
+    readonly owner?: string;
+    readonly principal?: string;
+  },
+): Promise<readonly OrgVaultRecord[]> {
+  const fetchImpl = fetchOf(target);
+  const query = new URLSearchParams();
+  if (target.owner) query.set("owner", target.owner);
+  if (target.principal) query.set("principal", target.principal);
+  const response = await fetchImpl(
+    `${originOf(target.baseUrl)}/v1/org-vaults?${query.toString()}`,
+    { method: "GET" },
+  );
+  const body = await readJson(response);
+  if (!response.ok) {
+    throw new RelayRequestError(response.status, generationOf(body));
+  }
+  if (!body || typeof body !== "object" || !("vaults" in body)) {
+    throw new RelayRequestError(response.status, null);
+  }
+  const vaults = body.vaults;
+  if (!Array.isArray(vaults) || !vaults.every(isOrgVault)) {
+    throw new RelayRequestError(response.status, null);
+  }
+  return vaults;
 }

@@ -108,6 +108,7 @@ export const DRIVER_GATES = {
   "verify-duress-offline.mjs": null,
   "verify-duress.mjs": null,
   "verify-live-join.mjs": null,
+  "verify-relay-join.mjs": null,
   "verify-live-netns.mjs": null,
   "verify-mutations.mjs": null,
   "verify-tailnet-devices.mjs": null,

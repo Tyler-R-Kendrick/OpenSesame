@@ -19,6 +19,7 @@
     "verify:device-identity": "node scripts/verify-device-identity.mjs",
     "verify:device-inbox": "node scripts/verify-device-inbox.mjs",
     "verify:live-join": "node scripts/verify-live-join.mjs",
+    "verify:relay-join": "node scripts/verify-relay-join.mjs",
     "verify:live-netns": "node scripts/verify-live-netns.mjs",
     "verify:browser-sessions": "node scripts/verify-browser-sessions.mjs",
     "verify:browser-session-lifecycle": "node scripts/verify-browser-session-lifecycle.mjs",

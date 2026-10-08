@@ -23,7 +23,7 @@ cargo run -p opensesame-cli -- host run \
 
 Full live drill: `./scripts/test/live-stack-test.sh`
 
-Health:
+Health on the full Host:
 
 - `/health/live` — process up
 - `/health/ready` — accepts traffic only when authority quorum OK
@@ -31,6 +31,30 @@ Health:
 - `/health/degraded` — structured degradation (A0 still available)
 - `/health/providers` — OpenFGA/OpenBao wiring (operator bearer / `X-OpenSesame-Operator`); confirms agent API is `connection_ref`
 - `/api/v1/connections` — agent-facing ConnectionRef list (never SecretRef)
+
+## Relay profile
+
+`OPENSESAME_GATEWAY_PROFILE=relay` (or `--profile relay`) serves the vault
+relay and does not open the Host database. Unset, `opensesame host run` is
+still the full Host API.
+
+```bash
+OPENSESAME_GATEWAY_PROFILE=relay \
+  cargo run -p opensesame-cli -- host run --listen 127.0.0.1:8787
+```
+
+With `OPENSESAME_SERVICE_BINDINGS_FILE` unset, startup installs an empty
+`vault_relay` binding set. A file that names another purpose, or an
+operation other than `vault.relay.snapshot.read` and
+`vault.relay.snapshot.write`, refuses to start.
+
+Routes on this profile:
+
+- `GET /health/live`
+- `GET` and `PUT /v1/vault-relay/{owner}/{slug}/snapshot`
+- `GET` and `POST /v1/org-vaults`
+
+`/health/ready` and the rest of the Host API are absent here.
 
 ## Headless login
 

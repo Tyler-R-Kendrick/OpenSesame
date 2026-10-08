@@ -199,13 +199,25 @@ and the first working code for phases 1–3:
 
 - Relay profile (`OPENSESAME_GATEWAY_PROFILE=relay` or `opensesame host run
   --profile relay`) serves `GET /health/live`, the slot routes, and
-  `GET /v1/org-vaults`. Other routes, including `POST /api/v1/sync/pull`,
-  are absent. An empty binding set is the default. A document that is not
-  entirely purpose `vault_relay` with the two snapshot operations refuses
-  to start. The slot key is stored as SHA-256. Native mTLS admission of a
-  certificated peer, beyond that startup check, is still the full Host's
-  resolver.
+  `GET` and `POST /v1/org-vaults`. Other routes, including
+  `POST /api/v1/sync/pull`, are absent. Startup installs an empty
+  `vault_relay` binding set when `OPENSESAME_SERVICE_BINDINGS_FILE` is
+  unset, and holds that set for the life of the process. A document that
+  is not entirely purpose `vault_relay` with the two snapshot operations
+  refuses to start. The slot key is stored as SHA-256. Native mTLS
+  admission of a certificated peer, beyond that startup check, is still
+  the full Host's resolver. The env is documented in
+  `docs/operators/local.md`.
+- `POST /v1/org-vaults` creates `{ ownerKind, owner, slug }` for the
+  principal in `x-opensesame-principal`. The first principal claims the
+  address. The same principal may repeat it. A different principal is
+  `409`. `GET /v1/org-vaults?owner=` lists that owner's refs. A request
+  with neither owner nor principal returns an empty list. A successful
+  snapshot write records the same directory row.
 - `sharing.relay` is an optional Pages capability, off in the default plan.
+  When it is on, Settings › Capabilities › Sharing draws Organization
+  vaults (`OrgVaultDirectoryPanel`): create and list, and no fetch at
+  import or activation.
 - A tomb header may carry `publishedAddress`. `listDeviceVaults()` exposes
   it as `address`. A locked unnamed row is labeled `owner/slug`. A named
   row keeps its sealed name and shows the address on the meta line. Guest
@@ -213,6 +225,10 @@ and the first working code for phases 1–3:
 - `packages/app-core/src/lib/vault-relay/client.ts` pushes and pulls a
   sealed snapshot. Live join does not call it. A pages integration test
   shows a second device receiving the first device's ciphertext metadata.
+  `pnpm --filter @opensesame/pages verify:relay-join` repeats that with two
+  browser contexts against a relay HTTP harness: A joins and publishes, B
+  joins and reads the ciphertext. The item name is not in the snapshot.
+  `verify:live-join` stays the live-session walk.
 
 Not in this slice: an Identity-issuer registration check, a membership
 test that refuses a member's publish, the vault-drive conformance replay,
@@ -283,7 +299,10 @@ commit.
 - The relay learns the address, the generation, and the ciphertext length.
   It does not learn item names or secret values. That is the disclosure the
   tailnet drive already makes.
-- On a relay with no Identity issuer, the first slot key to write an empty
-  address claims it. The directory check is opt-in.
+- On a relay with no Identity issuer, the first principal to create the
+  address, or to publish a snapshot there, claims it. A different principal
+  is refused. The issuer registration and the member-publish refusal are
+  still open. The handle and organization-slug namespace is still not
+  enforced.
 - Live join gains no default public relay, no default TURN server, and no
   widening of `host.join` into sync.
