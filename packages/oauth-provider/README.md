@@ -6,9 +6,12 @@ Downstream OAuth 2.0 / OpenID Connect authority built on panva [`oidc-provider`]
 
 - Authorization code + **PKCE required** (S256)
 - Refresh tokens, device authorization, revocation, introspection, userinfo
+- Client credentials grant (confidential clients only)
 - Pushed Authorization Requests (PAR)
 - Resource indicators
 - DPoP (enabled; replay rejected)
+- RFC 8705 mTLS client authentication and certificate-bound access tokens,
+  off unless the provider is created with a `transport`
 - **Pairwise** subjects via persisted mapping callback (`PairwiseSubjectStore`)
 - `MemoryAdapter` for tests; `createPostgresAdapterConstructor` for production Postgres store
 - Client admission: `pre_registered` default; origin / DCR / CIMD feature-gated
@@ -30,7 +33,7 @@ Truthy values: `1`, `true`, `yes`, `on` (case-insensitive).
 ## Production requirements
 
 `createOpenSesameProvider` fails closed when `NODE_ENV=production` (or
-`OPENSESAME_ENV=production`) and either is missing:
+`OPENSESAME_ENV=production`) and any of these is missing:
 
 - **Signing keys** — pass `jwks` or set `OPENSESAME_JWKS_JSON`. Otherwise the
   provider would mint tokens with a per-process keypair that no replica (and no
@@ -38,6 +41,8 @@ Truthy values: `1`, `true`, `yes`, `on` (case-insensitive).
 - **A persistent adapter** — pass `createPostgresAdapterConstructor(store)`.
   `MemoryAdapter` loses grants and sessions on restart and makes revocation
   per-process.
+- **A persistent pairwise subject store** — pass `pairwiseStore`.
+  `MemoryPairwiseSubjectStore` mints a new `sub` per process.
 
 ## Usage
 

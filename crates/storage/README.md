@@ -11,12 +11,16 @@ across one module per responsibility.
 
 - **Used by:** [`crates/gateway`](../../crates/gateway),
   [`apps/cli`](../../apps/cli),
-  [`opensesame-broker`](../broker), [`opensesame-connection-broker`](../connection-broker)
+  [`opensesame-broker`](../broker),
+  [`opensesame-bitwarden-server`](../bitwarden-server),
+  [`opensesame-connection-broker`](../connection-broker)
   (dev-dependency), the fuzz crate [`tests/fuzz/cargo`](../../tests/fuzz/cargo)
   (`certmgr_filter_parse`), and the authority-fabric gate
   (`pnpm test:authority-fabric`).
-- **Builds on:** [`opensesame-domain`](../domain) (records and IDs) and
-  [`opensesame-lifecycle`](../lifecycle) (the watermark and fence vocabulary).
+- **Builds on:** [`opensesame-domain`](../domain) (records and IDs),
+  [`opensesame-lifecycle`](../lifecycle) (the watermark and fence vocabulary),
+  [`opensesame-event-seal`](../event-seal) (event and audit rows rest sealed,
+  ADR 0157) and [`opensesame-redaction`](../redaction).
 - A realm (`organization_id`) is part of every authority key and predicate, and
   a security mutation writes its outbox event in the same transaction.
 - Migrations are append-only: an applied version is never rewritten.
@@ -32,7 +36,10 @@ across one module per responsibility.
 | Approvals | `approval_policies`, `approval_requests` |
 | Sync, outbox, backup | `sync`, `sync_pages`, `sync_write`, `sync_rebind`, `outbox`, `backup_inventory`, `vault_backup` |
 | Sessions and agent runs | `shared_sessions/`, `browser_pairing`, `observation`, `runner_steps`, `a2h_replies`, `agent_capabilities`, `callback_replay` |
+| Agent hooks and web login | `agent_hook_policy/` (the policy, its approver and decisions), `agent_hook_records`, `web_login_runs/` (recipes, signers, retention) — ADR 0159 |
+| Bitwarden-compatible server | `bitwarden/` — accounts, devices, ciphers, Sends, organizations (ADR 0141, ADR 0148) |
 | Security feed | `security` (hooks, deliveries, breach findings, lifecycle watermarks) |
+| Sealed rows | `sealed` — wrappers over `opensesame-event-seal`; `seal_scopes` names the Certificate Manager custody scopes |
 
 Row types are the `Stored*` structs exported from [`src/lib.rs`](src/lib.rs).
 
@@ -49,7 +56,7 @@ edit an applied one. `src/migration_upgrade_tests.rs` checks that an upgrade
 preserves the previous journal and rolls back failed DDL.
 
 New methods go in the module for their responsibility, not in `lib.rs`.
-`lib.rs` (2,091 lines) and a few modules carry recorded numbers in
+`lib.rs` (2,069 lines) and a few modules carry recorded numbers in
 [`tools/quality/quality-baseline.json`](../../tools/quality/quality-baseline.json)
 that may only fall; new files meet the 400-line budget outright
 (`pnpm quality:gate`). The `insta` snapshots in

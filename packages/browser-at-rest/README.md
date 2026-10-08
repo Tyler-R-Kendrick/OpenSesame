@@ -22,9 +22,11 @@ are discarded, requiring sign-in again.
 
 - **Used by:** [`packages/sdk-browser`](../sdk-browser) (the PKCE transaction,
   return path and session a relying party keeps), [`packages/static-auth`](../static-auth)
-  (the hosted client's transaction between `begin` and `complete`), and
+  (the hosted client's transaction between `begin` and `complete`),
   [`apps/browser-extension`](../../apps/browser-extension) (`hostApiBase`, and
-  the seal it hands `client-core`'s sync store).
+  the seal it hands `client-core`'s sync store) and
+  [`examples/siop-rp`](../../examples/siop-rp) (its sealed sign-in state).
+  `packages/control-plane` declares it for a test only.
 - **Builds on:** WebCrypto and IndexedDB only; [`@opensesame/os-domain`](../os-domain)
   for boundary guards.
 - The Pages app does not use it: `@opensesame/app-core` seals synchronously
@@ -39,6 +41,7 @@ are discarded, requiring sign-in again.
 | `openFromRest(store, name, value)` | The plaintext; a value an older release left in the clear reads as it is; a seal that does not open reads as `null` |
 | `sealedStorage(storage, scope)` | An async sealed view of any synchronous `StorageLike`: values reach it sealed, legacy plaintext is sealed where it lies, and with no key values stay in memory |
 | `useClientAtRestKeys(keys)` | Replace the key provider; it receives an optional canonical context, or no context for legacy device-key reads |
+| `isSealedForRest(value)`, `CLIENT_AT_REST_PREFIX` (`osc2.`), `CLIENT_AT_REST_DATABASE` | Whether a value carries a seal prefix (`osc`), the current frame prefix and the IndexedDB database that holds the keys |
 
 ## What it does not protect
 

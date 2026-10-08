@@ -2,6 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-09-28
+- Amended by: [ADR 0170](0170-gesture-loadout.md) (the keymap is the keyboard's
+  half of one keymap, not the whole of it)
 - Builds on: [ADR 0064](0064-vault-vfs-keyboard-first.md) (the keyboard-first
   VFS and its vim motions), [ADR 0134](0134-item-type-marketplaces-and-settings-files.md)
   (Settings is files), [ADR 0149](0149-nothing-stored-in-the-clear.md) (what

@@ -3,7 +3,9 @@
 One directory per optional capability, named by its capability id verbatim
 (`connectors.external/`, dots kept). The entry is `runtime.ts`, exporting
 `capabilityRuntime: CapabilityRuntime` from
-`lib/capabilities/runtime-contract.ts` (ownership.md §4.2–4.3).
+[`packages/app-core/src/lib/capabilities/runtime-contract.ts`](../../../../packages/app-core/src/lib/capabilities/runtime-contract.ts)
+([`ownership.md`](../../../../docs/implementation/capability-composition/ownership.md)
+§4.2–4.3).
 
 ## Contract
 
@@ -29,8 +31,8 @@ One directory per optional capability, named by its capability id verbatim
 - No top-level side effects in a module or anything it imports: no provider
   init, timers, fetch, DOM or service-worker registration, storage
   migration, permission requests. Module scope holds data, types, functions
-  and empty containers only. Each `runtime.test.tsx` imports the runtime
-  under spies to prove it.
+  and empty containers only. A module's `runtime.test.tsx` imports the runtime
+  under spies to prove it (all but `ai.password-reset`, which has none).
 - `activate` re-checks `ctx.lease.signal` after every `await`; an aborted
   lease registers nothing further and the handle it returns is already
   disposed.

@@ -1,6 +1,6 @@
 # ADR 0108: Explicit role policy for browser-local application scopes
 
-Status: accepted
+Status: Accepted
 
 ## Context
 

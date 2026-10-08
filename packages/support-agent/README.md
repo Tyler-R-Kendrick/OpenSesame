@@ -10,9 +10,9 @@ renderer; this package decides what may be said and what may be sent.
 ## Where it fits
 
 - **Used by:** [`packages/app-core`](../app-core) (`src/tutorial/agents/` — the on-device and AG-UI transports), [`apps/pages`](../../apps/pages), [`packages/control-plane`](../../packages/control-plane) (`routes/support.ts` uses `redactSupportQuestion`), [`tests/fuzz/jazzer`](../../tests/fuzz/jazzer) (`support_payload.ts`).
-- **Builds on:** [`@opensesame/guide-lang`](../guide-lang) (the only thing a model may emit besides prose), [`@opensesame/os-domain`](../os-domain).
+- **Builds on:** [`@opensesame/guide-lang`](../guide-lang) (the only thing a model may emit besides prose), [`@opensesame/log-scrub`](../log-scrub), [`@opensesame/os-domain`](../os-domain).
 - No React, no tour renderer, no vendor model SDK.
-- A `SupportTurn` carries prose and at most one GuideLang program. There is no field for a tool call, URL, selector or authority mutation.
+- A `SupportTurn` carries prose, at most one GuideLang program, suggested questions and the display-only `thoughts` and `computer` (step names) a transport surfaced, which are never executed. There is no field for a URL, selector or authority mutation, and the port never runs a tool call.
 - `sanitizeSupportRequest` rebuilds the outbound request field by field from primitives and refuses an unexpected key (`SupportEgressRefused`) rather than forwarding it.
 - The transcript lives in the session closure only — never storage, logs, analytics or telemetry — and `destroy()` drops it.
 - A failed guide never swallows a good answer; repair is one bounded retry carrying compiler error codes, never the model's failed text.

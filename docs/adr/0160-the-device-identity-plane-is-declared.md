@@ -2,6 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-10-04
+- Updated by: [ADR 0162](0162-device-receipts-inbox-and-local-notifications.md)
+  (§1 and §3, the `notifications` row; and the Receipts consequence)
 - Amended: 2026-10-07, §7 (sealing a claim stays gated on the open vault;
   poll and present of one already sealed run while the vault is locked)
 - Amended: 2026-10-04, §5 (the key travels with the vault; the earlier limit is

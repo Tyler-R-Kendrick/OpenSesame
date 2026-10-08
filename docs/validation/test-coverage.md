@@ -6,21 +6,25 @@ they explicitly require a live service.
 
 | Test type | Evidence | Command |
 | --- | --- | --- |
-| Atomic unit | Vitest suites in 38 TypeScript workspaces; Rust unit tests across the workspace | `pnpm test`; `cargo +1.88.0 test --workspace --all-targets` |
-| Snapshot / characterization | Vitest `__snapshots__` (Verify equivalent) in Pages connectors/guest surfaces, agent-protocols, audit redaction; `insta` JSON snapshots in the daemon; Playwright pixel baselines | `pnpm --filter @opensesame/pages test`; `pnpm --filter @opensesame/agent-protocols test`; `pnpm test:visual` |
+| Atomic unit | Vitest suites in 67 TypeScript workspaces; Rust unit tests across the workspace | `pnpm test`; `cargo +1.88.0 test --workspace --all-targets` |
+| Snapshot / characterization | Vitest `__snapshots__` (Verify equivalent) for the Pages keymap, app-core guest surfaces, duress unlock and vault import formats, agent-protocols rendering, audit redaction and control-plane pages; `insta` snapshots in the daemon and the CLI's browserpass/gopass golden tests; Playwright pixel baselines | `pnpm --filter @opensesame/pages test`; `pnpm --filter @opensesame/app-core test`; `pnpm --filter @opensesame/agent-protocols test`; `pnpm test:visual` |
 | Contract | OpenAPI/WIT schemas and PACT transport/adversarial suites documented in `pact.md` | `pnpm test:integration`; `pnpm test:task-access` |
 | Chaos | Concurrent append, replay, fail-closed, stale-state, partial-failure, and outbox retry scenarios in the PACT suites | `pnpm test`; `pnpm test:integration` |
 | Fuzz / property | Rust libFuzzer targets (including the connector-discovery parsers: `mcp_config`, `ini_parse`, `whois_response`, `promote_request`), Jazzer.js targets, proptest, and bounded proof gates | `pnpm audit:fuzz`; `pnpm test:fuzz`; `pnpm audit:kani`; `pnpm audit:shuttle` |
 | Dependency budget | Daemon/discovery dependency closure pinned against the ADR 0048 §5 allowlist; credential-exchange surface (sqlx, oauth2, jsonwebtoken, chacha20poly1305, task bus) kept off the daemon and the invoke-through/authn crates | `pnpm audit:daemon-deps` |
-| Behavior / functional | `*.behavior.test.ts` Given/When/Then journeys (control-plane ceremonies, Pages guest login); Playwright and live battle tests | `pnpm test`; `pnpm test:e2e`; `pnpm verify` |
-| Mutation | Stryker/Vitest over credential redaction, URL trust boundaries, and the audit metadata redaction + tamper-evidence chain (`packages/audit`); cargo-mutants over Rust redaction and task validation. Duress unlock gates are covered by unit/PACT/behaviour suites first — add to `tools/mutation/stryker.config.json` only after a scoped `pnpm test:mutation:ts` proves 100% kill. | `pnpm test:mutation` |
+| Behavior / functional | `*.behavior.test.ts` Given/When/Then journeys (control-plane ceremonies, guest login); Playwright and live battle tests | `pnpm test`; `pnpm test:e2e`; `pnpm verify` |
+| Mutation | Stryker/Vitest over credential redaction, URL trust boundaries, and the audit metadata redaction + tamper-evidence chain (`packages/audit`); cargo-mutants over a scoped set of Rust files (redaction, task-bus validation, relay, connection-detect, human-vault, sealed-store attachments, PKI policy/revocation/bundle, the certificate issuer model and the storage crate, per `pnpm test:mutation:rust`). Duress unlock gates are covered by unit/PACT/behaviour suites first — add to `tools/mutation/stryker.config.json` only after a scoped `pnpm test:mutation:ts` proves 100% kill. | `pnpm test:mutation` |
 
 ## Measured non-regression gates
 
-`pnpm test:coverage` measures every workspace with a `vitest run` test script
-plus all Rust workspace targets. Workspace packages whose test script does not
-run `vitest run` are excluded from the TypeScript measurement; the gate prints
-a loud warning listing every excluded package so the gap stays visible. The
+`pnpm test:coverage` measures every package directly under `apps/`,
+`packages/`, `examples/`, `tests/` and `tools/` whose test script runs
+`vitest run` (65 today), plus all Rust workspace targets. Packages whose test
+script does not run `vitest run` (today `apps/android` and
+`packages/env-spec-bridge`) are excluded from the TypeScript measurement; the
+gate prints a loud warning listing every excluded package so the gap stays
+visible. Workspace members nested deeper (`tests/fuzz/jazzer`,
+`tools/oxlint/anti-slop`) are not scanned. The
 floors ratchet to roughly one point below the measured baseline, not an
 inflated claim:
 
@@ -116,6 +120,11 @@ Snapshot updates are always explicit. Use Vitest's `-u` or
 behavior changes.
 
 ## Measured 2026-09-15 — SIOP
+
+> Status (2026-10-08): the figures and test count in this section are from the
+> 2026-09-15 run. `packages/siop-v2` has since gained discovery and
+> relying-party suites (`discovery*.test.ts`, `rp*.test.ts`), so its coverage
+> and case count are no longer these numbers.
 
 Focused `@opensesame/siop-v2` coverage (v8, `src/**/*.ts` only):
 

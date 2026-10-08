@@ -1,14 +1,17 @@
 # @opensesame/mcp-client
 
-The agent-facing MCP server on the Client plane, binary `opensesame-mcp-client`
-over stdio. It gives a model a handful of Host API tools under a narrowly
+The agent-facing MCP server on the Client plane, over stdio. The package
+declares the bin `opensesame-mcp-client` (entry `src/server.ts`), and
+[`@opensesame/cli`](../cli) serves the same `main()` as `opensesame-id mcp
+client`. It gives a model a handful of Host API tools under a narrowly
 scoped, short-lived agent capability from an approved local launch. It has no
 tool that materializes a credential or reads a secret.
 
 ## Where it fits
 
 - **Used by:** MCP-capable agents launched through an approved local agent
-  launch. Setup: [skills/opensesame-mcps](../../skills/opensesame-mcps/SKILL.md).
+  launch, and [`@opensesame/cli`](../cli) (`mcp client`). Setup:
+  [skills/opensesame-mcps](../../skills/opensesame-mcps/SKILL.md).
 - **Builds on:** [`@opensesame/agent-client`](../../packages/agent-client)
   (launch handle → agent capability headers),
   [`@opensesame/api-client`](../../packages/api-client),

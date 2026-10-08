@@ -1,10 +1,12 @@
-# 0065. Agent-surface parity via a capability registry (MCP + WebMCP)
+# ADR 0065 — Agent-surface parity via a capability registry (MCP + WebMCP)
 
 Date: 2026-08-30
 
 ## Status
 
 Accepted
+
+Amended by: [ADR 0138](0138-self-issued-identity-one-native-host.md) (Proposed, partly implemented; one `mcp` surface).
 
 ## Context
 

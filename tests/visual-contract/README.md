@@ -29,7 +29,9 @@ Run it explicitly — pixel baselines are deliberately *not* part of `pnpm test`
 or of `.github/workflows/ci.yml`. Screenshots depend on the host's fonts and
 renderer, so a hosted CI runner would fail them for reasons that have nothing
 to do with the diff under review. `pnpm test` in this package runs the unit
-suite (`src/compare.*.test.ts`) only.
+suite (`src/*.test.ts`) only. The package's `test:integration` script is the
+same `playwright test` as `test:visual`, so the root `pnpm test:integration`
+(and therefore `pnpm test:all` and `pnpm verify`) does run the pixel contract.
 
 ```bash
 # from the repo root, after `pnpm install`
@@ -48,6 +50,9 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
    Vite previews this isolated output on strict loopback port `5182`;
    `reuseExistingServer: false` prevents reuse of an unrelated developer
    server. Root-base navigation matches Playwright's leading-`/` URLs.
+   `PAGES_VISUAL_PREBUILT=1` skips the build and previews an existing
+   `work/visual-contract-dist` instead; the config throws unless that
+   directory's `index.html` loads `/assets/` (a `VITE_BASE=/` build).
 2. Runs `tests/vault-visual-contract.spec.ts` under two projects —
    `desktop` (1440×900, matching the checked-in baselines) and `mobile`
    (390×844, `devices["iPhone 13"]` with
@@ -70,10 +75,13 @@ This drives `playwright test` (config: `playwright.config.ts`), which:
    `toHaveScreenshot` snapshot mechanism — we need exact, stable output
    filenames to diff against the pre-existing `.impeccable/screenshots/*.png`
    baselines ourselves) and pixel-compares it via `src/compare.ts`
-   (`pixelmatch` + `pngjs`, `threshold: 0.1`, failing past a **1.5%** pixel
-   mismatch budget).
-4. On failure, writes `output/<name>-diff.png` (the pixelmatch visual diff)
-   and `output/<name>-actual.png` (the raw capture) for a human to look at.
+   (`pixelmatch` + `pngjs`, `threshold: 0.1`). A screen fails past a **1.5%**
+   mismatch budget measured against all pixels, or past a **5%** budget
+   measured against its content pixels (those that are not the baseline's
+   dominant background colour in either image), whichever trips first.
+4. Always writes `output/<name>-captured.png`; on failure also writes
+   `output/<name>-diff.png` (the pixelmatch visual diff) and
+   `output/<name>-actual.png` (the raw capture) for a human to look at.
    `output/` is git-ignored — see `.gitignore` — and is never committed.
 
 Browser selection prefers an explicit `PLAYWRIGHT_CHROMIUM` executable,
@@ -112,11 +120,13 @@ they're correct. In practice that means:
 
 ## Known caveats (read before trusting a "pass")
 
-- **A mostly-empty screen is cheap to match.** The budget is a share of all
-  pixels, and these screens are mostly paper: a capture of a blank frame once
-  passed `pages-mobile` inside 1.5%. Each capture therefore asserts its
-  landmark (the door's card, `#master`, `.vault`) is visible immediately
-  before and after the screenshot. Keep that when adding a screen.
+- **A mostly-empty screen is cheap to match.** The first budget is a share of
+  all pixels, and these screens are mostly paper: a capture of a blank frame
+  once passed `pages-mobile` inside 1.5%. `src/compare.ts` therefore also
+  measures the diff against the content pixels alone (the 5% budget above),
+  and each capture asserts its landmark (the door's card, `#master`, `.vault`)
+  is visible immediately before and after the screenshot. Keep that when
+  adding a screen.
 - **Motion is frozen for capture.** An init script sets `animation: none` and
   `transition: none`, so the `.unlock__card` settle and the wordmark's slot
   reel stand on their final frame (the reel's letters are its static state,
@@ -159,9 +169,8 @@ pass (`VISUAL_UPDATE=1`, see git history) after the very first real run
 against a live build. Every original baseline predated changes visible in
 the diff — most strikingly, `pages-desktop.png`/`pages-mobile.png` were
 screenshots of an entirely different, since-abandoned dark navy/yellow
-"NEXT DECISION" surface (the exact "yellow airport depth-band world"
-`DESIGN.md`'s Do/Don't list calls out by name), not a rendering of the
-then-current teal unlock screen at all; the `vault-unlock-*`
+"NEXT DECISION" surface, not a rendering of the then-current teal unlock
+screen at all; the `vault-unlock-*`
 and `vault-list-*` baselines were stale by smaller, genuine content/copy
 changes (e.g. the unlock screen's security-transparency copy grew a
 "PIN ≥ 6 chars, salted PBKDF2" clause after those baselines were captured).

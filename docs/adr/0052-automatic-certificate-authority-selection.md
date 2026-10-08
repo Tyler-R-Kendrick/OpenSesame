@@ -1,7 +1,12 @@
 # ADR 0052: Automatic certificate authority selection and key custody
 
-Status: Accepted and implemented
+Status: Accepted and implemented (partly superseded by ADR 0068 and ADR 0069; neither supersession is built in this checkout)
 Date: 2026-08-21
+Superseded in part by: [ADR 0068](0068-enrollment-protocol-servers.md) (§ "ACME
+profile": the refusal of arbitrary ACME directory URLs) and [ADR
+0069](0069-certificate-syncs.md) (§ "ACME profile": the refusal of automatic
+certificate deployment). `crates/gateway/src/cert_issuers/acme.rs` still accepts
+only its fixed providers (Let's Encrypt, ZeroSSL).
 Related: ADR 0005, 0017, 0032, 0039
 
 ## Context

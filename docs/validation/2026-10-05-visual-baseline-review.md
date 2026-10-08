@@ -1,5 +1,11 @@
 # Visual baseline review — 2026-10-05
 
+> Status (2026-10-08): the baselines committed in `.impeccable/screenshots/`
+> are main's refresh described in the last paragraph. Of the four reviewed
+> hashes below only `vault-unlock-mobile` still matches; `pages-desktop`
+> (`8ad77bc3…`), `pages-mobile` (`4b549c73…`) and `vault-list-mobile`
+> (`45d92935…`) now hash differently.
+
 The orchestrating reviewer inspected the four failing captures against real, unchanged main `eccd2d9d015b6bdb61c0cc068933fbf62febc888` and the integrated parity build. Both builds reproduce the stale baselines: the front door now includes Help and Account wording, and the phone vault opens its section tree. These reviewed captures intentionally replace only those four baselines. The passing desktop unlock and vault-list baselines remain unchanged.
 
 Pixel budgets, content budgets, timeouts, network checks and semantic assertions are unchanged. The phone assertion follows the actual responsive navigation while still checking unlocked state and available actions.
