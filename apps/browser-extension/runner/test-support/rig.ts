@@ -111,13 +111,15 @@ export async function rig(options: RigOptions = {}): Promise<Rig> {
     // Wall-clock idle under CI load aborted a live walk: Date.now jumped past
     // idleMs while the executor was still enqueueing the next step. Advance
     // `now` only with `sleep` so contention cannot end the tick early.
+    // Keep idleMs small: each null poll is a real claim round-trip, and 400
+    // of them exceeds vitest's 5s budget when turbo saturates the runner.
     now: () => clock,
     sleep: async (ms = 1) => {
       clock += Math.max(ms, 0);
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
     },
     pollMs: 1,
-    idleMs: 400,
+    idleMs: 80,
     loginWindowMs: 40,
     waitMs: 40,
   });
