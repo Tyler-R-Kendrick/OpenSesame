@@ -702,7 +702,7 @@
       "max-lines": 498
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1600
+      "max-lines": 1599
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
       "max-lines": 577

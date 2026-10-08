@@ -29,6 +29,8 @@ import {
   openDrop as openDropFormat,
 } from "@opensesame/vault-core";
 import { identityBase, identityFetch } from "../identity.js";
+import { claimIdFromBearer } from "../vault/local-drop-codec.js";
+import { noteOutboundDropConsumed } from "../vault/outbound-drops.js";
 
 /**
  * What went wrong on the claim plane. Creating and polling a drop fail as
@@ -167,6 +169,8 @@ export async function presentDrop(
 ): Promise<PresentedDrop> {
   try {
     const presented = await dropOpenSeams.presentClaim(bearerToken, userCode);
+    const claimId = claimIdFromBearer(bearerToken);
+    if (claimId) noteOutboundDropConsumed(claimId);
     return { targetManifest: guardManifest(presented.targetManifest) };
   } catch (error) {
     throw mapTransportError(

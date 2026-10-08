@@ -65,6 +65,7 @@ describe("sharing.drops runtime", () => {
     expect(runtime.HYDRATE_KEYS).toEqual([
       "opensesame.local-drop-claims.v1",
       "opensesame.local-drop-pepper.v1",
+      "opensesame.outbound-drops.v1",
     ]);
     for (const key of runtime.HYDRATE_KEYS) {
       expect(CORE_BOOT_KEYS).not.toContain(key);
