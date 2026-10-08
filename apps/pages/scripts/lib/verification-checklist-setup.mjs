@@ -54,12 +54,14 @@ export async function captureChoices(page, shot, record) {
     `${present} choices`,
   );
   const reset = await page.getByRole("button", { name: /reset/i }).count();
+  await shot("setup-no-reset");
   mark(record, "U2-no-setup-reset", reset === 0, `reset buttons: ${reset}`);
   await page.getByRole("button", { name: "Minimal", exact: true }).focus();
   await page.keyboard.press("ArrowRight");
   const focused = await page.evaluate(
     () => document.activeElement?.getAttribute("aria-label") ?? "",
   );
+  await shot("setup-keyboard");
   mark(record, "U1-setup-keyboard", focused === "Default", focused);
 }
 

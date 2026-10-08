@@ -8,21 +8,13 @@ import { openSessionMenu, openSessionSection } from "./session-section.mjs";
 import {
   BASE,
   ORIGIN,
+  hasLabel,
   mark,
+  railLabels,
   visibleClick,
 } from "./verification-checklist-shot.mjs";
 
-async function railLabels(page) {
-  return (await page.locator(".railtree__row").allTextContents()).map((text) =>
-    text.trim(),
-  );
-}
-
-function hasLabel(labels, name) {
-  return labels.some(
-    (label) => label === name || label.startsWith(`${name}\n`),
-  );
-}
+export { captureMissingControl } from "./verification-checklist-missing.mjs";
 
 export async function captureSessionRoots(page, shot, record) {
   await openSessionMenu(page);
@@ -46,6 +38,8 @@ export async function captureSessionRoots(page, shot, record) {
     .waitFor({ state: "visible", timeout: 8_000 })
     .then(() => true)
     .catch(() => false);
+  if (backed) await shot("settings-back", back);
+  else await shot("settings-back");
   if (backed) await back.click();
   mark(
     record,
@@ -56,7 +50,19 @@ export async function captureSessionRoots(page, shot, record) {
   await openSessionSection(page, "Activity");
   await shot("activity");
   const backAgain = page.getByRole("treeitem", { name: "Back to vault" });
-  if (await backAgain.isVisible().catch(() => false)) await backAgain.click();
+  const activityBacked = await backAgain
+    .waitFor({ state: "visible", timeout: 8_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (activityBacked) await shot("activity-back", backAgain);
+  else await shot("activity-back");
+  mark(
+    record,
+    "U11-activity-back",
+    activityBacked,
+    activityBacked ? "Back to vault" : "no back",
+  );
+  if (activityBacked) await backAgain.click();
 }
 
 async function readName(page) {
@@ -77,14 +83,18 @@ export async function createSecret(page, shot, record, editorStep) {
   await name.waitFor({ state: "visible", timeout: 15_000 });
   const generated = await readName(page);
   if (editorStep && record.profile === "minimal-local") {
+    await shot("secret-name", name);
     mark(record, "S7-secret-name", /^Secret /.test(generated), generated);
   }
   const type = page.getByLabel("Type", { exact: true });
   if ((await type.count()) > 0 && (await type.isVisible().catch(() => false))) {
     await type.selectOption("secret");
   }
-  const values = await page.locator("#secret-value").count();
+  const secretField = page.locator("#secret-value");
+  const values = await secretField.count();
   if (editorStep) {
+    if (values === 1) await shot("secret-field", secretField);
+    else await shot("secret-field");
     mark(record, "S8-single-secret", values === 1, `secret inputs: ${values}`);
     await shot(editorStep);
   }
@@ -98,6 +108,17 @@ export async function createSecret(page, shot, record, editorStep) {
     .locator(".vtree__row", { hasText: "Example" })
     .first()
     .waitFor({ timeout: 15_000 });
+  if (editorStep) {
+    const row = page.locator(".vtree__row", { hasText: "Example" }).first();
+    const shared = await row.getByRole("img", { name: /^Shared with/ }).count();
+    await shot("secret-shared-icon", row);
+    mark(
+      record,
+      "S9-shared-icon",
+      shared === 0,
+      `unshared row; shared icons ${shared}`,
+    );
+  }
   return true;
 }
 
@@ -129,6 +150,7 @@ export async function openShare(page, shot, record, step, checkId) {
   if (dropSeen) await shot(step);
   mark(record, checkId, dropSeen, dropSeen ? "Share submenu" : "no submenu");
   if (checkId === "S5-share") {
+    await shot("share-not-once");
     mark(
       record,
       "S6-not-share-once",
@@ -223,6 +245,7 @@ export async function captureSettings(page, shot, record, trashed) {
   mark(record, "U9-sealed-store", !/Sealed store/.test(vaults));
   await showCategory(page, "Danger", "#settings-trash");
   const danger = await shot("settings-danger");
+  await shot("danger-trash", page.locator("#settings-trash"));
   const restore = await page.getByRole("button", { name: /Restore / }).count();
   mark(
     record,
@@ -242,7 +265,8 @@ export async function captureCommand(page, shot, record) {
     .then(() => true)
     .catch(() => false);
   const options = open ? await page.getByRole("option").count() : 0;
-  if (open) await shot("command-typeahead");
+  if (open) await shot("command-typeahead", list);
+  else await shot("command-typeahead", input);
   mark(record, "S2-typeahead", options > 0, `${options} slash options`);
   await page.keyboard.press("Escape");
   await input.fill("");
@@ -264,11 +288,23 @@ export async function captureSupport(page, shot, record) {
   const ask = await page
     .getByRole("button", { name: "Ask", exact: true })
     .count();
+  const askTab = await page
+    .getByRole("tab", { name: "Ask", exact: true })
+    .count();
+  const searchTab = await page
+    .getByRole("tab", { name: "Search", exact: true })
+    .count();
+  // Search tab when this build can only read the written help. Ask tab
+  // when local or remote AI is approved, even while the model is still
+  // absent and the composer button still says Search.
+  const writtenOnly =
+    searchTab === 1 && askTab === 0 && search >= 1 && ask === 0;
+  const asking = askTab === 1 && searchTab === 0 && (ask === 1 || search >= 1);
   mark(
     record,
     "H6-search",
-    search === 1 && ask === 0,
-    `Search ${search} Ask ${ask}`,
+    writtenOnly || asking,
+    `tab Ask ${askTab} Search ${searchTab}; button Ask ${ask} Search ${search}`,
   );
   mark(record, "U12-no-webmcp", !/WebMCP/.test(text));
   mark(record, "H1-support", !/WebMCP/.test(text) && /Support/.test(text));
@@ -290,7 +326,9 @@ export async function captureStatusline(page, shot, record) {
     );
   await shot("statusline", footer);
   const joined = labels.join(" | ");
+  await shot("statusline-no-identity", footer);
   mark(record, "S3-no-identity-icon", !/identity/i.test(joined), joined);
+  await shot("statusline-no-webcrypto", footer);
   mark(
     record,
     "S4-no-webcrypto-icon",
@@ -311,10 +349,10 @@ export async function captureReset(page, shot, record) {
     mark(record, "U13-reset", false, "reset control absent");
     return;
   }
-  await page
-    .getByRole("dialog", { name: "Reset this browser" })
-    .waitFor({ timeout: 8_000 });
-  const text = await shot("reset-device");
+  const dialog = page.getByRole("dialog", { name: "Reset this browser" });
+  await dialog.waitFor({ timeout: 8_000 });
+  const text = await shot("reset-modal", dialog);
+  await shot("reset-device");
   mark(record, "U13-reset", /Reset this browser/.test(text));
   await page
     .getByRole("dialog", { name: "Reset this browser" })

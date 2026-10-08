@@ -4,8 +4,9 @@
  *
  * Builds Pages at VITE_BASE=/OpenSesame/ (security-profile.mjs, then vite,
  * the same shape as build-profile.mjs) and walks the checklist UI on
- * minimal-local, default (stock build when no fixture exists), custom, and
- * full. Screenshots land in
+ * minimal-local, default (stock build; no fixture), custom (stock build;
+ * the capabilities ceremony), and full (`capability-profiles/full.json`).
+ * Screenshots land in
  * /opt/cursor/artifacts/verification-2026-10/<profile>/<step>.png.
  *
  *   PLAYWRIGHT_CHROMIUM=/opt/pw-browsers/chromium \
@@ -20,6 +21,7 @@ import { createHarness } from "./lib/static-origin-harness.mjs";
 import {
   captureCommand,
   captureGuestShare,
+  captureMissingControl,
   captureReset,
   captureSessionRoots,
   captureSettings,
@@ -98,6 +100,7 @@ async function walkInstalled(page, shot, record, choice) {
   await captureCommand(page, shot, record);
   await captureStatusline(page, shot, record);
   await captureSupport(page, shot, record);
+  await captureMissingControl(page, shot, record);
   await captureReset(page, shot, record);
 }
 

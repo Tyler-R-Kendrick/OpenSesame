@@ -49,6 +49,7 @@ export function useTutorialGate(): LibraryOptions {
     return {
       sectionDrawn: (id: string) => drawn.has(id),
       holds: readGuidePredicate,
+      installed: (id: string) => plan?.capabilities[id]?.approved === true,
     };
   }, [plan, roads, identityApi]);
 }
