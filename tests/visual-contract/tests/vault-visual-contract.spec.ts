@@ -9,13 +9,13 @@
  *                                            session, and the corner Skip;
  *                                            sign-in and "Use without an
  *                                            account" once setup is skipped)
- *  - apps/pages/src/screens/UnlockScreen.tsx (.unlock__card, #master / #confirm)
+ *  - apps/pages/src/screens/UnlockScreen.tsx (.unlock__card, #unlock-pin / #confirm)
  *  - apps/pages/src/sections/VaultSection.tsx (.vault after sealing)
  *
  * Every test gets a fresh Playwright browser context, so apps/pages always
  * sees a true first run: no vault and no setup record, so the front door.
- * The local-only seal is a master password (≥12 chars, strength score ≥2)
- * plus the no-recovery checkbox.
+ * The local-only seal selects the Device PIN method (ADR 0180) and
+ * acknowledges that there is no recovery.
  *
  * Pages calls no backend by default (ADR 0090: every settings default is
  * empty), so nothing here is mocked. Instead any request that leaves the
@@ -26,8 +26,8 @@ import { expect, test } from "@playwright/test";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { captureAndVerify } from "../src/compare.js";
 
-/** Matches apps/pages store tests; length ≥12 and strength score ≥2. */
-const MASTER_PASSWORD = "correct horse battery staple";
+/** Matches the genuine current Pages PIN-seal journey; policy accepts eight digits. */
+const DEVICE_PIN = "48291037";
 
 async function settleFonts(page: Page): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
@@ -93,7 +93,14 @@ async function openLocalOnlySeal(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Set up your own" }).click();
   await page.getByRole("button", { name: "Skip all" }).click();
   await page.getByRole("button", { name: "Use without an account" }).click();
-  await page.locator("#master").waitFor({ state: "visible" });
+  await expect(
+    page.getByRole("tab", { name: "Password", exact: true }),
+  ).toHaveCount(0);
+  const pinMethod = page.getByRole("tab", { name: "PIN", exact: true });
+  await pinMethod.click();
+  await expect(pinMethod).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByLabel("Device PIN", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Confirm PIN", { exact: true })).toBeVisible();
 }
 
 async function completeFirstRunSeal(
@@ -102,10 +109,17 @@ async function completeFirstRunSeal(
 ): Promise<void> {
   await openLocalOnlySeal(page);
 
-  await page.locator("#master").fill(MASTER_PASSWORD);
-  await page.locator("#confirm").fill(MASTER_PASSWORD);
-  await page.getByLabel("I understand this vault cannot be recovered.").check();
-  await page.getByRole("button", { name: "Seal this device" }).click();
+  const seal = page.getByRole("button", { name: "Seal with PIN", exact: true });
+  await expect(seal).toBeDisabled();
+  await page.getByLabel("Device PIN", { exact: true }).fill(DEVICE_PIN);
+  await expect(seal).toBeDisabled();
+  await page.getByLabel("Confirm PIN", { exact: true }).fill(DEVICE_PIN);
+  await expect(seal).toBeDisabled();
+  await page
+    .getByLabel("I understand this vault cannot be recovered.", { exact: true })
+    .check();
+  await expect(seal).toBeEnabled();
+  await seal.click();
 
   await page.locator(".vault").waitFor({ state: "visible" });
   await expect(
@@ -163,21 +177,21 @@ test.describe("Pages visual contract", () => {
     );
   });
 
-  test("vault-unlock: first-run master-password form, settled", async ({
+  test("vault-unlock: first-run Device PIN form, settled", async ({
     page,
   }, testInfo) => {
     await openLocalOnlySeal(page);
     await expect(
       page.getByRole("heading", { name: "Seal this device" }),
     ).toBeVisible();
-    await expect(page.locator("#master")).toBeVisible();
-    await expect(page.locator("#confirm")).toBeVisible();
+    await expect(page.getByLabel("Device PIN", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("Confirm PIN", { exact: true })).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Seal this device" }),
+      page.getByRole("button", { name: "Seal with PIN", exact: true }),
     ).toBeVisible();
     await capture(
       page,
-      page.locator("#master"),
+      page.getByLabel("Device PIN", { exact: true }),
       `vault-unlock-${testInfo.project.name}`,
       testInfo,
     );
