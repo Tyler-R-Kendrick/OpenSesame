@@ -694,7 +694,7 @@ describe("IdentitySection", () => {
     directory.approveDevice.mockRejectedValueOnce(
       new DirectoryError(
         502,
-        "host_api_unreachable",
+        "approval_peer_unreachable",
         "Approval could not be delivered. Try again when the service is reachable.",
       ),
     );

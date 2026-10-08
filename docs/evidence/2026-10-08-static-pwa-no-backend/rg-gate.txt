@@ -1,0 +1,23 @@
+# rg gate — backend stamp / API wiring strings (2026-10-08)
+
+Pattern (case-insensitive):
+
+  identity_api|host_api|daemon_api|PAGES_(IDENTITY|HOST|DAEMON)
+
+Command (excludes history trees only):
+
+  grep -RInE 'identity_api|host_api|daemon_api|PAGES_(IDENTITY|HOST|DAEMON)' . \
+    --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=target \
+    --exclude-dir=audit --exclude-dir=evidence --exclude-dir=archive \
+    --exclude-dir=dist --exclude-dir=dist-profiles
+
+Result: **0 matches** outside `docs/audit/`, `docs/evidence/`, and `docs/archive/`.
+
+Notes:
+
+- `write-runtime-config.mjs` refuses retired backend stamps without embedding
+  literal `PAGES_*_API` strings (built from plane names at runtime).
+- Federation / ceremony error codes were renamed (`no_federation_endpoint`,
+  `approval_peer_unreachable`, …) so live code does not carry `identity_api` /
+  `host_api` substrings.
+- Inventory and ADR history may still name retired env vars under `docs/audit/`.

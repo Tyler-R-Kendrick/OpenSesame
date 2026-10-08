@@ -17,9 +17,16 @@ input when you need optional cargo features (for example `bitwarden-compat`).
 
 Workflow: `.github/workflows/publish-npm.yml`
 
+There is **no** npm package for the deleted Identity API, Identity worker, Host
+TS client, or Identity database layer. Those workspace paths were removed on
+2026-10-08 (`docs/audit/2026-10-static-pwa-inventory.md`); do not publish
+`@opensesame/control-plane`, `@opensesame/identity-worker`, `@opensesame/api-client`,
+`@opensesame/database`, `@opensesame/device-auth`, or `@opensesame/webhooks`.
+
 1. Create an npm Automation token with publish rights to `@opensesame/*`.
 2. Add it as repository secret `NPM_TOKEN`.
-3. Run the workflow and pass a comma-separated `packages` input.
+3. Run the workflow and pass a comma-separated `packages` input (client libraries
+   only, for example `@opensesame/os-domain`).
 
 Packages remain private in the monorepo until you remove `"private": true` from
 their `package.json` and set `"publishConfig": { "access": "public" }` where
@@ -38,8 +45,8 @@ For Vercel:
 
 1. Link the repository (root directory `apps/pages`, settings in
    `apps/pages/vercel.json`).
-2. Set **no** required environment variables. Do **not** stamp
-   `PAGES_IDENTITY_API`, `PAGES_HOST_API`, or `PAGES_DAEMON_API`.
+2. Set **no** required environment variables. Do **not** stamp retired
+   backend API env vars (see ADR 0090 and the inventory audit).
 3. Deploy must serve `dist/` only — **no** Vercel serverless functions under
    `api/`.
 4. Optional: Git integration; the checked-in `vercel.json` runs the same turbo

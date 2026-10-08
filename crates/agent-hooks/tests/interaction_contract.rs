@@ -165,7 +165,7 @@ async fn captured_requests() -> (Value, Value) {
 }
 
 #[tokio::test]
-async fn what_the_approver_sends_is_what_the_identity_api_accepts() {
+async fn what_the_approver_sends_is_what_the_interaction_service_accepts() {
     let doc = openapi();
     let (subject, interaction) = captured_requests().await;
     assert_valid(&doc, "CreateAuthorizationRequest", &subject);
@@ -186,7 +186,7 @@ async fn what_the_approver_sends_is_what_the_identity_api_accepts() {
 }
 
 #[tokio::test]
-async fn what_the_mock_answers_is_what_the_identity_api_answers() {
+async fn what_the_mock_answers_is_what_the_interaction_service_answers() {
     let doc = openapi();
     let server = serve(vec![Step::Spend], 201).await;
     let http = reqwest::Client::new();

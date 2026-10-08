@@ -8,7 +8,12 @@ relay peer (ADR 0181).
 Grok Build: HTTP 402 on `scripts/dev/grok-headless.sh` (2026-10-08). This
 stack is Cursor Agent with honest authorship.
 
-Status: `delete` · `keep-relay` · `history-docs` · `cli-remove` · `cli-local`.
+Status: **merged intent on branch `cursor/delete-host-identity-daemon-b359`** —
+Host / Identity / daemon planes removed; **GHCR and compose publish one image**
+(`opensesame relay run` only); **npm has no Identity/Host packages** to publish
+(see `docs/operators/publishing.md`).
+
+Tags: `delete` · `keep-relay` · `history-docs` · `cli-remove` · `cli-local`.
 
 ## Deleted planes (this PR)
 
@@ -26,9 +31,14 @@ Removed from the tree on branch `cursor/delete-host-identity-daemon-b359`:
   starts control-plane / identity-worker / mock IdP; removed `dev:host`,
   `dev:daemon`, `db:migrate`, `db:reset`, `generate:openapi`, `audit:daemon-deps`;
   added `dev:relay`.
-- **Compose / GHCR:** `ops/compose/docker-compose.yml` is relay-only;
-  `ops/compose/Dockerfile` default `CMD ["relay", "run"]`; publish/container PR
-  workflow names document relay-only image.
+- **Compose / GHCR:** `ops/compose/docker-compose.yml` defines **only** the
+  `relay` service (`opensesame relay run`). `ops/compose/Dockerfile` default
+  `CMD ["relay", "run"]`. `.github/workflows/publish-containers.yml` and
+  `container-build-pr.yml` build and push **that relay-only image** to GHCR —
+  there is no Host, Identity, or daemon container artifact.
+- **npm:** Identity/control-plane packages are **gone from the tree**; the manual
+  `publish-npm.yml` workflow must not target removed package names (documented in
+  `docs/operators/publishing.md`).
 - **Kept intentionally:** vault relay (`crates/gateway/src/vault_relay/*`),
   sealed-store, human-vault, app-core, Pages `src/` (not `api/`), relay client
   in app-core, `sharing.relay` capability. **`@opensesame/oauth-provider` kept**
