@@ -188,13 +188,13 @@ export default defineConfig({
         warn(warning);
       },
       output: {
-        // Merge a chunk under 5 KB into one that every path loading it
-        // already loads, so the explicit capability chunks (see
-        // `capability-compose-plugin.mjs`) do not leave dozens of tiny
-        // shared chunks that gzip worse apart than together. Larger values
-        // fold small optional chunks (Tailnet sync's) into `main`, which
-        // is "safe" to Rollup — everything loads `main` — and wrong here.
-        experimentalMinChunkSize: 5_000,
+        // Merge a chunk under 12 KB into one that every path loading it
+        // already loads. The precache gzips each file alone, and the persona
+        // stack's extra leaves put that sum over the 1739 KiB ceiling at
+        // 5 KB. 12 KB brings it back with room. Do not go higher: past this,
+        // small optional chunks (Tailnet sync's) fold into `main`, which is
+        // "safe" to Rollup — everything loads `main` — and wrong here.
+        experimentalMinChunkSize: 12_000,
         manualChunks: bundleChunk,
       },
       // Every HTML entry is listed here; `capabilityCompose()`'s config hook
