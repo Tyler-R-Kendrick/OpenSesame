@@ -5,11 +5,6 @@ over stdio. It gives a model a handful of Host API tools under a narrowly
 scoped, short-lived agent capability from an approved local launch. It has no
 tool that materializes a credential or reads a secret.
 
-Password-provider operations execute in the native CLI, and browser-local
-vault metadata workflows execute through Pages WebMCP. This Host client
-has custody of neither vault and does not advertise those operations
-([ADR 0177](../../docs/adr/0177-password-workflow-surface-boundaries.md)).
-
 ## Where it fits
 
 - **Used by:** MCP-capable agents launched through an approved local agent
@@ -62,5 +57,3 @@ added or removed here must match the registry
 - [ADR 0065](../../docs/adr/0065-agent-surface-parity.md) — agent-surface parity
 - [ADR 0099](../../docs/adr/0099-scoped-local-agent-authority.md) — scoped local agent authority
 - [Audit: MCP response minimization](../../docs/security/audits/2026-08-22-mcp-response-minimization.md)
-
-MCP clients can discover and read `opensesame://guides/password-workflows` to locate actual PWA tasks and understand native approval boundaries. This read-only resource fetches no vault state and carries no bearer, credential, or approval authority.

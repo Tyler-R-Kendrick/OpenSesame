@@ -117,11 +117,6 @@ export const TUTORIAL_RULES = [
     `${T}support-context`,
     "nullable React context seam read by core sheets; imports the optional controller only as an erased type",
   ),
-  optional(
-    `${T}password-workflow-tour.test`,
-    HELP,
-    "password workflow walkthrough runtime verification",
-  ),
   shared(
     `${T}gate-seat`,
     "the seat a gate screen keeps for the help key, and the host that holds it; core screens import it, the capability draws into it (ADR 0166)",
@@ -137,7 +132,7 @@ export const TUTORIAL_RULES = [
       "catalog-more",
       "capability-tutorials",
       "goals",
-      "password-workflow-goals",
+      "item-reference-help",
       "identity-catalog",
       "identity-goals",
       "setup-catalog",

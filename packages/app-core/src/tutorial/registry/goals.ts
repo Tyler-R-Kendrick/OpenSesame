@@ -19,10 +19,7 @@ import { FEATURE_GOALS } from "./feature-goals.js";
 import type { GuideGoalDescriptor, HelpTopic } from "./goal-types.js";
 import { HEALTH_REVIEW_GOAL } from "./health-goal.js";
 import { IDENTITY_HELP } from "./identity-goals.js";
-import {
-  PASSWORD_WORKFLOW_GOALS,
-  PASSWORD_WORKFLOW_HELP,
-} from "./password-workflow-goals.js";
+import { ITEM_REFERENCE_HELP } from "./item-reference-help.js";
 import { type GuideRouteId, scopeApplies } from "./routes.js";
 import { SETUP_GOALS, SETUP_HELP, SHELL_GOALS } from "./setup-goals.js";
 import { SHELL_HELP } from "./shell-goals.js";
@@ -192,7 +189,6 @@ export const CORE_GUIDE_GOALS: readonly GuideGoalDescriptor[] = [
   },
   ...SHELL_GOALS,
   ...FEATURE_GOALS,
-  ...PASSWORD_WORKFLOW_GOALS,
 ];
 
 /** Authored help whose walkthrough is a core goal. */
@@ -304,7 +300,7 @@ export const CORE_HELP_TOPICS: readonly HelpTopic[] = [
   },
   ...SETUP_HELP,
   ...SHELL_HELP,
-  ...PASSWORD_WORKFLOW_HELP,
+  ...ITEM_REFERENCE_HELP,
 ];
 
 /**

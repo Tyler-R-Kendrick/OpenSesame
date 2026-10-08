@@ -14,10 +14,6 @@ import {
   createAuthenticatedApiClient,
   normalizeHttpBaseUrl,
 } from "./api-client.js";
-import {
-  PASSWORD_WORKFLOW_RESOURCE,
-  passwordWorkflowGuide,
-} from "./password-workflow-resource.js";
 import { stdioTransportSeams } from "./stdio-transport.js";
 import { toolsManifest } from "./tools.js";
 
@@ -60,26 +56,6 @@ export function buildServer({ hostUrl }: ClientServerOptions): McpServer {
     name: "opensesame-mcp-client",
     version: "0.1.0",
   });
-
-  server.registerResource(
-    "password-workflows",
-    PASSWORD_WORKFLOW_RESOURCE,
-    {
-      title: "Password workflows and human approval",
-      mimeType: "application/json",
-      description:
-        "Human vault handoffs and custody boundaries; no vault values or request authority",
-    },
-    async (uri) => ({
-      contents: [
-        {
-          uri: uri.href,
-          mimeType: "application/json",
-          text: JSON.stringify(passwordWorkflowGuide),
-        },
-      ],
-    }),
-  );
 
   server.tool("host_health", "Check Host API liveness", {}, async () => {
     const client = createApiClient({ baseUrl: hostUrl });

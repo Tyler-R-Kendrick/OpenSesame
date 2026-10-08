@@ -68,7 +68,7 @@ describe("password workflow boundaries", () => {
       );
     }
   });
-  it("labels native request controls as human command handoffs rather than browser execution", () => {
+  it("leaves native requests and leases to the human CLI, with the browser excluded by custody", () => {
     for (const id of [
       "request",
       "lease_approve",
@@ -81,10 +81,8 @@ describe("password workflow boundaries", () => {
       expect(capability?.surfaces.cli).toMatch(
         /^opensesame-id (request|lease)/,
       );
-      expect(capability?.surfaces.pwa).toBe(
-        "lib/password-agent/native-handoff.ts:nativeRequestCommands",
-      );
-      expect(capability?.title).toContain("PWA command handoff");
+      expect(capability?.surfaces.pwa).toBeNull();
+      expect(capability?.excluded?.pwa?.adr).toBeDefined();
       expect(capability?.excluded?.webmcp?.reason).toContain("human CLI");
     }
   });

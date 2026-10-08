@@ -1,3 +1,4 @@
+import { packsNeeded } from "@opensesame/app-core/lib/type-packs/requires.js";
 import { isPackOn } from "@opensesame/app-core/lib/type-packs/state.js";
 import {
   type AccountItem,
@@ -69,6 +70,25 @@ function MethodLines({
 }
 
 /**
+ * Install a credential type for the draft that chose it, and give back every
+ * type the draft switched on when the account is abandoned. An account that is
+ * saved holds items of the type, which the vault refuses to give back.
+ */
+function useDraftPacks(packs: ReturnType<typeof usePackSnapshot>) {
+  const switchedOn = useRef(new Set<string>());
+  useEffect(() => {
+    const mine = switchedOn.current;
+    return () => void credentialPackSeams.release([...mine].reverse());
+  }, []);
+  return (id: string) => {
+    if (isPackOn(id, packs)) return;
+    for (const pack of [id, ...packsNeeded(id)])
+      if (!isPackOn(pack, packs)) switchedOn.current.add(pack);
+    credentialPackSeams.enable(id);
+  };
+}
+
+/**
  * The account's login methods: a heading whose `+` opens the choice of a new
  * method of any type or an existing credential to bind, then each method's
  * lines in order. An account may hold none, so every one can go. The `+` is
@@ -93,7 +113,7 @@ export function AccountMethods({
   const existing = bindableCredentials(items, methods);
   const opener = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
-
+  const claimPack = useDraftPacks(packs);
   useEffect(() => {
     if (added === null) return;
     const blocks = list.current?.querySelectorAll<HTMLElement>("[data-method]");
@@ -107,11 +127,9 @@ export function AccountMethods({
   const replace = (next: LoginMethod) =>
     onMethods(methods.map((entry) => (entry.id === next.id ? next : entry)));
   const add = (type: LoginMethodType) => {
-    // A type that is off is switched on by being chosen; the method needs
-    // nothing from it until it is saved, and the open vault keeps it from then.
-    if (!isPackOn(credentialTypeId(type), packs)) {
-      credentialPackSeams.enable(credentialTypeId(type));
-    }
+    // A type that is off is installed by being chosen, for this draft only; the
+    // vault keeps it when the account is saved with a credential of it.
+    claimPack(credentialTypeId(type));
     const made = newMethod(account, type);
     onMethods([...methods, made]);
     setPicking(false);

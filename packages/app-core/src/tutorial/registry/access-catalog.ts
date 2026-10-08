@@ -14,14 +14,6 @@ import type { GuideTargetDescriptor } from "./targets.js";
 
 export const ACCESS_TARGETS: readonly GuideTargetDescriptor[] = [
   {
-    id: "access.private-request",
-    description:
-      "Prepare a native credential request and bounded lease commands for deliberate human CLI execution; never approves or sends a request in the browser.",
-    role: "surface",
-    routes: ["/access/requests"],
-    capabilityId: "password_provider.lease_approve",
-  },
-  {
     id: "access.grants",
     description:
       "The Grants tab: local application grants and optional delegations, their scope and expiry, with confirmed revocation.",
