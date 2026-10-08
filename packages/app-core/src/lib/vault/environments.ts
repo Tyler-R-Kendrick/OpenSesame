@@ -13,6 +13,11 @@ export const ENVIRONMENTS_CAPABILITY = "vault.environments";
 
 export const ENVIRONMENT_NOTICE_ID = `${ENVIRONMENTS_CAPABILITY}.missing`;
 
+/** Same secret value in production and another environment (hash-equal). */
+export const ENVIRONMENT_REUSE_NOTICE_ID = `${ENVIRONMENTS_CAPABILITY}.reuse`;
+
+const PROD_ENVIRONMENT = /prod/i;
+
 export type EnvironmentPlan = Readonly<{
   approvedCapabilities: readonly string[];
 }> | null;
@@ -243,13 +248,80 @@ export function notifyMissingEnvironmentValues(
   const missing = state === null ? [] : missingKeys(state, items);
   if (missing.length === 0) {
     dismissNotice(ENVIRONMENT_NOTICE_ID);
+  } else {
+    setStatusNotice({
+      id: ENVIRONMENT_NOTICE_ID,
+      tone: "warn",
+      title: "Environment",
+      body: missing.join(", "),
+    });
+  }
+  notifyEnvironmentValueReuse(plan, vaultId, items);
+}
+
+function prodEnvironmentNames(names: readonly string[]): string[] {
+  return names.filter((name) => PROD_ENVIRONMENT.test(name));
+}
+
+/** Keys whose sealed values match across production and another environment. */
+function reusedProdKeys(
+  state: EnvironmentSnapshot,
+  items: readonly EnvironmentItem[],
+): string[] {
+  const prod = prodEnvironmentNames(state.names);
+  if (prod.length === 0) return [];
+  const nonProd = state.names.filter((name) => !prod.includes(name));
+  if (nonProd.length === 0) return [];
+  const keys: string[] = [];
+  for (const item of items) {
+    for (const prodName of prod) {
+      const prodValue = state.values[prodName]?.[item.id] ?? "";
+      if (prodValue.length === 0) continue;
+      const prodDigest = digestValue(prodValue);
+      for (const other of nonProd) {
+        const otherValue = state.values[other]?.[item.id] ?? "";
+        if (otherValue.length === 0) continue;
+        if (digestValue(otherValue) === prodDigest) {
+          keys.push(item.key);
+          break;
+        }
+      }
+    }
+  }
+  return keys;
+}
+
+/** FNV-1a fingerprint; values are compared blind, never echoed in notices. */
+function digestValue(value: string): string {
+  // FNV-1a 32-bit — sync, deterministic, good enough to detect reuse in UI.
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16);
+}
+
+/**
+ * Warn when a production environment shares a secret value with another
+ * environment. Only runs while `vault.environments` is enabled.
+ */
+export function notifyEnvironmentValueReuse(
+  plan: EnvironmentPlan,
+  vaultId: string,
+  items: readonly EnvironmentItem[],
+): void {
+  const state = gate(plan, vaultId);
+  const reused = state === null ? [] : reusedProdKeys(state, items);
+  if (reused.length === 0) {
+    dismissNotice(ENVIRONMENT_REUSE_NOTICE_ID);
     return;
   }
   setStatusNotice({
-    id: ENVIRONMENT_NOTICE_ID,
+    id: ENVIRONMENT_REUSE_NOTICE_ID,
     tone: "warn",
     title: "Environment",
-    body: missing.join(", "),
+    body: reused.join(", "),
   });
 }
 
