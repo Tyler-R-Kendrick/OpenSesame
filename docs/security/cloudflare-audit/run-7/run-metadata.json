@@ -24,8 +24,8 @@
   "count_status": "counted",
   "run_status": "complete",
   "current_phase": "complete",
-  "grok_probe": "402 Payment Required (Grok Build usage exhausted); Cursor hunters only",
-  "hunter_platform": "cursor_explore_subagents",
+  "hunter_platform": "cursor_composer_2.5_subagents",
+  "hunter_model_policy": "Composer 2.5 for recon, hunt, validate, and fix; grok-4.7 only as optional Cursor subagent when required. No XAI_API_KEY or AI Gateway.",
   "started_at": "2026-10-08T14:55:26Z",
   "phase_log": [
     {
@@ -53,8 +53,8 @@
     },
     {
       "phase": "3_validation",
-      "started_at": "2026-10-08T15:39:54Z",
-      "completed_at": "2026-10-08T15:39:54Z",
+      "started_at": "2026-10-08T17:08:12Z",
+      "completed_at": "2026-10-08T17:16:03Z",
       "agents": [
         "v-run7-egress-encoded-path",
         "v-run7-cli-open-url",
@@ -67,21 +67,21 @@
     },
     {
       "phase": "4_findings",
-      "started_at": "2026-10-08T15:39:54Z",
-      "completed_at": "2026-10-08T15:39:54Z",
+      "started_at": "2026-10-08T17:16:03Z",
+      "completed_at": "2026-10-08T17:16:30Z",
       "confirmed": 0,
       "needs_validation": 0
     },
     {
       "phase": "5_record_verification",
-      "started_at": "2026-10-08T15:39:54Z",
-      "completed_at": "2026-10-08T15:39:54Z",
+      "started_at": "2026-10-08T17:16:30Z",
+      "completed_at": "2026-10-08T17:17:05Z",
       "agent": "v-run7-record-verify"
     },
     {
       "phase": "6_report",
-      "started_at": "2026-10-08T15:39:54Z",
-      "completed_at": "2026-10-08T15:39:54Z"
+      "started_at": "2026-10-08T17:17:05Z",
+      "completed_at": "2026-10-08T17:17:30Z"
     }
   ],
   "prior_run_paths": [
@@ -95,7 +95,7 @@
   "prior_runs_not_counted": ["run-5", "run-6"],
   "coverage_ledger_units": 54,
   "shared_file_owners": ["parent"],
-  "notes": "Counted run 7. Phase 1: four parallel Cursor recon agents (1a\u20131d); parent wrote architecture.md and reset ledger to planned (no build-run-* scripts). Phase 2+ pending.",
-  "completed_at": "2026-10-08T15:39:54Z",
-  "coverage_ledger_md5": "a58d862ea7600139570ca3c8e1fe9439"
+  "notes": "Counted run 7. Phases 1\u20132: parallel Composer recon and hunt waves (51 wave-2 units + wave-1 overlays); no build-run-* scripts. Phases 3\u20136 closed with live verifier runs logged in agents/phase3-verifier.log.",
+  "completed_at": "2026-10-08T17:17:30Z",
+  "coverage_ledger_md5": "977a0410818b3fa577a6f6417177e97d"
 }

@@ -1,0 +1,198 @@
+=== run-7 phase 3 validation 2026-10-08T17:15:34Z ===
+hunter_platform: cursor composer-2.5 subagents (no Grok Build)
+--- domain encoded_path_traversals_fail_the_prefix_gate ---
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running unittests src/lib.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/opensesame_domain-756b3b8da72abaac)
+
+running 1 test
+test authority::tests::encoded_path_traversals_fail_the_prefix_gate ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 436 filtered out; finished in 0.00s
+
+     Running tests/budget_properties.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/budget_properties-c27bc352a8e96dc7)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+--- sandbox grant_expiry ---
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.20s
+     Running tests/grant_expiry.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/grant_expiry-26a83e16db078fe1)
+
+running 2 tests
+test broker_imports_refuse_after_the_grant_window_closes ... ok
+test spawn_refuses_after_the_grant_window_closes ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+--- cli authorization_urls_must_be_https_or_dev_loopback ---
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running unittests src/main.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/opensesame-5b8667056fda52c4)
+
+running 1 test
+test connect::tests::authorization_urls_must_be_https_or_dev_loopback ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 191 filtered out; finished in 0.00s
+
+     Running tests/attach_journey.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/attach_journey-92ca5d6436f24a22)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/browserpass_golden.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/browserpass_golden-31602003974ba086)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/capability_parity.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/capability_parity-1f5d1449cd1f2f17)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/credential_helpers.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/credential_helpers-1375f6cf04d77fe4)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.00s
+
+     Running tests/daemon_startup_security.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/daemon_startup_security-0e536adcc40fe8cf)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests/dev_run_surrogates.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/dev_run_surrogates-bc2233f5bb8f3774)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/gopass_golden.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/gopass_golden-f0db8b416bd1fe2b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/hooks_approver.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/hooks_approver-c97be290044c6c69)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests/hooks_intercept.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/hooks_intercept-c19bfdce2486dbc1)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/hooks_intercept_approver.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/hooks_intercept_approver-6d1ffe8725a4b2f6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/hooks_policy_presets.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/hooks_policy_presets-83e825ae87647677)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/host_startup_security.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/host_startup_security-09723570c841d66b)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests/protect_rotation_journey.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/protect_rotation_journey-69bed191879ca78a)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+
+     Running tests/rotate_recipes.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/rotate_recipes-cf0cc89b530a4e0c)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests/rotate_recipes_verbs.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/rotate_recipes_verbs-a0b86d9dc88d5394)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+     Running tests/session_setup.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/session_setup-278a6697326de705)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.00s
+
+     Running tests/vault_file_cli.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/vault_file_cli-78fa7ddbba2a5520)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+--- gateway role evidence fence ---
+   Compiling opensesame-authenticator-core v0.1.0 (/workspace/crates/authenticator-core)
+   Compiling opensesame-sealed-store v0.1.0 (/workspace/crates/sealed-store)
+   Compiling opensesame-connector-host v0.1.0 (/workspace/crates/connector-host)
+   Compiling opensesame-broker v0.1.0 (/workspace/crates/broker)
+   Compiling opensesame-host-core v0.1.0 (/workspace/crates/host-core)
+   Compiling opensesame-gateway v0.1.0 (/workspace/crates/gateway)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 26.17s
+     Running unittests src/lib.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/opensesame_gateway-0feb06c71343c441)
+
+running 2 tests
+test routes::agent_runs::tests::hook_records::hook_records_honor_the_role_evidence_fence ... ok
+test routes::agent_runs::tests::control_honors_the_role_evidence_fence ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 1073 filtered out; finished in 0.66s
+
+--- authenticator custom_scheme ---
+   Compiling opensesame-authenticator-core v0.1.0 (/workspace/crates/authenticator-core)
+warning: function `rejects_ssrf_literal_and_localhost_forms` is never used
+   --> crates/authenticator-core/src/lib.rs:510:8
+    |
+510 |     fn rejects_ssrf_literal_and_localhost_forms() {
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `opensesame-authenticator-core` (lib test) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.97s
+     Running unittests src/lib.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/opensesame_authenticator_core-d7454697c8be38bc)
+
+running 2 tests
+test tests::custom_scheme_presentment_requires_a_public_request_uri ... ok
+test tests::custom_scheme_offers_require_a_public_by_reference_uri ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests/otp_conformance.rs (/home/vscode/.cache/packages/cargo-target/debug/deps/otp_conformance-8a93d7f00082abcf)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+--- compose nats bind ---
+TAP version 13
+# Subtest: compose publishes NATS on loopback only
+ok 1 - compose publishes NATS on loopback only
+  ---
+  duration_ms: 1.17445
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7.214756
+=== phase 3 complete 2026-10-08T17:16:03Z ===
