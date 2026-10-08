@@ -14,6 +14,8 @@ use serde_json::{json, Value};
 pub(crate) struct Options {
     #[arg(long, global = true)]
     pub(super) desktop: bool,
+    #[arg(long, global = true)]
+    pub(super) reveal: bool,
     #[command(subcommand)]
     pub(super) cmd: Command,
 }
@@ -183,9 +185,9 @@ fn get(item: &str, vault: &str, account: Option<&str>) -> anyhow::Result<Value> 
     )
 }
 pub(crate) async fn execute(options: Options) -> anyhow::Result<()> {
-    run(options.cmd, options.desktop).await
+    run(options.cmd, options.desktop, options.reveal).await
 }
-pub(crate) async fn run(cmd: Command, desktop: bool) -> anyhow::Result<()> {
+pub(crate) async fn run(cmd: Command, desktop: bool, reveal: bool) -> anyhow::Result<()> {
     credential::DESKTOP.store(desktop, std::sync::atomic::Ordering::Relaxed);
     match cmd {
         Command::Find { queries, scope } => {
@@ -242,9 +244,9 @@ pub(crate) async fn run(cmd: Command, desktop: bool) -> anyhow::Result<()> {
             apply,
             repair_imported_fields,
         )?,
-        Command::Read { reference } => consume::read(&reference)?,
+        Command::Read { reference } => consume::read(&reference, desktop, reveal)?,
         Command::Run { env, command } => consume::run_assignments(&env, &command)?,
-        Command::Env { cmd } => consume::env(cmd)?,
+        Command::Env { cmd } => consume::env(cmd, desktop, reveal)?,
         Command::InternalExec { command } => consume::internal_exec(&command)?,
         Command::InternalBatch { count } => consume::internal_batch(count)?,
         Command::Request(options) => request::execute(options).await?,

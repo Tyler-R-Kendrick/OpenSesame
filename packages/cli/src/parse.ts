@@ -322,7 +322,8 @@ Commands:
   inventory | audit           Metadata and organization checks, never values
   create api-credential --title <title> --vault <vault> --stdin|--clipboard
   password <item> --vault <vault> --stdin|--clipboard [--apply]
-  read <op://reference>        Explicit plaintext stdout
+  read <op://reference> [--reveal] [--desktop]
+                               Human-only plaintext stdout (TTY, no agent context)
   run --env NAME=op://reference -- <command...>
   env write <file> <NAME=op://reference...>
   env resolve <file> --output <file>|--in-place

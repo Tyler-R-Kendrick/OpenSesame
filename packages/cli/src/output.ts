@@ -20,7 +20,18 @@ export function emit(
     flags.json || trimmed.startsWith("{") || trimmed.startsWith("[")
       ? JSON.stringify(redactedReceipt, null, 2)
       : human;
-  process.stdout.write(`${text}\n`);
+  writeStdout(`${text}\n`);
+}
+
+function writeStdout(text: string): void {
+  process.stdout.write(text);
+}
+
+/** One scrubbed line on stderr (ADR 0157). */
+export function emitStderrLine(line: string): void {
+  const scrubbed = scrubText(line);
+  const text = scrubbed.endsWith("\n") ? scrubbed : `${scrubbed}\n`;
+  process.stderr.write(text);
 }
 
 /** What went wrong, as one scrubbed line for stderr (ADR 0157). */
@@ -50,7 +61,7 @@ export function emitMetadata<T>(value: T): void {
 
 /** Only an explicit human read writes exact secret bytes; this is functional output. */
 export function emitHumanValue(value: string): void {
-  process.stdout.write(value);
+  writeStdout(value);
 }
 
 /** Numeric receipt counts carry no plaintext; other secret-shaped fields stay redacted. */
