@@ -91,10 +91,13 @@ Phase 3 depends on 2. Phase 4 depends on 1 and 3. Phases 6 and 7 depend on 4.
 - The vault gains one identity key (P-256, non-extractable in the browser,
   wrapped by the vault key) and a `principal = jwk_thumbprint(identity_key)`
   derivation in `packages/vault-core`, with golden vectors shared with a new
-  Rust reader in `crates/human-vault`.
-- `device-identity-host.ts` mints `prn_<thumbprint>` instead of a random
-  ID. Existing random principals are kept and linked by a signed statement
-  from the new key.
+  Rust reader in `crates/human-vault`. As built (ADR 0160 §5): the key is a
+  P-256 JWK sealed in the tomb at `config/device-identity-key` and copied into
+  the sealed body (`packages/vault-core/src/device-key.ts`); `pages_vault`
+  reads only that the copy is present, and derives no principal.
+- `device-identity-sessions.ts` mints `prn_<thumbprint>` instead of a random
+  ID (done for an open vault). Existing random principals are kept and linked
+  by a signed statement from the new key.
 - Pages' own sign-in becomes a SIOP self-authentication. The Shoo road stays
   as an optional link that attaches a Google account to the principal
   (ADR 0078); the guest road is unchanged (ADR 0135).

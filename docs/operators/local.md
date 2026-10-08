@@ -27,8 +27,8 @@ Health:
 
 - `/health/live` — process up
 - `/health/ready` — accepts traffic only when authority quorum OK
-- `/health/authority` — quorum status
-- `/health/degraded` — structured degradation (A0 still available)
+- `/health/authority` — quorum status (`{"ok": bool}`)
+- `/health/degraded` — the same `{"ok": bool}` quorum answer
 - `/health/providers` — OpenFGA/OpenBao wiring (operator bearer / `X-OpenSesame-Operator`); confirms agent API is `connection_ref`
 - `/api/v1/connections` — agent-facing ConnectionRef list (never SecretRef)
 
@@ -44,7 +44,7 @@ Approve the user code at Pages' `/device` route (signed in to the Identity API),
 Invoke with ConnectionRef:
 
 ```bash
-cargo run -p opensesame-cli -- invoke \
+cargo run -p opensesame-cli -- access resources invoke \
   --connection-ref 'conn://…/github/main' \
   --operation repository.read \
   --resource 'repo:acme/catalog'
@@ -79,10 +79,16 @@ tailscale serve --bg 8788      # https://<host>.<tailnet>.ts.net
 
 ### The deployed Pages vault over Tailscale Serve
 
-`https://tyler-r-kendrick.github.io` is on both planes' CORS allowlists by
-default, and stays there when `OPENSESAME_CORS_ORIGINS` is overridden — the
-Identity API (`packages/control-plane/src/config.ts`) and the Host API
-(`crates/host-core`, `parse_cors_origins`) both append it. A browser console
+Neither plane puts `https://tyler-r-kendrick.github.io` on a CORS allowlist for
+you. The Identity API (`packages/control-plane/src/config.ts`) allows exactly the
+origins in `OPENSESAME_CORS_ORIGINS`, and none when it is unset; list the Pages
+origin there for the deployed vault to call it. The Host API validates the same
+variable at start-up (exact HTTPS or loopback origins) but sets no CORS headers
+from it (`crates/host-core/src/http_security.rs`, `apply_http_security`): a
+browser reaches the Host only as a paired origin, and
+`OPENSESAME_BROWSER_PAIRABLE_ORIGINS` refuses the shared GitHub origin
+([Pages origin](pages-origin.md),
+[local authority migration](local-authority-migration.md)). A browser console
 full of
 
 ```
@@ -91,7 +97,8 @@ from origin 'https://tyler-r-kendrick.github.io' has been blocked by CORS
 policy: No 'Access-Control-Allow-Origin' header is present
 ```
 
-is therefore almost never the allowlist. Look at the status on the same line:
+is the allowlist when the origin is missing from `OPENSESAME_CORS_ORIGINS`, and
+the service being down otherwise. Look at the status on the same line:
 `net::ERR_FAILED 502 (Bad Gateway)` means Tailscale Serve answered because the
 process behind it was not listening, and Serve's own 502 carries no CORS
 headers — the browser reports the missing header, the cause is the service
@@ -100,19 +107,20 @@ being down. Check from the machine that runs it:
 ```bash
 curl -si http://127.0.0.1:8788/v1/health/live \
   -H 'Origin: https://tyler-r-kendrick.github.io' | grep -i 'access-control\|HTTP/'
-curl -si http://127.0.0.1:8787/api/v1/health \
-  -H 'Origin: https://tyler-r-kendrick.github.io' | grep -i 'access-control\|HTTP/'
+curl -si http://127.0.0.1:8787/health/live | grep -i 'HTTP/'
 tailscale serve status
 ```
 
 A `200` with `access-control-allow-origin: https://tyler-r-kendrick.github.io`
 on loopback and a `502` through Serve is a Serve target pointing at the wrong
 port or a service that has exited; a `200` on loopback with no
-`access-control-allow-origin` is an `OPENSESAME_CORS_ORIGINS` set to `*` or
-`null`, which production refuses to start with and which suppresses the
-appended Pages origin. The vault polls every plane on a 30-second cadence
-(5 seconds while one is down), so the console repeats the same failure until
-the service is back; the statusline shows the same fact once.
+`access-control-allow-origin` is an origin missing from
+`OPENSESAME_CORS_ORIGINS` (an entry of `*` or `null` never matches, and both
+planes refuse to start with one). The Host answers `/health/live` with no CORS
+headers at all. The vault checks the Identity API about every 30 seconds (every
+5 seconds, backing off toward 30, while it is down; a hidden or offline tab does
+not probe), so the console repeats the same failure until the service is back;
+the statusline shows the same fact once.
 
 Point a static site at it. Nothing is registered in advance — the broker admits
 an origin on its first `/auth`:
