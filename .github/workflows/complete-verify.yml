@@ -52,7 +52,6 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: '0'
       CARGO_PROFILE_TEST_DEBUG: '0'
       PLAYWRIGHT_CHROMIUM: /usr/bin/google-chrome
-      OPENSESAME_AUDIT_DIR: ${{ runner.temp }}/opensesame-full-verify
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -79,6 +78,8 @@ jobs:
           "$PLAYWRIGHT_CHROMIUM" --version
           command -v cc
           command -v cmake
+          OPENSESAME_AUDIT_DIR="$RUNNER_TEMP/opensesame-full-verify"
+          printf 'OPENSESAME_AUDIT_DIR=%s\n' "$OPENSESAME_AUDIT_DIR" >> "$GITHUB_ENV"
           mkdir -m 700 "$OPENSESAME_AUDIT_DIR"
           printf '%s\n' "$EXPECTED_HEAD" > "$OPENSESAME_AUDIT_DIR/source-head.txt"
       - name: Install the frozen dependency graph
