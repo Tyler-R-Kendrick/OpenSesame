@@ -5,6 +5,7 @@ mod canonicalize;
 mod capsule;
 mod cloud;
 mod error;
+mod factor_configuration;
 mod key_file;
 mod legacy;
 mod limits;
@@ -15,6 +16,8 @@ mod rotation;
 mod types;
 
 #[cfg(test)]
+mod factor_configuration_tests;
+#[cfg(test)]
 mod tests;
 
 pub use auth::{seal_manifest_auth, verify_manifest_auth};
@@ -24,6 +27,7 @@ pub use cloud::{
     create_cloud_local_envelope, derive_local_kek, open_cloud_local_envelope, CloudLocalEnvelope,
 };
 pub use error::ProtectionError;
+pub use factor_configuration::FactorConfigurationBinding;
 pub use key_file::{
     encode_key_file, init_versioned_key_file, list_protector_summaries, load_key_file,
     parse_key_file_json, password_wrapper_from_manifest, sync_dir, unlock_key_file_with_password,

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::password_wrap::PasswordWrapper;
 
+use super::factor_configuration::FactorConfigurationBinding;
 use super::limits::MANIFEST_SCHEMA_VERSION;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -171,6 +172,12 @@ pub struct RootProtectionManifest {
     pub legacy_gates: Option<AuthenticatedLegacyGates>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub auth_b64: Option<String>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "super::factor_configuration::deserialize_present"
+    )]
+    pub factor_configuration: Option<FactorConfigurationBinding>,
 }
 
 impl RootProtectionManifest {
@@ -187,6 +194,7 @@ impl RootProtectionManifest {
             preferred_protector_id: None,
             legacy_gates: None,
             auth_b64: None,
+            factor_configuration: None,
         }
     }
 }

@@ -57,6 +57,7 @@ pub fn ensure_versioned_manifest(
                 preferred_protector_id: None,
                 legacy_gates: None,
                 auth_b64: None,
+                factor_configuration: None,
             };
             if let Some(ProtectionRecord::Password { protector_id, .. }) = manifest.records.first()
             {
