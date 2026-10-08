@@ -209,6 +209,12 @@ export type AuthenticatedLegacyGates = {
   recoveryCodesEnrolled: boolean;
 };
 
+/** SHA-256 over the domain-separated current outer factor configuration. */
+export type FactorConfigurationBinding = {
+  version: 1;
+  digestB64: string;
+};
+
 export type RootProtectionManifest = {
   schemaVersion: typeof MANIFEST_SCHEMA_VERSION;
   vaultId: string;
@@ -220,6 +226,8 @@ export type RootProtectionManifest = {
   records: ProtectionRecord[];
   preferredProtectorId?: string;
   legacyGates?: AuthenticatedLegacyGates | undefined;
+  /** Optional for legacy unlock; required by strict fresh-owner factor admission. */
+  factorConfiguration?: FactorConfigurationBinding;
   /** Base64url HMAC/AEAD tag over canonical manifest without this field. */
   authB64?: string;
 };
