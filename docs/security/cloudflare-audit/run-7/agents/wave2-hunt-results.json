@@ -1,0 +1,506 @@
+[
+  {
+    "coverage_id": "apps%2Fbrowser-extension%2Frunner%2Fhost.ts::apps%2Fbrowser-extension%2Frunner%2Fhost-base.ts::apps%2Fbrowser-extension::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "apps/browser-extension/runner/host.ts",
+      "apps/browser-extension/runner/host-base.ts",
+      "apps/browser-extension-autofill/entrypoints/background.ts"
+    ],
+    "result_one_line": "resolveHostBase seals hostApiBase and normalizeLoopbackBaseUrl rejects non-loopback bases before createApiClient; runner/host.test.ts and negative.test.ts (24 tests) pass.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fconnect.rs%23open_url::apps%2Fcli%2Fsrc%2Fconnect.rs%23authorize_oauth::apps%2Fcli::ATTACK-CLASSES.md%23Injection",
+    "reviewed_paths": ["apps/cli/src/connect.rs"],
+    "result_one_line": "open_url gates on authorization_url_may_open_in_browser (https or non-production loopback), uses empty Windows start title; cargo test connect::tests::authorization_urls_must_be_https_or_dev_loopback passed.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fpassword_agent%2Fio.rs::crates%2Fconnector-host%2Fsrc%2Fpassword_agent%2Fenv.rs::apps%2Fcli::ATTACK-CLASSES.md%23Injection",
+    "reviewed_paths": [
+      "apps/cli/src/password_agent/io.rs",
+      "crates/connector-host/src/password_agent/env.rs",
+      "spec/conformance/2password-policy.json"
+    ],
+    "result_one_line": "LD_AUDIT is on credentialStartupEnvKeys; scrub_startup and validate_run_* reject templates; connector-host startup_assignments_and_templates_are_rejected_before_credentials passed.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fplugins_install.rs::apps%2Fcli%2Fsrc%2Fplugins_install.rs::apps%2Fcli::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "reviewed_paths": ["apps/cli/src/plugins_install.rs"],
+    "result_one_line": "Install fetches https-only with host-locked redirects, sha256 pin before rename, plain version segments, and records plugins off by default.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fstore.rs::crates%2Fsealed-store%2Fsrc%2Fpath.rs::apps%2Fcli::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "reviewed_paths": [
+      "apps/cli/src/store.rs",
+      "crates/sealed-store/src/path.rs",
+      "crates/sealed-store/src/git.rs",
+      "apps/cli/src/main.rs"
+    ],
+    "result_one_line": "logical_to_relative rejects .. and empty segments; pass reveal requires TTY or --reveal; store resolves roots via registry without path injection.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fapi%2Fconnect%2Fcallback.mjs%23handler::apps%2Fpages%2Fserver%2Fallowlist.mjs%23returnToAllowed::apps%2Fpages::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "apps/pages/api/connect/callback.mjs",
+      "apps/pages/server/allowlist.mjs",
+      "apps/pages/server/callback.mjs",
+      "apps/pages/server/server.mjs",
+      "apps/pages/api/github-app/callback.mjs"
+    ],
+    "result_one_line": "OAuth callback relay only 302s to return_to after returnToAllowed (loopback or configured https origins); no token handling and no open redirect off allowlist.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fapi%2Fgithub-app%2Fwebhook.mjs%23readRaw::apps%2Fpages%2Fapi%2Fgithub-app%2Fwebhook.mjs%23readRaw::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "reviewed_paths": ["apps/pages/api/github-app/webhook.mjs"],
+    "result_one_line": "Vercel adapter uses shared readRawBody (5 MiB cap, 413) before HMAC verify; oversized bodies are dropped, not retained.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fscripts%2Fgithub-app-relay-plugin.mjs%23readBody::apps%2Fpages%2Fscripts%2Fgithub-app-relay-plugin.mjs%23readBody::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "reviewed_paths": ["apps/pages/scripts/github-app-relay-plugin.mjs"],
+    "result_one_line": "Dev Vite relay readBody delegates to readRawBody with the same 5 MiB ceiling; webhook branch omits rawBody so signatures fail closed (401), not bypass.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fgit-backup-put.mjs%23handleGitBackupPut::apps%2Fpages%2Fserver%2Fforge-host-guard.mjs%23vetGiteaBase::apps%2Fpages::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "reviewed_paths": [
+      "apps/pages/server/git-backup-put.mjs",
+      "apps/pages/server/forge-host-guard.mjs",
+      "apps/pages/server/pinned-fetch.mjs"
+    ],
+    "result_one_line": "Self-hosted gitea baseUrl must be bare public https with DNS/private-range vetting; outbound fetch is pinned, no redirects, response capped.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fgithub-app-put-contents.mjs::apps%2Fpages%2Fserver%2Fmanage-auth.mjs::apps%2Fpages::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "apps/pages/server/github-app-put-contents.mjs",
+      "apps/pages/server/github-app-repos.mjs",
+      "apps/pages/server/connect-manage.mjs",
+      "apps/pages/server/manage-auth.mjs"
+    ],
+    "result_one_line": "Mutating Connect/GitHub-app routes require manage-key; callbackAllowed ties authorize callbackUrl to relay origin plus allowlisted return_to; token-check verify hosts come from generated presets with recoverParams fail-closed.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fgithub-app-webhook.mjs%23handleGithubAppWebhook::apps%2Fpages%2Fserver%2Fwebhook-queue.mjs%23writeFileQueue::apps%2Fpages::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "reviewed_paths": [
+      "apps/pages/server/github-app-webhook.mjs",
+      "apps/pages/server/webhook-queue.mjs",
+      "apps/pages/server/github-app-contents.mjs"
+    ],
+    "result_one_line": "Webhook HMAC-SHA256 over raw body before enqueue; invalid signature never writes queue; file-queue symlink follow remains same-uid only (prior run rejected cross-user claim).",
+    "candidate": null
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fserver.mjs%23createServer::apps%2Fpages%2Fserver%2Fmanage.mjs%23readRawBody::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "reviewed_paths": [
+      "apps/pages/server/server.mjs",
+      "apps/pages/server/manage.mjs"
+    ],
+    "result_one_line": "Node relay awaits readRawBody/readJsonBody before manage and webhook handlers; over-limit bodies return 413 without reaching auth logic.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fserver%2Fserver.mjs::SECURITY.md::apps%2Fpages::ATTACK-CLASSES.md%23Obvious%20things",
+    "reviewed_paths": [
+      "apps/pages/server/server.mjs",
+      "apps/pages/public/os-runtime-config.json",
+      "packages/app-core/src/host.ts",
+      "packages/cli/src/bin.ts",
+      "apps/cli/src/main.rs"
+    ],
+    "result_one_line": "Relay defaults to HOST 127.0.0.1; shipped os-runtime-config is {}; secrets stay env-only (VERCEL_TOKEN, webhook secret, manage key) and are not echoed in public connector list responses.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fsrc%2Fsw%2Ffetch.ts::apps%2Fpages%2Fsrc%2Fsw%2Fmessages.ts::apps%2Fpages::ATTACK-CLASSES.md%23Injection",
+    "reviewed_paths": [
+      "apps/pages/src/sw/fetch.ts",
+      "apps/pages/src/sw/messages.ts",
+      "apps/pages/src/sw/push-handlers.ts",
+      "apps/pages/src/main.tsx"
+    ],
+    "result_one_line": "SW handles same-origin GET only; PLAN_ASSETS rejects URL lists and unknown modules; no eval/HTML injection path from postMessage vocabulary.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "apps%2Fpages%2Fvite.config.ts%23handleAgentPage::apps%2Fpages%2Fvite.config.ts%23handleAgentPage::apps%2Fpages::RESOURCE-EXHAUSTION-AND-AVAILABILITY.md%23Resource%20accumulation%20attack%20classes",
+    "reviewed_paths": [
+      "apps/pages/vite.config.ts",
+      "apps/pages/src/lib/agent-page-dump.ts"
+    ],
+    "result_one_line": "handleAgentPage is configureServer-only dev probe with uncapped POST buffering to /tmp/agent-page.json; not in production relay or static bundle (prior audit: out-of-scope dev DoS).",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fauthenticator-core%2Fsrc%2Flib.rs%23validate_platform_invocation::crates%2Fauthenticator-core%2Fsrc%2Flib.rs::apps%2Fandroid::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "crates/authenticator-core/src/lib.rs",
+      "apps/android/android/app/src/main/AndroidManifest.xml"
+    ],
+    "result_one_line": "https invokes use validatePlatformInvocation; custom schemes use validateCredentialOfferSchemeHandoff; OpenId4VpActivity validates presentation handoff\u2014run-5 custom-scheme gap closed; OAuth completes on state match only while provisioning is active, with no in-repo state leak\u201416 authenticator-core tests passed.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fcredential-helpers%2Fsrc%2Flib.rs::crates%2Fcredential-helpers%2Fsrc%2Flib.rs::crates%2Fcredential-helpers::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "reviewed_paths": ["crates/credential-helpers/src/lib.rs"],
+    "result_one_line": "Helpers are UDS-only thin mint clients with bounded responses, failure classes on stderr only, and no stdout on error; cargo test -p opensesame-credential-helpers (9 tests) passed.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fdaemon%2Fsrc%2Flib.rs%23proxy_loopback::crates%2Fdaemon%2Fsrc%2Fproxy_path.rs::crates%2Fdaemon::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "reviewed_paths": [
+      "crates/daemon/src/lib.rs",
+      "crates/daemon/src/proxy_path.rs"
+    ],
+    "result_one_line": "proxy_loopback requires local base, blocks dot segments and local-session mint paths, caps body size; cargo test -p opensesame-daemon --lib proxy_ (8 tests) passed.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fdaemon%2Fsrc%2Flib.rs%23require_operator::crates%2Fuds-authn%2Fsrc%2Flib.rs::crates%2Fdaemon::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "crates/daemon/src/lib.rs",
+      "crates/uds-authn/src/lib.rs",
+      "crates/daemon/src/peer_auth.rs"
+    ],
+    "result_one_line": "require_operator rejects Origin, still requires operator token via check(), and UDS peers only add uid allowlisting on agent exchange\u2014not operator bypass.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fdaemon%2Fsrc%2Ftailscale.rs::crates%2Fdaemon%2Fsrc%2Fstartup.rs::crates%2Fdaemon::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "reviewed_paths": [
+      "crates/daemon/src/tailscale.rs",
+      "crates/daemon/src/startup.rs",
+      "crates/daemon/src/tailnet.rs",
+      "crates/daemon/src/fill/caller.rs"
+    ],
+    "result_one_line": "Optional bridge is env-gated (OPENSESAME_DAEMON_NETWORK_BRIDGE), production requires HTTPS upstreams, tailscale CLI invoked with fixed argv and resolved binary path only.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Fbreach%2Fsources.rs%23password_occurrences::crates%2Fbreach-intel%2Fsrc%2Frange.rs%23range_url::crates%2Fgateway::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "reviewed_paths": [
+      "crates/gateway/src/breach/sources.rs",
+      "crates/breach-intel/src/range.rs",
+      "crates/breach-intel/src/catalogue.rs",
+      "crates/breach-intel/src/event.rs",
+      "crates/gateway/src/routes/security.rs",
+      "crates/gateway/src/security/dispatch.rs"
+    ],
+    "result_one_line": "Range lookup sends only the five-char SHA-1 prefix with padding, no redirects, catalogue is tenant-blind; breach-check is admin-gated and scan failures do not downgrade to clean.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs%23require_session::crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs%23resolve_caller::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "crates/gateway/src/middleware/auth.rs",
+      "crates/gateway/src/session_claims.rs",
+      "crates/gateway/src/middleware/agent_grants.rs"
+    ],
+    "result_one_line": "Sessions are digest-keyed with DPoP/agent-capability binding; resolve_caller is session-first and forbids org header on sessions; agent routes require durable capability grants.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Fhook_records.rs%23read_hook_records::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "crates/gateway/src/routes/agent_runs/hook_records.rs",
+      "crates/gateway/src/routes/agent_runs.rs",
+      "crates/gateway/src/routes/agent_run_stream_authority.rs"
+    ],
+    "result_one_line": "Hook records use load(View)+authorize_attach (non-owner 404) and payload-free projection; browser observe ceiling matches StreamAuthority role/evidence checks.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Flease.rs%23commit::crates%2Fstorage%2Fsrc%2Fhost_authorizations.rs%23control_with_host_authorization::crates%2Fgateway::ATTACK-CLASSES.md%23Business%20logic",
+    "reviewed_paths": [
+      "crates/gateway/src/routes/agent_runs/lease.rs",
+      "crates/storage/src/host_authorizations.rs",
+      "crates/gateway/src/routes/host_authorizations.rs"
+    ],
+    "result_one_line": "commit re-checks ensure_browser_observe_ceiling before consuming elevation; control_with_host_authorization CAS-binds digest/version/owner (crates/storage/tests/host_authorizations.rs; cargo not run in hunter env).",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs%2Fstream.rs%23observe::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "crates/gateway/src/routes/agent_runs/stream.rs",
+      "crates/gateway/src/routes/agent_run_stream_authority.rs",
+      "crates/gateway/src/routes/shared_sessions/events.rs"
+    ],
+    "result_one_line": "SSE tail calls StreamAuthority::active each poll (browser grant re-reads role/evidence); ciphertext-only relay; agent_run_stream_tests.rs covers revoke/expire/membership/owner (cargo not run).",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fagent_runs.rs%23get_run::crates%2Fgateway%2Fsrc%2Froutes%2Fagent_run_stream_authority.rs%23active::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": ["crates/gateway/src/routes/agent_runs.rs"],
+    "result_one_line": "get_run uses load(View) with ensure_view_authority for browser grants and authorize_attach owner-only semantics; metadata/hook summary only, secrets_returned false.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fauthority_grants.rs%23issue::crates%2Fauthz%2Fsrc%2Fauthority_use.rs%23authorize_authority_use::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "crates/gateway/src/routes/authority_grants.rs",
+      "crates/gateway/src/routes/authority_issuance_preflight.rs",
+      "crates/authz/src/authority_use.rs",
+      "crates/gateway/src/routes/intents_enforcement.rs",
+      "crates/gateway/src/routes/intents.rs"
+    ],
+    "result_one_line": "issue is admin/tenant-bound with reserved-action and depth caps; export/materialize enforcement is authorize_authority_use(_enforced) on intents invoke, not on issue storage.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fbackup.rs::crates%2Fgateway%2Fsrc%2Fmiddleware%2Fauth.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "reviewed_paths": [
+      "crates/gateway/src/routes/backup.rs",
+      "crates/gateway/src/routes/admin.rs",
+      "crates/gateway/src/routes/kv_facade.rs",
+      "crates/gateway/src/routes/kv_facade_path.rs",
+      "crates/gateway/src/routes/attachments.rs"
+    ],
+    "result_one_line": "Backup target/resync routes are operator-only via require_operator; config refuses secret-shaped keys; sessions never reach backup mutators.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fbrowser_pairings.rs%23create::crates%2Fgateway%2Fsrc%2Froutes%2Fbrowser_pairings%2Fceiling.rs%23verified_ceiling::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "crates/gateway/src/routes/browser_pairings.rs",
+      "crates/gateway/src/routes/browser_pairings/ceiling.rs",
+      "crates/gateway/src/routes/browser_pairings/renew.rs",
+      "crates/gateway/src/browser_pairing_proof.rs"
+    ],
+    "result_one_line": "create requires DPoP/origin proof, rate limit, and allowed_capabilities; join vs sync ceilings are closed (verified_ceiling tests).",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fdelegations.rs::crates%2Fauthz%2Fsrc%2Fauthority_use.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Chained%20vulnerabilities%20and%20trust%20boundaries",
+    "reviewed_paths": [
+      "crates/gateway/src/routes/delegations.rs",
+      "crates/gateway/src/routes/connections.rs",
+      "crates/gateway/src/routes/grant_offers.rs",
+      "crates/gateway/src/routes/ceremonies.rs",
+      "crates/authz/src/authority_use.rs"
+    ],
+    "result_one_line": "Mint/claim org and subject come from resolve_caller only; broker attenuation and relay admission are separate; invoke path still hits authorize_authority_use and refuses revoked credentials before open.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fdevice.rs::crates%2Fgateway%2Fsrc%2Froutes%2Fdevice.rs::crates%2Fgateway::ATTACK-CLASSES.md%23Business%20logic",
+    "reviewed_paths": [
+      "crates/gateway/src/routes/device.rs",
+      "crates/gateway/src/routes/session.rs"
+    ],
+    "result_one_line": "Device flow binds approved principal/org, peppered user_code, global guess limit, session_lifecycle lock; approve is operator-gated; client_id allowlist.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fgateway%2Fsrc%2Froutes%2Fnats_callout.rs::crates%2Fauthz%2Fsrc%2Fcallout.rs%23evaluate_callout::crates%2Fgateway::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "crates/gateway/src/routes/nats_callout.rs",
+      "crates/authz/src/callout.rs"
+    ],
+    "result_one_line": "Callout separates bridge mTLS, signed server request, and JWT evidence; evaluate_callout denies email-join/unknown issuer/unmapped principal and never grants system subjects; CONNECT project_ids cleared.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fhuman-vault%2Fsrc%2Flib.rs::crates%2Fhuman-vault%2Fsrc%2Flib.rs::crates%2Fhuman-vault::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "reviewed_paths": ["crates/human-vault/src/lib.rs"],
+    "result_one_line": "XChaCha20-Poly1305 binds ciphertext via ad_digest; hostile Argon2id params are clamped; cleartext AssociatedData is intentional server-blind metadata, not a key leak\u201445 lib tests passed.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fstorage%2Fsrc%2Fauthority%2Fgrants.rs%23issue_authority::crates%2Fstorage%2Fsrc%2Fgrants.rs%23find_grant::crates%2Fstorage::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "crates/storage/src/authority/grants.rs",
+      "crates/storage/src/grants.rs",
+      "crates/connection-broker/src/store.rs",
+      "crates/gateway/src/routes/intents.rs"
+    ],
+    "result_one_line": "issue_authority and fenced_authority require organization_id on reads; issuance_root checks parent fence and windows; find_grant honors revoked_at column with RFC3339 parse fail-open only on corrupt DB values\u2014no cross-tenant invoke path found.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "crates%2Fsurrogate-proxy%2Fsrc%2Flistener.rs%23outer::crates%2Finvoke-through%2Fsrc%2Fsurrogate.rs%23admit::crates%2Fsurrogate-proxy::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "crates/surrogate-proxy/src/listener.rs",
+      "crates/surrogate-proxy/src/target.rs",
+      "crates/surrogate-proxy/src/broker.rs",
+      "crates/surrogate-proxy/src/passthrough.rs",
+      "crates/invoke-through/src/surrogate.rs"
+    ],
+    "result_one_line": "outer refuses requests without the run Proxy-Authorization; SurrogateLedger::admit pins caller, host/scheme, scope, and single-site placement\u201429 surrogate + 59 proxy lib tests passed; TOCTOU after admit matches ADR 0150 hardening, not a new bypass.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "ops%2Fcompose%2Fdocker-compose.yml::ops%2Fnats%2Flocal-dev.conf::ops%2Fcompose::ATTACK-CLASSES.md%23Obvious%20things",
+    "reviewed_paths": [
+      "ops/compose/docker-compose.yml",
+      "ops/nats/local-dev.conf",
+      "ops/ingress/Caddyfile"
+    ],
+    "result_one_line": "Host NATS publish is 127.0.0.1:4222:4222 (not 0.0.0.0); scripts/test/compose-nats-bind.test.mjs passed; in-bridge plaintext NATS remains documented dev-only posture.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Ffederation-callback.ts::packages%2Fapp-core%2Fsrc%2Flib%2Ffederation-callback.ts%23assertSafeReturnTo::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/app-core/src/lib/federation-callback.ts",
+      "apps/pages/src/screens/FederationReturn.tsx"
+    ],
+    "result_one_line": "assertSafeReturnTo rejects scheme-relative and off-origin paths after URL resolution and enforces base-path prefix; no open redirect found on tip.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Ffederation.ts%23completeSignInDefault::packages%2Fapp-core%2Fsrc%2Flib%2Ffederation.ts%23readIdentity::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/app-core/src/lib/federation.ts",
+      "packages/app-core/src/lib/federation-pending.ts",
+      "packages/app-core/src/lib/ambient-auth/oidc.ts",
+      "packages/app-core/src/lib/deployment-profile.ts"
+    ],
+    "result_one_line": "Token exchange uses resolvePinnedEndpoints (not storage-chosen URLs); readIdentity enforces issuer, audience, expiry and trusted-issuer allowlist before saveSession.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Fguest-access.ts%23guestsAllowed::packages%2Fapp-core%2Fsrc%2Flib%2Fguest-access.ts%23assertGuestsAllowed::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/app-core/src/lib/guest-access.ts",
+      "packages/app-core/src/lib/guest-auth.ts",
+      "packages/app-core/src/lib/local-rbac.ts"
+    ],
+    "result_one_line": "Operator switch fail-opens to allowed; assertGuestsAllowed gates openGuestVault so UI hiding alone cannot bypass guests-off.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Flib%2Fsecret-fs%2Fs3.ts%23makeWire::packages%2Fapp-core%2Fsrc%2Flib%2Fsecret-fs%2Ffiles.ts%23checkPath::packages%2Fapp-core::Resource%20and%20file%20handling",
+    "reviewed_paths": [
+      "packages/app-core/src/lib/secret-fs/s3.ts",
+      "packages/app-core/src/lib/secret-fs/files.ts",
+      "packages/app-core/src/lib/secret-fs/filesystem-guard.ts",
+      "packages/app-core/src/lib/secret-fs/s3-config.ts"
+    ],
+    "result_one_line": "checkPath blocks traversal and odd segments; makeWire requires HTTPS (HTTP only on loopback) and valid bucket naming before any object key is built.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fsections%2Fvault%2Fimport%2Fmodel.ts::packages%2Fapp-core%2Fsrc%2Fsections%2Fvault%2Fimport%2Fmodel.ts::packages%2Fapp-core::ATTACK-CLASSES.md%23Injection",
+    "reviewed_paths": [
+      "packages/app-core/src/sections/vault/import/model.ts",
+      "packages/app-core/src/lib/vault/import"
+    ],
+    "result_one_line": "Import pipeline keeps ZIP/size caps in lib/vault/import; guest/scratch tombs cannot take backup identity and merge stays behind explicit store ports.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fwebmcp%2Fpassword-workflow-tools.ts::packages%2Fapp-core%2Fsrc%2Flib%2Fvault%2Fpassword-workflows.ts%23reachableItems::packages%2Fapp-core::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "reviewed_paths": [
+      "packages/app-core/src/webmcp/password-workflow-tools.ts",
+      "packages/app-core/src/lib/vault/password-workflows.ts"
+    ],
+    "result_one_line": "WebMCP password workflow tools only expose metadata/refs; reachableItems drops items when assertShareReach read fails.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fapp-core%2Fsrc%2Fwebmcp%2Fvault-tools.ts::packages%2Fapp-core%2Fsrc%2Fwebmcp%2Ftool-shared.ts%23reachedItem::packages%2Fapp-core::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/app-core/src/webmcp/vault-tools.ts",
+      "packages/app-core/src/webmcp/tool-shared.ts",
+      "packages/app-core/src/webmcp/tools.ts",
+      "packages/app-core/src/webmcp/wallet-tools.ts"
+    ],
+    "result_one_line": "reachedItem proves share reach before findSavedItem; vault tools use metadata-only writes and ceremony for reveal.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fcli%2Fsrc%2Fbin.ts::packages%2Fcli%2Fsrc%2Fidentity-session.ts::packages%2Fcli::ATTACK-CLASSES.md%23Cryptography%20and%20secrets",
+    "reviewed_paths": [
+      "packages/cli/src/bin.ts",
+      "packages/cli/src/identity-session.ts",
+      "packages/cli/src/run.ts"
+    ],
+    "result_one_line": "Factor removal step-up (digest-bound transaction challenges) holds; passkey enroll behind session only matches ADR 0146 (run-3 candidate rejected, unchanged).",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fcli%2Fsrc%2Fparity-node.ts::packages%2Fcli%2Fsrc%2Fparity-node.ts::packages%2Fcli::ATTACK-CLASSES.md%23Injection",
+    "reviewed_paths": [
+      "packages/cli/src/parity-node.ts",
+      "packages/cli/src/parity-credentials.ts",
+      "packages/cli/src/vault-clipboard.ts",
+      "packages/cli/src/parse.ts"
+    ],
+    "result_one_line": "Callbacks verify raw body before parse, claim replay ledger, resolve binding triple, then evaluateApprovalCeremony; uniform ack on every exit.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fmfa.ts::packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fmfa-step-up.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/control-plane/src/routes/mfa.ts",
+      "packages/control-plane/src/routes/mfa-step-up.ts",
+      "packages/control-plane/src/routes/saml.ts",
+      "packages/control-plane/src/routes/interactions-ldap.ts",
+      "packages/control-plane/src/routes/openid4vci.ts",
+      "packages/control-plane/src/routes/enrollment.ts"
+    ],
+    "result_one_line": "Mutations require asVerifiedPrincipal; authMiddleware accepts only pst_ bearer (prn_ gated off in production); foreign client ids 404.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fnotification-callbacks.ts::packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fnotification-channels.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "reviewed_paths": [
+      "packages/control-plane/src/routes/notification-callbacks.ts",
+      "packages/control-plane/src/routes/notification-channels.ts"
+    ],
+    "result_one_line": "SCIM bearer is hashed before lookup; verify is scoped to path organizationId; suspended/deleted org and bad token share one 401.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Foauth-clients.ts::packages%2Fcontrol-plane%2Fsrc%2Fmiddleware%2Fauth.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/control-plane/src/routes/oauth-clients.ts",
+      "packages/control-plane/src/routes/interactions.ts",
+      "packages/control-plane/src/routes/device.ts",
+      "packages/control-plane/src/routes/federated-callback.ts",
+      "packages/control-plane/src/routes/byo-public.ts",
+      "packages/control-plane/src/middleware/auth.ts"
+    ],
+    "result_one_line": "Global authMiddleware applies cookieAuthAllowed on mutating cookie auth (Origin allowlist); server wiring unchanged and consistent with route-level guards.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fscim.ts%23authenticate::packages%2Fdatabase%2Fsrc%2Fscim-store.ts%23verify::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/control-plane/src/routes/scim.ts",
+      "packages/database/src/scim-store.ts",
+      "packages/control-plane/src/routes/scim-effects.ts",
+      "packages/control-plane/src/routes/scim-protocol.ts"
+    ],
+    "result_one_line": "Identity session file is owner-only (mode 0o600), sealed with at-rest key and issuer/client binding; vitest identity-session (4 tests) passed.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Fserver.ts::packages%2Fcontrol-plane%2Fsrc%2Fmiddleware%2Fauth.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/control-plane/src/middleware/auth.ts",
+      "packages/control-plane/src/middleware/admin-auth.ts",
+      "packages/control-plane/src/routes/organizations.ts"
+    ],
+    "result_one_line": "helperEnvironment strips credentialStartupEnvKeys (incl. LD_AUDIT), filters PATH to trusted absolute dirs, spawn uses shell:false; covered by vitest parity-node suite.",
+    "candidate": null
+  },
+  {
+    "coverage_id": "packages%2Fmcp-host%2Fsrc%2Ftransports%2Fstreamable-http.ts::packages%2Fmcp-host%2Fsrc%2Fhost-api.ts::packages%2Fmcp-host::ATTACK-CLASSES.md%23Access%20control",
+    "reviewed_paths": [
+      "packages/mcp-host/src/transports/streamable-http.ts",
+      "packages/mcp-host/src/host-api.ts",
+      "packages/agent-client/src/index.ts"
+    ],
+    "result_one_line": "HTTP MCP binds loopback-only with hashed bearer compare; hostFetch blocks credential override and non-loopback http; task_status path segments are refused at agent_grants\u2014101 vitest tests passed.",
+    "candidate": null
+  }
+]
