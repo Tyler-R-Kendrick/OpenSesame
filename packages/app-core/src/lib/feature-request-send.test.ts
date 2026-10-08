@@ -83,12 +83,16 @@ describe("sending a saved connector operation", () => {
   });
 
   it("keeps forge backup SSH material off the wire during a sync nudge", () => {
-    const sshKey = "-----BEGIN OPENSSH PRIVATE KEY-----\nkey\n-----END OPENSSH PRIVATE KEY-----";
+    const sshKey =
+      "-----BEGIN OPENSSH PRIVATE KEY-----\nkey\n-----END OPENSSH PRIVATE KEY-----";
     const sent = sendFeatureOperation({
       ok: true,
       providerId: "gitlab",
       operation: "project.read",
-      action: { remote_url: "git@gitlab.com:group/repo.git", auth_mode: "ssh_key" },
+      action: {
+        remote_url: "git@gitlab.com:group/repo.git",
+        auth_mode: "ssh_key",
+      },
       secrets: { ssh_private_key: sshKey, ssh_passphrase: "phrase" },
     });
     expect(sent.ok).toBe(true);
@@ -106,7 +110,9 @@ describe("sending a saved connector operation", () => {
     expect(sent.ok).toBe(true);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [, init] = fetchSpy.mock.calls[0] ?? [];
-    expect(new Headers(init?.headers).get("x-token")).toBe("glpat-backup-token");
+    expect(new Headers(init?.headers).get("x-token")).toBe(
+      "glpat-backup-token",
+    );
     expect(String(init?.body)).not.toContain("glpat-backup-token");
   });
 });
