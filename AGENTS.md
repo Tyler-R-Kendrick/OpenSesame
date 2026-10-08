@@ -65,6 +65,13 @@ not My Machines or a contributor’s local PC). Image and bootstrap live in
   `XAI_API_KEY` set as a Cursor **Runtime Secret** (or `GROK_DEPLOYMENT_KEY` where
   applicable), headless use looks like:
   `grok -p "…" --always-approve --output-format json`.
+- **Kimi Code CLI** is installed as `@moonshot-ai/kimi-code` (pinned in the
+  Dockerfile) on `PATH` via `/etc/profile.d/kimi-code.sh`. Headless **K3** runs:
+  `scripts/dev/kimi-headless.sh -p "…"` (`-m k3`, `--output-format stream-json`).
+  Auth: `kimi login` OAuth first, else Runtime Secret
+  `KIMI_MODEL_API_KEY` (+ optional `KIMI_MODEL_NAME`, `KIMI_MODEL_BASE_URL`;
+  Kimi ignores plain `KIMI_API_KEY`). Check `scripts/dev/kimi-preflight.sh`
+  before batch work. See `docs/operators/kimi-code-cloud.md`.
 - **Never run `sudo`** in agent commands (see `.cursor/rules/no-sudo.mdc`). The
   image includes `sudo` for Cursor platform tooling only.
 - **Never commit API keys** or other secrets; inject them through Cursor Secrets.

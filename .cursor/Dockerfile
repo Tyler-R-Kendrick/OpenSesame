@@ -5,6 +5,37 @@ FROM rust:1.88.0-bookworm
 
 ENV PATH=/usr/local/cargo/bin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
+# Login shells reset PATH in /etc/profile. This file puts cargo back, and
+# vscode bash sources it for non-login shells (see the bashrc prepend below).
+RUN cat > /etc/profile.d/cargo.sh <<'EOF'
+# Cargo on PATH, and one shared target dir (AGENTS.md §9).
+case ":${PATH}:" in
+  *:/usr/local/cargo/bin:*) ;;
+  *) PATH="/usr/local/cargo/bin:${PATH}" ;;
+esac
+export PATH
+if [ -z "${CARGO_TARGET_DIR:-}" ]; then
+  CARGO_TARGET_DIR="${HOME}/.cache/packages/cargo-target"
+  export CARGO_TARGET_DIR
+fi
+. /etc/profile.d/kimi-code.sh
+EOF
+
+RUN cat > /etc/profile.d/kimi-code.sh <<'EOF'
+# Kimi Code CLI on PATH (npm global and ~/.kimi-code installs).
+case ":${PATH}:" in
+  *:/usr/local/bin:*) ;;
+  *) PATH="/usr/local/bin:${PATH}" ;;
+esac
+if [ -d "${HOME}/.kimi-code/bin" ]; then
+  case ":${PATH}:" in
+    *:"${HOME}/.kimi-code/bin":*) ;;
+    *) PATH="${HOME}/.kimi-code/bin:${PATH}" ;;
+  esac
+fi
+export PATH
+EOF
+
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
@@ -24,6 +55,10 @@ ENV GROK_BIN_DIR=/usr/local/bin
 RUN curl -fsSL https://x.ai/cli/install.sh | bash \
   && /usr/local/bin/grok --version
 
+ARG KIMI_CODE_VERSION=2.1.1
+RUN npm install -g "@moonshot-ai/kimi-code@${KIMI_CODE_VERSION}" \
+  && kimi --version
+
 RUN rustup component add rustfmt clippy \
   && rustup target add wasm32-unknown-unknown
 
@@ -36,6 +71,16 @@ RUN corepack enable \
 RUN useradd -m -u 1000 -s /bin/bash vscode \
   && install -d -o vscode -g vscode /etc/sudoers.d \
   && echo 'vscode ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/vscode \
-  && chmod 0440 /etc/sudoers.d/vscode
+  && chmod 0440 /etc/sudoers.d/vscode \
+  && { printf '%s\n' \
+      '# Cargo and Kimi for non-login bash. Login shells read /etc/profile.d/*.sh.' \
+      '. /etc/profile.d/cargo.sh' \
+      '. /etc/profile.d/kimi-code.sh' \
+      ''; cat /home/vscode/.bashrc; } > /home/vscode/.bashrc.new \
+  && mv /home/vscode/.bashrc.new /home/vscode/.bashrc \
+  && chown vscode:vscode /home/vscode/.bashrc
+
+# Non-interactive non-login bash does not read .bashrc. BASH_ENV covers it.
+ENV BASH_ENV=/etc/profile.d/cargo.sh
 
 USER vscode
