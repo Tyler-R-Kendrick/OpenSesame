@@ -31,6 +31,7 @@ use zeroize::Zeroizing;
 pub const ENV_SOCK: &str = "OPENSESAME_AGENT_SOCK";
 
 /// Cap on a mint response; the payload is a few hundred bytes of JSON.
+#[cfg(unix)]
 const MAX_RESPONSE_BYTES: usize = 64 * 1024;
 
 /// Failure classes — safe for stderr by construction.
@@ -114,6 +115,7 @@ pub struct MintedCredential {
 /// A blocking client of the daemon's Unix socket. One request, one response,
 /// connection closed — the helpers are one-shot processes.
 pub struct DaemonClient {
+    #[cfg(unix)]
     sock: PathBuf,
 }
 
@@ -121,15 +123,30 @@ impl DaemonClient {
     /// Socket from `OPENSESAME_AGENT_SOCK`, else the documented default.
     #[must_use]
     pub fn from_env() -> Self {
-        let sock = std::env::var_os(ENV_SOCK)
-            .filter(|v| !v.is_empty())
-            .map_or_else(default_sock_path, PathBuf::from);
-        Self { sock }
+        #[cfg(unix)]
+        {
+            let sock = std::env::var_os(ENV_SOCK)
+                .filter(|v| !v.is_empty())
+                .map_or_else(default_sock_path, PathBuf::from);
+            Self { sock }
+        }
+        #[cfg(not(unix))]
+        {
+            Self {}
+        }
     }
 
     #[must_use]
     pub fn new(sock: PathBuf) -> Self {
-        Self { sock }
+        #[cfg(unix)]
+        {
+            Self { sock }
+        }
+        #[cfg(not(unix))]
+        {
+            drop(sock);
+            Self {}
+        }
     }
 
     /// `POST /v1/mint` over the daemon's UDS. Peer-cred attestation is the
