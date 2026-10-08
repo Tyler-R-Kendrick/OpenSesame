@@ -49,6 +49,11 @@ const CLOUD_ADAPTERS = [
 
 export const VAULT_LIB_RULES = [
   core(
+    "src/lib/retired-credentials/",
+    UNLOCK,
+    "bounded retired-credential records and authentication boundaries",
+  ),
+  core(
     "src/lib/password-agent/",
     ITEMS,
     "provider-independent credential workflow algorithms and native CLI ports; the local vault reuses discovery and template handling",
