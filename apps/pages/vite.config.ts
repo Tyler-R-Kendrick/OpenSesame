@@ -39,6 +39,38 @@ const osDomainWallet = fileURLToPath(
   new URL("../../packages/os-domain/src/wallet/index.ts", import.meta.url),
 );
 
+/**
+ * Keep the client renderer out of the entry chunk. A hardened profile's
+ * largest asset is `main`, and react-dom is what puts it over the 693 KiB
+ * ceiling. `onlyExplicitManualChunks` (capability-compose) keeps each name
+ * to the files matched here, so the entry imports the renderer instead of
+ * carrying its source.
+ */
+function bundleChunk(id: string): string | undefined {
+  const path = id.split("\\").join("/");
+  if (
+    path.includes("/node_modules/react-dom/") ||
+    path.includes("/node_modules/react/") ||
+    path.includes("/node_modules/scheduler/")
+  ) {
+    return "react-dom";
+  }
+  if (
+    path.includes("/node_modules/react-router/") ||
+    path.includes("/node_modules/react-router-dom/")
+  ) {
+    return "react-router";
+  }
+  // The device-identity and device-inbox walks import this chunk by the
+  // file name `device-identity-host-*.js`. A pure chunk under
+  // `experimentalMinChunkSize` is folded into a neighbour, and the name
+  // disappears (`assets/undefined`). Manual chunks are not folded.
+  if (path.includes("/lib/device-identity-host.ts")) {
+    return "device-identity-host";
+  }
+  return undefined;
+}
+
 function redirectBareBase(
   req: import("node:http").IncomingMessage,
   res: import("node:http").ServerResponse,
@@ -163,13 +195,17 @@ export default defineConfig({
         warn(warning);
       },
       output: {
-        // Merge a chunk under 5 KB into one that every path loading it
-        // already loads, so the explicit capability chunks (see
-        // `capability-compose-plugin.mjs`) do not leave dozens of tiny
-        // shared chunks that gzip worse apart than together. Larger values
-        // fold small optional chunks (Tailnet sync's) into `main`, which
-        // is "safe" to Rollup — everything loads `main` — and wrong here.
-        experimentalMinChunkSize: 5_000,
+        // Merge a chunk under 12 KB into one that every path loading it
+        // already loads. The precache gzips each file alone, and the persona
+        // stack's extra leaves put that sum over the 1739 KiB ceiling at
+        // 5 KB. 12 KB brings it back with room. A pure chunk still folds
+        // into a neighbour at this floor. Pin a chunk that must keep its
+        // name (`device-identity-host` below; web-push enrolment in
+        // `capability-lazy-leaves.mjs`) so the bootstrap does not
+        // static-import an optional module (ADR 0130 §4) and the device
+        // walks can still import the host by file name.
+        experimentalMinChunkSize: 12_000,
+        manualChunks: bundleChunk,
       },
       // Every HTML entry is listed here; `capabilityCompose()`'s config hook
       // removes the ones owned by a capability a hardened build excludes
