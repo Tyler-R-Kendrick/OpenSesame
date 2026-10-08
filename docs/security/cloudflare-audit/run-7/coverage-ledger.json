@@ -37,10 +37,25 @@
     "prior_status": "prior_needs_validation",
     "attempts": [],
     "wave": 1,
-    "status": "planned",
-    "agent_id": null,
-    "reviewed_paths": [],
-    "local_checks": [],
+    "status": "covered",
+    "agent_id": "h-run7-wallet",
+    "reviewed_paths": [
+      "apps/android/ios/Sources/OpenSesameAuthenticator/WalletView.swift",
+      "crates/authenticator-core/src/lib.rs"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h-run7-wallet",
+        "reviewed_paths": [
+          "apps/android/ios/Sources/OpenSesameAuthenticator/WalletView.swift",
+          "crates/authenticator-core/src/lib.rs"
+        ],
+        "invariant": "Custom-scheme handoff validates before launch",
+        "method": "source",
+        "result": "validateCredentialOfferSchemeHandoff / validate_credential_offer_scheme_handoff gate custom-scheme offers; cargo custom_scheme tests pass on tip",
+        "artifact": null
+      }
+    ],
     "result_fingerprints": [],
     "unresolved": [],
     "uncovered_reason": "onOpenURL sends openid-credential-offer and haip-vci URLs to WalletModel.launch without validatePlatformInvocation, while the https branch calls that policy. Info.plist registers those schemes, and no unit's reviewed_paths includes WalletView.swift.",
@@ -936,10 +951,25 @@
     "prior_status": "prior_needs_validation",
     "attempts": [],
     "wave": 1,
-    "status": "planned",
-    "agent_id": null,
-    "reviewed_paths": [],
-    "local_checks": [],
+    "status": "covered",
+    "agent_id": "h-run7-egress",
+    "reviewed_paths": [
+      "crates/domain/src/authority.rs",
+      "crates/connection-broker/src/egress.rs"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h-run7-egress",
+        "reviewed_paths": [
+          "crates/domain/src/authority.rs",
+          "crates/connection-broker/src/egress.rs"
+        ],
+        "invariant": "Broker calls allows_url before credentialed egress; encoded traversals fail gate",
+        "method": "source",
+        "result": "encoded_path_traversals_fail_the_prefix_gate passes; upstream decode beyond single pass not modeled in repo",
+        "artifact": null
+      }
+    ],
     "result_fingerprints": [],
     "unresolved": [],
     "hardening_notes": [
@@ -1915,10 +1945,27 @@
     "prior_status": "prior_needs_validation",
     "attempts": [],
     "wave": 1,
-    "status": "planned",
-    "agent_id": null,
-    "reviewed_paths": [],
-    "local_checks": [],
+    "status": "covered",
+    "agent_id": "h-run7-sandbox",
+    "reviewed_paths": [
+      "crates/sandbox/src/runtime/mod.rs",
+      "crates/sandbox/src/runtime/imports.rs",
+      "crates/sandbox/tests/grant_expiry.rs"
+    ],
+    "local_checks": [
+      {
+        "agent_id": "h-run7-sandbox",
+        "reviewed_paths": [
+          "crates/sandbox/src/runtime/mod.rs",
+          "crates/sandbox/src/runtime/imports.rs",
+          "crates/sandbox/tests/grant_expiry.rs"
+        ],
+        "invariant": "Grant expiry enforced at spawn and broker imports",
+        "method": "source",
+        "result": "grant_expiry tests pass; spawn and still_authorized compare wall clock to expires_at",
+        "artifact": null
+      }
+    ],
     "result_fingerprints": [],
     "unresolved": [],
     "hardening_notes": [
