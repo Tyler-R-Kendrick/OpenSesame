@@ -8,7 +8,7 @@
  * optional (ADR 0181). With none of the remaining variables set the empty
  * file from the build stays.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
