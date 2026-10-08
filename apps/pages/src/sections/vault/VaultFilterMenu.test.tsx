@@ -110,8 +110,8 @@ describe("the vault filter key", () => {
     }
     // A type this vault holds no items of earns no road, exactly as before.
     expect(sheet.textContent).not.toContain("Passkeys");
-    // Filters narrow the list; Password health is a page. The chip row it
-    // replaced guarded this, and the rail carries both, so it is easy to add.
+    // Filters narrow the list. Password health is its own tree row and
+    // page; the sheet must not grow a link to it.
     expect(sheet.querySelector('a[href="/vault/health"]')).toBeNull();
     expect(
       screen.getByRole("link", { name: /Favorites/ }).getAttribute("href"),

@@ -187,6 +187,7 @@ describe("AppShell", () => {
   it("hides vault entries outside the vault section", () => {
     const { container } = renderShell("/access");
     expect(container.querySelector('a[href="/vault?f=trash"]')).toBeNull();
+    expect(container.querySelector('a[href="/vault/health"]')).toBeNull();
     expect(
       container.querySelector('a[href="/vault?f=account&folder=f1"]'),
     ).toBeNull();
@@ -199,11 +200,13 @@ describe("AppShell", () => {
     expect(container.querySelector('a[href="/vault?folder=f1"]')).toBeNull();
   });
   it.each(["/vault", "/vault/health"])(
-    "keeps health out of the tree on %s",
+    "lists password health in the vault tree on %s",
     (path) => {
       renderShell(path);
       const tree = screen.getByRole("tree", { name: "Sections" });
-      expect(tree.querySelector('a[href="/vault/health"]')).toBeNull();
+      const health = tree.querySelector('a[href="/vault/health"]');
+      expect(health?.getAttribute("aria-label")).toBe("Password health");
+      expect(health?.textContent).toContain("health");
       expect(
         document.getElementById(
           tree.getAttribute("aria-activedescendant") ?? "",

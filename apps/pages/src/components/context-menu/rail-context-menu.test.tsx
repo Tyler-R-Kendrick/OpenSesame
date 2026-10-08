@@ -139,6 +139,20 @@ describe("the rail's context menu", () => {
     expect(document.activeElement).toBe(first);
   });
 
+  it("opens password health without offering to create an item there", () => {
+    renderShell("/vault", <ContextMenuLayer />);
+    const health = screen.getByRole("treeitem", { name: "Password health" });
+    expect(health.getAttribute("href")).toBe("/vault/health");
+    fireEvent.contextMenu(health);
+    expect(within(menu()).getByRole("menuitem", { name: "Open" })).toBeTruthy();
+    expect(
+      within(menu()).queryByRole("menuitem", { name: "New item" }),
+    ).toBeNull();
+    expect(
+      within(menu()).queryByRole("menuitem", { name: "Empty trash" }),
+    ).toBeNull();
+  });
+
   it("asks twice before emptying the trash", () => {
     act(() => saveShowHidden(true));
     renderShell("/vault", <ContextMenuLayer />);

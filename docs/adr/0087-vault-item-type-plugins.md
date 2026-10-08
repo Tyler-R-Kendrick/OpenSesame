@@ -222,8 +222,8 @@ the vault holds items of gets one too, so no item is left without a
 directory. Because a directory is a name people navigate by, an install is
 refused (`name`) when its title or directory is already another registered
 type's, compared without case, or when its directory is one the rail keeps
-for itself (`RESERVED_DIRECTORIES`: `all`, `favorites`, `trash`, and the
-short names `certs` and `notes`). A type id is also the vault's `?f=`
+for itself (`RESERVED_DIRECTORIES`: `all`, `favorites`, `health`, `trash`,
+and the short names `certs` and `notes`). A type id is also the vault's `?f=`
 filter value, so `all`, `favorites` and `trash` may not name a type
 (`RESERVED_TYPE_IDS`). This sits beside the extension rule: the extension
 names an item, the directory names where its kind lives. Uninstalling frees

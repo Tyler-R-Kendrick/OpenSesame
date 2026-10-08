@@ -105,6 +105,34 @@ describe("AppShell rail navigation", () => {
     expect(filterLink(container, "/vault", "all").className).toContain(
       "is-active",
     );
+    expect(
+      filterLink(container, "/vault/health", "health").className,
+    ).not.toContain("is-active");
+  });
+  it("lists password health after favorites and selects it on its page", () => {
+    const onVault = renderShell("/vault");
+    const tree = screen.getByRole("tree", { name: "Sections" });
+    tree.focus();
+    fireEvent.keyDown(tree, { key: "ArrowDown" });
+    fireEvent.keyDown(tree, { key: "ArrowDown" });
+    const health = filterLink(onVault.container, "/vault/health", "health");
+    expect(health.className).toContain("is-active");
+    expect(health.getAttribute("aria-label")).toBe("Password health");
+    expect(health.getAttribute("title")).toBe("Password health");
+    expect(health.querySelector(".railtree__count")).toBeNull();
+    fireEvent.keyDown(tree, { key: "ArrowDown" });
+    expect(
+      filterLink(onVault.container, "/vault?f=account", "accounts").className,
+    ).toContain("is-active");
+    onVault.unmount();
+
+    const onHealth = renderShell("/vault/health");
+    expect(
+      filterLink(onHealth.container, "/vault/health", "health").className,
+    ).toContain("is-active");
+    expect(
+      filterLink(onHealth.container, "/vault", "all").className,
+    ).not.toContain("is-active");
   });
   it("handles vaults with no folders and no items", () => {
     vault.items = [];
@@ -160,11 +188,15 @@ describe("AppShell rail navigation", () => {
     ).toContain("is-active");
     fireEvent.keyDown(tree, { key: "j" });
     expect(
+      filterLink(container, "/vault/health", "health").className,
+    ).toContain("is-active");
+    fireEvent.keyDown(tree, { key: "j" });
+    expect(
       filterLink(container, "/vault?f=account", "accounts").className,
     ).toContain("is-active");
     fireEvent.keyDown(tree, { key: "ArrowUp" });
     expect(
-      filterLink(container, "/vault?f=favorites", "favorites").className,
+      filterLink(container, "/vault/health", "health").className,
     ).toContain("is-active");
   });
   it("walks off the open vault directory onto the next section", () => {

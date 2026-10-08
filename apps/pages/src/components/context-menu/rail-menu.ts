@@ -64,6 +64,8 @@ function openGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
 function vaultGroup(row: HTMLElement, navigate: Navigate): MenuItem[] {
   const entry = describe(row);
   if (!entry.to.startsWith("/vault")) return [];
+  // Password health is a report, not a directory of items.
+  if (entry.to === "/vault/health") return [];
   if (entry.kind === "trash") {
     return [
       {
