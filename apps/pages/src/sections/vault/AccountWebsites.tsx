@@ -14,8 +14,17 @@ const MATCHES: UriMatch[] = [
   "never",
 ];
 
+interface WebsiteRuleTitles {
+  wildcard: string;
+  regex: string;
+  domain?: string;
+  host?: string;
+  exact?: string;
+  never?: string;
+}
+
 /** What a rule matches, on the select that picks it — never a line under it. */
-const RULE_TITLES: Partial<Record<UriMatch, string>> = {
+const RULE_TITLES: WebsiteRuleTitles = {
   wildcard:
     "Whole hostname, case-insensitive. *.example.com matches subdomains; * matches any characters, ? matches one.",
   regex:

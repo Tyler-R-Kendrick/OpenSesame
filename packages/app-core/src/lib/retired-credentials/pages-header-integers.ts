@@ -1,4 +1,6 @@
 /** Inactive Pages-header lexical profile only. This establishes no authentication. */
+import { type BoundaryValue, isString } from "@opensesame/os-domain";
+
 const MAX_RAW_UNITS = 65536;
 const MAX_SAFE = "9007199254740991";
 function unavailable(): never {
@@ -19,8 +21,8 @@ function afterString(raw: string, start: number): number {
  * integer. Strings are opaque here. This does not validate JSON grammar, UTF-8,
  * schema, MACs, factors or authority and must not be used for general JSON.
  */
-export function assertPagesHeaderIntegerProfile(raw: string): void {
-  if (typeof raw !== "string" || raw.length > MAX_RAW_UNITS) unavailable();
+export function assertPagesHeaderIntegerProfile(raw: BoundaryValue): void {
+  if (!isString(raw) || raw.length > MAX_RAW_UNITS) unavailable();
   for (let i = 0; i < raw.length; i++) {
     const ch = raw.charAt(i);
     if (ch === '"') {

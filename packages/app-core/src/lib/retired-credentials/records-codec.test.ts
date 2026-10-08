@@ -21,10 +21,10 @@ const observed = () => ({
   response: "reject",
 });
 const records = () => ({ v: 1, tomb, traps: [trap()], events: [observed()] });
-const parse = (value: object) =>
+const parse = <T>(value: T) =>
   parseRetiredCredentialRecords(JSON.stringify(value), tomb);
 
-function refused(value: object): void {
+function refused<T>(value: T): void {
   expect(() => parse(value)).toThrow(unavailable);
 }
 

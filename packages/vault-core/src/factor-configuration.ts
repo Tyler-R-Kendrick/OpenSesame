@@ -2,7 +2,10 @@
 import {
   type BoundaryValue,
   type JsonObject,
+  isBoolean,
   isJsonObject,
+  isNumber,
+  isString,
   overlapCast,
 } from "@opensesame/os-domain";
 import { b64ToBytes, bytesToB64 } from "./bytes.js";
@@ -29,18 +32,14 @@ function object(
 }
 
 function text(value: BoundaryValue, label: string, max = 256): string {
-  if (typeof value !== "string" || value.length === 0 || value.length > max) {
+  if (!isString(value) || value.length === 0 || value.length > max) {
     return refuse(`${label} is invalid`);
   }
   return value;
 }
 
 function integer(value: BoundaryValue, label: string, min = 0): number {
-  if (
-    typeof value !== "number" ||
-    !Number.isSafeInteger(value) ||
-    value < min
-  ) {
+  if (!isNumber(value) || !Number.isSafeInteger(value) || value < min) {
     return refuse(`${label} is invalid`);
   }
   return value;
@@ -125,7 +124,7 @@ function gateFlags(value: BoundaryValue): JsonObject {
   const result: JsonObject = {};
   for (const name of names) {
     const flag = row[name];
-    if (typeof flag !== "boolean") return refuse(`required ${name} is missing`);
+    if (!isBoolean(flag)) return refuse(`required ${name} is missing`);
     result[name] = flag;
   }
   return result;
