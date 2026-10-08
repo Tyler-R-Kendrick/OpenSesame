@@ -79,8 +79,10 @@ prefix to keep the vault under. Conditional writes (`If-Match`,
 `If-None-Match`) must be supported by the service, as they are by current AWS
 S3, MinIO and R2.
 
-In the Pages app a bucket is chosen in setup, under Custom → History &
-persistence → S3-compatible bucket. The page's origin needs a CORS rule on the
+In the Pages app a bucket is saved as the S3-compatible bucket connector
+(Settings › Capabilities › Local storage, also reached from the Custom setup
+ceremony's capabilities step); from the next load the vault is read from it.
+Remove the connector and the device goes back to its own storage. The page's origin needs a CORS rule on the
 bucket allowing `GET, PUT, DELETE` with headers `Authorization, If-Match,
 If-None-Match, x-amz-*, Content-Type`, exposing `ETag`. Everything in the bucket
 is sealed under a key the bucket never sees; the names of secrets are the
