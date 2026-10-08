@@ -434,6 +434,31 @@ mod tests {
     }
 
     #[test]
+    fn rejects_ipv4_mapped_private_request_uris() {
+        for request_uri in [
+            "https://[::ffff:127.0.0.1]/request",
+            "https://[::ffff:169.254.169.254]/latest",
+            "https://[::ffff:10.1.2.3]/x",
+            "https://[::ffff:192.168.0.1]/x",
+        ] {
+            let link = format!(
+                "https://auth.opensesame.example/invoke/oid4vp?request_uri={}",
+                url::form_urlencoded::byte_serialize(request_uri.as_bytes()).collect::<String>()
+            );
+            assert_eq!(
+                policy().validate_link(&link),
+                Err(AuthenticatorError::PrivateRequestUri),
+                "accepted {request_uri}"
+            );
+        }
+        policy()
+            .validate_link(
+                "https://auth.opensesame.example/invoke/oid4vp?request_uri=https%3A%2F%2Fverifier.example%2Frequest",
+            )
+            .unwrap();
+    }
+
+    #[test]
     fn rejects_ambiguous_invocation_parameters() {
         for link in [
             "https://auth.opensesame.example/invoke/oid4vp?request_uri=https%3A%2F%2Fverifier.example%2Fa&request_uri=https%3A%2F%2Fverifier.example%2Fb",
