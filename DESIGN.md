@@ -285,7 +285,7 @@ a vim-style command line at the foot of the pane, backed by a real input so
 typed keys never leak into the keymap; matches highlight, non-matches hide,
 `Esc` closes it and returns the keyboard to the tree. Item verbs are single
 keys: `y` copies the secret, `u` the username, `e` edits, `x` trashes, `n`
-creates, `.` toggles favorite, and `s` shares a secret once. `g v/c/a/i/w/s`
+creates, `.` toggles favorite, and `s` shares a secret once. `g v/c/a/i/w/y/s`
 jumps between sections (`g` times out like vim so a stray `g` does not
 swallow the next key). `Ctrl-l` / `:` focuses the command bar (browser
 URL-bar style); `m` toggles push-to-speak on the mic, which is the on-device model's and drawn once it is on. `?` shows the keymap. `q{a–z}` records
