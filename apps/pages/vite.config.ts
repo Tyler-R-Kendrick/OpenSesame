@@ -61,6 +61,13 @@ function bundleChunk(id: string): string | undefined {
   ) {
     return "react-router";
   }
+  // The device-identity and device-inbox walks import this chunk by the
+  // file name `device-identity-host-*.js`. A pure chunk under
+  // `experimentalMinChunkSize` is folded into a neighbour, and the name
+  // disappears (`assets/undefined`). Manual chunks are not folded.
+  if (path.includes("/lib/device-identity-host.ts")) {
+    return "device-identity-host";
+  }
   return undefined;
 }
 
@@ -191,9 +198,12 @@ export default defineConfig({
         // Merge a chunk under 12 KB into one that every path loading it
         // already loads. The precache gzips each file alone, and the persona
         // stack's extra leaves put that sum over the 1739 KiB ceiling at
-        // 5 KB. 12 KB brings it back with room. Do not go higher: past this,
-        // small optional chunks (Tailnet sync's) fold into `main`, which is
-        // "safe" to Rollup — everything loads `main` — and wrong here.
+        // 5 KB. 12 KB brings it back with room. A pure chunk still folds
+        // into a neighbour at this floor. Pin a chunk that must keep its
+        // name (`device-identity-host` below; web-push enrolment in
+        // `capability-lazy-leaves.mjs`) so the bootstrap does not
+        // static-import an optional module (ADR 0130 §4) and the device
+        // walks can still import the host by file name.
         experimentalMinChunkSize: 12_000,
         manualChunks: bundleChunk,
       },
