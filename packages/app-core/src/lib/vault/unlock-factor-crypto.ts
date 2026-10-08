@@ -1,10 +1,12 @@
 /** Fixed PIN/AES/text operations; no ceremony or owner authority. */
 import { overlapCast } from "@opensesame/os-domain";
 import {
+  type PasskeyUnlockRecord,
   type PinUnlockRecord,
   SALT_BYTES,
   type SealedBlob,
   VaultCorruptError,
+  type VaultUnlocks,
   WrongPasswordError,
   assertKdfParams,
   b64ToBytes,
@@ -12,7 +14,10 @@ import {
   randomBytes,
 } from "@opensesame/vault-core";
 
+import { assertUsablePrfOutput } from "./protection/adapters/webauthn-prf-output.js";
+
 const IV_BYTES = 12;
+const PRF_INFO = new TextEncoder().encode("opensesame/vault/webauthn-prf/v1");
 
 export const MIN_PIN_LENGTH = 8;
 export const MAX_PIN_LENGTH = 12;
@@ -147,4 +152,88 @@ export async function openText(
   blob: SealedBlob,
 ): Promise<string> {
   return new TextDecoder().decode(await decryptWithKey(vaultKey, blob));
+}
+
+/** Fixed PRF wrapping and exact record lookup, independent of ceremonies. */
+export function listPasskeyUnlockRecords(
+  unlocks: VaultUnlocks | null | undefined,
+): PasskeyUnlockRecord[] {
+  if (!unlocks) return [];
+  const fromArray = unlocks.passkeys ?? [];
+  if (fromArray.length > 0) {
+    const legacy = unlocks.passkey;
+    if (
+      legacy &&
+      !fromArray.some((row) => row.credentialIdB64 === legacy.credentialIdB64)
+    ) {
+      return [legacy, ...fromArray];
+    }
+    return fromArray;
+  }
+  return unlocks.passkey ? [unlocks.passkey] : [];
+}
+
+export function findPasskeyUnlockRecord(
+  unlocks: VaultUnlocks | null | undefined,
+  credentialIdB64: string,
+): PasskeyUnlockRecord | null {
+  return (
+    listPasskeyUnlockRecords(unlocks).find(
+      (row) => row.credentialIdB64 === credentialIdB64,
+    ) ?? null
+  );
+}
+
+export async function kekFromWebauthnPrf(
+  prfOutput: ArrayBuffer,
+  publicSalt: Uint8Array,
+): Promise<CryptoKey> {
+  const ikm = await crypto.subtle.importKey("raw", prfOutput, "HKDF", false, [
+    "deriveKey",
+  ]);
+  return crypto.subtle.deriveKey(
+    {
+      name: "HKDF",
+      hash: "SHA-256",
+      salt: overlapCast(publicSalt),
+      info: PRF_INFO,
+    },
+    ikm,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
+export async function wrapVaultKeyWithPrf(
+  rawVaultKey: Uint8Array,
+  prfOutput: ArrayBuffer,
+  prfSalt: Uint8Array,
+  credentialId: ArrayBuffer,
+  userId: ArrayBuffer,
+): Promise<PasskeyUnlockRecord> {
+  assertUsablePrfOutput(prfOutput);
+  const kek = await kekFromWebauthnPrf(prfOutput, prfSalt);
+  const wrap = await encryptWithKey(kek, rawVaultKey);
+  return {
+    credentialIdB64: bytesToB64(new Uint8Array(credentialId)),
+    userIdB64: bytesToB64(new Uint8Array(userId)),
+    prfSaltB64: bytesToB64(prfSalt),
+    wrap,
+  };
+}
+
+export async function unwrapVaultKeyWithPrf(
+  record: PasskeyUnlockRecord,
+  prfOutput: ArrayBuffer,
+): Promise<Uint8Array> {
+  const kek = await kekFromWebauthnPrf(
+    prfOutput,
+    b64ToBytes(record.prfSaltB64),
+  );
+  try {
+    return await decryptWithKey(kek, record.wrap);
+  } catch {
+    throw new WrongPasswordError();
+  }
 }

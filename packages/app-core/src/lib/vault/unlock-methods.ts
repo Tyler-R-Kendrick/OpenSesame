@@ -15,9 +15,6 @@ import {
   type TotpGateRecord,
   type VaultHeader,
   type VaultUnlocks,
-  WrongPasswordError,
-  b64ToBytes,
-  bytesToB64,
   parseTotp,
   randomBytes,
   totpCode,
@@ -27,13 +24,13 @@ import {
   getPasskeyUnlockCeremonyDefault,
   getPasskeyUnlockCeremonyForDefault,
 } from "./protection/adapters/webauthn-prf-ceremony.js";
-import { assertUsablePrfOutput } from "./protection/adapters/webauthn-prf-output.js";
 import type { UnlockTabId } from "./protection/unlock-protector-methods.js";
 import { chooseUnlockMethod } from "./unlock-preference.js";
 
 import {
   decryptWithKey,
   encryptWithKey,
+  listPasskeyUnlockRecords,
   openText,
   sealText,
 } from "./unlock-factor-crypto.js";
@@ -42,6 +39,11 @@ export {
   MIN_PIN_LENGTH,
   MAX_PIN_LENGTH,
   PIN_PBKDF2_ITERATIONS,
+  listPasskeyUnlockRecords,
+  findPasskeyUnlockRecord,
+  kekFromWebauthnPrf,
+  wrapVaultKeyWithPrf,
+  unwrapVaultKeyWithPrf,
   pinPolicyProblems,
   assertPinPolicy,
   wrapVaultKeyWithPin,
@@ -74,8 +76,6 @@ export {
   requirePrfOutputFromExtension,
 } from "./protection/adapters/webauthn-prf-output.js";
 
-const PRF_INFO = new TextEncoder().encode("opensesame/vault/webauthn-prf/v1");
-
 export type {
   CodeChannel,
   PasskeyUnlockRecord,
@@ -85,39 +85,6 @@ export type {
   TotpGateRecord,
   VaultUnlocks,
 } from "@opensesame/vault-core";
-
-/**
- * Passkey wraps present on a header. A legacy lone `passkey` migrates to a
- * one-element list; when both exist, `passkey` is prepended if its id is new.
- */
-export function listPasskeyUnlockRecords(
-  unlocks: VaultUnlocks | null | undefined,
-): PasskeyUnlockRecord[] {
-  if (!unlocks) return [];
-  const fromArray = unlocks.passkeys ?? [];
-  if (fromArray.length > 0) {
-    const legacy = unlocks.passkey;
-    if (
-      legacy &&
-      !fromArray.some((row) => row.credentialIdB64 === legacy.credentialIdB64)
-    ) {
-      return [legacy, ...fromArray];
-    }
-    return fromArray;
-  }
-  return unlocks.passkey ? [unlocks.passkey] : [];
-}
-
-export function findPasskeyUnlockRecord(
-  unlocks: VaultUnlocks | null | undefined,
-  credentialIdB64: string,
-): PasskeyUnlockRecord | null {
-  return (
-    listPasskeyUnlockRecords(unlocks).find(
-      (row) => row.credentialIdB64 === credentialIdB64,
-    ) ?? null
-  );
-}
 
 /**
  * Merge a successful enroll into unlocks without dropping other passkeys.
@@ -191,28 +158,6 @@ function preferredUnlockMethodDefault(
   return chooseUnlockMethod(header, listAvailableUnlockMethods(header));
 }
 
-/** HKDF-SHA-256 matching crates/human-vault kek_from_webauthn_prf. */
-export async function kekFromWebauthnPrf(
-  prfOutput: ArrayBuffer,
-  publicSalt: Uint8Array,
-): Promise<CryptoKey> {
-  const ikm = await crypto.subtle.importKey("raw", prfOutput, "HKDF", false, [
-    "deriveKey",
-  ]);
-  return crypto.subtle.deriveKey(
-    {
-      name: "HKDF",
-      hash: "SHA-256",
-      salt: overlapCast(publicSalt),
-      info: PRF_INFO,
-    },
-    ikm,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"],
-  );
-}
-
 export async function exportRawVaultKey(
   vaultKey: CryptoKey,
 ): Promise<Uint8Array> {
@@ -221,39 +166,6 @@ export async function exportRawVaultKey(
   }
   const raw = new Uint8Array(await crypto.subtle.exportKey("raw", vaultKey));
   return raw;
-}
-
-export async function wrapVaultKeyWithPrf(
-  rawVaultKey: Uint8Array,
-  prfOutput: ArrayBuffer,
-  prfSalt: Uint8Array,
-  credentialId: ArrayBuffer,
-  userId: ArrayBuffer,
-): Promise<PasskeyUnlockRecord> {
-  assertUsablePrfOutput(prfOutput);
-  const kek = await kekFromWebauthnPrf(prfOutput, prfSalt);
-  const wrap = await encryptWithKey(kek, rawVaultKey);
-  return {
-    credentialIdB64: bytesToB64(new Uint8Array(credentialId)),
-    userIdB64: bytesToB64(new Uint8Array(userId)),
-    prfSaltB64: bytesToB64(prfSalt),
-    wrap,
-  };
-}
-
-export async function unwrapVaultKeyWithPrf(
-  record: PasskeyUnlockRecord,
-  prfOutput: ArrayBuffer,
-): Promise<Uint8Array> {
-  const kek = await kekFromWebauthnPrf(
-    prfOutput,
-    b64ToBytes(record.prfSaltB64),
-  );
-  try {
-    return await decryptWithKey(kek, record.wrap);
-  } catch {
-    throw new WrongPasswordError();
-  }
 }
 
 export type PasskeyCeremony = {
