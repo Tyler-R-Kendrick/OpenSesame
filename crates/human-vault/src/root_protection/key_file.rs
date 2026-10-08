@@ -59,7 +59,7 @@ pub fn parse_key_file_json(json: &str) -> Result<KeyFileContents, ProtectionErro
             json,
         )?));
     }
-    let manifest: RootProtectionManifest = serde_json::from_value(value)
+    let manifest: RootProtectionManifest = serde_json::from_str(json)
         .map_err(|e| ProtectionError::MalformedEncoding(format!("manifest: {e}")))?;
     validate_manifest_bounds(&manifest)?;
     Ok(KeyFileContents::Manifest(manifest))
@@ -169,6 +169,7 @@ pub fn init_versioned_key_file(
         preferred_protector_id: Some(protector_id),
         legacy_gates: None,
         auth_b64: None,
+        factor_configuration: None,
     };
     seal_manifest_auth(&vrk, &mut manifest)?;
     write_key_file(root, &KeyFileContents::Manifest(manifest.clone()))?;
