@@ -20,6 +20,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PLUGIN_DAEMON_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-plugins.js";
 import {
+  REMOTE_MODEL_EGRESS_PURPOSE,
   TAILNET_DEVICES_PURPOSE,
   WEB_PUSH_ENROLMENT_PURPOSE,
 } from "@opensesame/app-core/lib/capabilities/catalog-optional-services.js";
@@ -54,6 +55,7 @@ const catalogConstants: ReadonlyMap<string, string> = new Map(
     LIVE_CARRIER_PURPOSE,
     PLUGIN_DAEMON_PURPOSE,
     PWNED_PURPOSE,
+    REMOTE_MODEL_EGRESS_PURPOSE,
     TAILNET_DEVICES_PURPOSE,
     TWO_FACTOR_PURPOSE,
     WEB_PUSH_ENROLMENT_PURPOSE,

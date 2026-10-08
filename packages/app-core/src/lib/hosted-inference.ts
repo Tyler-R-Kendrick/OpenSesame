@@ -5,6 +5,7 @@
  */
 
 import { isJsonObject, isString, overlapCast } from "@opensesame/os-domain";
+import { REMOTE_MODEL_EGRESS_PURPOSE } from "./capabilities/catalog-optional-services.js";
 import type { EgressPort } from "./capabilities/egress.js";
 import type { Provider } from "./connections.js";
 import { catalogProvider } from "./connector-catalog.js";
@@ -33,10 +34,6 @@ export type DeliveredModel = {
   providerId: string;
   operation: string;
 };
-
-/** Must match `support.remote-ai` in `catalog-optional-services.ts`. */
-export const REMOTE_MODEL_EGRESS_PURPOSE =
-  "the configured AG-UI endpoint or model provider, with redacted page context";
 
 export type ModelPostOptions = Readonly<{
   egress: EgressPort;
