@@ -30,6 +30,7 @@ import {
   publicError,
   requestHostOf,
 } from "./manage-auth.mjs";
+import { readRawBody } from "./read-body.mjs";
 
 const CONNECT_API = "https://api.vercel.com";
 
@@ -350,17 +351,7 @@ export function manageInput(req, path) {
   };
 }
 
-/** Read a UTF-8 body from a Node IncomingMessage (raw, for HMAC). */
-export function readRawBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on("data", (chunk) => chunks.push(chunk));
-    req.on("end", () => {
-      resolve(Buffer.concat(chunks).toString("utf8"));
-    });
-    req.on("error", reject);
-  });
-}
+export { readRawBody };
 
 /** Read a JSON body from a Node IncomingMessage. */
 export function readJsonBody(req) {
