@@ -1,0 +1,40 @@
+[checklist] minimal-local PARTIAL shots=45 failed-checks=3 errors=0
+  R1-reset-absent: section drawn
+  R3-settings-absent: Password reset section
+  U14-delete: Trash
+
+1 item in the trash
+
+Second
+10/8/2026
+[checklist] default PARTIAL shots=31 failed-checks=2 errors=1
+  U14-delete: Trash
+
+1 item in the trash
+
+Second
+10/8/2026
+  U14-empty: could not trash Example again
+  locator.click: Timeout 30000ms exceeded.
+[checklist] custom PARTIAL shots=33 failed-checks=2 errors=1
+  U14-delete: Trash
+
+1 item in the trash
+
+Second
+10/8/2026
+  U14-empty: could not trash Example again
+  locator.click: Timeout 30000ms exceeded.
+[checklist] full PARTIAL shots=36 failed-checks=5 errors=1
+  R1-zero: mailbox field absent
+  R1-one: mailbox field absent
+  R1-many: mailbox field absent
+  U14-delete: Trash
+
+1 item in the trash
+
+Second
+10/8/2026
+  U14-empty: could not trash Example again
+  locator.click: Timeout 30000ms exceeded.
+[checklist] wrote /opt/cursor/artifacts/verification-2026-10/results.json

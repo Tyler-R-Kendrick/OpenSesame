@@ -44,6 +44,7 @@ import {
   GuestSection,
   SectionHead,
 } from "./CapabilitySwitch.js";
+import { PasswordResetMailPanel } from "./PasswordResetMailPanel.js";
 import { ProviderTiles } from "./ProviderTiles.js";
 import { featureDraws } from "./provider-tile-items.js";
 
@@ -268,6 +269,8 @@ function CapabilitySection({
   const identityApi = useIdentityConfigured();
   const tiles = feature.capabilities.length > 1;
   const id = `feature-${feature.id}`;
+  const resetMailPanel =
+    feature.id === "password-reset" && featureState(feature, plan).on;
   // The model picks configure AI and probe the browser and the harnesses on
   // mount: they are AI's own code, drawn once AI is on — unlike a provider
   // tile, which is a connector configured by reference.
@@ -317,6 +320,7 @@ function CapabilitySection({
           <ModelPanel />
         </GuideTarget>
       ) : null}
+      {resetMailPanel ? <PasswordResetMailPanel /> : null}
       {own.map(({ id: panelId, Panel }) => (
         <Panel key={panelId} />
       ))}

@@ -42,10 +42,10 @@ describe("affected packages", () => {
     expect(plan.packages).not.toContain("@opensesame/control-plane");
   });
 
-  it("does not test Pages when control-plane changes", () => {
+  it("does not treat a removed control-plane path as a package", () => {
     const plan = planPackages(["packages/control-plane/src/app.ts"], packages);
-    expect(plan.packages).toContain("@opensesame/control-plane");
-    expect(plan.packages).not.toContain("@opensesame/pages");
+    expect(plan.packages).not.toContain("@opensesame/control-plane");
+    expect(plan.scope).toBe("none");
   });
 
   it("tests vault consumers when conformance vectors change", () => {

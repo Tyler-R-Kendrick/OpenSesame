@@ -1,3 +1,10 @@
+import {
+  type BoundaryValue,
+  type JsonObject,
+  isBoolean,
+  isJsonObject,
+  isString,
+} from "@opensesame/os-domain";
 /**
  * What the runner settles, in the exact shape the Host decodes
  * (`crates/gateway/src/routes/agent_runs/outcome.rs`).
@@ -16,14 +23,7 @@
 import type {
   RunnerStepError,
   RunnerStepOutcome,
-} from "@opensesame/api-client";
-import {
-  type BoundaryValue,
-  type JsonObject,
-  isBoolean,
-  isJsonObject,
-  isString,
-} from "@opensesame/os-domain";
+} from "./host-api-contract.js";
 
 export type { RunnerStepError, RunnerStepOutcome };
 

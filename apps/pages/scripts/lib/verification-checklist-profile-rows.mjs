@@ -5,8 +5,14 @@
  */
 
 import { openSettingsCategory } from "./pages-journey.mjs";
+import { unlockIfLocked } from "./tutorial-walk.mjs";
 import { trashNamed } from "./verification-checklist-features.mjs";
-import { mark, visibleClick } from "./verification-checklist-shot.mjs";
+import {
+  BASE,
+  ORIGIN,
+  mark,
+  visibleClick,
+} from "./verification-checklist-shot.mjs";
 
 const FULL = "full";
 const MINIMAL = "minimal-local";
@@ -66,21 +72,24 @@ async function deleteSecond(page, shot, record, trash) {
     name: "Really delete permanently? This cannot be undone",
   });
   await confirm.click();
-  await confirm.waitFor({ state: "hidden", timeout: 8_000 }).catch(() => {});
+  const emptied = page.locator("#settings-trash").getByText("Trash is empty");
+  const purged = await emptied
+    .waitFor({ state: "visible", timeout: 15_000 })
+    .then(() => true)
+    .catch(() => false);
   const deletedBody = await trashText(page);
   await shot("u14-trash-delete", trash);
   mark(
     record,
     "U14-delete",
-    /Trash is empty/.test(deletedBody),
+    purged && /Trash is empty/.test(deletedBody),
     deletedBody.slice(0, 80),
   );
-  return true;
+  return purged;
 }
 
 async function emptyTrash(page, shot, record, trash) {
-  const back = page.getByRole("treeitem", { name: "Back to vault" });
-  if (await back.isVisible().catch(() => false)) await back.click();
+  await backToVault(page);
   const moved = await trashNamed(page, "Example");
   if (!moved) {
     mark(record, "U14-empty", false, "could not trash Example again");
@@ -113,7 +122,26 @@ export async function captureTrashActions(page, shot, record) {
 
 async function backToVault(page) {
   const back = page.getByRole("treeitem", { name: "Back to vault" });
-  if (await back.isVisible().catch(() => false)) await back.click();
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    if (!(await back.isVisible().catch(() => false))) break;
+    await back.scrollIntoViewIfNeeded();
+    try {
+      await back.click({ timeout: 8000 });
+      await page
+        .getByRole("link", { name: "New item" })
+        .waitFor({ state: "visible", timeout: 15_000 });
+      return;
+    } catch {
+      await page.waitForTimeout(400);
+    }
+  }
+  const vaultUrl = `${ORIGIN}${BASE}vault`.replace(/([^:]\/)\/+/g, "$1");
+  await page.goto(vaultUrl, { waitUntil: "domcontentloaded" });
+  await unlockIfLocked(page);
+  await page
+    .getByRole("link", { name: "New item" })
+    .waitFor({ state: "visible", timeout: 20_000 })
+    .catch(() => undefined);
 }
 
 async function captureResetEmailAbsent(page, shot, record) {

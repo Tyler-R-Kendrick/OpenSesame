@@ -1,0 +1,26 @@
+
+> @opensesame/pages@0.1.0 verify:browser-sessions /workspace/apps/pages
+> node scripts/verify-browser-sessions.mjs
+
+topology=three-isolated-browser-processes-same-host; mode=strict-direct; externalServices=[]; localFixtures=[production-static-dist]; testTrust=playwright-route-to-dist
+rich Pages index SHA-256 356bba60f9838051f360274002d07122d20774dd9d3a20ac3d0aa7975af947cf
+browser-processes=3
+PASS Join: startup road without a local vault passed
+PASS Drop claim: empty device reached the claim ceremony passed
+PASS owner published a strict-direct link
+PASS with no route named, the link names no server
+PASS scoped live view: the unshared item was not projected
+PASS strict-direct: every peer connection had no ICE server
+PASS three-process RTC journey passed
+PASS revocation: ending the session dropped the value
+PASS lifecycle: session end retired the peer connection passed
+PASS lifecycle: the owner no longer shows the shared secret
+PASS owner published an edit session
+PASS edit session: the unshared item was not projected
+PASS authorized edit: the owner observed the joiner save
+PASS authorized edit: the unshared secret stayed off the owner's item
+PASS edit session stayed strict-direct
+Join: startup road without a local vault passed
+lifecycle: session end retired the peer connection passed
+three-process RTC journey passed
+ALL CHECKS PASSED — artifacts in /opt/cursor/artifacts/static-pwa-no-backend/transport

@@ -1,11 +1,11 @@
 import type { JsonObject } from "@opensesame/os-domain";
+import { describe, expect, it, vi } from "vitest";
 import {
   type WebhookSignature,
   generateWebhookSecret,
   signWebhook,
   verifyWebhook,
-} from "@opensesame/webhooks";
-import { describe, expect, it, vi } from "vitest";
+} from "../webhooks/index.js";
 
 import {
   createGenericWebhookAdapter,

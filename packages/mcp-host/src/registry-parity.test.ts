@@ -1,9 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   assertsNoInteractionSettlementTool,
   assertsNoSecretNames,
@@ -28,24 +26,16 @@ describe("registry parity — mcp-host", () => {
     expect(() => assertsNoInteractionSettlementTool(hostTools)).not.toThrow();
   });
 
-  it("a connected server advertises exactly hostTools, nothing more", async () => {
-    const server = new McpServer({ name: "parity-probe", version: "0.0.0" });
+  it("registerHostTools leaves the catalog empty", () => {
+    const names: string[] = [];
+    const server = {
+      tool: (name: string) => {
+        names.push(name);
+      },
+    } as unknown as McpServer;
     registerHostTools(server);
-    const [clientTransport, serverTransport] =
-      InMemoryTransport.createLinkedPair();
-    const client = new Client({ name: "parity-client", version: "0.0.0" });
-    await Promise.all([
-      server.connect(serverTransport),
-      client.connect(clientTransport),
-    ]);
-    try {
-      const { tools } = await client.listTools();
-      expect(tools.map((tool) => tool.name).sort()).toEqual(
-        [...hostTools].sort(),
-      );
-    } finally {
-      await Promise.all([client.close(), server.close()]);
-    }
+    expect(names).toEqual([]);
+    expect(hostTools).toEqual([]);
   });
 
   it("the MCP skill lists exactly hostTools", () => {

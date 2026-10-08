@@ -1,4 +1,3 @@
-import { normalizeLoopbackBaseUrl } from "@opensesame/api-client";
 /**
  * Where the Host API is, for everything the extension says to it.
  *
@@ -12,6 +11,7 @@ import {
   sealForRest,
 } from "@opensesame/browser-at-rest";
 import { ENDPOINTS, isString } from "@opensesame/os-domain";
+import { normalizeLoopbackBaseUrl } from "./host-api-contract.js";
 
 export const DEFAULT_HOST = ENDPOINTS.host.default;
 /** Where `hostApiBase` rests, sealed (ADR 0149). */

@@ -1,0 +1,9 @@
+[checklist] chromium /home/vscode/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome (env:PLAYWRIGHT_CHROMIUM) Google Chrome for Testing 153.0.8010.12
+[checklist] reuse /workspace/apps/pages/dist-profiles/verification-minimal-local
+[checklist] reuse /workspace/apps/pages/dist-profiles/verification-stock
+[checklist] reuse /workspace/apps/pages/dist-profiles/verification-full
+[checklist] minimal-local OK shots=45 failed-checks=0 errors=0
+[checklist] default OK shots=40 failed-checks=0 errors=0
+[checklist] custom OK shots=42 failed-checks=0 errors=0
+[checklist] full OK shots=49 failed-checks=0 errors=0
+[checklist] wrote /opt/cursor/artifacts/verification-2026-10/results.json

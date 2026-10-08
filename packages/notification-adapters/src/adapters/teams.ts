@@ -26,7 +26,7 @@ import {
   type JsonObject,
   channelCapabilities,
 } from "@opensesame/os-domain";
-import { postWebhook } from "@opensesame/webhooks/delivery";
+import { postWebhook } from "../webhooks/delivery.js";
 
 import type {
   ChannelAdapter,

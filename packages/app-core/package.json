@@ -39,7 +39,6 @@
     "@noble/curves": "2.4.0",
     "@noble/hashes": "1.8.0",
     "@openfeature/web-sdk": "1.10.0",
-    "@opensesame/api-client": "workspace:*",
     "@opensesame/audit": "workspace:*",
     "@opensesame/auth-upstream": "workspace:*",
     "@opensesame/capability-composition": "workspace:*",

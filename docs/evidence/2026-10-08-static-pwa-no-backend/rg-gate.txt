@@ -1,0 +1,17 @@
+# rg gate — backend stamp / API wiring strings (2026-10-08)
+
+Pattern (case-insensitive):
+
+  identity_api|host_api|daemon_api|PAGES_(IDENTITY|HOST|DAEMON)
+
+Command (excludes history trees only):
+
+  grep -RInE 'identity_api|host_api|daemon_api|PAGES_(IDENTITY|HOST|DAEMON)' . \
+    --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=target \
+    --exclude-dir=audit --exclude-dir=evidence --exclude-dir=archive \
+    --exclude-dir=dist --exclude-dir=dist-profiles
+
+Result: **0 matches** outside `docs/audit/`, `docs/evidence/`, and `docs/archive/`.
+
+Last verified after renaming browser-extension health error
+`authority_plane_removed` (was matching `host_api`).

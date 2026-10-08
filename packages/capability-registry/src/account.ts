@@ -1,4 +1,8 @@
-import { AUTH_CEREMONY, DEVICE_VAULT_CEREMONY } from "./exclusions.js";
+import {
+  AUTH_CEREMONY,
+  CLIENT_NO_HOST_IDENTITY,
+  DEVICE_VAULT_CEREMONY,
+} from "./exclusions.js";
 /**
  * The signed-in account (ADR 0091) and its own factors (ADR 0140 D10).
  *
@@ -21,13 +25,14 @@ export const accountCapabilities: readonly Capability[] = [
     plane: "identity",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame-id login",
+      cli: null,
       pwa: "lib/federation.ts:beginSignIn",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
       mcp_host: AUTH_CEREMONY,
       mcp_client: AUTH_CEREMONY,
       webmcp: AUTH_CEREMONY,
@@ -40,13 +45,14 @@ export const accountCapabilities: readonly Capability[] = [
     plane: "identity",
     kind: "ceremony",
     surfaces: {
-      cli: "opensesame logout",
+      cli: null,
       pwa: "lib/session-exit.ts:signOut",
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
+      cli: CLIENT_NO_HOST_IDENTITY,
       mcp_host: AUTH_CEREMONY,
       mcp_client: AUTH_CEREMONY,
       webmcp: AUTH_CEREMONY,

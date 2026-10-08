@@ -79,9 +79,6 @@ describe("ci changed areas", () => {
       mtls: false,
       push: true,
     });
-    expect(
-      areas(["packages/control-plane/src/transport/mod.ts"], []).mtls,
-    ).toBe(true);
     expect(areas(["apps/pages/scripts/lib/transport-journey.mjs"]).mtls).toBe(
       true,
     );

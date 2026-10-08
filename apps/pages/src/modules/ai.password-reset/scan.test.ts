@@ -6,8 +6,6 @@ import {
   resetPasswordResetMailForTest,
 } from "@opensesame/app-core/lib/password-reset-mail.js";
 import { afterEach, describe, expect, it } from "vitest";
-import { sectionCategory } from "../../sections/settings/CapabilitySections.js";
-import { PASSWORD_RESET_PANEL_CATEGORY } from "./runtime.js";
 import { clearPasswordResetSeen, scanPasswordResetMail } from "./scan.js";
 
 afterEach(() => {
@@ -16,12 +14,6 @@ afterEach(() => {
 });
 
 describe("password reset scan", () => {
-  it("draws in the password-reset section", () => {
-    expect(PASSWORD_RESET_PANEL_CATEGORY).toBe(
-      sectionCategory("feature-password-reset"),
-    );
-  });
-
   it("does not post while the ceremony is off", async () => {
     const vault = activeCapabilityVaultId();
     const email = addResetEmail("a@example.com", vault);

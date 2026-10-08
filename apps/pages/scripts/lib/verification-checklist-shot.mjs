@@ -39,9 +39,18 @@ export function createShot(page, dir, record) {
   return async function shot(step, target) {
     await page.waitForTimeout(300);
     const file = path.join(dir, `${step}.png`);
-    if (target) await target.screenshot({ path: file });
-    else await page.screenshot({ path: file });
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        if (target) await target.screenshot({ path: file });
+        else await page.screenshot({ path: file });
+        break;
+      } catch (error) {
+        if (attempt === 2 || !String(error).includes("EAGAIN")) throw error;
+        await page.waitForTimeout(400);
+      }
+    }
     record.shots.push(step);
+    if (target) return target.innerText();
     return page.evaluate(() => document.body.innerText);
   };
 }

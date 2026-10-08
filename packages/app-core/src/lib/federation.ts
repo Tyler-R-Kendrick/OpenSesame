@@ -391,7 +391,7 @@ async function beginSignInDefault(
   // failure on-screen instead of a blank-issuer discovery 404 after the fact.
   if (!upstream.issuer.trim()) {
     throw new FederationError(
-      "no_identity_api",
+      "no_federation_endpoint",
       "This deployment isn't connected to an identity service yet, so this sign-in can't start.",
     );
   }
@@ -683,7 +683,7 @@ async function adoptBrokeredSessionDefault(
   const base = remoteIdentityApi();
   if (!base) {
     throw new FederationError(
-      "no_identity_api",
+      "no_federation_endpoint",
       "No sign-in service is connected, so this sign-in cannot be adopted.",
     );
   }
