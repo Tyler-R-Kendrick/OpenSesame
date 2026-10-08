@@ -1,0 +1,39 @@
+{
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "format": {
+        "type": "string",
+        "enum": ["opensesame.config"]
+      },
+      "version": {
+        "type": "number",
+        "enum": [1]
+      },
+      "path": {
+        "type": "string"
+      },
+      "language": {
+        "type": "string",
+        "enum": ["json", "yaml", "toml"]
+      },
+      "sealed": {
+        "type": "object",
+        "properties": {
+          "ivB64": {
+            "type": "string"
+          },
+          "ctB64": {
+            "type": "string"
+          }
+        },
+        "required": ["ivB64", "ctB64"],
+        "additionalProperties": true
+      }
+    },
+    "required": ["format", "version", "path", "language", "sealed"],
+    "additionalProperties": true
+  },
+  "definitions": {}
+}

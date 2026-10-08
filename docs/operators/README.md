@@ -15,6 +15,7 @@ see [architecture](../architecture/README.md); for every environment variable,
 | [Pages origin](pages-origin.md) | What the GitHub Pages build can and cannot do from a shared origin, and how to give it its own. |
 | [Capability composition](capability-composition.md) | Deciding which optional features a deployment contains, permits and lets a device run. |
 | [Encrypted search](encrypted-search.md) | Keeping the browser's identifier databases encrypted with no readable name, id or field and still searchable (ADR 0175); using the library. |
+| [Vault files](vault-files.md) | Every secret as its own file on disk: the tree, what a file shows and holds, backing up and sharing, two writers, and the privately hosted store (ADR 0182). |
 | [Optional plugins](plugins.md) | Installing, pinning and switching on runtime plugins such as the surrogate proxy; the boundary gate. |
 
 ## Identity

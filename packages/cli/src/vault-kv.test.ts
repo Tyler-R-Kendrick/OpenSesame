@@ -1,75 +1,122 @@
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import {
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { vfsSeams } from "@opensesame/app-core/lib/vfs.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { releaseVaultKv, useVaultKv, vaultKvSeams } from "./vault-kv.js";
+import { releaseVaultKv, useVaultKv } from "./vault-kv.js";
 
-type ReadControl = { hold: Promise<void> | null; held: boolean };
+let stateDir = "";
 
-const control: ReadControl = { hold: null, held: false };
-const realReadText = vaultKvSeams.readText;
+beforeEach(async () => {
+  stateDir = await mkdtemp(join(tmpdir(), "os-vault-kv-"));
+});
 
-/** Holds the next read of the vault file until the test lets it go. */
-async function heldReadText(path: string): Promise<string> {
-  if (path.endsWith("vault-kv.json") && control.hold) {
-    const pending = control.hold;
-    control.hold = null;
-    control.held = true;
-    await pending;
-  }
-  return realReadText(path);
-}
+afterEach(async () => {
+  await releaseVaultKv();
+  await rm(stateDir, { recursive: true, force: true });
+});
 
-describe("vault kv release", () => {
-  let stateDir = "";
+describe("the vault directory", () => {
+  it("keeps each vault file as a file, and reads them back in the next process", async () => {
+    await useVaultKv(stateDir);
+    await vfsSeams.writeRaw("tomb/personal/header", '{"v":1}');
+    await vfsSeams.writeRaw("tomb/personal/config/prefs", "sealed-prefs");
+    expect(
+      await readFile(join(stateDir, "vault/personal/header.json"), "utf8"),
+    ).toBe('{"v":1}');
+    expect(
+      await readFile(
+        join(stateDir, "vault/personal/config/prefs.json"),
+        "utf8",
+      ),
+    ).toBe("sealed-prefs");
 
-  beforeEach(() => {
-    vaultKvSeams.readText = heldReadText;
+    await releaseVaultKv();
+    expect(vfsSeams.readRaw("tomb/personal/header")).toBeNull();
+    await useVaultKv(stateDir);
+    expect(vfsSeams.readRaw("tomb/personal/header")).toBe('{"v":1}');
+    expect(vfsSeams.readRaw("tomb/personal/config/prefs")).toBe("sealed-prefs");
   });
 
-  afterEach(async () => {
-    vaultKvSeams.readText = realReadText;
-    control.hold = null;
-    control.held = false;
-    await releaseVaultKv();
-    if (stateDir) await rm(stateDir, { recursive: true, force: true });
-    stateDir = "";
+  it.skipIf(process.platform === "win32")("is owner-only", async () => {
+    await useVaultKv(stateDir);
+    await vfsSeams.writeRaw("tomb/personal/header", "{}");
+    expect((await stat(join(stateDir, "vault"))).mode & 0o777).toBe(0o700);
+    expect(
+      (await stat(join(stateDir, "vault/personal/header.json"))).mode & 0o777,
+    ).toBe(0o600);
   });
 
-  it("keeps the sealed file when a write resumes while the next open is reading", async () => {
-    stateDir = await mkdtemp(join(tmpdir(), "os-vault-kv-"));
+  it("refuses a record that is not a vault file instead of inventing a place for it", async () => {
     await useVaultKv(stateDir);
-    await vfsSeams.writeRaw("vault", "sealed-body");
-
-    let openGate: () => void = () => {};
-    const gate = new Promise<void>((resolve) => {
-      openGate = resolve;
+    await expect(vfsSeams.writeRaw("vault", "x")).rejects.toMatchObject({
+      _tag: "SecretFsRejected",
     });
-    const installed = vfsSeams.writeRaw;
-    vfsSeams.writeRaw = async (key, value) => {
-      await gate;
-      await installed(key, value);
-    };
-    const late = vfsSeams.writeRaw("activity", "note");
-    await releaseVaultKv();
+    expect(await readdir(stateDir)).toEqual([]);
+  });
 
-    let openRead: () => void = () => {};
-    control.hold = new Promise<void>((resolve) => {
-      openRead = resolve;
-    });
-    const reopened = useVaultKv(stateDir);
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(control.held).toBe(true);
-    openGate();
-    await late;
-    openRead();
-    await reopened;
-
-    await releaseVaultKv();
+  it("moves a vault left in the single-file snapshot onto files, keeping the snapshot", async () => {
+    const registry = JSON.stringify({ v: 1, tombs: ["personal"] });
+    await writeFile(
+      join(stateDir, "vault-kv.json"),
+      JSON.stringify({
+        "tombs.v1": registry,
+        "tomb/personal/header": '{"v":1}',
+        "tomb/personal/body": '{"ivB64":"a","ctB64":"b"}',
+      }),
+    );
     await useVaultKv(stateDir);
-    expect(vfsSeams.readRaw("vault")).toBe("sealed-body");
-    const text = await readFile(join(stateDir, "vault-kv.json"), "utf8");
-    expect(JSON.parse(text).vault).toBe("sealed-body");
+    expect(vfsSeams.readRaw("tombs.v1")).toBe(registry);
+    expect(await readFile(join(stateDir, "vault/tombs.json"), "utf8")).toBe(
+      registry,
+    );
+    // The flat body stays a single file until the vault is opened and saved.
+    expect(
+      await readFile(join(stateDir, "vault/personal/body.json"), "utf8"),
+    ).toContain("ctB64");
+    expect(
+      await readFile(join(stateDir, "vault-kv.json.migrated"), "utf8"),
+    ).toContain("tombs.v1");
+    await expect(stat(join(stateDir, "vault-kv.json"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+  });
+
+  it("does not let an old snapshot overwrite a directory that already holds a vault", async () => {
+    await useVaultKv(stateDir);
+    await vfsSeams.writeRaw("tombs.v1", "current");
+    await releaseVaultKv();
+    await writeFile(
+      join(stateDir, "vault-kv.json"),
+      JSON.stringify({ "tombs.v1": "stale" }),
+    );
+    await useVaultKv(stateDir);
+    expect(vfsSeams.readRaw("tombs.v1")).toBe("current");
+    expect(await readFile(join(stateDir, "vault-kv.json"), "utf8")).toContain(
+      "stale",
+    );
+  });
+
+  it("keeps one directory open at a time", async () => {
+    const other = await mkdtemp(join(tmpdir(), "os-vault-kv-"));
+    try {
+      await useVaultKv(stateDir);
+      await vfsSeams.writeRaw("tomb/personal/header", "first");
+      await useVaultKv(other);
+      expect(vfsSeams.readRaw("tomb/personal/header")).toBeNull();
+      await vfsSeams.writeRaw("tomb/personal/header", "second");
+      await useVaultKv(stateDir);
+      expect(vfsSeams.readRaw("tomb/personal/header")).toBe("first");
+    } finally {
+      await releaseVaultKv();
+      await rm(other, { recursive: true, force: true });
+    }
   });
 });

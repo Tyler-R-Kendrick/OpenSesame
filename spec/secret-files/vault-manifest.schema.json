@@ -1,0 +1,32 @@
+{
+  "dialect": "draft-2020-12",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "format": {
+        "type": "string",
+        "enum": ["opensesame.vault"]
+      },
+      "version": {
+        "type": "number",
+        "enum": [1]
+      },
+      "sealed": {
+        "type": "object",
+        "properties": {
+          "ivB64": {
+            "type": "string"
+          },
+          "ctB64": {
+            "type": "string"
+          }
+        },
+        "required": ["ivB64", "ctB64"],
+        "additionalProperties": true
+      }
+    },
+    "required": ["format", "version", "sealed"],
+    "additionalProperties": true
+  },
+  "definitions": {}
+}

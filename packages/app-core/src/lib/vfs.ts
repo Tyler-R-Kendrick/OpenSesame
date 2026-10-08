@@ -9,11 +9,9 @@ import {
   assertSealed,
   b64ToBytes,
   bytesToB64,
-  openJson,
-  sealJson,
   vaultSealBinding,
 } from "@opensesame/vault-core";
-import { kvDeleteDurable, kvGet, kvSetDurable } from "./kv.js";
+import { vfsSeams } from "./vfs-seams.js";
 
 /**
  * Encrypted VFS (ADR 0063). AES-GCM seals bind tomb and path as additional
@@ -53,34 +51,7 @@ export const SEAL_BOUND_MARKER_PATH = "seal-bound.v1";
 const TOMB_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 const PATH_SEGMENT_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 
-/* ------------------------------------------------------------------ seams */
-
-export type VfsSeams = {
-  /** Sync read of hydrated kv memory (OPFS is pulled in by `kvHydrate`). */
-  readRaw: (key: string) => string | null;
-  writeRaw: (key: string, value: string) => Promise<void>;
-  deleteRaw: (key: string) => Promise<void>;
-  seal: (
-    vaultKey: CryptoKey,
-    value: BoundaryValue,
-    binding?: string,
-  ) => Promise<SealedBlob>;
-  open: <T>(
-    vaultKey: CryptoKey,
-    blob: SealedBlob,
-    binding?: string,
-  ) => Promise<T>;
-};
-
-export const vfsSeams: VfsSeams = {
-  readRaw: (key) => kvGet(key),
-  writeRaw: (key, value) => kvSetDurable(key, value),
-  deleteRaw: (key) => kvDeleteDurable(key),
-  seal: (vaultKey, value, binding) =>
-    binding ? sealJson(vaultKey, value, binding) : sealJson(vaultKey, value),
-  open: (vaultKey, blob, binding) =>
-    binding ? openJson(vaultKey, blob, binding) : openJson(vaultKey, blob),
-};
+export { type VfsSeams, vfsSeams } from "./vfs-seams.js";
 
 /* ------------------------------------------------------------- tomb keys */
 
@@ -366,7 +337,7 @@ export async function writeFile(
       vaultSealBinding(tomb, path),
     );
     assertSealed(blob);
-    await vfsSeams.writeRaw(tombFileKey(tomb, path), JSON.stringify(blob));
+    await vfsSeams.writeRaw(tombFileKey(tomb, path), JSON.stringify(blob), key);
     await reviseIndex(tomb, key, path, true);
     await registerTomb(tomb);
   });
@@ -448,7 +419,7 @@ export async function writeSealedFile(
   await enqueueTombWrite(tomb, async () => {
     const key = requireTombKey(tomb);
     assertSealed(blob);
-    await vfsSeams.writeRaw(tombFileKey(tomb, path), JSON.stringify(blob));
+    await vfsSeams.writeRaw(tombFileKey(tomb, path), JSON.stringify(blob), key);
     await reviseIndex(tomb, key, path, true);
     await registerTomb(tomb);
   });
