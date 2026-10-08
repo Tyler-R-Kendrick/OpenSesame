@@ -1,6 +1,10 @@
 /** `src/lib/*` root files. Every family is named, so a new file needs a rule. */
 
+import { NETWORK_RELAY_RULES } from "./classification-network-relay.js";
 import { core, each, optional, shared } from "./classification-rule.js";
+import { VAULT_RELAY_RULES } from "./classification-vault-relay.js";
+
+export { VAULT_RELAY_RULES };
 
 const L = "src/lib/";
 const SHELL = "shell.navigation";
@@ -262,23 +266,8 @@ export const LIB_RULES = [
     SHELL,
     "boot takes a drive pairing code out of the address bar (ADR 0144)",
   ),
-  optional(
-    `${L}tailnet-sync/`,
-    "networking.tailnet",
-    "tailnet vault sync: drive client, merge pass, adoption (ADR 0144)",
-  ),
-  optional(
-    `${L}tailnet-admin/`,
-    "networking.tailnet-devices",
-    "tailnet device management: daemon client, sealed pairing, device model (ADR 0169)",
-  ),
-  // No trailing slash: `vault-relay/` is the client, and `vault-relay-sync*`
-  // is the two-device check. Both belong only to sharing.relay (ADR 0181).
-  optional(
-    `${L}vault-relay`,
-    "sharing.relay",
-    "sealed snapshot push and pull on a paired relay (ADR 0181)",
-  ),
+  ...NETWORK_RELAY_RULES,
+  ...VAULT_RELAY_RULES,
   core(
     `${L}join/`,
     SIGNIN,
