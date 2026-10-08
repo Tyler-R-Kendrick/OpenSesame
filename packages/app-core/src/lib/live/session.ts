@@ -31,6 +31,10 @@ import { type Admission, LiveHost, MAX_SESSION_MS } from "./host.js";
 import { watchDocumentLifecycle } from "./lifecycle-watch.js";
 import type { LiveLink } from "./link.js";
 import type { SharePolicy } from "./messages.js";
+import {
+  LIVE_VAULT_LOCKED_TRAY,
+  reportLiveOutcome,
+} from "./outcome-notices.js";
 import { DIRECT_ONLY, type IceSettings, type PeerFactory } from "./peer.js";
 import type { CarrierFactory, Rendezvous } from "./rendezvous.js";
 import { NO_ROUTES, linkRoutes } from "./routes.js";
@@ -216,7 +220,10 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
   let locked = false;
   const stopWatch = liveSeams.onLock(() => {
     locked = true;
-    if (started && host === started) endHosting();
+    if (started && host === started) {
+      reportLiveOutcome("Live session", LIVE_VAULT_LOCKED_TRAY);
+      endHosting();
+    }
   });
   let post: ((code: string) => Promise<void>) | null = null;
   const source: RelaySource = { carriers: null };
@@ -227,6 +234,7 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
     // A session another start installed while this one was building ends.
     endHosting();
     if (locked) {
+      reportLiveOutcome("Live session", LIVE_VAULT_LOCKED_TRAY);
       made.end("owner");
       stopWatch();
       return made;

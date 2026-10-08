@@ -23,7 +23,10 @@ import {
   takeHeldLiveLink,
 } from "@opensesame/app-core/lib/live/link.js";
 import { NAME_MAX, NOTE_MAX } from "@opensesame/app-core/lib/live/messages.js";
-import { reportLiveOutcome } from "@opensesame/app-core/lib/live/outcome-notices.js";
+import {
+  LIVE_SESSION_ENDED_TRAY,
+  reportLiveOutcome,
+} from "@opensesame/app-core/lib/live/outcome-notices.js";
 import { linkRoutes } from "@opensesame/app-core/lib/live/routes.js";
 import {
   currentGuestCarriers,
@@ -258,9 +261,13 @@ function Session() {
   const left = useRemaining(catalog?.expiresAt ?? null);
   const mark = status ? standing(status) : null;
   useEffect(() => {
-    if (status?.at !== "unreachable") return;
-    reportLiveOutcome("Live session", "No route to the owner's browser");
-  }, [status]);
+    if (status?.at === "unreachable") {
+      reportLiveOutcome("Live session", "No route to the owner's browser");
+    }
+    if (status?.at === "ended") {
+      reportLiveOutcome("Live session", mark?.tray || LIVE_SESSION_ENDED_TRAY);
+    }
+  }, [status, mark?.tray]);
   if (!guest || !status || !mark) return null;
   return (
     <div className="setup__stack" id="live-view">
@@ -268,7 +275,9 @@ function Session() {
         <StatusMark tone={mark.tone} label={mark.label} />
         {catalog ? (
           <span className="vault-row__meta">{formatRemaining(left)}</span>
-        ) : null}
+        ) : (
+          <span className="vault-row__meta">{mark.tray}</span>
+        )}
       </div>
       {status.at === "request" ? (
         <>

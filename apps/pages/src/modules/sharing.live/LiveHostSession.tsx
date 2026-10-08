@@ -17,6 +17,7 @@ import {
   currentHostCarriers,
   endHosting,
 } from "@opensesame/app-core/lib/live/session.js";
+import { useEffect } from "react";
 import {
   ConcealedValue,
   CopyButton,
@@ -29,6 +30,7 @@ import { useVault } from "../../lib/vault/hooks.js";
 import { GuestRow, RequestPaste } from "./LiveHostGuests.js";
 import { CarrierMarks } from "./LiveJoinRoutes.js";
 import { formatRemaining, liveUiSeams, useRemaining } from "./live-hooks.js";
+import { noteGuestAsking } from "./live-host-tray.js";
 
 function Log({ state }: { state: HostState }) {
   const { items } = useVault();
@@ -54,6 +56,9 @@ export function LiveHostSession({
   host,
   state,
 }: { host: LiveHost; state: HostState }) {
+  useEffect(() => {
+    noteGuestAsking(state);
+  }, [state]);
   const { copied, failed, copy } = useCopyFeedback();
   const left = useRemaining(host.expiresAt);
   const link = formatLiveLink(liveUiSeams.joinUrl(), host.link);
