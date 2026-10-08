@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { type SecretItem, createItem } from "@opensesame/vault-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { localStore, sessionStore } from "../ports.js";
 import { refreshGithubAppInstallations } from "./github-app-claim.js";
 import { forgetLocalGithubApp } from "./github-app-local.js";
 import {
@@ -36,7 +37,7 @@ function openVault(items: SecretItem[], status: "unlocked" | "locked") {
 }
 
 function rememberApp(): void {
-  localStorage.setItem(
+  localStore().setItem(
     "opensesame.github-app.public",
     JSON.stringify({
       ...APP,
@@ -52,8 +53,14 @@ function rememberApp(): void {
 
 describe("github app PEM lookup", () => {
   beforeEach(() => {
-    localStorage.clear();
-    sessionStorage.clear();
+    for (let index = localStore().length - 1; index >= 0; index -= 1) {
+      const key = localStore().key(index);
+      if (key !== null) localStore().removeItem(key);
+    }
+    for (let index = sessionStore().length - 1; index >= 0; index -= 1) {
+      const key = sessionStore().key(index);
+      if (key !== null) sessionStore().removeItem(key);
+    }
   });
   afterEach(() => {
     forgetLocalGithubApp();
@@ -85,7 +92,7 @@ describe("github app PEM lookup", () => {
   it("reads only the item bound to this App, and nothing once it is gone", () => {
     const bound = secret("renamed", `client-secret\n${APP_PEM}`);
     const namedDecoy = secret(APP.displayName, SSH_RSA);
-    localStorage.setItem(
+    localStore().setItem(
       "opensesame.github-app.secret-item",
       JSON.stringify({ appId: APP.id, itemId: bound.id }),
     );

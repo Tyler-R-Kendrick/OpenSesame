@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { localStore } from "../../ports.js";
 import { parseAuthCallback } from "../federation-callback.js";
 import { providerConnectionKey } from "./provider.js";
 import {
@@ -83,17 +84,7 @@ describe("ambient transactions", () => {
 
   it("OIDC-LEGACY: legacy pending cannot be used for ambient", () => {
     expect(legacyPendingUsableForAmbient()).toBe(false);
-    const memory = new Map<string, string>();
-    vi.stubGlobal("localStorage", {
-      getItem: (key: string) => memory.get(key) ?? null,
-      setItem: (key: string, value: string) => {
-        memory.set(key, value);
-      },
-      removeItem: (key: string) => {
-        memory.delete(key);
-      },
-    });
-    localStorage.setItem(
+    localStore().setItem(
       "opensesame:federation:pkce",
       JSON.stringify({ state: "old", verifier: "v" }),
     );

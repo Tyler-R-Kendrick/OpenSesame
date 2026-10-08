@@ -2,6 +2,7 @@
 import { overlapCast } from "@opensesame/os-domain";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { configureHost } from "../host.js";
+import { sessionStore } from "../ports.js";
 import { createTestHost } from "../test-host.js";
 import { kvDelete, kvGet } from "./kv.js";
 import {
@@ -53,7 +54,7 @@ describe("local-guest principals", () => {
   });
 
   it("normalizes legacy Guest N labels to the guest-N slug", () => {
-    sessionStorage.setItem(
+    sessionStore().setItem(
       "opensesame.guest.session-person",
       JSON.stringify({
         id: "local_00000000-0000-4000-8000-000000000099",

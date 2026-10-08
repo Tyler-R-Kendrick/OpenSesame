@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { configureHost } from "../../host.js";
 import { createMemoryStorage } from "../../memory-storage.js";
-import { type WebStorage, maybeLocalStore } from "../../ports.js";
+import { type WebStorage, localStore, maybeLocalStore } from "../../ports.js";
 import { createTestHost } from "../../test-host.js";
 import { memoryStorage } from "../browser-reset.fixture.js";
 import {
@@ -277,8 +277,8 @@ describe("a store that refuses", () => {
     const { refuse, inner } = flaky();
     // A v1 map beside a v2 keymap, and a store that refuses the v1 removal
     // and every write: the v2 key must not be dropped first.
-    inner.setItem(LEGACY_KEYMAP_KEY, JSON.stringify({ j: "item.edit" }));
-    inner.setItem(
+    localStore().setItem(LEGACY_KEYMAP_KEY, JSON.stringify({ j: "item.edit" }));
+    localStore().setItem(
       KEYMAP_KEY,
       JSON.stringify({ bindings: { w: "item.edit" }, macros: {} }),
     );

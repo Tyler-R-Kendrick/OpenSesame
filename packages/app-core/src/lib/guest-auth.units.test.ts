@@ -271,7 +271,7 @@ describe("adoptFederatedIdentity", () => {
   });
 
   it("clears the pending marker once the link lands", async () => {
-    sessionStorage.setItem(PENDING_LINK_KEY, "1");
+    sessionStore().setItem(PENDING_LINK_KEY, "1");
     deps();
 
     await guestAuthSeams.adoptFederatedIdentity("id-token");
@@ -318,7 +318,7 @@ describe("recoverPendingFederatedLink", () => {
   });
 
   it("re-raises the prompt when a pending link still has its assertion", () => {
-    sessionStorage.setItem(PENDING_LINK_KEY, "1");
+    sessionStore().setItem(PENDING_LINK_KEY, "1");
     withDeps({ loadFederationSession: () => ({ idToken: "t" }) });
 
     guestAuthSeams.recoverPendingFederatedLink();
@@ -329,7 +329,7 @@ describe("recoverPendingFederatedLink", () => {
   });
 
   it("gives up and clears the marker when the assertion is gone", () => {
-    sessionStorage.setItem(PENDING_LINK_KEY, "1");
+    sessionStore().setItem(PENDING_LINK_KEY, "1");
     withDeps({ loadFederationSession: () => null });
 
     guestAuthSeams.recoverPendingFederatedLink();
@@ -339,7 +339,7 @@ describe("recoverPendingFederatedLink", () => {
   });
 
   it("does not stack a second prompt when one is already showing", () => {
-    sessionStorage.setItem(PENDING_LINK_KEY, "1");
+    sessionStore().setItem(PENDING_LINK_KEY, "1");
     withDeps({ loadFederationSession: () => ({ idToken: "t" }) });
     pushNotice({ kind: "federated_link", title: "existing", body: "b" });
 
@@ -458,7 +458,7 @@ describe("branches the journey tests do not separate", () => {
   it("clears a stale pending marker when first-run linking succeeds", async () => {
     // The marker survives in sessionStorage across reloads; leaving it set
     // after a successful link means prompting forever for finished work.
-    sessionStorage.setItem(PENDING_LINK_KEY, "1");
+    sessionStore().setItem(PENDING_LINK_KEY, "1");
     withDeps({
       vaultStatus: () => "empty",
       createGuest: vi.fn(async () => undefined),
@@ -515,7 +515,7 @@ describe("prompt de-duplication is per kind, not per any-notice", () => {
   });
 
   it("still raises the federated prompt when an unrelated notice is showing", () => {
-    sessionStorage.setItem(PENDING_LINK_KEY, "1");
+    sessionStore().setItem(PENDING_LINK_KEY, "1");
     pushNotice({ kind: "guest_claim", title: "other", body: "b" });
     withDeps({ loadFederationSession: () => ({ idToken: "t" }) });
 
@@ -528,8 +528,8 @@ describe("prompt de-duplication is per kind, not per any-notice", () => {
 describe("storedKeyPresent", () => {
   it("reports presence and absence of a key", () => {
     expect(storedKeyPresent("absent-key")).toBe(false);
-    sessionStorage.setItem("present-key", "v");
-    expect(storedKeyPresent("present-key")).toBe(true);
+    sessionStore().setItem(PENDING_LINK_KEY, "1");
+    expect(storedKeyPresent(PENDING_LINK_KEY)).toBe(true);
   });
 
   it("answers exactly false — not undefined — when the store throws", () => {
