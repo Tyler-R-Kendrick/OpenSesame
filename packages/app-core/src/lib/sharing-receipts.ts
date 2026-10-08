@@ -85,7 +85,7 @@ export function resetSharingReceiptsForTest(): void {
 export function noteDropOpened(claimId: string): void {
   const id = blindId(claimId);
   const tomb = activitySeams.activeTomb();
-  if (!id || !tomb || !remember(`drop:${id}`)) return;
+  if (!id || !tomb || !remember(`drop-opened:${id}`)) return;
   const metadata: JsonObject = { claimId: id };
   write(
     tomb,
@@ -99,6 +99,50 @@ export function noteDropOpened(claimId: string): void {
       metadata,
     },
     "drop.opened",
+    { claimId: id },
+  );
+}
+
+/** The sender's drop passed its TTL with no claim. */
+export function noteDropExpired(claimId: string): void {
+  const id = blindId(claimId);
+  const tomb = activitySeams.activeTomb();
+  if (!id || !tomb || !remember(`drop-expired:${id}`)) return;
+  const metadata: JsonObject = { claimId: id };
+  write(
+    tomb,
+    {
+      category: "vault",
+      type: "vault.drop.expired",
+      summary: "Drop expired",
+      outcome: "succeeded",
+      targetType: "claim",
+      targetId: id,
+      metadata,
+    },
+    "drop.expired",
+    { claimId: id },
+  );
+}
+
+/** The sender revoked the drop before it was claimed. */
+export function noteDropRevoked(claimId: string): void {
+  const id = blindId(claimId);
+  const tomb = activitySeams.activeTomb();
+  if (!id || !tomb || !remember(`drop-revoked:${id}`)) return;
+  const metadata: JsonObject = { claimId: id };
+  write(
+    tomb,
+    {
+      category: "vault",
+      type: "vault.drop.revoked",
+      summary: "Drop revoked",
+      outcome: "succeeded",
+      targetType: "claim",
+      targetId: id,
+      metadata,
+    },
+    "drop.revoked",
     { claimId: id },
   );
 }

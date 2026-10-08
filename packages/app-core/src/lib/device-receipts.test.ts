@@ -49,6 +49,8 @@ const KINDS = [
   "siop.approved",
   "siop.denied",
   "drop.opened",
+  "drop.expired",
+  "drop.revoked",
   "live.granted",
   "share.granted",
   "share.revoked",

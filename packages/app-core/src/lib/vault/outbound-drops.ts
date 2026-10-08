@@ -18,6 +18,10 @@ import {
   disposeExpiredLocalDropClaims,
   revokeLocalDropClaim,
 } from "./local-drop-claims.js";
+import {
+  noteDropExpired,
+  noteDropRevoked,
+} from "../sharing-receipts.js";
 import { originKvSlot } from "./origin-kv-slot.js";
 
 export const OUTBOUND_DROPS_STORAGE_KEY = "opensesame.outbound-drops.v1";
@@ -147,6 +151,7 @@ export function recordOutboundDrop(input: {
  */
 export function listOutboundDrops(now = Date.now()): OutboundDrop[] {
   disposeExpiredLocalDropClaims(now);
+  expireOutboundDrops(now);
   const store = readStore();
   return Object.values(store.sends)
     .map((row) => {
@@ -167,13 +172,27 @@ export function listOutboundDrops(now = Date.now()): OutboundDrop[] {
 }
 
 /** Consumed and revoked stick. A later note must not relabel them. */
-function patchOpenState(claimId: string, state: OutboundDropState): void {
+function patchOpenState(
+  claimId: string,
+  state: OutboundDropState,
+  note: "expired" | "revoked" | null = null,
+): void {
   const store = readStore();
   const row = store.sends[claimId];
   if (!row || row.state === state) return;
   if (row.state === "revoked" || row.state === "consumed") return;
   store.sends[claimId] = { ...row, state };
   writeStore(store);
+  if (note === "expired") noteDropExpired(claimId);
+  if (note === "revoked") noteDropRevoked(claimId);
+}
+
+function expireOutboundDrops(now = Date.now()): void {
+  for (const row of Object.values(readStore().sends)) {
+    if (row.state !== "pending") continue;
+    if (Date.parse(row.expiresAt) > now) continue;
+    patchOpenState(row.claimId, "expired", "expired");
+  }
 }
 
 /**
@@ -191,7 +210,7 @@ export async function revokeOutboundDrop(
     return "already_consumed";
   }
   const tracked = readStore().sends[claimId] !== undefined;
-  if (tracked) patchOpenState(claimId, "revoked");
+  if (tracked) patchOpenState(claimId, "revoked", "revoked");
   if (outcome === "missing") return tracked ? "revoked" : "missing";
   return "revoked";
 }
