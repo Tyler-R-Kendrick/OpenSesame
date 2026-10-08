@@ -1,6 +1,6 @@
 /** Session consumers read the current snapshot, never an old authorization flag. */
 import { activitySeams } from "../activity-log.js";
-import { retiredCredentialOwnerSeams } from "../retired-credentials/owner-auth.js";
+import { retiredCredentialOwnerSeams } from "../retired-credentials/owner-policy.js";
 import type { VaultState } from "./store-state.js";
 
 export function installVaultSessionHooks(snapshot: () => VaultState): void {

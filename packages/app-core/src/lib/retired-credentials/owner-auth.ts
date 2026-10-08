@@ -1,88 +1,15 @@
-/** Fresh owner verification uses the authoritative protector, never an obsolete wrap. */
-import {
-  type RootProtectionManifest,
-  type VaultHeader,
-  unwrapRawVaultKeyFromPassword,
-} from "@opensesame/vault-core";
+/** Compatible authentication entry points pin authority while loading proof code. */
 import {
   assertAuthenticationSession,
   assertNotDecoySession,
-  freshOwnerAuthenticationTomb,
-  freshOwnerAuthenticationVault,
-  requiresFreshOwnerAuthentication,
 } from "../decoy-session.js";
 import { kvRefresh } from "../kv.js";
-import { verifyManifestAuth } from "../vault/protection/manifest-auth.js";
-import { parseRootProtectionManifest } from "../vault/protection/parse.js";
-import {
-  authenticationHeaderWitness,
-  validateAuthenticationHeader,
-} from "../vault/store-auth-header.js";
-import { readTombHeader } from "../vault/store-header.js";
-import { vaultIdentity } from "../vault/store-vault-identity.js";
-import { withBodyWriteLock } from "../vault/vault-shared-locks.js";
-import { HEADER_PATH, tombFileKey } from "../vfs.js";
-export const retiredCredentialOwnerSeams = {
-  isRealOwner: (_tomb: string): boolean => false,
-};
+import { retiredCredentialOwnerSeams } from "./owner-policy.js";
+export {
+  retiredCredentialOwnerSeams,
+  retiredCredentialEnrollmentSupported,
+} from "./owner-policy.js";
 
-function headerRequiresMfa(header: VaultHeader): boolean {
-  return Boolean(
-    header.unlocks?.totp || header.unlocks?.email || header.unlocks?.sms,
-  );
-}
-function manifestRequiresMfa(manifest: RootProtectionManifest): boolean {
-  const gates = manifest.legacyGates;
-  return Boolean(
-    gates?.totpEnrolled ||
-      gates?.emailEnrolled ||
-      gates?.smsEnrolled ||
-      manifest.purpose !== "human-vault-root",
-  );
-}
-function authoritativeHeader(header: VaultHeader): VaultHeader {
-  if (headerRequiresMfa(header))
-    throw new Error(
-      "Retired credential management requires a fresh multi-factor ceremony for this vault.",
-    );
-  if (!header.protection) {
-    if (!header.kdf || !header.wrap)
-      throw new Error("A current password protector is required.");
-    return header;
-  }
-  const manifest = parseRootProtectionManifest(
-    JSON.stringify(header.protection),
-  );
-  if (manifestRequiresMfa(manifest))
-    throw new Error(
-      "Retired credential management requires a fresh multi-factor ceremony for this vault.",
-    );
-  if (
-    manifest.records.length !== 1 ||
-    manifest.records[0]?.kind !== "password" ||
-    manifest.records[0].proofStatus !== "verified"
-  )
-    throw new Error(
-      "Retired credential management currently requires one verified password protector.",
-    );
-  const record = manifest.records[0];
-  return {
-    ...header,
-    kdf: record.kdf,
-    wrap: record.wrap,
-    protection: manifest,
-  };
-}
-export function retiredCredentialEnrollmentSupported(tomb: string): boolean {
-  const header = readTombHeader(tomb);
-  if (!header) return false;
-  try {
-    authoritativeHeader(header);
-    return true;
-  } catch {
-    return false;
-  }
-}
 export async function authenticateRetiredCredentialOwner(
   tomb: string,
   password: string,
@@ -93,11 +20,13 @@ export async function authenticateRetiredCredentialOwner(
     throw new Error(
       "Unlock the real vault before managing retired credentials.",
     );
-  await verifyCurrentCredential(tomb, password, refresh);
+  const operation = await import("./owner-operations.js");
   assertNotDecoySession(authorityGeneration);
   if (!retiredCredentialOwnerSeams.isRealOwner(tomb))
     throw new Error("The owner session changed during authentication.");
+  return operation.authenticateRetiredCredentialOwner(tomb, password, refresh);
 }
+
 /** Password admission proof only. This confers no owner-management permission. */
 export async function verifyCurrentCredential(
   tomb: string,
@@ -105,15 +34,12 @@ export async function verifyCurrentCredential(
   refresh = kvRefresh,
 ): Promise<void> {
   const authorityGeneration = assertAuthenticationSession();
-  const check = () => {
-    assertAuthenticationSession(authorityGeneration);
-  };
-  const witness = await verifiedHeaderWitness(tomb, password, refresh, check);
-  await validateAuthenticationHeader(tomb, witness, check);
-  checkAuthenticationIdentity(tomb, readTombHeader(tomb));
+  const operation = await import("./owner-operations.js");
+  assertAuthenticationSession(authorityGeneration);
+  return operation.verifyCurrentCredential(tomb, password, refresh);
 }
 
-/** The policy proof and its bounded settings commit share the policy writer's lock. */
+/** The original owner remains required before loading and before the policy proof. */
 export async function withAuthenticatedRetiredCredentialOwner(
   tomb: string,
   password: string,
@@ -127,56 +53,12 @@ export async function withAuthenticatedRetiredCredentialOwner(
       throw new Error("The owner session changed during authentication.");
   };
   check();
-  const witness = await verifiedHeaderWitness(tomb, password, refresh, () => {
-    assertNotDecoySession(authorityGeneration);
-  });
-  await withBodyWriteLock(tomb, async () => {
-    check();
-    if (authenticationHeaderWitness(readTombHeader(tomb)) !== witness)
-      throw new Error(
-        "Vault authentication changed before the settings commit.",
-      );
-    await commit();
-    check();
-  });
-}
-
-async function verifiedHeaderWitness(
-  tomb: string,
-  password: string,
-  refresh: typeof kvRefresh,
-  check: () => void,
-): Promise<string> {
-  await refresh(tombFileKey(tomb, HEADER_PATH), 65536);
+  const operation = await import("./owner-operations.js");
   check();
-  const stored = readTombHeader(tomb);
-  if (!stored)
-    throw new Error("A sealed vault with a current password is required.");
-  checkAuthenticationIdentity(tomb, stored);
-  const witness = authenticationHeaderWitness(stored);
-  const header = authoritativeHeader(stored);
-  const raw = await unwrapRawVaultKeyFromPassword(header, password);
-  try {
-    if (header.protection) await verifyManifestAuth(raw, header.protection);
-    check();
-    checkAuthenticationIdentity(tomb, stored);
-    return witness;
-  } finally {
-    raw.fill(0);
-  }
-}
-
-function checkAuthenticationIdentity(
-  tomb: string,
-  header: VaultHeader | null,
-): void {
-  if (
-    requiresFreshOwnerAuthentication() &&
-    (freshOwnerAuthenticationTomb() !== tomb ||
-      freshOwnerAuthenticationVault() !== vaultIdentity(header))
-  ) {
-    throw new Error(
-      "Authenticate the original vault before using member capabilities.",
-    );
-  }
+  return operation.withAuthenticatedRetiredCredentialOwner(
+    tomb,
+    password,
+    commit,
+    refresh,
+  );
 }
