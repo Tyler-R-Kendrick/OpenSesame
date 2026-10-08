@@ -51,14 +51,24 @@ describe("origins", () => {
 
 describe("generatePassword", () => {
   it("is uniform over its alphabet by rejection, and has every class", () => {
+    // Deterministic uniform bytes exercise rejection sampling without paying
+    // for thousands of CSPRNG draws under a contended CI runner.
+    let state = 0x9e3779b9;
+    const random = (bytes: Uint8Array) => {
+      for (let i = 0; i < bytes.length; i += 1) {
+        state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+        bytes[i] = state & 0xff;
+      }
+      return bytes;
+    };
     const counts = new Map<string, number>();
     for (let i = 0; i < 4000; i += 1) {
-      for (const ch of generatePassword())
+      for (const ch of generatePassword(random))
         counts.set(ch, (counts.get(ch) ?? 0) + 1);
     }
-    expect(generatePassword()).toHaveLength(CANDIDATE_LENGTH);
+    expect(generatePassword(random)).toHaveLength(CANDIDATE_LENGTH);
     for (let i = 0; i < 200; i += 1) {
-      const p = generatePassword();
+      const p = generatePassword(random);
       expect(p).toMatch(/[a-z]/);
       expect(p).toMatch(/[A-Z]/);
       expect(p).toMatch(/[2-9]/);
