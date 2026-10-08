@@ -1,6 +1,8 @@
 use super::*;
 use crate::app_state::{test_demo_state, test_session_headers};
+use crate::session_claims::parse_principal;
 use axum::{body::Body, http::Request, Router};
+use opensesame_connection_broker::config_access::{role_policy, set_role_ceiling};
 use opensesame_domain::OrganizationRole;
 use opensesame_storage::StoredObservationRun;
 use serde_json::Value;
@@ -75,8 +77,6 @@ mod hook_records;
 mod settle;
 #[path = "agent_runs_web_login_tests.rs"]
 mod web_login;
-#[path = "agent_runs_role_evidence_tests.rs"]
-mod role_evidence;
 
 #[tokio::test]
 async fn the_owner_reads_a_run_and_nobody_else_learns_it_exists() {
@@ -392,4 +392,51 @@ async fn elevation_is_bound_to_run_transition_and_has_one_effect_winner() {
             .version,
         1
     );
+}
+
+#[tokio::test]
+async fn control_honors_the_role_evidence_fence() {
+    let f = fixture().await;
+    f.state
+        .db
+        .create_observation_run(&seed("run:1", ALICE, &f.org, "awaiting_human"))
+        .await
+        .unwrap();
+    let before = f
+        .state
+        .db
+        .get_observation_run(&f.org, "run:1")
+        .await
+        .unwrap()
+        .unwrap();
+
+    let principal = parse_principal(ALICE).expect("alice principal");
+    let auth_time = Utc::now().timestamp() - 120;
+    f.browser.verified_webauthn_at(&f.state, auth_time).await;
+    let policy = role_policy(f.state.db.pool(), &f.state.connection_organization, &principal)
+        .await
+        .expect("role row")
+        .expect("membership");
+    set_role_ceiling(
+        f.state.db.pool(),
+        &f.state.connection_organization,
+        &principal,
+        None,
+        policy.revision,
+        Utc::now().timestamp(),
+    )
+    .await
+    .expect("role cleared");
+
+    let (status, _) = f.browser.control(&f, "run:1", "take").await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+    let after = f
+        .state
+        .db
+        .get_observation_run(&f.org, "run:1")
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(after.version, before.version);
+    assert_eq!(after.control_state, before.control_state);
 }

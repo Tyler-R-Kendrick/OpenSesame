@@ -203,9 +203,9 @@ async fn load(
     )
     .map_err(refusal)?;
     if attachment == Attachment::View {
-        if let Err(response) = stream_authority::ensure_view_authority(st, headers).await {
-            return Err(response);
-        }
+        stream_authority::ensure_view_authority(st, headers)
+            .await
+            .map_err(|response| response)?;
     }
     Ok((who, organization_id, run))
 }
@@ -279,10 +279,6 @@ fn subject_of(who: &Caller) -> Option<String> {
 #[cfg(test)]
 #[path = "agent_runs_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "agent_runs_tests_tail.rs"]
-mod tests_tail;
 
 #[cfg(test)]
 #[path = "agent_run_credentials_tests.rs"]
