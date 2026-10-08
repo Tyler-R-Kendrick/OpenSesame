@@ -163,11 +163,15 @@ describe("the /device route", () => {
 
   it("says a sign-in service is needed when none is configured", () => {
     deviceIdentitySeams.remoteIdentityApi = () => "";
+    session.current = null;
     show();
     expect(screen.getByText("Connect a sign-in service")).toBeTruthy();
     expect(screen.queryByLabelText("User code")).toBeNull();
-    expect(document.activeElement).toBe(
-      screen.getByLabelText("Sign-in service"),
-    );
+    expect(screen.queryByLabelText("Sign-in service")).toBeNull();
+    expect(
+      screen.getByText(
+        /Set your organisation’s sign-in service in Settings after you unlock/,
+      ),
+    ).toBeTruthy();
   });
 });
