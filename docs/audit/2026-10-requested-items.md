@@ -69,4 +69,18 @@ gh run list --workflow=deploy-pages.yml --limit 3
 
 ## Grok Build
 
-`grok 1.0.46` is installed and `XAI_API_KEY` is set, but headless `grok -p` returns **Not signed in** (CLI requires `grok login --device-code` or browser login). Implementation on this branch was done directly after that failure.
+Headless `grok -p` returns **Not signed in** when `XAI_API_KEY` or `GROK_CODE_XAI_API_KEY` is set. A runtime key is preferred over device OIDC in `~/.grok/auth.json`, so a depleted key looks like a missing login.
+
+Unset both names so device login is the one that is used:
+
+```bash
+env -u XAI_API_KEY -u GROK_CODE_XAI_API_KEY grok -p "..."
+# or
+scripts/dev/grok-headless.sh -p "..."
+```
+
+`scripts/dev/grok-preflight.sh` prints key length and the models HTTP status only. On HTTP 403 it names that wrapper. It does not print the key or `auth.json`.
+
+## Playwright walk
+
+See [2026-10-playwright.md](2026-10-playwright.md). UI rows below cite screenshots under `/opt/cursor/artifacts/verification-2026-10/<profile>/<step>.png` when this walk captured them.
