@@ -32,7 +32,7 @@ Audited against `origin/main` at `8f70cf43` (2026-10-07), then follow-up fixes o
 | U13 | Reset device modal (design system) | DONE | `ResetBrowser.tsx`, danger panel tests | DONE | — |
 | U14 | Danger: trash list, empty/restore/delete | DONE | `SettingsDangerPanel.tsx` | DONE | — |
 | U15 | Setup "full" profile | DONE | `SetupConfiguration.tsx` `full` choice + `apply-configuration.ts` | DONE | — |
-| S1 | Join-session durable vault sync (Syncthing-like) | NOT DONE | Live join exists; no post-join vault replica | PARTIAL | `verify:relay-join` is the journeys-1 shard (harness). `verify:relay-join-live` spawns `opensesame host run --profile relay`: A consents and publishes, B reads generation and ciphertext. `verify:live-join` stays the live-session walk. |
+| S1 | Join-session durable vault sync (Syncthing-like) | NOT DONE | Live join exists; no post-join vault replica | DONE | `journeys-1` in [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) installs Rust 1.88.0 (same `dtolnay/rust-toolchain` pin as the Rust tests job), runs `cargo +1.88.0 build -p opensesame-cli --locked`, then `pnpm --filter @opensesame/pages verify:relay-join-live` with `target/debug` and `/usr/local/cargo/bin` on `PATH`. That spawns `opensesame host run --profile relay`. Local run 2026-10-07: A published generation 1; B read the ciphertext. `verify:live-join` stays the live-session walk. |
 | S2 | Minimal slash-command typeahead | DONE | `CommandBar.test.tsx` | DONE | — |
 | S3 | Remove identity status icon | DONE | `Statusline.tsx` — no identity glyph | DONE | — |
 | S4 | Remove WebCrypto status icon | DONE | `Statusline.tsx` | DONE | — |

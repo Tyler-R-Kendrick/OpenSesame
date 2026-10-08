@@ -108,8 +108,9 @@ export const DRIVER_GATES = {
   "verify-duress-offline.mjs": null,
   "verify-duress.mjs": null,
   "verify-live-join.mjs": null,
-  // ADR 0181. The journeys-1 shard runs `verify:relay-join`. The live twin
-  // spawns the gateway relay and is the same gate: a change starts that shard.
+  // ADR 0181. The journeys-1 shard builds the CLI and runs
+  // `verify:relay-join-live` (the gateway relay profile). The harness
+  // script is the same gate: a change starts that shard.
   "verify-relay-join.mjs": ["journeys"],
   "verify-relay-join-live.mjs": ["journeys"],
   "verify-live-netns.mjs": null,

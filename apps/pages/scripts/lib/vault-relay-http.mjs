@@ -584,7 +584,8 @@ export async function startLiveRelay() {
 
 /**
  * Listen on loopback. `live: true` spawns the gateway relay profile.
- * The default is the in-process harness the CI shard runs.
+ * The default is the in-process harness. The journeys-1 shard passes
+ * `live: true`.
  */
 export function startVaultRelay(options = {}) {
   if (options.live) return startLiveRelay();

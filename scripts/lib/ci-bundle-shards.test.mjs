@@ -42,7 +42,7 @@ const GATES = [
   "verify:auth",
   "verify:customer-vault-browser",
   "verify-experience-journeys.mjs",
-  "verify:relay-join",
+  "verify:relay-join-live",
 ];
 
 /** The shards a step's `if:` selects: the union of its `||` clauses. */

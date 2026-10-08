@@ -7,8 +7,9 @@
  * generation and ciphertext. It never shows an item name.
  * `verify:live-join` stays the live-session walk.
  *
- * The default is the in-process harness (the journeys-1 CI shard).
- * `VAULT_RELAY_LIVE=1` spawns the gateway relay profile instead.
+ * The default is the in-process harness.
+ * `VAULT_RELAY_LIVE=1` (set by `verify:relay-join-live`, the journeys-1
+ * CI shard) spawns the gateway relay profile instead.
  */
 
 import { chromium } from "@playwright/test";
