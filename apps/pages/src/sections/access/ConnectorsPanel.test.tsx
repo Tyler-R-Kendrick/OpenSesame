@@ -216,10 +216,12 @@ it("offers a new application and binds the connector to it", async () => {
   const payroll = (await readLocalDirectory(fixture.tomb)).entries.find(
     (row) => row.name === "Payroll",
   );
-  const shares = await listLocalShares(fixture.tomb);
-  expect(shares).toHaveLength(1);
-  expect(shares[0]?.principalId).toBe(payroll?.id);
-  expect(screen.getByText("Slack bound.")).toBeTruthy();
+  await waitFor(async () => {
+    const shares = await listLocalShares(fixture.tomb);
+    expect(shares).toHaveLength(1);
+    expect(shares[0]?.principalId).toBe(payroll?.id);
+    expect(screen.getByText("Slack bound.")).toBeTruthy();
+  });
 });
 
 it("asks for approval before an agent is bound to a connector", async () => {
