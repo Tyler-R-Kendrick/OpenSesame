@@ -67,6 +67,14 @@ jobs:
           toolchain: 1.88.0
           components: rustfmt, clippy
           targets: wasm32-unknown-unknown
+      - name: Install the repository contract tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERIFY_TOOLS_ROOT="$RUNNER_TEMP/opensesame-verify-tools"
+          cargo +1.88.0 install --locked --version 14.1.1 --root "$VERIFY_TOOLS_ROOT" ripgrep
+          "$VERIFY_TOOLS_ROOT/bin/rg" --version
+          printf '%s\n' "$VERIFY_TOOLS_ROOT/bin" >> "$GITHUB_PATH"
       - name: Require the exact source and physical browser
         shell: bash
         run: |
