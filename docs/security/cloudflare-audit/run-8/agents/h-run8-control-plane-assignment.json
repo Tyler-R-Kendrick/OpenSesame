@@ -1,0 +1,63 @@
+[
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fmfa.ts::packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fmfa-step-up.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "packages/control-plane/src/routes/mfa.ts",
+    "boundary": "packages/control-plane/src/routes/mfa-step-up.ts",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/control-plane/src/routes/mfa.ts",
+      "packages/control-plane/src/routes/mfa-step-up.ts",
+      "packages/control-plane/src/routes/saml.ts",
+      "packages/control-plane/src/routes/interactions-ldap.ts",
+      "packages/control-plane/src/routes/openid4vci.ts",
+      "packages/control-plane/src/routes/enrollment.ts"
+    ]
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fnotification-callbacks.ts::packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fnotification-channels.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Feature%20abuse%20and%20data%20leakage",
+    "surface": "packages/control-plane/src/routes/notification-callbacks.ts",
+    "boundary": "packages/control-plane/src/routes/notification-channels.ts",
+    "attack_class": "Feature abuse and data leakage",
+    "starting_paths": [
+      "packages/control-plane/src/routes/notification-callbacks.ts",
+      "packages/control-plane/src/routes/notification-channels.ts"
+    ]
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Foauth-clients.ts::packages%2Fcontrol-plane%2Fsrc%2Fmiddleware%2Fauth.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "packages/control-plane/src/routes/oauth-clients.ts",
+    "boundary": "packages/control-plane/src/middleware/auth.ts",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/control-plane/src/routes/oauth-clients.ts",
+      "packages/control-plane/src/routes/interactions.ts",
+      "packages/control-plane/src/routes/device.ts",
+      "packages/control-plane/src/routes/federated-callback.ts",
+      "packages/control-plane/src/routes/byo-public.ts",
+      "packages/control-plane/src/middleware/auth.ts"
+    ]
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Froutes%2Fscim.ts%23authenticate::packages%2Fdatabase%2Fsrc%2Fscim-store.ts%23verify::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "packages/control-plane/src/routes/scim.ts#authenticate",
+    "boundary": "packages/database/src/scim-store.ts#verify",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/control-plane/src/routes/scim.ts",
+      "packages/database/src/scim-store.ts",
+      "packages/control-plane/src/routes/scim-effects.ts",
+      "packages/control-plane/src/routes/scim-protocol.ts"
+    ]
+  },
+  {
+    "coverage_id": "packages%2Fcontrol-plane%2Fsrc%2Fserver.ts::packages%2Fcontrol-plane%2Fsrc%2Fmiddleware%2Fauth.ts::packages%2Fcontrol-plane::ATTACK-CLASSES.md%23Access%20control",
+    "surface": "packages/control-plane/src/server.ts",
+    "boundary": "packages/control-plane/src/middleware/auth.ts",
+    "attack_class": "Access control",
+    "starting_paths": [
+      "packages/control-plane/src/middleware/auth.ts",
+      "packages/control-plane/src/middleware/admin-auth.ts",
+      "packages/control-plane/src/routes/organizations.ts"
+    ]
+  }
+]
