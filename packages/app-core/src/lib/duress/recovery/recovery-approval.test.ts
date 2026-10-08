@@ -162,12 +162,12 @@ describe("ApprovalQuorumLedger", () => {
       "ap-a1-b",
     );
     await ledger.submit({ ...first, request, nowMs: NOW });
-    expect(await ledger.submit({ ...secondDomain, request, nowMs: NOW })).toEqual(
-      {
-        kind: "approval_rejected",
-        reason: "duplicate_approver: approval already counted",
-      },
-    );
+    expect(
+      await ledger.submit({ ...secondDomain, request, nowMs: NOW }),
+    ).toEqual({
+      kind: "approval_rejected",
+      reason: "duplicate_approver: approval already counted",
+    });
     expect(ledger.quorumMet(request.digest)).toBe(false);
   });
 
