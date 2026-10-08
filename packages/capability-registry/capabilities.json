@@ -498,7 +498,7 @@
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null,
-      "extension": null
+      "extension": "message:opensesame.health"
     },
     "excluded": {
       "cli": {
@@ -520,10 +520,6 @@
       "webmcp": {
         "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
         "adr": "0128-pages-without-host.md"
-      },
-      "extension": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },

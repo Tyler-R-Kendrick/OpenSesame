@@ -97,7 +97,6 @@ export const DRIVER_GATES = {
   // Not run by any job of ci.yml.
   "verify-access-pathbar.mjs": null,
   "verify-ambient-sso.mjs": null,
-  "verify-browser-cert.mjs": null,
   "verify-browser-session-lifecycle.mjs": null,
   "verify-browser-sessions.mjs": null,
   "verify-duress-browser.mjs": null,

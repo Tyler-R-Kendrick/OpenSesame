@@ -38,7 +38,9 @@ export const nativeHostCapabilities: readonly Capability[] = [
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
-      extension: null,
+      // The extension still answers its health probe, reporting
+      // authority_plane_removed plus the sync cursor.
+      extension: "message:opensesame.health",
     },
     excluded: {
       cli: CLIENT_NO_HOST_IDENTITY,
@@ -46,7 +48,6 @@ export const nativeHostCapabilities: readonly Capability[] = [
       mcp_host: CLIENT_NO_HOST_IDENTITY,
       mcp_client: CLIENT_NO_HOST_IDENTITY,
       webmcp: PAGES_HAS_NO_HOST,
-      extension: CLIENT_NO_HOST_IDENTITY,
     },
   },
   {

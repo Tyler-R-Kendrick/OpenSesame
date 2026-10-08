@@ -36,7 +36,7 @@
     "test:integration": "turbo run test:integration --concurrency=4",
     "test:e2e": "turbo run test:e2e",
     "test:security": "pnpm --filter @opensesame/testing test:security",
-    "test:redteam": "pnpm --filter @opensesame/redteam redteam",
+    "test:redteam": "pnpm --filter @opensesame/redteam test",
     "test:visual": "pnpm --filter @opensesame/visual-contract test:visual",
     "test:anti-slop": "diff -ru --exclude=.turbo --exclude=LICENSE --exclude=node_modules --exclude=package.json --exclude=vitest.config.ts skills/install-anti-slop/assets/anti-slop tools/oxlint/anti-slop && pnpm typecheck:anti-slop && vitest run --root tools/oxlint/anti-slop",
     "test:rust-lint": "bash scripts/test/rust-lint-contract-test.sh",
@@ -163,16 +163,13 @@
       "js-yaml@^5": "5.4.1",
       "log4js": "6.4.0",
       "@modelcontextprotocol/sdk": "1.31.0",
-      "simple-git": "4.0.1",
-      "@simple-git/argv-parser": "2.0.1",
       "source-map-js": "1.2.2",
       "js-yaml@3.15.2>argparse": "2.0.1"
     },
     "patchedDependencies": {
       "braces@3.0.3": "patches/braces@3.0.3.patch",
       "node-forge@1.4.0": "patches/node-forge@1.4.0.patch",
-      "js-yaml@3.15.2": "patches/js-yaml@3.15.2.patch",
-      "@simple-git/argv-parser@2.0.1": "patches/@simple-git__argv-parser@2.0.1.patch"
+      "js-yaml@3.15.2": "patches/js-yaml@3.15.2.patch"
     }
   }
 }

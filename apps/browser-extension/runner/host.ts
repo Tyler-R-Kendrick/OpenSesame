@@ -11,6 +11,16 @@ import type { RunnerSettings } from "./settings";
 
 const MAX_PAGES = 64;
 
+// A push is acknowledged only by a full result shape: accepted === 1 and every
+// rejection counter present and zero. A garbled or partial answer is a
+// refusal, never an acknowledgement.
+const REJECTION_COUNTERS = [
+  "rejected_foreign_owner",
+  "rejected_oversize",
+  "rejected_session_quota",
+  "rejected_stale_epoch",
+] as const;
+
 async function findBlob(client: RunnerHostClient, id: string) {
   let after: SyncPageCursor = { epoch: 1, id: "" };
   for (let page = 0; page < MAX_PAGES; page += 1) {
@@ -38,10 +48,9 @@ export function hostBackup(client: RunnerHostClient): BackupStore {
         { id, epoch: 1, ciphertextB64: toB64(bytes) },
       ]);
       if (!isJsonObject(res)) return false;
-      const refused = Object.entries(res).some(
-        ([key, value]) => key.startsWith("rejected_") && value !== 0,
+      return (
+        res.accepted === 1 && REJECTION_COUNTERS.every((key) => res[key] === 0)
       );
-      return res.accepted === 1 && !refused;
     },
     async confirm(id, bytes) {
       const held = await findBlob(client, id);
