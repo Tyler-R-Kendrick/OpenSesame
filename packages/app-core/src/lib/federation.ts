@@ -137,6 +137,60 @@ export function upstreamByIssuer(issuer: string): TrustedUpstream | undefined {
 }
 
 /**
+ * Compiled brokers match with or without a trailing slash. A pending record
+ * is shared storage, so lookup here must not miss Shoo because of punctuation.
+ */
+function compiledUpstream(issuer: string): TrustedUpstream | undefined {
+  const trimmed = trimSlashes(issuer);
+  return TRUSTED_UPSTREAMS.find(
+    (upstream) => trimSlashes(upstream.issuer) === trimmed,
+  );
+}
+
+/** True when `endpoint` is a URL on the same origin as `issuer`. */
+export function endpointBelongsToIssuer(
+  endpoint: string,
+  issuer: string,
+): boolean {
+  try {
+    return new URL(endpoint).origin === new URL(issuer).origin;
+  } catch {
+    return false;
+  }
+}
+
+function refuseForeignEndpoint(kind: string): never {
+  throw new FederationError("untrusted_issuer", `${kind} is not the issuer.`);
+}
+
+/**
+ * Where the authorization code and PKCE verifier may be posted.
+ *
+ * A compiled issuer's token endpoint wins over the pending record. Shared
+ * origin storage can rewrite that record, and the code is not in storage
+ * until this POST. An operator or org issuer has no compiled endpoint, so
+ * the stored URL is accepted only when its origin is the issuer origin.
+ */
+function tokenEndpointFor(pending: PendingAuth): string {
+  const compiled = compiledUpstream(pending.issuer)?.tokenEndpoint;
+  if (compiled) return compiled;
+  if (!endpointBelongsToIssuer(pending.tokenEndpoint, pending.issuer)) {
+    refuseForeignEndpoint("Token endpoint");
+  }
+  return pending.tokenEndpoint;
+}
+
+/** JWKS saved with the session. Same pin as the token endpoint. */
+function jwksUriFor(pending: PendingAuth): string {
+  const compiled = compiledUpstream(pending.issuer)?.jwksUri;
+  if (compiled) return compiled;
+  if (!endpointBelongsToIssuer(pending.jwksUri, pending.issuer)) {
+    refuseForeignEndpoint("JWKS");
+  }
+  return pending.jwksUri;
+}
+
+/**
  * One operator-configured provider, as an upstream this app runs the code flow
  * against directly (ADR 0078).
  *
@@ -498,14 +552,15 @@ export type CompletedSignIn = {
  * an older broker) or a transport failure does not invalidate a token that
  * just arrived from the same broker's token endpoint over TLS; claims were
  * already checked in `readIdentity`.
+ *
+ * The URL is the compiled session check only. The pending record is shared
+ * storage and must not choose where the id token is presented.
  */
 async function requireActiveUpstreamSession(
   idToken: string,
   pending: PendingAuth,
 ): Promise<void> {
-  const endpoint =
-    pending.sessionCheckEndpoint ??
-    upstreamByIssuer(pending.issuer)?.sessionCheckEndpoint;
+  const endpoint = compiledUpstream(pending.issuer)?.sessionCheckEndpoint;
   if (!endpoint) return;
   let response: Response;
   try {
@@ -608,9 +663,10 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
     code_verifier: pending.verifier,
   });
 
+  const tokenEndpoint = tokenEndpointFor(pending);
   let response: Response;
   try {
-    response = await fetch(pending.tokenEndpoint, {
+    response = await fetch(tokenEndpoint, {
       method: "POST",
       headers: { "content-type": "application/x-www-form-urlencoded" },
       body,
@@ -737,11 +793,12 @@ async function adoptBrokeredSessionDefault(
 
 /**
  * Claims are checked; the signature is not re-checked here. The token arrived
- * over TLS directly from the token endpoint in response to this tab's own
- * PKCE-bound request, which is the case OpenID Connect Core §3.1.3.7 allows to
- * skip signature validation for. Relying parties are in a different position —
- * they receive it second-hand — and must verify it properly (§3 of the wire
- * contract).
+ * over TLS directly from the compiled token endpoint, or from a URL on the
+ * issuer origin, in response to this tab's own PKCE-bound request. That is
+ * the case OpenID Connect Core §3.1.3.7 allows to skip signature validation
+ * for. The pending record does not choose that URL. Relying parties are in a
+ * different position — they receive it second-hand — and must verify it
+ * properly (§3 of the wire contract).
  */
 function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
   const claims = decodeJwtClaims(idToken);
@@ -819,7 +876,7 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
     idToken,
     pairwiseSub,
     audience: expected,
-    jwksUri: pending.jwksUri,
+    jwksUri: jwksUriFor(pending),
     expiresAt: exp * 1000,
     email: isString(claims.email) ? claims.email : undefined,
     name: isString(claims.name) ? claims.name : undefined,
