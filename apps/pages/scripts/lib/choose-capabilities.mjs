@@ -10,6 +10,10 @@ const BASE = "https://tyler-r-kendrick.github.io/OpenSesame";
 
 /** Every load locks the vault, and these suites load more than once. */
 export async function unlockVault(page, password = "Cedar-lantern-47-river!") {
+  const passwordTab = page.getByRole("tab", { name: "Password", exact: true });
+  if (await passwordTab.count()) {
+    await passwordTab.click();
+  }
   const field = page.getByLabel("Password", { exact: true });
   await expect(field).toBeVisible();
   await field.fill(password);
