@@ -32,9 +32,9 @@ After that point, commits labeled Grok were not live Grok.
 | --- | ---: |
 | `live_grok_build` | 17 |
 | `grok_labeled_replay` | 47 |
-| `cursor_agent` | 26 |
+| `cursor_agent` | 32 |
 | `unknown` | 0 |
-| **Total** | **90** |
+| **Total** | **96** |
 
 ## Commits by PR
 
@@ -105,10 +105,11 @@ After that point, commits labeled Grok were not live Grok.
 | `5f514632` | Grok `<noreply@x.ai>` | `live_grok_build` | fix(pages): screenshot each verification checklist item |
 | `2708ae16` | Grok `<noreply@x.ai>` | `live_grok_build` | fix(pages): build the full walk apart from stock and filter help |
 
-### #794 (`origin/cursor/tutorials-minimal-full-b359` → tip `2d5fa513`)
+### #794 (`origin/cursor/tutorials-minimal-full-b359` → tip `3a104f7a`)
 
 | SHA | Author (as shown) | Real producer | Subject |
 | --- | --- | --- | --- |
+| `3a104f7a` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | style(browser-extension): biome-format enqueue signature |
 | `2d5fa513` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): give settle room under the enqueue wall-clock waiter |
 | `b59179d6` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): keep runner idle polls under the vitest budget |
 | `03fe9273` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(pages): keep DESIGN keymap jumps aligned with Activity |
@@ -127,10 +128,11 @@ After that point, commits labeled Grok were not live Grok.
 | `0c73d702` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | fix(tutorial): skip model tours when support AI is off |
 | `2395ce81` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | fix(pages): seed minimal tutorial vault with secret items |
 
-### #795 (`origin/cursor/ci-cargo-setup-b359` → tip `6fc83a0d`)
+### #795 (`origin/cursor/ci-cargo-setup-b359` → tip `f2c5debe`)
 
 | SHA | Author (as shown) | Real producer | Subject |
 | --- | --- | --- | --- |
+| `f2c5debe` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | style(browser-extension): biome-format enqueue signature |
 | `6fc83a0d` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): give settle room under the enqueue wall-clock waiter |
 | `cd485841` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): keep runner idle polls under the vitest budget |
 | `4afcd74a` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): stop runner tests timing out under CI load |
@@ -147,6 +149,9 @@ After that point, commits labeled Grok were not live Grok.
 
 | SHA | Author (as shown) | Real producer | Subject |
 | --- | --- | --- | --- |
+| `a379d778` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | style(browser-extension): biome-format enqueue signature |
+| `38b5f37f` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs(audit): drop self-referential tip SHA from #796 heading |
+| `8f2606b4` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs(audit): include the tip-SHA ledger commit itself |
 | `07a8d1a0` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs(audit): tip SHAs and counts after runner enqueue fix |
 | `a14eee0c` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(browser-extension): give settle room under the enqueue wall-clock waiter |
 | `afb2ced4` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs(audit): record Tyler's no-rewrite provenance decision |
