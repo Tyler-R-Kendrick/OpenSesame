@@ -470,11 +470,7 @@ describe("completeSignIn", () => {
   });
 
   it("finishes a sign-in that an older build left in sessionStorage", async () => {
-<<<<<<< HEAD
-    localStorage.clear();
-=======
     localStore().removeItem(PKCE_KEY);
->>>>>>> 08373e78 (fix(deepsec): harden federation PKCE pending swap (P0))
     sessionStore().setItem(
       PKCE_KEY,
       JSON.stringify({
@@ -504,13 +500,8 @@ describe("completeSignIn", () => {
   });
 
   it("refuses a code when the stored PKCE state is unreadable", async () => {
-<<<<<<< HEAD
     localStore().setItem(PKCE_KEY, "{corrupt");
-    history.replaceState(null, "", "/?code=abc&state=state-1");
-=======
-    localStorage.setItem(PKCE_KEY, "{corrupt");
     history.replaceState(null, "", "/?code=abc&state=state-ab12");
->>>>>>> 08373e78 (fix(deepsec): harden federation PKCE pending swap (P0))
     await expect(completeSignIn()).rejects.toMatchObject({
       code: "invalid_request",
     });
