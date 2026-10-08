@@ -3,8 +3,11 @@
 //! Host opened — standing in for a sealed log the Host has no key to write
 //! (ADR 0081 §9).
 
+use opensesame_connection_broker::config_access::{role_policy, set_role_ceiling};
 use opensesame_storage::web_login_runs::StoredAgentHookRecord;
 use opensesame_storage::NO_VIEWER_KEY_PREFIX;
+
+use crate::session_claims::parse_principal;
 
 use super::support::Fixture;
 use super::web_login::{happy, prerequisites, rotate_driven, the_run};
@@ -314,4 +317,34 @@ async fn a_hosted_run_seals_nothing_because_the_host_holds_no_viewer_key() {
     assert_eq!(page["observation"], json!("hook_records_only"));
     let rendered = page.to_string();
     assert!(!rendered.contains("password"), "{rendered}");
+}
+
+#[tokio::test]
+async fn hook_records_honor_the_role_evidence_fence() {
+    let f = fixture().await;
+    seeded(&f).await;
+    let path = "/api/v1/agent/runs/run:1/hook-records";
+    let (status, _) = f.browser.send(&f.app, "GET", path, None).await;
+    assert_eq!(status, StatusCode::OK);
+
+    let principal = parse_principal(ALICE).expect("alice principal");
+    let auth_time = Utc::now().timestamp() - 120;
+    f.browser.verified_webauthn_at(&f.state, auth_time).await;
+    let policy = role_policy(f.state.db.pool(), &f.state.connection_organization, &principal)
+        .await
+        .expect("role row")
+        .expect("membership");
+    set_role_ceiling(
+        f.state.db.pool(),
+        &f.state.connection_organization,
+        &principal,
+        None,
+        policy.revision,
+        Utc::now().timestamp(),
+    )
+    .await
+    .expect("role cleared");
+
+    let (status, _) = f.browser.send(&f.app, "GET", path, None).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
 }
