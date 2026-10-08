@@ -226,6 +226,7 @@ describe("UnlockScreen — first run", () => {
 
   it("offers one no-account road, the local seal, on first run", () => {
     render(<UnlockScreen />);
+    // Guest lives on the front door and the unlock form, not here.
     expect(
       screen.getByRole("button", { name: "Use without an account" }),
     ).toBeTruthy();
@@ -827,6 +828,7 @@ describe("UnlockScreen — password unlock", () => {
     render(<UnlockScreen />);
     expect(screen.getByText(/Choose an account to attach/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: FEDERATED_BUTTON }));
+    // Attaching is not switching: the issuer may reuse its session.
     expect(beginSignIn).toHaveBeenCalledWith(UPSTREAM, {});
   });
 
