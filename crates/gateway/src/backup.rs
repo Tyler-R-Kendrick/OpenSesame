@@ -400,7 +400,6 @@ mod tests {
     }
 
     type Shared = Arc<Mutex<MockGithub>>;
-
     async fn start_mock(mock: Shared) -> String {
         let app = Router::new()
             .route(

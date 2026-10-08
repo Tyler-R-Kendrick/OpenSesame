@@ -401,7 +401,6 @@ fn operator(state: &AppState) -> (&'static str, String) {
         format!("Bearer operator:{}", state.operator_token),
     )
 }
-
 async fn send(state: &AppState, request: Request<Body>) -> (StatusCode, String) {
     let response = super::super::router(state.clone())
         .oneshot(request)
@@ -413,7 +412,6 @@ async fn send(state: &AppState, request: Request<Body>) -> (StatusCode, String) 
         .expect("body");
     (status, String::from_utf8_lossy(&bytes).to_string())
 }
-
 async fn call(
     state: &AppState,
     method: &str,
@@ -436,7 +434,6 @@ async fn call(
     let parsed = serde_json::from_str(&raw).unwrap_or(Value::String(raw));
     (status, parsed)
 }
-
 /// The denylist in `crates/authz/src/authority_use.rs` in literal form: nothing a
 /// route emits may carry credential material or the values used to obtain it.
 fn assert_no_credential_material(label: &str, body: &str, verifier: &str) {

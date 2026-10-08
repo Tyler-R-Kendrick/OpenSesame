@@ -412,7 +412,6 @@ async fn discovery_advertises_a_name_and_nothing_else() {
         "discovery named the operator"
     );
 }
-
 #[tokio::test]
 async fn discovery_refuses_to_default_to_listing_anything() {
     let st = state().await;
