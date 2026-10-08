@@ -15,6 +15,7 @@ import {
   onInviteArrival,
   takeCapturedInvite,
 } from "@opensesame/app-core/lib/join/invite.js";
+import { holdLiveLink } from "@opensesame/app-core/lib/live/link.js";
 import { type ReactNode, useEffect, useState } from "react";
 import { IconLogin } from "../../components/Icons.js";
 import { useGuideTarget } from "../../tutorial/registry/react.jsx";
@@ -41,6 +42,7 @@ export type JoinRoadState = Readonly<{
 export function useJoinRoad(): JoinRoadState {
   const [joining, setJoining] = useState<Joining>(() => {
     const captured = joinRoadDependencies.takeCapturedInvite();
+    if (captured?.kind === "live") holdLiveLink(captured.link);
     return captured ? { captured, arrival: 0 } : null;
   });
   // A link pasted into this open tab arrives without a reload.
@@ -48,8 +50,10 @@ export function useJoinRoad(): JoinRoadState {
     () =>
       joinRoadDependencies.onInviteArrival(() => {
         const captured = joinRoadDependencies.takeCapturedInvite();
-        if (captured)
+        if (captured) {
+          if (captured.kind === "live") holdLiveLink(captured.link);
           setJoining((was) => ({ captured, arrival: (was?.arrival ?? 0) + 1 }));
+        }
       }),
     [],
   );

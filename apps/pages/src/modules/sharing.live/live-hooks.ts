@@ -29,6 +29,14 @@ export type Standing = Readonly<{
   tray: string;
 }>;
 
+export function standingMark(
+  tone: StatusTone,
+  label: string,
+  tray = label,
+): Standing {
+  return { tone, label, tray };
+}
+
 /** The session this tab joined, and where it stands. */
 export type LiveGuestView = Readonly<{
   guest: LiveGuest | null;
