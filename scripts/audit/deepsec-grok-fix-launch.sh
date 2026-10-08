@@ -62,7 +62,7 @@ Include:
 - Finding id, severity, file:line
 - Line: \`${N}/${TOTAL} based on #${BASE_PR}\`
 - Stack: base branch \`${PR_BASE_BRANCH}\` → head \`${BRANCH}\`
-- Credit: fix authored by Grok Build (subscription, grok-4.7)
+- Credit: fix authored by Kimi Code K3 (subscription OAuth, kimi-code/k3)
 
 ## CI / process
 - Fetch latest \`origin/main\` and rebase your stack base as needed.
@@ -88,11 +88,14 @@ echo "debug: $DEBUG_LOG" | tee -a "$JOB_LOG"
 cd "$ROOT"
 START="$(date +%s)"
 set +e
-env -u XAI_API_KEY -u GROK_DEPLOYMENT_KEY grok -p "$(cat "$PROMPT")" \
-  -m grok-4.7 --always-approve --no-plan --max-turns 250 \
-  --cwd "$ROOT" --output-format json --debug-file "$DEBUG_LOG" \
-  >>"$JOB_LOG" 2>&1
+export PATH="${HOME}/.local/bin:${PATH}"
+env -u XAI_API_KEY -u GROK_DEPLOYMENT_KEY -u MOONSHOT_API_KEY \
+  kimi -m "${DEEPSEC_KIMI_MODEL:-kimi-code/k3}" -p "$(cat "$PROMPT")" \
+  --auto --output-format text >>"$JOB_LOG" 2>&1
 EXIT=$?
+if grep -qiE '429|insufficient_quota|quota|rate limit|too many requests|usage limit' "$JOB_LOG"; then
+  EXIT=42
+fi
 set -e
 END="$(date +%s)"
 rm -f "$PID_FILE"
