@@ -57,6 +57,7 @@ import {
   tombFileKey,
 } from "@opensesame/app-core/lib/vfs.js";
 import { bootstrapTheme } from "../lib/theme.js";
+import { bootBucket } from "./bucket.js";
 import { CORE_BOOT_KEYS } from "./core-keys.js";
 
 export type CoreBoot = Readonly<{
@@ -111,6 +112,7 @@ export async function bootCore(): Promise<CoreBoot> {
   // static deploy still knows its Identity API without a rebuild.
   const runtimeConfig = await loadRuntimeConfig();
   await kvHydrate([...CORE_BOOT_KEYS]);
+  await bootBucket();
   // The item types this device switched on come back from their sealed copy,
   // with no request, before anything draws a type (ADR 0165).
   await restorePacks();
