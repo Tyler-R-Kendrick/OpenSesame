@@ -1,8 +1,9 @@
 /**
- * Perform a saved connector operation. Public fields are the body. Secret
- * material is attached only on the request headers. Nothing saved does not
- * send, and a provider with no declared address is not sent to. Card data is
- * refused before any request.
+ * Perform a saved connector operation. Public fields are the body. Short-lived
+ * bearer material may ride on request headers; PEMs, SSH keys and other
+ * multi-line secrets never do. Nothing saved does not send, and a provider
+ * with no declared address is not sent to. Card data is refused before any
+ * request.
  */
 
 import {
@@ -51,11 +52,34 @@ interface StringFields {
   [key: string]: string;
 }
 
+/** Git backup and app credentials that must never be copied into HTTP headers. */
+const SECRETS_NEVER_IN_HEADERS = new Set([
+  "private_key_pem",
+  "ssh_private_key",
+  "ssh_passphrase",
+]);
+
+function headerSafeSecretValue(value: string): boolean {
+  return value !== "" && !/[\r\n\0]/.test(value);
+}
+
+function secretsMayLeaveInHeaders(secret: StringFields): boolean {
+  for (const [name, value] of Object.entries(secret)) {
+    if (SECRETS_NEVER_IN_HEADERS.has(name)) return false;
+    if (!headerSafeSecretValue(value)) return false;
+  }
+  return true;
+}
+
 function secretHeaders(secret: StringFields): StringFields {
   const headers: StringFields = {};
-  if (secret.credential) headers.authorization = secret.credential;
+  if (secret.credential && headerSafeSecretValue(secret.credential)) {
+    headers.authorization = secret.credential;
+  }
   for (const [name, value] of Object.entries(secret)) {
     if (name === "credential") continue;
+    if (SECRETS_NEVER_IN_HEADERS.has(name)) continue;
+    if (!headerSafeSecretValue(value)) continue;
     headers[`x-${name.replaceAll("_", "-")}`] = value;
   }
   return headers;
@@ -90,7 +114,7 @@ function refusesPayment(value: JsonValue): boolean {
   }
 }
 
-/** Send one saved operation. The key stays on the headers. */
+/** Send one saved operation when its secrets may ride on the headers. */
 export function sendFeatureOperation(
   operation: ReturnType<typeof runListedFeature>,
 ): FeatureRequest {
@@ -110,7 +134,7 @@ export function sendFeatureOperation(
     return { ok: false, providerId: operation.providerId };
   }
   const url = operationUrl(operation.providerId, operation.operation);
-  if (url !== null) {
+  if (url !== null && secretsMayLeaveInHeaders(secret)) {
     void featureRequestSeams
       .fetch(url, {
         method: "POST",
