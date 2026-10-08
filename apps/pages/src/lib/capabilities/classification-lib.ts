@@ -272,6 +272,13 @@ export const LIB_RULES = [
     "networking.tailnet-devices",
     "tailnet device management: daemon client, sealed pairing, device model (ADR 0169)",
   ),
+  // No trailing slash: `vault-relay/` is the client, and `vault-relay-sync*`
+  // is the two-device check. Both belong only to sharing.relay (ADR 0181).
+  optional(
+    `${L}vault-relay`,
+    "sharing.relay",
+    "sealed snapshot push and pull on a paired relay (ADR 0181)",
+  ),
   core(
     `${L}join/`,
     SIGNIN,
