@@ -54,11 +54,12 @@ fn refusal(code: ErrorCode, path: &str, message: impl Into<String>) -> Definitio
 }
 
 /// Directory names the vault rail draws that are not a type's own: the fixed
-/// filters beside the type directories, and the short names the rail gives
-/// platform kinds whose plurals would read differently (`certs`, `notes`). An
-/// install may not claim one, or its items would share a directory with
-/// something else.
-pub const RESERVED_DIRECTORIES: [&str; 5] = ["all", "favorites", "trash", "certs", "notes"];
+/// filters beside the type directories, the password health page, and the
+/// short names the rail gives platform kinds whose plurals would read
+/// differently (`certs`, `notes`). An install may not claim one, or its items
+/// would share a directory with something else.
+pub const RESERVED_DIRECTORIES: [&str; 6] =
+    ["all", "favorites", "health", "trash", "certs", "notes"];
 
 /// Ids no type may take. A type id is also the vault's `?f=` filter value, and
 /// these three already mean something there: a type called `favorites` would

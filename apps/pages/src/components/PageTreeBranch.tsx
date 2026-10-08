@@ -69,7 +69,8 @@ export function PageTreeLeafRow({
       child
       level={level}
       to={node.href}
-      label={node.label}
+      label={node.title ?? node.label}
+      title={node.title}
       navRef={guideRef}
       selectTo={node.selectTo}
       selected={selected}

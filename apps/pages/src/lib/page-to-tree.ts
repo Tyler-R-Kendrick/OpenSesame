@@ -3,6 +3,11 @@ export type PageTreeLeaf = {
   id: string;
   label: string;
   href: string;
+  /**
+   * Full name when the directory label is shorter than the page it opens.
+   * The row still prints `label`; this is the tooltip and the accessible name.
+   */
+  title?: string;
   /** Keyboard preview; activation still follows `href`. */
   selectTo?: string;
   count?: number;

@@ -31,7 +31,7 @@ export const VAULT_ITEM_GOALS: readonly GuideGoalDescriptor[] = [
       'say "Finding an item is narrowing the list, by a filter or by words typed in the command bar. Neither one changes an item."',
       'navigate "/vault"',
       'wait route "/vault" timeout=15000',
-      'focus "vault.filter" "The filters: all items, favorites, each type this vault holds, your folders and the trash. Each shows the count it would list. Pick one to narrow the list to it." side=right',
+      'focus "vault.filter" "The filters: all items, favorites, each type this vault holds, your folders and the trash. Each shows the count it would list. Pick one to narrow the list to it. Health, beside them, opens the password health report and does not narrow the list." side=right',
       'focus "vault.filter.favorites" "Favorites lists the items you starred." side=right',
       'focus "vault.filter.logins" "Accounts lists only accounts. A type is listed here once the vault holds one." side=right',
       'focus "shell.command-bar" "Search is done in the command bar. Press / and the bar holds /? ready for words; the list narrows as you type, Enter hands the keyboard to the list, and Esc empties the search." side=bottom',

@@ -762,7 +762,12 @@ The rail renders as a mono filesystem tree (see "VFS interaction model")
 rooted at the prompt line `guest@personal:/`: directory rows with counts
 and g-jump key chips. Selection is inverse video (see "Selection"). The
 phone section drawer lists every rail section and nothing else.
-Password health is a notifications-only review, never a tree entry or vault filter chip.
+Password health is a review page. The vault tree lists it as `health`,
+after favorites and before the type directories, on a wide screen and on
+a phone's first pane. Choosing it opens `/vault/health`. It is not a
+vault filter chip: the filter sheet does not link it, and it does not
+narrow the list. When the report has findings, the notifications sheet
+still carries Review passwords.
 
 Identity's children and its content tabs share the URL's `view` selection;
 the rail and tabs always name the same view. Connections has separate

@@ -155,6 +155,7 @@ export function TreeRow({
   level,
   children,
   label,
+  title,
   end,
   navRef,
   move = true,
@@ -173,6 +174,8 @@ export function TreeRow({
   level?: number;
   children: ReactNode;
   label?: string;
+  /** Tooltip. Set when `label` is the longer accessible name. */
+  title?: string;
   end?: boolean;
   /** Set only on rows the tutorial registry names, so a guide can point here. */
   navRef?: (element: HTMLAnchorElement | null) => void;
@@ -208,6 +211,7 @@ export function TreeRow({
       role="treeitem"
       tabIndex={-1}
       aria-label={label}
+      title={title}
       aria-level={level ?? (child ? 2 : 1)}
       aria-selected={shownSelected}
       aria-expanded={expanded}

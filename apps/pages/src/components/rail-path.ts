@@ -33,8 +33,14 @@ export function selectedRailPath(
   }
   if (pathname.startsWith("/wallet"))
     return walletPath(walletCategoryFromLocation(pathname));
-  if (pathname.startsWith("/vault"))
+  if (pathname.startsWith("/vault")) {
+    // The report is a page, not a `?f=` filter. A leftover filter must not
+    // leave the cursor on `all` or on that filter while the report is open.
+    if (pathname === "/vault/health" || pathname === "/vault/health/") {
+      return "/vault/health";
+    }
     return vaultRailPath(filter, folder, folderKind);
+  }
   if (pathname.startsWith("/access")) {
     const id = ACCESS_VIEWS.find((item) => item === view) ?? "grants";
     return `/access?view=${id}${hash}`;
