@@ -30,6 +30,8 @@ jobs:
       IMAGE_NAME: ${{ github.repository }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
       - name: Log in to GHCR
         uses: docker/login-action@5e57cdca8bd33bd31c8f2a4eabd65eb91159b82d # v3.6.0
         with:
