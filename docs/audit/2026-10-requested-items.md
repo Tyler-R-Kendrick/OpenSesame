@@ -20,7 +20,7 @@ Audited against `origin/main` at `8f70cf43` (2026-10-07), then follow-up fixes o
 | U1 | Setup keyboard nav | DONE | `SetupConfiguration.test.tsx` (40 tests in setup suite) | DONE | — |
 | U2 | Remove setup reset | DONE | No reset on `SetupScreen` | DONE | — |
 | U3 | Remove sign-in "Continue as guest" (keep one flow) | PARTIAL | `SignInPanel.tsx` — only "Use without account"; guest not duplicated | PARTIAL | Unlock footer + front door Skip remain (**product rule** AGENTS.md) |
-| U4 | Vault tree borders overflow when expanded | NOT DONE | No Playwright/visual proof this audit | NOT DONE | Needs repro + CSS fix |
+| U4 | Vault tree borders overflow when expanded | NOT DONE | No Playwright/visual proof this audit | DONE | `VaultTree.guide.test.tsx` |
 | U5 | Remove Security › Formats | DONE | `page-tree.test.ts` — absent without capability | DONE | — |
 | U6 | Remove Security › Age Keys | DONE | Not in default `page-tree` | DONE | — |
 | U7 | Remove Security › Transport | DONE | Not in settings tree | DONE | — |

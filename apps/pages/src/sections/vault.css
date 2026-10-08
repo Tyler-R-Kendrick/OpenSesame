@@ -262,9 +262,25 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.vtree__row--child {
+/* One guide for an open folder's items. It sits inside this box: below the
+   folder row, and only down to the midline of the last child, so it cannot
+   run into the folder above or the sibling below. The box is not clipped —
+   a row's menu hangs outside it and has to stay visible. */
+.vtree__kids {
+  position: relative;
   margin-left: 0.875rem;
-  border-left: 1px solid var(--line);
+}
+
+.vtree__kids::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  width: 1px;
+  background: var(--line);
+  top: 0.35rem;
+  bottom: calc(1.75rem / 2);
+  pointer-events: none;
 }
 
 .vtree__row:hover {
@@ -695,6 +711,10 @@
   .vtree__row {
     height: 2.75rem;
     padding: 0 0.9rem;
+  }
+
+  .vtree__kids::before {
+    bottom: calc(2.75rem / 2);
   }
 
   .vtree__row--child {
