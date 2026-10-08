@@ -143,7 +143,7 @@ After that point, commits labeled Grok were not live Grok.
 | `034abd84` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | chore(cursor): put cargo on PATH for vscode bash |
 | `fc12cf17` | Grok `<noreply@x.ai>` | `grok_labeled_replay` | ci: pin docker/build-push-action to v6.18.0 |
 
-### #796 (`origin/cursor/checklist-walk-complete-b359` → tip `07a8d1a0`)
+### #796 (`origin/cursor/checklist-walk-complete-b359`)
 
 | SHA | Author (as shown) | Real producer | Subject |
 | --- | --- | --- | --- |
