@@ -11,11 +11,16 @@ import {
   sha256Base64Url,
 } from "@opensesame/sdk-browser";
 import type { VerifiedIdTokenClaims } from "@opensesame/sdk-browser";
-import { env } from "../host.js";
-import { page, pageOrigin } from "../ports.js";
+import { page } from "../ports.js";
 import { ambientAuthSeams } from "./ambient-auth-seam.js";
 import type { AuthenticationIntent } from "./ambient-auth/types.js";
 import { parseAuthCallback } from "./federation-callback.js";
+import { FederationError } from "./federation-error.js";
+import {
+  originCallbackUri,
+  originClientId,
+  redirectUri,
+} from "./federation-origin.js";
 import {
   type PendingAuth,
   storePending,
@@ -35,6 +40,14 @@ import {
 import { rememberLastSignIn } from "./last-sign-in.js";
 import { localNetworkFetch } from "./local-network-fetch.js";
 import { type OperatorIdp, signInMethods } from "./settings.js";
+
+export { FederationError } from "./federation-error.js";
+export {
+  originCallbackUri,
+  originClientId,
+  redirectUri,
+} from "./federation-origin.js";
+
 /**
  * Federated sign-in against a trusted upstream broker (ADR 0033).
  *
@@ -137,60 +150,6 @@ export function upstreamByIssuer(issuer: string): TrustedUpstream | undefined {
 }
 
 /**
- * Compiled brokers match with or without a trailing slash. A pending record
- * is shared storage, so lookup here must not miss Shoo because of punctuation.
- */
-function compiledUpstream(issuer: string): TrustedUpstream | undefined {
-  const trimmed = trimSlashes(issuer);
-  return TRUSTED_UPSTREAMS.find(
-    (upstream) => trimSlashes(upstream.issuer) === trimmed,
-  );
-}
-
-/** True when `endpoint` is a URL on the same origin as `issuer`. */
-export function endpointBelongsToIssuer(
-  endpoint: string,
-  issuer: string,
-): boolean {
-  try {
-    return new URL(endpoint).origin === new URL(issuer).origin;
-  } catch {
-    return false;
-  }
-}
-
-function refuseForeignEndpoint(kind: string): never {
-  throw new FederationError("untrusted_issuer", `${kind} is not the issuer.`);
-}
-
-/**
- * Where the authorization code and PKCE verifier may be posted.
- *
- * A compiled issuer's token endpoint wins over the pending record. Shared
- * origin storage can rewrite that record, and the code is not in storage
- * until this POST. An operator or org issuer has no compiled endpoint, so
- * the stored URL is accepted only when its origin is the issuer origin.
- */
-function tokenEndpointFor(pending: PendingAuth): string {
-  const compiled = compiledUpstream(pending.issuer)?.tokenEndpoint;
-  if (compiled) return compiled;
-  if (!endpointBelongsToIssuer(pending.tokenEndpoint, pending.issuer)) {
-    refuseForeignEndpoint("Token endpoint");
-  }
-  return pending.tokenEndpoint;
-}
-
-/** JWKS saved with the session. Same pin as the token endpoint. */
-function jwksUriFor(pending: PendingAuth): string {
-  const compiled = compiledUpstream(pending.issuer)?.jwksUri;
-  if (compiled) return compiled;
-  if (!endpointBelongsToIssuer(pending.jwksUri, pending.issuer)) {
-    refuseForeignEndpoint("JWKS");
-  }
-  return pending.jwksUri;
-}
-
-/**
  * One operator-configured provider, as an upstream this app runs the code flow
  * against directly (ADR 0078).
  *
@@ -251,36 +210,6 @@ export function isBrokeredIssuer(issuer: string): boolean {
   return base.length > 0 && trimSlashes(issuer) === base;
 }
 
-/** The client id this origin has at any origin-profile broker. */
-export function originClientId(origin: string = pageOrigin()): string {
-  return `origin:${origin}`;
-}
-
-/**
- * Where the upstream sends the browser back. The app root rather than a deep
- * path: a static host has no router, and the origin is all the broker derives
- * the client id from, so the path buys nothing and costs a 404.
- */
-export function redirectUri(): string {
-  const base = env().BASE_URL || "/";
-  return `${pageOrigin()}${base}`;
-}
-
-/**
- * The ONE redirect URI the Identity API's auto-admitted origin client has:
- * `<origin>/opensesame/callback` (ADR 0050's canonical callback path). Every
- * brokered leg must use it — the base-path URI above is unregistered there
- * and dies at the authorize endpoint as an invalid redirect_uri, which is
- * exactly how every brokered button used to dead-end. GitHub Pages serves
- * this path through the 404 SPA fallback (the project prefix is matched
- * case-insensitively), and the dev server redirects it onto the base; either
- * way the app boots, sees `?code`, and finishes on the federation return
- * screen, which never cared what path it renders at.
- */
-export function originCallbackUri(): string {
-  return `${pageOrigin()}/opensesame/callback`;
-}
-
 export type OidcDiscovery = {
   issuer: string;
   authorization_endpoint: string;
@@ -301,15 +230,6 @@ export type UpstreamIdentity = {
   name?: string | undefined;
   picture?: string | undefined;
 };
-
-export class FederationError extends Error {
-  readonly code: string;
-  constructor(code: string, message: string) {
-    super(message);
-    this.name = "FederationError";
-    this.code = code;
-  }
-}
 
 export function decodeJwtClaims(token: string): JsonObject {
   const payload = token.split(".")[1];
@@ -558,9 +478,9 @@ export type CompletedSignIn = {
  */
 async function requireActiveUpstreamSession(
   idToken: string,
-  pending: PendingAuth,
+  endpoint: string | undefined,
+  issuer: string,
 ): Promise<void> {
-  const endpoint = compiledUpstream(pending.issuer)?.sessionCheckEndpoint;
   if (!endpoint) return;
   let response: Response;
   try {
@@ -588,7 +508,7 @@ async function requireActiveUpstreamSession(
     "login_required",
     reason === "expired"
       ? "That sign-in expired before it could finish. Try again."
-      : `${pending.issuer} says this sign-in is not authorized (${reason}). Sign in again.`,
+      : `${issuer} says this sign-in is not authorized (${reason}). Sign in again.`,
   );
 }
 
@@ -663,7 +583,11 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
     code_verifier: pending.verifier,
   });
 
-  const tokenEndpoint = tokenEndpointFor(pending);
+  const { resolvePinnedEndpoints } = await import(
+    "./federation-endpoint-pin.js"
+  );
+  const pinned = resolvePinnedEndpoints(pending, TRUSTED_UPSTREAMS);
+  const tokenEndpoint = pinned.tokenEndpoint;
   let response: Response;
   try {
     response = await fetch(tokenEndpoint, {
@@ -698,13 +622,17 @@ async function completeSignInDefault(): Promise<CompletedSignIn | null> {
     );
   }
 
-  const identity = readIdentity(tokens.id_token, pending);
+  const identity = readIdentity(tokens.id_token, pending, pinned.jwksUri);
   // "We actually have an authorized user": where the broker offers a session
   // check (shoo does; its JWKS serves no CORS, so this is the one signature-
   // and revocation-backed answer a static page can get), ask it before the
   // identity is saved or handed to anyone. A refusal here is a refusal of the
   // whole sign-in.
-  await requireActiveUpstreamSession(identity.idToken, pending);
+  await requireActiveUpstreamSession(
+    identity.idToken,
+    pinned.sessionCheckEndpoint,
+    pending.issuer,
+  );
   // Org SSO/SAML is a one-shot assertion for Identity join, not a durable
   // Pages federation session. Saving it would collide with Shoo/mock sign-in.
   if (!pending.orgSlug) saveSession(identity);
@@ -800,7 +728,11 @@ async function adoptBrokeredSessionDefault(
  * different position — they receive it second-hand — and must verify it
  * properly (§3 of the wire contract).
  */
-function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
+function readIdentity(
+  idToken: string,
+  pending: PendingAuth,
+  jwksUri: string,
+): UpstreamIdentity {
   const claims = decodeJwtClaims(idToken);
   const issuer = isString(claims.iss) ? claims.iss : "";
   if (issuer.replace(/\/+$/, "") !== pending.issuer.replace(/\/+$/, "")) {
@@ -876,7 +808,7 @@ function readIdentity(idToken: string, pending: PendingAuth): UpstreamIdentity {
     idToken,
     pairwiseSub,
     audience: expected,
-    jwksUri: jwksUriFor(pending),
+    jwksUri,
     expiresAt: exp * 1000,
     email: isString(claims.email) ? claims.email : undefined,
     name: isString(claims.name) ? claims.name : undefined,
