@@ -24,7 +24,13 @@ import {
   readPreference,
   writePreference,
 } from "../local-notifications/preference.js";
-import { lockAllTombs, tombFileKey, unlockTomb, writeFile } from "../vfs.js";
+import {
+  lockAllTombs,
+  tombFileKey,
+  unlockTomb,
+  vfsSeams,
+  writeFile,
+} from "../vfs.js";
 import { wipeTombOnDestroy } from "./tomb-migration.js";
 
 const APP = "local_11111111-1111-4111-8111-111111111111";
@@ -73,6 +79,42 @@ it("wipes every file the device wrote for its person with the vault", async () =
   await wipeTombOnDestroy(tomb);
   for (const path of PATHS)
     expect(kvGet(tombFileKey(tomb, path)), path).toBeNull();
+});
+
+it("a sealed write still in flight does not reseal the index after the wipe", async () => {
+  let release = (): void => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const seal = vfsSeams.seal;
+  let reached = false;
+  vfsSeams.seal = async (...args) => {
+    reached = true;
+    await gate;
+    return seal(...args);
+  };
+  try {
+    const pending = writeFile(
+      tomb,
+      "config/activity-log",
+      new TextEncoder().encode("still-sealing"),
+    );
+    for (let i = 0; i < 20 && !reached; i++) await Promise.resolve();
+    expect(reached).toBe(true);
+    const wiping = wipeTombOnDestroy(tomb);
+    release();
+    await wiping;
+    await pending.catch(() => undefined);
+    unlockTomb(tomb, (await mintVaultKey()).vaultKey);
+    await writeFile(
+      tomb,
+      "config/activity-log",
+      new TextEncoder().encode("next-vault"),
+    );
+  } finally {
+    vfsSeams.seal = seal;
+    release();
+  }
 });
 
 it("lets a vault made in the same tomb afterwards read, record and list as new", async () => {

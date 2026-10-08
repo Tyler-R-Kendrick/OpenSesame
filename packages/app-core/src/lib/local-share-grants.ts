@@ -23,6 +23,7 @@ import {
   requireManageGrants,
   systemShareWrite,
 } from "./proofs/share-write.js";
+import { noteLocalShare } from "./sharing-receipts.js";
 import { listDeviceVaults } from "./vaults.js";
 import { VfsError, readFile, tombFileKey, writeFile } from "./vfs.js";
 
@@ -241,6 +242,7 @@ export async function createLocalShareAs<T>(
       "access.connection.granted",
       share,
     ).catch(() => undefined);
+  if (authority.kind === "ManageGrants") noteLocalShare(tomb, "granted", share);
   return next.filter((row) => row.expiresAt > Date.now());
 }
 
@@ -319,6 +321,7 @@ export async function revokeLocalShare(
     tomb,
     current.filter((row) => row.id !== id),
   );
+  noteLocalShare(tomb, "revoked", removed);
   return listLocalShares(tomb);
 }
 

@@ -16,6 +16,7 @@ import {
 import { bytesToB64url } from "@opensesame/sdk-browser";
 import { env } from "../../host.js";
 import { type WebStorage, maybePage } from "../../ports.js";
+import { noteDropOpened } from "../sharing-receipts.js";
 import {
   claimIdFromBearer,
   mintUserCode,
@@ -337,6 +338,7 @@ export async function presentLocalDropClaim(
     attempts: 0,
     version: record.version + 1,
   });
+  noteDropOpened(claimId);
   return {
     claimId,
     state: "consumed",

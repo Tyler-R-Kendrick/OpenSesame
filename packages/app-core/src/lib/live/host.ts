@@ -2,30 +2,25 @@
  * The owner's side of a live session (ADR 0150 §2–§5): the open tab hosts it.
  *
  * The owner pastes each request code a joiner sends, or a carrier passes it
- * on. In an invite session, one that the link opens but the code does not is
- * a miss — a guess at the code — and the fifth miss **locks** the session:
- * from then on it takes no new request, while everyone already asking or in
- * stays (ending the session would let anyone holding the link, which is not
- * a secret from the people it was sent to, throw out those who are in). An
- * open session has no code to guess, so a request that does not open there is
- * not a request and is never a miss. A joiner's page reposts its unanswered
- * request, so the same code again is one miss, not a new one: a single
- * mistyped code cannot lock the session by being retried. A request that opens
- * waits for the owner — or, in an open session, is let in at once. Letting
- * someone in is the only thing that answers their offer (`host-peer.ts`), and
- * the answer leaves only in the reply code the owner hands back, so nobody the
- * owner turned away learns where the owner is.
+ * on. In an invite session, a code the link did not open is a miss, and the
+ * fifth miss **locks** the session: no new request is taken, and everyone
+ * already asking or in stays. An open session has no code to guess, so a
+ * request that does not open there is not a miss. A reposted code is the same
+ * miss, not a new one. Ending the session is not how it locks: anyone holding
+ * the link could then throw out the people already in. Letting someone in is
+ * the only answer to their offer (`host-peer.ts`), and that answer leaves only
+ * in the reply code, so nobody turned away learns where the owner is.
  *
- * A seat is not kept for ever: one that is asking or has been let in but never
- * connects expires after the pairing window, and a seat that has ended is
- * forgotten shortly after, so requests that never finish cannot fill the
- * session or grow it.
+ * A seat is not kept for ever: one that is asking or let in but never connects
+ * expires after the pairing window, and an ended seat is forgotten shortly
+ * after, so requests that never finish cannot fill the session or grow it.
  *
  * The session keeps nothing in storage. It ends — for everyone, on every
  * channel — when the owner ends it, when its time runs out, or when the tab
  * that hosts it goes away.
  */
 
+import { noteLiveSessionGranted } from "../sharing-receipts.js";
 import {
   HostPeer,
   type LogEntry,
@@ -124,10 +119,13 @@ type Seat = {
 };
 
 const OPEN = new Set<GuestState>(["asking", "replied", "joined"]);
+const seatState = (seat: Seat | undefined) => seat?.guest.state;
 
 /** One live session, hosted by this tab. */
 export class LiveHost {
   readonly link: LiveLink;
+  /** Receipt id. Not the link secret and not the invite code. */
+  readonly id = crypto.randomUUID();
   /** The out-of-band code, in an invite session. */
   readonly code: string | null;
   readonly expiresAt: number;
@@ -345,6 +343,14 @@ export class LiveHost {
       if (seat.peer === peer) this.#drop(key, "gone");
     } finally {
       seat.admitting = false;
+    }
+    // A receipt must not close the peer the joiner is about to use.
+    if (seatState(this.#seats.get(key)) === "replied") {
+      try {
+        noteLiveSessionGranted(this.id, key);
+      } catch {
+        // The trail is best-effort. The admission stands.
+      }
     }
   }
 

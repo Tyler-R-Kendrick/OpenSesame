@@ -48,6 +48,10 @@ const KINDS = [
   "session.ended",
   "siop.approved",
   "siop.denied",
+  "drop.opened",
+  "live.granted",
+  "share.granted",
+  "share.revoked",
 ] as const satisfies readonly ReceiptKind[];
 
 const APP = "local_11111111-1111-4111-8111-111111111111";
