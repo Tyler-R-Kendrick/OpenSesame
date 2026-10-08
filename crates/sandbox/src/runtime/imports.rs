@@ -18,6 +18,7 @@
 
 use std::sync::Arc;
 
+use chrono::Utc;
 use wasmtime::{Caller, Extern, Linker, Memory};
 
 use crate::boundary::Refusal;
@@ -58,7 +59,11 @@ fn guest_memory(caller: &mut Caller<'_, GuestState>) -> Result<Memory, ShimStop>
 
 /// Refuse before doing anything the run is no longer authorized to do.
 fn still_authorized(caller: &Caller<'_, GuestState>) -> Result<(), ShimStop> {
-    caller.data().fence.check().map_err(ShimStop::Trap)
+    let state = caller.data();
+    if Utc::now() > state.profile.expires_at() {
+        return Err(ShimStop::Trap(SandboxError::GrantExpired));
+    }
+    state.fence.check().map_err(ShimStop::Trap)
 }
 
 /// Copy `len` bytes out of guest memory, bounds-checked and capped.

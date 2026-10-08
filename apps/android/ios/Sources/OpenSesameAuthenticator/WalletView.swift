@@ -36,7 +36,11 @@ public struct WalletView: View {
         .task { await model.initialize(appGroup: appGroup, backendURL: backendURL) }
         .onOpenURL { url in
             if url.scheme == "openid-credential-offer" || url.scheme == "haip-vci" {
-                model.launch(offerURI: url.absoluteString)
+                guard let offer = try? validateCredentialOfferSchemeHandoff(
+                    authenticatorOrigin: invocationOrigin,
+                    raw: url.absoluteString
+                ) else { return }
+                model.launch(offerURI: offer)
             } else if url.scheme == "https",
                       let invocation = try? validatePlatformInvocation(
                           authenticatorOrigin: invocationOrigin,

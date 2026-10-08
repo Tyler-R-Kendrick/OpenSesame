@@ -28,6 +28,7 @@ import org.multipaz.provisioning.AuthorizationResponse
 import org.multipaz.provisioning.ProvisioningModel
 import org.multipaz.util.Platform
 import uniffi.opensesame_authenticator_core.InvocationKind
+import uniffi.opensesame_authenticator_core.validateCredentialOfferSchemeHandoff
 import uniffi.opensesame_authenticator_core.validatePlatformInvocation
 
 class MainActivity : FragmentActivity() {
@@ -89,8 +90,11 @@ class MainActivity : FragmentActivity() {
             )
             return
         }
+        val origin = "https://${BuildConfig.INVOCATION_HOST}"
         val offer = when (uri.scheme) {
-            "openid-credential-offer", "haip-vci" -> uri.toString()
+            "openid-credential-offer", "haip-vci" -> runCatching {
+                validateCredentialOfferSchemeHandoff(origin, uri.toString())
+            }.getOrNull() ?: return
             else -> return
         }
         WalletRuntime.provisioningModel.launchOpenID4VCIProvisioning(

@@ -37,6 +37,10 @@ async fn commit(
     authorization: (&HeaderMap, Option<ControlRequest>, &str),
 ) -> Response {
     let (headers, request, transition) = authorization;
+    if let Err(response) = super::stream_authority::ensure_browser_observe_ceiling(st, headers).await
+    {
+        return response;
+    }
     let Ok(claims) = crate::routes::host_authorizations::browser_claims(st, headers) else {
         return refusal(AttachRefusal::StepUpRequired);
     };
