@@ -1,8 +1,10 @@
 mod attach;
 mod bridge;
 mod ceremony;
+mod configs;
 mod dev_run;
 mod dev_surrogate;
+mod doctor;
 mod entry;
 mod github;
 mod hooks;
@@ -15,12 +17,17 @@ mod plugins;
 mod plugins_install;
 mod private_file;
 mod rotate_local;
+mod security;
 mod serve;
 mod session;
 mod store;
+mod tui;
 mod vault_area;
+mod vault_crypto;
 mod vault_file;
 mod vault_migration;
+mod vault_relay_sync;
+mod vault_secret;
 use clap::{Parser, Subcommand, ValueEnum};
 use dev_run::{dev_cmd, DevCmd};
 use init_schema::init_schema;
@@ -60,10 +67,29 @@ enum Commands {
         #[command(subcommand)]
         cmd: rotate_local::RotateCmd,
     },
+    /// Local project-config secrets (sealed store under the config dir).
+    Config {
+        #[command(subcommand)]
+        cmd: configs::ConfigCmd,
+    },
     /// Print native project configuration files.
     ConfigFiles {
         #[arg(long, default_value = ".env.schema")]
         schema: PathBuf,
+    },
+    /// Local health: sealed store, relay bindings, crypto tools.
+    Doctor,
+    /// Local breach checks and sealed-store scan (no Host security API).
+    Security {
+        #[command(subcommand)]
+        cmd: security::SecurityCmd,
+    },
+    /// Browse the local sealed store (names only).
+    Tui {
+        #[arg(long)]
+        path: Option<PathBuf>,
+        #[arg(long)]
+        tomb: Option<String>,
     },
     /// Generate shell completion on stdout.
     Completion {
@@ -509,6 +535,12 @@ async fn real_main() -> anyhow::Result<()> {
             CeremonyCmd::Show { provider } => ceremony::cmd_show(&cli.output, &provider)?,
         },
         Commands::Rotate { cmd } => rotate_local::run(cmd)?,
+        Commands::Config { cmd } => configs::run(&cli.output, cmd)?,
+        Commands::Doctor => doctor::run(&cli.output)?,
+        Commands::Security { cmd } => security::run(&cli.output, cmd).await?,
+        Commands::Tui { path, tomb } => {
+            tui::run(path.as_deref(), tomb.as_deref())?;
+        }
         Commands::ConfigFiles { schema } => {
             println!(
                 "{}",
@@ -553,17 +585,17 @@ pub(crate) fn print_output(output: &str, value: &serde_json::Value) -> anyhow::R
 fn completion_script(shell: CompletionShell) -> &'static str {
     match shell {
         CompletionShell::Bash => {
-            r#"_opensesame() { COMPREPLY=( $(compgen -W 'password-agent session vault ceremony rotate config-files completion init bridge dev relay helpers plugins hooks' -- "${COMP_WORDS[COMP_CWORD]}") ); }
+            r#"_opensesame() { COMPREPLY=( $(compgen -W 'password-agent session vault ceremony rotate config config-files doctor security tui completion init bridge dev relay helpers plugins hooks' -- "${COMP_WORDS[COMP_CWORD]}") ); }
 complete -F _opensesame opensesame
 "#
         }
         CompletionShell::Zsh => {
             r"#compdef opensesame
-_arguments '1:command:(password-agent session vault ceremony rotate config-files completion init bridge dev relay helpers plugins hooks)'
+_arguments '1:command:(password-agent session vault ceremony rotate config config-files doctor security tui completion init bridge dev relay helpers plugins hooks)'
 "
         }
         CompletionShell::Fish => {
-            r"complete -c opensesame -f -n '__fish_use_subcommand' -a 'password-agent session vault ceremony rotate config-files completion init bridge dev relay helpers plugins hooks'
+            r"complete -c opensesame -f -n '__fish_use_subcommand' -a 'password-agent session vault ceremony rotate config config-files doctor security tui completion init bridge dev relay helpers plugins hooks'
 "
         }
     }

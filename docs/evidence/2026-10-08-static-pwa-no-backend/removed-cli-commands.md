@@ -1,90 +1,54 @@
-# Removed `opensesame` CLI commands (2026-10-08)
+# `opensesame` CLI command map (2026-10-08)
 
-The native binary no longer speaks to Host API (`:8787`), Identity API (`:8788`), or the local daemon HTTP agent (`:18790`). Only local sealed-store work, P2P/relay, bridges, plugins, dev env-spec, hooks intercept, and helper entry points remain.
+Host API (`:8787`), Identity API (`:8788`), and the local daemon HTTP agent (`:18790`) are gone from this binary. Global `--server` / `OPENSESAME_HOST_API` are removed.
 
-Global `--server` / `OPENSESAME_HOST_API` were removed; nothing in this binary calls those bases anymore.
+## Kept (unchanged local / relay / P2P)
 
-## Top-level verbs removed
+| Verb / path | Role |
+|-------------|------|
+| `relay run` | Optional vault-relay peer (ADR 0181) |
+| `vault pass …` | Git-native sealed password store (`pass` parity) |
+| `vault verify` / `ls` / `inspect` / `migrate` | Pages vault export / offline backup file |
+| `ceremony list` / `show` | Compiled connector ceremony catalog |
+| `rotate recipe sign`, `rotate signer keygen` | Local Ed25519 web-login recipe signing |
+| `bridge …` | Password-manager bridges (feature-gated, ADR 0053) |
+| `plugins …` | Runtime plugin install / enable (ADR 0150) |
+| `hooks intercept` / `check` | Agent-hooks interceptor (ADR 0159) |
+| `dev check` / `resolve` / `run` | `@env-spec` delivery (ADR 0006) |
+| `password-agent` | 1Password helper workflows |
+| `session` | Interactive first-run / setup ceremony |
+| `helpers …` | Credential helper entry points |
+| `config-files`, `init`, `completion` | Native `.env.schema` / shell completion |
 
-| Verb | Why |
-|------|-----|
-| `login` | Device/OIDC login against Host `/api/v1/device/*` |
-| `logout` | Cleared Host session file only meaningful with login |
-| `doctor` | Host OAuth protected-resource and authority health probes |
-| `access` | Entire Host-backed grants, connectors, resources tree |
-| `identity` | Host session status, whoami, providers |
-| `config` | Host project-config secret store (`PUT …/secrets`) |
-| `tui` | Host provider/connection browser over HTTP |
-| `security` | Host breach findings, scan, and check APIs |
-| `host run` | Replaced by relay-only gateway role elsewhere |
-| `daemon run` / `daemon status` / `daemon logs` / `daemon start` / `daemon stop` | Local daemon HTTP API removed from CLI |
-| `daemon tailnet …` | Tailnet admin routes on daemon |
-| `daemon drive` / `daemon fill` / `daemon toolbar` | Daemon operator HTTP tools |
+## Rewired (local-only; no Host / Identity / daemon HTTP)
 
-## Nested verbs removed (formerly under `access`)
+| Verb / path | Was | Now |
+|-------------|-----|-----|
+| `doctor` | Host OAuth PRM + `/health/authority` | Sealed-store path health, optional `OPENSESAME_SERVICE_BINDINGS_FILE` relay binding validation, `age`/`gpg` on `PATH` |
+| `config …` | Host project-config `PUT …/secrets` | Per-slug sealed store under `~/.config/opensesame/project-config/{slug}/` (`ls`, `keys`, `set`, `unset`, `import`) |
+| `tui` | Host provider + connection browser | Ratatui browser over local sealed-store entry **names** only (`--path` / `--tomb`) |
+| `security findings` | Host breach ledger | Local `breach-findings.json` from the last scan |
+| `security scan` | Host `/api/v1/security/breach-scan` | Unlock local sealed store; k-anonymity check each entry via Pwned Passwords (no Host) |
+| `security check` | Host `/api/v1/security/breach-check` | Hidden stdin/prompt → Pwned Passwords range API only |
+| `vault secret get` / `list` | Host connection provider reads | Same as `vault pass show` / `ls` on the sealed store (human `--reveal` gate) |
+| `vault sync push` / `pull` | Host `/api/v1/sync/*` E2EE blobs | PUT/GET sealed snapshot JSON on a vault-relay peer (`--base-url`, `--owner`, `--slug`, `--slot-key`, ADR 0181) |
+| `vault crypto encrypt` / `decrypt` | Host connection crypto transform | Local `age` / cloud KMS CLIs via `opensesame-connector-host` plans (`--provider`, `--recipient` / `--identity`, …) |
 
-| Path | Why |
-|------|-----|
-| `access grants local-authority` | Host operator pair/launch ceremonies |
-| `access grants lease` | Host connection lease acquire/revoke |
-| `access grants task` | Host task-scoped authority |
-| `access grants intent` | Host frozen intent create/invoke |
-| `access sessions receipt verify` | Host receipt verification |
-| `access connectors connect` | Host connector registration browser flow |
-| `access connectors connection` | Host connection CRUD and rotate |
-| `access connectors export` / `import` | Host connection portability |
-| `access connectors rotate runs` / `watch` / `attach` / `hooks` | Host web-login run observation |
-| `access connectors rotate recipe ls` / `get` / `put` / `rm` / `canary` | Host-held recipe store |
-| `access connectors rotate signer ls` / `add` / `rm` | Host signer pin list |
-| `access resources invoke` | Host ConnectionRef invoke |
-| `access resources cert` | Host-managed TLS CA/issue/list/key |
-| `access resources lifecycle` | Host expiry hooks and deliveries |
+`vault pass attach sync --to-dir` remains directory replication only (no Host attachment target).
 
-`access connectors ceremony` moved to top-level `ceremony`.
+## Removed (with reason)
 
-Local parts of rotate moved to top-level `rotate recipe sign` and `rotate signer keygen` only.
+| Verb / path | Reason |
+|-------------|--------|
+| `login` | Device/OIDC and Host session minting; no local principal without Identity/Host |
+| `logout` | Cleared Host session file only meaningful with `login` |
+| `identity …` | Host session status, whoami, provider catalog — no local session plane |
+| `access …` | Host-backed grants, connectors, resources, invoke, certs, lifecycle |
+| `host run` | Full Host API removed; use `relay run` for ADR 0181 peer only |
+| `daemon …` | Local daemon HTTP agent (`:18790`) and tailnet admin routes removed from CLI |
+| `hooks policy` / `decisions` / `approver …` | Organization policy on Host |
+| `config create` / `branch` / `diff` / `history` / `rollback` | Host config versioning API; local `config` keeps ls/keys/set/unset/import only |
+| `vault sync rebind-legacy` | Host E2EE migration against Host SQLite sync DB |
+| `tui` (old data source) | Provider/connection lists required Host `/api/v1/*` |
 
-## Nested verbs removed (formerly under `identity`)
-
-| Path | Why |
-|------|-----|
-| `identity status` | Host `/health/ready` + local session |
-| `identity whoami` | Host `/api/v1/whoami` |
-| `identity auth doctor` | Same as top-level `doctor` |
-| `identity providers list` / `test` | Host provider catalog |
-
-Legacy aliases `status`, `whoami`, `auth`, `provider` no longer rewrite.
-
-## Nested verbs removed (formerly under `vault`)
-
-| Path | Why |
-|------|-----|
-| `vault secret get` / `list` | Host connection provider reads |
-| `vault sync push` / `pull` / `migrate` | Host E2EE sync blobs |
-| `vault crypto encrypt` / `decrypt` | Host connection crypto transform |
-
-`vault pass attach sync` without `--to-dir` (Host attachment replicate) removed; `--to-dir` local copy remains.
-
-## Hooks (Host-backed) removed
-
-| Path | Why |
-|------|-----|
-| `hooks policy get` / `put` / `preset` | Organization policy on Host |
-| `hooks decisions` | Host interceptor audit feed |
-| `hooks approver get` / `put` | Host approver configuration |
-
-`hooks intercept` and `hooks check` remain local.
-
-## Kept (local / relay / P2P)
-
-- `relay run` — vault-relay peer only
-- `vault` — verify/ls/inspect/migrate and full `pass` tree (sealed store)
-- `ceremony list` / `show` — compiled catalog
-- `rotate recipe sign`, `rotate signer keygen` — local Ed25519 signing
-- `bridge` — password-manager bridges (feature-gated)
-- `plugins` — install/enable/pair files locally (`pair`/`unpair` write pairing records, no daemon HTTP)
-- `hooks intercept` / `check`
-- `dev check` / `resolve` / `run`
-- `password-agent`
-- `session` (interactive first-run)
-- `helpers`, `config-files`, `init`, `completion`
+Legacy top-level aliases `status`, `whoami`, `auth`, `provider` stay removed.

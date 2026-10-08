@@ -28,6 +28,21 @@ pub(crate) enum VaultArea {
         #[command(subcommand)]
         cmd: super::PassCmd,
     },
+    /// Read secrets from the local sealed store (human-only).
+    Secret {
+        #[command(subcommand)]
+        cmd: crate::vault_secret::SecretCmd,
+    },
+    /// Push or pull sealed snapshots on an optional vault-relay peer.
+    Sync {
+        #[command(subcommand)]
+        cmd: crate::vault_relay_sync::SyncCmd,
+    },
+    /// Encrypt or decrypt files with local tooling (`age`, …).
+    Crypto {
+        #[command(subcommand)]
+        cmd: crate::vault_crypto::CryptoCmd,
+    },
 }
 
 pub(crate) async fn run(output: &str, cmd: VaultArea) -> anyhow::Result<()> {
@@ -46,6 +61,9 @@ pub(crate) async fn run(output: &str, cmd: VaultArea) -> anyhow::Result<()> {
             passes,
         } => crate::vault_migration::migrate(&input, &output, memory_kib, passes)?,
         VaultArea::Pass { cmd } => run_pass(cmd).await?,
+        VaultArea::Secret { cmd } => crate::vault_secret::run(cmd)?,
+        VaultArea::Sync { cmd } => crate::vault_relay_sync::run(cmd).await?,
+        VaultArea::Crypto { cmd } => crate::vault_crypto::run(cmd)?,
     }
     Ok(())
 }

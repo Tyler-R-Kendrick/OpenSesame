@@ -6,7 +6,7 @@
 #![allow(clippy::result_large_err)]
 
 mod config;
-mod vault_relay;
+pub mod vault_relay;
 
 pub use config::Args;
 

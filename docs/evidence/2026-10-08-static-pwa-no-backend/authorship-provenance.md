@@ -20,3 +20,8 @@
 
 Tyler requested honest attribution: Grok did not finish; Cursor Agent carried
 the deletion and documentation forward after the 402.
+
+## Follow-up (CLI rewire + checklist) — 2026-10-08
+
+- **Grok Build:** attempted again → HTTP **402** (usage balance exhausted). Log: `/tmp/grok-cli-rewire-attempt.log`.
+- **Cursor Cloud Agent:** rewired `doctor`, `config`, `tui`, `security`, and `vault secret|sync|crypto` to local sealed-store / breach-intel / vault-relay paths; updated `removed-cli-commands.md` and `apps/cli/tests/local_rewired_verbs.rs`.
