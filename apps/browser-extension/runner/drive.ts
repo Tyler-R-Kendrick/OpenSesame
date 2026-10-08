@@ -131,6 +131,10 @@ export async function driveRun(
   for (;;) {
     // Read fresh before every claim: a person may have asked for the page.
     const current = await link.host.getRun(run.id);
+    if (current.id !== run.id || current.origin !== run.origin) {
+      report.skipped.push({ runId: run.id, reason: "origin_refused" });
+      return;
+    }
     const reason = await skipReason(env.deps, current, env.now());
     if (reason !== null) {
       report.skipped.push({ runId: run.id, reason });
