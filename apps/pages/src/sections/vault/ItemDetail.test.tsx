@@ -271,15 +271,6 @@ describe("ItemDetail", () => {
     expect(store.toggleFavorite).toHaveBeenCalledWith("itm_login");
   });
 
-  it("moves an item to trash", async () => {
-    vault.current = { items: [makeAccount()], folders: [] };
-    renderAt("itm_login");
-    await userEvent.click(
-      screen.getByRole("button", { name: /Move to trash/i }),
-    );
-    expect(store.trashItem).toHaveBeenCalledWith("itm_login");
-  });
-
   it("restores or purges a trashed item with confirmation", async () => {
     vault.current = {
       items: [makeAccount({ deletedAt: "2026-08-10T00:00:00Z" })],

@@ -18,7 +18,7 @@
   "totals": {
     "files": 426,
     "violations": 659,
-    "oversizedLines": 215950
+    "oversizedLines": 215937
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -105,7 +105,7 @@
     },
     "apps/pages/src/screens/UnlockScreen.tsx": {
       "complexity": 1,
-      "max-lines": 841,
+      "max-lines": 840,
       "max-lines-per-function": 1,
       "max-statements": 1
     },
@@ -148,7 +148,7 @@
       "complexity": 1
     },
     "apps/pages/src/sections/VaultSection.test.tsx": {
-      "max-lines": 678
+      "max-lines": 677
     },
     "apps/pages/src/sections/VaultSection.tsx": {
       "max-lines-per-function": 1
@@ -201,7 +201,7 @@
       "max-lines-per-function": 1
     },
     "apps/pages/src/sections/vault/ItemDetail.test.tsx": {
-      "max-lines": 596
+      "max-lines": 587
     },
     "apps/pages/src/sections/vault/ItemDetail.tsx": {
       "max-lines-per-function": 1
@@ -705,7 +705,7 @@
       "max-lines": 1599
     },
     "packages/app-core/src/lib/vault/unlock-methods.ts": {
-      "max-lines": 577
+      "max-lines": 575
     },
     "packages/app-core/src/lib/vfs.ts": {
       "max-lines": 441

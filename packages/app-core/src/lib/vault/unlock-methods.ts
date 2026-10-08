@@ -62,8 +62,9 @@ export {
 const IV_BYTES = 12;
 const PRF_INFO = new TextEncoder().encode("opensesame/vault/webauthn-prf/v1");
 
+import * as pinDigits from "./pin-digits.js";
 export const MIN_PIN_LENGTH = 8;
-export const MAX_PIN_LENGTH = 12;
+export const MAX_PIN_LENGTH = pinDigits.MAX_PIN_LENGTH;
 /** PIN wraps use at least the password floor; extra iterations raise offline cost. */
 export const PIN_PBKDF2_ITERATIONS = 1_200_000;
 
@@ -77,10 +78,7 @@ export type {
   VaultUnlocks,
 } from "@opensesame/vault-core";
 
-/**
- * Passkey wraps present on a header. A legacy lone `passkey` migrates to a
- * one-element list; when both exist, `passkey` is prepended if its id is new.
- */
+/** Passkey wraps on a header. A legacy lone `passkey` is prepended when its id is new. */
 export function listPasskeyUnlockRecords(
   unlocks: VaultUnlocks | null | undefined,
 ): PasskeyUnlockRecord[] {
@@ -202,8 +200,8 @@ export function pinPolicyProblems(pin: string): string[] {
   }
   if (
     normalized.length > 1 &&
-    ("01234567890123456789".includes(normalized) ||
-      "98765432109876543210".includes(normalized))
+    (pinDigits.ASCENDING_DIGITS.includes(normalized) ||
+      pinDigits.DESCENDING_DIGITS.includes(normalized))
   ) {
     problems.push("PIN cannot be a sequential run of digits.");
   }

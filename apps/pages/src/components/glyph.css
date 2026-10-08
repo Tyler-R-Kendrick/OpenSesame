@@ -73,6 +73,14 @@
   display: inline-flex;
   align-items: center;
   gap: 0.75rem;
+  /* The segment's 7.5rem cap was the name's. With a glyph in the same box
+     the name ellipsised away. The name keeps the cap; the glyph does not
+     spend it. */
+  max-width: none;
+}
+
+.rail .rail__prompt .prompt__seg--glyph .prompt__name {
+  max-width: 7.5rem;
 }
 
 /* The separator sits a little off the name before it, and the lock key a

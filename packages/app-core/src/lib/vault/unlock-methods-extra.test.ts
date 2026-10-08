@@ -48,7 +48,7 @@ describe("pinPolicyProblems", () => {
     expect(pinPolicyProblems("13579246")).toEqual([]);
     // Short and sequential: both named, length first.
     expect(pinPolicyProblems("1234")).toEqual([
-      "PIN must be 8–12 characters.",
+      `PIN must be ${MIN_PIN_LENGTH}–${MAX_PIN_LENGTH} characters.`,
       "PIN cannot be a sequential run of digits.",
     ]);
     expect(pinPolicyProblems("4829 1037")).toEqual([
@@ -67,7 +67,9 @@ describe("pinPolicyProblems", () => {
 
   it("lists length first so the store throws the same messages as before", () => {
     expect(pinPolicyProblems("11").length).toBeGreaterThan(0);
-    expect(pinPolicyProblems("11")[0]).toBe("PIN must be 8–12 characters.");
+    expect(pinPolicyProblems("11")[0]).toBe(
+      `PIN must be ${MIN_PIN_LENGTH}–${MAX_PIN_LENGTH} characters.`,
+    );
     expect(() => assertPinPolicy("11111111")).toThrow(/repeated character/);
   });
 });
@@ -80,12 +82,27 @@ describe("assertPinPolicy", () => {
     ).not.toThrow();
   });
 
+  it("allows a PIN past the old 12-character cap and still refuses a longer run", () => {
+    expect(MAX_PIN_LENGTH).toBe(64);
+    const pastTwelve = "a1b2c3d4e5f6g7";
+    expect(pastTwelve.length).toBeGreaterThan(12);
+    expect(pinPolicyProblems(pastTwelve)).toEqual([]);
+    expect(pinPolicyProblems("1234567890123")).toEqual([
+      "PIN cannot be a sequential run of digits.",
+    ]);
+    const fullRun = `${"0123456789".repeat(6)}0123`;
+    expect(fullRun).toHaveLength(MAX_PIN_LENGTH);
+    expect(pinPolicyProblems(fullRun)).toEqual([
+      "PIN cannot be a sequential run of digits.",
+    ]);
+  });
+
   it("rejects PINs outside the length window", () => {
     expect(() => assertPinPolicy("x".repeat(MIN_PIN_LENGTH - 1))).toThrow(
-      /8–12 characters/,
+      /8–64 characters/,
     );
     expect(() => assertPinPolicy("x".repeat(MAX_PIN_LENGTH + 1))).toThrow(
-      /8–12 characters/,
+      /8–64 characters/,
     );
   });
 

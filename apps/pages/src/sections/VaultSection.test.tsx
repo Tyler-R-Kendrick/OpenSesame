@@ -116,12 +116,7 @@ function cursorRow(): HTMLElement {
   return row;
 }
 
-/**
- * Passkey, drop and certificate records are `item-kind` contributions from
- * the capabilities that own them (SURFACE-08), so the type picker and the
- * `?f=` filters only offer them while those capabilities are in the plan.
- * This suite registers the same kinds their runtimes do.
- */
+/** Registers the item kinds this suite's filters name (SURFACE-08). */
 let revokeItemKinds: () => void;
 
 describe("VaultSection", () => {
@@ -431,6 +426,8 @@ describe("VaultSection", () => {
     press(handler, "x");
 
     expect(store.toggleFavorite).toHaveBeenCalledWith(item.id);
+    expect(store.trashItem).not.toHaveBeenCalled();
+    press(handler, "x");
     expect(store.trashItem).toHaveBeenCalledWith(item.id);
   });
 
@@ -442,6 +439,11 @@ describe("VaultSection", () => {
       screen.getByRole("button", { name: "Actions for Webmail" }),
     );
     fireEvent.click(screen.getByRole("menuitem", { name: "Trash" }));
+    expect(store.trashItem).not.toHaveBeenCalled();
+    expect(screen.getByRole("menu")).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "Really move to trash?" }),
+    );
     expect(store.trashItem).toHaveBeenCalledWith(item.id);
     expect(screen.queryByRole("menu")).toBeNull();
   });
@@ -567,10 +569,7 @@ describe("VaultWelcome", () => {
   });
 });
 
-/**
- * Stands in for the buffer: says how the route was reached and offers the
- * browser's own Back, so a test can arrive the way a person does.
- */
+/** Stands in for the buffer and offers Back, so a test can arrive as a person does. */
 function DetailProbe() {
   const navigate = useNavigate();
   const location = useLocation();

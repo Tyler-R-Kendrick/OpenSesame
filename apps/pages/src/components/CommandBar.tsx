@@ -1,6 +1,7 @@
 import { executeCommand } from "@opensesame/app-core/lib/command-bar/execute.js";
 import { readCommand } from "@opensesame/app-core/lib/command-bar/parse.js";
 import type { SlashSuggestion } from "@opensesame/app-core/lib/command-bar/slash.js";
+import { listedItems } from "@opensesame/vault-core";
 import { type FormEvent, useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useContributions } from "../bindings/contributions.js";
@@ -32,7 +33,9 @@ function useCommandRunner() {
 
   const names = useMemo(
     () =>
-      items.filter((item) => item.deletedAt === null).map((item) => item.name),
+      listedItems(items)
+        .filter((item) => item.deletedAt === null)
+        .map((item) => item.name),
     [items],
   );
 
