@@ -256,6 +256,11 @@ export const SHELL_RULES = [
     "setup connectors tab",
   ),
   optional(
+    "src/screens/setup/steps/StorageStep",
+    "connectors.external",
+    "setup storage tab (the S3-compatible bucket)",
+  ),
+  optional(
     "src/screens/setup/steps/AiStep",
     "support.local-ai",
     "setup AI tab; MIXED — remote",

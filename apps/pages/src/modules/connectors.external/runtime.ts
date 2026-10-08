@@ -60,6 +60,7 @@ import {
   savedPasswordManagerOperation,
 } from "../../lib/local-connector-features.js";
 import { ConnectorsStep } from "../../screens/setup/steps/ConnectorsStep.js";
+import { StorageStep } from "../../screens/setup/steps/StorageStep.js";
 import { ConnectionsSection } from "../../sections/ConnectionsSection.js";
 import {
   connectorMarkLookup,
@@ -181,6 +182,15 @@ export const capabilityRuntime: CapabilityRuntime = {
       rail: "Connectors",
       Panel: ConnectorsStep,
       order: 10,
+    });
+    // Where the vault lives: the S3-compatible bucket, the same form as
+    // Settings › Capabilities › Local storage (ADR 0182).
+    activation.register("setup-panel", {
+      id: "storage",
+      tab: "storage",
+      rail: "Storage",
+      Panel: StorageStep,
+      order: 15,
     });
     activation.register("command-path", {
       path: "/connections",
