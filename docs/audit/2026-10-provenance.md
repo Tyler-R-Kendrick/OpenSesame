@@ -197,5 +197,5 @@ After that point, commits labeled Grok were not live Grok. Retried once via
 | `1f5d4f6c` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs(audit): provenance for static-PWA stack after Grok 402 |
 | `77823a46` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | fix(pages): stop stamping Identity/Host/daemon into the static app |
 | `34eb310a` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | docs(audit): P3 is static Pages with no default services |
-| *(pending)* | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | remove Settings › Endpoints; operator docs; ADR 0090 |
+| `3bf9550d` | Cursor Agent `<cursoragent@cursor.com>` | `cursor_agent` | remove Settings › Endpoints; operator docs; ADR 0090 |
 
