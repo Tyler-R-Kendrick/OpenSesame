@@ -245,13 +245,12 @@ function trustedDirectory(directory: string): boolean {
 }
 
 function cwdUnderDirectory(cwd: string, directory: string): boolean {
-  const prefix =
-    process.platform === "win32"
-      ? `${directory.toLowerCase()}${sep}`
-      : `${directory}${sep}`;
-  const normalized =
-    process.platform === "win32" ? cwd.toLowerCase() : cwd;
-  return normalized === directory || normalized.startsWith(prefix);
+  if (process.platform === "win32") {
+    const normalized = cwd.toLowerCase();
+    const root = directory.toLowerCase();
+    return normalized === root || normalized.startsWith(`${root}${sep}`);
+  }
+  return cwd === directory || cwd.startsWith(`${directory}${sep}`);
 }
 
 function worldWritableWithoutStickyBit(directory: string): boolean {
