@@ -19,7 +19,6 @@ import {
   type VaultHeader,
   type VaultUnlocks,
   WrongPasswordError,
-  assertKdfParams,
   b64ToBytes,
   bytesToB64,
   parseTotp,
