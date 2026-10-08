@@ -12,6 +12,7 @@ import type { VaultState } from "@opensesame/app-core/lib/vault/store-state.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import type { EffectivePlan } from "@opensesame/capability-composition";
 import { fakeAgentAlwaysUnavailable } from "@opensesame/support-agent";
+import type { RecoveryCodesRecord, VaultHeader } from "@opensesame/vault-core";
 import { within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -105,16 +106,22 @@ describe("help questions follow the installed plan", () => {
   it("lists recovery codes once this vault has made them", async () => {
     showPlan(minimal);
     const snapshot = vaultStore.getSnapshot();
+    const header: VaultHeader = snapshot.header ?? {
+      v: 1,
+      createdAt: "2026-10-08T00:00:00.000Z",
+    };
+    const recovery = {
+      codesWrap: { ivB64: "aXY=", ctB64: "Y3Q=" },
+      total: 1,
+      since: "2026-10-08T00:00:00.000Z",
+    } satisfies RecoveryCodesRecord;
     vi.spyOn(vaultStore, "getSnapshot").mockReturnValue({
       ...snapshot,
       header: {
-        ...snapshot.header,
-        unlocks: {
-          ...snapshot.header?.unlocks,
-          recovery: { unused: 1 },
-        },
+        ...header,
+        unlocks: { ...header.unlocks, recovery },
       },
-    } as VaultState);
+    } satisfies VaultState);
     const listed = await titles("/vault");
     expect(listed).toContain("Save the recovery codes");
   });
