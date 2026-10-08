@@ -1,12 +1,13 @@
 import { defineConfig } from "deepsec/config";
+import { cursorAgentPlugin } from "./cursor-agent-plugin.js";
 import { generatedMatchersPlugin } from "./generated-matchers.js";
 import { grokAgentPlugin } from "./grok-agent-plugin.js";
 
 /**
  * Default AI route (unchanged for `pnpm audit:deepsec` / DEEPSEC_PROCESS=1):
- * Pi + Vercel AI Gateway. Grok Build scans use the `grok` agent plugin for
- * `process`, `revalidate`, and triage (see `scripts/audit/deepsec-grok-scan.sh`);
- * subscription auth only (`XAI_API_KEY` unset).
+ * Pi + Vercel AI Gateway. Rescans use the `cursor` agent (Cursor CLI + grok-4.7)
+ * when available, else `grok` (Grok Build). See `scripts/audit/deepsec-grok-scan.sh`.
+ * Subscription auth only — `XAI_API_KEY` and gateway billing stay unset.
  */
 export default defineConfig({
   defaultThinkingLevel: "medium", // <deepsec:default-thinking-level>
@@ -42,5 +43,5 @@ export default defineConfig({
         "auth/session handling, crypto and at-rest storage, and CLI paths that could print secrets to logs.",
     },
   ],
-  plugins: [generatedMatchersPlugin, grokAgentPlugin],
+  plugins: [generatedMatchersPlugin, cursorAgentPlugin, grokAgentPlugin],
 });

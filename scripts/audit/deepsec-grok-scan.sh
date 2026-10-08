@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Run a deepsec scan + Grok Build CLI investigation (subscription, not XAI_API_KEY).
-# Usage: scripts/audit/deepsec-grok-scan.sh [process|revalidate|export|all]
+# Run a deepsec scan + headless AI investigation (Cursor CLI preferred, else Grok Build).
+# No XAI_API_KEY / AI Gateway pay-per-use. Usage: deepsec-grok-scan.sh [phase]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 WS="${ROOT}/.deepsec"
 PROJECT_ID=opensesame
 MODEL="${DEEPSEC_GROK_MODEL:-grok-4.7}"
+AGENT="${DEEPSEC_AGENT:-}"
 PHASE="${1:-all}"
 
 cd "$ROOT"
@@ -17,6 +18,41 @@ if [[ ! -d "$WS/node_modules/deepsec" ]]; then
 fi
 
 DEEPSEC="${WS}/node_modules/.bin/deepsec"
+
+pick_agent() {
+  if [[ -n "$AGENT" ]]; then
+    echo "$AGENT"
+    return 0
+  fi
+  if command -v cursor-agent >/dev/null 2>&1; then
+    echo "cursor"
+    return 0
+  fi
+  if command -v grok >/dev/null 2>&1; then
+    echo "grok"
+    return 0
+  fi
+  echo "deepsec-grok-scan: neither cursor-agent nor grok on PATH" >&2
+  return 1
+}
+
+cursor_auth_check() {
+  if ! command -v cursor-agent >/dev/null 2>&1; then
+    return 1
+  fi
+  local probe
+  probe="$(cursor-agent -p "reply OK" --model "$MODEL" --print --force 2>&1 || true)"
+  if echo "$probe" | grep -qiE 'not (authenticated|logged in)|login required'; then
+    echo "deepsec-grok-scan: cursor-agent is not signed in." >&2
+    echo "  Install Cursor CLI and run cursor-agent login on this machine." >&2
+    return 1
+  fi
+  if [[ -z "${probe// }" ]]; then
+    echo "deepsec-grok-scan: cursor-agent returned empty probe (check install/auth)." >&2
+    return 1
+  fi
+  return 0
+}
 
 grok_auth_check() {
   if ! command -v grok >/dev/null 2>&1; then
@@ -34,6 +70,18 @@ grok_auth_check() {
   return 0
 }
 
+ai_auth_check() {
+  AGENT="$(pick_agent)" || return 1
+  case "$AGENT" in
+    cursor) cursor_auth_check ;;
+    grok) grok_auth_check ;;
+    *)
+      echo "deepsec-grok-scan: unknown DEEPSEC_AGENT=$AGENT (use cursor or grok)" >&2
+      return 1
+      ;;
+  esac
+}
+
 # Area prefixes (relative to repo root) for --filter
 export DEEPSEC_AREA_CORE="crates/core/,crates/client-core/,crates/host-core/,packages/app-core/,packages/vault-core/"
 export DEEPSEC_AREA_PWA="apps/pages/"
@@ -48,7 +96,7 @@ run_process_area() {
   local name="$1"
   local filter="$2"
   local limit="${3:-}"
-  echo "==> deepsec process --agent grok --model $MODEL --filter $filter ${limit:+--limit $limit}"
+  echo "==> deepsec process --agent $AGENT --model $MODEL --filter $filter ${limit:+--limit $limit}"
   local limit_args=()
   if [[ -n "$limit" ]]; then
     limit_args=(--limit "$limit")
@@ -57,7 +105,7 @@ run_process_area() {
     cd "$WS"
     unset XAI_API_KEY GROK_DEPLOYMENT_KEY
     "$DEEPSEC" process --project-id "$PROJECT_ID" \
-      --agent grok \
+      --agent "$AGENT" \
       --model "$MODEL" \
       --thinking-level "${DEEPSEC_THINKING:-high}" \
       --concurrency "${DEEPSEC_CONCURRENCY:-1}" \
@@ -67,12 +115,12 @@ run_process_area() {
 }
 
 run_revalidate() {
-  echo "==> deepsec revalidate --agent grok --model $MODEL"
+  echo "==> deepsec revalidate --agent $AGENT --model $MODEL"
   (
     cd "$WS"
     unset XAI_API_KEY GROK_DEPLOYMENT_KEY
     "$DEEPSEC" revalidate --project-id "$PROJECT_ID" \
-      --agent grok \
+      --agent "$AGENT" \
       --model "$MODEL" \
       --thinking-level "${DEEPSEC_THINKING:-high}" \
       --concurrency "${DEEPSEC_CONCURRENCY:-1}"
@@ -100,7 +148,7 @@ case "$PHASE" in
     run_scan
     ;;
   process)
-    grok_auth_check
+    ai_auth_check
     run_process_area core "crates/core/" "${DEEPSEC_LIMIT:-}"
     run_process_area core-client "crates/client-core/" "${DEEPSEC_LIMIT:-}"
     run_process_area core-host "crates/host-core/" "${DEEPSEC_LIMIT:-}"
@@ -111,7 +159,7 @@ case "$PHASE" in
     run_process_area cli-ts "packages/cli/" "${DEEPSEC_LIMIT:-}"
     ;;
   revalidate)
-    grok_auth_check
+    ai_auth_check
     run_revalidate
     ;;
   triage)
@@ -122,7 +170,7 @@ case "$PHASE" in
     ;;
   all)
     run_scan
-    if grok_auth_check; then
+    if ai_auth_check; then
       export DEEPSEC_LIMIT="${DEEPSEC_LIMIT:-0}"
       if [[ "$DEEPSEC_LIMIT" == "0" ]]; then
         echo "==> DEEPSEC_LIMIT unset or 0: skipping AI process (set DEEPSEC_LIMIT to investigate pending files)"
@@ -133,7 +181,7 @@ case "$PHASE" in
         run_export
       fi
     else
-      echo "==> Skipping grok process/revalidate until subscription login completes."
+      echo "==> Skipping AI process/revalidate until cursor-agent or Grok Build login completes."
       exit 2
     fi
     ;;
