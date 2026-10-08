@@ -1,4 +1,7 @@
-import { MAX_PBKDF2_ITERATIONS, VaultCorruptError } from "@opensesame/vault-core";
+import {
+  MAX_PBKDF2_ITERATIONS,
+  VaultCorruptError,
+} from "@opensesame/vault-core";
 import { describe, expect, it } from "vitest";
 import {
   PIN_PBKDF2_ITERATIONS,

@@ -4,9 +4,9 @@
  */
 
 import {
+  type KdfParams,
   MAX_PBKDF2_ITERATIONS,
   VaultCorruptError,
-  type KdfParams,
   assertKdfParams,
 } from "@opensesame/vault-core";
 
