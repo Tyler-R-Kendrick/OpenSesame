@@ -3,11 +3,12 @@
   "repo": "OpenSesame",
   "target": "/workspace",
   "source_ref": {
-    "commit": "9b2192c61e64f4c0eed0c8257b63c9b39a81fd56",
+    "commit": "d1ce497fbc40e5c8ea4756674d08d74b116cdaae",
     "branch": "cursor/cf-audit-run-6-artifacts-d641",
     "worktree": "clean",
-    "prior_run_5_commit": "9b2192c61e64f4c0eed0c8257b63c9b39a81fd56"
+    "audited_product_commit": "d1ce497fbc40e5c8ea4756674d08d74b116cdaae"
   },
+  "prior_run_5_commit": "98cb20e1",
   "profile": "standard",
   "scope_paths": [
     "apps",
