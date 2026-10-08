@@ -651,12 +651,17 @@ organizationRoutes.post(
       return c.json({ error: attached.error, message: attached.message }, 409);
     }
 
+    // Verified-email auto-link (ADR 0057 D15) can store the new identity on a
+    // different principal than the caller. Membership follows that owner, the
+    // same way hosted SSO, LDAP, and SAML do. The caller is not made a member
+    // and their session stays the provisional principal they presented.
+    const memberPrincipalId = attached.identity.principalId;
     // A subject the directory provisioned into a role joins at that role, not
     // at `member` (C15) — the same answer this tenant's hosted sign-in gives.
     const role = await provisionedRoleForSubject(ctx, org.id, assertion.sub);
     const joined = await jitJoinOrganization(ctx, {
       organization: org,
-      principalId,
+      principalId: memberPrincipalId,
       subject: assertion.sub,
       method: parsed.data.method,
       correlationId: c.get("correlationId"),
@@ -664,6 +669,16 @@ organizationRoutes.post(
     });
     if (!joined.ok) {
       return c.json({ error: joined.error, message: joined.message }, 403);
+    }
+    if (memberPrincipalId !== principalId) {
+      return c.json(
+        {
+          error: "identity_collision",
+          message:
+            "External identity already bound to another principal; merge requires dual authentication",
+        },
+        409,
+      );
     }
     return joined.created
       ? c.json(toResponse(org, joined.membership.role), 201)
