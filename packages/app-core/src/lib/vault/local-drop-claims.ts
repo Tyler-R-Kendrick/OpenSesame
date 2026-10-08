@@ -323,12 +323,19 @@ export async function presentLocalDropClaim(
     );
   }
   if (!timingSafeEqual(codeDigest, record.userCodeDigest)) {
+    const attempts = record.attempts + 1;
     persist({
       ...record,
-      attempts: record.attempts + 1,
+      attempts,
       version: record.version + 1,
     });
-    throw refuse("invalid_user_code", "That code does not match this drop.");
+    const triesLeft = MAX_ATTEMPTS - attempts;
+    throw refuse(
+      "invalid_user_code",
+      `That code does not match this drop. ${triesLeft} ${
+        triesLeft === 1 ? "try" : "tries"
+      } left.`,
+    );
   }
   const targetManifest = structuredClone(record.targetManifest);
   persist({
