@@ -136,7 +136,6 @@ describe("a joiner's name and note", () => {
       name: "gnorw Ada",
       note: "hi",
     });
-    // A name of nothing but invisible characters still gets a request out.
     const blank = new LiveGuest({
       link: host.link,
       code: null,
@@ -145,7 +144,7 @@ describe("a joiner's name and note", () => {
       ice: DIRECT_ONLY,
       peers: net.factory(),
     });
-    expect((await host.receive(await blank.start())).kind).toBe("guest");
+    await expect(blank.start()).rejects.toThrow("join_name_required");
     host.end();
     guest.leave();
     blank.leave();

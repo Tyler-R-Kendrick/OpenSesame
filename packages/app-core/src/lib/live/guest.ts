@@ -131,9 +131,11 @@ export class LiveGuest {
       },
     );
     // The owner reads these cleaned (`readJoinRequest`); say the same here.
+    const cleanedName = cleanText(name);
+    if (!cleanedName) throw new Error("join_name_required");
     const request = await makeRequestCode(link, code, keys, {
       id: this.#id,
-      name: cleanText(name) || "Guest",
+      name: cleanedName,
       note: cleanText(note),
       offer: side.offer,
     });
