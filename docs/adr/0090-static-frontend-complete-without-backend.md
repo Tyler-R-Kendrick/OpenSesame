@@ -4,6 +4,7 @@ Status: Accepted
 Date: 2026-09-01
 Amended by: ADR 0150 §1 ([live sessions](0150-live-sessions-browser-to-browser.md)): on a device with no vault the first screen is the front door's two roads and the guest Skip; sign-in is first once setup is answered or skipped
 Amended by: ADR 0166 ([a help key on the gates](0166-gate-help-launcher.md)): each screen in front of the shell may draw one help key in its own chrome row, offline and never in front of its content, its two roads or the guest Skip
+Amended by: 2026-10-08 (Tyler): there is no “default services” Host/Identity/daemon for Pages or Vercel. `PAGES_IDENTITY_API` / `PAGES_HOST_API` / `PAGES_DAEMON_API` are not stamped; sessions are browser WebRTC; a relay peer (ADR 0181) is optional only. Inventory: `docs/audit/2026-10-static-pwa-inventory.md`.
 Supersedes: ADR 0077 §1 and §4's gate ([first-run setup: the anonymous visitor is the operator](0077-first-run-setup-ceremony.md))
 Supplements: ADR 0033 ([federated identity admission](0033-federated-identity-admission.md)),
 ADR 0034 ([origin-brokered sign-in for static sites](0034-origin-brokered-static-site-signin.md)),
