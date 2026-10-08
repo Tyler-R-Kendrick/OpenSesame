@@ -10,16 +10,12 @@ import { isString, overlapCast } from "@opensesame/os-domain";
 import {
   type CodeChannel,
   type PasskeyUnlockRecord,
-  type PinUnlockRecord,
   type RecoveryCodesRecord,
-  SALT_BYTES,
   type SealedBlob,
   type TotpGateRecord,
-  VaultCorruptError,
   type VaultHeader,
   type VaultUnlocks,
   WrongPasswordError,
-  assertKdfParams,
   b64ToBytes,
   bytesToB64,
   parseTotp,
@@ -34,6 +30,25 @@ import {
 import { assertUsablePrfOutput } from "./protection/adapters/webauthn-prf-output.js";
 import type { UnlockTabId } from "./protection/unlock-protector-methods.js";
 import { chooseUnlockMethod } from "./unlock-preference.js";
+
+import {
+  decryptWithKey,
+  encryptWithKey,
+  openText,
+  sealText,
+} from "./unlock-factor-crypto.js";
+
+export {
+  MIN_PIN_LENGTH,
+  MAX_PIN_LENGTH,
+  PIN_PBKDF2_ITERATIONS,
+  pinPolicyProblems,
+  assertPinPolicy,
+  wrapVaultKeyWithPin,
+  unwrapVaultKeyWithPin,
+  sealText,
+  openText,
+} from "./unlock-factor-crypto.js";
 
 export {
   type WebauthnHostCheck,
@@ -59,13 +74,7 @@ export {
   requirePrfOutputFromExtension,
 } from "./protection/adapters/webauthn-prf-output.js";
 
-const IV_BYTES = 12;
 const PRF_INFO = new TextEncoder().encode("opensesame/vault/webauthn-prf/v1");
-
-export const MIN_PIN_LENGTH = 8;
-export const MAX_PIN_LENGTH = 12;
-/** PIN wraps use at least the password floor; extra iterations raise offline cost. */
-export const PIN_PBKDF2_ITERATIONS = 1_200_000;
 
 export type {
   CodeChannel,
@@ -182,85 +191,6 @@ function preferredUnlockMethodDefault(
   return chooseUnlockMethod(header, listAvailableUnlockMethods(header));
 }
 
-/** Every format problem a PIN has, in plain words, empty when it passes. */
-export function pinPolicyProblems(pin: string): string[] {
-  const normalized = pin.normalize("NFKC");
-  const problems: string[] = [];
-  if (
-    normalized.length < MIN_PIN_LENGTH ||
-    normalized.length > MAX_PIN_LENGTH
-  ) {
-    problems.push(
-      `PIN must be ${MIN_PIN_LENGTH}–${MAX_PIN_LENGTH} characters.`,
-    );
-  }
-  if (/\s/.test(normalized)) {
-    problems.push("PIN cannot contain spaces.");
-  }
-  if (/^(.)\1+$/u.test(normalized)) {
-    problems.push("PIN cannot be a repeated character.");
-  }
-  if (
-    normalized.length > 1 &&
-    ("01234567890123456789".includes(normalized) ||
-      "98765432109876543210".includes(normalized))
-  ) {
-    problems.push("PIN cannot be a sequential run of digits.");
-  }
-  return problems;
-}
-
-export function assertPinPolicy(pin: string): void {
-  const [first] = pinPolicyProblems(pin);
-  if (first) throw new Error(first);
-}
-
-async function encryptWithKey(
-  key: CryptoKey,
-  plaintext: Uint8Array,
-): Promise<SealedBlob> {
-  const iv = randomBytes(IV_BYTES);
-  const ct = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv: overlapCast(iv) },
-    key,
-    overlapCast(plaintext),
-  );
-  return { ivB64: bytesToB64(iv), ctB64: bytesToB64(new Uint8Array(ct)) };
-}
-
-async function decryptWithKey(
-  key: CryptoKey,
-  blob: SealedBlob,
-): Promise<Uint8Array> {
-  const plain = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: overlapCast(b64ToBytes(blob.ivB64)) },
-    key,
-    overlapCast(b64ToBytes(blob.ctB64)),
-  );
-  return new Uint8Array(plain);
-}
-
-async function deriveAesKeyFromPassword(
-  password: string,
-  salt: Uint8Array,
-  iterations: number,
-): Promise<CryptoKey> {
-  const material = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(password.normalize("NFKC")),
-    "PBKDF2",
-    false,
-    ["deriveKey"],
-  );
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: overlapCast(salt), iterations, hash: "SHA-256" },
-    material,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"],
-  );
-}
-
 /** HKDF-SHA-256 matching crates/human-vault kek_from_webauthn_prf. */
 export async function kekFromWebauthnPrf(
   prfOutput: ArrayBuffer,
@@ -291,45 +221,6 @@ export async function exportRawVaultKey(
   }
   const raw = new Uint8Array(await crypto.subtle.exportKey("raw", vaultKey));
   return raw;
-}
-
-export async function wrapVaultKeyWithPin(
-  rawVaultKey: Uint8Array,
-  pin: string,
-): Promise<PinUnlockRecord> {
-  assertPinPolicy(pin);
-  const salt = randomBytes(SALT_BYTES);
-  const kek = await deriveAesKeyFromPassword(pin, salt, PIN_PBKDF2_ITERATIONS);
-  const wrap = await encryptWithKey(kek, rawVaultKey);
-  return {
-    kdf: {
-      alg: "PBKDF2-SHA256",
-      saltB64: bytesToB64(salt),
-      iterations: PIN_PBKDF2_ITERATIONS,
-    },
-    wrap,
-  };
-}
-
-export async function unwrapVaultKeyWithPin(
-  record: PinUnlockRecord,
-  pin: string,
-): Promise<Uint8Array> {
-  assertPinPolicy(pin);
-  if (record.kdf.alg !== "PBKDF2-SHA256") {
-    throw new VaultCorruptError("unsupported PIN unlock format");
-  }
-  assertKdfParams(record.kdf);
-  const kek = await deriveAesKeyFromPassword(
-    pin,
-    b64ToBytes(record.kdf.saltB64),
-    record.kdf.iterations,
-  );
-  try {
-    return await decryptWithKey(kek, record.wrap);
-  } catch {
-    throw new WrongPasswordError();
-  }
 }
 
 export async function wrapVaultKeyWithPrf(
@@ -511,20 +402,6 @@ export async function totpCodeMatches(
 /* ------------------------------------------------------------------ *
  * Sealed text and recovery codes
  * ------------------------------------------------------------------ */
-
-export async function sealText(
-  vaultKey: CryptoKey,
-  text: string,
-): Promise<SealedBlob> {
-  return encryptWithKey(vaultKey, new TextEncoder().encode(text));
-}
-
-export async function openText(
-  vaultKey: CryptoKey,
-  blob: SealedBlob,
-): Promise<string> {
-  return new TextDecoder().decode(await decryptWithKey(vaultKey, blob));
-}
 
 export const RECOVERY_CODE_COUNT = 10;
 /** Lowercase, no 0/1/l/o: a code is read off paper and typed, not pasted. */
