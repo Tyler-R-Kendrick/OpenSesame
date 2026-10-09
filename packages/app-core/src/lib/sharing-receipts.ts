@@ -125,6 +125,28 @@ export function noteDropExpired(claimId: string): void {
   );
 }
 
+/** The sender's drop was locked out after too many wrong codes. */
+export function noteDropLockedOut(claimId: string): void {
+  const id = blindId(claimId);
+  const tomb = activitySeams.activeTomb();
+  if (!id || !tomb || !remember(`drop-locked:${id}`)) return;
+  const metadata: JsonObject = { claimId: id };
+  write(
+    tomb,
+    {
+      category: "vault",
+      type: "vault.drop.locked_out",
+      summary: "Drop locked out",
+      outcome: "denied",
+      targetType: "claim",
+      targetId: id,
+      metadata,
+    },
+    "drop.locked_out",
+    { claimId: id },
+  );
+}
+
 /** The sender revoked the drop before it was claimed. */
 export function noteDropRevoked(claimId: string): void {
   const id = blindId(claimId);

@@ -94,6 +94,7 @@ export function accessPageSources({
       panel("requests", "local-requests", "Local requests"),
     ]),
     tab("sessions", [
+      panel("sessions", "sent-drops", "Sent"),
       panel("sessions", "local-sessions", "Local sessions"),
       panel("sessions", "local-authority-templates", "Audience templates"),
       panel("sessions", "vault-share-sessions", "Vault share sessions"),
