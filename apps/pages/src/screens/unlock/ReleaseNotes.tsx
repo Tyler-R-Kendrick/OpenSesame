@@ -134,32 +134,27 @@ function ReleasePanel({
   );
 }
 
-export const ReleaseNotes = forwardRef<HTMLElement>(function ReleaseNotes(
-  _props,
-  ref,
-) {
-  const [active, setActive] = useState<string | null>(null);
-  return (
-    <aside
-      ref={ref}
-      className="unlock__notes"
-      aria-label="Release notes"
-    >
-      <div className="unlock__notes-stack">
-        {RELEASES.map((release, index) => (
-          <ReleasePanel
-            key={release.version}
-            release={release}
-            newest={index === 0}
-            open={active === release.version}
-            onToggle={() =>
-              setActive((current) =>
-                current === release.version ? null : release.version,
-              )
-            }
-          />
-        ))}
-      </div>
-    </aside>
-  );
-});
+export const ReleaseNotes = forwardRef<HTMLElement>(
+  function ReleaseNotes(_props, ref) {
+    const [active, setActive] = useState<string | null>(null);
+    return (
+      <aside ref={ref} className="unlock__notes" aria-label="Release notes">
+        <div className="unlock__notes-stack">
+          {RELEASES.map((release, index) => (
+            <ReleasePanel
+              key={release.version}
+              release={release}
+              newest={index === 0}
+              open={active === release.version}
+              onToggle={() =>
+                setActive((current) =>
+                  current === release.version ? null : release.version,
+                )
+              }
+            />
+          ))}
+        </div>
+      </aside>
+    );
+  },
+);
