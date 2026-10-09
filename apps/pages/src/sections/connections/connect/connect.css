@@ -207,6 +207,13 @@
   gap: 0.5rem 1rem;
 }
 
+.cx-argument-schema {
+  max-height: 20rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 40rem) {
   .cx-param,
   .cx-facts {

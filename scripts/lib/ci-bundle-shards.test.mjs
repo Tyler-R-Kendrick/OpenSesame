@@ -33,6 +33,8 @@ const GATES = [
   "build:profile \\\n            --profile capability-profiles/enterprise-selected.json",
   "verify:webmcp",
   "verify:self-hosted-connectors",
+  "verify:native-connectors",
+  "verify:native-public-protocol",
   "verify:keyboard",
   "verify:push-worker",
   "verify:mobile",

@@ -3,8 +3,10 @@
 The Connections page follows the Vercel Connect configuration experience while
 keeping your connectors on your device. A static, self-hosted deployment can
 connect Linear directly; no Vercel account, token, team, project or relay is needed.
-Other provider forms continue to save local configuration until they have a
-provider authorization implementation.
+Provider-specific API-key, public REST OAuth and MCP methods also execute
+directly in the browser; see [the browser connector guide](native-browser-connectors.md)
+and [all 225 catalog dispositions](native-connector-support.md). Methods requiring
+confidential clients or native tooling show their constraints explicitly.
 
 ## Connect Linear
 

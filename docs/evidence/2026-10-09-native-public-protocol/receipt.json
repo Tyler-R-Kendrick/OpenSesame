@@ -1,0 +1,2075 @@
+{
+  "authority": "disclosed synthetic upstream HTTP protocol; no live credentials",
+  "provenance": {
+    "sourceHead": "014cdc59cd7bbfa361ad13e12a394c5386e17207",
+    "distSha256": "b3b6ffb58d8b5c7c794362d712224cdb11d8b4108968cf78a465c96323622c86",
+    "indexSha256": "e494637c516efccab5e8d730112c79cfeb591f2112cd78e8dc726f566ad6a722",
+    "graph": {
+      "ok": true,
+      "profile": "rich-explicit",
+      "violations": [],
+      "mismatches": []
+    }
+  },
+  "results": [
+    {
+      "label": "desktop",
+      "providerId": "adobe",
+      "protocolCalls": [
+        {
+          "url": "https://express-mcp-service.adobe.io/.well-known/oauth-protected-resource",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/.well-known/oauth-authorization-server",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/register",
+          "method": "POST"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/.well-known/oauth-protected-resource",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/.well-known/oauth-authorization-server",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/authorize",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/.well-known/oauth-protected-resource",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/.well-known/oauth-authorization-server",
+          "method": "GET"
+        },
+        {
+          "url": "https://ims-na1.adobelogin.com/ims/token/v3",
+          "method": "POST"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/call"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/call"
+        },
+        {
+          "url": "https://ims-na1.adobelogin.com/ims/revoke",
+          "method": "POST"
+        },
+        {
+          "url": "https://ims-na1.adobelogin.com/ims/revoke",
+          "method": "POST"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/register/protocol-public-adobe-client",
+          "method": "DELETE"
+        }
+      ],
+      "geometry": {
+        "viewportWidth": 1366,
+        "viewportHeight": 1000,
+        "documentWidth": 1366,
+        "documentHeight": 1462,
+        "pointerCoarse": false
+      },
+      "assurance": "production UI against disclosed HTTP protocol authority; no live account"
+    },
+    {
+      "label": "desktop",
+      "providerId": "gitlab",
+      "geometry": {
+        "viewportWidth": 1366,
+        "viewportHeight": 1000,
+        "documentWidth": 1366,
+        "documentHeight": 1600,
+        "pointerCoarse": false
+      },
+      "protocolCalls": [
+        {
+          "path": "/oauth/authorize",
+          "method": "GET"
+        },
+        {
+          "path": "/oauth/token",
+          "method": "POST"
+        },
+        {
+          "path": "/api/v4/user",
+          "method": "GET"
+        },
+        {
+          "path": "/api/v4/user",
+          "method": "GET"
+        },
+        {
+          "path": "/oauth/revoke",
+          "method": "POST"
+        },
+        {
+          "path": "/oauth/revoke",
+          "method": "POST"
+        }
+      ],
+      "assurance": "production UI against disclosed HTTP protocol authority; no live account"
+    },
+    {
+      "label": "phone",
+      "providerId": "adobe",
+      "protocolCalls": [
+        {
+          "url": "https://express-mcp-service.adobe.io/.well-known/oauth-protected-resource",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/.well-known/oauth-authorization-server",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/register",
+          "method": "POST"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/.well-known/oauth-protected-resource",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/.well-known/oauth-authorization-server",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/authorize",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/.well-known/oauth-protected-resource",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/.well-known/oauth-authorization-server",
+          "method": "GET"
+        },
+        {
+          "url": "https://ims-na1.adobelogin.com/ims/token/v3",
+          "method": "POST"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/call"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "initialize"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "notifications/initialized"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "GET"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/list"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/mcp",
+          "method": "POST",
+          "rpc": "tools/call"
+        },
+        {
+          "url": "https://ims-na1.adobelogin.com/ims/revoke",
+          "method": "POST"
+        },
+        {
+          "url": "https://ims-na1.adobelogin.com/ims/revoke",
+          "method": "POST"
+        },
+        {
+          "url": "https://express-mcp-service.adobe.io/register/protocol-public-adobe-client",
+          "method": "DELETE"
+        }
+      ],
+      "geometry": {
+        "viewportWidth": 390,
+        "viewportHeight": 844,
+        "documentWidth": 390,
+        "documentHeight": 1805,
+        "pointerCoarse": true
+      },
+      "assurance": "production UI against disclosed HTTP protocol authority; no live account"
+    },
+    {
+      "label": "phone",
+      "providerId": "gitlab",
+      "geometry": {
+        "viewportWidth": 390,
+        "viewportHeight": 844,
+        "documentWidth": 390,
+        "documentHeight": 2028,
+        "pointerCoarse": true
+      },
+      "protocolCalls": [
+        {
+          "path": "/oauth/authorize",
+          "method": "GET"
+        },
+        {
+          "path": "/oauth/token",
+          "method": "POST"
+        },
+        {
+          "path": "/api/v4/user",
+          "method": "GET"
+        },
+        {
+          "path": "/api/v4/user",
+          "method": "GET"
+        },
+        {
+          "path": "/oauth/revoke",
+          "method": "POST"
+        },
+        {
+          "path": "/oauth/revoke",
+          "method": "POST"
+        }
+      ],
+      "assurance": "production UI against disclosed HTTP protocol authority; no live account"
+    }
+  ],
+  "failures": [],
+  "hard": [],
+  "hosted": [],
+  "checks": [
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "saved MCP configuration alone is never verified"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP credential mutations use public-client POST without an authorization secret"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "DCR registers a public client"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "DCR pins the deployed callback"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "DCR sends no confidential secret"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "consent binds the actual deployed callback bridge"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "consent requests authorization code"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "consent uses S256 PKCE"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "consent has a sealed transaction state"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "public consent never contains a client secret"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP consent uses the client actually issued by DCR"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP consent binds the compiled resource"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP credential mutations use public-client POST without an authorization secret"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "token request exchanges the actual authorization code"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "token request pins the deployed callback"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "browser token request has no confidential client secret"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "token verifier matches the observed S256 consent challenge"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "token exchange retains the exact consent client"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP callback exchanges the authority-issued single-use code"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP token exchange binds the compiled resource"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP authorization runs real SDK initialize and actual tools discovery"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "verified MCP proof survives PIN-sealed cold reload"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "unsafe advertised input regex is refused by production schema preflight with a precise tray error before tool dispatch"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "unsafe advertised output regex is refused by production schema preflight with a precise tray error before tool dispatch"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "operator sees the exact advertised argument schema and required fields before entering JSON"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "tool call uses the actual advertised name and validated arguments"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "exactly one real advertised tool call crossed the provider boundary"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "verified tool result fits the physical browser viewport without horizontal overflow"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "malformed JSON and non-object arguments receive a precise tray error without any provider HTTP request"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "actual server input schema explains invalid types and missing required arguments in the notifications tray before HTTP dispatch"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "provider 401 removes verified status and never replays the tool mutation"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "cleanup revokes the actually issued token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "cleanup revokes the actually issued token"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "cleanup deletes the actual DCR registration with its private receipt"
+    },
+    {
+      "step": "desktop-mcp-public",
+      "kind": "PASS",
+      "detail": "disconnect revokes issued refresh and access tokens"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "saved public REST configuration alone never becomes connected"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab protocol excludes ambient cookies"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "consent binds the actual deployed callback bridge"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "consent requests authorization code"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "consent uses S256 PKCE"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "consent has a sealed transaction state"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "public consent never contains a client secret"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab consent requests actual account-verification permission"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab protocol excludes ambient cookies"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "token request exchanges the actual authorization code"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "token request pins the deployed callback"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "browser token request has no confidential client secret"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "token verifier matches the observed S256 consent challenge"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "token exchange retains the exact consent client"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab callback exchanges the authority-issued single-use code"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab public token exchange has no client authorization secret"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab protocol excludes ambient cookies"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab account query uses the PIN-sealed provider grant"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab protocol excludes ambient cookies"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab account query uses the PIN-sealed provider grant"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "cold-reloaded GitLab action performs an actual provider account read"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "verified GitLab account result fits the physical viewport without horizontal overflow"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab protocol excludes ambient cookies"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab disconnect revokes actually issued credentials"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab protocol excludes ambient cookies"
+    },
+    {
+      "step": "desktop-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab disconnect revokes actually issued credentials"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "saved MCP configuration alone is never verified"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP credential mutations use public-client POST without an authorization secret"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "DCR registers a public client"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "DCR pins the deployed callback"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "DCR sends no confidential secret"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "consent binds the actual deployed callback bridge"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "consent requests authorization code"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "consent uses S256 PKCE"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "consent has a sealed transaction state"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "public consent never contains a client secret"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP consent uses the client actually issued by DCR"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP consent binds the compiled resource"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP credential mutations use public-client POST without an authorization secret"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "token request exchanges the actual authorization code"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "token request pins the deployed callback"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "browser token request has no confidential client secret"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "token verifier matches the observed S256 consent challenge"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "token exchange retains the exact consent client"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP callback exchanges the authority-issued single-use code"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP token exchange binds the compiled resource"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP authorization runs real SDK initialize and actual tools discovery"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "verified MCP proof survives PIN-sealed cold reload"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "unsafe advertised input regex is refused by production schema preflight with a precise tray error before tool dispatch"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "unsafe advertised output regex is refused by production schema preflight with a precise tray error before tool dispatch"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "operator sees the exact advertised argument schema and required fields before entering JSON"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "tool call uses the actual advertised name and validated arguments"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "exactly one real advertised tool call crossed the provider boundary"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "verified tool result fits the physical browser viewport without horizontal overflow"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "malformed JSON and non-object arguments receive a precise tray error without any provider HTTP request"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "actual server input schema explains invalid types and missing required arguments in the notifications tray before HTTP dispatch"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP protocol uses the sealed bound access token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "provider 401 removes verified status and never replays the tool mutation"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "cleanup revokes the actually issued token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "cleanup revokes the actually issued token"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "MCP provider HTTP has no ambient cookies"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "cleanup deletes the actual DCR registration with its private receipt"
+    },
+    {
+      "step": "phone-mcp-public",
+      "kind": "PASS",
+      "detail": "disconnect revokes issued refresh and access tokens"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "saved public REST configuration alone never becomes connected"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab protocol excludes ambient cookies"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "consent binds the actual deployed callback bridge"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "consent requests authorization code"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "consent uses S256 PKCE"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "consent has a sealed transaction state"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "public consent never contains a client secret"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab consent requests actual account-verification permission"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab protocol excludes ambient cookies"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "token request exchanges the actual authorization code"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "token request pins the deployed callback"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "browser token request has no confidential client secret"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "token verifier matches the observed S256 consent challenge"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "token exchange retains the exact consent client"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab callback exchanges the authority-issued single-use code"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab public token exchange has no client authorization secret"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab protocol excludes ambient cookies"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab account query uses the PIN-sealed provider grant"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab protocol excludes ambient cookies"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab account query uses the PIN-sealed provider grant"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "cold-reloaded GitLab action performs an actual provider account read"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "verified GitLab account result fits the physical viewport without horizontal overflow"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in rendered prose"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "private issued credentials never appear in browser localStorage"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab protocol excludes ambient cookies"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab disconnect revokes actually issued credentials"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab protocol excludes ambient cookies"
+    },
+    {
+      "step": "phone-gitlab-public",
+      "kind": "PASS",
+      "detail": "GitLab disconnect revokes actually issued credentials"
+    }
+  ]
+}

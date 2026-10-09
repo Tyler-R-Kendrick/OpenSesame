@@ -7,11 +7,13 @@ export function ConfigSelections({
   choices,
   selected,
   onChange,
+  requiredChoices = [],
 }: {
   label: string;
   choices: readonly ConfigChoice[];
   selected: readonly string[];
   onChange: (next: string[]) => void;
+  requiredChoices?: readonly string[];
 }) {
   const id = useId();
   if (choices.length === 0) return null;
@@ -29,6 +31,7 @@ export function ConfigSelections({
               id={`${id}-${choice.name}`}
               type="checkbox"
               checked={selected.includes(choice.name)}
+              disabled={requiredChoices.includes(choice.name)}
               onChange={() =>
                 onChange(
                   selected.includes(choice.name)
@@ -37,7 +40,10 @@ export function ConfigSelections({
                 )
               }
             />
-            <span>{choice.name}</span>
+            <span>
+              {choice.name}
+              {requiredChoices.includes(choice.name) ? " (required)" : ""}
+            </span>
           </label>
         ))}
       </fieldset>

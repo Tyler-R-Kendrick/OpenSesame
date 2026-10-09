@@ -7,7 +7,6 @@
 
 import type { Provider } from "@opensesame/app-core/lib/connections.js";
 import type { FeatureRequest } from "@opensesame/app-core/lib/feature-request.js";
-import { performInference } from "@opensesame/app-core/lib/hosted-inference.js";
 import { vi } from "vitest";
 import {
   expectedPublic,
@@ -94,28 +93,9 @@ export function sentFetch(provider: Provider): Used {
   }
 }
 
+/** The synchronous compatibility path cannot execute or prove a model response. */
 export function sentModel(provider: Provider): Used {
-  const exchange = performInference(provider);
-  if (!exchange.ok) return missed(provider.id);
-  const call = [...vi.mocked(globalThis.fetch).mock.calls]
-    .reverse()
-    .find((row) => String(row[0]) === exchange.url);
-  if (!call) return missed(provider.id);
-  try {
-    // SAFETY: this json body is the string record the model request posted.
-    const fields = JSON.parse(fetchBody(call[1]?.body)) as Record<
-      string,
-      string
-    >;
-    const headers = headerRecord(call[1]?.headers);
-    for (const value of Object.values(expectedSecrets(provider))) {
-      if (!Object.values(headers).includes(value)) return missed(provider.id);
-      if (JSON.stringify(fields).includes(value)) return missed(provider.id);
-    }
-    return { ok: true, fields, secret: headers };
-  } catch {
-    return missed(provider.id);
-  }
+  return missed(provider.id);
 }
 
 export function tailnetHeader(name: string, secret: boolean): string {

@@ -70,7 +70,7 @@ import { connectorMark } from "../../sections/connections/connector-marks.js";
 import { createActivation } from "../activation.js";
 import { tagWebMcpTool } from "../ports-b.js";
 import { registerTutorial } from "../tutorial-contributions.js";
-import { bindLinearRuntime } from "./linear-runtime.js";
+import { bindProviderRuntime } from "./native-runtime.js";
 import { connectorUnlockEffects } from "./unlock-effects.js";
 
 export const CAPABILITY = "connectors.external";
@@ -140,7 +140,7 @@ export const capabilityRuntime: CapabilityRuntime = {
     applyConnectCallbackBase(ctx.runtimeConfig.endpoints.connectCallbackBase);
     activation.onDispose(() => applyConnectCallbackBase(undefined));
 
-    bindLinearRuntime(ctx, activation);
+    bindProviderRuntime(ctx, activation);
 
     await ctx.hydrate(HYDRATE_KEYS);
     if (activation.disposed()) return activation.handle();
