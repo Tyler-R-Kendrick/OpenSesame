@@ -1,10 +1,10 @@
 import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import {
+  type PendingShare,
   approvePendingShare,
   denyPendingShare,
   listPendingShares,
-  type PendingShare,
   submitLocalShare,
 } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import {
