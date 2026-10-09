@@ -49,7 +49,7 @@ export type DropTransportErrorCode =
 export class DropTransportError extends Error {
   readonly code: DropTransportErrorCode;
   /** Wrong-code refusals only: tries remaining after this one. */
-  readonly attemptsLeft?: number;
+  readonly attemptsLeft?: number | undefined;
   constructor(
     code: DropTransportErrorCode,
     message: string,
