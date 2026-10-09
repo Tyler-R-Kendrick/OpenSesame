@@ -8,6 +8,10 @@ import {
   totpCode,
 } from "@opensesame/vault-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import fixture from "../../../../../spec/conformance/vault-vectors.json" with {
+  type: "json",
+};
+import { PIN_PBKDF2_ITERATIONS } from "./pin-kdf.js";
 import { kvDelete, kvGet, kvSeams, kvSet } from "../kv.js";
 import {
   PERSONAL_PROJECT_ID,
@@ -408,6 +412,19 @@ describe("VaultStore multi-method unlock", () => {
 
     const reopened = new VaultStore();
     await reopened.unlockWithPin("48291037");
+    expect(reopened.getSnapshot().status).toBe("unlocked");
+  });
+
+  it("unlocks a golden-vector vault whose PIN wrap kept the legacy iteration floor", async () => {
+    const vector = fixture.vectors["backup-project"];
+    const store = new VaultStore();
+    await store.importSealed(vector.file, fixture.password);
+    const pinWrap = store.getSnapshot().header?.unlocks?.pin;
+    expect(pinWrap?.kdf.iterations).toBe(PIN_PBKDF2_ITERATIONS);
+    store.lock();
+
+    const reopened = new VaultStore();
+    await reopened.unlockWithPin(fixture.pin);
     expect(reopened.getSnapshot().status).toBe("unlocked");
   });
 
