@@ -23,7 +23,7 @@ import {
   presentDrop,
 } from "@opensesame/app-core/lib/claims/drop-open.js";
 import {
-  DROP_FAILURE_MARK,
+  DROP_FAILURE_MARK_WITH_TRAY,
   reportClaim,
 } from "@opensesame/app-core/lib/claims/route-model.js";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -153,7 +153,7 @@ export function DropClaimScreen({
           />
           <output id="drop-user-code-mark" aria-live="polite">
             {failed ? (
-              <StatusMark tone="err" label={DROP_FAILURE_MARK} />
+              <StatusMark tone="err" label={DROP_FAILURE_MARK_WITH_TRAY} />
             ) : null}
           </output>
         </div>
