@@ -12,10 +12,7 @@ describe("VaultStore PIN golden vectors", () => {
   it("unlocks a golden-vector vault whose PIN wrap kept the legacy iteration floor", async () => {
     const vector = fixture.vectors["backup-project"];
     const store = new VaultStore();
-    await store.importSealed(
-      sealedVaultText(vector.file),
-      fixture.password,
-    );
+    await store.importSealed(sealedVaultText(vector.file), fixture.password);
     const pinWrap = store.getSnapshot().header?.unlocks?.pin;
     expect(pinWrap?.kdf.iterations).toBe(PIN_PBKDF2_ITERATIONS);
     store.lock();
