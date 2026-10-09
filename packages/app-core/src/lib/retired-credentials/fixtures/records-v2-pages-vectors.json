@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "format": "pages-auth-header-v1",
+  "matching": {
+    "encoding": "scalar-utf8",
+    "normalization": "none",
+    "algorithm": "argon2id",
+    "version": 19,
+    "memoryKiB": 65536,
+    "iterations": 3,
+    "parallelism": 1,
+    "hashLength": 32
+  },
+  "vectors": [
+    {
+      "name": "pages-published-recovery-capsule",
+      "expectedContextWire": "{\"format\":\"pages-auth-header-v1\",\"generationSha256\":\"33e7119f4cec6cbadce892038dc63326b63fcaeb0a1e1ac635f38fde013415fb\",\"purpose\":\"human-vault-root\",\"rootEpoch\":1,\"rootKeyId\":\"root_vector\",\"tomb\":\"personal\",\"v\":2,\"vaultId\":\"vault_vector\"}",
+      "recordJson": "{\"v\":2,\"context\":{\"v\":2,\"format\":\"pages-auth-header-v1\",\"tomb\":\"personal\",\"purpose\":\"human-vault-root\",\"vaultId\":\"vault_vector\",\"rootKeyId\":\"root_vector\",\"rootEpoch\":1,\"generationSha256\":\"33e7119f4cec6cbadce892038dc63326b63fcaeb0a1e1ac635f38fde013415fb\"},\"matching\":{\"encoding\":\"scalar-utf8\",\"normalization\":\"none\",\"algorithm\":\"argon2id\",\"version\":19,\"memoryKiB\":65536,\"iterations\":3,\"parallelism\":1,\"hashLength\":32},\"traps\":[{\"id\":\"trap-vector\",\"createdAt\":\"2026-10-08T00:00:00.000Z\",\"expiresAt\":\"2027-01-06T00:00:00.000Z\",\"response\":\"synthetic_decoy\",\"salt\":\"AAECAwQFBgcICQoLDA0ODw==\",\"verifier\":\"lF4CYhE/M319Ne3ZL58n9f15oXGjfYdF8TdmQkbeLmg=\"}],\"events\":[{\"type\":\"retired_credential_observed\",\"trapId\":\"trap-vector\",\"at\":\"2026-10-08T00:00:00.000Z\",\"response\":\"synthetic_decoy\"},{\"type\":\"synthetic_decoy_interaction\",\"trapId\":\"trap-vector\",\"at\":\"2026-10-08T00:00:00.000Z\",\"response\":\"synthetic_decoy\",\"action\":\"authority_denied\"}]}"
+    },
+    {
+      "name": "pages-utf16-cloud-public-metadata",
+      "expectedContextWire": "{\"format\":\"pages-auth-header-v1\",\"generationSha256\":\"f8a0978a6217d49b2aadbb1a410adbff6c890ae0e4b27847e35605d802a91bed\",\"purpose\":\"human-vault-root\",\"rootEpoch\":1,\"rootKeyId\":\"root_vector\",\"tomb\":\"personal\",\"v\":2,\"vaultId\":\"vault_vector\"}",
+      "recordJson": "{\"v\":2,\"context\":{\"v\":2,\"format\":\"pages-auth-header-v1\",\"tomb\":\"personal\",\"purpose\":\"human-vault-root\",\"vaultId\":\"vault_vector\",\"rootKeyId\":\"root_vector\",\"rootEpoch\":1,\"generationSha256\":\"f8a0978a6217d49b2aadbb1a410adbff6c890ae0e4b27847e35605d802a91bed\"},\"matching\":{\"encoding\":\"scalar-utf8\",\"normalization\":\"none\",\"algorithm\":\"argon2id\",\"version\":19,\"memoryKiB\":65536,\"iterations\":3,\"parallelism\":1,\"hashLength\":32},\"traps\":[{\"id\":\"trap-vector\",\"createdAt\":\"2026-10-08T00:00:00.000Z\",\"expiresAt\":\"2027-01-06T00:00:00.000Z\",\"response\":\"synthetic_decoy\",\"salt\":\"AAECAwQFBgcICQoLDA0ODw==\",\"verifier\":\"lF4CYhE/M319Ne3ZL58n9f15oXGjfYdF8TdmQkbeLmg=\"}],\"events\":[{\"type\":\"retired_credential_observed\",\"trapId\":\"trap-vector\",\"at\":\"2026-10-08T00:00:00.000Z\",\"response\":\"synthetic_decoy\"},{\"type\":\"synthetic_decoy_interaction\",\"trapId\":\"trap-vector\",\"at\":\"2026-10-08T00:00:00.000Z\",\"response\":\"synthetic_decoy\",\"action\":\"authority_denied\"}]}"
+    }
+  ]
+}
