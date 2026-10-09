@@ -1,6 +1,7 @@
 //! Vault commands: the same work the Vault section covers, plus the sealed store.
 use std::path::PathBuf;
 
+use super::entry_dispatch::command_future;
 use super::{PassAttachCmd, PassCmd, PassTombCmd};
 use crate::{attach, pass_otp, pass_protect, store};
 use clap::Subcommand;
@@ -59,10 +60,16 @@ pub(crate) async fn run(server: &str, output: &str, cmd: VaultArea) -> anyhow::R
             memory_kib,
             passes,
         } => crate::vault_migration::migrate(&input, &output, memory_kib, passes)?,
-        VaultArea::Pass { cmd } => run_pass(server, cmd).await?,
-        VaultArea::Secret { cmd } => super::secret_cmd(server, cmd).await?,
-        VaultArea::Sync { cmd } => crate::sync_commands::sync_cmd(server, cmd).await?,
-        VaultArea::Crypto { cmd } => super::crypto_cmd(server, cmd).await?,
+        VaultArea::Pass { cmd } => command_future(move || run_pass(server, cmd)).await?,
+        VaultArea::Secret { cmd } => {
+            command_future(move || super::secret_cmd(server, cmd)).await?;
+        }
+        VaultArea::Sync { cmd } => {
+            command_future(move || crate::sync_commands::sync_cmd(server, cmd)).await?;
+        }
+        VaultArea::Crypto { cmd } => {
+            command_future(move || super::crypto_cmd(server, cmd)).await?;
+        }
     }
     Ok(())
 }
@@ -82,8 +89,10 @@ async fn run_pass(server: &str, cmd: super::PassCmd) -> anyhow::Result<()> {
         cmd @ (PassCmd::Seal { .. }
         | PassCmd::ImportKdbx { .. }
         | PassCmd::ExportKdbx { .. }
-        | PassCmd::Backup { .. }) => pass_files(cmd).await?,
-        cmd @ PassCmd::Attach { .. } => pass_attach(server, cmd).await?,
+        | PassCmd::Backup { .. }) => command_future(move || pass_files(cmd)).await?,
+        cmd @ PassCmd::Attach { .. } => {
+            command_future(move || pass_attach(server, cmd)).await?;
+        }
         cmd @ (PassCmd::Protect { .. }
         | PassCmd::Otp { .. }
         | PassCmd::Update { .. }
