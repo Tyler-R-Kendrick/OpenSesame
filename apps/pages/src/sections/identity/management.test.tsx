@@ -218,7 +218,9 @@ it("registers, edits and confirms revocation without showing the claim bearer", 
   await user.click(screen.getByRole("button", { name: "Save agent" }));
   await screen.findByRole("button", { name: "Edit Deploy safely" });
   expect(agents[0]?.displayName).toBe("Deploy safely");
-  await user.click(screen.getByRole("button", { name: "Revoke" }));
+  expect(screen.getByTestId("location").textContent).toBe("?view=agents#agt_1");
+  const revoke = await screen.findByRole("button", { name: "Revoke" });
+  await user.click(revoke);
   expect(writes).toHaveLength(2);
   await user.click(screen.getByRole("button", { name: "Confirm revocation" }));
   await waitFor(() => expect(agents[0]?.state).toBe("revoked"));
