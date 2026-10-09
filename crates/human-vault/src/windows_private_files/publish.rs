@@ -18,9 +18,9 @@ use windows_sys::Win32::{
     },
 };
 
-struct Pending {
-    file: File,
-    published: bool,
+pub(super) struct Pending {
+    pub(super) file: File,
+    pub(super) published: bool,
 }
 impl Drop for Pending {
     fn drop(&mut self) {
@@ -43,6 +43,13 @@ impl Drop for Pending {
 }
 
 fn create_private(directory: &PrivateDirectory, name: &Path) -> io::Result<Pending> {
+    create_private_with_flags(directory, name, 0)
+}
+pub(super) fn create_private_with_flags(
+    directory: &PrivateDirectory,
+    name: &Path,
+    flags: u32,
+) -> io::Result<Pending> {
     directory.validate()?;
     let path = handles::wide(&directory.path_for(name)?)?;
     let descriptor = security::Descriptor::private(&directory.owner, false)?;
@@ -55,7 +62,7 @@ fn create_private(directory: &PrivateDirectory, name: &Path) -> io::Result<Pendi
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             &attributes,
             CREATE_NEW,
-            FILE_FLAG_OPEN_REPARSE_POINT,
+            FILE_FLAG_OPEN_REPARSE_POINT | flags,
             ptr::null_mut(),
         )
     };
@@ -67,7 +74,7 @@ fn create_private(directory: &PrivateDirectory, name: &Path) -> io::Result<Pendi
     Ok(pending)
 }
 
-fn check_private(
+pub(super) fn check_private(
     directory: &PrivateDirectory,
     file: &File,
     name: &Path,
@@ -110,7 +117,7 @@ fn inspect_destination(directory: &PrivateDirectory, name: &Path) -> io::Result<
     }
 }
 
-fn rename_file(
+pub(super) fn rename_file(
     file: &File,
     directory: &PrivateDirectory,
     name: &Path,
