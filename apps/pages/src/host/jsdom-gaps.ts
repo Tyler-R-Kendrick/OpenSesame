@@ -40,8 +40,99 @@ function knowTheSearchElement(): void {
   });
 }
 
+function makeStubCanvas2d(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
+  const measureText = (text: string): TextMetrics => {
+    const width = text.length * 6;
+    const metrics = {
+      width,
+      actualBoundingBoxAscent: 8,
+      actualBoundingBoxDescent: 2,
+      actualBoundingBoxLeft: 0,
+      actualBoundingBoxRight: width,
+      fontBoundingBoxAscent: 8,
+      fontBoundingBoxDescent: 2,
+      emHeightAscent: 8,
+      emHeightDescent: 2,
+      hangingBaseline: 6,
+      alphabeticBaseline: 0,
+      ideographicBaseline: -2,
+    };
+    return metrics;
+  };
+  const stub = {
+    canvas,
+    font: "10px monospace",
+    fillStyle: "#000",
+    strokeStyle: "#000",
+    lineWidth: 1,
+    textAlign: "left",
+    textBaseline: "alphabetic",
+    lineJoin: "round",
+    globalCompositeOperation: "source-over",
+    setTransform: () => undefined,
+    clearRect: () => undefined,
+    fillRect: () => undefined,
+    fillText: () => undefined,
+    strokeText: () => undefined,
+    beginPath: () => undefined,
+    fill: () => undefined,
+    rect: () => undefined,
+    moveTo: () => undefined,
+    arc: () => undefined,
+    measureText,
+    getImageData: () => ({
+      data: new Uint8ClampedArray(4),
+      width: 1,
+      height: 1,
+      colorSpace: "srgb",
+    }),
+  };
+  // SAFETY: jsdom stub implements only the 2d methods CipherWordmark touches in tests.
+  return stub as CanvasRenderingContext2D;
+}
+
+function stubCanvas2d(): void {
+  const proto = HTMLCanvasElement.prototype;
+  if (proto.getContext) {
+    const original = proto.getContext;
+    proto.getContext = function getContext(
+      type: string,
+      options?: CanvasRenderingContext2DSettings,
+    ): RenderingContext | null {
+      if (type !== "2d") {
+        return original.call(this, type, options);
+      }
+      try {
+        const ctx = original.call(this, type, options);
+        if (ctx) return ctx;
+      } catch {
+        /* jsdom reports not implemented; tests use the stub below. */
+      }
+      return makeStubCanvas2d(this);
+    };
+  }
+}
+
+function stubResizeObserver(): void {
+  if (typeof globalThis.ResizeObserver !== "undefined") return;
+  class ResizeObserverStub {
+    observe(): void {
+      /* jsdom has no layout */
+    }
+    unobserve(): void {
+      /* jsdom has no layout */
+    }
+    disconnect(): void {
+      /* jsdom has no layout */
+    }
+  }
+  globalThis.ResizeObserver = ResizeObserverStub;
+}
+
 export function closeJsdomGaps(): void {
   if (globalThis.document === undefined) return;
   knowTheSearchElement();
   window.scrollBy = () => undefined;
+  stubCanvas2d();
+  stubResizeObserver();
 }

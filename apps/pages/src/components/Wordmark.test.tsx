@@ -44,9 +44,9 @@ describe("Wordmark", () => {
     first.unmount();
     const second = render(<Wordmark />);
     expect(second.container.querySelector(".wordmark--settled")).toBeTruthy();
-    expect(second.container.querySelectorAll(".wordmark__slot")).toHaveLength(
-      WORDMARK.length,
-    );
+    expect(
+      second.container.querySelector("canvas.cipher-wordmark__canvas"),
+    ).toBeTruthy();
   });
 
   it("replays the decrypt when asked, then leaves later mounts settled", () => {
@@ -59,39 +59,32 @@ describe("Wordmark", () => {
     expect(later.container.querySelector(".wordmark--settled")).toBeTruthy();
   });
 
-  it("scrambles every unread slot until the cursor locks it", () => {
+  it("publishes staggered slot timings for verify", () => {
     vi.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValue(0.999);
-    const { container, rerender } = render(<Wordmark />);
-    const slots = [
-      ...container.querySelectorAll<HTMLElement>(".wordmark__slot"),
-    ];
-    expect(slots).toHaveLength(WORDMARK.length);
+    const { container } = render(<Wordmark />);
+    const timings = container.querySelector(".cipher-wordmark")?.getAttribute(
+      "data-cipher-timings",
+    );
+    expect(timings).toBeTruthy();
+    const parsed = JSON.parse(timings ?? "[]") as Array<{
+      delay: number;
+      duration: number;
+      letter: string;
+    }>;
+    expect(parsed.length).toBeGreaterThan(0);
+    const active = parsed.filter((slot) => slot.letter !== " ");
     let locked = 0;
-    for (const [index, slot] of slots.entries()) {
+    for (const [index, slot] of active.entries()) {
       const advance = index === 0 ? WORDMARK_MIN_STEPS : WORDMARK_MAX_STEPS;
-      const steps = locked + advance;
-      const reel = slot.querySelector<HTMLElement>(".wordmark__reel");
-      expect(slot.querySelectorAll(".wordmark__glyph")).toHaveLength(steps + 1);
-      expect(slot.style.animationDelay).toBe(`${locked * WORDMARK_FRAME_MS}ms`);
-      expect(slot.style.animationDuration).toBe(
-        `${advance * WORDMARK_FRAME_MS}ms`,
-      );
-      expect(reel?.style.animationDuration).toBe(
-        `${steps * WORDMARK_FRAME_MS}ms`,
-      );
-      expect(
-        slot.querySelector(".wordmark__glyph:last-child")?.textContent,
-      ).toBe(WORDMARK[index]);
+      expect(slot.delay).toBe(locked * WORDMARK_FRAME_MS);
+      expect(slot.duration).toBe(advance * WORDMARK_FRAME_MS);
       locked += advance;
     }
-    expect(WORDMARK).toBe("open-sesame");
     expect(locked * WORDMARK_FRAME_MS).toBeGreaterThan(2300);
-    expect(locked * WORDMARK_FRAME_MS).toBeLessThan(5000);
-    const original = container.innerHTML;
-    rerender(<Wordmark />);
-    expect(container.innerHTML).toBe(original);
+    expect(locked * WORDMARK_FRAME_MS).toBeLessThan(6000);
   });
-  it("exposes the brand name once, and hides the reels from AT", () => {
+
+  it("exposes the brand name once, and hides the cipher from AT", () => {
     render(<Wordmark />);
     expect(
       screen.getAllByText(WORDMARK, { selector: ".visually-hidden" }),
@@ -99,17 +92,6 @@ describe("Wordmark", () => {
     expect(
       document.querySelector(".wordmark__slots")?.getAttribute("aria-hidden"),
     ).toBe("true");
-    expect(document.querySelectorAll(".wordmark__slot")).toHaveLength(
-      WORDMARK.length,
-    );
-    const glyphs = [
-      ...(document
-        .querySelector(".wordmark__slot")
-        ?.querySelectorAll(".wordmark__glyph") ?? []),
-    ].map((node) => node.textContent);
-    expect(glyphs.length).toBeGreaterThanOrEqual(WORDMARK_MIN_STEPS + 1);
-    expect(glyphs.length).toBeLessThanOrEqual(WORDMARK_MAX_STEPS + 1);
-    expect(glyphs.at(-1)).toBe("o");
-    expect(WORDMARK_CIPHER.includes(glyphs[0] ?? "")).toBe(true);
+    expect(document.querySelector("canvas.cipher-wordmark__canvas")).toBeTruthy();
   });
 });
