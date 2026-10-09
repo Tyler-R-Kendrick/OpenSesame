@@ -1,74 +1,20 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useState } from "react";
 import "./local-authority.css";
-import {
-  type InboxStatusFilter,
-  filterInboxRows,
-} from "@opensesame/app-core/lib/configuration/inbox-triage.js";
-import {
-  type LocalAccessRequest,
-  removeSettledLocalAccessRequest,
-  revokeLocalAccessRequest,
-} from "@opensesame/app-core/lib/local-access-requests.js";
-import type { LocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
-import {
-  type PendingShare,
-  approvePendingShare,
-  denyPendingShare,
-  policyLabel,
-} from "@opensesame/app-core/lib/local-share-grants-approvals.js";
+import type { InboxStatusFilter } from "@opensesame/app-core/lib/configuration/inbox-triage.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
-import {
-  IconArrowRight,
-  IconCheck,
-  IconPlus,
-  IconRefresh,
-  IconTrash,
-  IconX,
-} from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
-import { keyboardIsIdle, landFocus } from "../../lib/focus.js";
+import { IconPlus, IconRefresh } from "../../components/Icons.js";
 import { LocalRequestForm } from "./LocalRequestForm.js";
-import { RequestApproval } from "./RequestApproval.js";
+import {
+  AccessRequestDecision,
+  AccessRequestRows,
+  useRequestSelection,
+} from "./local-access-request-inbox.js";
+import {
+  PendingGrantDecision,
+  PendingGrantRows,
+} from "./local-pending-grant-inbox.js";
 import { useLocalRequests } from "./useLocalRequests.js";
-
-function useRequestSelection(requests: LocalAccessRequest[] | undefined) {
-  const [creating, setCreating] = useState(false);
-  const [selectedId, setSelected] = useState<string | null>(null);
-  const selected = requests?.find((row) => row.id === selectedId) ?? null;
-  const root = useRef<HTMLElement>(null);
-  const trigger = useRef<HTMLElement | null>(null);
-  const reload = useRef<HTMLButtonElement>(null);
-  useLayoutEffect(() => {
-    if (selectedId && requests && !selected) setSelected(null);
-    if (!trigger.current) return;
-    if (!keyboardIsIdle() && document.activeElement !== trigger.current) return;
-    if (creating || selected)
-      landFocus(
-        root.current?.querySelector(
-          "form select, fieldset select, fieldset button",
-        ) ?? null,
-      );
-    else
-      landFocus(
-        trigger.current?.isConnected ? trigger.current : reload.current,
-      );
-  }, [creating, selected, selectedId, requests]);
-  function close() {
-    setCreating(false);
-    setSelected(null);
-  }
-  return {
-    creating,
-    setCreating,
-    selected,
-    setSelected,
-    root,
-    trigger,
-    reload,
-    close,
-  };
-}
 
 export function LocalRequestsPanel({ tomb }: { tomb: string }) {
   const model = useLocalRequests(tomb);
@@ -87,6 +33,8 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
   const selectedGrant =
     model.data?.pendingGrants.find((row) => row.id === selectedGrantId) ?? null;
   const disabled = model.busy || Boolean(model.error);
+  const listDisabled =
+    disabled || creating || selected !== null || selectedGrant !== null;
   function closeGrant() {
     setSelectedGrantId(null);
   }
@@ -117,13 +65,7 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
           <IconKey
             small
             label="New local request"
-            disabled={
-              disabled ||
-              !model.data ||
-              creating ||
-              selected !== null ||
-              selectedGrant !== null
-            }
+            disabled={disabled || !model.data || listDisabled}
             onClick={(event) => {
               trigger.current = event.currentTarget;
               setCreating(true);
@@ -160,7 +102,7 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
           />
         ) : null}
         {selected && model.data ? (
-          <RequestDecision
+          <AccessRequestDecision
             key={selected.id}
             tomb={tomb}
             row={selected}
@@ -187,9 +129,7 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
               grants={model.data.pendingGrants}
               directory={model.data.directory}
               filter={statusFilter}
-              disabled={
-                disabled || creating || selected !== null || selectedGrant !== null
-              }
+              disabled={listDisabled}
               select={(row, button) => {
                 trigger.current = button;
                 setSelectedGrantId(row.id);
@@ -197,12 +137,10 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
                 setCreating(false);
               }}
             />
-            <RequestRows
+            <AccessRequestRows
               data={model.data}
               filter={statusFilter}
-              disabled={
-                disabled || creating || selected !== null || selectedGrant !== null
-              }
+              disabled={listDisabled}
               select={(row, button) => {
                 trigger.current = button;
                 setSelected(row.id);
@@ -216,259 +154,5 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
         ) : null}
       </div>
     </section>
-  );
-}
-
-function PendingGrantRows({
-  grants,
-  directory,
-  filter,
-  disabled,
-  select,
-}: {
-  grants: PendingShare[];
-  directory: LocalDirectory;
-  filter: InboxStatusFilter;
-  disabled: boolean;
-  select: (row: PendingShare, button: HTMLButtonElement) => void;
-}) {
-  if (filter !== "all" && filter !== "pending") return null;
-  const name = (principalId: string) =>
-    directory.entries.find((entry) => entry.id === principalId)?.name ??
-    principalId;
-  if (!grants.length) return null;
-  return (
-    <ul className="access-local-records">
-      {grants.map((row) => (
-        <li key={row.id}>
-          <strong>
-            {name(row.principalId)} → {row.resourceLabel}
-          </strong>
-          <p className="hint">
-            Identity share · {policyLabel(row.resourceKind, row.policy)}
-          </p>
-          <StatusMark tone="warn" label="Awaiting approval" />
-          <p>
-            <code className="access-ref">{row.id}</code>
-          </p>
-          <IconKey
-            label="Review grant request"
-            small
-            disabled={disabled}
-            onClick={(event) => select(row, event.currentTarget)}
-          >
-            <IconArrowRight size={16} />
-          </IconKey>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function PendingGrantDecision({
-  tomb,
-  pending,
-  directory,
-  busy,
-  run,
-  close,
-}: {
-  tomb: string;
-  pending: PendingShare;
-  directory: LocalDirectory;
-  busy: boolean;
-  run: (
-    action: () => Promise<void>,
-    success: string,
-  ) => Promise<boolean>;
-  close: () => void;
-}) {
-  const name =
-    directory.entries.find((entry) => entry.id === pending.principalId)?.name ??
-    pending.principalId;
-  return (
-    <fieldset className="access-local-confirmation" disabled={busy}>
-      <legend>Review identity share grant</legend>
-      <p>
-        {name} → {pending.resourceLabel}
-      </p>
-      <p className="hint">
-        {pending.resourceKind} · {policyLabel(pending.resourceKind, pending.policy)}
-      </p>
-      <p>
-        <code className="access-ref">{pending.id}</code>
-      </p>
-      <div className="actions">
-        <IconKey
-          label={`Approve ${name}`}
-          onClick={() =>
-            void run(
-              async () => {
-                await approvePendingShare(tomb, pending.id);
-              },
-              "Grant approved.",
-            ).then((done) => {
-              if (done) close();
-            })
-          }
-        >
-          <IconCheck size={16} />
-        </IconKey>
-        <IconKey
-          label={`Deny ${name}`}
-          onClick={() =>
-            void run(
-              async () => {
-                await denyPendingShare(tomb, pending.id);
-              },
-              "Grant denied.",
-            ).then((done) => {
-              if (done) close();
-            })
-          }
-        >
-          <IconX size={16} />
-        </IconKey>
-        <IconKey label="Close grant request" onClick={close}>
-          <IconX size={16} />
-        </IconKey>
-      </div>
-    </fieldset>
-  );
-}
-
-function RequestRows({
-  data,
-  filter,
-  disabled,
-  select,
-}: {
-  data: NonNullable<ReturnType<typeof useLocalRequests>["data"]>;
-  filter: InboxStatusFilter;
-  disabled: boolean;
-  select: (row: LocalAccessRequest, button: HTMLButtonElement) => void;
-}) {
-  const visibleIds = new Set(
-    filterInboxRows(
-      data.requests.map((row) => ({
-        id: row.id,
-        status: row.status,
-        expiresAt: new Date(row.expiresAt).toISOString(),
-        plane: "local" as const,
-      })),
-      filter,
-    ).map((row) => row.id),
-  );
-  const rows = data.requests.filter((row) => visibleIds.has(row.id));
-  return (
-    <>
-      <ul className="access-local-records">
-        {rows.map((row) => (
-          <li key={row.id}>
-            <strong>
-              {data.directory.entries.find(
-                (entry) => entry.id === row.applicationId,
-              )?.name ?? row.applicationId}
-            </strong>
-            <p>{row.reason}</p>
-            <p className="hint">
-              {row.status} · {row.scopes.join(", ")} · Expires{" "}
-              {new Date(row.expiresAt).toLocaleTimeString()}
-            </p>
-            <p>
-              <code className="access-ref">{row.id}</code>
-            </p>
-            <IconKey
-              label="Review request"
-              small
-              disabled={disabled}
-              onClick={(event) => select(row, event.currentTarget)}
-            >
-              <IconArrowRight size={16} />
-            </IconKey>
-          </li>
-        ))}
-      </ul>
-      {!rows.length ? <p className="hint">No local requests.</p> : null}
-    </>
-  );
-}
-
-function RequestDecision({
-  tomb,
-  row,
-  directory,
-  busy,
-  run,
-  close,
-}: {
-  tomb: string;
-  row: LocalAccessRequest;
-  directory: LocalDirectory;
-  busy: boolean;
-  run: (
-    action: () => Promise<LocalAccessRequest> | Promise<void>,
-    success: string,
-  ) => Promise<boolean>;
-  close: () => void;
-}) {
-  const [removing, setRemoving] = useState(false);
-  const name = (value: string) =>
-    directory.entries.find((entry) => entry.id === value)?.name ?? value;
-  const active = row.status === "pending" || row.status === "approved";
-  const removeLabel = removing
-    ? active
-      ? "Confirm withdrawal"
-      : "Confirm history removal"
-    : active
-      ? "Withdraw request"
-      : "Remove request history";
-  async function remove() {
-    if (!removing) {
-      setRemoving(true);
-      return;
-    }
-    if (
-      await run(
-        () =>
-          active
-            ? revokeLocalAccessRequest(tomb, row)
-            : removeSettledLocalAccessRequest(tomb, row),
-        active ? "Request withdrawn." : "Request history removed.",
-      )
-    )
-      close();
-  }
-  return (
-    <fieldset className="access-local-confirmation" disabled={busy}>
-      <legend>Review local request</legend>
-      <p>
-        {name(row.requesterId)} → {name(row.applicationId)} ·{" "}
-        {name(row.organizationId)}
-      </p>
-      <p>{row.reason}</p>
-      <p>
-        <code className="access-ref">{row.id}</code> · {row.status}
-      </p>
-      <p>Scopes: {row.scopes.join(", ")}</p>
-      <p className="hint">Callback: {row.redirectUri}</p>
-      {row.status === "pending" ? (
-        <RequestApproval
-          tomb={tomb}
-          row={row}
-          directory={directory}
-          run={run}
-          close={close}
-        />
-      ) : null}
-      <div className="actions">
-        <IconKey label={removeLabel} onClick={() => void remove()}>
-          <IconTrash size={16} />
-        </IconKey>
-        <IconKey label="Close request" onClick={close}>
-          <IconX size={16} />
-        </IconKey>
-      </div>
-    </fieldset>
   );
 }

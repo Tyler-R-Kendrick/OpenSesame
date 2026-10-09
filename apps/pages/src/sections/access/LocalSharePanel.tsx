@@ -1,11 +1,9 @@
 import { readLocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
 import { subscribeLocalIamChanges } from "@opensesame/app-core/lib/local-iam-events.js";
 import {
-  type PendingShare,
   approvePendingShare,
   denyPendingShare,
   listPendingShares,
-  policyLabel,
   submitLocalShare,
 } from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import {
@@ -25,16 +23,13 @@ import {
 } from "react";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
-import {
-  IconCheck,
-  IconPlus,
-  IconRefresh,
-  IconTrash,
-  IconX,
-} from "../../components/Icons.js";
-import { StatusMark } from "../../components/StatusMark.js";
+import { IconPlus, IconRefresh } from "../../components/Icons.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { GuideTarget, useGuideTarget } from "../../tutorial/registry/react.jsx";
+import {
+  ActiveShareRow,
+  PendingShareRow,
+} from "./local-share-grant-rows.js";
 import { ShareGrantForm } from "./ShareGrantForm.js";
 
 async function readApprovals(tomb: string): Promise<PendingShare[]> {
@@ -259,7 +254,7 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
         ) : null}
         <ul className="identity-rows">
           {pending.map((row) => (
-            <PendingRow
+            <PendingShareRow
               key={row.id}
               pending={row}
               name={names.get(row.principalId) ?? row.principalId}
@@ -281,7 +276,7 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
             />
           ))}
           {shares.map((share) => (
-            <ShareRow
+            <ActiveShareRow
               key={share.id}
               share={share}
               name={names.get(share.principalId) ?? share.principalId}
@@ -300,118 +295,5 @@ export function LocalSharePanel({ tomb }: { tomb: string }) {
         </ul>
       </div>
     </section>
-  );
-}
-
-function PendingRow({
-  pending,
-  name,
-  role,
-  busy,
-  canDecide,
-  onApprove,
-  onDeny,
-}: {
-  pending: PendingShare;
-  name: string;
-  role: string | undefined;
-  busy: boolean;
-  canDecide: boolean;
-  onApprove: () => void;
-  onDeny: () => void;
-}) {
-  return (
-    <li className="identity-row" id={`pending-${pending.id}`}>
-      <div className="identity-row__main">
-        <div className="identity-row__id">
-          <h3>
-            {name} → {pending.resourceLabel}
-          </h3>
-          <code className="identity-ref">
-            {pending.resourceKind} ·{" "}
-            {policyLabel(pending.resourceKind, pending.policy)}
-            {role ? ` · ${role}` : ""}
-          </code>
-        </div>
-        <StatusMark tone="warn" label="Awaiting approval" />
-        <div className="actions">
-          <IconKey
-            label={`Approve ${name}`}
-            small
-            disabled={busy || !canDecide}
-            onClick={onApprove}
-          >
-            <IconCheck size={16} />
-          </IconKey>
-          <IconKey
-            label={`Deny ${name}`}
-            small
-            disabled={busy || !canDecide}
-            onClick={onDeny}
-          >
-            <IconX size={16} />
-          </IconKey>
-        </div>
-      </div>
-    </li>
-  );
-}
-function ShareRow({
-  share,
-  name,
-  role,
-  busy,
-  canRevoke,
-  onRevoke,
-}: {
-  share: LocalShare;
-  name: string;
-  role: string | undefined;
-  busy: boolean;
-  canRevoke: boolean;
-  onRevoke: () => void;
-}) {
-  const [confirming, setConfirming] = useState(false);
-  useEffect(() => {
-    if (!busy) setConfirming(false);
-  }, [busy, share.id]);
-  const revokeLabel = confirming ? "Confirm revoke" : "Revoke";
-  return (
-    <li className="identity-row" id={`share-${share.id}`}>
-      <div className="identity-row__main">
-        <div className="identity-row__id">
-          <h3>
-            {name} → {share.resourceLabel}
-          </h3>
-          <code className="identity-ref">
-            {share.resourceKind} ·{" "}
-            {policyLabel(share.resourceKind, share.policy)}
-            {role ? ` · ${role}` : ""}
-          </code>
-        </div>
-        <StatusMark
-          tone="idle"
-          label={`Until ${new Date(share.expiresAt).toLocaleString()}`}
-        />
-        <div className="actions">
-          <button
-            type="button"
-            className="icon-btn icon-btn--sm"
-            disabled={busy || !canRevoke}
-            aria-label={revokeLabel}
-            title={revokeLabel}
-            onClick={() => {
-              if (!confirming) {
-                setConfirming(true);
-                return;
-              }
-              onRevoke();
-            }}
-          >
-            <IconTrash size={16} />
-          </button>
-        </div>
-      </div>
-    </li>
   );
 }
