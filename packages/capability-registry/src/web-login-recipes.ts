@@ -1,4 +1,3 @@
-import { CLIENT_NO_HOST_IDENTITY } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 /**
@@ -78,10 +77,10 @@ export const webLoginRecipeCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: null,
+      cli: "opensesame access connectors rotate recipe ls",
       ...CLI_ONLY,
     },
-    excluded: { ...RECIPE_EXCLUSIONS, cli: CLIENT_NO_HOST_IDENTITY },
+    excluded: RECIPE_EXCLUSIONS,
   },
   {
     id: "web_login.recipes.read",
@@ -90,10 +89,10 @@ export const webLoginRecipeCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: null,
+      cli: "opensesame access connectors rotate recipe get",
       ...CLI_ONLY,
     },
-    excluded: { ...RECIPE_EXCLUSIONS, cli: CLIENT_NO_HOST_IDENTITY },
+    excluded: RECIPE_EXCLUSIONS,
   },
   {
     id: "web_login.recipes.write",
@@ -102,10 +101,10 @@ export const webLoginRecipeCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: null,
+      cli: "opensesame access connectors rotate recipe put",
       ...CLI_ONLY,
     },
-    excluded: { ...RECIPE_EXCLUSIONS, cli: CLIENT_NO_HOST_IDENTITY },
+    excluded: RECIPE_EXCLUSIONS,
   },
   {
     id: "web_login.recipes.remove",
@@ -113,10 +112,10 @@ export const webLoginRecipeCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: null,
+      cli: "opensesame access connectors rotate recipe rm",
       ...CLI_ONLY,
     },
-    excluded: { ...RECIPE_EXCLUSIONS, cli: CLIENT_NO_HOST_IDENTITY },
+    excluded: RECIPE_EXCLUSIONS,
   },
   {
     id: "web_login.recipes.sign",
@@ -125,7 +124,7 @@ export const webLoginRecipeCapabilities: readonly Capability[] = [
     plane: "client_local",
     kind: "act",
     surfaces: {
-      cli: "opensesame rotate recipe sign",
+      cli: "opensesame access connectors rotate recipe sign",
       ...CLI_ONLY,
     },
     excluded: LOCAL_SIGNING_EXCLUSIONS,
@@ -137,10 +136,10 @@ export const webLoginRecipeCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: null,
+      cli: "opensesame access connectors rotate recipe canary",
       ...CLI_ONLY,
     },
-    excluded: { ...RECIPE_EXCLUSIONS, cli: CLIENT_NO_HOST_IDENTITY },
+    excluded: RECIPE_EXCLUSIONS,
   },
   {
     id: "web_login.signers.list",
@@ -149,10 +148,10 @@ export const webLoginRecipeCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: null,
+      cli: "opensesame access connectors rotate signer ls",
       ...CLI_ONLY,
     },
-    excluded: { ...RECIPE_EXCLUSIONS, cli: CLIENT_NO_HOST_IDENTITY },
+    excluded: RECIPE_EXCLUSIONS,
   },
   {
     id: "web_login.signers.write",
@@ -161,10 +160,10 @@ export const webLoginRecipeCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: null,
+      cli: "opensesame access connectors rotate signer add",
       ...CLI_ONLY,
     },
-    excluded: { ...RECIPE_EXCLUSIONS, cli: CLIENT_NO_HOST_IDENTITY },
+    excluded: RECIPE_EXCLUSIONS,
   },
   {
     id: "web_login.signers.revoke",
@@ -173,10 +172,10 @@ export const webLoginRecipeCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: null,
+      cli: "opensesame access connectors rotate signer rm",
       ...CLI_ONLY,
     },
-    excluded: { ...RECIPE_EXCLUSIONS, cli: CLIENT_NO_HOST_IDENTITY },
+    excluded: RECIPE_EXCLUSIONS,
   },
   {
     id: "web_login.signers.keygen",
@@ -185,7 +184,7 @@ export const webLoginRecipeCapabilities: readonly Capability[] = [
     plane: "client_local",
     kind: "act",
     surfaces: {
-      cli: "opensesame rotate signer keygen",
+      cli: "opensesame access connectors rotate signer keygen",
       ...CLI_ONLY,
     },
     excluded: LOCAL_SIGNING_EXCLUSIONS,

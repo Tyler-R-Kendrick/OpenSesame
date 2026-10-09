@@ -439,21 +439,13 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access grants task start",
       "pwa": null,
-      "mcp_host": null,
+      "mcp_host": "task_start",
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_host": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "webmcp": {
         "reason": "The browser opens a human-confirmed ceiling form; programmatic task creation uses the scoped MCP Host task_start capability",
         "adr": "0065-agent-surface-parity.md"
@@ -493,29 +485,17 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame identity status",
       "pwa": null,
-      "mcp_host": null,
-      "mcp_client": null,
+      "mcp_host": "host_ready",
+      "mcp_client": "host_health",
       "webmcp": null,
       "extension": "message:opensesame.health"
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "pwa": {
         "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
         "adr": "0128-pages-without-host.md"
-      },
-      "mcp_host": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_client": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       },
       "webmcp": {
         "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
@@ -531,19 +511,9 @@
     "surfaces": {
       "cli": null,
       "pwa": "route:/settings",
-      "mcp_host": null,
-      "mcp_client": null,
+      "mcp_host": "host_ready",
+      "mcp_client": "host_health",
       "webmcp": "opensesame_health"
-    },
-    "excluded": {
-      "mcp_host": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_client": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      }
     }
   },
   {
@@ -552,25 +522,11 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame doctor",
       "pwa": null,
       "mcp_host": null,
-      "mcp_client": null,
+      "mcp_client": "host_discover",
       "webmcp": null
-    },
-    "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_host": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_client": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      }
     }
   },
   {
@@ -579,25 +535,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame identity whoami",
       "pwa": "route:/identity",
       "mcp_host": null,
-      "mcp_client": null,
+      "mcp_client": "whoami",
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_host": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_client": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "webmcp": {
         "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
         "adr": "0128-pages-without-host.md"
@@ -610,17 +554,13 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame login",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
         "adr": "0023-mcp-bearer-vs-dpop.md"
@@ -641,24 +581,16 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame daemon status",
       "pwa": null,
-      "mcp_host": null,
+      "mcp_host": "daemon_health",
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "pwa": {
         "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
         "adr": "0128-pages-without-host.md"
-      },
-      "mcp_host": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       },
       "webmcp": {
         "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
@@ -672,17 +604,13 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame daemon install",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "operator/device lifecycle surface, not an agent capability",
         "adr": "0065-agent-surface-parity.md"
@@ -699,17 +627,13 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame daemon run",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "operator/device lifecycle surface, not an agent capability",
         "adr": "0065-agent-surface-parity.md"
@@ -726,17 +650,13 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame daemon approve-device",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "consequential authority grant/approval; headless agents get read-only visibility, WebMCP opens the ceremony for a human decision",
         "adr": "0065-agent-surface-parity.md"
@@ -753,17 +673,13 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame host run",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "operator/device lifecycle surface, not an agent capability",
         "adr": "0065-agent-surface-parity.md"
@@ -780,34 +696,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
-      "pwa": null,
-      "mcp_host": null,
-      "mcp_client": null,
-      "webmcp": null
-    },
-    "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_host": {
-        "reason": "operator/device lifecycle surface, not an agent capability",
-        "adr": "0065-agent-surface-parity.md"
-      },
-      "mcp_client": {
-        "reason": "operator/device lifecycle surface, not an agent capability",
-        "adr": "0065-agent-surface-parity.md"
-      }
-    }
-  },
-  {
-    "id": "relay.serve",
-    "title": "Serve the optional vault-relay peer",
-    "plane": "host",
-    "kind": "admin",
-    "surfaces": {
-      "cli": "opensesame relay run",
+      "cli": "opensesame worker run",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -849,11 +738,11 @@
   },
   {
     "id": "host.auth.doctor",
-    "title": "Diagnose local health: sealed store, relay bindings, crypto tools",
+    "title": "Diagnose the local sign-in state",
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame doctor",
+      "cli": "opensesame identity auth doctor",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -876,17 +765,13 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access grants lease",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
         "adr": "0005-authority-handle-connectionref.md"
@@ -907,17 +792,13 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors import",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "operator/device lifecycle surface, not an agent capability",
         "adr": "0065-agent-surface-parity.md"
@@ -1005,17 +886,13 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame host run",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "pwa": {
         "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
         "adr": "0128-pages-without-host.md"
@@ -1449,7 +1326,7 @@
     "kind": "ceremony",
     "plugin": "browser-autofill",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame daemon fill approve",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -1458,10 +1335,6 @@
       "android": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "pwa": {
         "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
         "adr": "0128-pages-without-host.md"
@@ -1490,17 +1363,13 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access resources invoke",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_client": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -1513,21 +1382,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access grants task list",
       "pwa": null,
-      "mcp_host": null,
+      "mcp_host": "task_list",
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_host": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "webmcp": {
         "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
         "adr": "0128-pages-without-host.md"
@@ -1540,21 +1401,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access grants task inspect",
       "pwa": null,
-      "mcp_host": null,
+      "mcp_host": "task_status",
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_host": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "webmcp": {
         "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
         "adr": "0128-pages-without-host.md"
@@ -1567,21 +1420,13 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access grants task terminate",
       "pwa": null,
-      "mcp_host": null,
+      "mcp_host": "task_terminate",
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_host": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "webmcp": {
         "reason": "the Pages PWA speaks to no Host and no daemon; its connectivity posture is host.health.pages",
         "adr": "0128-pages-without-host.md"
@@ -1594,21 +1439,11 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access grants intent create",
       "pwa": null,
-      "mcp_host": null,
+      "mcp_host": "task_invoke",
       "mcp_client": null,
       "webmcp": null
-    },
-    "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_host": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      }
     }
   },
   {
@@ -1617,21 +1452,11 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access grants intent invoke",
       "pwa": null,
-      "mcp_host": null,
+      "mcp_host": "task_invoke_l1",
       "mcp_client": null,
       "webmcp": null
-    },
-    "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_host": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      }
     }
   },
   {
@@ -1663,17 +1488,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access sessions receipt verify",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -2491,17 +2312,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame identity providers list",
       "pwa": "lib/embedded-catalog.ts:getBundledProviders",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -2518,17 +2335,13 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame identity providers test",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -2541,17 +2354,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors connect ls",
       "pwa": "lib/connections.ts:listConnections",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_connections_read"
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_client": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -2568,17 +2377,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors connect inspect",
       "pwa": "lib/connections.ts:getConnection",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_connections_read"
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -2591,17 +2396,13 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors connect create",
       "pwa": "lib/connections.ts:createConnection",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_open_connect_ceremony"
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "raw secret material must never transit agent context; agents hold ConnectionRefs only",
         "adr": "0005-authority-handle-connectionref.md"
@@ -2645,17 +2446,13 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors connect update",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "coordinate updates can re-aim where a credential is presented; humans own re-aiming",
         "adr": "0065-agent-surface-parity.md"
@@ -2672,17 +2469,13 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors connect attach",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "pwa": {
         "reason": "the Pages PWA writes no Host binding; who may use a connector there is a local share of kind connection (connectors.bind)",
         "adr": "0128-pages-without-host.md"
@@ -2707,17 +2500,13 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors connect rotate",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -2730,17 +2519,13 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors connect rm",
       "pwa": "lib/connections.ts:revokeConnection",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -2757,17 +2542,13 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors connect discover",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "consequential authority grant/approval; headless agents get read-only visibility, WebMCP opens the ceremony for a human decision",
         "adr": "0065-agent-surface-parity.md"
@@ -2784,17 +2565,13 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors export",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "operator/device lifecycle surface, not an agent capability",
         "adr": "0065-agent-surface-parity.md"
@@ -2834,17 +2611,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access resources cert ls",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -2857,17 +2630,13 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access resources cert issue",
       "pwa": "lib/certs.ts:issueCertificate",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -2884,17 +2653,13 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access resources cert ca",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "operator/device lifecycle surface, not an agent capability",
         "adr": "0065-agent-surface-parity.md"
@@ -2942,17 +2707,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame config history",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -2992,17 +2753,13 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame config rollback",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -3042,25 +2799,11 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame vault sync push",
       "pwa": null,
-      "mcp_host": null,
-      "mcp_client": null,
+      "mcp_host": "sync_push",
+      "mcp_client": "sync_push",
       "webmcp": null
-    },
-    "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_host": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_client": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      }
     }
   },
   {
@@ -3069,25 +2812,11 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame vault sync pull",
       "pwa": null,
-      "mcp_host": null,
-      "mcp_client": null,
+      "mcp_host": "sync_pull",
+      "mcp_client": "sync_pull",
       "webmcp": null
-    },
-    "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_host": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
-      "mcp_client": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      }
     }
   },
   {
@@ -3115,17 +2844,13 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors connection rotate",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -3138,17 +2863,13 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access resources cert issue",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "returns or places a certificate private key; agent-facing APIs carry references, never material",
         "adr": "0075-host-certificate-key-custody.md"
@@ -3165,17 +2886,13 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access resources cert key",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "returns or places a certificate private key; agent-facing APIs carry references, never material",
         "adr": "0075-host-certificate-key-custody.md"
@@ -3192,17 +2909,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access resources lifecycle expiring",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -3215,17 +2928,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access resources lifecycle hooks",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -3238,17 +2947,13 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access resources lifecycle hook add",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "registering a lifecycle hook mints and returns a whsec_ signing secret once; an agent surface must never be the thing that receives it",
         "adr": "0074-expiry-lifecycle-hooks.md"
@@ -3265,17 +2970,13 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access resources lifecycle hook rm",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "silently deleting a subscription blinds whoever depended on it; removal stays a deliberate human action alongside registration",
         "adr": "0074-expiry-lifecycle-hooks.md"
@@ -3292,17 +2993,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access resources lifecycle deliveries",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -3315,17 +3012,13 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access resources lifecycle scan",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -3365,17 +3058,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access grants local-authority pair",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
         "adr": "0094-browser-local-authority.md"
@@ -3396,17 +3085,13 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access grants local-authority pair",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
         "adr": "0094-browser-local-authority.md"
@@ -3512,17 +3197,13 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access grants local-authority launch",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "Native approval and revocation define the agent ceiling; agents cannot mint or administer their own authority",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -3624,17 +3305,13 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame vault sync rebind-legacy",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "Browser pairing and verified user authority require an explicit human ceremony; an agent cannot approve its own origin, key or elevation",
         "adr": "0094-browser-local-authority.md"
@@ -3955,7 +3632,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame hooks policy get",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -3987,10 +3664,6 @@
       "android": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
         "adr": "0159-agent-hooks-interceptor.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4000,7 +3673,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame hooks policy put",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4032,10 +3705,6 @@
       "android": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
         "adr": "0159-agent-hooks-interceptor.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4045,7 +3714,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame hooks approver get",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4077,10 +3746,6 @@
       "android": {
         "reason": "the Host's hook approver is administered from the native CLI; this surface runs no agent loop and never names a Host",
         "adr": "0159-agent-hooks-interceptor.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4090,7 +3755,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame hooks approver put",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4122,10 +3787,6 @@
       "android": {
         "reason": "the Host's hook approver is administered from the native CLI; this surface runs no agent loop and never names a Host",
         "adr": "0159-agent-hooks-interceptor.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4135,7 +3796,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame hooks policy preset ls",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4167,10 +3828,6 @@
       "android": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
         "adr": "0159-agent-hooks-interceptor.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4225,7 +3882,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame hooks decisions",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4257,10 +3914,6 @@
       "android": {
         "reason": "the Host's hook policy is administered from the native CLI; this surface runs no agent loop and never names a Host",
         "adr": "0159-agent-hooks-interceptor.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4270,7 +3923,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors rotate hooks",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4302,10 +3955,6 @@
       "android": {
         "reason": "a hosted run's hook records are read from the native CLI; this surface names no Host and runs no agent loop, and a run's sealed log is read by the client that holds its viewer key",
         "adr": "0159-agent-hooks-interceptor.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4315,7 +3964,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors rotate recipe ls",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4347,10 +3996,6 @@
       "android": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
         "adr": "0076-autonomous-web-login-rotation.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4360,7 +4005,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors rotate recipe get",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4392,10 +4037,6 @@
       "android": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
         "adr": "0076-autonomous-web-login-rotation.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4405,7 +4046,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors rotate recipe put",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4437,10 +4078,6 @@
       "android": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
         "adr": "0076-autonomous-web-login-rotation.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4450,7 +4087,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors rotate recipe rm",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4482,10 +4119,6 @@
       "android": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
         "adr": "0076-autonomous-web-login-rotation.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4495,7 +4128,7 @@
     "plane": "client_local",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame rotate recipe sign",
+      "cli": "opensesame access connectors rotate recipe sign",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4536,7 +4169,7 @@
     "plane": "host",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors rotate recipe canary",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4568,10 +4201,6 @@
       "android": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
         "adr": "0076-autonomous-web-login-rotation.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4581,7 +4210,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors rotate signer ls",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4613,10 +4242,6 @@
       "android": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
         "adr": "0076-autonomous-web-login-rotation.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4626,7 +4251,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors rotate signer add",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4658,10 +4283,6 @@
       "android": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
         "adr": "0076-autonomous-web-login-rotation.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4671,7 +4292,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors rotate signer rm",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4703,10 +4324,6 @@
       "android": {
         "reason": "web-login recipes and their signers are administered on the Host from the native CLI (ADR 0076 §4); this surface names no Host and runs no hosted web-login run",
         "adr": "0076-autonomous-web-login-rotation.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -4716,7 +4333,7 @@
     "plane": "client_local",
     "kind": "act",
     "surfaces": {
-      "cli": "opensesame rotate signer keygen",
+      "cli": "opensesame access connectors rotate signer keygen",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4880,7 +4497,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": "opensesame ceremony list",
+      "cli": "opensesame access connectors ceremony list",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -4903,17 +4520,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors rotate runs",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "No reviewed scoped agent capability authorizes this surface; use the human CLI or browser",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -4930,17 +4543,13 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors rotate watch",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "the observation log is an authenticated view of somebody's account, sealed to their viewer key; extending ADR 0076 §5's recording exclusion to the live tail of the same log",
         "adr": "0081-live-session-observation.md"
@@ -4957,17 +4566,13 @@
     "plane": "host",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame access connectors rotate attach",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "driving a live authenticated session at a third party is a human ceremony; the lease is granted to a person holding the viewer key, never to a tool call",
         "adr": "0081-live-session-observation.md"
@@ -5163,17 +4768,13 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame daemon drive create",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "pwa": {
         "reason": "opening a drive slot mints the key that reads and replaces a vault snapshot; the daemon serves slot routes to its operator only and refuses any browser request",
         "adr": "0144-tailnet-vault-sync.md"
@@ -5220,39 +4821,12 @@
     }
   },
   {
-    "id": "sealed_store.tui",
-    "title": "Browse the local sealed store, entry names only",
-    "plane": "client_local",
-    "kind": "read",
-    "surfaces": {
-      "cli": "opensesame tui",
-      "pwa": null,
-      "mcp_host": null,
-      "mcp_client": null,
-      "webmcp": null
-    },
-    "excluded": {
-      "mcp_host": {
-        "reason": "password-manager ecosystem surface is human/device/ops plane only, never agent-facing",
-        "adr": "0052-password-manager-ecosystem-bridging.md"
-      },
-      "mcp_client": {
-        "reason": "password-manager ecosystem surface is human/device/ops plane only, never agent-facing",
-        "adr": "0052-password-manager-ecosystem-bridging.md"
-      },
-      "webmcp": {
-        "reason": "password-manager ecosystem surface is human/device/ops plane only, never agent-facing",
-        "adr": "0052-password-manager-ecosystem-bridging.md"
-      }
-    }
-  },
-  {
     "id": "tailnet.connect",
     "title": "Connect the daemon to a tailnet with a Tailscale credential",
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame daemon tailnet connect",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
@@ -5274,10 +4848,6 @@
       "pwa": {
         "reason": "the Tailscale credential is written into the daemon's own state from its terminal and never reaches a browser",
         "adr": "0169-tailnet-device-management.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -5287,7 +4857,7 @@
     "plane": "client_local",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame daemon tailnet pair",
       "pwa": "lib/tailnet-admin/client.ts:tailnetAdmin",
       "mcp_host": null,
       "mcp_client": null,
@@ -5305,10 +4875,6 @@
       "webmcp": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
         "adr": "0169-tailnet-device-management.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -5318,7 +4884,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame daemon tailnet devices",
       "pwa": "lib/tailnet-admin/client.ts:tailnetAdmin",
       "mcp_host": null,
       "mcp_client": null,
@@ -5336,10 +4902,6 @@
       "webmcp": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
         "adr": "0169-tailnet-device-management.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -5349,7 +4911,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame daemon tailnet approve",
       "pwa": "lib/tailnet-admin/client.ts:tailnetAdmin",
       "mcp_host": null,
       "mcp_client": null,
@@ -5367,10 +4929,6 @@
       "webmcp": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
         "adr": "0169-tailnet-device-management.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -5380,7 +4938,7 @@
     "plane": "host",
     "kind": "admin",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame daemon tailnet mint",
       "pwa": "lib/tailnet-admin/client.ts:tailnetAdmin",
       "mcp_host": null,
       "mcp_client": null,
@@ -5398,10 +4956,6 @@
       "webmcp": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
         "adr": "0169-tailnet-device-management.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -5411,7 +4965,7 @@
     "plane": "host",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame daemon tailnet audit",
       "pwa": "lib/tailnet-admin/client.ts:tailnetAdmin",
       "mcp_host": null,
       "mcp_client": null,
@@ -5429,10 +4983,6 @@
       "webmcp": {
         "reason": "approving, re-keying and removing a tailnet's machines decides who reaches the network; it is a human-plane act, never an agent tool",
         "adr": "0169-tailnet-device-management.md"
-      },
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
       }
     }
   },
@@ -5546,17 +5096,13 @@
     "plane": "identity",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id claim poll",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_client": {
         "reason": "Human Identity sessions and raw claim bearers are not agent capabilities or model arguments; use the human CLI or browser ceremony",
         "adr": "0099-scoped-local-agent-authority.md"
@@ -5650,17 +5196,13 @@
     "plane": "identity",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id login",
       "pwa": "lib/federation.ts:beginSignIn",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
         "adr": "0023-mcp-bearer-vs-dpop.md"
@@ -5681,17 +5223,13 @@
     "plane": "identity",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame logout",
       "pwa": "lib/session-exit.ts:signOut",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "authentication ceremonies run out-of-band; inbound agent tokens are never minted or forwarded by tools",
         "adr": "0023-mcp-bearer-vs-dpop.md"
@@ -5847,17 +5385,13 @@
     "plane": "identity",
     "kind": "read",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id whoami",
       "pwa": "route:/identity",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": "opensesame_identity_read"
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "not yet exposed to agents; revisit deliberately rather than by accretion",
         "adr": "0065-agent-surface-parity.md"
@@ -6094,17 +5628,13 @@
     "plane": "identity",
     "kind": "ceremony",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id agent init",
       "pwa": "route:/identity",
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "webmcp": {
         "reason": "Navigation opens Identity; directory and lifecycle changes require a human decision",
         "adr": "0065-agent-surface-parity.md"
@@ -6575,17 +6105,13 @@
     "plane": "identity",
     "kind": "act",
     "surfaces": {
-      "cli": null,
+      "cli": "opensesame-id project create",
       "pwa": null,
       "mcp_host": null,
       "mcp_client": null,
       "webmcp": null
     },
     "excluded": {
-      "cli": {
-        "reason": "the client repository no longer ships Host API, Identity API, or daemon packages; only local vault and relay remain",
-        "adr": "0090-static-frontend-complete-without-backend.md"
-      },
       "mcp_host": {
         "reason": "not yet exposed to agents; revisit deliberately rather than by accretion",
         "adr": "0065-agent-surface-parity.md"

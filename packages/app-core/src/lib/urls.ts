@@ -1,3 +1,7 @@
+import {
+  normalizeHttpBaseUrl,
+  normalizeLoopbackBaseUrl,
+} from "@opensesame/api-client";
 /**
  * Where this page is allowed to send things.
  *
@@ -5,14 +9,11 @@
  * they are attacker-influenced the moment anything can write our storage. One of
  * them carries authentication, so the destination has to be checked, not assumed.
  *
- * The checks live in `http-base-url.ts`; there is one definition of "loopback"
- * in this repo, not one per surface.
+ * The checks themselves live in `@opensesame/api-client` alongside the fence the
+ * extension already uses; there is one definition of "loopback" in this repo, not
+ * one per surface.
  */
 import { maybePage, page } from "../ports.js";
-import {
-  normalizeHttpBaseUrl,
-  normalizeLoopbackBaseUrl,
-} from "./http-base-url.js";
 
 function isLoopbackUrlDefault(raw: string): boolean {
   return normalizeLoopbackBaseUrl(raw) !== null;

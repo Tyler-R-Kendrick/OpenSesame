@@ -1139,7 +1139,7 @@ describe("brokered federation", () => {
     identitySeams.identityBase = () => "";
     deviceIdentitySeams.remoteIdentityApi = () => "";
     await expect(adoptBrokeredSession("at_x")).rejects.toMatchObject({
-      code: "no_federation_endpoint",
+      code: "no_identity_api",
     });
   });
 });

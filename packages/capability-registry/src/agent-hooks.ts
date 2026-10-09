@@ -1,4 +1,3 @@
-import { CLIENT_NO_HOST_IDENTITY } from "./exclusions.js";
 import { extensionRunnerCapabilities } from "./extension-runner.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 import { webLoginRecipeCapabilities } from "./web-login-recipes.js";
@@ -215,8 +214,8 @@ export const agentHooksCapabilities: readonly Capability[] = [
     title: "Read the organization's agent-hooks policy on the Host",
     plane: "host",
     kind: "read",
-    surfaces: { cli: null, ...CLI_ONLY },
-    excluded: { ...POLICY_EXCLUSIONS, cli: CLIENT_NO_HOST_IDENTITY },
+    surfaces: { cli: "opensesame hooks policy get", ...CLI_ONLY },
+    excluded: POLICY_EXCLUSIONS,
   },
   {
     id: "agent_hooks.policy.write",
@@ -224,8 +223,8 @@ export const agentHooksCapabilities: readonly Capability[] = [
       "Replace the organization's agent-hooks policy on the Host (compare-and-set; from a file or a named preset; needs the operator token or a fresh passkey step-up)",
     plane: "host",
     kind: "admin",
-    surfaces: { cli: null, ...CLI_ONLY },
-    excluded: { ...POLICY_EXCLUSIONS, cli: CLIENT_NO_HOST_IDENTITY },
+    surfaces: { cli: "opensesame hooks policy put", ...CLI_ONLY },
+    excluded: POLICY_EXCLUSIONS,
   },
   {
     id: "agent_hooks.approver.read",
@@ -233,8 +232,8 @@ export const agentHooksCapabilities: readonly Capability[] = [
       "Read who the Host puts the organization's escalated agent actions to (an inbox handle, its version, and whether the Host has an Identity API to ask through)",
     plane: "host",
     kind: "read",
-    surfaces: { cli: null, ...CLI_ONLY },
-    excluded: { ...APPROVER_EXCLUSIONS, cli: CLIENT_NO_HOST_IDENTITY },
+    surfaces: { cli: "opensesame hooks approver get", ...CLI_ONLY },
+    excluded: APPROVER_EXCLUSIONS,
   },
   {
     id: "agent_hooks.approver.write",
@@ -242,8 +241,8 @@ export const agentHooksCapabilities: readonly Capability[] = [
       "Set or clear who the Host puts the organization's escalated agent actions to (compare-and-set; needs the operator token or a fresh passkey step-up)",
     plane: "host",
     kind: "admin",
-    surfaces: { cli: null, ...CLI_ONLY },
-    excluded: { ...APPROVER_EXCLUSIONS, cli: CLIENT_NO_HOST_IDENTITY },
+    surfaces: { cli: "opensesame hooks approver put", ...CLI_ONLY },
+    excluded: APPROVER_EXCLUSIONS,
   },
   {
     id: "agent_hooks.policy.presets.read",
@@ -251,11 +250,8 @@ export const agentHooksCapabilities: readonly Capability[] = [
       "List and show the named agent-hooks policy presets (rotation-web-login, strict, observe), compiled in so no Host is needed",
     plane: "host",
     kind: "read",
-    surfaces: { cli: null, ...CLI_ONLY },
-    excluded: {
-      ...PRESETS_ARE_THE_OPERATORS_CHOICE_EXCLUSIONS,
-      cli: CLIENT_NO_HOST_IDENTITY,
-    },
+    surfaces: { cli: "opensesame hooks policy preset ls", ...CLI_ONLY },
+    excluded: PRESETS_ARE_THE_OPERATORS_CHOICE_EXCLUSIONS,
   },
   {
     id: "agent_hooks.policy.presets.remote",
@@ -279,8 +275,8 @@ export const agentHooksCapabilities: readonly Capability[] = [
       "Read the audit of the agent-hooks verdicts the Host answered (value-blind, paginated, filterable)",
     plane: "host",
     kind: "read",
-    surfaces: { cli: null, ...CLI_ONLY },
-    excluded: { ...DECISIONS_EXCLUSIONS, cli: CLIENT_NO_HOST_IDENTITY },
+    surfaces: { cli: "opensesame hooks decisions", ...CLI_ONLY },
+    excluded: DECISIONS_EXCLUSIONS,
   },
   {
     id: "agent_hooks.run_records.read",
@@ -288,8 +284,8 @@ export const agentHooksCapabilities: readonly Capability[] = [
       "Read a Host-run agent's payload-free hook records and their verdict summary (ADR 0081 §9: the observation of a run that has no viewer key)",
     plane: "host",
     kind: "read",
-    surfaces: { cli: null, ...CLI_ONLY },
-    excluded: { ...RUN_RECORDS_EXCLUSIONS, cli: CLIENT_NO_HOST_IDENTITY },
+    surfaces: { cli: "opensesame access connectors rotate hooks", ...CLI_ONLY },
+    excluded: RUN_RECORDS_EXCLUSIONS,
   },
   // The recipes those hosted runs replay, and their signers (ADR 0076 §4).
   ...webLoginRecipeCapabilities,

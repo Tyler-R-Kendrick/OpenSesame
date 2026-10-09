@@ -1,7 +1,4 @@
-import {
-  ADR_PAGES_WITHOUT_HOST,
-  CLIENT_NO_HOST_IDENTITY,
-} from "./exclusions.js";
+import { ADR_PAGES_WITHOUT_HOST } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 const BROWSER: CapabilityExclusion = {
@@ -60,18 +57,13 @@ export const securityAuthorityCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "read",
     surfaces: {
-      cli: null,
+      cli: "opensesame access grants local-authority pair",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: {
-      cli: CLIENT_NO_HOST_IDENTITY,
-      mcp_host: BROWSER,
-      mcp_client: BROWSER,
-      webmcp: BROWSER,
-    },
+    excluded: { mcp_host: BROWSER, mcp_client: BROWSER, webmcp: BROWSER },
   },
   {
     id: "browser.pairing.decide",
@@ -79,18 +71,13 @@ export const securityAuthorityCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "ceremony",
     surfaces: {
-      cli: null,
+      cli: "opensesame access grants local-authority pair",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: {
-      cli: CLIENT_NO_HOST_IDENTITY,
-      mcp_host: BROWSER,
-      mcp_client: BROWSER,
-      webmcp: BROWSER,
-    },
+    excluded: { mcp_host: BROWSER, mcp_client: BROWSER, webmcp: BROWSER },
   },
   {
     id: "browser.identity.authenticate",
@@ -145,18 +132,13 @@ export const securityAuthorityCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "ceremony",
     surfaces: {
-      cli: null,
+      cli: "opensesame access grants local-authority launch",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: {
-      cli: CLIENT_NO_HOST_IDENTITY,
-      mcp_host: AGENT,
-      mcp_client: AGENT,
-      webmcp: AGENT,
-    },
+    excluded: { mcp_host: AGENT, mcp_client: AGENT, webmcp: AGENT },
   },
   {
     id: "agent.capability.revoke",
@@ -207,18 +189,13 @@ export const securityAuthorityCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "admin",
     surfaces: {
-      cli: null,
+      cli: "opensesame vault sync rebind-legacy",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
       webmcp: null,
     },
-    excluded: {
-      cli: CLIENT_NO_HOST_IDENTITY,
-      mcp_host: BROWSER,
-      mcp_client: BROWSER,
-      webmcp: BROWSER,
-    },
+    excluded: { mcp_host: BROWSER, mcp_client: BROWSER, webmcp: BROWSER },
   },
   {
     id: "configs.permissions.read",

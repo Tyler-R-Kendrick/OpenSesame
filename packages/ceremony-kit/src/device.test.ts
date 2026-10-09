@@ -71,7 +71,7 @@ describe("approveDevice", () => {
 
   it.each([
     [503, "operator_token_unconfigured", /Device approval is not enabled/],
-    [502, "approval_peer_unreachable", /Approval could not be delivered/],
+    [502, "host_api_unreachable", /Approval could not be delivered/],
     [404, "host_approval_failed", /No device is waiting on that code/],
     [502, "host_approval_failed", /could not be approved/],
     [400, "invalid_request", /exactly as the device shows it/],
@@ -112,7 +112,7 @@ describe("approveDevice", () => {
     expect(error.message).toBe("500:Plain words.");
     // A known code still outranks the surface's fallback.
     const known = await failure(
-      answer(502, { error: "approval_peer_unreachable" }),
+      answer(502, { error: "host_api_unreachable" }),
       fallback,
     );
     expect(known.message).toMatch(/Approval could not be delivered/);

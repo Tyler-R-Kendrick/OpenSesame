@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "The Client CLI, opensesame-id: local vault, password-agent parity, and MCP servers",
+  "description": "The Client CLI, opensesame-id: Identity sign-in, claims, Host probes, and the Pages vault commands",
   "bin": {
     "opensesame-id": "./src/bin.ts",
     "opensesame-identity": "./src/bin.ts"
@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@opensesame/log-scrub": "workspace:*",
+    "@opensesame/api-client": "workspace:*",
     "@opensesame/app-core": "workspace:*",
     "@opensesame/mcp-client": "workspace:*",
     "@opensesame/mcp-host": "workspace:*",

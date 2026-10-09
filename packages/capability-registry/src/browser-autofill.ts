@@ -1,4 +1,4 @@
-import { CLIENT_NO_HOST_IDENTITY, PAGES_HAS_NO_HOST } from "./exclusions.js";
+import { PAGES_HAS_NO_HOST } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./types.js";
 
 /**
@@ -73,7 +73,7 @@ export const browserAutofillCapabilities: readonly Capability[] = [
     kind: "ceremony",
     plugin: BROWSER_AUTOFILL_PLUGIN,
     surfaces: {
-      cli: null,
+      cli: "opensesame daemon fill approve",
       pwa: null,
       mcp_host: null,
       mcp_client: null,
@@ -82,7 +82,6 @@ export const browserAutofillCapabilities: readonly Capability[] = [
       android: null,
     },
     excluded: {
-      cli: CLIENT_NO_HOST_IDENTITY,
       pwa: PAGES_HAS_NO_HOST,
       mcp_host: PERSON_APPROVES_PAIRING,
       mcp_client: PERSON_APPROVES_PAIRING,

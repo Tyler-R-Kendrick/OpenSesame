@@ -1,0 +1,5461 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "OpenSesame Control Plane",
+    "version": "0.1.0",
+    "description": "Identity, claims, provisional principals, and agent registration APIs"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8788"
+    }
+  ],
+  "paths": {
+    "/v1/health/live": {
+      "get": {
+        "summary": "Liveness probe",
+        "responses": {
+          "200": {
+            "description": "Alive"
+          }
+        }
+      }
+    },
+    "/v1/health/ready": {
+      "get": {
+        "summary": "Readiness probe",
+        "responses": {
+          "200": {
+            "description": "Ready"
+          },
+          "503": {
+            "description": "Not ready"
+          }
+        }
+      }
+    },
+    "/v1/principals/provisional": {
+      "post": {
+        "summary": "Create provisional principal + session",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "429": {
+            "description": "Rate fence"
+          }
+        }
+      }
+    },
+    "/v1/principals/me": {
+      "get": {
+        "summary": "Current principal",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Principal"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/v1/organizations": {
+      "get": {
+        "summary": "List organizations the caller belongs to, including their role",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organizations and caller roles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["organizations"],
+                  "properties": {
+                    "organizations": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Organization"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create an organization; the creator becomes owner",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrganization"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Organization created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid organization body"
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Verified identity required"
+          },
+          "409": {
+            "description": "Slug already exists"
+          }
+        }
+      }
+    },
+    "/v1/organizations/tenants/{slug}": {
+      "get": {
+        "summary": "Public tenant discovery: display name and SSO/SAML login methods",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tenant auth methods",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationTenant"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Tenant not found"
+          }
+        }
+      }
+    },
+    "/v1/organizations/tenants/{slug}/join": {
+      "post": {
+        "summary": "Join a tenant after SSO/SAML (OIDC-brokered) by presenting an id_token",
+        "description": "Provisional principals may join. SAML is an OIDC broker issuer (ADR 0016).",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinOrganizationTenant"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Already a member",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Joined as member",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid join body"
+          },
+          "401": {
+            "description": "Authentication or assertion required"
+          },
+          "404": {
+            "description": "Tenant not found"
+          },
+          "409": {
+            "description": "Requested auth method is not configured"
+          },
+          "502": {
+            "description": "Org issuer discovery failed"
+          }
+        }
+      }
+    },
+    "/v1/organizations/{id}": {
+      "get": {
+        "summary": "Get an organization the caller belongs to, including their role",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Organization or membership not found"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update organization display name or SSO/SAML issuers",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrganization"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Organization updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Organization"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid organization body"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Owner required"
+          },
+          "404": {
+            "description": "Organization or membership not found"
+          }
+        }
+      }
+    },
+    "/v1/organizations/{id}/members": {
+      "get": {
+        "summary": "List organization memberships (owner only)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Memberships",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["members"],
+                  "properties": {
+                    "members": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OrganizationMembership"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Owner role required"
+          },
+          "404": {
+            "description": "Caller membership not found (`not_found`)"
+          }
+        }
+      },
+      "post": {
+        "summary": "Add an existing principal to an organization (owner only)",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddOrganizationMember"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Membership created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationMembership"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Owner role required"
+          },
+          "404": {
+            "description": "Principal not found"
+          },
+          "409": {
+            "description": "Membership exists or principal is inactive"
+          }
+        }
+      }
+    },
+    "/v1/organizations/{id}/members/{principalId}": {
+      "patch": {
+        "summary": "Change a membership role and revoke its Host sessions (owner only)",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "principalId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeOrganizationMemberRole"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Membership updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationMembership"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid membership role body"
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Owner role required"
+          },
+          "404": {
+            "description": "Caller membership (`not_found`) or target membership (`membership_not_found`) not found"
+          },
+          "409": {
+            "description": "Last owner cannot be demoted"
+          },
+          "502": {
+            "description": "Host session revocation failed; role unchanged"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove a membership and revoke its Host sessions (owner only)",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "principalId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Membership removed"
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Owner role required"
+          },
+          "404": {
+            "description": "Caller membership (`not_found`) or target membership (`membership_not_found`) not found"
+          },
+          "409": {
+            "description": "Last owner cannot be removed"
+          },
+          "502": {
+            "description": "Host session revocation failed; membership unchanged"
+          }
+        }
+      }
+    },
+    "/v1/device/approve": {
+      "post": {
+        "summary": "Approve a Host device session in an organization the caller belongs to",
+        "description": "Identity derives the organization role server-side; organization_role and principal fields supplied by browsers are ignored. Cookie-authenticated browser mutations also require an allowed Origin header.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceApproval"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Device approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceApprovalResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Organization selection required or request invalid"
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Caller is not an active member of the organization"
+          },
+          "404": {
+            "description": "Host device authorization not found"
+          },
+          "500": {
+            "description": "Configured Host API URL is invalid"
+          },
+          "502": {
+            "description": "Host API unavailable"
+          },
+          "503": {
+            "description": "Host operator token is not configured"
+          }
+        }
+      }
+    },
+    "/v1/projects": {
+      "get": {
+        "summary": "List projects the caller can use, provisioning the personal default on first touch",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Projects and caller roles, personal project first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["projects"],
+                  "properties": {
+                    "projects": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Project"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a project; the creator becomes owner",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProject"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Project created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid project body"
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Verified identity or quota required"
+          },
+          "404": {
+            "description": "Organization not found"
+          },
+          "409": {
+            "description": "Slug already exists"
+          }
+        }
+      }
+    },
+    "/v1/projects/active": {
+      "get": {
+        "summary": "Currently active project (falls back to the personal project)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveProject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "put": {
+        "summary": "Swap the caller's active project",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetActiveProject"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Active project swapped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiveProject"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid body"
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "404": {
+            "description": "Project or membership not found"
+          }
+        }
+      }
+    },
+    "/v1/projects/temporary": {
+      "post": {
+        "summary": "Create temporary provisional project",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "claimId",
+                    "claimToken",
+                    "userCode",
+                    "verificationUri",
+                    "expiresAt"
+                  ],
+                  "properties": {
+                    "claimId": {
+                      "type": "string"
+                    },
+                    "claimToken": {
+                      "type": "string",
+                      "pattern": "^osc_clm_",
+                      "description": "The bearer that presents the claim (ADR 0062)."
+                    },
+                    "userCode": {
+                      "type": "string",
+                      "description": "The second factor the person types; never part of a link."
+                    },
+                    "verificationUri": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "The client app's /claim route, or this service's zero-JS /v1/claims/{id}/verify page when none is configured."
+                    },
+                    "verificationUriComplete": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "RFC 8628 §3.3.1: verificationUri with the claim token in the fragment (#token=osc_clm_…), so it reaches no request line, log or Referer. Present only with a client app."
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing principal bearer"
+          },
+          "403": {
+            "description": "Quota exceeded"
+          }
+        }
+      }
+    },
+    "/v1/projects/{id}": {
+      "get": {
+        "summary": "Get a project the caller can use, including their role",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Project"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Project or membership not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a project (owner only; the personal project never)",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Project deleted"
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Owner role required"
+          },
+          "404": {
+            "description": "Project or membership not found"
+          },
+          "409": {
+            "description": "Personal project cannot be deleted"
+          }
+        }
+      }
+    },
+    "/v1/projects/{id}/members": {
+      "get": {
+        "summary": "List project memberships (owner or admin)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Memberships",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["members"],
+                  "properties": {
+                    "members": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProjectMembership"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Owner or admin role required"
+          },
+          "404": {
+            "description": "Project or membership not found"
+          }
+        }
+      },
+      "post": {
+        "summary": "Share a project with an existing principal (owner or admin)",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header. Personal projects are never shareable.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddProjectMember"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Membership created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectMembership"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Owner or admin role required"
+          },
+          "404": {
+            "description": "Principal not found"
+          },
+          "409": {
+            "description": "Membership exists, principal is inactive, or project is personal"
+          }
+        }
+      }
+    },
+    "/v1/projects/{id}/members/{principalId}": {
+      "patch": {
+        "summary": "Change a project membership role (owner or admin)",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header. Owner grants and revocations take an owner actor.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "principalId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeProjectMemberRole"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Membership updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectMembership"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid membership role body"
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Owner or admin role required"
+          },
+          "404": {
+            "description": "Project (`not_found`) or target membership (`membership_not_found`) not found"
+          },
+          "409": {
+            "description": "Last owner cannot be demoted"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Remove a project membership (owner or admin, or the member leaving)",
+        "description": "Cookie-authenticated browser mutations also require an allowed Origin header.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "principalId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Membership removed"
+          },
+          "401": {
+            "description": "Authentication or cookie Origin required"
+          },
+          "403": {
+            "description": "Owner or admin role required"
+          },
+          "404": {
+            "description": "Project (`not_found`) or target membership (`membership_not_found`) not found"
+          },
+          "409": {
+            "description": "Last owner cannot be removed, or project is personal"
+          }
+        }
+      }
+    },
+    "/v1/claims": {
+      "post": {
+        "summary": "Create claim",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "claimId",
+                    "claimToken",
+                    "userCode",
+                    "verificationUri",
+                    "expiresAt"
+                  ],
+                  "properties": {
+                    "claimId": {
+                      "type": "string"
+                    },
+                    "claimToken": {
+                      "type": "string",
+                      "pattern": "^osc_clm_",
+                      "description": "The bearer that presents the claim (ADR 0062)."
+                    },
+                    "userCode": {
+                      "type": "string",
+                      "description": "The second factor the person types; never part of a link."
+                    },
+                    "verificationUri": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "The client app's /claim route, or this service's zero-JS /v1/claims/{id}/verify page when none is configured."
+                    },
+                    "verificationUriComplete": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "RFC 8628 §3.3.1: verificationUri with the claim token in the fragment (#token=osc_clm_…), so it reaches no request line, log or Referer. Present only with a client app."
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing principal bearer"
+          },
+          "403": {
+            "description": "Quota exceeded"
+          }
+        }
+      }
+    },
+    "/v1/claims/{id}": {
+      "get": {
+        "summary": "Get claim",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Claim-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^osc_clm_"
+            },
+            "description": "Claim bearer (or Authorization: Bearer osc_clm_…)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Claim"
+          },
+          "401": {
+            "description": "Missing/invalid claim token"
+          }
+        }
+      }
+    },
+    "/v1/claims/present": {
+      "post": {
+        "summary": "Present claim token",
+        "responses": {
+          "200": {
+            "description": "Presented"
+          },
+          "401": {
+            "description": "Missing or invalid claim token"
+          }
+        }
+      }
+    },
+    "/v1/claims/{id}/complete": {
+      "post": {
+        "summary": "Complete claim",
+        "description": "Requires the user code displayed by the device being claimed; five wrong codes refuse the claim.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["acceptedItemIds", "userCode"],
+                "properties": {
+                  "acceptedItemIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "userCode": {
+                    "type": "string"
+                  },
+                  "destination": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Completed"
+          },
+          "401": {
+            "description": "Missing or wrong user code"
+          },
+          "429": {
+            "description": "Too many wrong user codes for this claim"
+          }
+        }
+      }
+    },
+    "/v1/claims/{id}/deny": {
+      "post": {
+        "summary": "Deny claim",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Denied"
+          },
+          "401": {
+            "description": "Missing principal bearer"
+          }
+        }
+      }
+    },
+    "/v1/claims/{id}/poll": {
+      "get": {
+        "summary": "Poll claim status",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Claim-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^osc_clm_"
+            },
+            "description": "Claim bearer (or Authorization: Bearer osc_clm_…)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Status"
+          },
+          "401": {
+            "description": "Missing/invalid claim token"
+          }
+        }
+      }
+    },
+    "/agent/identity": {
+      "post": {
+        "summary": "Register an agent identity (auth.md AgentAuth)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": ["type"],
+                    "properties": {
+                      "type": {
+                        "const": "anonymous"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "required": ["type", "login_hint"],
+                    "properties": {
+                      "type": {
+                        "const": "service_auth"
+                      },
+                      "login_hint": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Registration created"
+          },
+          "400": {
+            "description": "Protocol error"
+          },
+          "429": {
+            "description": "Rate fence"
+          }
+        }
+      }
+    },
+    "/agent/identity/claim": {
+      "post": {
+        "summary": "Start or restart an AgentAuth claim ceremony",
+        "responses": {
+          "200": {
+            "description": "Claim attempt minted"
+          },
+          "400": {
+            "description": "Invalid claim token"
+          },
+          "410": {
+            "description": "Claim expired"
+          }
+        }
+      }
+    },
+    "/oauth2/token": {
+      "post": {
+        "summary": "JWT-bearer assertion exchange or AgentAuth claim poll (RFC 7523 / auth.md)",
+        "responses": {
+          "200": {
+            "description": "Token issued"
+          },
+          "400": {
+            "description": "OAuth error"
+          }
+        }
+      }
+    },
+    "/oauth2/revoke": {
+      "post": {
+        "summary": "RFC 7009 revocation for AgentAuth access tokens",
+        "responses": {
+          "200": {
+            "description": "Revoked or already unknown"
+          },
+          "400": {
+            "description": "Malformed body"
+          }
+        }
+      }
+    },
+    "/v1/agent-resources/demo": {
+      "get": {
+        "summary": "Sample AgentAuth protected resource",
+        "responses": {
+          "200": {
+            "description": "Authorized"
+          },
+          "401": {
+            "description": "Missing/invalid agent access token"
+          },
+          "403": {
+            "description": "Insufficient scope"
+          }
+        }
+      }
+    },
+    "/v1/agents": {
+      "get": {
+        "summary": "List owned agent registrations",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Owned registrations only"
+          },
+          "401": {
+            "description": "Authentication required"
+          }
+        }
+      },
+      "post": {
+        "summary": "Register provisional agent",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "claimId",
+                    "claimToken",
+                    "userCode",
+                    "verificationUri",
+                    "expiresAt"
+                  ],
+                  "properties": {
+                    "claimId": {
+                      "type": "string"
+                    },
+                    "claimToken": {
+                      "type": "string",
+                      "pattern": "^osc_clm_",
+                      "description": "The bearer that presents the claim (ADR 0062)."
+                    },
+                    "userCode": {
+                      "type": "string",
+                      "description": "The second factor the person types; never part of a link."
+                    },
+                    "verificationUri": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "The client app's /claim route, or this service's zero-JS /v1/claims/{id}/verify page when none is configured."
+                    },
+                    "verificationUriComplete": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "RFC 8628 §3.3.1: verificationUri with the claim token in the fragment (#token=osc_clm_…), so it reaches no request line, log or Referer. Present only with a client app."
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing principal bearer"
+          },
+          "403": {
+            "description": "Quota exceeded"
+          }
+        }
+      }
+    },
+    "/v1/agents/{id}/claim": {
+      "post": {
+        "summary": "Start claim for agent",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Claim started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "claimId",
+                    "claimToken",
+                    "userCode",
+                    "verificationUri",
+                    "expiresAt"
+                  ],
+                  "properties": {
+                    "claimId": {
+                      "type": "string"
+                    },
+                    "claimToken": {
+                      "type": "string",
+                      "pattern": "^osc_clm_",
+                      "description": "The bearer that presents the claim (ADR 0062)."
+                    },
+                    "userCode": {
+                      "type": "string",
+                      "description": "The second factor the person types; never part of a link."
+                    },
+                    "verificationUri": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "The client app's /claim route, or this service's zero-JS /v1/claims/{id}/verify page when none is configured."
+                    },
+                    "verificationUriComplete": {
+                      "type": "string",
+                      "format": "uri",
+                      "description": "RFC 8628 §3.3.1: verificationUri with the claim token in the fragment (#token=osc_clm_…), so it reaches no request line, log or Referer. Present only with a client app."
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing principal bearer"
+          }
+        }
+      }
+    },
+    "/v1/agents/{id}": {
+      "patch": {
+        "summary": "Rename or permanently revoke an owned agent registration",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": ["revoked"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated owned registration"
+          },
+          "400": {
+            "description": "Invalid or empty update"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Unknown or foreign agent"
+          },
+          "409": {
+            "description": "Registration already revoked"
+          }
+        }
+      }
+    },
+    "/v1/authority/workloads/spawn": {
+      "post": {
+        "summary": "Spawn a workload identity under the caller's orchestrator",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "orchestratorKind",
+                  "orchestratorPrincipalId",
+                  "realmId",
+                  "taskId",
+                  "accessDomainId",
+                  "runtimeProfile",
+                  "authorityGeneration",
+                  "publicKeyJkt"
+                ],
+                "properties": {
+                  "orchestratorKind": {
+                    "type": "string",
+                    "enum": ["agent_registration", "actor_instance", "service"]
+                  },
+                  "orchestratorPrincipalId": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "realmId": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "accessDomainId": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "runtimeProfile": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "authorityGeneration": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "publicKeyJkt": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 256
+                  },
+                  "ordinal": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "restoredFromGeneration": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Workload identity spawned"
+          },
+          "400": {
+            "description": "Validation or invariant violation"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Orchestrator must be the caller"
+          }
+        }
+      }
+    },
+    "/v1/authority/enrollment/pop": {
+      "post": {
+        "summary": "Bind proof-of-possession for a device, actor, or workload subject",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "subjectKind",
+                  "principalId",
+                  "realmId",
+                  "publicKeyJkt",
+                  "authorityGeneration"
+                ],
+                "properties": {
+                  "subjectKind": {
+                    "type": "string",
+                    "enum": ["actor_instance", "device", "workload_instance"]
+                  },
+                  "principalId": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "realmId": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "description": "Organization realm; caller must be owner or admin"
+                  },
+                  "publicKeyJkt": {
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 256
+                  },
+                  "authorityGeneration": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "expiresAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "PoP enrollment bound"
+          },
+          "400": {
+            "description": "Validation or invariant violation"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Caller is not a realm owner or admin"
+          }
+        }
+      }
+    },
+    "/auth.md": {
+      "get": {
+        "summary": "Generated auth surface markdown",
+        "responses": {
+          "200": {
+            "description": "Markdown"
+          }
+        }
+      }
+    },
+    "/.well-known/agent-card.json": {
+      "get": {
+        "summary": "A2A agent card",
+        "responses": {
+          "200": {
+            "description": "Agent card"
+          }
+        }
+      }
+    },
+    "/.well-known/oauth-protected-resource": {
+      "get": {
+        "summary": "RFC 9728 protected resource metadata",
+        "responses": {
+          "200": {
+            "description": "Metadata"
+          }
+        }
+      }
+    },
+    "/v1/mfa/passkey/assert": {
+      "post": {
+        "summary": "Verify a passkey assertion (unauthenticated, fenced)",
+        "responses": {
+          "200": {
+            "description": "Assertion accepted"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Assertion failed"
+          },
+          "429": {
+            "description": "Rate fence"
+          }
+        }
+      }
+    },
+    "/v1/mfa/factors": {
+      "get": {
+        "summary": "List the caller's own account factors (never a public key, seed or counter)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's factors, and the kinds it may add",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["ok", "factors", "enrollable"],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "factors": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["id", "kind"],
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "pattern": "^(?:totp|pk_[0-9a-f]{32})$",
+                            "description": "Opaque handle: `totp`, or `pk_` and 32 hex digits of the credential id's SHA-256"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": ["passkey", "totp"]
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    },
+                    "enrollable": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["passkey", "totp"]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          }
+        }
+      }
+    },
+    "/v1/mfa/passkey/authentication-options": {
+      "post": {
+        "summary": "Issue a one-time WebAuthn challenge; with a purpose, a step-up challenge bound to this principal and one factor",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["purpose", "factorId"],
+                "properties": {
+                  "purpose": {
+                    "type": "string",
+                    "const": "factor.remove"
+                  },
+                  "factorId": {
+                    "type": "string",
+                    "pattern": "^(?:totp|pk_[0-9a-f]{32})$",
+                    "description": "Opaque handle: `totp`, or `pk_` and 32 hex digits of the credential id's SHA-256"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Challenge and request options"
+          },
+          "400": {
+            "description": "Unknown purpose or not a factor id"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "No such factor on the caller's account"
+          }
+        }
+      }
+    },
+    "/v1/mfa/factors/{id}": {
+      "delete": {
+        "summary": "Remove one of the caller's own account factors, proved by a fresh step-up from one of them (ADR 0146)",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(?:totp|pk_[0-9a-f]{32})$",
+              "description": "Opaque handle: `totp`, or `pk_` and 32 hex digits of the credential id's SHA-256"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["proof"],
+                "properties": {
+                  "proof": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["kind", "code"],
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "totp"
+                          },
+                          "code": {
+                            "type": "string",
+                            "pattern": "^\\d{6}$"
+                          }
+                        }
+                      },
+                      {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": [
+                          "kind",
+                          "credentialId",
+                          "clientDataJSON",
+                          "authenticatorData",
+                          "signature"
+                        ],
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "const": "passkey"
+                          },
+                          "credentialId": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 16384,
+                            "pattern": "^[A-Za-z0-9+/_=-]+$"
+                          },
+                          "clientDataJSON": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 16384,
+                            "pattern": "^[A-Za-z0-9+/_=-]+$"
+                          },
+                          "authenticatorData": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 16384,
+                            "pattern": "^[A-Za-z0-9+/_=-]+$"
+                          },
+                          "signature": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 16384,
+                            "pattern": "^[A-Za-z0-9+/_=-]+$"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Removed"
+          },
+          "400": {
+            "description": "Not a factor id, or a malformed proof"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "`step_up_required` (no proof) or `step_up_failed` (a proof that did not verify); never 401, so a client keeps its session"
+          },
+          "404": {
+            "description": "No such factor on the caller's account"
+          },
+          "429": {
+            "description": "Failure fence"
+          }
+        }
+      }
+    },
+    "/v1/authentication/applications": {
+      "get": {
+        "summary": "List managed passwordless applications",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Applications"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a passwordless application and shown-once API secret",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Application and API secret"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Verified administrator required"
+          }
+        }
+      }
+    },
+    "/v1/authentication/applications/{applicationId}": {
+      "patch": {
+        "summary": "Update application state, features, or authentication policies",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Application updated"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/v1/authentication/applications/{applicationId}/rotate-secret": {
+      "post": {
+        "summary": "Replace all backend API keys with one shown-once secret",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Secret rotated"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/v1/authentication/applications/{applicationId}/api-keys": {
+      "post": {
+        "summary": "Create an additional shown-once backend API key",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "API key created"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/v1/authentication/applications/{applicationId}/api-keys/{keyId}": {
+      "patch": {
+        "summary": "Lock or unlock a backend API key",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API key updated"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "409": {
+            "description": "Last active key"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a locked backend API key",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "applicationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "keyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "API key deleted"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "409": {
+            "description": "Lock key first"
+          }
+        }
+      }
+    },
+    "/v1/authentication/backend/registration-tokens": {
+      "post": {
+        "summary": "Create a one-time passkey registration token",
+        "security": [
+          {
+            "authenticationApiSecret": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Registration token"
+          },
+          "401": {
+            "description": "Authentication required"
+          }
+        }
+      }
+    },
+    "/v1/authentication/backend/signin/generate-token": {
+      "post": {
+        "summary": "Generate a manual authentication token",
+        "security": [
+          {
+            "authenticationApiSecret": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Authentication token"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Feature disabled"
+          }
+        }
+      }
+    },
+    "/v1/authentication/backend/signin/verify-token": {
+      "post": {
+        "summary": "Exchange an authentication result exactly once",
+        "security": [
+          {
+            "authenticationApiSecret": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified application user"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Invalid or consumed token"
+          }
+        }
+      }
+    },
+    "/v1/authentication/backend/aliases": {
+      "post": {
+        "summary": "Replace a user's aliases, hashed by default",
+        "security": [
+          {
+            "authenticationApiSecret": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Aliases replaced"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/v1/authentication/backend/credentials/list": {
+      "post": {
+        "summary": "List public passkey credentials for an application user",
+        "security": [
+          {
+            "authenticationApiSecret": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credentials"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        }
+      }
+    },
+    "/v1/authentication/backend/credentials/delete": {
+      "post": {
+        "summary": "Revoke a passkey credential",
+        "security": [
+          {
+            "authenticationApiSecret": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Credential revoked"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Credential not found"
+          }
+        }
+      }
+    },
+    "/v1/authentication/backend/magic-links/send": {
+      "post": {
+        "summary": "Send a one-time authentication link through the configured mailer",
+        "security": [
+          {
+            "authenticationApiSecret": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Message sent"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Feature or origin denied"
+          },
+          "503": {
+            "description": "Mail delivery failed"
+          }
+        }
+      }
+    },
+    "/v1/authentication/backend/auth-configurations": {
+      "get": {
+        "summary": "List authentication configurations",
+        "security": [
+          {
+            "authenticationApiSecret": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Configurations"
+          },
+          "401": {
+            "description": "Authentication required"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create an authentication configuration",
+        "security": [
+          {
+            "authenticationApiSecret": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Configuration created"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "409": {
+            "description": "Purpose exists"
+          }
+        }
+      }
+    },
+    "/v1/authentication/backend/auth-configurations/{purpose}": {
+      "patch": {
+        "summary": "Update an authentication configuration",
+        "security": [
+          {
+            "authenticationApiSecret": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Configuration updated"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Purpose not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a custom authentication configuration",
+        "security": [
+          {
+            "authenticationApiSecret": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Configuration deleted"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Purpose not found"
+          },
+          "409": {
+            "description": "Built-in configuration"
+          }
+        }
+      }
+    },
+    "/v1/authentication/applications/{applicationId}/users": {
+      "get": {
+        "summary": "List application users, aliases, and credentials",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/v1/authentication/applications/{applicationId}/credentials/{credentialId}": {
+      "patch": {
+        "summary": "Rename an application credential",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credential renamed"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Revoke an application credential",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Credential revoked"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/v1/authentication/applications/{applicationId}/events": {
+      "get": {
+        "summary": "List tamper-evident application authentication events",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/v1/authentication/organizations/{organizationId}/events": {
+      "get": {
+        "summary": "List organization authentication events",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Events"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not found"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests": {
+      "get": {
+        "summary": "The caller's own authorization-request inbox",
+        "description": "Only ever the caller's own requests; there is no route that lists somebody else's.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/AuthorizationRequestStatus"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorization requests awaiting or settled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["requests"],
+                  "properties": {
+                    "requests": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/AuthorizationRequest"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "summary": "Ask a principal to authorize something",
+        "description": "Addressed by the approver's inbox handle, never by a principal id: an unverifiable handle and a handle for a principal that must not be asked both answer 404, so nothing here confirms that an id exists. Honours Idempotency-Key.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAuthorizationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Request created and waiting",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "not_found: the approver handle does not verify, or names a principal that must not be asked"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/inbox-ref": {
+      "get": {
+        "summary": "The caller's own inbox handle, to share with whoever may ask",
+        "description": "The only place a handle comes from, so a caller can never obtain somebody else's.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Inbox handle",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["approverRef"],
+                  "properties": {
+                    "approverRef": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}": {
+      "get": {
+        "summary": "Read one authorization request",
+        "description": "Readable by its approver and by its requester. Anyone else gets 404 rather than 403, so the id space is not enumerable.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorization request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "not_found"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/poll": {
+      "get": {
+        "summary": "Poll for an answer, paced like a device flow",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "slow_down: polled faster than the given interval"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "not_found"
+          },
+          "410": {
+            "description": "expired_request"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/approve": {
+      "post": {
+        "summary": "Approve, echoing the digest that was displayed",
+        "description": "Only the approver may decide, and only with the stored requestDigest: a request that changed between being shown and being approved is refused rather than silently consented to.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideAuthorizationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Settled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "not_found"
+          },
+          "409": {
+            "description": "digest_mismatch, or conflict"
+          },
+          "410": {
+            "description": "expired"
+          },
+          "422": {
+            "description": "invalid_transition"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/deny": {
+      "post": {
+        "summary": "Refuse, echoing the digest that was displayed",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecideAuthorizationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Settled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "not_found"
+          },
+          "409": {
+            "description": "digest_mismatch, or conflict"
+          },
+          "410": {
+            "description": "expired"
+          },
+          "422": {
+            "description": "invalid_transition"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/cancel": {
+      "post": {
+        "summary": "The requester withdraws a request nobody has answered",
+        "description": "Requester only (ADR 0159): the approver has /deny, which records a decision, and a withdrawal records none. Everyone else, the approver included, gets the same 404 as an id that never existed. Idempotent: withdrawing a request already withdrawn answers its current state. A request that already has another ending keeps it (409 request_not_pending, 410 expired_request). Also closes the interaction fronting the request, if one is live, so nothing stays approvable for a question that no longer exists.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Withdrawn, or already withdrawn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorizationRequest"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "not_found"
+          },
+          "409": {
+            "description": "request_not_pending, or conflict"
+          },
+          "410": {
+            "description": "expired_request"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/requirement": {
+      "get": {
+        "summary": "What this request will take to settle (ADR 0084)",
+        "description": "Reason codes and policy digest, so an approval screen can say why an authenticator is being asked for. Approver only; anyone else gets 404.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Approval requirement"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not the caller's request"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/activation": {
+      "post": {
+        "summary": "Mint a WebAuthn ceremony bound to one approval transaction",
+        "description": "The challenge is bound to a digest over the request, the decision and the effective policy, so it cannot be spent on another request, the other decision, or under a policy that has since been tightened.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Activation and request options"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "409": {
+            "description": "The request changed since it was shown"
+          },
+          "422": {
+            "description": "The request is no longer pending"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/activation/complete": {
+      "post": {
+        "summary": "Verify the assertion and activate the ceremony",
+        "description": "Verification only: the activation is spent by the settlement that follows, as a compare-and-set on the stored row.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Activated"
+          },
+          "401": {
+            "description": "Assertion or challenge binding refused"
+          },
+          "404": {
+            "description": "No such activation for this caller"
+          },
+          "410": {
+            "description": "Activation expired"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/comparison": {
+      "get": {
+        "summary": "Issue the comparison value to the requesting surface",
+        "description": "Server-generated, returned exactly once, stored only as a digest, and never sent to the approver or to any notification body.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The six-digit value"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not the caller's request"
+          },
+          "409": {
+            "description": "Already issued, or the request is settled"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/report": {
+      "post": {
+        "summary": "Report a prompt the approver does not recognize",
+        "description": "Refuses the request and raises a security event. Grants nothing, and deliberately publishes no notification: a report must not become an amplifier.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Refused"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not the caller's request"
+          },
+          "409": {
+            "description": "Digest mismatch"
+          }
+        }
+      }
+    },
+    "/v1/authorization-requests/{id}/receipt": {
+      "get": {
+        "summary": "The approval receipt: required vs achieved assurance",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Receipt"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "No receipt the caller may read"
+          }
+        }
+      }
+    },
+    "/i/{ref}": {
+      "get": {
+        "summary": "Resolve an interaction reference (ADR 0086 canonical link)",
+        "description": "Unauthenticated: a camera, a wallet pass and a pasted link all arrive with nothing. Answers an InteractionSummary and records that somebody looked; scanning is never approving. A malformed reference, a forged MAC and an id that never existed are one 404 at one cost. Negotiates on Accept: application/json returns the summary, anything else returns a minimal HTML landing page.",
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Interaction summary, or the HTML landing page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionSummary"
+                }
+              },
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "interaction_not_found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "interaction_expired"
+          },
+          "429": {
+            "description": "rate_limited"
+          }
+        }
+      }
+    },
+    "/v1/interactions": {
+      "get": {
+        "summary": "The approver's interaction inbox",
+        "description": "A survey, not a presentation: listing does not move anything to awaiting_approval.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/InteractionStatus"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Interactions awaiting this approver",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["interactions"],
+                  "properties": {
+                    "interactions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/InteractionDetail"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "summary": "Raise a cross-device interaction over a ceremony",
+        "description": "The server derives the binding message from the authorization details and computes the request digest over both; neither is taken from the body. Honours Idempotency-Key. Cookie-authenticated browser mutations also require an allowed Origin header.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInteraction"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Interaction created; the reference is safe to print",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionCreated"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "interaction_not_found: the approver handle does not verify, or names a principal that must not be asked"
+          },
+          "409": {
+            "description": "interaction_already_live: one live interaction per ceremony"
+          },
+          "422": {
+            "description": "unsupported_kind, or an authorization detail that carries card data"
+          }
+        }
+      }
+    },
+    "/v1/interactions/{ref}": {
+      "get": {
+        "summary": "Open the question as its approver",
+        "description": "The approver only; anyone else gets 404. Moves the interaction to awaiting_approval and records the approver. The fronted ceremony's subjectId is never returned.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Interaction detail",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "interaction_not_found"
+          },
+          "410": {
+            "description": "interaction_expired"
+          }
+        }
+      }
+    },
+    "/v1/interactions/{ref}/approve": {
+      "post": {
+        "summary": "Approve, spending an interaction-scoped activation",
+        "description": "The body echoes requestDigest and names an activationId — the handle of a WebAuthn ceremony already verified at /activation/complete. The server rebuilds the ApprovalProof from that spent activation (mechanism, boundDigest, assurance, verifiedAt from the server clock); it never trusts a client-constructed proof. Both the echoed requestDigest and the proof's server-derived boundDigest must equal the stored digest. An approve carrying only requestDigest, with no spent activation, answers 401 proof_required: an ordinary session may deny, but may not approve a privileged interaction.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApproveInteraction"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request"
+          },
+          "401": {
+            "description": "Unauthorized, or proof_required when no spent activation is presented"
+          },
+          "404": {
+            "description": "interaction_not_found"
+          },
+          "409": {
+            "description": "digest_mismatch, interaction_settled, interaction_revoked, or interaction_consumed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionError"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "interaction_expired"
+          }
+        }
+      }
+    },
+    "/v1/interactions/{ref}/deny": {
+      "post": {
+        "summary": "Refuse, echoing the displayed digest",
+        "description": "No proof is required — refusing only ever removes authority — but the echo still has to name this request, so a stale tab cannot deny the request that replaced it.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DenyInteraction"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Denied",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid_request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "interaction_not_found"
+          },
+          "409": {
+            "description": "digest_mismatch, interaction_settled, interaction_revoked, or interaction_consumed"
+          },
+          "410": {
+            "description": "interaction_expired"
+          }
+        }
+      }
+    },
+    "/v1/interactions/{ref}/activation": {
+      "post": {
+        "summary": "Mint a WebAuthn ceremony bound to this interaction approval",
+        "description": "Interaction-scoped step-up (A-01). The challenge is bound to a digest over the interaction, the approve decision and the effective policy, so it cannot be spent on another interaction, on a deny, or under a policy since tightened. Only decision=approved mints an activation. Returns the activation handle and the request options; the raw assertion is completed at /activation/complete and never travels through /approve.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BeginApprovalActivation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Activation and request options"
+          },
+          "400": {
+            "description": "invalid_request (including a deny decision)"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "interaction_not_found"
+          },
+          "409": {
+            "description": "digest_mismatch"
+          },
+          "410": {
+            "description": "interaction_expired"
+          },
+          "422": {
+            "description": "interaction_settled"
+          }
+        }
+      }
+    },
+    "/v1/interactions/{ref}/activation/complete": {
+      "post": {
+        "summary": "Verify the assertion and activate the interaction ceremony",
+        "description": "Verification only (A-02): the raw WebAuthn assertion is checked by the real phishing-resistant verifier (ADR 0084), and the activation is spent by the subsequent /approve as a compare-and-set on the stored row. A missing enrolment or a revoked credential fails verification here (A-05), never at /approve.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteApprovalActivation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Activated"
+          },
+          "401": {
+            "description": "Assertion or challenge binding refused"
+          },
+          "404": {
+            "description": "No such activation for this caller"
+          },
+          "409": {
+            "description": "activation_not_pending"
+          },
+          "410": {
+            "description": "activation_expired"
+          }
+        }
+      }
+    },
+    "/v1/interactions/{ref}/consume": {
+      "post": {
+        "summary": "Spend the approval, exactly once",
+        "description": "The requester's route. A compare-and-set on the row version serializes two executors racing to spend one approval; the loser gets 409. Spending an interaction nobody has answered yet answers 401 approval_required — the caller is authenticated and is the right caller, and what is missing is the ceremony. Spending one a person refused answers 403 approval_denied, which is final: the requester should stop waiting.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consumed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized, or approval_required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "approval_denied: a person refused; final",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "interaction_not_found"
+          },
+          "409": {
+            "description": "interaction_consumed, or interaction_revoked"
+          },
+          "410": {
+            "description": "interaction_expired"
+          }
+        }
+      }
+    },
+    "/v1/interactions/{ref}/revoke": {
+      "post": {
+        "summary": "Withdraw an interaction",
+        "description": "Either the approver or the requester, and available from approved too: between approving and executing there is a window, and a user who reconsiders inside it must be able to close it.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ref",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "interaction_not_found"
+          },
+          "409": {
+            "description": "interaction_consumed, interaction_revoked, or interaction_settled"
+          },
+          "410": {
+            "description": "interaction_expired"
+          }
+        }
+      }
+    },
+    "/v1/host-authorizations/ceremony": {
+      "get": {
+        "summary": "Open Identity-origin passkey verification for an explicitly allowed requesting origin",
+        "parameters": [
+          {
+            "name": "origin",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9_-]{43}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Non-framable Identity-origin ceremony HTML"
+          },
+          "403": {
+            "description": "Origin, state or configured Host audience refused"
+          }
+        }
+      }
+    },
+    "/v1/host-authorizations/ceremony.js": {
+      "get": {
+        "summary": "Same-origin ceremony script",
+        "responses": {
+          "200": {
+            "description": "JavaScript; no credential material"
+          }
+        }
+      }
+    },
+    "/v1/host-authorizations/ceremony.css": {
+      "get": {
+        "summary": "Shared hosted ceremony styling",
+        "responses": {
+          "200": {
+            "description": "Stylesheet"
+          }
+        }
+      }
+    },
+    "/v1/host-authorizations/options": {
+      "post": {
+        "summary": "Begin an exact Host transaction passkey ceremony",
+        "description": "Requires explicit Host audience configuration and current organization membership. Browser authentication requires null transition; browser control requires a named transition. Display the returned frozen challenge before user verification.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "challenge_id",
+                  "challenge_digest",
+                  "host_audience",
+                  "organization_id",
+                  "operation",
+                  "transition",
+                  "target_id",
+                  "origin",
+                  "dpop_jkt",
+                  "expires_at"
+                ],
+                "properties": {
+                  "challenge_id": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "challenge_digest": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "host_audience": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "organization_id": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "operation": {
+                    "enum": ["browser.authenticate", "agent.browser.control"]
+                  },
+                  "transition": {
+                    "enum": [null, "handoff", "take", "release"]
+                  },
+                  "target_id": {
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "origin": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "dpop_jkt": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{43}$"
+                  },
+                  "expires_at": {
+                    "type": "integer",
+                    "description": "Unix seconds, future and at most five minutes away"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bound WebAuthn options or verified signed assertion"
+          },
+          "400": {
+            "description": "Invalid closed request envelope"
+          },
+          "401": {
+            "description": "Validated Identity session required"
+          },
+          "403": {
+            "description": "Authorization or real user verification refused"
+          },
+          "404": {
+            "description": "Host authorization is not configured"
+          }
+        }
+      }
+    },
+    "/v1/host-authorizations/verify": {
+      "post": {
+        "summary": "Verify real user-presence and user-verification WebAuthn evidence",
+        "description": "Consumes the pending transaction atomically, rechecks membership, and returns a RS256 host-authorization+jwt assertion bound to the frozen Host challenge. No caller assurance, time or role claims are accepted.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "authorization_id",
+                  "credentialId",
+                  "clientDataJSON",
+                  "authenticatorData",
+                  "signature"
+                ],
+                "properties": {
+                  "authorization_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "credentialId": {
+                    "type": "string",
+                    "maxLength": 16384
+                  },
+                  "clientDataJSON": {
+                    "type": "string",
+                    "maxLength": 16384
+                  },
+                  "authenticatorData": {
+                    "type": "string",
+                    "maxLength": 16384
+                  },
+                  "signature": {
+                    "type": "string",
+                    "maxLength": 16384
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bound WebAuthn options or verified signed assertion"
+          },
+          "400": {
+            "description": "Invalid closed request envelope"
+          },
+          "401": {
+            "description": "Validated Identity session required"
+          },
+          "403": {
+            "description": "Authorization or real user verification refused"
+          },
+          "404": {
+            "description": "Host authorization is not configured"
+          }
+        }
+      }
+    },
+    "/v1/support": {
+      "head": {
+        "summary": "Check the authenticated same-origin support session",
+        "responses": {
+          "204": {
+            "description": "Active session; X-OpenSesame-Support-Session: active"
+          },
+          "401": {
+            "description": "Validated session required"
+          },
+          "404": {
+            "description": "Remote support disabled"
+          }
+        }
+      },
+      "post": {
+        "summary": "Send a preview-approved, redacted support request",
+        "description": "Requires an active session and exact same-origin POST. Remote support is optional and disabled without server configuration.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "version",
+                  "question",
+                  "pageId",
+                  "route",
+                  "featureIds"
+                ],
+                "properties": {
+                  "version": {
+                    "const": 2
+                  },
+                  "question": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "pageId": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "route": {
+                    "type": "string",
+                    "maxLength": 65
+                  },
+                  "featureIds": {
+                    "type": "array",
+                    "maxItems": 32,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 64
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bounded AG-UI SSE response"
+          },
+          "400": {
+            "description": "Invalid closed payload"
+          },
+          "401": {
+            "description": "Validated session required"
+          },
+          "403": {
+            "description": "Origin refused"
+          },
+          "413": {
+            "description": "Payload exceeds 8KiB"
+          },
+          "502": {
+            "description": "Upstream unavailable"
+          }
+        }
+      }
+    },
+    "/v1/authentication/public/applications/{applicationId}/register/options": {
+      "parameters": [
+        {
+          "name": "applicationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "description": "Active application; body applicationId must match exactly. Only registered exact origins are admitted."
+        }
+      ],
+      "post": {
+        "summary": "Start a WebAuthn registration ceremony",
+        "responses": {
+          "200": {
+            "description": "PublicKeyCredentialCreationOptionsJSON"
+          },
+          "403": {
+            "description": "Origin or token denied"
+          }
+        }
+      }
+    },
+    "/v1/authentication/public/applications/{applicationId}/register/verify": {
+      "parameters": [
+        {
+          "name": "applicationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "description": "Active application; body applicationId must match exactly. Only registered exact origins are admitted."
+        }
+      ],
+      "post": {
+        "summary": "Verify and persist a WebAuthn registration",
+        "responses": {
+          "201": {
+            "description": "Credential registered"
+          },
+          "400": {
+            "description": "Invalid attestation"
+          }
+        }
+      }
+    },
+    "/v1/authentication/public/applications/{applicationId}/signin/options": {
+      "parameters": [
+        {
+          "name": "applicationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "description": "Active application; body applicationId must match exactly. Only registered exact origins are admitted."
+        }
+      ],
+      "post": {
+        "summary": "Start autofill, discoverable, alias, or user-ID sign-in",
+        "responses": {
+          "200": {
+            "description": "PublicKeyCredentialRequestOptionsJSON"
+          },
+          "404": {
+            "description": "User or policy not found"
+          }
+        }
+      }
+    },
+    "/v1/authentication/public/applications/{applicationId}/signin/verify": {
+      "parameters": [
+        {
+          "name": "applicationId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]+$"
+          },
+          "description": "Active application; body applicationId must match exactly. Only registered exact origins are admitted."
+        }
+      ],
+      "post": {
+        "summary": "Verify a WebAuthn assertion and mint a one-time result",
+        "responses": {
+          "200": {
+            "description": "Authentication result token"
+          },
+          "400": {
+            "description": "Invalid assertion"
+          }
+        }
+      }
+    },
+    "/v1/notification-channels": {
+      "get": {
+        "summary": "Channel capabilities, and whether an adapter is configured",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Capability catalogue"
+          },
+          "401": {
+            "description": "Authentication required"
+          }
+        }
+      }
+    },
+    "/v1/notification-channels/bindings": {
+      "get": {
+        "summary": "The caller's destinations, without provider subject ids",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Bindings"
+          },
+          "401": {
+            "description": "Authentication required"
+          }
+        }
+      },
+      "post": {
+        "summary": "Begin a binding ceremony (nonce returned once)",
+        "description": "Security-sensitive: adding a destination changes where approval prompts appear, so it requires a recent authentication and is audited.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Challenge and one-time nonce"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Step-up required"
+          },
+          "409": {
+            "description": "Destination already bound"
+          },
+          "422": {
+            "description": "Channel needs no binding, or no adapter"
+          }
+        }
+      }
+    },
+    "/v1/notification-channels/bindings/complete": {
+      "post": {
+        "summary": "Complete a binding ceremony",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Binding active"
+          },
+          "401": {
+            "description": "Nonce mismatch, or no session"
+          },
+          "403": {
+            "description": "Provider verification required"
+          },
+          "429": {
+            "description": "Attempt budget spent"
+          }
+        }
+      }
+    },
+    "/v1/notification-channels/bindings/{id}": {
+      "delete": {
+        "summary": "Revoke a destination",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Revoked"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Step-up required"
+          },
+          "404": {
+            "description": "Not the caller's binding"
+          }
+        }
+      }
+    },
+    "/v1/notification-channels/push/key": {
+      "get": {
+        "summary": "The VAPID application server public key",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public key"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Web Push is not configured here"
+          }
+        }
+      }
+    },
+    "/v1/notification-channels/push/subscriptions": {
+      "post": {
+        "summary": "Register a Web Push subscription",
+        "description": "A capability URL: stored, never echoed.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Subscription id and device label"
+          },
+          "400": {
+            "description": "Invalid subscription"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "409": {
+            "description": "Owned by someone else, or limit reached"
+          }
+        }
+      }
+    },
+    "/v1/notification-channels/push/subscriptions/{id}": {
+      "delete": {
+        "summary": "Remove a Web Push subscription",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Not the caller's subscription"
+          }
+        }
+      }
+    },
+    "/v1/notification-preferences": {
+      "get": {
+        "summary": "Where the caller prefers to be interrupted",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Preferences by notification class"
+          },
+          "401": {
+            "description": "Authentication required"
+          }
+        }
+      },
+      "put": {
+        "summary": "Record a preference",
+        "description": "Stores the wish only. The intersection with policy, live bindings and configured adapters happens at routing time, so nothing here can widen what an operator allows.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Stored"
+          },
+          "400": {
+            "description": "Invalid preference"
+          },
+          "401": {
+            "description": "Authentication required"
+          }
+        }
+      }
+    },
+    "/v1/notification-preferences/effective": {
+      "get": {
+        "summary": "The route a prompt would actually take, and what was dropped",
+        "description": "Includes the exclusion reason for every channel that did not survive the intersection, so a settings screen can be honest about unconfigured adapters and missing bindings.",
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "provisionalCookie": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Effective route plan"
+          },
+          "401": {
+            "description": "Authentication required"
+          }
+        }
+      }
+    },
+    "/v1/notification-callbacks/{provider}": {
+      "post": {
+        "summary": "A provider callback (unauthenticated by design)",
+        "description": "A provider cannot hold a bearer token, so this route is defended by a chain instead: provenance over the raw request bytes, a stable three-part provider identity resolved to a live binding, a durable replay ledger whose insert is the claim, and the same approval evaluator the in-app ceremony uses. Every outcome returns the same acknowledgement, so the route never reveals whether a request exists.",
+        "responses": {
+          "200": {
+            "description": "Acknowledged; reveals nothing further"
+          },
+          "429": {
+            "description": "Rate limited"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "OrganizationState": {
+        "type": "string",
+        "enum": ["provisional", "active", "suspended", "deleted"]
+      },
+      "OrganizationRole": {
+        "type": "string",
+        "enum": ["owner", "admin", "member"]
+      },
+      "CreateOrganization": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slug", "displayName"],
+        "properties": {
+          "slug": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 64,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "ssoIssuer": {
+            "type": "string",
+            "format": "uri"
+          },
+          "samlIssuer": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "UpdateOrganization": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "ssoIssuer": {
+            "type": ["string", "null"],
+            "format": "uri"
+          },
+          "ssoClientId": {
+            "type": ["string", "null"],
+            "maxLength": 256
+          },
+          "ssoClientSecret": {
+            "type": ["string", "null"],
+            "maxLength": 1024
+          },
+          "samlIssuer": {
+            "type": ["string", "null"],
+            "format": "uri"
+          }
+        }
+      },
+      "OrganizationAuthMethod": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "label"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["sso", "saml", "ldap"]
+          },
+          "label": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string",
+            "format": "uri"
+          },
+          "native": {
+            "type": "boolean"
+          }
+        }
+      },
+      "OrganizationTenant": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slug", "displayName", "state", "authMethods"],
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/OrganizationState"
+          },
+          "authMethods": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OrganizationAuthMethod"
+            }
+          }
+        }
+      },
+      "JoinOrganizationTenant": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["method", "idToken"],
+        "properties": {
+          "method": {
+            "type": "string",
+            "enum": ["sso", "saml", "ldap"]
+          },
+          "idToken": {
+            "type": "string"
+          }
+        }
+      },
+      "Organization": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "slug",
+          "displayName",
+          "state",
+          "role",
+          "createdBy",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/OrganizationState"
+          },
+          "role": {
+            "$ref": "#/components/schemas/OrganizationRole"
+          },
+          "createdBy": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ssoIssuer": {
+            "type": "string",
+            "format": "uri"
+          },
+          "ssoClientId": {
+            "type": "string"
+          },
+          "ssoClientSecretConfigured": {
+            "type": "boolean"
+          },
+          "samlIssuer": {
+            "type": "string",
+            "format": "uri"
+          },
+          "samlMetadataUrl": {
+            "type": "string"
+          },
+          "samlMetadataConfigured": {
+            "type": "boolean"
+          },
+          "provisioningEnabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "OrganizationMembership": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "organizationId",
+          "principalId",
+          "role",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "organizationId": {
+            "type": "string"
+          },
+          "principalId": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/OrganizationRole"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AddOrganizationMember": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["principalId", "role"],
+        "properties": {
+          "principalId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "$ref": "#/components/schemas/OrganizationRole"
+          }
+        }
+      },
+      "ChangeOrganizationMemberRole": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role"],
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/OrganizationRole"
+          }
+        }
+      },
+      "ProjectState": {
+        "type": "string",
+        "enum": ["provisional", "active", "expired", "deleting", "deleted"]
+      },
+      "ProjectKind": {
+        "type": "string",
+        "enum": ["personal", "standard", "temporary"]
+      },
+      "ProjectRole": {
+        "type": "string",
+        "enum": ["owner", "admin", "member"]
+      },
+      "CreateProject": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["displayName"],
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 64,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "organizationId": {
+            "type": "string"
+          }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "slug",
+          "displayName",
+          "state",
+          "role",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ProjectKind"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/ProjectState"
+          },
+          "role": {
+            "$ref": "#/components/schemas/ProjectRole"
+          },
+          "ownerPrincipalId": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ActiveProject": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["project", "isFallback"],
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "isFallback": {
+            "type": "boolean",
+            "description": "True when the active project fell back to the personal default."
+          }
+        }
+      },
+      "SetActiveProject": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["projectId"],
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "ProjectMembership": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "projectId",
+          "principalId",
+          "role",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "principalId": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/ProjectRole"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "AddProjectMember": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["principalId", "role"],
+        "properties": {
+          "principalId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "$ref": "#/components/schemas/ProjectRole"
+          }
+        }
+      },
+      "ChangeProjectMemberRole": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role"],
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/ProjectRole"
+          }
+        }
+      },
+      "AuthorizationRequestStatus": {
+        "type": "string",
+        "enum": ["pending", "approved", "denied", "expired", "cancelled"]
+      },
+      "ApprovalDecidedByKind": {
+        "type": "string",
+        "enum": ["human", "agent"]
+      },
+      "AuthorizationDetail": {
+        "type": "object",
+        "description": "One RFC 9396 authorization_details entry. Extension members are preserved verbatim, because the digest is computed over the whole object.",
+        "additionalProperties": true,
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "locations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "datatypes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "identifier": {
+            "type": "string"
+          },
+          "privileges": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreateAuthorizationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["approverRef", "authorizationDetails", "bindingMessage"],
+        "properties": {
+          "approverRef": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 256
+          },
+          "authorizationDetails": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "items": {
+              "$ref": "#/components/schemas/AuthorizationDetail"
+            }
+          },
+          "bindingMessage": {
+            "type": "string",
+            "minLength": 4,
+            "maxLength": 120
+          },
+          "connectionId": {
+            "type": "string"
+          },
+          "delegationId": {
+            "type": "string"
+          },
+          "ttlSeconds": {
+            "type": "integer",
+            "minimum": 30,
+            "maximum": 3600
+          }
+        }
+      },
+      "AuthorizationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "authReqId",
+          "status",
+          "bindingMessage",
+          "requestDigest",
+          "authorizationDetails",
+          "expiresAt",
+          "intervalSeconds"
+        ],
+        "properties": {
+          "authReqId": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AuthorizationRequestStatus"
+          },
+          "bindingMessage": {
+            "type": "string"
+          },
+          "requestDigest": {
+            "type": "string",
+            "description": "The canonical hash of exactly what is being consented to. An executor recomputes it before running anything."
+          },
+          "authorizationDetails": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthorizationDetail"
+            }
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "intervalSeconds": {
+            "type": "integer"
+          },
+          "connectionId": {
+            "type": "string"
+          },
+          "delegationId": {
+            "type": "string"
+          },
+          "decidedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedByKind": {
+            "$ref": "#/components/schemas/ApprovalDecidedByKind"
+          },
+          "requesterRef": {
+            "type": "string",
+            "description": "The opaque handle for whoever is asking (ADR 0084). Not a principal id."
+          },
+          "approval": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "What it will take to settle this request, summarised for a list. A projection of the effective policy, not the gate: settlement re-resolves the policy.",
+            "required": [
+              "riskClass",
+              "requireTransactionBoundActivation",
+              "requireComparison",
+              "required"
+            ],
+            "properties": {
+              "riskClass": {
+                "type": "string",
+                "enum": ["low", "moderate", "high", "critical"]
+              },
+              "requireTransactionBoundActivation": {
+                "type": "boolean"
+              },
+              "requireComparison": {
+                "type": "boolean"
+              },
+              "required": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "DecideAuthorizationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requestDigest"],
+        "properties": {
+          "requestDigest": {
+            "type": "string",
+            "minLength": 16
+          }
+        }
+      },
+      "InteractionKind": {
+        "type": "string",
+        "enum": [
+          "device_authorization",
+          "pairing",
+          "claim",
+          "grant_claim",
+          "authorization_request",
+          "transaction_authorization"
+        ]
+      },
+      "InteractionStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "presented",
+          "awaiting_approval",
+          "approved",
+          "denied",
+          "consumed",
+          "expired",
+          "revoked"
+        ]
+      },
+      "ApprovalMechanism": {
+        "type": "string",
+        "enum": ["webauthn", "openid4vp", "session_reauth", "out_of_band"]
+      },
+      "InteractionErrorCode": {
+        "type": "string",
+        "enum": [
+          "interaction_not_found",
+          "interaction_expired",
+          "interaction_revoked",
+          "interaction_consumed",
+          "interaction_settled",
+          "interaction_already_live",
+          "approval_required",
+          "approval_denied",
+          "proof_required",
+          "digest_mismatch",
+          "unsupported_kind",
+          "invalid_request",
+          "rate_limited"
+        ]
+      },
+      "InteractionError": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/InteractionErrorCode"
+          },
+          "fields": {
+            "type": "array",
+            "description": "Paths that failed validation. Never the values at them.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      },
+      "InteractionSubject": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The ceremony this interaction fronts. Inbound only: subjectId never appears in a response, so a reference cannot be traded for the id of the row behind it.",
+        "required": ["kind", "subjectId"],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/InteractionKind"
+          },
+          "subjectId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          }
+        }
+      },
+      "CreateInteraction": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "subject", "approverRef", "authorizationDetails"],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/InteractionKind"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/InteractionSubject"
+          },
+          "approverRef": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 256,
+            "description": "The approver's inbox handle from GET /v1/authorization-requests/inbox-ref. Not a principal id."
+          },
+          "authorizationDetails": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 32,
+            "items": {
+              "$ref": "#/components/schemas/AuthorizationDetail"
+            }
+          },
+          "resourceRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          },
+          "ttlSeconds": {
+            "type": "integer",
+            "minimum": 30,
+            "maximum": 3600
+          }
+        }
+      },
+      "InteractionCreated": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ref",
+          "url",
+          "requestDigest",
+          "bindingMessage",
+          "expiresAt",
+          "status"
+        ],
+        "properties": {
+          "ref": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The canonical HTTPS short link, <publicUrl>/i/<ref>. Never a custom scheme."
+          },
+          "requestDigest": {
+            "type": "string"
+          },
+          "bindingMessage": {
+            "type": "string",
+            "description": "Derived from the authorization details, never supplied by the requester."
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InteractionStatus"
+          }
+        }
+      },
+      "InteractionSummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Everything the holder of a bare reference may learn. No requester, no binding message, no digest, no authorization details, no subject id.",
+        "required": ["kind", "status", "expiresAt", "requiresApprover"],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/InteractionKind"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InteractionStatus"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "requiresApprover": {
+            "type": "boolean"
+          }
+        }
+      },
+      "InteractionDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The authenticated approver's view. The approval proof and the fronted ceremony's subjectId are absent by construction.",
+        "required": [
+          "kind",
+          "status",
+          "expiresAt",
+          "requiresApprover",
+          "id",
+          "authorizationDetails",
+          "createdAt"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/InteractionKind"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InteractionStatus"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "requiresApprover": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "requesterRef": {
+            "type": "string"
+          },
+          "bindingMessage": {
+            "type": "string"
+          },
+          "requestDigest": {
+            "type": "string"
+          },
+          "authorizationDetails": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuthorizationDetail"
+            }
+          },
+          "resourceRef": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ApprovalProof": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "The verified approval, reduced: no assertion bytes, no verifiable presentation, no JOSE. verifiedAt is absent because the server stamps it.",
+        "required": ["mechanism", "boundDigest", "assurance"],
+        "properties": {
+          "mechanism": {
+            "$ref": "#/components/schemas/ApprovalMechanism"
+          },
+          "boundDigest": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 256
+          },
+          "credentialRef": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "assurance": {
+            "$ref": "#/components/schemas/AssuranceLevel"
+          }
+        }
+      },
+      "AssuranceLevel": {
+        "type": "string",
+        "enum": [
+          "provisional",
+          "self_asserted",
+          "verified",
+          "mfa",
+          "phishing_resistant",
+          "enterprise_managed",
+          "workload_attested"
+        ]
+      },
+      "ApproveInteraction": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requestDigest"],
+        "properties": {
+          "requestDigest": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 256
+          },
+          "activationId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 256
+          }
+        }
+      },
+      "BeginApprovalActivation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["decision", "requestDigest"],
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": ["approved", "denied"]
+          },
+          "requestDigest": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 256
+          }
+        }
+      },
+      "CompleteApprovalActivation": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "activationId",
+          "credentialId",
+          "clientDataJSON",
+          "authenticatorData",
+          "signature"
+        ],
+        "properties": {
+          "activationId": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 256
+          },
+          "credentialId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "clientDataJSON": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "authenticatorData": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          },
+          "signature": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          }
+        }
+      },
+      "DenyInteraction": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requestDigest"],
+        "properties": {
+          "requestDigest": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 256
+          }
+        }
+      },
+      "DeviceApproval": {
+        "type": "object",
+        "required": ["user_code"],
+        "properties": {
+          "user_code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "organization_id": {
+            "type": "string"
+          }
+        }
+      },
+      "DeviceApprovalResult": {
+        "type": "object",
+        "required": ["ok", "status", "body"],
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 100,
+            "maximum": 599
+          },
+          "body": {}
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "authenticationApiSecret": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Shown-once osa_ backend API secret"
+      },
+      "provisionalCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "os_provisional"
+      }
+    }
+  }
+}

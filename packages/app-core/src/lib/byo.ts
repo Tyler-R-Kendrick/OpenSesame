@@ -74,7 +74,7 @@ async function registerByoProviderDefault(
   const base = remoteIdentityApi();
   if (!base) {
     throw new ByoError(
-      "no_federation_endpoint",
+      "no_identity_api",
       "No sign-in service is connected, so a provider can't be registered.",
     );
   }

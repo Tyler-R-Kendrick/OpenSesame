@@ -1,4 +1,3 @@
-import { CLIENT_NO_HOST_IDENTITY } from "./exclusions.js";
 import type { Capability, CapabilityExclusion } from "./index.js";
 
 export const APPROVAL_CEREMONY: CapabilityExclusion = {
@@ -20,15 +19,13 @@ export const accessPortalCapabilities: readonly Capability[] = [
     plane: "host",
     kind: "act",
     surfaces: {
-      cli: null,
+      cli: "opensesame access grants task start",
       pwa: null,
-      mcp_host: null,
+      mcp_host: "task_start",
       mcp_client: null,
       webmcp: null,
     },
     excluded: {
-      cli: CLIENT_NO_HOST_IDENTITY,
-      mcp_host: CLIENT_NO_HOST_IDENTITY,
       webmcp: {
         reason:
           "The browser opens a human-confirmed ceiling form; programmatic task creation uses the scoped MCP Host task_start capability",
