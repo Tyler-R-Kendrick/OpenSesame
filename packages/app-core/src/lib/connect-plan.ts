@@ -10,22 +10,20 @@
  */
 import { z } from "zod";
 import { CONNECT_PLAN_JSON } from "./connect-presets.generated.js";
+import {
+  ProviderAuthenticationSchema,
+  ProviderBasicAuthSchema,
+  ProviderCredentialFieldSchema,
+  ProviderCredentialVariantSchema,
+  ProviderTemplateParamSchema,
+  ProviderUrlSchema,
+  ProviderVerificationSchema,
+} from "./connect-provider-auth-schema.js";
 import type { ProviderCategory } from "./connections.js";
 
 /** An https URL, possibly naming `{placeholders}` a person fills in. */
-const url = z.string().refine((value) => {
-  try {
-    return new URL(value.replace(/\{[a-z_]+\}/g, "x")).protocol === "https:";
-  } catch {
-    return false;
-  }
-}, "an https URL");
-
-const TemplateParamSchema = z.object({
-  name: z.string().regex(/^[a-z_]+$/),
-  label: z.string(),
-  placeholder: z.string(),
-});
+const url = ProviderUrlSchema;
+const TemplateParamSchema = ProviderTemplateParamSchema;
 
 export const OauthPresetSchema = z.object({
   serverUrl: url,
@@ -48,6 +46,9 @@ export const OauthPresetSchema = z.object({
   consoleUrl: url.nullable(),
   docsUrl: url.nullable(),
   templateParams: z.array(TemplateParamSchema),
+  verify: ProviderVerificationSchema.nullable().default(null),
+  scopeSeparator: z.enum([" ", ","]).default(" "),
+  registrationEndpoint: url.nullable().default(null),
 });
 
 export const ApiKeyPresetSchema = z.object({
@@ -57,6 +58,13 @@ export const ApiKeyPresetSchema = z.object({
   instructions: z.string().max(4000),
   docsUrl: url.nullable(),
   templateParams: z.array(TemplateParamSchema),
+  header: z.string().nullable().default(null),
+  scheme: z.string().nullable().default(null),
+  basic: ProviderBasicAuthSchema.nullable().default(null),
+  auth: ProviderAuthenticationSchema.nullable().default(null),
+  verify: ProviderVerificationSchema.nullable().default(null),
+  additionalCredentials: z.array(ProviderCredentialFieldSchema).default([]),
+  credentialVariants: z.array(ProviderCredentialVariantSchema).default([]),
 });
 
 const McpInfoSchema = z.discriminatedUnion("status", [
@@ -70,6 +78,12 @@ const McpInfoSchema = z.discriminatedUnion("status", [
     registration: z.enum(["manual", "dcr", "cimd"]),
     pkce: z.array(z.string()),
     scopes: z.array(z.string()),
+    resource: url.nullable().default(null),
+    resourceMetadata: url.nullable().default(null),
+    discoveryUrl: url.nullable().default(null),
+    registrationEndpoint: url.nullable().default(null),
+    revocationEndpoint: url.nullable().default(null),
+    tokenAuthMethods: z.array(z.string().min(1).max(64)).default([]),
   }),
 ]);
 

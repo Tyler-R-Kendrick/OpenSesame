@@ -1,6 +1,5 @@
 use super::*;
 use crate::app_state::{test_demo_state, test_session_headers};
-use crate::session_claims::parse_principal;
 use axum::{body::Body, http::Request, Router};
 use opensesame_domain::OrganizationRole;
 use opensesame_storage::StoredObservationRun;

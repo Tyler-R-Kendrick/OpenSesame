@@ -21,7 +21,7 @@
  * tie with the same prefix in `classification-lib.ts` or `-sections.ts`.
  */
 
-import { shared } from "./classification-rule.js";
+import { optional, shared } from "./classification-rule.js";
 
 const L = "src/lib/";
 const S = "src/sections/identity/";
@@ -103,6 +103,7 @@ const CONNECTOR_RECORDS = [
   "connect-create",
   "connect-plan",
   "connect-presets.generated",
+  "connect-provider-auth-schema",
   "connect-update",
   "connections",
   "connections-integrations",
@@ -119,6 +120,11 @@ const CONNECTOR_RECORDS = [
 ];
 
 export const CROSS_RULES = [
+  optional(
+    `${L}native-`,
+    "connectors.external",
+    "native provider authorization and connection runtime",
+  ),
   ...LOCAL_RECORDS.map((name) =>
     shared(`${L}${name}`, "local directory records Access and Identity share"),
   ),
