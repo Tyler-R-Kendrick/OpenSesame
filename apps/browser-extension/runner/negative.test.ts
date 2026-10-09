@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { type Rig, enqueue, rig } from "./test-support/rig";
 import { RP } from "./test-support/site";
 
@@ -98,20 +98,30 @@ describe("runs the runner does not claim", () => {
     r.host.openRun("run:1", RP);
     r.host.presentView = (view, read) =>
       read === 1 ? view : { ...view, id: "run:other", origin: other };
-    const navigate = enqueue(r, "run:1", {
-      step: "navigate",
-      url: `${RP}/x`,
-    });
-    const submit = enqueue(r, "run:1", { step: "submit" }, 50);
-    const report = await r.runner.tick();
-    expect((await navigate)?.outcome).toBe("done");
-    expect(await submit).toBeNull();
-    expect(r.host.claims).toBe(1);
-    expect(r.host.settled.map((row) => row.request.step)).toEqual(["navigate"]);
-    expect(report.skipped).toContainEqual({
-      runId: "run:1",
-      reason: "origin_refused",
-    });
+    // Dispatch deadlines follow this test's clock, while vault and page work
+    // still run normally. Parallel crypto work must not expire the first step.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      const navigate = enqueue(r, "run:1", {
+        step: "navigate",
+        url: `${RP}/x`,
+      });
+      const submit = enqueue(r, "run:1", { step: "submit" }, 50);
+      const report = await r.runner.tick();
+      expect((await navigate)?.outcome).toBe("done");
+      await vi.advanceTimersByTimeAsync(50);
+      expect(await submit).toBeNull();
+      expect(r.host.claims).toBe(1);
+      expect(r.host.settled.map((row) => row.request.step)).toEqual([
+        "navigate",
+      ]);
+      expect(report.skipped).toContainEqual({
+        runId: "run:1",
+        reason: "origin_refused",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("stops with not_armed when the opened origin expires before the next claim", async () => {

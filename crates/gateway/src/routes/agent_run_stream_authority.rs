@@ -74,7 +74,10 @@ impl StreamAuthority {
 
 /// One-shot observe reads (`log`, `hook-records`, `get_run`) must meet the same
 /// native membership and role-evidence floor as a live tail.
-pub(super) async fn ensure_view_authority(st: &AppState, headers: &HeaderMap) -> Result<(), Response> {
+pub(super) async fn ensure_view_authority(
+    st: &AppState,
+    headers: &HeaderMap,
+) -> Result<(), Response> {
     let (digest, claims) = require_session(st, headers)?;
     if claims.credential_kind != CredentialKind::BrowserGrant {
         return Ok(());
@@ -101,12 +104,7 @@ async fn refreshed_browser_observe_claims(
     digest: &str,
     now: i64,
 ) -> Option<HostSessionClaims> {
-    let grant = st
-        .db
-        .browser_grant(digest, now)
-        .await
-        .ok()
-        .flatten()?;
+    let grant = st.db.browser_grant(digest, now).await.ok().flatten()?;
     let claims = super::super::browser_pairings::session_claims(&grant).ok()?;
     if claims.assurance != Assurance::PhishingResistant
         || claims.amr != ["webauthn"]

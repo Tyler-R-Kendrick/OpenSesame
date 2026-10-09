@@ -19,8 +19,9 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { SelfHostedConnectorForm } from "./SelfHostedConnectorForm.js";
 
-const linear = connectPlan("linear");
-if (!linear) throw new Error("Linear plan required");
+const linear = connectPlan("slack");
+const resend = connectPlan("resend");
+if (!linear || !resend) throw new Error("Configuration plans required");
 const durableWrite = kvSeams.kvSetDurable;
 afterEach(() => {
   cleanup();
@@ -42,11 +43,7 @@ it("keeps the entered credentials and reports failure when disk refuses the conf
       onSaved={onSaved}
     />,
   );
-  await userEvent.type(
-    screen.getByLabelText("Select a Linear workspace"),
-    "workspace",
-  );
-  await userEvent.click(screen.getByText("Linear OAuth application"));
+  await userEvent.click(screen.getByText("Slack OAuth application"));
   await userEvent.type(screen.getByLabelText("Client ID"), "test-client");
   await userEvent.type(screen.getByLabelText("Client secret"), "test-secret");
   await userEvent.click(
@@ -69,9 +66,9 @@ it("keeps the entered credentials and reports failure when disk refuses the conf
 });
 
 it("does not describe a stored API key as a saved OAuth application credential", async () => {
-  const state = initialDraftState(linear, "api-key");
+  const state = initialDraftState(resend, "api-key");
   const saved = await saveSelfHostedConnector(
-    linear,
+    resend,
     { ...state, key: "test-key" },
     {
       mode: "byo",
@@ -84,7 +81,7 @@ it("does not describe a stored API key as a saved OAuth application credential",
   );
   render(
     <SelfHostedConnectorForm
-      plan={linear}
+      plan={resend}
       connectorId={saved.connectionId}
       onFlash={vi.fn()}
       onSaved={vi.fn()}
@@ -94,15 +91,11 @@ it("does not describe a stored API key as a saved OAuth application credential",
   expect(
     screen.queryByRole("img", { name: "Application credential saved" }),
   ).toBeNull();
-  expect(screen.getByLabelText("Client secret")).toHaveProperty("value", "");
+  expect(screen.queryByLabelText("Client secret")).toBeNull();
 });
 
 async function fillApplication() {
-  await userEvent.type(
-    screen.getByLabelText("Select a Linear workspace"),
-    "workspace",
-  );
-  await userEvent.click(screen.getByText("Linear OAuth application"));
+  await userEvent.click(screen.getByText("Slack OAuth application"));
   await userEvent.type(screen.getByLabelText("Client ID"), "test-client");
   await userEvent.type(screen.getByLabelText("Client secret"), "test-secret");
 }

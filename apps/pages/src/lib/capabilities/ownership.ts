@@ -85,6 +85,7 @@ export const HTML_ENTRY_OWNERSHIP: Readonly<Record<string, CapabilityId>> =
   Object.freeze({
     // MSAL v5 redirect bridge: never emitted without ambient SSO.
     "auth/redirect.html": "identity.ambient-sso",
+    "auth/linear.html": "connectors.external",
   });
 
 /**

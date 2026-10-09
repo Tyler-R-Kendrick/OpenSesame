@@ -91,7 +91,8 @@ function rowFrom(value: BoundaryValue): PublicRow | null {
   };
 }
 
-type Configuration = { row: PublicRow; secrets: StringFields };
+export type DeviceConfiguration = { row: PublicRow; secrets: StringFields };
+type Configuration = DeviceConfiguration;
 interface AtomicStore {
   [connectionId: string]: Configuration | null;
 }
@@ -244,13 +245,42 @@ export function writeDeviceConfigurationDurable(
   });
 }
 
+/** Re-read under the same cross-tab lock before changing a provider grant. */
+export function updateDeviceConfigurationDurable(
+  id: string,
+  update: (record: DeviceConfiguration) => Promise<DeviceConfiguration>,
+): Promise<PublicRow> {
+  return withConfigurationLock(async () => {
+    const records = readAtomic();
+    const record = records[id];
+    if (!record) throw new Error("Saved connector not found on this device");
+    const next = await update(record);
+    if (
+      next.row.connectionId !== id ||
+      next.row.providerId !== record.row.providerId
+    )
+      throw new Error("A provider grant cannot change its connector");
+    if (next !== record) await commitAtomic({ ...records, [id]: next });
+    return next.row;
+  });
+}
+
 /** A durable tombstone masks legacy copies even if the browser closes immediately. */
-export function removeDeviceConfigurationDurable(id: string): Promise<boolean> {
+export function removeDeviceConfigurationDurable(
+  id: string,
+  beforeRemove?: (record: DeviceConfiguration) => void,
+): Promise<boolean> {
   return withConfigurationLock(async () => {
     const row = readDeviceRows().find((entry) => entry.connectionId === id);
     if (!row || row.fields.self_hosted_configuration === undefined)
       return false;
-    await commitAtomic({ ...readAtomic(), [id]: null });
+    const records = readAtomic();
+    if (beforeRemove) {
+      const record = records[id];
+      if (!record) throw new Error("Saved connector not found on this device");
+      beforeRemove(record);
+    }
+    await commitAtomic({ ...records, [id]: null });
     return true;
   });
 }

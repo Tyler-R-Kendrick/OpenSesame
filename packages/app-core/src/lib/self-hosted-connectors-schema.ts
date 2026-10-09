@@ -27,6 +27,8 @@ export const OptionsSchema = z.object({
   appScopes: strings,
   userScopes: strings,
   webhookResourceTypes: strings,
+  webhookEnabled: z.boolean().optional(),
+  webhookUrl: z.string().optional(),
   icon: z.string().refine(validIcon, "Use a PNG or JPEG icon under 2 MB"),
 });
 

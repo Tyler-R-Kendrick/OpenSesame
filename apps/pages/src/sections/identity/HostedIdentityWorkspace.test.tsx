@@ -112,7 +112,15 @@ it("creates and edits a hosted agent in the selected buffer and confirms revocat
   );
   await userEvent.click(screen.getByRole("button", { name: "Save agent" }));
   await screen.findByRole("heading", { name: "Release bot" });
-  expect(screen.getByTestId("location").textContent).toContain("#agent-two");
+  await waitFor(() => {
+    expect(screen.getByTestId("location").textContent).toBe(
+      "?view=agents#agent-two",
+    );
+    expect(screen.queryByLabelText("Agent name")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "Edit Release bot" }),
+    ).toHaveProperty("disabled", false);
+  });
   await userEvent.click(
     screen.getByRole("button", { name: "Edit Release bot" }),
   );
@@ -121,6 +129,21 @@ it("creates and edits a hosted agent in the selected buffer and confirms revocat
   await userEvent.type(field, "Deployment bot");
   await userEvent.click(screen.getByRole("button", { name: "Save agent" }));
   await screen.findByRole("heading", { name: "Deployment bot" });
+  // A saved heading can render before the edit route has finished closing.
+  // Wait for the committed selection and its action, not that transient frame.
+  await waitFor(() => {
+    expect(screen.getByTestId("location").textContent).toBe(
+      "?view=agents#agent-two",
+    );
+    expect(screen.queryByLabelText("Agent name")).toBeNull();
+    expect(screen.getByRole("button", { name: "Revoke" })).toHaveProperty(
+      "disabled",
+      false,
+    );
+  });
+  expect(update).toHaveBeenCalledWith("agent-two", {
+    displayName: "Deployment bot",
+  });
   await userEvent.click(screen.getByRole("button", { name: "Revoke" }));
   expect(update).not.toHaveBeenCalledWith("agent-two", { state: "revoked" });
   await userEvent.click(

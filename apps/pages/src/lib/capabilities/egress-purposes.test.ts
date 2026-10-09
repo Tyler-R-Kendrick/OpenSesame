@@ -18,6 +18,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { LINEAR_API_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-always-on.js";
 import { PLUGIN_DAEMON_PURPOSE } from "@opensesame/app-core/lib/capabilities/catalog-optional-plugins.js";
 import {
   TAILNET_DEVICES_PURPOSE,
@@ -51,6 +52,7 @@ const CATALOG_DIR = join(repo, "packages/app-core/src/lib/capabilities");
 /** Every purpose constant a catalog file exports, with its text. */
 const catalogConstants: ReadonlyMap<string, string> = new Map(
   Object.entries({
+    LINEAR_API_PURPOSE,
     LIVE_CARRIER_PURPOSE,
     PLUGIN_DAEMON_PURPOSE,
     PWNED_PURPOSE,
@@ -144,6 +146,7 @@ describe("the sweep finds the places a purpose reaches the egress port", () => {
   it("covers every package that deals in egress, and the capabilities known to use one", () => {
     const seen = new Set(SITES.map((site) => site.file));
     for (const known of [
+      "apps/pages/src/modules/connectors.external/linear-runtime.ts",
       "apps/pages/src/modules/notifications.web-push/runtime.ts",
       "apps/pages/src/modules/sharing.live/carriers/allowed.ts",
       "packages/app-core/src/lib/tailnet-sync/plugin-daemon.ts",

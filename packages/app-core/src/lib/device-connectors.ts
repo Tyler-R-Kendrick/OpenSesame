@@ -24,6 +24,7 @@ import {
   writeDeviceRows,
   writeDeviceSecrets,
 } from "./device-connector-records.js";
+import { deviceConnectorView } from "./device-connector-view.js";
 import type { GitRemoteConfiguration } from "./git-auth-modes.js";
 import { isGitBackupProvider } from "./git-backup-forges.js";
 import {
@@ -33,6 +34,10 @@ import {
 import { bindHistoryConnection } from "./history-backups.js";
 
 const ID_PREFIX = "conn_local_";
+export const deviceProviderRevokers: Record<
+  string,
+  ((id: string) => Promise<void>) | undefined
+> = {};
 
 export type RenderedConnector = {
   connection: Connection;
@@ -83,7 +88,8 @@ function latestNativeFor(providerId: string): PublicRow | undefined {
     .filter(
       (row) =>
         row.providerId === providerId &&
-        row.fields.self_hosted_configuration === undefined,
+        (row.fields.self_hosted_configuration === undefined ||
+          (row.providerId === "linear" && row.fields.linear_verified === "1")),
     )
     .sort((a, b) => a.updatedAt.localeCompare(b.updatedAt))
     .at(-1);
@@ -107,37 +113,6 @@ function secretNames(providerId: string): Set<string> {
   return names;
 }
 
-function toConnection(row: PublicRow): Connection {
-  const configured = row.fields.self_hosted_configuration !== undefined;
-  return {
-    connectionId: row.connectionId,
-    connectionRef: `local/connector/${row.connectionId}`,
-    logicalName: row.connectionId,
-    displayName: row.displayName,
-    providerId: row.providerId,
-    integrationId: null,
-    status: configured ? "pending" : "active",
-    statusDetail: configured
-      ? "Configured on this device; authorization required"
-      : null,
-    organizationId: "local",
-    projectId: null,
-    ownerKind: "user",
-    shareability: "private",
-    requestedScopes: row.scopes,
-    grantedScopes: configured ? [] : row.scopes,
-    accountLabel: null,
-    expiresAt: null,
-    refreshable: false,
-    lastRefreshedAt: null,
-    maxInvokeLevel: 0,
-    egress: { scheme: "none", authorities: [], pathPrefixes: [] },
-    bindings: [],
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  };
-}
-
 function upsert(row: PublicRow, secrets: StringFields): void {
   if (row.fields.self_hosted_configuration !== undefined) {
     throw new Error("Self-hosted configuration requires an awaited save");
@@ -156,13 +131,13 @@ function upsert(row: PublicRow, secrets: StringFields): void {
 export function deviceConnection(id: string): Connection | null {
   const row = findId(id);
   if (!row || isLocalGitRemoteId(id)) return null;
-  return toConnection(row);
+  return deviceConnectorView(row);
 }
 
 export function listDeviceConnections(): Connection[] {
   return readDeviceRows()
     .filter((row) => !isLocalGitRemoteId(row.connectionId))
-    .map(toConnection);
+    .map(deviceConnectorView);
 }
 
 export function mergeOfflineConnections(rows: Connection[]): Connection[] {
@@ -204,7 +179,7 @@ export function createDeviceConnection(body: SaveBody): Connection {
     updatedAt: stamp,
   };
   upsert(row, {});
-  return toConnection(row);
+  return deviceConnectorView(row);
 }
 
 export type DeviceConnectorConfiguration = {
@@ -247,7 +222,7 @@ export async function saveDeviceConnectorConfigurationDurable(
     const input = makeInput();
     return { row: configurationRow(input, existingId), secrets: input.secrets };
   });
-  return toConnection(row);
+  return deviceConnectorView(row);
 }
 
 export function sealDeviceCredential(
@@ -264,7 +239,7 @@ export function sealDeviceCredential(
   const secrets: StringFields = { ...(readDeviceSecrets()[id] ?? {}) };
   secrets.credential = value;
   upsert({ ...row, updatedAt: nowIso() }, secrets);
-  return toConnection({ ...row, updatedAt: nowIso() });
+  return deviceConnectorView({ ...row, updatedAt: nowIso() });
 }
 
 export function sealDeviceConfiguration(
@@ -282,7 +257,7 @@ export function sealDeviceConfiguration(
   }
   const next = { ...row, fields, updatedAt: nowIso() };
   upsert(next, secrets);
-  return isLocalGitRemoteId(id) ? null : toConnection(next);
+  return isLocalGitRemoteId(id) ? null : deviceConnectorView(next);
 }
 
 export async function revokeDeviceConnection(id: string): Promise<{
@@ -291,6 +266,16 @@ export async function revokeDeviceConnection(id: string): Promise<{
 } | null> {
   const row = findId(id);
   if (!row || isLocalGitRemoteId(id)) return null;
+  if (
+    row.providerId === "linear" &&
+    row.fields.linear_authorization !== undefined
+  ) {
+    const revoke = deviceProviderRevokers.linear;
+    if (!revoke)
+      throw new Error("Enable External connectors to disconnect Linear");
+    await revoke(id);
+    return { revoked: true, providerRevocation: "ok" };
+  }
   if (row.fields.self_hosted_configuration !== undefined) {
     const removed = await removeDeviceConfigurationDurable(id);
     return removed ? { revoked: true, providerRevocation: "ok" } : null;
@@ -358,6 +343,12 @@ export function runFeatureConnector(provider: Provider): ConnectorRun {
   }
   const fields: StringFields = { ...row.fields };
   if (row.scopes.length > 0) fields.scopes = row.scopes.join(" ");
+  // Linear operations are awaited by their provider driver; generic sends must refuse.
+  if (
+    row.providerId === "linear" &&
+    row.fields.linear_authorization !== undefined
+  )
+    return { ok: false, providerId: provider.id };
   const secrets: StringFields = {
     ...(readDeviceSecrets()[row.connectionId] ?? {}),
   };

@@ -9,13 +9,8 @@ import type {
   Provider,
 } from "@opensesame/app-core/lib/connections.js";
 /** @vitest-environment jsdom */
-import {
-  forgetDeviceConnectors,
-  listDeviceConnections,
-} from "@opensesame/app-core/lib/device-connectors.js";
+import { forgetDeviceConnectors } from "@opensesame/app-core/lib/device-connectors.js";
 import { getBundledProviders } from "@opensesame/app-core/lib/embedded-catalog.js";
-import { kvDurability } from "@opensesame/app-core/lib/kv.js";
-import { readSelfHostedConnector } from "@opensesame/app-core/lib/self-hosted-connectors.js";
 import { mergeVercelCatalog } from "@opensesame/app-core/lib/vercel-connect-catalog.js";
 import { setVercelConnectAuth } from "@opensesame/app-core/lib/vercel-connect.js";
 import type { JsonObject, JsonValue } from "@opensesame/os-domain";
@@ -140,7 +135,10 @@ describe("no connector page is blank", () => {
     draw(id);
     const panel = screen.getByRole("region", { name: "Connector" });
     expect(
-      within(panel).getByRole("button", { name: "Create Connector" }),
+      within(panel).getByRole("button", {
+        name:
+          id === "linear" ? "Create and authorize Linear" : "Create Connector",
+      }),
     ).toBeTruthy();
     expect(within(panel).getByLabelText("Connector Name")).toHaveProperty(
       "value",
@@ -192,7 +190,9 @@ describe("self-hosted provider configuration", () => {
       true,
     );
     expect(screen.getByRole("radio", { name: "Bring Your Own" })).toBeTruthy();
-    expect(screen.getByLabelText("Select a Linear workspace")).toBeTruthy();
+    expect(
+      screen.getByLabelText("Expected Linear workspace (optional)"),
+    ).toBeTruthy();
     expect(screen.getByLabelText("Icon")).toHaveProperty(
       "accept",
       "image/png,image/jpeg",
@@ -203,81 +203,43 @@ describe("self-hosted provider configuration", () => {
     expect(screen.getByLabelText("User Scopes").textContent).toContain(
       "2 selected",
     );
+    expect(screen.queryByLabelText("Webhook Resource Types")).toBeNull();
+    await userEvent.click(
+      screen.getByRole("checkbox", { name: "Register a Linear webhook" }),
+    );
     expect(
       screen.getByLabelText("Webhook Resource Types").textContent,
     ).toContain("2 selected");
+    expect(screen.getByLabelText("Webhook delivery URL")).toBeTruthy();
     await userEvent.click(
       screen.getByRole("radio", { name: "Bring Your Own" }),
     );
-    expect(screen.getByLabelText("Client ID")).toBeTruthy();
-    expect(screen.getByLabelText("Authorization endpoint")).toHaveProperty(
-      "value",
-      "https://linear.app/oauth/authorize",
+    expect(screen.getByLabelText("Linear OAuth client ID")).toBeTruthy();
+    expect(screen.getByLabelText("Redirect URI")).toHaveProperty(
+      "readOnly",
+      true,
     );
+    expect(screen.queryByLabelText("Client secret")).toBeNull();
+    expect(screen.queryByLabelText("Authorization endpoint")).toBeNull();
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("stores Linear settings locally, retains selections, and keeps secrets out of readback", async () => {
-    setVercelConnectAuth(null);
-    const fetch = vi.fn();
-    vi.stubGlobal("fetch", fetch);
-    const onFlash = draw("linear");
-    await userEvent.type(
-      screen.getByLabelText("Select a Linear workspace"),
-      "quickdeploy-ai",
-    );
-    await userEvent.click(screen.getByText("Linear OAuth application"));
-    await userEvent.type(screen.getByLabelText("Client ID"), "lin_client");
-    await userEvent.type(screen.getByLabelText("Client secret"), "lin_secret");
-    await userEvent.click(screen.getByLabelText("Webhook Resource Types"));
-    await userEvent.click(screen.getByRole("checkbox", { name: "Project" }));
-    await userEvent.click(
-      screen.getByRole("button", { name: "Create Connector" }),
-    );
-    await waitFor(() => expect(listDeviceConnections()).toHaveLength(1));
-    const row = listDeviceConnections()[0];
-    expect(row?.status).toBe("pending");
-    expect(row?.grantedScopes).toEqual([]);
-    const saved = readSelfHostedConnector(row?.connectionId ?? "");
-    expect(saved?.options).toMatchObject({
-      workspace: "quickdeploy-ai",
-      appScopes: ["read", "write", "issues:create", "comments:create"],
-      userScopes: ["read", "write"],
-      webhookResourceTypes: ["Issue", "Comment", "Project"],
-    });
-    expect(saved?.state.oauth.clientSecret).toBe("");
-    expect(saved?.hasCredential).toBe(true);
-    expect(onFlash).toHaveBeenCalledWith({
-      tone: kvDurability() === "memory" ? "warn" : "ok",
-      text:
-        kvDurability() === "memory"
-          ? "Linear configuration is kept for this session."
-          : "Linear configuration is saved on this device.",
-    });
-    expect(fetch).not.toHaveBeenCalled();
-    expect(screen.getByLabelText("Client secret")).toHaveProperty("value", "");
-    await userEvent.click(
-      screen.getByRole("button", { name: "Save connector" }),
-    );
-    expect(listDeviceConnections()).toHaveLength(1);
-  });
-
-  it("asks for the selected provider key, never a Vercel key", async () => {
+  it("requires an actual Linear key for API verification and keeps provider endpoints fixed", async () => {
     setVercelConnectAuth(null);
     draw("linear");
     await userEvent.click(
       screen.getByRole("radio", { name: "Bring Your Own" }),
     );
     await userEvent.click(screen.getByRole("radio", { name: "API key" }));
-    expect(
-      screen
-        .getAllByLabelText("API key")
-        .find((element) => element.getAttribute("type") === "password"),
-    ).toBeTruthy();
-    expect(screen.getByLabelText("API")).toHaveProperty(
-      "value",
-      "https://api.linear.app",
+    expect(screen.getByLabelText("Linear API key")).toHaveProperty(
+      "type",
+      "password",
     );
+    expect(
+      screen.getByRole("button", { name: "Verify and connect Linear" }),
+    ).toHaveProperty("disabled", true);
+    expect(screen.queryByLabelText("API")).toBeNull();
+    expect(screen.queryByLabelText("App Scopes")).toBeNull();
     expect(screen.queryByText(/Vercel/)).toBeNull();
   });
 

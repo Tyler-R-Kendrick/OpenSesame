@@ -1,6 +1,6 @@
 # ADR 0183 — Self-hosted connector configuration follows the Connect experience
 
-- **Status:** Accepted
+- **Status:** Accepted; Linear authorization added by [ADR 0184](0184-browser-linear-authorization.md)
 - **Date:** 2026-10-08
 - **Deciders:** OpenSesame maintainers
 - **Amends:** [ADR 0147](0147-connector-plans-and-user-token-proof.md)
@@ -51,7 +51,9 @@ or a working token.
    changing records. Durable deletion masks legacy copies so they cannot
    reappear after a reload. A
    memory-only backend reports session storage rather than durable storage.
-5. A local configuration stays pending with no granted scopes. Its status
+5. Generic local configuration stays pending with no granted scopes.
+   Linear now completes provider authorization and operations in the browser
+   as specified by [ADR 0184](0184-browser-linear-authorization.md). Its status
    says authorization is required. App/user scope and webhook selections
    describe intended settings; they are not provider grants, registered
    webhooks, accepted credentials or evidence of a usable token. Provider

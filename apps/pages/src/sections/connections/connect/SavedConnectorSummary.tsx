@@ -10,16 +10,23 @@ import {
 import { useState } from "react";
 import { IconTrash } from "../../../components/Icons.js";
 import { StatusMark } from "../../../components/StatusMark.js";
+import { LinearConnectorSummary } from "./LinearConnectorSummary.js";
 
-export function SavedConnectorSummary({
-  connection,
-  onFlash,
-  onChanged,
-}: {
+type Props = {
   connection: Connection | null;
   onFlash: (flash: Flash) => void;
   onChanged: () => void;
-}) {
+};
+
+export function SavedConnectorSummary(props: Props) {
+  return props.connection?.providerId === "linear" ? (
+    <LinearConnectorSummary {...props} connection={props.connection} />
+  ) : (
+    <ConfigurationSummary {...props} />
+  );
+}
+
+function ConfigurationSummary({ connection, onFlash, onChanged }: Props) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const saved = connection
