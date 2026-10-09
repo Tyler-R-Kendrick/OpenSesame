@@ -10,15 +10,23 @@ import {
   revokeLocalAccessRequest,
 } from "@opensesame/app-core/lib/local-access-requests.js";
 import type { LocalDirectory } from "@opensesame/app-core/lib/local-directory.js";
+import {
+  type PendingShare,
+  approvePendingShare,
+  denyPendingShare,
+  policyLabel,
+} from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import {
   IconArrowRight,
+  IconCheck,
   IconPlus,
   IconRefresh,
   IconTrash,
   IconX,
 } from "../../components/Icons.js";
+import { StatusMark } from "../../components/StatusMark.js";
 import { keyboardIsIdle, landFocus } from "../../lib/focus.js";
 import { LocalRequestForm } from "./LocalRequestForm.js";
 import { RequestApproval } from "./RequestApproval.js";
@@ -65,6 +73,7 @@ function useRequestSelection(requests: LocalAccessRequest[] | undefined) {
 export function LocalRequestsPanel({ tomb }: { tomb: string }) {
   const model = useLocalRequests(tomb);
   const [statusFilter, setStatusFilter] = useState<InboxStatusFilter>("all");
+  const [selectedGrantId, setSelectedGrantId] = useState<string | null>(null);
   const {
     creating,
     setCreating,
@@ -75,7 +84,12 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
     reload,
     close,
   } = useRequestSelection(model.data?.requests);
+  const selectedGrant =
+    model.data?.pendingGrants.find((row) => row.id === selectedGrantId) ?? null;
   const disabled = model.busy || Boolean(model.error);
+  function closeGrant() {
+    setSelectedGrantId(null);
+  }
   return (
     <section
       className="panel"
@@ -103,7 +117,13 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
           <IconKey
             small
             label="New local request"
-            disabled={disabled || !model.data || creating || selected !== null}
+            disabled={
+              disabled ||
+              !model.data ||
+              creating ||
+              selected !== null ||
+              selectedGrant !== null
+            }
             onClick={(event) => {
               trigger.current = event.currentTarget;
               setCreating(true);
@@ -150,21 +170,170 @@ export function LocalRequestsPanel({ tomb }: { tomb: string }) {
             close={close}
           />
         ) : null}
-        {model.data ? (
-          <RequestRows
-            data={model.data}
-            filter={statusFilter}
-            disabled={disabled || creating || selected !== null}
-            select={(row, button) => {
-              trigger.current = button;
-              setSelected(row.id);
-            }}
+        {selectedGrant && model.data ? (
+          <PendingGrantDecision
+            key={selectedGrant.id}
+            tomb={tomb}
+            pending={selectedGrant}
+            directory={model.data.directory}
+            busy={disabled}
+            run={model.run}
+            close={closeGrant}
           />
+        ) : null}
+        {model.data ? (
+          <>
+            <PendingGrantRows
+              grants={model.data.pendingGrants}
+              directory={model.data.directory}
+              filter={statusFilter}
+              disabled={
+                disabled || creating || selected !== null || selectedGrant !== null
+              }
+              select={(row, button) => {
+                trigger.current = button;
+                setSelectedGrantId(row.id);
+                setSelected(null);
+                setCreating(false);
+              }}
+            />
+            <RequestRows
+              data={model.data}
+              filter={statusFilter}
+              disabled={
+                disabled || creating || selected !== null || selectedGrant !== null
+              }
+              select={(row, button) => {
+                trigger.current = button;
+                setSelected(row.id);
+                setSelectedGrantId(null);
+                setCreating(false);
+              }}
+            />
+          </>
         ) : !model.error ? (
           <output>Loading local requests…</output>
         ) : null}
       </div>
     </section>
+  );
+}
+
+function PendingGrantRows({
+  grants,
+  directory,
+  filter,
+  disabled,
+  select,
+}: {
+  grants: PendingShare[];
+  directory: LocalDirectory;
+  filter: InboxStatusFilter;
+  disabled: boolean;
+  select: (row: PendingShare, button: HTMLButtonElement) => void;
+}) {
+  if (filter !== "all" && filter !== "pending") return null;
+  const name = (principalId: string) =>
+    directory.entries.find((entry) => entry.id === principalId)?.name ??
+    principalId;
+  if (!grants.length) return null;
+  return (
+    <ul className="access-local-records">
+      {grants.map((row) => (
+        <li key={row.id}>
+          <strong>
+            {name(row.principalId)} → {row.resourceLabel}
+          </strong>
+          <p className="hint">
+            Identity share · {policyLabel(row.resourceKind, row.policy)}
+          </p>
+          <StatusMark tone="warn" label="Awaiting approval" />
+          <p>
+            <code className="access-ref">{row.id}</code>
+          </p>
+          <IconKey
+            label="Review grant request"
+            small
+            disabled={disabled}
+            onClick={(event) => select(row, event.currentTarget)}
+          >
+            <IconArrowRight size={16} />
+          </IconKey>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function PendingGrantDecision({
+  tomb,
+  pending,
+  directory,
+  busy,
+  run,
+  close,
+}: {
+  tomb: string;
+  pending: PendingShare;
+  directory: LocalDirectory;
+  busy: boolean;
+  run: (
+    action: () => Promise<void>,
+    success: string,
+  ) => Promise<boolean>;
+  close: () => void;
+}) {
+  const name =
+    directory.entries.find((entry) => entry.id === pending.principalId)?.name ??
+    pending.principalId;
+  return (
+    <fieldset className="access-local-confirmation" disabled={busy}>
+      <legend>Review identity share grant</legend>
+      <p>
+        {name} → {pending.resourceLabel}
+      </p>
+      <p className="hint">
+        {pending.resourceKind} · {policyLabel(pending.resourceKind, pending.policy)}
+      </p>
+      <p>
+        <code className="access-ref">{pending.id}</code>
+      </p>
+      <div className="actions">
+        <IconKey
+          label={`Approve ${name}`}
+          onClick={() =>
+            void run(
+              async () => {
+                await approvePendingShare(tomb, pending.id);
+              },
+              "Grant approved.",
+            ).then((done) => {
+              if (done) close();
+            })
+          }
+        >
+          <IconCheck size={16} />
+        </IconKey>
+        <IconKey
+          label={`Deny ${name}`}
+          onClick={() =>
+            void run(
+              async () => {
+                await denyPendingShare(tomb, pending.id);
+              },
+              "Grant denied.",
+            ).then((done) => {
+              if (done) close();
+            })
+          }
+        >
+          <IconX size={16} />
+        </IconKey>
+        <IconKey label="Close grant request" onClick={close}>
+          <IconX size={16} />
+        </IconKey>
+      </div>
+    </fieldset>
   );
 }
 

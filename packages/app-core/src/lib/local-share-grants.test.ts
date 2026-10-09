@@ -120,22 +120,39 @@ it("lists folder and item targets the open vault names", () => {
   expect(item?.label).toHaveLength(128);
 });
 
-it("grants an application immediately, including a folder", async () => {
+it("holds an application grant until it is approved", async () => {
   const fixture = await localRequestFixture();
   const directory = await readLocalDirectory(fixture.tomb);
   expect(grantIdentities(directory.entries).map((row) => row.kind)).toEqual([
     "person",
     "application",
   ]);
-  const submitted = await submitLocalShare(fixture.tomb, {
+  const input = {
     principalId: fixture.applicationId,
-    resourceKind: "folder",
+    resourceKind: "folder" as const,
     resourceId: "fold-1",
     resourceLabel: "Work",
     policy: "read",
     durationSeconds: 3600,
-  });
-  expect(submitted.outcome).toBe("granted");
+  };
+  await expect(createLocalShare(fixture.tomb, input)).rejects.toThrow(
+    /Approve the grant/,
+  );
+  const submitted = await submitLocalShare(fixture.tomb, input);
+  expect(submitted.outcome).toBe("pending");
+  expect(
+    await shareAllows(
+      fixture.tomb,
+      { kind: "folder", id: "fold-1" },
+      "read",
+      fixture.applicationId,
+    ),
+  ).toBe(false);
+  if (submitted.outcome !== "pending") return;
+  const shares = await approvePendingShare(fixture.tomb, submitted.pending.id);
+  expect(shares.some((share) => share.principalId === fixture.applicationId)).toBe(
+    true,
+  );
   expect(await listPendingShares(fixture.tomb)).toEqual([]);
   expect(
     await shareAllows(
@@ -173,7 +190,7 @@ it("grants an application immediately, including a folder", async () => {
 
 it("covers an item grant only for that item", async () => {
   const fixture = await localRequestFixture();
-  await createLocalShare(fixture.tomb, {
+  const submitted = await submitLocalShare(fixture.tomb, {
     principalId: fixture.applicationId,
     resourceKind: "item",
     resourceId: "item-1",
@@ -181,6 +198,8 @@ it("covers an item grant only for that item", async () => {
     policy: "use",
     durationSeconds: 3600,
   });
+  if (submitted.outcome !== "pending") throw new Error("expected pending");
+  await approvePendingShare(fixture.tomb, submitted.pending.id);
   expect(
     await shareAllows(
       fixture.tomb,
@@ -221,7 +240,7 @@ it("holds an agent grant until it is approved", async () => {
     durationSeconds: 3600,
   };
   await expect(createLocalShare(fixture.tomb, input)).rejects.toThrow(
-    /Approve the agent grant/,
+    /Approve the grant/,
   );
   const first = await submitLocalShare(fixture.tomb, input);
   const second = await submitLocalShare(fixture.tomb, input);

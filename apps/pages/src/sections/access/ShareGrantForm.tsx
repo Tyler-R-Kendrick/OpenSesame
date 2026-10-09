@@ -72,7 +72,10 @@ export function ShareGrantForm({
   }, [kind, scopes]);
 
   const selected = identities.find((entry) => entry.id === principalId);
-  const commitLabel = selected?.kind === "agent" ? "Request approval" : "Grant";
+  const commitLabel =
+    selected?.kind === "agent" || selected?.kind === "application"
+      ? "Request approval"
+      : "Grant";
 
   function submit(event: FormEvent) {
     event.preventDefault();

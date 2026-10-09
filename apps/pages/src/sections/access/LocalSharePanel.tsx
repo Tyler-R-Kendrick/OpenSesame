@@ -16,7 +16,13 @@ import {
   revokeLocalShare,
 } from "@opensesame/app-core/lib/local-share-grants.js";
 import type { Folder, VaultItem } from "@opensesame/vault-core";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconKey } from "../../components/IconKey.js";
 import {
@@ -365,6 +371,11 @@ function ShareRow({
   canRevoke: boolean;
   onRevoke: () => void;
 }) {
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => {
+    if (!busy) setConfirming(false);
+  }, [busy, share.id]);
+  const revokeLabel = confirming ? "Confirm revoke" : "Revoke";
   return (
     <li className="identity-row" id={`share-${share.id}`}>
       <div className="identity-row__main">
@@ -387,9 +398,15 @@ function ShareRow({
             type="button"
             className="icon-btn icon-btn--sm"
             disabled={busy || !canRevoke}
-            aria-label="Revoke"
-            title="Revoke"
-            onClick={onRevoke}
+            aria-label={revokeLabel}
+            title={revokeLabel}
+            onClick={() => {
+              if (!confirming) {
+                setConfirming(true);
+                return;
+              }
+              onRevoke();
+            }}
           >
             <IconTrash size={16} />
           </button>

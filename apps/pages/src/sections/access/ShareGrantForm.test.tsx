@@ -13,7 +13,7 @@ const scopes = {
   items: [{ id: "item-1", label: "Work / API key" }],
 };
 
-it("grants a folder to an application and requests approval for an item to an agent", async () => {
+it("requests approval for an application folder grant and for an agent item grant", async () => {
   const onSave = vi.fn();
   render(
     <ShareGrantForm
@@ -31,7 +31,9 @@ it("grants a folder to an application and requests approval for an item to an ag
   await userEvent.selectOptions(screen.getByLabelText("Resource"), "Folder");
   await userEvent.selectOptions(screen.getByLabelText("Folder"), "Work");
   await userEvent.selectOptions(screen.getByLabelText("Policy"), "Read");
-  await userEvent.click(screen.getByRole("button", { name: "Grant" }));
+  await userEvent.click(
+    screen.getByRole("button", { name: "Request approval" }),
+  );
   expect(onSave).toHaveBeenCalledWith(
     expect.objectContaining({
       principalId: "app-1",
