@@ -12,13 +12,6 @@ import { env } from "../../host.js";
 import { type WebStorage, maybePage } from "../../ports.js";
 import { noteDropLockedOut, noteDropOpened } from "../sharing-receipts.js";
 import {
-  claimIdFromBearer,
-  mintUserCode,
-  timingSafeEqual,
-} from "./local-drop-codec.js";
-import {
-  LOCAL_DROP_CLAIM_KEYS,
-  LOCAL_DROP_CLAIM_STORAGE_KEY,
   MAX_DROP_CLAIM_ATTEMPTS,
   digestDropBearerToken,
   digestDropUserCode,
@@ -31,6 +24,11 @@ import {
   writeLocalDropClaimStore,
   wrongDropCodeWords,
 } from "./local-drop-claim-store.js";
+import {
+  claimIdFromBearer,
+  mintUserCode,
+  timingSafeEqual,
+} from "./local-drop-codec.js";
 
 export {
   LOCAL_DROP_CLAIM_KEYS,
@@ -238,11 +236,7 @@ export async function presentLocalDropClaim(
     const triesLeft = MAX_DROP_CLAIM_ATTEMPTS - attempts;
     persist({ ...record, attempts, version: record.version + 1 });
     if (attempts >= MAX_DROP_CLAIM_ATTEMPTS) noteDropLockedOut(claimId);
-    throw refuse(
-      "invalid_user_code",
-      wrongDropCodeWords(triesLeft),
-      triesLeft,
-    );
+    throw refuse("invalid_user_code", wrongDropCodeWords(triesLeft), triesLeft);
   }
   const targetManifest = structuredClone(record.targetManifest);
   persist({
