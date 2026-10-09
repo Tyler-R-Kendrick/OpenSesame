@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { forwardRef, useState } from "react";
 import { version } from "../../../package.json";
 import {
   IconCheck,
@@ -13,8 +13,9 @@ import {
  * UI impact, never plane names, ADRs, or implementer jargon. Shown on the
  * front door and the unlock form, never past them.
  *
- * One accordion row per build, collapsed on arrival. Choosing a row
- * toggles it and collapses the rest.
+ * One accordion row per build. On wide layouts the newest opens on arrival
+ * (lock-v5 desktop). On narrow, all rows start collapsed so the corner dial
+ * keeps the empty band under the opaque notes (lock-v5 mobile).
  */
 
 type ReleaseNote = {
@@ -134,25 +135,35 @@ function ReleasePanel({
   );
 }
 
-export function ReleaseNotes() {
-  const [active, setActive] = useState<string | null>(null);
-  return (
-    <aside className="unlock__notes" aria-label="Release notes">
-      <div className="unlock__notes-stack">
-        {RELEASES.map((release, index) => (
-          <ReleasePanel
-            key={release.version}
-            release={release}
-            newest={index === 0}
-            open={active === release.version}
-            onToggle={() =>
-              setActive((current) =>
-                current === release.version ? null : release.version,
-              )
-            }
-          />
-        ))}
-      </div>
-    </aside>
-  );
+function initialOpenVersion(): string | null {
+  // Narrow: collapsed accordion — empty band for the corner dial.
+  // matchMedia is absent in some test hosts; prefer the wide (open) default.
+  const mq = globalThis.matchMedia?.("(max-width: 1099px)");
+  if (mq?.matches) return null;
+  return RELEASES[0]?.version ?? null;
 }
+
+export const ReleaseNotes = forwardRef<HTMLElement>(
+  function ReleaseNotes(_props, ref) {
+    const [active, setActive] = useState<string | null>(initialOpenVersion);
+    return (
+      <aside ref={ref} className="unlock__notes" aria-label="Release notes">
+        <div className="unlock__notes-stack">
+          {RELEASES.map((release, index) => (
+            <ReleasePanel
+              key={release.version}
+              release={release}
+              newest={index === 0}
+              open={active === release.version}
+              onToggle={() =>
+                setActive((current) =>
+                  current === release.version ? null : release.version,
+                )
+              }
+            />
+          ))}
+        </div>
+      </aside>
+    );
+  },
+);

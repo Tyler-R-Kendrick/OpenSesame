@@ -44,8 +44,10 @@ export type WordmarkHandle = {
 };
 
 /**
- * Brand wordmark: IconMark + lock-v5 particle-plate CipherWordmark. Visual
- * line is {@link DISPLAY_WORD}; assistive name is {@link WORDMARK}.
+ * Brand wordmark: lock-v5 particle-plate CipherWordmark. Visual line is
+ * {@link DISPLAY_WORD}; assistive name is {@link WORDMARK}. By default the
+ * punched-plate mark is a separate {@link IconMark}; pass `includeMark` to
+ * draw it at plate height inside the canvas (unlock hero, lock-v5).
  */
 export const Wordmark = forwardRef<
   WordmarkHandle,
@@ -54,9 +56,11 @@ export const Wordmark = forwardRef<
     size?: number;
     as?: "p" | "h1";
     replay?: boolean;
+    /** Plate-height ink+slit mark inside CipherWordmark (prototype gap 0.28em). */
+    includeMark?: boolean;
   }
 >(function Wordmark(
-  { className, size = 16, as: Tag = "p", replay = false },
+  { className, size = 16, as: Tag = "p", replay = false, includeMark = false },
   ref,
 ): ReactElement {
   const cipherRef = useRef<CipherWordmarkHandle>(null);
@@ -79,11 +83,12 @@ export const Wordmark = forwardRef<
 
   const classes = ["wordmark"];
   if (settled && !replay) classes.push("wordmark--settled");
+  if (includeMark) classes.push("wordmark--include-mark");
   if (className) classes.push(className);
 
   return (
     <Tag className={classes.join(" ")}>
-      <IconMark size={size} />
+      {includeMark ? null : <IconMark size={size} />}
       <span className="visually-hidden">{WORDMARK}</span>
       <span className="wordmark__slots" aria-hidden="true">
         <CipherWordmark
@@ -93,6 +98,7 @@ export const Wordmark = forwardRef<
           animateOnMount={animate}
           replay={replay}
           static={settled && !replay}
+          includeMark={includeMark}
           className="wordmark__cipher"
         />
       </span>

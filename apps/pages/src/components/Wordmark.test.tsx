@@ -96,4 +96,13 @@ describe("Wordmark", () => {
       document.querySelector("canvas.cipher-wordmark__canvas"),
     ).toBeTruthy();
   });
+
+  it("draws the plate-height mark in-canvas when includeMark is set", () => {
+    const { container } = render(<Wordmark includeMark />);
+    expect(container.querySelector(".wordmark--include-mark")).toBeTruthy();
+    expect(container.querySelector("svg")).toBeNull();
+    expect(
+      container.querySelector("canvas.cipher-wordmark__canvas"),
+    ).toBeTruthy();
+  });
 });
