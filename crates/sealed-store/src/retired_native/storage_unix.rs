@@ -280,13 +280,13 @@ impl ScopedStore {
         let bytes = read_bounded(&mut key)?;
         let fingerprint = Sha256::digest(&bytes).into();
         let mut opened = Self {
-            directory,
+            key,
             lock,
             lock_name,
-            key,
             key_name,
             key_metadata,
             fingerprint,
+            directory,
         };
         opened.validate()?;
         Ok((opened, bytes))
