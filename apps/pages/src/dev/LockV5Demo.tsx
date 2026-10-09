@@ -2,13 +2,10 @@ import { useCallback, useRef, useState } from "react";
 import { CipherDial } from "../components/CipherDial/index.js";
 import { CipherWordmark } from "../components/CipherWordmark/index.js";
 import { VaultDoors } from "../components/VaultDoors/index.js";
+import { injectedNowMs } from "../lib/injected-clock.js";
 import "./lock-v5-demo.css";
 
-function nowMs(): number {
-  const w = globalThis as { __vt?: number };
-  if (typeof w.__vt === "number") return w.__vt;
-  return performance.now();
-}
+const nowMs = injectedNowMs;
 
 export function LockV5Demo() {
   const paneRef = useRef<HTMLDivElement>(null);

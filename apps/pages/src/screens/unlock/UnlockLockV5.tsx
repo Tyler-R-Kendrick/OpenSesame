@@ -15,22 +15,18 @@ import {
 } from "../../components/CipherDial/index.js";
 import { VaultDoors } from "../../components/VaultDoors/index.js";
 import type { WordmarkHandle } from "../../components/Wordmark.js";
+import {
+  injectedNowMs,
+  prefersReducedMotion,
+} from "../../lib/injected-clock.js";
 import { unlockCeremonyStore } from "../../lib/unlock-ceremony-store.js";
+import "../../components/VaultDoors/vault-doors.css";
 
-function nowMs(): number {
-  const w = globalThis as { __vt?: number };
-  if (typeof w.__vt === "number") return w.__vt;
-  return performance.now();
-}
-
-function prefersReducedMotion(): boolean {
-  if (typeof matchMedia !== "function") return false;
-  return matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
+const nowMs = injectedNowMs;
 
 export type UnlockLockV5Props = {
-  paneRef: RefObject<HTMLElement | null>;
-  cardRef: RefObject<HTMLElement | null>;
+  paneRef: RefObject<HTMLDivElement | null>;
+  cardRef: RefObject<HTMLDivElement | null>;
   notesRef: RefObject<HTMLElement | null>;
   wordmarkRef: RefObject<WordmarkHandle | null>;
   /** Set when a vault unlock succeeded and the ceremony should run. */

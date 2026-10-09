@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
 import { cleanup, render } from "@testing-library/react";
+import { createRef } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { CipherDial } from "./CipherDial.js";
 import { PLAIN, RING_COUNT } from "./constants.js";
@@ -42,9 +43,9 @@ describe("alignRings", () => {
 
 describe("CipherDial", () => {
   it("renders decorative canvases", () => {
-    const paneRef = { current: null as HTMLDivElement | null };
-    const cardRef = { current: null as HTMLDivElement | null };
-    const notesRef = { current: null as HTMLElement | null };
+    const paneRef = createRef<HTMLDivElement>();
+    const cardRef = createRef<HTMLDivElement>();
+    const notesRef = createRef<HTMLElement>();
     const { container } = render(
       <div ref={paneRef} style={{ width: 400, height: 300 }}>
         <div ref={cardRef} style={{ width: 200, height: 200 }} />

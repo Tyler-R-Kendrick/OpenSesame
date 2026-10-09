@@ -1,4 +1,8 @@
 import { type RefObject, useEffect, useState } from "react";
+import {
+  injectedNowMs,
+  prefersReducedMotion,
+} from "../../lib/injected-clock.js";
 import { T_END_MS, T_OPEN_MS } from "../CipherDial/constants.js";
 import { doorEase } from "../CipherDial/easing.js";
 import "./vault-doors.css";
@@ -12,16 +16,7 @@ export type VaultDoorsProps = {
   onComplete: () => void;
 };
 
-function nowMs(): number {
-  const w = globalThis as { __vt?: number };
-  if (typeof w.__vt === "number") return w.__vt;
-  return performance.now();
-}
-
-function prefersReducedMotion(): boolean {
-  if (typeof matchMedia !== "function") return false;
-  return matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
+const nowMs = injectedNowMs;
 
 export function VaultDoors({
   active,
@@ -65,21 +60,21 @@ export function VaultDoors({
   useEffect(() => {
     const pane = paneRef.current;
     if (!pane) return;
-    const unlock = pane.closest(".unlock");
-    if (!unlock) return;
+    const unlockEl = pane.closest(".unlock");
+    if (!(unlockEl instanceof HTMLElement)) return;
     if (!active) {
-      unlock.classList.remove("unlock--doors");
-      unlock.style.removeProperty("--unlock-door-shift");
-      unlock.style.removeProperty("--unlock-door-split");
+      unlockEl.classList.remove("unlock--doors");
+      unlockEl.style.removeProperty("--unlock-door-shift");
+      unlockEl.style.removeProperty("--unlock-door-split");
       return;
     }
-    unlock.classList.add("unlock--doors");
-    unlock.style.setProperty("--unlock-door-split", `${splitX}px`);
-    unlock.style.setProperty("--unlock-door-shift", `${progress * 102}%`);
+    unlockEl.classList.add("unlock--doors");
+    unlockEl.style.setProperty("--unlock-door-split", `${splitX}px`);
+    unlockEl.style.setProperty("--unlock-door-shift", `${progress * 102}%`);
     return () => {
-      unlock.classList.remove("unlock--doors");
-      unlock.style.removeProperty("--unlock-door-shift");
-      unlock.style.removeProperty("--unlock-door-split");
+      unlockEl.classList.remove("unlock--doors");
+      unlockEl.style.removeProperty("--unlock-door-shift");
+      unlockEl.style.removeProperty("--unlock-door-split");
     };
   }, [active, paneRef, progress, splitX]);
 
