@@ -1,0 +1,26 @@
+{
+  "name": "@opensesame/device-auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "RFC 8628 device-authorization poll evaluation and a UI/audit-safe projection",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opensesame/os-domain": "workspace:*"
+  },
+  "devDependencies": {
+    "@opensesame/testing": "workspace:*",
+    "@types/node": "22.15.29",
+    "typescript": "5.8.3",
+    "vitest": "4.1.11"
+  }
+}
