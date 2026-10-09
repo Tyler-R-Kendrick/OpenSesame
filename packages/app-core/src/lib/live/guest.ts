@@ -21,12 +21,13 @@ import type { LiveLink } from "./link.js";
 import {
   type Catalog,
   type ChannelMessage,
+  type JoinReply,
   VALUE_MAX,
   characters,
   cleanText,
 } from "./messages.js";
 import type { NatsSession } from "./nats-route.js";
-import { type JoinReply, makeRequestCode, openReplyCode } from "./pairing.js";
+import { makeRequestCode, openReplyCode } from "./pairing.js";
 import {
   type IceSettings,
   type OfferSide,
