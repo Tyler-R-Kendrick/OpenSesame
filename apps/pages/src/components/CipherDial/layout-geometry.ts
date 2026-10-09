@@ -19,7 +19,9 @@ export function computeDialGeometry(input: {
   narrow: boolean;
   quiet: QuietRect[];
 }): DialGeometry {
-  const { w, h, card, notes, narrow, quiet } = input;
+  // `quiet` is carried for call-site symmetry with the mask; narrow cy uses
+  // card/notes geometry so the corner dial sits in the empty band.
+  const { w, h, card, notes, narrow } = input;
 
   if (!narrow && notes) {
     const dr = Math.min(21, Math.max(16, h * 0.023));
