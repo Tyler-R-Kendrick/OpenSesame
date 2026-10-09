@@ -88,3 +88,11 @@ export type RunPromptParams = {
   signal?: AbortSignal;
   maxTurns?: number;
 };
+
+export function modelFromConfig(
+  config: Record<string, unknown>,
+  defaultModel: string,
+): string {
+  const m = config.model;
+  return typeof m === "string" && m.length > 0 ? m : defaultModel;
+}
