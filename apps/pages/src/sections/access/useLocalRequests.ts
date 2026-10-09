@@ -12,19 +12,33 @@ import {
   subscribeLocalIamChangesFromOtherTabs,
 } from "@opensesame/app-core/lib/local-iam-events.js";
 import { isSignInInFlight } from "@opensesame/app-core/lib/local-request-summary.js";
+import {
+  type PendingShare,
+  listPendingShares,
+} from "@opensesame/app-core/lib/local-share-grants-approvals.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+async function readPendingGrants(tomb: string): Promise<PendingShare[]> {
+  try {
+    return await listPendingShares(tomb);
+  } catch {
+    return [];
+  }
+}
+
 async function read(tomb: string) {
-  const [directory, applications, requests] = await Promise.all([
+  const [directory, applications, requests, pendingGrants] = await Promise.all([
     readLocalDirectory(tomb),
     readLocalApplications(tomb),
     listLocalAccessRequests(tomb),
+    readPendingGrants(tomb),
   ]);
   return {
     directory,
     applications: applications.applications,
     // A sign-in being consented to in its own window is decided there.
     requests: requests.filter((row) => !isSignInInFlight(row)),
+    pendingGrants,
   };
 }
 

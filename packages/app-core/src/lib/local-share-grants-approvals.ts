@@ -255,8 +255,13 @@ async function savePendingShare<T>(
   return pending;
 }
 
+/** Agents and applications need a person to approve before the share is active. */
+function shareNeedsApproval(kind: string | undefined): boolean {
+  return kind === "agent" || kind === "application";
+}
+
 /**
- * Grant immediately to a person or application. An agent grant is stored
+ * Grant immediately to a person. An agent or application grant is stored
  * pending and does not appear in `listLocalShares` until it is approved.
  */
 export async function submitLocalShare(
@@ -265,8 +270,8 @@ export async function submitLocalShare(
 ): Promise<SubmittedShare> {
   const directory = await readLocalDirectory(tomb);
   const entry = directory.entries.find((row) => row.id === input.principalId);
-  if (entry?.kind === "agent") {
-    if (!entry.enabled)
+  if (shareNeedsApproval(entry?.kind)) {
+    if (entry?.kind === "agent" && !entry.enabled)
       throw new LocalDirectoryError("This agent is disabled.");
     const pending = await name(tomb, async (named) =>
       savePendingShare(named.value, input, await requireManageGrants(named)),
@@ -289,8 +294,12 @@ export function approvePendingShare(
     const entry = (await readLocalDirectory(tomb)).entries.find(
       (row) => row.id === pending.principalId,
     );
-    if (!entry || entry.kind !== "agent" || !entry.enabled)
-      throw new LocalDirectoryError("This agent is unavailable.");
+    if (
+      !entry ||
+      !shareNeedsApproval(entry.kind) ||
+      (entry.kind === "agent" && !entry.enabled)
+    )
+      throw new LocalDirectoryError("This grant request is unavailable.");
     const shares = await createLocalShareAs(
       named,
       {

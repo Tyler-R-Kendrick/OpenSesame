@@ -136,6 +136,7 @@ it("a disabled connector stays listed after its last grant, so it can be enabled
   const row = await waitFor(() => accessRow("GitHub · octo@example.com"));
   await row.findByRole("img", { name: "Disabled" });
   await userEvent.click(row.getByRole("button", { name: "Revoke" }));
+  await userEvent.click(row.getByRole("button", { name: "Confirm revoke" }));
   await waitFor(async () =>
     expect(await listLocalShares(fixture.tomb)).toHaveLength(0),
   );

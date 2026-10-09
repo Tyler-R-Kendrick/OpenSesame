@@ -8,6 +8,7 @@ import {
 import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconX } from "../../components/Icons.js";
+import { shareGrantCommitLabel } from "./share-grant-commit-label.js";
 
 type SaveInput = {
   principalId: string;
@@ -72,7 +73,7 @@ export function ShareGrantForm({
   }, [kind, scopes]);
 
   const selected = identities.find((entry) => entry.id === principalId);
-  const commitLabel = selected?.kind === "agent" ? "Request approval" : "Grant";
+  const commitLabel = shareGrantCommitLabel(selected?.kind);
 
   function submit(event: FormEvent) {
     event.preventDefault();
