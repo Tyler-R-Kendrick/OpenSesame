@@ -16,7 +16,7 @@ import {
 import { bytesToB64url } from "@opensesame/sdk-browser";
 import { env } from "../../host.js";
 import { type WebStorage, maybePage } from "../../ports.js";
-import { noteDropOpened } from "../sharing-receipts.js";
+import { noteDropLockedOut, noteDropOpened } from "../sharing-receipts.js";
 import {
   claimIdFromBearer,
   mintUserCode,
@@ -73,7 +73,7 @@ type LocalClaimRecord = {
   tokenDigest: string;
   userCodeDigest: string;
   targetManifest: JsonObject;
-  state: "pending" | "presented" | "expired";
+  state: "pending" | "presented" | "expired" | "revoked";
   expiresAtMs: number;
   attempts: number;
   version: number;
@@ -91,7 +91,7 @@ export type LocalDropSession = {
   expiresAt: string;
 };
 
-export type LocalDropPollState = "pending" | "consumed" | "expired";
+export type LocalDropPollState = "pending" | "consumed" | "expired" | "revoked";
 
 /** What a sender's revoke did to the claim on this device. */
 export type LocalDropRevocation = "revoked" | "already_consumed" | "missing";
@@ -181,6 +181,7 @@ export function disposeExpiredLocalDropClaims(now = Date.now()): void {
 function toPollState(state: LocalClaimRecord["state"]): LocalDropPollState {
   if (state === "pending") return "pending";
   if (state === "presented") return "consumed";
+  if (state === "revoked") return "revoked";
   return "expired";
 }
 
@@ -310,6 +311,9 @@ export async function presentLocalDropClaim(
   };
   if (record.state !== "pending") {
     if (record !== raw) persist(record);
+    if (record.state === "revoked") {
+      throw refuse("REVOKED", "This drop was revoked.");
+    }
     if (record.state === "expired") {
       throw refuse("EXPIRED", "This drop has expired.");
     }
@@ -331,6 +335,7 @@ export async function presentLocalDropClaim(
     const attempts = record.attempts + 1;
     const triesLeft = MAX_ATTEMPTS - attempts;
     persist({ ...record, attempts, version: record.version + 1 });
+    if (attempts >= MAX_ATTEMPTS) noteDropLockedOut(claimId);
     throw refuse("invalid_user_code", wrongCodeWords(triesLeft), triesLeft);
   }
   const targetManifest = structuredClone(record.targetManifest);
@@ -379,16 +384,12 @@ export async function revokeLocalDropClaim(
     }
     return "already_consumed";
   }
-  if (record.state === "expired" && record === raw) return "revoked";
-  const next: LocalClaimRecord =
-    record.state === "expired"
-      ? record
-      : {
-          ...record,
-          state: "expired",
-          targetManifest: {},
-          version: record.version + 1,
-        };
+  const next: LocalClaimRecord = {
+    ...record,
+    state: "revoked",
+    targetManifest: {},
+    version: record.version + 1,
+  };
   store.claims[claimId] = next;
   writeStore(store);
   return "revoked";

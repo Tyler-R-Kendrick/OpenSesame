@@ -32,6 +32,7 @@ const RECEIPT_LABELS: ReadonlyMap<string, string> = new Map([
   ["access.siop.denied", "Self-issued sign-in refused"],
   ["access.drop.opened", "Drop opened"],
   ["access.drop.expired", "Drop expired"],
+  ["access.drop.locked_out", "Drop locked out"],
   ["access.drop.revoked", "Drop revoked"],
   ["access.live.granted", "Live session granted"],
   ["access.share.granted", "Share granted"],

@@ -146,6 +146,11 @@ export function recordOutboundDrop(input: {
  * expired, and that same clock wipes claim ciphertext that can no longer
  * be opened.
  */
+/** Run expiry receipts and return the sender ledger (product UI + unlock hooks). */
+export function refreshOutboundDropLedger(now = Date.now()): OutboundDrop[] {
+  return listOutboundDrops(now);
+}
+
 export function listOutboundDrops(now = Date.now()): OutboundDrop[] {
   disposeExpiredLocalDropClaims(now);
   expireOutboundDrops(now);
@@ -197,6 +202,15 @@ function expireOutboundDrops(now = Date.now()): void {
  * `missing` with no ledger row means this device never held the claim.
  * `missing` with a row means the ciphertext is already gone here.
  */
+/** Revoke from the sender list without handling the bearer in UI. */
+export async function revokeOutboundDropById(
+  claimId: string,
+): Promise<LocalDropRevocation> {
+  const bearer = readStore().sends[claimId]?.bearerToken;
+  if (!bearer) return "missing";
+  return revokeOutboundDrop(claimId, bearer);
+}
+
 export async function revokeOutboundDrop(
   claimId: string,
   bearerToken: string,

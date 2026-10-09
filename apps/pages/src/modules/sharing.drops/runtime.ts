@@ -24,7 +24,10 @@ import {
   LOCAL_DROP_CLAIM_KEYS,
   disposeExpiredLocalDropClaims,
 } from "@opensesame/app-core/lib/vault/local-drop-claims.js";
-import { OUTBOUND_DROPS_STORAGE_KEY } from "@opensesame/app-core/lib/vault/outbound-drops.js";
+import {
+  OUTBOUND_DROPS_STORAGE_KEY,
+  refreshOutboundDropLedger,
+} from "@opensesame/app-core/lib/vault/outbound-drops.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import {
   DROPS_GOALS,
@@ -61,6 +64,8 @@ export const capabilityRuntime: CapabilityRuntime = {
     await ctx.hydrate(HYDRATE_KEYS);
     if (activation.disposed()) return activation.handle();
 
+    refreshOutboundDropLedger();
+
     activation.register("item-kind", {
       kind: "drop",
       label: KIND_LABEL.drop,
@@ -87,6 +92,7 @@ export const capabilityRuntime: CapabilityRuntime = {
         const stop = anySignal([ctx.lease.signal, signal]);
         return runUnlessAborted(stop, async () => {
           disposeExpiredLocalDropClaims();
+          refreshOutboundDropLedger();
           await vaultStore.reconcileTrashedShares();
           await sweepDrops(
             vaultStore.getSnapshot().items,
