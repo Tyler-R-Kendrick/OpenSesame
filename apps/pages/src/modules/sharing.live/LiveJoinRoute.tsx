@@ -22,7 +22,11 @@ import {
   parseLiveLink,
   takeHeldLiveLink,
 } from "@opensesame/app-core/lib/live/link.js";
-import { NAME_MAX, NOTE_MAX } from "@opensesame/app-core/lib/live/messages.js";
+import {
+  NAME_MAX,
+  NOTE_MAX,
+  cleanText,
+} from "@opensesame/app-core/lib/live/messages.js";
 import {
   LIVE_SESSION_ENDED_TRAY,
   reportLiveOutcome,
@@ -124,9 +128,10 @@ function useAsk(held: LiveLink | null) {
   const link = routes ? candidate : null;
   const needsCode = link?.admission === "invite";
   const normalized = needsCode ? normalizeInviteCode(code) : null;
+  const cleanedName = cleanText(name);
   const ready =
     link !== null &&
-    name.trim().length > 0 &&
+    cleanedName.length > 0 &&
     (!needsCode || normalized !== null);
 
   async function ask(): Promise<void> {
@@ -137,8 +142,8 @@ function useAsk(held: LiveLink | null) {
       await joinLive({
         link,
         code: normalized,
-        name: name.trim(),
-        note: note.trim(),
+        name: cleanedName,
+        note: cleanText(note),
         peers: liveUiSeams.peers,
         useRoutes,
         carriers: liveUiSeams.carriers,
