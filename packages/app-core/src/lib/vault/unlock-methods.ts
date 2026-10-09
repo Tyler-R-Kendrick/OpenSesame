@@ -364,3 +364,14 @@ export async function openRecoveryLedger(
   const used = codes.map((_, i) => Array.isArray(raw) && raw[i] === true);
   return { codes, used };
 }
+
+/** Pure candidate header data; persistence and original authority stay with Store. */
+export function headerWithoutUnlock(
+  header: VaultHeader | null,
+  method: "passkey" | "pin",
+): VaultHeader | null {
+  if (!header?.unlocks?.[method]) return null;
+  assertKeepsPrimaryUnlock(header, method);
+  const { [method]: _removed, ...rest } = header.unlocks;
+  return { ...header, unlocks: Object.keys(rest).length ? rest : undefined };
+}

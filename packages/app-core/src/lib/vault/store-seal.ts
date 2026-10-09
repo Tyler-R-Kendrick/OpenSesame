@@ -20,6 +20,8 @@ import {
   writeSealedFile,
 } from "../vfs.js";
 
+import type { TombWriteTurn } from "../vfs-write-order.js";
+
 /** A body written to its tomb: its revision, its seal, and the header to hold after. */
 export type WrittenBody = Readonly<{
   rev: number;
@@ -37,7 +39,10 @@ export async function writeBody(
   vaultKey: CryptoKey,
   body: VaultBody,
   header: VaultHeader | null,
+  check: () => void = () => {},
+  turn?: TombWriteTurn,
 ): Promise<WrittenBody> {
+  check();
   const rev = (body.rev ?? 0) + 1;
   const sealed = await sealJson(
     vaultKey,
@@ -46,12 +51,14 @@ export async function writeBody(
     normalizeVaultBody({ ...body, rev }),
     vaultSealBinding(tomb, BODY_PATH),
   );
+  check();
   assertSealed(sealed);
-  await writeSealedFile(tomb, BODY_PATH, sealed);
+  await writeSealedFile(tomb, BODY_PATH, sealed, check, turn);
+  check();
   return {
     rev,
     mark: sealed.ivB64,
-    header: await noteBodyRev(tomb, header, rev),
+    header: await noteBodyRev(tomb, header, rev, check, turn !== undefined),
   };
 }
 
@@ -65,12 +72,18 @@ async function noteBodyRev(
   tomb: string,
   header: VaultHeader | null,
   rev: number,
+  check: () => void,
+  strictCompletion: boolean,
 ): Promise<VaultHeader | null> {
+  check();
   if (!header || (header.bodyRev ?? 0) >= rev) return header;
   const next: VaultHeader = { ...header, bodyRev: rev };
   try {
-    await writePlaintextFile(tomb, HEADER_PATH, JSON.stringify(next));
-  } catch {
+    await writePlaintextFile(tomb, HEADER_PATH, JSON.stringify(next), check);
+    check();
+  } catch (error) {
+    check();
+    if (strictCompletion) throw error;
     // The body is safely stored; only the rollback witness is behind. Losing
     // it costs detection, not data, and the next write will catch it up.
     return header;

@@ -1,24 +1,25 @@
-import {
-  type BoundaryValue,
-  isJsonObject,
-  isString,
-} from "@opensesame/os-domain";
+import type { BoundaryValue } from "@opensesame/os-domain";
 import {
   type SealedBlob,
   assertSealed,
-  b64ToBytes,
   bytesToB64,
   vaultSealBinding,
 } from "@opensesame/vault-core";
 import {
+  type SealedFileEnvelope,
   type TombIndex,
   type TombsRegistry,
+  assertFilePath,
+  assertTombName,
+  isSealedBlob,
+  parseEnvelope,
   parseIndex,
   parseRegistry,
+  parseSealedBlob,
 } from "./vfs-metadata-data.js";
 import { originalVfsCheck } from "./vfs-operation-check.js";
 import { vfsSeams } from "./vfs-seams.js";
-import { enqueueTombWrite } from "./vfs-write-order.js";
+import { type TombWriteTurn, enqueueTombWrite } from "./vfs-write-order.js";
 export { vfsFlush } from "./vfs-write-order.js";
 
 /**
@@ -45,9 +46,6 @@ export const INDEX_PATH = "index";
 export const MIGRATION_MARKER_PATH = "migrated.v1";
 /** Written after unlock rewrites every seal with a path binding. */
 export const SEAL_BOUND_MARKER_PATH = "seal-bound.v1";
-
-const TOMB_NAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
-const PATH_SEGMENT_RE = /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/;
 
 export { type VfsSeams, vfsSeams } from "./vfs-seams.js";
 
@@ -85,25 +83,6 @@ function requireTombKey(tomb: string): CryptoKey {
 }
 
 /* ------------------------------------------------------------------ paths */
-
-function assertTombName(tomb: string): void {
-  if (!TOMB_NAME_RE.test(tomb)) {
-    throw new VfsError(
-      "invalid-path",
-      `Invalid tomb name: ${JSON.stringify(tomb)}`,
-    );
-  }
-}
-
-function assertFilePath(path: string): void {
-  const segments = path.split("/");
-  if (segments.some((segment) => !PATH_SEGMENT_RE.test(segment))) {
-    throw new VfsError(
-      "invalid-path",
-      `Invalid VFS path: ${JSON.stringify(path)}`,
-    );
-  }
-}
 
 /** kv transport key for a logical VFS path. */
 export function tombFileKey(tomb: string, path: string): string {
@@ -231,40 +210,6 @@ async function reviseIndex(
 }
 
 /* ------------------------------------------------------------------ blobs */
-
-function isSealedBlob(value: BoundaryValue): value is SealedBlob {
-  return isJsonObject(value) && isString(value.ivB64) && isString(value.ctB64);
-}
-
-function parseSealedBlob(raw: string, tomb: string, path: string): SealedBlob {
-  try {
-    const parsed: BoundaryValue = JSON.parse(raw);
-    if (isSealedBlob(parsed)) return parsed;
-  } catch {
-    /* fall through to the typed error */
-  }
-  throw new VfsError(
-    "corrupt",
-    `tomb "${tomb}" file "${path}" is not a sealed blob.`,
-  );
-}
-
-/** Sealed content envelope: base64 bytes inside the AES-GCM SealedBlob. */
-type SealedFileEnvelope = { v: 1; dataB64: string };
-
-function parseEnvelope(
-  value: BoundaryValue,
-  tomb: string,
-  path: string,
-): Uint8Array {
-  if (isJsonObject(value) && value.v === 1 && isString(value.dataB64)) {
-    return b64ToBytes(value.dataB64);
-  }
-  throw new VfsError(
-    "corrupt",
-    `tomb "${tomb}" file "${path}" sealed an unexpected payload.`,
-  );
-}
 
 /* -------------------------------------------------------------- plaintext */
 
@@ -397,6 +342,7 @@ export async function writeSealedFile(
   path: string,
   blob: SealedBlob,
   check?: () => void,
+  turn?: TombWriteTurn,
 ): Promise<void> {
   const operation = originalVfsCheck(check);
   assertSealedPath(path);
@@ -406,16 +352,24 @@ export async function writeSealedFile(
     if (requireTombKey(tomb) !== key)
       throw new VfsError("locked", "Original tomb key changed.");
   };
-  await enqueueTombWrite(tomb, async () => {
-    active();
-    assertSealed(blob);
-    await vfsSeams.writeRaw(tombFileKey(tomb, path), JSON.stringify(blob), key);
-    active();
-    await reviseIndex(tomb, key, path, true, active);
-    active();
-    await registerTomb(tomb, active);
-    active();
-  });
+  await enqueueTombWrite(
+    tomb,
+    async () => {
+      active();
+      assertSealed(blob);
+      await vfsSeams.writeRaw(
+        tombFileKey(tomb, path),
+        JSON.stringify(blob),
+        key,
+      );
+      active();
+      await reviseIndex(tomb, key, path, true, active);
+      active();
+      await registerTomb(tomb, active);
+      active();
+    },
+    turn,
+  );
 }
 
 /**
