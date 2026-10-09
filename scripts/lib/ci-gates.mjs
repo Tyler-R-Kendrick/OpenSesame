@@ -29,7 +29,12 @@ export const SHARD_GATES = [
   "mobile",
 ];
 /** The gates that are jobs of their own. */
-export const JOB_GATES = ["tutorials", "device-inbox", "device-identity"];
+export const JOB_GATES = [
+  "tutorials",
+  "device-inbox",
+  "device-identity",
+  "push",
+];
 export const ALL_GATES = [...SHARD_GATES, ...JOB_GATES];
 
 const everyGate = () => new Set(ALL_GATES);
@@ -82,13 +87,13 @@ export const DRIVER_GATES = {
   "verify-auth-flow.mjs": ["auth"],
   "verify-experience-journeys.mjs": ["journeys"],
   "verify-webmcp.mjs": ["budgets"],
-  "verify-push-worker.mjs": null,
+  "verify-push-worker.mjs": ["budgets"],
   "verify-capability-graph.mjs": ["budgets"],
   "verify-device-identity.mjs": ["device-identity"],
   "verify-device-inbox.mjs": ["device-inbox"],
   "verify-tutorials.mjs": ["tutorials"],
   "verify-tutorials-profiles.mjs": ["tutorials"],
-  "verify-push.mjs": null,
+  "verify-push.mjs": ["push"],
   // The contract suite's vitest blocks run in the TypeScript job; its browser
   // half is the gates above.
   "verify-experience.mjs": null,
@@ -97,6 +102,7 @@ export const DRIVER_GATES = {
   // Not run by any job of ci.yml.
   "verify-access-pathbar.mjs": null,
   "verify-ambient-sso.mjs": null,
+  "verify-browser-cert.mjs": null,
   "verify-browser-session-lifecycle.mjs": null,
   "verify-browser-sessions.mjs": null,
   "verify-duress-browser.mjs": null,

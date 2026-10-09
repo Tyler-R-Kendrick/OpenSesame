@@ -60,8 +60,13 @@ const MTLS_ROOTS = [
   "packages/contracts",
   "packages/oauth-provider",
   "packages/ingress-evidence",
+  "packages/control-plane/src/transport",
+  "apps/pages/src/sections/settings/transport",
 ];
-const MTLS_FILES = new Set(["apps/pages/scripts/verify-transport.mjs"]);
+const MTLS_FILES = new Set([
+  "apps/pages/scripts/verify-transport.mjs",
+  "apps/pages/scripts/verify-browser-cert.mjs",
+]);
 const TS_ROOTS = [
   "packages",
   "examples",

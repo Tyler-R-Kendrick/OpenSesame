@@ -62,5 +62,15 @@ export function packageDirsFrom(root, seeds) {
 export const bundlePackageDirs = (root) =>
   packageDirsFrom(root, ["@opensesame/pages"]);
 
-/** Identity Web Push stack removed with the Identity API (2026-10-08). */
-export const pushPackageDirs = () => [];
+/**
+ * What `verify:push` imports as source: the Identity API, the Host's Web Push
+ * delivery, the adapters and their stand-in, and the repositories, with what
+ * each depends on.
+ */
+export const pushPackageDirs = (root) =>
+  packageDirsFrom(root, [
+    "@opensesame/control-plane",
+    "@opensesame/identity-worker",
+    "@opensesame/notification-adapters",
+    "@opensesame/database",
+  ]);

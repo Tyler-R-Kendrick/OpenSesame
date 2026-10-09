@@ -12,6 +12,8 @@
  *                  (the empty origin draws the Transport form alone — no idle
  *                  rows, no Refresh key; rows and keys need an endpoint — ADR 0132
  *                  as amended 2026-09-28, ADR 0158)
+ *   browser-cert   apps/pages/scripts/verify-browser-cert.mjs     (SW-INTEROP: AT-BROWSER-EXTERNAL,
+ *                  AT-BROWSER-CORS)
  *
  * A harness that does not exist yet is reported `not_executed` — never
  * `passed`. A harness that exists and fails is `failed`. A missing Chromium is
@@ -42,7 +44,9 @@ const SCENARIOS = [
     owner: "existing Pages harness",
     // The repository's own Pages gate, not a result of this work: it is red at
     // the merge base and no CI job gates on it today, so it runs here and its
-    // real result is published, but it does not fail this step.
+    // real result is published, but it does not fail this step. AT-STATIC-EMPTY
+    // is separately proven by `browser-cert`'s no-certificate scenario, which
+    // loads the static app with no certificate at all and must pass.
     blocking: false,
   },
   {
@@ -55,6 +59,12 @@ const SCENARIOS = [
       "AT-STATIC-BADREMOTE",
     ],
     owner: "SW-PWA",
+  },
+  {
+    id: "browser-cert",
+    script: "scripts/verify-browser-cert.mjs",
+    scenario_ids: ["AT-BROWSER-EXTERNAL", "AT-BROWSER-CORS"],
+    owner: "SW-INTEROP",
   },
 ];
 

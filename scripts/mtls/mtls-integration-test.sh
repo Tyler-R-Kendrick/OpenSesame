@@ -182,7 +182,7 @@ if [[ -d packages/control-plane/src/transport ]]; then
 else
   step --id it-identity-tls --claim ts:control-plane-transport-live --runner vitest --required false --skip "packages/control-plane/src/transport not present"
 fi
-step --id it-browser --claim AT-BROWSER-UX --scenarios AT-BROWSER-UX,AT-STATIC-EMPTY --runner marker --required true --timeout $((STEP_TIMEOUT + 60)) \
+step --id it-browser --claim AT-BROWSER-UX --scenarios AT-BROWSER-EXTERNAL,AT-BROWSER-UX,AT-STATIC-EMPTY --runner marker --required true --timeout $((STEP_TIMEOUT + 60)) \
   --profile "browser (chromium)" --target "${PLAYWRIGHT_CHROMIUM}" --paths scripts/mtls/mtls-browser-test.mjs \
   --expected "browser scenarios that exist run; the rest are not_executed, never passed" -- \
   "${BOUNDED[@]}" node scripts/mtls/mtls-browser-test.mjs

@@ -4,15 +4,13 @@ import { expect, it } from "vitest";
 import { z } from "zod";
 import { PASSWORD_WORKFLOW_RESOURCE } from "./password-workflow-resource.js";
 import { buildServer } from "./server.js";
-import { toolsManifest } from "./tools.js";
 
 it("discovers real human workflow handoffs over MCP without a secret tool or Host request", async () => {
-  const server = buildServer();
+  const server = buildServer({ hostUrl: "http://127.0.0.1:8787" });
   const client = new Client({ name: "workflow-guide-test", version: "1" });
   const [a, b] = InMemoryTransport.createLinkedPair();
   try {
-    await server.connect(b);
-    await client.connect(a);
+    await Promise.all([server.connect(b), client.connect(a)]);
     const resources = await client.listResources();
     expect(resources.resources.map((resource) => resource.uri)).toContain(
       PASSWORD_WORKFLOW_RESOURCE,
@@ -39,7 +37,9 @@ it("discovers real human workflow handoffs over MCP without a secret tool or Hos
     expect(guide.custody).toContain("cannot read or approve");
     expect(guide.discovery).toContain("selected sign-in method");
     expect(guide.discovery).toContain("not downgraded into stored passwords");
-    expect(toolsManifest).not.toContain("read_password");
+    expect(
+      (await client.listTools()).tools.map((tool) => tool.name),
+    ).not.toContain("read_password");
   } finally {
     await Promise.all([client.close(), server.close()]);
   }

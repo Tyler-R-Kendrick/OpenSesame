@@ -25,8 +25,8 @@ import {
   type JsonObject,
   channelCapabilities,
 } from "@opensesame/os-domain";
-import { postWebhook } from "../webhooks/delivery.js";
-import { SECRET_PREFIX, signWebhook } from "../webhooks/index.js";
+import { SECRET_PREFIX, signWebhook } from "@opensesame/webhooks";
+import { postWebhook } from "@opensesame/webhooks/delivery";
 
 import type {
   ChannelAdapter,

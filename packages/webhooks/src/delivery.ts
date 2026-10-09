@@ -15,7 +15,7 @@ interface WebhookPost {
   redirect: "error";
 }
 
-/** Public-only, DNS-pinned transport; signing stays pure in `index.ts`. */
+/** Public-only, DNS-pinned transport; the signing-only entry point stays pure. */
 export async function postWebhook(
   rawUrl: string,
   init: WebhookPost,
@@ -51,6 +51,7 @@ export async function postWebhook(
           signal,
         },
         (response) => {
+          // No redirects, body buffering, or unbounded draining of hostile replies.
           const status = response.statusCode ?? 502;
           response.destroy();
           resolve(

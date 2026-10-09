@@ -28,7 +28,7 @@ import {
   type ChannelCapabilities,
   channelCapabilities,
 } from "@opensesame/os-domain";
-import { SECRET_PREFIX, signWebhook } from "../webhooks/index.js";
+import { SECRET_PREFIX, signWebhook } from "@opensesame/webhooks";
 
 import type {
   ChannelAdapter,

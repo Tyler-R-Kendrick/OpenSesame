@@ -26,8 +26,8 @@
 #                       front if the endpoint needs one. Unset means support
 #                       runs on-device or falls back to authored help.
 #
-# Do not set retired backend stamp env vars (write-runtime-config.mjs refuses
-# them). Pages is static (ADR 0090); device
+# Do not set PAGES_IDENTITY_API / PAGES_HOST_API / PAGES_DAEMON_API —
+# write-runtime-config.mjs refuses them. Pages is static (ADR 0090); device
 # identity and guest/local seal work with no Identity API; sessions are
 # browser WebRTC (ADR 0150).
 #

@@ -65,20 +65,38 @@ Optional mcp-host tool-call telemetry: `OPENSESAME_TELEMETRY_KEY`
 
 Register stdio servers in your MCP client config pointing at:
 
-- `packages/mcp-client` — password workflow guidance resource (Host API tools removed)
-- `packages/mcp-host` — transport shell only (Host API tools removed)
+- `packages/mcp-client` — client-plane tools over the Host API
+- `packages/mcp-host` — task authority, sync and health against the Host API
+  and the daemon's liveness probe
 
 ## Use
 
-### Client tools
+### Client tools (5)
 
-No MCP tools are registered. The client server exposes the
-`password-workflows` resource for human custody boundaries.
+- `host_health` — Host API liveness, daemon probe and the tool manifest
+- `whoami` — the agent capability's identity on the Host API
+- `host_discover` — protected-resource metadata (issuers, DPoP posture)
+- `sync_push` — push up to 64 opaque E2EE ciphertext blobs
+- `sync_pull` — pull one bounded ciphertext page; continue with `next_after`
 
-### Host tools
+### Host tools (10)
 
-No MCP tools are registered. Host and daemon HTTP APIs are not part of this
-repository build.
+- `task_start` — start a task under an immutable capability ceiling
+- `task_status` — the ceiling against current capabilities for a task
+- `task_invoke` — freeze a task-bound intent into the MCP task context
+- `task_invoke_l1` — execute the frozen intent with the scoped agent capability
+- `task_terminate` — end the task run
+- `task_list` — the caller's task metadata, never intents or secrets
+- `sync_push` — push ciphertext
+- `sync_pull` — pull one bounded ciphertext page
+- `host_ready` — Host API readiness
+- `daemon_health` — daemon liveness (the only daemon route an agent reaches)
+
+There is no receipt, delegation, relay, provider, connection, certificate,
+secret-config, sync-target, rotation, changelog or backup tool on either
+server: those are human administration or unscoped metadata, and
+`packages/mcp-host/src/pact.test.ts` asserts their absence. Use the
+`opensesame` CLI or the Pages PWA for them.
 
 Every response passes the `forAgent` fence; secret values, leases, PEM key
 material and TOTP seeds are structurally excluded. Materialize /
