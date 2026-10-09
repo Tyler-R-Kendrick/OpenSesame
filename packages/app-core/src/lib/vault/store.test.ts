@@ -415,6 +415,7 @@ describe("VaultStore multi-method unlock", () => {
     expect(reopened.getSnapshot().status).toBe("unlocked");
   });
 
+  // Golden vector predates the PIN KDF floor bump; the tomb must still open.
   it("unlocks a golden-vector vault whose PIN wrap kept the legacy iteration floor", async () => {
     const vector = fixture.vectors["backup-project"];
     const store = new VaultStore();
