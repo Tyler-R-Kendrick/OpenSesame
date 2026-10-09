@@ -1,4 +1,7 @@
-import { parseInvestigateResults } from "./deepsec-headless-agent-prompts.js";
+import {
+  buildInvestigatePrompt,
+  parseInvestigateResults,
+} from "./deepsec-headless-agent-prompts.js";
 import {
   DEEPSEC_SYSTEM_NOTE,
   type InvestigateParams,
@@ -7,22 +10,6 @@ import {
   type RunPromptParams,
   modelFromConfig,
 } from "./deepsec-headless-agent-types.js";
-
-function formatInvestigateFileList(batch: InvestigateParams["batch"]): string {
-  return batch
-    .map((r) => {
-      if (r.candidates.length === 0)
-        return `- **${r.filePath}** (holistic review)`;
-      const details = r.candidates
-        .map(
-          (m) =>
-            `    - [${m.vulnSlug}] L${m.lineNumbers.join(", ")}: ${m.matchedPattern}`,
-        )
-        .join("\n");
-      return `- **${r.filePath}**\n${details}`;
-    })
-    .join("\n");
-}
 
 export async function* runHeadlessInvestigate(
   params: InvestigateParams,
@@ -35,10 +22,11 @@ export async function* runHeadlessInvestigate(
 ) {
   const { providerLabel, runPrompt, defaultModel } = options;
   const model = modelFromConfig(params.config, defaultModel);
-  const projectInfoBlock = params.projectInfo
-    ? `## Project Context\n\n${params.projectInfo}\n\n`
-    : "";
-  const prompt = `${DEEPSEC_SYSTEM_NOTE}\n\n${params.promptTemplate}\n\n${projectInfoBlock}## Target Files\n\n${formatInvestigateFileList(params.batch)}\n\nInvestigate each file; output JSON array per deepsec schema.${JSON_ONLY_SUFFIX}`;
+  const prompt = `${DEEPSEC_SYSTEM_NOTE}\n\n${buildInvestigatePrompt({
+    promptTemplate: params.promptTemplate,
+    projectInfo: params.projectInfo,
+    batch: params.batch,
+  })}${JSON_ONLY_SUFFIX}`;
   const start = Date.now();
   yield {
     type: "started",

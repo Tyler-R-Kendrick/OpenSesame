@@ -47,6 +47,9 @@ const stats = {
     error: 0,
     skipped: 0,
     candidates: 0,
+    findings: 0,
+    filesWithCandidates: 0,
+    filesClearedAtInvestigate: 0,
     bySeverity: {},
     byVerdict: {},
     byTriage: { P0: 0, P1: 0, P2: 0, skip: 0 },
@@ -59,6 +62,9 @@ for (const k of Object.keys(AREAS)) {
     error: 0,
     skipped: 0,
     candidates: 0,
+    findings: 0,
+    filesWithCandidates: 0,
+    filesClearedAtInvestigate: 0,
     bySeverity: {},
     byVerdict: {},
     byTriage: { P0: 0, P1: 0, P2: 0, skip: 0 },
@@ -79,7 +85,14 @@ for (const fp of walk(filesRoot)) {
   else if (st === "pending") stats[area].pending += 1;
   else if (st === "error") stats[area].error += 1;
   else stats[area].skipped += 1;
-  stats[area].candidates += (rec.candidates ?? []).length;
+  const candN = (rec.candidates ?? []).length;
+  const findN = (rec.findings ?? []).length;
+  stats[area].candidates += candN;
+  if (candN > 0) stats[area].filesWithCandidates += 1;
+  if (candN > 0 && findN === 0 && st === "analyzed") {
+    stats[area].filesClearedAtInvestigate += 1;
+  }
+  stats[area].findings += findN;
   for (const f of rec.findings ?? []) {
     const sev = f.severity ?? "?";
     stats[area].bySeverity[sev] = (stats[area].bySeverity[sev] ?? 0) + 1;
@@ -115,4 +128,28 @@ rows.sort((a, b) => {
   return a.filePath.localeCompare(b.filePath);
 });
 
-console.log(JSON.stringify({ stats, triageTotals, rows }, null, 2));
+let investigateWave2Complete = 0;
+for (const fp of walk(filesRoot)) {
+  const rec = JSON.parse(fs.readFileSync(fp, "utf8"));
+  const hist = rec.analysisHistory ?? [];
+  if (hist.some((h) => h.reinvestigateMarker === 2)) {
+    investigateWave2Complete += 1;
+  }
+}
+
+console.log(
+  JSON.stringify(
+    {
+      stats,
+      triageTotals,
+      rows,
+      investigateWave2: {
+        marker: 2,
+        filesComplete: investigateWave2Complete,
+        filesTracked: walk(filesRoot).length,
+      },
+    },
+    null,
+    2,
+  ),
+);

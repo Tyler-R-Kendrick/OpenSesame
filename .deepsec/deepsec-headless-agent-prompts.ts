@@ -17,20 +17,116 @@ function parseJsonArrayFromAgent(text: string): unknown[] {
   return parsed;
 }
 
+const INVESTIGATE_OUTPUT_FORMAT = `## Investigation Instructions
+
+For each file:
+1. **Read the file fully** using the Read tool
+2. **Trace data flows** — where does input come from? Is it user-controlled?
+3. **Follow imports** — read related files (middleware, utils, shared libs) to understand the full picture
+4. **Check for mitigations** — is there sanitization, validation, auth middleware, or framework protection?
+5. **Think broadly** — look for issues beyond what the scanner flagged. The scanner only finds surface patterns; you should reason about logic bugs, race conditions, missing checks, etc.
+
+## Output Format
+
+After your investigation, output a JSON block with your findings for EACH file. Use this exact format:
+
+\`\`\`json
+[
+  {
+    "filePath": "relative/path/to/file.ts",
+    "findings": [
+      {
+        "severity": "CRITICAL|HIGH|MEDIUM|HIGH_BUG|BUG",
+        "vulnSlug": "the-vuln-slug-or-other",
+        "title": "Brief title of the issue",
+        "description": "Detailed description of the vulnerability, the attack scenario, and evidence from the code",
+        "lineNumbers": [10, 15],
+        "recommendation": "How to fix this vulnerability",
+        "confidence": "high|medium|low"
+      }
+    ]
+  }
+]
+\`\`\`
+
+**Severity levels:**
+- **CRITICAL / HIGH / MEDIUM** — security vulnerabilities (exploitable by an attacker)
+- **HIGH_BUG** — major non-security bugs that could cause data loss, corruption, outages, or seriously broken behavior
+- **BUG** — notable non-security bugs (logic errors, race conditions, resource leaks) that don't rise to HIGH_BUG
+
+**vulnSlug** can be any of the known categories OR a custom slug for issues not covered by the scanner. Use \`"other"\` as the slug prefix for novel findings (e.g., \`"other-race-condition"\`, \`"other-logic-bug"\`, \`"other-info-disclosure"\`).
+
+If a file has no real vulnerabilities after thorough investigation, include it with an empty findings array.`;
+
+export function buildInvestigatePrompt(params: {
+  promptTemplate: string;
+  projectInfo: string;
+  batch: FileRecord[];
+}): string {
+  const fileList = params.batch
+    .map((r) => {
+      if (r.candidates.length === 0) {
+        return `- **${r.filePath}** (no scanner hits — full holistic review)`;
+      }
+      const matchDetails = r.candidates
+        .map(
+          (m) =>
+            `    - [${m.vulnSlug}] L${m.lineNumbers.join(", ")}: ${m.matchedPattern}`,
+        )
+        .join("\n");
+      return `- **${r.filePath}**\n${matchDetails}`;
+    })
+    .join("\n");
+  const projectInfoBlock = params.projectInfo
+    ? `## Project Context\n\n${params.projectInfo}\n\n`
+    : "";
+  return `${params.promptTemplate}
+
+${projectInfoBlock}## Target Files
+
+${fileList}
+
+${INVESTIGATE_OUTPUT_FORMAT}`;
+}
+
+function normalizeInvestigateEntry(
+  entry: Record<string, unknown>,
+): { filePath: string; findings: Finding[] } | null {
+  const filePath =
+    typeof entry.filePath === "string"
+      ? entry.filePath
+      : typeof entry.file === "string"
+        ? entry.file
+        : null;
+  if (!filePath) return null;
+  const raw = entry.findings;
+  if (Array.isArray(raw)) {
+    return { filePath, findings: raw as Finding[] };
+  }
+  return { filePath, findings: [] };
+}
+
 export function parseInvestigateResults(
   resultText: string,
   batch: FileRecord[],
 ) {
-  const parsed = parseJsonArrayFromAgent(resultText) as Array<{
-    filePath: string;
-    findings?: Finding[];
-  }>;
+  const parsed = parseJsonArrayFromAgent(resultText) as Array<
+    Record<string, unknown>
+  >;
   const batchPaths = new Set(batch.map((r) => r.filePath));
   const results: Array<{ filePath: string; findings: Finding[] }> = [];
+  let matched = 0;
   for (const entry of parsed) {
-    if (!batchPaths.has(entry.filePath)) continue;
-    results.push({ filePath: entry.filePath, findings: entry.findings ?? [] });
-    batchPaths.delete(entry.filePath);
+    const norm = normalizeInvestigateEntry(entry);
+    if (!norm || !batchPaths.has(norm.filePath)) continue;
+    matched += 1;
+    results.push(norm);
+    batchPaths.delete(norm.filePath);
+  }
+  if (parsed.length > 0 && matched === 0) {
+    throw new Error(
+      `Investigation JSON had ${parsed.length} entries but none matched batch filePath (check filePath field)`,
+    );
   }
   for (const filePath of batchPaths) {
     results.push({ filePath, findings: [] });

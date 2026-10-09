@@ -30,6 +30,11 @@ const reportJson = runNode(
   [repoRoot],
 );
 const report = JSON.parse(reportJson);
+const wave = report.investigateWave2 ?? {
+  marker: 2,
+  filesComplete: 0,
+  filesTracked: 0,
+};
 const queueJson = runNode(
   path.join(repoRoot, "scripts/audit/deepsec-grok-fix-queue.mjs"),
   [repoRoot],
@@ -46,6 +51,7 @@ const meta = {
   stats: report.stats,
   queueLength: queue.total,
   falsePositiveCount: queue.falsePositives?.length ?? 0,
+  investigateWave2: wave,
 };
 
 fs.writeFileSync(
@@ -77,15 +83,23 @@ re-run export after rescan/triage.
 
 ## Scan coverage (process status)
 
-| Area | Analyzed | Pending | Error | Skipped | Candidates |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| core | ${report.stats.core.analyzed} | ${report.stats.core.pending} | ${report.stats.core.error} | ${report.stats.core.skipped} | ${report.stats.core.candidates} |
-| pwa | ${report.stats.pwa.analyzed} | ${report.stats.pwa.pending} | ${report.stats.pwa.error} | ${report.stats.pwa.skipped} | ${report.stats.pwa.candidates} |
-| cli | ${report.stats.cli.analyzed} | ${report.stats.cli.pending} | ${report.stats.cli.error} | ${report.stats.cli.skipped} | ${report.stats.cli.candidates} |
+| Area | Analyzed | Pending | Error | Skipped | Candidates | Findings | Cleared† |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| core | ${report.stats.core.analyzed} | ${report.stats.core.pending} | ${report.stats.core.error} | ${report.stats.core.skipped} | ${report.stats.core.candidates} | ${report.stats.core.findings} | ${report.stats.core.filesClearedAtInvestigate} |
+| pwa | ${report.stats.pwa.analyzed} | ${report.stats.pwa.pending} | ${report.stats.pwa.error} | ${report.stats.pwa.skipped} | ${report.stats.pwa.candidates} | ${report.stats.pwa.findings} | ${report.stats.pwa.filesClearedAtInvestigate} |
+| cli | ${report.stats.cli.analyzed} | ${report.stats.cli.pending} | ${report.stats.cli.error} | ${report.stats.cli.skipped} | ${report.stats.cli.candidates} | ${report.stats.cli.findings} | ${report.stats.cli.filesClearedAtInvestigate} |
 
 ${
   report.stats.other.analyzed + report.stats.other.error > 0
     ? `| other (outside core/pwa/cli) | ${report.stats.other.analyzed} | ${report.stats.other.pending} | ${report.stats.other.error} | ${report.stats.other.skipped} | ${report.stats.other.candidates} |\n`
+    : ""
+}
+
+† **Cleared** = analyzed files that still had scanner candidates but Kimi promoted zero findings (dismissed at investigate).
+
+${
+  wave.filesComplete < wave.filesTracked
+    ? `> **Investigate wave ${wave.marker} in progress:** ${wave.filesComplete}/${wave.filesTracked} files re-investigated with the fixed Kimi JSON schema. Severity/verdict/triage counts below reflect **persisted findings only**; most files still show empty \`findings[]\` from the earlier unparsed wave until wave ${wave.marker} finishes (\`scripts/audit/deepsec-grok-reinvestigate-wave.sh\`).\n`
     : ""
 }
 
