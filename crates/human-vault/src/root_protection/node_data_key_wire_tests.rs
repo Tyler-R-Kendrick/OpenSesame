@@ -49,13 +49,38 @@ fn actual_raw_key_file_refuses_and_changed_genuine_encoded_original_key_retires_
         format!("{}\n", STANDARD.encode([41; 32])),
     )
     .unwrap();
-    let original = NativeNodeDataState::capture(root).unwrap();
+    let original = NativeNodeDataState::capture(Arc::clone(&root)).unwrap();
     original.validate().unwrap();
-    fs::write(
-        path.join("at-rest.key"),
-        format!("{}\n", STANDARD.encode([42; 32])),
-    )
-    .unwrap();
-    assert!(original.validate().is_err());
-    assert!(original.credential_writer().is_err());
+    let next_wire = format!("{}\n", STANDARD.encode([42; 32]));
+    #[cfg(unix)]
+    {
+        fs::write(path.join("at-rest.key"), &next_wire).unwrap();
+        assert!(original.validate().is_err());
+        assert!(original.credential_writer().is_err());
+    }
+    #[cfg(windows)]
+    {
+        // The genuine original read denies write/delete sharing. The conflicting operation
+        // must fail before modifying the original file; weakening that protection is unsafe.
+        let error = fs::write(path.join("at-rest.key"), &next_wire).unwrap_err();
+        assert_eq!(error.raw_os_error(), Some(32)); // ERROR_SHARING_VIOLATION.
+        assert_eq!(
+            fs::read(path.join("at-rest.key")).unwrap(),
+            format!("{}\n", STANDARD.encode([41; 32])).as_bytes()
+        );
+        original.validate().unwrap();
+        let credential = original.credential_writer().unwrap();
+        credential.validate().unwrap();
+        drop(credential);
+        original.seal().unwrap();
+        assert!(original.validate().is_err());
+        assert!(original.credential_writer().is_err());
+        // Final original drop releases its held read. A fresh independent state may then
+        // capture the actual changed key; the retired state never retargets to this successor.
+        drop(original);
+        fs::write(path.join("at-rest.key"), &next_wire).unwrap();
+        let successor = NativeNodeDataState::capture(root).unwrap();
+        successor.validate().unwrap();
+        assert_eq!(*successor.device_key, [42; 32]);
+    }
 }
