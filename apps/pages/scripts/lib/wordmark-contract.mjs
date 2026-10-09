@@ -1,5 +1,6 @@
 /** Sample decrypt timing via data-cipher-timings; one cursor cell at a time. */
 export async function checkWordmark(page, check) {
+  // Playwright accepts `:visible`; never pass that pseudo to querySelector.
   const wordmark = page.locator(".wordmark:visible").first();
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await wordmark.evaluate((mark) => mark.getBoundingClientRect());
@@ -27,9 +28,13 @@ export async function checkWordmark(page, check) {
   );
 
   const moving = await page.evaluate(() => {
-    const mark = document.querySelector(".wordmark:visible");
+    const marks = [...document.querySelectorAll(".wordmark")];
+    const mark = marks.find((node) => {
+      const box = node.getBoundingClientRect();
+      return box.width > 0 && box.height > 0;
+    });
     const canvas = mark?.querySelector("canvas");
-    if (!canvas) return -1;
+    if (!mark || !canvas) return -1;
     const timings = JSON.parse(
       mark.querySelector(".cipher-wordmark")?.dataset.cipherTimings ?? "[]",
     );
