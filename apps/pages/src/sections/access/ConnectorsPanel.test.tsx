@@ -319,11 +319,9 @@ it("revoking the last grant takes the connector off the access list", async () =
   const fixture = await granted();
   mount(fixture.tomb);
   await screen.findByRole("heading", { name: "GitHub · octo@example.com" });
-  await userEvent.click(
-    accessRow("GitHub · octo@example.com").getByRole("button", {
-      name: "Revoke",
-    }),
-  );
+  const row = accessRow("GitHub · octo@example.com");
+  await userEvent.click(row.getByRole("button", { name: "Revoke" }));
+  await userEvent.click(row.getByRole("button", { name: "Confirm revoke" }));
   await screen.findByRole("heading", { name: "No connector access" });
   expect(await listLocalShares(fixture.tomb)).toHaveLength(0);
 });

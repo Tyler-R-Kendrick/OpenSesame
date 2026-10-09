@@ -5,11 +5,11 @@
  * A row names its connector's source and health and lists who is bound to
  * it. Bind opens one form under one row to grant one more; Configure opens
  * that connector's sealed access settings; a Connections row links back to
- * where the connector itself is configured. Revoke asks nothing twice — a
- * binding is time-boxed already, and the ledger records the revocation.
+ * where the connector itself is configured. Revoke arms once, then confirms.
  */
 
 import type { ConnectorSetting } from "@opensesame/app-core/lib/connector-settings.js";
+import { useEffect, useState } from "react";
 import {
   type PendingShare,
   policyLabel,
@@ -65,17 +65,40 @@ function BindingRow({
         until {formatTime(new Date(share.expiresAt).toISOString())}
       </span>
       {disabled ? <StatusMark tone="warn" label="Connector off" /> : null}
-      <button
-        type="button"
-        className="icon-btn icon-btn--sm"
-        disabled={busy}
-        aria-label="Revoke"
-        title="Revoke"
-        onClick={onRevoke}
-      >
-        <IconTrash size={16} />
-      </button>
+      <BindingRevokeKey busy={busy} onRevoke={onRevoke} />
     </li>
+  );
+}
+
+function BindingRevokeKey({
+  busy,
+  onRevoke,
+}: {
+  busy: boolean;
+  onRevoke: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  useEffect(() => {
+    if (!busy) setConfirming(false);
+  }, [busy]);
+  const revokeLabel = confirming ? "Confirm revoke" : "Revoke";
+  return (
+    <button
+      type="button"
+      className="icon-btn icon-btn--sm"
+      disabled={busy}
+      aria-label={revokeLabel}
+      title={revokeLabel}
+      onClick={() => {
+        if (!confirming) {
+          setConfirming(true);
+          return;
+        }
+        onRevoke();
+      }}
+    >
+      <IconTrash size={16} />
+    </button>
   );
 }
 
