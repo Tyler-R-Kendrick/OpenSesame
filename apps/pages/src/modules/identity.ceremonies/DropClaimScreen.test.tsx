@@ -75,7 +75,9 @@ describe("DropClaimScreen", () => {
     );
     await userEvent.type(screen.getByLabelText("One-time code"), "NOPE{Enter}");
     await waitFor(() => expect(trayed()?.title).toBe("Drop"));
-    expect(screen.getByRole("img", { name: DROP_FAILURE_MARK_WITH_TRAY })).toBeTruthy();
+    expect(
+      screen.getByRole("img", { name: DROP_FAILURE_MARK_WITH_TRAY }),
+    ).toBeTruthy();
     expect(trayed()?.body).toBe("That code did not match.");
     expect(container.querySelector(".note")).toBeNull();
     expect(onSettled).not.toHaveBeenCalled();
@@ -102,7 +104,9 @@ describe("DropClaimScreen", () => {
         "That code does not match this drop. 3 tries left.",
       ),
     );
-    expect(screen.getByRole("img", { name: DROP_FAILURE_MARK_WITH_TRAY })).toBeTruthy();
+    expect(
+      screen.getByRole("img", { name: DROP_FAILURE_MARK_WITH_TRAY }),
+    ).toBeTruthy();
     expect(onSettled).not.toHaveBeenCalled();
   });
 

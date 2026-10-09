@@ -1,4 +1,4 @@
-import { itemTypeId, type VaultItem, typeLabel } from "@opensesame/vault-core";
+import { type VaultItem, itemTypeId, typeLabel } from "@opensesame/vault-core";
 
 function baseName(item: VaultItem): string {
   const name = item.name.trim();

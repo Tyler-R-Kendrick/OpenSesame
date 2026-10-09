@@ -16,6 +16,7 @@ import {
   normalizeInviteCode,
   takeCapturedLiveLink,
 } from "@opensesame/app-core/lib/join/invite.js";
+import { liveJoinAskDisabledReason } from "@opensesame/app-core/lib/live/form-disabled-reason.js";
 import type { GuestStatus } from "@opensesame/app-core/lib/live/guest.js";
 import {
   type LiveLink,
@@ -31,7 +32,6 @@ import {
   LIVE_SESSION_ENDED_TRAY,
   reportLiveOutcome,
 } from "@opensesame/app-core/lib/live/outcome-notices.js";
-import { liveJoinAskDisabledReason } from "@opensesame/app-core/lib/live/form-disabled-reason.js";
 import { linkRoutes } from "@opensesame/app-core/lib/live/routes.js";
 import {
   currentGuestCarriers,

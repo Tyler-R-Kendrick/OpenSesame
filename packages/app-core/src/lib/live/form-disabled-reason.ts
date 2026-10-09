@@ -20,7 +20,8 @@ export function liveJoinAskDisabledReason(input: {
       : "Paste a live-session link";
   }
   if (!input.name.trim()) return "Enter your name";
-  if (input.needsCode && input.code.trim() === "") return "Enter the invite code";
+  if (input.needsCode && input.code.trim() === "")
+    return "Enter the invite code";
   return undefined;
 }
 

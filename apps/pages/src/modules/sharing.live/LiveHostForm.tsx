@@ -5,11 +5,11 @@
  * address hints wait for admission.
  */
 
+import { liveHostStartDisabledReason } from "@opensesame/app-core/lib/live/form-disabled-reason.js";
 import type { Admission } from "@opensesame/app-core/lib/live/host.js";
+import { liveItemPickLabels } from "@opensesame/app-core/lib/live/item-pick-label.js";
 import type { SharePolicy } from "@opensesame/app-core/lib/live/messages.js";
 import type { LiveTransport } from "@opensesame/app-core/lib/live/transport.js";
-import { liveHostStartDisabledReason } from "@opensesame/app-core/lib/live/form-disabled-reason.js";
-import { liveItemPickLabels } from "@opensesame/app-core/lib/live/item-pick-label.js";
 import { vaultStore } from "@opensesame/app-core/lib/vault/store.js";
 import { activeItems } from "@opensesame/vault-core";
 import { useMemo, useState } from "react";
