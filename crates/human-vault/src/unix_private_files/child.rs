@@ -53,6 +53,17 @@ impl PrivateDirectory {
         self.private_root()?;
         Ok(identity)
     }
+    /// Corroborate one actual absent entry using this retained original directory FD.
+    /// Physical DATA only: absence never authenticates a password, Owner or writer lease.
+    /// # Errors
+    /// Refuses invalid leaves, changed ancestry and every lookup error other than ENOENT.
+    pub fn original_entry_absent(&self, leaf: &Path) -> io::Result<bool> {
+        self.private_root()?;
+        let name = child_name(leaf)?;
+        let absent = stat_at(self.root(), &name)?.is_none();
+        self.private_root()?;
+        Ok(absent)
+    }
     fn child(&self, leaf: &Path, create: bool) -> io::Result<Self> {
         self.private_root()?;
         let component = child_name(leaf)?;

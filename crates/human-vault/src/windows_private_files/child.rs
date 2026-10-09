@@ -28,6 +28,33 @@ impl PrivateDirectory {
         self.validate()
     }
 
+    /// Corroborate one actual absent entry in the retained original Windows namespace.
+    /// Physical DATA only, never an Owner or credential/lease grant.
+    /// # Errors
+    /// Refuses invalid leaves, changed original ancestry and all errors except FILE_NOT_FOUND.
+    pub fn original_entry_absent(&self, name: &Path) -> io::Result<bool> {
+        use windows_sys::Win32::{
+            Foundation::ERROR_FILE_NOT_FOUND,
+            Storage::FileSystem::{GetFileAttributesW, INVALID_FILE_ATTRIBUTES},
+        };
+        self.validate()?;
+        let path = handles::wide(&self.path_for(name)?)?;
+        // SAFETY: checked original-root path is terminated and remains live for this call.
+        // Attributes describe the entry itself, including a reparse point, without reading bytes.
+        let attributes = unsafe { GetFileAttributesW(path.as_ptr()) };
+        let result = if attributes == INVALID_FILE_ATTRIBUTES {
+            let error = io::Error::last_os_error();
+            if error.raw_os_error() == Some(ERROR_FILE_NOT_FOUND as i32) {
+                Ok(true)
+            } else {
+                Err(error)
+            }
+        } else {
+            Ok(false)
+        };
+        self.validate()?;
+        result
+    }
     fn child(&self, name: &Path, create_missing: bool) -> io::Result<Self> {
         self.validate()?;
         if self.parents.len() >= 128 {

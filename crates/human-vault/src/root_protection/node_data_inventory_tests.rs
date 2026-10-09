@@ -153,3 +153,49 @@ fn actual_catalogue_and_name_budgets_refuse_before_unbounded_retained_roots_or_f
         4097
     );
 }
+
+#[test]
+fn actual_optional_parent_case_alias_is_never_misreported_as_an_absent_catalogue() {
+    for name in ["origin-files", "vault"] {
+        let (_temp, path, root) = fixture();
+        let alias = name.to_ascii_uppercase();
+        drop(root.create_child(Path::new(&alias)).unwrap());
+        let actual_absent = match fs::symlink_metadata(path.join(name)) {
+            Ok(_) => false,
+            Err(error) if error.kind() == io::ErrorKind::NotFound => true,
+            Err(error) => panic!("independent fixture lookup failed: {error}"),
+        };
+        assert_eq!(
+            root.original_entry_absent(Path::new(name)).unwrap(),
+            actual_absent
+        );
+        let state = NativeNodeDataState::capture(root).unwrap();
+        let credential = state.credential_writer().unwrap();
+        let captured = credential.capture_device_inventory();
+        if actual_absent {
+            let inventory = captured.unwrap();
+            assert!(inventory.tombs().unwrap().is_empty());
+            assert!(inventory.origin_names().unwrap().is_empty());
+        } else {
+            assert!(captured.is_err());
+        }
+    }
+}
+#[test]
+fn actual_later_case_alias_creation_retires_original_absent_parent_observation() {
+    for name in ["origin-files", "vault"] {
+        let (_temp, path, root) = fixture();
+        let state = NativeNodeDataState::capture(Arc::clone(&root)).unwrap();
+        let credential = state.credential_writer().unwrap();
+        let inventory = credential.capture_device_inventory().unwrap();
+        drop(
+            root.create_child(Path::new(&name.to_ascii_uppercase()))
+                .unwrap(),
+        );
+        match fs::symlink_metadata(path.join(name)) {
+            Ok(_) => assert!(inventory.validate().is_err()),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => inventory.validate().unwrap(),
+            Err(error) => panic!("independent fixture lookup failed: {error}"),
+        }
+    }
+}
