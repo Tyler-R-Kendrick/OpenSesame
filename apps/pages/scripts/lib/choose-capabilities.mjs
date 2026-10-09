@@ -4,6 +4,7 @@ import {
   capabilityOffSwitch,
   capabilityOnSwitch,
 } from "./always-on.mjs";
+import { waitOpen } from "./pages-journey.mjs";
 import { expect } from "./patient-expect.mjs";
 
 const BASE = "https://tyler-r-kendrick.github.io/OpenSesame";
@@ -13,7 +14,10 @@ export async function unlockVault(page, password = "Cedar-lantern-47-river!") {
   const field = page.getByLabel("Password", { exact: true });
   await expect(field).toBeVisible();
   await field.fill(password);
-  await field.press("Enter");
+  // Click the Unlock key and wait for the shell — Enter alone can race a
+  // second tab that shares the device's sealed store (verify:device-inbox).
+  await page.getByRole("button", { name: "Unlock", exact: true }).click();
+  await waitOpen(page);
 }
 
 /**
