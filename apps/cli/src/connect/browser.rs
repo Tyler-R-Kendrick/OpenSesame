@@ -32,10 +32,10 @@ pub(super) fn open_url(url: &str) {
         command.arg(url);
         command
     } else if cfg!(target_os = "windows") {
-        // `start` treats its first argument as the window title; pass an empty
-        // title so a URL that begins with `&` is not parsed as a new command.
-        let mut command = Command::new("cmd");
-        command.args(["/C", "start", "", url]);
+        // Pass the URL directly: a command shell would interpret OAuth query
+        // separators as commands rather than browser arguments.
+        let mut command = Command::new("explorer.exe");
+        command.arg(url);
         command
     } else {
         let mut command = Command::new("xdg-open");
