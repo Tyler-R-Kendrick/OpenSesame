@@ -33,15 +33,10 @@ import {
   walkSetupCeremony,
 } from "./lib/front-door-contract.mjs";
 import { doorGuest, passTheDoor } from "./lib/front-door.mjs";
-import {
-  lockVault,
-  openSection,
-  sealLocalOnly,
-  unlockWithPin,
-} from "./lib/pages-journey.mjs";
+import { openSection, sealLocalOnly } from "./lib/pages-journey.mjs";
 import { createHarness } from "./lib/static-origin-harness.mjs";
 import { checkStatusline } from "./lib/statusline-contract.mjs";
-import { checkUnlockHero } from "./lib/unlock-hero-contract.mjs";
+import { walkUnlockHero } from "./lib/unlock-hero-contract.mjs";
 import { checkVaultPane } from "./lib/vault-pane-contract.mjs";
 import { checkWordmark } from "./lib/wordmark-contract.mjs";
 
@@ -87,26 +82,17 @@ const browser = await launch();
   // the local seal. The full-size guest button is not on that screen.
   await sealLocalOnly(page);
   const inApp = await snap(page, "B-sealed-in-app");
-  // The lock is an icon key. Its name is the accessible name, not innerText.
+  // Lock is an icon key (accessible name). Then lock-v5 hero geometry + ink.
   check(
     (await page.getByRole("button", { name: "Lock vault" }).count()) > 0,
     "the local seal landed inside the app",
   );
   check(!/Claim this guest session/.test(inApp), "no claim notice");
-  // Lock-v5 hero: inside the left column (≥24px from the notes divider) and
-  // non-zero ink in both themes (desktop dark used to stay blank after flip).
   setStep("B-unlock-hero");
-  await lockVault(page);
-  await checkUnlockHero(page, check);
-  await unlockWithPin(page);
+  await walkUnlockHero(page, check);
   setStep("B-at-rest");
   await checkNothingInTheClear(page, check, ["guest-\\d+"]);
-  // What this installation carries, and how it changes (ADR 0130). This runs
-  // before the surface contracts below, because those describe an
-  // installation that has the capabilities they measure: the statusline's
-  // Support key is guided help's, and the sections are their capabilities'.
-  // Absence is checked first, so a surface that is missing for the wrong
-  // reason cannot pass as one that was never chosen.
+  // Capabilities: absence first, then add what the surface contracts need (ADR 0130).
   setStep("E-gated");
   await checkGatedSectionsAbsent(page, check);
   for (const [title, rail] of [
