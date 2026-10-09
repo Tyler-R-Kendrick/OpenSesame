@@ -21,7 +21,6 @@ import type { LiveLink } from "./link.js";
 import {
   type Catalog,
   type ChannelMessage,
-  type JoinReply,
   VALUE_MAX,
   characters,
   cleanText,
