@@ -1,0 +1,47 @@
+{
+  "name": "@opensesame/mock-upstream-idp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./testkit": {
+      "types": "./src/testkit.ts",
+      "default": "./src/testkit.ts"
+    },
+    "./ldap-server": {
+      "types": "./src/ldap-server.ts",
+      "default": "./src/ldap-server.ts"
+    }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "node --import tsx src/cli.ts",
+    "start": "node --import tsx dist/cli.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@opensesame/os-domain": "workspace:*",
+    "@xmldom/xmldom": "0.8.15",
+    "jose": "6.2.8",
+    "selfsigned": "5.5.0",
+    "xml-crypto": "6.1.2"
+  },
+  "devDependencies": {
+    "@node-saml/node-saml": "5.1.0",
+    "@opensesame/testing": "workspace:*",
+    "@types/node": "22.15.29",
+    "ldapjs": "3.0.7",
+    "tsx": "4.19.4",
+    "typescript": "5.8.3",
+    "vitest": "4.1.11"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
