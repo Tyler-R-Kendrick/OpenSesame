@@ -8,9 +8,11 @@
 uniffi::setup_scaffolding!();
 
 use serde::{Deserialize, Serialize};
-use std::net::IpAddr;
 use thiserror::Error;
 use url::Url;
+
+mod request_host;
+use request_host::host_is_private;
 
 mod otp;
 pub use otp::{
@@ -322,37 +324,6 @@ fn validate_handle(raw: &str, max_len: usize) -> Result<String, AuthenticatorErr
     Ok(raw.to_owned())
 }
 
-fn host_is_private(url: &Url) -> bool {
-    let Some(host) = url.host_str() else {
-        return true;
-    };
-    let host = host.trim_end_matches('.');
-    if host.eq_ignore_ascii_case("localhost") || host.to_ascii_lowercase().ends_with(".localhost") {
-        return true;
-    }
-    let literal = host
-        .strip_prefix('[')
-        .and_then(|value| value.strip_suffix(']'))
-        .unwrap_or(host);
-    literal.parse::<IpAddr>().is_ok_and(|ip| match ip {
-        IpAddr::V4(ip) => {
-            ip.is_private()
-                || ip.is_loopback()
-                || ip.is_link_local()
-                || ip.is_multicast()
-                || ip.is_broadcast()
-                || ip.is_unspecified()
-        }
-        IpAddr::V6(ip) => {
-            ip.is_loopback()
-                || ip.is_unspecified()
-                || ip.is_unique_local()
-                || ip.is_unicast_link_local()
-                || ip.is_multicast()
-        }
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -431,6 +402,31 @@ mod tests {
                 "accepted {request_uri}"
             );
         }
+    }
+
+    #[test]
+    fn rejects_ipv4_mapped_private_request_uris() {
+        for request_uri in [
+            "https://[::ffff:127.0.0.1]/request",
+            "https://[::ffff:169.254.169.254]/latest",
+            "https://[::ffff:10.1.2.3]/x",
+            "https://[::ffff:192.168.0.1]/x",
+        ] {
+            let link = format!(
+                "https://auth.opensesame.example/invoke/oid4vp?request_uri={}",
+                url::form_urlencoded::byte_serialize(request_uri.as_bytes()).collect::<String>()
+            );
+            assert_eq!(
+                policy().validate_link(&link),
+                Err(AuthenticatorError::PrivateRequestUri),
+                "accepted {request_uri}"
+            );
+        }
+        policy()
+            .validate_link(
+                "https://auth.opensesame.example/invoke/oid4vp?request_uri=https%3A%2F%2Fverifier.example%2Frequest",
+            )
+            .unwrap();
     }
 
     #[test]
