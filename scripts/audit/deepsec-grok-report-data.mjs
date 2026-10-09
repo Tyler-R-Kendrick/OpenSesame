@@ -14,24 +14,20 @@ const filesRoot = path.join(
   "files",
 );
 
-const AREAS = {
-  core: [
-    "crates/core/",
-    "crates/client-core/",
-    "crates/host-core/",
-    "packages/app-core/",
-    "packages/vault-core/",
-  ],
-  pwa: ["apps/pages/"],
-  cli: ["apps/cli/", "packages/cli/"],
-};
+/** core = host/client TS+Rust outside PWA and CLI surfaces (matches scan manifest scope). */
+const PWA_PREFIXES = ["apps/pages/"];
+const CLI_PREFIXES = ["apps/cli/", "packages/cli/"];
 
 function areaOf(filePath) {
-  for (const [name, prefixes] of Object.entries(AREAS)) {
-    if (prefixes.some((p) => filePath.startsWith(p))) return name;
+  if (PWA_PREFIXES.some((p) => filePath.startsWith(p))) return "pwa";
+  if (CLI_PREFIXES.some((p) => filePath.startsWith(p))) return "cli";
+  if (filePath.startsWith("crates/") || filePath.startsWith("packages/")) {
+    return "core";
   }
   return "other";
 }
+
+const AREAS = { core: true, pwa: true, cli: true };
 
 function walk(dir) {
   const out = [];
@@ -44,12 +40,24 @@ function walk(dir) {
 }
 
 const severityOrder = ["CRITICAL", "HIGH", "MEDIUM", "HIGH_BUG", "BUG", "LOW"];
-const stats = {};
+const stats = {
+  other: {
+    analyzed: 0,
+    pending: 0,
+    error: 0,
+    skipped: 0,
+    candidates: 0,
+    bySeverity: {},
+    byVerdict: {},
+    byTriage: { P0: 0, P1: 0, P2: 0, skip: 0 },
+  },
+};
 for (const k of Object.keys(AREAS)) {
   stats[k] = {
     analyzed: 0,
     pending: 0,
     error: 0,
+    skipped: 0,
     candidates: 0,
     bySeverity: {},
     byVerdict: {},
@@ -70,6 +78,7 @@ for (const fp of walk(filesRoot)) {
   if (st === "analyzed") stats[area].analyzed += 1;
   else if (st === "pending") stats[area].pending += 1;
   else if (st === "error") stats[area].error += 1;
+  else stats[area].skipped += 1;
   stats[area].candidates += (rec.candidates ?? []).length;
   for (const f of rec.findings ?? []) {
     const sev = f.severity ?? "?";

@@ -46,6 +46,15 @@ OUT="${WS}/findings-grok"
 echo "=== EXPORT -> $OUT $(date -u +%H:%M:%S) ==="
 "$DEEPSEC" export --project-id "$PROJECT_ID" --format md-dir --out "$OUT" || echo "WARN: export exited $?"
 
+GLOBAL_ERR="$(cd "$WS" && "$DEEPSEC" status --project-id "$PROJECT_ID" 2>/dev/null \
+  | grep -E '^[[:space:]]+error:' | head -1 | sed 's/.*error:[[:space:]]*//' | tr -dc '0-9' || echo 9999)"
+NEAR_ZERO="${DEEPSEC_ERROR_NEAR_ZERO:-25}"
+echo "=== global errors=$GLOBAL_ERR (near_zero=$NEAR_ZERO) $(date -u +%H:%M:%S) ==="
+if [[ "$GLOBAL_ERR" -gt "$NEAR_ZERO" ]]; then
+  echo "SKIP docs export: errors still above $NEAR_ZERO — re-run error-loop first"
+  exit 1
+fi
+
 echo "=== DOCS EXPORT $(date -u +%H:%M:%S) ==="
 node "${ROOT}/scripts/audit/deepsec-export-docs.mjs" "$ROOT" || echo "WARN: docs export exited $?"
 

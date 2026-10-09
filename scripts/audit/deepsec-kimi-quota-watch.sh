@@ -51,16 +51,24 @@ while true; do
       export DEEPSEC_CONCURRENCY=2
       export DEEPSEC_THINKING=medium
       unset XAI_API_KEY GROK_DEPLOYMENT_KEY MOONSHOT_API_KEY
-      if "${ROOT}/scripts/audit/deepsec-kimi-resume.sh"; then
-        echo "=== resume script finished OK $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
-        exit 0
-      fi
-      ec=$?
-      if [[ "$ec" -eq 2 ]]; then
-        echo "=== resume hit quota again (exit 2); back to watch $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+      loop_ec=1
+      if pgrep -f 'deepsec-kimi-error-loop\.sh' >/dev/null; then
+        echo "=== error-loop already running — waiting for it ==="
+        while pgrep -f 'deepsec-kimi-error-loop\.sh' >/dev/null; do sleep 120; done
+        loop_ec=0
       else
-        echo "=== resume exited $ec $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+        "${ROOT}/scripts/audit/deepsec-kimi-error-loop.sh"
+        loop_ec=$?
       fi
+      if [[ "$loop_ec" -eq 0 ]]; then
+        echo "=== error-loop finished — running finish/export $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+        if "${ROOT}/scripts/audit/deepsec-grok-finish.sh"; then
+          echo "=== finish complete $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
+          exit 0
+        fi
+      fi
+      ec=$loop_ec
+      echo "=== error-loop or finish exited $ec; back to watch $(date -u +%Y-%m-%dT%H:%M:%SZ) ==="
     else
       echo "=== quota still limited (probe) $(date -u +%Y-%m-%dT%H:%M:%SZ) (tick $n) ==="
     fi

@@ -7,15 +7,18 @@ import path from "node:path";
 
 const root = process.argv[2] ?? process.cwd();
 const filesDir = path.join(root, ".deepsec/data/opensesame/files");
+/** Same surfaces as `deepsec.config.ts` priority paths + all host crates that share the scan. */
 const prefixes = [
-  "packages/app-core/",
-  "packages/vault-core/",
-  "crates/host-core/",
-  "crates/client-core/",
-  "crates/core/",
+  "crates/",
+  "packages/",
   "apps/pages/",
   "apps/cli/",
-  "packages/cli/",
+  "apps/browser-extension/",
+  "apps/browser-extension-autofill/",
+  "examples/",
+  "scripts/",
+  "skills/",
+  "tools/",
 ];
 
 function inScope(filePath) {

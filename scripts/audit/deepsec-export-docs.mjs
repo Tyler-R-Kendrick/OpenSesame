@@ -77,11 +77,17 @@ re-run export after rescan/triage.
 
 ## Scan coverage (process status)
 
-| Area | Analyzed | Pending | Error | Candidates |
-| --- | ---: | ---: | ---: | ---: |
-| core | ${report.stats.core.analyzed} | ${report.stats.core.pending} | ${report.stats.core.error} | ${report.stats.core.candidates} |
-| pwa | ${report.stats.pwa.analyzed} | ${report.stats.pwa.pending} | ${report.stats.pwa.error} | ${report.stats.pwa.candidates} |
-| cli | ${report.stats.cli.analyzed} | ${report.stats.cli.pending} | ${report.stats.cli.error} | ${report.stats.cli.candidates} |
+| Area | Analyzed | Pending | Error | Skipped | Candidates |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| core | ${report.stats.core.analyzed} | ${report.stats.core.pending} | ${report.stats.core.error} | ${report.stats.core.skipped} | ${report.stats.core.candidates} |
+| pwa | ${report.stats.pwa.analyzed} | ${report.stats.pwa.pending} | ${report.stats.pwa.error} | ${report.stats.pwa.skipped} | ${report.stats.pwa.candidates} |
+| cli | ${report.stats.cli.analyzed} | ${report.stats.cli.pending} | ${report.stats.cli.error} | ${report.stats.cli.skipped} | ${report.stats.cli.candidates} |
+
+${
+  report.stats.other.analyzed + report.stats.other.error > 0
+    ? `| other (outside core/pwa/cli) | ${report.stats.other.analyzed} | ${report.stats.other.pending} | ${report.stats.other.error} | ${report.stats.other.skipped} | ${report.stats.other.candidates} |\n`
+    : ""
+}
 
 ${
   report.stats.core.error + report.stats.pwa.error + report.stats.cli.error > 0
