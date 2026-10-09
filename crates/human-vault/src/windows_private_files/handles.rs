@@ -246,3 +246,10 @@ impl Identity {
         format!("windows:{}:{}:{}", self.0, self.1, self.2)
     }
 }
+
+impl Identity {
+    pub(super) fn node_data_binding(self) -> String {
+        let file_index = (u64::from(self.1) << 32) | u64::from(self.2);
+        format!("{}:{file_index}", self.0)
+    }
+}

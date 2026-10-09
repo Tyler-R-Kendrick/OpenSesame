@@ -19,6 +19,7 @@ pub struct HeldPrivateWriterLease {
     file: File,
     identity: handles::Identity,
     name: String,
+    mode: u32,
 }
 impl HeldPrivateWriterLease {
     /// Open/create the exact logical-name private lock file and acquire its genuine nonblocking OS lock.
@@ -69,9 +70,24 @@ impl HeldPrivateWriterLease {
             file,
             identity,
             name,
+            mode: flags,
         };
         lock.validate()?;
         Ok(lock)
+    }
+    pub(crate) fn validate_exclusive_for(
+        &self,
+        original: &Arc<PrivateDirectory>,
+        logical: &str,
+    ) -> io::Result<()> {
+        self.validate()?;
+        if self.mode != LOCKFILE_EXCLUSIVE_LOCK
+            || !Arc::ptr_eq(&self.root, original)
+            || self.name != physical_writer_lease_name(logical)?
+        {
+            return Err(security::refused());
+        }
+        Ok(())
     }
     /// Recheck original root, owner/private lock identity while its OS lock remains held.
     /// # Errors
