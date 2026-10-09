@@ -81,5 +81,5 @@ pub mod physical_writer_lease;
 pub mod node_data_state;
 
 /// Original Node encrypted DATA validation only; no decrypted output or authority.
-#[cfg(any(unix, windows))]
+#[cfg(all(test, any(unix, windows)))]
 pub(crate) mod node_at_rest_ciphertext;

@@ -68,6 +68,31 @@ pub struct NativeNodeDeviceInventory {
     catalogue: Option<Snapshot>,
     vaults: Vec<(String, Snapshot)>,
 }
+fn capture_vaults(
+    catalogue: Option<&Snapshot>,
+    mut count: usize,
+) -> io::Result<Vec<(String, Snapshot)>> {
+    let mut vaults = Vec::new();
+    let Some(catalogue) = catalogue else {
+        return Ok(vaults);
+    };
+    for (tomb, directory) in &catalogue.names {
+        tomb_name(tomb)?;
+        if !directory {
+            return Err(refused());
+        }
+        let root = Arc::new(catalogue.directory.open_child(Path::new(tomb))?);
+        let snapshot = Snapshot::capture(root, MAX_NAMES.saturating_sub(count))?;
+        count = count
+            .checked_add(snapshot.names.len())
+            .ok_or_else(refused)?;
+        if count > MAX_NAMES {
+            return Err(refused());
+        }
+        vaults.push((tomb.clone(), snapshot));
+    }
+    Ok(vaults)
+}
 impl NativeNodeCredentialLease {
     /// Capture a bounded original device catalogue while this actual credential lease remains held.
     /// Absent directories are explicit retained-root observations, never successor/current fallbacks.
@@ -82,25 +107,10 @@ impl NativeNodeCredentialLease {
         let catalogue = optional_child(&self.state.root, "vault")?
             .map(|root| Snapshot::capture(root, MAX_TOMBS))
             .transpose()?;
-        let mut count = origin.as_ref().map_or(0, |snapshot| snapshot.names.len());
-        let mut vaults = Vec::new();
-        if let Some(catalogue) = &catalogue {
-            for (tomb, directory) in &catalogue.names {
-                tomb_name(tomb)?;
-                if !directory {
-                    return Err(refused());
-                }
-                let root = Arc::new(catalogue.directory.open_child(Path::new(tomb))?);
-                let snapshot = Snapshot::capture(root, MAX_NAMES.saturating_sub(count))?;
-                count = count
-                    .checked_add(snapshot.names.len())
-                    .ok_or_else(refused)?;
-                if count > MAX_NAMES {
-                    return Err(refused());
-                }
-                vaults.push((tomb.clone(), snapshot));
-            }
-        }
+        let vaults = capture_vaults(
+            catalogue.as_ref(),
+            origin.as_ref().map_or(0, |snapshot| snapshot.names.len()),
+        )?;
         let inventory = NativeNodeDeviceInventory {
             credential: Arc::clone(self),
             origin,
