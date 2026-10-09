@@ -18,7 +18,7 @@
   "totals": {
     "files": 424,
     "violations": 657,
-    "oversizedLines": 214600
+    "oversizedLines": 214598
   },
   "files": {
     "apps/browser-extension/entrypoints/popup/main.ts": {
@@ -702,7 +702,7 @@
       "max-lines": 498
     },
     "packages/app-core/src/lib/vault/store.ts": {
-      "max-lines": 1600
+      "max-lines": 1598
     },
     "packages/app-core/src/tutorial/agents/ag-ui/ag-ui-agent.test.ts": {
       "max-lines": 676
