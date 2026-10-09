@@ -38,6 +38,9 @@ function target(
     basic,
     headers: verify.headers ?? {},
     body: verify.body ?? null,
+    success: verify.success ?? [],
+    requiredFields: verify.required_fields ?? [],
+    errorFields: verify.error_fields ?? [],
   };
 }
 
@@ -96,9 +99,11 @@ function oauthTarget(row) {
 }
 
 function apiKeyTarget(row) {
+  const verify = legacyApiVerification(row);
+  if (!verify) return null;
   return target(
     "api-key",
-    row.verify,
+    verify,
     row.header,
     row.scheme ?? null,
     row.basic ?? null,
@@ -109,6 +114,36 @@ function apiKeyTarget(row) {
       })),
     ),
   );
+}
+
+/** The single-key relay cannot supply a provider's additional secret slots. */
+function legacyApiVerification(row) {
+  if (!row.legacy_verify && (row.additional_credentials ?? []).length > 0)
+    return null;
+  if (row.auth?.value_template) return null;
+  const verify = row.legacy_verify ?? row.verify;
+  const params = row.template_params ?? [];
+  const fill = (value) =>
+    value.replace(/\{([a-z_]+)\}/g, (whole, name) => {
+      const param = params.find((item) => item.name === name);
+      return !param?.secret && param?.choices?.length > 0
+        ? param.choices[0].value
+        : whole;
+    });
+  const optional = new Set(
+    params.filter((item) => item.required === false).map((item) => item.name),
+  );
+  const headers = Object.fromEntries(
+    Object.entries(verify.headers ?? {})
+      .filter(([, value]) => {
+        const names = [...value.matchAll(/\{([a-z_]+)\}/g)].map(
+          (match) => match[1],
+        );
+        return !names.length || !names.every((name) => optional.has(name));
+      })
+      .map(([name, value]) => [name, fill(value)]),
+  );
+  return { ...verify, url: fill(verify.url), headers };
 }
 
 function mcpUrl(row) {
@@ -132,7 +167,8 @@ export function verifyTargets(
     slot(row.service).oauth = oauthTarget(row);
   }
   for (const row of presets.api_key.filter((r) => r.verify)) {
-    slot(row.service).apiKey = apiKeyTarget(row);
+    const selected = apiKeyTarget(row);
+    if (selected) slot(row.service).apiKey = selected;
   }
   for (const row of services.services) {
     const url = mcpUrl(row);

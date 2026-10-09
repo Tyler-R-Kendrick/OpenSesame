@@ -3285,16 +3285,26 @@
         "url": "https://api.anthropic.com/v1/models",
         "account_field": null,
         "headers": {
-          "anthropic-version": "2023-06-01"
+          "anthropic-version": "2023-06-01",
+          "anthropic-dangerous-direct-browser-access": "true",
+          "anthropic-workspace-id": "{workspace_id}"
         }
       },
       "instructions": "Open [Claude Console → API keys](https://platform.claude.com/settings/keys), click **Create Key**, pick the workspace, name it, and copy the key (shown once).",
       "docs_url": "https://platform.claude.com/docs/en/api/overview",
       "probe_status": 401,
       "confidence": "high",
-      "notes": "Also send anthropic-version: 2023-06-01. Authorization: Bearer <key> is now also accepted; x-api-key is the long-standing header. Multi-workspace keys need anthropic-workspace-id.",
+      "notes": "Send anthropic-version: 2023-06-01. A multi-workspace API key additionally requires anthropic-workspace-id; omit that header when optional workspace_id is blank. x-api-key remains supported. Browser execution needs the provider browser-access opt-in policy, not an assumed CORS guarantee.",
       "sources": ["https://platform.claude.com/docs/en/api/overview"],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "workspace_id",
+          "label": "Workspace ID",
+          "placeholder": "wrkspc_...",
+          "required": false,
+          "secret": false
+        }
+      ]
     },
     {
       "service": "assemblyai",
@@ -3309,7 +3319,7 @@
       ],
       "verify": {
         "method": "GET",
-        "url": "https://api.assemblyai.com/v2/transcript?limit=1",
+        "url": "https://{api_host}/v2/transcript?limit=1",
         "account_field": null
       },
       "instructions": "Sign in to the [AssemblyAI dashboard → API Keys](https://www.assemblyai.com/app/api-keys), click **Create new API key** (or copy the default), and store it.",
@@ -3318,7 +3328,25 @@
       "confidence": "high",
       "notes": "Raw key in Authorization (no Bearer). EU data residency uses api.eu.assemblyai.com.",
       "sources": ["https://www.assemblyai.com/docs/api-reference/overview/"],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "api_host",
+          "label": "Data region",
+          "placeholder": "api.assemblyai.com",
+          "required": true,
+          "secret": false,
+          "choices": [
+            {
+              "value": "api.assemblyai.com",
+              "label": "US"
+            },
+            {
+              "value": "api.eu.assemblyai.com",
+              "label": "EU"
+            }
+          ]
+        }
+      ]
     },
     {
       "service": "bamboohr",
@@ -3349,7 +3377,8 @@
       "notes": "HTTP Basic: API key as username, any string (e.g. 'x') as password. {company_domain} is the subdomain of the login URL. Send Accept: application/json.",
       "sources": [
         "https://documentation.bamboohr.com/docs/getting-started",
-        "https://www.bamboohr.com/product-updates/admin-api-keys-settings"
+        "https://www.bamboohr.com/product-updates/admin-api-keys-settings",
+        "https://documentation.bamboohr.com/docs/api-details"
       ],
       "template_params": [
         {
@@ -3462,13 +3491,13 @@
         "account_field": "login"
       },
       "instructions": "In CircleCI open **User Settings → Personal API Tokens**, click **Create New Token**, name it and copy it (shown once).",
-      "docs_url": "https://circleci.com/docs/managing-api-tokens/",
+      "docs_url": "https://circleci.com/docs/guides/toolkit/managing-api-tokens/",
       "probe_status": 401,
       "confidence": "high",
       "notes": null,
       "sources": [
-        "https://circleci.com/docs/managing-api-tokens/",
-        "https://circleci.com/docs/api/v2/"
+        "https://circleci.com/docs/guides/toolkit/managing-api-tokens/",
+        "https://circleci.com/docs/api/v2/index.html"
       ],
       "template_params": []
     },
@@ -3518,6 +3547,42 @@
       "template_params": []
     },
     {
+      "service": "cloudflare",
+      "key_url": "https://dash.cloudflare.com/profile/api-tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.cloudflare.com/client/v4"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.cloudflare.com/client/v4/user/tokens/verify",
+        "account_field": "result.id",
+        "success": [
+          {
+            "field": "success",
+            "equals": true
+          },
+          {
+            "field": "result.status",
+            "equals": "active"
+          }
+        ],
+        "required_fields": ["result.id"],
+        "error_fields": ["errors"]
+      },
+      "instructions": "Create a user API token in My Profile → API Tokens. Grant only Zone Read for listing zones; add other scopes only for the actions you intend.",
+      "docs_url": "https://developers.cloudflare.com/fundamentals/api/get-started/create-token/",
+      "probe_status": null,
+      "confidence": "high",
+      "notes": "User tokens verify only when success is true and result.status is active. Account-owned tokens have a different verification endpoint; this preset is for user tokens.",
+      "sources": [
+        "https://developers.cloudflare.com/api/resources/user/subresources/tokens/methods/verify/",
+        "https://developers.cloudflare.com/api/resources/zones/methods/list/"
+      ],
+      "template_params": []
+    },
+    {
       "service": "cloudflare-origin-ca",
       "key_url": "https://dash.cloudflare.com/profile/api-tokens",
       "header": "Authorization",
@@ -3528,7 +3593,19 @@
       "verify": {
         "method": "GET",
         "url": "https://api.cloudflare.com/client/v4/user/tokens/verify",
-        "account_field": "result.status"
+        "account_field": "result.status",
+        "success": [
+          {
+            "field": "success",
+            "equals": true
+          },
+          {
+            "field": "result.status",
+            "equals": "active"
+          }
+        ],
+        "required_fields": ["result.id"],
+        "error_fields": ["errors"]
       },
       "instructions": "Open [Cloudflare → My Profile → API Tokens](https://dash.cloudflare.com/profile/api-tokens), click **Create Token → Custom token**, grant **Zone → SSL and Certificates → Edit** for the needed zones, and copy it. Legacy Origin CA keys are deprecated.",
       "docs_url": "https://developers.cloudflare.com/fundamentals/api/get-started/ca-keys/",
@@ -3599,11 +3676,11 @@
         "account_field": "data.username"
       },
       "instructions": "In Crowdin open **Account Settings → API**, click **New Token**, name it, tick only the scopes you need (e.g. read-only **Projects**), and copy the token (shown once).",
-      "docs_url": "https://support.crowdin.com/developer/authentication/",
+      "docs_url": "https://developer.crowdin.com/api/v2/",
       "probe_status": 401,
       "confidence": "high",
       "notes": "Crowdin Enterprise uses https://{organization}.api.crowdin.com/api/v2 instead.",
-      "sources": ["https://support.crowdin.com/developer/authentication/"],
+      "sources": ["https://developer.crowdin.com/api/v2/"],
       "template_params": [
         {
           "name": "organization",
@@ -3619,19 +3696,109 @@
       "scheme": null,
       "basic": null,
       "key_prefix": null,
-      "service_urls": ["https://api.datadoghq.com"],
+      "service_urls": [
+        "https://api.datadoghq.com",
+        "https://api.us3.datadoghq.com",
+        "https://api.us5.datadoghq.com",
+        "https://api.datadoghq.eu",
+        "https://api.ap1.datadoghq.com",
+        "https://api.ap2.datadoghq.com",
+        "https://api.uk1.datadoghq.com",
+        "https://api.ddog-gov.com",
+        "https://api.us2.ddog-gov.com"
+      ],
       "verify": {
         "method": "GET",
-        "url": "https://api.datadoghq.com/api/v1/validate",
-        "account_field": null
+        "url": "https://api.{site}/api/v2/validate_keys",
+        "account_field": null,
+        "headers": {
+          "DD-APPLICATION-KEY": "{application_key}"
+        },
+        "success": [
+          {
+            "field": "status",
+            "equals": "ok"
+          }
+        ],
+        "error_fields": ["errors"]
       },
-      "instructions": "In Datadog open **Organization Settings → API Keys**, click **New Key**, name it and copy it. Use the host for your site (e.g. api.datadoghq.eu, api.us5.datadoghq.com).",
+      "legacy_verify": {
+        "method": "GET",
+        "url": "https://api.{site}/api/v1/validate",
+        "account_field": null,
+        "success": [
+          {
+            "field": "valid",
+            "equals": true
+          }
+        ]
+      },
+      "instructions": "In Datadog create an API key under Organization Settings → API Keys, and an application key under Personal Settings → Application Keys with only the read scopes needed (such as monitors_read). Select the Datadog site for your organization. Store both keys privately.",
       "docs_url": "https://docs.datadoghq.com/api/latest/authentication/",
-      "probe_status": 403,
+      "probe_status": null,
       "confidence": "high",
-      "notes": "/api/v1/validate returns {\"valid\":true} with only DD-API-KEY. Most read endpoints also need DD-APPLICATION-KEY. Host differs by site (US1, US3, US5, EU, AP1, GOV).",
-      "sources": ["https://docs.datadoghq.com/api/latest/authentication/"],
-      "template_params": []
+      "notes": "Send DD-API-KEY and DD-APPLICATION-KEY to the selected Datadog site. Pair validation returns {\"status\":\"ok\"}; require that exact success marker and reject errors. The API-key-only /api/v1/validate does not validate the application key required by read actions.",
+      "sources": [
+        "https://docs.datadoghq.com/api/latest/authentication/",
+        "https://docs.datadoghq.com/api/latest/key-management/validate-api-and-application-keys.md",
+        "https://docs.datadoghq.com/account_management/api-app-keys/"
+      ],
+      "template_params": [
+        {
+          "name": "site",
+          "label": "Datadog site",
+          "placeholder": "datadoghq.com",
+          "required": true,
+          "secret": false,
+          "choices": [
+            {
+              "value": "datadoghq.com",
+              "label": "US1"
+            },
+            {
+              "value": "us3.datadoghq.com",
+              "label": "US3"
+            },
+            {
+              "value": "us5.datadoghq.com",
+              "label": "US5"
+            },
+            {
+              "value": "datadoghq.eu",
+              "label": "EU"
+            },
+            {
+              "value": "ap1.datadoghq.com",
+              "label": "AP1"
+            },
+            {
+              "value": "ap2.datadoghq.com",
+              "label": "AP2"
+            },
+            {
+              "value": "uk1.datadoghq.com",
+              "label": "UK1"
+            },
+            {
+              "value": "ddog-gov.com",
+              "label": "US1-FED"
+            },
+            {
+              "value": "us2.ddog-gov.com",
+              "label": "US2-FED"
+            }
+          ]
+        }
+      ],
+      "additional_credentials": [
+        {
+          "name": "application_key",
+          "label": "Application key",
+          "placeholder": "",
+          "required": true,
+          "secret": true
+        }
+      ]
     },
     {
       "service": "deepgram",
@@ -3668,13 +3835,14 @@
       "verify": {
         "method": "GET",
         "url": "https://api.deepseek.com/user/balance",
-        "account_field": null
+        "account_field": null,
+        "required_fields": ["is_available", "balance_infos"]
       },
       "instructions": "Open the [DeepSeek Platform → API keys](https://platform.deepseek.com/api_keys), click **Create new API key**, name it and copy it (shown once).",
       "docs_url": "https://api-docs.deepseek.com/api/get-user-balance",
       "probe_status": 401,
       "confidence": "high",
-      "notes": "GET https://api.deepseek.com/models is an equivalent check.",
+      "notes": "Balance replies carry is_available, which means a funded/usable account, not credential validity. A valid key with no available balance remains authenticated; do not reject it for is_available=false. Models can still be listed.",
       "sources": [
         "https://api-docs.deepseek.com/api/get-user-balance",
         "https://api-docs.deepseek.com/api/list-models"
@@ -3826,7 +3994,14 @@
       "verify": {
         "method": "GET",
         "url": "https://api.firecrawl.dev/v2/team/credit-usage",
-        "account_field": null
+        "account_field": null,
+        "success": [
+          {
+            "field": "success",
+            "equals": true
+          }
+        ],
+        "required_fields": ["data.remainingCredits"]
       },
       "instructions": "Sign in to [Firecrawl → API Keys](https://www.firecrawl.dev/app/api-keys), click **Create API key** (or copy the default key).",
       "docs_url": "https://docs.firecrawl.dev/api-reference/endpoint/credit-usage",
@@ -3930,6 +4105,52 @@
       "notes": null,
       "sources": ["https://console.groq.com/docs/api-reference"],
       "template_params": []
+    },
+    {
+      "service": "honeycomb",
+      "key_url": "https://ui.honeycomb.io/",
+      "header": "X-Honeycomb-Team",
+      "scheme": null,
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": [
+        "https://api.honeycomb.io",
+        "https://api.eu1.honeycomb.io"
+      ],
+      "verify": {
+        "method": "GET",
+        "url": "https://{api_host}/1/auth",
+        "account_field": "team.name",
+        "required_fields": ["team.name", "team.slug", "api_key_access"]
+      },
+      "instructions": "In Honeycomb select the team/environment and create a configuration API key with only the permissions needed. Ingest keys can prove their identity but do not grant dataset/query reads.",
+      "docs_url": "https://docs.honeycomb.io/api/auth",
+      "probe_status": null,
+      "confidence": "high",
+      "notes": "This preset uses configuration/ingest key token in X-Honeycomb-Team. Management keys instead use Authorization: Bearer <keyID>:<secret> and must not be silently mixed into this key type.",
+      "sources": [
+        "https://docs.honeycomb.io/api/auth",
+        "https://docs.honeycomb.io/configure/environments/manage-api-keys/"
+      ],
+      "template_params": [
+        {
+          "name": "api_host",
+          "label": "Honeycomb region",
+          "placeholder": "api.honeycomb.io",
+          "required": true,
+          "secret": false,
+          "choices": [
+            {
+              "value": "api.honeycomb.io",
+              "label": "US"
+            },
+            {
+              "value": "api.eu1.honeycomb.io",
+              "label": "EU"
+            }
+          ]
+        }
+      ]
     },
     {
       "service": "huggingface",
@@ -4066,7 +4287,9 @@
         "body": "{\"query\":\"{ viewer { id name email } }\"}",
         "headers": {
           "Content-Type": "application/json"
-        }
+        },
+        "error_fields": ["errors"],
+        "required_fields": ["data.viewer.id"]
       },
       "instructions": "In Linear open **Settings → Account → Security & access**, under **Personal API keys** click **New API key**, name it, choose **Read** access, and copy it (shown once).",
       "docs_url": "https://linear.app/developers/graphql",
@@ -4116,18 +4339,36 @@
       "service_urls": ["https://api.mailgun.net", "https://api.eu.mailgun.net"],
       "verify": {
         "method": "GET",
-        "url": "https://api.mailgun.net/v3/domains",
+        "url": "https://{api_host}/v3/domains",
         "account_field": "items.0.name"
       },
       "instructions": "In Mailgun open **Settings → API Security**, click **Add new key**, name it, and copy the private API key (shown once). EU accounts use api.eu.mailgun.net.",
       "docs_url": "https://documentation.mailgun.com/docs/mailgun/api-reference/authentication",
       "probe_status": 401,
       "confidence": "high",
-      "notes": "HTTP Basic with username 'api' and the API key as password.",
+      "notes": "HTTP Basic: username api, password the private API key. Select the region where the domains are hosted. Domain-sending keys are limited to send operations and cannot be read-only verified by listing domains.",
       "sources": [
         "https://documentation.mailgun.com/docs/mailgun/api-reference/authentication"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "api_host",
+          "label": "Mailgun region",
+          "placeholder": "api.mailgun.net",
+          "required": true,
+          "secret": false,
+          "choices": [
+            {
+              "value": "api.mailgun.net",
+              "label": "US"
+            },
+            {
+              "value": "api.eu.mailgun.net",
+              "label": "EU"
+            }
+          ]
+        }
+      ]
     },
     {
       "service": "marqeta",
@@ -4136,7 +4377,7 @@
       "scheme": "Basic",
       "basic": {
         "username": "{key}",
-        "password": ""
+        "password": "{admin_access_token}"
       },
       "key_prefix": null,
       "service_urls": [
@@ -4152,11 +4393,20 @@
       "docs_url": "https://www.marqeta.com/docs/developer-guides/core-api-quick-start",
       "probe_status": 401,
       "confidence": "medium",
-      "notes": "HTTP Basic: application token as username, admin access token as password. Production hosts are program-specific.",
+      "notes": "HTTP Basic requires the application token as username and the separate admin access token as password; both are secrets. Sandbox credentials work only on sandbox-api.marqeta.com. Production hosts are program-specific. Connect remains refused for wallet issuing (ADR 0086/0123).",
       "sources": [
         "https://www.marqeta.com/docs/developer-guides/core-api-quick-start.md"
       ],
-      "template_params": []
+      "template_params": [],
+      "additional_credentials": [
+        {
+          "name": "admin_access_token",
+          "label": "Admin access token",
+          "placeholder": "",
+          "required": true,
+          "secret": true
+        }
+      ]
     },
     {
       "service": "messagebird",
@@ -4215,7 +4465,9 @@
         "body": "{\"query\":\"query { me { id name email } }\"}",
         "headers": {
           "Content-Type": "application/json"
-        }
+        },
+        "error_fields": ["errors"],
+        "required_fields": ["data.me.id"]
       },
       "instructions": "In monday.com click your avatar → **Developers**, then **API token → Show** (admins: **Administration → Connections → Personal API token**) and copy the personal token.",
       "docs_url": "https://developer.monday.com/api-reference/docs/authentication",
@@ -4273,17 +4525,43 @@
       "service_urls": ["https://console.neon.tech/api/v2"],
       "verify": {
         "method": "GET",
-        "url": "https://console.neon.tech/api/v2/users/me",
-        "account_field": "email"
+        "url": "https://console.neon.tech/api/v2/projects?limit=20",
+        "account_field": null,
+        "required_fields": ["projects"]
       },
       "instructions": "In the Neon Console open your avatar → **Account settings → API keys**, click **Create new API key**, name it and copy it (shown once).",
       "docs_url": "https://neon.com/docs/manage/api-keys",
       "probe_status": 401,
       "confidence": "medium",
-      "notes": "/users/me works for personal keys; organization keys cannot call it (use GET /api/v2/projects?org_id=… instead).",
+      "notes": "List projects works with personal and organization API keys scoped to accessible projects. /users/me is personal-key-only. Require projects array (empty is valid); do not reject organization keys as invalid personal identity.",
       "sources": [
         "https://api-docs.neon.tech/reference/getcurrentuserinfo",
-        "https://neon.com/docs/manage/api-keys"
+        "https://neon.com/docs/manage/api-keys",
+        "https://api-docs.neon.tech/reference/listprojects"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "netlify",
+      "key_url": "https://app.netlify.com/user/applications#personal-access-tokens",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.netlify.com/api/v1"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.netlify.com/api/v1/sites?per_page=20",
+        "account_field": null
+      },
+      "instructions": "In Netlify open User settings → Applications → Personal access tokens, create a token and choose an expiration. For SAML teams authorize team access explicitly.",
+      "docs_url": "https://docs.netlify.com/api-and-cli-guides/api-guides/get-started-with-api/",
+      "probe_status": null,
+      "confidence": "high",
+      "notes": "List sites returns an array; an empty list is valid. Do not return site environment variables or deploy credentials in a generic response.",
+      "sources": [
+        "https://docs.netlify.com/api-and-cli-guides/api-guides/get-started-with-api/",
+        "https://open-api.netlify.com/"
       ],
       "template_params": []
     },
@@ -4298,7 +4576,14 @@
       "verify": {
         "method": "GET",
         "url": "https://newsapi.org/v2/top-headlines/sources",
-        "account_field": null
+        "account_field": null,
+        "success": [
+          {
+            "field": "status",
+            "equals": "ok"
+          }
+        ],
+        "required_fields": ["sources"]
       },
       "instructions": "Register at [newsapi.org](https://newsapi.org/register); your API key is shown on the [Account](https://newsapi.org/account) page.",
       "docs_url": "https://newsapi.org/docs/authentication",
@@ -4425,6 +4710,38 @@
       "template_params": []
     },
     {
+      "service": "pagerduty",
+      "key_url": null,
+      "header": "Authorization",
+      "scheme": "Token",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.pagerduty.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.pagerduty.com/abilities",
+        "account_field": null,
+        "headers": {
+          "Accept": "application/vnd.pagerduty+json;version=2"
+        }
+      },
+      "instructions": "In PagerDuty open Integrations → API Access Keys and create a read-only API key, or use a user API token with the needed incident read access. This is a REST API token, not an Events API routing key.",
+      "docs_url": "https://docs.pagerduty.com/developer/authentication",
+      "probe_status": null,
+      "confidence": "high",
+      "notes": "Authorization must be exactly Token token=<key>; it is neither Bearer nor a plain Token scheme followed by the key.",
+      "sources": [
+        "https://developer.pagerduty.com/docs/REST-API-Authentication",
+        "https://developer.pagerduty.com/api-reference/4f03e07e3abc0-list-abilities"
+      ],
+      "template_params": [],
+      "auth": {
+        "kind": "header",
+        "header": "Authorization",
+        "value_template": "Token token={key}"
+      }
+    },
+    {
       "service": "perplexity",
       "key_url": "https://console.perplexity.ai/project/keys",
       "header": "Authorization",
@@ -4444,7 +4761,8 @@
       "notes": "GET /v1/models is listed in the current reference index; GET /async/chat/completions (list) is an alternative read-only check.",
       "sources": [
         "https://docs.perplexity.ai/docs/admin/api-key-management.md",
-        "https://docs.perplexity.ai/llms.txt"
+        "https://docs.perplexity.ai/llms.txt",
+        "https://docs.perplexity.ai/api-reference/models-get.md"
       ],
       "template_params": []
     },
@@ -4462,7 +4780,8 @@
         "account_field": null,
         "headers": {
           "X-Pinecone-API-Version": "2025-04"
-        }
+        },
+        "required_fields": ["indexes"]
       },
       "instructions": "In the [Pinecone console](https://app.pinecone.io/) pick the project, open **API keys**, click **Create API key**, choose **ReadOnly** (or **All**) permissions, and copy it (shown once).",
       "docs_url": "https://docs.pinecone.io/guides/projects/manage-api-keys",
@@ -4544,15 +4863,87 @@
         "body": "{\"query\":\"query { me { name email } }\"}",
         "headers": {
           "Content-Type": "application/json"
-        }
+        },
+        "error_fields": ["errors"],
+        "required_fields": ["data.me.name", "data.me.email"]
       },
-      "instructions": "Open [Railway → Account → Tokens](https://railway.com/account/tokens), create a token with **No workspace** selected (an account token), name it, and copy it.",
+      "instructions": "Choose the Railway credential type that matches your token: account, workspace or project. Account and workspace tokens come from [Railway Account → Tokens](https://railway.com/account/tokens); project tokens come from the tokens page in project settings. Each type verifies its own account, workspace or project environment.",
       "docs_url": "https://docs.railway.com/reference/public-api",
       "probe_status": 400,
       "confidence": "high",
-      "notes": "A bad token returns HTTP 200 with errors[].message 'Not Authorized' and data null, so check the body. `me` works only with account tokens; workspace tokens need query { workspace(workspaceId:…) { name } }; project tokens use the Project-Access-Token header.",
+      "notes": "Choose Account, Workspace or Project token explicitly. Account and workspace tokens use Authorization: Bearer; project tokens use Project-Access-Token. me cannot verify workspace/project tokens. All queries must reject nonempty errors even when HTTP status is 200; workspace IDs are passed as GraphQL variables.",
       "sources": ["https://docs.railway.com/reference/public-api"],
-      "template_params": []
+      "template_params": [],
+      "credential_variants": [
+        {
+          "id": "account",
+          "label": "Account token",
+          "description": "Open [Railway Account → Tokens](https://railway.com/account/tokens) and select **No workspace** to create an account token. Copy the token once. It can access every Railway resource your account is authorized to use.",
+          "header": "Authorization",
+          "scheme": "Bearer",
+          "verify": {
+            "method": "POST",
+            "url": "https://backboard.railway.com/graphql/v2",
+            "account_field": "data.me.email",
+            "body": "{\"query\":\"query { me { name email } }\"}",
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "error_fields": ["errors"],
+            "required_fields": ["data.me.name", "data.me.email"]
+          },
+          "template_params": []
+        },
+        {
+          "id": "workspace",
+          "label": "Workspace token",
+          "description": "Open [Railway Account → Tokens](https://railway.com/account/tokens) and select **the workspace** for this connection. Copy its workspace token and enter the **Workspace ID** for that same workspace. This token can access only that workspace’s resources.",
+          "header": "Authorization",
+          "scheme": "Bearer",
+          "verify": {
+            "method": "POST",
+            "url": "https://backboard.railway.com/graphql/v2",
+            "account_field": "data.workspace.name",
+            "body": "{\"query\":\"query OpenSesameWorkspace($workspaceId: String!) { workspace(workspaceId: $workspaceId) { id name } }\",\"variables\":{\"workspaceId\":\"{workspace_id}\"}}",
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "error_fields": ["errors"],
+            "required_fields": ["data.workspace.id"]
+          },
+          "template_params": [
+            {
+              "name": "workspace_id",
+              "label": "Workspace ID",
+              "placeholder": "workspace-id",
+              "required": true,
+              "secret": false
+            }
+          ]
+        },
+        {
+          "id": "project",
+          "label": "Project token",
+          "description": "In Railway **project settings → Tokens**, create a project token for the chosen **environment** and copy it. This token is limited to that project environment; it cannot verify your personal account or a different workspace.",
+          "header": "Project-Access-Token",
+          "scheme": null,
+          "verify": {
+            "method": "POST",
+            "url": "https://backboard.railway.com/graphql/v2",
+            "account_field": "data.projectToken.projectId",
+            "body": "{\"query\":\"query { projectToken { projectId environmentId } }\"}",
+            "headers": {
+              "Content-Type": "application/json"
+            },
+            "error_fields": ["errors"],
+            "required_fields": [
+              "data.projectToken.projectId",
+              "data.projectToken.environmentId"
+            ]
+          },
+          "template_params": []
+        }
+      ]
     },
     {
       "service": "render",
@@ -4564,17 +4955,19 @@
       "service_urls": ["https://api.render.com/v1"],
       "verify": {
         "method": "GET",
-        "url": "https://api.render.com/v1/users",
-        "account_field": "email"
+        "url": "https://api.render.com/v1/owners?limit=20",
+        "account_field": null,
+        "required_fields": []
       },
       "instructions": "In the Render Dashboard open **Account Settings**, scroll to **API Keys**, click **Create API Key**, name it and copy it (shown once). Keys reach every workspace you belong to.",
       "docs_url": "https://render.com/docs/api",
       "probe_status": 401,
       "confidence": "medium",
-      "notes": "GET /v1/owners (workspaces) is an alternative check.",
+      "notes": "GET /v1/owners returns an array of {owner:{id,name,type,...},cursor} workspace entries. Validate the array shape; an empty list is valid. Do not treat it as a single object with email.",
       "sources": [
         "https://render.com/docs/api",
-        "https://api-docs.render.com/reference/authentication"
+        "https://api-docs.render.com/reference/authentication",
+        "https://api-docs.render.com/reference/list-owners"
       ],
       "template_params": []
     },
@@ -4637,13 +5030,14 @@
       "verify": {
         "method": "GET",
         "url": "https://api.sanity.io/v2021-06-07/users/me",
-        "account_field": "name"
+        "account_field": "id",
+        "required_fields": ["id"]
       },
       "instructions": "At [sanity.io/manage](https://www.sanity.io/manage) pick the project, open **API → Tokens**, click **Add API token**, name it, choose **Viewer** permissions and an expiry, and copy it (shown once).",
       "docs_url": "https://www.sanity.io/docs/content-lake/http-auth",
       "probe_status": 401,
       "confidence": "medium",
-      "notes": "Without any token /users/me answers 200 {} (anonymous); an invalid token answers 401 'Session not found'. Treat an empty body as failure.",
+      "notes": "Require a nonempty user id in /users/me; anonymous responses may be 200 {}. Project data requests use {project_id}.api.sanity.io and require the self-hosted app origin to be allowed in project CORS settings. Never treat HTTP200 alone as authorization.",
       "sources": ["https://www.sanity.io/docs/content-lake/http-auth"],
       "template_params": [
         {
@@ -4688,7 +5082,8 @@
       "verify": {
         "method": "GET",
         "url": "https://api.sendgrid.com/v3/scopes",
-        "account_field": null
+        "account_field": null,
+        "required_fields": ["scopes"]
       },
       "instructions": "In SendGrid open **Settings → API Keys**, click **Create API Key**, name it, choose **Restricted Access** and only the permissions you need, and copy it (shown once).",
       "docs_url": "https://www.twilio.com/docs/sendgrid/api-reference/api-key-permissions/retrieve-a-list-of-scopes-for-which-this-user-has-access",
@@ -4725,7 +5120,11 @@
         "https://developers.similarweb.com/docs/check-user-usage",
         "https://developers.similarweb.com/docs/authentication"
       ],
-      "template_params": []
+      "template_params": [],
+      "auth": {
+        "kind": "query",
+        "parameter": "api_key"
+      }
     },
     {
       "service": "stability",
@@ -4783,7 +5182,14 @@
       "verify": {
         "method": "GET",
         "url": "https://api.telegram.org/bot{key}/getMe",
-        "account_field": "result.username"
+        "account_field": "result.username",
+        "success": [
+          {
+            "field": "ok",
+            "equals": true
+          }
+        ],
+        "required_fields": ["result.id", "result.username"]
       },
       "instructions": "Open [@BotFather](https://t.me/BotFather) in Telegram, send `/newbot`, choose a name and a username ending in `bot`, and copy the token it replies with (`123456789:AA…`).",
       "docs_url": "https://core.telegram.org/bots/api#authorizing-your-bot",
@@ -4794,7 +5200,11 @@
         "https://core.telegram.org/bots/api#authorizing-your-bot",
         "https://core.telegram.org/bots/api#getme"
       ],
-      "template_params": []
+      "template_params": [],
+      "auth": {
+        "kind": "path",
+        "template": "/bot{key}"
+      }
     },
     {
       "service": "tinybird",
@@ -4837,11 +5247,11 @@
         "account_field": null
       },
       "instructions": "Open [Together AI → Settings → API Keys](https://api.together.ai/settings/api-keys), click **Create API key** (or copy the default), and store it.",
-      "docs_url": "https://docs.together.ai/docs/authentication",
+      "docs_url": "https://docs.together.ai/reference/authentication",
       "probe_status": 401,
       "confidence": "medium",
       "notes": "Newer keys may start with tgp_v1_; older keys have no fixed prefix, so key_prefix is null.",
-      "sources": ["https://docs.together.ai/docs/authentication"],
+      "sources": ["https://docs.together.ai/reference/authentication"],
       "template_params": []
     },
     {
@@ -4857,7 +5267,7 @@
       ],
       "verify": {
         "method": "GET",
-        "url": "https://api.typeform.com/me",
+        "url": "https://{api_host}/me",
         "account_field": "alias"
       },
       "instructions": "Open [Typeform → Personal tokens](https://admin.typeform.com/user/tokens), click **Generate a new token**, name it, select only **accounts:read**, and copy it (shown once).",
@@ -4868,7 +5278,25 @@
       "sources": [
         "https://www.typeform.com/developers/get-started/personal-access-token/"
       ],
-      "template_params": []
+      "template_params": [
+        {
+          "name": "api_host",
+          "label": "Data region",
+          "placeholder": "api.typeform.com",
+          "required": true,
+          "secret": false,
+          "choices": [
+            {
+              "value": "api.typeform.com",
+              "label": "US"
+            },
+            {
+              "value": "api.eu.typeform.com",
+              "label": "EU"
+            }
+          ]
+        }
+      ]
     },
     {
       "service": "vercel",
@@ -4912,6 +5340,31 @@
       "sources": [
         "https://developers.webflow.com/data/reference/authentication/site-token",
         "https://developers.webflow.com/data/reference/sites/list"
+      ],
+      "template_params": []
+    },
+    {
+      "service": "workos",
+      "key_url": "https://dashboard.workos.com/",
+      "header": "Authorization",
+      "scheme": "Bearer",
+      "basic": null,
+      "key_prefix": null,
+      "service_urls": ["https://api.workos.com"],
+      "verify": {
+        "method": "GET",
+        "url": "https://api.workos.com/organizations?limit=20",
+        "account_field": null,
+        "required_fields": ["data", "list_metadata"]
+      },
+      "instructions": "Select your WorkOS environment in the dashboard and copy its API key. Use the environment and permissions intended for the organization read actions.",
+      "docs_url": "https://workos.com/docs/reference",
+      "probe_status": null,
+      "confidence": "high",
+      "notes": "Require a data array and list_metadata object; an empty organization list is valid. Environment keys are separate from OAuth client IDs/secrets.",
+      "sources": [
+        "https://workos.com/docs/reference",
+        "https://workos.com/docs/reference/organization/list"
       ],
       "template_params": []
     }

@@ -3,6 +3,11 @@ use url::Url;
 
 impl InvocationPolicy {
     /// Custom-scheme OID4VCI entry points must carry only a by-reference offer URI.
+    ///
+    /// # Errors
+    ///
+    /// Rejects malformed URLs, unsupported schemes, forbidden or ambiguous
+    /// parameters, and insecure or private credential-offer URIs.
     pub fn validate_credential_offer_scheme(
         &self,
         raw: &str,
@@ -20,6 +25,11 @@ impl InvocationPolicy {
     }
 
     /// Custom-scheme OID4VP entry points must carry only a by-reference request URI.
+    ///
+    /// # Errors
+    ///
+    /// Rejects malformed URLs, unsupported schemes, forbidden or ambiguous
+    /// parameters, and insecure or private request URIs.
     pub fn validate_presentation_scheme(&self, raw: &str) -> Result<String, AuthenticatorError> {
         let url = Url::parse(raw).map_err(|_| AuthenticatorError::UnverifiedInvocationOrigin)?;
         if !matches!(url.scheme(), "openid4vp" | "haip-vp" | "mdoc") {
