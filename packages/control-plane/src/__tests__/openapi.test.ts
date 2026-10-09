@@ -1,0 +1,167 @@
+import { readFileSync } from "node:fs";
+import { overlapCast } from "@opensesame/os-domain";
+import { describe, expect, it } from "vitest";
+import { loadConfig } from "../config.js";
+import { buildOpenApiDocument } from "../openapi.js";
+
+describe("organization OpenAPI authentication", () => {
+  it("keeps the generated OpenAPI artifact in sync", () => {
+    const committed = overlapCast(
+      JSON.parse(
+        readFileSync(new URL("../../openapi.json", import.meta.url), "utf8"),
+      ),
+    );
+    expect(committed).toEqual(
+      buildOpenApiDocument(
+        loadConfig({
+          OPENSESAME_ENV: "test",
+          OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+        }),
+      ),
+    );
+  });
+
+  it("documents cookie auth for browser membership and device mutations", () => {
+    const document = buildOpenApiDocument(
+      loadConfig({
+        OPENSESAME_ENV: "test",
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+      }),
+    );
+    const paths = overlapCast(document.paths);
+
+    for (const [path, method] of [
+      ["/v1/organizations", "post"],
+      ["/v1/organizations/{id}", "patch"],
+      ["/v1/organizations/tenants/{slug}/join", "post"],
+      ["/v1/organizations/{id}/members", "post"],
+      ["/v1/organizations/{id}/members/{principalId}", "patch"],
+      ["/v1/organizations/{id}/members/{principalId}", "delete"],
+      ["/v1/device/approve", "post"],
+    ] as const) {
+      expect(
+        paths[path]?.[method]?.security,
+        `${method.toUpperCase()} ${path}`,
+      ).toEqual(
+        expect.arrayContaining([{ bearerAuth: [] }, { provisionalCookie: [] }]),
+      );
+    }
+  });
+
+  it("publishes public tenant discovery without cookie auth", () => {
+    const document = buildOpenApiDocument(
+      loadConfig({
+        OPENSESAME_ENV: "test",
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+      }),
+    );
+    const paths = overlapCast(document.paths);
+    expect(
+      paths["/v1/organizations/tenants/{slug}"]?.get?.security,
+    ).toBeUndefined();
+    expect(
+      paths["/v1/organizations/tenants/{slug}"]?.get?.responses?.["200"],
+    ).toBeTruthy();
+  });
+
+  it("publishes the organization and approval request/response schemas", () => {
+    const document = buildOpenApiDocument(
+      loadConfig({
+        OPENSESAME_ENV: "test",
+        OPENSESAME_ALLOW_DEV_DEFAULTS: "1",
+      }),
+    );
+    expect(document).toMatchObject({
+      paths: {
+        "/v1/organizations": {
+          post: {
+            requestBody: {
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/CreateOrganization" },
+                },
+              },
+            },
+            responses: {
+              "201": {
+                content: {
+                  "application/json": {
+                    schema: { $ref: "#/components/schemas/Organization" },
+                  },
+                },
+              },
+            },
+          },
+        },
+        "/v1/organizations/{id}/members": {
+          get: {
+            responses: {
+              "404": {
+                description: expect.stringContaining("not_found"),
+              },
+            },
+          },
+          post: {
+            responses: {
+              "201": {
+                content: {
+                  "application/json": {
+                    schema: {
+                      $ref: "#/components/schemas/OrganizationMembership",
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        "/v1/organizations/{id}/members/{principalId}": {
+          patch: {
+            responses: {
+              "400": expect.any(Object),
+              "404": {
+                description: expect.stringContaining("membership_not_found"),
+              },
+            },
+          },
+          delete: {
+            responses: {
+              "404": {
+                description: expect.stringContaining("membership_not_found"),
+              },
+            },
+          },
+        },
+        "/v1/device/approve": {
+          post: {
+            requestBody: {
+              content: {
+                "application/json": {
+                  schema: { $ref: "#/components/schemas/DeviceApproval" },
+                },
+              },
+            },
+            responses: {
+              "404": expect.any(Object),
+              "500": expect.any(Object),
+              "503": expect.any(Object),
+            },
+          },
+        },
+      },
+      components: {
+        schemas: {
+          Organization: {
+            required: expect.arrayContaining([
+              "id",
+              "role",
+              "createdAt",
+              "updatedAt",
+            ]),
+          },
+          OrganizationRole: { enum: ["owner", "admin", "member"] },
+        },
+      },
+    });
+  });
+});

@@ -1,0 +1,117 @@
+import { createPasskeySeam } from "@opensesame/auth-upstream";
+import { createEventSealer } from "@opensesame/database";
+import * as schema from "@opensesame/database/schema";
+import { overlapCast } from "@opensesame/os-domain";
+import { drizzle } from "drizzle-orm/pglite";
+import { beforeAll, expect, it, vi } from "vitest";
+import { createControlPlane } from "../create-app.js";
+import { DurableMap, incrementSecurityCounter } from "../repos/durable-map.js";
+import { durablePasskeyCredentials } from "../repos/durable-passkey-store.js";
+import { migratedPGlite, warmMigratedPGlite } from "./migrated-pglite.js";
+
+// Each PGlite test here starts its own database. They used to boot one and
+// apply every migration inside the test, which on a loaded CI runner took most
+// of the package's 15s budget (legacy-agent-durability timed out on it); now
+// the migrations run once per file, in the hook below, and each test loads a
+// copy (migrated-pglite.ts). The 60s budget stays as the margin for load.
+vi.setConfig({ testTimeout: 60_000 });
+beforeAll(warmMigratedPGlite, 60_000);
+
+it("shares sessions/revocation and atomic passkey/counter state across app instances", async () => {
+  const client = await migratedPGlite();
+  try {
+    const db = drizzle(client, { schema });
+    const options = {
+      database: overlapCast(db),
+      config: { claimPepper: "replica-test-only-claim-pepper-32chars" },
+    };
+    const first = createControlPlane(options);
+    const second = createControlPlane(options);
+    await Promise.all([
+      first.ctx.systemPrincipalReady,
+      second.ctx.systemPrincipalReady,
+    ]);
+    const minted = await first.app.request("/v1/principals/provisional", {
+      method: "POST",
+    });
+    expect(minted.status).toBe(201);
+    const body = await minted.json();
+    const headers = { authorization: `Bearer ${body.accessToken}` };
+    expect(
+      (await second.app.request("/v1/principals/me", { headers })).status,
+    ).toBe(200);
+    expect(
+      (
+        await second.app.request("/v1/principals/provisional/revoke", {
+          method: "POST",
+          headers,
+        })
+      ).status,
+    ).toBe(204);
+    expect(
+      (await first.app.request("/v1/principals/me", { headers })).status,
+    ).toBe(401);
+    const counters = [1, 2].map(
+      () =>
+        new DurableMap<number>(
+          overlapCast(db),
+          "OpenSesame:CounterTest",
+          undefined,
+          undefined,
+          undefined,
+          createEventSealer("durable-security-fixture-key"),
+        ),
+    );
+    expect(
+      (
+        await Promise.all(
+          counters.map((store) => incrementSecurityCounter(store, "attempt")),
+        )
+      ).sort(),
+    ).toEqual([1, 2]);
+    const makeSeam = () =>
+      createPasskeySeam({
+        credentialStore: durablePasskeyCredentials(
+          overlapCast(db),
+          createEventSealer("durable-security-fixture-key"),
+        ),
+        verifyAssertion: async () => ({ ok: true, newCounter: 2 }),
+      });
+    const a = makeSeam();
+    const b = makeSeam();
+    const credential = {
+      credentialId: "replica-key",
+      publicKey: new Uint8Array([1]),
+      counter: 1,
+    };
+    await a.register(body.principalId, credential);
+    await expect(b.register("different-owner", credential)).rejects.toThrow(
+      /already registered/,
+    );
+    const assertion = {
+      credentialId: credential.credentialId,
+      clientDataJSON: new Uint8Array(),
+      authenticatorData: new Uint8Array(),
+      signature: new Uint8Array(),
+    };
+    const results = await Promise.all([
+      a.verify(assertion),
+      b.verify(assertion),
+    ]);
+    expect(results.filter(({ ok }) => ok)).toHaveLength(1);
+    const replay = {
+      id: "oidc-logout:test-digest",
+      providerId: "oidc-logout",
+      callbackDigest: "test-digest",
+      seenAt: new Date(),
+      expiresAt: new Date(Date.now() + 60_000),
+    };
+    expect(await first.ctx.repos.callbackReplays.claim(replay)).toBe(true);
+    expect(await second.ctx.repos.callbackReplays.claim(replay)).toBe(false);
+    await client.exec("DROP TABLE oidc_payloads");
+    expect((await first.app.request("/v1/health/ready")).status).toBe(503);
+    expect((await first.app.request("/v1/health/live")).status).toBe(200);
+  } finally {
+    await client.close();
+  }
+});
