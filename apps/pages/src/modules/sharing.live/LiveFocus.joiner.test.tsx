@@ -6,7 +6,6 @@ import {
 } from "@opensesame/app-core/lib/live/session.js";
 import { act, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { liveUiSeams } from "./live-hooks.js";
 import {
   asked,
   enter,
@@ -19,6 +18,7 @@ import {
   submit,
   type,
 } from "./live-focus-test-support.js";
+import { liveUiSeams } from "./live-hooks.js";
 
 installLiveFocusTests();
 

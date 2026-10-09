@@ -27,7 +27,7 @@ import { noteLiveSessionEnded } from "../sharing-receipts.js";
 import { vaultStore } from "../vault/store.js";
 import { planRefusal } from "./carrier-policy.js";
 import { LiveGuest } from "./guest.js";
-import { LiveHost } from "./host.js";
+import type { LiveHost } from "./host.js";
 import type { HostState } from "./host.js";
 import { watchDocumentLifecycle } from "./lifecycle-watch.js";
 import type { LiveLink } from "./link.js";
@@ -39,15 +39,15 @@ import {
 import { DIRECT_ONLY, type IceSettings, type PeerFactory } from "./peer.js";
 import type { CarrierFactory, Rendezvous } from "./rendezvous.js";
 import { NO_ROUTES, linkRoutes } from "./routes.js";
+import { buildLiveHost } from "./session-build-host.js";
 import {
   guestCarriersFor,
   openCarriers,
   poster,
   rtcServers,
 } from "./session-carriers.js";
-import { type CarrierSpec, type LiveTransport } from "./transport.js";
-import { type ShareScope } from "./vault-share.js";
-import { buildLiveHost } from "./session-build-host.js";
+import type { CarrierSpec, LiveTransport } from "./transport.js";
+import type { ShareScope } from "./vault-share.js";
 
 export const liveSeams = {
   items: (): readonly VaultItem[] => vaultStore.getSnapshot().items,
