@@ -21,6 +21,7 @@ import { useCapabilityGate } from "../../app-root.js";
 import { FailureNotice } from "../../components/FailureNotice.js";
 import { IconRefresh, IconX } from "../../components/Icons.js";
 import { StatusMark, statusTone } from "../../components/StatusMark.js";
+import { useFailureNotice } from "../../components/use-failure-notice.js";
 import { useVault } from "../../lib/vault/hooks.js";
 import { formatTime } from "./format.js";
 
@@ -63,14 +64,29 @@ function SentDropRow({
   onRevoked: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
   const mark = STATUS[drop.state];
   const trail = receiptsForClaim(events, drop.claimId);
 
+  useFailureNotice(`sent-drop-revoke:${drop.claimId}`, "Sent", revokeError);
+
   async function revoke(): Promise<void> {
     setBusy(true);
+    setRevokeError(null);
     try {
-      await revokeOutboundDropById(drop.claimId);
-      onRevoked();
+      const outcome = await revokeOutboundDropById(drop.claimId);
+      if (outcome === "revoked") {
+        onRevoked();
+        return;
+      }
+      if (outcome === "already_consumed") {
+        setRevokeError("This send was already opened and cannot be revoked.");
+        onRevoked();
+        return;
+      }
+      setRevokeError("This send could not be revoked on this device.");
+    } catch {
+      setRevokeError("This send could not be revoked. Try again.");
     } finally {
       setBusy(false);
     }
