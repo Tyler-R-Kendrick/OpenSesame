@@ -174,7 +174,7 @@ describe("the start form", () => {
     fireEvent.click(form.getByRole("checkbox", { name: "GitHub" }));
   }
   const start = (form: ReturnType<typeof within>) =>
-    form.getByRole("button", { name: "Start the live session" });
+    form.getByRole("button", { name: /^Start the live session/ });
 
   it("does not start on a profile it cannot read, and says why", async () => {
     readError = new TransportRefused("relay needs at least one TURN server.");

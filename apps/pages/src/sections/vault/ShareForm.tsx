@@ -1,5 +1,16 @@
-import { isDeviceIdentityMode } from "@opensesame/app-core/lib/device-identity.js";
+import {
+  deviceIdentitySeams,
+  isDeviceIdentityMode,
+} from "@opensesame/app-core/lib/device-identity.js";
 import { useEffect, useRef } from "react";
+
+/** Shown before seal when drops claim only on this browser (PF-02 / persona item 9). */
+export const DEVICE_ONLY_DROP_WARNING =
+  "Only this browser can open this drop. Anyone opening the link elsewhere will be refused.";
+
+export function showDeviceOnlyDropWarning(): boolean {
+  return isDeviceIdentityMode() && !deviceIdentitySeams.remoteIdentityApi();
+}
 import { FieldRow } from "../../components/FieldRow.js";
 import { FormCommit } from "../../components/FormCommit.js";
 import { IconKey } from "../../components/IconKey.js";
@@ -35,10 +46,13 @@ export function ShareForm({
   return (
     <section className="detail__group" aria-label="Share this item once">
       <h2 className="detail__grouphead">Share once</h2>
-      {isDeviceIdentityMode() ? (
-        <FieldRow label="Opens on">
-          <span className="frow__value">This browser</span>
-        </FieldRow>
+      {showDeviceOnlyDropWarning() ? (
+        <>
+          <FieldRow label="Opens on">
+            <span className="frow__value">This browser</span>
+          </FieldRow>
+          <p className="hint">{DEVICE_ONLY_DROP_WARNING}</p>
+        </>
       ) : null}
       <TtlChoices
         value={ttlMs}

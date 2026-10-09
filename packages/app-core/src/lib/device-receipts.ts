@@ -58,6 +58,7 @@ export const RECEIPT_KINDS = {
   "siop.denied": ["access.siop.denied", "denied"],
   "drop.opened": ["access.drop.opened", "succeeded"],
   "drop.expired": ["access.drop.expired", "succeeded"],
+  "drop.locked_out": ["access.drop.locked_out", "denied"],
   "drop.revoked": ["access.drop.revoked", "succeeded"],
   "live.granted": ["access.live.granted", "succeeded"],
   "share.granted": ["access.share.granted", "succeeded"],
