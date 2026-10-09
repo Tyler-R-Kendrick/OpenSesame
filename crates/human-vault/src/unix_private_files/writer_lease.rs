@@ -34,6 +34,7 @@ pub struct HeldPrivateWriterLease {
     directory: Arc<PrivateDirectory>,
     component: CString,
     file: File,
+    mode: libc::c_int,
 }
 impl HeldPrivateWriterLease {
     /// Acquire the exact logical-name shared native protocol through this original root.
@@ -71,9 +72,24 @@ impl HeldPrivateWriterLease {
             directory,
             component,
             file,
+            mode: flags,
         };
         held.validate()?;
         Ok(held)
+    }
+    pub(crate) fn validate_exclusive_for(
+        &self,
+        original: &Arc<PrivateDirectory>,
+        logical: &str,
+    ) -> io::Result<()> {
+        self.validate()?;
+        if self.mode != libc::LOCK_EX
+            || !Arc::ptr_eq(&self.directory, original)
+            || self.component.to_bytes() != physical_writer_lease_name(logical)?.as_bytes()
+        {
+            return Err(refused());
+        }
+        Ok(())
     }
     /// Revalidate retained original ancestry and exact private locked file without reopening it.
     /// # Errors

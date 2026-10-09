@@ -16,4 +16,22 @@ impl PrivateDirectory {
         self.validate()?;
         Ok(binding)
     }
+    /// Exact Windows volume serial and full64-bit file index for the Node numeric DATA codec.
+    /// This does not claim Unix identity equivalence or change native root-protection AAD.
+    /// # Errors
+    /// Refuses changed original handles, private profile/ancestry and IO errors.
+    pub fn original_node_data_identity(&self) -> io::Result<String> {
+        self.validate()?;
+        let actual = handles::identity(self.root_handle()?, true)?;
+        if self.identities.last() != Some(&actual) {
+            return Err(security::refused());
+        }
+        let binding = actual.node_data_binding();
+        self.validate()?;
+        Ok(binding)
+    }
 }
+
+#[cfg(test)]
+#[path = "node_data_identity_tests.rs"]
+mod tests;
