@@ -23,8 +23,9 @@
    subheader on both themes. The split is painted on `.unlock` so empty
    column areas match. */
 .unlock {
-  --unlock-notes-pane: color-mix(in srgb, var(--ink) 22%, var(--surface));
-  --unlock-notes-head: color-mix(in srgb, var(--ink) 32%, var(--surface));
+  /* Paper, not a tint of ink: the pane sits a step back from the card, the head sits on the card. */
+  --unlock-notes-pane: var(--surface-2);
+  --unlock-notes-head: var(--surface);
 }
 
 .unlock__notes {
@@ -43,8 +44,19 @@
   border-radius: var(--radius);
 }
 
-/* One accordion row per build. Summary is the subheader band; prior builds
-   collapse until opened. */
+/* Under the column title, one accordion row per build. The newest row opens
+   on a wide screen; prior builds collapse until opened. */
+.unlock__notes-title {
+  margin: 0;
+  padding: 1rem 1rem 0.75rem;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
 .unlock__notes-stack {
   display: grid;
   align-content: start;
