@@ -1,46 +1,48 @@
 @import "./native-controls.css";
 
 /* OpenSesame vault — design system.
-   Password-manager canon at the Bitwarden/1Password craft bar, in OpenSesame navy + teal. */
+   Password-manager canon at the Bitwarden/1Password craft bar. Greyscale only: ink on paper.
+   Accent is ink; status is a glyph, a texture and a shape, never a hue (docs/design, color-vision). */
 
 :root {
+  --mark-slit: #8f8f8f;
   --canvas: #fafafa;
   --surface: #ffffff;
-  --surface-2: #f5f5f5;
-  --surface-3: #ededed;
+  --surface-2: #f0f0f0;
+  --surface-3: #e2e2e2;
   --rail: #fafafa;
   --rail-2: #efefef;
   --rail-fg: #171717;
-  --rail-muted: #6f6f6f;
-  --rail-line: #e7e7e7;
-  --rail-warn: #f0b95c;
+  --rail-muted: #666666;
+  --rail-line: #e0e0e0;
+  --rail-warn: #5c5c5c;
 
   --ink: #171717;
-  --ink-2: #5c5c5c;
-  --ink-3: #6f6f6f;
-  --line: #e7e7e7;
-  --line-strong: #d4d4d4;
+  --ink-2: #4d4d4d;
+  --ink-3: #666666;
+  --line: #e0e0e0;
+  --line-strong: #bdbdbd;
 
-  --accent: #0d7268;
-  --accent-hover: #0a5c54;
-  --accent-ink: #ffffff;
-  --accent-wash: #eaf2f0;
-  --accent-line: #bcd6d1;
+  --accent: #171717;
+  --accent-hover: #3d3d3d;
+  --accent-ink: #fafafa;
+  --accent-wash: #efefef;
+  --accent-line: #bdbdbd;
   --scrim: rgba(0, 0, 0, 0.44);
 
-  --ok: #0f7a51;
-  --ok-wash: #e3f6ec;
-  --warn: #a25a05;
-  --warn-wash: #fdf1de;
-  --err: #b32424;
-  --err-wash: #fceaea;
-  --err-ink: #ffffff;
+  --ok: #171717;
+  --ok-wash: #efefef;
+  --warn: #5c5c5c;
+  --warn-wash: #e6e6e6;
+  --err: #171717;
+  --err-wash: #d9d9d9;
+  --err-ink: #fafafa;
 
-  --s-0: #b32424;
-  --s-1: #c2600b;
-  --s-2: #a07a06;
-  --s-3: #0f7a51;
-  --s-4: #0d7268;
+  --s-0: #171717;
+  --s-1: #3d3d3d;
+  --s-2: #666666;
+  --s-3: #9a9a9a;
+  --s-4: #c8c8c8;
 
   --radius: 0;
   --radius-lg: 0;
@@ -85,42 +87,43 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    --mark-slit: #666666;
     --canvas: #0f0f0f;
     --surface: #171717;
     --surface-2: #1d1d1d;
-    --surface-3: #242424;
+    --surface-3: #2a2a2a;
     --rail: #0f0f0f;
     --rail-2: #1d1d1d;
-    --rail-fg: #f0f0f0;
-    --rail-muted: #8c8c8c;
-    --rail-line: #262626;
-    --rail-warn: #f0b95c;
+    --rail-fg: #f5f5f5;
+    --rail-muted: #8f8f8f;
+    --rail-line: #2a2a2a;
+    --rail-warn: #a0a0a0;
 
-    --ink: #f0f0f0;
-    --ink-2: #a6a6a6;
-    --ink-3: #8c8c8c;
-    --line: #262626;
-    --line-strong: #3a3a3a;
+    --ink: #f5f5f5;
+    --ink-2: #b3b3b3;
+    --ink-3: #8f8f8f;
+    --line: #2a2a2a;
+    --line-strong: #4a4a4a;
 
-    --accent: #2fb3a3;
-    --accent-hover: #43c8b7;
-    --accent-ink: #04231f;
-    --accent-wash: #102a26;
-    --accent-line: #1d5c55;
+    --accent: #f5f5f5;
+    --accent-hover: #d0d0d0;
+    --accent-ink: #0f0f0f;
+    --accent-wash: #242424;
+    --accent-line: #4a4a4a;
 
-    --ok: #35b57e;
-    --ok-wash: #0f2c22;
-    --warn: #d99320;
-    --warn-wash: #33240c;
-    --err: #ef6d6d;
-    --err-wash: #351717;
-    --err-ink: #3d0a0a;
+    --ok: #f5f5f5;
+    --ok-wash: #222222;
+    --warn: #a0a0a0;
+    --warn-wash: #2b2b2b;
+    --err: #f5f5f5;
+    --err-wash: #3a3a3a;
+    --err-ink: #0f0f0f;
 
-    --s-0: #ef6d6d;
-    --s-1: #e08b3c;
-    --s-2: #d3b13c;
-    --s-3: #35b57e;
-    --s-4: #2fb3a3;
+    --s-0: #f5f5f5;
+    --s-1: #d0d0d0;
+    --s-2: #a6a6a6;
+    --s-3: #7a7a7a;
+    --s-4: #4d4d4d;
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.5), 0 2px 6px -2px
@@ -133,42 +136,43 @@
 }
 
 :root[data-theme="dark"] {
+  --mark-slit: #666666;
   --canvas: #0f0f0f;
   --surface: #171717;
   --surface-2: #1d1d1d;
-  --surface-3: #242424;
+  --surface-3: #2a2a2a;
   --rail: #0f0f0f;
   --rail-2: #1d1d1d;
-  --rail-fg: #f0f0f0;
-  --rail-muted: #8c8c8c;
-  --rail-line: #262626;
-  --rail-warn: #f0b95c;
+  --rail-fg: #f5f5f5;
+  --rail-muted: #8f8f8f;
+  --rail-line: #2a2a2a;
+  --rail-warn: #a0a0a0;
 
-  --ink: #f0f0f0;
-  --ink-2: #a6a6a6;
-  --ink-3: #8c8c8c;
-  --line: #262626;
-  --line-strong: #3a3a3a;
+  --ink: #f5f5f5;
+  --ink-2: #b3b3b3;
+  --ink-3: #8f8f8f;
+  --line: #2a2a2a;
+  --line-strong: #4a4a4a;
 
-  --accent: #2fb3a3;
-  --accent-hover: #43c8b7;
-  --accent-ink: #04231f;
-  --accent-wash: #102a26;
-  --accent-line: #1d5c55;
+  --accent: #f5f5f5;
+  --accent-hover: #d0d0d0;
+  --accent-ink: #0f0f0f;
+  --accent-wash: #242424;
+  --accent-line: #4a4a4a;
 
-  --ok: #35b57e;
-  --ok-wash: #0f2c22;
-  --warn: #d99320;
-  --warn-wash: #33240c;
-  --err: #ef6d6d;
-  --err-wash: #351717;
-  --err-ink: #3d0a0a;
+  --ok: #f5f5f5;
+  --ok-wash: #222222;
+  --warn: #a0a0a0;
+  --warn-wash: #2b2b2b;
+  --err: #f5f5f5;
+  --err-wash: #3a3a3a;
+  --err-ink: #0f0f0f;
 
-  --s-0: #ef6d6d;
-  --s-1: #e08b3c;
-  --s-2: #d3b13c;
-  --s-3: #35b57e;
-  --s-4: #2fb3a3;
+  --s-0: #f5f5f5;
+  --s-1: #d0d0d0;
+  --s-2: #a6a6a6;
+  --s-3: #7a7a7a;
+  --s-4: #4d4d4d;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow: 0 6px 16px -4px rgba(0, 0, 0, 0.5), 0 2px 6px -2px
@@ -773,15 +777,25 @@ input[type="radio"] {
 }
 
 .status-mark--ok {
-  color: var(--ok);
+  color: var(--ink);
 }
 
+/* Needs you: a 45-degree hatch behind the alert. */
 .status-mark--warn {
-  color: var(--warn);
+  color: var(--ink);
+  background-image: repeating-linear-gradient(
+    45deg,
+    var(--ink) 0 1px,
+    transparent 1px 6px
+  );
+  background-color: transparent;
+  opacity: 0.85;
 }
 
+/* Broken: an inverse chip, ink fill with a canvas glyph. The most serious shape. */
 .status-mark--err {
-  color: var(--err);
+  color: var(--canvas);
+  background: var(--ink);
 }
 
 /* ——— App frame ——————————————————————————————————————————— */
