@@ -13,17 +13,16 @@ import {
   b64ToBytes,
   bytesToB64,
   importVaultKey,
-  openJson,
-  vaultSealBinding,
 } from "@opensesame/vault-core";
 import { z } from "zod";
 import { verifyManifestAuth } from "../vault/protection/manifest-auth.js";
 import { parseRootProtectionManifest } from "../vault/protection/parse.js";
+import {
+  MAX_HUMAN_BODY_BYTES,
+  openBoundHumanVaultBodyData,
+} from "./human-vault-body-data.js";
 import { assertUnambiguousJson } from "./json-preflight.js";
 
-const MAX_BODY_BYTES = 4 * 1024 * 1024;
-// Pinned VFS body path; importing the stateful VFS would break this leaf boundary.
-const BODY_PATH = "body";
 const revision = z.number().int().nonnegative().safe();
 const gates = z
   .object({
@@ -154,15 +153,11 @@ export async function verifyHumanVaultData(
     // Snapshot primitives and root before the first asynchronous operation.
     const body = { ivB64: sealedBody.ivB64, ctB64: sealedBody.ctB64 };
     canonicalBytes(body.ivB64, 12, 12);
-    canonicalBytes(body.ctB64, 16, MAX_BODY_BYTES);
+    canonicalBytes(body.ctB64, 16, MAX_HUMAN_BODY_BYTES);
     root = new Uint8Array(derivedRoot);
     await verifyManifestAuth(root, manifest);
     const key = await importVaultKey(root);
-    const opened = await openJson<BoundaryValue>(
-      key,
-      body,
-      vaultSealBinding(tomb, BODY_PATH),
-    );
+    const opened = await openBoundHumanVaultBodyData(key, body, tomb);
     const bodyRevision = readBodyRevision(opened, minimumBodyRevision);
     return Object.freeze({
       vaultId: manifest.vaultId,
