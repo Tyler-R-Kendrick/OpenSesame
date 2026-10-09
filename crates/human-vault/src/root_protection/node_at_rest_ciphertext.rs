@@ -85,11 +85,12 @@ pub(crate) fn validate_node_at_rest_ciphertext(
         }
         let binding = serde_json::to_vec(&["opensesame.at-rest.v2", domain.store(), name])
             .map_err(|_| refused())?;
-        let mut kek = Zeroizing::new([0u8; 32]);
+        let mut wrapping_secret = Zeroizing::new([0u8; 32]);
         Hkdf::<Sha256>::new(Some(b"opensesame.at-rest.v2.kek"), key)
-            .expand(&binding, &mut kek[..])
+            .expand(&binding, &mut wrapping_secret[..])
             .map_err(|_| refused())?;
-        let wrapper = XChaCha20Poly1305::new_from_slice(&kek[..]).map_err(|_| refused())?;
+        let wrapper =
+            XChaCha20Poly1305::new_from_slice(&wrapping_secret[..]).map_err(|_| refused())?;
         let data_key = Zeroizing::new(
             wrapper
                 .decrypt(
