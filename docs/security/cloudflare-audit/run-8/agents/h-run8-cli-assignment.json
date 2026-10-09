@@ -1,0 +1,43 @@
+[
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fconnect.rs%23open_url::apps%2Fcli%2Fsrc%2Fconnect.rs%23authorize_oauth::apps%2Fcli::ATTACK-CLASSES.md%23Injection",
+    "surface": "apps/cli/src/connect.rs#open_url",
+    "boundary": "apps/cli/src/connect.rs#authorize_oauth",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "apps/cli/src/connect.rs"
+    ]
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fpassword_agent%2Fio.rs::crates%2Fconnector-host%2Fsrc%2Fpassword_agent%2Fenv.rs::apps%2Fcli::ATTACK-CLASSES.md%23Injection",
+    "surface": "apps/cli/src/password_agent/io.rs",
+    "boundary": "crates/connector-host/src/password_agent/env.rs",
+    "attack_class": "Injection",
+    "starting_paths": [
+      "apps/cli/src/password_agent/io.rs",
+      "crates/connector-host/src/password_agent/env.rs",
+      "spec/conformance/2password-policy.json"
+    ]
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fplugins_install.rs::apps%2Fcli%2Fsrc%2Fplugins_install.rs::apps%2Fcli::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "surface": "apps/cli/src/plugins_install.rs",
+    "boundary": "apps/cli/src/plugins_install.rs",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "apps/cli/src/plugins_install.rs"
+    ]
+  },
+  {
+    "coverage_id": "apps%2Fcli%2Fsrc%2Fstore.rs::crates%2Fsealed-store%2Fsrc%2Fpath.rs::apps%2Fcli::ATTACK-CLASSES.md%23Resource%20and%20file%20handling",
+    "surface": "apps/cli/src/store.rs",
+    "boundary": "crates/sealed-store/src/path.rs",
+    "attack_class": "Resource and file handling",
+    "starting_paths": [
+      "apps/cli/src/store.rs",
+      "crates/sealed-store/src/path.rs",
+      "crates/sealed-store/src/git.rs",
+      "apps/cli/src/main.rs"
+    ]
+  }
+]
