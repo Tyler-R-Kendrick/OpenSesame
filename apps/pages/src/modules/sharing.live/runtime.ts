@@ -38,7 +38,12 @@ import {
   LIVE_ROUTES,
   LIVE_TARGETS,
 } from "@opensesame/app-core/tutorial/registry/live-catalog.js";
+import { liveSeams } from "@opensesame/app-core/lib/live/session.js";
 import { createActivation } from "../activation.js";
+import {
+  clearLiveHostAskingNotices,
+  noteGuestAsking,
+} from "./live-host-tray.js";
 import { registerTutorial } from "../tutorial-contributions.js";
 import { LiveJoinRoute } from "./LiveJoinRoute.js";
 import { LiveSettings } from "./LiveSettings.js";
@@ -62,9 +67,15 @@ export const capabilityRuntime: CapabilityRuntime = {
       plan: () => compositionStore.getSnapshot().plan,
     });
     liveUiSeams.carriers = carriers;
+    const priorHostState = liveSeams.onHostState;
+    const priorHostingEnded = liveSeams.onHostingEnded;
+    liveSeams.onHostState = noteGuestAsking;
+    liveSeams.onHostingEnded = clearLiveHostAskingNotices;
     activation.onDispose(() => {
       if (liveUiSeams.carriers === carriers)
         liveUiSeams.carriers = carriersUnavailable;
+      liveSeams.onHostState = priorHostState;
+      liveSeams.onHostingEnded = priorHostingEnded;
     });
 
     activation.register("route", {

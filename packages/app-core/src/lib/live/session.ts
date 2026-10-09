@@ -25,6 +25,7 @@ import { compositionStore } from "../capabilities/store.js";
 import { persistedRestoreRefuses } from "../document-lifecycle.js";
 import { vaultStore } from "../vault/store.js";
 import { planRefusal } from "./carrier-policy.js";
+import { noteLiveSessionEnded } from "../sharing-receipts.js";
 import { vaultWrite } from "./field-write.js";
 import { LiveGuest } from "./guest.js";
 import { type Admission, LiveHost, MAX_SESSION_MS } from "./host.js";
@@ -51,10 +52,15 @@ import {
   type LiveTransport,
 } from "./transport.js";
 import { type ShareScope, vaultCatalog, vaultField } from "./vault-share.js";
+import type { HostState } from "./host.js";
 
 export const liveSeams = {
   items: (): readonly VaultItem[] => vaultStore.getSnapshot().items,
   onLock: (handler: () => void): (() => void) => vaultStore.onLock(handler),
+  /** Tray/UI when the hosted session's guest list changes (Pages sets this). */
+  onHostState: null as ((state: HostState) => void) | null,
+  /** Clear host-only tray rows when hosting ends (Pages sets this). */
+  onHostingEnded: null as (() => void) | null,
   /** The page's resolved plan; null until the composition store has one. */
   plan: (): EffectivePlan | null => compositionStore.getSnapshot().plan,
   /** Hear the composition store publish, on every re-plan and activity note. */
@@ -241,6 +247,9 @@ export async function startHosting(input: HostInput): Promise<LiveHost> {
     }
     host = made;
     stopLockWatch = stopWatch;
+    made.subscribe((state) => {
+      liveSeams.onHostState?.(state);
+    });
     watchPlan();
     // The plan may already have withdrawn Live sessions while this was built.
     if (host !== made) return made;
@@ -311,8 +320,10 @@ export function endHosting(): void {
   hostCarriers?.close();
   hostCarriers = null;
   if (!host) return;
+  noteLiveSessionEnded(host.id);
   host.end("owner");
   host = null;
+  liveSeams.onHostingEnded?.();
   unwatchPlanIfIdle();
   changed();
 }

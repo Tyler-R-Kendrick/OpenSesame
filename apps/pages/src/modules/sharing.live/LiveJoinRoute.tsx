@@ -89,6 +89,12 @@ export function standing(status: GuestStatus): Standing {
         label: "Connecting to the owner's browser",
         tray: "Connecting to the owner's browser",
       };
+    case "connect_timeout":
+      return {
+        tone: "err",
+        label: "Connection timed out",
+        tray: "Connection timed out — try again or check your network",
+      };
     case "joined":
       return {
         tone: "ok",
@@ -303,6 +309,17 @@ function Session() {
           <RequestStep guest={guest} code={status.code} />
         </>
       ) : null}
+      {status.at === "connect_timeout" ? (
+        <button
+          type="button"
+          className="go"
+          aria-label="Try connecting again"
+          title="Try connecting again"
+          onClick={() => void guest.retryConnect()}
+        >
+          <IconArrowRight size={18} />
+        </button>
+      ) : null}
       {catalog ? (
         <LiveCatalog
           catalog={catalog}
@@ -330,6 +347,7 @@ function landingFor(
     case "request":
       return firstControl(document.getElementById("live-view"));
     case "connecting":
+    case "connect_timeout":
     case "joined":
       return document.getElementById("live-status");
     case "ended":

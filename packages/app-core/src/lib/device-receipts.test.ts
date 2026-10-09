@@ -54,6 +54,7 @@ const KINDS = [
   "drop.locked_out",
   "drop.revoked",
   "live.granted",
+  "live.ended",
   "share.granted",
   "share.revoked",
 ] as const satisfies readonly ReceiptKind[];
